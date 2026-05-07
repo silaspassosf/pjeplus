@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.1.3
+// lista.check.js v0.1.4
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -39,12 +39,46 @@ window.encontrarElementoPorUid = function (uid) {
     if (!uid) return null;
     const itens = document.querySelectorAll('li.tl-item-container');
     for (const item of itens) {
+        // Busca no link de texto (documento principal): "Nome - UID"
         const textLink = item.querySelector('a.tl-documento:not([target="_blank"])');
-        if (!textLink) continue;
-        const m = textLink.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
-        if (m && m[1] === uid) return item;
+        if (textLink) {
+            const m = textLink.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
+            if (m && m[1] === uid) return item;
+        }
+        // Busca no link de ícone (target="_blank"): href contém uid
+        const iconLink = item.querySelector('a.tl-documento[target="_blank"]');
+        if (iconLink) {
+            const href = (iconLink.getAttribute('href') || '').toLowerCase();
+            if (href.includes(uid.toLowerCase())) return item;
+        }
     }
     return null;
+}
+
+// Dispatch seguro — fallback chain: MouseEvent → .click() → initMouseEvent
+function safeDispatch(el, type, opts) {
+    try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
+    catch (e) {
+        try { const safeOpts = Object.assign({}, opts || {}); if ('view' in safeOpts) delete safeOpts.view; el.dispatchEvent(new MouseEvent(type, safeOpts)); return true; }
+        catch (e2) { try { el.click(); return true; } catch (e3) {} try { const ev = document.createEvent('MouseEvents'); ev.initMouseEvent(type, !!(opts && opts.bubbles), !!(opts && opts.cancelable), window, 0,0,0,0,0,false,false,false,false,0,null); el.dispatchEvent(ev); return true; } catch (e4) {} }
+    }
+    return false;
+}
+
+// Expande a seção de anexos de um container da timeline
+async function expandirAnexos(container) {
+    try {
+        const anexosRoot = container.querySelector('pje-timeline-anexos');
+        if (!anexosRoot) return false;
+        const toggle = anexosRoot.querySelector('div[name="mostrarOuOcultarAnexos"]');
+        if (!toggle) return false;
+        if (toggle.getAttribute('aria-pressed') === 'true') return true;
+        toggle.click();
+        await sleep(400);
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 window.lerTimelineCompleta = async function () {
@@ -280,71 +314,83 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
 }
 
 async function onCheckRowClick(doc) {
-    const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
-    const link = resolverLink(doc);
+    // ── CAMINHO 1: Anexo (Serasa / CNIB) ──────────────────────────
+    if (doc.isAnexo && (doc.tipo === 'Serasa' || doc.tipo === 'CNIB') && doc.parentId) {
+        const parentItem = encontrarElementoPorUid(doc.parentId);
+        if (!parentItem) {
+            console.warn('[CHECK] Parent certidao nao encontrado para anexo:', doc.id);
+            return;
+        }
 
-    if (doc.isAnexo && (doc.tipo === 'Serasa' || doc.tipo === 'CNIB') && link) {
-        // Fechar modais abertos
-        document.querySelectorAll('button.ui-dialog-titlebar-close, .ui-dialog-titlebar-close')
-            .forEach(b => { try { b.click(); } catch (e) { } });
+        // Expandir anexos do parent (se ja expandido, toggle.click() eh no-op seguro)
+        await expandirAnexos(parentItem);
+
+        // Aguardar render dos anexos
         await sleep(500);
 
-        // Salvar estado das certidões com anexos expandidos antes do clique
-        const certsExpandidasAntes = Array.from(
-            document.querySelectorAll('li.tl-item-container')
-        ).filter(item => {
-            const r = item.querySelector('pje-timeline-anexos');
-            return r && r.querySelectorAll('a.tl-documento[id^="anexo_"]').length > 0;
-        });
-
-        // Re-resolver link (pode ter mudado após sleep)
-        const freshLink = resolverLink(doc) || link;
-        freshLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-        await sleep(1500);
-
-        // 1º: abrir certificado — dispara segundo ciclo Angular
-        const certSels = [
-            'i.fa.fa-certificate.fa-lg', '.fa-certificate',
-            'button[title*="certificado"]', 'button[title*="Certificado"]',
-        ];
-        for (const sel of certSels) {
-            const certIcon = document.querySelector(sel);
-            if (certIcon) {
-                const btn = certIcon.closest('button') || certIcon;
-                btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                break;
-            }
+        // Localizar o link do anexo dentro do container expandido
+        const anexoLinks = parentItem.querySelectorAll('a.tl-documento[id^="anexo_"]');
+        let alvo = null;
+        if (doc.id) {
+            const uidLower = doc.id.toLowerCase();
+            alvo = Array.from(anexoLinks).find(l =>
+                (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
+                (l.textContent || '').toLowerCase().includes(uidLower)
+            );
         }
-        await sleep(600);
-
-        // 2º: re-expandir APÓS ambos os ciclos Angular terem ocorrido
-        for (const certItem of certsExpandidasAntes) {
-            try {
-                const r = certItem.querySelector('pje-timeline-anexos');
-                if (r && r.querySelectorAll('a.tl-documento[id^="anexo_"]').length === 0) {
-                    const toggle = r.querySelector('div[name="mostrarOuOcultarAnexos"]');
-                    if (toggle) {
-                        toggle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                        await sleep(300);
-                    }
-                }
-            } catch (_) { /* elemento invalidado pelo Angular, ignorar */ }
+        alvo = alvo || anexoLinks[0];
+        if (!alvo) {
+            console.warn('[CHECK] Link do anexo nao encontrado:', doc.id);
+            return;
         }
 
-        // Invalidar cache: re-render pós-click pode recriar elementos DOM
-        if (PJeState?.lista) PJeState.lista.readAt = 0;
-    } else if (elem) {
-        // Padrão Mandado/_selecionar_doc_via_timeline: dispatchEvent no link de texto
-        // scrollIntoView dispara layout shift → Angular reconstrói header → DOM quebrado
-        const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
-        if (textLink) {
-            textLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-        }
-        elem.classList.add('pjetools-destaque');
-        setTimeout(() => elem?.classList.remove('pjetools-destaque'), 3000);
-        // Invalidar cache: permite re-scan correto se timeline re-renderizar
-        if (PJeState?.lista) PJeState.lista.readAt = 0;
+        // Fechar modais abertos antes de clicar
+        document.querySelectorAll('button.ui-dialog-titlebar-close, .ui-dialog-titlebar-close')
+            .forEach(b => { try { b.click(); } catch (e) { /* ignore */ } });
+        await sleep(300);
+
+        safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
+
+        // Destacar visualmente (sem scrollIntoView — evita quebra do header Angular)
+        parentItem.style.transition = 'all 0.3s ease';
+        parentItem.style.boxShadow = '0 0 0 3px #fbbf24';
+        setTimeout(() => {
+            parentItem.style.boxShadow = '';
+            parentItem.style.transition = '';
+        }, 3000);
+
+        invalidarCacheTimeline();
+        return;
     }
+
+    // ── CAMINHO 2: Documento normal (certidão, decisão, etc.) ─────
+    const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
+    if (!elem) {
+        console.warn('[CHECK] Elemento nao encontrado para doc:', doc.id);
+        return;
+    }
+
+    const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
+    if (!textLink) {
+        console.warn('[CHECK] Link de texto nao encontrado para doc:', doc.id);
+        return;
+    }
+
+    // Fechar modais abertos
+    document.querySelectorAll('button.ui-dialog-titlebar-close, .ui-dialog-titlebar-close')
+        .forEach(b => { try { b.click(); } catch (e) { /* ignore */ } });
+    await sleep(300);
+
+    safeDispatch(textLink, 'click', { bubbles: true, cancelable: true });
+
+    // Destacar sem scrollIntoView (evita layout shift → header quebra)
+    elem.classList.add('pjetools-destaque');
+    setTimeout(() => elem?.classList.remove('pjetools-destaque'), 3000);
+
+    // Expandir anexos automaticamente apos clique (para CNIB/Serasa visiveis)
+    setTimeout(() => expandirAnexos(elem), 800);
+
+    invalidarCacheTimeline();
 }
 
 window.executarCheck = async function () {
@@ -394,35 +440,55 @@ window.executarBaixarAutomatico = async function (saida) {
     for (let i = 0; i < serasaCnib.length; i++) {
         const item = serasaCnib[i];
         try {
-            document.querySelectorAll(
-                'button.ui-dialog-titlebar-close, .ui-dialog-titlebar-close')
-                .forEach(b => { try { b.click(); } catch (e) { } });
+            // Fechar modais
+            document.querySelectorAll('button.ui-dialog-titlebar-close, .ui-dialog-titlebar-close')
+                .forEach(b => { try { b.click(); } catch (e) { /* ignore */ } });
             await sleep(300);
 
-            const link = resolverLink(item);
-            if (link) {
-                link.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                await sleep(1500);
+            const parentItem = encontrarElementoPorUid(item.parentId);
+            if (parentItem) {
+                await expandirAnexos(parentItem);
+                await sleep(400);
+
+                const anexoLinks = parentItem.querySelectorAll('a.tl-documento[id^="anexo_"]');
+                let alvo = null;
+                if (item.id) {
+                    const uidLower = item.id.toLowerCase();
+                    alvo = Array.from(anexoLinks).find(l =>
+                        (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
+                        (l.textContent || '').toLowerCase().includes(uidLower)
+                    );
+                }
+                alvo = alvo || anexoLinks[0];
+                if (alvo) {
+                    safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
+                    await sleep(800);
+                }
             }
+
+            // Abrir certificado
             const certSels = ['i.fa.fa-certificate.fa-lg', '.fa-certificate',
                 'button[title*="certificado"]', 'button[title*="Certificado"]'];
             for (const sel of certSels) {
                 const ic = document.querySelector(sel);
                 if (ic) {
-                    (ic.closest('button') || ic).dispatchEvent(
-                        new MouseEvent('click', { bubbles: true }));
-                    await sleep(800);
+                    const btn = ic.closest('button') || ic;
+                    safeDispatch(btn, 'click', { bubbles: true });
+                    await sleep(600);
                     break;
                 }
             }
+
             // Marcar linha como baixada
             const tbl = document.getElementById('listaDocsExecucaoSimples_tbl');
             if (tbl) {
-                tbl.querySelector(`tr[data-doc-id="${item.id}"]`)?.style &&
-                    (tbl.querySelector(`tr[data-doc-id="${item.id}"]`).style.background = '#ff4444');
+                const row = tbl.querySelector(`tr[data-doc-id="${CSS.escape(item.id)}"]`);
+                if (row) row.style.background = '#ff4444';
             }
             await sleep(500);
         } catch (e) { console.error('[CHECK] Erro baixar:', e); }
     }
+
+    invalidarCacheTimeline();
 }
 

@@ -17,7 +17,7 @@ from typing import Optional, Union
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-import re, time, datetime, json
+import re, time, datetime, json, unicodedata
 from .log import logger
 
 # Variáveis de compatibilidade para logs antigos
@@ -2458,6 +2458,21 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
             logger.error('[filtrofases] Dropdown de fase nao encontrado.')
             return False
         aguardar_renderizacao_nativa(driver)
+        # Aguardar opcoes reais aparecerem no painel (legado: 20 retries x 0.3s)
+        import time as _time
+        _opcoes_prontas = False
+        for _ in range(20):
+            _textos = driver.execute_script(
+                "return Array.from(document.querySelectorAll('mat-option span.mat-option-text')"
+                ").map(function(e){return e.textContent.trim().toLowerCase();})"
+            )
+            if _textos and not any(t in ('carregando itens...', 'nenhuma opção', '') for t in _textos):
+                _opcoes_prontas = True
+                break
+            _time.sleep(0.3)
+        if not _opcoes_prontas:
+            logger.error('[filtrofases] Painel de opcoes nao populou apos espera.')
+            return False
         script_fases = """
         var fases = arguments[0];
         var sucesso = 0;
@@ -2770,7 +2785,7 @@ def buscar_ultimo_mandado(driver, log=True):
         if not itens_timeline:
             if log:
                 logger.warning('[MANDADO] Nenhum item encontrado na timeline.')
-            return None, None
+            return None, None, None
 
         for item in itens_timeline:
             try:
@@ -2915,9 +2930,12 @@ def buscar_documentos_sequenciais(driver, log=True):
                 logger.error('[DOCUMENTOS_SEQUENCIAIS] Timeline vazia')
             return []
 
+        def _norm(t):
+            return unicodedata.normalize('NFD', t.lower()).encode('ascii', 'ignore').decode()
+
         idx_cert_devolucao = None
         for idx, elem in enumerate(elementos):
-            texto = elem.text.strip().lower()
+            texto = _norm(elem.text.strip())
             if "certidao de devolucao" in texto:
                 idx_cert_devolucao = idx
                 if log:
@@ -2931,7 +2949,7 @@ def buscar_documentos_sequenciais(driver, log=True):
 
         idx_decisao = None
         for idx in range(idx_cert_devolucao + 1, len(elementos)):
-            texto = elementos[idx].text.strip().lower()
+            texto = _norm(elementos[idx].text.strip())
             if "decisao(" in texto:
                 idx_decisao = idx
                 if log:
@@ -2953,7 +2971,7 @@ def buscar_documentos_sequenciais(driver, log=True):
 
         for idx in range(idx_cert_devolucao + 1, idx_decisao):
             elem = elementos[idx]
-            texto = elem.text.strip().lower()
+            texto = _norm(elem.text.strip())
 
             for tipo_nome, palavras in tipos_meio.items():
                 for palavra in palavras:
@@ -3272,7 +3290,7 @@ def buscar_documentos_polo_ativo(driver, polo="autor", limite_dias=None, debug=F
         return []
 
 
-def buscar_documento_argos(driver, log=True):
+def buscar_documento_argos(driver, log=True, ignorar_indices=None):
     """✅ CORRIGIDO: Busca PRÓXIMO documento (decisão/despacho) que contenha REGRAS ARGOS.
 
     Estratégia (mesma de checar_prox em p2b):
@@ -3281,8 +3299,9 @@ def buscar_documento_argos(driver, log=True):
     3. A cada chamada, procurar NO ÍNDICE SEGUINTE (não refazer do zero)
     4. Verificar se documento contém REGRAS ARGOS
     5. Se contém, retornar; se não, avançar para próximo
-    
-    Retorna (texto, tipo) ou (None, None).
+
+    Retorna (texto, tipo, idx) ou (None, None, None) — tripla para compatibilidade
+    com fluxo_argos que espera documento_idx.
     """
     # Importar localmente para evitar import circular entre Fix.core <-> Fix.extracao
     try:
@@ -3314,7 +3333,7 @@ def buscar_documento_argos(driver, log=True):
         if not itens:
             if log:
                 logger.warning('[ARGOS][DOC] Nenhum item na timeline')
-            return None, None
+            return None, None, None
 
         planilha_idx = len(itens)
         for i, it in enumerate(itens):
@@ -3329,8 +3348,11 @@ def buscar_documento_argos(driver, log=True):
                 continue
 
         start_idx = driver._argos_doc_idx + 1
+        if ignorar_indices:
+            start_idx = max(start_idx, max(ignorar_indices) + 1)
         if log:
-            logger.debug('[ARGOS][DOC] Comecando busca do indice %d (limite planilha: %d)', start_idx, planilha_idx)
+            logger.debug('[ARGOS][DOC] Comecando busca do indice %d (limite planilha: %d, ignorados: %s)',
+                        start_idx, planilha_idx, ignorar_indices)
 
         for idx in range(start_idx, planilha_idx):
             try:
@@ -3416,7 +3438,7 @@ def buscar_documento_argos(driver, log=True):
                     if log:
                         logger.debug('[ARGOS][DOC] REGRA "%s" no indice %d - USANDO ESTE DOCUMENTO', regra_encontrada, idx)
                     tipo = 'decisao' if 'decisao' in doc_text or 'sentenca' in doc_text else 'despacho'
-                    return texto, tipo
+                    return texto, tipo, idx
                 else:
                     if log:
                         logger.debug('[ARGOS][DOC] Sem REGRA ARGOS no indice %d - voltando a timeline para proximo...', idx)
@@ -3456,12 +3478,12 @@ def buscar_documento_argos(driver, log=True):
 
         if log:
             logger.warning('[ARGOS][DOC] Nenhum despacho/decisao com REGRAS ARGOS encontrado (fim da timeline)')
-        return None, None
+        return None, None, None
 
     except Exception as e:
         if log:
             logger.error('[ARGOS][DOC][ERRO] buscar_documento_argos falhou: %s', e)
-        return None, None
+        return None, None, None
 
 
 # =============================

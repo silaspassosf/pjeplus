@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.1.4
+// lista.check.js v0.2.0
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -115,13 +115,15 @@ window.lerTimelineCompleta = async function () {
         const data = _pjeTlNormData(item.data || item.atualizadoEm || '');
         const elem = encontrarElementoPorUid(uid);
         const iconLink = elem ? elem.querySelector('a.tl-documento[target="_blank"]') : null;
+        // Captura href direto do ícone para bypass de UI — abre documento via API
+        const iconHref = iconLink ? iconLink.getAttribute('href') : null;
 
         documentos.push({
             tipo, texto: item.titulo || '', id: uid, idDoc, tipoTexto: '',
             elementoId: elem ? (elem.id || null) : null,
             elementoSel: (elem && elem.id) ? `#${CSS.escape(elem.id)}` : null,
             linkId: iconLink ? (iconLink.id || null) : null,
-            data, isAnexo: false,
+            iconHref, data, isAnexo: false,
         });
 
         const anexosApi = Array.isArray(item.anexos) ? item.anexos : [];
@@ -314,7 +316,27 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
 }
 
 async function onCheckRowClick(doc) {
-    // ── CAMINHO 1: Anexo (Serasa / CNIB) ──────────────────────────
+    // ── CAMINHO 1: Documento principal com href direto (bypass UI) ──
+    if (!doc.isAnexo && doc.iconHref) {
+        window.open(doc.iconHref, '_blank');
+
+        // Destacar visualmente o item na timeline
+        const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
+        if (elem) {
+            elem.style.transition = 'all 0.3s ease';
+            elem.style.boxShadow = '0 0 0 3px #fbbf24';
+            setTimeout(() => {
+                elem.style.boxShadow = '';
+                elem.style.transition = '';
+            }, 3000);
+            // Expandir anexos automaticamente
+            setTimeout(() => expandirAnexos(elem), 800);
+        }
+        invalidarCacheTimeline();
+        return;
+    }
+
+    // ── CAMINHO 2: Anexo (Serasa / CNIB) ──────────────────────────
     if (doc.isAnexo && (doc.tipo === 'Serasa' || doc.tipo === 'CNIB') && doc.parentId) {
         const parentItem = encontrarElementoPorUid(doc.parentId);
         if (!parentItem) {
@@ -322,13 +344,10 @@ async function onCheckRowClick(doc) {
             return;
         }
 
-        // Expandir anexos do parent (se ja expandido, toggle.click() eh no-op seguro)
         await expandirAnexos(parentItem);
-
-        // Aguardar render dos anexos
         await sleep(500);
 
-        // Localizar o link do anexo dentro do container expandido
+        // Localizar o link do anexo e capturar href direto
         const anexoLinks = parentItem.querySelectorAll('a.tl-documento[id^="anexo_"]');
         let alvo = null;
         if (doc.id) {
@@ -344,14 +363,15 @@ async function onCheckRowClick(doc) {
             return;
         }
 
-        // Fechar modais abertos antes de clicar
-        document.querySelectorAll('button.ui-dialog-titlebar-close, .ui-dialog-titlebar-close')
-            .forEach(b => { try { b.click(); } catch (e) { /* ignore */ } });
-        await sleep(300);
+        // Abrir diretamente via href do link (bypass dispatchEvent)
+        const anexoHref = alvo.getAttribute('href');
+        if (anexoHref) {
+            window.open(anexoHref, '_blank');
+        } else {
+            safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
+        }
 
-        safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
-
-        // Destacar visualmente (sem scrollIntoView — evita quebra do header Angular)
+        // Destacar visualmente
         parentItem.style.transition = 'all 0.3s ease';
         parentItem.style.boxShadow = '0 0 0 3px #fbbf24';
         setTimeout(() => {
@@ -363,7 +383,7 @@ async function onCheckRowClick(doc) {
         return;
     }
 
-    // ── CAMINHO 2: Documento normal (certidão, decisão, etc.) ─────
+    // ── CAMINHO 3: Documento sem iconHref (fallback DOM) ──────────
     const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
     if (!elem) {
         console.warn('[CHECK] Elemento nao encontrado para doc:', doc.id);
@@ -371,23 +391,12 @@ async function onCheckRowClick(doc) {
     }
 
     const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
-    if (!textLink) {
-        console.warn('[CHECK] Link de texto nao encontrado para doc:', doc.id);
-        return;
+    if (textLink) {
+        safeDispatch(textLink, 'click', { bubbles: true, cancelable: true });
     }
 
-    // Fechar modais abertos
-    document.querySelectorAll('button.ui-dialog-titlebar-close, .ui-dialog-titlebar-close')
-        .forEach(b => { try { b.click(); } catch (e) { /* ignore */ } });
-    await sleep(300);
-
-    safeDispatch(textLink, 'click', { bubbles: true, cancelable: true });
-
-    // Destacar sem scrollIntoView (evita layout shift → header quebra)
     elem.classList.add('pjetools-destaque');
     setTimeout(() => elem?.classList.remove('pjetools-destaque'), 3000);
-
-    // Expandir anexos automaticamente apos clique (para CNIB/Serasa visiveis)
     setTimeout(() => expandirAnexos(elem), 800);
 
     invalidarCacheTimeline();
@@ -437,14 +446,12 @@ window.executarBaixarAutomatico = async function (saida) {
     );
     if (!serasaCnib.length) { alert('Nenhum Serasa/CNIB para baixar'); return; }
 
+    const idProcesso = _pjeTlIdProcesso();
+    const origin = location.origin;
+
     for (let i = 0; i < serasaCnib.length; i++) {
         const item = serasaCnib[i];
         try {
-            // Fechar modais
-            document.querySelectorAll('button.ui-dialog-titlebar-close, .ui-dialog-titlebar-close')
-                .forEach(b => { try { b.click(); } catch (e) { /* ignore */ } });
-            await sleep(300);
-
             const parentItem = encontrarElementoPorUid(item.parentId);
             if (parentItem) {
                 await expandirAnexos(parentItem);
@@ -461,12 +468,16 @@ window.executarBaixarAutomatico = async function (saida) {
                 }
                 alvo = alvo || anexoLinks[0];
                 if (alvo) {
-                    safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
-                    await sleep(800);
+                    // Abrir diretamente via href (bypass dispatchEvent / UI)
+                    const anexoHref = alvo.getAttribute('href');
+                    if (anexoHref) {
+                        window.open(anexoHref, '_blank');
+                    }
                 }
+                await sleep(600);
             }
 
-            // Abrir certificado
+            // Abrir certificado (via href do ícone se disponivel)
             const certSels = ['i.fa.fa-certificate.fa-lg', '.fa-certificate',
                 'button[title*="certificado"]', 'button[title*="Certificado"]'];
             for (const sel of certSels) {
@@ -485,7 +496,7 @@ window.executarBaixarAutomatico = async function (saida) {
                 const row = tbl.querySelector(`tr[data-doc-id="${CSS.escape(item.id)}"]`);
                 if (row) row.style.background = '#ff4444';
             }
-            await sleep(500);
+            await sleep(400);
         } catch (e) { console.error('[CHECK] Erro baixar:', e); }
     }
 

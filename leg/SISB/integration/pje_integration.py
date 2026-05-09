@@ -61,41 +61,6 @@ def _atualizar_relatorio_com_segundo_protocolo(numero_processo, protocolo_primei
 
 
 def _executar_juntada_pje(driver_pje, tipo_fluxo, numero_processo, log=True):
-    """
-    Helper para executar juntada automática no PJE.
-
-    Args:
-        driver_pje: Driver do PJE
-        tipo_fluxo: Tipo de fluxo
-        numero_processo: Número do processo
-        log: Se deve fazer log
-
-    Returns:
-        bool: True se juntada executada com sucesso
-    """
-    try:
-        # Importar wrappers de PEC.anexos
-        from PEC.anexos import consulta_wrapper, wrapper_bloqneg, wrapper_parcial
-
-        # Executar baseado no tipo de fluxo
-        if tipo_fluxo in ['NEGATIVO', 'DESBLOQUEIO']:
-            resultado = wrapper_bloqneg(
-                driver=driver_pje,
-                numero_processo=numero_processo,
-                debug=log
-            )
-        elif tipo_fluxo == 'POSITIVO':
-            resultado = wrapper_parcial(
-                driver=driver_pje,
-                numero_processo=numero_processo,
-                debug=log
-            )
-        else:
-            return False
-
-        return bool(resultado)
-
-    except Exception as e:
-        if log:
-            logger.error(f'[SISBAJUD]  Erro na juntada: {e}')
-        return False
+    """Delega para a funcao canonica em PEC.anexos."""
+    from PEC.anexos import executar_juntada_pje
+    return executar_juntada_pje(driver_pje, tipo_fluxo, numero_processo, log)

@@ -11,6 +11,62 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
     // ── UI: Container de botões ──────────────────────────────────────
     let containerBotoes = null;
 
+    // ── Badge: contador de dados acumulados ─────────────────────────
+    let badgeEl = null;
+    function atualizarBadge() {
+        const numExec = Object.keys(window.SisbCore.acumulador.executados).length;
+        if (!badgeEl) {
+            badgeEl = document.createElement('div');
+            badgeEl.id = 'pjetools-sisb-badge';
+            badgeEl.style.cssText = `
+                position: fixed; bottom: 160px; right: 20px; z-index: 999998;
+                background: #1b1b2f; color: #e0e0e0;
+                padding: 8px 14px; border-radius: 6px; font-size: 12px;
+                font-family: sans-serif; font-weight: bold;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                border-left: 4px solid #2196f3;
+                display: none;
+            `;
+            document.body.appendChild(badgeEl);
+        }
+        if (numExec === 0) {
+            badgeEl.style.display = 'none';
+            return;
+        }
+        const total = window.SisbCore.formatarValor(window.SisbCore.acumulador.total_geral);
+        badgeEl.textContent = numExec + ' executados | Total: ' + total;
+        badgeEl.style.display = 'block';
+    }
+
+    let toastTimer = null;
+
+    function mostrarToast(mensagem, tipo) {
+        // Remove toast anterior
+        const prev = document.getElementById('pjetools-sisb-toast');
+        if (prev) prev.remove();
+        if (toastTimer) clearTimeout(toastTimer);
+
+        const toast = document.createElement('div');
+        toast.id = 'pjetools-sisb-toast';
+        const cores = { ok: '#28a745', erro: '#dc3545', aviso: '#ffc107' };
+        const icones = { ok: '✅', erro: '❌', aviso: '⚠' };
+        toast.style.cssText = `
+            position: fixed; bottom: 160px; right: 20px; z-index: 9999999;
+            background: ${cores[tipo] || '#333'}; color: #fff;
+            padding: 10px 16px; border-radius: 6px; font-size: 13px;
+            font-family: sans-serif; max-width: 360px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+            transition: opacity 0.3s; opacity: 1;
+        `;
+        toast.textContent = (icones[tipo] || '') + ' ' + mensagem;
+        document.body.appendChild(toast);
+
+        toastTimer = setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+        }, tipo === 'erro' ? 5000 : 3000);
+    }
+
     function criarContainer() {
         if (containerBotoes) return containerBotoes;
 
@@ -71,8 +127,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
             const dados = await window.SisbCore.extrairDadosBloqueios();
 
             if (!dados || Object.keys(dados.executados).length === 0) {
-                alert('⚠ Nenhum modal de detalhamento do SISBAJUD foi encontrado aberto.\n\n' +
-                    'Certifique-se de que o modal com os dados de bloqueio está visível na tela.');
+                mostrarToast('Nenhum modal de detalhamento do SISBAJUD encontrado aberto', 'aviso');
                 return;
             }
 
@@ -82,14 +137,12 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
             const numExec = Object.keys(window.SisbCore.acumulador.executados).length;
             const totalFmt = window.SisbCore.formatarValor(window.SisbCore.acumulador.total_geral);
 
-            alert(`✅ Dados extraídos e acumulados!\n\n` +
-                `Executados: ${numExec}\n` +
-                `Total acumulado: ${totalFmt}\n\n` +
-                `Use os botões de relatório para gerar a saída final.`);
+            mostrarToast(`Dados extraídos! ${numExec} executados | Total: ${totalFmt}`, 'ok');
+            atualizarBadge();
 
         } catch (err) {
             console.error('[SISB] Erro na extração:', err);
-            alert(`❌ Erro: ${err.message}`);
+            mostrarToast('Erro: ' + err.message, 'erro');
         } finally {
             btn.textContent = '📥 Extrair Dados';
             btn.style.background = '#2196f3';
@@ -101,7 +154,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
         const btn = document.getElementById('btn-sisb-detalhado');
 
         if (Object.keys(window.SisbCore.acumulador.executados).length === 0) {
-            alert('⚠ Nenhum dado acumulado.\n\nClique em "Extrair Dados" primeiro.');
+            mostrarToast('Nenhum dado acumulado. Extraia dados primeiro.', 'aviso');
             return;
         }
 
@@ -112,10 +165,10 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
         try {
             await sleep(100);
             const resultado = await window.SisbRelatorios.gerarECopiarDetalhado();
-            alert(resultado.mensagem);
+            mostrarToast(resultado.mensagem, 'ok');
         } catch (err) {
             console.error('[SISB] Erro ao gerar relatório:', err);
-            alert(`❌ Erro: ${err.message}`);
+            mostrarToast('Erro: ' + err.message, 'erro');
         } finally {
             btn.textContent = '📄 Relatório Detalhado';
             btn.style.background = '#6f42c1';
@@ -127,7 +180,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
         const btn = document.getElementById('btn-sisb-conciso');
 
         if (Object.keys(window.SisbCore.acumulador.executados).length === 0) {
-            alert('⚠ Nenhum dado acumulado.\n\nClique em "Extrair Dados" primeiro.');
+            mostrarToast('Nenhum dado acumulado. Extraia dados primeiro.', 'aviso');
             return;
         }
 
@@ -138,10 +191,10 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
         try {
             await sleep(100);
             const resultado = await window.SisbRelatorios.gerarECopiarConciso();
-            alert(resultado.mensagem);
+            mostrarToast(resultado.mensagem, 'ok');
         } catch (err) {
             console.error('[SISB] Erro ao gerar relatório:', err);
-            alert(`❌ Erro: ${err.message}`);
+            mostrarToast('Erro: ' + err.message, 'erro');
         } finally {
             btn.textContent = '📋 Relatório Conciso';
             btn.style.background = '#00796b';
@@ -149,13 +202,18 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
         }
     }
 
+    let _resetClickTime = 0;
     async function resetarDados() {
-        if (!confirm('🔄 Resetar todos os dados acumulados?')) {
+        const agora = Date.now();
+        if (agora - _resetClickTime > 1500) {
+            _resetClickTime = agora;
+            mostrarToast('Clique novamente em Reset para confirmar', 'aviso');
             return;
         }
-
+        _resetClickTime = 0;
         window.SisbCore.reset();
-        alert('✅ Dados resetados!\n\nO acumulador foi limpo.');
+        mostrarToast('Dados resetados!', 'ok');
+        atualizarBadge();
     }
 
     // ── Injetar UI ───────────────────────────────────────────────────
@@ -214,6 +272,9 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
         btnReset.style.minWidth = '100px';
         btnReset.style.textAlign = 'center';
         container.appendChild(btnReset);
+
+        // Mostrar badge se já houver dados acumulados
+        atualizarBadge();
 
         console.log('[SISB] UI injetada com sucesso');
     }

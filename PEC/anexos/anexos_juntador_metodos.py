@@ -50,10 +50,7 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         # 2. Clica no elemento pai para abrir dropdown (padrao GIGS)
         parent_element = campo.find_element(By.XPATH, '../..')
         driver.execute_script("arguments[0].click();", parent_element)
-        try:
-            WebDriverWait(self.driver, 1).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-        except Exception:
-            pass
+        time.sleep(1)
 
         # 3. Aguarda opcoes aparecerem e clica na desejada
         wait = WebDriverWait(driver, 10)
@@ -236,19 +233,13 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         # 3) Aguarda preview e localiza botao Inserir (seletor de atos.py)
         seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
         btn_inserir = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn_inserir)))
-        try:
-            WebDriverWait(self.driver, 1).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-        except Exception:
-            pass
+        time.sleep(0.6)
 
         # 4) Inserir com tecla ESPACO (padrao MaisPje)
         btn_inserir.send_keys(Keys.SPACE)
 
-        # 5) Pequeno aguardo para o editor receber o conteudo
-        try:
-            WebDriverWait(self.driver, 3).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-        except Exception:
-            pass
+        # 5) Aguardar o editor receber o conteudo
+        time.sleep(2)
         return True
     except Exception as e:
         logger.error("ERRO em _selecionar_modelo_gigs: Falha ao selecionar/inserir modelo (modo atos.py): %s: %s", type(e).__name__, e)
@@ -278,6 +269,20 @@ def _executar_coleta_opcional(self, configuracao: Dict[str, Any]) -> bool:
 def _preencher_tipo(self, configuracao: Dict[str, Any]) -> bool:
     """Preenche Tipo de Documento."""
     tipo = configuracao.get('tipo', 'Certidao')
+    seletores = [
+        'input[data-placeholder="Tipo de Documento"]',
+        'input[aria-label="Tipo de Documento"]',
+        'input[formcontrolname="tipoDocumento"]'
+    ]
+    for sel in seletores:
+        try:
+            if self.driver.find_elements(By.CSS_SELECTOR, sel):
+                if self._escolher_opcao_gigs(sel, tipo, 'Tipo de Documento'):
+                    return True
+        except Exception:
+            continue
+    
+    # Fallback pro comportamento original se nenhum dos anteriores der match
     return self._escolher_opcao_gigs('input[aria-label="Tipo de Documento"]', tipo, 'Tipo de Documento')
 
 

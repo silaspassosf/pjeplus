@@ -30,6 +30,7 @@ from Fix.core import buscar_documento_argos
 from Fix.core import buscar_documentos_sequenciais
 from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, extrair_direto, salvar_destinatarios_cache
 from Fix.log import logger
+from Fix.utils_observer import aguardar_renderizacao_nativa
 
 from PEC.core_progresso import extrair_numero_processo_pec as extrair_numero_processo
 
@@ -95,13 +96,18 @@ def _localizar_modal_visibilidade(driver: WebDriver, timeout: int = 4) -> Option
 ## Mantido comportamento original do p2b: não adicionar wrappers adicionais aqui.
 
 def _processar_modal_visibilidade(driver: WebDriver, modal: WebElement, log: bool = True) -> bool:
-    """Processa modal: seleciona checkboxes e salva."""
+    """Processa modal: seleciona checkboxes e salva (modo rápido)."""
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.common.exceptions import TimeoutException
+    import time
     try:
-        # STEP 1: Tentar "Selecionar Todos"
+        time.sleep(0.12)
         selecionar_todos_ok = False
         try:
             icone = modal.find_element(By.CSS_SELECTOR, _SELETORES_ANEXOS['selecionar_todos'])
             driver.execute_script("arguments[0].click();", icone)
+            time.sleep(0.15)
             selecionar_todos_ok = True
         except Exception:
             pass
@@ -112,18 +118,17 @@ def _processar_modal_visibilidade(driver: WebDriver, modal: WebElement, log: boo
                     checkbox_input = checkbox.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
                     if not checkbox_input.is_selected():
                         driver.execute_script("arguments[0].click();", checkbox)
+                        time.sleep(0.1)
                 except Exception:
                     continue
-        # STEP 3: Salvar
-        btn_salvar = WebDriverWait(driver, 2).until(
-            EC.presence_of_element_located((By.XPATH, _SELETORES_ANEXOS['btn_salvar']))
-        )
+        time.sleep(0.08)
+        btn_salvar = modal.find_element(By.XPATH, _SELETORES_ANEXOS['btn_salvar'])
         if not (btn_salvar.is_displayed() and btn_salvar.is_enabled()):
             return False
         driver.execute_script("arguments[0].click();", btn_salvar)
-        # STEP 4: Verificar fechamento
         try:
             WebDriverWait(driver, 4, poll_frequency=0.1).until(EC.staleness_of(modal))
+            time.sleep(0.05)
             return True
         except TimeoutException:
             return False
@@ -250,12 +255,7 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
             driver.execute_script("arguments[0].click();", btn_anexos[0])
             if log:
                 logger.info('[ARGOS][ANEXOS]  Anexos abertos (via clique no botão de anexos)')
-            try:
-                WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, _SELETORES_ANEXOS['anexos']))
-                )
-            except TimeoutException:
-                pass
+            aguardar_renderizacao_nativa(driver, _SELETORES_ANEXOS['anexos'], modo='aparecer', timeout=5)
         except Exception as e:
             if log:
                 logger.info(f'[ARGOS][ANEXOS][ERRO] Falha ao abrir anexos: {e}')
@@ -280,153 +280,122 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
     executados = []
     resultado_sisbajud = None
 
-# === FASE 1: PROCESSAR SIGILO + VISIBILIDADE SEQUENCIALMENTE ===
+# === FASE 1: PROCESSAR SIGILO + VISIBILIDADE EM LOTE ===
     if log:
-        logger.info('[ARGOS][ANEXOS] === FASE SIGILO + VISIBILIDADE ===')
+        logger.info('[ARGOS][ANEXOS] === FASE SIGILO + VISIBILIDADE EM LOTE ===')
 
-    anexos_processados = 0
-
-    # Processar cada anexo sequencialmente: apenas ícones de sigilo e visibilidade
+    anexos_para_sigilo = []
+    
+    # 1. Identificar anexos especiais e se precisam de sigilo
     for anexo in anexos:
         texto_anexo = anexo.text.strip()
         tipo = _identificar_tipo_anexo(texto_anexo)
         if not tipo:
             continue
-
+            
         found_sigilo[tipo] = True
-
-        # 1. Detectar estado de sigilo pelo ícone de sigilo (robusto)
-        btn_sigilo = anexo.find_elements(By.CSS_SELECTOR, _SELETORES_ANEXOS['btn_sigilo'])
+        
+        # Detectar estado atual de sigilo
         tem_sigilo = False
         try:
-            # Checar ícone específico usado por retirar_sigilo(): pje-doc-sigiloso span button i.fa-wpexplorer
             icons = anexo.find_elements(By.CSS_SELECTOR, 'pje-doc-sigiloso span button i.fa-wpexplorer')
             if icons:
                 classes = icons[0].get_attribute("class") or ""
                 if "tl-sigiloso" in classes:
                     tem_sigilo = True
         except Exception:
-            tem_sigilo = False
-
-        sigilo_foi_aplicado = False
-        # Se o documento já estiver sigiloso, NÃO aplicar sigilo (ação seria retirar)
+            pass
+            
         if not tem_sigilo:
-            # Clicar apenas no ícone de sigilo, não no anexo (somente se o ícone existir)
-            try:
-                if btn_sigilo and len(btn_sigilo) > 0:
-                    driver.execute_script("arguments[0].click();", btn_sigilo[0])
-                    try:
-                        WebDriverWait(driver, 3).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, _SELETORES_ANEXOS['icone_plus']))
-                        )
-                    except TimeoutException:
-                        pass
-                    sigilo_foi_aplicado = True
-                    sigilo_anexos[tipo] = "sim"
-                    if log:
-                        logger.info(f'[ARGOS][ANEXOS]  Sigilo aplicado em {tipo.upper()}')
-                else:
-                    if log:
-                        logger.info(f'[ARGOS][ANEXOS]  Ícone de sigilo não encontrado para {tipo.upper()} - pulando')
-                    continue
-            except Exception as e:
-                if log:
-                    logger.info(f'[ARGOS][ANEXOS]  Erro ao aplicar sigilo em {tipo.upper()}: {e}')
-                continue
+            anexos_para_sigilo.append((anexo, tipo))
+            sigilo_anexos[tipo] = "sim"
         else:
             sigilo_anexos[tipo] = "sim"
 
-        # 2. Aplicar visibilidade apenas clicando no ícone + (sem clicar no anexo)
-        if sigilo_foi_aplicado or tem_sigilo:
-            try:
-                # Buscar e clicar apenas no ícone + do anexo atual
-                icone_plus = anexo.find_element(By.CSS_SELECTOR, _SELETORES_ANEXOS['icone_plus'])
-                driver.execute_script("arguments[0].click();", icone_plus)
-
-                # Processar modal de visibilidade com verificação robusta
-                modal = _localizar_modal_visibilidade(driver, timeout=6)
-                if modal:
-                    # DOM-settle: modal ja localizado via WebDriverWait
-
-                    modal_ok = _processar_modal_visibilidade(driver, modal, log=False)
-                    if modal_ok:
-                        any_sigilo = True
-                        anexos_processados += 1
-                        if log:
-                            logger.info(f'[ARGOS][ANEXOS]  {tipo.upper()} processado (visibilidade aplicada)')
-
-                    else:
-                        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                        try:
-                            WebDriverWait(driver, 3).until(EC.staleness_of(modal))
-                        except TimeoutException:
-                            pass
+    if anexos_para_sigilo:
+        if log:
+            logger.info(f'[ARGOS][ANEXOS] {len(anexos_para_sigilo)} anexo(s) especiais precisam de sigilo. Iniciando processamento em lote...')
+        
+        try:
+            import time
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            
+            # 2. Ativar seleção múltipla
+            btn_multi = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]'))
+            )
+            driver.execute_script("arguments[0].click();", btn_multi)
+            time.sleep(1)
+            
+            # 3. Marcar checkboxes dos anexos alvo
+            for anexo, tipo in anexos_para_sigilo:
+                try:
+                    checkbox_label = anexo.find_element(By.CSS_SELECTOR, 'mat-checkbox label')
+                    driver.execute_script("arguments[0].click();", checkbox_label)
+                    if log:
+                        logger.info(f'[ARGOS][ANEXOS]  Selecionado para lote: {tipo.upper()}')
+                except Exception as e:
+                    if log:
+                        logger.warning(f'[ARGOS][ANEXOS] Erro ao selecionar {tipo.upper()}: {e}')
+            
+            time.sleep(0.5)
+            
+            # 4. Clicar em "Inserir Sigilo" no div de lote
+            btn_inserir_sigilo = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Inserir Sigilo"]'))
+            )
+            driver.execute_script("arguments[0].click();", btn_inserir_sigilo)
+            time.sleep(1.5)
+            if log:
+                logger.info('[ARGOS][ANEXOS]  Sigilo em lote aplicado.')
+                
+            # 5. Clicar em "Visibilidade" no div de lote
+            btn_visibilidade_lote = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]'))
+            )
+            driver.execute_script("arguments[0].click();", btn_visibilidade_lote)
+            time.sleep(1.5)
+            
+            # 6. Usar a mesma lógica de modal de visibilidade já existente
+            modal = _localizar_modal_visibilidade(driver, timeout=6)
+            if modal:
+                time.sleep(0.8)  # Espera para estabilização
+                modal_ok = _processar_modal_visibilidade(driver, modal, log=False)
+                if modal_ok:
+                    any_sigilo = True
+                    if log:
+                        logger.info('[ARGOS][ANEXOS]  Visibilidade em lote aplicada com sucesso.')
+                    time.sleep(0.5)
                 else:
                     driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-
-            except Exception as e:
-                try:
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                except Exception:
-                    pass
-                continue
-
-    # LOG: Quantos anexos foram tratados
-    if log:
-        pass
-
-    # === FASE 2: SISBAJUD VIA EXTRAÇÃO DIRETA DA CERTIDÃO ===
-    # A certidão já está carregada no painel principal — extração direta sem
-    # procurar documento nos anexos.
-    try:
-        if log:
-            logger.info('[ARGOS][ANEXOS][SISBAJUD] Extraindo certidao via extrair_direto...')
-        resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=True)
-        texto_certidao = resultado_direto.get('conteudo') if resultado_direto and resultado_direto.get('sucesso') else None
-        if not texto_certidao:
-            texto_certidao = resultado_direto.get('conteudo_bruto') if resultado_direto else None
-    except Exception as e:
-        texto_certidao = None
-        if log:
-            logger.info('[ARGOS][ANEXOS][SISBAJUD] extrair_direto falhou: %s', e)
-
-    motivo = 'extração falhou'
-    if texto_certidao:
-        if log:
-            preview = texto_certidao[:200].replace('\n', ' ').strip()
-            logger.debug('[ARGOS][ANEXOS][SISBAJUD] Certidao: %d chars | %s...', len(texto_certidao), preview)
-        executados = _extrair_executados_pdf(texto_certidao)
-        try:
-            resultado_sisbajud, motivo, executados = processar_sisbajud(texto_certidao, log=False)
-            if resultado_sisbajud == 'positivo':
-                valor_detectado = motivo.split('R$ ')[-1] if 'R$ ' in motivo else ''
-                if log:
-                    logger.info('[ARGOS][ANEXOS][SISBAJUD] POSITIVO: %s', valor_detectado)
-            elif resultado_sisbajud == 'negativo':
-                if log:
-                    logger.info('[ARGOS][ANEXOS][SISBAJUD] NEGATIVO')
-        except ValueError as ve:
-            logger.error(f'[SISBAJUD][ERRO] {ve}')
-            resultado_sisbajud = None
-            motivo = str(ve)
-            executados = []
+                    time.sleep(1.5)
+            else:
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                time.sleep(1.5)
+                
+            # 7. Ocultar múltipla seleção
+            try:
+                btn_ocultar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Ocultar múltipla seleção."]')
+                driver.execute_script("arguments[0].click();", btn_ocultar)
+            except Exception:
+                pass
+                
         except Exception as e:
-            logger.error(f'[SISBAJUD][ERRO] Erro na analise SISBAJUD: {e}')
-            resultado_sisbajud = None
-            motivo = str(e)
-            executados = []
+            if log:
+                logger.error(f'[ARGOS][ANEXOS] Erro crítico no processamento em lote: {e}')
+            try:
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            except Exception:
+                pass
     else:
-        executados = []
-        resultado_sisbajud = None
         if log:
-            logger.info('[ARGOS][ANEXOS][SISBAJUD] Sem conteudo da certidao')
+            logger.info('[ARGOS][ANEXOS] Nenhum anexo precisava de sigilo/visibilidade (já estavam com sigilo ou ausentes).')
 
     return ResultadoExecucao(
         sucesso=True,
         status='OK',
         detalhes={
-            'executados': executados,
-            'resultado_sisbajud': resultado_sisbajud,
             'found_sigilo': found_sigilo,
             'sigilo_anexos': sigilo_anexos,
             'sigiloso': any_sigilo,
@@ -471,10 +440,13 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
         # === ETAPA 1: IDENTIFICAR DOCUMENTOS SEQUENCIAIS ===
         logger.info('[ARGOS][ETAPA 1] Identificando documentos sequenciais (certidão, ordem de pesquisa, cálculos, intimação, decisão)...')
         documentos_sequenciais, uids_sigilosos_hint = buscar_documentos_sequenciais_via_api(driver, log=log)
-        if documentos_sequenciais:
+        if documentos_sequenciais and len(documentos_sequenciais) >= 2:
             logger.info(f'[ARGOS][ETAPA 1]  {len(documentos_sequenciais)} doc(s) identificados via API')
         else:
-            logger.info('[ARGOS][ETAPA 1] API sem resultado — fallback DOM')
+            if documentos_sequenciais:
+                logger.info('[ARGOS][ETAPA 1] API retornou %d doc(s) (mínimo 2) — fallback DOM', len(documentos_sequenciais))
+            else:
+                logger.info('[ARGOS][ETAPA 1] API sem resultado — fallback DOM')
             documentos_sequenciais = buscar_documentos_sequenciais(driver, log=log)
             uids_sigilosos_hint = None
         if not documentos_sequenciais:
@@ -499,23 +471,17 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
             logger.info('[ARGOS][ETAPA 2][AVISO] Nenhum anexo especial encontrado ou processamento não crítico; prosseguindo sem anexos')
             anexos_info = {
                 'tem_anexos': False,
-                'resultado_sisbajud': None,
-                'sigilo_anexos': {},
-                'executados': []
+                'sigilo_anexos': {}
             }
         else:
             logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
 
         # Extrair dados de anexos para decisão de rota
         if hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
-            resultado_sisbajud = anexos_info.detalhes.get('resultado_sisbajud', None)
             sigilo_anexos = anexos_info.detalhes.get('sigilo_anexos', {})
-            executados = anexos_info.detalhes.get('executados', [])
             tem_anexos = anexos_info.detalhes.get('tem_anexos', False)
         else:
-            resultado_sisbajud = anexos_info.get('resultado_sisbajud', None)
             sigilo_anexos = anexos_info.get('sigilo_anexos', {})
-            executados = anexos_info.get('executados', [])
             tem_anexos = anexos_info.get('tem_anexos', False)
 
         # Sem anexos = sem SISBAJUD = certidão negativa → ato_meios direto
@@ -525,12 +491,39 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
             return True
 
         # ════════════════════════════════════════
-        # === ETAPA 3: SISBAJUD - EXTRAIR DOCUMENTO PDF + REGRAS ===
-        logger.info('[ARGOS][ETAPA 3] SISBAJUD - Extraindo documento PDF e aplicando regras...')
-        if resultado_sisbajud:
-            logger.info(f'[ARGOS][ETAPA 3]  SISBAJUD processado: {resultado_sisbajud}')
-        else:
-            logger.info('[ARGOS][ETAPA 3][AVISO] SISBAJUD não encontrado nos anexos')
+        # === ETAPA 3: ANÁLISE SISBAJUD VIA CERTIDÃO DE DEVOLUÇÃO ===
+        # A certidão de devolução JÁ ESTÁ selecionada na timeline.
+        # Após tratamento de anexos (ETAPA 2), ela continua selecionada.
+        # Usar extrair_direto para ler o conteúdo da certidão.
+        logger.info('[ARGOS][ETAPA 3] Lendo certidão de devolução via extrair_direto para análise SISBAJUD...')
+
+        resultado_sisbajud = None
+        executados = []
+
+        try:
+            resultado_extracao = extrair_direto(driver, timeout=10, debug=log, formatar=True)
+            texto_certidao = resultado_extracao.get('conteudo') if resultado_extracao and resultado_extracao.get('sucesso') else None
+
+            if texto_certidao:
+                logger.info('[ARGOS][ETAPA 3] Certidão extraída: %d chars', len(texto_certidao))
+                try:
+                    resultado_sisbajud, motivo, executados = processar_sisbajud(texto_certidao, log=False)
+                    if resultado_sisbajud == 'positivo':
+                        logger.info(f'[ARGOS][ETAPA 3] SISBAJUD POSITIVO: {motivo}')
+                    elif resultado_sisbajud == 'negativo':
+                        logger.info(f'[ARGOS][ETAPA 3] SISBAJUD NEGATIVO: {motivo}')
+                except ValueError:
+                    logger.info('[ARGOS][ETAPA 3] SISBAJUD INDISPONIVEL: marcador "determinacoes normativas e legais" nao encontrado na certidao')
+                    resultado_sisbajud = None
+                    executados = []
+                except Exception as e:
+                    logger.error('[ARGOS][ETAPA 3] Erro na análise SISBAJUD: %s', e)
+                    resultado_sisbajud = None
+                    executados = []
+            else:
+                logger.info('[ARGOS][ETAPA 3] Certidão sem conteúdo — SISBAJUD indisponível')
+        except Exception as e:
+            logger.error('[ARGOS][ETAPA 3] Falha ao extrair certidão: %s', e)
 
         # ════════════════════════════════════════
         # === ETAPA 4: BUSCAR E APLICAR REGRAS ARGOS (LOOP ITERATIVO) ===
@@ -543,10 +536,10 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
         regra_aplicada = False
         max_documentos_testados = 3  # LIMITE: máximo 3 documentos
         documentos_testados = 0
-        documentos_ignorados = []  # Rastrear índices já tentados que não tinham regra
+        documentos_ignorados = []
 
         while documentos_testados < max_documentos_testados and not regra_aplicada:
-            # Buscar próximo documento com regra Argos, ignorando os que já falharam
+            # Buscar próximo documento com regra Argos
             timing_busca_inicio = time.time()
             resultado_documento = buscar_documento_argos(driver, log=True, ignorar_indices=documentos_ignorados)
             timing_busca_fim = time.time()
@@ -564,8 +557,8 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
                 continue
 
             documentos_testados += 1
-            if log:
-                logger.info(f'[ARGOS][ETAPA 4] Testando documento {documentos_testados}/{max_documentos_testados} (índice #{documento_idx}, tipo: {documento_tipo})...')
+            logger.info('[ARGOS][ETAPA 4] Testando documento %d/%d (índice #%d, tipo: %s)...',
+                       documentos_testados, max_documentos_testados, documento_idx, documento_tipo)
 
             # ════════════════════════════════════════
             # === ETAPA 5: EXTRAIR DESTINATÁRIOS ===
@@ -602,10 +595,10 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
 
             if regras_aplicadas:
                 regra_aplicada = True
-                logger.info(f'[ARGOS][ETAPA 4] SUCESSO: Regra aplicada no documento #{documento_idx} ({documentos_testados}/{max_documentos_testados})')
+                logger.info(f'[ARGOS][ETAPA 4] ✅ SUCESSO: Regra aplicada no documento #{documento_idx} ({documentos_testados}/{max_documentos_testados})')
                 break
             else:
-                logger.info(f'[ARGOS][ETAPA 4] Nenhuma regra encontrada no documento #{documento_idx}')
+                logger.info(f'[ARGOS][ETAPA 4] ❌ Nenhuma regra encontrada no documento #{documento_idx}')
                 documentos_ignorados.append(documento_idx)
 
                 # Se atingiu limite de documentos testados, parar busca

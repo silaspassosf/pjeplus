@@ -1,5 +1,20 @@
 'use strict';
 
+// ── Storage helpers (GM primeiro, localStorage fallback) ────────────
+const _sisbSet = (typeof GM_setValue !== 'undefined')
+    ? (k, v) => GM_setValue(k, JSON.stringify(v))
+    : (k, v) => { try { localStorage.setItem('pjetools_' + k, JSON.stringify(v)); } catch(e) {} };
+
+const _sisbGet = (typeof GM_getValue !== 'undefined')
+    ? (k, d = null) => {
+        try { const v = GM_getValue(k, d); return v != null ? (typeof v === 'string' ? JSON.parse(v) : v) : d; }
+        catch(e) { return d; }
+      }
+    : (k, d = null) => {
+        try { const v = localStorage.getItem('pjetools_' + k); return v ? JSON.parse(v) : d; }
+        catch(e) { return d; }
+      };
+
 // ═══════════════════════════════════════════════════════════════════
 // SISBAJUD Core - Extração e Acumulação de Dados
 // Baseado em SISB/relatorios/generator.py
@@ -47,11 +62,7 @@ window.SisbCore = {
             this.timerId = null;
         }
         // persist cleared state
-        try {
-            if (typeof GM_setValue !== 'undefined') {
-                GM_setValue('sisbajud_acumulador', JSON.stringify(this.acumulador));
-            }
-        } catch (e) { console.warn('[SISB Core] GM_setValue reset failed', e); }
+        try { _sisbSet('sisbajud_acumulador', this.acumulador); } catch (e) { console.warn('[SISB Core] persist reset failed', e); }
         console.log('[SISB Core] Acumulador resetado');
     },
 
@@ -96,11 +107,7 @@ window.SisbCore = {
 
         // Resetar timer
         // Persistir acumulador para sobreviver a navegações/paginas
-        try {
-            if (typeof GM_setValue !== 'undefined') {
-                GM_setValue('sisbajud_acumulador', JSON.stringify(this.acumulador));
-            }
-        } catch (e) { console.warn('[SISB Core] GM_setValue failed', e); }
+        try { _sisbSet('sisbajud_acumulador', this.acumulador); } catch (e) { console.warn('[SISB Core] persist failed', e); }
 
         console.log('[SISB Core] Dados agrupados:', {
             executados: Object.keys(this.acumulador.executados).length,
@@ -289,19 +296,12 @@ window.SisbCore = {
 
 // Carregar acumulador persistido (se existir)
 try {
-    if (typeof GM_getValue !== 'undefined') {
-        const saved = GM_getValue('sisbajud_acumulador');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                if (parsed && parsed.executados) {
-                    window.SisbCore.acumulador = parsed;
-                    console.log('[SISB Core] Acumulador carregado do storage -', Object.keys(parsed.executados).length, 'executados');
-                }
-            } catch (e) { console.warn('[SISB Core] parse persisted acumulador failed', e); }
-        }
+    const saved = _sisbGet('sisbajud_acumulador');
+    if (saved && saved.executados) {
+        window.SisbCore.acumulador = saved;
+        console.log('[SISB Core] Acumulador carregado do storage -', Object.keys(saved.executados).length, 'executados');
     }
-} catch (e) { console.warn('[SISB Core] GM_getValue load failed', e); }
+} catch (e) { console.warn('[SISB Core] load acumulador failed', e); }
 
 // Registrar cleanup se disponível
 if (window.PJeState && window.PJeState.registry) {

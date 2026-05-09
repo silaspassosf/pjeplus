@@ -162,11 +162,11 @@ def _processar_item(driver, item, contexto, log):
 def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
     # Legacy behaviour: garantir que dadosatuais.json está atualizado para o processo atual
     try:
-        # Chamar explicitamente a implementação atual em Fix.extracao_processo (comportamento legado)
-        from Fix.extracao_processo import extrair_dados_processo
+        # Chamar explicitamente a implementação atual em Fix.extracao (comportamento legado)
+        from Fix.extracao import extrair_dados_processo
         res = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
         if log:
-            logger.info('[CARTA] extrair_dados_processo (Fix.extracao_processo) executado; retorno_type=%s', type(res))
+            logger.info('[CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=%s', type(res))
         # Verificar que dadosatuais.json foi atualizado e logar o número extraído
         try:
             from pathlib import Path
@@ -181,7 +181,7 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
                 logger.error(f"[CARTA] Falha ao ler dadosatuais.json pós-extracao: {_f}")
     except Exception as e:
         if log:
-            logger.error(f'[CARTA] Fix.extracao_processo não disponível ou falhou: {e}')
+            logger.error(f'[CARTA] Fix.extracao não disponível ou falhou: {e}')
         # continuar sem bloquear o fluxo
         pass
 

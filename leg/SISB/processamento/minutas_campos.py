@@ -90,7 +90,7 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
                 }}
 
                 log.push('3. Preenchendo Numero Processo...');
-                let numeroInput = await esperarElemento('input[placeholder="Numero do Processo"]', 3000);
+                let numeroInput = await esperarElemento('input[placeholder="Número do Processo"]', 3000);
                 if (numeroInput) {{
                     numeroInput.focus();
                     numeroInput.value = '{numero_processo}';
@@ -109,9 +109,9 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
                     await new Promise(resolve => setTimeout(resolve, 500));
                     let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
                     for (let opcao of opcoes) {{
-                        if (opcao.textContent.includes('Acao Trabalhista')) {{
+                        if (opcao.textContent.includes('Execucao Trabalhista') || opcao.textContent.includes('Acao Trabalhista') || opcao.textContent.includes('Execução Trabalhista') || opcao.textContent.includes('Ação Trabalhista')) {{
                             opcao.click();
-                            log.push('Acao: Trabalhista');
+                            log.push('Acao: ' + opcao.textContent.trim());
                             break;
                         }}
                     }}
@@ -131,7 +131,7 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
                 }}
 
                 log.push('6. Preenchendo Nome Autor...');
-                let nomeInput = await esperarElemento('input[placeholder="Nome do autor/exequente da acao"]', 3000);
+                let nomeInput = await esperarElemento('input[placeholder="Nome do autor/exequente da ação"]', 3000);
                 if (nomeInput) {{
                     nomeInput.focus();
                     await new Promise(resolve => setTimeout(resolve, 250));

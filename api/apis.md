@@ -1147,11 +1147,462 @@ for (var p of todasPartes) {
 
 ---
 
+## 19. Tarefas do Processo
+
+### 19.1. Listar tarefas de um processo
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/tarefas`
+**Parâmetros:** `maisRecente=true`
+
+Retorna a lista de tarefas ativas do processo, com detalhes como nome da tarefa, responsável, data de criação.
+
+**Wrapper JS:** `apis.tarefasProcesso`
+
+```javascript
+const tarefas = await apis.tarefasProcesso.executar(dominio, { idProcesso: '7530597' });
+```
+
+### 19.2. Obter tarefa por ID
+
+**Endpoint:** `GET /pje-comum-api/api/tarefas/{idTarefa}`
+
+Retorna os detalhes completos de uma tarefa específica.
+
+**Wrapper JS:** `apis.tarefaPorId` / `apis.tarefasCodigo` (duas referências para o mesmo endpoint)
+
+```python
+r = client.sess.get(client._url(f"/pje-comum-api/api/tarefas/{id_tarefa}"))
+tarefa = r.json()
+```
+
+### 19.3. Abrir tarefa (URL de navegação)
+
+**Endpoint (navegação):** `GET /pjekz/processo/{idProcesso}/tarefa/{idTarefa}`
+
+URL de interface que abre a página da tarefa no PJe. Usada para redirecionar o navegador, não retorna JSON.
+
+**Wrapper JS:** `apis.abrirTarefa`
+
+---
+
+## 20. Variações de Consulta de Processo
+
+### 20.1. Processo por número (completo)
+
+**Endpoint:** `GET /pje-comum-api/api/processos/numero/{numeroProcesso}/completo`
+
+Retorna os dados completos do processo a partir do número CNJ formatado.
+
+**Wrapper JS:** `apis.processoPorNumero`
+
+```python
+r = client.sess.get(client._url(f"/pje-comum-api/api/processos/numero/{numero_processo}/completo"))
+proc = r.json()
+```
+
+### 20.2. ID do processo por número
+
+**Endpoint:** `GET /pje-comum-api/api/processos`
+**Parâmetros:** `numero` (CNJ do processo)
+
+Busca o ID interno do processo a partir do número CNJ. Resposta mais leve que o endpoint "completo".
+
+**Wrapper JS:** `apis.idProcessoPorNumero`
+
+```python
+r = client.sess.get(client._url("/pje-comum-api/api/processos"), params={"numero": numero})
+dados = r.json()
+id_interno = dados.get("id")  # ou dados[0].id se for array
+```
+
+### 20.3. ID do processo por número incompleto
+
+**Endpoint:** `GET /pje-comum-api/api/agrupamentotarefas/processos`
+**Parâmetros:** `numero` (CNJ parcial ou completo)
+
+Busca via agrupamento de tarefas — útil quando o número está incompleto ou o processo está em fila de triagem.
+
+**Wrapper JS:** `apis.idProcessoPorNumeroIncompleto`
+
+### 20.4. Processo simplificado por ID
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/simplificado`
+
+Retorna uma versão leve do processo (tipo `ProcessoSimplificado`), com campos essenciais: `id`, `numero`, `faseProcessual`, `status`, `autuadoEm`, `segredoJustica`, etc. Performance muito superior ao endpoint completo.
+
+**Wrapper JS:** `apis.processoSimplificadoPorId`
+
+```python
+r = client.sess.get(client._url(f"/pje-comum-api/api/processos/id/{id_processo}/simplificado"))
+resumo = r.json()
+fase = resumo.get("faseProcessual")
+status = resumo.get("status")
+```
+
+### 20.5. Processo rápido via GIGS API
+
+**Endpoint:** `GET /pje-gigs-api/api/processo/{idProcesso}`
+
+Retorna dados do processo pela API do GIGS. Similar ao simplificado mas com campos específicos do módulo de atividades.
+
+**Wrapper JS:** `apis.processoPorIdRapido`
+
+---
+
+## 21. Validação e Permissões de Acesso
+
+### 21.1. Validação de sigilo por número
+
+**Endpoint:** `GET /pje-comum-api/api/processos/numero/{numeroProcesso}/validacaosigilo`
+
+Verifica se o usuário logado tem permissão para acessar um processo potencialmente sigiloso, usando o número CNJ.
+
+**Wrapper JS:** `apis.idProcessoPorNumeroValidandoSigilo`
+
+### 21.2. Permissão de acesso a associados
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/associados/permissaoassociado`
+
+Valida se o usuário tem acesso ao processo ou a algum de seus processos associados (o que permite visualização).
+
+**Wrapper JS:** `apis.validaAcessoProcessoEAssociados`
+
+### 21.3. Perfis do token de segurança
+
+**Endpoint:** `GET /pje-seguranca/api/token/perfis`
+
+Retorna os perfis de permissão associados ao token de autenticação atual.
+
+**Wrapper JS:** `apis.permissaoPerfis`
+
+### 21.4. Validação por chave
+
+**Endpoint:** `GET /pjekz/validacao/{chave}`
+**Parâmetros:** `instancia` (grau do usuário)
+
+Valida uma chave de acesso (ex: chave de documento/sentença) retornando os dados do documento validado.
+
+**Wrapper JS:** `apis.validacaoChave`
+
+---
+
+## 22. Pessoas Físicas e Jurídicas
+
+### 22.1. Pesquisar pessoas físicas
+
+**Endpoint:** `GET /pje-comum-api/api/pessoas/fisicas`
+**Parâmetros:** `pagina`, `tamanhoPagina`, `situacao` (1 = ativo)
+
+Pesquisa paginada de pessoas físicas cadastradas.
+
+**Wrapper JS:** `apis.pessoasFisicas`
+
+### 22.2. Detalhes de pessoa física por ID
+
+**Endpoint:** `GET /pje-comum-api/api/pessoas/fisicas/{id}`
+
+Retorna os dados completos de uma pessoa física (CPF, nome, data de nascimento, endereços, etc.).
+
+**Wrapper JS:** `apis.pessoasFisicasDetalhes`
+
+### 22.3. Pesquisar pessoas jurídicas
+
+**Endpoint:** `GET /pje-comum-api/api/pessoas/juridicas`
+**Parâmetros:** `esfera`, `tipoEntidade`, `idJurisdicao`, `apenasMPT` (todos opcionais)
+
+Pesquisa flexível de pessoas jurídicas com filtros por esfera, tipo de entidade e jurisdição.
+
+**Wrapper JS:** `apis.pessoasJuridicas`
+
+### 22.4. Pesquisar PJ por CNPJ
+
+**Endpoint:** `GET /pje-comum-api/api/pessoas/juridicas`
+**Parâmetros:** `pagina`, `tamanhoPagina`, `situacao` (1 = ativo), `cnpj` (ou outros filtros de documento)
+
+Variante paginada para busca de pessoa jurídica por CNPJ ou filtros documentais.
+
+**Wrapper JS:** `apis.pessoasJuridicasCnpj`
+
+---
+
+## 23. Peritos
+
+### 23.1. Pesquisar peritos por nome
+
+**Endpoint:** `GET /pje-comum-api/api/peritos`
+**Parâmetros:** `parametroPesquisa` (nome), `somenteAtivos=true`
+
+**Wrapper JS:** `apis.peritosPesquisa`
+
+```python
+r = client.sess.get(client._url("/pje-comum-api/api/peritos"),
+    params={"parametroPesquisa": "João Silva", "somenteAtivos": True})
+```
+
+### 23.2. Pesquisar peritos por nome + especialidade
+
+**Endpoint:** `GET /pje-comum-api/api/peritos`
+**Parâmetros:** `parametroPesquisa` (nome), `idEspecialidade`, `somenteAtivos=true`
+
+**Wrapper JS:** `apis.peritosEspecialidade`
+
+---
+
+## 24. Associação, Sobrestamento e Retificação
+
+### 24.1. Processos associados
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/associados`
+**Parâmetros:** `pagina`, `tamanhoPagina` (default 100), `ordenacaoCrescente=true`
+
+Retorna a lista de processos associados (apensos, dependentes, etc.).
+
+**Wrapper JS:** `apis.associados`
+
+### 24.2. Sobrestamentos do processo
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/sobrestamentos`
+
+Retorna a lista de sobrestamentos (suspensões) aplicados ao processo.
+
+**Wrapper JS:** `apis.sobrestamentosProcesso`
+
+```python
+r = client.sess.get(client._url(f"/pje-comum-api/api/processos/id/{id_processo}/sobrestamentos"))
+sobrestamentos = r.json()
+```
+
+### 24.3. Associar processos (URL de navegação)
+
+**Endpoint (navegação):** `GET /pjekz/retificacao`
+**Parâmetros:** `maisPJe` (opcional)
+
+Abre a página de retificação/associação de processos no PJe.
+
+**Wrapper JS:** `apis.associarProcessos`
+
+---
+
+## 25. e-Rec (Recursos Eletrônicos)
+
+### 25.1. Despacho por ID
+
+**Endpoint:** `GET /pje-erec-api/api/despachos/{idDespacho}`
+**Parâmetros:** `titulos=true` (inclui nome da parte no campo `titulo` dos recursos)
+
+Retorna os dados de um despacho no e-Rec, incluindo lista de recursos vinculados. Sem `titulos=true`, os recursos não trazem o nome da parte recorrente.
+
+**Wrapper JS:** `apis.eRecDespachoPorId`
+
+```python
+r = client.sess.get(client._url(f"/pje-erec-api/api/despachos/{id_despacho}"),
+    params={"titulos": True})
+despacho = r.json()
+for rec in despacho.get("recursos", []):
+    print(rec["titulo"], rec["tempestivo"])
+```
+
+### 25.2. Partes por recurso
+
+**Endpoint:** `GET /pje-erec-api/api/recursos/{idRecurso}/partes`
+
+Retorna as partes vinculadas a um recurso específico (recorrentes e recorridos), com advogados.
+
+**Wrapper JS:** `apis.eRecPartesPorRecursoId`
+
+---
+
+## 26. Audiências, Pautas e Calendário
+
+### 26.1. Audiências do processo
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/audiencias`
+**Parâmetros:** `status=M` (opcional — filtra por status)
+
+**Wrapper JS:** `apis.audienciasProcesso`
+
+### 26.2. Pauta de audiências
+
+**Endpoint:** `GET /pjekz/pauta-audiencias`
+**Parâmetros:** `maisPje=true`, `numero`, `rito`, `fase` (todos opcionais)
+
+Acessa a pauta de audiências com filtros. O parâmetro `maisPje=true` indica que a chamada vem da extensão.
+
+**Wrapper JS:** `apis.pautaAudiencias`
+
+### 26.3. Calendário de eventos
+
+**Endpoint:** `GET /pje-administracao-api/api/calendarioseventos/`
+**Parâmetros:** `pagina`, `ativo=true`, `tamanhoPagina=1000`, `ano`, `mes`
+
+Retorna o calendário de eventos (feriados, suspensões de prazo, etc.) do tribunal.
+
+**Wrapper JS:** `apis.calendarioEventos`
+
+```python
+r = client.sess.get(client._url("/pje-administracao-api/api/calendarioseventos/"),
+    params={"pagina": 1, "ativo": True, "tamanhoPagina": 1000, "ano": 2026, "mes": 5})
+eventos = r.json()
+```
+
+---
+
+## 27. Minutas e Comunicações Processuais
+
+### 27.1. Metadados de minuta de documento
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/documentos/minuta/A/metadados`
+
+Retorna os metadados da minuta de documento do tipo "A" associada ao processo.
+
+**Wrapper JS:** `apis.documentosMinuta`
+
+### 27.2. Comunicações — minutas
+
+**Endpoint:** `GET /pje-comum-api/api/comunicacoesprocessuais/minutas/`
+**Parâmetros:** `idProcesso`, `temporario=true`, `origemExpedientes` (array: `['PEC_FLUXO', 'PEC_MENU']`), `papeisSeguranca='MAGISTRADO'`
+
+Busca minutas de comunicações processuais (expedientes) vinculadas ao processo.
+
+**Wrapper JS:** `apis.comunicacoesMinutas`
+
+---
+
+## 28. Consultas Processuais Públicas
+
+### 28.1. Consulta de processos administrativos
+
+**Endpoint:** `GET /pje-administracao-api/api/consultaprocessosadm`
+**Parâmetros:** `pagina`, `nomeParte`, `tamanhoPagina=1000`
+
+Pesquisa processos administrativos por nome da parte.
+
+**Wrapper JS:** `apis.consultaProcessosAdm`
+
+### 28.2. Consulta processual de terceiros
+
+**Endpoint:** `GET /consultaprocessual/detalhe-processo/{numero}`
+
+Redireciona para a página pública de consulta processual.
+
+**Wrapper JS:** `apis.consultaProcessosTerceiros`
+
+### 28.3. Dados básicos públicos por número
+
+**Endpoint:** `GET /pje-consulta-api/api/processos/dadosbasicos/{numero}`
+
+Retorna dados básicos públicos de um processo (sem necessidade de autenticação completa).
+
+**Wrapper JS:** `apis.consultaProcessosBasicos`
+
+---
+
+## 29. Prestação de Contas (SIF)
+
+### 29.1. Prestação de contas agrupada por alvarás
+
+**Endpoint:** `GET /sif-financeiro-api/api/prestacaocontas/agrupador/alvaras`
+**Parâmetros:** `situacoesAlvara='AGUARDANDO_CONFERENCIA'`, `pagina`, `tamanhoPagina=50`
+
+Retorna alvarás agrupados que estão aguardando conferência de prestação de contas.
+
+**Wrapper JS:** `apis.prestacaoContas`
+
+---
+
+## 30. Outros Endpoints
+
+### 30.1. Representadas de uma parte
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/partes/representadas`
+**Parâmetros:** `idRepresentante`
+
+Retorna as partes representadas por um determinado representante no processo.
+
+**Wrapper JS:** `apis.nomeParteRepresentada`
+
+### 30.2. Regras de impedimento
+
+**Endpoint:** `GET /pje-comum-api/api/regrasimpedimentomagistrado/regrasimpedimento`
+
+Retorna as regras de impedimento de magistrados configuradas no sistema.
+
+**Wrapper JS:** `apis.regrasImpedimento`
+
+### 30.3. Detalhes de objeto e-Carta
+
+**Endpoint:** `GET /eCarta-web/impressaoDetalhesObjeto.xhtml`
+**Parâmetros:** `codigo`
+
+Retorna a página de detalhes de um objeto postal dos Correios (e-Carta).
+
+**Wrapper JS:** `apis.objetoECarta`
+
+### 30.4. Retornar prazo em dias úteis
+
+**Endpoint:** `GET /pje-gigs-api/api/atividade/retorna-prazo/{dias}`
+**Parâmetros:** `idOj` (código do órgão julgador)
+
+Calcula a data final de um prazo em dias úteis, considerando o calendário do órgão julgador.
+
+**Wrapper JS:** `apis.retornaPrazoDiasUteis`
+
+### 30.5. Órgão julgador por ID
+
+**Endpoint:** `GET /pje-comum-api/api/orgaosjulgadores/{codigoOJ}`
+
+Retorna os dados completos de um órgão julgador específico.
+
+**Wrapper JS:** `apis.orgaoJulgadorPorId`
+
+```python
+r = client.sess.get(client._url(f"/pje-comum-api/api/orgaosjulgadores/{codigo_oj}"))
+oj = r.json()
+```
+
+---
+
+## 31. URLs de Navegação (Interface PJe)
+
+Estes endpoints são usados para **abrir páginas da interface web** (`window.open` / URL de redirecionamento), não retornam JSON.
+
+| Wrapper JS | Path | Função |
+|---|---|---|
+| `apis.abrirGigs` | `/pjekz/gigs/abrir-gigs/{idProcesso}` | Abre a página de GIGS (gestão de atividades) |
+| `apis.abrirTarefa` | `/pjekz/processo/{idProcesso}/tarefa/{idTarefa}` | Abre a página de uma tarefa específica |
+| `apis.abrirDetalhesProcesso` | `/pjekz/processo/{idProcesso}/detalhe` | Abre a página de detalhes do processo |
+| `apis.abrirDocumentoEmNovaAba` | `/pjekz/processo/{idProcesso}/documento/{idDocumento}/conteudo` | Abre o conteúdo do documento em nova aba |
+| `apis.bndtProcesso` | `/pjekz/processo/{idProcesso}/bndt` | Abre a página do BNDT (parâmetro `maisPje=excluir`) |
+| `apis.associarProcessos` | `/pjekz/retificacao` | Abre a página de retificação/associação |
+| `apis.pautaAudiencias` | `/pjekz/pauta-audiencias` | Abre a pauta de audiências |
+| `apis.validacaoChave` | `/pjekz/validacao/{chave}` | Abre a validação de chave de documento |
+
+---
+
+## 32. Preview de Documento por `idUnicoDocumento`
+
+**Endpoint:** `GET /pje-comum-api/api/processos/nrprocesso/{nrProcesso}/documentos/idUnico/{idUnicoDocumento}/preview`
+**Parâmetros:** `incluirCapa=false`, `incluirAssinatura=true`, `incluirSumario=false`, `formato='.jpeg'`
+
+Retorna preview de um documento usando o identificador único de 7 caracteres (não o ID numérico).
+
+**Wrapper JS:** `apis.documentoProcessoPreview`
+
+```python
+r = client.sess.get(
+    client._url(f"/pje-comum-api/api/processos/nrprocesso/{nr_processo}/documentos/idUnico/{uid}/preview"),
+    params={"incluirAssinatura": True, "formato": ".jpeg"}
+)
+```
+
+---
+
 ## Considerações Finais
 
 - **Autenticação:** Todas as chamadas exigem que a sessão esteja autenticada. Utilize cookies de um navegador logado ou obtenha via Selenium.
 - **Tratamento de erros:** As funções retornam `None` ou listas vazias em caso de falha; implemente verificações.
 - **Limitações:** Nem todos os endpoints são públicos; alguns podem exigir permissões especiais (SIF, SISCONDJ). Para esses, é necessário estar logado como servidor.
 - **Método HTTP crítico:** `agrupamentotarefas/10/processos` usa **PATCH** (não POST). `peticoesjuntadas` usa GET paginado.
+- **Total de APIs documentadas:** Este guia cobre todas as ~64 APIs definidas em `maispje/comum/apis.js`, incluindo endpoints de dados, URLs de navegação e variantes de busca.
 
 Este guia consolida o conhecimento extraído da extensão maisPJe e das implementações reais em `apiaud.py`, `Peticao/api_client.py` e `tr.py`.

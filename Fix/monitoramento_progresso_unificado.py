@@ -457,7 +457,8 @@ def processo_tem_erro_unificado(numero_processo: str, progresso: Dict[str, Any])
     return numero_processo in com_erro
 
 def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str,
-                                       progresso: Dict[str, Any], sucesso: bool = True):
+                                       progresso: Dict[str, Any], sucesso: bool = True,
+                                       motivo: Optional[str] = None):
     """
     Marca processo como executado ou com erro.
 
@@ -503,7 +504,8 @@ def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str
             progresso.setdefault("processos_com_erro", []).append(numero_processo)
             modificado = True
 
-        _log_progresso(tipo_execucao, "❌ Processo marcado como erro", numero_processo)
+        _detalhe = f': {motivo}' if motivo else ''
+        _log_progresso(tipo_execucao, f"❌ Erro{_detalhe}", numero_processo)
 
     # Só salvar se houve modificação real
     if modificado:

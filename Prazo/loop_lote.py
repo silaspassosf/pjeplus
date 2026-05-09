@@ -79,6 +79,20 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
     try:
         if not pausar_confirmacao('CICLO1/FILTRO_FASES', 'Aplicar filtro liquidação/execução'):
             return False
+        # Aguardar mat-select (componente de filtro Angular) estar presente e interativo
+        # ANTES de chamar filtrofases. Sem isso, na 2ª+ iteração o dropdown abre mas os
+        # mat-option ainda não foram populados (Angular não hidratou) → 0 matches → falha.
+        try:
+            el = buscar(driver, 'ciclo1_mat_select_combobox', ["mat-select[role='combobox']", "//mat-select"])
+            if not el:
+                try:
+                    aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=10)
+                except Exception:
+                    aguardar_renderizacao_nativa(driver, "mat-select[role='combobox']", timeout=10)
+            else:
+                logger.info('[CICLO1][FILTRO] mat-select pronto')
+        except Exception:
+            pass
         t0 = time.perf_counter()
         result = filtrofases(driver, fases_alvo=['liquidação', 'execução'])
         t_filtro = time.perf_counter() - t0
@@ -87,6 +101,19 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
             # filtrofases retorna False quando não encontra as opções para selecionar
             # Isso significa que não há processos nessas fases
             return "no_more_processes"
+
+        # Aguardar spinner do filtro (div.carregando) — garante que Angular processou
+        # o filtro ANTES de iniciar o polling de células (evita detectar linhas stale)
+        try:
+            WebDriverWait(driver, 4).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
+            )
+            WebDriverWait(driver, 15).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
+            )
+            logger.info('[CICLO1][FILTRO] Spinner de filtro sumiu — lista pronta para polling')
+        except Exception:
+            pass  # sem spinner visível — pode ter sido rápido; polling cobre o restante
 
         # AGUARDAR LISTA CARREGAR - loop manual com break imediato ao encontrar células
         t1 = time.perf_counter()
@@ -329,121 +356,51 @@ def _ciclo1_aguardar_movimentacao_lote(driver: WebDriver) -> bool:
 
 
 def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
-    """Abordagem robusta para 'Cumprimento de providências' (baseada no legado)."""
+    """Seleciona 'Cumprimento de providências' — mesma lógica do path padrão (Análise)."""
     opcao_destino = 'Cumprimento de providências'
-    logger.info(f"[LOOP_PRAZO] Abordagem especial para '{opcao_destino}'")
-
-    # ── Passo 1: abrir dropdown (até 8 tentativas, 3 cliques por tentativa) ──
-    max_tent_abrir = 8
-    dropdown_aberto = False
-
-    for tent in range(1, max_tent_abrir + 1):
-        try:
-            logger.info(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Tentativa {tent}/{max_tent_abrir}")
-
-            seta_dropdown = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "div.mat-select-arrow-wrapper"))
-            )
-            aguardar_renderizacao_nativa(driver, timeout=1.5)  # DOM-settle: Angular before JS click
-            driver.execute_script("arguments[0].scrollIntoView(true);", seta_dropdown)
-            driver.execute_script("document.body.style.zoom='100%'")           # legado: garantir zoom neutro
-            aguardar_renderizacao_nativa(driver, timeout=0.5)  # DOM-settle: before click attempt
-
-            # Até 3 cliques por tentativa, verificando se overlay apareceu
-            for click_num in range(1, 4):
-                try:
-                    driver.execute_script("arguments[0].click();", seta_dropdown)
-                    logger.info(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Clique {click_num} executado")
-                    # WebDriverWait abaixo aguarda overlay aparecer — time.sleep substituído
-                    overlay = WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-                    )
-                    opcoes = overlay.find_elements(By.XPATH, ".//span[contains(@class,'mat-option-text')]")
-                    textos = [o.text.strip() for o in opcoes if o.text.strip()]
-                    if textos:
-                        logger.info(f"[CICLO1/PROVIDENCIAS_DROPDOWN] {len(textos)} opções: {textos}")
-                        dropdown_aberto = True
-                        break
-                except Exception:
-                    time.sleep(1.0)  # rate-limit
-
-            if dropdown_aberto:
-                break
-
-        except Exception as e:
-            logger.warning(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Erro tentativa {tent}: {e}")
-            time.sleep(1.0)  # rate-limit
-
-    if not dropdown_aberto:
-        logger.error(f"[LOOP_PRAZO] Falha ao abrir dropdown de providências após {max_tent_abrir} tentativas")
-        return False
-
-    # ── Passo 2: selecionar a opção (até 8 tentativas) ──
-    max_tent_opcao = 8
-    for tent in range(1, max_tent_opcao + 1):
-        try:
-            logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] Tentativa {tent}/{max_tent_opcao}")
-
-            overlay = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-            )
-            opcao_elemento = None
-
-            # Busca exata → parcial "Cumprimento" → parcial "providências"
-            for xpath in [
-                f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']",
-                ".//span[contains(@class,'mat-option-text') and contains(text(),'Cumprimento')]",
-                ".//span[contains(@class,'mat-option-text') and contains(text(),'provid')]",
-            ]:
-                try:
-                    opcao_elemento = overlay.find_element(By.XPATH, xpath)
-                    break
-                except Exception:
-                    pass
-
-            if opcao_elemento:
-                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", opcao_elemento)
-                aguardar_renderizacao_nativa(driver, timeout=0.5)  # DOM-settle: before option click
-                try:
-                    opcao_elemento.click()
-                except Exception:
-                    driver.execute_script("arguments[0].click();", opcao_elemento)
-                logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] Opção selecionada na tentativa {tent}")
-                aguardar_renderizacao_nativa(driver, timeout=1.5)  # DOM-settle: after option click
-                break
-            else:
-                logger.warning(f"[CICLO1/PROVIDENCIAS_OPCAO] Opção não encontrada, reabrindo dropdown...")
-                if tent < max_tent_opcao:
-                    try:
-                        driver.execute_script("document.body.click();")
-                        aguardar_renderizacao_nativa(driver, timeout=0.5)  # DOM-settle: after close dropdown
-                        seta = driver.find_element(By.CSS_SELECTOR, "div.mat-select-arrow-wrapper")
-                        seta.click()
-                        aguardar_renderizacao_nativa(driver, timeout=1.5)  # DOM-settle: after re-open dropdown
-                    except Exception:
-                        pass
-        except Exception as e:
-            logger.error(f"[CICLO1/PROVIDENCIAS_OPCAO] Erro tentativa {tent}: {e}")
-            if tent == max_tent_opcao:
-                return False
-            time.sleep(1.0)  # rate-limit
-
-    # ── Passo 3: clicar Movimentar ──
-    seletor_btn = "button.mat-raised-button[color='primary']"
+    logger.info(f"[LOOP_PRAZO] Selecionando destino: '{opcao_destino}'")
     try:
+        seta_dropdown = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "div.mat-select-arrow-wrapper"))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", seta_dropdown)
+        driver.execute_script("arguments[0].click();", seta_dropdown)
+
+        # Aguardar um mat-option aparecer (garante que as opções foram carregadas)
+        WebDriverWait(driver, 8).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane mat-option"))
+        )
+
+        opcao_elemento = None
+        for xpath in [
+            f"//mat-option//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']",
+            "//mat-option//span[contains(@class,'mat-option-text') and contains(text(),'Cumprimento')]",
+            "//mat-option//span[contains(@class,'mat-option-text') and contains(text(),'provid')]",
+        ]:
+            try:
+                opcao_elemento = driver.find_element(By.XPATH, xpath)
+                break
+            except Exception:
+                pass
+
+        if not opcao_elemento:
+            logger.error(f"[LOOP_PRAZO] Opção '{opcao_destino}' não encontrada no dropdown")
+            return False
+
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
+        driver.execute_script("arguments[0].click();", opcao_elemento)
+        logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] Opção '{opcao_destino}' selecionada")
+
+        seletor_btn = "button.mat-raised-button[color='primary']"
         btn = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn))
         )
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-        result = driver.execute_script("arguments[0].click(); return true;", btn)
-        if result:
-            logger.info("[LOOP_PRAZO] Botão 'Movimentar processos' clicado")
-            aguardar_renderizacao_nativa(driver, timeout=2.0)  # DOM-settle: after Movimentar click
-            return True
-        logger.error("[LOOP_PRAZO] JS click no botão Movimentar retornou falso")
-        return False
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
+        driver.execute_script("arguments[0].click();", btn)
+        logger.info("[LOOP_PRAZO] Botão 'Movimentar processos' clicado")
+        return True
     except Exception as e:
-        logger.error(f"[LOOP_PRAZO] Botão Movimentar não encontrado: {e}")
+        logger.error(f"[LOOP_PRAZO] Falha ao movimentar para '{opcao_destino}': {e}")
         return False
 
 
@@ -469,33 +426,22 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
             logger.error(f"[LOOP_PRAZO] Erro ao abrir dropdown de destino com seletor {seletor_dropdown}: {e}")
             return False
 
-        try:
-            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.2)
-        except Exception:
-            aguardar_renderizacao_nativa(driver, timeout=1.2)  # fallback: DOM ready
-
-        overlay = WebDriverWait(driver, 6).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
+        # Aguardar um mat-option aparecer (garante que as opções foram carregadas)
+        WebDriverWait(driver, 6).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane mat-option"))
         )
-        opcao_xpath = f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
+
+        opcao_xpath = f"//mat-option//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
         logger.info(f"[CICLO1/DESTINO_OPCAO] Selecionando opção com xpath: {opcao_xpath}")
         try:
-            opcao_elemento = overlay.find_element(By.XPATH, opcao_xpath)
+            opcao_elemento = driver.find_element(By.XPATH, opcao_xpath)
             log_seletor_vencedor('CICLO1/DESTINO_OPCAO', By.XPATH, opcao_xpath)
         except Exception as e:
             logger.error(f"[LOOP_PRAZO] Opção '{opcao_destino}' não encontrada com xpath {opcao_xpath}: {e}")
             return False
 
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
-        try:
-            aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=0.3)
-        except Exception:
-            aguardar_renderizacao_nativa(driver, timeout=0.3)  # fallback: DOM ready
         driver.execute_script("arguments[0].click();", opcao_elemento)
-        try:
-            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.0)
-        except Exception:
-            aguardar_renderizacao_nativa(driver, timeout=1.0)  # fallback: DOM ready
 
         if not pausar_confirmacao('CICLO1/DESTINO_MOVIMENTAR', 'Clique no botão Movimentar'):
             return False
@@ -574,10 +520,21 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
             seletor_tarefa='Tarefa do processo'
         ):
             return False
+        # Aguardar spinner do filtro de fases (div.carregando) ANTES de selecionar processos.
+        # Garante que a lista reflete o filtro antes de selecionar_todos / suitcase.
         try:
-            aguardar_renderizacao_nativa(driver, 'tr.cdk-drag', timeout=6)
+            WebDriverWait(driver, 4).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
+            )
+            WebDriverWait(driver, 15).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
+            )
+            logger.info('[CICLO2][FILTRO] Spinner de filtro sumiu — lista pronta')
         except Exception:
-            pass
+            try:
+                aguardar_renderizacao_nativa(driver, 'tr.cdk-drag', timeout=6)
+            except Exception:
+                pass
 
         return True
     except Exception as e:

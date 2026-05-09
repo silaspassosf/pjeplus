@@ -53,16 +53,9 @@ def aguardar_pagina_carregar(driver, timeout=10):
         return False
 
 
-def substituir_marcador_por_conteudo(driver, conteudo_customizado=None, debug=True, marcador="--"):
-    """Compatibilidade lazy para a implementação ativa em PEC.anexos."""
-    from PEC.anexos import substituir_marcador_por_conteudo as _impl
-
-    return _impl(
-        driver=driver,
-        conteudo_customizado=conteudo_customizado,
-        debug=debug,
-        marcador=marcador,
-    )
+def substituir_marcador_por_conteudo(driver, conteudo_customizado=None, debug=False, marcador='--'):
+    from PEC.anexos.anexos_juntador_helpers import substituir_marcador_por_conteudo as _impl
+    return _impl(driver=driver, conteudo_customizado=conteudo_customizado, debug=debug, marcador=marcador)
 
 
 def salvar_conteudo_clipboard(conteudo, numero_processo, tipo_conteudo="generico", debug=True):

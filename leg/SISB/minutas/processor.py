@@ -248,9 +248,9 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
                     await new Promise(resolve => setTimeout(resolve, 500));
                     let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
                     for (let opcao of opcoes) {{
-                        if (opcao.textContent.includes('Ação Trabalhista')) {{
+                        if (opcao.textContent.includes('Execucao Trabalhista') || opcao.textContent.includes('Acao Trabalhista') || opcao.textContent.includes('Execução Trabalhista') || opcao.textContent.includes('Ação Trabalhista')) {{
                             opcao.click();
-                            log.push(' Ação: Trabalhista');
+                            log.push(' Acao: ' + opcao.textContent.trim());
                             break;
                         }}
                     }}

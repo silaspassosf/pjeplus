@@ -128,7 +128,7 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
                 except Exception:
                     continue
             if campo_prazo:
-                campo_prazo.click()
+                driver.execute_script("arguments[0].click();", campo_prazo)
                 campo_prazo.clear()
                 campo_prazo.send_keys(prazo)
 
@@ -488,8 +488,13 @@ def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências
             with medir_latencia('CICLO2_LOOP_PROVIDENCIAS'):
                 logger.info('[CICLO2] ===== Iniciando processamento de NÃO-LIVRES (providências) =====')
                 if not ciclo2_loop_providencias(driver, opcao_destino):
-                    logger.error('[CICLO2] Erro ao processar providências (não-livres)')
-                    return False
+                    logger.error('[CICLO2] Erro ao processar providências (não-livres) — continuando para LIVRES+XS')
+                    # Garantir retorno ao painel 8 antes de prosseguir
+                    try:
+                        driver.get('https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos')
+                        aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=6)
+                    except Exception as _nav_e:
+                        logger.warning(f'[CICLO2] Falha ao retornar ao painel 8 após erro de providências: {_nav_e}')
 
             # 2) Reaplicar filtros e selecionar GIGS + LIVRES para criar atividade XS
             if not _ciclo2_aplicar_filtros(driver):

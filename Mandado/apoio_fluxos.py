@@ -167,16 +167,19 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
         except Exception:
             btn_sigilo.click()
 
-        try:
-            WebDriverWait(driver, 2).until(lambda _: not _tem_sigilo_link())
-            if debug:
-                logger.info('[SIGILO_DEBUG] is-sigiloso removido após clique')
-            return True
-        except Exception:
-            pass
+        import time
+        for _ in range(8):
+            time.sleep(0.25)
+            try:
+                if not _tem_sigilo_link():
+                    if debug:
+                        logger.info('[SIGILO_DEBUG] ✅ is-sigiloso removido após clique')
+                    return True
+            except Exception:
+                pass
 
         if debug:
-            logger.error('[SIGILO_DEBUG] Clique executado, mas classe is-sigiloso permaneceu')
+            logger.error('[SIGILO_DEBUG] ❌ Clique executado, mas classe is-sigiloso permaneceu')
         return False
 
     except Exception as e:
@@ -206,23 +209,23 @@ def _criar_api_client_local(driver: WebDriver):
         return None
 
 
-def _identificar_uids_sigilosos_por_api(driver: WebDriver, log: bool = False) -> List[str]:
+def _identificar_uids_sigilosos_por_api(driver: WebDriver, log: bool = False) -> Optional[List[str]]:
     """Consulta timeline via API e retorna UIDs de docs sigilosos.
 
     Candidatos: certidão de devolução + 4 documentos mais recentes.
-    Retorna lista vazia em caso de falha (fallback para DOM).
+    Retorna None em caso de falha da API, lista vazia se sucesso mas nenhum sigiloso.
     """
     id_processo = _extrair_id_processo_da_url(driver)
     if not id_processo:
         if log:
             logger.info('[SIGILO_API] id_processo não encontrado na URL — usando fallback DOM')
-        return []
+        return None
 
     client = _criar_api_client_local(driver)
     if not client:
         if log:
             logger.info('[SIGILO_API] Falha ao criar API client — usando fallback DOM')
-        return []
+        return None
 
     try:
         timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
@@ -279,7 +282,7 @@ def _identificar_uids_sigilosos_por_api(driver: WebDriver, log: bool = False) ->
     except Exception as e:
         if log:
             logger.info(f'[SIGILO_API] Erro ao consultar timeline: {e} — usando fallback DOM')
-        return []
+        return None
 
 
 def _encontrar_elemento_por_uid(
@@ -510,8 +513,10 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
     # =======================================================
     # CAMINHO 1: Identificação via API (atributo sigilo + uid)
     # =======================================================
-    # Se hint fornecido (já veio de buscar_documentos_sequenciais_via_api), reusar.
-    uids_sigilosos = uids_sigilosos_hint if uids_sigilosos_hint is not None else _identificar_uids_sigilosos_por_api(driver, log=log)
+    if uids_sigilosos_hint:
+        uids_sigilosos = uids_sigilosos_hint
+    else:
+        uids_sigilosos = _identificar_uids_sigilosos_por_api(driver, log=log)
 
     if uids_sigilosos:
         if log:

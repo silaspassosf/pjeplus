@@ -26,6 +26,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 from Fix.utils import remover_acentos, normalizar_texto
 from datetime import datetime
 from typing import Dict, List

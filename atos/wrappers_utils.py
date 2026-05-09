@@ -96,108 +96,113 @@ var callback = arguments[arguments.length - 1];
 
 
 def _trocar_para_aba_detalhe(driver, log):
-    """Tenta trocar para a aba /detalhe, retorna URL atual."""
+    """Tenta trocar para a aba /detalhe. Se não encontrar, tenta restaurá-la na primeira aba."""
     current_url = driver.current_url
-    if len(driver.window_handles) > 1:
-        detalhe_handle = None
-        for handle in driver.window_handles:
-            try:
-                driver.switch_to.window(handle)
-                url = driver.current_url
-                if '/detalhe' in url:
-                    detalhe_handle = handle
-                    break
-            except Exception:
-                continue
-        if detalhe_handle:
-            driver.switch_to.window(detalhe_handle)
-            return driver.current_url
-        else:
-            try:
-                segundo = driver.window_handles[1]
-                driver.switch_to.window(segundo)
-                waited = 0
-                while '/detalhe' not in driver.current_url and waited < 10:
-                    sleep_fixed(1)
-                    waited += 1
+    
+    # 1. Procurar se alguma aba aberta já é a /detalhe
+    for handle in driver.window_handles:
+        try:
+            driver.switch_to.window(handle)
+            if '/detalhe' in driver.current_url:
                 return driver.current_url
-            except Exception as e:
-                if log:
-                    logger.error(f"[VISIBILIDADE][ERRO] Falha ao trocar para aba detalhe: {e}")
-                return current_url
-    return current_url
+        except Exception:
+            continue
+            
+    # 2. Se não encontrou nenhuma aba /detalhe (ex: foi consumida por uma transição nativa)
+    try:
+        driver.switch_to.window(driver.window_handles[0])
+        url_atual = driver.current_url
+        if '/processo/' in url_atual:
+            import re
+            match = re.search(r'/processo/(\d+)', url_atual)
+            if match:
+                id_proc = match.group(1)
+                base_match = re.search(r'^(https?://[^/]+/pjekz)', url_atual)
+                if base_match:
+                    base_url = base_match.group(1)
+                    nova_url = f"{base_url}/processo/{id_proc}/detalhe"
+                    logger.info(f"[VISIBILIDADE] Aba /detalhe ausente. Restaurando navegação para: {nova_url}")
+                    driver.get(nova_url)
+                    return driver.current_url
+    except Exception as e:
+        logger.error(f"[VISIBILIDADE][ERRO] Falha ao tentar restaurar URL de detalhe: {e}")
+
+    return driver.current_url
 
 def _refresh_e_aguardar(driver, log):
     try:
         driver.refresh()
-        aguardar_pagina_carregar(driver, timeout=10)
+        try:
+            aguardar_renderizacao_nativa(driver, 'ul.pje-timeline', modo='aparecer', timeout=15)
+        except Exception:
+            pass
+        return True
     except Exception as refresh_err:
-        if log:
-            logger.error(f"[VISIBILIDADE][F5][ERRO] Falha no refresh: {refresh_err}")
+        logger.error(f"[VISIBILIDADE][F5][ERRO] Falha no refresh: {refresh_err}")
         return False
-    try:
-        WebDriverWait(driver, 10).until(
-            lambda d: d.execute_script("return document.readyState") == "complete"
-        )
-    except Exception:
-        if log:
-            logger.warning('[VISIBILIDADE] WebDriverWait readyState timeout apos refresh, prosseguindo')
-    return True
 
 def _ativar_multipla_selecao(driver, log):
     try:
-        btn_multi = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]')
+        btn_multi = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]'))
+        )
         btn_multi.click()
         sleep_fixed(0.5)
         return True
     except Exception as e:
-        if log:
-            logger.error(f'[VISIBILIDADE][ERRO] Falha ao ativar múltipla seleção: {e}')
+        logger.error(f'[VISIBILIDADE][ERRO] Falha ao ativar múltipla seleção: {e}')
         return False
 
 def _clicar_primeira_checkbox(driver, log):
     try:
-        primeira_checkbox = driver.find_element(By.CSS_SELECTOR, 'ul.pje-timeline mat-card mat-checkbox label')
+        primeira_checkbox = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'ul.pje-timeline mat-card mat-checkbox label'))
+        )
         primeira_checkbox.click()
         sleep_fixed(0.5)
         return True
     except Exception as e:
-        if log:
-            logger.error(f'[VISIBILIDADE][ERRO] Falha ao marcar primeira checkbox: {e}')
+        logger.error(f'[VISIBILIDADE][ERRO] Falha ao marcar primeira checkbox: {e}')
         return False
 
 def _clicar_botao_visibilidade(driver, log):
     try:
-        btn_visibilidade = driver.find_element(By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]')
+        btn_visibilidade = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]'))
+        )
         btn_visibilidade.click()
         sleep_fixed(1)
         return True
     except Exception as e:
-        if log:
-            logger.error(f'[VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: {e}')
+        logger.error(f'[VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: {e}')
         return False
 
 def _selecionar_polo(driver, polo, log):
     try:
         if polo == 'ativo':
-            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-ativo')
+            icones = WebDriverWait(driver, 5).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-ativo'))
+            )
             for icone in icones:
                 linha = icone.find_element(By.XPATH, './../../..')
                 label = linha.find_element(By.CSS_SELECTOR, 'label')
                 label.click()
         elif polo == 'passivo':
-            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-passivo')
+            icones = WebDriverWait(driver, 5).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-passivo'))
+            )
             for icone in icones:
                 linha = icone.find_element(By.XPATH, './../../..')
                 label = linha.find_element(By.CSS_SELECTOR, 'label')
                 label.click()
         elif polo == 'ambos':
-            btn_todos = driver.find_element(By.CSS_SELECTOR, 'th button')
+            btn_todos = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'th button'))
+            )
             btn_todos.click()
         return True
     except Exception as e:
-        if log:
-            logger.error(f'[VISIBILIDADE][ERRO] Falha ao selecionar polo: {e}')
+        logger.error(f'[VISIBILIDADE][ERRO] Falha ao selecionar polo: {e}')
         return False
 
 def _clicar_salvar(driver, log):
@@ -248,8 +253,7 @@ def visibilidade_sigilosos(driver, polo='ativo', log=False):
         _ocultar_multipla_selecao(driver)
         return True
     except Exception as e:
-        if log:
-            logger.error(f'[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}')
+        logger.error(f'[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade (função principal): {e}')
         return False
 
 
@@ -269,34 +273,23 @@ def executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=
         return True
     
     try:
-        # Verifica se está na URL correta (/detalhe)
-        current_url = driver.current_url
-        if '/detalhe' not in current_url:
-            logger.warning(f'[VISIBILIDADE][WARN] URL atual não contém /detalhe: {current_url}')
-            logger.warning('[VISIBILIDADE][WARN] A função visibilidade_sigilosos deve ser executada na URL /detalhe')
-        
-        # NOVO: Atualiza a página com F5 como primeira ação
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.F5)
-
-        # Aguarda a página recarregar (observer, sem time.sleep)
-        try:
-            aguardar_renderizacao_nativa(driver, 'ul.pje-timeline', modo='aparecer', timeout=10)
-        except Exception:
-            logger.info('[VISIBILIDADE] Observer timeout no F5, prosseguindo mesmo assim')
+        # A própria visibilidade_sigilosos fará o switch de aba para /detalhe e o F5.
         
         # Usa a função local que já tem tab switching e F5
-        resultado = visibilidade_sigilosos(driver, log=debug)
+        # Passando log=True fixo para garantir que falhas sejam relatadas no logger independentemente do modo debug.
+        resultado = visibilidade_sigilosos(driver, log=True)
         
         if resultado:
+            logger.info('[ATO][VISIBILIDADE] Execução da visibilidade concluída com sucesso')
             return True
         else:
-            logger.error('[VISIBILIDADE][ERRO]  Função visibilidade_sigilosos falhou.')
+            logger.error('[VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.')
             return False
             
     except Exception as e:
-        logger.error(f'[VISIBILIDADE][ERRO]  Exceção ao executar visibilidade_sigilosos: {e}')
+        logger.error(f'[VISIBILIDADE][ERRO] Exceção ao executar visibilidade_sigilosos: {e}')
         import traceback
-        logger.exception("Erro detectado")
+        logger.error(traceback.format_exc())
         return False
 
 

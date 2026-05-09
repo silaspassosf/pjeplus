@@ -16,7 +16,7 @@ def fechar_abas_extras(driver, handle_principal=None):
         handle_principal: handle da aba a preservar; se None, usa driver.current_window_handle
     """
     principal = handle_principal or driver.current_window_handle
-    forcar_fechamento_abas_extras(driver, [principal])
+    forcar_fechamento_abas_extras(driver, principal)
 
 
 __all__ = [

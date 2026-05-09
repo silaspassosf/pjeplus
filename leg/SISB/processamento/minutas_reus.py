@@ -1,3 +1,4 @@
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,11 +30,14 @@ def _processar_reus_otimizado(driver, reus):
                     'nome': reu.get('nome', '')
                 })
 
+        # JSON-encode para garantir escape seguro de strings no JS
+        reus_json = json.dumps(lista_reus_js, ensure_ascii=False)
+
         script_processar_reus = f"""
         {criar_js_otimizado()}
 
         async function processarTodosReus() {{
-            let reus = {lista_reus_js};
+            let reus = {reus_json};
             let log = [];
             let reusAdicionados = 0;
             let reusRemovidos = 0;
@@ -41,10 +45,10 @@ def _processar_reus_otimizado(driver, reus):
             try {{
                 for (let i = 0; i < reus.length; i++) {{
                     let reu = reus[i];
-                    log.push('\n=== REU ' + (i+1) + '/' + reus.length + ' ===');
+                    log.push('\\n=== REU ' + (i+1) + '/' + reus.length + ' ===');
                     log.push('Adicionando: ' + reu.nome + ' (' + reu.cpfcnpj + ')');
 
-                    let cpfInput = await esperarElemento('input[placeholder="CPF/CNPJ do reu/executado"]', 3000);
+                    let cpfInput = await esperarElemento('input[placeholder="CPF/CNPJ do réu/executado"]', 3000);
                     if (!cpfInput) {{
                         cpfInput = await esperarElemento('input.mat-input-element[cpfcnpjmask]', 2000);
                     }}

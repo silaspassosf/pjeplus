@@ -47,7 +47,7 @@ from Mandado.entrada_api import processar_mandados_devolvidos_api
 from Fix.log import logger
 
 # Imports de fluxos orquestrados — movidos para o topo (Task 9)
-from Triagem.runtime_triagem import run_triagem
+from bianca.triagem_engine import run_triagem
 from Peticao.runtime_pet import run_pet
 from Prazo.p2b_gateway import processar_gigs_sem_prazo_p2b, testar_gigs_sem_prazo
 
@@ -347,7 +347,7 @@ def executar_pet(driver) -> Dict[str, Any]:
 def executar_dom(driver) -> Dict[str, Any]:
     """Análise DOM — run_dom."""
     def _fluxo(d):
-        from Triagem.dom import run_dom
+        from bianca.dom_engine import run_dom
         resultado = run_dom(d)
         if resultado is None:
             return None
@@ -513,10 +513,50 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     # Adicionar StreamHandler para console (vai passar por TeeOutput)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG if debug else logging.INFO)
-    console_formatter = logging.Formatter('[%(name)s] %(message)s')
-    console_handler.setFormatter(console_formatter)
+
+    class _DestaqueConsoleFormatter(logging.Formatter):
+        def format(self, record):
+            base = '[%(name)s] %(message)s' % {'name': record.name, 'message': record.getMessage()}
+            if record.levelno >= logging.ERROR:
+                sep = '=' * 60
+                return '\n%s\n%s\n%s' % (sep, base, sep)
+            return base
+
+    console_handler.setFormatter(_DestaqueConsoleFormatter())
     root_logger.addHandler(console_handler)
-    
+
+    # Handler exclusivo para erros → erro.md na raiz
+    _ERRO_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'erro.md')
+    erro_handler = logging.FileHandler(_ERRO_MD, encoding='utf-8', mode='a')
+    erro_handler.setLevel(logging.ERROR)
+
+    class _ErroMdFormatter(logging.Formatter):
+        def format(self, record):
+            msg = record.getMessage()
+            if record.exc_info:
+                import traceback
+                msg += '\n```\n' + ''.join(traceback.format_exception(*record.exc_info)).rstrip() + '\n```'
+            return (
+                '- **%s** `[%s]` `%s:%s` — %s\n' % (
+                    record.levelname,
+                    self.formatTime(record, '%H:%M:%S'),
+                    record.module,
+                    record.funcName,
+                    msg,
+                )
+            )
+
+    erro_handler.setFormatter(_ErroMdFormatter())
+    root_logger.addHandler(erro_handler)
+
+    # Cabeçalho da sessão no erro.md
+    with open(_ERRO_MD, 'a', encoding='utf-8') as _f:
+        import datetime as _dt
+        _f.write('\n## Execução %s — %s\n\n' % (
+            _dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            os.path.basename(log_file),
+        ))
+
     return log_file, tee
 
 

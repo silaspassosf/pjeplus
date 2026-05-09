@@ -33,7 +33,6 @@ from Fix.utils import (
     obter_ultimo_conteudo_clipboard,
     executar_coleta_parametrizavel,
     inserir_link_ato_validacao,
-    substituir_marcador_por_conteudo,
 )
 
 
@@ -144,3 +143,270 @@ def _inserir_modelo(self: types.SimpleNamespace, configuracao: Dict[str, Any]) -
 
     logger.debug('[JUNTADA] Editor disponivel para manipulacao')
     return True
+
+
+def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str] = None, debug: bool = True, marcador: str = "--") -> bool:
+    """
+    Função melhorada para localizar marcador (ex: "--") e colar conteúdo após ele.
+    Usa a mesma lógica robusta do editor_insert.py para maior compatibilidade.
+    Simula ação manual: clique no final da linha + Ctrl+V
+    Args:
+        driver: Selenium WebDriver
+        debug: Se deve exibir logs
+        conteudo_customizado: Conteúdo específico para usar (se None, usa clipboard/arquivo)
+        marcador: Texto a ser localizado (padrão: "--")
+    """
+    if debug:
+        print(f"[SUBST_MARCADOR] Iniciando colagem após marcador '{marcador}'...")
+
+    try:
+        # 1. Determina qual conteúdo usar
+        conteudo_para_usar = None
+        fonte_conteudo = ""
+
+        if conteudo_customizado:
+            conteudo_para_usar = conteudo_customizado
+            fonte_conteudo = "conteudo_customizado"
+            if debug:
+                print(f"[SUBST_MARCADOR] Usando conteúdo customizado: {len(conteudo_customizado)} chars")
+        else:
+            # Carrega conteúdo do clipboard/arquivo
+            def carregar_clipboard_arquivo():
+                try:
+                    # Procurar clipboard.txt na pasta PEC
+                    clipboard_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clipboard.txt")
+                    if os.path.exists(clipboard_file):
+                        with open(clipboard_file, 'r', encoding='utf-8') as f:
+                            content = f.read().strip()
+                        if debug:
+                            print(f"[SUBST_MARCADOR] Carregado do arquivo: {len(content)} chars")
+                        return content
+                    return None
+                except Exception as e:
+                    if debug:
+                        print(f"[SUBST_MARCADOR] Erro ao carregar arquivo: {e}")
+                    return None
+
+            conteudo_para_usar = carregar_clipboard_arquivo()
+            fonte_conteudo = "clipboard_arquivo"
+
+        if not conteudo_para_usar:
+            print("[SUBST_MARCADOR] ✗ Nenhum conteúdo disponível para colar")
+            return False
+
+        # 2. Usar a lógica robusta do editor_insert.py
+        # Primeiro, encontrar o editor
+        sels = [
+            '.ck-editor__editable[contenteditable="true"]',
+            '.ck-content[contenteditable="true"]',
+            'div[role="textbox"][contenteditable="true"]',
+        ]
+
+        editable = None
+        for sel in sels:
+            try:
+                el = driver.find_element(By.CSS_SELECTOR, sel)
+                if el and el.is_displayed() and el.is_enabled():
+                    editable = el
+                    if debug:
+                        print(f"[SUBST_MARCADOR] Editor encontrado por seletor: {sel}")
+                    break
+            except Exception:
+                continue
+
+        if not editable:
+            print("[SUBST_MARCADOR] ✗ Editor CKEditor não encontrado na página")
+            return False
+
+        # Foco e rolagem
+        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        time.sleep(0.2)
+        try:
+            editable.click()
+        except Exception:
+            driver.execute_script('arguments[0].focus();', editable)
+        time.sleep(0.1)
+
+        # Limpar caracteres problemáticos e escapar para JavaScript
+        html_content_clean = (conteudo_para_usar
+                             .replace('\x00', '')
+                             .replace('\r', '')
+                             .strip())
+
+        # Escape mais robusto para JavaScript
+        html_escaped = (html_content_clean
+                       .replace('\\', '\\\\')
+                       .replace('`', '\\`')
+                       .replace('$', '\\$')
+                       .replace('"', '\\"')
+                       .replace('\n', '\\n')
+                       .replace('\t', '\\t'))
+
+        # Escape do marcador de forma similar
+        marcador_escaped = (marcador
+                           .replace('\\', '\\\\')
+                           .replace('`', '\\`')
+                           .replace('$', '\\$')
+                           .replace('"', '\\"')
+                           .replace('\n', '\\n'))
+
+        # DEPURAÇÃO - verificar HTML antes da execução
+        if debug:
+            html_antes = driver.execute_script("return arguments[0].innerHTML;", editable)
+            texto_antes = driver.execute_script("return arguments[0].innerText || arguments[0].textContent || '';", editable)
+            print(f"[DEBUG] HTML ANTES: {html_antes}")
+            print(f"[DEBUG] TEXTO ANTES: {texto_antes}")
+            print(f"[DEBUG] Contém marcador '{marcador}' no HTML? {marcador in html_antes}")
+            print(f"[DEBUG] Contém marcador '{marcador}' no TEXTO? {marcador in texto_antes}")
+
+        # IMPLEMENTAÇÃO ROBUSTA BASEADA NO editor_insert.py
+        script_ckeditor = f"""
+        console.log('[SUBST_MARCADOR] === USANDO LÓGICA ROBUSTA DO EDITOR_INSERT ===');
+
+        let editor = arguments[0];
+        let htmlContent = arguments[1];
+        let marcador = arguments[2];
+        let fonte = arguments[3];
+
+        try {{
+            // 1. Tentar encontrar a instância do CKEditor
+            let ckInstance = null;
+
+            // Método 1: Via elemento pai
+            if (editor.ckeditorInstance) {{
+                ckInstance = editor.ckeditorInstance;
+                console.log('[SUBST_MARCADOR] ✓ CKEditor via ckeditorInstance');
+            }}
+
+            // Método 2: Via global CKEDITOR
+            if (!ckInstance && window.CKEDITOR) {{
+                for (let instanceName in window.CKEDITOR.instances) {{
+                    let instance = window.CKEDITOR.instances[instanceName];
+                    if (instance.element && instance.element.$ === editor) {{
+                        ckInstance = instance;
+                        console.log('[SUBST_MARCADOR] ✓ CKEditor via CKEDITOR.instances');
+                        break;
+                    }}
+                }}
+            }}
+
+            // Método 3: Via CKEditor 5 (novo)
+            if (!ckInstance) {{
+                let ckEditor = editor.closest('.ck-editor');
+                if (ckEditor && ckEditor.ckeditorInstance) {{
+                    ckInstance = ckEditor.ckeditorInstance;
+                    console.log('[SUBST_MARCADOR] ✓ CKEditor 5 via closest');
+                }}
+            }}
+
+            if (ckInstance) {{
+                console.log('[SUBST_MARCADOR] Usando API CKEditor');
+                let htmlOriginal = ckInstance.getData();
+                console.log('[SUBST_MARCADOR] HTML via getData:', htmlOriginal.substring(0, 100));
+
+                if (htmlOriginal.includes(marcador)) {{
+                    // TENTATIVA: Usar insertHtml se disponível, senão setData
+                    if (ckInstance.insertHtml) {{
+                        console.log('[SUBST_MARCADOR] Tentando insertHtml para preservar formatação...');
+                        let pos = htmlOriginal.indexOf(marcador);
+                        if (pos !== -1) {{
+                            ckInstance.insertHtml(htmlContent, 'unfiltered_html');
+                            console.log('[SUBST_MARCADOR] ✓ insertHtml usado');
+                            return {{ sucesso: true, metodo: 'ckeditor_insertHtml' }};
+                        }}
+                    }}
+
+                    // Fallback: setData original
+                    let novoHtml = htmlOriginal.replace(marcador, htmlContent);
+                    ckInstance.setData(novoHtml);
+                    console.log('[SUBST_MARCADOR] ✓ setData() executado');
+                    return {{ sucesso: true, metodo: 'ckeditor_api' }};
+                }} else {{
+                    console.error('[SUBST_MARCADOR] Marcador não encontrado via API');
+                }}
+            }} else {{
+                console.log('[SUBST_MARCADOR] CKEditor API não encontrada, usando DOM direto');
+
+                // Fallback: DOM direto com foco
+                editor.focus();
+
+                let htmlOriginal = editor.innerHTML;
+                if (htmlOriginal.includes(marcador)) {{
+                    let novoHtml = htmlOriginal.replace(marcador, htmlContent);
+                    editor.innerHTML = novoHtml;
+
+                    // Forçar eventos de mudança
+                    editor.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    editor.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    editor.dispatchEvent(new Event('keyup', {{ bubbles: true }}));
+
+                    // Forçar blur/focus para CKEditor detectar
+                    editor.blur();
+                    setTimeout(() => editor.focus(), 10);
+
+                    console.log('[SUBST_MARCADOR] ✓ DOM direto + eventos');
+                    return {{ sucesso: true, metodo: 'dom_direto_com_eventos' }};
+                }}
+            }}
+
+            return {{ sucesso: false, erro: 'Nenhum método funcionou' }};
+
+        }} catch (e) {{
+            console.error('[SUBST_MARCADOR] Erro:', e);
+            return {{ sucesso: false, erro: e.message }};
+        }}
+        """
+
+        # Executar o script com API do CKEditor
+        resultado = driver.execute_script(script_ckeditor, editable, html_content_clean, marcador, fonte_conteudo)
+
+        # Aguardar até que o HTML seja atualizado ou o marcador seja removido
+        try:
+            def _condicao_html(drv):
+                try:
+                    cur = drv.execute_script("return arguments[0].innerHTML;", editable) or ''
+                    if html_content_clean in cur:
+                        return True
+                    if marcador not in cur:
+                        return True
+                    return False
+                except Exception:
+                    return False
+
+            WebDriverWait(driver, 3, poll_frequency=0.2).until(_condicao_html)
+        except Exception:
+            if debug:
+                try:
+                    html_depois = driver.execute_script("return arguments[0].innerHTML;", editable)
+                    print(f"[DEBUG] HTML DEPOIS (partial): {html_depois[:300]}")
+                except Exception:
+                    print('[DEBUG] Não foi possível ler HTML DEPOIS')
+
+        if debug:
+            print(f"[SUBST_MARCADOR] Resultado do script: {resultado}")
+
+        if resultado and isinstance(resultado, dict) and resultado.get('sucesso'):
+            if debug:
+                print(f'[SUBST_MARCADOR] ✅ HTML inserido com sucesso via método: {resultado.get("metodo")}')
+
+            # Verificar se marcador foi removido (apenas para log)
+            try:
+                html_final = driver.execute_script("return arguments[0].innerHTML;", editable)
+                marcador_removido = marcador not in (html_final or '')
+            except Exception:
+                marcador_removido = False
+
+            if debug:
+                print(f'[SUBST_MARCADOR] Verificação final: marcador removido = {marcador_removido}')
+
+            return True
+        else:
+            erro = resultado.get('erro', 'Erro desconhecido') if resultado and isinstance(resultado, dict) else 'Script retornou None ou formato inesperado'
+            if debug:
+                print(f'[SUBST_MARCADOR] ❌ Falha na inserção: {erro}')
+            return False
+
+    except Exception as e:
+        if debug:
+            print(f"[SUBST_MARCADOR] ✗ Erro geral: {e}")
+        return False

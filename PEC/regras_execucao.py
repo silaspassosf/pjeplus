@@ -135,10 +135,26 @@ def _empresa_termo(driver, atv):
 
 
 def _sob_n(driver, atv):
-    """sob/xs N: def_chip + mov_sob."""
+    """sob/xs N: def_chip + mov_sob com propagação de falha."""
     from atos.movimentos import def_chip, mov_sob
-    def_chip(driver)
-    mov_sob(driver, atv.numero_processo, atv.observacao)
+    import logging
+    _log = logging.getLogger("PEC._sob_n")
+
+    try:
+        def_chip(driver)
+    except Exception as e:
+        _log.warning(f'[SOB] def_chip falhou (não crítico): {e}')
+
+    try:
+        ok = mov_sob(driver, atv.numero_processo, atv.observacao, debug=True)
+        if not ok:
+            _log.error(f'[SOB] mov_sob FALHOU para {atv.numero_processo} com obs="{atv.observacao}"')
+        return ok
+    except Exception as e:
+        _log.error(f'[SOB] mov_sob EXCEÇÃO para {atv.numero_processo}: {e}')
+        import traceback
+        _log.error(traceback.format_exc())
+        return False
 
 
 def _executar_sisbajud(driver, atv, fn_sisb):
@@ -189,6 +205,27 @@ def _audx_mov_int(driver, atv):
     movimentar_inteligente(driver, 'Audiencia')
 
 
+def _carta_exec(driver, atv):
+    """xs carta: carrega a implementação real sob demanda."""
+    from PEC.carta_execucao import carta
+    return carta(driver)
+
+
+def _xs_parcial(driver, atv):
+    """xs parcial: carrega ato_bloq via export público atual."""
+    from atos import ato_bloq
+    return ato_bloq(driver)
+
+
+def _xs_sigilo(driver, atv):
+    """xs sigilo: aplica comunicação de sigilo e move para Aguardando Prazo."""
+    from atos.wrappers_pec import pec_sigilo
+    from atos.movimentos_fluxo import movimentar_inteligente
+
+    pec_sigilo(driver)
+    movimentar_inteligente(driver, 'Aguardando Prazo')
+
+
 # ─── Lazy imports ────────────────────────────────────────────────────────────
 
 try:
@@ -226,7 +263,7 @@ registry.register(r'teimosinha\s+60|t2\s+60|\b60\s*d\b|60\s+dias',    'sisbajud'
 registry.register(r'\bteimosinha\b|\bt2\b',                             'sisbajud', _sisbajud_minuta)
 registry.register(r'\bxs\s+resultado\b|\bresultado\b',                  'sisbajud', _sisbajud_processar_ordem)
 # ── CARTA ─────────────────────────────────────────────────────────────────────
-registry.register(r'\bxs\s+carta\b',                                    'carta',    _w(carta))
+registry.register(r'\bxs\s+carta\b',                                    'carta',    _carta_exec)
 # ── SOB ───────────────────────────────────────────────────────────────────────
 registry.register(r'\bsob\s+chip\b',                                    'sob',      _w(def_chip))
 registry.register(r'\bsobrestamento\s+vencido\b',                       'sob',      _def_sob)
@@ -246,10 +283,10 @@ registry.register(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b',
 registry.register(r'\bpec\s+dec\b|\bxs\s+pec\s+dec\b',                 'comunicacoes', _w(_a(w, 'pec_decisao')))
 registry.register(r'\bpec\s+idpj\b|\bxs\s+pec\s+idpj\b',               'comunicacoes', _w(_a(w, 'pec_editalidpj')))
 registry.register(r'\bxs\s+bloq\b|\bpec\s+bloq\b',                     'comunicacoes', _w(_a(w, 'pec_bloqueio')))
-registry.register(r'\bxs\s+sigilo\b',                                   'comunicacoes', (_w(_a(w, 'pec_sigilo')), lambda driver, atv: __import__('atos.movimentos_fluxo', fromlist=['movimentar_inteligente']).movimentar_inteligente(driver, 'Aguardando Prazo')))
+registry.register(r'\bxs\s+sigilo\b',                                   'comunicacoes', _xs_sigilo)
 # ── OUTROS ────────────────────────────────────────────────────────────────────
 registry.register(r'\bxs\s+audx\b|\baudx\b|\baud\s+x\b',               'outros',   _audx_mov_int)
-registry.register(r'\bxs\s+parcial\b',                                  'outros',   _w(ato_bloq))
+registry.register(r'\bxs\s+parcial\b',                                  'outros',   _xs_parcial)
 registry.register(r'\bmeios\b',                                         'outros',   _xs_meios)
 registry.register(r'\bxs\s+socio\b',                                    'outros',   _xs_socio)
 registry.register(r'\bempresa\s*termo\b|\btermoempresa\b',              'outros',   _empresa_termo)

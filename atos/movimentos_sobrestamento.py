@@ -2,6 +2,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .core import *
+import time
 
 from selenium.webdriver.remote.webdriver import WebDriver
 
@@ -36,7 +37,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
     def log_msg(msg):
         if debug:
             try:
-                logger.debug(msg)
+                print(msg)
             except Exception:
                 pass
 
@@ -44,14 +45,19 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
     log_msg(f"Observação: {observacao}")
     
     try:
-        # Extrai o número da observação (ex: "sob 6" -> "6")
-        numero_match = re.search(r'\bsob\s+(\d+)', observacao.lower())
+        # Extrai o número da observação (formatos: "sob 6", "xs 6", "xs sob 6")
+        # Prioridade: "xs sob N" > "sob N" > "xs N" (todos extraem o mesmo número)
+        obs_lower = observacao.lower()
+        numero_match = re.search(r'\bsob\s+(\d+)', obs_lower)
+        if not numero_match:
+            # Fallback: "xs N" sem "sob" explícito
+            numero_match = re.search(r'\bxs\s+(\d+)', obs_lower)
         if not numero_match:
             log_msg(f" Número não encontrado na observação: {observacao}")
             return False
 
         prazo_meses = numero_match.group(1)
-        log_msg(f" Prazo extraído: {prazo_meses} meses")
+        log_msg(f" Prazo extraído: {prazo_meses} meses (formato: {'sob' if 'sob' in obs_lower else 'xs'})")
 
         # ===== ETAPA 1: ABRIR A TAREFA DO PROCESSO (sempre abrir primeiro) =====
         # Nota: comportamento intencionalmente alinhado ao fluxo genérico `mov()`:
@@ -157,18 +163,15 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             return False
         log_msg(f'[MOV_SOB] Botão "Abrir tarefa do processo" clicado')
 
-        # Aguarda nova aba e troca para ela (preferir aba com '/detalhe')
+        # Aguarda nova aba e troca para ela (polling loop, padrão legado)
         nova_aba = None
-        try:
-            WebDriverWait(driver, 6).until(
-                lambda d: len(d.window_handles) > len(abas_antes)
-            )
+        for _ in range(20):
             abas_depois = set(driver.window_handles)
             novas_abas = abas_depois - abas_antes
             if novas_abas:
                 nova_aba = novas_abas.pop()
-        except Exception:
-            pass
+                break
+            time.sleep(0.3)
 
         if nova_aba:
             # Ao abrir a tarefa, a nova aba é a que devemos usar (não procurar por '/detalhe').
@@ -181,13 +184,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
         try:
             wait_for_page_load(driver, 8)
         except Exception:
-            # DOM-settle: aguardar documento pronto
-            try:
-                WebDriverWait(driver, 2).until(
-                    lambda d: d.execute_script('return document.readyState') == 'complete'
-                )
-            except Exception:
-                pass
+            time.sleep(0.8)
 
         # Guard: só executar este movimento se a aba da tarefa indicar a página
         # de sobrestamento em estado 'aguardandofinal'. Caso contrário, tornar
@@ -263,13 +260,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             campo_prazo.clear()
             campo_prazo.send_keys(prazo_meses)
             log_msg(f" Prazo {prazo_meses} meses preenchido no campo")
-            # DOM-settle: aguardar campo refletir valor
-            try:
-                WebDriverWait(driver, 2).until(
-                    lambda d: d.find_element(By.CSS_SELECTOR, "input[formcontrolname='mesesPrazoControl']").get_attribute('value') == prazo_meses
-                )
-            except Exception:
-                pass
+            time.sleep(0.5)
         except Exception as e:
             log_msg(f' Erro ao preencher prazo no modal: {e}')
             return False
@@ -284,6 +275,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             except Exception:
                 driver.execute_script('arguments[0].click();', btn_prosseguir)
             log_msg(' Botão "Prosseguir" clicado')
+            time.sleep(1.5)
 
             # AGUARDAR SUCESSO: Verificar snackbar de sucesso OU fechamento do modal
             sucesso_detectado = False

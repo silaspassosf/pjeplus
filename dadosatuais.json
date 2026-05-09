@@ -1,54 +1,57 @@
 {
   "numero": [
-    "1001375-91.2025.5.02.0703"
+    "1001355-08.2022.5.02.0703"
   ],
-  "id": 7591758,
+  "id": 4863758,
   "autor": [
     {
-      "nome": "ROGERIO MARTINS DE MELO",
-      "cpfcnpj": "06123946897",
+      "nome": "ALINE JULIANA DAS CHAGAS SOUSA FERREIRA",
+      "cpfcnpj": "49511393839",
       "advogado": {
-        "nome": "ALESSANDRA FERREIRA LISBOA",
-        "cpf": "16311283883",
-        "oab": "SP143090"
+        "nome": "ALEF DOS SANTOS SANTANA",
+        "cpf": "39092903884",
+        "oab": "SP430002"
       }
+    },
+    {
+      "nome": "UNIÃO FEDERAL (PGF)",
+      "cpfcnpj": "05489410000161"
     }
   ],
   "reu": [
     {
-      "nome": "CARREFOUR COMERCIO E INDUSTRIA LTDA",
-      "cpfcnpj": "45543915000181",
-      "advogado": {
-        "nome": "RAQUEL NASSIF MACHADO PANEQUE",
-        "cpf": "25220469851",
-        "oab": "SP173491"
-      }
-    }
-  ],
-  "terceiro": [
+      "nome": "IRAILDE OLIVEIRA SANTOS 02096482526",
+      "cpfcnpj": "15275523000118"
+    },
     {
-      "nome": "REGIANE SOUZA ROCHA SILVA"
+      "nome": "IRAILDE OLIVEIRA SANTOS",
+      "cpfcnpj": "02096482526"
     }
   ],
-  "divida": {},
+  "terceiro": [],
+  "divida": {
+    "valor": "R$ 794,24",
+    "data": "14/03/2025"
+  },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "08/08/2025",
+  "dtAutuacao": "19/10/2022",
   "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 64840.01,
+    "pisoValorCausa": 3242.01,
+    "tetoValorCausa": 64840.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Liquidação",
+  "labelFaseProcessual": "Execução",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

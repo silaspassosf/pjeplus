@@ -56,10 +56,8 @@ from .relatorios import (
 )
 
 # ===== INTEGRATION =====
-from .integration import (
-    _atualizar_relatorio_com_segundo_protocolo,
-    _executar_juntada_pje
-)
+from .integration import _atualizar_relatorio_com_segundo_protocolo
+from PEC.anexos import executar_juntada_pje as _executar_juntada_pje
 
 # ===== EXPORTS COMPLETOS =====
 __all__ = [

@@ -251,7 +251,7 @@ def marcar_processo_executado_pec(
     if progresso is None:
         progresso = carregar_progresso_pec()
     sucesso = True if (status or "").upper() == "SUCESSO" else False
-    marcar_processo_executado_unificado('pec', numero_processo, progresso, sucesso=sucesso)
+    marcar_processo_executado_unificado('pec', numero_processo, progresso, sucesso=sucesso, motivo=detalhes)
     return progresso
 
 
@@ -534,8 +534,6 @@ class PECOrquestrador:
             if match:
                 _, bucket, acao = match
                 buckets[bucket].append((atv, acao))
-            else:
-                logger.warning(f'[PEC] Sem regra: {atv.observacao!r} — {atv.numero_processo}')
 
         if buckets.get('comunicacoes'):
             buckets['comunicacoes'].sort(
@@ -604,7 +602,7 @@ class PECOrquestrador:
             if dados.get('critical') and _critical_exc is None:
                 _critical_exc = dados.get('_exception') or RuntimeError(result.get('erro', ''))
             status = 'SUCESSO' if result.get('ok') else 'ERRO'
-            marcar_processo_executado_pec(atv.numero_processo, progresso, status=status)
+            marcar_processo_executado_pec(atv.numero_processo, progresso, status=status, detalhes=result.get('erro'))
 
         batch_result = run_batch(
             items=items,

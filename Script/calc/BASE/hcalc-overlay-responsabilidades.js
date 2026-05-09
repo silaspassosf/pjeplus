@@ -255,13 +255,26 @@
                         return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
                     };
                     const xsrf = getCookie('XSRF-TOKEN');
-                    const headers = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
-                    if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+                    const baseHeaders = { 'Accept': 'application/json', 'X-Grau-Instancia': '1' };
+                    if (xsrf) baseHeaders['X-XSRF-TOKEN'] = xsrf;
                     btnExtraUid.disabled = true;
                     btnExtraUid.textContent = '⏳';
                     try {
-                        const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${uid}/conteudo`;
-                        const resp = await fetch(url, { method: 'GET', credentials: 'include', headers });
+                        // 1. Resolver idUnicoDocumento → id numérico
+                        const docUrl = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos?` +
+                            new URLSearchParams({ idUnicoDocumento: uid });
+                        const docResp = await fetch(docUrl, { method: 'GET', credentials: 'include', headers: baseHeaders });
+                        if (!docResp.ok) throw new Error(`HTTP ${docResp.status} ao resolver uid=${uid}`);
+                        const docData = await docResp.json();
+                        const docItem = Array.isArray(docData) ? docData[0] : docData;
+                        const idDoc = docItem && docItem.id;
+                        if (!idDoc) throw new Error(`idUnicoDocumento "${uid}" não encontrado`);
+
+                        // 2. Buscar conteúdo pelo id numérico
+                        const pdfHeaders = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
+                        if (xsrf) pdfHeaders['X-XSRF-TOKEN'] = xsrf;
+                        const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${idDoc}/conteudo`;
+                        const resp = await fetch(url, { method: 'GET', credentials: 'include', headers: pdfHeaders });
                         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                         const buffer = await resp.arrayBuffer();
                         if (!buffer || buffer.byteLength < 100) throw new Error('Resposta vazia');

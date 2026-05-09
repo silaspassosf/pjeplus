@@ -50,12 +50,14 @@ class _NivelFormatter(logging.Formatter):
 
     def format(self, record):
         if record.levelno >= logging.ERROR:
-            # Formato: HH:MM:SS [modulo] ERRO em funcao: mensagem
-            return ('%(asctime)s [%(module)s] ERRO em %(funcName)s: %(message)s' %
-                    {'asctime': self.formatTime(record, '%H:%M:%S'),
-                     'module': record.module,
-                     'funcName': record.funcName,
-                     'message': record.getMessage()})
+            # Separador visual + localização exata do erro
+            linha = ('%(asctime)s [%(module)s] ERRO em %(funcName)s: %(message)s' %
+                     {'asctime': self.formatTime(record, '%H:%M:%S'),
+                      'module': record.module,
+                      'funcName': record.funcName,
+                      'message': record.getMessage()})
+            sep = '\n' + '=' * 60
+            return '%s\n%s\n%s' % (sep, linha, '=' * 60)
         # Formato compacto: HH:MM:SS [modulo] mensagem
         return ('%(asctime)s [%(module)s] %(message)s' %
                 {'asctime': self.formatTime(record, '%H:%M:%S'),

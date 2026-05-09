@@ -367,12 +367,13 @@ def _definir_regras_processamento() -> List[Tuple]:
     ato_pesqliq = m.get('ato_pesqliq')
     ato_reitmeios = m.get('ato_reitmeios')
     ato_idpj = m.get('ato_idpj')
+    idpj = m.get('idpj')
     # wrappers/from PEC
     retifidpj_wrapper = m.get('retifidpj_wrapper')
     pec_excluiargos = m.get('pec_excluiargos')
     # helper callable for phase routing (creates initial gigs then routes)
     try:
-        from .p2b_fluxo_helpers import inicar_exec as _inicar_exec
+        from .p2b_gateway import inicar_exec as _inicar_exec
     except Exception:
         _inicar_exec = None
 
@@ -474,13 +475,13 @@ def _definir_regras_processamento() -> List[Tuple]:
         ([gerar_regex_geral('defiro a instauração')], ('criar_gigs[1//xs pec dec]', 'criar_gigs[10//xs mdd edital pgto]', ato_idpj)),
 
         # REGRA DE TENDO EM VISTA
-        ([gerar_regex_geral(k) for k in ['tendo em vista que', 'pagamento da parcela pendente', 'sob pena de sequestro']], ('checar_anexos_tendo_em_vista',)),
+        ([gerar_regex_geral(k) for k in ['tendo em vista que', 'pagamento da parcela pendente', 'sob pena de sequestro']], (_inicar_exec,)),
 
         # REGRA DE NÃO AMPARADA
         ([gerar_regex_geral('não está amparada')], (ato_meios,),),
 
         # REGRA DE INSTAURADO EM FACE
-        ([gerar_regex_geral('instaurado em face')], ('idpj',)),
+        ([gerar_regex_geral('instaurado em face')], (idpj,)),
 
         # REGRA ESPECIAL: pagamento da próxima parcela -> criar gigs saldo
         ([gerar_regex_geral('pagamento da próxima parcela')], ("criar_gigs[5//xs saldo]",)),

@@ -3299,18 +3299,16 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
     3. A cada chamada, procurar NO ÍNDICE SEGUINTE (não refazer do zero)
     4. Verificar se documento contém REGRAS ARGOS
     5. Se contém, retornar; se não, avançar para próximo
-
-    Retorna (texto, tipo, idx) ou (None, None, None) — tripla para compatibilidade
-    com fluxo_argos que espera documento_idx.
+    
+    Retorna (texto, tipo, idx) ou (None, None, None).
     """
     # Importar localmente para evitar import circular entre Fix.core <-> Fix.extracao
     try:
         from .extracao import extrair_direto, extrair_documento
-    except Exception as e:
-        logger.debug("buscar_documento_argos: import de extracao via subpacote falhou, tentando via package: %s", e)
+    except Exception:
         # Fallback para import via package
         from Fix.extracao import extrair_direto, extrair_documento
-
+    
     # ✅ REGRAS ARGOS que o documento deve conter
     REGRAS_ARGOS = [
         'defiro a instauração',
@@ -3322,12 +3320,14 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
     
     try:
         if log:
-            logger.debug('[ARGOS][DOC] Buscando proximo documento com REGRAS ARGOS na timeline...')
+            logger.info('[ARGOS][DOC] Buscando proximo documento com REGRAS ARGOS na timeline...')
 
+        # ✨ USAR ÍNDICE PERSISTENTE (como em checar_prox)
+        # Inicializar índice se não existir
         if not hasattr(driver, '_argos_doc_idx'):
-            driver._argos_doc_idx = -1
+            driver._argos_doc_idx = -1  # Começar em -1 para que primeira busca comece em 0
             if log:
-                logger.debug('[ARGOS][DOC] Inicializando indice persistente')
+                logger.info('[ARGOS][DOC] Inicializando indice persistente')
 
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens:
@@ -3335,44 +3335,47 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
                 logger.warning('[ARGOS][DOC] Nenhum item na timeline')
             return None, None, None
 
-        planilha_idx = len(itens)
+        # Localizar índice da primeira planilha (se houver) - LIMITE DE BUSCA
+        planilha_idx = len(itens)  # Default: buscar até o final
         for i, it in enumerate(itens):
             try:
                 link = it.find_element(By.CSS_SELECTOR, 'a.tl-documento')
                 txt = (link.text or '').lower()
-                if 'planilha de atualizacao' in txt or 'planilha de atuali' in txt:
+                if 'planilha de atualização' in txt or 'planilha de atuali' in txt:
                     planilha_idx = i
                     break
-            except Exception as e:
-                logger.debug("buscar_documento_argos: erro ao processar item da timeline: %s", e)
+            except Exception:
                 continue
 
+        # ✅ ITERAR A PARTIR DO PRÓXIMO ÍNDICE (como checar_prox faz)
         start_idx = driver._argos_doc_idx + 1
         if ignorar_indices:
             start_idx = max(start_idx, max(ignorar_indices) + 1)
+            
         if log:
-            logger.debug('[ARGOS][DOC] Comecando busca do indice %d (limite planilha: %d, ignorados: %s)',
-                        start_idx, planilha_idx, ignorar_indices)
+            logger.info('[ARGOS][DOC] Comecando busca do indice %d (limite planilha: %d)', start_idx, planilha_idx)
 
         for idx in range(start_idx, planilha_idx):
             try:
                 item = itens[idx]
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 doc_text = (link.text or '').lower()
-
-                if not re.search(r'^(despacho|decisao|sentenca|conclusao)', doc_text.strip()):
+                
+                # ✅ Validar se é despacho/decisão/sentença/conclusão
+                if not re.search(r'^(despacho|decisão|sentença|conclusão|decisao|sentenca|conclusao)', doc_text.strip()):
                     if log:
                         logger.debug('[ARGOS][DOC] Indice %d: "%s" - nao e documento relevante, continuando...', idx, doc_text[:30])
                     continue
-
+                
                 if log:
-                    logger.debug('[ARGOS][DOC] Indice %d: "%s" - documento relevante encontrado, abrindo...', idx, doc_text[:50])
-
+                    logger.info('[ARGOS][DOC] Doc %d: "%s" - documento relevante encontrado, abrindo...', idx, doc_text[:50])
+                
             except Exception as e:
                 if log:
                     logger.warning('[ARGOS][DOC] Erro ao validar elemento %d: %s', idx, e)
                 continue
-
+            
+            # ✨ CLICAR NO DOCUMENTO
             try:
                 try:
                     from Fix.headless_helpers import limpar_overlays_headless, scroll_to_element_safe
@@ -3381,103 +3384,78 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
                     time.sleep(0.3)
                 except ImportError:
                     pass
-
+                
+                # Tentar click normal primeiro
                 try:
                     link.click()
                 except ElementClickInterceptedException:
                     if log:
-                        logger.debug('[ARGOS][DOC] Click intercepted, usando JS fallback')
+                        logger.info('[ARGOS][DOC] Click intercepted, usando JS fallback')
                     driver.execute_script("arguments[0].click();", link)
-
-                aguardar_renderizacao_nativa(driver, timeout=15)
+                
+                time.sleep(2)  # Aguardar carregamento
             except Exception as e:
                 if log:
                     logger.warning('[ARGOS][DOC] Falha ao clicar no documento: %s', e)
                 continue
 
+            # ✨ EXTRAIR TEXTO
+            time.sleep(1.5)
             texto = None
             try:
                 if log:
-                    logger.debug('[ARGOS][DOC] Extraindo conteudo...')
+                    logger.info('[ARGOS][DOC] Extraindo conteudo via extrair_direto...')
                 resultado = extrair_direto(driver, timeout=10, debug=log, formatar=True)
                 texto = resultado.get('conteudo') if resultado and resultado.get('sucesso') else None
             except Exception as e:
                 if log:
                     logger.warning('[ARGOS][DOC] extrair_direto falhou: %s', e)
 
-            if not texto:
-                try:
-                    texto = extrair_documento(driver, regras_analise=None, timeout=10, log=log)
-                except Exception as e:
-                    if log:
-                        logger.warning('[ARGOS][DOC] extrair_documento falhou: %s', e)
-
+            # ✅ VERIFICAR REGRAS ARGOS
             if texto:
                 if log:
-                    logger.debug('[ARGOS][DOC] Texto extraido: %d chars. Verificando regras...', len(texto))
-
+                    logger.info('[ARGOS][DOC] Texto extraido: %d chars. Verificando regras...', len(texto))
+                
                 texto_lower = texto.lower()
                 encontrou_regra = False
                 regra_encontrada = None
-
+                
+                # Verificar regras principais ARGOS
                 for regra in REGRAS_ARGOS:
                     if regra in texto_lower:
                         encontrou_regra = True
                         regra_encontrada = regra
                         break
-
+                
+                # FALLBACK: Se não encontrou regra ARGOS mas tem sigilo, tratar como ARGOS
                 if not encontrou_regra:
-                    if 'este despacho permanecera em sigilo' in texto_lower:
+                    if 'este despacho permanecerá em sigilo' in texto_lower or \
+                       'este despacho permanecera em sigilo' in texto_lower:
                         encontrou_regra = True
                         regra_encontrada = 'sigilo (fallback)'
                         if log:
-                            logger.debug('[ARGOS][DOC] Encontrado sigilo - tratando como ARGOS')
-
+                            logger.info('[ARGOS][DOC] ℹ️ Encontrado sigilo - tratando como ARGOS')
+                
                 if encontrou_regra:
+                    # ✅ SALVAR ÍNDICE ATUAL PARA PRÓXIMA BUSCA
                     driver._argos_doc_idx = idx
                     if log:
-                        logger.debug('[ARGOS][DOC] REGRA "%s" no indice %d - USANDO ESTE DOCUMENTO', regra_encontrada, idx)
-                    tipo = 'decisao' if 'decisao' in doc_text or 'sentenca' in doc_text else 'despacho'
+                        logger.info('[ARGOS][DOC] ✅ REGRA "%s" no indice %d - USANDO ESTE DOCUMENTO', regra_encontrada, idx)
+                    tipo = 'decisao' if 'decis' in doc_text or 'senten' in doc_text else 'despacho'
                     return texto, tipo, idx
                 else:
+                    # REGRA NÃO ENCONTRADA - APENAS CONTINUAR COM PRÓXIMO
                     if log:
-                        logger.debug('[ARGOS][DOC] Sem REGRA ARGOS no indice %d - voltando a timeline para proximo...', idx)
-
-                    try:
-                        driver.back()
-                        aguardar_renderizacao_nativa(driver, timeout=10)
-                        try:
-                            WebDriverWait(driver, 8).until(
-                                lambda d: len(d.find_elements(By.CSS_SELECTOR, "li.tl-item-container")) > 0
-                            )
-                        except TimeoutException:
-                            pass
-                    except Exception as back_err:
-                        if log:
-                            logger.warning('[ARGOS][DOC] Erro ao voltar: %s', back_err)
-
+                        logger.warning('[ARGOS][DOC] ⚠️ Sem REGRA ARGOS no indice %d - avancando para o proximo na timeline...', idx)
                     continue
             else:
                 if log:
-                    logger.warning('[ARGOS][DOC] Falha ao extrair texto do indice %d - continuando...', idx)
-
-                try:
-                    driver.back()
-                    aguardar_renderizacao_nativa(driver, timeout=10)
-                    try:
-                        WebDriverWait(driver, 8).until(
-                            lambda d: len(d.find_elements(By.CSS_SELECTOR, "li.tl-item-container")) > 0
-                        )
-                    except TimeoutException:
-                        pass
-                except Exception as e:
-                    logger.debug("buscar_documento_argos: erro ao voltar na timeline: %s", e)
-                    pass
-
+                    logger.warning('[ARGOS][DOC] ⚠️ Falha ao extrair texto do indice %d - avancando para o proximo na timeline...', idx)
                 continue
 
+        # ✅ FIM: Nenhum documento teve regra
         if log:
-            logger.warning('[ARGOS][DOC] Nenhum despacho/decisao com REGRAS ARGOS encontrado (fim da timeline)')
+            logger.warning('[ARGOS][DOC] ❌ Nenhum despacho/decisao com REGRAS ARGOS encontrado (fim da timeline)')
         return None, None, None
 
     except Exception as e:

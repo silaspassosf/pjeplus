@@ -175,6 +175,99 @@ def processar_processo_por_id_api(driver: WebDriver, id_processo: int, host: str
 GIGS_API_MAX_WORKERS = 20
 
 
+def _abrir_tarefa_e_tentar_iniciar_execucao(driver: WebDriver, timeout: int = 10) -> bool:
+    """Abre a tarefa mais recente na mesma aba e clica em 'Iniciar execução' se existir."""
+    url_atual = driver.current_url or ''
+    match = re.search(r'^(https://[^/]+)/pjekz/processo/(\d+)', url_atual)
+    if '/tarefa/' not in url_atual:
+        if not match:
+            return False
+        base, id_processo = match.groups()
+        try:
+            dados = driver.execute_async_script(
+                """
+                const done = arguments[arguments.length - 1];
+                fetch(arguments[0], {credentials: 'include'})
+                    .then(r => r.json())
+                    .then(j => done(Array.isArray(j) ? j[0] : j))
+                    .catch(e => done({__erro: String(e)}));
+                """,
+                f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
+            )
+            id_tarefa = None if not isinstance(dados, dict) else (dados.get('id') or dados.get('idTarefa'))
+            if dados.get('__erro') or not id_tarefa:
+                return False
+            driver.get(f'{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}')
+        except Exception as e:
+            logger.warning('[FLUXO_PZ] inicar_exec: falha ao abrir tarefa na mesma aba: %s', e)
+            return False
+
+    try:
+        from Fix.core import aguardar_renderizacao_nativa
+        aguardar_renderizacao_nativa(
+            driver,
+            "button[aria-label='Iniciar execução'], button[aria-label='Iniciar execucao']",
+            modo='aparecer',
+            timeout=min(8, timeout)
+        )
+    except Exception:
+        pass
+
+    try:
+        estado = driver.execute_script(
+            """
+            const seletor = "button[aria-label='Iniciar execução'], button[aria-label='Iniciar execucao']";
+            const botoes = Array.from(document.querySelectorAll(seletor));
+
+            function visivel(el) {
+                if (!el) return false;
+                const st = window.getComputedStyle(el);
+                const r = el.getBoundingClientRect();
+                return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+            }
+
+            const visiveis = botoes.filter(visivel);
+            const ativo = visiveis.find(btn => (
+                !btn.disabled
+                && btn.getAttribute('disabled') === null
+                && !btn.classList.contains('mat-button-disabled')
+            ));
+
+            if (ativo) {
+                ativo.scrollIntoView({block: 'center'});
+                ativo.click();
+                return { clicked: true, status: 'ativo' };
+            }
+
+            const inativo = visiveis.find(btn => (
+                btn.disabled
+                || btn.getAttribute('disabled') !== null
+                || btn.classList.contains('mat-button-disabled')
+            ));
+
+            if (inativo) {
+                return { clicked: false, status: 'inativo' };
+            }
+
+            return { clicked: false, status: visiveis.length ? 'visivel_sem_estado' : 'nao_encontrado' };
+            """
+        )
+
+        clicou = bool(isinstance(estado, dict) and estado.get('clicked'))
+        if not clicou and isinstance(estado, dict) and estado.get('status') == 'inativo':
+            logger.info('[FLUXO_PZ] inicar_exec: botão "Iniciar execução" detectado, porém inativo')
+
+        if clicou:
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(6, timeout))
+            except Exception:
+                pass
+        return clicou
+    except Exception:
+        return False
+
+
 def obter_fase_processual(driver, caminho_json: str = 'dadosatuais.json', debug: bool = False) -> Optional[str]:
     """
     Extrai dados do processo via `extrair_dados_processo` (Fix.extracao) e retorna
@@ -209,7 +302,7 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
 
     1) cria GIG '1/Ana Lucia/Argos'      (try independente)
     2) cria GIG '1//xs sigilo'            (try independente — não bloqueado por falha do 1)
-    3) tenta clicar 'Iniciar execução' via movimentar_inteligente
+    3) abre a tarefa mais recente na mesma aba e tenta clicar 'Iniciar execução'
        - sucesso → ato_pesquisas (processo já está em execução)
        - falha   → roteia por fase:
            'liquid'/'homolog' → ato_pesqliq
@@ -241,18 +334,17 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
         except Exception as e:
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs sigilo: %s', e)
 
-    # 3) Tentar clicar "Iniciar execução" diretamente (movimentar_inteligente)
-    # — independente da fase: se o botão está na tela, clicar; senão, rotear por fase
+    # 3) Abrir a tarefa na mesma aba e tentar clicar "Iniciar execução" diretamente.
+    # Se o botão não existir, manter o roteamento por fase atual.
     mov_ok = False
     try:
-        from atos.movimentos_fluxo import movimentar_inteligente
-        mov_ok = bool(movimentar_inteligente(driver, 'Iniciar execução', timeout=10))
+        mov_ok = _abrir_tarefa_e_tentar_iniciar_execucao(driver, timeout=10)
         if mov_ok:
             logger.info('[FLUXO_PZ] inicar_exec: Iniciar execução clicado com sucesso')
         else:
             logger.info('[FLUXO_PZ] inicar_exec: Iniciar execução não disponível, roteando por fase')
     except Exception as e:
-        logger.info('[FLUXO_PZ] inicar_exec: movimentar_inteligente falhou (%s), roteando por fase', e)
+        logger.info('[FLUXO_PZ] inicar_exec: checagem direta de Iniciar execução falhou (%s), roteando por fase', e)
 
     try:
         if mov_ok:

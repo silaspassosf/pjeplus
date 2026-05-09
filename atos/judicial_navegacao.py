@@ -53,9 +53,11 @@ def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
             except Exception:
                 pass
 
-        if tarefa_do_botao and 'assinar' in tarefa_do_botao.lower():
-            logger.info(f'[NAVEGAÇÃO] ⏭ Tarefa "{tarefa_do_botao}" contém "assinar" — ato pronto')
-            return True, True
+        if tarefa_do_botao:
+            driver.pje_tarefa_atual = tarefa_do_botao
+            if 'assinar' in tarefa_do_botao.lower():
+                logger.info(f'[NAVEGAÇÃO] ⏭ Tarefa "{tarefa_do_botao}" contém "assinar" — ato pronto')
+                return True, True
 
         # Clicar para abrir tarefa
         if not safe_click(driver, btn_abrir_tarefa):
@@ -75,7 +77,7 @@ def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
 
             # Aguardar carregamento mínimo
             try:
-                wait_for_page_load(driver, 8)
+                aguardar_renderizacao_nativa(driver, timeout=3)
             except Exception:
                 pass
 
@@ -128,85 +130,84 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
     try:
         logger.info('[NAVEGAÇÃO] Navegando para Conclusão ao Magistrado...')
 
-        # Aguardar botões de transição
-        botoes_presentes = True
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-botoes-transicao button'))
-            )
-        except Exception:
-            botoes_presentes = False
-            logger.warning('[NAVEGAÇÃO] Botões de transição não carregaram')
-            # Fallback rápido: aguardar 2s e dar refresh para tentar recuperar os botões
+        # Obter nome da tarefa se disponível (do DOM ou do driver salvo anteriormente)
+        nome_tarefa = getattr(driver, 'pje_tarefa_atual', '').lower()
+        if not nome_tarefa:
             try:
-                logger.info('[NAVEGAÇÃO] Aguardando 2s para refresh...')
-                time.sleep(2)  # page-settle
-                try:
-                    driver.refresh()
-                except Exception as rerr:
-                    logger.debug(f'[NAVEGAÇÃO] Refresh falhou: {rerr}')
-                try:
-                    WebDriverWait(driver, 6).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-botoes-transicao button'))
-                    )
-                    botoes_presentes = True
-                    logger.info('[NAVEGAÇÃO] Botões detectados após refresh rápido')
-                except Exception:
-                    logger.warning('[NAVEGAÇÃO] Refresh rápido não recarregou os botões')
+                driver.implicitly_wait(0)
+                h1 = driver.find_elements(By.CSS_SELECTOR, "pje-cabecalho-tarefa h1.titulo-tarefa, span.texto-tarefa-processo")
+                if h1:
+                    nome_tarefa = h1[0].text.strip().lower()
             except Exception:
                 pass
+            finally:
+                driver.implicitly_wait(10)
 
-        # Tentar clique direto em "Conclusão ao Magistrado"
-        btn_conclusao_encontrado = False
+        logger.info(f'[NAVEGAÇÃO] Nome da Tarefa Detectado: "{nome_tarefa}"')
+
+        # Se a tarefa NÃO é análise e NÃO é de exceção de fluxo, ela VAI pra análise.
+        ir_direto_para_analise = False
+        excecoes_fluxo = ["análise", "analise", "conclusão", "minutar", "assinar"]
+        if nome_tarefa and not any(exc in nome_tarefa for exc in excecoes_fluxo):
+            ir_direto_para_analise = True
+            logger.info('[NAVEGAÇÃO] Regra de negócio: Tarefa nativa requer fluxo via Análise')
+
+        # Desabilitar implicit_wait temporariamente para evitar delays de 10s ao buscar elementos que não existem
+        driver.implicitly_wait(0)
         try:
-            btn_conclusao = WebDriverWait(driver, 3).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
-            )
-            btn_conclusao.click()
-            btn_conclusao_encontrado = True
-            logger.info('[NAVEGAÇÃO] Clique direto em "Conclusão ao magistrado" realizado')
-        except Exception as e:
-            logger.info('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não disponível imediatamente')
+            btn_conclusao_encontrado = False
 
-        # Se não encontrou, usar estratégia via "Análise"
+            if not ir_direto_para_analise:
+                # Tentar clique direto em "Conclusão ao Magistrado"
+                try:
+                    btn_conclusao = WebDriverWait(driver, 2).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
+                    )
+                    btn_conclusao.click()
+                    btn_conclusao_encontrado = True
+                    logger.info('[NAVEGAÇÃO] Clique direto em "Conclusão ao magistrado" realizado')
+                except Exception:
+                    logger.info('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não disponível imediatamente')
+
+            # Se não encontrou, usar estratégia via "Análise"
+            if not btn_conclusao_encontrado:
+                logger.info('[NAVEGAÇÃO] Tentando via "Análise"...')
+
+                # Clicar em "Análise"
+                try:
+                    btn_analise = WebDriverWait(driver, 2).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Análise']"))
+                    )
+                    btn_analise.click()
+                    logger.info('[NAVEGAÇÃO] Clique em "Análise" realizado')
+                except Exception as e:
+                    logger.error(f'[NAVEGAÇÃO] Falha ao clicar em "Análise": {e}')
+                    # Não re-levanta o erro imediatamente, deixa o fluxo tentar tratar ou retornar False.
+
+        finally:
+            driver.implicitly_wait(10)
+
+        # Remover overlays após Análise se houver
+        logger.info('[NAVEGAÇÃO] Verificando overlays...')
+        driver.implicitly_wait(0)
+        try:
+            overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop-showing')
+            if overlays:
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                time.sleep(0.3)
+        except Exception:
+            pass
+        finally:
+            driver.implicitly_wait(10)
+
+        # Aguardar pausa para estabilização
+        time.sleep(0.5)
+
+        # Aguardar renderização e tentar clicar na conclusão
         if not btn_conclusao_encontrado:
-            logger.info('[NAVEGAÇÃO] Tentando via "Análise"...')
-
-            # Clicar em "Análise"
             try:
-                btn_analise = WebDriverWait(driver, 3).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Análise']"))
-                )
-                btn_analise.click()
-                logger.info('[NAVEGAÇÃO] Clique em "Análise" realizado')
-
-                # Aguardar transição para /transicao
-                if not esperar_url_conter(driver, '/transicao', timeout=8):
-                    logger.warning(f'[NAVEGAÇÃO] URL não contém /transicao após Análise: {driver.current_url}')
-
-                # Remover overlays após Análise
-                logger.info('[NAVEGAÇÃO] Removendo overlays após Análise...')
-                max_tentativas_overlay = 5
-                for tentativa in range(max_tentativas_overlay):
-                    try:
-                        overlays_visiveis = driver.find_elements(
-                            By.CSS_SELECTOR,
-                            'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing'
-                        )
-                        if overlays_visiveis:
-                            logger.info(f'[NAVEGAÇÃO] Overlay detectado (tentativa {tentativa + 1}/{max_tentativas_overlay})')
-                            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                            aguardar_renderizacao_nativa(driver, 'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing', 'sumir', timeout=2)
-                        else:
-                            logger.info('[NAVEGAÇÃO] Nenhum overlay detectado')
-                            break
-                    except Exception as overlay_err:
-                        logger.debug(f'[NAVEGAÇÃO] Erro ao verificar overlay: {overlay_err}')
-                        break
-
-                # Aguardar pausa para estabilização
                 aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', 'aparecer', timeout=3)
-
+                
                 # Aguardar botões novamente
                 try:
                     WebDriverWait(driver, 10).until(

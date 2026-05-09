@@ -499,6 +499,76 @@ def _localizar_botao_destino_movimento(driver: WebDriver, destino: str, timeout:
     return None
 
 
+def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
+    """Abre a tarefa mais recente do processo via API REST (padrao gigs-plugin).
+
+    Referencia: api/gigs-plugin.js L4491-4516 (abrirTarefaDoProcesso)
+    - Extrai idProcesso da URL /detalhe
+    - Chama GET /pje-comum-api/api/processos/id/{idProcesso}/tarefas?maisRecente=true
+    - Extrai idTarefa da resposta e navega direto para a URL da tarefa
+
+    Returns:
+        bool: True se conseguiu abrir a tarefa via API
+    """
+    import re as _re
+    import time as _time
+    try:
+        url_atual = driver.current_url or ''
+        if '/tarefa' in url_atual:
+            return False  # ja esta na tarefa, nao precisa abrir
+        if '/processo/' not in url_atual:
+            return False
+
+        m = _re.search(r'/processo/(\d+)', url_atual)
+        if not m:
+            return False
+        id_processo = m.group(1)
+        base = url_atual.split('/pjekz/')[0]
+
+        dados = driver.execute_async_script(
+            """
+            const url = arguments[0];
+            const done = arguments[arguments.length - 1];
+            fetch(url, {method: 'GET', credentials: 'include', headers: {'Content-Type':'application/json'}})
+                .then(resp => resp.json())
+                .then(json => done(json))
+                .catch(err => done({__erro: err && err.message ? err.message : String(err)}));
+            """,
+            f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
+        )
+        id_tarefa = None
+        if isinstance(dados, dict) and dados.get('__erro'):
+            logger.warning(f"[API_TAREFA] fetch error: {dados['__erro']}")
+            dados = []
+        if isinstance(dados, list) and dados:
+            id_tarefa = dados[0].get('id') or dados[0].get('idTarefa')
+        elif isinstance(dados, dict):
+            id_tarefa = dados.get('id') or dados.get('idTarefa')
+
+        if not id_tarefa:
+            logger.warning('[API_TAREFA] API nao retornou idTarefa')
+            return False
+
+        url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
+        abas_antes = set(driver.window_handles)
+        driver.execute_script(f"window.open('{url_tarefa}', '_blank');")
+        try:
+            from Fix.abas import aguardar_nova_aba
+            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=5)
+            if nova_aba:
+                driver.switch_to.window(nova_aba)
+        except Exception:
+            pass
+
+        aguardar_renderizacao_nativa(driver, 'pje-cabecalho-tarefa', modo='aparecer', timeout=min(8, timeout))
+        aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(8, timeout))
+        logger.info(f'[API_TAREFA] Tarefa aberta via API: processo={id_processo} tarefa={id_tarefa}')
+        return True
+    except Exception as e:
+        logger.warning(f'[API_TAREFA] Falha ao abrir tarefa via API: {e}')
+        return False
+
+
 def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15) -> bool:
     from selenium.webdriver.common.by import By
 
@@ -509,70 +579,8 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
             pass
 
     try:
-        # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API (espelho de acao_bt_aaMovimento) =====
-        # gigs-plugin.js: extrai idProcesso da URL /detalhe, chama REST
-        # /pje-comum-api/api/processos/id/{idProcesso}/tarefas?maisRecente=true
-        # e navega direto para /pjekz/processo/{idProcesso}/tarefa/{idTarefa}
-        import time as _time
-        import re as _re
-        try:
-            url_atual = driver.current_url or ''
-            if '/tarefa' not in url_atual and '/processo/' in url_atual:
-                # Extrai idProcesso da URL (padrão: /processo/XXXXX/detalhe)
-                m = _re.search(r'/processo/(\d+)', url_atual)
-                if m:
-                    id_processo = m.group(1)
-                    base = url_atual.split('/pjekz/')[0]  # ex: https://pje.trt2.jus.br
-
-                    # Chama API REST com cookies da sessão já presentes no driver
-                    dados = driver.execute_async_script(
-                        """
-                        const url = arguments[0];
-                        const done = arguments[arguments.length - 1];
-                        fetch(url, {method: 'GET', credentials: 'include', headers: {'Content-Type':'application/json'}})
-                            .then(resp => resp.json())
-                            .then(json => done(json))
-                            .catch(err => done({__erro: err && err.message ? err.message : String(err)}));
-                        """,
-                        f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
-                    )
-                    id_tarefa = None
-                    if isinstance(dados, dict) and dados.get('__erro'):
-                        logger.warning(f"[MOV_INT][ETAPA0] fetch API error: {dados['__erro']}")
-                        dados = []
-                    if isinstance(dados, list) and dados:
-                        id_tarefa = dados[0].get('id') or dados[0].get('idTarefa')
-                    elif isinstance(dados, dict):
-                        id_tarefa = dados.get('id') or dados.get('idTarefa')
-
-                    if id_tarefa:
-                        url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
-                        abas_antes = set(driver.window_handles)
-                        driver.execute_script(f"window.open('{url_tarefa}', '_blank');")
-                        try:
-                            from Fix.abas import aguardar_nova_aba
-                            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=5)
-                            if nova_aba:
-                                driver.switch_to.window(nova_aba)
-                        except Exception:
-                            pass
-                        try:
-                            aguardar_renderizacao_nativa(driver, 'pje-cabecalho-tarefa', modo='aparecer', timeout=min(8, timeout))
-                        except Exception:
-                            _time.sleep(1.5)  # fallback — observer timeout
-                        
-                        # Após abrir a tarefa via API, aguardar que os botões de transição estejam disponíveis
-                        try:
-                            aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(8, timeout))
-                        except Exception:
-                            # Fallback para garantir que a página carregou
-                            _time.sleep(1.5)  # fallback — observer timeout
-                            
-                        log(f'[MOV_INT] Tarefa aberta via API: processo={id_processo} tarefa={id_tarefa}')
-                    else:
-                        logger.warning('[MOV_INT] API não retornou idTarefa — abortando ETAPA 0')
-        except Exception as e0:
-            logger.warning(f'[MOV_INT][ETAPA0] Falha na abertura via API: {e0}')
+        # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API (padrao gigs-plugin L4491-4516) =====
+        abrir_tarefa_por_api(driver, timeout=timeout)
 
         tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
         if not tarefa_text:

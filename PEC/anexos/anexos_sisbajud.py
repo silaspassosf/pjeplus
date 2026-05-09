@@ -80,3 +80,42 @@ def _wrapper_sisbajud_generico(
         substituir_link=False,
         debug=debug
     )
+
+
+def executar_juntada_pje(driver_pje, tipo_fluxo, numero_processo, log=True):
+    """
+    Dispatch canonico para juntada SISBAJUD baseado no tipo de fluxo.
+
+    Args:
+        driver_pje: WebDriver do PJe
+        tipo_fluxo: 'NEGATIVO', 'DESBLOQUEIO', ou 'POSITIVO'
+        numero_processo: Numero CNJ do processo
+        log: Se True, exibe logs
+
+    Returns:
+        bool: True se juntada executada com sucesso
+    """
+    try:
+        from .anexos_wrappers import wrapper_bloqneg, wrapper_parcial
+
+        if tipo_fluxo in ['NEGATIVO', 'DESBLOQUEIO']:
+            resultado = wrapper_bloqneg(
+                driver=driver_pje,
+                numero_processo=numero_processo,
+                debug=log
+            )
+        elif tipo_fluxo == 'POSITIVO':
+            resultado = wrapper_parcial(
+                driver=driver_pje,
+                numero_processo=numero_processo,
+                debug=log
+            )
+        else:
+            return False
+
+        return bool(resultado)
+
+    except Exception as e:
+        if log:
+            logger.error('[SISBAJUD] Erro na juntada: %s', e)
+        return False

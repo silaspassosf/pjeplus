@@ -700,33 +700,6 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     consulta_wrapper = None
 
                 if consulta_wrapper:
-                    # DEBUG: imprimir estado das janelas/abas do driver_pje antes da juntada (prints para garantir visibilidade)
-                    try:
-                        handles = list(driver_pje.window_handles)
-                        print(f'[SISBAJUD][DEBUG] driver_pje.handles: {handles}')
-                        try:
-                            active = driver_pje.current_window_handle
-                        except Exception:
-                            active = None
-                        print(f'[SISBAJUD][DEBUG] driver_pje.active_handle: {active}')
-                        for h in handles:
-                            try:
-                                driver_pje.switch_to.window(h)
-                                try:
-                                    url = driver_pje.current_url
-                                except Exception:
-                                    url = '<unreadable>'
-                                print(f'[SISBAJUD][DEBUG] handle={h} url={url}')
-                            except Exception as e:
-                                print(f'[SISBAJUD][DEBUG] handle={h} error reading url: {e}')
-                        # restore active
-                        try:
-                            if active:
-                                driver_pje.switch_to.window(active)
-                        except Exception:
-                            pass
-                    except Exception as e:
-                        print(f'[SISBAJUD][DEBUG] Erro ao coletar handles do PJe: {e}')
                     # chamar consulta_wrapper com modelo correto
                     juntada_executada = consulta_wrapper(driver_pje, numero_processo, debug=log, modelo='xteim')
                     resultado['juntada_executada'] = bool(juntada_executada)

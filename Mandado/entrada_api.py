@@ -642,28 +642,19 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
             logger.info('[INTIMACAO] [7]  FALHOU: dialogo de confirmacao permaneceu aberto')
             return False
 
+        # Aguardar snackbar de sucesso para confirmar fechamento rápido
+        logger.info('[INTIMACAO] [7] Aguardando snackbar de sucesso...')
         try:
-            def _linha_alvo_fechada(drv):
-                for row in drv.find_elements(By.CSS_SELECTOR, 'tbody tr'):
-                    try:
-                        cells = row.find_elements(By.TAG_NAME, 'td')
-                        if len(cells) < 11:
-                            continue
-                        assinatura_atual = tuple(
-                            cell.text.strip().lower()
-                            for cell in cells[:10]
-                        )
-                        if assinatura_atual != assinatura_linha:
-                            continue
-                        return cells[10].text.strip().lower() == 'sim'
-                    except StaleElementReferenceException:
-                        continue
-                return True
-
-            WebDriverWait(driver, 5).until(_linha_alvo_fechada)
+            snack_sucesso = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'snack-bar-container, simple-snack-bar'))
+            )
+            logger.info(f'[INTIMACAO] [7]  Snackbar detectado: "{snack_sucesso.text}"')
+            try:
+                driver.execute_script("arguments[0].style.display = 'none';", snack_sucesso)
+            except Exception:
+                pass
         except TimeoutException:
-            logger.info('[INTIMACAO] [7]  FALHOU: linha alvo nao ficou fechada')
-            return False
+            logger.info('[INTIMACAO] [7]  AVISO: snackbar de sucesso não detectado, assumindo sucesso se o modal fechou')
 
         # Aguardar timeline pronta apos fechamento (sem sleep fixo)
         logger.info('[INTIMACAO] [8] Aguardando timeline estabilizar...')

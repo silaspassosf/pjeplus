@@ -133,9 +133,9 @@ class SISBConstants:
 
     SELECTORS = {
         'input_juiz': 'input[placeholder*="Juiz"]',
-        'input_processo': 'input[placeholder="Numero do Processo"]',
+        'input_processo': 'input[placeholder="Número do Processo"]',
         'input_cpf': 'input[placeholder*="CPF"]',
-        'input_nome_autor': 'input[placeholder="Nome do autor/exequente da acao"]',
+        'input_nome_autor': 'input[placeholder="Nome do autor/exequente da ação"]',
         'botao_consultar': 'button.mat-fab.mat-primary',
         'botao_salvar': 'button.mat-fab.mat-primary mat-icon.fa-save',
         'botao_alterar': 'button mat-icon.fa-edit',

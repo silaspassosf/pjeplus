@@ -57,12 +57,16 @@ def fluxo_cls(
     forcar_iniciar_execucao: bool = False
 ) -> bool:
     '''
-    Fluxo principal para CLS (Conclusão ao Magistrado  Minutar).
+    Fluxo principal para CLS (Conclusão ao Magistrado → Minutar).
+
+    Garantia: sempre chega em Conclusão ao Magistrado, independente da tarefa
+    de origem, usando a matriz de transição do aaDespacho.
 
     LÓGICA SEQUENCIAL:
     1. Verificar estados especiais (/assinar, /minutar, /conclusao)
-    2. Abrir tarefa do processo se necessário
-    3. Navegar para 'Conclusão ao Magistrado'
+    2. Abrir tarefa do processo se necessário (de /detalhe)
+    3. Navegar para 'Conclusão ao Magistrado' via navegacao unificada
+       (com retry + refresh entre tentativas)
     4. Escolher tipo de conclusão
     5. Aguardar transição para minutar e preparar campo
 
@@ -75,13 +79,13 @@ def fluxo_cls(
     logger.info('[CLS][TIMING][INICIO]')
 
     try:
-        logger.info('=' * 60)
         logger.info('FLUXO CLS - INICIANDO')
         logger.info('=' * 60)
 
         # ===== VERIFICAÇÃO INICIAL: Estados especiais =====
         timing_check_estado = time.time()
         estado_atual = verificar_estado_atual(driver)
+
         timing_check_estado = time.time() - timing_check_estado
         logger.info(f'[CLS][TIMING][CHECK_ESTADO] {timing_check_estado:.3f}s estado={estado_atual}')
         
@@ -177,8 +181,23 @@ def fluxo_cls(
             logger.info('[CLS] Passo 3: Navegando para conclusão...')
             timing_nav_inicio = time.time()
             try:
-                if not navegar_para_conclusao(driver):
-                    logger.error('[CLS] Falha ao navegar para conclusão')
+                # Tentar navegação com até 2 tentativas (fallback: refresh entre tentativas)
+                nav_ok = False
+                for tentativa in range(2):
+                    if tentativa > 0:
+                        logger.info(f'[CLS] Tentativa {tentativa+1}/2 de navegação após refresh...')
+                        try:
+                            driver.refresh()
+                            aguardar_renderizacao_nativa(driver, timeout=3)
+                        except Exception:
+                            pass
+                    if navegar_para_conclusao(driver):
+                        nav_ok = True
+                        break
+                    logger.warning(f'[CLS] Tentativa {tentativa+1}/2 de navegação falhou')
+
+                if not nav_ok:
+                    logger.error('[CLS] Falha ao navegar para conclusão após 2 tentativas')
                     timing_total = time.time() - timing_inicio
                     logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao navegar conclusão')
                     return False
@@ -455,6 +474,10 @@ def ato_judicial(
                 except Exception:
                     pass
 
+                # Compatibilidade com fluxo pre-xcode: em algumas telas o DOM
+                # ainda estabiliza apos a insercao mesmo sem snackbar visivel.
+                time.sleep(1.5)
+
             except Exception as e:
                 logger.error(f'[ATO][MODELO] Erro ao inserir modelo: {e}')
                 return False, False
@@ -478,11 +501,22 @@ def ato_judicial(
             safe_click(driver, btn_salvar)
             logger.info('[ATO][SALVAR] Clique no botao Salvar realizado')
 
-            # Aguardar transição para aba de destinatários (observer, sem time.sleep)
-            try:
-                aguardar_renderizacao_nativa(driver, 'pje-editor-lateral', modo='aparecer', timeout=10)
-            except Exception:
-                logger.warning('[ATO][SALVAR] Timeout aguardando aba destinatários, prosseguindo...')
+            # Aguarda controles reais da etapa de destinatários.
+            # `pje-editor-lateral` pode já existir antes do salvar e liberar cedo demais.
+            if not aguardar_renderizacao_nativa(
+                driver,
+                'button[aria-label="Gravar a intimação/notificação"], '
+                'pje-intimacao-automatica label.mat-slide-toggle-label, '
+                'mat-checkbox[aria-label="Enviar para PEC"], '
+                'div.checkbox-pec mat-checkbox',
+                modo='aparecer',
+                timeout=10,
+            ):
+                logger.warning('[ATO][SALVAR] Timeout aguardando controles de destinatários, prosseguindo...')
+
+            # Compatibilidade pre-xcode: aguarda curta transicao para evitar
+            # interacoes prematuras apos o primeiro salvar.
+            time.sleep(1.5)
             logger.info('[ATO][SALVAR] Aguardando ativação da aba destinatários...')
 
         except Exception as e:
@@ -533,7 +567,6 @@ def ato_judicial(
                 """)
                 # Use native observer to ensure overlays are gone (best-effort)
                 try:
-                    from Fix.core import aguardar_renderizacao_nativa
                     aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane', modo='sumir', timeout=3)
                 except Exception:
                     logger.debug('[ATO][PRAZO] Observer overlays indisponível (não crítico)')
@@ -626,13 +659,20 @@ def ato_judicial(
                 # Clicar na aba "Movimentos" primeiro (via Python, mais confiável que JS setTimeout)
                 try:
                     from selenium.webdriver.common.by import By
-                    from selenium.webdriver.support.ui import WebDriverWait
-                    from selenium.webdriver.support import expected_conditions as EC
-                    aba_mov = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, "//div[contains(@class,'mat-tab-label') and .//span[contains(translate(text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'movimentos')]"))
+                    aba_mov_clicada = driver.execute_script(
+                        """
+                        var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
+                        var abaMov = abas.find(function(a) {
+                            return a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos');
+                        });
+                        if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {
+                            abaMov.click();
+                            return true;
+                        }
+                        return false;
+                        """
                     )
-                    if aba_mov.get_attribute('aria-selected') != 'true':
-                        safe_click_no_scroll(driver, aba_mov, log=False)
+                    if aba_mov_clicada:
                         logger.debug('[ATO][MOVIMENTO] Aba Movimentos clicada')
                         aguardar_renderizacao_nativa(driver)
                 except Exception as e:
@@ -640,13 +680,30 @@ def ato_judicial(
 
                 # Movimento multi-estágio (combobox) vs simples (checkbox)
                 if '/' in movimento or '-' in movimento:
-                    # Fluxo combobox de dois estágios
+                    # Fluxo combobox de dois estágios — garantir aba Movimentos ativa primeiro
+                    try:
+                        driver.execute_script("""
+                            var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
+                            var abaMov = abas.find(function(a) {
+                                return a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos');
+                            });
+                            if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {
+                                abaMov.click();
+                            }
+                        """)
+                        time.sleep(0.8)
+                    except Exception:
+                        pass
                     if not selecionar_movimento_auto(driver, movimento):
                         logger.error(f'[ATO][MOVIMENTO]  Movimento não encontrado: {movimento}')
                         return False, False
                     logger.info('[ATO][MOVIMENTO]  Movimento selecionado via combobox')
                 else:
                     # Fluxo checkbox simples (JS sem tab-finding — a aba ja foi clicada acima)
+                    driver.execute_script(
+                        'window.selecionadoMovimento = undefined; '
+                        'window.labelSelecionadoMovimento = undefined;'
+                    )
                     js_mov = f'''
                     (function() {{
                         setTimeout(function() {{
@@ -702,18 +759,25 @@ def ato_judicial(
                     }})();
                     '''
                     driver.execute_script(js_mov)
-                    # Aguarda execução do JS (observer, sem time.sleep)
-                    try:
-                        aguardar_renderizacao_nativa(driver, '.mat-checkbox-checked', modo='aparecer', timeout=5)
-                    except Exception:
-                        pass
+                    
+                    # Aguarda até 5s para o script de marcação executar
+                    start_time = time.time()
+                    selecionado = None
+                    label_mov = None
+                    
+                    while time.time() - start_time < 5:
+                        selecionado = driver.execute_script("return window.selecionadoMovimento;")
+                        if selecionado is not None:
+                            label_mov = driver.execute_script("return window.labelSelecionadoMovimento;")
+                            break
+                        time.sleep(0.5)
+                        
+                    # Limpar variaveis globais do js
+                    driver.execute_script("window.selecionadoMovimento = undefined; window.labelSelecionadoMovimento = undefined;")
 
-                    # Verificar se foi selecionado
-                    selecionado = driver.execute_script('return window.selecionadoMovimento;')
                     if not selecionado:
                         logger.error(f'[ATO][MOVIMENTO]  Movimento não encontrado: {movimento}')
                         return False, False
-                    label_mov = driver.execute_script('return window.labelSelecionadoMovimento;')
                     logger.info(f'[ATO][MOVIMENTO]  Checkbox marcado: {label_mov}')
                 
                 # Gravar movimentos (botão "Gravar os movimentos a serem lançados")
@@ -721,20 +785,14 @@ def ato_judicial(
                 btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10, by=By.CSS_SELECTOR)
                 if btn_gravar_mov:
                     btn_gravar_mov.click()
-                try:
-                    aguardar_renderizacao_nativa(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", modo='aparecer', timeout=8)
-                except Exception:
-                    pass
+                time.sleep(1.5)
 
                 # Confirmar com "Sim"
                 logger.info('[ATO][MOVIMENTO] Confirmando...')
                 btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=10, by=By.XPATH)
                 if btn_sim:
                     btn_sim.click()
-                    try:
-                        aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
-                    except Exception:
-                        pass
+                    time.sleep(1)
                     logger.info('[ATO][MOVIMENTO]  Movimento gravado e confirmado')
                 else:
                     logger.warning('[ATO][MOVIMENTO] Botão Sim não encontrado')
@@ -745,44 +803,16 @@ def ato_judicial(
                         logger.info('[ATO][SIGILO] Aplicando sigilo após gravação do movimento...')
                         try:
                             slide = esperar_elemento(driver, 'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo', timeout=5, by=By.CSS_SELECTOR)
-
-                            try:
-                                input_sig = slide.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                            except Exception:
-                                input_sig = None
-
-                            is_checked = False
-                            try:
-                                if input_sig:
-                                    is_checked = (input_sig.get_attribute('aria-checked') == 'true' or input_sig.is_selected())
-                                else:
-                                    cls = slide.get_attribute('class') or ''
-                                    is_checked = 'mat-checked' in cls
-                            except Exception:
-                                is_checked = False
-
-                            if not is_checked:
-                                try:
-                                    label = slide.find_element(By.CSS_SELECTOR, 'label.mat-slide-toggle-label')
-                                    safe_click_no_scroll(driver, label, log=False)
-                                except Exception:
-                                    try:
-                                        if input_sig:
-                                            driver.execute_script('arguments[0].click();', input_sig)
-                                        else:
-                                            driver.execute_script('arguments[0].click();', slide)
-                                    except Exception:
-                                        # fallback: set property and dispatch events
-                                        try:
-                                            driver.execute_script('''var el = arguments[0].querySelector('input[type="checkbox"]') || arguments[0]; el.checked = true; el.dispatchEvent(new Event('change', {bubbles:true}));''', slide)
-                                        except Exception:
-                                            logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
-                            sigilo_ativado = True
-                            logger.info('[ATO][SIGILO] Sigilo aplicado (após movimento)')
-                        except Exception as e:
-                            logger.debug(f'[ATO][SIGILO] Falha ao aplicar sigilo após movimento: {e}')
-                except Exception:
-                    logger.debug('[ATO][SIGILO] Exceção no bloco sigilo (não crítico, continuando)')
+                            if slide:
+                                is_checked = driver.execute_script('return arguments[0].classList.contains("mat-checked");', slide)
+                                if not is_checked:
+                                    driver.execute_script('arguments[0].click();', slide)
+                                    logger.info('[ATO][SIGILO]  Sigilo ativado')
+                                    sigilo_ativado = True
+                        except Exception:
+                            logger.debug('[ATO][SIGILO] Toggle de sigilo não encontrado após movimento')
+                except Exception as e:
+                    logger.debug(f'[ATO][SIGILO] Erro ao aplicar sigilo pós-movimento: {e}')
                 
             except Exception as e:
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')

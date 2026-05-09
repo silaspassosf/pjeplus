@@ -85,7 +85,7 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
                 except Exception:
                     continue
             if campo_prazo:
-                campo_prazo.click()
+                driver.execute_script("arguments[0].click();", campo_prazo)
                 campo_prazo.clear()
                 campo_prazo.send_keys(prazo)
 

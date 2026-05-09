@@ -144,24 +144,39 @@ def _executar_movimento_para_destino(
     if 'analise' in tarefa_atual:
         return _movimento_de_analise(driver, tarefa_destino, debug, timeout)
 
-    # Movimentos específicos por tarefa
+    # Matriz completa de transição (espelho do aaDespacho: gigs-plugin.js L11576-11600)
+    # Cada entrada: lambda que executa a ação de saída da tarefa atual
     movimentos = {
+        'conclusao ao magistrado': lambda: _clicar_botao_por_texto(driver, 'cancelar conclusao', debug),
         'comunicacoes e expedientes': lambda: _movimento_comunicacoes(driver, debug),
         'arquivo provisorio': lambda: _movimento_arquivo_provisorio(driver, debug),
+        'arquivo definitivo': lambda: _movimento_arquivo_provisorio(driver, debug),
         'aguardando final do sobrestamento': lambda: _movimento_sobrestamento_final(driver, debug),
+        'iniciar execucao': lambda: _clicar_botao_por_texto(driver, 'iniciar', debug),
+        'liquidacao': lambda: _clicar_botao_por_texto(driver, 'iniciar', debug),
+        'remessa': lambda: _clicar_botao_por_texto(driver, 'devolver', debug),
+        'prazo vencido': lambda: _encerrar_prazo(driver, debug),
+        'transito em julgado': lambda: _clicar_botao_por_texto(driver, 'certidao de transito', debug),
     }
 
-    movimento_func = movimentos.get(tarefa_atual)
+    movimento_func = None
+    for termo, func in movimentos.items():
+        if termo in tarefa_atual:
+            movimento_func = func
+            break
+
     if movimento_func:
         sucesso = movimento_func()
-        if sucesso:
-            # Após movimento específico, tentar ir para análise se necessário
-            return _movimento_para_analise_se_necessario(driver, tarefa_destino, debug, timeout)
-    else:
-        # Movimento padrão: ir para análise
-        return _movimento_padrao_para_analise(driver, tarefa_destino, debug, timeout)
+        if not sucesso:
+            if debug:
+                logger.warning(f'[MOVIMENTO] Falha na transicao especifica de "{tarefa_atual}" — tentando Analise direto')
+        else:
+            _esperar_transicao(driver, debug)
+            # Reavaliar: agora deve estar em Análise (ou próximo)
+            return _verificar_e_ir_para_analise(driver, tarefa_destino, debug, timeout)
 
-    return False
+    # Fallback: tentar clicar diretamente em Análise
+    return _verificar_e_ir_para_analise(driver, tarefa_destino, debug, timeout)
 
 
 def _movimento_de_analise(driver: WebDriver, tarefa_destino: str, debug: bool, timeout: int) -> bool:
@@ -191,6 +206,74 @@ def _movimento_de_analise(driver: WebDriver, tarefa_destino: str, debug: bool, t
         if debug:
             logger.warning(f'[ANALISE] Erro no movimento de análise: {e}')
         return False
+
+
+def _clicar_botao_por_texto(driver: WebDriver, texto: str, debug: bool, timeout: int = 5) -> bool:
+    """Clica em botão de transição por texto normalizado (padrão aaDespacho)."""
+    try:
+        clicou = driver.execute_script("""
+            var textoAlvo = arguments[0].toLowerCase();
+            function norm(s) {
+                return s.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+            }
+            function isDisabled(el) {
+                if (el.disabled) return true;
+                var cls = (el.getAttribute('class') || '').toLowerCase();
+                if (cls.indexOf('disabled') !== -1 || cls.indexOf('mat-button-disabled') !== -1) return true;
+                if (el.hasAttribute('aria-disabled') && el.getAttribute('aria-disabled') === 'true') return true;
+                return false;
+            }
+            var botoes = document.querySelectorAll('pje-botoes-transicao button, .botoes-transicao button, button');
+            for (var i = 0; i < botoes.length; i++) {
+                var txt = norm(botoes[i].textContent || '');
+                if (txt.indexOf(textoAlvo) !== -1 && !isDisabled(botoes[i])) {
+                    botoes[i].click();
+                    return true;
+                }
+            }
+            return false;
+        """, texto)
+        if clicou and debug:
+            logger.info(f'[BOTAO_TEXTO] Clicou em botão contendo "{texto}"')
+        return bool(clicou)
+    except Exception as e:
+        if debug:
+            logger.warning(f'[BOTAO_TEXTO] Erro ao clicar "{texto}": {e}')
+        return False
+
+
+def _encerrar_prazo(driver: WebDriver, debug: bool) -> bool:
+    """Encerra prazo vencido (aaDespacho: clicar 'encerrar prazo' depois 'Sim')."""
+    try:
+        if not _clicar_botao_por_texto(driver, 'encerrar prazo', debug):
+            return False
+        import time
+        time.sleep(0.5)
+        return _clicar_botao_por_texto(driver, 'Sim', debug)
+    except Exception as e:
+        if debug:
+            logger.warning(f'[ENCERRAR_PRAZO] Erro: {e}')
+        return False
+
+
+def _verificar_e_ir_para_analise(
+    driver: WebDriver, tarefa_destino: str, debug: bool, timeout: int
+) -> bool:
+    """Após movimento específico, verifica se já está em Análise; se não, tenta clicar Análise."""
+    tarefa_atual = _obter_tarefa_atual(driver, debug)
+    if tarefa_atual:
+        tarefa_norm = _normalizar_tarefa(tarefa_atual)
+        if 'analise' in tarefa_norm:
+            if debug:
+                logger.info('[ANALISE] Chegou em Análise após movimento específico')
+            if 'analise' in _normalizar_tarefa(tarefa_destino):
+                return True
+            return _movimento_de_analise(driver, tarefa_destino, debug, timeout)
+        # Ainda não está em análise — tentar clicar Análise
+        if _clicar_botao_por_texto(driver, 'analise', debug):
+            _esperar_transicao(driver, debug)
+            return True
+    return False
 
 
 def _movimento_comunicacoes(driver: WebDriver, debug: bool) -> bool:
@@ -283,27 +366,17 @@ def _movimento_para_analise_se_necessario(driver: WebDriver, tarefa_destino: str
     return True
 
 
-def _esperar_transicao(driver: WebDriver, debug: bool, esperar: bool = True, tempo: int = 5000) -> bool:
-    """Espera transição de tarefa (similar ao esperarTransicao da a.py)"""
-    if not esperar:
-        return True
-
+def _esperar_transicao(driver: WebDriver, debug: bool = False, esperar: bool = True, timeout: int = 8) -> bool:
+    """Aguarda transicao de tarefa via observer de DOM (padrao aaDespacho)."""
     try:
-        import time
-        start_time = time.time()
-
-        while time.time() - start_time < tempo / 1000:  # tempo em segundos
-            if '/transicao' in driver.current_url:
-                if debug:
-                    logger.info('[TRANSICAO] Transição detectada')
-                time.sleep(1)  # Aguardar estabilização
-                return True
-            time.sleep(0.1)
-
-        if debug:
-            logger.warning('[TRANSICAO] Timeout aguardando transição')
-        return False
+        if not esperar:
+            return True
+        # Observer: aguardar mudanca nos botoes de transicao
+        from Fix.core import aguardar_renderizacao_nativa
+        return aguardar_renderizacao_nativa(
+            driver, 'pje-botoes-transicao button', modo='aparecer', timeout=timeout
+        )
     except Exception as e:
         if debug:
-            logger.error(f'[TRANSICAO] Erro aguardando transição: {e}')
+            logger.warning(f'[ESPERAR_TRANSICAO] Timeout ou erro: {e}')
         return False

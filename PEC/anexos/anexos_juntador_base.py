@@ -128,6 +128,45 @@ def wrapper_juntada_geral(
     return resultado
 
 
+def make_juntada_wrapper(
+    tipo: str = 'Certidao',
+    descricao: Optional[str] = None,
+    sigilo: str = 'nao',
+    modelo: Optional[str] = None,
+    assinar: str = 'nao',
+    inserir_conteudo: Optional[Callable[[WebDriver, Optional[str], bool], bool]] = None,
+    coleta_conteudo: Optional[str] = None,
+    **extra: Any
+) -> Callable[..., bool]:
+    """
+    Factory que cria wrappers de juntada com parametros pre-definidos.
+
+    Segue o mesmo padrao de make_ato_wrapper (atos/judicial_fluxo.py) e
+    make_comunicacao_wrapper (atos/comunicacao.py): parametros de configuracao
+    sao capturados no closure e podem ser sobrescritos via **overrides.
+
+    Returns:
+        Callable: wrapper (driver, debug=True, **overrides) -> bool
+    """
+    def wrapper(driver: WebDriver, numero_processo: Optional[str] = None, debug: bool = True, **overrides: Any) -> bool:
+        params = {
+            'tipo': tipo,
+            'descricao': descricao,
+            'sigilo': sigilo,
+            'modelo': modelo,
+            'assinar': assinar,
+            'inserir_conteudo': inserir_conteudo,
+            'coleta_conteudo': coleta_conteudo,
+        }
+        params.update(overrides)
+        return wrapper_juntada_geral(driver=driver, debug=debug, **params)
+
+    # Nome para debugging
+    modelo_part = modelo.lower().replace(' ', '_') if modelo else 'sem_modelo'
+    wrapper.__name__ = f'juntada_{tipo.lower()}_{modelo_part}'
+    return wrapper
+
+
 def create_juntador(driver: WebDriver) -> Any:
     """Cria um objeto simples com driver e métodos vinculados aos helpers existentes."""
     ns = types.SimpleNamespace(driver=driver)
@@ -247,11 +286,10 @@ def executar_juntada_ate_editor(self, configuracao: Dict[str, Any]) -> bool:
 
 def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool = False) -> bool:
     """
-    Orquestra juntada automática de anexos.
+    Orquestra juntada automatica de anexos COM auto-navegacao.
 
-    Fluxo: validação → coleta → tipo → descrição → sigilo → modelo → inserção → salvar → assinar
+    Fluxo: navegacao (se necessario) -> tipo -> descricao -> sigilo -> modelo -> insercao -> salvar -> assinar
     """
-    # Guard clause: validar parâmetros
     if not self or not hasattr(self, 'driver') or not self.driver:
         return False
 
@@ -259,6 +297,41 @@ def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool =
         return False
 
     driver = self.driver
+
+    # 0. Garantir que estamos na interface de anexacao
+    try:
+        max_retries = 2
+        for attempt in range(max_retries):
+            if not driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'):
+                logger.info('[JUNTADA] Interface de anexacao nao detectada — abrindo (tentativa %s/%s)...', attempt + 1, max_retries)
+                if not self._abrir_interface_anexacao():
+                    if attempt < max_retries - 1:
+                        logger.warning('[JUNTADA] Falha ao abrir interface — tentando refresh...')
+                        try:
+                            driver.refresh()
+                            time.sleep(1.2)
+                        except Exception:
+                            pass
+                        continue
+                    logger.error('[JUNTADA] Falha ao abrir interface de anexacao apos %s tentativas', max_retries)
+                    return False
+                time.sleep(0.8)
+            # Verificar que o input apareceu
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'))
+                )
+                logger.info('[JUNTADA] Interface de anexacao confirmada')
+                break
+            except Exception:
+                if attempt < max_retries - 1:
+                    logger.warning('[JUNTADA] Input Tipo de Documento nao apareceu — retry...')
+                    continue
+                logger.error('[JUNTADA] Input Tipo de Documento nao encontrado apos navegacao')
+                return False
+    except Exception as e:
+        logger.error('[JUNTADA] Erro na auto-navegacao: %s', e)
+        return False
 
     # 1. Coleta opcional
     if not self._executar_coleta_opcional(configuracao):
@@ -268,7 +341,7 @@ def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool =
     if not self._preencher_tipo(configuracao):
         return False
 
-    # 3. Preencher descrição
+    # 3. Preencher descricao
     if not self._preencher_descricao(configuracao):
         return False
 
@@ -280,7 +353,7 @@ def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool =
     if not self._selecionar_e_inserir_modelo(configuracao):
         return False
 
-    # 6. Inserir conteúdo customizado
+    # 6. Inserir conteudo customizado
     if not self._inserir_conteudo_customizado(configuracao, substituir_link):
         return False
 
@@ -288,8 +361,89 @@ def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool =
     if not self._salvar_documento():
         return False
 
-    # 8. Assinar se necessário
+    # 8. Assinar se necessario
     if not self._assinar_se_necessario(configuracao):
         return False
 
     return True
+
+
+def wrapper_juntada_com_navegacao(
+    driver: WebDriver,
+    tipo: str = 'Certidao',
+    descricao: Optional[str] = None,
+    sigilo: str = 'nao',
+    modelo: Optional[str] = None,
+    inserir_conteudo: Optional[Callable[[WebDriver, Optional[str], bool], bool]] = None,
+    assinar: str = 'nao',
+    coleta_conteudo: Optional[str] = None,
+    substituir_link: bool = False,
+    debug: bool = True,
+    fechar_aba_apos: bool = True
+) -> bool:
+    """
+    Wrapper completo de juntada COM navegacao.
+
+    Diferente de wrapper_juntada_geral (que espera ja estar na pagina /anexar),
+    esta funcao faz tudo a partir de qualquer aba do PJe:
+    1. Abre interface de anexacao (hamburguer -> Anexar Documentos -> switch aba)
+    2. Executa juntada completa (tipo, modelo, inserir, salvar, assinar)
+    3. Fecha a aba de anexacao e retorna para a aba original
+
+    Args:
+        driver: WebDriver do PJe
+        fechar_aba_apos: Se True (default), fecha a aba /anexar apos concluir
+        (demais parametros identicos a wrapper_juntada_geral)
+
+    Returns:
+        bool: True se a juntada foi concluida com sucesso
+    """
+    if not driver:
+        if debug:
+            logger.error('[JUNTADA_COMPLETA] Driver invalido')
+        return False
+
+    # Salvar aba original antes de navegar
+    try:
+        aba_original = driver.current_window_handle
+    except Exception:
+        aba_original = None
+
+    if debug:
+        logger.info('[JUNTADA_COMPLETA] Iniciando juntada com navegacao...')
+
+    # 1. Abrir interface de anexacao (navegacao)
+    juntador_nav = create_juntador(driver)
+    if not juntador_nav._abrir_interface_anexacao():
+        if debug:
+            logger.error('[JUNTADA_COMPLETA] Falha ao abrir interface de anexacao')
+        return False
+
+    # 2. Executar juntada completa (wrapper_juntada_geral ja faz tudo)
+    resultado = wrapper_juntada_geral(
+        driver=driver,
+        tipo=tipo,
+        descricao=descricao,
+        sigilo=sigilo,
+        modelo=modelo,
+        inserir_conteudo=inserir_conteudo,
+        assinar=assinar,
+        coleta_conteudo=coleta_conteudo,
+        substituir_link=substituir_link,
+        debug=debug
+    )
+
+    # 3. Fechar aba de anexacao e voltar para aba original
+    if fechar_aba_apos and aba_original:
+        try:
+            handles = driver.window_handles
+            if len(handles) > 1:
+                driver.close()
+                driver.switch_to.window(aba_original)
+                if debug:
+                    logger.info('[JUNTADA_COMPLETA] Aba de anexacao fechada, retornando a aba original')
+        except Exception as e:
+            if debug:
+                logger.warning('[JUNTADA_COMPLETA] Erro ao fechar aba de anexacao: %s', e)
+
+    return resultado

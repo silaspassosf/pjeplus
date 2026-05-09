@@ -3,7 +3,6 @@ import re
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
-from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
 from Fix.core import aguardar_renderizacao_nativa
 from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
 from Fix.log import logger
@@ -108,84 +107,12 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
 
 
 def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
-    """Aguarda CKEditor conter conteúdo não-vazio após inserção de modelo.
+    """Aguarda conteudo no editor apos insercao de modelo.
 
-    Faz polling leve via JS até o editor ter dados ou o timeout expirar.
-    Substitui sleep cego: garante que o modelo foi efetivamente injetado
-    antes de prosseguir para salvar o ato.
+    Padrao gigs-plugin: P.corpo (ou ck-content p) aparecer e o sinal
+    autoritativo de que o modelo foi injetado com sucesso.
     """
-    deadline = time.monotonic() + timeout
-    selectors = [
-        '.ck-editor__editable[contenteditable="true"]',
-        '.ck-content',
-        'div[contenteditable="true"]',
-        'textarea',
-        'iframe'
-    ]
-
-    while time.monotonic() < deadline:
-        try:
-            for sel in selectors:
-                try:
-                    tem_conteudo = driver.execute_script("""
-                        var sel = arguments[0];
-                        var el = document.querySelector(sel);
-                        if (!el) {
-                            if (sel === 'div[contenteditable="true"]') {
-                                el = document.querySelector('[contenteditable="true"]');
-                                if (!el) return false;
-                            } else return false;
-                        }
-
-                        // iframe case
-                        if (el.tagName === 'IFRAME') {
-                            try {
-                                var doc = el.contentDocument || el.contentWindow.document;
-                                var txt = doc && doc.body ? (doc.body.innerText || doc.body.textContent || '') : '';
-                                return (txt || '').trim().length > 0;
-                            } catch(e) { return false; }
-                        }
-
-                        // CKEditor classic instance on the editable element
-                        if (el.ckeditorInstance && typeof el.ckeditorInstance.getData === 'function') {
-                            var data = el.ckeditorInstance.getData();
-                            return (data || '').replace(/<[^>]*>/g,'').trim().length > 0;
-                        }
-
-                        // global CKEDITOR instances (fallback)
-                        if (window.CKEDITOR) {
-                            for (var k in window.CKEDITOR.instances) {
-                                try {
-                                    var d = window.CKEDITOR.instances[k].getData();
-                                    if ((d || '').replace(/<[^>]*>/g,'').trim().length > 0) return true;
-                                } catch(e) {}
-                            }
-                        }
-
-                        var html = el.innerHTML || el.value || el.textContent || '';
-                        return (html || '').replace(/<[^>]*>/g,'').trim().length > 0;
-                    """, sel)
-                except Exception:
-                    tem_conteudo = False
-
-                if tem_conteudo:
-                    return True
-        except Exception:
-            pass
-
-        # Pequena espera/trigger adicional para lidar com casos onde o
-        # preview fecha muito rápido e a injeção ocorre com micro-latência.
-        try:
-            from .wrappers_utils import esperar_insercao_modelo
-            # esperar_insercao_modelo usa ms; dar um pequeno pulso de 500ms
-            esperar_insercao_modelo(driver, timeout=500)
-        except Exception:
-            time.sleep(0.3)  # fallback
-
-        # Polling leve durante a espera pelo conteúdo do editor.
-        time.sleep(0.3)  # poll-interval
-
-    return False
+    return aguardar_renderizacao_nativa(driver, 'p.corpo, .ck-content p', 'aparecer', timeout)
 
 
 
@@ -310,9 +237,11 @@ def executar_preenchimento_minuta(
         else:
             log('3. Sem prazo a preencher')
 
-        log('4. Clicando "Confeccionar ato agrupado"')
-        if not aguardar_e_clicar(driver, 'button[aria-label="Confeccionar ato agrupado"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
-            raise Exception('Botão Confeccionar ato agrupado não disponível')
+        log('4. Clicando "Confeccionar ato agrupado" (gigs: clicarBotao)')
+        btn_confeccionar = esperar_elemento(driver, 'button[aria-label="Confeccionar ato agrupado"]', timeout=10, by=By.CSS_SELECTOR)
+        if not btn_confeccionar:
+            raise Exception('Botao Confeccionar ato agrupado nao disponivel')
+        driver.execute_script('arguments[0].click();', btn_confeccionar)
 
         if subtipo:
             log(f'5. Selecionando subtipo: {subtipo}')
@@ -432,10 +361,14 @@ def executar_preenchimento_minuta(
                 aguardar_renderizacao_nativa(driver, '.nodo-filtrado', 'aparecer', 10)
 
                 try:
-                    nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=10, by=By.CSS_SELECTOR)
-                    if not nodo:
-                        raise Exception('Nodo filtrado não clicável')
-                    driver.execute_script("arguments[0].click();", nodo)
+                    # gigs L15111-15115: querySelector direto após observer confirmar presença
+                    clicou = driver.execute_script("""
+                        var el = document.querySelector('.nodo-filtrado');
+                        if (el) { el.click(); return true; }
+                        return false;
+                    """)
+                    if not clicou:
+                        raise Exception('Nodo filtrado nao clicavel')
 
                     modal_aberto = aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'aparecer', timeout=3)
 
@@ -443,20 +376,14 @@ def executar_preenchimento_minuta(
                         log('[MODELO][WARN] Modal de visualização não abriu, tentando inserir mesmo assim...')
 
                     seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
-                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=10, by=By.CSS_SELECTOR)
-                    if not btn_inserir:
-                        raise Exception('Botão inserir não clicável')
-                    driver.execute_script("arguments[0].click();", btn_inserir)
+                    inseriu = driver.execute_script("""
+                        var btn = document.querySelector(arguments[0]);
+                        if (btn && !btn.disabled) { btn.click(); return true; }
+                        return false;
+                    """, seletor_btn_inserir)
+                    if not inseriu:
+                        raise Exception('Botao inserir nao encontrado ou desabilitado')
                     log(' Modelo inserido - aguardando confirmação de inserção')
-                    try:
-                        from .wrappers_utils import esperar_insercao_modelo
-                        ok_monitor = esperar_insercao_modelo(driver, timeout=8000)
-                        if not ok_monitor:
-                            logger.warning('[MODELO] esperar_insercao_modelo retornou timeout aguardando inserção')
-                    except Exception as _e:
-                        logger.warning(f'[MODELO] Exceção ao executar esperar_insercao_modelo: {_e}')
-
-                    time.sleep(1.5)  # fallback — settle after model insertion
                     aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 10)
                     if not _aguardar_ck_com_conteudo(driver, timeout=8):
                         log('[MODELO][WARN] Timeout aguardando conteúdo no editor após inserção de modelo')
@@ -504,18 +431,22 @@ def executar_preenchimento_minuta(
         else:
             log('8. Sem modelo para inserir')
 
-        log('9. Salvando e finalizando minuta')
+        log('9. Salvando e finalizando minuta (gigs: clicarBotao)')
         try:
-            if not aguardar_e_clicar(driver, 'button[aria-label="Salvar"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
-                raise Exception('Botão Salvar não disponível')
-            log(' Botão Salvar clicado')
+            btn_salvar = esperar_elemento(driver, 'button[aria-label="Salvar"]', timeout=10, by=By.CSS_SELECTOR)
+            if not btn_salvar:
+                raise Exception('Botao Salvar nao disponivel')
+            driver.execute_script('arguments[0].click();', btn_salvar)
+            log(' Botao Salvar clicado')
             # Aguarda botao "Finalizar minuta" visivel E !disabled (modo 'habilitado').
             if not aguardar_renderizacao_nativa(driver, 'button[aria-label="Finalizar minuta"]', 'habilitado', 10):
                 log('[WARN] Timeout aguardando Finalizar minuta habilitar')
 
-            if not aguardar_e_clicar(driver, 'button[aria-label="Finalizar minuta"]', timeout=5, by=By.CSS_SELECTOR, usar_js=False):
-                raise Exception('Botão Finalizar minuta não disponível')
-            log(' Botão Finalizar minuta clicado')
+            btn_finalizar = esperar_elemento(driver, 'button[aria-label="Finalizar minuta"]', timeout=8, by=By.CSS_SELECTOR)
+            if not btn_finalizar:
+                raise Exception('Botao Finalizar minuta nao disponivel')
+            driver.execute_script('arguments[0].click();', btn_finalizar)
+            log(' Botao Finalizar minuta clicado')
             # Aguardar o dialog SUMIR e o ícone verde aparecer — única garantia real
             # de que o ato foi confeccionado antes de prosseguir para destinatários.
             aguardar_ato_confeccionado(driver, log=log)

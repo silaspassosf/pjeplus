@@ -4,7 +4,7 @@
 # Processo alvo: 8501188
 # ============================================================
 
-PROCESS_URL = 'https://pje.trt2.jus.br/pjekz/processo/4409298/detalhe'
+PROCESS_URL = 'https://pje.trt2.jus.br/pjekz/processo/4863758/detalhe'
 
 # Criar driver PC (opção A do x.py) e fazer login via `login_cpf`
 from x import criar_driver_pc

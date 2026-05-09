@@ -173,7 +173,7 @@ class PjeApiClient:
             'buscarMovimentos': str(buscarMovimentos).lower(),
             'buscarDocumentos': str(buscarDocumentos).lower()
         }
-        r = self.sess.get(url, params=params, timeout=15)
+        r = self.sess.get(url, params=params, timeout=(5, 15))
         if not r.ok:
             return None
         return r.json()

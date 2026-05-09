@@ -32,7 +32,7 @@ from .facades_contratos import (
 from .relatorios_integracao import _gerar_relatorio_ordem
 
 # ===== INTEGRATION =====
-from .relatorios_integracao import _executar_juntada_pje
+from PEC.anexos import executar_juntada_pje as _executar_juntada_pje
 
 # ===== EXPORTS COMPLETOS =====
 __all__ = [

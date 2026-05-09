@@ -19,9 +19,9 @@ TIMEOUTS = {
 
 SELECTORS = {
     'input_juiz': 'input[placeholder*="Juiz"]',
-    'input_processo': 'input[placeholder="Numero do Processo"]',
+    'input_processo': 'input[placeholder="Número do Processo"]',
     'input_cpf': 'input[placeholder*="CPF"]',
-    'input_nome_autor': 'input[placeholder="Nome do autor/exequente da acao"]',
+    'input_nome_autor': 'input[placeholder="Nome do autor/exequente da ação"]',
     'botao_consultar': 'button.mat-fab.mat-primary',
     'botao_salvar': 'button.mat-fab.mat-primary mat-icon.fa-save',
     'tabela_ordens': 'table.mat-table',

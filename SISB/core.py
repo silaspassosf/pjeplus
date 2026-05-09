@@ -711,73 +711,36 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                 except Exception as e:
                     logger.info(f'[SISBAJUD]  Erro ao tentar ajustar foco para PJe: {e}')
 
-                # Importar wrapper específico que insere conteúdo do relatório SISBAJUD
-                try:
-                    from PEC.anexos import consulta_wrapper
-                except Exception:
-                    consulta_wrapper = None
+                # Juntada (wrapper ja inclui navegacao, juntada e fechamento da aba)
+                from PEC.anexos import consulta_wrapper
+                juntada_executada = consulta_wrapper(driver_pje, numero_processo, debug=log, modelo='xteim')
+                resultado['juntada_executada'] = bool(juntada_executada)
+                if juntada_executada and log:
+                    logger.info('[SISBAJUD]  Juntada da minuta realizada no PJe')
+                elif log:
+                    logger.info('[SISBAJUD]  Juntada da minuta pode nao ter sido executada corretamente')
 
-                if consulta_wrapper:
-                    # DEBUG: imprimir estado das janelas/abas do driver_pje antes da juntada (prints para garantir visibilidade)
-                    try:
-                        handles = list(driver_pje.window_handles)
-                        logger.debug('driver_pje.handles: %s', handles)
-                        try:
-                            active = driver_pje.current_window_handle
-                        except Exception:
-                            active = None
-                        logger.debug('driver_pje.active_handle: %s', active)
-                        for h in handles:
-                            try:
-                                driver_pje.switch_to.window(h)
-                                try:
-                                    url = driver_pje.current_url
-                                except Exception:
-                                    url = '<unreadable>'
-                                logger.debug('handle=%s url=%s', h, url)
-                            except Exception as e:
-                                logger.debug('handle=%s error reading url: %s', h, e)
-                        # restore active
-                        try:
-                            if active:
-                                driver_pje.switch_to.window(active)
-                        except Exception:
-                            pass
-                    except Exception as e:
-                        logger.debug('Erro ao coletar handles do PJe: %s', e)
-                    # chamar consulta_wrapper com modelo correto
-                    juntada_executada = consulta_wrapper(driver_pje, numero_processo, debug=log, modelo='xteim')
-                    resultado['juntada_executada'] = bool(juntada_executada)
-                    if juntada_executada and log:
-                        logger.info('[SISBAJUD]  Juntada da minuta realizada no PJe')
-                    elif log:
-                        logger.info('[SISBAJUD]  Juntada da minuta pode não ter sido executada corretamente')
-
-                    # Após a juntada, retornar para /detalhe e aplicar visibilidade para certidão sigilosa
-                    if juntada_executada and driver_pje:
-                        from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
-                        if log:
-                            logger.info('[SISBAJUD] Aplicando visibilidade para certidão sigilosa no PJe (/detalhe)...')
-                        vis_ok = executar_visibilidade_sigilosos_se_necessario(driver_pje, True, debug=log)
-                        resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
-                        if vis_ok and log:
-                            logger.info('[SISBAJUD]  Visibilidade para certidão sigilosa aplicada')
-                        elif log:
-                            logger.info('[SISBAJUD]  Falha ao aplicar visibilidade para certidão sigilosa')
-                        
-                        # Criar GIGS 22/xs resultado (após visibilidade, ainda em /detalhe)
-                        from Fix.extracao import criar_gigs
-                        if log:
-                            logger.info('[SISBAJUD] Criando GIGS 22/xs resultado...')
-                        resultado_gigs = criar_gigs(driver_pje, '22/xs resultado', log=log)
-                        if resultado_gigs and log:
-                            logger.info('[SISBAJUD]  GIGS 22/xs resultado criado')
-                        elif log:
-                            logger.info('[SISBAJUD]  GIGS 22/xs resultado não foi criado')
-                else:
-                    resultado['erros'].append('consulta_wrapper não disponível')
+                # Apos a juntada, aplicar visibilidade para certidao sigilosa
+                if juntada_executada and driver_pje:
+                    from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
                     if log:
-                        logger.info('[SISBAJUD]  consulta_wrapper não disponível para executar juntada da minuta')
+                        logger.info('[SISBAJUD] Aplicando visibilidade para certidão sigilosa no PJe (/detalhe)...')
+                    vis_ok = executar_visibilidade_sigilosos_se_necessario(driver_pje, True, debug=log)
+                    resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
+                    if vis_ok and log:
+                        logger.info('[SISBAJUD]  Visibilidade para certidão sigilosa aplicada')
+                    elif log:
+                        logger.info('[SISBAJUD]  Falha ao aplicar visibilidade para certidão sigilosa')
+
+                    # Criar GIGS 22/xs resultado (após visibilidade, ainda em /detalhe)
+                    from Fix.extracao import criar_gigs
+                    if log:
+                        logger.info('[SISBAJUD] Criando GIGS 22/xs resultado...')
+                    resultado_gigs = criar_gigs(driver_pje, '22/xs resultado', log=log)
+                    if resultado_gigs and log:
+                        logger.info('[SISBAJUD]  GIGS 22/xs resultado criado')
+                    elif log:
+                        logger.info('[SISBAJUD]  GIGS 22/xs resultado não foi criado')
             except Exception as e:
                 resultado['erros'].append(f'Erro na juntada PJE (minuta): {e}')
                 if log:

@@ -150,9 +150,9 @@
             10000
         );
         if (!p) throw new Error('Painel de confirmação não encontrado');
-        const nao = btnByText(p.closest('mat-expansion-panel'), 'Não');
-        if (!nao) throw new Error('Botão Não não encontrado');
-        nao.click();
+        const sim = btnByText(p.closest('mat-expansion-panel'), 'Sim');
+        if (!sim) throw new Error('Botão Sim não encontrado');
+        sim.click();
         await sleep(600);
 
         await waitEl('mat-slide-toggle[formcontrolname="juizoDigital"].mat-checked', 10000);

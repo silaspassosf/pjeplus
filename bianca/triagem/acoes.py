@@ -432,11 +432,11 @@ def remarcar_100_pos_aud(driver: WebDriver) -> None:
                         "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.), 'Confirma a inclusão do movimento')]"
                     ))
                 )
-                btn_nao = painel.find_element(
+                btn_sim = painel.find_element(
                     By.XPATH,
-                    "./ancestor::mat-expansion-panel//mat-action-row//button[.//span[contains(normalize-space(.), 'Não')]]"
+                    "./ancestor::mat-expansion-panel//mat-action-row//button[.//span[contains(normalize-space(.), 'Sim')]]"
                 )
-                safe_click(driver, btn_nao)
+                safe_click(driver, btn_sim)
                 time.sleep(0.5)
             except Exception as e:
                 raise Exception(f"Painel ou botao 'Nao' nao encontrado em remarcar: {e}")

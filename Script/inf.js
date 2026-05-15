@@ -1,9 +1,3 @@
-silas.passos@trt2.jus.br <silas.passos@trt2.jus.br>
-	
-qua., 25 de fev., 23:10
-	
-	
-para mim
 // ==UserScript==
 // @name         InfoJud - Dual Mode + Relatório + Check Duplicidade (v17)
 // @namespace    http://tampermonkey.net/

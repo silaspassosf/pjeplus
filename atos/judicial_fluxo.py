@@ -474,9 +474,11 @@ def ato_judicial(
                 except Exception:
                     pass
 
-                # Compatibilidade com fluxo pre-xcode: em algumas telas o DOM
-                # ainda estabiliza apos a insercao mesmo sem snackbar visivel.
-                time.sleep(1.5)
+                # Compatibilidade com fluxo pre-xcode: DOM estabiliza apos insercao
+                try:
+                    aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=3)
+                except Exception:
+                    pass
 
             except Exception as e:
                 logger.error(f'[ATO][MODELO] Erro ao inserir modelo: {e}')
@@ -514,9 +516,17 @@ def ato_judicial(
             ):
                 logger.warning('[ATO][SALVAR] Timeout aguardando controles de destinatários, prosseguindo...')
 
-            # Compatibilidade pre-xcode: aguarda curta transicao para evitar
-            # interacoes prematuras apos o primeiro salvar.
-            time.sleep(1.5)
+            # Compatibilidade pre-xcode: aguarda controles de destinatarios renderizarem
+            try:
+                aguardar_renderizacao_nativa(
+                    driver,
+                    'button[aria-label="Gravar a intimação/notificação"], '
+                    'pje-intimacao-automatica label.mat-slide-toggle-label',
+                    modo='aparecer',
+                    timeout=3,
+                )
+            except Exception:
+                pass
             logger.info('[ATO][SALVAR] Aguardando ativação da aba destinatários...')
 
         except Exception as e:
@@ -635,6 +645,56 @@ def ato_judicial(
                 logger.error(f'[ATO][PEC] {e}')
                 # Não interrompe o fluxo
 
+        # ===== SIGILO (após PEC, antes de gravar intimações) =====
+        sigilo_ativado = False
+        try:
+            if sigilo:
+                logger.info('[ATO][SIGILO] Aplicando sigilo...')
+                try:
+                    slide = esperar_elemento(driver, 'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo', timeout=5, by=By.CSS_SELECTOR)
+                    if slide:
+                        try:
+                            input_sig = slide.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                        except Exception:
+                            input_sig = None
+
+                        is_checked = False
+                        try:
+                            if input_sig:
+                                is_checked = (input_sig.get_attribute('aria-checked') == 'true' or input_sig.is_selected())
+                            else:
+                                cls = slide.get_attribute('class') or ''
+                                is_checked = 'mat-checked' in cls
+                        except Exception:
+                            is_checked = False
+
+                        if not is_checked:
+                            try:
+                                label = slide.find_element(By.CSS_SELECTOR, 'label.mat-slide-toggle-label')
+                                safe_click_no_scroll(driver, label, log=False)
+                            except Exception:
+                                try:
+                                    if input_sig:
+                                        driver.execute_script('arguments[0].click();', input_sig)
+                                    else:
+                                        driver.execute_script('arguments[0].click();', slide)
+                                except Exception:
+                                    try:
+                                        driver.execute_script(
+                                            'var el = arguments[0].querySelector(\'input[type="checkbox"]\') || arguments[0];'
+                                            ' el.checked = true;'
+                                            ' el.dispatchEvent(new Event(\'change\', {bubbles:true}));',
+                                            slide
+                                        )
+                                    except Exception:
+                                        logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
+                        sigilo_ativado = True
+                        logger.info('[ATO][SIGILO] Sigilo ativado')
+                except Exception:
+                    logger.debug('[ATO][SIGILO] Toggle de sigilo não encontrado')
+        except Exception as e:
+            logger.debug(f'[ATO][SIGILO] Erro ao aplicar sigilo: {e}')
+
         # ===== GRAVAR INTIMAÇÕES (uma vez, após prazos e PEC) =====
         logger.info('[ATO][GRAVAR] Gravando intimações...')
         try:
@@ -652,7 +712,6 @@ def ato_judicial(
             logger.debug(f'[ATO][GRAVAR] {e}')
 
         # ===== ABA DESTINATÁRIOS - MOVIMENTO =====
-        sigilo_ativado = False
         if movimento:
             logger.info(f'[ATO][MOVIMENTO] Selecionando movimento: {movimento}')
             try:
@@ -691,7 +750,7 @@ def ato_judicial(
                                 abaMov.click();
                             }
                         """)
-                        time.sleep(0.8)
+                        aguardar_renderizacao_nativa(driver, '.mat-tab-label[aria-selected="true"]', modo='aparecer', timeout=3)
                     except Exception:
                         pass
                     if not selecionar_movimento_auto(driver, movimento):
@@ -764,13 +823,13 @@ def ato_judicial(
                     start_time = time.time()
                     selecionado = None
                     label_mov = None
-                    
+
                     while time.time() - start_time < 5:
                         selecionado = driver.execute_script("return window.selecionadoMovimento;")
                         if selecionado is not None:
                             label_mov = driver.execute_script("return window.labelSelecionadoMovimento;")
                             break
-                        time.sleep(0.5)
+                        time.sleep(0.15)
                         
                     # Limpar variaveis globais do js
                     driver.execute_script("window.selecionadoMovimento = undefined; window.labelSelecionadoMovimento = undefined;")
@@ -785,35 +844,18 @@ def ato_judicial(
                 btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10, by=By.CSS_SELECTOR)
                 if btn_gravar_mov:
                     btn_gravar_mov.click()
-                time.sleep(1.5)
+                aguardar_renderizacao_nativa(driver, 'button[aria-label="Sim"]', modo='aparecer', timeout=5)
 
                 # Confirmar com "Sim"
                 logger.info('[ATO][MOVIMENTO] Confirmando...')
                 btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=10, by=By.XPATH)
                 if btn_sim:
                     btn_sim.click()
-                    time.sleep(1)
+                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
                     logger.info('[ATO][MOVIMENTO]  Movimento gravado e confirmado')
                 else:
                     logger.warning('[ATO][MOVIMENTO] Botão Sim não encontrado')
 
-                # Após confirmar movimento, aplicar sigilo (se solicitado) ANTES do save final
-                try:
-                    if sigilo:
-                        logger.info('[ATO][SIGILO] Aplicando sigilo após gravação do movimento...')
-                        try:
-                            slide = esperar_elemento(driver, 'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo', timeout=5, by=By.CSS_SELECTOR)
-                            if slide:
-                                is_checked = driver.execute_script('return arguments[0].classList.contains("mat-checked");', slide)
-                                if not is_checked:
-                                    driver.execute_script('arguments[0].click();', slide)
-                                    logger.info('[ATO][SIGILO]  Sigilo ativado')
-                                    sigilo_ativado = True
-                        except Exception:
-                            logger.debug('[ATO][SIGILO] Toggle de sigilo não encontrado após movimento')
-                except Exception as e:
-                    logger.debug(f'[ATO][SIGILO] Erro ao aplicar sigilo pós-movimento: {e}')
-                
             except Exception as e:
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')
                 return False, False

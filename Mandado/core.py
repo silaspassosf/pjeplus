@@ -52,7 +52,7 @@ from Fix.abas import validar_conexao_driver
 from Fix.abas import forcar_fechamento_abas_extras
 
 # Módulo Mandado local
-from .processamento import processar_argos, fluxo_mandados_outros
+from .entrada_api import processar_mandados_devolvidos_api
 
 with open("log.py", "w", encoding="utf-8") as f:
     f.write(f"# Última execução: {datetime.now()}\n")
@@ -252,158 +252,18 @@ def navegacao(driver: WebDriver) -> bool:
 
 
 def iniciar_fluxo_robusto(driver: WebDriver) -> ResultadoFluxo:
-    """Função que decide qual fluxo será aplicado com controle de sessão"""
-    # Carrega progresso
-    progresso = carregar_progresso()
-    logger.info(f"[PROGRESSO][SESSÃO] Carregado progresso com {len(progresso['processos_executados'])} processos já executados")
-    
-    def fluxo_callback(driver):
-        numero_processo = None
-        processado_com_sucesso = False
-        try:
-            # VERIFICAÇÃO DE SESSÃO: Antes de qualquer processamento
-            if verificar_acesso_negado(driver):
-                logger.info(f"[PROCESSAR][ALERTA] Não estamos na página da lista! URL: {driver.current_url}")
-                logger.info("[RECOVERY][SESSÃO]  Sessão perdida, abortando processo atual")
-                return False
-            
-            # USAR NÚMERO DA LISTA SE DISPONÍVEL (MAIS CONFIÁVEL)
-            numero_processo = getattr(driver, '_numero_processo_lista', None)
-            if not numero_processo:
-                # Fallback: extrair da URL/página
-                numero_processo = extrair_numero_processo(driver)
-            
-            logger.info(f'[MANDADO][CALLBACK] invoked for {numero_processo}')
-            logger.info(f'[MANDADO] Processando: {numero_processo}')
+    """Executa o fluxo de Mandado via engine-based da entrada API."""
+    logger.info('[FLUXO] Iniciando Mandado via entrada API (engine-based)')
 
-            # Busca o cabeçalho do documento ativo sem clicar (detalhes já abertos pelo indexador)
-            try:
-                cabecalho_selector = '.cabecalho-conteudo .mat-card-title, mat-card-title.mat-card-title'
-                cabecalhos = driver.find_elements(By.CSS_SELECTOR, cabecalho_selector)
-                cabecalho = cabecalhos[0] if cabecalhos else None
-
-                if not cabecalho:
-                    logger.info('[ERRO] Cabeçalho do documento não encontrado na aba de detalhes')
-                    return False
-
-                texto_doc = cabecalho.text if cabecalho else ''
-                if not texto_doc:
-                    logger.info('[ERRO] Cabeçalho do documento vazio')
-                    return False
-            except Exception as e:
-                logger.info(f'[ERRO] Exceção ao localizar cabeçalho: {e}')
-                return False
-                
-            texto_lower = texto_doc.lower()
-            # Identificação dos fluxos
-            if any(termo in texto_lower for termo in ['pesquisa patrimonial', 'argos', 'devolução de ordem de pesquisa', 'certidão de devolução']):
-                logger.info(f'[ARGOS] {numero_processo}')
-                # processar_argos retorna status; propagar falha para o indexador
-                if not processar_argos(driver, log=False):
-                    logger.info(f'[ERRO] processar_argos retornou falsy para {numero_processo}')
-                    return False
-                # VALIDAÇÃO PÓS ARGOS: Verifica se o contexto do driver ainda é válido
-                try:
-                    _ = driver.window_handles
-                except Exception as e:
-                    logger.info(f'[ERRO] Contexto do driver perdido após processar_argos: {e}')
-                    # Força exceção para interromper o fluxo normal e evitar erro na limpeza de abas
-                    raise Exception(f"Driver context lost after processar_argos: {e}")
-            elif any(termo in texto_lower for termo in ['oficial de justiça', 'certidão de oficial']):
-                logger.info(f'[OUTROS] {numero_processo}')
-                fluxo_mandados_outros(driver, log=False)
-            else:
-                logger.info(f'[AVISO] Documento não identificado: {texto_doc}')
-                return False
-
-            processado_com_sucesso = True
-            # Sucesso explícito do callback
-            return True
-        except Exception as e:
-            logger.info(f'[ERRO] Falha ao processar mandado: {str(e)}')
-            return False
-        finally:
-            # Limpeza padronizada via Fix (alinhada ao fluxo de indexação)
-            try:
-                aba_lista_original = None
-                try:
-                    handles = driver.window_handles
-                    aba_lista_original = handles[0] if handles else None
-                except Exception:
-                    aba_lista_original = None
-
-                if aba_lista_original:
-                    forcar_fechamento_abas_extras(driver, aba_lista_original)
-                    _aguardar_estabilizacao_pos_processo(driver)
-            except Exception as cleanup_error:
-                logger.info(f"[LIMPEZA][ERRO] Falha na limpeza padronizada de abas: {cleanup_error}")
-            
-            # Marcar progresso APENAS quando o callback concluir com sucesso
-            if processado_com_sucesso and numero_processo:
-                # Usar função de progresso com o número correto (da lista)
-                progresso_atual = carregar_progresso()
-                try:
-                    if not processo_ja_executado(numero_processo, progresso_atual):
-                        marcar_processo_executado(numero_processo, progresso_atual)
-                        logger.info(f'[PROGRESSO] Processo {numero_processo} marcado como executado')
-                    else:
-                        logger.info(f'[PROGRESSO] Processo {numero_processo} já estava marcado como executado')
-                except Exception as e:
-                    # Em caso de erro no progresso, tentar marcar e seguir em frente
-                    try:
-                        marcar_processo_executado(numero_processo, progresso_atual)
-                        logger.info(f'[PROGRESSO] Processo {numero_processo} marcado como executado (fallback)')
-                    except Exception:
-                        logger.info(f'[PROGRESSO] Falha ao marcar processo {numero_processo} no progresso')
-            
-            logger.info('[FLUXO] Processo concluído, retornando à lista')
-    logger.info('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
-
-    # Capturar progresso antes/depois para computar quantos processos foram executados
     progresso_before = carregar_progresso()
     count_before = len(progresso_before.get('processos_executados', []))
 
-    # 1) Checar se há processos na lista antes de iniciar o indexador
-    try:
-        processos_indexados = indexar_processos(driver)
-        logger.info(f'[FLUXO] Lista inicial contém {len(processos_indexados)} linhas (indexar_processos)')
-    except Exception as e:
-        logger.warning(f'[FLUXO][ALERTA] Falha ao indexar lista inicialmente: {e}')
-        processos_indexados = []
-
-    # 2) Se lista vazia, tentar recarregar e reindexar (2 tentativas) — evita concluir silenciosamente
-    if not processos_indexados:
-        logger.warning('[FLUXO][ALERTA] Nenhum processo encontrado após aplicar filtro; tentando reindexar/recarregar (2 tentativas)')
-        for attempt in range(2):
-            try:
-                time.sleep(1 + attempt)  # backoff leve
-                try:
-                    driver.refresh()
-                except Exception:
-                    pass
-                processos_indexados = indexar_processos(driver)
-                logger.info(f'[FLUXO] Tentativa {attempt+1}: encontrou {len(processos_indexados)} linhas')
-                if processos_indexados:
-                    break
-            except Exception as e:
-                logger.warning(f'[FLUXO][ALERTA] Reindex tentativa {attempt+1} falhou: {e}')
-
     from core.resultado_execucao import ResultadoExecucao
-    if not processos_indexados:
-        logger.warning('[FLUXO][ERRO] Lista de mandados está vazia após tentativas — abortando processamento de Mandado')
-        progresso_after = carregar_progresso()
-        count_after = len(progresso_after.get('processos_executados', []))
-        processed = max(0, count_after - count_before)
-        return ResultadoExecucao(sucesso=False, processos=processed)
 
-    # 3) Executar indexador normalmente usando o monitor unificado para pular itens
-    success = False
     try:
-        result_indexador = indexar_e_processar_lista(driver, fluxo_callback, tipo_execucao='mandado')
-        logger.info(f'[FLUXO] indexar_e_processar_lista returned: {result_indexador}')
-        success = bool(result_indexador)
+        success = bool(processar_mandados_devolvidos_api(driver))
     except Exception as e:
-        logger.info(f'[FLUXO][ERRO] indexar_e_processar_lista falhou: {e}')
+        logger.info(f'[FLUXO][ERRO] processar_mandados_devolvidos_api falhou: {e}')
         success = False
 
     progresso_after = carregar_progresso()

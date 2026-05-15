@@ -239,9 +239,9 @@ def executar_lista_sisbajud_por_abas(driver_pje, lista_sisbajud):
                     if resultado and resultado.get('status') == 'sucesso':
                         sucesso = True
                         # Executar juntada do relatório SISBAJUD no PJe
-                        from PEC.anexos import consulta_wrapper
+                        from PEC.anexos import anex_sisbconsulta
                         
-                        resultado_wrapper = consulta_wrapper(
+                        resultado_wrapper = anex_sisbconsulta(
                             driver=driver_pje,
                             numero_processo=numero_processo,
                             debug=True

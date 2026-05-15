@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 import os
 import re
-import time
 import types
 from typing import Optional, Dict, Any, Callable, Union, List
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -23,6 +22,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 # Imports do Fix
 from Fix.core import (
     aguardar_e_clicar,
+    aguardar_renderizacao_nativa,
     selecionar_opcao,
     preencher_campo,
     safe_click,
@@ -298,39 +298,44 @@ def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool =
 
     driver = self.driver
 
-    # 0. Garantir que estamos na interface de anexacao
+    # 0. Garantir interface de anexacao aberta
     try:
         max_retries = 2
         for attempt in range(max_retries):
-            if not driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'):
-                logger.info('[JUNTADA] Interface de anexacao nao detectada — abrindo (tentativa %s/%s)...', attempt + 1, max_retries)
-                if not self._abrir_interface_anexacao():
-                    if attempt < max_retries - 1:
-                        logger.warning('[JUNTADA] Falha ao abrir interface — tentando refresh...')
-                        try:
-                            driver.refresh()
-                            time.sleep(1.2)
-                        except Exception:
-                            pass
-                        continue
-                    logger.error('[JUNTADA] Falha ao abrir interface de anexacao apos %s tentativas', max_retries)
-                    return False
-                time.sleep(0.8)
-            # Verificar que o input apareceu
             try:
+                if not driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'):
+                    if not self._abrir_interface_anexacao():
+                        return False
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'))
                 )
-                logger.info('[JUNTADA] Interface de anexacao confirmada')
                 break
-            except Exception:
-                if attempt < max_retries - 1:
-                    logger.warning('[JUNTADA] Input Tipo de Documento nao apareceu — retry...')
+            except Exception as inner_e:
+                if attempt == max_retries - 1:
+                    logger.error(f'[JUNTADA][ERRO] Interface de anexacao nao detectada apos {max_retries} tentativas: {inner_e}')
+                    return False
+                try:
+                    logger.info('[JUNTADA][WARN] Interface nao detectada — recarregando a pagina e tentando novamente')
+                    try:
+                        driver.refresh()
+                    except Exception:
+                        pass
+                    aguardar_renderizacao_nativa(driver, timeout=3)
+                    try:
+                        self._abrir_interface_anexacao()
+                    except Exception:
+                        pass
+                    aguardar_renderizacao_nativa(
+                        driver,
+                        'input[aria-label="Tipo de Documento"], input[data-placeholder="Tipo de Documento"]',
+                        'aparecer',
+                        3,
+                    )
                     continue
-                logger.error('[JUNTADA] Input Tipo de Documento nao encontrado apos navegacao')
-                return False
+                except Exception:
+                    return False
     except Exception as e:
-        logger.error('[JUNTADA] Erro na auto-navegacao: %s', e)
+        logger.error(f'[JUNTADA][ERRO] Erro ao garantir interface de anexacao: {e}')
         return False
 
     # 1. Coleta opcional

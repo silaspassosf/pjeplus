@@ -85,6 +85,7 @@ Campos do `Anexo`:
 sentenca  → /sentença|sentenca/i no titulo
 acordao   → /acórdão|acordao/i no titulo, excluindo "intima"  
 RO        → /recurso ordinário|recurso ordinario/i no titulo/tipo
+RA        → /recurso adesivo/i no titulo/tipo
 RR        → /recurso de revista/i no titulo/tipo
 edital    → /edital/i no titulo
 hon_ajjt  → /periciai.*aj.*jt|pericia.*aj.*jt/i no titulo

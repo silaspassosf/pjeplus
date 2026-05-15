@@ -14,7 +14,7 @@ from .anexos_sisbajud import _wrapper_sisbajud_generico, _obter_conteudo_relator
 from .anexos_juntador import wrapper_juntada_geral
 
 
-def carta_wrapper(
+def anex_carta(
     driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
@@ -63,7 +63,7 @@ def carta_wrapper(
     )
 
 
-def consulta_wrapper(
+def anex_sisbconsulta(
     driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
@@ -78,7 +78,7 @@ def consulta_wrapper(
                                     assinar, sigilo, 'SISB', numero_processo, debug)
 
 
-def wrapper_bloqneg(
+def anex_bloqneg(
     driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
@@ -93,7 +93,7 @@ def wrapper_bloqneg(
                                     assinar, sigilo, 'BLOQNEG', numero_processo, debug)
 
 
-def wrapper_parcial(
+def anex_parcial(
     driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
@@ -108,7 +108,7 @@ def wrapper_parcial(
                                     assinar, sigilo, 'PARCIAL', numero_processo, debug)
 
 
-def retifidpj_wrapper(
+def anex_retifidpj(
     driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,

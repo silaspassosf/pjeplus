@@ -31,6 +31,24 @@ BUCKET_ORDEM = ['carta', 'comunicacoes', 'sobrestamento', 'sob', 'outros', 'sisb
 
 # ─── helpers: acoes com logica interna ou assinatura especial ────────────────
 
+def _normalizar_resultado_acao(resultado: Any) -> Any:
+    """Converte sucesso implicito em retorno explicito sem esconder False."""
+    if resultado is None:
+        return True
+    return resultado
+
+
+def _executar_passos(*passos) -> Any:
+    """Executa passos em sequencia, interrompendo em False explicito."""
+    ultimo_resultado: Any = True
+    for passo in passos:
+        resultado = _normalizar_resultado_acao(passo())
+        if resultado is False:
+            return False
+        if resultado is not True:
+            ultimo_resultado = resultado
+    return ultimo_resultado
+
 def _xs_ord(driver, atv):
     """xs ord: domicilio eletronico determina qual sub-acao executar."""
     from atos.wrappers_pec import pec_ord, pec_arord
@@ -50,18 +68,26 @@ def _xs_ord(driver, atv):
                 sem = len(reclamadas) - com
                 logger.info(f'[xs_ord] {com} com domicilio, {sem} sem')
                 if sem == 0:
-                    pec_ord(driver)
-                elif com == 0:
-                    pec_arord(driver)
-                else:
-                    pec_ord(driver)
-                    pec_arord(driver)
-                mov_aud(driver)
-                return
+                    return _executar_passos(
+                        lambda: pec_ord(driver),
+                        lambda: mov_aud(driver),
+                    )
+                if com == 0:
+                    return _executar_passos(
+                        lambda: pec_arord(driver),
+                        lambda: mov_aud(driver),
+                    )
+                return _executar_passos(
+                    lambda: pec_ord(driver),
+                    lambda: pec_arord(driver),
+                    lambda: mov_aud(driver),
+                )
     except Exception as e:
         logger.warning(f'[xs_ord] fallback para pec_ord: {e}')
-    pec_ord(driver)
-    mov_aud(driver)
+    return _executar_passos(
+        lambda: pec_ord(driver),
+        lambda: mov_aud(driver),
+    )
 
 
 def _xs_sum(driver, atv):
@@ -83,55 +109,71 @@ def _xs_sum(driver, atv):
                 sem = len(reclamadas) - com
                 logger.info(f'[xs_sum] {com} com domicilio, {sem} sem')
                 if sem == 0:
-                    pec_sum(driver)
-                elif com == 0:
-                    pec_arsum(driver)
-                else:
-                    pec_sum(driver)
-                    pec_arsum(driver)
-                mov_aud(driver)
-                return
+                    return _executar_passos(
+                        lambda: pec_sum(driver),
+                        lambda: mov_aud(driver),
+                    )
+                if com == 0:
+                    return _executar_passos(
+                        lambda: pec_arsum(driver),
+                        lambda: mov_aud(driver),
+                    )
+                return _executar_passos(
+                    lambda: pec_sum(driver),
+                    lambda: pec_arsum(driver),
+                    lambda: mov_aud(driver),
+                )
     except Exception as e:
         logger.warning(f'[xs_sum] fallback para pec_sum: {e}')
-    pec_sum(driver)
-    mov_aud(driver)
+    return _executar_passos(
+        lambda: pec_sum(driver),
+        lambda: mov_aud(driver),
+    )
 
 
 def _def_sob(driver, atv):
     """Sobrestamento vencido — requer numero_processo e observacao do atv."""
-    def_sob(driver, atv.numero_processo, atv.observacao)
+    return def_sob(driver, atv.numero_processo, atv.observacao)
 
 
 def _pz_idpj(driver, atv):
     """pz idpj: cria gigs edital intimacao + ato IDPJ."""
     from Fix.extracao import criar_gigs
     from atos.judicial import ato_idpj
-    criar_gigs(driver, 1, 'Ingrid', 'edital intimacao correio')
-    ato_idpj(driver)
+    return _executar_passos(
+        lambda: criar_gigs(driver, 1, 'Ingrid', 'edital intimacao correio'),
+        lambda: ato_idpj(driver),
+    )
 
 
 def _xs_meios(driver, atv):
     """xs meios: inclusao BNDT + ato meios."""
     from Fix.extracao import bndt
     from atos.judicial import ato_meios
-    bndt(driver, inclusao=True)
-    ato_meios(driver)
+    return _executar_passos(
+        lambda: bndt(driver, inclusao=True),
+        lambda: ato_meios(driver),
+    )
 
 
 def _xs_socio(driver, atv):
     """xs socio: inclusao BNDT + termo socio."""
     from Fix.extracao import bndt
     from atos.wrappers_ato import ato_termoS
-    bndt(driver, inclusao=True)
-    ato_termoS(driver)
+    return _executar_passos(
+        lambda: bndt(driver, inclusao=True),
+        lambda: ato_termoS(driver),
+    )
 
 
 def _empresa_termo(driver, atv):
     """empresa termo: inclusao BNDT + termo empresa."""
     from Fix.extracao import bndt
     from atos.wrappers_ato import ato_termoE
-    bndt(driver, inclusao=True)
-    ato_termoE(driver)
+    return _executar_passos(
+        lambda: bndt(driver, inclusao=True),
+        lambda: ato_termoE(driver),
+    )
 
 
 def _sob_n(driver, atv):
@@ -202,7 +244,7 @@ def _sisbajud_processar_ordem(driver, atv):
 def _audx_mov_int(driver, atv):
     """audx: movimenta diretamente para destino Audiencia via API."""
     from atos.movimentos_fluxo import movimentar_inteligente
-    movimentar_inteligente(driver, 'Audiencia')
+    return _normalizar_resultado_acao(movimentar_inteligente(driver, 'Audiencia'))
 
 
 def _carta_exec(driver, atv):
@@ -214,7 +256,7 @@ def _carta_exec(driver, atv):
 def _xs_parcial(driver, atv):
     """xs parcial: carrega ato_bloq via export público atual."""
     from atos import ato_bloq
-    return ato_bloq(driver)
+    return _normalizar_resultado_acao(ato_bloq(driver))
 
 
 def _xs_sigilo(driver, atv):
@@ -222,8 +264,10 @@ def _xs_sigilo(driver, atv):
     from atos.wrappers_pec import pec_sigilo
     from atos.movimentos_fluxo import movimentar_inteligente
 
-    pec_sigilo(driver)
-    movimentar_inteligente(driver, 'Aguardando Prazo')
+    return _executar_passos(
+        lambda: pec_sigilo(driver),
+        lambda: movimentar_inteligente(driver, 'Aguardando Prazo'),
+    )
 
 
 # ─── Lazy imports ────────────────────────────────────────────────────────────
@@ -308,13 +352,10 @@ def determinar_regra(observacao: str):
     obs = normalizar_texto(observacao)
     if not obs:
         return None
-    bucket, action = registry.match(obs)
+    pattern, bucket, action = registry.match_rule(obs)
     if bucket is None:
         return None
-    for pattern, rule_bucket, acao in REGRAS:
-        if rule_bucket == bucket and acao is action and pattern.search(obs):
-            return pattern, rule_bucket, acao
-    return None
+    return pattern, bucket, action
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -378,237 +419,257 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             logger.error("[DEF_SOB] Falha ao clicar no botao tarefa do processo")
             return False
 
-        log_msg("1. Selecionando decisoes na timeline...")
+        log_msg("1. Selecionando ultima decisao com prioridade a magistrado...")
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens:
             log_msg(" Nenhum item encontrado na timeline")
             return False
 
-        docs_decisao = []
+        # Estratégia 1: Buscar documento relevante COM ícone de magistrado
+        doc_item = None
+        doc_link = None
+        
         for item in itens:
             try:
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 doc_text = link.text.lower()
-                if not re.search(r'decisão|decisao', doc_text):
+                
+                # Filtro canônico: despacho|decisão|sentença|conclusão
+                if not re.search(r'despacho|decisão|decisao|sentença|sentenca|conclusão|conclusao', doc_text):
                     continue
-                if re.search(r'sentença|sentenca', doc_text):
-                    continue
-                docs_decisao.append((item, link))
+                
+                # Verificar se tem ícone de magistrado
+                try:
+                    mag_icons = item.find_elements(By.CSS_SELECTOR, 'div.tl-icon[aria-label*="Magistrado"]')
+                    if mag_icons:  # Encontrou com magistrado - usar este
+                        doc_item = item
+                        doc_link = link
+                        log_msg(f" Prioridade: documento com magistrado encontrado: {doc_link.text}")
+                        break
+                except Exception:
+                    pass
             except Exception:
                 continue
-
-        if not docs_decisao:
+        
+        # Estratégia 2: Se não encontrou com magistrado, usar primeiro relevante
+        if not doc_item:
+            for item in itens:
+                try:
+                    link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                    doc_text = link.text.lower()
+                    
+                    if re.search(r'despacho|decisão|decisao|sentença|sentenca|conclusão|conclusao', doc_text):
+                        doc_item = item
+                        doc_link = link
+                        log_msg(f" Fallback: primeiro documento relevante encontrado: {doc_link.text}")
+                        break
+                except Exception:
+                    continue
+        
+        if not doc_item or not doc_link:
             logger.error("[DEF_SOB] Nenhuma decisao encontrada na timeline")
             return False
 
-        iteracoes = 0
-        for doc_item, doc_link in docs_decisao:
-            if iteracoes >= 3:
-                log_msg(" Limite de 3 decisoes analisadas atingido.")
-                logger.warning(f"[DEF_SOB] Limite de iteracoes atingido sem encontrar regra no processo {numero_processo}. Encaminhando para verificacao manual.")
-                return True
+        # Única decisão alvo - processar uma vez
+        log_msg(f" Analisando documento: {doc_link.text}")
 
-            iteracoes += 1
-            log_msg(f" Documento em analise [{iteracoes}/3]: {doc_link.text}")
+        # ===== Extrair data da decisao =====
+        data_decisao_str = None
+        try:
+            hora_element = doc_item.find_element(By.CSS_SELECTOR, '.tl-item-hora')
+            if hora_element:
+                title_attr = hora_element.get_attribute('title')
+                if title_attr:
+                    data_decisao_str = title_attr.split(' ')[0]
+                    log_msg(f" Data da decisao extraida: {data_decisao_str}")
+        except Exception as e:
+            log_msg(f" Erro ao extrair data da decisao: {e}")
 
-            # ===== Extrair data da decisao =====
-            data_decisao_str = None
+        # Clica no documento
+        try:
+            SCRIPTS_DIR = Path(__file__).parent / "scripts"
+            script_scroll = carregar_js("scroll_into_view_instant.js", SCRIPTS_DIR)
+            driver.execute_script(script_scroll, doc_link)
             try:
-                hora_element = doc_item.find_element(By.CSS_SELECTOR, '.tl-item-hora')
-                if hora_element:
-                    title_attr = hora_element.get_attribute('title')
-                    if title_attr:
-                        data_decisao_str = title_attr.split(' ')[0]
-                        log_msg(f" Data da decisao extraida: {data_decisao_str}")
-            except Exception as e:
-                log_msg(f" Erro ao extrair data da decisao: {e}")
-
-            # Clica no documento
+                WebDriverWait(driver, 1).until(lambda d: doc_link.is_displayed())
+            except Exception:
+                pass
+            doc_link.click()
             try:
-                SCRIPTS_DIR = Path(__file__).parent / "scripts"
-                script_scroll = carregar_js("scroll_into_view_instant.js", SCRIPTS_DIR)
-                driver.execute_script(script_scroll, doc_link)
-                try:
-                    WebDriverWait(driver, 1).until(lambda d: doc_link.is_displayed())
-                except Exception:
-                    pass
-                doc_link.click()
-                try:
-                    WebDriverWait(driver, 5).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-                except Exception:
-                    pass
-            except Exception as e:
-                log_msg(f" Erro ao clicar no documento: {e}")
-                continue
+                WebDriverWait(driver, 5).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+            except Exception:
+                pass
+        except Exception as e:
+            log_msg(f" Erro ao clicar no documento: {e}")
+            return False
 
-            # Sub-etapa: extrair conteudo do documento
-            log_msg("2. Extraindo conteudo do documento...")
-            texto = None
+        # Sub-etapa: extrair conteudo do documento
+        log_msg("2. Extraindo conteudo do documento...")
+        texto = None
+        try:
+            resultado_extracao = extrair_direto(driver, timeout=timeout, debug=debug, formatar=True)
+            if resultado_extracao['sucesso']:
+                texto = resultado_extracao['conteudo']
+        except Exception:
+            pass
+
+        if not texto or len(texto.strip()) < 10:
             try:
-                resultado_extracao = extrair_direto(driver, timeout=timeout, debug=debug, formatar=True)
-                if resultado_extracao['sucesso']:
-                    texto = resultado_extracao['conteudo']
+                texto = extrair_documento(driver, regras_analise=None, timeout=timeout, log=debug)
+                if texto:
+                    texto = texto.lower()
             except Exception:
                 pass
 
-            if not texto or len(texto.strip()) < 10:
+        if not texto or len(texto.strip()) < 10:
+            try:
+                texto_pdf = extrair_pdf(driver, log=debug)
+                if texto_pdf:
+                    texto = texto_pdf.lower()
+            except Exception:
+                pass
+
+        if not texto or len(texto.strip()) < 10:
+            log_msg(" Texto extraido muito curto ou vazio para este doc.")
+            logger.warning(f"[DEF_SOB] Nenhuma decisao na timeline validou as regras de sobrestamento para {numero_processo}. Encaminhando para verificacao manual.")
+            return True
+
+        log_texto = texto[:200] + '...' if len(texto) > 200 else texto
+        log_msg(f"Texto extraido: {log_texto}")
+
+        # ── ETAPA 2: Aplicacao do sobrestamento ──
+        log_msg("3. Analisando conteudo e aplicando regras...")
+
+        def remover_acentos(txt):
+            return ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
+
+        def normalizar_texto(txt):
+            return remover_acentos(txt.lower())
+
+        def gerar_regex_geral(termo):
+            termo_norm = normalizar_texto(termo)
+            palavras = termo_norm.split()
+            partes = [re.escape(p) for p in palavras]
+            regex = r''
+            for i, parte in enumerate(partes):
+                regex += parte
+                if i < len(partes) - 1:
+                    regex += r'[\s\.,;:!\-–—]*'
+            return re.compile(rf"{regex}", re.IGNORECASE)
+
+        texto_normalizado = normalizar_texto(texto)
+
+        # FUNCOES DE ACAO
+        def executar_mov_sob_retorno_feito():
+            try:
+                return mov_sob(driver, numero_processo, "sob 4", debug=True, timeout=timeout)
+            except Exception:
+                return False
+
+        def executar_penhora_rosto():
+            try:
+                chips_padrao = ["Prazo vencido", "Prazo vencido pos sentenca", "SISBAJUD"]
                 try:
-                    texto = extrair_documento(driver, regras_analise=None, timeout=timeout, log=debug)
-                    if texto:
-                        texto = texto.lower()
+                    def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
                 except Exception:
                     pass
-
-            if not texto or len(texto.strip()) < 10:
+                ok_gigs = False
                 try:
-                    texto_pdf = extrair_pdf(driver, log=debug)
-                    if texto_pdf:
-                        texto = texto_pdf.lower()
+                    ok_gigs = criar_gigs(driver, 1, '', 'xs rosto', detalhe=True)
                 except Exception:
-                    pass
-
-            if not texto or len(texto.strip()) < 10:
-                log_msg(" Texto extraido muito curto ou vazio para este doc. Pulando para o proximo.")
-                continue
-
-            log_texto = texto[:200] + '...' if len(texto) > 200 else texto
-            log_msg(f"Texto extraido: {log_texto}")
-
-            # ── ETAPA 2: Aplicacao do sobrestamento ──
-            log_msg("3. Analisando conteudo e aplicando regras...")
-
-            def remover_acentos(txt):
-                return ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
-
-            def normalizar_texto(txt):
-                return remover_acentos(txt.lower())
-
-            def gerar_regex_geral(termo):
-                termo_norm = normalizar_texto(termo)
-                palavras = termo_norm.split()
-                partes = [re.escape(p) for p in palavras]
-                regex = r''
-                for i, parte in enumerate(partes):
-                    regex += parte
-                    if i < len(partes) - 1:
-                        regex += r'[\s\.,;:!\-–—]*'
-                return re.compile(rf"{regex}", re.IGNORECASE)
-
-            texto_normalizado = normalizar_texto(texto)
-
-            # FUNCOES DE ACAO
-            def executar_mov_sob_retorno_feito():
-                try:
-                    return mov_sob(driver, numero_processo, "sob 4", debug=True, timeout=timeout)
-                except Exception:
-                    return False
-
-            def executar_penhora_rosto():
-                try:
-                    chips_padrao = ["Prazo vencido", "Prazo vencido pos sentenca", "SISBAJUD"]
-                    try:
-                        def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
-                    except Exception:
-                        pass
                     ok_gigs = False
-                    try:
-                        ok_gigs = criar_gigs(driver, 1, '', 'xs rosto', detalhe=True)
-                    except Exception:
-                        ok_gigs = False
-                    try:
-                        if mov_sob(driver, numero_processo, "sob 1", debug=debug):
-                            return True
-                        return ok_gigs
-                    except Exception:
-                        return ok_gigs
-                except Exception:
-                    return False
-
-            def executar_mov_sob_precatorio():
                 try:
-                    chips_padrao = ["Prazo vencido", "Prazo vencido pos sentenca", "SISBAJUD"]
-                    try:
-                        def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
-                    except Exception:
-                        pass
+                    if mov_sob(driver, numero_processo, "sob 1", debug=debug):
+                        return True
+                    return ok_gigs
+                except Exception:
+                    return ok_gigs
+            except Exception:
+                return False
 
+        def executar_mov_sob_precatorio():
+            try:
+                chips_padrao = ["Prazo vencido", "Prazo vencido pos sentenca", "SISBAJUD"]
+                try:
+                    def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
+                except Exception:
+                    pass
+
+                meses_necessarios = 1
+                try:
+                    from datetime import datetime
+                    if data_decisao_str:
+                        dt = datetime.strptime(data_decisao_str, "%d/%m/%Y")
+                        target = datetime(2026, 7, 1)
+                        meses_necessarios = (target.year - dt.year) * 12 + (target.month - dt.month)
+                        if meses_necessarios < 1:
+                            meses_necessarios = 1
+                except Exception:
                     meses_necessarios = 1
-                    try:
-                        from datetime import datetime
-                        if data_decisao_str:
-                            dt = datetime.strptime(data_decisao_str, "%d/%m/%Y")
-                            target = datetime(2026, 7, 1)
-                            meses_necessarios = (target.year - dt.year) * 12 + (target.month - dt.month)
-                            if meses_necessarios < 1:
-                                meses_necessarios = 1
-                    except Exception:
-                        meses_necessarios = 1
 
-                    try:
-                        from datetime import datetime
-                        hoje = datetime.now()
-                        if hoje.year == 2026 and hoje.month == 7:
-                            if criar_gigs(driver, '-1', 'silas', 'precatorio'):
-                                return True
-                            return False
-                    except Exception:
-                        pass
-
-                    return mov_sob(driver, numero_processo, f"sob {meses_necessarios}", debug=True, timeout=timeout)
-                except Exception:
-                    return False
-
-            def executar_juizo_universal():
-                return False
-
-            def executar_def_presc():
                 try:
-                    from PEC.prescricao import def_presc as def_presc_func
-                    return def_presc_func(driver, numero_processo, texto, data_decisao_str, debug=debug)
-                except Exception:
-                    return False
-
-            def executar_ato_prov():
-                try:
-                    res_fimsob = mov_fimsob(driver, debug=debug)
-                    if not res_fimsob:
-                        return False
-                    res_prov = ato_prov(driver, debug=debug)
-                    return True if res_prov else False
-                except Exception:
-                    return False
-
-            regras_def_sob = [
-                (['retorno do feito principal'], executar_mov_sob_retorno_feito, 'Retorno do feito principal'),
-                (['penhora no rosto'], executar_penhora_rosto, 'Penhora no rosto'),
-                (['precatorio', 'RPV', 'pequeno valor'], executar_mov_sob_precatorio, 'Precatorio/RPV/Pequeno valor'),
-                (['juizo universal'], executar_juizo_universal, 'Juizo universal'),
-                (['prazo prescricional'], executar_def_presc, 'Prazo prescricional'),
-                (['autos principais', 'processo principal'], executar_ato_prov, 'Autos principais'),
-            ]
-
-            regra_com_sucesso = False
-            for termos, acao_func, descricao in regras_def_sob:
-                for termo in termos:
-                    regex = gerar_regex_geral(termo)
-                    if regex.search(texto_normalizado):
-                        logger.info(f"[DEF_SOB] Regra encontrada: {descricao} (termo: '{termo}') no doc {doc_link.text}")
-                        resultado = acao_func()
-                        if resultado:
-                            logger.info(f"[DEF_SOB] Regra '{descricao}' executada com sucesso")
+                    from datetime import datetime
+                    hoje = datetime.now()
+                    if hoje.year == 2026 and hoje.month == 7:
+                        if criar_gigs(driver, '-1', 'silas', 'precatorio'):
                             return True
-                        else:
-                            logger.error(f"[DEF_SOB] Falha na regra '{descricao}'")
-                            regra_com_sucesso = True
-                        break
-                if regra_com_sucesso:
-                    break
+                        return False
+                except Exception:
+                    pass
 
-            if regra_com_sucesso:
-                logger.warning(f"[DEF_SOB] Regra encontrada no doc '{doc_link.text}' mas falhou na execucao.")
+                return mov_sob(driver, numero_processo, f"sob {meses_necessarios}", debug=True, timeout=timeout)
+            except Exception:
                 return False
 
-            log_msg(" Nenhuma regra aplicada neste documento, tentando a proxima decisao na timeline...")
+        def executar_juizo_universal():
+            return False
+
+        def executar_def_presc():
+            try:
+                from PEC.prescricao import def_presc as def_presc_func
+                return def_presc_func(driver, numero_processo, texto, data_decisao_str, debug=debug)
+            except Exception:
+                return False
+
+        def executar_ato_prov():
+            try:
+                res_fimsob = mov_fimsob(driver, debug=debug)
+                if not res_fimsob:
+                    return False
+                res_prov = ato_prov(driver, debug=debug)
+                return True if res_prov else False
+            except Exception:
+                return False
+
+        regras_def_sob = [
+            (['retorno do feito principal'], executar_mov_sob_retorno_feito, 'Retorno do feito principal'),
+            (['penhora no rosto'], executar_penhora_rosto, 'Penhora no rosto'),
+            (['precatorio', 'RPV', 'pequeno valor'], executar_mov_sob_precatorio, 'Precatorio/RPV/Pequeno valor'),
+            (['juizo universal'], executar_juizo_universal, 'Juizo universal'),
+            (['prazo prescricional'], executar_def_presc, 'Prazo prescricional'),
+            (['autos principais', 'processo principal'], executar_ato_prov, 'Autos principais'),
+        ]
+
+        regra_com_sucesso = False
+        for termos, acao_func, descricao in regras_def_sob:
+            for termo in termos:
+                regex = gerar_regex_geral(termo)
+                if regex.search(texto_normalizado):
+                    logger.info(f"[DEF_SOB] Regra encontrada: {descricao} (termo: '{termo}') no doc {doc_link.text}")
+                    resultado = acao_func()
+                    if resultado:
+                        logger.info(f"[DEF_SOB] Regra '{descricao}' executada com sucesso")
+                        return True
+                    else:
+                        logger.error(f"[DEF_SOB] Falha na regra '{descricao}'")
+                        regra_com_sucesso = True
+                    break
+            if regra_com_sucesso:
+                break
+
+        if regra_com_sucesso:
+            logger.warning(f"[DEF_SOB] Regra encontrada no doc '{doc_link.text}' mas falhou na execucao.")
+            return False
 
         # ── ETAPA 3: Finalizacao ──
         logger.warning(f"[DEF_SOB] Nenhuma decisao na timeline validou as regras de sobrestamento para {numero_processo}. Encaminhando para verificacao manual.")

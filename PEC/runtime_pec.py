@@ -32,6 +32,7 @@ from .regras_execucao import BUCKET_ORDEM, determinar_regra
 logger = logging.getLogger(__name__)
 
 from Fix.variaveis import url_processo_detalhe
+from Fix.abas import fechar_abas_extras as _fechar_abas_extras
 
 
 # ═══════════════════════════════════════════════════
@@ -129,22 +130,7 @@ def _montar_url_processo(numero_cnj: str, base_url: str = "https://pje.trt2.jus.
     return f"{base_url}/pjekz/processo/{identificador}/detalhe"
 
 
-def _fechar_abas_extras(driver) -> None:
-    """Mantem apenas a aba principal aberta, fechando as demais."""
-    try:
-        abas = driver.window_handles
-        if len(abas) <= 1:
-            return
-        aba_principal = abas[0]
-        for aba in abas[1:]:
-            try:
-                driver.switch_to.window(aba)
-                driver.close()
-            except Exception:
-                pass
-        driver.switch_to.window(aba_principal)
-    except Exception:
-        pass
+
 
 
 # ═══════════════════════════════════════════════════
@@ -552,9 +538,23 @@ class PECOrquestrador:
         progresso = carregar_progresso_pec()
         _critical_exc = None
 
+        _DRIVER_DEAD_MSGS = (
+            'browsing context',
+            'no longer exist',
+            'failed to decode response from marionette',
+            'tried to run command without establishing a connection',
+            'no such window',
+            'unable to connect to marionette',
+            'session deleted',
+        )
+
         def _is_critical(exc: Exception) -> bool:
-            msg = str(exc)
-            return 'RESTART_PEC' in msg or 'acesso negado' in msg.lower()
+            msg = str(exc).lower()
+            return (
+                'RESTART_PEC' in str(exc)
+                or 'acesso negado' in msg
+                or any(k in msg for k in _DRIVER_DEAD_MSGS)
+            )
 
         def should_skip(item):
             atv, _ = item
@@ -582,12 +582,29 @@ class PECOrquestrador:
             if acao is None:
                 return resultado_falha("Acao None", observacao=atv.observacao)
             try:
+                ultimo_retorno = True
                 if isinstance(acao, tuple):
                     for f in acao:
-                        f(self.driver, atv)
+                        retorno = f(self.driver, atv)
+                        if retorno is None or retorno is False:
+                            nome_acao = getattr(f, '__name__', repr(f))
+                            return resultado_falha(
+                                f"Acao {nome_acao} retornou {retorno!r}",
+                                observacao=atv.observacao,
+                            )
+                        if retorno is not True:
+                            ultimo_retorno = retorno
                 else:
-                    acao(self.driver, atv)
-                return resultado_ok()
+                    retorno = acao(self.driver, atv)
+                    if retorno is None or retorno is False:
+                        nome_acao = getattr(acao, '__name__', repr(acao))
+                        return resultado_falha(
+                            f"Acao {nome_acao} retornou {retorno!r}",
+                            observacao=atv.observacao,
+                        )
+                    if retorno is not True:
+                        ultimo_retorno = retorno
+                return resultado_ok(retorno=ultimo_retorno)
             except Exception as e:
                 if _is_critical(e):
                     return resultado_falha(str(e), critical=True, _exception=e)
@@ -610,6 +627,7 @@ class PECOrquestrador:
             open_item=open_item,
             execute_item=execute_item,
             persist_result=persist_result,
+            stop_on_critical=True,
         )
 
         if _critical_exc:

@@ -1,4 +1,3 @@
-import time
 import re
 from typing import Any
 
@@ -57,13 +56,20 @@ def executar_coleta_conteudo(driver, config_coleta, debug=False) -> bool:
             # Fallback DOM/timeline
             try:
                 from Prazo.p2b_documentos import _encontrar_documento_relevante
+                from Fix.core import aguardar_renderizacao_nativa
                 doc_encontrado, doc_link, doc_idx = _encontrar_documento_relevante(driver)
                 if doc_link:
                     try:
                         driver.execute_script('arguments[0].scrollIntoView(true);', doc_link)
-                        time.sleep(0.5)
                         driver.execute_script('arguments[0].click();', doc_link)
-                        time.sleep(1)
+                        # Espera orientada a estado da UI apos abrir o documento,
+                        # evitando atraso fixo quando o carregamento ja terminou.
+                        aguardar_renderizacao_nativa(
+                            driver,
+                            'div[style="display: block;"] span, a[href*="validacao"], pje-documento-original, pje-visualizador-documento',
+                            'aparecer',
+                            3,
+                        )
                     except Exception:
                         pass
                     try:

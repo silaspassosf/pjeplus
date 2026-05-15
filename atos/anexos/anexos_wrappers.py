@@ -12,9 +12,9 @@ from typing import Optional, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from PEC.anexos.anexos_wrappers import (
-    carta_wrapper,
-    consulta_wrapper,
-    wrapper_bloqneg,
-    wrapper_parcial,
-    retifidpj_wrapper,
+    anex_carta,
+    anex_sisbconsulta,
+    anex_bloqneg,
+    anex_parcial,
+    anex_retifidpj,
 )

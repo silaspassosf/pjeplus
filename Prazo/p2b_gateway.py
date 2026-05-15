@@ -176,30 +176,16 @@ GIGS_API_MAX_WORKERS = 20
 
 
 def _abrir_tarefa_e_tentar_iniciar_execucao(driver: WebDriver, timeout: int = 10) -> bool:
-    """Abre a tarefa mais recente na mesma aba e clica em 'Iniciar execução' se existir."""
+    """Abre a tarefa mais recente usando o helper geral do projeto e clica em 'Iniciar execução' se existir."""
     url_atual = driver.current_url or ''
-    match = re.search(r'^(https://[^/]+)/pjekz/processo/(\d+)', url_atual)
     if '/tarefa/' not in url_atual:
-        if not match:
-            return False
-        base, id_processo = match.groups()
         try:
-            dados = driver.execute_async_script(
-                """
-                const done = arguments[arguments.length - 1];
-                fetch(arguments[0], {credentials: 'include'})
-                    .then(r => r.json())
-                    .then(j => done(Array.isArray(j) ? j[0] : j))
-                    .catch(e => done({__erro: String(e)}));
-                """,
-                f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
-            )
-            id_tarefa = None if not isinstance(dados, dict) else (dados.get('id') or dados.get('idTarefa'))
-            if dados.get('__erro') or not id_tarefa:
+            from atos.movimentos_fluxo import abrir_tarefa_por_api
+
+            if not abrir_tarefa_por_api(driver, timeout=timeout):
                 return False
-            driver.get(f'{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}')
         except Exception as e:
-            logger.warning('[FLUXO_PZ] inicar_exec: falha ao abrir tarefa na mesma aba: %s', e)
+            logger.warning('[FLUXO_PZ] inicar_exec: falha ao abrir tarefa via helper geral: %s', e)
             return False
 
     try:
@@ -302,7 +288,7 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
 
     1) cria GIG '1/Ana Lucia/Argos'      (try independente)
     2) cria GIG '1//xs sigilo'            (try independente — não bloqueado por falha do 1)
-    3) abre a tarefa mais recente na mesma aba e tenta clicar 'Iniciar execução'
+    3) abre a tarefa mais recente pelo helper geral do projeto e tenta clicar 'Iniciar execução'
        - sucesso → ato_pesquisas (processo já está em execução)
        - falha   → roteia por fase:
            'liquid'/'homolog' → ato_pesqliq

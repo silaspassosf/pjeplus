@@ -2,6 +2,7 @@ import time
 from Fix.extracao import criar_gigs
 from Fix.log import logger
 from Fix.selenium_base.wait_operations import esperar_elemento
+from Fix.abas import fechar_abas_extras as _fechar_abas_tabs
 from selenium.webdriver.common.by import By
 from .comunicacao_navigation import abrir_minutas
 from .comunicacao_coleta import executar_coleta_conteudo
@@ -260,6 +261,10 @@ def make_comunicacao_wrapper(
                     if isinstance(resultado_selecao, int):
                         status = 'ok' if resultado_selecao > 0 else 'empty'
                         count = resultado_selecao
+                    elif hasattr(resultado_selecao, 'status'):
+                        status = resultado_selecao.status
+                        detalhes = getattr(resultado_selecao, 'detalhes', {}) or {}
+                        count = int(detalhes.get('count', 0) or 0)
                     else:
                         status = 'geral'
 
@@ -294,30 +299,36 @@ def make_comunicacao_wrapper(
                     except Exception as e:
                         log_fn(f"[COMUNICACAO][ORQUESTRA] Erro ao aguardar renderização: {e}")
 
-            # 4. Alterar meio de expedição se necessário
+            # 4. Alterar meio de expedição se necessário (fluxo 1: pec_decisao, etc)
             if endereco_tipo == 'correios':
                 log_fn("[COMUNICACAO][ORQUESTRA] Alterando meio de expedição para correios")
                 alterar_meio_expedicao(
                     driver,
                     debug=debug,
-                    log=log_fn,
-                    trocar_modelo=call_kwargs.get('trocar_modelo', False)
+                    log=log_fn
                 )
+
+            # 4.5. Trocar modelo se necessário (fluxo 2: pec_ord, pec_sum, etc)
+            if call_kwargs.get('trocar_modelo'):
+                modelo_troca = call_kwargs.get('modelo_troca_correios')
+                log_fn("[COMUNICACAO][ORQUESTRA] Trocando modelo (se detectar Correios nas linhas de destinatário)")
+                from atos.comunicacao_finalizacao import trocar_modelo_minuta
+                trocar_modelo_minuta(driver, modelo_troca=modelo_troca, debug=debug, log=log_fn)
+                
+                # Sincronização: aguardar que a página estabilize após troca de modelo
+                log_fn("[COMUNICACAO][ORQUESTRA] Aguardando estabilização após troca de modelo...")
+                try:
+                    import time
+                    time.sleep(1.5)  # Pausa para fechar editors/dialogs
+                    # Aguardar tabela de destinatarios voltar para estado estável
+                    esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=15, by=By.CSS_SELECTOR)
+                    log_fn("[COMUNICACAO][ORQUESTRA] Página estabilizada pós-troca de modelo")
+                except Exception as e:
+                    log_fn(f"[COMUNICACAO][ORQUESTRA][WARN] Erro ao aguardar estabilização: {e}")
 
             # 5. Salvar minuta final
             log_fn("[COMUNICACAO][ORQUESTRA] Salvando minuta final")
             salvar_minuta_final(driver, sigilo, debug=debug, log=log_fn, executar_visibilidade=False, assinar=assinar)
-
-            # 6. Fechar aba de minutas e voltar para aba de detalhe
-            # (necessário para execução sequencial de múltiplas notificações no mesmo processo)
-            try:
-                handles = driver.window_handles
-                if len(handles) > 1:
-                    driver.close()
-                    driver.switch_to.window(handles[0])
-                    log_fn(f"[COMUNICACAO][ORQUESTRA] Aba de minutas fechada; retornou à aba de detalhe para {nome_comunicacao}")
-            except Exception as e_fechar:
-                log_fn(f"[COMUNICACAO][ORQUESTRA] Falha ao fechar aba de minutas: {e_fechar}")
 
             if str(sigilo).lower() in ("sim", "true", "1"):
                 try:
@@ -332,6 +343,12 @@ def make_comunicacao_wrapper(
 
         except Exception as e:
             log_fn(f"[COMUNICACAO][ORQUESTRA][ERRO] Falha no fluxo: {e}")
+            return False
+        finally:
+            try:
+                _fechar_abas_tabs(driver, driver.window_handles[0])
+            except Exception:
+                pass
 
     return wrapper
 

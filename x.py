@@ -32,6 +32,7 @@ import time
 import logging
 import os
 from datetime import datetime
+from pprint import pformat
 from typing import Dict, Any, Optional, Tuple, Callable
 from Fix.tipos import ResultadoFluxo
 from enum import Enum
@@ -174,6 +175,10 @@ def _executar_fluxo(nome: str, fn: Callable[[Any], Any], driver: Any,
         resultado["tempo"] = time.time() - start_time
         status = "OK" if resultado.get("sucesso", False) else "FALHA"
         logger.info("[%s] %s (%.1fs)", nome.upper(), status, resultado['tempo'])
+        if nome.lower() in {"triagem", "dom"}:
+            logger.info("[%s] resultado completo:\n%s",
+                        nome.upper(),
+                        pformat(resultado, width=120, sort_dicts=False))
         return resultado
     except Exception as e:
         tempo = time.time() - start_time
@@ -215,8 +220,8 @@ def resetar_driver(driver) -> bool:
         return False
 
 
-def executar_bloco_completo(driver) -> Dict[str, Any]:
-    """Bloco Completo: Mandado + Prazo + P2B + PEC"""
+def executar_bloco_completo(driver, driver_type=None) -> Dict[str, Any]:
+    """Bloco Completo: Mandado + Prazo + P2B + PEC — resiliente a falhas de driver."""
     resultados = {
         "mandado": None,
         "prazo": None,
@@ -224,39 +229,93 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
         "pec": None,
         "sucesso_geral": False
     }
+
+    def _driver_vivo(d):
+        try:
+            _ = d.window_handles
+            return True
+        except Exception:
+            return False
+
+    def _recriar(nome_modulo):
+        logger.warning("[BLOCO] driver perdido apos %s — recriando...", nome_modulo)
+        if driver_type is None:
+            logger.error("[BLOCO] driver_type nao informado — impossivel recriar")
+            return None
+        try:
+            finalizar_driver_fix(driver)
+        except Exception:
+            pass
+        novo = criar_e_logar_driver(driver_type)
+        if novo:
+            logger.info("[BLOCO] driver recriado com sucesso")
+        else:
+            logger.error("[BLOCO] falha ao recriar driver — modulos restantes serao pulados")
+        return novo
+
+    # ── Mandado
     try:
         resultados["mandado"] = _executar_com_reset(driver, executar_mandado)
-        resultados["prazo"] = _executar_com_reset(driver, executar_prazo)
-        resultados["p2b"] = _executar_com_reset(driver, executar_p2b)
-        resultados["pec"] = executar_pec(driver)
-
-        todos_sucesso = all([
-            resultados["mandado"].get("sucesso", False),
-            resultados["prazo"].get("sucesso", False),
-            resultados["p2b"].get("sucesso", False),
-            resultados["pec"].get("sucesso", False)
-        ])
-        resultados["sucesso_geral"] = todos_sucesso
-
-        m_status = "OK" if resultados["mandado"].get("sucesso", False) else "FALHA"
-        p_status = "OK" if resultados["prazo"].get("sucesso", False) else "FALHA"
-        b_status = "OK" if resultados["p2b"].get("sucesso", False) else "FALHA"
-        pec_status = "OK" if resultados["pec"].get("sucesso", False) else "FALHA"
-        logger.info("[BLOCO] mandado=%s prazo=%s p2b=%s pec=%s sucesso_geral=%s",
-                    m_status, p_status, b_status, pec_status,
-                    "OK" if todos_sucesso else "FALHAS_PARCIAIS")
-
-        return resultados
     except Exception as e:
-        logger.error("ERRO em executar_bloco_completo: %s: %s", type(e).__name__, e)
-        resultados["erro_geral"] = str(e)
-        return resultados
+        resultados["mandado"] = {"sucesso": False, "status": "ERRO_DRIVER", "erro": str(e)}
+        logger.error("[BLOCO] mandado: excecao nao capturada: %s", e)
+    if not _driver_vivo(driver):
+        driver = _recriar("mandado")
+        if not driver:
+            return resultados
+
+    # ── Prazo
+    try:
+        resultados["prazo"] = _executar_com_reset(driver, executar_prazo)
+    except Exception as e:
+        resultados["prazo"] = {"sucesso": False, "status": "ERRO_DRIVER", "erro": str(e)}
+        logger.error("[BLOCO] prazo: excecao nao capturada: %s", e)
+    if not _driver_vivo(driver):
+        driver = _recriar("prazo")
+        if not driver:
+            return resultados
+
+    # ── P2B
+    try:
+        resultados["p2b"] = _executar_com_reset(driver, executar_p2b)
+    except Exception as e:
+        resultados["p2b"] = {"sucesso": False, "status": "ERRO_DRIVER", "erro": str(e)}
+        logger.error("[BLOCO] p2b: excecao nao capturada: %s", e)
+    if not _driver_vivo(driver):
+        driver = _recriar("p2b")
+        if not driver:
+            return resultados
+
+    # ── PEC
+    try:
+        resultados["pec"] = executar_pec(driver)
+    except Exception as e:
+        resultados["pec"] = {"sucesso": False, "status": "ERRO_DRIVER", "erro": str(e)}
+        logger.error("[BLOCO] pec: excecao nao capturada: %s", e)
+
+    todos_sucesso = all([
+        (resultados["mandado"] or {}).get("sucesso", False),
+        (resultados["prazo"] or {}).get("sucesso", False),
+        (resultados["p2b"] or {}).get("sucesso", False),
+        (resultados["pec"] or {}).get("sucesso", False),
+    ])
+    resultados["sucesso_geral"] = todos_sucesso
+    resultados["_driver"] = driver  # driver final (pode ter sido recriado)
+
+    m_status = "OK" if (resultados["mandado"] or {}).get("sucesso", False) else "FALHA"
+    p_status = "OK" if (resultados["prazo"] or {}).get("sucesso", False) else "FALHA"
+    b_status = "OK" if (resultados["p2b"] or {}).get("sucesso", False) else "FALHA"
+    pec_status = "OK" if (resultados["pec"] or {}).get("sucesso", False) else "FALHA"
+    logger.info("[BLOCO] mandado=%s prazo=%s p2b=%s pec=%s sucesso_geral=%s",
+                m_status, p_status, b_status, pec_status,
+                "OK" if todos_sucesso else "FALHAS_PARCIAIS")
+    return resultados
 
 
 def executar_mandado(driver) -> Dict[str, Any]:
     """Mandado Isolado — API (sem navegação DOM inicial)"""
     def _fluxo(d):
-        resultado = processar_mandados_devolvidos_api(d)
+        resultado = normalizar_resultado(processar_mandados_devolvidos_api(d))
         if not resultado.get("sucesso"):
             logger.warning("[MANDADO] falha: %s", resultado.get('erro', 'Desconhecido'))
         return resultado
@@ -615,7 +674,17 @@ def main():
         if not handler:
             raise ValueError(f"Fluxo invalido: {fluxo}")
 
-        resultado = handler(driver)
+        if fluxo == "A":
+            resultado = executar_bloco_completo(driver, driver_type=driver_type)
+            # Se driver foi recriado internamente, garantir que seja finalizado
+            _driver_final = resultado.pop("_driver", None)
+            if _driver_final is not None and _driver_final is not driver:
+                try:
+                    finalizar_driver_fix(_driver_final)
+                except Exception:
+                    pass
+        else:
+            resultado = handler(driver)
         tempo_total = (datetime.now() - inicio).total_seconds()
 
         # Relatorio final

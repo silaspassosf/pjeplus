@@ -8,7 +8,7 @@ from Fix.log import log_start, log_fim
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario, preparar_campo_filtro_modelo
+from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 
 
 def _detectar_tipo_ato_para_modelo(driver, debug=False, log=None):
@@ -52,7 +52,7 @@ def _linhas_correios(driver):
     resultado = []
     for linha in driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag'):
         try:
-            meio = linha.find_element(By.CSS_SELECTOR, 'pje-pec-coluna-meio-expedicao .mat-select-min-line')
+            meio = linha.find_element(By.CSS_SELECTOR, '.pec-item-coluna-meio-expedicao-tabela-destinatarios .mat-select-min-line')
             if 'correio' in meio.text.strip().lower():
                 resultado.append(linha)
         except Exception:
@@ -66,7 +66,7 @@ def _botao_confeccionar_correios(driver, indice=0):
     if indice >= len(linhas):
         return None
     try:
-        return linhas[indice].find_element(By.CSS_SELECTOR, 'pje-pec-coluna-confeccionar-ato button[aria-label="Confeccionar ato"]')
+        return linhas[indice].find_element(By.CSS_SELECTOR, 'button[aria-label="Confeccionar ato"]')
     except Exception:
         return None
 
@@ -127,16 +127,23 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
             return None
 
     try:
-        if not preparar_campo_filtro_modelo(driver, log=debug):
-            log('[COMUNICACAO][WARN] Falha ao preparar campo de filtro de modelo')
-            return False
+        campo_ok = driver.execute_script("""
+            var nomeModelo = arguments[0];
+            var filtro = document.querySelector('input#inputFiltro');
+            if (!filtro) return false;
+            filtro.removeAttribute('disabled');
+            filtro.removeAttribute('readonly');
+            filtro.focus();
+            filtro.value = nomeModelo;
+            filtro.dispatchEvent(new Event('input', {bubbles: true}));
+            filtro.dispatchEvent(new Event('change', {bubbles: true}));
+            filtro.dispatchEvent(new Event('keyup', {bubbles: true}));
+            return true;
+        """, modelo_nome)
 
-        campo_filtro = driver.find_element(By.CSS_SELECTOR, 'input#inputFiltro')
-        driver.execute_script(
-            "var el=arguments[0]; el.value = arguments[1]; el.dispatchEvent(new Event('input', {bubbles:true})); el.dispatchEvent(new Event('change', {bubbles:true})); el.dispatchEvent(new Event('keyup', {bubbles:true}));",
-            campo_filtro,
-            modelo_nome
-        )
+        if not campo_ok:
+            log('[COMUNICACAO][WARN] Campo de filtro de modelo nao encontrado')
+            return False
         try:
             aguardar_renderizacao_nativa(driver, '.nodo-filtrado', modo='aparecer', timeout=5)
         except Exception:
@@ -169,7 +176,7 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
         raise NavegacaoError(f'inserir_modelo_por_nome({modelo_nome}): {e}')
 
 
-def trocar_modelo_minuta(driver, debug=False, log=None):
+def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
     if log is None:
         def log(_msg):
             return None
@@ -185,8 +192,13 @@ def trocar_modelo_minuta(driver, debug=False, log=None):
         log('[COMUNICACAO][WARN] Não foi possível detectar tipo de ato para troca de modelo')
         return False
 
-    modelo_reaplicar = 'zsumc' if tipo_ato == 'ATSUM' else 'zordc'
-    log(f'[COMUNICACAO] Tipo de ato detectado: {tipo_ato}; modelo a inserir: {modelo_reaplicar}')
+    # Se modelo_troca foi explicitamente passado, usar esse; senão, usar o padrão
+    if modelo_troca:
+        modelo_reaplicar = modelo_troca
+        log(f'[COMUNICACAO] Tipo de ato detectado: {tipo_ato}; modelo explícito a inserir: {modelo_reaplicar}')
+    else:
+        modelo_reaplicar = 'zsumc' if tipo_ato == 'ATSUM' else 'zordc'
+        log(f'[COMUNICACAO] Tipo de ato detectado: {tipo_ato}; modelo padrão a inserir: {modelo_reaplicar}')
 
     total = _contar_linhas_correios(driver)
     if total == 0:
@@ -211,11 +223,22 @@ def trocar_modelo_minuta(driver, debug=False, log=None):
 
         log(f'[COMUNICACAO] Modelo "{modelo_reaplicar}" inserido na linha {i + 1}/{total}')
 
+    # Sincronização final: aguardar que todos os editors estejam fechados
+    log('[COMUNICACAO] Aguardando finalização de todos os editors...')
+    try:
+        import time
+        time.sleep(1)
+        # Verificar que a tabela de destinatarios está visível e responsiva
+        esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=10, by=By.CSS_SELECTOR)
+        log('[COMUNICACAO] Todos os editors finalizados - página estabilizada')
+    except Exception as e:
+        log(f'[COMUNICACAO][WARN] Erro ao aguardar estabilização final: {e}')
+
     log(f'[COMUNICACAO] Troca de modelo concluida ({total} linha(s))')
     return True
 
 
-def alterar_meio_expedicao(driver, debug=False, log=None, trocar_modelo=False):
+def alterar_meio_expedicao(driver, debug=False, log=None):
     if log is None:
         def log(_msg):
             return None
@@ -309,7 +332,7 @@ def alterar_meio_expedicao(driver, debug=False, log=None, trocar_modelo=False):
         linhas_para_alterar = []
         for idx, linha in enumerate(linhas_tabela, 1):
             try:
-                span_meio = linha.find_element(By.CSS_SELECTOR, 'pje-pec-coluna-meio-expedicao .mat-select-value-text .mat-select-min-line')
+                span_meio = linha.find_element(By.CSS_SELECTOR, '.pec-item-coluna-meio-expedicao-tabela-destinatarios .mat-select-value-text .mat-select-min-line')
                 meio_atual = span_meio.text.strip()
                 if meio_atual == 'Domicílio Eletrônico':
                     linhas_para_alterar.append((idx, linha))
@@ -388,9 +411,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None, trocar_modelo=False):
             if pulados > alterados:
                 log(f'[COMUNICACAO][PERF] - Muitos pulados ({pulados}), considere pré-filtragem')
 
-        if trocar_modelo and alterados > 0:
-            trocar_modelo_minuta(driver, debug=debug, log=log)
-
         log_fim('COMUNICACAO_MEIO_EXPEDICAO', {'status': 'sucesso', 'alterados': alterados, 'total': total_linhas})
         return True
     except Exception as e:
@@ -405,8 +425,8 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             return None
 
     log_start('COMUNICACAO_SALVAR_MINUTA')
-    # --- 1. Localizar botão Salvar (igual ao atalhos.js: name="btnSalvarExpedientes") ---
-    btn_salvar = wait_for_clickable(driver, 'button[name="btnSalvarExpedientes"]', timeout=10, by=By.CSS_SELECTOR)
+    # --- 1. Localizar botão Salvar via JS direto (sem WebDriverWait polling) ---
+    btn_salvar = driver.execute_script("return document.querySelector('button[name=\"btnSalvarExpedientes\"]');")
     if not btn_salvar:
         # Fallback: span text 'Salvar' (compatibilidade)
         try:

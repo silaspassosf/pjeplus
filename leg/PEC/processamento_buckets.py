@@ -29,9 +29,10 @@ def fluxo_pec_bucket(driver: WebDriver, bucket: Dict[str, Any]) -> bool:
     """Compatibilidade: executa a ação do bucket no processo já aberto."""
     try:
         observacao = (bucket or {}).get('observacao', '') if isinstance(bucket, dict) else ''
+        numero_processo = (bucket or {}).get('numero', '') if isinstance(bucket, dict) else ''
         acoes = determinar_acoes_por_observacao(observacao) if observacao else None
         acao = acoes[0] if isinstance(acoes, list) and acoes else acoes
-        return executar_acao_pec(driver, acao, observacao=observacao, debug=False)
+        return executar_acao_pec(driver, acao, numero_processo=numero_processo, observacao=observacao, debug=False)
     except Exception as e:
         logger.error(f"[PEC_BUCKET] Erro ao executar fluxo_pec_bucket: {e}")
         return False
@@ -254,7 +255,32 @@ def _processar_item_pec(driver: WebDriver, processo_info: dict[str, any], contex
             t_watch = None
 
         try:
-            resultado_processo = executar_acao_pec(driver, acao_exec, numero_processo=numero_processo, observacao=observacao, debug=True)
+            # Executar cada acao individualmente com fallback de assinatura
+            if not acoes:
+                print(f"[BUCKET:{nome_bucket}] ❌ Lista de ações vazia, abortando")
+                return False
+            _all_ok = True
+            for _idx, _acao in enumerate(acoes):
+                try:
+                    _r = _acao(driver)
+                except TypeError:
+                    class _AtvProxy:
+                        pass
+                    _atv = _AtvProxy()
+                    _atv.numero_processo = numero_processo
+                    _atv.observacao = observacao
+                    try:
+                        _r = _acao(driver, _atv)
+                    except Exception:
+                        _r = False
+                except Exception:
+                    _r = False
+                if _r is False:
+                    _all_ok = False
+                    if _idx < len(acoes) - 1:
+                        print(f"[BUCKET:{nome_bucket}] Ação {_idx} falhou, interrompendo sequência")
+                    break
+            resultado_processo = _all_ok
         finally:
             watchdog_active['running'] = False
 

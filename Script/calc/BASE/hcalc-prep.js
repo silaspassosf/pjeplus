@@ -259,6 +259,7 @@
         else if (/acord[aã]o/.test(low) && !/intima/.test(low)) categoria = 'acordao';
         else if (/despacho/.test(low) || (/decis[aã]o/.test(low) && /despacho/.test(low))) categoria = 'despacho';
         else if (/recurso de revista/.test(low)) categoria = 'RR';
+        else if (/recurso[\s-]*adesivo/.test(low)) categoria = 'RA';
         else if (/recurso ordin[aá]rio/.test(low)) categoria = 'RO';
         else if (/edital/.test(low)) categoria = 'edital';
         else if (/periciai.*aj.*jt|periciai.*aj|perito.*aj.*jt/.test(low)) categoria = 'hon_ajjt';
@@ -374,11 +375,215 @@
         return r;
     }
 
+    function _escapeRegExp(str) {
+        return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function _compactSpaces(str) {
+        return String(str || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function _ordemAliases(ordem) {
+        const byWord = {
+            1: ['1a', '1ª', 'primeira', 'primeiro'],
+            2: ['2a', '2ª', 'segunda', 'segundo'],
+            3: ['3a', '3ª', 'terceira', 'terceiro'],
+            4: ['4a', '4ª', 'quarta', 'quarto'],
+            5: ['5a', '5ª', 'quinta', 'quinto'],
+            6: ['6a', '6ª', 'sexta', 'sexto'],
+            7: ['7a', '7ª', 'setima', 'sétima', 'setimo', 'sétimo'],
+            8: ['8a', '8ª', 'oitava', 'oitavo'],
+            9: ['9a', '9ª', 'nona', 'nono'],
+            10: ['10a', '10ª', 'decima', 'décima', 'decimo', 'décimo'],
+        };
+        return byWord[ordem] || [`${ordem}a`, `${ordem}ª`];
+    }
+
+    function _extrairSecaoDispositivo(texto) {
+        const original = String(texto || '').replace(/\r\n?/g, '\n');
+        const headingRe = /(?:^|\n)\s*(?:[IVXLCDM]+\s*[–-]\s*)?DISPOSITIVO\b[^\n]*/i;
+        const found = headingRe.exec(original);
+        if (!found) {
+            return {
+                encontrado: false,
+                textoDispositivo: '',
+                primeiroParagrafo: '',
+            };
+        }
+
+        const bloco = original.slice(found.index + found[0].length).replace(/^\s+/, '');
+
+        const lines = bloco.split(/\n+/)
+            .map(function(line) { return line.trim(); })
+            .filter(Boolean)
+            .filter(function(line) {
+                const norm = _normalize(line);
+                return !/^(poder judiciario|justica do trabalho|tribunal regional do trabalho|pagina\s+\d+)/.test(norm);
+            });
+
+        const paragraphs = [];
+        let current = [];
+        lines.forEach(function(line) {
+            current.push(line);
+            const joined = current.join(' ').trim();
+            const breakByPunctuation = /[.!?;]$/.test(line) || (/:$/.test(line) && joined.length > 220);
+            if (breakByPunctuation || joined.length >= 1100) {
+                paragraphs.push(joined);
+                current = [];
+            }
+        });
+        if (current.length) paragraphs.push(current.join(' ').trim());
+
+        const textoDispositivo = _compactSpaces(lines.join(' '));
+        const primeiroParagrafo = _compactSpaces(paragraphs[0] || textoDispositivo.slice(0, 1200));
+
+        return {
+            encontrado: true,
+            textoDispositivo,
+            primeiroParagrafo,
+        };
+    }
+
+    function _extrairNomesNoTrecho(trechoNorm, passivo) {
+        const nomes = [];
+        (passivo || []).forEach(function(parte) {
+            if (!parte || !parte.nome) return;
+            const nomeNorm = _compactNormalize(parte.nome);
+            if (!nomeNorm) return;
+            if (trechoNorm.includes(nomeNorm)) nomes.push(parte.nome);
+        });
+        return nomes;
+    }
+
+    function _extrairOrdensNoTrecho(trechoNorm, passivo) {
+        const nomes = [];
+        (passivo || []).forEach(function(parte, idx) {
+            const aliases = _ordemAliases(idx + 1).map(function(alias) { return _normalize(alias); });
+            const found = aliases.some(function(alias) {
+                return new RegExp('(^|\\W)' + _escapeRegExp(alias) + '(?:\\s+reclamad[aoas]?)?(?=\\W|$)', 'i').test(trechoNorm);
+            });
+            if (found) nomes.push(parte.nome);
+        });
+        return nomes;
+    }
+
+    function _analisarResponsabilidade(texto, passivo) {
+        const principal = passivo[0] ? passivo[0].nome : '';
+        const base = {
+            tipoGlobal: null,
+            principal,
+            extrasSubsidiarias: [],
+            extrasSolidarias: [],
+            mencionadas: [],
+            trechoFonte: '',
+            escopoFonte: null,
+            estrategias: [],
+            dispositivoEncontrado: false,
+            primeiroParagrafoPreview: '',
+        };
+
+        if (!texto || !Array.isArray(passivo) || passivo.length <= 1) return base;
+
+        const secao = _extrairSecaoDispositivo(texto);
+        base.dispositivoEncontrado = !!secao.encontrado;
+        base.primeiroParagrafoPreview = (secao.primeiroParagrafo || '').slice(0, 600);
+
+        const scopes = [];
+        if (secao.primeiroParagrafo) scopes.push({ nome: 'primeiroParagrafoDispositivo', texto: secao.primeiroParagrafo });
+        if (secao.textoDispositivo && secao.textoDispositivo !== secao.primeiroParagrafo) scopes.push({ nome: 'dispositivo', texto: secao.textoDispositivo });
+        scopes.push({ nome: 'textoIntegral', texto: _compactSpaces(texto) });
+
+        const atribuicoes = new Map();
+        const estrategias = new Set();
+
+        function atribuir(tipo, alvos) {
+            alvos.forEach(function(nome) {
+                if (!nome || nome === principal) return;
+                atribuicoes.set(nome, tipo);
+            });
+        }
+
+        function finalizou() {
+            return Array.from(atribuicoes.keys()).length > 0;
+        }
+
+        for (const scope of scopes) {
+            const textoCompacto = _compactSpaces(scope.texto);
+            if (!textoCompacto) continue;
+
+            const matches = [];
+            const patterns = [
+                { tipo: 'subsidiaria', re: /subsidi[aá]ri(?:a|amente|as|os)/gi },
+                { tipo: 'solidaria', re: /solid[aá]ri(?:a|amente|as|os)/gi },
+            ];
+            patterns.forEach(function(pattern) {
+                let match;
+                while ((match = pattern.re.exec(textoCompacto)) !== null) {
+                    matches.push({ tipo: pattern.tipo, index: match.index });
+                }
+            });
+            matches.sort(function(a, b) { return a.index - b.index; });
+
+            for (const item of matches) {
+                const winRaw = _windowAround(textoCompacto, item.index, 160, 160);
+                const winNorm = _compactNormalize(winRaw);
+
+                if (/(afast|exclu|retir|improced|absolv).{0,40}(subsidi|solid)|(?:subsidi|solid).{0,40}(afast|exclu|retir|improced|absolv)/.test(winNorm)) {
+                    continue;
+                }
+
+                let alvos = [];
+                const nomes = _extrairNomesNoTrecho(winNorm, passivo);
+                const ordens = _extrairOrdensNoTrecho(winNorm, passivo);
+                nomes.concat(ordens).forEach(function(nome) {
+                    if (!alvos.includes(nome)) alvos.push(nome);
+                });
+
+                if (alvos.length > 0) {
+                    if (nomes.length > 0) estrategias.add('nome');
+                    if (ordens.length > 0) estrategias.add('ordinal');
+                } else if (/\bas\s+demais\b/.test(winNorm)) {
+                    alvos = passivo.slice(1).map(function(p) { return p.nome; });
+                    estrategias.add('demais');
+                } else if (/(?:todas\s+as|ambas\s+as|as)\s+reclamadas?/.test(winNorm) || /reclamadas?\b/.test(winNorm) && /(solidari|subsidiari)/.test(winNorm)) {
+                    alvos = passivo.slice(1).map(function(p) { return p.nome; });
+                    estrategias.add('coletiva');
+                }
+
+                if (alvos.length > 0) {
+                    atribuir(item.tipo, alvos);
+                    if (!base.trechoFonte) base.trechoFonte = winRaw;
+                    if (!base.escopoFonte) base.escopoFonte = scope.nome;
+                }
+            }
+
+            if (finalizou()) break;
+        }
+
+        const extrasSubsidiarias = [];
+        const extrasSolidarias = [];
+        passivo.slice(1).forEach(function(parte) {
+            const tipo = atribuicoes.get(parte.nome);
+            if (tipo === 'subsidiaria') extrasSubsidiarias.push(parte.nome);
+            if (tipo === 'solidaria') extrasSolidarias.push(parte.nome);
+        });
+
+        base.extrasSubsidiarias = extrasSubsidiarias;
+        base.extrasSolidarias = extrasSolidarias;
+        base.mencionadas = Array.from(new Set(extrasSubsidiarias.concat(extrasSolidarias)));
+        base.estrategias = Array.from(estrategias);
+
+        if (extrasSubsidiarias.length > 0) base.tipoGlobal = 'subsidiaria';
+        else if (extrasSolidarias.length > 0) base.tipoGlobal = 'solidaria';
+
+        return base;
+    }
+
     // ==========================================
     // EXTRACAO DE DADOS DA SENTENCA
     // ==========================================
 
-    function _extrairDadosSentenca(texto) {
+    function _extrairDadosSentenca(texto, passivo) {
         const result = {
             custas: null,
             hsusp: false,
@@ -386,6 +591,18 @@
             trtmed: false,
             responsabilidade: null,
             honorariosPericiais: [],
+            responsabilidadeDetalhe: {
+                tipoGlobal: null,
+                principal: passivo && passivo[0] ? passivo[0].nome : '',
+                extrasSubsidiarias: [],
+                extrasSolidarias: [],
+                mencionadas: [],
+                trechoFonte: '',
+                escopoFonte: null,
+                estrategias: [],
+                dispositivoEncontrado: false,
+                primeiroParagrafoPreview: '',
+            },
         };
 
         const custasMatch =
@@ -402,8 +619,12 @@
             /honor[aá]rios\s+periciais\s+m[eé]dicos.*pagos\s+pelo\s+Tribunal/i.test(texto) ||
             /pagos\s+pelo\s+Tribunal\s+Regional.*periciais\s+m[eé]dicos/i.test(texto);
 
-        if (/condenar\s+(de\s+forma\s+)?subsidi[aá]ri/i.test(texto)) result.responsabilidade = 'subsidiaria';
-        else if (/condenar\s+(de\s+forma\s+)?solid[aá]ri/i.test(texto)) result.responsabilidade = 'solidaria';
+        result.responsabilidadeDetalhe = _analisarResponsabilidade(texto, passivo || []);
+        result.responsabilidade = result.responsabilidadeDetalhe.tipoGlobal;
+        if (!result.responsabilidade) {
+            if (/condenar\s+(de\s+forma\s+)?subsidi[aá]ri/i.test(texto)) result.responsabilidade = 'subsidiaria';
+            else if (/condenar\s+(de\s+forma\s+)?solid[aá]ri/i.test(texto)) result.responsabilidade = 'solidaria';
+        }
 
         const reHon = /honor[aá]rios\s+periciais[^.]*?R\$\s*([\d.,]+)[^.]*?\./gi;
         let m;
@@ -773,11 +994,30 @@
             const acordaos = items.filter(function(i) { return i.categoria === 'acordao'; });
             const editais = items.filter(function(i) { return i.categoria === 'edital'; });
             const honAjJt = items.filter(function(i) { return i.categoria === 'hon_ajjt'; });
-            const todosRecursos = items.filter(function(i) { return i.categoria === 'RO' || i.categoria === 'RR'; });
+            const todosRecursos = items.filter(function(i) { return i.categoria === 'RO' || i.categoria === 'RR' || i.categoria === 'RA'; });
 
             // 4. Sentenca - mais antiga = ultimo no array (timeline DESC)
             const sentencaAlvo = sentencas.length > 0 ? sentencas[sentencas.length - 1] : null;
-            let sentencaDados = { custas: null, hsusp: false, trteng: false, trtmed: false, responsabilidade: null, honorariosPericiais: [] };
+            let sentencaDados = {
+                custas: null,
+                hsusp: false,
+                trteng: false,
+                trtmed: false,
+                responsabilidade: null,
+                honorariosPericiais: [],
+                responsabilidadeDetalhe: {
+                    tipoGlobal: null,
+                    principal: passivo[0] ? passivo[0].nome : '',
+                    extrasSubsidiarias: [],
+                    extrasSolidarias: [],
+                    mencionadas: [],
+                    trechoFonte: '',
+                    escopoFonte: null,
+                    estrategias: [],
+                    dispositivoEncontrado: false,
+                    primeiroParagrafoPreview: '',
+                },
+            };
             if (sentencaAlvo && sentencaAlvo.idDoc) {
                 try {
                     let texto = null;
@@ -791,7 +1031,7 @@
                         const r = await _fetchDocHtml(sentencaAlvo.idDoc);
                         texto = r.texto || null;
                     }
-                    if (texto) sentencaDados = _extrairDadosSentenca(texto);
+                    if (texto) sentencaDados = _extrairDadosSentenca(texto, passivo);
                     dbg('[prep] Sentenca extraida:', sentencaDados);
                 } catch (e) { warn('[prep] Falha ao ler sentenca:', e.message); }
             }
@@ -886,6 +1126,7 @@
                     custas: sentencaDados.custas,
                     hsusp: sentencaDados.hsusp,
                     responsabilidade: sentencaDados.responsabilidade,
+                    responsabilidadeDetalhe: sentencaDados.responsabilidadeDetalhe,
                     honorariosPericiais: sentencaDados.honorariosPericiais,
                 },
                 pericia: {

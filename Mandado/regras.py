@@ -49,7 +49,8 @@ def _lazy_import_mandado_regras():
     if not _mandado_regras_modules_cache:
         from Fix.utils import navegar_para_tela
         from Fix.core import buscar_seletor_robusto, buscar_documento_argos
-        from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, buscar_mandado_autor, buscar_ultimo_mandado, extrair_destinatarios_decisao, indexar_e_processar_lista
+        from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, buscar_ultimo_mandado, extrair_destinatarios_decisao, indexar_e_processar_lista
+        from Fix.core import buscar_mandado_autor
         from Fix.extracao import criar_gigs
         from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
         from Fix.utils import limpar_temp_selenium, configurar_recovery_driver
@@ -504,9 +505,9 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
         num_reclamadas = len(dados_processo.get('reu', [])) if dados_processo else 0
         if num_reclamadas == 1:
             # Com uma reclamada, segue lógica semelhante a despacho
-            if resultado_sisbajud == 'negativo' and all(v == 'nao' for v in (sigilo_anexos or {}).values()):
+            if resultado_sisbajud != 'positivo' and all(v == 'nao' for v in (sigilo_anexos or {}).values()):
                 if debug:
-                    logger.info('[ARGOS][REGRAS] Chamando ato_meios (1 reclamada, SISBAJUD negativo, sem sigilo)')
+                    logger.info('[ARGOS][REGRAS] Chamando ato_meios (1 reclamada, SISBAJUD negativo/indefinido, sem sigilo)')
                 inicio_ato = time.time()
                 try:
                     ato_meios(driver, debug=debug)
@@ -515,7 +516,7 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
                         logger.error(f'[ARGOS][REGRAS][ERRO] ato_meios falhou: {e}')
                 if debug:
                     logger.info(f'[ARGOS][REGRAS] ato_meios finalizado em {time.time() - inicio_ato:.2f}s')
-            elif resultado_sisbajud == 'negativo' and any(v == 'sim' for v in (sigilo_anexos or {}).values()):
+            elif resultado_sisbajud != 'positivo' and any(v == 'sim' for v in (sigilo_anexos or {}).values()):
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_termoE (1 reclamada, SISBAJUD negativo, com sigilo)')
                 inicio_ato = time.time()
@@ -539,9 +540,9 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
                     logger.info(f'[ARGOS][REGRAS] ato_bloq finalizado em {time.time() - inicio_ato:.2f}s')
         else:
             # Multiplas reclamadas
-            if resultado_sisbajud == 'negativo':
+            if resultado_sisbajud != 'positivo':
                 if debug:
-                    logger.info('[ARGOS][REGRAS] Chamando ato_meiosub (multiplas reclamadas, SISBAJUD negativo)')
+                    logger.info('[ARGOS][REGRAS] Chamando ato_meiosub (multiplas reclamadas, SISBAJUD negativo/indefinido)')
                 inicio_ato = time.time()
                 try:
                     ato_meiosub(driver, debug=debug)

@@ -242,157 +242,18 @@ def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> s
 
 
 def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
-    """
-    Fecha todas as abas extras, com tratamento robusto de erros e reconexao.
-
-    Args:
-        driver: O driver Selenium
-        aba_lista_original: O handle da aba original da lista
-
-    Returns:
-        bool | str: True se sucesso, False se erro recuperavel, "FATAL" se irrecuperavel
-    """
+    """Fecha todas as abas extras, mantendo apenas aba_lista_original."""
     try:
-        # Verifica se o driver ainda esta conectado
-        conexao_status = validar_conexao_driver(driver, "LIMPEZA")
-        if conexao_status == "FATAL":
-            logger.error("ERRO em forcar_fechamento_abas_extras: Contexto do navegador foi descartado - nao e possivel limpar abas")
-            return "FATAL"
-        elif not conexao_status:
-            logger.error("ERRO em forcar_fechamento_abas_extras: Conexao perdida - nao e possivel limpar abas")
-            return False
-
-        # Etapa 1: Obter lista de abas de forma segura
-        try:
-            abas_atuais = driver.window_handles
-            logger.debug('========== INICIO DA LIMPEZA DE ABAS ==========')
-            logger.debug('Total de abas abertas: %s', len(abas_atuais))
-            logger.debug('Aba da lista (manter): %s...', aba_lista_original[:12])
-
-            # Listar todas as abas ANTES da limpeza para diagnostico
-            if len(abas_atuais) > 1:
-                logger.debug('Listando %s abas ANTES da limpeza:', len(abas_atuais))
-                for idx, aba in enumerate(abas_atuais, 1):
-                    try:
-                        driver.switch_to.window(aba)
-                        url = driver.current_url[:50] if driver.current_url else "URL nao disponivel"
-                        titulo = driver.title[:30] if driver.title else "Sem titulo"
-                        marcador = " <- MANTER (aba da lista)" if aba == aba_lista_original else " <- FECHAR"
-                        logger.debug('  %s. %s... | %s | %s%s', idx, aba[:12], titulo, url, marcador)
-                    except Exception as e:
-                        logger.debug('  %s. %s... | Erro: %s', idx, aba[:12], str(e)[:30])
-        except Exception as e:
-            logger.error("ERRO em forcar_fechamento_abas_extras: Falha ao obter lista de abas: %s", e)
-            return False
-
-        # Verifica se a aba original ainda existe
-        if aba_lista_original not in abas_atuais:
-            logger.error("ERRO em forcar_fechamento_abas_extras: Aba original nao encontrada entre as abas disponiveis")
-            if len(abas_atuais) > 0:
-                logger.warning('Usando primeira aba disponivel como nova aba principal')
-                driver.switch_to.window(abas_atuais[0])
-                return True
-            else:
-                return False
-
-        # Etapa 2: Fechar abas extras com tratamento de excecoes
-        abas_extras = [aba for aba in abas_atuais if aba != aba_lista_original]
-
-        if abas_extras:
-            logger.debug('Encontradas %s abas extras para fechar', len(abas_extras))
-
-            for idx, aba in enumerate(abas_extras, 1):
-                fechou_aba = False
-                for tentativa in range(3):
-                    try:
-                        # Tentar trocar para a aba antes de fechar
-                        driver.switch_to.window(aba)
-                        WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle apos switch
-
-                        # Obter URL da aba para logging
-                        try:
-                            url_aba = driver.current_url[:60]
-                        except Exception:
-                            url_aba = "URL nao disponivel"
-
-                        driver.close()
-                        logger.debug('Aba %s/%s fechada: %s... | URL: %s', idx, len(abas_extras), aba[:12], url_aba)
-                        fechou_aba = True
-                        break
-                    except Exception as e:
-                        logger.warning('Tentativa %s/3 - Erro ao fechar aba %s: %s', tentativa+1, idx, str(e)[:80])
-                        time.sleep(0.2)  # rate-limit
-                        if tentativa == 2:
-                            logger.error("ERRO em forcar_fechamento_abas_extras: Nao foi possivel fechar aba %s apos 3 tentativas", idx)
-
-                # Pequena pausa entre fechamentos para estabilidade
-                if fechou_aba:
-                    WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle apos fechar aba
-
-            # SEGUNDO PASSE: Se ainda houver abas extras, tentar fechar novamente
-            try:
-                WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle antes segundo passe
-                abas_atualizadas = driver.window_handles
-                abas_ainda_extras = [aba for aba in abas_atualizadas if aba != aba_lista_original]
-
-                if abas_ainda_extras:
-                    logger.warning('Ainda restam %s abas extras - tentando fechar novamente', len(abas_ainda_extras))
-                    for idx, aba in enumerate(abas_ainda_extras, 1):
-                        try:
-                            driver.switch_to.window(aba)
-                            WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle apos switch
-                            driver.close()
-                            logger.debug('Aba %s fechada (segundo passe)', idx)
-                            WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle apos fechar
-                        except Exception as e:
-                            logger.error("ERRO em forcar_fechamento_abas_extras: Falha ao fechar aba %s (segundo passe): %s", idx, str(e)[:50])
-            except Exception as e:
-                logger.error("ERRO em forcar_fechamento_abas_extras: Erro no segundo passe: %s", e)
-        else:
-            logger.debug('Nenhuma aba extra detectada para fechar')
-
-        # Etapa 3: Verificar novamente as abas e voltar para a original
-        try:
-            abas_atuais = driver.window_handles
-            logger.debug('Abas restantes apos limpeza: %s', len(abas_atuais))
-
-            # Se ainda houver abas extras, listar para diagnostico
-            if len(abas_atuais) > 1:
-                logger.warning('Ainda existem %s abas extras abertas', len(abas_atuais)-1)
-                for idx, aba in enumerate(abas_atuais):
-                    try:
-                        driver.switch_to.window(aba)
-                        url = driver.current_url[:60]
-                        titulo = driver.title[:40] if driver.title else "Sem titulo"
-                        marcador = " <- ABA DA LISTA" if aba == aba_lista_original else ""
-                        logger.debug('  Aba %s: %s... | %s | %s%s', idx+1, aba[:12], titulo, url, marcador)
-                    except Exception as e:
-                        logger.debug('  Aba %s: %s... | Erro ao ler: %s', idx+1, aba[:12], str(e)[:40])
-        except Exception as e:
-            logger.error("ERRO em forcar_fechamento_abas_extras: Falha ao verificar abas apos limpeza: %s", e)
-            return False
-
-        if aba_lista_original in abas_atuais:
-            try:
-                driver.switch_to.window(aba_lista_original)
-                logger.debug('Retornou para aba da lista')
-
-                # Verificacao final de sucesso
-                if len(abas_atuais) == 1:
-                    logger.debug('Limpeza completa: apenas 1 aba restante (aba da lista)')
-                    return True
-                else:
-                    logger.warning('Limpeza parcial: %s abas ainda abertas', len(abas_atuais))
-                    return True  # Retorna True mesmo assim para nao travar o fluxo
-            except Exception as e:
-                logger.error("ERRO em forcar_fechamento_abas_extras: Nao foi possivel voltar para aba original: %s", e)
-                return False
-        else:
-            logger.error("ERRO em forcar_fechamento_abas_extras: Aba da lista original nao esta mais disponivel")
-            return False
-    except Exception as e:
-        logger.error("ERRO em forcar_fechamento_abas_extras: Erro geral na limpeza de abas: %s", e)
-        return False
+        for aba in driver.window_handles:
+            if aba != aba_lista_original:
+                try:
+                    driver.switch_to.window(aba)
+                    driver.close()
+                except Exception:
+                    pass
+        driver.switch_to.window(aba_lista_original)
+    except Exception:
+        pass
 
 
 # ============================================================

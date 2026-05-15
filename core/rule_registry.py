@@ -12,7 +12,7 @@ Uso:
 """
 
 import re
-from typing import List, Tuple, Pattern, Callable, Any, Optional
+from typing import Dict, List, Tuple, Pattern, Callable, Any, Optional
 
 Action = Callable[[Any, dict], Optional[dict]]
 Rule = Tuple[Pattern, str, Action]
@@ -25,20 +25,35 @@ class RuleRegistry:
         self.name = name
         self.bucket_order = bucket_order
         self._rules: List[Rule] = []
+        self._rules_by_bucket: Dict[str, List[Rule]] = {
+            bucket: [] for bucket in bucket_order
+        }
 
     def register(self, pattern: str, bucket: str, action: Action):
         """Registra uma regra: pattern regex, bucket, e acao callable."""
-        self._rules.append((re.compile(pattern, re.IGNORECASE), bucket, action))
+        regra = (re.compile(pattern, re.IGNORECASE), bucket, action)
+        self._rules.append(regra)
+        self._rules_by_bucket.setdefault(bucket, []).append(regra)
+
+    def match_rule(
+        self,
+        observacao: str,
+    ) -> Tuple[Optional[Pattern], Optional[str], Optional[Action]]:
+        """Retorna (pattern, bucket, action) da primeira regra que casar."""
+        if not observacao:
+            return None, None, None
+
+        for bucket in self.bucket_order:
+            for rule_pattern, rule_bucket, action in self._rules_by_bucket.get(bucket, []):
+                if rule_pattern.search(observacao):
+                    return rule_pattern, rule_bucket, action
+
+        return None, None, None
 
     def match(self, observacao: str) -> Tuple[Optional[str], Optional[Action]]:
         """Retorna (bucket, action) do primeiro match respeitando bucket_order, ou (None, None)."""
-        if not observacao:
-            return None, None
-        for bucket in self.bucket_order:
-            for rule_pattern, rule_bucket, action in self._rules:
-                if rule_bucket == bucket and rule_pattern.search(observacao):
-                    return bucket, action
-        return None, None
+        _, bucket, action = self.match_rule(observacao)
+        return bucket, action
 
     def get_actions_for_bucket(self, bucket: str) -> List[Action]:
         """Retorna todas as acoes registradas para um bucket."""

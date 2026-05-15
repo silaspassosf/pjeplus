@@ -13,10 +13,10 @@ from .anexos_extracao import (
 )
 
 from .anexos_wrappers import (
-    carta_wrapper,
-    consulta_wrapper,
-    wrapper_bloqneg,
-    wrapper_parcial,
+    anex_carta,
+    anex_sisbconsulta,
+    anex_bloqneg,
+    anex_parcial,
 )
 
 from .anexos_formatacao import (
@@ -45,10 +45,10 @@ from PEC.anexos.anexos_configuracao import (
 
 __all__ = [
     "extrair_numero_processo_da_url",
-    "carta_wrapper",
-    "consulta_wrapper",
-    "wrapper_bloqneg",
-    "wrapper_parcial",
+    "anex_carta",
+    "anex_sisbconsulta",
+    "anex_bloqneg",
+    "anex_parcial",
     "formatar_conteudo_ecarta",
     "_obter_conteudo_relatorio_sisbajud",
     "_wrapper_sisbajud_generico",

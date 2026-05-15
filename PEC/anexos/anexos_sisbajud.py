@@ -96,16 +96,16 @@ def executar_juntada_pje(driver_pje, tipo_fluxo, numero_processo, log=True):
         bool: True se juntada executada com sucesso
     """
     try:
-        from .anexos_wrappers import wrapper_bloqneg, wrapper_parcial
+        from .anexos_wrappers import anex_bloqneg, anex_parcial
 
         if tipo_fluxo in ['NEGATIVO', 'DESBLOQUEIO']:
-            resultado = wrapper_bloqneg(
+            resultado = anex_bloqneg(
                 driver=driver_pje,
                 numero_processo=numero_processo,
                 debug=log
             )
         elif tipo_fluxo == 'POSITIVO':
-            resultado = wrapper_parcial(
+            resultado = anex_parcial(
                 driver=driver_pje,
                 numero_processo=numero_processo,
                 debug=log

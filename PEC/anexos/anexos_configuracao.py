@@ -72,9 +72,11 @@ def salvar_conteudo_clipboard(conteudo: str, numero_processo: str, tipo_conteudo
         )
 
         # Salvar no arquivo (modo append para manter histórico)
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        clipboard_file = os.path.join(base_dir, "clipboard.txt")
-        os.makedirs(base_dir, exist_ok=True)
+        # IMPORTANTE: Padronizar caminho em PEC/clipboard.txt (não em PEC/anexos/)
+        # para compatibilidade com Fix.utils.obter_ultimo_conteudo_clipboard
+        projeto_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        clipboard_file = os.path.join(projeto_root, 'PEC', 'clipboard.txt')
+        os.makedirs(os.path.dirname(clipboard_file), exist_ok=True)
         with open(clipboard_file, 'a', encoding='utf-8', newline='') as f:
             f.write(registro)
             f.flush()

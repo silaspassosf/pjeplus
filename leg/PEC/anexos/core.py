@@ -58,10 +58,10 @@ from .anexos_extracao import (
 )
 
 from .anexos_wrappers import (
-    carta_wrapper,
-    consulta_wrapper,
-    wrapper_bloqneg,
-    wrapper_parcial
+    anex_carta,
+    anex_sisbconsulta,
+    anex_bloqneg,
+    anex_parcial
 )
 
 from .anexos_formatacao import (
@@ -95,10 +95,10 @@ __all__ = [
     "extrair_numero_processo_da_url",
 
     # Wrappers específicos
-    "carta_wrapper",
-    "consulta_wrapper", 
-    "wrapper_bloqneg",
-    "wrapper_parcial",
+    "anex_carta",
+    "anex_sisbconsulta",
+    "anex_bloqneg",
+    "anex_parcial",
 
     # Formatação
     "formatar_conteudo_ecarta",

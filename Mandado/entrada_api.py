@@ -90,11 +90,12 @@ def _buscar_todas_paginas_gateway(
     *,
     params_base: dict,
     tamanho_pagina: int,
+    pagina_inicial: int = 1,
     limite_paginas: int = 200,
     timeout: int = 20,
 ) -> dict:
     itens_total = []
-    pagina = 1
+    pagina = max(1, int(pagina_inicial or 1))
 
     for _ in range(limite_paginas):
         params = dict(params_base)
@@ -145,14 +146,15 @@ def _buscar_todas_paginas_gateway(
 def obter_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
     """Retorna a lista de mandados devolvidos via endpoint interno."""
     client = _criar_api_client(driver)
-    resposta = client.gateway_get(
+    resposta = _buscar_todas_paginas_gateway(
+        client,
         '/pje-comum-api/api/escaninhos/documentosinternos',
-        params={
+        params_base={
             'mandadosDevolvidos': 'true',
-            'pagina': pagina,
-            'tamanhoPagina': tamanho_pagina,
             'ordenacaoCrescente': str(ordenacao_crescente).lower(),
         },
+        tamanho_pagina=tamanho_pagina,
+        pagina_inicial=pagina,
         timeout=20,
     )
 

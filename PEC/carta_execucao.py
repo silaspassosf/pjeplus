@@ -22,7 +22,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 
 from Fix.extracao import extrair_direto, extrair_pdf
-from PEC.anexos.core import carta_wrapper, salvar_conteudo_clipboard
+from PEC.anexos.core import anex_carta, salvar_conteudo_clipboard
 from PEC.carta_formatacao import formatar_dados_ecarta
 from PEC.carta_utils import _obter_numero_processo
 
@@ -696,7 +696,7 @@ def carta(driver: WebDriver, log: bool = True, limite_intimacoes: Optional[int] 
             logger.error(f"[CARTA] Erro ao salvar clipboard: {e}")
 
     try:
-        resultado_juntada = carta_wrapper(
+        resultado_juntada = anex_carta(
             driver,
             numero_processo=process_number,
             debug=log,

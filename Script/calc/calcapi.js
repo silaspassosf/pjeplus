@@ -201,6 +201,7 @@
         else if (/acord[aã]o/.test(low) && !/intima/.test(low)) categoria = 'acordao';
         else if (/despacho/.test(low) || /decis[aã]o/.test(low) && /despacho/.test(low)) categoria = 'despacho';
         else if (/recurso de revista/.test(low)) categoria = 'RR';
+        else if (/recurso[\s-]*adesivo/.test(low)) categoria = 'RA';
         else if (/recurso ordin[aá]rio/.test(low)) categoria = 'RO';
         else if (/edital/.test(low)) categoria = 'edital';
         else if (/periciai.*aj.*jt|periciai.*aj|perito.*aj.*jt/.test(low)) categoria = 'hon_ajjt';
@@ -778,7 +779,7 @@
 
         // ── Depósitos / Recursos ────────────────────────────────
         // Recursos do polo passivo com anexos (depositante = reclamada)
-        const todosRecursos = items.filter(i => i.categoria === 'RO' || i.categoria === 'RR');
+        const todosRecursos = items.filter(i => i.categoria === 'RO' || i.categoria === 'RR' || i.categoria === 'RA');
         const acordaos = items.filter(i => i.categoria === 'acordao');
         const oldestAcordaoIdx = acordaos.length > 0 ? Math.max(...acordaos.map((_, idx) => idx)) : -1;
 
@@ -1099,7 +1100,7 @@
             const partes = await _fetchPartes();
             const raw = await _fetchTimeline();
             const items = raw.map(_classifyItem);
-            const deps = items.filter(i => i.categoria === 'RO' || i.categoria === 'RR')
+            const deps = items.filter(i => i.categoria === 'RO' || i.categoria === 'RR' || i.categoria === 'RA')
                 .map(rec => ({
                     tipo: rec.categoria,
                     data: rec.data,

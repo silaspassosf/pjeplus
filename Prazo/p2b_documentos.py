@@ -313,6 +313,7 @@ prazo_registry = RuleRegistry("prazo", [
     "calculos",
     "tentativas",
     "instauracao",
+    "susep",
     "tendo_em_vista",
     "nao_amparada",
     "instaurado_em_face",
@@ -369,7 +370,7 @@ def _definir_regras_processamento() -> List[Tuple]:
     ato_idpj = m.get('ato_idpj')
     idpj = m.get('idpj')
     # wrappers/from PEC
-    retifidpj_wrapper = m.get('retifidpj_wrapper')
+    anex_retifidpj = m.get('anex_retifidpj')
     pec_excluiargos = m.get('pec_excluiargos')
     # helper callable for phase routing (creates initial gigs then routes)
     try:
@@ -474,6 +475,9 @@ def _definir_regras_processamento() -> List[Tuple]:
         # REGRA DE INSTAURAÇÃO
         ([gerar_regex_geral('defiro a instauração')], ('criar_gigs[1//xs pec dec]', 'criar_gigs[10//xs mdd edital pgto]', ato_idpj)),
 
+        # REGRA DE SUSEP — garantia/securitária, acima de tendo em vista
+        ([gerar_regex_geral('Tendo em vista que a SUSEP')], (ato_meios,),),
+
         # REGRA DE TENDO EM VISTA
         ([gerar_regex_geral(k) for k in ['tendo em vista que', 'pagamento da parcela pendente', 'sob pena de sequestro']], (_inicar_exec,)),
 
@@ -487,7 +491,7 @@ def _definir_regras_processamento() -> List[Tuple]:
         ([gerar_regex_geral('pagamento da próxima parcela')], ("criar_gigs[5//xs saldo]",)),
 
         # REGRA: INDEFIRO o pedido de desconsideração -> juntada retificação + exclusão Argos + ato_meios
-        ([gerar_regex_geral('INDEFIRO o pedido de desconsideração')], (retifidpj_wrapper, pec_excluiargos, ato_meios)),
+        ([gerar_regex_geral('INDEFIRO o pedido de desconsideração')], (anex_retifidpj, pec_excluiargos, ato_meios)),
 
         # REGRA DE BAIXA/AGUARDE-SE (Conjunto que aciona checar_prox como helper)
         ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital', 'Aguarde-se', 'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão', 'sob pena de preclusão', 'embargos de declaração', 'Registre-se o movimento processual adequado'] ], (checar_prox,)),

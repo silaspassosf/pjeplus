@@ -21,6 +21,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 # Imports do Fix
 from Fix.core import (
     aguardar_e_clicar,
+    aguardar_renderizacao_nativa,
     selecionar_opcao,
     preencher_campo,
     safe_click,
@@ -50,7 +51,7 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         # 2. Clica no elemento pai para abrir dropdown (padrao GIGS)
         parent_element = campo.find_element(By.XPATH, '../..')
         driver.execute_script("arguments[0].click();", parent_element)
-        time.sleep(1)
+        aguardar_renderizacao_nativa(driver, "mat-option[role='option']", 'aparecer', 3)
 
         # 3. Aguarda opcoes aparecerem e clica na desejada
         wait = WebDriverWait(driver, 10)
@@ -189,7 +190,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                         except Exception as e:
                             if tentativa < 2:  # Nao e a ultima tentativa
                                 logger.debug('[JUNTADA] Tentativa %s falhou para %s: %s', tentativa + 1, nome_elemento, e)
-                                time.sleep(1)  # rate-limit
+                                aguardar_renderizacao_nativa(driver, timeout=1)
                             else:
                                 logger.warning('[JUNTADA] Todas as tentativas falharam para %s com seletor %s: %s', nome_elemento, sel, e)
                 else:
@@ -233,13 +234,15 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         # 3) Aguarda preview e localiza botao Inserir (seletor de atos.py)
         seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
         btn_inserir = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn_inserir)))
-        time.sleep(0.6)
+        aguardar_renderizacao_nativa(driver, seletor_btn_inserir, 'habilitado', 2)
 
-        # 4) Inserir com tecla ESPACO (padrao MaisPje)
-        btn_inserir.send_keys(Keys.SPACE)
+        # 4) Inserir com clique JS (padrao comunicacao_preenchimento.py)
+        driver.execute_script("arguments[0].click();", btn_inserir)
 
-        # 5) Aguardar o editor receber o conteudo
-        time.sleep(2)
+        # 5) Aguardar snackbar de confirmacao e fechamento do modal
+        aguardar_renderizacao_nativa(driver, 'simple-snack-bar', 'aparecer', 5)
+        # Aguardar modal fechar
+        aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 5)
         return True
     except Exception as e:
         logger.error("ERRO em _selecionar_modelo_gigs: Falha ao selecionar/inserir modelo (modo atos.py): %s: %s", type(e).__name__, e)
@@ -291,7 +294,17 @@ def _preencher_descricao(self, configuracao: Dict[str, Any]) -> bool:
     descricao = configuracao.get('descricao', '')
     if not descricao:
         return True  # Descricao opcional
-    return self._preencher_input_gigs('input[aria-label="Descricao"]', descricao, 'Descricao')
+
+    seletores = [
+        'input[aria-label="Descrição"]',
+        'input[aria-label="Descricao"]',
+    ]
+    for seletor in seletores:
+        if self.driver.find_elements(By.CSS_SELECTOR, seletor):
+            return self._preencher_input_gigs(seletor, descricao, 'Descricao')
+
+    logger.error('[JUNTADA] Campo Descricao nao encontrado para preenchimento automatico')
+    return False
 
 
 def _configurar_sigilo(self, configuracao: Dict[str, Any]) -> bool:

@@ -1,0 +1,111 @@
+{
+  "tipo": "TRIAGEM",
+  "processos": {
+    "1000900-04.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-13T13:02:03"
+    },
+    "1000896-64.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-13T13:03:06"
+    },
+    "1000897-49.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-13T13:04:12"
+    },
+    "1000901-86.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-13T13:05:22"
+    },
+    "1000902-71.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-13T13:06:41"
+    },
+    "1000911-33.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-14T11:28:38"
+    },
+    "1000907-93.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T11:28:46"
+    },
+    "1000908-78.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-14T15:07:59"
+    },
+    "1000909-63.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T11:29:02"
+    },
+    "1000912-18.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-14T15:08:21"
+    },
+    "1000913-03.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-14T15:09:25"
+    },
+    "1000914-85.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:14:25"
+    },
+    "1000916-55.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:14:33"
+    },
+    "1000917-40.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:13:51"
+    },
+    "1000918-25.2026.5.02.0703": {
+      "status": "SUCESSO",
+      "erro": null,
+      "executado_em": "2026-05-14T15:12:18"
+    },
+    "1000919-10.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:14:41"
+    },
+    "1000920-92.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:14:49"
+    },
+    "1000921-77.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:14:57"
+    },
+    "1000724-34.2026.5.02.0021": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:15:05"
+    },
+    "1000922-62.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:15:13"
+    },
+    "1000923-47.2026.5.02.0703": {
+      "status": "FALHA",
+      "erro": "Acao pos-triagem falhou",
+      "executado_em": "2026-05-14T19:15:21"
+    }
+  },
+  "atualizado_em": "2026-05-14T19:15:21"
+}

@@ -946,6 +946,73 @@
         const modalEl = $('homologacao-modal');
         dbg('Binding de eventos iniciado.');
 
+        function aplicarResponsabilidadeAutomatica(prep) {
+            const passivo = window.hcalcPartesData?.passivo || [];
+            if (!prep || !prep.sentenca || passivo.length === 0) return;
+
+            const draftIsRestoring = overlayDraftApi && typeof overlayDraftApi.isRestoring === 'function'
+                ? overlayDraftApi.isRestoring()
+                : false;
+            const hasSavedDraft = overlayDraftApi && typeof overlayDraftApi.loadRaw === 'function'
+                ? !!overlayDraftApi.loadRaw(warn)
+                : false;
+            if (draftIsRestoring || hasSavedDraft) return;
+
+            if (responsabilidadesController && typeof responsabilidadesController.addPrincipal === 'function') {
+                const principalContainer = $('resp-principais-dinamico-container');
+                if (principalContainer && principalContainer.children.length === 0 && passivo[0]) {
+                    responsabilidadesController.addPrincipal(passivo[0].nome);
+                }
+            }
+
+            if (passivo.length > 1 && responsabilidadesController && typeof responsabilidadesController.inicializarBoxesReclamadasExtras === 'function') {
+                responsabilidadesController.inicializarBoxesReclamadasExtras(passivo);
+            }
+
+            const extrasHeader = $('resp-extras-header-container');
+            if (extrasHeader) extrasHeader.classList.toggle('hidden', passivo.length <= 1);
+
+            const detalhe = prep.sentenca.responsabilidadeDetalhe || {};
+            const tiposPorNome = new Map();
+            (detalhe.extrasSubsidiarias || []).forEach((nome) => tiposPorNome.set(nome, 'subsidiaria'));
+            (detalhe.extrasSolidarias || []).forEach((nome) => tiposPorNome.set(nome, 'solidaria'));
+
+            if (tiposPorNome.size === 0 && prep.sentenca.responsabilidade === 'solidaria') {
+                passivo.slice(1).forEach((parte) => tiposPorNome.set(parte.nome, 'solidaria'));
+            }
+
+            passivo.slice(1).forEach((parte, extraIdx) => {
+                let box = document.querySelector(`#resp-extras-reclamadas-container .resp-extra-box[data-nome="${CSS.escape(parte.nome)}"]`);
+                if (!box && responsabilidadesController && typeof responsabilidadesController.criarBoxReclamadaExtra === 'function') {
+                    responsabilidadesController.criarBoxReclamadaExtra(parte.nome, extraIdx + 1);
+                    box = document.querySelector(`#resp-extras-reclamadas-container .resp-extra-box[data-nome="${CSS.escape(parte.nome)}"]`);
+                }
+                if (!box) return;
+
+                const tipo = tiposPorNome.get(parte.nome);
+                if (!tipo) return;
+
+                const boxIdx = box.dataset.idx;
+                const radio = box.querySelector(`input[name="rad-resp-extra-${boxIdx}"][value="${tipo}"]`);
+                if (radio && !radio.checked) {
+                    radio.checked = true;
+                    radio.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                if (tipo === 'subsidiaria') {
+                    const chkIntegral = box.querySelector(`#chk-resp-extra-integral-${boxIdx}`);
+                    const chkDiverso = box.querySelector(`#chk-resp-extra-diverso-${boxIdx}`);
+                    if (chkDiverso && chkDiverso.checked) {
+                        chkDiverso.checked = false;
+                        chkDiverso.dispatchEvent(new Event('change', { bubbles: true }));
+                    } else if (chkIntegral && !chkIntegral.checked) {
+                        chkIntegral.checked = true;
+                        chkIntegral.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            });
+        }
+
         // Dispatch seguro: tenta MouseEvent com opções, se falhar remove `view` ou cai para `el.click()`
         function safeDispatch(el, type, opts) {
             try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
@@ -1522,6 +1589,7 @@
                     respTipoEl.value = 'unica';
                     if (respSubOpcoes) respSubOpcoes.classList.add('hidden');
                 }
+                aplicarResponsabilidadeAutomatica(prep);
 
                 // REGRA 5: Custas
                 // Sempre padrão = sentença (usuário pode mudar para acórdão se necessário)

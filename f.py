@@ -1,7 +1,7 @@
 # ============================================================
 # f.py -- Harness de teste isolado: Multi-testes
 # Uso: py f.py [teste]
-#   teste disponiveis: argos, sisb, pec, pesquisa, ordem, todos
+#   teste disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, todos
 # ============================================================
 
 import json
@@ -16,10 +16,12 @@ from Fix.utils import login_cpf, navegar_para_tela
 # ============================================================
 # URLs de processos para testes
 # ============================================================
-PROCESS_URL_ARGOS = 'https://pje.trt2.jus.br/pjekz/processo/7244077/detalhe/'
-PROCESS_ID_ARGOS = '7244077'
+PROCESS_URL_ARGOS = 'https://pje.trt2.jus.br/pjekz/processo/6191451/detalhe/peticao/461152313'
+PROCESS_ID_ARGOS = '6191451'
 PROCESS_URL_SISB  = 'https://pje.trt2.jus.br/pjekz/processo/4863758/detalhe'
-PROCESS_URL_PEC   = 'https://pje.trt2.jus.br/pjekz/processo/6095583/detalhe'
+PROCESS_URL_PEC      = 'https://pje.trt2.jus.br/pjekz/processo/6095583/detalhe'
+PROCESS_URL_PEC_ORD  = 'https://pje.trt2.jus.br/pjekz/processo/5455795/detalhe/peticao/460955334'
+PROCESS_URL_ANEX_CARTA = 'https://pje.trt2.jus.br/pjekz/processo/7258019/detalhe'
 
 # ============================================================
 # Logging
@@ -447,6 +449,130 @@ def teste_sisbajud_ordem():
 
 
 # ============================================================
+# TESTE 6: PEC — fluxo pec_ord (Notificação Inicial, zordd, prazo=5)
+# ============================================================
+
+def teste_pec_ord():
+    """
+    Teste isolado do wrapper pec_ord — Notificação Inicial:
+        - pec_ord(driver) — cria comunicação com modelo zordd, prazo=5, sigilo=False
+        - movimentar_inteligente(driver, 'Aguardando Prazo') — move o processo
+
+    Equivalente ao _xs_ord em PEC/regras_execucao.py.
+    """
+    from atos.wrappers_pec import pec_ord
+    from atos.movimentos_fluxo import movimentar_inteligente
+    configurar_logging_debug()
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[PEC_ORD_TEST] Teste isolado: pec_ord (Notificacao Inicial, zordd, prazo=5)')
+    LOGGER.info('[PEC_ORD_TEST] Processo: %s', PROCESS_URL_PEC_ORD)
+    LOGGER.info('=' * 60)
+
+    driver = None
+
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_pc(headless=False)
+        if not driver:
+            LOGGER.error('[PEC_ORD_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[PEC_ORD_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[PEC_ORD_TEST] Navegando para %s', PROCESS_URL_PEC_ORD)
+            navegar_para_tela(driver, url=PROCESS_URL_PEC_ORD)
+
+        # ETAPA 1: pec_ord — Notificacao Inicial (zordd)
+        with etapa('pec_ord'):
+            LOGGER.info('[PEC_ORD_TEST] Executando pec_ord (modelo zordd, prazo=5, sigilo=False)...')
+            ok = pec_ord(driver, debug=True)
+            LOGGER.info('[PEC_ORD_TEST] pec_ord -> %s', 'OK' if ok else 'FALHA')
+
+        # ETAPA 2: mov_int — mover para Aguardando Prazo
+        with etapa('mov_int_aguardando_prazo'):
+            LOGGER.info('[PEC_ORD_TEST] Movendo para Aguardando Prazo...')
+            ok = movimentar_inteligente(driver, 'Aguardando Prazo')
+            LOGGER.info('[PEC_ORD_TEST] movimentar_inteligente -> %s', 'OK' if ok else 'FALHA')
+
+        LOGGER.info('[PEC_ORD_TEST] concluido com sucesso')
+
+    except Exception:
+        LOGGER.exception('[PEC_ORD_TEST] Erro nao tratado')
+
+    finally:
+        LOGGER.info('[PEC_ORD_TEST] encerrando driver')
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
+# TESTE 7: Anex Carta — juntada completa com clipboard
+# ============================================================
+
+def teste_anex_carta():
+    """
+    Teste isolado do wrapper anex_carta — juntada de e-carta:
+        - Usa conteudo do clipboard.txt para substituicao no editor
+        - Modelo: xs carta | Tipo: Certidao | Desc: Rastreamentos e-Carta
+
+    Fluxo completo: abre interface de anexacao → preenche campos →
+    seleciona modelo → insere conteudo clipboard → salva
+    """
+    from PEC.anexos.anexos_wrappers import anex_carta
+    configurar_logging_debug()
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[ANEX_CARTA_TEST] Teste isolado: anex_carta (juntada completa)')
+    LOGGER.info('[ANEX_CARTA_TEST] Processo: %s', PROCESS_URL_ANEX_CARTA)
+    LOGGER.info('=' * 60)
+
+    driver = None
+
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_pc(headless=False)
+        if not driver:
+            LOGGER.error('[ANEX_CARTA_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[ANEX_CARTA_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[ANEX_CARTA_TEST] Navegando para %s', PROCESS_URL_ANEX_CARTA)
+            navegar_para_tela(driver, url=PROCESS_URL_ANEX_CARTA)
+
+        # Executar juntada completa
+        with etapa('anex_carta'):
+            LOGGER.info('[ANEX_CARTA_TEST] Executando anex_carta (modelo xs carta)...')
+            ok = anex_carta(driver, debug=True)
+            LOGGER.info('[ANEX_CARTA_TEST] anex_carta -> %s', 'OK' if ok else 'FALHA')
+
+        LOGGER.info('[ANEX_CARTA_TEST] concluido com sucesso')
+
+    except Exception:
+        LOGGER.exception('[ANEX_CARTA_TEST] Erro nao tratado')
+
+    finally:
+        LOGGER.info('[ANEX_CARTA_TEST] encerrando driver')
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
 # MAIN — seleciona qual teste executar
 # ============================================================
 
@@ -463,6 +589,10 @@ if __name__ == '__main__':
         teste_ato_pesquisas()
     elif teste in ('ordem', 'resultado', '5'):
         teste_sisbajud_ordem()
+    elif teste in ('pecord', '6'):
+        teste_pec_ord()
+    elif teste in ('anex', 'anex_carta', 'carta', '7'):
+        teste_anex_carta()
     elif teste in ('todos', 'all'):
         print('=== Executando todos os testes ===')
         print('\n--- TESTE 1: ARGOS ---')
@@ -475,6 +605,10 @@ if __name__ == '__main__':
         teste_ato_pesquisas()
         print('\n--- TESTE 5: SISBAJUD ORDEM ---')
         teste_sisbajud_ordem()
+        print('\n--- TESTE 6: PEC ORD ---')
+        teste_pec_ord()
+        print('\n--- TESTE 7: ANEX CARTA ---')
+        teste_anex_carta()
     else:
         print(f'Teste desconhecido: {teste}')
-        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, todos')
+        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, todos')

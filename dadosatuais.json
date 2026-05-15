@@ -1,54 +1,49 @@
 {
   "numero": [
-    "1001355-08.2022.5.02.0703"
+    "1000866-97.2024.5.02.0703"
   ],
-  "id": 4863758,
+  "id": 6191451,
   "autor": [
     {
-      "nome": "ALINE JULIANA DAS CHAGAS SOUSA FERREIRA",
-      "cpfcnpj": "49511393839",
+      "nome": "MARCOS PEREIRA CHIBA",
+      "cpfcnpj": "40223212881",
       "advogado": {
-        "nome": "ALEF DOS SANTOS SANTANA",
-        "cpf": "39092903884",
-        "oab": "SP430002"
+        "nome": "JOSE VICENTE DE SOUZA",
+        "cpf": "03999755865",
+        "oab": "SP109144"
       }
-    },
-    {
-      "nome": "UNIÃO FEDERAL (PGF)",
-      "cpfcnpj": "05489410000161"
     }
   ],
   "reu": [
     {
-      "nome": "IRAILDE OLIVEIRA SANTOS 02096482526",
-      "cpfcnpj": "15275523000118"
-    },
-    {
-      "nome": "IRAILDE OLIVEIRA SANTOS",
-      "cpfcnpj": "02096482526"
+      "nome": "TRANSWOLFF TRANSPORTES E TURISMO LTDA",
+      "cpfcnpj": "58322512000154",
+      "advogado": {
+        "nome": "JOSE NIVALDO SOUZA AZEVEDO",
+        "cpf": "66466261549",
+        "oab": "SP260693"
+      }
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": "R$ 794,24",
-    "data": "14/03/2025"
+    "valor": "R$ 96.754,80",
+    "data": "04/03/2026"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "19/10/2022",
+  "dtAutuacao": "29/05/2024",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
-    "requerProcessoReferenciaCodigo": "NE",
-    "controlaValorCausa": true,
+    "id": 116,
+    "codigo": "156",
+    "descricao": "Cumprimento de sentença",
+    "sigla": "CumSen",
+    "requerProcessoReferenciaCodigo": "OB",
+    "controlaValorCausa": false,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3242.01,
-    "tetoValorCausa": 64840.0,
     "ativo": true,
-    "idClasseJudicialPai": 323,
+    "idClasseJudicialPai": 115,
     "possuiFilhos": false
   },
   "labelFaseProcessual": "Execução",

@@ -183,7 +183,7 @@ def _agrupar_em_buckets(processos_para_abrir: List[Dict[str, Any]]) -> Dict[str,
     sisbajud_names = {'minuta_bloqueio', 'minuta_bloqueio_60', 'processar_ordem_sisbajud', 'processar_ordem_sisbajud_wrapper'}
     carta_names = {'carta', 'analisar_documentos_pos_carta'}
     sob_names = {'mov_aud'}  # Removido def_chip e mov_sob
-    sobrestamento_names = {'def_sob', 'def_chip', 'mov_sob'}
+    sobrestamento_names = {'def_sob', '_def_sob', 'def_chip', 'mov_sob'}
     # Comunicações explícitas: xs sigilo, pec cp, exclusão, citação, intimação, etc.
     # 'wrapper' incluído para funções criadas via make_comunicacao_wrapper
     comunicacoes_names = {

@@ -695,13 +695,13 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
 
                 # Importar wrapper específico que insere conteúdo do relatório SISBAJUD
                 try:
-                    from PEC.anexos import consulta_wrapper
+                    from PEC.anexos import anex_sisbconsulta
                 except Exception:
-                    consulta_wrapper = None
+                    anex_sisbconsulta = None
 
-                if consulta_wrapper:
-                    # chamar consulta_wrapper com modelo correto
-                    juntada_executada = consulta_wrapper(driver_pje, numero_processo, debug=log, modelo='xteim')
+                if anex_sisbconsulta:
+                    # chamar anex_sisbconsulta com modelo correto
+                    juntada_executada = anex_sisbconsulta(driver_pje, numero_processo, debug=log, modelo='xteim')
                     resultado['juntada_executada'] = bool(juntada_executada)
                     if juntada_executada and log:
                         logger.info('[SISBAJUD]  Juntada da minuta realizada no PJe')
@@ -730,9 +730,9 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                         elif log:
                             logger.info('[SISBAJUD]  GIGS 22/xs resultado não foi criado')
                 else:
-                    resultado['erros'].append('consulta_wrapper não disponível')
+                    resultado['erros'].append('anex_sisbconsulta não disponível')
                     if log:
-                        logger.info('[SISBAJUD]  consulta_wrapper não disponível para executar juntada da minuta')
+                        logger.info('[SISBAJUD]  anex_sisbconsulta não disponível para executar juntada da minuta')
             except Exception as e:
                 resultado['erros'].append(f'Erro na juntada PJE (minuta): {e}')
                 if log:

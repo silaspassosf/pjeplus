@@ -61,19 +61,20 @@ def _salvar_minuta(driver):
         log_sisbajud(f"Erro ao salvar minuta: {e}", "ERROR")
         return False
 
-def _gerar_relatorio_minuta(driver, dados_processo):
-    """Gera relatório da minuta criada coletando dados reais da página SISBAJUD."""
+def _gerar_relatorio_minuta(driver, numero_processo):
+    """Gera relatório da minuta criada coletando dados reais da página SISBAJUD.
+    
+    Args:
+        driver: WebDriver SISBAJUD
+        numero_processo: String com número CNJ do processo (ex: "1000235-44.2015.5.02.0712")
+    """
     try:
         log_sisbajud("Gerando relatório da minuta...")
 
-        # Extrair número do processo
-        numero_processo = None
-        if dados_processo:
-            numero = dados_processo.get('numero', [])
-            if isinstance(numero, list) and len(numero) > 0:
-                numero_processo = numero[0]
-            elif isinstance(numero, str):
-                numero_processo = numero
+        # Validar numero_processo
+        if not numero_processo or not isinstance(numero_processo, str):
+            log_sisbajud(f"⚠️ numero_processo inválido: {numero_processo}")
+            numero_processo = "SISBAJUD"  # Fallback apenas em erro crítico
 
         # Importar função de coleta de dados completa
         try:
@@ -103,14 +104,7 @@ def _gerar_relatorio_minuta(driver, dados_processo):
 
     except Exception as e:
         log_sisbajud(f"Erro ao gerar relatório: {e}")
-        # Em caso de erro, gerar relatório básico
-        numero_processo = None
-        if dados_processo:
-            numero = dados_processo.get('numero', [])
-            if isinstance(numero, list) and len(numero) > 0:
-                numero_processo = numero[0]
-            elif isinstance(numero, str):
-                numero_processo = numero
+        # Em caso de erro, gerar relatório básico (preservar numero_processo)
         dados_relatorio = f"""
         <h3>Minuta de Bloqueio SISBAJUD</h3>
         <p>Processo: {numero_processo or 'N/A'}</p>
@@ -119,31 +113,42 @@ def _gerar_relatorio_minuta(driver, dados_processo):
         return _salvar_relatorios(dados_relatorio, numero_processo)
 
 def _salvar_relatorios(dados_relatorio, numero_processo=None):
-    """Salva os relatórios no clipboard.txt centralizado."""
+    """Salva os relatórios no clipboard.txt centralizado.
+    
+    Args:
+        dados_relatorio: Conteúdo HTML do relatório
+        numero_processo: Número do processo (nunca None - garantido pelo chamador)
+    """
     try:
+        # Garantir que numero_processo seja sempre válido para busca posterior
+        if not numero_processo or not isinstance(numero_processo, str):
+            log_sisbajud(f"⚠️ numero_processo inválido em _salvar_relatorios: {numero_processo}")
+            # Nunca salvar com fallback "SISBAJUD" - se chegou aqui é erro
+            return None
+        
         # Usar clipboard centralizado do PEC/anexos.py
         try:
             from PEC.anexos import salvar_conteudo_clipboard
 
             sucesso = salvar_conteudo_clipboard(
                 conteudo=dados_relatorio,
-                numero_processo=numero_processo or "SISBAJUD",
-                tipo_conteudo="sisbajud",
+                numero_processo=numero_processo,  # Sempre passar o número real
+                tipo_conteudo="sisbajud_minuta",
                 debug=True
             )
 
             if sucesso:
-                log_sisbajud("Relatório salvo no clipboard.txt centralizado")
+                log_sisbajud(f"✅ Relatório salvo no clipboard.txt centralizado para processo: {numero_processo}")
             else:
-                log_sisbajud("Falha ao salvar no clipboard centralizado")
+                log_sisbajud(f"⚠️ Falha ao salvar no clipboard centralizado para processo: {numero_processo}")
 
         except ImportError as e:
-            log_sisbajud(f"Não foi possível importar salvar_conteudo_clipboard: {e}")
+            log_sisbajud(f"⚠️ Não foi possível importar salvar_conteudo_clipboard: {e}")
 
         return dados_relatorio
 
     except Exception as e:
-        log_sisbajud(f"Erro ao salvar relatórios: {e}")
+        log_sisbajud(f"❌ Erro ao salvar relatórios: {e}")
         return None
 
 def _finalizar_minuta(driver_sisbajud, driver_pje, driver_created):

@@ -131,8 +131,11 @@ def verificar_carregamento_pagina(
             except Exception:
                 pass
             
-            # Aguardar mais após refresh para dar tempo do spinner sumir
-            time.sleep(1.5)
+            try:
+                from Fix.core import aguardar_renderizacao_nativa as _obs
+                _obs(driver, 'mat-progress-spinner, mat-spinner, .loading-spinner, .loading-overlay', 'sumir', 5)
+            except Exception:
+                time.sleep(0.5)
             
         except Exception as e:
             if log:
@@ -227,9 +230,7 @@ def verificar_carregamento_detalhe(
     ]
     
     for tentativa in range(1, max_tentativas + 1):
-        time.sleep(timeout_inicial)
-        
-        # Quick observer-based check for detalhe filter
+        # Quick observer-based check first (no fixed sleep)
         try:
             from Fix.core import aguardar_renderizacao_nativa as _observer_wait
             SELECTOR_JOINED = ', '.join(FILTRO_SELECTORS)
@@ -241,10 +242,6 @@ def verificar_carregamento_detalhe(
                 try:
                     if driver.execute_script("return document.readyState") == "complete":
                         return True
-                    else:
-                        time.sleep(1)
-                        if driver.execute_script("return document.readyState") == "complete":
-                            return True
                 except Exception:
                     return True
         except Exception:
@@ -282,7 +279,11 @@ def verificar_carregamento_detalhe(
                 if ready_state == "complete":
                     return True
                 else:
-                    time.sleep(1)
+                    try:
+                        from Fix.core import aguardar_renderizacao_nativa as _obs2
+                        _obs2(driver, SELECTOR_JOINED, 'aparecer', 2)
+                    except Exception:
+                        pass
                     ready_state = driver.execute_script("return document.readyState")
                     if ready_state == "complete":
                         return True
@@ -298,7 +299,11 @@ def verificar_carregamento_detalhe(
         
         try:
             driver.refresh()
-            time.sleep(1)
+            try:
+                from Fix.core import aguardar_renderizacao_nativa as _obs3
+                _obs3(driver, SELECTOR_JOINED, 'aparecer', 5)
+            except Exception:
+                pass
             # Aguarda readyState ficar completo
             WebDriverWait(driver, 15).until(
                 lambda d: d.execute_script("return document.readyState") == "complete"

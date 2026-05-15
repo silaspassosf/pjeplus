@@ -1,22 +1,15 @@
 {
-  "numero_processo": "1001231-30.2019.5.02.0703",
+  "numero_processo": "ATUAL",
   "destinatarios": [
     {
-      "nome": "JLA ALIMENTACAO LTDA",
-      "cpfcnpj": "09448082000106",
-      "tipo": "reu"
-    },
-    {
-      "nome": "JONES AMANCIO DOS SANTOS SILVA",
-      "cpfcnpj": "40079889867",
-      "tipo": "reu"
-    },
-    {
-      "nome": "JULIO DOS SANTOS SILVA",
-      "cpfcnpj": "40079890873",
-      "tipo": "reu"
+      "nome_identificado": "EMERSON RIBEIRO DA SILVA",
+      "documento": "281.822.508-62",
+      "documento_normalizado": "28182250862",
+      "tipo_documento": "CPF",
+      "polo": "reu",
+      "nome_oficial": "EMERSON RIBEIRO DA SILVA"
     }
   ],
-  "origem": "argos_idpj_decisao",
-  "timestamp": "2026-04-30T15:44:04.829730"
+  "origem": "argos_despacho",
+  "timestamp": "2026-05-14T10:52:55.250950"
 }

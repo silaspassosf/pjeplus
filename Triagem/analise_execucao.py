@@ -566,11 +566,29 @@ def desmarcar_100(driver: WebDriver, id_processo: str) -> Optional[str]:
             )
             modal = driver.find_element(By.CSS_SELECTOR, "pje-modal-juizo-digital")
             if "Juizo 100% digital" in (modal.text or ""):
-                botoes = modal.find_elements(By.CSS_SELECTOR, "button")
-                if len(botoes) >= 4:
-                    safe_click(driver, botoes[3])
-                elif botoes:
-                    safe_click(driver, botoes[0])
+                # Clique no botão "Sim" para confirmar
+                btn_sim = modal.find_element(By.XPATH, ".//button[contains(normalize-space(.), 'Sim')]")
+                safe_click(driver, btn_sim)
+                time.sleep(0.5)
+                
+                # Clique no botão "Não" para completar
+                try:
+                    btn_nao = modal.find_element(By.XPATH, ".//button[contains(normalize-space(.), 'Não')]")
+                    safe_click(driver, btn_nao)
+                except Exception:
+                    pass  # Se não houver botão "Não", continua
+            
+            # Validar que modal foi fechado
+            from selenium.webdriver.support import expected_conditions as EC
+            from selenium.webdriver.support.ui import WebDriverWait
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, "pje-modal-juizo-digital"))
+                )
+            except Exception as e:
+                raise Exception(f"Modal nao fechou apos confirmar: {e}")
+            
+            time.sleep(0.5)
             esperar_elemento(
                 driver,
                 "mat-slide-toggle[formcontrolname='juizoDigital']:not(.mat-checked)",
@@ -607,9 +625,29 @@ def remarcar_100_pos_aud(driver: WebDriver):
             )
             modal = driver.find_element(By.CSS_SELECTOR, "pje-modal-juizo-digital")
             if "Juizo 100% digital" in (modal.text or ""):
-                botoes = modal.find_elements(By.CSS_SELECTOR, "button")
-                if botoes:
-                    safe_click(driver, botoes[0])
+                # Clique no botão "Sim" para confirmar
+                btn_sim = modal.find_element(By.XPATH, ".//button[contains(normalize-space(.), 'Sim')]")
+                safe_click(driver, btn_sim)
+                time.sleep(0.5)
+                
+                # Clique no botão "Não" para completar
+                try:
+                    btn_nao = modal.find_element(By.XPATH, ".//button[contains(normalize-space(.), 'Não')]")
+                    safe_click(driver, btn_nao)
+                except Exception:
+                    pass  # Se não houver botão "Não", continua
+            
+            # Validar que modal foi fechado após confirmar
+            from selenium.webdriver.support import expected_conditions as EC
+            from selenium.webdriver.support.ui import WebDriverWait
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, "pje-modal-juizo-digital"))
+                )
+            except Exception as e:
+                raise Exception(f"Modal nao fechou apos confirmar remarcar: {e}")
+            
+            time.sleep(0.5)
             esperar_elemento(
                 driver,
                 "mat-slide-toggle[formcontrolname='juizoDigital'].mat-checked",
@@ -688,16 +726,19 @@ def marcar_aud(driver: WebDriver, numero_processo: str, rito: str, aba_retorno: 
             by=By.XPATH,
             timeout=10
         )
-        if modal_confirmado:
-            btn_fechar = esperar_elemento(
-                driver,
-                "//mat-dialog-container//button[.//span[normalize-space(.)='Fechar']]",
-                by=By.XPATH,
-                timeout=10
-            )
-            if btn_fechar:
-                safe_click(driver, btn_fechar)
-                time.sleep(0.5)
+        if not modal_confirmado:
+            raise Exception("Confirmacao de designacao de audiencia nao encontrada no dialogo")
+        
+        btn_fechar = esperar_elemento(
+            driver,
+            "//mat-dialog-container//button[.//span[normalize-space(.)='Fechar']]",
+            by=By.XPATH,
+            timeout=10
+        )
+        if not btn_fechar:
+            raise Exception("Botao Fechar nao encontrado na confirmacao")
+        safe_click(driver, btn_fechar)
+        time.sleep(0.5)
         sucesso = True
     except Exception as e:
         logger.error("ERRO em marcar_aud: %s: %s", type(e).__name__, e)

@@ -243,6 +243,7 @@ def run_batch(
     execute_item: Callable[[T], ActionResult],
     persist_result: Callable[[T, ActionResult], None],
     progress_callback: Optional[Callable[[int, int, T, ActionResult], None]] = None,
+    stop_on_critical: bool = False,
 ) -> BatchResult:
     """Executa pipeline de processamento sobre uma lista de itens.
 
@@ -317,6 +318,9 @@ def run_batch(
                 _safe_persist(persist_result, item, open_result)
                 if progress_callback:
                     progress_callback(idx, len(items), item, open_result)
+                if stop_on_critical and (open_result.get("dados") or {}).get("critical"):
+                    logger.warning("[ENGINE] parada antecipada por erro critico em open_item: %s", err)
+                    break
                 continue
         except Exception as e:
             stats["falha"] += 1
@@ -341,6 +345,9 @@ def run_batch(
                 _safe_persist(persist_result, item, exec_result)
                 if progress_callback:
                     progress_callback(idx, len(items), item, exec_result)
+                if stop_on_critical and (exec_result.get("dados") or {}).get("critical"):
+                    logger.warning("[ENGINE] parada antecipada por erro critico em execute_item: %s", err)
+                    break
                 continue
         except Exception as e:
             stats["falha"] += 1

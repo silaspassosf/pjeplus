@@ -55,8 +55,9 @@ def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
 
         if tarefa_do_botao:
             driver.pje_tarefa_atual = tarefa_do_botao
-            if 'assinar' in tarefa_do_botao.lower():
-                logger.info(f'[NAVEGAÇÃO] ⏭ Tarefa "{tarefa_do_botao}" contém "assinar" — ato pronto')
+            tarefa_lower = tarefa_do_botao.lower()
+            if 'assinar' in tarefa_lower or 'minutar' in tarefa_lower:
+                logger.info(f'[NAVEGAÇÃO] ⏭ Tarefa "{tarefa_do_botao}" em minutar/assinar — ato pronto, sem ação')
                 return True, True
 
         # Clicar para abrir tarefa
@@ -194,14 +195,11 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
             overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop-showing')
             if overlays:
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                time.sleep(0.3)
+                aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=2)
         except Exception:
             pass
         finally:
             driver.implicitly_wait(10)
-
-        # Aguardar pausa para estabilização
-        time.sleep(0.5)
 
         # Aguardar renderização e tentar clicar na conclusão
         if not btn_conclusao_encontrado:

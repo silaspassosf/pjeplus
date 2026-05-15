@@ -132,16 +132,19 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
         # ScrollIntoView + JavaScript click direto, sem retry logic que interfere com page navigation
         logger.info(f'[CONCLUSÃO] Clicando em tipo de conclusão...')
         try:
-            driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
-            time.sleep(0.3)
+            driver.execute_script('arguments[0].scrollIntoView({block: "center", behavior: "instant"});', btn_tipo_conclusao)
             driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
             logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado')
         except Exception as click_err:
             logger.error(f'[CONCLUSÃO] ❌ Erro ao clicar: {click_err}')
             return False
 
-        # Aguardar estabilização
-        time.sleep(1)
+        # Aguardar navegação pós-clique (observer para readyState complete)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa as _obs_conc
+            WebDriverWait(driver, 10).until(lambda d: d.execute_script("return document.readyState") == "complete")
+        except Exception:
+            pass
         return True
 
     except Exception as e:

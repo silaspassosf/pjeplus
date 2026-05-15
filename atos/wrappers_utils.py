@@ -11,8 +11,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException
-import time
-from Fix.utils import sleep_fixed, aguardar_pagina_carregar
+from Fix.utils import aguardar_pagina_carregar
 from Fix.core import aguardar_renderizacao_nativa
 
 
@@ -147,7 +146,7 @@ def _ativar_multipla_selecao(driver, log):
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]'))
         )
         btn_multi.click()
-        sleep_fixed(0.5)
+        aguardar_renderizacao_nativa(driver, 'ul.pje-timeline mat-card mat-checkbox', 'aparecer', 3)
         return True
     except Exception as e:
         logger.error(f'[VISIBILIDADE][ERRO] Falha ao ativar múltipla seleção: {e}')
@@ -159,7 +158,7 @@ def _clicar_primeira_checkbox(driver, log):
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'ul.pje-timeline mat-card mat-checkbox label'))
         )
         primeira_checkbox.click()
-        sleep_fixed(0.5)
+        aguardar_renderizacao_nativa(driver, 'ul.pje-timeline mat-card mat-checkbox.mat-checkbox-checked', 'aparecer', 3)
         return True
     except Exception as e:
         logger.error(f'[VISIBILIDADE][ERRO] Falha ao marcar primeira checkbox: {e}')
@@ -171,7 +170,7 @@ def _clicar_botao_visibilidade(driver, log):
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]'))
         )
         btn_visibilidade.click()
-        sleep_fixed(1)
+        aguardar_renderizacao_nativa(driver, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"]', 'aparecer', 5)
         return True
     except Exception as e:
         logger.error(f'[VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: {e}')
@@ -211,7 +210,7 @@ def _clicar_salvar(driver, log):
             EC.element_to_be_clickable((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]'))
         )
         btn_salvar.click()
-        sleep_fixed(1)
+        aguardar_renderizacao_nativa(driver, 'simple-snack-bar', 'aparecer', 5)
         return True
     except Exception as e:
         if log:
@@ -309,7 +308,7 @@ def preparar_campo_filtro_modelo(driver, log=False):
             'var el=arguments[0]; el.dispatchEvent(new Event("input", {bubbles:true})); el.dispatchEvent(new Event("keyup", {bubbles:true}));',
             campo_filtro_modelo
         )
-        time.sleep(0.3)
+        aguardar_renderizacao_nativa(driver, 'input#inputFiltro', 'aparecer', 2)
         return True
     except Exception as e:
         if log:

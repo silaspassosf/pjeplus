@@ -712,8 +712,8 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     logger.info(f'[SISBAJUD]  Erro ao tentar ajustar foco para PJe: {e}')
 
                 # Juntada (wrapper ja inclui navegacao, juntada e fechamento da aba)
-                from PEC.anexos import consulta_wrapper
-                juntada_executada = consulta_wrapper(driver_pje, numero_processo, debug=log, modelo='xteim')
+                from PEC.anexos import anex_sisbconsulta
+                juntada_executada = anex_sisbconsulta(driver_pje, numero_processo, debug=log, modelo='xteim')
                 resultado['juntada_executada'] = bool(juntada_executada)
                 if juntada_executada and log:
                     logger.info('[SISBAJUD]  Juntada da minuta realizada no PJe')

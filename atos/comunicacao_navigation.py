@@ -5,9 +5,10 @@ from Fix.log import getmodulelogger
 logger = getmodulelogger(__name__)
 
 from Fix.core import aguardar_renderizacao_nativa, esperar_url_conter
-from Fix.errors import NavegacaoError
+from Fix.abas import aguardar_nova_aba
+
 from Fix.variaveis import url_processo_detalhe
-from .core import aguardar_e_verificar_aba, aguardar_e_clicar
+from .core import aguardar_e_clicar
 
 
 def abrir_minutas(driver, debug=False):
@@ -33,21 +34,13 @@ def abrir_minutas(driver, debug=False):
         if debug:
             logger.info(f'[URL] Abrindo URL de minutas: {url_minutas}')
 
-        abas_antes = driver.window_handles
+        aba_atual = driver.current_window_handle
         driver.execute_script(f"window.open('{url_minutas}', '_blank');")
 
-        nova_aba = None
-        for tentativa in range(15):
-            abas_apos_abertura = driver.window_handles
-            if len(abas_apos_abertura) > len(abas_antes):
-                nova_aba = abas_apos_abertura[-1]
-                break
-            else:
-                # Usar aguardar_renderizacao_nativa ao invés de time.sleep hardcoded
-                try:
-                    aguardar_renderizacao_nativa(driver, timeout=0.5)
-                except Exception:
-                    pass
+        try:
+            nova_aba = aguardar_nova_aba(driver, aba_atual, timeout=10)
+        except Exception:
+            nova_aba = None
 
         if not nova_aba:
             raise Exception('Nova aba de minutas não abriu')
@@ -55,17 +48,22 @@ def abrir_minutas(driver, debug=False):
         driver.switch_to.window(nova_aba)
         driver.execute_script("window.focus();")
 
-        try:
-            aguardar_e_verificar_aba(driver, timeout_spinner=0.5, max_tentativas_reload=2, log=debug)
-        except NavegacaoError as e:
-            raise Exception('Página travou no carregamento (spinner)') from e
+        # Aguardar readyState == complete (padrao PEC, sem suposicoes de spinner)
+        if not aguardar_renderizacao_nativa(driver, timeout=15):
+            logger.info('[MINUTAS] Timeout readyState; refresh na aba')
+            try:
+                driver.refresh()
+            except Exception:
+                pass
+            if not aguardar_renderizacao_nativa(driver, timeout=20):
+                raise Exception('Página de minutas não completou carregamento')
 
         if not esperar_url_conter(driver, '/minutas', timeout=20):
-            raise Exception('URL de minutas não carregou')
+            raise Exception('URL de minutas não carregou após aguardar readyState')
 
-        # Quick check: if 'Tipo de Expediente' (ou botões suficientes) não aparecer em 3s, refresh na aba e tentar novamente
-        if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 3):
-            logger.info('[MINUTAS] Elemento esperado não encontrado rápido; recarregando aba e tentando novamente')
+        # UI check com timeout generoso (10s) antes de refresh
+        if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 10):
+            logger.info('[MINUTAS] Elemento esperado não encontrado; refresh na aba')
             try:
                 driver.refresh()
             except Exception as e_ref:
@@ -82,38 +80,26 @@ def abrir_minutas(driver, debug=False):
         # FALLBACK: Navegação tradicional por cliques
         from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 
-        abas_antes = set(driver.window_handles)
+        aba_antes = driver.current_window_handle
         btn_abrir_tarefa = aguardar_e_clicar(driver, BTN_TAREFA_PROCESSO, timeout=15)
         if not btn_abrir_tarefa:
             raise Exception('Botão tarefa do processo não encontrado')
 
-        nova_aba = None
-        for _ in range(20):
-            abas_depois = set(driver.window_handles)
-            novas_abas = abas_depois - abas_antes
-            if novas_abas:
-                nova_aba = novas_abas.pop()
-                break
-            else:
-                # Usar aguardar_renderizacao_nativa ao invés de time.sleep hardcoded
-                try:
-                    aguardar_renderizacao_nativa(driver, timeout=0.5)
-                except Exception:
-                    pass
+        try:
+            nova_aba = aguardar_nova_aba(driver, aba_antes, timeout=10)
+        except Exception:
+            nova_aba = None
 
         if nova_aba:
             driver.switch_to.window(nova_aba)
-            try:
-                aguardar_e_verificar_aba(driver, timeout_spinner=0.5, max_tentativas_reload=2, log=debug)
-            except NavegacaoError as e:
-                raise Exception('Página travou no carregamento (spinner)') from e
+            aguardar_renderizacao_nativa(driver, timeout=15)
 
         if not esperar_url_conter(driver, '/minutas', timeout=20):
             if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 20):
                 raise Exception('URL e conteúdo de minutas não carregaram')
-        # Quick refresh attempt if UI parts not present shortly after load
-        if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 3):
-            logger.info('[MINUTAS][FALLBACK] Elemento esperado não encontrado rápido; recarregando aba e tentando novamente')
+        # UI check com timeout generoso antes de refresh
+        if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 10):
+            logger.info('[MINUTAS][FALLBACK] Elemento esperado não encontrado; refresh na aba')
             try:
                 driver.refresh()
             except Exception as e_ref2:

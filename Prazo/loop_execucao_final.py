@@ -116,9 +116,11 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
         if prazo is not None:
             campo_prazo = None
             for seletor in [
+                'input[formcontrolname="dias"]',
                 'input[formcontrolname="prazo"]',
                 'input[aria-label="Prazo em dias úteis"]',
-                'mat-form-field input[type="number"]'
+                'mat-form-field input[type="number"]',
+                'input[type="number"]'
             ]:
                 try:
                     campo = driver.find_element(By.CSS_SELECTOR, seletor)
@@ -128,9 +130,13 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
                 except Exception:
                     continue
             if campo_prazo:
-                driver.execute_script("arguments[0].click();", campo_prazo)
                 campo_prazo.clear()
                 campo_prazo.send_keys(prazo)
+                driver.execute_script(
+                    "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
+                    campo_prazo
+                )
+                time.sleep(0.3)
 
         # Preencher observação
         campo_obs = None
@@ -151,9 +157,13 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
             logger.error('[CICLO2][XS] Campo de observação não encontrado')
             return False
 
-        campo_obs.click()
         campo_obs.clear()
         campo_obs.send_keys(observacao)
+        driver.execute_script(
+            "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
+            campo_obs
+        )
+        time.sleep(0.3)
 
         # Aguardar até que o textarea contenha o texto (sincronização mínima)
         try:

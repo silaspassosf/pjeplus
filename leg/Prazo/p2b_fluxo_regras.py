@@ -33,8 +33,9 @@ def _definir_regras_processamento() -> List[Tuple]:
     ato_pesqliq = m.get('ato_pesqliq')
     ato_reitmeios = m.get('ato_reitmeios')
     ato_idpj = m.get('ato_idpj')
+    ato_crda = m.get('ato_crda')
     # wrappers/from PEC
-    retifidpj_wrapper = m.get('retifidpj_wrapper')
+    anex_retifidpj = m.get('anex_retifidpj')
     pec_excluiargos = m.get('pec_excluiargos')
     # helper callable for phase routing (creates initial gigs then routes)
     try:
@@ -62,6 +63,9 @@ def _definir_regras_processamento() -> List[Tuple]:
             'sob pena de prosseguimento da execução'
         ]],
          (_inicar_exec,),),
+
+        # REGRA DE CÁLCULOS - ato_crda (acima de sobrestamento)
+        ([gerar_regex_geral('reclamante apresentar cálculos')], (ato_crda,),),
 
         # REGRAS DE SOBRESTAMENTO
         ([gerar_regex_geral(k) for k in [
@@ -152,7 +156,7 @@ def _definir_regras_processamento() -> List[Tuple]:
         ([gerar_regex_geral('pagamento da próxima parcela')], ("criar_gigs[5//xs saldo]",)),
 
         # REGRA: INDEFIRO o pedido de desconsideração -> juntada retificação + exclusão Argos + ato_meios
-        ([gerar_regex_geral('INDEFIRO o pedido de desconsideração')], (retifidpj_wrapper, pec_excluiargos, ato_meios)),
+        ([gerar_regex_geral('INDEFIRO o pedido de desconsideração')], (anex_retifidpj, pec_excluiargos, ato_meios)),
 
         # REGRA DE BAIXA/AGUARDE-SE (Conjunto que aciona checar_prox como helper)
         ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital', 'Aguarde-se', 'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão', 'sob pena de preclusão', 'embargos de declaração', 'Registre-se o movimento processual adequado'] ], (checar_prox,)),

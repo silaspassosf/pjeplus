@@ -39,10 +39,27 @@ from .helpers import (
 
 # executor foi removido — stubs para compatibilidade
 def executar_acao_pec(driver, acao, *args, **kwargs):
-    """Stub: use PEC.orquestrador para execucao."""
-    if callable(acao):
+    """Executa acao(ões) com suporte a lista e fallback de assinatura."""
+    if isinstance(acao, (list, tuple)):
+        return all(executar_acao_pec(driver, a, *args, **kwargs) for a in acao)
+    if not callable(acao):
+        return False
+    try:
         return acao(driver)
-    return False
+    except TypeError:
+        numero_processo = kwargs.get('numero_processo')
+        observacao = kwargs.get('observacao')
+        if numero_processo or observacao:
+            class _AtvProxy:
+                pass
+            atv = _AtvProxy()
+            atv.numero_processo = numero_processo
+            atv.observacao = observacao
+            try:
+                return acao(driver, atv)
+            except Exception:
+                return False
+        return False
 
 def chamar_funcao_com_assinatura_correta(func, driver, *args, **kwargs):
     """Stub: chama func(driver) diretamente."""

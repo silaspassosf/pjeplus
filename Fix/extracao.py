@@ -1130,7 +1130,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
 
 def bndt(driver, inclusao=False, debug=False, **kwargs):
     """
-    Executa rotinas BNDT - versão refatorada processando ambos os polos.
+    Executa rotinas BNDT no polo Passivo.
     Orquestrador principal que coordena as etapas.
 
     Nota: aceita `debug` e `**kwargs` para compatibilidade com chamadas
@@ -1163,13 +1163,29 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         polo = 'Passivo'
         logger.info(f'============ Processando Polo {polo} ============')
         
-        # 1. Clicar no botão do polo Passivo
+        # 1. Clicar no botão do polo Passivo (único polo processado)
         logger.info(f'Procurando botão de polo {polo}...')
         try:
-            btn_polo = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, f"//input[@value='{polo}']/ancestor::mat-radio-button | //mat-radio-button[@value='{polo}']"))
-            )
-            btn_polo.click()
+            seletor_polo = [
+                (By.CSS_SELECTOR, '#selecao-polo input[value="Passivo"]'),
+                (By.XPATH, "//input[@value='Passivo']/ancestor::mat-radio-button | //mat-radio-button[@value='Passivo']"),
+            ]
+
+            btn_polo = None
+            for by, selector in seletor_polo:
+                try:
+                    btn_polo = WebDriverWait(driver, 3).until(EC.presence_of_element_located((by, selector)))
+                    break
+                except Exception:
+                    continue
+
+            if not btn_polo:
+                raise Exception('Botao de polo Passivo nao encontrado')
+
+            try:
+                driver.execute_script('arguments[0].click();', btn_polo)
+            except Exception:
+                btn_polo.click()
             logger.info(f'Polo {polo} selecionado')
             time.sleep(0.5)
         except Exception as e:
@@ -1210,10 +1226,10 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
             pass
 
         # 5. Processar seleções (marcar checkboxes)
-        _bndt_processar_selecoes_polo(driver, polo)
+        _bndt_processar_selecoes_polo(driver, polo, inclusao=inclusao)
         
         # 6. Gravar e confirmar
-        _bndt_gravar_e_confirmar_polo(driver, polo)
+        _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=inclusao)
         
         logger.info(f'============ Finalizando operação {operacao} ============')
         
@@ -1430,17 +1446,26 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
     
     logger.info(f'Selecionando operação: {operacao} para polo {polo}')
     
-    try:
-        btn_operacao = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.XPATH, f"//input[@value='{tipo_operacao}']/ancestor::mat-radio-button | //mat-radio-button[@value='{tipo_operacao}']"))
-        )
-        btn_operacao.click()
-        logger.info(f'Operação {operacao} selecionada para polo {polo}')
-        time.sleep(0.5)
-        return True
-    except Exception as e:
-        logger.warning(f'Erro ao selecionar operação {operacao} no polo {polo}: {e}')
-        return False
+    seletores_operacao = [
+        (By.CSS_SELECTOR, f'#selecao-tipo-determinacao input[value="{tipo_operacao}"]'),
+        (By.XPATH, f"//input[@value='{tipo_operacao}']/ancestor::mat-radio-button | //mat-radio-button[@value='{tipo_operacao}']"),
+    ]
+
+    for by, selector in seletores_operacao:
+        try:
+            btn_operacao = WebDriverWait(driver, 5).until(EC.presence_of_element_located((by, selector)))
+            try:
+                driver.execute_script('arguments[0].click();', btn_operacao)
+            except Exception:
+                btn_operacao.click()
+            logger.info(f'Operação {operacao} selecionada para polo {polo} via seletor: {selector}')
+            time.sleep(0.5)
+            return True
+        except Exception:
+            continue
+
+    logger.warning(f'Erro ao selecionar operação {operacao} no polo {polo}: nenhum seletor funcionou')
+    return False
 
 
 
@@ -1466,18 +1491,33 @@ def _bndt_processar_selecoes(driver):
     logger.warning('Checkbox "Selecionar todos" não encontrado — ação concluída sem seleção adicional')
 
 
-def _bndt_processar_selecoes_polo(driver, polo):
+def _bndt_processar_selecoes_polo(driver, polo, inclusao=False):
     """Procurar e clicar em todos os checkboxes de débito/crédito para um polo específico."""
     logger.info(f'Procurando checkboxes para marcar no polo {polo}...')
     try:
-        labels = driver.find_elements(By.CSS_SELECTOR, 'pje-bndt-exclusao label[for*="debito"][for*="-input"], pje-bndt-inclusao label[for*="debito"][for*="-input"]')
+        if inclusao:
+            seletor_principal = (
+                'pje-bndt-inclusao label[for*="debito"][for*="-input"], '
+                'pje-bndt-inclusao label[for*="credito"][for*="-input"]'
+            )
+        else:
+            seletor_principal = 'pje-bndt-exclusao label[for*="debito"][for*="-input"]'
+
+        labels = driver.find_elements(By.CSS_SELECTOR, seletor_principal)
+        if not labels:
+            labels = driver.find_elements(
+                By.CSS_SELECTOR,
+                'pje-bndt-exclusao label[for*="debito"][for*="-input"], '
+                'pje-bndt-inclusao label[for*="debito"][for*="-input"], '
+                'pje-bndt-inclusao label[for*="credito"][for*="-input"]'
+            )
         if not labels:
             logger.warning(f'Nenhum checkbox encontrado no polo {polo}')
             return
         
         for label in labels:
             try:
-                label.click()
+                driver.execute_script('arguments[0].click();', label)
                 time.sleep(0.1)
             except Exception as e:
                 logger.warning(f'Erro ao clicar checkbox: {e}')
@@ -1530,11 +1570,13 @@ def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
     logger.info('Aba BNDT fechada')
 
 
-def _bndt_gravar_e_confirmar_polo(driver, polo):
+def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
     """Clica Gravar e confirma para um polo específico."""
     logger.info(f'Procurando botão Gravar para polo {polo}...')
     btn_gravar = None
+    container_operacao = 'pje-bndt-inclusao' if inclusao else 'pje-bndt-exclusao'
     selectors_gravar = [
+        (By.XPATH, f"//{container_operacao}//button[contains(.,'Gravar') or .//span[contains(text(),'Gravar')]]"),
         (By.XPATH, "//button[.//span[contains(text(),'Gravar')]]"),
         (By.XPATH, "//button[contains(@class,'mat-raised-button')][contains(text(),'Gravar')]"),
         (By.XPATH, "//pje-bndt-exclusao//button[contains(text(),'Gravar')] | //pje-bndt-inclusao//button[contains(text(),'Gravar')]")
@@ -1552,7 +1594,10 @@ def _bndt_gravar_e_confirmar_polo(driver, polo):
         return
 
     try:
-        btn_gravar.click()
+        try:
+            driver.execute_script('arguments[0].click();', btn_gravar)
+        except Exception:
+            btn_gravar.click()
         logger.info('Botão Gravar clicado')
         time.sleep(0.5)
     except Exception as e:

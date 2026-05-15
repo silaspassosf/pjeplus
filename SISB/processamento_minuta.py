@@ -74,7 +74,7 @@ def minuta_bloqueio_refatorada(driver_sisbajud, dados_processo, driver_pje=None,
 
         # 8. GERAR RELATÓRIO
         from .processamento_relatorios import _gerar_relatorio_minuta
-        dados_relatorio = _gerar_relatorio_minuta(driver_sisbajud, dados_processo)
+        dados_relatorio = _gerar_relatorio_minuta(driver_sisbajud, numero_processo)
 
         # 9. EXECUTAR JUNTADA NO PJE (se driver_pje fornecido)
         juntada_executada = False

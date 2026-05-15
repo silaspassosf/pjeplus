@@ -22,9 +22,9 @@ def _lazy_import():
         from atos import pec_excluiargos
         # PEC anexos wrappers
         try:
-            from PEC.anexos.anexos_wrappers import retifidpj_wrapper
+            from PEC.anexos.anexos_wrappers import anex_retifidpj
         except Exception:
-            retifidpj_wrapper = None
+            anex_retifidpj = None
         
         _modules_cache.update({
             'aguardar_e_clicar': aguardar_e_clicar,
@@ -43,7 +43,7 @@ def _lazy_import():
             'ato_idpj': ato_idpj,
             'ato_reitmeios': ato_reitmeios,
             'pec_excluiargos': pec_excluiargos,
-            'retifidpj_wrapper': retifidpj_wrapper,
+            'anex_retifidpj': anex_retifidpj,
         })
     
     return _modules_cache

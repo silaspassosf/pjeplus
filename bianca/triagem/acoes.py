@@ -14,6 +14,7 @@ Extraido de triagem_engine.py (linhas 1884-2179).
 import re
 import time
 import traceback
+from datetime import datetime as _dt
 from pprint import pformat
 from typing import Any, Dict, Optional, Tuple
 
@@ -452,6 +453,90 @@ def remarcar_100_pos_aud(driver: WebDriver) -> None:
         print(f"[TRIAGEM/ACOES] ❌ remarcar_100_pos_aud: {type(e).__name__}: {e}")
 
 
+_MESES_PT = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]
+
+
+def _extrair_data_hora_pauta(linha) -> tuple:
+    """Extrai data e horario da linha da Tabela de Horarios Vagos.
+
+    Estrutura esperada das colunas: Tipo | Data | Horario vago | Qtd dias uteis | Botao
+
+    Returns:
+        Tuple (data_str, hora_str) ex: ("24/08/2026", "09:50")
+    """
+    tds = linha.find_elements(By.CSS_SELECTOR, "td.td-class")
+    if len(tds) < 3:
+        raise ValueError(f"Linha de pauta com {len(tds)} colunas, esperado >= 3")
+    data_str = tds[1].find_element(By.CSS_SELECTOR, "span").text.strip()
+    hora_str = tds[2].find_element(By.CSS_SELECTOR, "span").text.strip()
+    if not data_str or not hora_str:
+        raise ValueError(f"Data ou hora vazios: data='{data_str}' hora='{hora_str}'")
+    return data_str, hora_str
+
+
+def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
+    """Navega o calendario mensal ate a data alvo e clica no dia.
+
+    Args:
+        driver: WebDriver Selenium.
+        data_str: Data no formato "DD/MM/YYYY".
+    """
+    alvo = _dt.strptime(data_str, "%d/%m/%Y")
+    hoje = _dt.today()
+    delta = (alvo.year - hoje.year) * 12 + (alvo.month - hoje.month)
+
+    for _ in range(delta):
+        btn_next = esperar_elemento(driver, "#next", by=By.CSS_SELECTOR, timeout=10)
+        if not btn_next:
+            raise Exception("Botao proximo mes nao encontrado")
+        safe_click(driver, btn_next)
+        time.sleep(0.5)
+
+    mes_nome = _MESES_PT[alvo.month - 1]
+    heading_xpath = f"//h2[contains(normalize-space(.), '{mes_nome}, {alvo.year}')]"
+    heading = esperar_elemento(driver, heading_xpath, by=By.XPATH, timeout=10)
+    if not heading:
+        raise Exception(f"Heading do mes '{mes_nome}, {alvo.year}' nao encontrado")
+
+    dia_str = str(alvo.day)
+    dia_cell_xpath = f"//span[contains(@class,'cal-day-cell') and .//label[normalize-space(.)='{dia_str}']]"
+    dia_cell = esperar_elemento(driver, dia_cell_xpath, by=By.XPATH, timeout=10)
+    if not dia_cell:
+        raise Exception(f"Celula do dia {dia_str} nao encontrada no calendario")
+    safe_click(driver, dia_cell)
+    time.sleep(0.8)
+
+    dia_fmt = alvo.strftime("%d/%m/%Y")
+    confirm_xpath = f"//h2[contains(normalize-space(.), '{dia_fmt}')]"
+    confirm = esperar_elemento(driver, confirm_xpath, by=By.XPATH, timeout=10)
+    if not confirm:
+        raise Exception(f"Confirmacao do dia {dia_fmt} nao encontrada apos clique")
+
+
+def _encontrar_slot_dia(driver: WebDriver, hora_str: str) -> None:
+    """Clica no botao Designar Audiencia na linha com o horario especificado.
+
+    O horario ja foi extraido da linha correta (rito filtrado na tabela inicial),
+    portanto e unico na pauta diaria -- sem necessidade de filtrar por tipo.
+
+    Args:
+        driver: WebDriver Selenium.
+        hora_str: Horario no formato "HH:MM".
+    """
+    linha_xpath = f"//tr[.//span[normalize-space(.)='{hora_str}']]"
+    linha = esperar_elemento(driver, linha_xpath, by=By.XPATH, timeout=15)
+    if not linha:
+        raise Exception(f"Linha com horario '{hora_str}' nao encontrada na pauta diaria")
+    btn_plus = linha.find_element(
+        By.XPATH,
+        ".//button[contains(@aria-label,'Designar')] | .//i[contains(@class,'fa-plus-circle')]/ancestor::button",
+    )
+    safe_click(driver, btn_plus)
+
+
 def _marcar_aud(
     driver: WebDriver,
     numero_processo: str,
@@ -487,8 +572,9 @@ def _marcar_aud(
         if not linha:
             raise Exception("Linha de pauta nao encontrada")
 
-        btn_plus = linha.find_element(By.XPATH, ".//button[@aria-label='Designar Audiencia'] | .//i[contains(@class,'fa-plus-circle')]/ancestor::button")
-        safe_click(driver, btn_plus)
+        data_str, hora_str = _extrair_data_hora_pauta(linha)
+        _navegar_calendario_para_data(driver, data_str)
+        _encontrar_slot_dia(driver, hora_str)
 
         modal = esperar_elemento(driver, "mat-dialog-container", by=By.CSS_SELECTOR, timeout=10)
         if not modal:

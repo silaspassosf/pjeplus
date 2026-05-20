@@ -235,9 +235,10 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
     document.getElementById(id)?.remove();
     const c = document.createElement('div');
     c.id = id;
-    c.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:100000;background:#fff;` +
+    c.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:999999999;background:#fff;` +
         `border:2px solid ${corBorda};border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.18);` +
-        `min-width:360px;max-height:60vh;overflow:auto;font-family:sans-serif;`;
+        `min-width:360px;max-height:60vh;overflow:auto;font-family:sans-serif;` +
+        `pointer-events:auto;contain:layout style paint;will-change:transform;`;
 
     // Header com título e botão fechar
     const hdr = document.createElement('div');
@@ -297,7 +298,13 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
             r.style.background = '');
         tr.style.background = '#fff7d6';
         const doc = saida[parseInt(tr.dataset.idx, 10)];
-        if (doc) await onRowClick(doc);
+        if (doc) {
+            // Preservar painel durante click para evitar re-render Angular remover
+            const panelRef = c; // manter referência ao container
+            await onRowClick(doc);
+            // Garantir que painel ainda existe após operação
+            if (!document.body.contains(panelRef)) document.body.appendChild(panelRef);
+        }
     });
 
     tbl.addEventListener('mouseenter', ev => {
@@ -320,7 +327,7 @@ async function onCheckRowClick(doc) {
     if (!doc.isAnexo && doc.iconHref) {
         window.open(doc.iconHref, '_blank');
 
-        // Destacar visualmente o item na timeline
+        // Destacar visualmente o item na timeline (SEM scrollIntoView para evitar layout shift)
         const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
         if (elem) {
             elem.style.transition = 'all 0.3s ease';
@@ -390,11 +397,8 @@ async function onCheckRowClick(doc) {
         return;
     }
 
-    const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
-    if (textLink) {
-        safeDispatch(textLink, 'click', { bubbles: true, cancelable: true });
-    }
-
+    // Usar apenas highlight visual, SEM dispatchEvent para evitar quebra de cabeçalho
+    // (o dispatchEvent causa re-render agressivo do Angular)
     elem.classList.add('pjetools-destaque');
     setTimeout(() => elem?.classList.remove('pjetools-destaque'), 3000);
     setTimeout(() => expandirAnexos(elem), 800);
@@ -421,11 +425,17 @@ window.executarCheck = async function () {
             btn.id = 'maisPje_btn_conferir_alvaras';
             btn.textContent = 'Conferir alvarás';
             btn.title = 'Conferir alvarás';
-            btn.style.cssText = 'margin-left:8px;padding:6px 10px;background:#0078aa;color:#fff;border:none;cursor:pointer;border-radius:4px;font-size:12px;';
-            btn.onclick = async () => {
+            btn.style.cssText = 'margin-left:8px;padding:6px 10px;background:#0078aa;color:#fff;border:none;cursor:pointer;' +
+                'border-radius:4px;font-size:12px;pointer-events:auto;z-index:999999999;';
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 try {
                     if (typeof window.executarPgto === 'function') {
-                        await window.executarPgto();
+                        // Delay para garantir que painel não é removido antes do executarPgto
+                        setTimeout(() => window.executarPgto().catch(err => 
+                            console.error('Erro ao executar conferir alvarás:', err)
+                        ), 100);
                     } else {
                         console.warn('executarPgto não encontrado');
                     }

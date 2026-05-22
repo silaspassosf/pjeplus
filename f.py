@@ -1,7 +1,7 @@
 # ============================================================
 # f.py -- Harness de teste isolado: Multi-testes
 # Uso: py f.py [teste]
-#   teste disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, todos
+#   teste disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem, probe, tdbg, todos
 # ============================================================
 
 import json
@@ -10,7 +10,7 @@ import time
 import sys
 from contextlib import contextmanager
 
-from x import criar_driver_pc
+from x import criar_driver_vt
 from Fix.utils import login_cpf, navegar_para_tela
 
 # ============================================================
@@ -22,6 +22,9 @@ PROCESS_URL_SISB  = 'https://pje.trt2.jus.br/pjekz/processo/4863758/detalhe'
 PROCESS_URL_PEC      = 'https://pje.trt2.jus.br/pjekz/processo/6095583/detalhe'
 PROCESS_URL_PEC_ORD  = 'https://pje.trt2.jus.br/pjekz/processo/5455795/detalhe/peticao/460955334'
 PROCESS_URL_ANEX_CARTA = 'https://pje.trt2.jus.br/pjekz/processo/7258019/detalhe'
+PROCESS_URL_TRIAGEM = 'https://pje.trt2.jus.br/pjekz/processo/8640719/detalhe'
+PROBE_ID_PROCESSO = '8640719'
+PROBE_ID_DOC      = '461896095'  # documento que retornou vazio no log
 
 # ============================================================
 # Logging
@@ -98,7 +101,7 @@ def teste_buscar_sequenciais():
 
     try:
         with etapa('criar_driver'):
-            driver = criar_driver_pc(headless=False)
+            driver = criar_driver_vt(headless=False)
         if not driver:
             LOGGER.error('[ARGOS_TEST] Falha ao criar driver')
             return
@@ -152,7 +155,7 @@ def teste_sisbajud_minuta():
 
     try:
         with etapa('criar_driver'):
-            driver = criar_driver_pc(headless=False)
+            driver = criar_driver_vt(headless=False)
         if not driver:
             LOGGER.error('[SISB_TEST] Falha ao criar driver PJE')
             return
@@ -245,7 +248,7 @@ def teste_pec_sigilo():
 
     try:
         with etapa('criar_driver'):
-            driver = criar_driver_pc(headless=False)
+            driver = criar_driver_vt(headless=False)
         if not driver:
             LOGGER.error('[PEC_TEST] Falha ao criar driver')
             return
@@ -310,7 +313,7 @@ def teste_ato_pesquisas():
 
     try:
         with etapa('criar_driver'):
-            driver = criar_driver_pc(headless=False)
+            driver = criar_driver_vt(headless=False)
         if not driver:
             LOGGER.error('[PESQUISA_TEST] Falha ao criar driver')
             return
@@ -386,7 +389,7 @@ def teste_sisbajud_ordem():
 
     try:
         with etapa('criar_driver'):
-            driver = criar_driver_pc(headless=False)
+            driver = criar_driver_vt(headless=False)
         if not driver:
             LOGGER.error('[ORDEM_TEST] Falha ao criar driver PJE')
             return
@@ -473,7 +476,7 @@ def teste_pec_ord():
 
     try:
         with etapa('criar_driver'):
-            driver = criar_driver_pc(headless=False)
+            driver = criar_driver_vt(headless=False)
         if not driver:
             LOGGER.error('[PEC_ORD_TEST] Falha ao criar driver')
             return
@@ -538,7 +541,7 @@ def teste_anex_carta():
 
     try:
         with etapa('criar_driver'):
-            driver = criar_driver_pc(headless=False)
+            driver = criar_driver_vt(headless=False)
         if not driver:
             LOGGER.error('[ANEX_CARTA_TEST] Falha ao criar driver')
             return
@@ -573,6 +576,343 @@ def teste_anex_carta():
 
 
 # ============================================================
+# TESTE 8: TRIAGEM — fluxo real via run_triagem (igual ao producao)
+# ============================================================
+
+def teste_triagem_peticao():
+    """
+    Executa o fluxo REAL de triagem via run_triagem(driver):
+      1. Navega para URL_LISTA_TRIAGEM (painel)
+      2. Busca lista via API, filtra Triagem Inicial
+      3. Para cada processo: abre detalhe, chama triagem_peticao,
+         cria comentario, executa acao pos-triagem
+    Identico ao fluxo de producao de bianca.
+    """
+    from bianca.triagem.runner import run_triagem
+    configurar_logging_debug()
+    logging.getLogger('bianca').setLevel(logging.DEBUG)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[TRIAGEM_TEST] Fluxo real: run_triagem (igual producao)')
+    LOGGER.info('=' * 60)
+
+    driver = None
+
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[TRIAGEM_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[TRIAGEM_TEST] Falha no login')
+                return
+
+        with etapa('run_triagem'):
+            resultado = run_triagem(driver)
+            LOGGER.info('[TRIAGEM_TEST] run_triagem -> %s', resultado)
+
+        LOGGER.info('[TRIAGEM_TEST] concluido')
+
+    except Exception:
+        LOGGER.exception('[TRIAGEM_TEST] Erro nao tratado')
+
+    finally:
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+
+
+
+# ============================================================
+# TESTE 10: TRIAGEM DEBUG — passo a passo manual da coleta
+# ============================================================
+
+def teste_triagem_debug(url_processo: str = None):
+    """
+    Debug passo a passo da coleta de texto da peticao inicial.
+    url_processo: URL do processo (default: PROCESS_URL_TRIAGEM)
+    Uso: py f.py tdbg https://pje.trt2.jus.br/pjekz/processo/XXXXXX/detalhe
+    """
+    import io as _io
+    from bianca.api_client import PjeApiClient, session_from_driver
+    from bianca.triagem.coleta import _extrair_id_processo_da_url, _norm
+    configurar_logging_debug()
+
+    url_alvo = url_processo or PROCESS_URL_TRIAGEM
+
+    # habilitar DEBUG em bianca para ver todos os logs
+    logging.getLogger('bianca').setLevel(logging.DEBUG)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[TDBG] DEBUG COLETA TRIAGEM - passo a passo')
+    LOGGER.info('[TDBG] Processo: %s', url_alvo)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[TDBG] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[TDBG] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            navegar_para_tela(driver, url=url_alvo)
+
+        # ── PASSO 1: montar cliente ──────────────────────────────
+        with etapa('montar_cliente'):
+            sessao, trt_host = session_from_driver(driver, grau=1)
+            client = PjeApiClient(sessao, trt_host, grau=1)
+            LOGGER.info('[TDBG] cliente montado -> host=%s', trt_host)
+
+        id_processo = _extrair_id_processo_da_url(driver.current_url)
+        LOGGER.info('[TDBG] id_processo=%s', id_processo)
+
+        # ── PASSO 2: timeline ────────────────────────────────────
+        with etapa('timeline'):
+            timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
+            LOGGER.info('[TDBG] timeline: %s items', len(timeline) if timeline else 0)
+
+        # ── PASSO 3: localizar peticao inicial ───────────────────
+        peticao = None
+        for doc in (timeline or []):
+            if not isinstance(doc, dict):
+                continue
+            tipo  = _norm(doc.get('tipo') or '')
+            titulo = _norm(doc.get('titulo') or '')
+            if 'peticao inicial' in tipo or 'peticao inicial' in titulo:
+                peticao = doc
+                break
+
+        if not peticao:
+            LOGGER.error('[TDBG] peticao inicial nao localizada na timeline')
+            return
+
+        id_doc = str(peticao.get('id') or peticao.get('idUnicoDocumento') or '')
+        LOGGER.info('[TDBG] peticao inicial encontrada: id=%s titulo=%r', id_doc, peticao.get('titulo'))
+        LOGGER.info('[TDBG] chaves do doc: %s', list(peticao.keys()))
+
+        # ── PASSO 4: checar pdfplumber ───────────────────────────
+        with etapa('check_pdfplumber'):
+            try:
+                import pdfplumber
+                LOGGER.info('[TDBG] pdfplumber OK: %s', pdfplumber.__version__ if hasattr(pdfplumber, '__version__') else 'instalado')
+            except ImportError as e:
+                LOGGER.error('[TDBG] pdfplumber NAO INSTALADO: %s', e)
+                LOGGER.error('[TDBG] Instalar: py -m pip install pdfplumber')
+                return
+
+        # ── PASSO 5: baixar PDF do endpoint /conteudo ────────────
+        with etapa('baixar_pdf'):
+            url_pdf = client._url(
+                f'/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_doc}/conteudo')
+            LOGGER.info('[TDBG] GET %s', url_pdf)
+            resp = client.sess.get(url_pdf, timeout=60)
+            ctype   = resp.headers.get('Content-Type', '')
+            magic   = resp.content[:8] if resp.content else b''
+            is_pdf  = b'%PDF' in magic
+            LOGGER.info('[TDBG] status=%s  ctype=%r  body=%s bytes  magic=%r  is_pdf=%s',
+                        resp.status_code, ctype, len(resp.content), magic, is_pdf)
+
+            if resp.status_code != 200:
+                LOGGER.error('[TDBG] HTTP %s - abortando', resp.status_code)
+                return
+            if not is_pdf:
+                LOGGER.error('[TDBG] Resposta nao e PDF (magic=%r) - primeiros 400 chars:\n%s',
+                             magic, resp.text[:400])
+                return
+
+            pdf_bytes = resp.content
+
+        # ── PASSO 6: extrair texto com pdfplumber ────────────────
+        with etapa('pdfplumber_extract'):
+            textos = []
+            with pdfplumber.open(_io.BytesIO(pdf_bytes)) as pdf:
+                n_pag = len(pdf.pages)
+                LOGGER.info('[TDBG] PDF aberto: %s paginas', n_pag)
+                for i, pag in enumerate(pdf.pages):
+                    t = pag.extract_text() or ''
+                    LOGGER.info('[TDBG]   pag %s/%s: %s chars', i + 1, n_pag, len(t))
+                    if t:
+                        textos.append(t)
+
+            texto_total = '\n'.join(textos).strip()
+            media = len(texto_total) / n_pag if n_pag else 0
+            LOGGER.info('[TDBG] texto nativo total: %s chars  media=%.0f chars/pag', len(texto_total), media)
+
+            if texto_total:
+                # salvar amostra
+                with open('triagem_debug_texto.txt', 'w', encoding='utf-8') as fh:
+                    fh.write(texto_total)
+                LOGGER.info('[TDBG] texto salvo em triagem_debug_texto.txt')
+            else:
+                LOGGER.warning('[TDBG] pdfplumber extraiu 0 chars (PDF pode ser escaneado/imagem)')
+
+        # ── PASSO 7: OCR fallback se necessario ──────────────────
+        if not texto_total:
+            with etapa('ocr_fallback'):
+                try:
+                    import fitz
+                    LOGGER.info('[TDBG] PyMuPDF (fitz) disponivel: %s', fitz.version)
+                except ImportError:
+                    LOGGER.warning('[TDBG] PyMuPDF nao instalado - OCR impossivel')
+                try:
+                    import pytesseract
+                    LOGGER.info('[TDBG] pytesseract disponivel')
+                except ImportError:
+                    LOGGER.warning('[TDBG] pytesseract nao instalado - OCR impossivel')
+
+        LOGGER.info('[TDBG] DEBUG concluido.')
+
+    except Exception:
+        LOGGER.exception('[TDBG] Erro nao tratado')
+    finally:
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
+# MAIN — seleciona qual teste executar
+# ============================================================
+
+_JS_PROBE_DOCUMENTO = """
+const idProcesso = arguments[0];
+const idDoc      = arguments[1];
+const callback   = arguments[2];
+
+(async function() {
+    var base = location.origin;
+    var hdrs = { 'Accept': 'application/json', 'X-Grau-Instancia': '1' };
+    var resultados = [];
+
+    var endpoints = [
+        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDoc + '?incluirAssinatura=true&incluirAnexos=true',
+        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDoc + '?incluirAssinatura=false&incluirAnexos=false',
+        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDoc + '/conteudo',
+        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDoc + '/conteudoHtml',
+        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/documento/' + idDoc + '/conteudo',
+        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/' + idDoc + '/conteudo',
+        base + '/pje-comum-api/api/processos/' + idProcesso + '/documentos/' + idDoc,
+    ];
+
+    for (var i = 0; i < endpoints.length; i++) {
+        var url = endpoints[i];
+        try {
+            var r = await fetch(url, { credentials: 'include', headers: hdrs });
+            var ctype = r.headers.get('Content-Type') || '';
+            var txt = await r.text();
+            var parsed = null;
+            var keys = [];
+            var campos_texto = {};
+            try {
+                parsed = JSON.parse(txt);
+                keys = Object.keys(parsed);
+                for (var k of ['conteudo', 'conteudoHtml', 'conteudoTexto', 'texto', 'html', 'previewModeloDocumento']) {
+                    if (parsed[k]) campos_texto[k] = String(parsed[k]).length;
+                }
+            } catch(e) {}
+            resultados.push({
+                url: url, status: r.status, ctype: ctype,
+                body_len: txt.length, keys: keys,
+                campos_texto: campos_texto,
+                preview: txt.slice(0, 400),
+                is_pdf: txt.slice(0, 5) === '%PDF-'
+            });
+        } catch(e) {
+            resultados.push({ url: url, erro: e.message });
+        }
+    }
+    callback(resultados);
+})();
+"""
+
+
+# ============================================================
+# TESTE 9: PROBE DOCUMENTO — diagnóstico raw de endpoint API
+# ============================================================
+
+def teste_probe_documento():
+    """
+    Probe direto: usa execute_async_script (JS com cookies do browser) para
+    bater em TODOS os endpoints possíveis do documento e mostrar status,
+    campos JSON e preview do corpo. Util para diagnosticar mudancas na API.
+    """
+    configurar_logging_debug()
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[PROBE_DOC] processo=%s  documento=%s', PROBE_ID_PROCESSO, PROBE_ID_DOC)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[PROBE_DOC] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[PROBE_DOC] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            navegar_para_tela(driver, url=PROCESS_URL_TRIAGEM)
+
+        with etapa('probe_endpoints'):
+            driver.set_script_timeout(45)
+            resultados = driver.execute_async_script(
+                _JS_PROBE_DOCUMENTO, PROBE_ID_PROCESSO, PROBE_ID_DOC)
+
+        LOGGER.info('[PROBE_DOC] --- Resultados por endpoint ---')
+        for r in (resultados or []):
+            if r.get('erro'):
+                LOGGER.warning('[PROBE_DOC] ERRO  %s  ->  %s', r['url'], r['erro'])
+                continue
+            status = r.get('status')
+            keys   = r.get('keys') or []
+            ctxt   = r.get('campos_texto') or {}
+            marker = '✓' if status == 200 else '✗'
+            LOGGER.info(
+                '[PROBE_DOC] %s HTTP %s  body=%s bytes  ctype=%s  is_pdf=%s  keys=%s  campos_texto=%s\n'
+                '           URL: %s\n'
+                '           preview: %s',
+                marker, status, r.get('body_len', 0),
+                r.get('ctype', ''), r.get('is_pdf', False),
+                keys[:10], ctxt,
+                r['url'],
+                r.get('preview', '')[:300],
+            )
+
+        # Salvar resultado completo
+        with open('probe_documento.json', 'w', encoding='utf-8') as fh:
+            json.dump(resultados, fh, ensure_ascii=False, indent=2)
+        LOGGER.info('[PROBE_DOC] Resultado completo salvo em probe_documento.json')
+
+    except Exception:
+        LOGGER.exception('[PROBE_DOC] Erro nao tratado')
+    finally:
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
 # MAIN — seleciona qual teste executar
 # ============================================================
 
@@ -593,6 +933,13 @@ if __name__ == '__main__':
         teste_pec_ord()
     elif teste in ('anex', 'anex_carta', 'carta', '7'):
         teste_anex_carta()
+    elif teste in ('triagem', 'bianca', '8'):
+        teste_triagem_peticao()
+    elif teste in ('probe', 'probe_doc', '9'):
+        teste_probe_documento()
+    elif teste in ('tdbg', 'triagem_debug', '10'):
+        url_arg = sys.argv[2] if len(sys.argv) > 2 else None
+        teste_triagem_debug(url_arg)
     elif teste in ('todos', 'all'):
         print('=== Executando todos os testes ===')
         print('\n--- TESTE 1: ARGOS ---')
@@ -609,6 +956,8 @@ if __name__ == '__main__':
         teste_pec_ord()
         print('\n--- TESTE 7: ANEX CARTA ---')
         teste_anex_carta()
+        print('\n--- TESTE 8: TRIAGEM ---')
+        teste_triagem_peticao()
     else:
         print(f'Teste desconhecido: {teste}')
-        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, todos')
+        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem, probe, tdbg, todos')

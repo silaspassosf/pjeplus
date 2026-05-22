@@ -355,7 +355,7 @@ REGEX_PATTERNS = {
     'embargos': re.compile(r'exequente, ora embargado', re.IGNORECASE),
     'pec': re.compile(r'hasta|saldo devedor', re.IGNORECASE),
     'descumprimento': re.compile(r'Ante a notícia de descumprimento', re.IGNORECASE),
-    'impugnacao': re.compile(r'impugnações apresentadas|impugnacoes apresentadas|homologo estes|fixando o crédito do autor em|referente ao principal|sob pena de sequestro|comprovar a quitação|comprovar o pagamento|a reclamada para pagamento da parcela pendente|intime-se a reclamada para pagamento das', re.IGNORECASE),
+    'impugnacao': re.compile(r'impugnações apresentadas|impugnacoes apresentadas|homologo estes|fixando o crédito do autor em|referente ao principal|sob pena de sequestro|comprovar a quitação|comprovar o pagamento|a reclamada para pagamento da parcela pendente|intime-se a reclamada para pagamento das|líquida a sentença, intime-se', re.IGNORECASE),
     'arquivamento': re.compile(r'arquivem-se os autos|remetam-se os autos ao aquivo|A pronúncia da prescrição intercorrente se trata|Se revê o novo sobrestamento|cumprido o acordo homologado|julgo extinta a presente execução, nos termos do art. 924', re.IGNORECASE),
     'bloqueio_convertido': re.compile(r'bloqueio realizado, ora convertido', re.IGNORECASE),
     'parcelamento': re.compile(r'sobre o preenchimento dos pressupostos legais para concessão do parcelamento', re.IGNORECASE),

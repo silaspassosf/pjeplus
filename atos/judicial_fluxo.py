@@ -544,12 +544,30 @@ def ato_judicial(
                 guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10, by=By.CSS_SELECTOR)
                 if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
                     guia_intimacoes.click()
+                    # Esperar o overlay desaparecer após clicar na aba
+                    time.sleep(0.5)
+                    driver.execute_script("""
+                        const backdropElements = document.querySelectorAll('.cdk-overlay-backdrop');
+                        backdropElements.forEach(el => {
+                            if (el.classList.contains('cdk-overlay-backdrop-showing')) {
+                                el.style.pointerEvents = 'none';
+                                el.style.display = 'none';
+                            }
+                        });
+                    """)
+                    time.sleep(0.3)
 
                 toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10, by=By.CSS_SELECTOR)
                 if toggle_intimar:
                     parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
                     if 'mat-checked' in parent_toggle.get_attribute('class'):
-                        toggle_intimar.click()
+                        # Tentar clicar no input ao invés da label (mais robusto contra overlays)
+                        try:
+                            input_checkbox = toggle_intimar.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                            driver.execute_script('arguments[0].click();', input_checkbox)
+                        except:
+                            # Fallback: clicar via JavaScript na label
+                            driver.execute_script('arguments[0].click();', toggle_intimar)
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" desativado.')
                 else:
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" já estava desativado.')
@@ -592,50 +610,42 @@ def ato_judicial(
             marcar_pec_bool = str(marcar_pec).lower() in ("sim", "true", "1", "yes")
             logger.info(f'[ATO][PEC] Parâmetro: marcar_pec={marcar_pec!r}')
             try:
-                pec_checkbox = None
+                pec_label = None
                 pec_input = None
                 
-                # Tentar múltiplas formas de encontrar o checkbox PEC (fallbacks)
-                pec_checkbox = esperar_elemento(driver, 'mat-checkbox[aria-label="Enviar para PEC"]', timeout=10, by=By.CSS_SELECTOR)
-                if pec_checkbox:
-                    pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                # NOVO: Procurar pela label com classe enviarPec (novo seletor)
+                pec_label = esperar_elemento(driver, 'label.enviarPec', timeout=10, by=By.CSS_SELECTOR)
+                if pec_label:
+                    pec_input = pec_label.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
                 else:
-                    pec_checkbox = esperar_elemento(driver, 'div.checkbox-pec mat-checkbox', timeout=5, by=By.CSS_SELECTOR)
+                    # Fallback: seletor antigo (mat-checkbox)
+                    pec_checkbox = esperar_elemento(driver, 'mat-checkbox[aria-label="Enviar para PEC"]', timeout=5, by=By.CSS_SELECTOR)
                     if pec_checkbox:
                         pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
                     else:
+                        # Fallback adicional
                         pec_input = esperar_elemento(driver, 'input[type="checkbox"][aria-label="Enviar para PEC"]', timeout=5, by=By.CSS_SELECTOR)
                         if pec_input:
-                            pec_checkbox = pec_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
+                            pec_label = pec_input.find_element(By.XPATH, './ancestor::label[contains(@class, "enviarPec")][1]')
                         else:
-                            pec_checkbox = None
-                            pec_input = None
+                            raise Exception("Checkbox PEC não encontrado")
                 
-                if not pec_checkbox or not pec_input:
-                    raise Exception("Checkbox PEC não encontrado")
+                if not pec_input:
+                    raise Exception("Checkbox PEC input não encontrado")
                 
                 # Verificar estado atual
-                is_checked = False
-                try:
-                    if (pec_input.get_attribute('aria-checked') == 'true' or 
-                        pec_input.get_attribute('checked') == 'true' or 
-                        pec_input.is_selected() or 
-                        'mat-checkbox-checked' in pec_checkbox.get_attribute('class')):
-                        is_checked = True
-                except Exception:
-                    is_checked = False
+                is_checked = pec_input.is_selected()
                 
                 logger.info(f'[ATO][PEC] Estado: {"marcado" if is_checked else "desmarcado"} → esperado: {"marcar" if marcar_pec_bool else "desmarcar"}')
                 
-                # Clicar checkbox PEC (usar safe_click_no_scroll em vez de scrollIntoView + click)
+                # Se o estado não corresponde ao esperado, clicar para ajustar
                 if marcar_pec_bool != is_checked:
-                    # Tentar clicar no label, se não funcionar clicar no checkbox
-                    try:
-                        label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
-                        safe_click_no_scroll(driver, label, log=False)
-                    except Exception:
-                        safe_click_no_scroll(driver, pec_checkbox, log=False)
-                        driver.execute_script('arguments[0].click();', pec_checkbox)
+                    # Priorizar clicar na label (mais seguro que o input)
+                    if pec_label:
+                        safe_click_no_scroll(driver, pec_label, log=False)
+                    else:
+                        # Fallback: clicar via JavaScript no input
+                        driver.execute_script('arguments[0].click();', pec_input)
 
                     logger.info(f'[ATO][PEC] {"Marcado" if marcar_pec_bool else "Desmarcado"}')
                 else:

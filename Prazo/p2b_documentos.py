@@ -395,7 +395,8 @@ def _definir_regras_processamento() -> List[Tuple]:
             'comprovar a quitação', 'comprovar o pagamento', 'comprovar recolhimento', 'comprovar recolhimentos',
             'a reclamada para pagamento da parcela pendente',
             'intime-se a reclamada para pagamento das', 'homologo os calculos',
-            'sob pena de prosseguimento da execução'
+            'sob pena de prosseguimento da execução',
+            'líquida a sentença, intime-se'
         ]],
          (_inicar_exec,),),
 
@@ -422,6 +423,7 @@ def _definir_regras_processamento() -> List[Tuple]:
             'Reitere-se a intimação para que o(a) reclamante apresente cálculos',
             'remessa ao sobrestamento, com fluência',
             'sob pena de sobrestamento e fluência do prazo prescricional',
+            'cinco dias para a parte exequente apresentar',
         ]],
          (ato_reitmeios,)),
 

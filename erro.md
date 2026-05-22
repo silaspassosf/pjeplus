@@ -2893,3 +2893,481 @@ clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.s
 receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
 
 
+
+## Execução 2026-05-18 09:21:51 — x_PC_Visible_20260518_092145.log
+
+- **ERROR** `[09:21:57]` `core:criar_driver_PC` — ERRO em criar_driver_PC: InvalidArgumentException: Message: binary is not a Firefox executable
+
+
+- **ERROR** `[09:21:57]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[09:21:57]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-05-18 09:22:09 — x_VT_Visible_20260518_092203.log
+
+- **ERROR** `[09:23:09]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha no login
+
+- **ERROR** `[09:23:14]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-05-18 10:14:06 — x_VT_Visible_20260518_101344.log
+
+
+## Execução 2026-05-18 10:14:54 — x_VT_Visible_20260518_101445.log
+
+- **ERROR** `[10:15:57]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[10:16:05]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[10:16:13]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+
+## Execução 2026-05-20 15:19:50 — x_VT_Visible_20260520_151945.log
+
+- **ERROR** `[15:20:27]` `extracao:filtrofases` — ERRO em filtrofases: Nao encontrou opcoes ['liquidação', 'execução'] no painel
+
+- **ERROR** `[15:20:38]` `extracao:filtrofases` — ERRO em filtrofases: Nao encontrou opcoes ['liquidação', 'execução'] no painel
+
+
+## Execução 2026-05-21 11:26:32 — x_VT_Visible_20260521_112623.log
+
+- **ERROR** `[11:28:00]` `loop_orquestrador:loop_prazo` — [LOOP_PRAZO] Erro crítico no ciclo1.
+
+
+## Execução 2026-05-21 11:31:15 — x_VT_Visible_20260521_113109.log
+
+- **ERROR** `[11:33:01]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[11:33:01]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+
+## Execução 2026-05-21 12:38:06 — x_VT_Visible_20260521_123802.log
+
+- **ERROR** `[12:45:41]` `judicial_fluxo:ato_judicial` — [ATO][MODELO] Erro ao preencher filtro do modelo: cannot access local variable 'e' where it is not associated with a value
+
+- **ERROR** `[12:46:19]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[12:46:49]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha na navegação via Análise: name 'ElementClickInterceptedException' is not defined
+
+- **ERROR** `[12:46:51]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[12:47:21]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha na navegação via Análise: name 'ElementClickInterceptedException' is not defined
+
+- **ERROR** `[12:47:21]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[12:47:21]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[12:48:34]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[12:49:14]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha na navegação via Análise: name 'ElementClickInterceptedException' is not defined
+
+- **ERROR** `[12:49:19]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[12:49:49]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha na navegação via Análise: name 'ElementClickInterceptedException' is not defined
+
+- **ERROR** `[12:49:49]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[12:49:49]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[12:50:56]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[12:50:56]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[12:52:49]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/6535044/tarefa/500/transicao
+
+- **ERROR** `[12:52:49]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/6535044/tarefa/500/transicao
+
+- **ERROR** `[12:53:02]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[12:53:23]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[12:53:23]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[12:54:36]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/6649723/tarefa/500/transicao
+
+- **ERROR** `[12:54:36]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/6649723/tarefa/500/transicao
+
+- **ERROR** `[12:54:48]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[12:55:08]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[12:55:08]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[12:55:59]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/6656535/tarefa/500/transicao
+
+- **ERROR** `[12:55:59]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/6656535/tarefa/500/transicao
+
+- **ERROR** `[12:56:12]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[12:56:31]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[12:56:31]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[13:01:17]` `loop_orquestrador:loop_prazo` — [LOOP_PRAZO] Erro crítico no ciclo1.
+
+- **ERROR** `[13:02:11]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[13:02:11]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[13:02:52]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[13:02:52]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[13:06:45]` `core:criar_driver_sisb_pc` — ERRO em criar_driver_sisb_pc: InvalidArgumentException: Message: binary is not a Firefox executable
+
+
+- **ERROR** `[13:06:58]` `core:criar_driver_sisb_pc` — ERRO em criar_driver_sisb_pc: InvalidArgumentException: Message: binary is not a Firefox executable
+
+
+
+## Execução 2026-05-21 17:47:48 — x_VT_Visible_20260521_174744.log
+
+- **ERROR** `[17:49:16]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[17:49:47]` `judicial_fluxo:ato_judicial` — [ATO][PEC] cannot access local variable 'e' where it is not associated with a value
+
+- **ERROR** `[17:50:32]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[17:50:32]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[17:51:03]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[17:51:34]` `judicial_fluxo:ato_judicial` — [ATO][PEC] cannot access local variable 'e' where it is not associated with a value
+
+- **ERROR** `[17:51:56]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: ('Connection aborted.', ConnectionResetError(10054, 'Foi forçado o cancelamento de uma conexão existente pelo host remoto', None, 10054, None))
+
+- **ERROR** `[17:51:56]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+
+## Execução 2026-05-21 17:56:18 — x_VT_Visible_20260521_175614.log
+
+
+## Execução 2026-05-21 17:56:27 — x_VT_Visible_20260521_175625.log
+
+- **ERROR** `[17:57:13]` `judicial_fluxo:ato_judicial` — [ATO][MODELO] Erro ao preencher filtro do modelo: cannot access local variable 'e' where it is not associated with a value
+
+
+## Execução 2026-05-21 17:57:23 — x_VT_Visible_20260521_175721.log
+
+- **ERROR** `[17:59:03]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[17:59:03]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[17:59:12]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[18:00:04]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[18:00:04]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[18:00:16]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[18:01:26]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[18:01:26]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[18:01:51]` `judicial_utils:preencher_prazos_destinatarios` — [PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!
+
+- **ERROR** `[18:01:51]` `judicial_fluxo:ato_judicial` — [ATO][PRAZO]  Falha ao preencher prazos
+
+- **ERROR** `[18:01:59]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+
+## Execução 2026-05-22 11:11:48 — x_VT_Visible_20260522_111141.log
+
+- **ERROR** `[11:12:41]` `judicial_fluxo:ato_judicial` — [ATO][MODELO] Erro ao preencher filtro do modelo: cannot access local variable 'e' where it is not associated with a value
+
+- **ERROR** `[11:14:12]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:14:56]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[11:14:56]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[11:16:17]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:16:19]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:22:37]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:23:21]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[11:23:21]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[11:24:36]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:24:58]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[11:24:58]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[11:25:46]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:26:40]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[11:26:40]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[11:28:36]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementclickinterceptedexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:354:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:28:59]` `wrappers_utils:_clicar_botao_visibilidade` — [VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[11:28:59]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+
+## Execução 2026-05-22 15:11:53 — x_VT_Visible_20260522_151139.log
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001674-68.2025.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000372-67.2026.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000842-98.2026.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001181-43.2015.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000101-10.2016.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001031-91.2017.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000677-32.2018.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001590-77.2019.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000300-76.2023.5.02.0609: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001940-89.2024.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001997-10.2024.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001334-27.2025.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001243-34.2025.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001783-82.2025.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001799-36.2025.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001811-50.2025.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001890-29.2025.5.02.0703: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:14:58]` `x:resetar_driver` — ERRO em resetar_driver: InvalidSessionIdException: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:15:26]` `extracao:filtrofases` — ERRO em filtrofases: Nao encontrou o seletor de fase processual
+
+- **ERROR** `[15:15:26]` `loop_orquestrador:loop_prazo` — [LOOP_PRAZO] Erro no wrapper: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:15:26]` `x:resetar_driver` — ERRO em resetar_driver: InvalidSessionIdException: Message: Tried to run command without establishing a connection; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+
+
+- **ERROR** `[15:17:28]` `core:criar_driver_sisb_pc` — ERRO em criar_driver_sisb_pc: InvalidArgumentException: Message: binary is not a Firefox executable
+
+

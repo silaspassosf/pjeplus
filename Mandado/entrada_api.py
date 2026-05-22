@@ -490,7 +490,7 @@ def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=Tr
 def _selecionar_checkbox_intimacao(driver: WebDriver, linha: WebElement, log: bool = True) -> bool:
     """Marca o checkbox da linha alvo usando poucas tentativas eficientes."""
     try:
-        checkbox_element = linha.find_element(By.CSS_SELECTOR, 'td:last-child div:not([hidden]) mat-checkbox')
+        checkbox_element = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox')
         input_checkbox = checkbox_element.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
     except Exception:
         return False
@@ -507,7 +507,7 @@ def _selecionar_checkbox_intimacao(driver: WebDriver, linha: WebElement, log: bo
             return input_checkbox.is_selected()
         except StaleElementReferenceException:
             try:
-                novo_input = linha.find_element(By.CSS_SELECTOR, 'td:last-child div:not([hidden]) mat-checkbox input[type="checkbox"]')
+                novo_input = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox input[type="checkbox"]')
                 return novo_input.is_selected()
             except Exception:
                 return False

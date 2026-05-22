@@ -23,6 +23,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from bianca.api_client import PjeApiClient, session_from_driver
 from bianca.triagem.preprocess import _strip_cabecalho_rodape
 from bianca.triagem.utils import _norm, logger as _parent_logger
+from Fix.variaveis import obter_texto_documento
 
 logger = logging.getLogger("bianca.triagem.coleta")
 
@@ -262,8 +263,19 @@ def _extrair_texto_pdf_api(
         if resp.status_code == 401:
             raise _ErroAutenticacao401(f"401 Unauthorized -- doc {id_doc}")
         resp.raise_for_status()
-        if "pdf" not in resp.headers.get("Content-Type", "").lower():
+        ctype = resp.headers.get("Content-Type", "").lower()
+        # Aceita PDF tanto por Content-Type quanto por magic bytes (%PDF-)
+        # A API pode retornar application/octet-stream em vez de application/pdf
+        is_pdf_by_type  = "pdf" in ctype
+        is_pdf_by_magic = resp.content[:5] == b"%PDF-"
+        if not is_pdf_by_type and not is_pdf_by_magic:
+            logger.warning(
+                "_extrair_texto_pdf_api: doc %s nao e PDF (Content-Type=%s, magic=%r)",
+                id_doc, ctype, resp.content[:8]
+            )
             return ""
+        if not is_pdf_by_type and is_pdf_by_magic:
+            logger.debug("_extrair_texto_pdf_api: doc %s detectado como PDF por magic bytes (Content-Type=%s)", id_doc, ctype)
 
         pdf_bytes = resp.content
         textos = []
@@ -387,35 +399,36 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         return resultado
 
     try:
-        texto_inicial_raw = client.documento_por_id(
-            id_processo, id_inicial, incluirAssinatura=True, incluirAnexos=False)
-        if texto_inicial_raw:
-            texto_inicial = texto_inicial_raw.get('conteudo') or ''
-            if not texto_inicial:
-                texto_inicial = texto_inicial_raw.get('conteudoHtml') or ''
-            if not texto_inicial:
-                texto_inicial = texto_inicial_raw.get('conteudoTexto') or ''
-            if not texto_inicial:
-                texto_inicial = texto_inicial_raw.get('texto') or ''
-            logger.debug('texto_inicial extraido: %s chars', len(texto_inicial))
+        # Usar funcao robusta que tenta multiplos campos e endpoints
+        texto_inicial = obter_texto_documento(client, id_processo, id_inicial) or ''
+        if texto_inicial:
+            logger.debug('texto_inicial extraido: %s chars via obter_texto_documento', len(texto_inicial))
         else:
-            texto_inicial = ''
+            logger.warning('AVISO: obter_texto_documento retornou vazio para documento %s. Tentando OCR fallback...', id_inicial)
     except Exception as e:
-        logger.warning("documento_por_id falhou: %s", e)
+        logger.warning("obter_texto_documento falhou: %s. Tentando OCR...", e)
         texto_inicial = ''
 
     # fallback OCR -- se API retornou texto vazio
     if not texto_inicial and id_inicial:
+        logger.info('FALLBACK: Tentando OCR para documento %s...', id_inicial)
         try:
             texto_inicial = _extrair_texto_pdf_api(client, id_processo, id_inicial) or ''
             if texto_inicial:
                 logger.debug('texto_inicial via OCR: %s chars', len(texto_inicial))
+            else:
+                logger.warning('AVISO: OCR retornou texto vazio para documento %s', id_inicial)
         except Exception as e:
             logger.warning('OCR fallback falhou: %s', e)
 
     # Stripar cabecalho/rodape
     if texto_inicial:
+        texto_antes = len(texto_inicial)
         texto_inicial = _strip_cabecalho_rodape(texto_inicial)
+        texto_depois = len(texto_inicial)
+        logger.debug('_strip_cabecalho_rodape: %s chars -> %s chars', texto_antes, texto_depois)
+        if texto_depois == 0:
+            logger.warning('ALERTA: _strip_cabecalho_rodape removeu TODO o conteúdo (tinha %s chars)', texto_antes)
     resultado['texto_inicial'] = texto_inicial
 
     # Coletar anexos (procuracao, documento identidade)
@@ -438,11 +451,12 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             texto_anx = ''
             if id_anx:
                 try:
-                    doc_anx = client.documento_por_id(id_processo, id_anx)
-                    if doc_anx:
-                        texto_anx = doc_anx.get('conteudo') or doc_anx.get('conteudoHtml') or ''
-                except Exception:
-                    pass
+                    # Usar funcao robusta que tenta multiplos campos e endpoints
+                    texto_anx = obter_texto_documento(client, id_processo, id_anx) or ''
+                    if texto_anx:
+                        logger.debug('anexo %s extraido: %s chars', id_anx, len(texto_anx))
+                except Exception as e:
+                    logger.debug('obter_texto_documento para anexo %s falhou: %s', id_anx, e)
                     
                 # Fallback: PDF + OCR (apenas para procuracao, para otimizar)
                 if not texto_anx and is_proc:
@@ -475,8 +489,14 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         id_cert = str(certidao.get('id') or certidao.get('idUnicoDocumento') or '')
         if id_cert:
             try:
-                texto_capa = _extrair_texto_pdf_api(client, id_processo, id_cert) or ''
-                logger.debug('certidao_distribuicao: %s chars', len(texto_capa))
+                # Tentar via API primeiro (pode ser HTML/texto)
+                texto_capa = obter_texto_documento(client, id_processo, id_cert) or ''
+                if not texto_capa:
+                    # Fallback para PDF via OCR
+                    logger.debug('certidao: obter_texto_documento retornou vazio, tentando PDF/OCR')
+                    texto_capa = _extrair_texto_pdf_api(client, id_processo, id_cert) or ''
+                if texto_capa:
+                    logger.debug('certidao_distribuicao: %s chars', len(texto_capa))
             except _ErroAutenticacao401 as e:
                 resultado['erro'] = 'ERRO_CRITICO_401: certidao %s -- %s' % (id_cert, e)
                 return resultado

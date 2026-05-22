@@ -186,10 +186,13 @@ def triagem_peticao(driver) -> str:
     logger.info('Iniciando triagem_peticao...')
     coleta = _coletar_textos_processo(driver)
     if coleta.get('erro'):
+        logger.error('Erro na coleta: %s', coleta['erro'])
         return "ERRO: %s" % coleta['erro']
 
     texto = coleta['texto_inicial']
     if not texto or len(texto) < 100:
+        logger.error('DIAGNÓSTICO: texto_inicial vazio ou muito curto. Tamanho: %s chars. Coleta completa: %s', 
+                     len(texto) if texto else 0, coleta)
         return 'ERRO: texto da peticao inicial extraido vazio ou muito curto'
 
     anexos = coleta['anexos']

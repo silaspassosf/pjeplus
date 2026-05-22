@@ -6,6 +6,7 @@ Utilitários e funções auxiliares para automação de processos.
 Contém funções de visibilidade de sigilosos e controle de sigilo.
 """
 
+import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -166,10 +167,29 @@ def _clicar_primeira_checkbox(driver, log):
 
 def _clicar_botao_visibilidade(driver, log):
     try:
-        btn_visibilidade = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]'))
-        )
-        btn_visibilidade.click()
+        # Novo seletor: button com aria-label="Remover visibilidade para Sigilo" (dentro do commentário)
+        # Esta é a seleção de visibilidade após sigilo ser marcado na timeline
+        btn_visibilidade = None
+        
+        # Tenta primeiro o novo seletor (aria-label)
+        try:
+            btn_visibilidade = WebDriverWait(driver, 3).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label*="visibilidade para Sigilo"]'))
+            )
+        except:
+            # Fallback: tenta pelo mattooltip antigo
+            btn_visibilidade = WebDriverWait(driver, 3).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]'))
+            )
+        
+        if not btn_visibilidade:
+            logger.error('[VISIBILIDADE][ERRO] Botão de visibilidade não encontrado')
+            return False
+            
+        driver.execute_script('arguments[0].scrollIntoView(true);', btn_visibilidade)
+        time.sleep(0.3)
+        driver.execute_script('arguments[0].click();', btn_visibilidade)
+        
         aguardar_renderizacao_nativa(driver, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"]', 'aparecer', 5)
         return True
     except Exception as e:

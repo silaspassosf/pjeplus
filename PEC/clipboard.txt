@@ -10,3 +10,83 @@ PROCESSO: 1000141-11.2024.5.02.0703
 
 ==================================================
 
+
+==================================================
+PROCESSO: 1000350-77.2024.5.02.0703
+==================================================
+    Id Pje: 41dd30a
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH177811175BR
+    Destinatario: FABIOLA CARLAN BUELTA
+    Data do envio: 15/05/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: d8e8a37
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH177811189BR
+    Destinatario: LUIZ FERNANDO BUELTA CAMARA LOPES
+    Data do envio: 15/05/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 8 dias (27/05/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040122244194000000452826803?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000457-87.2025.5.02.0703
+==================================================
+    Id Pje: 9875849
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH177888673BR
+    Destinatario: JOSE VALDIR DE OLIVEIRA
+    Data do envio: 16/05/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: 214d300
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH177888660BR
+    Destinatario: JOSE VALDIR DE OLIVEIRA
+    Data do envio: 16/05/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 15 dias (09/06/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001343-23.2024.5.02.0703
+==================================================
+    Id Pje: 5f8677e
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH177888792BR
+    Destinatario: MANOEL ROSENDO SOBRINHO
+    Data do envio: 16/05/2026
+    Data da entrega: 21/05/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 723299b
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH177888801BR
+    Destinatario: MANOEL ROSENDO SOBRINHO
+    Data do envio: 16/05/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente desconhecido no local
+
+Prazo: 15 dias (15/06/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26011515562348100000438353538?instancia=1
+==================================================
+

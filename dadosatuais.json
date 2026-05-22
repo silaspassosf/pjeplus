@@ -1,49 +1,67 @@
 {
   "numero": [
-    "1000866-97.2024.5.02.0703"
+    "1000413-54.2014.5.02.0703"
   ],
-  "id": 6191451,
+  "id": 357042,
   "autor": [
     {
-      "nome": "MARCOS PEREIRA CHIBA",
-      "cpfcnpj": "40223212881",
+      "nome": "JOSEILMA ENEAS DE ASSUNCAO",
+      "cpfcnpj": "05072293475",
       "advogado": {
-        "nome": "JOSE VICENTE DE SOUZA",
-        "cpf": "03999755865",
-        "oab": "SP109144"
+        "nome": "VIVIANE DIAS FIGUEIREDO",
+        "cpf": "31256958808",
+        "oab": "SP326997"
       }
     }
   ],
   "reu": [
     {
-      "nome": "TRANSWOLFF TRANSPORTES E TURISMO LTDA",
-      "cpfcnpj": "58322512000154",
+      "nome": "JUKA COSMETICOS LTDA",
+      "cpfcnpj": "09062367000104",
       "advogado": {
-        "nome": "JOSE NIVALDO SOUZA AZEVEDO",
-        "cpf": "66466261549",
-        "oab": "SP260693"
+        "nome": "VANESSA SANTOS MOREIRA VACCARI",
+        "cpf": "29748254860",
+        "oab": "SP266423"
       }
+    },
+    {
+      "nome": "GISELY LINHARES DE FARIAS",
+      "cpfcnpj": "01994677902",
+      "advogado": {
+        "nome": "VANESSA SANTOS MOREIRA VACCARI",
+        "cpf": "29748254860",
+        "oab": "SP266423"
+      }
+    },
+    {
+      "nome": "MAGIKA CABELEIREIROS E COMERCIO LTDA",
+      "cpfcnpj": "08989051000108"
     }
   ],
-  "terceiro": [],
+  "terceiro": [
+    {
+      "nome": "DEPARTAMENTO DE TRANSITO DETRAN"
+    }
+  ],
   "divida": {
-    "valor": "R$ 96.754,80",
-    "data": "04/03/2026"
+    "valor": "R$ 41.560,77",
+    "data": "21/05/2024"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "29/05/2024",
+  "dtAutuacao": "16/12/2014",
   "classeJudicial": {
-    "id": 116,
-    "codigo": "156",
-    "descricao": "Cumprimento de sentença",
-    "sigla": "CumSen",
-    "requerProcessoReferenciaCodigo": "OB",
-    "controlaValorCausa": false,
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
+    "pisoValorCausa": 64840.01,
     "ativo": true,
-    "idClasseJudicialPai": 115,
+    "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
   "labelFaseProcessual": "Execução",

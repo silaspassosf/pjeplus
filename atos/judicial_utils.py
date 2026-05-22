@@ -18,16 +18,8 @@ from datetime import datetime, timedelta
 def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=False, perito_nomes=None):
     """
     Preenche prazos para destinatários em uma tabela específica.
-    Ignora automaticamente destinatários configurados como "Domicílio Eletrônico".
+    Se apenas_primeiro=True, seleciona apenas o polo ativo (clicando no ícone verde).
     """
-    # Lista fixa de nomes de peritos
-    nomes_peritos_padrao = [
-        'ROGERIO APARECIDO ROSA',
-        # Adicione outros nomes fixos aqui se necessário
-    ]
-    if perito_nomes is None:
-        perito_nomes = nomes_peritos_padrao
-
     try:
         logger.info(f'[PRAZOS] Preenchendo prazos: {prazo}')
 
@@ -41,128 +33,57 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             logger.warning('[PRAZOS] Tabela de destinatários não carregou no tempo esperado')
             return False
 
-        # Encontra todas as linhas da tabela de destinatários
-        linhas = driver.find_elements(By.CSS_SELECTOR, 'table.t-class tr.ng-star-inserted')
-        if not linhas:
-            logger.error('[PRAZOS] Nenhuma linha de destinatário encontrada!')
-            return False
-
-        logger.info(f'[PRAZOS] Encontradas {len(linhas)} linhas de destinatários')
-
-        ativos = []
-        for tr in linhas:
+        # Se apenas_primeiro, clicar no botão "Selecionar polo ativo"
+        if apenas_primeiro:
             try:
-                # 1. VERIFICA SE É DOMICÍLIO ELETRÔNICO ANTES DE QUALQUER COISA
-                texto_linha = (tr.text or '').strip().upper()
-                is_domicilio_eletronico = 'DOMICÍLIO ELETRÔNICO' in texto_linha or 'DOMICILIO ELETRONICO' in texto_linha
-                
-                checkbox = tr.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Intimar parte"]')
-                nome_elem = tr.find_element(By.CSS_SELECTOR, '.destinario')
-                nome = nome_elem.text.strip().upper()
-
-                # Se for Domicílio Eletrônico, garante que está desmarcado e pula a linha
-                if is_domicilio_eletronico:
-                    if checkbox.get_attribute('aria-checked') == 'true':
-                        driver.execute_script("arguments[0].click();", checkbox)
-                        logger.info(f'[PRAZOS] Destinatário ignorado e desmarcado (Domicílio Eletrônico): {nome}')
-                    else:
-                        logger.info(f'[PRAZOS] Destinatário ignorado (Domicílio Eletrônico): {nome}')
-                    continue # Pula para a próxima linha da tabela
-
-                # 2. LÓGICA NORMAL PARA OS DEMAIS MEIOS (Diário, Sistema, etc.)
-                if checkbox.get_attribute('aria-checked') == 'true':
-                    ativos.append((tr, checkbox, nome))
-                    logger.info(f'[PRAZOS] Destinatário ativo encontrado: {nome}')
-                elif perito and nome in [n.upper() for n in perito_nomes]:
-                    driver.execute_script("arguments[0].click();", checkbox)
-                    logger.info(f'[PRAZOS] Perito ativado: {nome}')
-                    ativos.append((tr, checkbox, nome))
-
+                btn_polo_ativo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, 'selecionar-polo-ativo'))
+                )
+                safe_click_no_scroll(driver, btn_polo_ativo, log=False)
+                logger.info('[PRAZOS] Polo ativo selecionado - apenas primeiro destinatário marcado')
+                time.sleep(0.5)
             except Exception as e:
-                logger.warning(f'[PRAZOS] Erro ao processar linha: {e}')
-                continue
+                logger.warning(f'[PRAZOS] Não foi possível clicar em polo ativo: {e}')
 
-        if not ativos:
-            logger.error('[PRAZOS] Nenhum destinatário ativo (ou todos eram Domicílio Eletrônico)!')
-            return False
-
-        logger.info(f'[PRAZOS] {len(ativos)} destinatários ativos para preenchimento')
-
-        # Se apenas primeiro, desmarcar os outros
-        if apenas_primeiro and len(ativos) > 1:
-            logger.info('[PRAZOS] Mantendo apenas o primeiro destinatário...')
-            for i, (tr, checkbox, nome) in enumerate(ativos):
-                if i == 0:
-                    continue
-                try:
-                    driver.execute_script("arguments[0].click();", checkbox)
-                    logger.info(f'[PRAZOS] Destinatário {i+1} desmarcado: {nome}')
-                except Exception as e:
-                    logger.warning(f'[PRAZOS] Erro ao desmarcar destinatário {i+1}: {e}')
-            ativos = [ativos[0]]
-
-        # Preenche prazos usando JavaScript para múltiplos campos
-        campos_prazo = {}
-        for i, (tr, checkbox, nome) in enumerate(ativos):
-            try:
-                input_prazo = tr.find_element(By.CSS_SELECTOR, 'mat-form-field.prazo input[type="text"].mat-input-element')
-                campo_id = f'prazo_destinatario_{i}'
-                driver.execute_script("arguments[0].id = arguments[1];", input_prazo, campo_id)
-                campos_prazo[f'#{campo_id}'] = str(prazo)
-                logger.info(f'[PRAZOS] Preparado prazo {prazo} para destinatário: {nome}')
-            except Exception as e:
-                logger.warning(f'[PRAZOS] Erro ao preparar campo de prazo para {nome}: {e}')
-                continue
-
-        # Preenche todos os campos de uma vez usando preencher_multiplos_campos
-        if campos_prazo:
-            from Fix.selenium_base import preencher_multiplos_campos
-            resultado = preencher_multiplos_campos(driver, campos_prazo, log=True)
-            if all(resultado.values()):
-                logger.info(f'[PRAZOS] Todos os {len(campos_prazo)} campos de prazo preenchidos com sucesso')
-            else:
-                logger.warning(f'[PRAZOS] Alguns campos de prazo podem não ter sido preenchidos corretamente')
+        # Preenche todos os campos de prazo visíveis nas linhas selecionadas
+        try:
+            inputs_prazo = driver.find_elements(By.CSS_SELECTOR, 'mat-form-field.prazo input[type="text"].mat-input-element')
+            
+            if not inputs_prazo:
+                logger.warning('[PRAZOS] Nenhum campo de prazo encontrado')
                 return False
-        else:
-            logger.warning('[PRAZOS] Nenhum campo de prazo para preencher')
+            
+            logger.info(f'[PRAZOS] Encontrados {len(inputs_prazo)} campos de prazo')
+            
+            for i, input_elem in enumerate(inputs_prazo):
+                try:
+                    input_elem.clear()
+                    input_elem.send_keys(str(prazo))
+                    logger.info(f'[PRAZOS] Campo {i+1} preenchido com prazo: {prazo}')
+                except Exception as e:
+                    logger.warning(f'[PRAZOS] Erro ao preencher campo {i+1}: {e}')
+                    continue
+            
+            time.sleep(0.3)
+            
+        except Exception as e:
+            logger.warning(f'[PRAZOS] Erro ao preencher campos de prazo: {e}')
             return False
 
-        # Após preencher, tentar clicar em "Gravar"
+        # Clicar em "Gravar"
         try:
             logger.info('[PRAZOS] Tentando gravar prazos...')
 
-            driver.execute_script("""
-                const overlays = document.querySelectorAll('.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane');
-                overlays.forEach(overlay => {
-                    if (overlay.style) overlay.style.display = 'none';
-                });
-                const snackbars = document.querySelectorAll('snack-bar-container, simple-snack-bar');
-                snackbars.forEach(snack => {
-                    if (snack.style) snack.style.display = 'none';
-                });
-                document.body.style.overflow = 'visible';
-            """)
-
             btn_gravar_prazo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]"))
+                EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button')]"))
             )
 
-            if btn_gravar_prazo.is_displayed() and btn_gravar_prazo.is_enabled():
-                from Fix.selenium_base import safe_click_no_scroll
-                if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
-                    logger.info('[PRAZOS] Prazos gravados via safe_click_no_scroll')
-                else:
-                    logger.warning('[PRAZOS] Falha em safe_click_no_scroll, tentando .click()')
-                    btn_gravar_prazo.click()
-                    logger.info('[PRAZOS] Prazos gravados via Selenium')
-
-                time.sleep(1)
-                logger.info('[PRAZOS] Gravação de prazos concluída')
-            else:
-                logger.warning('[PRAZOS] Botão Gravar não está disponível')
+            safe_click_no_scroll(driver, btn_gravar_prazo, log=False)
+            logger.info('[PRAZOS] Prazos gravados')
+            time.sleep(1)
 
         except Exception as e:
-            logger.warning(f'[PRAZOS] Não foi possível gravar prazos automaticamente: {e}')
+            logger.warning(f'[PRAZOS] Não foi possível gravar prazos: {e}')
 
         logger.info('[PRAZOS] Preenchimento de prazos concluído')
         return True

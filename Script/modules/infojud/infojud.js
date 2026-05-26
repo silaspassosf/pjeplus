@@ -295,7 +295,6 @@
             // marca que esta aba PJe está pronta para recebimento de foco
             _gmSet('GOD_PJE_PRONTA', '1');
             if (atual >= filaDocs.length) {
-                mostrarNotificacao("Ciclo Infojud Finalizado!", '#28a745', true);
                 if (MODO_EXECUCAO !== 'DADOS') salvarGeralFinal();
                 exibirRelatorioFinal();
                 rodando = false; 
@@ -427,14 +426,10 @@
                     console.log('[Infojud] dados lidos', docAtual, d, 'MODO', MODO_EXECUCAO);
 
                     if (MODO_EXECUCAO === 'DADOS') {
-                        // Registra exatamente uma entrada por parte pesquisada (chave = documento pesquisado)
-                        // e respeita o tipo de origem: se foi CPF direto, tratar como Pessoa Física;
-                        // se foi CNPJ, tratar como Empresa + Sócio (quando houver).
                         const buscaDoc = docAtual || filaDocs[atual] || '';
                         const tipoOrigem = (d && d.tipoOrigem) ? d.tipoOrigem : (buscaDoc && buscaDoc.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
 
                         if (tipoOrigem === 'CPF_DIRETO') {
-                            // Para CPF direto, não usar qualquer info de empresa que eventualmente exista
                             const pf = {
                                 nome: d.nome || '',
                                 cpf: d.cpf || buscaDoc,
@@ -446,11 +441,8 @@
                             if (!dadosRelatorioKeys.has(buscaDoc)) {
                                 dadosRelatorioKeys.add(buscaDoc);
                                 dadosRelatorio.push(montarRelatorio(pf));
-                            } else {
-                                console.log('[Infojud] registro DADOS duplicado ignorado para doc', buscaDoc);
                             }
                         } else {
-                            // Origem CNPJ: registrar empresa + sócio (se houver). Não mesclar entradas de outras buscas.
                             const empresaEntry = {
                                 empresaNome: d.empresaNome || '',
                                 empresaEnderecoRaw: d.empresaEnderecoRaw || '',
@@ -466,8 +458,6 @@
                             if (!dadosRelatorioKeys.has(buscaDoc)) {
                                 dadosRelatorioKeys.add(buscaDoc);
                                 dadosRelatorio.push(montarRelatorio(empresaEntry));
-                            } else {
-                                console.log('[Infojud] registro DADOS duplicado ignorado para doc', buscaDoc);
                             }
                         }
 

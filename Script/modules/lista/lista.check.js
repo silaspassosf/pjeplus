@@ -321,17 +321,20 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
 }
 
 async function onCheckRowClick(doc) {
-    // ── CAMINHO 1: Documento principal — rolar e destacar na timeline ──
+    // ── CAMINHO 1: Documento principal — clicar link de texto (abre no painel inline) ──
     if (!doc.isAnexo) {
         const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
         if (elem) {
-            elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Clicar no link de texto (não o ícone _blank) — padrão idêntico ao Argos
+            const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
+            if (textLink) textLink.click();
+            // Highlight visual sem scrollIntoView (evita quebrar header Angular)
             const origBorder = elem.style.border;
             const origBg = elem.style.background;
             elem.style.transition = 'all 0.3s ease';
             elem.style.border = '2px solid #fbbf24';
             elem.style.background = '#fffbeb';
-            setTimeout(() => expandirAnexos(elem), 500);
+            setTimeout(() => expandirAnexos(elem), 600);
             setTimeout(() => {
                 elem.style.transition = 'all 0.5s ease';
                 elem.style.border = origBorder;

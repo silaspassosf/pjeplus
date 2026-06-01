@@ -68,11 +68,9 @@ function safeDispatch(el, type, opts) {
 // Expande a seção de anexos de um container da timeline
 async function expandirAnexos(container) {
     try {
-        const anexosRoot = container.querySelector('pje-timeline-anexos');
-        if (!anexosRoot) return false;
-        const toggle = anexosRoot.querySelector('div[name="mostrarOuOcultarAnexos"]');
+        if (container.querySelector('.tl-item-anexo')) return true;
+        const toggle = container.querySelector('button.botao-anexos');
         if (!toggle) return false;
-        if (toggle.getAttribute('aria-pressed') === 'true') return true;
         toggle.click();
         await sleep(400);
         return true;
@@ -323,21 +321,23 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
 }
 
 async function onCheckRowClick(doc) {
-    // ── CAMINHO 1: Documento principal com href direto (bypass UI) ──
-    if (!doc.isAnexo && doc.iconHref) {
-        window.open(doc.iconHref, '_blank');
-
-        // Destacar visualmente o item na timeline (SEM scrollIntoView para evitar layout shift)
+    // ── CAMINHO 1: Documento principal — rolar e destacar na timeline ──
+    if (!doc.isAnexo) {
         const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
         if (elem) {
+            elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const origBorder = elem.style.border;
+            const origBg = elem.style.background;
             elem.style.transition = 'all 0.3s ease';
-            elem.style.boxShadow = '0 0 0 3px #fbbf24';
+            elem.style.border = '2px solid #fbbf24';
+            elem.style.background = '#fffbeb';
+            setTimeout(() => expandirAnexos(elem), 500);
             setTimeout(() => {
-                elem.style.boxShadow = '';
-                elem.style.transition = '';
+                elem.style.transition = 'all 0.5s ease';
+                elem.style.border = origBorder;
+                elem.style.background = origBg;
+                setTimeout(() => { elem.style.transition = ''; }, 500);
             }, 3000);
-            // Expandir anexos automaticamente
-            setTimeout(() => expandirAnexos(elem), 800);
         }
         invalidarCacheTimeline();
         return;

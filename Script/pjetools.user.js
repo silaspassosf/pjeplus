@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.1.33
+// @version      2.1.34
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -23,7 +23,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=2.1.34
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js
@@ -38,7 +38,7 @@
 
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.1.33 loaded');
+    console.log('[Loader] PJe Tools Pro v2.1.34 loaded');
     if (window.self !== window.top) return;
 
     // W = window real da página (unsafeWindow quando disponível)

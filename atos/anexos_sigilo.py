@@ -59,20 +59,12 @@ def inserir_sigilo_individual(elemento, driver=None, debug=False):
         return links[-1]
 
     def _tem_sigilo():
-        # Indicador primário para anexos: ícone wpexplorer com classe tl-sigiloso
+        # Utiliza JavaScript para uma verificação instantânea, ignorando qualquer implicit_wait global do driver
+        script = "return arguments[0].querySelector('i.tl-sigiloso, a.is-sigiloso') !== null;"
         try:
-            if elemento.find_elements(By.CSS_SELECTOR, 'i.fa-wpexplorer.tl-sigiloso'):
-                return True
+            return driver.execute_script(script, elemento)
         except Exception:
-            pass
-        # Fallback: link com is-sigiloso
-        link = _link_documento()
-        if not link:
             return False
-        classes = (link.get_attribute('class') or '').lower()
-        if debug:
-            logger.info(f"[SIGILO_INSERIR] Classes link documento: {classes}")
-        return 'is-sigiloso' in classes
 
     try:
         # Se JÁ TEM SIGILO, retorna sucesso imediatamente (padrão inverso)
@@ -199,8 +191,9 @@ def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
         if log:
             logger.info('[VISIBILIDADE_LOTE] Abrindo modal de visibilidade...')
         try:
+            # Usando o seletor exato capturado no dump (aria-label)
             btn_vis = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fas.fa-plus.fa-lg.tl-nao-sigiloso'))
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Incluir visibilidade para Sigilo"]'))
             )
             driver.execute_script("arguments[0].click();", btn_vis)
             time.sleep(0.5)
@@ -226,7 +219,8 @@ def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
         if log:
             logger.info('[VISIBILIDADE_LOTE] Marcando todas as partes no modal...')
         try:
-            icone_header = modal.find_element(By.CSS_SELECTOR, 'i.fa.fa-check.botao-icone-titulo-coluna')
+            # Seleciona de forma prioritária o botão com aria-label "Marcar todas" (conforme dump)
+            icone_header = modal.find_element(By.CSS_SELECTOR, 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna')
             driver.execute_script("arguments[0].click();", icone_header)
             time.sleep(0.2)
         except Exception as e:
@@ -241,8 +235,9 @@ def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
             btn_salvar = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]'))
             )
-            btn_salvar.click()
-            aguardar_renderizacao_nativa(driver, 'simple-snack-bar', 'aparecer', 5)
+            driver.execute_script("arguments[0].click();", btn_salvar)
+            # Retirada do timeout inútil de aguardar_renderizacao_nativa ('simple-snack-bar') para agilizar
+
         except Exception as e:
             if log:
                 logger.error(f'[VISIBILIDADE_LOTE] Falha ao salvar: {e}')

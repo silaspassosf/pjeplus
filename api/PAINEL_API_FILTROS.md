@@ -127,7 +127,39 @@ const payload = {
 // ... fetch com XSRF
 ```
 
-### 4. Juízo Digital (chip booleano)
+### 4. Sobrestamento por processo após filtro por fase
+
+O endpoint geral retorna apenas a lista de processos e metadados do painel. O prazo real do sobrestamento deve ser obtido processo a processo em:
+
+- `GET /pje-comum-api/api/processos/id/{idProcesso}/sobrestamentos`
+
+#### Fluxo recomendado
+
+1. Use `POST /pje-comum-api/api/agrupamentotarefas/processos/todos` com:
+   - `idTarefa: [333]`
+   - `faseProcessualString: "Liquidação"`
+2. Se `/processos/todos` falhar ou não estiver disponível, use `PATCH /pje-comum-api/api/agrupamentotarefas/10/processos` com o mesmo filtro de fase
+3. Itere sobre os processos retornados e chame `/processos/id/{idProcesso}/sobrestamentos`
+4. Para cada resposta, selecione o item com `motivoSobrestamentoAtivo`
+5. Use `prazoExpiracao` para determinar se o sobrestamento venceu há mais de 80 dias ou se é anterior a uma data de corte
+
+> Nota: `/agrupamentotarefas/processos/todos` é um endpoint de lista global que costuma aceitar `POST`, enquanto `/agrupamentotarefas/10/processos` é o endpoint da fila local e aceita `PATCH`.
+
+#### Exemplo de filtro de prazo
+
+```javascript
+const corte = new Date('2026-04-15T00:00:00');
+if (new Date(item.prazoExpiracao) <= corte) {
+    // incluir processo
+}
+```
+
+#### Nota importante
+
+- `prazoExpirado` no resultado da lista geral não equivale ao prazo de sobrestamento do processo.
+- A fase processual (`faseProcessualString`) ajuda a reduzir o universo antes de buscar sobrestamentos por processo.
+
+### 5. Juízo Digital (chip booleano)
 
 ```javascript
 const payload = {

@@ -1363,7 +1363,21 @@ Retorna a lista de processos associados (apensos, dependentes, etc.).
 
 **Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/sobrestamentos`
 
-Retorna a lista de sobrestamentos (suspensões) aplicados ao processo.
+Retorna a lista de sobrestamentos (suspensões) aplicados ao processo. Cada item de sobrestamento pode conter:
+
+- `motivoSobrestamentoAtivo` — sinaliza o sobrestamento atual
+- `prazoExpiracao` — prazo do sobrestamento
+- `textoFinalExternoSobrestamento` — motivo legível
+- `idMotivoSobrestamento`
+
+**Observação:** não existe um endpoint agregado que retorne todos os prazos de sobrestamento de uma tarefa. O fluxo com a tarefa 333 deve ser:
+
+1. Consultar a lista geral de processos da tarefa 333 com filtro de fase
+   - `PATCH /pje-comum-api/api/agrupamentotarefas/processos/todos`
+   - use `idTarefa: [333]` e `faseProcessualString: "Liquidação"` para reduzir a lista
+2. Para cada processo retornado, chamar `GET /pje-comum-api/api/processos/id/{idProcesso}/sobrestamentos`
+3. Selecionar o item com `motivoSobrestamentoAtivo` e usar `prazoExpiracao`
+4. Filtrar por prazo vencido ou por prazo anterior a uma data de corte (ex: 15/04/2026)
 
 **Wrapper JS:** `apis.sobrestamentosProcesso`
 

@@ -321,6 +321,17 @@ def desmarcar_100(driver: WebDriver, id_processo: str) -> Optional[str]:
     if not nova_aba:
         return None
 
+    # Checar acesso-negado antes de prosseguir
+    try:
+        url_atual = driver.current_url or ""
+        if "acesso-negado" in url_atual.lower():
+            print(f"[TRIAGEM/ACOES] ⚠ desmarcar_100: acesso negado ({url_atual}) — fechando aba")
+            driver.close()
+            driver.switch_to.window(aba_detalhe)
+            return None
+    except Exception:
+        pass
+
     try:
         step_carac = esperar_elemento(
             driver,
@@ -557,7 +568,7 @@ def _marcar_aud(
         if rito.upper() == 'ATSUM':
             linha = esperar_elemento(
                 driver,
-                "//tr[.//span[contains(normalize-space(.), 'Una (rito sumarissimo)')]]",
+                "//tr[.//span[contains(normalize-space(.), 'Una (rito sumaríssimo)')]]",
                 by=By.XPATH,
                 timeout=10,
             )
@@ -609,17 +620,17 @@ def _marcar_aud(
 
         modal_confirmado = esperar_elemento(
             driver,
-            "//mat-dialog-container//*[self::h4 or self::h3][contains(normalize-space(.), 'Designacao Confirmada')]",
-            by=By.XPATH,
+            "div.container-conteudo h4",
+            by=By.CSS_SELECTOR,
             timeout=10,
         )
         if not modal_confirmado:
             raise Exception("Confirmacao de designacao de audiencia nao encontrada no dialogo")
-        
+
         btn_fechar = esperar_elemento(
             driver,
-            "//mat-dialog-container//button[.//span[normalize-space(.)='Fechar']]",
-            by=By.XPATH,
+            "div.container-botoes button",
+            by=By.CSS_SELECTOR,
             timeout=10,
         )
         if not btn_fechar:
@@ -697,11 +708,6 @@ def acao_bucket_a(
                 except Exception as e:
                     print(f"[TRIAGEM/A] ❌ Erro ao criar GIGS ({obs}): {e}")
 
-            try:
-                criar_gigs(driver, "", "", "Processo entrou sem audiencia, conferir marcacao e despacho")
-            except Exception as e:
-                print(f"[TRIAGEM/A] ⚠ Erro ao criar GIGS sem-aud: {e}")
-
             marcou_aud = _marcar_aud(driver, numero_formatado, rito, driver.current_window_handle)
             _print_saida_funcao(f"_marcar_aud[{numero_processo}]", marcou_aud)
             if not marcou_aud:
@@ -711,7 +717,7 @@ def acao_bucket_a(
             limpar_overlays_headless(driver)
 
             try:
-                from atos import ato_unap
+                from atos.wrappers_pec import ato_unap
                 print(f"[TRIAGEM/A] Executando ato_unap para {numero_processo}")
                 resultado_ato = ato_unap(driver, debug=True)
                 _print_saida_funcao(f"ato_unap[{numero_processo}]", resultado_ato)
@@ -730,11 +736,6 @@ def acao_bucket_a(
         if not aba_retificar:
             print(f"[TRIAGEM/A] ❌ Nao foi possivel abrir/usar aba retificar")
             return False, None
-
-        try:
-            criar_gigs(driver, "", "", "Processo entrou sem audiencia, conferir marcacao e despacho")
-        except Exception as e:
-            print(f"[TRIAGEM/A] ⚠ Erro ao criar GIGS sem-aud: {e}")
 
         marcou_aud = _marcar_aud(driver, numero_formatado, rito, aba_retificar)
         _print_saida_funcao(f"_marcar_aud[{numero_processo}]", marcou_aud)
@@ -773,7 +774,7 @@ def acao_bucket_a(
                 print(f"[TRIAGEM/A] ❌ Erro ao criar GIGS pos-aud ({obs}): {e}")
 
         try:
-            from atos import ato_100
+            from atos.wrappers_pec import ato_100
             print(f"[TRIAGEM/A] Executando ato_100 para {numero_processo}")
             resultado_ato = ato_100(driver, debug=True)
             _print_saida_funcao(f"ato_100[{numero_processo}]", resultado_ato)
@@ -857,7 +858,8 @@ def acao_bucket_c(
         True se todas as acoes foram executadas com sucesso.
     """
     try:
-        from bianca.atos_utils import mov_aud, pec_ord, pec_sum, pec_ordc, pec_sumc
+        from atos.wrappers_pec import pec_ord, pec_sum, pec_ordc, pec_sumc
+        from atos.movimentos_fluxo import movimentar_inteligente
         _PEC_MAP = {'pec_ord': pec_ord, 'pec_sum': pec_sum,
                     'pec_ordc': pec_ordc, 'pec_sumc': pec_sumc}
 
@@ -883,7 +885,7 @@ def acao_bucket_c(
 
         if ok:
             print(f"[TRIAGEM/C] Executando mov_aud para {numero_processo}")
-            resultado_mov = mov_aud(driver, debug=True)
+            resultado_mov = movimentar_inteligente(driver, destino='Aguardando audiência', debug=True)
             _print_saida_funcao(f"mov_aud[{numero_processo}]", resultado_mov)
             result = bool(resultado_mov)
             return result, "Direto - citado?" if result else None

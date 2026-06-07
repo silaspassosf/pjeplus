@@ -175,7 +175,7 @@ def _executar_fluxo(nome: str, fn: Callable[[Any], Any], driver: Any,
         resultado["tempo"] = time.time() - start_time
         status = "OK" if resultado.get("sucesso", False) else "FALHA"
         logger.info("[%s] %s (%.1fs)", nome.upper(), status, resultado['tempo'])
-        if nome.lower() in {"triagem", "dom"}:
+        if nome.lower() in {"triagem", "domicilio_eletronico"}:
             logger.info("[%s] resultado completo:\n%s",
                         nome.upper(),
                         pformat(resultado, width=120, sort_dicts=False))
@@ -190,6 +190,11 @@ def resetar_driver(driver) -> bool:
     """Reseta driver entre módulos"""
     try:
         logger.debug("resetando driver...")
+
+        # Fechar abas com acesso-negado antes de qualquer outra operacao
+        fechadas = _limpar_acesso_negado(driver)
+        if fechadas:
+            logger.info("[X] resetar_driver: %d aba(s) acesso-negado fechadas", fechadas)
 
         # Fechar abas extras
         abas = driver.window_handles
@@ -375,6 +380,31 @@ def executar_pec(driver, data_minima: Optional[str] = None) -> Dict[str, Any]:
     return _executar_fluxo("PEC", _fluxo, driver)
 
 
+def _limpar_acesso_negado(driver) -> int:
+    """Fecha abas com URL acesso-negado. Retorna numero de abas fechadas."""
+    fechadas = 0
+    try:
+        handles = list(driver.window_handles)
+        principal = handles[0] if handles else None
+        for h in handles[1:]:
+            try:
+                driver.switch_to.window(h)
+                if "acesso-negado" in (driver.current_url or "").lower():
+                    logger.info("[X] Fechando aba acesso-negado: %s", driver.current_url)
+                    driver.close()
+                    fechadas += 1
+            except Exception:
+                pass
+        if principal:
+            try:
+                driver.switch_to.window(principal)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning("[X] _limpar_acesso_negado erro: %s", e)
+    return fechadas
+
+
 def executar_triagem(driver) -> Dict[str, Any]:
     """Triagem Isolada — fluxo completo com análise pós-triagem e ações por alerta."""
     def _fluxo(d):
@@ -385,6 +415,22 @@ def executar_triagem(driver) -> Dict[str, Any]:
                     resultado.get('processados', 0),
                     resultado.get('total', '?'),
                     resultado.get('sucesso_count', '?'))
+
+        if resultado.get("critical_stop"):
+            motivo = resultado.get("critical_reason", "?")
+            logger.warning("[TRIAGEM] Parada critica (%s) — resetando driver e reiniciando...", motivo)
+            _limpar_acesso_negado(d)
+            resetar_driver(d)
+
+            resultado2 = run_triagem(d)
+            if resultado2 is None:
+                return None
+            logger.info("[TRIAGEM] Retry: processados=%s total=%s sucesso=%s",
+                        resultado2.get('processados', 0),
+                        resultado2.get('total', '?'),
+                        resultado2.get('sucesso_count', '?'))
+            return resultado2
+
         return resultado
 
     return _executar_fluxo("Triagem", _fluxo, driver,
@@ -403,17 +449,17 @@ def executar_pet(driver) -> Dict[str, Any]:
                           on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_pet retornou None"})
 
 
-def executar_dom(driver) -> Dict[str, Any]:
-    """Análise DOM — run_dom."""
+def executar_domicilio_eletronico(driver) -> Dict[str, Any]:
+    """Domicilio Eletronico — run_dom_api (API: conhecimento + chips DOM 274/275/302)."""
     def _fluxo(d):
-        from bianca.dom_engine import run_dom
-        resultado = run_dom(d)
+        from bianca.dom_engine import run_dom_api
+        resultado = run_dom_api(d)
         if resultado is None:
             return None
         return resultado
 
-    return _executar_fluxo("DOM", _fluxo, driver,
-                          on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_dom retornou None"})
+    return _executar_fluxo("Domicilio_Eletronico", _fluxo, driver,
+                          on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_dom_api retornou None"})
 
 
 def executar_p2b(driver) -> Dict[str, Any]:
@@ -428,6 +474,11 @@ def executar_p2b(driver) -> Dict[str, Any]:
             logger.debug("[P2B] numeros dos processos: %s", numeros_processos)
 
         resultado = processar_gigs_sem_prazo_p2b(d, tamanho_pagina=100, max_processos=0)
+
+        if resultado.get('critical_stop'):
+            logger.warning("[P2B] Sessao expirada (401) — resetando driver e retentando")
+            resetar_driver(d)
+            resultado = processar_gigs_sem_prazo_p2b(d, tamanho_pagina=100, max_processos=0)
 
         logger.debug("[P2B] processamento individual concluido")
         sucesso = resultado.get('sucesso', False)
@@ -445,68 +496,50 @@ def executar_p2b(driver) -> Dict[str, Any]:
 # ============================================================================
 
 def menu_ambiente() -> Optional[Tuple[DriverType, bool]]:
-    """Menu 1: Selecionar Ambiente"""
-    logger.info("")
-    logger.info("=" * 80)
-    logger.info("MENU 1: SELECIONAR AMBIENTE")
-    logger.info("=" * 80)
-    logger.info("A - PC + Visivel (1.py)")
-    logger.info("B - PC + Headless (1b.py)")
-    logger.info("C - VT + Visivel (2.py)")
-    logger.info("D - VT + Headless (2b.py)")
-    logger.info("[DEBUG] Adicione 'D' no final para modo debug interativo")
-    logger.info("         Ex: 'DD' = VT Headless + Debug ativo")
-    logger.info("X - Cancelar")
-    logger.info("=" * 80)
+    """Menu 1: Selecionar Ambiente (versão limpa)."""
+    print("\nAmbiente:")
+    print("A - PC Visível")
+    print("B - PC Headless")
+    print("C - VT Visível")
+    print("D - VT Headless")
+    print("X - Cancelar")
+    opcao = input("> ").strip().upper()
 
-    while True:
-        opcao = input("\n Escolha um ambiente (A/B/C/D/X ou AD/BD/CD/DD para debug): ").strip().upper()
+    debug_mode = opcao.endswith('D') and len(opcao) > 1
+    if debug_mode:
+        opcao = opcao[0]
 
-        #  NOVO: Detectar modo debug
-        debug_mode = opcao.endswith('D') and len(opcao) > 1
-        if debug_mode:
-            opcao = opcao[0]  # Remove 'D' do final
-
-        if opcao == "X":
-            return None
-        elif opcao == "A":
-            return DriverType.PC_VISIBLE, debug_mode
-        elif opcao == "B":
-            return DriverType.PC_HEADLESS, debug_mode
-        elif opcao == "C":
-            return DriverType.VT_VISIBLE, debug_mode
-        elif opcao == "D":
-            return DriverType.VT_HEADLESS, debug_mode
-        else:
-            logger.info("opcao invalida!")
+    if opcao == "A":
+        return DriverType.PC_VISIBLE, debug_mode
+    elif opcao == "B":
+        return DriverType.PC_HEADLESS, debug_mode
+    elif opcao == "C":
+        return DriverType.VT_VISIBLE, debug_mode
+    elif opcao == "D":
+        return DriverType.VT_HEADLESS, debug_mode
+    elif opcao == "X":
+        return None
+    else:
+        return None
 
 
 def menu_execucao() -> Optional[str]:
-    """Menu 2: Selecionar Fluxo"""
-    logger.info("")
-    logger.info("=" * 80)
-    logger.info("MENU 2: SELECIONAR FLUXO DE EXECUCAO")
-    logger.info("=" * 80)
-    logger.info("A - Bloco Completo (Mandado + Prazo + PEC)")
-    logger.info("B - Mandado Isolado")
-    logger.info("C - Prazo Isolado (ciclo1+2+3 + P2B)")
-    logger.info("D - P2B Isolado")
-    logger.info("E - PEC Isolado")
-    logger.info("F - Triagem Isolada (analise pos-triagem com alertas)")
-    logger.info("G - Peticao Isolada (escaninho)")
-    logger.info("H - Analise DOM (run_dom)")
-    logger.info("X - Cancelar")
-    logger.info("=" * 80)
+    """Menu 2: Selecionar Fluxo (versão limpa)."""
+    print("\nFluxo:")
+    print("A - Bloco Completo")
+    print("B - Mandado")
+    print("C - Prazo + P2B")
+    print("D - P2B")
+    print("E - PEC")
+    print("F - Triagem")
+    print("G - Petição")
+    print("H - Domicílio Eletrônico")
+    print("X - Cancelar")
+    opcao = input("> ").strip().upper()
 
-    while True:
-        opcao = input("\n Escolha um fluxo (A/B/C/D/E/F/G/H/X): ").strip().upper()
-
-        if opcao == "X":
-            return None
-        elif opcao in ["A", "B", "C", "D", "E", "F", "G", "H"]:
-            return opcao
-        else:
-            logger.info("opcao invalida!")
+    if opcao in ["A","B","C","D","E","F","G","H","X"]:
+        return opcao if opcao != "X" else None
+    return None
 
 
 def selecionar_ambiente_e_fluxo() -> Optional[Tuple[DriverType, bool, str]]:
@@ -627,7 +660,7 @@ FLOW_HANDLERS = {
     "E": executar_pec,
     "F": executar_triagem,
     "G": executar_pet,
-    "H": executar_dom,
+    "H": executar_domicilio_eletronico,
 }
 
 

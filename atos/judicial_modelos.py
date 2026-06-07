@@ -194,6 +194,8 @@ def verificar_estado_atual(driver: WebDriver) -> str:
         return 'minutar'
     elif '/conclusao' in current_url:
         return 'conclusao'
+    elif '/detalhe' in current_url:
+        return 'detalhe'
     else:
         return 'outro'
 

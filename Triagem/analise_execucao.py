@@ -783,11 +783,6 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
                 except Exception as e:
                     logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS (%s): %s", obs, e)
 
-            try:
-                criar_gigs(driver, "", "", "Processo entrou sem audiencia, conferir marcacao e despacho")
-            except Exception as e:
-                logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS sem-aud: %s", e)
-
             marcar_aud(driver, numero_formatado, rito, driver.current_window_handle)
             limpar_overlays_headless(driver)
 
@@ -806,11 +801,6 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
         if not aba_retificar:
             logger.error("ERRO em acao_bucket_a: Nao foi possivel abrir/usar aba retificar")
             return False
-
-        try:
-            criar_gigs(driver, "", "", "Processo entrou sem audiencia, conferir marcacao e despacho")
-        except Exception as e:
-            logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS sem-aud: %s", e)
 
         marcar_aud(driver, numero_formatado, rito, aba_retificar)
 

@@ -3371,3 +3371,2096 @@ dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
 - **ERROR** `[15:17:28]` `core:criar_driver_sisb_pc` — ERRO em criar_driver_sisb_pc: InvalidArgumentException: Message: binary is not a Firefox executable
 
 
+
+## Execução 2026-05-26 12:18:06 — x_PC_Visible_20260526_121803.log
+
+- **ERROR** `[12:18:58]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+
+## Execução 2026-05-26 15:19:12 — x_PC_Visible_20260526_151909.log
+
+- **ERROR** `[15:21:02]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[15:21:18]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8022807/tarefa/500/transicao
+
+- **ERROR** `[15:21:18]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8022807/tarefa/500/transicao
+
+- **ERROR** `[15:21:31]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[15:22:01]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha na navegação via Análise: name 'ElementClickInterceptedException' is not defined
+
+- **ERROR** `[15:22:01]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[15:22:01]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[15:22:39]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[15:23:14]` `judicial_fluxo:ato_judicial` — [ATO][MODELO] Botão inserir não encontrado após 5 tentativas!
+
+- **ERROR** `[15:23:55]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[15:24:28]` `judicial_fluxo:ato_judicial` — [ATO][MODELO] Botão inserir não encontrado após 5 tentativas!
+
+- **ERROR** `[15:24:32]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[15:25:16]` `judicial_fluxo:ato_judicial` — [ATO][MODELO] Botão inserir não encontrado após 5 tentativas!
+
+- **ERROR** `[15:26:12]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[15:26:27]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/7447193/tarefa/500/transicao
+
+- **ERROR** `[15:26:27]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/7447193/tarefa/500/transicao
+
+- **ERROR** `[15:26:40]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:202:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+
+- **ERROR** `[15:27:10]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha na navegação via Análise: name 'ElementClickInterceptedException' is not defined
+
+- **ERROR** `[15:27:10]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[15:27:10]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+
+## Execução 2026-05-26 18:36:59 — x_PC_Visible_20260526_183655.log
+
+- **ERROR** `[18:37:00]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[18:37:00]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[18:37:00]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-05-26 18:37:37 — x_PC_Visible_20260526_183730.log
+
+- **ERROR** `[18:39:27]` `wrappers_utils:_selecionar_polo` — [VISIBILIDADE][ERRO] Falha ao selecionar polo: Message: 
+
+
+- **ERROR** `[18:39:27]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+
+## Execução 2026-05-26 18:58:08 — x_PC_Visible_20260526_185804.log
+
+- **ERROR** `[19:00:09]` `wrappers_utils:_selecionar_polo` — [VISIBILIDADE][ERRO] Falha ao selecionar polo: Message: 
+
+
+- **ERROR** `[19:00:09]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[19:01:20]` `wrappers_utils:_selecionar_polo` — [VISIBILIDADE][ERRO] Falha ao selecionar polo: Message: 
+
+
+- **ERROR** `[19:01:20]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[19:05:18]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:05:18]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:05:18]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+- **ERROR** `[19:05:35]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:05:35]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:05:35]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+
+## Execução 2026-05-26 22:04:37 — x_PC_Visible_20260526_220430.log
+
+- **ERROR** `[22:05:49]` `extracao:criar_gigs` — ERRO em criar_gigs: TimeoutException: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:06:15]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//mat-dialog-container//*[self::h4 or self::h3][contains(normalize-space(.), 'Designacao Confirmada')]' (by=xpath, timeout=15, texto=None) -> Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:06:23]` `extracao:criar_comentario` — ERRO em criar_comentario: WebDriverException: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[22:06:31]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:06:31]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:06:39]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:06:39]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:06:47]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:06:47]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:06:55]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:06:55]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:03]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:03]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:12]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:12]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:20]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:20]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:28]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:28]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:36]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:36]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:44]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:44]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:52]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:07:52]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:00]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:00]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:08]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:08]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:16]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:16]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:24]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:24]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:32]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:32]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:40]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:40]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:48]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:48]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:56]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:08:56]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-26 22:30:48 — x_PC_Visible_20260526_223044.log
+
+- **ERROR** `[22:31:37]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,196) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[22:32:56]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//tr[.//span[contains(normalize-space(.), 'Una (rito sumarissimo)')]]' (by=xpath, timeout=15, texto=None) -> Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:33:41]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//tr[.//span[contains(normalize-space(.), 'Una (rito sumarissimo)')]]' (by=xpath, timeout=15, texto=None) -> Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:34:54]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8670245/tarefa/500/transicao
+
+- **ERROR** `[22:34:54]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8670245/tarefa/500/transicao
+
+- **ERROR** `[22:35:07]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:36:45]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8672760/tarefa/500/transicao
+
+- **ERROR** `[22:36:45]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8672760/tarefa/500/transicao
+
+- **ERROR** `[22:36:58]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:41:43]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8677717/tarefa/500/transicao
+
+- **ERROR** `[22:41:43]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8677717/tarefa/500/transicao
+
+- **ERROR** `[22:41:56]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:43:14]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//tr[.//span[contains(normalize-space(.), 'Una (rito sumarissimo)')]]' (by=xpath, timeout=15, texto=None) -> Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:45:00]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:47:16]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8679101/tarefa/500/transicao
+
+- **ERROR** `[22:47:16]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8679101/tarefa/500/transicao
+
+- **ERROR** `[22:47:29]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:48:49]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//tr[.//span[contains(normalize-space(.), 'Una (rito sumarissimo)')]]' (by=xpath, timeout=15, texto=None) -> Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:49:46]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8679625/tarefa/500/transicao
+
+- **ERROR** `[22:49:46]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8679625/tarefa/500/transicao
+
+- **ERROR** `[22:49:58]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[22:52:18]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8680971/tarefa/500/transicao
+
+- **ERROR** `[22:52:18]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8680971/tarefa/500/transicao
+
+- **ERROR** `[22:52:31]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+
+## Execução 2026-05-26 23:54:58 — x_PC_Visible_20260526_235451.log
+
+- **ERROR** `[23:55:54]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//tr[.//span[contains(normalize-space(.), 'Una (rito sumarissimo)')]]' (by=xpath, timeout=15, texto=None) -> Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[23:56:39]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//tr[.//span[contains(normalize-space(.), 'Una (rito sumarissimo)')]]' (by=xpath, timeout=15, texto=None) -> Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[23:56:45]` `extracao:criar_comentario` — ERRO em criar_comentario: WebDriverException: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[23:56:53]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:56:53]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:57:01]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:57:01]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:57:09]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:57:09]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-26 23:57:17 — x_PC_Visible_20260526_235713.log
+
+- **ERROR** `[23:58:12]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//tr[.//span[contains(normalize-space(.), 'Una (rito sumarissimo)')]]' (by=xpath, timeout=15, texto=None) -> Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[23:58:32]` `extracao:criar_comentario` — ERRO em criar_comentario: WebDriverException: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[23:58:40]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:58:40]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:58:48]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:58:48]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:58:56]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:58:56]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:59:04]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:59:04]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:59:12]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:59:12]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:59:20]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:59:20]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:59:28]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:59:28]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-27 00:04:51 — x_PC_Visible_20260527_000447.log
+
+- **ERROR** `[00:05:58]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8678270/tarefa/500/transicao
+
+- **ERROR** `[00:05:58]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8678270/tarefa/500/transicao
+
+- **ERROR** `[00:06:10]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:439:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:38:4
+dispatch@chrome://remote/content/marionette/server.sys.mjs:311:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[00:06:10]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Erro na navegação para conclusão: Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:439:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:38:4
+dispatch@chrome://remote/content/marionette/server.sys.mjs:311:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[00:06:10]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[00:06:10]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[00:06:10]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:10]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:18]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:18]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:26]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:26]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:34]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:34]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:42]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:42]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:50]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:50]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:58]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:06:58]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:07:06]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:07:06]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-27 00:18:48 — x_PC_Visible_20260527_001845.log
+
+- **ERROR** `[00:21:02]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[00:21:02]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:10]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:10]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:18]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:18]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:26]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:26]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:34]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:34]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:42]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:42]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:51]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:21:51]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-27 00:37:37 — x_PC_Visible_20260527_003732.log
+
+- **ERROR** `[00:41:17]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:41:17]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:41:25]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:41:25]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:41:33]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:41:33]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:41:41]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:41:41]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-27 00:45:48 — x_PC_Visible_20260527_004544.log
+
+- **ERROR** `[00:47:14]` `extracao:criar_comentario` — ERRO em criar_comentario: WebDriverException: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[00:47:22]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:47:22]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:47:30]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:47:30]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:47:38]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:47:38]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:47:46]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:47:46]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-27 00:49:28 — x_PC_Visible_20260527_004925.log
+
+- **ERROR** `[00:51:54]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:51:54]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:52:02]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:52:02]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:52:10]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:52:10]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:52:18]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:52:18]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-27 00:53:14 — x_PC_Visible_20260527_005311.log
+
+- **ERROR** `[00:54:20]` `extracao:criar_comentario` — ERRO em criar_comentario: WebDriverException: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[00:54:28]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:54:28]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:54:36]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:54:36]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:54:44]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:54:44]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:54:52]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:54:52]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:55:00]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:55:00]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-27 01:06:45 — x_PC_Visible_20260527_010638.log
+
+
+## Execução 2026-05-27 01:32:58 — x_PC_Visible_20260527_013254.log
+
+- **ERROR** `[01:34:41]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[01:34:50]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[01:38:23]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/minutar". URL atual: https://pje.trt2.jus.br/pjekz/acesso-negado
+
+- **ERROR** `[01:38:23]` `judicial_modelos:aguardar_transicao_minutar` — [CONCLUSÃO] URL não mudou para /minutar: https://pje.trt2.jus.br/pjekz/acesso-negado
+
+- **ERROR** `[01:38:23]` `judicial_fluxo:fluxo_cls` — [CLS] Falha na transição para minutar
+
+- **ERROR** `[01:38:23]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+
+## Execução 2026-05-27 10:24:46 — x_PC_Visible_20260527_102440.log
+
+
+## Execução 2026-05-27 10:26:58 — x_PC_Visible_20260527_102655.log
+
+- **ERROR** `[10:27:38]` `carta_execucao:coletar_tabela_ecarta` — [CARTA][ERRO] Não estamos na aba correta do eCarta!
+
+- **ERROR** `[10:27:38]` `carta_execucao:coletar_tabela_ecarta` — [CARTA][ERRO] URL atual: about:blank
+
+- **ERROR** `[10:27:38]` `carta_execucao:carta` — [CARTA] Nenhuma correlacao encontrada no eCarta.
+
+
+## Execução 2026-05-28 11:16:49 — x_PC_Visible_20260528_111646.log
+
+- **ERROR** `[11:16:50]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[11:16:50]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[11:16:50]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-05-28 11:17:14 — x_PC_Visible_20260528_111711.log
+
+- **ERROR** `[11:18:37]` `judicial_fluxo:ato_judicial` — [ATO][SALVAR] Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base mat-primary ng-star-inserted"> is not clickable at point (994,153) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:19:32]` `judicial_fluxo:ato_judicial` — [ATO][SALVAR] Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base mat-primary ng-star-inserted"> is not clickable at point (994,153) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:22:12]` `judicial_fluxo:ato_judicial` — [ATO][SALVAR] Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base mat-primary ng-star-inserted"> is not clickable at point (994,153) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[11:24:13]` `judicial_fluxo:ato_judicial` — [ATO][MODELO] Erro ao inserir modelo: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[11:25:10]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[11:28:23]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+
+## Execução 2026-05-28 14:05:39 — x_PC_Visible_20260528_140535.log
+
+- **ERROR** `[14:08:11]` `carta_execucao:carta` — [CARTA] Juntada automatica falhou ou foi pulada.
+
+- **ERROR** `[14:16:26]` `wrappers_utils:_selecionar_polo` — [VISIBILIDADE][ERRO] Falha ao selecionar polo: Message: 
+
+
+- **ERROR** `[14:16:26]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[14:20:49]` `wrappers_utils:_ativar_multipla_selecao` — [VISIBILIDADE][ERRO] Falha ao ativar múltipla seleção: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:20:49]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[14:32:24]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/minutas". URL atual: https://pje.trt2.jus.br/pjekz/acesso-negado
+
+- **ERROR** `[14:33:05]` `extracao:_bndt_abrir_menu` — Menu hambúrguer não encontrado
+
+- **ERROR** `[14:33:15]` `extracao:_bndt_clicar_icone` — Ícone BNDT não encontrado
+
+- **ERROR** `[14:33:30]` `extracao:bndt` — ERRO na operação Inclusão: Message: 
+
+
+
+## Execução 2026-05-29 21:17:58 — x_PC_Visible_20260529_211755.log
+
+- **ERROR** `[21:17:59]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[21:17:59]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[21:17:59]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-05-29 21:18:19 — x_PC_Visible_20260529_211814.log
+
+- **ERROR** `[21:18:58]` `runtime_pet:_executar_bucket_analise` — [PET_EXEC] analise 1001475-46.2025.5.02.0703: Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:439:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:38:4
+dispatch@chrome://remote/content/marionette/server.sys.mjs:311:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[21:18:58]` `utils:handle_exception_with_recovery` — [PET_RUN] Erro: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[21:18:58]` `runtime_pet:run_pet` — [PET] Erro geral no run_pet: Message: Failed to decode response from marionette
+
+
+
+## Execução 2026-05-29 21:19:06 — x_PC_Visible_20260529_211901.log
+
+- **ERROR** `[21:36:11]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted"> is not clickable at point (708,196) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[21:45:22]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+
+## Execução 2026-05-30 10:50:49 — x_PC_Visible_20260530_105044.log
+
+- **ERROR** `[10:52:23]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[aria-label="Salvar"]' (by=css selector, timeout=10, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-05-30 10:59:04 — x_PC_Visible_20260530_105901.log
+
+
+## Execução 2026-05-30 11:11:05 — x_PC_Visible_20260530_111102.log
+
+- **ERROR** `[11:12:25]` `wrappers_utils:_selecionar_polo` — [VISIBILIDADE][ERRO] Falha ao selecionar polo: Message: 
+
+
+- **ERROR** `[11:12:25]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[11:13:08]` `wrappers_utils:visibilidade_sigilosos` — [VISIBILIDADE][ERRO] Falha ao aplicar visibilidade (função principal): Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:439:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:38:4
+dispatch@chrome://remote/content/marionette/server.sys.mjs:311:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[11:13:08]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[11:13:08]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=7, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:13:08]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=3, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:13:08]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+
+## Execução 2026-05-30 11:17:13 — x_PC_Visible_20260530_111709.log
+
+- **ERROR** `[11:17:18]` `utils:carregar_cookies_sessao` — ERRO em carregar_cookies_sessao: InvalidSessionIdException: Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:439:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:38:4
+dispatch@chrome://remote/content/marionette/server.sys.mjs:311:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[11:17:18]` `utils:login_cpf` — ERRO em login_cpf: WebDriverException: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[11:17:18]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha no login
+
+- **ERROR** `[11:17:18]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-05-30 11:17:25 — x_PC_Visible_20260530_111721.log
+
+
+## Execução 2026-05-30 11:34:31 — x_PC_Visible_20260530_113426.log
+
+
+## Execução 2026-05-30 16:56:49 — x_PC_Visible_20260530_165646.log
+
+- **ERROR** `[16:57:20]` `judicial_fluxo:ato_judicial` — [ATO][MODELO] Erro ao preencher filtro do modelo: cannot access local variable 'e' where it is not associated with a value
+
+
+## Execução 2026-05-30 16:59:41 — x_PC_Visible_20260530_165938.log
+
+
+## Execução 2026-05-31 16:56:36 — x_PC_Visible_20260531_165628.log
+
+- **ERROR** `[16:59:05]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[17:01:29]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[17:02:15]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[17:02:58]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[17:05:14]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[17:07:54]` `judicial_fluxo:ato_judicial` — [ATO][SALVAR] Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base mat-primary ng-star-inserted"> is not clickable at point (994,153) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[17:08:38]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+
+## Execução 2026-06-02 10:40:22 — x_PC_Visible_20260602_104008.log
+
+- **ERROR** `[10:40:23]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[10:40:24]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[10:40:24]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-02 10:42:52 — x_PC_Visible_20260602_104246.log
+
+- **ERROR** `[10:45:54]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8704943/tarefa/500/transicao
+
+- **ERROR** `[10:45:54]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8704943/tarefa/500/transicao
+
+- **ERROR** `[10:46:07]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[10:48:54]` `extracao:criar_comentario` — ERRO em criar_comentario: TimeoutException: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[10:49:26]` `extracao:criar_gigs` — ERRO em criar_gigs: TimeoutException: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[10:49:51]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,196) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[10:54:17]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8703408/tarefa/500/transicao
+
+- **ERROR** `[10:54:17]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8703408/tarefa/500/transicao
+
+- **ERROR** `[10:54:30]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[10:55:45]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8703575/tarefa/500/transicao
+
+- **ERROR** `[10:55:45]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8703575/tarefa/500/transicao
+
+- **ERROR** `[10:55:58]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[10:56:13]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8703575/tarefa/500/transicao
+
+- **ERROR** `[10:56:13]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8703575/tarefa/500/transicao
+
+- **ERROR** `[10:56:23]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[10:56:23]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[10:57:16]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8467420/tarefa/500/transicao
+
+- **ERROR** `[10:57:16]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8467420/tarefa/500/transicao
+
+- **ERROR** `[10:57:28]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[11:00:32]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8693721/tarefa/500/transicao
+
+- **ERROR** `[11:00:32]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8693721/tarefa/500/transicao
+
+- **ERROR** `[11:00:45]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[11:02:04]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8706408/tarefa/500/transicao
+
+- **ERROR** `[11:02:04]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8706408/tarefa/500/transicao
+
+- **ERROR** `[11:02:17]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+
+## Execução 2026-06-02 21:53:21 — x_PC_Visible_20260602_215315.log
+
+- **ERROR** `[21:54:05]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:06]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:07]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:08]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:10]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:10]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:11]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:11]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:12]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:13]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:14]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:15]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:16]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:17]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:17]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+- **ERROR** `[21:54:18]` `p2b_gateway:fluxo_pz` — [FLUXO_PZ] Erro ao processar regras: list index out of range
+
+
+## Execução 2026-06-02 21:56:28 — x_PC_Visible_20260602_215549.log
+
+- **ERROR** `[21:57:19]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[21:57:30]` `extracao:criar_gigs` — ERRO em criar_gigs: WebDriverException: Message: Failed to decode response from marionette
+
+
+- **ERROR** `[21:57:30]` `extracao:criar_gigs` — ERRO em criar_gigs: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[21:57:30]` `extracao:get_cookies_dict` — ERRO em get_cookies_dict: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[21:57:30]` `judicial_fluxo:fluxo_cls` — [CLS][TIMING][ERRO] 0.001s erro inesperado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[21:57:30]` `judicial_fluxo:fluxo_cls` — [CLS] Erro inesperado no fluxo CLS: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[21:57:30]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+
+## Execução 2026-06-02 22:10:14 — x_PC_Visible_20260602_221010.log
+
+- **ERROR** `[22:10:23]` `selenium_utils:filtrofases` — Dropdown de fase nao encontrado.
+
+- **ERROR** `[22:10:34]` `dom_engine:processar_processo_dom` — [DOM] Falha ao abrir detalhes para 1001472-33.2021.5.02.0703
+
+- **ERROR** `[22:10:36]` `dom_engine:execute_list_with_bucket2_callback` — [DOM] Falha no processamento de 1001472-33.2021.5.02.0703
+
+- **ERROR** `[22:11:09]` `selenium_utils:esperar_elemento` — Erro ao esperar elemento '.fa-bars': Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:11:12]` `dom_engine:processar_processo_dom` — [DOM] Erro no callback para 1001883-14.2023.5.02.0604: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:11:12]` `dom_engine:_gerenciar_abas_apos_processo_dom` — [DOM] Driver desconectado ao ler window_handles: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:11:12]` `dom_engine:run_dom` — [DOM] Erro geral: RESTART_DRIVER: driver_disconnect (Message: Tried to run command without establishing a connection
+)
+
+
+## Execução 2026-06-02 22:27:51 — x_PC_Visible_20260602_222742.log
+
+- **ERROR** `[22:27:56]` `api_client:buscar_processos_conhecimento_dom` — [API] buscar_processos_conhecimento_dom p1: {'type': 'http_error', 'message': '<html><head><title>Error</title></head><body>Header X-XSRF-TOKEN não informado</body></html>', 'method': 'PATCH', 'path': '/pje-comum-api/api/agrupamentotarefas/processos/todos', 'status': 403}
+
+
+## Execução 2026-06-02 22:29:59 — x_PC_Visible_20260602_222955.log
+
+- **ERROR** `[22:30:04]` `api_client:buscar_processos_conhecimento_dom` — [API] buscar_processos_conhecimento_dom p1: {'type': 'http_error', 'message': '<html><head><title>Error</title></head><body>Header X-XSRF-TOKEN não informado</body></html>', 'method': 'PATCH', 'path': '/pje-comum-api/api/agrupamentotarefas/processos/todos', 'status': 403}
+
+
+## Execução 2026-06-02 22:38:38 — x_PC_Visible_20260602_223832.log
+
+- **ERROR** `[22:41:07]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000927-84.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:08]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000934-08.2024.5.02.0716: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:09]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001298-82.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:11]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000976-62.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:12]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001035-50.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:13]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000740-13.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:14]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001430-42.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:16]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000495-02.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:17]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001733-56.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:18]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000571-89.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:19]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000638-54.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:21]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000688-80.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:22]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000623-85.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:23]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001855-69.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:24]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000184-74.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:26]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001235-06.2025.5.02.0720: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:27]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001511-25.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:28]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001137-60.2025.5.02.0707: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:29]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000907-21.2025.5.02.0706: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:31]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001324-80.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:32]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001252-93.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:33]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001693-74.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:34]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1002213-34.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:36]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001445-11.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:37]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000868-33.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:38]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000411-64.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:39]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001750-92.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:41]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000453-74.2026.5.02.0037: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:42]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000608-19.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:43]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000496-84.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:44]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000646-31.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:46]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001741-33.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:47]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000851-60.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:48]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001895-51.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:49]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000700-94.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:51]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000046-10.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:52]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001835-78.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:53]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000891-42.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:54]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000942-53.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:56]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000932-09.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:57]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000931-24.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:58]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000703-49.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:41:59]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000265-23.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:01]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000952-97.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:02]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000954-67.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:03]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000114-57.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:04]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001023-36.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:06]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000458-38.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:07]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000944-23.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:08]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000948-60.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:10]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000967-66.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:11]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000975-43.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:12]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000974-58.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:13]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1002155-31.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:15]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000918-25.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:16]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000919-10.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:17]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000923-47.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:18]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000924-32.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:20]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000928-69.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:21]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000934-76.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:22]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000921-77.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:23]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000965-96.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:25]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000966-81.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:26]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001004-93.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:27]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001010-03.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:28]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1000499-44.2026.5.02.0011: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:42:30]` `dom_engine:run_dom_api` — [DOM][API] Erro em 1001896-36.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-02 23:03:30 — x_PC_Visible_20260602_230322.log
+
+- **ERROR** `[23:06:08]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000927-84.2026.5.02.0703
+
+- **ERROR** `[23:06:54]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:06:54]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:07:26]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1001298-82.2025.5.02.0703
+
+- **ERROR** `[23:09:32]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:09:32]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:10:23]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000571-89.2026.5.02.0703
+
+- **ERROR** `[23:10:52]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:10:52]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:11:42]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000638-54.2026.5.02.0703
+
+- **ERROR** `[23:13:18]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000688-80.2026.5.02.0703
+
+- **ERROR** `[23:14:56]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000623-85.2026.5.02.0703
+
+- **ERROR** `[23:16:29]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:16:29]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:17:00]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1001137-60.2025.5.02.0707
+
+- **ERROR** `[23:19:43]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1002213-34.2025.5.02.0703
+
+- **ERROR** `[23:22:02]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000411-64.2026.5.02.0703
+
+- **ERROR** `[23:22:47]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:22:47]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:23:37]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000453-74.2026.5.02.0037
+
+- **ERROR** `[23:25:14]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000608-19.2026.5.02.0703
+
+- **ERROR** `[23:27:17]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000646-31.2026.5.02.0703
+
+- **ERROR** `[23:28:02]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:28:02]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:29:01]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000851-60.2026.5.02.0703
+
+- **ERROR** `[23:30:55]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000700-94.2026.5.02.0703
+
+- **ERROR** `[23:33:15]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000891-42.2026.5.02.0703
+
+- **ERROR** `[23:33:43]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:33:43]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:34:33]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000942-53.2026.5.02.0703
+
+- **ERROR** `[23:35:01]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:35:01]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:35:51]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000932-09.2026.5.02.0703
+
+- **ERROR** `[23:36:19]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:36:19]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:37:09]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000931-24.2026.5.02.0703
+
+- **ERROR** `[23:37:37]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:37:37]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:38:27]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000703-49.2026.5.02.0703
+
+- **ERROR** `[23:38:56]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:38:56]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:39:45]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000265-23.2026.5.02.0703
+
+- **ERROR** `[23:40:14]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:40:14]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:41:04]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000952-97.2026.5.02.0703
+
+- **ERROR** `[23:41:33]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:41:33]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:42:22]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000954-67.2026.5.02.0703
+
+- **ERROR** `[23:43:23]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:43:23]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:44:13]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000458-38.2026.5.02.0703
+
+- **ERROR** `[23:44:42]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:44:42]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:45:32]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000944-23.2026.5.02.0703
+
+- **ERROR** `[23:46:00]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:46:00]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:46:51]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000948-60.2026.5.02.0703
+
+- **ERROR** `[23:47:20]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:47:20]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:48:09]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000967-66.2026.5.02.0703
+
+- **ERROR** `[23:48:38]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:48:38]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:49:27]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000975-43.2026.5.02.0703
+
+- **ERROR** `[23:49:56]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:49:56]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:50:46]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000974-58.2026.5.02.0703
+
+- **ERROR** `[23:52:40]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000918-25.2026.5.02.0703
+
+- **ERROR** `[23:54:17]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000919-10.2026.5.02.0703
+
+- **ERROR** `[23:54:46]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:54:46]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[23:55:45]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000923-47.2026.5.02.0703
+
+- **ERROR** `[23:57:22]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000924-32.2026.5.02.0703
+
+- **ERROR** `[23:58:59]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000928-69.2026.5.02.0703
+
+- **ERROR** `[00:00:36]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000934-76.2026.5.02.0703
+
+- **ERROR** `[00:02:13]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000921-77.2026.5.02.0703
+
+- **ERROR** `[00:02:42]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[00:02:42]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+- **ERROR** `[00:03:32]` `dom_engine:run_dom_api` — [DOM][API] Falha callback: 1000965-96.2026.5.02.0703
+
+- **ERROR** `[00:04:01]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[00:04:01]` `dom_engine:callback_bucket2` — [DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC
+
+
+## Execução 2026-06-05 00:02:32 — x_PC_Visible_20260605_000224.log
+
+- **ERROR** `[00:02:33]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[00:02:34]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[00:02:34]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-05 00:02:51 — x_PC_Visible_20260605_000247.log
+
+- **ERROR** `[00:04:16]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[00:05:09]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:333:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:205:31
+
+
+- **ERROR** `[00:05:25]` `extracao:get_cookies_dict` — ERRO em get_cookies_dict: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:05:25]` `judicial_fluxo:fluxo_cls` — [CLS][TIMING][ERRO] 0.001s erro inesperado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:05:25]` `judicial_fluxo:fluxo_cls` — [CLS] Erro inesperado no fluxo CLS: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[00:05:25]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+
+## Execução 2026-06-05 00:11:41 — x_PC_Visible_20260605_001138.log
+
+
+## Execução 2026-06-05 12:08:19 — x_PC_Visible_20260605_120816.log
+
+- **ERROR** `[12:15:02]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/minutas". URL atual: about:blank
+
+
+## Execução 2026-06-05 13:08:28 — x_PC_Visible_20260605_130823.log
+
+- **ERROR** `[13:09:02]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]' (by=css selector, timeout=15, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:03]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:03]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:03]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+- **ERROR** `[13:09:19]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:19]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:19]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+- **ERROR** `[13:09:35]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:35]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:35]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+- **ERROR** `[13:09:51]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:51]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:09:51]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+
+## Execução 2026-06-05 13:13:18 — x_PC_Visible_20260605_131314.log
+
+
+## Execução 2026-06-05 14:19:53 — x_PC_Visible_20260605_141950.log
+
+- **ERROR** `[14:21:42]` `regras_execucao:def_sob` — [DEF_SOB] Erro geral: name 'normalizar_texto' is not defined
+
+- **ERROR** `[14:21:42]` `regras_execucao:def_sob` — Erro em def_sob
+```
+Traceback (most recent call last):
+  File "D:\PjePlus\PEC\regras_execucao.py", line 469, in def_sob
+    texto_norm = normalizar_texto(texto)
+                 ^^^^^^^^^^^^^^^^
+NameError: name 'normalizar_texto' is not defined
+```
+
+- **ERROR** `[14:22:35]` `regras_execucao:def_sob` — [DEF_SOB] Erro geral: name 'normalizar_texto' is not defined
+
+- **ERROR** `[14:22:35]` `regras_execucao:def_sob` — Erro em def_sob
+```
+Traceback (most recent call last):
+  File "D:\PjePlus\PEC\regras_execucao.py", line 469, in def_sob
+    # ── Step 4: Normalizar e testar padrões ──
+NameError: name 'normalizar_texto' is not defined
+```
+
+
+## Execução 2026-06-06 00:43:30 — x_PC_Visible_20260606_004322.log
+
+- **ERROR** `[00:43:31]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[00:43:31]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[00:43:31]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-06 00:44:00 — x_PC_Visible_20260606_004343.log
+
+
+## Execução 2026-06-06 00:59:20 — x_PC_Visible_20260606_005918.log
+
+
+## Execução 2026-06-06 01:12:21 — x_PC_Visible_20260606_011217.log
+
+
+## Execução 2026-06-06 01:20:02 — x_PC_Visible_20260606_011959.log
+
+
+## Execução 2026-06-06 01:26:53 — x_PC_Visible_20260606_012650.log
+
+
+## Execução 2026-06-06 01:34:24 — x_PC_Visible_20260606_013422.log
+
+
+## Execução 2026-06-06 01:39:49 — x_PC_Visible_20260606_013947.log
+
+
+## Execução 2026-06-06 01:46:52 — x_PC_Visible_20260606_014649.log
+
+
+## Execução 2026-06-06 01:51:37 — x_PC_Visible_20260606_015135.log
+
+
+## Execução 2026-06-06 02:02:27 — x_PC_Visible_20260606_020225.log
+
+- **ERROR** `[02:06:23]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]' (by=css selector, timeout=30, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:06:23]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:06:23]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:06:23]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+- **ERROR** `[02:06:39]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:06:39]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:06:39]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+- **ERROR** `[02:06:55]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:06:55]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:06:55]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+- **ERROR** `[02:07:11]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=4, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:07:11]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=2, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:07:11]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+
+## Execução 2026-06-06 02:07:53 — x_PC_Visible_20260606_020749.log
+
+- **ERROR** `[02:12:13]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[02:12:53]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[02:12:58]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[02:13:39]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[02:13:39]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[02:13:39]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[02:16:01]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[02:16:41]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[02:16:46]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[02:17:27]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[02:17:27]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[02:17:27]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[02:18:11]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[02:18:52]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[02:18:56]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[02:19:37]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[02:19:37]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[02:19:37]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[02:20:17]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[02:20:58]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[02:21:03]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[02:21:43]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[02:21:43]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[02:21:43]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[02:22:04]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:04]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:12]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:12]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:20]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:20]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:28]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:28]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:36]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:36]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:44]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:44]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:52]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:22:52]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:23:00]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:23:00]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:23:08]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:23:08]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:23:17]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:23:17]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:23:25]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[02:23:25]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-06 22:13:01 — x_PC_Visible_20260606_221258.log
+
+
+## Execução 2026-06-06 22:28:59 — x_PC_Visible_20260606_222855.log
+
+- **ERROR** `[22:29:19]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '.nodo-filtrado' (by=css selector, timeout=15, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-06 23:38:02 — x_PC_Visible_20260606_233756.log
+
+
+## Execução 2026-06-07 00:02:16 — x_PC_Visible_20260607_000148.log
+
+- **ERROR** `[00:04:26]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[00:05:25]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[00:05:49]` `core:login_automatico_sisbajud` — Erro detectado
+```
+Traceback (most recent call last):
+  File "D:\PjePlus\SISB\core.py", line 349, in login_automatico_sisbajud
+    current_url = driver.current_url.lower()
+                  ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 561, in current_url
+    return self.execute(Command.GET_CURRENT_URL)["value"]
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 430, in execute
+    self.error_handler.check_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.InvalidSessionIdException: Message: Tried to run command without establishing a connection
+```
+

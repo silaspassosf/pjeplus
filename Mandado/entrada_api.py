@@ -532,15 +532,24 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
     try:
         # 1. Abrir menu
         logger.info('[INTIMACAO] [1] Tentando abrir menu #botao-menu...')
-        if not aguardar_e_clicar(driver, '#botao-menu', timeout=10):
+        try:
+            btn_menu = WebDriverWait(driver, 2).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '#botao-menu'))
+            )
+            driver.execute_script('arguments[0].click();', btn_menu)
+        except Exception:
             logger.info('[INTIMACAO] [1]  FALHOU: Nao conseguiu abrir menu')
             return False
         logger.info('[INTIMACAO] [1]  Menu aberto')
-        # UI-transition: aguardar_e_clicar a seguir ja tem WebDriverWait interno
 
         # 2. Clicar Expedientes
         logger.info('[INTIMACAO] [2] Tentando clicar Expedientes...')
-        if not aguardar_e_clicar(driver, 'button[aria-label="Expedientes"]', timeout=5):
+        try:
+            btn_exp = WebDriverWait(driver, 3).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'button[aria-label="Expedientes"]'))
+            )
+            driver.execute_script('arguments[0].click();', btn_exp)
+        except Exception:
             logger.info('[INTIMACAO] [2]  FALHOU: Nao conseguiu clicar Expedientes')
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
             return False
@@ -615,50 +624,20 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
         logger.info('[INTIMACAO] [6]  Botao Fechar Expedientes clicado')
         aguardar_renderizacao_nativa(driver, '.cdk-overlay-container mat-dialog-container', modo='aparecer', timeout=5)
 
-        # 7. Confirmar no botao do dialogo, e nao por foco global
+        # 7. Confirmar no botao do dialogo usando JS direto e sem loop custoso
         logger.info('[INTIMACAO] [7] Confirmando fechamento...')
         btn_sim = None
-        for xpath in (
-            "//div[contains(@class,'cdk-overlay-container')]//mat-dialog-container//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']",
-            "//div[contains(@class,'cdk-overlay-pane')]//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']",
-            "//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']",
-        ):
-            try:
-                btn_sim = WebDriverWait(driver, 3).until(
-                    EC.element_to_be_clickable((By.XPATH, xpath))
-                )
-                break
-            except TimeoutException:
-                continue
-
-        if not btn_sim:
-            logger.info('[INTIMACAO] [7]  FALHOU: botao Sim nao encontrado')
-            return False
-
         try:
+            # Busca direta combinada com timeout curto
+            btn_sim = WebDriverWait(driver, 2).until(
+                EC.presence_of_element_located((By.XPATH, "//mat-dialog-container//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim'] | //div[contains(@class,'cdk-overlay-pane')]//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim'] | //button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']"))
+            )
             driver.execute_script('arguments[0].click();', btn_sim)
         except Exception:
-            btn_sim.click()
-
-        if not aguardar_renderizacao_nativa(driver, '.cdk-overlay-container mat-dialog-container', modo='sumir', timeout=5):
-            logger.info('[INTIMACAO] [7]  FALHOU: dialogo de confirmacao permaneceu aberto')
+            logger.info('[INTIMACAO] [7]  FALHOU: botao Sim nao encontrado rapidamente')
             return False
 
-        # Aguardar snackbar de sucesso para confirmar fechamento rápido
-        logger.info('[INTIMACAO] [7] Aguardando snackbar de sucesso...')
-        try:
-            snack_sucesso = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'snack-bar-container, simple-snack-bar'))
-            )
-            logger.info(f'[INTIMACAO] [7]  Snackbar detectado: "{snack_sucesso.text}"')
-            try:
-                driver.execute_script("arguments[0].style.display = 'none';", snack_sucesso)
-            except Exception:
-                pass
-        except TimeoutException:
-            logger.info('[INTIMACAO] [7]  AVISO: snackbar de sucesso não detectado, assumindo sucesso se o modal fechou')
-
-        # Aguardar timeline pronta apos fechamento (sem sleep fixo)
+        # Aguardar timeline pronta apos fechamento (sem sleep fixo e sem snackbar)
         logger.info('[INTIMACAO] [8] Aguardando timeline estabilizar...')
         try:
             WebDriverWait(driver, 3).until(

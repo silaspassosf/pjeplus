@@ -96,11 +96,44 @@ def _checar_procuracao_e_identidade(anexos: List[Dict[str, Any]], nome_reclamant
             tbody = _norm(anx.get('texto') or '')
             if (any(t in tref for t in termos_proc_tit)
                     or (tbody and any(t in tbody for t in termos_proc_body))):
-                sobrenome = nome_norm.split()[-1] if nome_norm.split() else ''
-                if sobrenome and len(sobrenome) > 3 and sobrenome in tbody:
-                    extra_proc = ' [nome reclamante localizado na procuracao]'
+                # Verificar se o texto foi extraido (OCR falho = texto vazio)
+                if not tbody or len(tbody) < 100:
+                    extra_proc = ' [ATENCAO: texto procuracao nao extraido ou OCR vazio]'
                 else:
-                    extra_proc = ' [ATENCAO: nome reclamante nao localizado na procuracao]'
+                    # Tentar buscar nome completo ou partes dele
+                    partes_nome = nome_norm.split()
+                    nomes_busca = [
+                        ' '.join(partes_nome),           # nome completo
+                        partes_nome[0] if partes_nome else '',  # primeiro nome
+                        partes_nome[-1] if partes_nome else '',  # sobrenome
+                    ]
+                    
+                    # Helper: substitui I<->Y para variacoes ortograficas
+                    def _expandir_variacao_i_y(nome: str) -> list:
+                        """Retorna nome + variacao com I/Y trocados."""
+                        if not nome or len(nome) <= 1:
+                            return [nome]
+                        variacoes = [nome]
+                        if 'i' in nome:
+                            variacoes.append(nome.replace('i', 'y'))
+                        if 'y' in nome:
+                            variacoes.append(nome.replace('y', 'i'))
+                        return variacoes
+                    
+                    # Expandir cada parte com variacoes I/Y
+                    nomes_expandidos = []
+                    for nome in nomes_busca:
+                        if nome:
+                            nomes_expandidos.extend(_expandir_variacao_i_y(nome))
+                    
+                    nome_encontrado = any(
+                        nome and len(nome) > 3 and (' ' + nome + ' ' in ' ' + tbody + ' ' or nome in tbody)
+                        for nome in nomes_expandidos if nome
+                    )
+                    if nome_encontrado:
+                        extra_proc = ' [nome reclamante localizado na procuracao]'
+                    else:
+                        extra_proc = ' [ATENCAO: nome reclamante nao localizado na procuracao]'
                 break
 
     tem_proc = proc_via is not None
@@ -210,7 +243,8 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
         ctx = texto[inicio:fim]
         ctx_norm = _norm(ctx)
         tag = _cep_tag(ctx_norm, palavras_reclamada)
-        explicit = bool(re.search(r'\bCEP\s*[:\-]?\s*$', texto[max(0, m.start() - 12):m.start()], re.IGNORECASE))
+        explicit = (bool(re.search(r'\bCEP\s*[:\-.]?\s*$', texto[max(0, m.start() - 12):m.start()], re.IGNORECASE))
+                   or m.group(0)[:3].upper() == 'CEP')
         endereco_context = bool(re.search(
             r'\bendereco\b|\blogradouro\b|\bbairro\b|\bmunicipio\b|\buf\b|\bnumero\b|\bcomplemento\b',
             ctx_norm)) or any(t in ctx_norm for t in _CEP_TERMOS_PRESTACAO + _CEP_TERMOS_RECLAMADA)
@@ -219,13 +253,10 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
             tag, 0 if explicit else 1, 0 if endereco_context else 1,
             2 if telefone_proximo else 0, ordem, num, fmt))
 
-    candidatos = [c for c in candidatos if c[3] == 0 or c[1] == 0]
+    # Preserve TERRITORIAL/PRESTACAO tags regardless of telefone_proximo
+    # (footer phone lines must not disqualify high-priority contextual CEPs)
+    candidatos = [c for c in candidatos if c[3] == 0 or c[1] == 0 or c[0] <= _CEP_TAG_PRESTACAO]
     if not candidatos:
-        norm_texto = _norm(texto)
-        termos_estritos = _CEP_TERMOS_TERRITORIAL + _CEP_TERMOS_PRESTACAO
-        if any(t in norm_texto for t in termos_estritos):
-            return ("B2_CEP: ALERTA - nenhum CEP de prestacao de servicos "
-                    "identificado no contexto relevante")
         if ceps_api:
             for cep_raw in ceps_api:
                 if not (len(cep_raw) == 8 and cep_raw.isdigit()):
@@ -246,6 +277,11 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                                 "CEP %s (%s) | foro competente: RUI BARBOSA") % (cf, cn)
             return ("B2_CEP: ALERTA - CEPs das reclamadas testados "
                     "mas nenhum pertence a faixa SP - verificar manualmente")
+        norm_texto = _norm(texto)
+        termos_estritos = _CEP_TERMOS_TERRITORIAL + _CEP_TERMOS_PRESTACAO
+        if any(t in norm_texto for t in termos_estritos):
+            return ("B2_CEP: ALERTA - nenhum CEP de prestacao de servicos "
+                    "identificado no contexto relevante")
         return ("B2_CEP: ALERTA - nenhum CEP de prestacao de servicos "
                 "ou reclamada identificado")
 
@@ -279,20 +315,23 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
 
     if ceps_api:
         _label_sub = 'sede da reclamada'
+        api_fora_zona_sul = []
         for cep_raw in ceps_api:
             if not (len(cep_raw) == 8 and cep_raw.isdigit()):
                 continue
             cn = int(cep_raw)
             cf = "%s.%s-%s" % (cep_raw[:2], cep_raw[2:5], cep_raw[5:])
-            for lo, hi in ZONA_SUL_CEPS:
-                if lo <= cn <= hi:
-                    ctx_suf = ' (apos nao localizar CEP de prestacao)' if cands_ctx_fora_zona_sul else ''
-                    return ("B2_CEP: OK - %s (%s) Zona Sul [%s%s]") % (cf, cn, _label_sub, ctx_suf)
+            em_zona_sul = any(lo <= cn <= hi for lo, hi in ZONA_SUL_CEPS)
+            if em_zona_sul:
+                ctx_suf = ' (apos nao localizar CEP de prestacao)' if cands_ctx_fora_zona_sul else ''
+                return ("B2_CEP: OK - %s (%s) Zona Sul [%s%s]") % (cf, cn, _label_sub, ctx_suf)
             _foro = _foro_competente(cn)
+            api_fora_zona_sul.append("CEP %s (%s) [%s] | foro: %s" % (cf, cn, _label_sub, _foro))
+        if api_fora_zona_sul:
             ctx_str = ', '.join(cands_ctx_fora_zona_sul) if cands_ctx_fora_zona_sul else ''
-            prefixo = ("B2_CEP: ALERTA - Incompetencia Territorial - CEPs fora da Zona Sul (%s) + reclamada: " % ctx_str
-                       ) if ctx_str else "B2_CEP: ALERTA - Incompetencia Territorial - "
-            return prefixo + "CEP %s (%s) [%s] | foro competente: %s" % (cf, cn, _label_sub, _foro)
+            prefixo = ("B2_CEP: ALERTA - Incompetencia Territorial - CEPs fora da Zona Sul (%s) + reclamadas: " % ctx_str
+                       ) if ctx_str else "B2_CEP: ALERTA - Incompetencia Territorial - reclamadas: "
+            return prefixo + '; '.join(api_fora_zona_sul)
 
     termos_dom_autor = [
         'domicilio do reclamante', 'domicilio do autor', 'foro do domicilio',
@@ -462,6 +501,10 @@ def _checar_partes(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
             linhas.append(
                 "B3_PARTES: ALERTA - PJDP no polo passivo (rito ordinario obrigatorio); "
                 "detectado via nome: %s; rito atual: %s" % (pjdp_nome, rito_dec or 'nao identificado'))
+        else:
+            linhas.append(
+                "B3_PARTES: INFO - PJDP no polo passivo - rito ORDINARIO compativel; "
+                "detectado via nome: %s" % pjdp_nome)
 
     if not any('ALERTA' in l for l in linhas):
         linhas.append("B3_PARTES: OK%s" % rec_info)
@@ -535,9 +578,10 @@ def _checar_tutela(texto: str, capa_dados: Dict[str, Any]) -> str:
               norm.rfind('requerimentos'), len(norm) - 4000)
     sec_norm = norm[max(0, idx):]
     termos = [
-        'tutela de urgencia', 'tutela antecipada', 'tutela provisoria',
-        'tutela de evidencia', 'tutela cautelar', 'medida liminar',
-        'medida cautelar', 'medida de urgencia', 'tutela liminar',
+        'tutela de urgencia', 'tutela urgencia', 'tutela antecipada',
+        'tutela provisoria', 'tutela de evidencia', 'tutela cautelar',
+        'medida liminar', 'pedido liminar', 'medida cautelar',
+        'medida de urgencia', 'tutela liminar',
         'art. 300', 'art. 305', 'art. 311',
     ]
     for t in termos:
@@ -546,6 +590,16 @@ def _checar_tutela(texto: str, capa_dados: Dict[str, Any]) -> str:
             ctx = _pag_contexto(texto, max(0, idx) + pos, janela=300)
             return ("B6_TUTELA: ALERTA - pedido tutela provisoria (%s) "
                     "- encaminhar para despacho\n  %s") % (t, ctx)
+    # Busca adicional no cabecalho/titulo (primeiros 3000 chars):
+    # titulos como "PEDIDO LIMINAR TUTELA URGENCIA" indicam pedido mesmo sem
+    # os termos aparecerem na secao de pedidos.
+    cabecalho = norm[:3000]
+    for t in termos:
+        pos = cabecalho.find(t)
+        if pos != -1:
+            ctx = _pag_contexto(texto, pos, janela=300)
+            return ("B6_TUTELA: ALERTA - pedido tutela provisoria identificado "
+                    "no cabecalho/titulo (%s) - encaminhar para despacho\n  %s") % (t, ctx)
     if capa_dados.get('medida_urgencia') is True:
         return "B6_TUTELA: ALERTA - certidao indica medida de urgencia mas termo nao localizado nos pedidos"
     return "B6_TUTELA: OK"
@@ -558,10 +612,26 @@ def _checar_tutela(texto: str, capa_dados: Dict[str, Any]) -> str:
 
 def _checar_digital(texto: str, capa_dados: Dict[str, Any]) -> str:
     norm = _norm(texto)
+
+    # Detecta discordância/rejeição expressa ao Juízo 100% Digital.
+    # Nesse caso a parte NÃO quer o juízo digital → nenhum alerta necessário.
+    discordancia_digital = bool(re.search(
+        r'(discordan[cç][ai]|discorda|n[aã]o\s+concorda|n[aã]o\s+adere|'
+        r'se\s+op[oõ]e|oposi[cç][aã]o|manifest[ao]\s+.*discordan[cç][ai]|'
+        r'discordan[cç][ai]\s+.*ju[ií]zo|n[aã]o\s+.*ju[ií]zo\s*100%?\s*digital)'
+        r'.*ju[ií]zo\s*100%?\s*digital|'
+        r'ju[ií]zo\s*100%?\s*digital.*'
+        r'(discordan[cç][ai]|discorda|n[aã]o\s+concorda|n[aã]o\s+adere|se\s+op[oõ]e)',
+        norm))
+    if discordancia_digital:
+        return "B7_DIGITAL: OK - parte manifesta discordancia com Juizo 100% Digital (nao quer)"
+
     pedido_digital = bool(re.search(
-        r'(ju[ií]zo\s*100%?\s*digital|ades[aã]o\s+ao\s+ju[ií]zo\s*100%?\s*digital|'
+        r'(ades[aã]o\s+ao\s+ju[ií]zo\s*100%?\s*digital|'
         r'manifesta[cç][aã]o\s+de\s+ades[aã]o\s+ao\s+ju[ií]zo\s*100%?\s*digital|'
-        r'requer(?:e|ido)?\s+o\s+ju[ií]zo\s*100%?\s*digital)', norm))
+        r'requer(?:e|ido)?\s+o\s+ju[ií]zo\s*100%?\s*digital|'
+        r'opta\s+pelo\s+ju[ií]zo\s*100%?\s*digital|'
+        r'adere\s+ao\s+ju[ií]zo\s*100%?\s*digital)', norm))
     if not pedido_digital:
         return "B7_DIGITAL: OK - sem pedido expresso de Juizo 100% Digital na peticao"
 

@@ -300,6 +300,7 @@ prazo_registry = RuleRegistry("prazo", [
     "descumprimento",
     "recursal",
     "bloqueio_impugnacoes",
+    "transito_julgado_liquida",
     "sobrestamento_reiteracao",
     "sobrestamento_prazos",
     "homologacao",
@@ -398,6 +399,10 @@ def _definir_regras_processamento() -> List[Tuple]:
             'sob pena de prosseguimento da execução',
             'líquida a sentença, intime-se'
         ]],
+         (_inicar_exec,),),
+
+        # REGRA ESPECIAL: TRÂNSITO EM JULGADO COM SENTENÇA LÍQUIDA - iniciar execução
+        ([gerar_regex_geral('Diante do trânsito em julgado, líquida a sentença')],
          (_inicar_exec,),),
 
         # REGRAS DE SOBRESTAMENTO

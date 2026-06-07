@@ -467,8 +467,9 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
 
         # Aguardar redirecionamento/URL final
         if aguardar_url_final:
-            timeout = 40
+            timeout = 120  # MFA manual pode levar mais tempo
             inicio = time.time()
+            _nova_tela_validar_clicada = False
             while time.time() - inicio < timeout:
                 try:
                     cur = driver.current_url.lower()
@@ -480,6 +481,19 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                         except Exception:
                             pass
                         return True
+
+                    # Nova tela de autenticacao Keycloak (botao "Validar") = MFA/OTP
+                    # NAO clicar — usuario precisa inserir o codigo do Google Authenticator
+                    # e confirmar manualmente. Apenas avisar e aguardar.
+                    if not _nova_tela_validar_clicada:
+                        try:
+                            btn_validar = driver.find_element(By.CSS_SELECTOR, 'input#kc-login[value="Validar"]')
+                            if btn_validar.is_displayed():
+                                logger.warning('[LOGIN_CPF] Tela MFA detectada — insira o codigo do Google Authenticator e clique Validar manualmente.')
+                                print('\n*** AGUARDANDO MFA: insira o codigo do Google Authenticator no browser e clique em "Validar" ***\n')
+                                _nova_tela_validar_clicada = True  # marcar para nao repetir o aviso
+                        except Exception:
+                            pass
                 except Exception:
                     pass
                 time.sleep(0.5)

@@ -1,4 +1,7 @@
-"""Shim de compatibilidade — reexporta de Fix.diagnostico_runtime."""
+"""Shim de compatibilidade — reexporta de Fix.diagnostico_runtime.
+
+Commited e pushed para o repositório online.
+"""
 from Fix.diagnostico_runtime import (
     logger, PJELogger,
     log_start, log_item, log_sucesso, log_erro, log_fim,

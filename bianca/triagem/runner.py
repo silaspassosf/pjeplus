@@ -33,6 +33,31 @@ from bianca.triagem.progress import ProgressoTriagem
 from bianca.triagem.service import triagem_peticao
 from bianca.utils import resultado_falha, resultado_ok, run_batch
 
+
+def _fechar_tabs_acesso_negado(drv, handle_principal: str, numero: str = "?") -> int:
+    """Fecha todas as abas com URL acesso-negado, exceto a principal.
+
+    Retorna o numero de abas fechadas.
+    """
+    fechadas = 0
+    for h in list(drv.window_handles):
+        if h == handle_principal:
+            continue
+        try:
+            drv.switch_to.window(h)
+            if "acesso-negado" in (drv.current_url or "").lower():
+                print("[TRIAGEM][%s] Fechando aba acesso-negado: %s" % (numero, drv.current_url))
+                drv.close()
+                fechadas += 1
+        except Exception:
+            pass
+    # Garantir foco no handle principal
+    try:
+        drv.switch_to.window(handle_principal)
+    except Exception:
+        pass
+    return fechadas
+
 _progresso = ProgressoTriagem()
 
 
@@ -201,6 +226,18 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
                 ok, status_line = _aplicar_acao_pos_triagem(drv, numero, proc, triagem_txt)
                 print("[TRIAGEM][%s] Resultado acao_pos_triagem: ok=%s status=%r" % (numero, ok, status_line))
 
+                # Detectar acesso-negado em qualquer aba aberta pela acao
+                _fechar_tabs_acesso_negado(drv, handle_principal, numero)
+
+                # Verificar se o handle principal acabou em acesso-negado
+                try:
+                    drv.switch_to.window(handle_principal)
+                    if "acesso-negado" in (drv.current_url or "").lower():
+                        print("[TRIAGEM][%s] acesso-negado na aba principal — parada critica" % numero)
+                        return resultado_falha("ACESSO_NEGADO", critical=True)
+                except Exception:
+                    pass
+
                 return resultado_ok() if ok else resultado_falha("Acao pos-triagem falhou")
 
             except Exception as e:
@@ -220,6 +257,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
             execute_item=execute_item,
             persist_result=persist_result,
             label="TRIAGEM",
+            stop_on_critical=True,
         )
 
         ok_count = batch_result['sucesso']
@@ -232,6 +270,8 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
             "processados": total_count,
             "sucesso_count": ok_count,
             "total": len(lista),
+            "critical_stop": batch_result.get("critical_stop", False),
+            "critical_reason": batch_result.get("critical_reason"),
         }
 
     except Exception as e:

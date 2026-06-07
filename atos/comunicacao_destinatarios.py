@@ -7,6 +7,8 @@ import re
 import json
 import time
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from Fix.log import log_seletor_multiplo, logger
 
 
@@ -120,6 +122,30 @@ def _clicar_polo_passivo(driver, log):
         log(f'[DESTINATARIOS][ERRO] Falha ao expandir Polo Passivo: {e}')
 
 
+def _clicar_e_aguardar_spinner(driver, btn, timeout_s=15):
+    """Clica e aguarda loading do servidor (equivalente a clicarBotao(monitorar=true) do gigs-plugin).
+    
+    Fluxo puro (SEM sleeps fixos):
+    1. Execute script click
+    2. Aguarde spinner/dialog/modal sumir (observer nativo)
+    3. Retorna quando DOM estiver pronto
+    """
+    import time
+    driver.execute_script("arguments[0].click();", btn)
+    
+    # Aguardar APENAS até spinner sumir — nenhum sleep fixo
+    seletores_loading = (
+        'mat-dialog-container, mat-progress-spinner, mat-progress-bar, '
+        '.loading-spinner, .cdk-overlay-backdrop, .modal-backdrop'
+    )
+    aguardar_renderizacao_nativa(
+        driver,
+        seletores_loading,
+        modo='sumir',
+        timeout=timeout_s
+    )
+
+
 def _clicar_botao_polo_passivo(driver, log, qtd_cliques=1):
     try:
         for _ in range(qtd_cliques):
@@ -127,7 +153,7 @@ def _clicar_botao_polo_passivo(driver, log, qtd_cliques=1):
             if not btn_polo_passivo:
                 log('[DESTINATARIOS][ERRO] Botão polo passivo não clicável')
                 return
-            safe_click_no_scroll(driver, btn_polo_passivo, log=False)
+            _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao clicar no botão polo passivo (fallback): {e}')
 
@@ -403,21 +429,22 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
 def _selecionar_por_lista(driver, lista_destinatarios, origem_log, log, fallback_polo_passivo=False, qtd_seta_override=None, debug=False, qtd_cliques_fallback=1):
     selecionados = 0
 
-    # 1. GARANTE ABERTURA DO PAINEL E AGUARDA O RENDER DO PJE (CRÍTICO)
-    try:
-        _clicar_polo_passivo(driver, log)
-    except Exception as e:
-        log(f'[DESTINATARIOS][ERRO] Falha ao expandir Polo Passivo: {e}')
-
     qtd_cliques = qtd_seta_override if qtd_seta_override is not None else 1
 
     if not lista_destinatarios:
         log(f'[DESTINATARIOS][WARN] Lista de destinatários vazia ({origem_log})')
         if fallback_polo_passivo:
+            log(f'[DESTINATARIOS] Acionando fallback polo passivo ({qtd_cliques_fallback}x)')
             _clicar_botao_polo_passivo(driver, log, qtd_cliques_fallback)
             log(f'[DESTINATARIOS] Fallback polo passivo aplicado ({qtd_cliques_fallback}x)')
             return {'status': 'fallback', 'count': 0}
         return {'status': 'empty', 'count': 0}
+
+    # APENAS abrir painel se houver items para selecionar
+    try:
+        _clicar_polo_passivo(driver, log)
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Falha ao expandir Polo Passivo: {e}')
 
     for dest in lista_destinatarios:
         info_padrao = dest
@@ -501,11 +528,10 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     if destinatarios == 'polo_ativo':
         log('[DESTINATARIOS] OPÇÃO: Clicando no polo ativo')
         try:
-            click_headless_safe(
-                driver,
-                'i.fa.fa-user.pec-polo-ativo-partes-processo.pec-botao-intimar-polo-partes-processo',
-                by=By.CSS_SELECTOR
-            )
+            btn = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloAtivo"]', timeout=10, by=By.CSS_SELECTOR)
+            if not btn:
+                raise RuntimeError('Botão polo ativo não clicável')
+            _clicar_e_aguardar_spinner(driver, btn)
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo ativo: {e}')
@@ -519,7 +545,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             if not btn_polo_passivo:
                 raise RuntimeError('Botão polo passivo não clicável')
             for i in range(cliques):
-                safe_click_no_scroll(driver, btn_polo_passivo, log=False)
+                _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
                 if i < cliques - 1:
                     esperar_elemento(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=3, by=By.CSS_SELECTOR)
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
@@ -538,7 +564,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                 btn_terceiro = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-user.pec-polo-outros-partes-processo'))
                 )
-            driver.execute_script("arguments[0].click();", btn_terceiro)
+            _clicar_e_aguardar_spinner(driver, btn_terceiro)
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao selecionar terceiros: {e}')
@@ -567,7 +593,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
         btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=10, by=By.CSS_SELECTOR)
         if not btn_polo_passivo:
             raise RuntimeError('Botão polo passivo não clicável')
-        safe_click_no_scroll(driver, btn_polo_passivo, log=False)
+        _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
         return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo padrão: {e}')

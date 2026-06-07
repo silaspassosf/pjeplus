@@ -24,6 +24,8 @@ import os
 import json
 import time
 import random
+import base64
+import unicodedata
 from datetime import datetime, timedelta
 
 # Selenium imports
@@ -75,6 +77,141 @@ def simular_movimento_humano(driver, elemento):
 
 # Variável global para armazenar dados do processo
 processo_dados_extraidos = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Token Storage: SISBAJUD (localStorage) - Reutilização de sessão
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _extrair_jwt_exp_sisbajud(token_value: str) -> int:
+    """Extrai campo 'exp' do JWT SISBAJUD.
+    
+    JWT formato: header.payload.signature
+    payload é Base64URL encoded.
+    """
+    try:
+        partes = token_value.split('.')
+        if len(partes) < 2:
+            return 0
+        payload_b64 = partes[1]
+        # Base64URL decode: substitui -_ para +/, adiciona padding
+        payload_b64 += '=' * (4 - len(payload_b64) % 4)
+        payload_json = base64.urlsafe_b64decode(payload_b64).decode('utf-8')
+        payload_dict = json.loads(payload_json)
+        return int(payload_dict.get('exp', 0))
+    except Exception as e:
+        logger.debug(f'[SISBAJUD][TOKEN] Erro ao extrair exp: {e}')
+        return 0
+
+
+def salvar_tokens_sisbajud(driver) -> bool:
+    """Salva tokens SISBAJUD do localStorage para arquivo JSON.
+    
+    Extracts: LS.sisbajud-token (access_token), LS.sisbajud-refresh-token
+    Saves to: ~/.pjeplus/sisbajud_tokens.json com expiry de access_token
+    """
+    try:
+        # Leitura de localStorage via JavaScript
+        access_token = driver.execute_script("return localStorage.getItem('LS.sisbajud-token');")
+        refresh_token = driver.execute_script("return localStorage.getItem('LS.sisbajud-refresh-token');")
+        
+        if not access_token:
+            logger.debug('[SISBAJUD][TOKEN] Nenhum access_token encontrado em localStorage')
+            return False
+        
+        # Extrair expiry do JWT
+        access_token_exp = _extrair_jwt_exp_sisbajud(access_token)
+        if access_token_exp <= 0:
+            logger.warning('[SISBAJUD][TOKEN] Nao consegui extrair exp do access_token')
+            return False
+        
+        # Preparar caminho do arquivo
+        home = os.path.expanduser('~')
+        config_dir = os.path.join(home, '.pjeplus')
+        os.makedirs(config_dir, exist_ok=True)
+        token_file = os.path.join(config_dir, 'sisbajud_tokens.json')
+        
+        # Salvar
+        dados = {
+            'access_token': access_token,
+            'access_token_exp': access_token_exp,
+            'refresh_token': refresh_token or None,
+            'salvo_em': time.time(),
+        }
+        with open(token_file, 'w') as f:
+            json.dump(dados, f)
+        
+        logger.info(f'[SISBAJUD][TOKEN] Tokens salvos em {token_file}')
+        return True
+    except Exception as e:
+        logger.warning(f'[SISBAJUD][TOKEN] Erro ao salvar tokens: {e}')
+        return False
+
+
+def carregar_tokens_sisbajud() -> dict:
+    """Carrega e valida tokens SISBAJUD salvos.
+    
+    Retorna: {'sucesso': bool, 'access_token': str|None, 'refresh_token': str|None}
+    Valida: exp - time.time() < 60s → rejeitado se expirado em < 60s
+    """
+    try:
+        home = os.path.expanduser('~')
+        token_file = os.path.join(home, '.pjeplus', 'sisbajud_tokens.json')
+        
+        if not os.path.exists(token_file):
+            logger.debug('[SISBAJUD][TOKEN] Arquivo de tokens nao encontrado')
+            return {'sucesso': False, 'access_token': None, 'refresh_token': None}
+        
+        with open(token_file, 'r') as f:
+            dados = json.load(f)
+        
+        access_token = dados.get('access_token')
+        refresh_token = dados.get('refresh_token')
+        access_token_exp = dados.get('access_token_exp', 0)
+        
+        # Validar expiry
+        agora = time.time()
+        tempo_ate_expiry = access_token_exp - agora
+        
+        if tempo_ate_expiry < 60:
+            logger.info(f'[SISBAJUD][TOKEN] Token expirado ou expira em {tempo_ate_expiry:.0f}s (<60s) — rejeitado')
+            return {'sucesso': False, 'access_token': None, 'refresh_token': None}
+        
+        logger.info(f'[SISBAJUD][TOKEN] Token carregado — expira em {tempo_ate_expiry:.0f}s')
+        return {'sucesso': True, 'access_token': access_token, 'refresh_token': refresh_token}
+    except Exception as e:
+        logger.warning(f'[SISBAJUD][TOKEN] Erro ao carregar tokens: {e}')
+        return {'sucesso': False, 'access_token': None, 'refresh_token': None}
+
+
+def injetar_tokens_sisbajud(driver, access_token: str, refresh_token: str = None) -> bool:
+    """Injeta tokens SISBAJUD em localStorage do driver.
+    
+    Navegaattive para https://sisbajud.cnj.jus.br/ antes de injetar.
+    """
+    try:
+        # Navegar para o domínio SISBAJUD para permissão de localStorage
+        driver.get('https://sisbajud.cnj.jus.br/')
+        time.sleep(1)
+        
+        # Injetar access_token
+        driver.execute_script(
+            "localStorage.setItem('LS.sisbajud-token', arguments[0]);",
+            access_token
+        )
+        
+        # Injetar refresh_token se fornecido
+        if refresh_token:
+            driver.execute_script(
+                "localStorage.setItem('LS.sisbajud-refresh-token', arguments[0]);",
+                refresh_token
+            )
+        
+        logger.info('[SISBAJUD][TOKEN] Tokens injetados em localStorage')
+        return True
+    except Exception as e:
+        logger.warning(f'[SISBAJUD][TOKEN] Erro ao injetar tokens: {e}')
+        return False
 
 
 def driver_sisbajud():

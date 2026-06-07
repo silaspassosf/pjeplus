@@ -679,7 +679,7 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
             pass
 
         try:
-            btn_analise = buscar_seletor_robusto(driver, ['Análise', 'analise'], timeout=4)
+            btn_analise = _localizar_botao_destino_movimento(driver, 'Análise', timeout=4)
             if btn_analise:
                 safe_click_no_scroll(driver, btn_analise)
                 aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao', modo='aparecer', timeout=6)

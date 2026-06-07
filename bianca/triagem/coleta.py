@@ -89,6 +89,7 @@ def _ocr_via_pymupdf(
     """Renderiza a fracao superior de cada pagina com PyMuPDF e extrai texto via tesseract.
 
     Dependencias pesadas (pytesseract, fitz, PIL) importadas lazy dentro da funcao.
+    Tenta aumentar fração se primeira tentativa retornar vazio.
     """
     try:
         import pathlib as _pl
@@ -102,12 +103,14 @@ def _ocr_via_pymupdf(
             r"C:\Program Files\Tesseract-OCR\tesseract.exe",
             r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
             r"D:\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
         ]
         tess_exe = None
         for _c in _tess_candidates:
             if _pl.Path(_c).exists():
                 tess_exe = _pl.Path(_c)
                 pytesseract.pytesseract.tesseract_cmd = str(tess_exe)
+                logger.debug("Tesseract encontrado em: %s", tess_exe)
                 break
         if tess_exe is None:
             logger.error("ERRO em _ocr_via_pymupdf: tesseract.exe nao encontrado para %s", id_doc)
@@ -123,25 +126,37 @@ def _ocr_via_pymupdf(
             )
             lang = "osd"
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        textos_ocr = []
-        for page in doc:
-            rect = page.rect
-            clip = fitz.Rect(
-                rect.x0, rect.y0, rect.x1, rect.y0 + rect.height * fracao
-            )
-            pix = page.get_pixmap(dpi=300, clip=clip)
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            t = pytesseract.image_to_string(img, lang=lang)
-            if t.strip():
-                textos_ocr.append(t)
-        resultado = "\n".join(textos_ocr).strip()
-        logger.debug(
-            "OCR PyMuPDF %s: %s chars (%s pag, fracao=%s)",
-            id_doc,
-            len(resultado),
-            len(doc),
-            fracao,
-        )
+        
+        # Tentar com fração inicial, depois aumentar se vazio
+        fracoes_tentativa = [fracao, 1.0] if fracao < 1.0 else [fracao]
+        resultado = None
+        
+        for frac_attempt in fracoes_tentativa:
+            textos_ocr = []
+            for page in doc:
+                rect = page.rect
+                clip = fitz.Rect(
+                    rect.x0, rect.y0, rect.x1, rect.y0 + rect.height * frac_attempt
+                )
+                pix = page.get_pixmap(dpi=300, clip=clip)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                t = pytesseract.image_to_string(img, lang=lang)
+                if t.strip():
+                    textos_ocr.append(t)
+            resultado_temp = "\n".join(textos_ocr).strip()
+            if resultado_temp:
+                resultado = resultado_temp
+                logger.debug(
+                    "OCR PyMuPDF %s: %s chars (%s pag, fracao=%s)",
+                    id_doc,
+                    len(resultado),
+                    len(doc),
+                    frac_attempt,
+                )
+                break
+            elif frac_attempt == fracoes_tentativa[0]:
+                logger.debug("OCR com fracao=%s retornou vazio, tentando fracao=1.0", frac_attempt)
+        
         return resultado if resultado else fallback
     except ImportError as e:
         logger.error("ERRO em _ocr_via_pymupdf: %s: %s", type(e).__name__, e)
@@ -464,11 +479,19 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                         texto_anx = _extrair_texto_pdf_api(client, id_processo, id_anx) or ''
                         if texto_anx:
                             logger.debug('procuracao OCR fallback %s chars', len(texto_anx))
+                        else:
+                            logger.warning('AVISO: procuracao OCR retornou vazio para anexo %s', id_anx)
                     except _ErroAutenticacao401 as e:
                         resultado['erro'] = 'ERRO_CRITICO_401: anexo %s -- %s' % (id_anx, e)
                         return resultado
                     except Exception as e:
                         logger.warning('OCR fallback para procuracao falhou: %s', e)
+                
+                # Log final: procuracao com texto vazio
+                if is_proc and not texto_anx:
+                    logger.warning('ALERTA_B1: procuracao detectada mas SEM texto extraido (titulo=%s)', 
+                                   anx.get('titulo') or anx.get('tipo') or '(sem titulo)')
+            
             anexos_extraidos.append({
                 'titulo': anx.get('titulo') or anx.get('tipo') or '',
                 'tipo': anx.get('tipo') or '',

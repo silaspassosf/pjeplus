@@ -1,56 +1,42 @@
 {
   "numero": [
-    "1000413-54.2014.5.02.0703"
+    "1000813-97.2016.5.02.0703"
   ],
-  "id": 357042,
+  "id": 973199,
   "autor": [
     {
-      "nome": "JOSEILMA ENEAS DE ASSUNCAO",
-      "cpfcnpj": "05072293475",
+      "nome": "ADAO LEITE RODRIGUES",
+      "cpfcnpj": "27162132839",
       "advogado": {
-        "nome": "VIVIANE DIAS FIGUEIREDO",
-        "cpf": "31256958808",
-        "oab": "SP326997"
+        "nome": "GERALDO HENRIQUE LIMA SANTOS",
+        "cpf": "22226935860",
+        "oab": "SP454094"
       }
     }
   ],
   "reu": [
     {
-      "nome": "JUKA COSMETICOS LTDA",
-      "cpfcnpj": "09062367000104",
-      "advogado": {
-        "nome": "VANESSA SANTOS MOREIRA VACCARI",
-        "cpf": "29748254860",
-        "oab": "SP266423"
-      }
+      "nome": "RN CONSTRUCOES EIRELI - EPP",
+      "cpfcnpj": "21765818000175"
     },
     {
-      "nome": "GISELY LINHARES DE FARIAS",
-      "cpfcnpj": "01994677902",
-      "advogado": {
-        "nome": "VANESSA SANTOS MOREIRA VACCARI",
-        "cpf": "29748254860",
-        "oab": "SP266423"
-      }
+      "nome": "SEVERINO BARBOSA",
+      "cpfcnpj": "87539543434"
     },
     {
-      "nome": "MAGIKA CABELEIREIROS E COMERCIO LTDA",
-      "cpfcnpj": "08989051000108"
+      "nome": "TIB CONSTRUCOES LTDA",
+      "cpfcnpj": "47226786000123"
     }
   ],
-  "terceiro": [
-    {
-      "nome": "DEPARTAMENTO DE TRANSITO DETRAN"
-    }
-  ],
+  "terceiro": [],
   "divida": {
-    "valor": "R$ 41.560,77",
-    "data": "21/05/2024"
+    "valor": "R$ 119.281,80",
+    "data": "13/11/2025"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "16/12/2014",
+  "dtAutuacao": "04/05/2016",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",

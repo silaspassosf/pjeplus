@@ -588,7 +588,7 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
     # ETAPA 2: DEMAIS DOCUMENTOS (certidão expedição, intimação, decisão, planilha)
     _tipos = {
         'certidao_expedicao': (['certidão de expedição', 'certidao de expedicao'], 1),
-        'intimacao':          (['intimação(', 'intimacao(', 'intimação', 'intimacao'], 1),
+        'intimacao':          (['intimação(', 'intimacao(', 'intimação', 'intimacao'], 3),
         'decisao':            (['decisão', 'decisao'], 1),
         'planilha':           (['planilha de atualização', 'planilha de atualizacao'], 1),
     }

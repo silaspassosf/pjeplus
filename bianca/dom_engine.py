@@ -14,6 +14,9 @@ Fluxo:
 """
 
 import time
+import json
+import os
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from selenium.webdriver.common.by import By
@@ -23,11 +26,8 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from bianca.atos_utils import (
-    def_chip,
-    pec_arord,
-    pec_arsum,
-)
+from bianca.atos_utils import def_chip
+from atos.wrappers_pec import pec_arord, pec_arsum
 from bianca.extracao import (
     abrir_detalhes_processo,
     criar_comentario,
@@ -58,6 +58,34 @@ URL_ATIVIDADES = "https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades"
 # =============================================================================
 
 
+def _determinar_bucket(tem_audiencia: bool, tem_ata: bool) -> str:
+    """Determina qual bucket de processamento aplicar ao processo.
+
+    Lógica:
+      - Bucket 1: Sem audiência OU (tem audiência E tem ata)
+      - Bucket 2: Tem audiência E não tem ata
+
+    Args:
+        tem_audiencia: True se o processo tem audiência agendada.
+        tem_ata: True se a timeline contém ata de audiência.
+
+    Returns:
+        String "bucket1" ou "bucket2".
+
+    Exemplos:
+        >>> _determinar_bucket(False, False)
+        'bucket1'
+        >>> _determinar_bucket(True, True)
+        'bucket1'
+        >>> _determinar_bucket(True, False)
+        'bucket2'
+    """
+    if not tem_audiencia or tem_ata:
+        return "bucket1"
+    else:
+        return "bucket2"
+
+
 def _verificar_acesso_negado(driver: WebDriver, contexto: str) -> None:
     """Verifica se a URL atual indica acesso negado e lanca excecao em caso positivo.
 
@@ -72,12 +100,12 @@ def _verificar_acesso_negado(driver: WebDriver, contexto: str) -> None:
         url_atual = driver.current_url
         if "acesso-negado" in url_atual.lower() or "login.jsp" in url_atual.lower():
             msg = f"RESTART_DRIVER: acesso negado em {contexto}"
-            logger.warning("[DOM] %s", msg)
+            logger.warning("[DOMICILIO_ELETRONICO] %s", msg)
             raise Exception(msg)
     except Exception as e:
         if "RESTART_DRIVER" in str(e):
             raise
-        logger.debug("[DOM] Falha ao verificar acesso negado: %s", e)
+        logger.debug("[DOMICILIO_ELETRONICO] Falha ao verificar acesso negado: %s", e)
 
 
 def has_dom_eletronico_reminder(driver: WebDriver) -> bool:
@@ -107,6 +135,50 @@ def has_dom_eletronico_reminder(driver: WebDriver) -> bool:
                 return True
         return False
     except Exception:
+        return False
+
+
+def _extrair_conteudo_lembrete_dom(driver: WebDriver) -> Optional[str]:
+    """Extrai o conteúdo do lembrete Dom Eletronico se existir.
+
+    Procura pelo elemento mat-panel-title com "Dom Eletronico", "DomicEletr"
+    ou "DomElet" e retorna o texto da descrição (mat-panel-description).
+
+    Args:
+        driver: WebDriver Selenium.
+
+    Returns:
+        String com conteúdo do lembrete, ou None se não encontrado.
+    """
+    try:
+        panels = driver.find_elements(
+            By.CSS_SELECTOR, "mat-expansion-panel"
+        )
+        for panel in panels:
+            try:
+                title_elem = panel.find_element(
+                    By.CSS_SELECTOR, "mat-panel-title.post-it-titulo"
+                )
+                title_text = title_elem.text.strip()
+                if (
+                    "Dom Eletronico" in title_text
+                    or "DomicEletr" in title_text
+                    or "DomElet" in title_text
+                ):
+                    # Encontrou o painel, agora extrair descrição
+                    try:
+                        desc_elem = panel.find_element(
+                            By.CSS_SELECTOR, "mat-panel-description"
+                        )
+                        conteudo = desc_elem.text.strip()
+                        return conteudo if conteudo else None
+                    except Exception:
+                        return None
+            except Exception:
+                continue
+        return None
+    except Exception:
+        return None
         return False
 
 
@@ -146,8 +218,41 @@ def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
                 nomes.append(nome)
         return ', '.join(nomes)
     except Exception as e:
-        logger.warning('[DOM] _checar_empresas_api falhou: %s', e)
+        logger.warning('[DOMICILIO_ELETRONICO] _checar_empresas_api falhou: %s', e)
         return ''
+
+
+def _tem_ata_audiencia(id_processo: str, driver: WebDriver) -> bool:
+    """Verifica se ha Ata de Audiencia na timeline do processo via API.
+
+    Args:
+        id_processo: ID interno do processo (string numerica).
+        driver: WebDriver para extrair sessao.
+
+    Returns:
+        True se encontrou item de ata de audiencia na timeline.
+    """
+    import unicodedata
+
+    def _norm(s: str) -> str:
+        return unicodedata.normalize('NFKD', (s or '').lower()).encode('ascii', 'ignore').decode()
+
+    try:
+        from bianca.api_client import PjeApiClient, session_from_driver as _sfp
+        _sess, _base = _sfp(driver)
+        _client = PjeApiClient(_sess, _base)
+        _tl = _client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=True)
+        if not _tl:
+            return False
+        for item in _tl:
+            texto = _norm(item.get('tipo') or '') + ' ' + _norm(item.get('titulo') or '')
+            if 'ata' in texto and 'audienci' in texto:
+                logger.info('[DOMICILIO_ELETRONICO] Ata de audiencia encontrada na timeline de %s', id_processo)
+                return True
+        return False
+    except Exception as e:
+        logger.warning('[DOMICILIO_ELETRONICO] _tem_ata_audiencia falhou para %s: %s', id_processo, e)
+        return False
 
 
     """Le o painel de expedientes e retorna nomes de empresas com falha de confirmacao.
@@ -161,13 +266,13 @@ def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
     empresas = []
     try:
         if not aguardar_e_clicar(driver, "#botao-menu", timeout=10, log=False):
-            logger.warning("[DOM] checar_empresas: menu nao encontrado")
+            logger.warning("[DOMICILIO_ELETRONICO] checar_empresas: menu nao encontrado")
             return ""
 
         if not aguardar_e_clicar(
             driver, 'button[aria-label="Expedientes"]', timeout=8, log=False
         ):
-            logger.warning("[DOM] checar_empresas: Expedientes nao encontrado")
+            logger.warning("[DOMICILIO_ELETRONICO] checar_empresas: Expedientes nao encontrado")
             return ""
 
         WebDriverWait(driver, 10).until(
@@ -191,7 +296,7 @@ def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
                 continue
     except Exception as e:
         logger.warning(
-            "[DOM] checar_empresas: erro ao ler painel de expedientes: %s", e
+            "[DOMICILIO_ELETRONICO] checar_empresas: erro ao ler painel de expedientes: %s", e
         )
     finally:
         try:
@@ -245,9 +350,10 @@ def callback_bucket1(driver: WebDriver, tipo: str = "desconhecido") -> bool:
         True se a operacao foi bem-sucedida.
     """
     numero = getattr(driver, "_numero_processo_lista", "desconhecido")
-    logger.info("[DOM][B1][CALLBACK] Executando acoes para %s", numero)
+    logger.info("[DOMICILIO_ELETRONICO][B1][CALLBACK] Executando acoes para %s", numero)
 
     chips_domicilio = [
+        "Domicilio Eletronico - Ciencia Automatica",
         "Domicilio Eletronico - Prazo de Ciencia Expirado",
         "Domicilio Eletronico - Prazo de Resposta Excedido",
         "Domicilio Eletronico - Erro na Transmissao",
@@ -259,7 +365,7 @@ def callback_bucket1(driver: WebDriver, tipo: str = "desconhecido") -> bool:
         chips_para_remover=chips_domicilio,
         debug=True,
     )
-    logger.info("[DOM][B1][CALLBACK] def_chip result: %s", result)
+    logger.info("[DOMICILIO_ELETRONICO][B1][CALLBACK] def_chip result: %s", result)
     return result
 
 
@@ -285,56 +391,27 @@ def callback_bucket2(
     numero = getattr(driver, "_numero_processo_lista", "desconhecido")
 
     logger.info(
-        "[DOM][B2][CALLBACK] Executando acoes para %s (%s)", numero, tipo_processo
+        "[DOMICILIO_ELETRONICO][B2][CALLBACK] Executando acoes para %s (%s)", numero, tipo_processo
     )
 
-    # 0. Criar comentario de rastreio
-    logger.info("[DOM][B2][CALLBACK] Criando comentario: Bianca - Domicilio checar")
-    try:
-        criar_comentario(driver, "Bianca - Domicilio checar")
-    except Exception as e_cmt:
-        logger.warning("[DOM][B2][CALLBACK] Erro ao criar comentario: %s", e_cmt)
-
-    # 1. Checar ata de audiencia na timeline via API
+    # Extrair ID do processo da URL (necessario para _checar_empresas_api)
+    import re as _re
     id_processo = None
     try:
-        import re as _re
         m_id = _re.search(r'/processo/(\d+)/', driver.current_url)
         if m_id:
             id_processo = m_id.group(1)
     except Exception:
         pass
 
-    if id_processo:
-        try:
-            from bianca.api_client import PjeApiClient, session_from_driver as _sfp
-            _sess, _base = _sfp(driver)
-            _client = PjeApiClient(_sess, _base)
-            _tl = _client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=True)
-            if _tl:
-                def _norm_tl(s):
-                    import unicodedata
-                    return unicodedata.normalize('NFKD', (s or '').lower()).encode('ascii', 'ignore').decode()
-                for _item in _tl:
-                    _tipo = _norm_tl(_item.get('tipo') or '')
-                    _titulo = _norm_tl(_item.get('titulo') or '')
-                    if 'ata' in _tipo + _titulo and 'audienci' in _tipo + _titulo:
-                        logger.info(
-                            "[DOM][B2][CALLBACK] Ata de audiencia encontrada na timeline de %s — pulando",
-                            numero,
-                        )
-                        return True
-        except Exception as e_tl:
-            logger.warning(
-                "[DOM][B2][CALLBACK] Erro ao checar timeline de %s: %s", numero, e_tl
-            )
-    else:
+    if not id_processo:
         logger.warning(
-            "[DOM][B2][CALLBACK] Nao foi possivel extrair id_processo da URL para %s", numero
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Nao foi possivel extrair id_processo da URL para %s", numero
         )
 
-    # 2. Remover chips de ciencia expirado e resposta excedido
+    # 1. Remover chips de ciencia expirado e resposta excedido
     chips_ciencia_resposta = [
+        "Domicilio Eletronico - Ciencia Automatica",
         "Domicilio Eletronico - Prazo de Ciencia Expirado",
         "Domicilio Eletronico - Prazo de Resposta Excedido",
     ]
@@ -346,7 +423,7 @@ def callback_bucket2(
         chips_para_remover=chips_ciencia_resposta,
         debug=True,
     )
-    logger.info("[DOM][B2][CALLBACK] def_chip result: %s", result_def_chip)
+    logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] def_chip result: %s", result_def_chip)
 
     # Verificar acesso negado apos def_chip
     try:
@@ -354,42 +431,92 @@ def callback_bucket2(
     except Exception as e:
         if "RESTART_DRIVER" in str(e):
             logger.warning(
-                "[DOM][B2][CALLBACK] Acesso negado detectado apos def_chip"
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Acesso negado detectado apos def_chip"
                 " - propagando para recuperacao"
             )
             raise
         else:
             logger.error(
-                "[DOM][B2][CALLBACK] Erro inesperado na verificacao"
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro inesperado na verificacao"
                 " de acesso negado: %s",
                 e,
             )
 
-    # 4. Verificar lembrete Dom Eletronico
+    # 4. Verificar lembrete Dom Eletronico (nova lógica simplificada)
     lembrete_existe = has_dom_eletronico_reminder(driver)
+    executar_pec = False  # Flag para determinar se PEC deve ser executada
+    
     if lembrete_existe:
-        logger.info(
-            "[DOM][B2][CALLBACK] Ja tem lembrete Dom Eletronico"
-            " - pulando criacao, mas executando PEC"
-        )
+        # Lembrete existe - extrair conteúdo
+        conteudo = _extrair_conteudo_lembrete_dom(driver)
+        logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existente encontrado")
+        
+        if conteudo and ("via correio" in conteudo.lower() or "correio enviado" in conteudo.lower()):
+            # Sub-case 2a: Via correio já registrado
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete contem 'via correio' ou 'correio enviado'"
+                " - criando comentario e apagando chips (SEM PEC)"
+            )
+            
+            # Criar comentário Bianca
+            try:
+                comentario = "Dom - verificado correio"
+                criar_comentario(driver, comentario, debug=True)
+                logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Comentario criado: %s", comentario)
+            except Exception as e:
+                logger.warning(
+                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
+                )
+            
+            # Apagar chips de domicilio
+            result_chips = def_chip(
+                driver,
+                numero_processo=numero,
+                observacao="Remover chips domicilio - correio registrado",
+                chips_para_remover=[
+                    "Domicilio Eletronico - Ciencia Automatica",
+                    "Domicilio Eletronico - Prazo de Ciencia Expirado",
+                    "Domicilio Eletronico - Prazo de Resposta Excedido",
+                ],
+                debug=True,
+            )
+            logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] def_chip result: %s", result_chips)
+            
+            # NÃO executar PEC
+            executar_pec = False
+        else:
+            # Sub-case: Lembrete existe mas não é "via correio" ou "correio enviado"
+            logger.warning(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existe mas nao contem 'via correio' ou 'correio enviado'"
+                " - pulando tudo (sem comentario, sem chips, sem PEC)"
+            )
+            executar_pec = False
     else:
-        # Criar lembrete DomicEletr
+        # Sub-case 2b: Sem lembrete - executar fluxo completo
+        logger.info(
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Sem lembrete Dom Eletronico"
+            " - executando fluxo completo (empresas+lembrete+comentario+chips+PEC)"
+        )
+        
+        # Chamar _checar_empresas_api
         empresas_falha = _checar_empresas_api(id_processo, driver)
-        conteudo_lembrete = "Ciencia negativa Domicilio: Correio enviado:"
+        conteudo_lembrete = "Ciencia negativa Domicilio: Correio enviado"
         if empresas_falha:
             conteudo_lembrete += f" ({empresas_falha})"
-        logger.info("[DOM][B2][CALLBACK] Criando lembrete DomicEletr")
+        
+        # Criar lembrete
+        logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando lembrete DomicEletr")
         lembrete_result = criar_lembrete_posit(
             driver, titulo="DomicEletr", conteudo=conteudo_lembrete, debug=True
         )
         logger.info(
-            "[DOM][B2][CALLBACK] Lembrete criado: %s", lembrete_result
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete criado: %s", lembrete_result
         )
-
+        
         # Aguardar salvamento completo do lembrete
         if lembrete_result:
             logger.info(
-                "[DOM][B2][CALLBACK] Aguardando salvamento completo do lembrete..."
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Aguardando salvamento completo do lembrete..."
             )
             try:
                 WebDriverWait(driver, 8).until(
@@ -402,44 +529,72 @@ def callback_bucket2(
                 )
             except Exception:
                 pass
-        else:
-            logger.error(
-                "[DOM][B2][CALLBACK] Falha ao criar lembrete"
-                " - mas continuando com PEC"
+        
+        # Criar comentário Bianca
+        try:
+            comentario = "Dom - criado lembrete e enviado correio"
+            criar_comentario(driver, comentario, debug=True)
+            logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Comentario criado: %s", comentario)
+        except Exception as e:
+            logger.warning(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
             )
-
+        
+        # Apagar chips de domicilio
+        result_chips = def_chip(
+            driver,
+            numero_processo=numero,
+            observacao="Remover chips domicilio - lembrete criado",
+            chips_para_remover=[
+                "Domicilio Eletronico - Ciencia Automatica",
+                "Domicilio Eletronico - Prazo de Ciencia Expirado",
+                "Domicilio Eletronico - Prazo de Resposta Excedido",
+            ],
+            debug=True,
+        )
+        logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] def_chip result: %s", result_chips)
+        
+        # Executar PEC
+        executar_pec = True
+        
         # Verificar acesso negado apos criacao do lembrete
         try:
             _verificar_acesso_negado(driver, f"DOM_{numero}_lembrete")
         except Exception as e:
             if "RESTART_DRIVER" in str(e):
                 logger.warning(
-                    "[DOM][B2][CALLBACK] Acesso negado detectado apos lembrete"
+                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] Acesso negado detectado apos lembrete"
                     " - propagando para recuperacao"
                 )
                 raise
             else:
                 logger.error(
-                    "[DOM][B2][CALLBACK] Erro inesperado na verificacao"
+                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro inesperado na verificacao"
                     " de acesso negado: %s",
                     e,
                 )
 
-    # 5. Executar PEC AR
+    # 5. Executar PEC AR (apenas se flag executar_pec = True)
+    if not executar_pec:
+        logger.info(
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Pulando PEC (lembrete com via correio ou nenhuma acao necessaria)"
+        )
+        return True
+
     if "ATSum" in tipo_processo:
-        logger.info("[DOM][B2][CALLBACK] Criando PEC AR Sumaria (pec_arsum)")
+        logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando PEC AR Sumaria (pec_arsum)")
         pec_wrapper = pec_arsum
     else:
         # ATOrd, ACum ou outros
-        logger.info("[DOM][B2][CALLBACK] Criando PEC AR Ordinaria (pec_arord)")
+        logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando PEC AR Ordinaria (pec_arord)")
         pec_wrapper = pec_arord
 
     # Verificar abas antes da PEC
     abas_antes = len(driver.window_handles)
-    logger.info("[DOM][B2][CALLBACK] Abas antes da PEC: %s", abas_antes)
+    logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Abas antes da PEC: %s", abas_antes)
 
     result_pec = pec_wrapper(driver, debug=True)
-    logger.info("[DOM][B2][CALLBACK] PEC result: %s", result_pec)
+    logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] PEC result: %s", result_pec)
 
     # Verificar acesso negado apos execucao da PEC
     try:
@@ -447,24 +602,24 @@ def callback_bucket2(
     except Exception as e:
         if "RESTART_DRIVER" in str(e):
             logger.warning(
-                "[DOM][B2][CALLBACK] Acesso negado detectado apos PEC"
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Acesso negado detectado apos PEC"
                 " - propagando para recuperacao"
             )
             raise
         else:
             logger.error(
-                "[DOM][B2][CALLBACK] Erro inesperado na verificacao"
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro inesperado na verificacao"
                 " de acesso negado: %s",
                 e,
             )
 
     # Verificar abas depois da PEC
     abas_depois = len(driver.window_handles)
-    logger.info("[DOM][B2][CALLBACK] Abas depois da PEC: %s", abas_depois)
+    logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Abas depois da PEC: %s", abas_depois)
 
     if abas_depois <= abas_antes:
         logger.warning(
-            "[DOM][B2][CALLBACK] AVISO: Nenhuma nova aba foi aberta pela PEC!"
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] AVISO: Nenhuma nova aba foi aberta pela PEC!"
         )
         return False
 
@@ -488,7 +643,7 @@ def _filtro_chips_dom(
     Returns:
         True se ao menos um chip foi selecionado com sucesso.
     """
-    logger.info("[DOM] Aplicando filtro de chips: %s", chips_alvo)
+    logger.info("[DOMICILIO_ELETRONICO] Aplicando filtro de chips: %s", chips_alvo)
 
     chips_mapeamento = {
         "domicilio eletronico expirado": (
@@ -520,11 +675,11 @@ def _filtro_chips_dom(
                     chips_element = elem
                     break
         except Exception:
-            logger.error("[DOM] Elemento chips nao encontrado")
+            logger.error("[DOMICILIO_ELETRONICO] Elemento chips nao encontrado")
             return False
 
     if not chips_element:
-        logger.error("[DOM] Elemento chips nao encontrado")
+        logger.error("[DOMICILIO_ELETRONICO] Elemento chips nao encontrado")
         return False
 
     # Clicar para abrir dropdown
@@ -542,7 +697,7 @@ def _filtro_chips_dom(
             )
         )
     except Exception as e:
-        logger.error("[DOM] Painel de chips nao apareceu: %s", e)
+        logger.error("[DOMICILIO_ELETRONICO] Painel de chips nao apareceu: %s", e)
         return False
 
     # Aguardar opcoes carregarem
@@ -593,10 +748,10 @@ def _filtro_chips_dom(
         except Exception:
             pass
     except Exception as e:
-        logger.error("[DOM] Erro ao clicar filtrar: %s", e)
+        logger.error("[DOMICILIO_ELETRONICO] Erro ao clicar filtrar: %s", e)
         return False
 
-    logger.info("[DOM] Chips aplicados: %s", chips_selecionados)
+    logger.info("[DOMICILIO_ELETRONICO] Chips aplicados: %s", chips_selecionados)
     return len(chips_selecionados) > 0
 
 
@@ -624,7 +779,7 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
         # 1. Navegar para painel de atividades
         driver.get(URL_ATIVIDADES)
         WebDriverWait(driver, 10).until(EC.url_contains("atividades"))
-        logger.info("[DOM] Navegado para painel de atividades")
+        logger.info("[DOMICILIO_ELETRONICO] Navegado para painel de atividades")
 
         # 2. Remover chip "Vencidas" se existir
         try:
@@ -639,13 +794,13 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
                         try:
                             if safe_click(driver, btn, timeout=5, log=False):
                                 logger.info(
-                                    "[DOM] Chip Vencidas removido."
+                                    "[DOMICILIO_ELETRONICO] Chip Vencidas removido."
                                 )
                                 removido = True
                                 break
                         except Exception as e:
                             logger.warning(
-                                "[DOM] Erro ao clicar no botao"
+                                "[DOMICILIO_ELETRONICO] Erro ao clicar no botao"
                                 " de fechar chip Vencidas: %s",
                                 e,
                             )
@@ -653,11 +808,11 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
                         break
             if not removido:
                 logger.info(
-                    "[DOM] Chip Vencidas nao encontrado ou ja removido."
+                    "[DOMICILIO_ELETRONICO] Chip Vencidas nao encontrado ou ja removido."
                 )
         except Exception as e:
             logger.warning(
-                "[DOM] Erro ao verificar/remover chip Vencidas: %s", e
+                "[DOMICILIO_ELETRONICO] Erro ao verificar/remover chip Vencidas: %s", e
             )
 
         # 3. Aplicar filtro dom.e
@@ -673,7 +828,7 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
             campo_descricao.send_keys("dom.e")
             campo_descricao.send_keys(Keys.ENTER)
             logger.info(
-                "[DOM] Filtro dom.e aplicado no painel de atividades"
+                "[DOMICILIO_ELETRONICO] Filtro dom.e aplicado no painel de atividades"
             )
             # Aguardar aplicacao do filtro
             try:
@@ -687,7 +842,7 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
 
         # 4. Aplicar filtro 100
         aplicar_filtro_100(driver)
-        logger.info("[DOM] Filtro 100 aplicado")
+        logger.info("[DOMICILIO_ELETRONICO] Filtro 100 aplicado")
         # Aguardar estabilizacao apos filtro 100
         try:
             WebDriverWait(driver, 10).until(
@@ -700,7 +855,7 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
 
     except Exception as e:
         logger.error(
-            "[DOM] Erro na navegacao para atividades: %s", e
+            "[DOMICILIO_ELETRONICO] Erro na navegacao para atividades: %s", e
         )
         return False
 
@@ -733,7 +888,7 @@ def processar_processo_dom(
         Exception: Com prefixo RESTART_DRIVER se o driver precisa ser reiniciado.
     """
     try:
-        logger.info("[DOM] Processando processo: %s", proc_id)
+        logger.info("[DOMICILIO_ELETRONICO] Processando processo: %s", proc_id)
 
         # Reindexar linha se necessario (cuidar de erros de conexao)
         try:
@@ -744,7 +899,7 @@ def processar_processo_dom(
                 linha_atual = reindexar_linha(driver, proc_id)
             except Exception as re_e:
                 msg = str(re_e)
-                logger.error("[DOM] Erro geral na reindexacao: %s", msg)
+                logger.error("[DOMICILIO_ELETRONICO] Erro geral na reindexacao: %s", msg)
                 if (
                     "Tried to run command without establishing a connection"
                     in msg
@@ -757,7 +912,7 @@ def processar_processo_dom(
 
             if not linha_atual:
                 logger.error(
-                    "[DOM] Nao foi possivel reindexar linha para %s",
+                    "[DOMICILIO_ELETRONICO] Nao foi possivel reindexar linha para %s",
                     proc_id,
                 )
                 return False
@@ -766,13 +921,13 @@ def processar_processo_dom(
         try:
             if not abrir_detalhes_processo(driver, linha_atual):
                 logger.error(
-                    "[DOM] Falha ao abrir detalhes para %s", proc_id
+                    "[DOMICILIO_ELETRONICO] Falha ao abrir detalhes para %s", proc_id
                 )
                 return False
         except Exception as e_open:
             msg = str(e_open)
             logger.error(
-                "[DOM] Erro ao abrir detalhes para %s: %s", proc_id, msg
+                "[DOMICILIO_ELETRONICO] Erro ao abrir detalhes para %s: %s", proc_id, msg
             )
             if (
                 "Tried to run command without establishing a connection"
@@ -790,7 +945,7 @@ def processar_processo_dom(
         except Exception as e_tab:
             msg = str(e_tab)
             logger.error(
-                "[DOM] Erro ao trocar para nova aba em %s: %s",
+                "[DOMICILIO_ELETRONICO] Erro ao trocar para nova aba em %s: %s",
                 proc_id,
                 msg,
             )
@@ -806,9 +961,37 @@ def processar_processo_dom(
 
         if not nova_aba:
             logger.error(
-                "[DOM] Nova aba nao carregou para %s", proc_id
+                "[DOMICILIO_ELETRONICO] Nova aba nao carregou para %s", proc_id
             )
             return False
+
+        # 0. Remover chips DOM Eletronico antes de qualquer verificacao
+        _chips_dom_pre = [
+            "Domicilio Eletronico - Ciencia Automatica",
+            "Domicilio Eletronico - Prazo de Ciencia Expirado",
+            "Domicilio Eletronico - Prazo de Resposta Excedido",
+            "Domicilio Eletronico - Erro na Transmissao",
+        ]
+        try:
+            def_chip(
+                driver,
+                numero_processo=proc_id,
+                observacao="Remover chips DOM pre-fluxo",
+                chips_para_remover=_chips_dom_pre,
+                debug=True,
+            )
+        except Exception as _e_chip_pre:
+            logger.warning("[DOMICILIO_ELETRONICO] Erro ao remover chips pre-fluxo: %s", _e_chip_pre)
+
+        # Verificar ata de audiencia na timeline antes de processar
+        import re as _re_dom
+        _m_pid = _re_dom.search(r'/processo/(\d+)/', driver.current_url)
+        if _m_pid and _tem_ata_audiencia(_m_pid.group(1), driver):
+            logger.info(
+                "[DOMICILIO_ELETRONICO] Ata de audiencia na timeline de %s — pulando (filtro de lista)",
+                proc_id,
+            )
+            return True
 
         # Extrair tipo do processo da aba de detalhes (mais confiavel)
         tipo_processo = "ATOrd"  # padrao
@@ -843,19 +1026,19 @@ def processar_processo_dom(
             if tipo_js:
                 tipo_processo = tipo_js.strip()
                 logger.info(
-                    "[DOM] Tipo identificado na aba de detalhes: %s",
+                    "[DOMICILIO_ELETRONICO] Tipo identificado na aba de detalhes: %s",
                     tipo_processo,
                 )
             else:
                 logger.warning(
-                    "[DOM] Tipo nao identificado na aba de detalhes"
+                    "[DOMICILIO_ELETRONICO] Tipo nao identificado na aba de detalhes"
                     " para %s, usando padrao ATOrd",
                     proc_id,
                 )
                 tipo_processo = "ATOrd"
         except Exception as e:
             logger.warning(
-                "[DOM] Erro ao extrair tipo da aba de detalhes"
+                "[DOMICILIO_ELETRONICO] Erro ao extrair tipo da aba de detalhes"
                 " para %s: %s, usando padrao ATOrd",
                 proc_id,
                 e,
@@ -867,25 +1050,25 @@ def processar_processo_dom(
             driver._numero_processo_lista = proc_id
             result = callback_bucket2(driver, tipo_processo)
             if result:
-                logger.info("[DOM] Callback OK para %s", proc_id)
+                logger.info("[DOMICILIO_ELETRONICO] Callback OK para %s", proc_id)
                 return True
             else:
                 logger.error(
-                    "[DOM] Callback falhou para %s", proc_id
+                    "[DOMICILIO_ELETRONICO] Callback falhou para %s", proc_id
                 )
                 return False
         except Exception as e:
             # Se e RESTART_DRIVER, propagar para recuperacao
             if "RESTART_DRIVER" in str(e):
                 logger.warning(
-                    "[DOM] Acesso negado detectado no callback"
+                    "[DOMICILIO_ELETRONICO] Acesso negado detectado no callback"
                     " para %s - propagando para recuperacao",
                     proc_id,
                 )
                 raise
             # Outras excecoes sao erros do callback
             logger.error(
-                "[DOM] Erro no callback para %s: %s", proc_id, e
+                "[DOMICILIO_ELETRONICO] Erro no callback para %s: %s", proc_id, e
             )
             return False
         finally:
@@ -895,7 +1078,7 @@ def processar_processo_dom(
     except Exception as e:
         msg = str(e)
         logger.error(
-            "[DOM] Erro geral no processamento de %s: %s", proc_id, msg
+            "[DOMICILIO_ELETRONICO] Erro geral no processamento de %s: %s", proc_id, msg
         )
         if (
             "Tried to run command without establishing a connection" in msg
@@ -929,12 +1112,12 @@ def _gerenciar_abas_apos_processo_dom(
             handles = list(driver.window_handles)
         except Exception as e:
             logger.error(
-                "[DOM] Driver desconectado ao ler window_handles: %s", e
+                "[DOMICILIO_ELETRONICO] Driver desconectado ao ler window_handles: %s", e
             )
             raise Exception(f"RESTART_DRIVER: driver_disconnect ({e})")
 
         if aba_lista_original not in handles:
-            logger.error("[DOM] Aba da lista nao esta mais disponivel")
+            logger.error("[DOMICILIO_ELETRONICO] Aba da lista nao esta mais disponivel")
             raise Exception("RESTART_DRIVER: aba_lista_original_missing")
 
         # Fechar outras abas com cuidado
@@ -953,11 +1136,11 @@ def _gerenciar_abas_apos_processo_dom(
                 except Exception:
                     pass
                 driver.close()
-                logger.info("[DOM] Aba fechada: %s...", handle[:20])
+                logger.info("[DOMICILIO_ELETRONICO] Aba fechada: %s...", handle[:20])
             except Exception as e:
                 msg = str(e)
                 logger.warning(
-                    "[DOM] Erro ao fechar aba %s...: %s",
+                    "[DOMICILIO_ELETRONICO] Erro ao fechar aba %s...: %s",
                     handle[:20],
                     msg,
                 )
@@ -974,7 +1157,7 @@ def _gerenciar_abas_apos_processo_dom(
             driver.switch_to.window(aba_lista_original)
         except Exception as e:
             logger.error(
-                "[DOM] Falha ao retornar para aba da lista: %s", e
+                "[DOMICILIO_ELETRONICO] Falha ao retornar para aba da lista: %s", e
             )
             raise Exception(f"RESTART_DRIVER: switch_to_failed ({e})")
 
@@ -988,16 +1171,16 @@ def _gerenciar_abas_apos_processo_dom(
             )
         except Exception:
             logger.debug(
-                "[DOM] Timeout: tabela de processos"
+                "[DOMICILIO_ELETRONICO] Timeout: tabela de processos"
                 " pode nao estar visivel imediatamente (seguindo)"
             )
 
-        logger.info("[DOM] Retornado a aba da lista")
+        logger.info("[DOMICILIO_ELETRONICO] Retornado a aba da lista")
 
     except Exception as e:
         if "RESTART_DRIVER" in str(e):
             raise
-        logger.error("[DOM] Falha ao gerenciar abas: %s", e)
+        logger.error("[DOMICILIO_ELETRONICO] Falha ao gerenciar abas: %s", e)
         raise
 
 
@@ -1028,22 +1211,22 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
             cur = (driver.current_url or "").lower()
             if "atividades" in cur:
                 logger.info(
-                    "[DOM] Executando fluxo no painel de atividades (dom.e)"
+                    "[DOMICILIO_ELETRONICO] Executando fluxo no painel de atividades (dom.e)"
                 )
             elif "lista-processos" in cur:
                 logger.info(
-                    "[DOM] Pagina e a lista de processos"
+                    "[DOMICILIO_ELETRONICO] Pagina e a lista de processos"
                     " -- prosseguindo com indexacao (compativel)"
                 )
             else:
                 logger.info(
-                    "[DOM] Pagina atual nao e painel de atividades"
+                    "[DOMICILIO_ELETRONICO] Pagina atual nao e painel de atividades"
                     " nem lista; navegando para painel de atividades"
                     " e aplicando filtro dom.e"
                 )
                 if not navigate_to_activities_and_filter(driver):
                     logger.error(
-                        "[DOM] Falha ao navegar para painel de atividades"
+                        "[DOMICILIO_ELETRONICO] Falha ao navegar para painel de atividades"
                     )
                     return False
                 try:
@@ -1056,19 +1239,19 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
                     pass
         except Exception as e:
             logger.debug(
-                "[DOM] Erro no pre-check de pagina: %s", e
+                "[DOMICILIO_ELETRONICO] Erro no pre-check de pagina: %s", e
             )
 
         # 1. Indexar processos
         processos = indexar_processos(driver)
         if not processos:
             logger.warning(
-                "[DOM] Nenhum processo encontrado na lista"
+                "[DOMICILIO_ELETRONICO] Nenhum processo encontrado na lista"
             )
             return False
 
         logger.info(
-            "[DOM] %s processos encontrados para processamento",
+            "[DOMICILIO_ELETRONICO] %s processos encontrados para processamento",
             len(processos),
         )
 
@@ -1079,7 +1262,7 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
 
         for idx, (proc_id, linha) in enumerate(processos, 1):
             logger.info(
-                "[DOM] Processando %d/%d: %s", idx, total, proc_id
+                "[DOMICILIO_ELETRONICO] Processando %d/%d: %s", idx, total, proc_id
             )
 
             try:
@@ -1089,19 +1272,19 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
                 if not ok:
                     erros += 1
                     logger.error(
-                        "[DOM] Falha no processamento de %s", proc_id
+                        "[DOMICILIO_ELETRONICO] Falha no processamento de %s", proc_id
                     )
             except Exception as e:
                 if "RESTART_DRIVER" in str(e):
                     logger.warning(
-                        "[DOM] Erro critico em %s"
+                        "[DOMICILIO_ELETRONICO] Erro critico em %s"
                         " - propagando RESTART_DRIVER",
                         proc_id,
                     )
                     raise
                 erros += 1
                 logger.error(
-                    "[DOM] Erro processando %s: %s", proc_id, e
+                    "[DOMICILIO_ELETRONICO] Erro processando %s: %s", proc_id, e
                 )
 
             # Delay anti-rate entre itens
@@ -1112,7 +1295,7 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
 
         sucesso = total - erros
         logger.info(
-            "[DOM] Processamento concluido: %s sucesso, %s erros"
+            "[DOMICILIO_ELETRONICO] Processamento concluido: %s sucesso, %s erros"
             " (total %s)",
             sucesso,
             erros,
@@ -1123,13 +1306,86 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
     except Exception as e:
         if "RESTART_DRIVER" in str(e):
             raise
-        logger.error("[DOM] Erro na execucao da lista: %s", e)
+        logger.error("[DOMICILIO_ELETRONICO] Erro na execucao da lista: %s", e)
         return False
 
 
 # =============================================================================
 # Entrypoint principal
 # =============================================================================
+
+_PROGRESSO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "progresso.json")
+
+
+def _carregar_progresso() -> Dict[str, Any]:
+    try:
+        with open(_PROGRESSO_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _salvar_progresso(dados: Dict[str, Any]) -> None:
+    try:
+        with open(_PROGRESSO_PATH, "w", encoding="utf-8") as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning("[DOMICILIO_ELETRONICO][CACHE] Falha ao salvar progresso: %s", e)
+
+
+def _cache_dom_salvar_lista(processos: List[Dict[str, Any]]) -> None:
+    """Persiste a lista completa de processos DOM no progresso.json."""
+    prog = _carregar_progresso()
+    prog["dom"] = {
+        "data": datetime.now().strftime("%Y-%m-%d"),
+        "processos_pendentes": [
+            {"id": str(p.get("id", "")), "numero": p.get("numeroProcesso") or p.get("numero") or ""}
+            for p in processos
+        ],
+        "processos_ok": [],
+        "processos_erro": [],
+        "last_update": datetime.now().isoformat(),
+    }
+    _salvar_progresso(prog)
+    logger.info("[DOMICILIO_ELETRONICO][CACHE] Lista de %d processos salva em progresso.json", len(processos))
+
+
+def _cache_dom_carregar_pendentes() -> Optional[List[Dict[str, Any]]]:
+    """Retorna lista pendente do dia se existir, None caso contrário."""
+    prog = _carregar_progresso()
+    dom = prog.get("dom", {})
+    if not dom:
+        return None
+    data_cache = dom.get("data", "")
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    if data_cache != hoje:
+        return None
+    pendentes = dom.get("processos_pendentes", [])
+    if not pendentes:
+        return None
+    ok = set(dom.get("processos_ok", []))
+    erro = set(dom.get("processos_erro", []))
+    ja_processados = ok | erro
+    restantes = [p for p in pendentes if p["numero"] not in ja_processados and p["id"] not in ja_processados]
+    total_orig = len(pendentes)
+    logger.info("[DOMICILIO_ELETRONICO][CACHE] Cache do dia encontrado: %d/%d processos pendentes", len(restantes), total_orig)
+    return restantes if restantes else None
+
+
+def _cache_dom_marcar(numero: str, sucesso: bool) -> None:
+    """Marca processo como ok ou erro no cache."""
+    prog = _carregar_progresso()
+    dom = prog.get("dom", {})
+    if not dom:
+        return
+    chave = "processos_ok" if sucesso else "processos_erro"
+    lista = dom.setdefault(chave, [])
+    if numero not in lista:
+        lista.append(numero)
+    dom["last_update"] = datetime.now().isoformat()
+    prog["dom"] = dom
+    _salvar_progresso(prog)
+
 
 
 def run_dom(driver: WebDriver) -> Dict[str, Any]:
@@ -1152,11 +1408,11 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
         >>> resultado["sucesso"]
         True
     """
-    logger.info("[DOM] === INICIANDO DOM ENGINE ===")
+    logger.info("[DOMICILIO_ELETRONICO] === INICIANDO DOM ENGINE ===")
 
     try:
         # 1. Navegar para lista de processos DOM
-        logger.info("[DOM] Navegando para lista de processos...")
+        logger.info("[DOMICILIO_ELETRONICO] Navegando para lista de processos...")
         driver.get(LIST_URL)
         try:
             WebDriverWait(driver, 30).until(
@@ -1166,17 +1422,17 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
             )
         except Exception:
             logger.warning(
-                "[DOM] Timeout ao aguardar tabela na lista de processos"
+                "[DOMICILIO_ELETRONICO] Timeout ao aguardar tabela na lista de processos"
             )
-        logger.info("[DOM] Navegacao concluida")
+        logger.info("[DOMICILIO_ELETRONICO] Navegacao concluida")
 
         # 2. Aplicar filtro de fase: conhecimento
-        logger.info("[DOM] Aplicando filtro de fase: conhecimento")
+        logger.info("[DOMICILIO_ELETRONICO] Aplicando filtro de fase: conhecimento")
         try:
             filtrofases(driver, fases_alvo=["conhecimento"])
         except Exception as e:
             logger.error(
-                "[DOM] Erro ao aplicar filtro de fase: %s", e
+                "[DOMICILIO_ELETRONICO] Erro ao aplicar filtro de fase: %s", e
             )
             return {"sucesso": False, "erro": str(e)}
 
@@ -1191,12 +1447,12 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
 
         # 3. Navegar para painel de atividades e aplicar filtro dom.e
         logger.info(
-            "[DOM] Navegando para painel de atividades"
+            "[DOMICILIO_ELETRONICO] Navegando para painel de atividades"
             " e aplicando filtro dom.e..."
         )
         if not navigate_to_activities_and_filter(driver):
             logger.error(
-                "[DOM] Falha ao navegar para painel de atividades"
+                "[DOMICILIO_ELETRONICO] Falha ao navegar para painel de atividades"
             )
             return {
                 "sucesso": False,
@@ -1204,15 +1460,15 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
             }
 
         # 4. Executar lista com callback do bucket 2
-        logger.info("[DOM] Executando lista com callback bucket 2...")
+        logger.info("[DOMICILIO_ELETRONICO] Executando lista com callback bucket 2...")
         sucesso = execute_list_with_bucket2_callback(driver)
 
         if sucesso:
-            logger.info("[DOM] === EXECUCAO CONCLUIDA COM SUCESSO ===")
+            logger.info("[DOMICILIO_ELETRONICO] === EXECUCAO CONCLUIDA COM SUCESSO ===")
             return {"sucesso": True}
         else:
             logger.warning(
-                "[DOM] Execucao concluida com falhas em alguns processos"
+                "[DOMICILIO_ELETRONICO] Execucao concluida com falhas em alguns processos"
             )
             return {
                 "sucesso": False,
@@ -1221,7 +1477,7 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
 
     except Exception as e:
         msg = str(e)
-        logger.error("[DOM] Erro geral: %s", msg)
+        logger.error("[DOMICILIO_ELETRONICO] Erro geral: %s", msg)
         return {"sucesso": False, "erro": msg}
 
 
@@ -1245,7 +1501,7 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
     from bianca.api_client import PjeApiClient, session_from_driver
     from bianca.config import URL_PJE_BASE
 
-    logger.info("[DOM] === INICIANDO DOM ENGINE (API) ===")
+    logger.info("[DOMICILIO_ELETRONICO] === INICIANDO DOM ENGINE (API) ===")
 
     try:
         sess, base_url = session_from_driver(driver)
@@ -1254,31 +1510,93 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
 
     client = PjeApiClient(sess, base_url)
 
-    logger.info(
-        "[DOM][API] Buscando processos (conhecimento + chips DOM + audiencia)..."
-    )
-    processos = client.buscar_processos_conhecimento_dom()
+    # Tentar reutilizar lista do dia (evita re-fetch lento da API)
+    pendentes = _cache_dom_carregar_pendentes()
+    if pendentes is not None:
+        logger.info("[DOMICILIO_ELETRONICO][API] Reutilizando cache do dia (%d processos pendentes)", len(pendentes))
+        processos = [{"id": p["id"], "numeroProcesso": p["numero"]} for p in pendentes]
+    else:
+        logger.info(
+            "[DOMICILIO_ELETRONICO][API] Buscando processos (conhecimento + chips DOM + audiencia)..."
+        )
+        processos = client.buscar_processos_conhecimento_dom()
+        if processos:
+            _cache_dom_salvar_lista(processos)
 
     if not processos:
-        logger.info("[DOM][API] Nenhum processo encontrado pela API")
+        logger.info("[DOMICILIO_ELETRONICO][API] Nenhum processo encontrado pela API")
         return {"sucesso": True, "processados": 0, "total": 0}
 
-    logger.info("[DOM][API] %d processos a processar", len(processos))
+    # Filtrar processos com ata de audiencia na timeline (nao entram na lista)
+    logger.info("[DOMICILIO_ELETRONICO][API] Filtrando processos com ata de audiencia...")
+    sem_ata = []
+    for _p in processos:
+        _pid = str(_p.get("id", ""))
+        _num = _p.get("numeroProcesso") or _p.get("numero") or _pid
+        tem_ata = _pid and _tem_ata_audiencia(_pid, driver)
+        _p["temAta"] = tem_ata  # Guardar para uso posterior
+        if tem_ata:
+            logger.info("[DOMICILIO_ELETRONICO][API] Excluido da lista (ata de audiencia): %s", _num)
+        else:
+            sem_ata.append(_p)
+    logger.info(
+        "[DOMICILIO_ELETRONICO][API] %d processos apos filtro de ata (%d removidos)",
+        len(sem_ata), len(processos) - len(sem_ata),
+    )
+    processos = sem_ata
+
+    # Enriquecer cada processo com campo temAudiencia (necessário para determinar bucket)
+    for proc in processos:
+        proc_id = str(proc.get("id", ""))
+        proc["temAudiencia"] = True  # Por padrão True (API retorna processos com chips 274/275/302)
+
+    # Separar processos por bucket e exibir pré-execução
+    bucket1_procs = []
+    bucket2_procs = []
+    for proc in processos:
+        bucket = _determinar_bucket(proc.get("temAudiencia", True), proc.get("temAta", False))
+        if bucket == "bucket1":
+            bucket1_procs.append(proc)
+        else:
+            bucket2_procs.append(proc)
+
+    logger.info("[DOMICILIO_ELETRONICO] === PRÉ-PROCESSAMENTO ===")
+    logger.info("[DOMICILIO_ELETRONICO] Bucket1 (sem aud. OU aud+ata):   %d processos", len(bucket1_procs))
+    for proc in bucket1_procs:
+        num = proc.get("numeroProcesso") or proc.get("numero") or proc.get("id")
+        logger.info("[DOMICILIO_ELETRONICO]   - %s", num)
+    logger.info("[DOMICILIO_ELETRONICO] Bucket2 (aud sem ata):         %d processos", len(bucket2_procs))
+    for proc in bucket2_procs:
+        num = proc.get("numeroProcesso") or proc.get("numero") or proc.get("id")
+        logger.info("[DOMICILIO_ELETRONICO]   - %s", num)
+    logger.info("[DOMICILIO_ELETRONICO] Total: %d processos", len(processos))
+
+    if not processos:
+        logger.info("[DOMICILIO_ELETRONICO][API] Nenhum processo restante apos filtro de ata")
+        return {"sucesso": True, "processados": 0, "total": 0}
+
+    logger.info("[DOMICILIO_ELETRONICO][API] %d processos a processar", len(processos))
 
     handle_principal = driver.current_window_handle
     erros = 0
     total = len(processos)
+    
+    # Contadores por bucket
+    bucket1_processados = 0
+    bucket2_processados = 0
+    bucket1_erros = 0
+    bucket2_erros = 0
 
     for idx, proc in enumerate(processos, 1):
         proc_id = str(proc.get("id", ""))
         numero = proc.get("numeroProcesso") or proc.get("numero") or proc_id
 
         if not proc_id:
-            logger.warning("[DOM][API] Processo sem id, pulando")
+            logger.warning("[DOMICILIO_ELETRONICO][API] Processo sem id, pulando")
             erros += 1
             continue
 
-        logger.info("[DOM][API] %d/%d: %s (id=%s)", idx, total, numero, proc_id)
+        logger.info("[DOMICILIO_ELETRONICO][API] %d/%d: %s (id=%s)", idx, total, numero, proc_id)
 
         try:
             # Fechar abas extras
@@ -1325,30 +1643,49 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
                 if tipo_js:
                     tipo_processo = tipo_js.strip()
                     logger.info(
-                        "[DOM][API] Tipo identificado: %s para %s",
+                        "[DOMICILIO_ELETRONICO][API] Tipo identificado: %s para %s",
                         tipo_processo, numero,
                     )
             except Exception as e_tipo:
                 logger.warning(
-                    "[DOM][API] Erro extraindo tipo para %s: %s, usando ATOrd",
+                    "[DOMICILIO_ELETRONICO][API] Erro extraindo tipo para %s: %s, usando ATOrd",
                     numero, e_tipo,
                 )
 
-            # Executar callback bucket 2
+            # Executar callback apropriado baseado em bucket
+            tem_audiencia = proc.get("temAudiencia", True)
+            tem_ata = proc.get("temAta", False)
+            bucket = _determinar_bucket(tem_audiencia, tem_ata)
             driver._numero_processo_lista = numero
-            ok = callback_bucket2(driver, tipo_processo)
+            
+            if bucket == "bucket1":
+                logger.info("[DOMICILIO_ELETRONICO][API] Roteando para bucket1: %s", numero)
+                ok = callback_bucket1(driver, tipo_processo)
+                if ok:
+                    bucket1_processados += 1
+                else:
+                    bucket1_erros += 1
+            else:
+                logger.info("[DOMICILIO_ELETRONICO][API] Roteando para bucket2: %s", numero)
+                ok = callback_bucket2(driver, tipo_processo)
+                if ok:
+                    bucket2_processados += 1
+                else:
+                    bucket2_erros += 1
 
             if ok:
-                logger.info("[DOM][API] OK: %s (%s)", numero, tipo_processo)
+                logger.info("[DOMICILIO_ELETRONICO][API] OK: %s (%s)", numero, tipo_processo)
+                _cache_dom_marcar(numero, sucesso=True)
             else:
                 erros += 1
-                logger.error("[DOM][API] Falha callback: %s", numero)
+                logger.error("[DOMICILIO_ELETRONICO][API] Falha callback: %s", numero)
+                _cache_dom_marcar(numero, sucesso=False)
 
         except Exception as e:
             if "RESTART_DRIVER" in str(e):
                 raise
             erros += 1
-            logger.error("[DOM][API] Erro em %s: %s", numero, e)
+            logger.error("[DOMICILIO_ELETRONICO][API] Erro em %s: %s", numero, e)
 
         try:
             time.sleep(1.25)
@@ -1356,11 +1693,23 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
             pass
 
     logger.info(
-        "[DOM][API] Concluido: %d OK, %d erros (total %d)",
+        "[DOMICILIO_ELETRONICO][API] Concluido: %d OK, %d erros (total %d)",
         total - erros, erros, total,
     )
+    
+    # Logging detalhado por bucket
+    logger.info("[DOMICILIO_ELETRONICO] === RESUMO POR BUCKET ===")
+    logger.info("[DOMICILIO_ELETRONICO] Bucket1: %d processados, %d erros", bucket1_processados, bucket1_erros)
+    logger.info("[DOMICILIO_ELETRONICO] Bucket2: %d processados, %d erros", bucket2_processados, bucket2_erros)
+    logger.info("[DOMICILIO_ELETRONICO] TOTAL: %d processados, %d erros (total %d)", 
+                total - erros, erros, total)
+    
     return {
         "sucesso": erros == 0,
         "processados": total - erros,
         "total": total,
+        "bucket1_processados": bucket1_processados,
+        "bucket1_erros": bucket1_erros,
+        "bucket2_processados": bucket2_processados,
+        "bucket2_erros": bucket2_erros,
     }

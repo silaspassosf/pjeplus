@@ -132,6 +132,7 @@ def run_batch(
     execute_item: Callable[[T, Any], ActionResult],
     persist_result: Callable[[T, ActionResult], None],
     label: str = "processando",
+    stop_on_critical: bool = False,
 ) -> BatchResult:
     """Executa pipeline de processamento sobre uma lista de itens.
 
@@ -175,6 +176,8 @@ def run_batch(
         "pulados": 0,
         "total": len(items),
         "itens": [],
+        "critical_stop": False,
+        "critical_reason": None,
     }
 
     for idx, item in enumerate(items, 1):
@@ -229,6 +232,11 @@ def run_batch(
                     {"item": item, "status": "falha", "erro": err}
                 )
                 _safe_persist(persist_result, item, exec_result)
+                if stop_on_critical and exec_result.get("critical"):
+                    stats["critical_stop"] = True
+                    stats["critical_reason"] = err
+                    logger.warning("[%s] Parada critica: %s", label, err)
+                    break
                 continue
         except Exception as e:
             stats["falha"] += 1

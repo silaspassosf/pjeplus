@@ -108,9 +108,8 @@ def fluxo_cls(
         # ===== PASSO 1: ABRIR TAREFA DO PROCESSO (apenas se estivermos em /detalhe) =====
         ja_em_minutar = False
         if not ja_em_conclusao:
-            current = (driver.current_url or '').lower()
-            # Se estivermos em /detalhe, é necessário clicar em 'Abrir tarefa do processo'
-            if '/detalhe' in current:
+            # Usa estado_atual para evitar dupla leitura de URL
+            if estado_atual == 'detalhe':
                 logger.info('[CLS] Passo 1: Estamos em /detalhe — abrindo tarefa do processo...')
                 timing_tarefa_inicio = time.time()
                 sucesso, ja_em_minutar = abrir_tarefa_processo(driver)
@@ -167,7 +166,7 @@ def fluxo_cls(
                 # Se não estamos em /detalhe, presumimos que já estamos na aba da tarefa do processo
                 logger.info('[CLS] Não estamos em /detalhe — assumindo que já estamos na aba da tarefa do processo (não clicar em Abrir tarefa)')
                 sucesso = True
-                ja_em_minutar = ('/minutar' in current)
+                ja_em_minutar = ('/minutar' in (driver.current_url or '').lower())
 
         # ===== PASSO 2: LIMPAR OVERLAYS =====
         logger.info('[CLS] Passo 2: Limpando overlays...')
@@ -182,20 +181,14 @@ def fluxo_cls(
             timing_nav_inicio = time.time()
             try:
                 # Tentar navegação com até 2 tentativas (fallback: refresh entre tentativas)
-                nav_ok = False
-                for tentativa in range(2):
-                    if tentativa > 0:
-                        logger.info(f'[CLS] Tentativa {tentativa+1}/2 de navegação após refresh...')
-                        try:
-                            driver.refresh()
-                            aguardar_renderizacao_nativa(driver, timeout=3)
-                        except Exception:
-                            pass
-                    if navegar_para_conclusao(driver):
-                        nav_ok = True
-                        break
-                    logger.warning(f'[CLS] Tentativa {tentativa+1}/2 de navegação falhou')
-
+                nav_ok = navegar_para_conclusao(driver)
+                if not nav_ok:
+                    logger.info('[CLS] Tentando refresh e nova navegação...')
+                    try:
+                        driver.refresh()
+                    except:
+                        pass
+                    nav_ok = navegar_para_conclusao(driver)
                 if not nav_ok:
                     logger.error('[CLS] Falha ao navegar para conclusão após 2 tentativas')
                     timing_total = time.time() - timing_inicio
@@ -367,7 +360,7 @@ def ato_judicial(
                 logger.info(f'[ATO][DESCRICAO] Preenchendo descrição: {descricao}')
                 try:
                     # Seletor correto: input[aria-label="Descrição"]
-                    campo_descricao = esperar_elemento(driver, 'input[aria-label="Descrição"]', timeout=10, by=By.CSS_SELECTOR)
+                    campo_descricao = esperar_elemento(driver, 'input[aria-label="Descrição"]', timeout=5, by=By.CSS_SELECTOR)
                     if campo_descricao:
                         campo_descricao.clear()
                         # Técnica validada no console: value direto + eventos
@@ -391,7 +384,7 @@ def ato_judicial(
             # Preencher filtro do modelo (como no jud.py)
             try:
                 logger.info(f'[ATO][MODELO] Preenchendo filtro com modelo: {modelo_nome}')
-                campo_filtro_modelo = esperar_elemento(driver, 'input#inputFiltro', timeout=10, by=By.CSS_SELECTOR)
+                campo_filtro_modelo = esperar_elemento(driver, 'input#inputFiltro', timeout=5, by=By.CSS_SELECTOR)
                 if not campo_filtro_modelo:
                     raise Exception('Campo filtro modelo não encontrado')
 
@@ -442,20 +435,16 @@ def ato_judicial(
                 # Usa retry loop para lidar com StaleElementReferenceException
                 seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
 
-                btn_inserir = None
-                for tentativa in range(5):
-                    try:
-                        # Buscar elemento fresco a cada tentativa
-                        btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=3, by=By.CSS_SELECTOR)
-                        if btn_inserir:
-                            break
-                        raise TimeoutException('Botão inserir não clicável')
-                    except (TimeoutException, StaleElementReferenceException):
-                        if tentativa < 4:  # Não é a última tentativa
-                            continue
-                        else:
-                            logger.error('[ATO][MODELO] Botão inserir não encontrado após 5 tentativas!')
-                            return False, False
+                btn_inserir = driver.execute_script("""
+                    return document.querySelector('pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button');
+                """)
+                if not btn_inserir:
+                    # Espera que o modal renderize com observer
+                    aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=5)
+                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=3, by=By.CSS_SELECTOR)
+                if not btn_inserir:
+                    logger.error('[ATO][MODELO] Botão inserir não encontrado!')
+                    return False, False
 
                 # Insere modelo com SPACE (como no legado)
                 try:
@@ -468,17 +457,11 @@ def ato_judicial(
                     btn_inserir.send_keys(Keys.SPACE)
                     logger.info('[ATO][MODELO] Modelo inserido (2a tentativa)')
 
-                # Aguarda confirmação da inserção (observer, sem time.sleep)
+                # Aguarda snackbar aparecer = confirmação que inserção concluiu (prosseguir IMEDIATAMENTE)
                 try:
-                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
+                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=2)
                 except Exception:
-                    pass
-
-                # Compatibilidade com fluxo pre-xcode: DOM estabiliza apos insercao
-                try:
-                    aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=3)
-                except Exception:
-                    pass
+                    logger.warning('[ATO][MODELO] Snackbar não detectado, prosseguindo mesmo assim...')
 
             except Exception as e:
                 logger.error(f'[ATO][MODELO] Erro ao inserir modelo: {e}')
@@ -516,17 +499,6 @@ def ato_judicial(
             ):
                 logger.warning('[ATO][SALVAR] Timeout aguardando controles de destinatários, prosseguindo...')
 
-            # Compatibilidade pre-xcode: aguarda controles de destinatarios renderizarem
-            try:
-                aguardar_renderizacao_nativa(
-                    driver,
-                    'button[aria-label="Gravar a intimação/notificação"], '
-                    'pje-intimacao-automatica label.mat-slide-toggle-label',
-                    modo='aparecer',
-                    timeout=3,
-                )
-            except Exception:
-                pass
             logger.info('[ATO][SALVAR] Aguardando ativação da aba destinatários...')
 
         except Exception as e:
@@ -541,11 +513,10 @@ def ato_judicial(
         if not intimar_ativado:
             logger.info('[ATO][INTIMAR] Desativando intimações automáticas...')
             try:
-                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10, by=By.CSS_SELECTOR)
+                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=5, by=By.CSS_SELECTOR)
                 if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
                     guia_intimacoes.click()
-                    # Esperar o overlay desaparecer após clicar na aba
-                    time.sleep(0.5)
+                    # Aguarda a aba ficar ativa sem sleep fixo
                     driver.execute_script("""
                         const backdropElements = document.querySelectorAll('.cdk-overlay-backdrop');
                         backdropElements.forEach(el => {
@@ -555,7 +526,11 @@ def ato_judicial(
                             }
                         });
                     """)
-                    time.sleep(0.3)
+                    # Espera o toggle ficar visível (máximo 1s)
+                    try:
+                        aguardar_renderizacao_nativa(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', modo='aparecer', timeout=1)
+                    except:
+                        pass
 
                 toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10, by=By.CSS_SELECTOR)
                 if toggle_intimar:
@@ -573,6 +548,22 @@ def ato_judicial(
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" já estava desativado.')
             except Exception as e:
                 logger.error(f'[ATO][INTIMAR] Erro ao desativar intimações: {e}')
+
+        # Aguarda a aba ficar ativa sem sleep fixo
+        driver.execute_script("""
+            const backdropElements = document.querySelectorAll('.cdk-overlay-backdrop');
+            backdropElements.forEach(el => {
+                if (el.classList.contains('cdk-overlay-backdrop-showing')) {
+                    el.style.pointerEvents = 'none';
+                    el.style.display = 'none';
+                }
+            });
+        """)
+        # Espera o toggle ficar visível (máximo 1s)
+        try:
+            aguardar_renderizacao_nativa(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', modo='aparecer', timeout=1)
+        except:
+            pass
 
         if prazo is not None and intimar_ativado:
             logger.info(f'[ATO][PRAZO] Preenchendo prazos: {prazo} (apenas_primeiro={marcar_primeiro_destinatario})')
@@ -595,7 +586,7 @@ def ato_judicial(
                 """)
                 # Use native observer to ensure overlays are gone (best-effort)
                 try:
-                    aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane', modo='sumir', timeout=3)
+                    aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane', modo='sumir', timeout=2)
                 except Exception:
                     logger.debug('[ATO][PRAZO] Observer overlays indisponível (não crítico)')
                 
@@ -710,12 +701,15 @@ def ato_judicial(
         try:
             btn_gravar_intim = wait_for_clickable(driver, 'button[aria-label="Gravar a intimação/notificação"]', timeout=10, by=By.CSS_SELECTOR)
             if btn_gravar_intim:
-                safe_click_no_scroll(driver, btn_gravar_intim, log=False)
-                logger.info('[ATO][GRAVAR] Intimações gravadas')
-                try:
-                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
-                except Exception:
-                    pass
+                driver.execute_script('arguments[0].click();', btn_gravar_intim)
+                logger.info('[ATO][GRAVAR] Intimações gravadas (JS direto)')
+                # Aguarda processamento (spinner de carregamento) antes de prosseguir
+                aguardar_renderizacao_nativa(
+                    driver,
+                    '.loading-spinner, .mat-progress-spinner, .mat-progress-bar, .cdk-overlay-backdrop',
+                    modo='sumir',
+                    timeout=3
+                )
             else:
                 logger.debug('[ATO][GRAVAR] Botão Gravar não encontrado (sem alterações?)')
         except Exception as e:
@@ -743,7 +737,12 @@ def ato_judicial(
                     )
                     if aba_mov_clicada:
                         logger.debug('[ATO][MOVIMENTO] Aba Movimentos clicada')
-                        aguardar_renderizacao_nativa(driver)
+                        # Aguarda checkboxes de movimento renderizarem na aba
+                        try:
+                            esperar_elemento(driver, 'mat-checkbox.mat-checkbox.movimento', timeout=2, by=By.CSS_SELECTOR)
+                        except:
+                            # Tenta usar mutation observer para detectar os checkboxes
+                            aguardar_renderizacao_nativa(driver, 'mat-checkbox.mat-checkbox.movimento', modo='aparecer', timeout=2)
                 except Exception as e:
                     logger.debug('[ATO][MOVIMENTO] Nao foi possivel clicar na aba Movimentos: %s', e)
 
@@ -775,8 +774,7 @@ def ato_judicial(
                     )
                     js_mov = f'''
                     (function() {{
-                        setTimeout(function() {{
-                            var textoMov = '{movimento}'.trim().toLowerCase().replace(/\\s+/g, ' ');
+                        var textoMov = '{movimento}'.trim().toLowerCase().replace(/\\s+/g, ' ');
                             var checkboxes = Array.from(document.querySelectorAll('mat-checkbox.mat-checkbox.movimento'));
                             var selecionado = false;
 
@@ -824,23 +822,14 @@ def ato_judicial(
                             }} else {{
                                 console.log('[ATO][MOVIMENTO] Movimento marcado');
                             }}
-                        }}, 800);
                     }})();
                     '''
                     driver.execute_script(js_mov)
-                    
-                    # Aguarda até 5s para o script de marcação executar
-                    start_time = time.time()
-                    selecionado = None
-                    label_mov = None
 
-                    while time.time() - start_time < 5:
-                        selecionado = driver.execute_script("return window.selecionadoMovimento;")
-                        if selecionado is not None:
-                            label_mov = driver.execute_script("return window.labelSelecionadoMovimento;")
-                            break
-                        time.sleep(0.15)
-                        
+                    # Ler resultado imediato (JS já executou de forma síncrona)
+                    selecionado = driver.execute_script("return window.selecionadoMovimento;")
+                    label_mov = driver.execute_script("return window.labelSelecionadoMovimento;")
+
                     # Limpar variaveis globais do js
                     driver.execute_script("window.selecionadoMovimento = undefined; window.labelSelecionadoMovimento = undefined;")
 
@@ -851,18 +840,34 @@ def ato_judicial(
                 
                 # Gravar movimentos (botão "Gravar os movimentos a serem lançados")
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
-                btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10, by=By.CSS_SELECTOR)
+                # Remover overlay/cdk-backdrop que possa obstruir o botão Gravar
+                try:
+                    driver.execute_script("""
+                        const overlays = document.querySelectorAll('.cdk-overlay-backdrop');
+                        overlays.forEach(el => {
+                            if (el.classList.contains('cdk-overlay-backdrop-showing')) {
+                                el.style.display = 'none';
+                                el.style.pointerEvents = 'none';
+                            }
+                        });
+                    """)
+                except Exception:
+                    logger.debug('[ATO][MOVIMENTO] Overlay removal failed or not needed')
+                btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=3, by=By.CSS_SELECTOR)
                 if btn_gravar_mov:
-                    btn_gravar_mov.click()
-                aguardar_renderizacao_nativa(driver, 'button[aria-label="Sim"]', modo='aparecer', timeout=5)
+                    driver.execute_script('arguments[0].click();', btn_gravar_mov)
+                # Aguardar botão Sim aparecer com timeout menor (2s)
+                try:
+                    aguardar_renderizacao_nativa(driver, 'button[aria-label="Sim"]', modo='aparecer', timeout=2)
+                except:
+                    pass
 
                 # Confirmar com "Sim"
                 logger.info('[ATO][MOVIMENTO] Confirmando...')
-                btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=10, by=By.XPATH)
+                btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=5, by=By.XPATH)
                 if btn_sim:
-                    btn_sim.click()
-                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
-                    logger.info('[ATO][MOVIMENTO]  Movimento gravado e confirmado')
+                    driver.execute_script('arguments[0].click();', btn_sim)
+                    logger.info('[ATO][MOVIMENTO] Movimento gravado e confirmado (JS direto)')
                 else:
                     logger.warning('[ATO][MOVIMENTO] Botão Sim não encontrado')
 
@@ -885,16 +890,12 @@ def ato_judicial(
             # Movimento já grava automaticamente, só precisa SALVAR
             logger.info('[ATO][SALVAR] Salvando ato após movimento...')
             try:
-                btn_salvar = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=10, by=By.CSS_SELECTOR)
+                btn_salvar = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=1, by=By.CSS_SELECTOR)
                 if not btn_salvar:
                     raise Exception('Botão Salvar não disponível')
 
-                btn_salvar.click()
-                logger.info('[ATO][SALVAR] Ato salvo')
-                try:
-                    aguardar_renderizacao_nativa(driver, 'button#assinar', modo='aparecer', timeout=8)
-                except Exception:
-                    pass
+                driver.execute_script('arguments[0].click();', btn_salvar)
+                logger.info('[ATO][SALVAR] Ato salvo (JS direto)')
 
             except Exception as e:
                 logger.error(f'[ATO][SALVAR]  Erro ao salvar após movimento: {e}')
@@ -903,15 +904,11 @@ def ato_judicial(
             # Sem movimento: SALVAR (intimações já foram gravadas acima)
             logger.info('[ATO][SALVAR] Salvando ato (sem movimento)...')
             try:
-                btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=10, by=By.CSS_SELECTOR)
+                btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=5, by=By.CSS_SELECTOR)
                 if not btn_salvar_final:
                     raise Exception('Botão Salvar não disponível')
-                btn_salvar_final.click()
-                logger.info('[ATO][SALVAR] Ato salvo')
-                try:
-                    aguardar_renderizacao_nativa(driver, 'button#assinar', modo='aparecer', timeout=8)
-                except Exception:
-                    pass
+                driver.execute_script('arguments[0].click();', btn_salvar_final)
+                logger.info('[ATO][SALVAR] Ato salvo (JS direto)')
             except Exception as e:
                 logger.error(f'[ATO][SALVAR] {e}')
                 return False, False
@@ -920,10 +917,10 @@ def ato_judicial(
         if Assinar:
             logger.info('[ATO][ASSINAR] Clicando em assinar...')
             try:
-                btn_assinar = wait_for_clickable(driver, 'button#assinar', timeout=10, by=By.CSS_SELECTOR)
+                btn_assinar = wait_for_clickable(driver, 'button#assinar', timeout=5, by=By.CSS_SELECTOR)
                 if btn_assinar:
-                    btn_assinar.click()
-                    logger.info('[ATO][ASSINAR]  Assinar clicado')
+                    driver.execute_script('arguments[0].click();', btn_assinar)
+                    logger.info('[ATO][ASSINAR] Assinar clicado (JS direto)')
                 else:
                     raise Exception('Botão assinar não disponível')
             except Exception as e:

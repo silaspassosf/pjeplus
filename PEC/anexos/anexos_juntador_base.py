@@ -119,6 +119,13 @@ def wrapper_juntada_geral(
             logger.error('[WRAPPER_JUNTADA_GERAL][ERRO] Objeto juntador não possui método executar_juntada')
         return False
 
+    # Pequena pausa para permitir que snackbar desapareça antes de retornar
+    if resultado:
+        try:
+            aguardar_renderizacao_nativa(driver, timeout=2)
+        except Exception:
+            pass
+
     if resultado:
         if debug:
             logger.info('[WRAPPER_JUNTADA_GERAL] Juntada automática concluída com sucesso!')

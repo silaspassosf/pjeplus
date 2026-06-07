@@ -217,9 +217,11 @@ CNPJ informado: 12.345.678/0001-90 — ✅ válido e corretamente formatado.
 ⚡ BLOCO 6 — Tutelas Provisórias
 
 ✅ Verifique se consta "Medida de urgência" na certidão de distribuição.
-✅ Confirme se na petição inicial se contém pedido expresso de tutela provisória (de urgência ou evidência), com base nos artigos 300 (tutela de urgência onde haja probabilidade do direito + perigo de dano), 305 (tutela cautelar) e 311 (tutela de evidência) do CPC. Busque por palavras-chave como "medida liminar", "medida cautelar", "tutela liminar", "tutela provisória", "tutela de urgência", "tutela de evidência", "tutela antecipada", "tutela antecipatória".
+✅ Confirme se na petição inicial se contém pedido expresso de tutela provisória (de urgência ou evidência), com base nos artigos 300 (tutela de urgência onde haja probabilidade do direito + perigo de dano), 305 (tutela cautelar) e 311 (tutela de evidência) do CPC. Busque por palavras-chave como "medida liminar", **"pedido liminar"**, "medida cautelar", "tutela liminar", "tutela provisória", "tutela de urgência", **"tutela urgência"** (sem "de"), "tutela de evidência", "tutela antecipada", "tutela antecipatória".
 
-Deve constar expressamente nos "Pedidos" ou "Requerimentos".
+⚠️ **Atenção ao título/cabeçalho da petição:** Se a petição contiver no título expressões como "RECLAMAÇÃO TRABALHISTA (PEDIDO LIMINAR TUTELA URGÊNCIA)" ou similar, isso já caracteriza pedido de tutela — alerte mesmo que os termos padrão não apareçam expressamente na seção de Pedidos.
+
+Deve constar expressamente nos "Pedidos" ou "Requerimentos" **ou no título/cabeçalho da petição**.
 
 *   **Atenção:** Verifique se o pedido de tutela provisória está *expressamente* nos "Pedidos" ou "Requerimentos".
 *   **Verificação Cruzada:** Compare a informação da certidão de distribuição com o corpo da petição.
@@ -229,9 +231,15 @@ Deve constar expressamente nos "Pedidos" ou "Requerimentos".
 
 💻 BLOCO 7 — Juízo 100% Digital
 
-✅ Verificar: Manifestação expressa de adesão na petição inicial.
+✅ Verificar: Manifestação expressa de **adesão** ao Juízo 100% Digital na petição inicial.
 
-🔔 Alertar se existir.
+⚠️ Distinguir com atenção:
+- **Discordância/rejeição** ("manifesta discordância quanto à aplicação do Juízo 100% Digital", "não concorda", "se opõe") → parte **não quer** → nenhum alerta, sem ação necessária.
+- **Adesão/pedido expresso** ("requer o Juízo 100% Digital", "adere ao Juízo 100% Digital") → verificar marcação na API.
+
+🔔 Alertar SOMENTE se houver pedido expresso de adesão E o processo não estiver marcado como digital na API.
+
+❌ Não alertar quando a petição apresenta discordância com o Juízo 100% Digital — a simples menção do termo não configura pedido.
 
 Atenção: a adesão ao Juízo 100% Digital é verificação distinta e independente do pedido de audiência virtual, telepresencial ou híbrida, que deve ser analisado exclusivamente no Bloco 12.
 

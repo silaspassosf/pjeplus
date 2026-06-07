@@ -88,8 +88,9 @@ def _obter_tarefa_atual(driver: WebDriver, debug: bool) -> Optional[str]:
 def _extrair_tarefa_do_dom(driver: WebDriver) -> Optional[str]:
     """Extrai nome da tarefa do DOM da página"""
     try:
+        from selenium.webdriver.common.by import By
         # Buscar no cabeçalho da tarefa
-        elementos_tarefa = driver.find_elements_by_css_selector('pje-cabecalho-tarefa h1.titulo-tarefa')
+        elementos_tarefa = driver.find_elements(By.CSS_SELECTOR, 'pje-cabecalho-tarefa h1.titulo-tarefa')
         if elementos_tarefa:
             return elementos_tarefa[0].text.strip()
 
@@ -371,8 +372,12 @@ def _esperar_transicao(driver: WebDriver, debug: bool = False, esperar: bool = T
     try:
         if not esperar:
             return True
-        # Observer: aguardar mudanca nos botoes de transicao
         from Fix.core import aguardar_renderizacao_nativa
+        # Aguarda cabeçalho sumir primeiro (confirma que navegacao iniciou)
+        aguardar_renderizacao_nativa(
+            driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', modo='sumir', timeout=3
+        )
+        # Depois aguarda novos botoes aparecerem (nova tarefa carregada)
         return aguardar_renderizacao_nativa(
             driver, 'pje-botoes-transicao button', modo='aparecer', timeout=timeout
         )

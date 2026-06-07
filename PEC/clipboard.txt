@@ -90,3 +90,165 @@ PROCESSO: PROCESSO_DESCONHECIDO
 https://pje.trt2.jus.br/pjekz/validacao/26011515562348100000438353538?instancia=1
 ==================================================
 
+
+==================================================
+PROCESSO: 1001655-96.2024.5.02.0703
+==================================================
+    Id Pje: e87575f
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH167152751BR
+    Destinatario: ELCIO SOARES
+    Data do envio: 07/05/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 15 dias (28/05/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26033020342762300000452434201?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25022817040154300000389462447?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25022817040154300000389462447?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000844-73.2023.5.02.0703
+==================================================
+    Id Pje: fe35522
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH181690601BR
+    Destinatario: FERNANDO CANDIDO CARMONA DA SILVA
+    Data do envio: 20/05/2026
+    Data da entrega: 26/05/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (09/06/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001823-35.2023.5.02.0703
+==================================================
+    Id Pje: 8c364df
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH181802767BR
+    Destinatario: VALTER EFIGENIO FERNANDES
+    Data do envio: 20/05/2026
+    Data da entrega: 27/05/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (10/06/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000295-92.2025.5.02.0703
+==================================================
+    Id Pje: 697a001
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH181896319BR
+    Destinatario: FERNANDO TORRES DE SOUSA
+    Data do envio: 20/05/2026
+    Data da entrega: 28/05/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (11/06/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26031708554840800000449494632?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26013011312355400000440565104?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26060215535290000000464970718?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001667-13.2024.5.02.0703
+==================================================
+    Id Pje: e49a31b
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH189372785BR
+    Destinatario: NOÁ SANTANA MIGLIO
+    Data do envio: 25/05/2026
+    Data da entrega: 02/06/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: dbbf297
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH189372799BR
+    Destinatario: LARISSA PEREIRA SANTANA
+    Data do envio: 25/05/2026
+    Data da entrega: 29/05/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (16/06/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000746-88.2023.5.02.0703
+==================================================
+    Id Pje: 1aab755
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH184190318BR
+    Destinatario: ROMARIO CAMELO DOS SANTOS
+    Data do envio: 22/05/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 8 dias (03/06/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26042908540425400000457652902?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26042908540425400000457652902?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26042908540425400000457652902?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26042908540425400000457652902?instancia=1
+==================================================
+

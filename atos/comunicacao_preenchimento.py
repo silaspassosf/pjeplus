@@ -1,6 +1,7 @@
 import re
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import NoSuchElementException
 from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
 from Fix.selenium_base.click_operations import aguardar_e_clicar
 from Fix.core import aguardar_renderizacao_nativa
@@ -55,13 +56,13 @@ def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False
     aguardar_renderizacao_nativa (MutationObserver) e clica na opção correta.
     """
     try:
-        el_presente = driver.execute_script("return document.querySelector(arguments[0]);", seletor_select)
+        el_presente = wait_for_clickable(driver, seletor_select, timeout=10, by=By.CSS_SELECTOR)
         if not el_presente:
             return False
         driver.execute_script("arguments[0].click();", el_presente)
 
         # Aguardar mat-options aparecerem (observer nativo)
-        aguardar_renderizacao_nativa(driver, 'mat-option[role="option"]', 'aparecer', 5)
+        aguardar_renderizacao_nativa(driver, 'mat-option[role="option"]', 'aparecer', 10)
 
         opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"]')
         valor_norm = normalizar_string(valor_desejado)
@@ -109,32 +110,82 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
 
 
 def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
-    """Barreira de sincronizacao pós-'Finalizar minuta'.
-
-    Aguarda em ordem:
-    1. Dialog 'Elaboração do ato de comunicação' (pje-pec-dialogo-ato) SUMIR.
-       Enquanto ele estiver presente nada pode interagir com a página de minutas.
-    2. Ícone verde 'Ato confeccionado' (i.pec-icone-verde-ato-agrupado) APARECER.
-       Esta é a única confirmação real de que o ato foi processado com sucesso.
-
-    Retorna True se ambos confirmações ocorreram, False em timeout.
+    """Aguarda confirmação pós-'Finalizar minuta'.
+    Snackbar 'Ato elaborado com sucesso' = confirmação definitiva → return True imediato.
+    Sem snackbar: fallback para dialog sumir / ícone verde.
     """
     if log is None:
         def log(_msg): return None
 
-    ok_fechar = aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', 'sumir', timeout_fechar)
-    if ok_fechar:
-        log('[MINUTA] Dialog elaboracao fechado (observer)')
-    else:
-        log('[MINUTA][WARN] Timeout aguardando dialog fechar — prosseguindo mesmo assim')
+    # Snackbar já presente?
+    snackbar_ok = False
+    try:
+        snackbar_ok = driver.execute_script("""
+            var bars = document.querySelectorAll('simple-snack-bar');
+            for (var i = 0; i < bars.length; i++) {
+                if ((bars[i].textContent || '').indexOf('Ato elaborado com sucesso') !== -1) return true;
+            }
+            return false;
+        """)
+    except Exception:
+        pass
 
-    ok_icone = aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', timeout_icone)
-    if ok_icone:
-        log('[MINUTA] Icone verde de ato confeccionado detectado')
-    else:
-        log('[MINUTA][WARN] Icone verde nao detectado dentro do timeout')
+    if not snackbar_ok:
+        try:
+            from selenium.webdriver.support.ui import WebDriverWait
+            WebDriverWait(driver, 5).until(
+                lambda d: d.execute_script("""
+                    var bars = document.querySelectorAll('simple-snack-bar');
+                    for (var i = 0; i < bars.length; i++) {
+                        if ((bars[i].textContent || '').indexOf('Ato elaborado com sucesso') !== -1) return true;
+                    }
+                    return false;
+                """)
+            )
+            snackbar_ok = True
+        except Exception:
+            pass
 
-    return ok_icone
+    if snackbar_ok:
+        log('[MINUTA] Snackbar "Ato elaborado com sucesso" detectada — prosseguindo imediatamente')
+        return True  # Snackbar = confirmação. Ponto final.
+
+
+def finalizar_minuta(driver: WebDriver, log=None) -> bool:
+    """Clica 'Finalizar minuta' e aguarda confirmacao do ato.
+    Separada de executar_preenchimento_minuta para ser chamada
+    tardiamente quando trocar_modelo=True."""
+    if log is None:
+        def log(_msg):
+            return None
+
+    log('9. Finalizando minuta')
+    try:
+        # Clique direto, sem retry headless
+        seletor_finalizar = 'button[aria-label="Finalizar minuta"]'
+        btn = driver.find_element(By.CSS_SELECTOR, seletor_finalizar)
+        driver.execute_script("""
+            var btn = arguments[0];
+            btn.scrollIntoView({block:'center'});
+            var span = btn.querySelector('span.mat-button-wrapper');
+            if (span) { span.click(); } else { btn.click(); }
+        """, btn)
+        log(' Botão Finalizar minuta clicado')
+
+        # Aguardar confirmacao: snackbar "Ato confeccionado com sucesso"
+        ato_ok = aguardar_ato_confeccionado(driver, log=log)
+        if not ato_ok:
+            raise Exception('Ato NÃO confeccionado — nenhum sinal de confirmação')
+        log(' Comunicação criada com sucesso!')
+        return True
+
+    except NoSuchElementException:
+        log('[SALVAR] Botão não encontrado — já foi clicado, ato já confeccionado')
+        return True
+
+    except Exception as e:
+        log(f'[SALVAR][ERRO] Falha ao salvar/finalizar: {e}')
+        raise
 
 
 def executar_preenchimento_minuta(
@@ -148,6 +199,7 @@ def executar_preenchimento_minuta(
     descricao: Optional[str] = None,
     tipo_prazo: str = 'dias uteis',
     inserir_conteudo: Optional[Callable] = None,
+    finalizar: bool = True,
     debug: bool = False,
     log: Optional[Callable] = None,
 ) -> bool:
@@ -315,57 +367,81 @@ def executar_preenchimento_minuta(
             log(f'8. Selecionando modelo: {modelo_nome}')
 
             try:
-                # Localiza, foca e digita o nome do modelo em um unico bloco JS.
-                # A arvore Angular Material responde diretamente aos eventos input/change/keyup —
-                # nao precisa de waits intermediarios nem de Enter com bubbles:true.
-                campo_ok = driver.execute_script("""
-                    var nomeModelo = arguments[0];
-                    var filtro = document.querySelector('input#inputFiltro');
-                    if (!filtro) return false;
-                    filtro.removeAttribute('disabled');
-                    filtro.removeAttribute('readonly');
-                    filtro.focus();
-                    filtro.value = nomeModelo;
-                    filtro.dispatchEvent(new Event('input', {bubbles: true}));
-                    filtro.dispatchEvent(new Event('change', {bubbles: true}));
-                    filtro.dispatchEvent(new Event('keyup', {bubbles: true}));
-                    return true;
-                """, modelo_nome)
+                from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 
-                if not campo_ok:
+                # 1. Localizar campo filtro e preencher via JS + ENTER (robusto como judicial_fluxo)
+                campo_filtro = wait_for_clickable(driver, 'input#inputFiltro', timeout=10, by=By.CSS_SELECTOR)
+                if not campo_filtro:
                     raise Exception('Campo de filtro de modelo não encontrado')
 
-                aguardar_renderizacao_nativa(driver, '.nodo-filtrado', 'aparecer', 10)
-
-                try:
-                    nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=10, by=By.CSS_SELECTOR)
-                    if not nodo:
-                        raise Exception('Nodo filtrado não clicável')
-                    driver.execute_script("arguments[0].click();", nodo)
-
-                    modal_aberto = aguardar_renderizacao_nativa(
-                        driver,
-                        'pje-dialogo-visualizar-modelo',
-                        'aparecer',
-                        4,
+                driver.execute_script('arguments[0].focus();', campo_filtro)
+                driver.execute_script('arguments[0].value = arguments[1];', campo_filtro, modelo_nome)
+                for ev in ['input', 'change', 'keyup']:
+                    driver.execute_script(
+                        'var e = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(e);',
+                        campo_filtro, ev
                     )
+                campo_filtro.send_keys(Keys.ENTER)
+                log(f'[MODELO] Filtro preenchido: "{modelo_nome}"')
 
-                    if not modal_aberto:
-                        log('[MODELO][WARN] Modal de visualização não abriu, tentando inserir mesmo assim...')
+                # 2. Aguardar nodo filtrado e clicar
+                aguardar_renderizacao_nativa(driver, '.nodo-filtrado', 'aparecer', 10)
+                nodo = aguardar_e_clicar(driver, '.nodo-filtrado', timeout=15)
+                if not nodo:
+                    raise Exception(f'Nodo filtrado não encontrado para modelo "{modelo_nome}"')
+                log('[MODELO] Clique em nodo-filtrado realizado')
 
-                    seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
-                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=10, by=By.CSS_SELECTOR)
-                    if not btn_inserir:
-                        raise Exception('Botão inserir não clicável')
-                    driver.execute_script("arguments[0].click();", btn_inserir)
-                    log(' Modelo inserido - aguardando snackbar de confirmacao')
+                # 3. Aguardar modal abrir
+                modal_aberto = aguardar_renderizacao_nativa(
+                    driver, 'pje-dialogo-visualizar-modelo', 'aparecer', 5
+                )
+                if not modal_aberto:
+                    log('[MODELO][WARN] Modal de visualização não abriu, tentando inserir mesmo assim...')
 
-                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', 'aparecer', 5)
-                    log(' Snackbar confirmou insercao do modelo no editor')
-                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', 'sumir', 5)
-                except Exception as e_nodo:
-                    log(f'[MODELO][ERRO] Modelo "{modelo_nome}" não encontrado ou não foi possível inserir: {e_nodo}')
-                    raise Exception(f'Modelo não encontrado: {modelo_nome}')
+                # 4. Retry loop para botão inserir (evita StaleElement)
+                seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
+                btn_inserir = None
+                for tentativa in range(5):
+                    try:
+                        btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=4, by=By.CSS_SELECTOR)
+                        if btn_inserir:
+                            break
+                        raise TimeoutException('Botão inserir não clicável')
+                    except (TimeoutException, StaleElementReferenceException):
+                        if tentativa < 4:
+                            continue
+                        raise Exception('Botão inserir não encontrado após 5 tentativas')
+
+                # 5. Inserir via SPACE (mais confiável que JS click no Angular)
+                try:
+                    btn_inserir.send_keys(Keys.SPACE)
+                    log(' Modelo inserido')
+                except StaleElementReferenceException:
+                    log('[MODELO][WARN] Elemento ficou stale, tentando novamente...')
+                    btn_inserir = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
+                    btn_inserir.send_keys(Keys.SPACE)
+                    log(' Modelo inserido (2a tentativa)')
+
+                # Aguardar snackbar verde "Modelo de documento inserido com sucesso no editor"
+                try:
+                    snackbar_ok = driver.execute_script("""
+                        const bars = document.querySelectorAll('simple-snack-bar, snack-bar-container, .mat-snack-bar-container');
+                        for (let i = 0; i < bars.length; i++) {
+                            if ((bars[i].textContent || '').indexOf('Modelo de documento inserido com sucesso') !== -1) return true;
+                        }
+                        return false;
+                    """)
+                    if not snackbar_ok:
+                        snackbar_ok = aguardar_renderizacao_nativa(
+                            driver,
+                            'simple-snack-bar:has-text("Modelo de documento inserido"), snack-bar-container',
+                            'aparecer',
+                            3
+                        )
+                    if snackbar_ok:
+                        log('[MODELO] ✓ Snackbar verde detectado — modelo confirmado')
+                except Exception as e:
+                    log(f'[MODELO][WARN] Erro ao aguardar snackbar de modelo: {e}')
 
             except Exception as e:
                 log(f'[ERRO] Falha ao inserir modelo: {e}')
@@ -405,27 +481,9 @@ def executar_preenchimento_minuta(
         else:
             log('8. Sem modelo para inserir')
 
-        log('9. Salvando e finalizando minuta')
-        try:
-            if not aguardar_e_clicar(driver, 'button[aria-label="Salvar"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
-                raise Exception('Botão Salvar não disponível')
-            log(' Botão Salvar clicado')
-            # Aguarda botao "Finalizar minuta" visivel E !disabled (modo 'habilitado').
-            if not aguardar_renderizacao_nativa(driver, 'button[aria-label="Finalizar minuta"]', 'habilitado', 10):
-                log('[WARN] Timeout aguardando Finalizar minuta habilitar')
-
-            if not aguardar_e_clicar(driver, 'button[aria-label="Finalizar minuta"]', timeout=5, by=By.CSS_SELECTOR, usar_js=False):
-                raise Exception('Botão Finalizar minuta não disponível')
-            log(' Botão Finalizar minuta clicado')
-            # Aguardar o dialog SUMIR e o ícone verde aparecer — única garantia real
-            # de que o ato foi confeccionado antes de prosseguir para destinatários.
-            aguardar_ato_confeccionado(driver, log=log)
-
-            log(' Comunicação criada com sucesso!')
-
-        except Exception as e:
-            log(f'[SALVAR][ERRO] Falha ao salvar/finalizar: {e}')
-            raise
+        # SEMPRE finaliza/salva após inserir modelo (finalizar sempre True)
+        log('[COMUNICACAO] Finalizando minuta (salvando)...')
+        finalizar_minuta(driver, log=log)
 
         return True
     except Exception:

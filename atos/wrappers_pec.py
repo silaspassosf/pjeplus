@@ -288,13 +288,43 @@ def wrapper_pec_ord_com_domicilio(driver, debug=False, **kwargs):
         from .wrappers_mov import mov_aud
         logger.info("[PEC_ORD] → Executa mov_aud")
         return mov_aud(driver, debug=debug)
-            
     except Exception as e:
         logger.info(f"[PEC_ORD] Erro: {e} → pec_ord")
         pec_ord(driver, debug=debug, **kwargs)
         from .wrappers_mov import mov_aud
         logger.info("[PEC_ORD] → Fallback: Executa mov_aud")
         return mov_aud(driver, debug=debug)
+
+
+# ====================================================
+# WRAPPERS PARA INTIMAÇÃO 100% DIGITAL E SEM AUDIÊNCIA
+# ====================================================
+
+ato_100 = make_comunicacao_wrapper(
+   tipo_expediente='Intimação',
+   prazo=0,
+   nome_comunicacao='Intimação 100% digital',
+   sigilo=False,
+   modelo_nome='z100',
+   subtipo='Intimação',
+   descricao='Intimação 100% digital',
+   tipo_prazo='sem prazo',
+   destinatarios='polo_passivo',
+   wrapper_name='ato_100',
+)
+
+ato_unap = make_comunicacao_wrapper(
+   tipo_expediente='Intimação',
+   prazo=0,
+   nome_comunicacao='Intimação sem audiência',
+   sigilo=False,
+   modelo_nome='zunap',
+   subtipo='Intimação',
+   descricao='Intimação sem audiência',
+   tipo_prazo='sem prazo',
+   destinatarios='polo_passivo',
+   wrapper_name='ato_unap',
+)
 
 
 def wrapper_pec_sum_com_domicilio(driver, debug=False, **kwargs):

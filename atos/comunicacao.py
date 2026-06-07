@@ -150,28 +150,17 @@ def make_comunicacao_wrapper(
 
         # Construir kwargs a serem repassados para comunicacao_judicial
         # Se o modo for 'informado' — primeiro garantir que os dados do processo
-        # estejam disponíveis (populando dadosatuais.json), depois extrair a
-        # observação dos GIGS. Isso permite que a comparação entre observação
-        # e os dados do processo seja feita com os dados já carregados.
+        # estejam disponíveis (populando dadosatuais.json).
+        # A observação será extraída APÓS a minuta ser confeccionada.
         dados_processo_wrapper = None
         if destinatarios_param == 'informado':
             try:
                 from Fix.extracao_processo import extrair_dados_processo
-                logger.info('[COMUNICACAO][ORQUESTRA] Extraindo dados do processo ANTES da leitura da observação (informado)')
+                logger.info('[COMUNICACAO][ORQUESTRA] Extraindo dados do processo (informado)')
                 dados_processo_wrapper = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
                 logger.info(f"[COMUNICACAO][ORQUESTRA] extrair_dados_processo retornou tipo={type(dados_processo_wrapper)}; reu_count={len(dados_processo_wrapper.get('reu', [])) if isinstance(dados_processo_wrapper, dict) else 'N/A'}")
             except Exception as e:
-                logger.info(f"[COMUNICACAO][ORQUESTRA][WARN] Falha ao extrair dados antes da observação: {e}")
-
-            observacao_gigs = _extrair_observacao_gigs_vencida_xs_pec(driver, debug=debug)
-            if observacao_gigs:
-                observacao = observacao_gigs
-            else:
-                if not observacao or not (isinstance(observacao, str) and observacao.strip()):
-                    logger.info('[COMUNICACAO][GIGS][WARN] Observação não localizada para informado - fallback polo passivo 2x')
-                    destinatarios_param = 'polo_passivo_2x'
-                else:
-                    logger.info('[COMUNICACAO][GIGS] Observação fornecida será usada para seleção de destinatários')
+                logger.info(f"[COMUNICACAO][ORQUESTRA][WARN] Falha ao extrair dados: {e}")
 
         call_kwargs = {
             'driver': driver,
@@ -230,9 +219,23 @@ def make_comunicacao_wrapper(
                 sigilo=sigilo,
                 modelo_nome=modelo_nome,
                 inserir_conteudo=inserir_conteudo,
+                finalizar=True,  # SEMPRE finaliza/salva (trocar_modelo é POSTERIOR)
                 debug=debug,
                 log=log_fn
             )
+
+            # 2.5. APÓS minuta confeccionada — extrair observação para modo 'informado'
+            if destinatarios_param == 'informado':
+                observacao_gigs = _extrair_observacao_gigs_vencida_xs_pec(driver, debug=debug)
+                if observacao_gigs:
+                    log_fn(f"[COMUNICACAO][GIGS] Observação extraída após minuta: '{observacao_gigs}'")
+                    observacao = observacao_gigs
+                else:
+                    if not observacao or not (isinstance(observacao, str) and observacao.strip()):
+                        log_fn('[COMUNICACAO][GIGS][WARN] Observação não localizada para informado - fallback polo passivo 2x')
+                        destinatarios_param = 'polo_passivo_2x'
+                    else:
+                        log_fn(f'[COMUNICACAO][GIGS] Usando observação fornecida: "{observacao}"')
 
             # 3. Selecionar destinatários
             log_fn("[COMUNICACAO][ORQUESTRA] Selecionando destinatários")
@@ -275,27 +278,26 @@ def make_comunicacao_wrapper(
                 else:
                     log_fn(f"[COMUNICACAO][ORQUESTRA] Status: {status} selection route concluded.")
 
-                # Aguarda a renderização dos cards na tabela — preferir observer nativo
+                # Aguarda o ícone verde individual — sinal real de que o Salvar está ativo
                 if status in ('ok', 'fallback', 'geral') or count > 0:
                     try:
-                        try:
-                            from Fix.core import aguardar_renderizacao_nativa as _observer_wait
-                            ok_render = _observer_wait(driver, 'tbody.cdk-drop-list tr.cdk-drag', modo='aparecer', timeout=10)
-                        except Exception:
-                            ok_render = False
-
-                        if ok_render:
-                            log_fn("[COMUNICACAO][ORQUESTRA] Destinatários renderizados na DOM (observer).")
+                        from Fix.core import aguardar_renderizacao_nativa as _observer_wait
+                        # Checagem rápida: ícone já presente?
+                        _icone_ja = bool(driver.find_elements(By.CSS_SELECTOR, 'i.pec-icone-verde-ato-individual-tabela-destinatarios'))
+                        if _icone_ja:
+                            log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde individual já presente — Salvar habilitado.")
                         else:
-                            if esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=10, by=By.CSS_SELECTOR):
-                                log_fn("[COMUNICACAO][ORQUESTRA] Destinatários renderizados na DOM (esperar_elemento fallback).")
+                            ok_icone = _observer_wait(
+                                driver,
+                                'i.pec-icone-verde-ato-individual-tabela-destinatarios',
+                                modo='aparecer',
+                                timeout=3
+                            )
+                            if ok_icone:
+                                log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde individual detectado — Salvar habilitado.")
                             else:
-                                log_fn("[COMUNICACAO][ORQUESTRA] Timeout: Tabela não renderizou os destinatários.")
-
-                        try:
-                            driver.execute_script("return window.requestAnimationFrame(function(){});")
-                        except Exception:
-                            pass
+                                # Linhas presentes já é suficiente para prosseguir
+                                log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde não detectado em 3s — prosseguindo (Salvar verificará).")
                     except Exception as e:
                         log_fn(f"[COMUNICACAO][ORQUESTRA] Erro ao aguardar renderização: {e}")
 
@@ -318,17 +320,22 @@ def make_comunicacao_wrapper(
                 # Sincronização: aguardar que a página estabilize após troca de modelo
                 log_fn("[COMUNICACAO][ORQUESTRA] Aguardando estabilização após troca de modelo...")
                 try:
-                    import time
-                    time.sleep(1.5)  # Pausa para fechar editors/dialogs
                     # Aguardar tabela de destinatarios voltar para estado estável
                     esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=15, by=By.CSS_SELECTOR)
                     log_fn("[COMUNICACAO][ORQUESTRA] Página estabilizada pós-troca de modelo")
                 except Exception as e:
                     log_fn(f"[COMUNICACAO][ORQUESTRA][WARN] Erro ao aguardar estabilização: {e}")
 
+            # 4.75. Finalizar minuta NOVAMENTE (trocar modelo exige nova finalização)
+            if call_kwargs.get('trocar_modelo'):
+                log_fn("[COMUNICACAO][ORQUESTRA] Finalizando minuta apos troca de modelo")
+                from atos.comunicacao_preenchimento import finalizar_minuta
+                finalizar_minuta(driver, log=log_fn)
+
             # 5. Salvar minuta final
             log_fn("[COMUNICACAO][ORQUESTRA] Salvando minuta final")
-            salvar_minuta_final(driver, sigilo, debug=debug, log=log_fn, executar_visibilidade=False, assinar=assinar)
+            _assinar_efetivo = overrides.get('assinar', assinar)
+            salvar_minuta_final(driver, sigilo, debug=debug, log=log_fn, executar_visibilidade=False, assinar=_assinar_efetivo)
 
             if str(sigilo).lower() in ("sim", "true", "1"):
                 try:

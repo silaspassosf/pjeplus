@@ -3,7 +3,7 @@
 import html as _html
 import re
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 import requests
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -35,11 +35,11 @@ class PjeApiClient:
         return f"{base}{path}"
 
     def _xsrf_token(self) -> Optional[str]:
-        """Extrai token XSRF/CSRF dos cookies da sessao."""
+        """Extrai token XSRF/CSRF dos cookies da sessao (URL-decodificado)."""
         for cookie_name in ('XSRF-TOKEN', 'xsrf-token', 'csrf-token', 'X-CSRF-TOKEN'):
             token = self.sess.cookies.get(cookie_name)
             if token:
-                return token
+                return unquote(token)
         return None
 
     def _normalizar_erro(
@@ -525,15 +525,24 @@ def session_from_driver(driver: WebDriver, grau: int = 1) -> Tuple[requests.Sess
     """
     sess = requests.Session()
     cookies = driver.get_cookies()
+    xsrf_token = None
     for c in cookies:
         sess.cookies.set(c['name'], c['value'])
+        if c['name'].upper() in ('XSRF-TOKEN', 'XSRF_TOKEN'):
+            xsrf_token = unquote(c['value'])
     parsed = urlparse(driver.current_url)
     trt_host = parsed.netloc
-    sess.headers.update({
+    headers = {
         'Accept': 'application/json, text/plain, */*',
         'Content-Type': 'application/json',
         'X-Grau-Instancia': str(grau),
-    })
+    }
+    if xsrf_token:
+        headers['X-XSRF-TOKEN'] = xsrf_token
+        logger.debug('[session_from_driver] X-XSRF-TOKEN extraido: %s...', xsrf_token[:8])
+    else:
+        logger.warning('[session_from_driver] Cookie XSRF-TOKEN nao encontrado nos cookies do driver')
+    sess.headers.update(headers)
     return sess, trt_host
 
 

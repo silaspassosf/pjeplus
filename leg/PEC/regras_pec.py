@@ -19,7 +19,7 @@ from .helpers import normalizar_texto
 
 logger = logging.getLogger(__name__)
 
-BUCKET_ORDEM = ['carta', 'comunicacoes', 'sobrestamento', 'sob', 'outros', 'sisbajud']
+BUCKET_ORDEM = ['carta', 'comunicacoes', 'sobrestamento', 'outros', 'sob', 'sisbajud']
 
 
 # ─── adaptador: fn(driver) → fn(driver, atv) ─────────────────────────────────

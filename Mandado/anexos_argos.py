@@ -38,7 +38,7 @@ _SIGILO_TYPES = [
 ]
 
 _SELETORES_ANEXOS = {
-    'btn_anexos': 'pje-timeline-anexos > div > div',
+    'btn_anexos': 'button.botao-anexos, pje-timeline-anexos > div > div',
     'anexos': '.tl-item-anexo',
     'btn_sigilo': 'i.fa-wpexplorer',
     'icone_plus': 'i.fas.fa-plus.tl-sigiloso',
@@ -236,11 +236,28 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
 
     # ABRIR ANEXOS (JavaScript direto - ignora overlay de DOM) conforme legado
     doc = documentos_sequenciais[0]
-    btn_anexos = doc.find_elements(By.CSS_SELECTOR, _SELETORES_ANEXOS['btn_anexos'])
-    if btn_anexos:
+    
+    # Testar vários seletores para encontrar o botão de anexos e logar qual funcionou
+    seletores_teste = [
+        'button.botao-anexos'
+    ]
+    
+    btn_anexos_encontrado = None
+    for sel in seletores_teste:
+        try:
+            elementos = doc.find_elements(By.CSS_SELECTOR, sel)
+            if elementos:
+                btn_anexos_encontrado = elementos[0]
+                if log:
+                    logger.info(f'[ARGOS][ANEXOS][SELETOR_BOTAO] ✅ Funcionou com: "{sel}"')
+                break
+        except Exception:
+            continue
+            
+    if btn_anexos_encontrado:
         try:
             # JavaScript direto conforme legado (evita abertura de aba e ignora overlays)
-            driver.execute_script("arguments[0].click();", btn_anexos[0])
+            driver.execute_script("arguments[0].click();", btn_anexos_encontrado)
             if log:
                 logger.info('[ARGOS][ANEXOS]  Anexos abertos (via clique no botão de anexos)')
             aguardar_renderizacao_nativa(driver, _SELETORES_ANEXOS['anexos'], modo='aparecer', timeout=5)
@@ -250,7 +267,7 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
             return None
     else:
         if log:
-            logger.info('[ARGOS][ANEXOS]  Botão de anexos não encontrado')
+            logger.info('[ARGOS][ANEXOS]  Botão de anexos não encontrado com nenhum seletor testado')
         return None
 
     anexos = driver.find_elements(By.CSS_SELECTOR, _SELETORES_ANEXOS['anexos'])

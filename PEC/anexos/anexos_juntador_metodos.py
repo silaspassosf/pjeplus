@@ -38,6 +38,7 @@ from Fix.utils import (
 # Imports dos modulos refatorados
 from .anexos_extracao import extrair_numero_processo_da_url
 from .anexos_formatacao import formatar_conteudo_ecarta
+from .anexos_juntador_helpers import substituir_marcador_por_conteudo
 
 
 def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> bool:
@@ -119,95 +120,59 @@ def _preencher_input_gigs(self, seletor: str, valor: str, nome_campo: str) -> bo
 
 
 def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
-    """Implementa clicarBotao do gigs-plugin.js com multiplas tentativas"""
+    """Implementa clicarBotao do gigs-plugin.js com script JS robusto (sem :contains)."""
     try:
         driver = self.driver
-
-        # Lista de seletores alternativos para botao Salvar
+        # Script JS que localiza o botão por aria-label ou pelo texto, clica e retorna True/False
         if 'Salvar' in nome_elemento:
-            seletores = [
-                'button[aria-label="Salvar"]',
-                'button[mat-raised-button][color="primary"][aria-label="Salvar"]',
-                'button.mat-raised-button.mat-primary[aria-label="Salvar"]',
-                'button.mat-focus-indicator.mat-raised-button.mat-button-base.mat-primary[aria-label="Salvar"]',
-                'button:contains("Salvar")',
-                '[aria-label="Salvar"]'
-            ]
-        # Lista de seletores alternativos para botao Assinar
+            script = """
+                const btn = document.querySelector('button[aria-label="Salvar"], button.mat-raised-button.mat-primary');
+                if (btn) { btn.click(); return true; }
+                const allBtns = document.querySelectorAll('button');
+                for (let b of allBtns) {
+                    if (b.textContent.trim() === 'Salvar' || b.getAttribute('aria-label') === 'Salvar') {
+                        b.click(); return true;
+                    }
+                }
+                return false;
+            """
         elif 'Assinar' in nome_elemento:
-            seletores = [
-                'button[aria-label="Assinar documento e juntar ao processo"]',
-                'button.mat-fab[aria-label="Assinar documento e juntar ao processo"]',
-                'button.mat-focus-indicator.mat-fab.mat-button-base.mat-accent[aria-label="Assinar documento e juntar ao processo"]',
-                'button[mat-fab].mat-accent[aria-label="Assinar documento e juntar ao processo"]',
-                'button.mat-fab .fa-pen-nib',
-                'button:contains("Assinar")',
-                '[aria-label*="Assinar"]'
-            ]
+            script = """
+                const btn = document.querySelector('button[aria-label="Assinar documento e juntar ao processo"], button.mat-fab.mat-accent');
+                if (btn) { btn.click(); return true; }
+                const allBtns = document.querySelectorAll('button');
+                for (let b of allBtns) {
+                    const label = b.getAttribute('aria-label') || '';
+                    if (label.includes('Assinar') || b.textContent.trim().toLowerCase().includes('assinar')) {
+                        b.click(); return true;
+                    }
+                }
+                return false;
+            """
         else:
-            seletores = [seletor]
+            script = f"""
+                const btn = document.querySelector('{seletor.replace("'", "\\'")}');
+                if (btn) {{ btn.click(); return true; }}
+                const allBtns = document.querySelectorAll('button');
+                for (let b of allBtns) {{
+                    const label = b.getAttribute('aria-label') || '';
+                    if (label.includes('{nome_elemento}') || b.textContent.trim().toLowerCase().includes('{nome_elemento.lower()}')) {{
+                        b.click(); return true;
+                    }}
+                }}
+                return false;
+            """
 
-        for i, sel in enumerate(seletores):
-            try:
-                logger.debug('[JUNTADA] Tentando seletor %s: %s', i + 1, sel)
-
-                # Tenta encontrar o elemento
-                if ':contains(' in sel:
-                    # Para seletores com :contains, usar JavaScript
-                    elemento = driver.execute_script("""
-                        const buttons = document.querySelectorAll('button');
-                        return Array.from(buttons).find(btn =>
-                            btn.textContent.trim().toLowerCase().includes('salvar') ||
-                            btn.getAttribute('aria-label') === 'Salvar'
-                        );
-                    """)
-                else:
-                    elementos = driver.find_elements(By.CSS_SELECTOR, sel)
-                    elemento = elementos[0] if elementos else None
-
-                if elemento:
-                    logger.debug('[JUNTADA] Elemento encontrado com seletor %s: %s', i + 1, sel)
-
-                    # Multiplas tentativas de clique
-                    for tentativa in range(3):
-                        try:
-                            # Scroll para o elemento
-                            driver.execute_script("arguments[0].scrollIntoView(true);", elemento)
-                            try:
-                                WebDriverWait(driver, 1).until(lambda d: elemento.is_displayed() and elemento.is_enabled())
-                            except Exception:
-                                pass
-
-                            # Verifica se elemento e clicavel
-                            if elemento.is_enabled() and elemento.is_displayed():
-                                # Tenta clique JavaScript
-                                driver.execute_script("arguments[0].click();", elemento)
-                                logger.debug('[JUNTADA] Clique realizado: %s (seletor %s, tentativa %s)', nome_elemento, i+1, tentativa + 1)
-                                return True
-                            else:
-                                logger.debug('[JUNTADA] Elemento nao clicavel (enabled: %s, visible: %s)', elemento.is_enabled(), elemento.is_displayed())
-
-                        except Exception as e:
-                            if tentativa < 2:  # Nao e a ultima tentativa
-                                logger.debug('[JUNTADA] Tentativa %s falhou para %s: %s', tentativa + 1, nome_elemento, e)
-                                aguardar_renderizacao_nativa(driver, timeout=1)
-                            else:
-                                logger.warning('[JUNTADA] Todas as tentativas falharam para %s com seletor %s: %s', nome_elemento, sel, e)
-                else:
-                    logger.debug('[JUNTADA] Elemento nao encontrado com seletor %s: %s', i + 1, sel)
-
-            except Exception as e:
-                if i < len(seletores) - 1:  # Nao e o ultimo seletor
-                    logger.debug('[JUNTADA] Seletor %s "%s" falhou: %s', i + 1, sel, e)
-                    continue
-                else:
-                    logger.error("ERRO em _clicar_elemento_gigs: Ultimo seletor \"%s\" falhou: %s: %s", sel, type(e).__name__, e)
-
-        logger.error("ERRO em _clicar_elemento_gigs: Todos os seletores falharam para %s", nome_elemento)
-        return False
+        resultado = driver.execute_script(script)
+        if resultado:
+            logger.debug('[JUNTADA] Clique realizado: %s', nome_elemento)
+            return True
+        else:
+            logger.error("ERRO em _clicar_elemento_gigs: Botao nao encontrado: %s", nome_elemento)
+            return False
 
     except Exception as e:
-        logger.error("ERRO em _clicar_elemento_gigs: Falha geral ao clicar %s: %s: %s", nome_elemento, type(e).__name__, e)
+        logger.error("ERRO em _clicar_elemento_gigs: Falha ao clicar %s: %s: %s", nome_elemento, type(e).__name__, e)
         return False
 
 
@@ -239,10 +204,11 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         # 4) Inserir com clique JS (padrao comunicacao_preenchimento.py)
         driver.execute_script("arguments[0].click();", btn_inserir)
 
-        # 5) Aguardar snackbar de confirmacao e fechamento do modal
-        aguardar_renderizacao_nativa(driver, 'simple-snack-bar', 'aparecer', 5)
-        # Aguardar modal fechar
-        aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 5)
+        # 5) Aguardar curto período para o modelo ser aplicado (não precisa de snackbar)
+        try:
+            aguardar_renderizacao_nativa(driver, timeout=2)  # apenas estabiliza
+        except Exception:
+            pass
         return True
     except Exception as e:
         logger.error("ERRO em _selecionar_modelo_gigs: Falha ao selecionar/inserir modelo (modo atos.py): %s: %s", type(e).__name__, e)
@@ -370,6 +336,15 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
                         logger.error("ERRO em _inserir_conteudo_customizado: Todas as tentativas de chamada falharam: %s: %s", type(e3).__name__, e3)
                         return False
 
+            # Aguarda a modificação no editor (marcador substituído) se for substituir_link
+            if ok and substituir_link:
+                try:
+                    WebDriverWait(self.driver, 3, poll_frequency=0.2).until(
+                        lambda d: '--' not in (d.execute_script(
+                            "return document.querySelector('[contenteditable=true]')?.innerHTML || ''"))
+                    )
+                except Exception:
+                    pass
             return ok
 
         elif substituir_link:
@@ -395,31 +370,25 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
 
 
 def _salvar_documento(self) -> bool:
-    """Salva documento com retry."""
+    """Salva documento e aguarda confirmação visual."""
     logger.info('[JUNTADA] Salvando documento final...')
     if not self._clicar_elemento_gigs('button[aria-label="Salvar"]', 'Salvar documento'):
-        logger.error("ERRO em _salvar_documento: Falha no salvamento principal")
+        logger.error("ERRO em _salvar_documento: Falha no clique do botão Salvar")
         return False
 
-    # Aguardar processamento
-    logger.info('[JUNTADA] Aguardando processamento do salvamento...')
+    # Aguarda confirmação visual do salvamento (snackbar ou botão desabilitado)
     try:
-        WebDriverWait(self.driver, 3).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+        WebDriverWait(self.driver, 10, poll_frequency=0.5).until(
+            lambda d: d.execute_script("""
+                const snack = document.querySelector('simple-snack-bar');
+                if (snack && snack.textContent.toLowerCase().includes('salv')) return true;
+                const btn = document.querySelector('button[aria-label="Salvar"]');
+                return !btn || btn.disabled;
+            """)
+        )
+        logger.info('[JUNTADA] Salvamento confirmado pela interface.')
     except Exception:
-        pass
-
-    # Verificar se salvamento foi efetivo
-    try:
-        salvar_btn = self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
-        if salvar_btn.is_enabled():
-            logger.warning('[JUNTADA] Documento ainda nao salvo, tentando novamente...')
-            self.driver.execute_script("arguments[0].click();", salvar_btn)
-            try:
-                WebDriverWait(self.driver, 3).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-            except Exception:
-                pass
-    except Exception:
-        logger.info('[JUNTADA] Botao Salvar nao disponivel - documento ja salvo')
+        logger.warning('[JUNTADA] Não foi detectada confirmação visual do salvamento, mas prosseguindo')
 
     return True
 

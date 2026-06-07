@@ -284,6 +284,8 @@ def run_batch(
         "pulados": 0,
         "total": len(items),
         "itens": [],
+        "critical_stop": False,
+        "critical_reason": None,
     }
 
     for idx, item in enumerate(items, 1):
@@ -320,6 +322,8 @@ def run_batch(
                     progress_callback(idx, len(items), item, open_result)
                 if stop_on_critical and (open_result.get("dados") or {}).get("critical"):
                     logger.warning("[ENGINE] parada antecipada por erro critico em open_item: %s", err)
+                    stats["critical_stop"] = True
+                    stats["critical_reason"] = err
                     break
                 continue
         except Exception as e:
@@ -347,6 +351,8 @@ def run_batch(
                     progress_callback(idx, len(items), item, exec_result)
                 if stop_on_critical and (exec_result.get("dados") or {}).get("critical"):
                     logger.warning("[ENGINE] parada antecipada por erro critico em execute_item: %s", err)
+                    stats["critical_stop"] = True
+                    stats["critical_reason"] = err
                     break
                 continue
         except Exception as e:

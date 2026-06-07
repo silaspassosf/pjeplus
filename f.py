@@ -16,14 +16,14 @@ from Fix.utils import login_cpf, navegar_para_tela
 # ============================================================
 # URLs de processos para testes
 # ============================================================
-PROCESS_URL_ARGOS = 'https://pje.trt2.jus.br/pjekz/processo/6191451/detalhe/peticao/461152313'
-PROCESS_ID_ARGOS = '6191451'
+PROCESS_URL_ARGOS = 'https://pje.trt2.jus.br/pjekz/processo/7183091/detalhe'
+PROCESS_ID_ARGOS = '7183091'
 PROCESS_URL_SISB  = 'https://pje.trt2.jus.br/pjekz/processo/4863758/detalhe'
 PROCESS_URL_PEC      = 'https://pje.trt2.jus.br/pjekz/processo/6095583/detalhe'
 PROCESS_URL_PEC_ORD  = 'https://pje.trt2.jus.br/pjekz/processo/5455795/detalhe/peticao/460955334'
 PROCESS_URL_ANEX_CARTA = 'https://pje.trt2.jus.br/pjekz/processo/7258019/detalhe'
-PROCESS_URL_TRIAGEM = 'https://pje.trt2.jus.br/pjekz/processo/8640719/detalhe'
-PROBE_ID_PROCESSO = '8640719'
+PROCESS_URL_TRIAGEM = 'https://pje.trt2.jus.br/pjekz/processo/8685584/detalhe'
+PROBE_ID_PROCESSO = '8685584'
 PROBE_ID_DOC      = '461896095'  # documento que retornou vazio no log
 
 # ============================================================
@@ -581,20 +581,40 @@ def teste_anex_carta():
 
 def teste_triagem_peticao():
     """
-    Executa o fluxo REAL de triagem via run_triagem(driver):
-      1. Navega para URL_LISTA_TRIAGEM (painel)
-      2. Busca lista via API, filtra Triagem Inicial
-      3. Para cada processo: abre detalhe, chama triagem_peticao,
-         cria comentario, executa acao pos-triagem
-    Identico ao fluxo de producao de bianca.
+    Executa o fluxo de triagem direto no processo PROCESS_URL_TRIAGEM.
+    Nao usa a fila da API -- navega direto para o processo e roda o pipeline.
     """
-    from bianca.triagem.runner import run_triagem
+    from bianca.triagem.service import triagem_peticao
+    from bianca.triagem.acoes import (
+        _aplicar_acao_pos_triagem,
+        _determinar_acao_pos_triagem,
+        _RE_BUCKET_B2,
+        _RE_BUCKET_C,
+        _RE_BUCKET_D,
+    )
+    from bianca.extracao import criar_comentario
+    from bianca.selenium_utils import aguardar_renderizacao_nativa, esperar_elemento
+    from selenium.webdriver.common.by import By
+
     configurar_logging_debug()
     logging.getLogger('bianca').setLevel(logging.DEBUG)
 
+    id_processo = PROBE_ID_PROCESSO
+    url = PROCESS_URL_TRIAGEM
+
     LOGGER.info('=' * 60)
-    LOGGER.info('[TRIAGEM_TEST] Fluxo real: run_triagem (igual producao)')
+    LOGGER.info('[TRIAGEM_TEST] Teste direto: id=%s', id_processo)
+    LOGGER.info('[TRIAGEM_TEST] URL: %s', url)
     LOGGER.info('=' * 60)
+
+    proc = {
+        'numero': id_processo,
+        'id_processo': id_processo,
+        'tipo': 'ATORD',
+        'digital': False,
+        'tem_audiencia': True,
+        'bucket': 'C',
+    }
 
     driver = None
 
@@ -610,9 +630,56 @@ def teste_triagem_peticao():
                 LOGGER.error('[TRIAGEM_TEST] Falha no login')
                 return
 
-        with etapa('run_triagem'):
-            resultado = run_triagem(driver)
-            LOGGER.info('[TRIAGEM_TEST] run_triagem -> %s', resultado)
+        with etapa('navegar'):
+            driver.get(url)
+            esperar_elemento(driver, 'pje-cabecalho-processo,pje-timeline',
+                             by=By.CSS_SELECTOR, timeout=15)
+            aguardar_renderizacao_nativa(driver, timeout=5)
+
+        with etapa('triagem_peticao'):
+            # DEBUG: interceptar texto_inicial antes da triagem
+            from bianca.triagem.coleta import _coletar_textos_processo
+            _coleta_debug = _coletar_textos_processo(driver)
+            _texto_debug = _coleta_debug.get('texto_inicial', '')
+            with open('triagem_debug_texto.txt', 'w', encoding='utf-8') as _f:
+                _f.write(_texto_debug or '(vazio)')
+            LOGGER.info('[TRIAGEM_TEST] texto_inicial: %d chars -> salvo em triagem_debug_texto.txt', len(_texto_debug or ''))
+            triagem_txt = triagem_peticao(driver)
+            proc['triagem'] = triagem_txt
+            LOGGER.info('[TRIAGEM_TEST] triagem_txt:\n%s', triagem_txt)
+
+        if triagem_txt:
+            try:
+                bucket, _ = _determinar_acao_pos_triagem(triagem_txt)
+                if bucket == 'pre_bucket':
+                    if _RE_BUCKET_B2.search(triagem_txt):
+                        bucket = 'b2_incompetencia'
+                    elif _RE_BUCKET_C.search(triagem_txt):
+                        bucket = 'c_pedidos'
+                    elif _RE_BUCKET_D.search(triagem_txt):
+                        bucket = 'd_docs'
+                    else:
+                        bucket = 'b1_normal'
+                if bucket == 'b2_incompetencia':
+                    status_str = 'Incompetencia territorial'
+                elif bucket == 'c_pedidos':
+                    status_str = 'Pedidos nao liquidados'
+                elif bucket == 'd_docs':
+                    status_str = 'Falta de documentos'
+                else:
+                    status_str = 'Direto'
+                observacao = 'BIANCA - TRIAGEM\nESTADO DE FLUXO: %s\n\n%s' % (status_str, triagem_txt)
+                with etapa('criar_comentario'):
+                    criar_comentario(driver, observacao)
+            except Exception:
+                LOGGER.exception('[TRIAGEM_TEST] Falha ao criar comentario')
+
+        with etapa('aguardar_gigs'):
+            aguardar_renderizacao_nativa(driver, 'pje-gigs-lista-atividades button', 'aparecer', 8)
+
+        with etapa('acao_pos_triagem'):
+            ok, status = _aplicar_acao_pos_triagem(driver, proc.get('numero'), proc, triagem_txt)
+            LOGGER.info('[TRIAGEM_TEST] acao_pos_triagem -> ok=%s status=%r', ok, status)
 
         LOGGER.info('[TRIAGEM_TEST] concluido')
 

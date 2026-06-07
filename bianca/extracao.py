@@ -314,12 +314,12 @@ def criar_comentario(
             'textarea[formcontrolname="descricao"], '
             'textarea[name="descricao"]',
         )
-        campo_obs.clear()
-        campo_obs.send_keys(observacao)
-        # Forcar evento para Angular
+        driver.execute_script("arguments[0].focus();", campo_obs)
         driver.execute_script(
-            "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
-            campo_obs,
+            "arguments[0].value = arguments[1];"
+            "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
+            "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
+            campo_obs, observacao,
         )
         time.sleep(0.3)
         if log:
@@ -438,16 +438,25 @@ def criar_lembrete_posit(
                 '[LEMBRETE][POSIT] Criando: "%s" / "%s"', titulo, conteudo
             )
 
-        menu_clicked = aguardar_e_clicar(driver, '.fa-bars', log=debug)
+        # Abre menu hamburger via #botao-menu (selector confiavel no PJe)
+        menu_clicked = aguardar_e_clicar(driver, '#botao-menu', timeout=8, log=debug)
+        if not menu_clicked:
+            # fallback para ícone .fa-bars
+            menu_clicked = aguardar_e_clicar(driver, '.fa-bars', timeout=5, log=debug)
+        if not menu_clicked:
+            if debug:
+                logger.warning('[LEMBRETE][POSIT] Botao hamburger nao encontrado')
+            return False
         time.sleep(0.8)
 
         seletores_lembrete = [
+            'pje-icone-post-it button',
             'button[aria-label*="Lembrete"]',
             'button[title*="Lembrete"]',
-            'pje-icone-post-it button',
             '.lista-itens-menu li:nth-child(16) button',
         ]
 
+        lembrete_clicked = False
         for seletor in seletores_lembrete:
             try:
                 lembrete_clicked = aguardar_e_clicar(
@@ -462,10 +471,15 @@ def criar_lembrete_posit(
             except Exception:
                 continue
 
+        if not lembrete_clicked:
+            if debug:
+                logger.warning('[LEMBRETE][POSIT] Botao de lembrete nao encontrado no menu')
+            return False
+
         time.sleep(0.8)
 
         aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
-        time.sleep(0.8)
+        time.sleep(0.5)
 
         titulo_elem = esperar_elemento(
             driver, '#tituloPostit', timeout=5

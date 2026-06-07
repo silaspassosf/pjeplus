@@ -789,10 +789,20 @@ def preencher_campo(
             + """', 5000)
             .then(function(campo) {
                 if (!campo) { callback(false); return; }
+                var isTA = campo instanceof HTMLTextAreaElement;
+                var proto = isTA ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+                var setter = Object.getOwnPropertyDescriptor(proto, 'value') &&
+                             Object.getOwnPropertyDescriptor(proto, 'value').set;
                 if ("""
             + str(limpar).lower()
-            + """) { campo.value = ''; }
-                campo.value = '"""
+            + """) {
+                    if (setter) setter.call(campo, '');
+                    else campo.value = '';
+                }
+                if (setter) setter.call(campo, '"""
+            + valor_escapado
+            + """');
+                else campo.value = '"""
             + valor_escapado
             + """';
                 if ("""

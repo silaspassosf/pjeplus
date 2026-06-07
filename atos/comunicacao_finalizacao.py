@@ -223,16 +223,7 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
 
         log(f'[COMUNICACAO] Modelo "{modelo_reaplicar}" inserido na linha {i + 1}/{total}')
 
-    # Sincronização final: aguardar que todos os editors estejam fechados
-    log('[COMUNICACAO] Aguardando finalização de todos os editors...')
-    try:
-        import time
-        time.sleep(1)
-        # Verificar que a tabela de destinatarios está visível e responsiva
-        esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=10, by=By.CSS_SELECTOR)
-        log('[COMUNICACAO] Todos os editors finalizados - página estabilizada')
-    except Exception as e:
-        log(f'[COMUNICACAO][WARN] Erro ao aguardar estabilização final: {e}')
+    log(f'[COMUNICACAO] Troca de modelo concluida ({total} linha(s))')
 
     log(f'[COMUNICACAO] Troca de modelo concluida ({total} linha(s))')
     return True
@@ -425,74 +416,44 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             return None
 
     log_start('COMUNICACAO_SALVAR_MINUTA')
-    # --- 1. Localizar botão Salvar via JS direto (sem WebDriverWait polling) ---
-    btn_salvar = driver.execute_script("return document.querySelector('button[name=\"btnSalvarExpedientes\"]');")
-    if not btn_salvar:
-        # Fallback: span text 'Salvar' (compatibilidade)
-        try:
-            spans = driver.find_elements(By.XPATH, "//span[contains(@class,'mat-button-wrapper') and normalize-space(text())='Salvar']")
-            for span in spans:
-                candidate = span.find_element(By.XPATH, './ancestor::button[1]')
-                if candidate.is_displayed() and candidate.is_enabled():
-                    btn_salvar = candidate
-                    break
-        except Exception:
-            if debug:
-                log('[COMUNICACAO][DEBUG] Fallback Salvar por span não disponível')
-
+    # --- 1. Salvar — seletor canônico do gigs-plugin.js ---
+    # JS: await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]')
+    btn_salvar = esperar_elemento(driver, 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]', timeout=15, by=By.CSS_SELECTOR)
     if not btn_salvar:
         log('[COMUNICACAO][ERRO] Botão Salvar não encontrado!')
         log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'btn_salvar_nao_encontrado'})
         return False
 
     try:
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_salvar)
         driver.execute_script("arguments[0].click();", btn_salvar)
-        log('[DEBUG] Clique no botão Salvar realizado.')
+        log('[COMUNICACAO] Clique no botão Salvar realizado.')
     except Exception as e:
         log(f'[COMUNICACAO][ERRO] Não foi possível clicar no botão Salvar: {e}')
         raise NavegacaoError(f'clicar_botao_salvar: {e}')
 
-    # --- 2+3. Aguardar btnFinalizarExpedientes habilitado OU snackbar de erro ---
-    # Modo 'habilitado' verifica visivel E !disabled em uma unica chamada.
-    # Timeout reduzido: o fallback por texto é instantâneo e sempre funciona quando o botão está presente.
-    if aguardar_renderizacao_nativa(driver, 'button[name="btnFinalizarExpedientes"]', 'habilitado', 3):
-        # Happy path: botao habilitado, verificar se ha snackbar de erro ANTES de prosseguir
-        try:
-            snack = driver.find_element(By.CSS_SELECTOR, 'snack-bar-container')
-            texto_snack = snack.get_attribute('innerText') or ''
-        except Exception:
-            texto_snack = ''
+    # --- 2. Checar snackbar de endereço inválido (único erro relevante pós-salvar) ---
+    try:
+        texto_snack = driver.find_element(By.CSS_SELECTOR, 'snack-bar-container').get_attribute('innerText') or ''
+    except Exception:
+        texto_snack = ''
+    if 'Selecione o endere' in texto_snack:
+        log(f'[COMUNICACAO][ERRO] Snackbar endereço inválido: "{texto_snack[:80]}" — abortando.')
+        log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'endereco_invalido'})
+        return False
 
-        if 'Selecione o endere' in texto_snack:
-            log(f'[COMUNICACAO][WARN] Snackbar de endereco invalido: "{texto_snack[:80]}"')
-            aguardar_renderizacao_nativa(driver, 'snack-bar-container', 'sumir', 3)
-        else:
-            if texto_snack:
-                log(f'[COMUNICACAO][WARN] Snackbar inesperado: "{texto_snack[:80]}"')
-
-        btn_finalizar = None
-        try:
-            btn_finalizar = driver.find_element(By.CSS_SELECTOR, 'button[name="btnFinalizarExpedientes"]')
-            log('[COMUNICACAO] Salvamento confirmado — botao Assinar habilitado.')
-        except Exception:
-            if debug:
-                log('[COMUNICACAO][DEBUG] btnFinalizarExpedientes não encontrado via seletor direto (esperado)')
-    else:
-        btn_finalizar = None
-        # Fallback por texto
-        try:
-            elementos = driver.find_elements(By.XPATH, "//button[.//span[contains(normalize-space(text()),'Assinar ato')]]")
-            btn_finalizar = next((b for b in elementos if b.is_displayed() and b.is_enabled()), None)
-        except Exception:
-            if debug:
-                log('[COMUNICACAO][DEBUG] Fallback texto para Assinar ato não disponível')
-        if btn_finalizar:
-            log('[COMUNICACAO][WARN] Timeout observer mas botao Assinar encontrado por fallback texto.')
-        else:
-            log('[COMUNICACAO][ERRO] Botao Assinar nao habilitou em 15s.')
-            log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'assinar_nao_habilitou'})
-            return False
+    # --- 3. Aguardar botão Assinar — seletor canônico do gigs-plugin.js ---
+    # JS: await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],
+    #                           pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]')
+    _SEL_ASSINAR = (
+        'pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],'
+        'pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]'
+    )
+    btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=30, by=By.CSS_SELECTOR)
+    if not btn_finalizar:
+        log('[COMUNICACAO][ERRO] Botão Assinar não habilitou em 30s.')
+        log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'assinar_nao_habilitou_30s'})
+        return False
+    log('[COMUNICACAO] Botão Assinar disponível.')
 
     if gigs_extra:
         log('[GIGS_EXTRA][WARN] Criação de GIGS via minuta removida. Use criar_gigs na aba /detalhe antes do fluxo.')
@@ -518,6 +479,10 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         except Exception:
             log('[COMUNICACAO][DEBUG] reinjetar_antes_assinatura não disponível (1a assinatura)')
 
+        if not btn_finalizar:
+            log('[COMUNICACAO][ERRO] Botão Assinar não encontrado — não é possível assinar.')
+            log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'btn_finalizar_none_antes_assinar'})
+            raise NavegacaoError('assinar_atos: btn_finalizar é None')
         try:
             driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_finalizar)
             driver.execute_script("arguments[0].click();", btn_finalizar)
@@ -633,38 +598,52 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                     salvar_delta(diff_estado(_estado_antes, capturar_estado_browser(driver)))
                 except Exception:
                     log('[COMUNICACAO][DEBUG] salvar_delta falhou (não crítico)')
-            snack_final = esperar_elemento(driver, 'snack-bar-container', timeout=15, by=By.CSS_SELECTOR)
-            if snack_final:
-                txt = snack_final.text or ''
-                if 'assinado' in txt.lower() and 'sucesso' in txt.lower():
-                    log(f'[COMUNICACAO] Assinatura confirmada: "{txt.strip()}"')
-                else:
-                    log(f'[COMUNICACAO][WARN] Snackbar com texto inesperado após dialog fechar: "{txt.strip()}"')
+            _lista_vazia = bool(driver.find_elements(
+                By.XPATH,
+                "//span[contains(normalize-space(.),'Não há expedientes sendo confeccionados')]"
+            ))
+            if _lista_vazia:
+                log('[COMUNICACAO] Assinatura confirmada — lista de expedientes vazia.')
             else:
-                log('[COMUNICACAO][WARN] Snackbar de confirmação não detectado em 15s após dialog fechar.')
+                snack_final = esperar_elemento(driver, 'snack-bar-container', timeout=15, by=By.CSS_SELECTOR)
+                if snack_final:
+                    txt = snack_final.text or ''
+                    if 'assinado' in txt.lower() and 'sucesso' in txt.lower():
+                        log(f'[COMUNICACAO] Assinatura confirmada: "{txt.strip()}"')
+                    else:
+                        log(f'[COMUNICACAO][WARN] Snackbar com texto inesperado após dialog fechar: "{txt.strip()}"')
+                else:
+                    log('[COMUNICACAO][WARN] Snackbar de confirmação não detectado em 15s após dialog fechar.')
         else:
             # Sem dialog → assinatura direta; confirmar via snackbar
             log('[COMUNICACAO] Sem dialog de validação móvel — aguardando confirmação de assinatura...')
-            aguardar_renderizacao_nativa(driver, 'snack-bar-container', modo='aparecer', timeout=20)
-            try:
-                from Fix.assinatura_cookies import capturar_apos_assinatura
-                capturar_apos_assinatura(driver)
-            except Exception:
-                log('[COMUNICACAO][DEBUG] capturar_apos_assinatura não disponível')
-            if _debug_assin and _estado_antes:
-                try:
-                    salvar_delta(diff_estado(_estado_antes, capturar_estado_browser(driver)))
-                except Exception:
-                    log('[COMUNICACAO][DEBUG] salvar_delta falhou (não crítico)')
-            snack_sucesso = esperar_elemento(driver, 'snack-bar-container', timeout=5, by=By.CSS_SELECTOR)
-            if snack_sucesso:
-                txt = snack_sucesso.text or ''
-                if 'assinado' in txt.lower() and 'sucesso' in txt.lower():
-                    log(f'[COMUNICACAO] Assinatura confirmada: "{txt.strip()}"')
-                else:
-                    log(f'[COMUNICACAO][WARN] Snackbar apareceu mas texto inesperado: "{txt.strip()}"')
+            _lista_vazia_nd = bool(driver.find_elements(
+                By.XPATH,
+                "//span[contains(normalize-space(.),'Não há expedientes sendo confeccionados')]"
+            ))
+            if _lista_vazia_nd:
+                log('[COMUNICACAO] Assinatura confirmada — lista de expedientes vazia.')
             else:
-                log('[COMUNICACAO][WARN] Snackbar de confirmação de assinatura não detectado em 30s.')
+                aguardar_renderizacao_nativa(driver, 'snack-bar-container', modo='aparecer', timeout=20)
+                try:
+                    from Fix.assinatura_cookies import capturar_apos_assinatura
+                    capturar_apos_assinatura(driver)
+                except Exception:
+                    log('[COMUNICACAO][DEBUG] capturar_apos_assinatura não disponível')
+                if _debug_assin and _estado_antes:
+                    try:
+                        salvar_delta(diff_estado(_estado_antes, capturar_estado_browser(driver)))
+                    except Exception:
+                        log('[COMUNICACAO][DEBUG] salvar_delta falhou (não crítico)')
+                snack_sucesso = esperar_elemento(driver, 'snack-bar-container', timeout=5, by=By.CSS_SELECTOR)
+                if snack_sucesso:
+                    txt = snack_sucesso.text or ''
+                    if 'assinado' in txt.lower() and 'sucesso' in txt.lower():
+                        log(f'[COMUNICACAO] Assinatura confirmada: "{txt.strip()}"')
+                    else:
+                        log(f'[COMUNICACAO][WARN] Snackbar apareceu mas texto inesperado: "{txt.strip()}"')
+                else:
+                    log('[COMUNICACAO][WARN] Snackbar de confirmação de assinatura não detectado em 30s.')
 
     log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'sucesso'})
     log('Comunicação processual finalizada.')

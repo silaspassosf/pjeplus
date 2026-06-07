@@ -2026,6 +2026,20 @@ def finalizar_driver(driver, log=True):
 # =========================
 
 
+def _extrair_jwt_exp(token_value: str):
+    """Decodifica o payload de um JWT e retorna o campo 'exp' (int) ou None."""
+    try:
+        import base64
+        parts = token_value.split('.')
+        if len(parts) < 2:
+            return None
+        padded = parts[1] + '=' * (4 - len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded).decode('utf-8', errors='replace'))
+        return payload.get('exp')
+    except Exception:
+        return None
+
+
 def salvar_cookies_sessao(driver, caminho_arquivo=None, info_extra=None):
     """Salva todos os cookies da sessão Selenium em um arquivo JSON"""
     try:
@@ -2041,9 +2055,21 @@ def salvar_cookies_sessao(driver, caminho_arquivo=None, info_extra=None):
             info = f'_{info_extra}' if info_extra else ''
             caminho_arquivo = os.path.join(pasta, f'cookies_sessao{info}_{timestamp}.json')
 
+        # Extrair exp do access_token para validação rápida no load
+        access_token_exp = None
+        for c in cookies:
+            if c.get('name') == 'access_token' and c.get('value'):
+                access_token_exp = _extrair_jwt_exp(c['value'])
+                if access_token_exp:
+                    import time as _t
+                    restante = access_token_exp - _t.time()
+                    logger.info('[COOKIES] access_token exp em %.0fs (%.1fmin)', restante, restante / 60)
+                break
+
         dados_cookies = {
             'timestamp': datetime.now().isoformat(),
             'url_base': driver.current_url,
+            'access_token_exp': access_token_exp,
             'cookies': cookies
         }
 
@@ -2182,20 +2208,35 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
             timestamp_str = datetime.fromtimestamp(os.path.getmtime(arquivo_mais_recente)).isoformat()
             cookies = dados
 
-        from datetime import datetime, timedelta
-        timestamp_cookies = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00').replace('+00:00', ''))
-        idade = datetime.now() - timestamp_cookies
-
-        if idade > timedelta(hours=max_idade_horas):
-            logger.warning('[COOKIES] Cookies muito antigos (%.1fh). Pulando.', idade.total_seconds() / 3600)
-            return False
+        # Verificar validade pelo exp do access_token (mais preciso que idade do arquivo)
+        import time as _t
+        access_token_exp = dados.get('access_token_exp')
+        if access_token_exp:
+            margem = 60  # 1 minuto de margem de segurança
+            restante = access_token_exp - _t.time()
+            if restante < margem:
+                logger.warning('[COOKIES] access_token expirado (restam %.0fs). Pulando cookies.', restante)
+                return False
+            logger.debug('[COOKIES] access_token valido por mais %.0fs (%.1fmin)', restante, restante / 60)
+        else:
+            # Fallback: checar pela idade do arquivo
+            from datetime import datetime, timedelta
+            timestamp_cookies = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00').replace('+00:00', ''))
+            idade = datetime.now() - timestamp_cookies
+            if idade > timedelta(hours=max_idade_horas):
+                logger.warning('[COOKIES] Cookies muito antigos (%.1fh) e sem exp conhecido. Pulando.', idade.total_seconds() / 3600)
+                return False
 
         driver.get('https://pje.trt2.jus.br/primeirograu/')
 
         cookies_carregados = 0
         for cookie in cookies:
             try:
-                cookie_limpo = {k: v for k, v in cookie.items() if k not in ['expiry', 'httpOnly', 'secure', 'sameSite']}
+                # Preservar expiry do access_token para que o browser também saiba quando expira
+                campos_remover = {'httpOnly', 'secure', 'sameSite'}
+                if cookie.get('name') != 'access_token':
+                    campos_remover.add('expiry')
+                cookie_limpo = {k: v for k, v in cookie.items() if k not in campos_remover}
                 driver.add_cookie(cookie_limpo)
                 cookies_carregados += 1
             except Exception as e:
@@ -2672,13 +2713,13 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
         )
         # 5. No modal, seleciona o polo desejado
         if polo == 'ativo':
-            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-ativo')
+            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.POLO_ATIVO')
             for icone in icones:
                 linha = icone.find_element(By.XPATH, './../../..')
                 label = linha.find_element(By.CSS_SELECTOR, 'label')
                 label.click()
         elif polo == 'passivo':
-            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-passivo')
+            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.POLO_PASSIVO')
             for icone in icones:
                 linha = icone.find_element(By.XPATH, './../../..')
                 label = linha.find_element(By.CSS_SELECTOR, 'label')

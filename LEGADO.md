@@ -51713,3 +51713,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
 ```
+# Arquivo legado.md não disponível
+
+O arquivo `legado.md` não está presente no chat. Não posso fornecer seu conteúdo.
+
+Sugiro fornecer os logs de erro da execução para que possamos diagnosticar a diferença entre o comportamento esperado e o atual.

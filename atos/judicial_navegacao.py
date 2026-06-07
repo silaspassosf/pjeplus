@@ -146,29 +146,21 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
 
         logger.info(f'[NAVEGAÇÃO] Nome da Tarefa Detectado: "{nome_tarefa}"')
 
-        # Se a tarefa NÃO é análise e NÃO é de exceção de fluxo, ela VAI pra análise.
-        ir_direto_para_analise = False
-        excecoes_fluxo = ["análise", "analise", "conclusão", "minutar", "assinar"]
-        if nome_tarefa and not any(exc in nome_tarefa for exc in excecoes_fluxo):
-            ir_direto_para_analise = True
-            logger.info('[NAVEGAÇÃO] Regra de negócio: Tarefa nativa requer fluxo via Análise')
-
         # Desabilitar implicit_wait temporariamente para evitar delays de 10s ao buscar elementos que não existem
         driver.implicitly_wait(0)
         try:
             btn_conclusao_encontrado = False
 
-            if not ir_direto_para_analise:
-                # Tentar clique direto em "Conclusão ao Magistrado"
-                try:
-                    btn_conclusao = WebDriverWait(driver, 2).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
-                    )
-                    btn_conclusao.click()
-                    btn_conclusao_encontrado = True
-                    logger.info('[NAVEGAÇÃO] Clique direto em "Conclusão ao magistrado" realizado')
-                except Exception:
-                    logger.info('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não disponível imediatamente')
+            # Tentar clique direto em "Conclusão ao magistrado" independente do tipo de tarefa
+            try:
+                btn_conclusao = WebDriverWait(driver, 2).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
+                )
+                btn_conclusao.click()
+                btn_conclusao_encontrado = True
+                logger.info('[NAVEGAÇÃO] Clique direto em "Conclusão ao magistrado" realizado')
+            except Exception:
+                logger.info('[NAVEGAÇÃO] Conclusão não disponível diretamente, tentando via "Análise"...')
 
             # Se não encontrou, usar estratégia via "Análise"
             if not btn_conclusao_encontrado:
@@ -204,52 +196,26 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
         # Aguardar renderização e tentar clicar na conclusão
         if not btn_conclusao_encontrado:
             try:
-                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', 'aparecer', timeout=3)
-                
-                # Aguardar botões novamente
-                try:
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-botoes-transicao button'))
-                    )
-                except Exception:
-                    pass
+                # Aguardar o botão aparecer
+                aguardar_renderizacao_nativa(driver, "button[aria-label='Conclusão ao magistrado']", 'aparecer', timeout=8)
 
-                # Agora clicar em "Conclusão ao magistrado"
+                # Agora clicar em "Conclusão ao magistrado" usando confirmação direta (JS)
                 logger.info('[NAVEGAÇÃO] Tentando "Conclusão ao magistrado" após Análise...')
                 max_tentativas_clique = 3
 
                 for tentativa_clique in range(max_tentativas_clique):
                     try:
-                        btn_conclusao = WebDriverWait(driver, 8).until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
+                        btn_conclusao = WebDriverWait(driver, 3).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
                         )
-
-                        # Estratégias de clique
-                        if tentativa_clique == 0:
-                            logger.info(f'[NAVEGAÇÃO] Tentativa {tentativa_clique + 1}: Clique normal')
-                            btn_conclusao.click()
-                        elif tentativa_clique == 1:
-                            logger.info(f'[NAVEGAÇÃO] Tentativa {tentativa_clique + 1}: JavaScript click')
-                            driver.execute_script('arguments[0].click();', btn_conclusao)
-                        else:
-                            logger.info(f'[NAVEGAÇÃO] Tentativa {tentativa_clique + 1}: safe_click_no_scroll')
-                            safe_click_no_scroll(driver, btn_conclusao, log=False)
-
+                        # JS Click bypassa overlays e delay de Angular CD
+                        driver.execute_script('arguments[0].click();', btn_conclusao)
                         btn_conclusao_encontrado = True
-                        logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise')
+                        logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise via JS')
                         break
-
-                    except ElementClickInterceptedException as click_err:
-                        logger.warning(f'[NAVEGAÇÃO] Clique interceptado (tentativa {tentativa_clique + 1}): {click_err}')
-                        # Tentar remover overlays
-                        try:
-                            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                            aguardar_renderizacao_nativa(driver, 'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing', 'sumir', timeout=2)
-                        except Exception:
-                            pass
                     except Exception as other_err:
                         logger.warning(f'[NAVEGAÇÃO] Erro na tentativa {tentativa_clique + 1}: {other_err}')
-                        time.sleep(0.5)  # retry-backoff
+                        time.sleep(0.2)
 
                 if not btn_conclusao_encontrado:
                     logger.error('[NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas')

@@ -200,7 +200,7 @@ def _selecionar_polo(driver, polo, log):
     try:
         if polo == 'ativo':
             icones = WebDriverWait(driver, 5).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-ativo'))
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.POLO_ATIVO'))
             )
             for icone in icones:
                 linha = icone.find_element(By.XPATH, './../../..')
@@ -208,7 +208,7 @@ def _selecionar_polo(driver, polo, log):
                 label.click()
         elif polo == 'passivo':
             icones = WebDriverWait(driver, 5).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-passivo'))
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.POLO_PASSIVO'))
             )
             for icone in icones:
                 linha = icone.find_element(By.XPATH, './../../..')

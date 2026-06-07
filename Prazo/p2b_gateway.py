@@ -41,6 +41,11 @@ logger = logging.getLogger(__name__)
 from Fix.variaveis import url_processo_detalhe
 
 
+class SessaoExpiradaError(Exception):
+    """Lançada quando a API retorna 401 — sessão expirada."""
+    pass
+
+
 # ═══════════════════════════════════════════
 # 1. p2b_api.py
 # ═══════════════════════════════════════════
@@ -71,6 +76,8 @@ def extrair_documento_relevante(driver: WebDriver) -> Dict[str, Any]:
     )
     try:
         r = sess.get(url_timeline, timeout=30)
+        if r.status_code == 401:
+            return _falha('sessao_expirada_401', sessao_expirada=True)
         r.raise_for_status()
         timeline = r.json()
     except Exception as e:
@@ -385,6 +392,8 @@ def fluxo_pz(driver: WebDriver) -> None:
     # Extrai documento relevante através do pipeline API+pdfplumber
     resultado = extrair_documento_relevante(driver)
     if not resultado or not resultado.get('sucesso'):
+        if (resultado or {}).get('sessao_expirada'):
+            raise SessaoExpiradaError('API retornou 401 — sessao expirada')
         logger.info('[FLUXO_PZ] Nenhum documento relevante extraído: %s', (resultado or {}).get('erro'))
         try:
             _fechar_aba_processo(driver)
@@ -407,6 +416,11 @@ def fluxo_pz(driver: WebDriver) -> None:
         _processar_regras_gerais(driver, texto_normalizado, 0)
     except Exception as e:
         logger.error('[FLUXO_PZ] Erro ao processar regras: %s', e)
+        try:
+            _fechar_aba_processo(driver)
+        except Exception:
+            pass
+        return False
 
     # Fechar aba/processo e retornar
     try:
@@ -606,6 +620,9 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
                 return resultado_ok()
             else:
                 return resultado_falha("fluxo_pz_nao_executou")
+        except SessaoExpiradaError as e:
+            logger.warning(f'[PRAZO_API] Sessao expirada (401) no processo {item.get("numero")}: {e}')
+            return resultado_falha("sessao_expirada_401", critical=True)
         except Exception as e:
             logger.error(f'[PRAZO_API] Erro ao executar fluxo_pz para processo {item.get("numero")}: {e}')
             return resultado_falha(str(e))
@@ -623,6 +640,7 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
         open_item=open_item,
         execute_item=execute_item,
         persist_result=persist_result,
+        stop_on_critical=True,
     )
 
     falhas = [{'numero': r['item'].get('numero'), 'erro': r['erro']} for r in stats['itens'] if r['status'] == 'falha']
@@ -632,6 +650,8 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
         'total': total_encontrado,
         'processados': stats['sucesso'],
         'falhas': falhas,
+        'critical_stop': stats.get('critical_stop', False),
+        'critical_reason': stats.get('critical_reason'),
     }
 
 

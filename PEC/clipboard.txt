@@ -252,3 +252,55 @@ PROCESSO: PROCESSO_DESCONHECIDO
 https://pje.trt2.jus.br/pjekz/validacao/26042908540425400000457652902?instancia=1
 ==================================================
 
+
+==================================================
+PROCESSO: 1002087-58.2017.5.02.0090
+==================================================
+    Id Pje: 3200c11
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH193370975BR
+    Destinatario: FVA ASSESSORIA CONTABIL & SERVICOS TERCEIRIZADOS LTDA
+    Data do envio: 28/05/2026
+    Data da entrega: 03/06/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 6719f2c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH193370967BR
+    Destinatario: EVERTON SILVA DOS SANTOS
+    Data do envio: 28/05/2026
+    Data da entrega: 03/06/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (17/06/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001097-90.2025.5.02.0703
+==================================================
+    Id Pje: 5b7fcc7
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH191958429BR
+    Destinatario: JOSE LUIZ FELICIO FILHO
+    Data do envio: 27/05/2026
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao destinatário
+--------------------------------------------------
+
+    Id Pje: a319729
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH191958432BR
+    Destinatario: CASSIA APARECIDA VIEIRA FELICIO
+    Data do envio: 27/05/2026
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao destinatário
+--------------------------------------------------
+
+    Id Pje: 9524bfe
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH191958415BR
+    Destinatario: CASSIA APARECIDA VIEIRA FELICIO
+    Data do envio: 27/05/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+
+Prazo: 15 dias (19/06/2026)
+==================================================
+

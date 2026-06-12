@@ -37,10 +37,15 @@ var callback = arguments[arguments.length - 1];
 
     function verificarInsercao() {{
         try {{
+            // Dialog: offsetParent funciona (não é fixed-position)
             var dialog = document.querySelector('pje-dialogo-visualizar-modelo');
             var dialogVisivel = dialog && (dialog.offsetParent !== null);
+            // Snackbar: NÃO usar offsetParent — Angular Material renderiza com position:fixed
+            // e a spec CSSOM diz que offsetParent é null para fixed-position.
+            // Usamos document.body.contains() como o GIGS plugin (que checa tagName + innerText
+            // no MutationObserver em vez de offsetParent).
             var snackbar = document.querySelector('simple-snack-bar');
-            var snackbarVisivel = snackbar && (snackbar.offsetParent !== null);
+            var snackbarVisivel = snackbar && document.body.contains(snackbar);
             if (dialogVisivel && snackbarVisivel) {{
                 console.log('maisPje: esperar_insercao_modelo() - inserção confirmada');
                 clearTimeout(timeoutId);
@@ -53,12 +58,26 @@ var callback = arguments[arguments.length - 1];
 
     if (!verificarInsercao()) {{
         var observer = new MutationObserver(function(mutations) {{
+            // Padrão GIGS: detecta quando um novo SIMPLE-SNACK-BAR é adicionado ao DOM
+            for (var i = 0; i < mutations.length; i++) {{
+                var m = mutations[i];
+                for (var j = 0; j < m.addedNodes.length; j++) {{
+                    var node = m.addedNodes[j];
+                    if (node.tagName === 'SIMPLE-SNACK-BAR') {{
+                        console.log('maisPje: esperar_insercao_modelo() - snackbar adicionado ao DOM (GIGS pattern)');
+                        if (verificarInsercao()) {{
+                            try {{ observer.disconnect(); }} catch(e){{}}
+                            return;
+                        }}
+                    }}
+                }}
+            }}
             if (verificarInsercao()) {{
                 try {{ observer.disconnect(); }} catch(e){{}}
             }}
         }});
 
-        observer.observe(document.body, {{ childList: true, subtree: true, attributes: true, attributeFilter: ['style','class'] }});
+        observer.observe(document.body, {{ childList: true, subtree: true }});
 
         var checkInterval = setInterval(function() {{
             if (verificarInsercao()) {{

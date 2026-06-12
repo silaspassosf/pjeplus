@@ -38,7 +38,7 @@ if not logger.handlers:
 
 # ── Definicao de Buckets ──
 # Sobrestamento vencido deve ser processado por ÚLTIMO, imediatamente antes de SISBAJUD
-BUCKET_ORDEM = ['carta', 'comunicacoes', 'sob', 'outros', 'sobrestamento', 'sisbajud']
+BUCKET_ORDEM = ['xs_sob', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud']
 
 
 # ─── helpers: acoes com logica interna ou assinatura especial ────────────────
@@ -321,9 +321,9 @@ registry.register(r'\bxs\s+resultado\b|\bresultado\b',                  'sisbaju
 # ── CARTA ─────────────────────────────────────────────────────────────────────
 registry.register(r'\bxs\s+carta\b',                                    'carta',    _carta_exec)
 # ── SOB ───────────────────────────────────────────────────────────────────────
-registry.register(r'\bsob\s+chip\b',                                    'sob',      _w(def_chip))
-registry.register(r'\bsobrestamento\s+vencido\b',                       'sob',      _def_sob)
-registry.register(r'\bsob\s+\d+|\bxs\s+\d+$',                          'sob',      _sob_n)
+registry.register(r'\bsob\s+chip\b',                                    'xs_sob',   _w(def_chip))
+registry.register(r'\bsobrestamento\s+vencido\b',                       'sobrestamento', _def_sob)
+registry.register(r'\b(?:xs\s+)?sob\s+\d+|\bxs\s+\d+$',                  'xs_sob',   _sob_n)
 # ── COMUNICACOES ──────────────────────────────────────────────────────────────
 registry.register(r'exclu[ei]r?.*(?:convenios?|serasa|cnib)|(?:convenios?|serasa|cnib).*exclu[ei]r?|mandado\s+de\s+exclus',
                   'comunicacoes', _w(_a(w, 'pec_excluiargos')))

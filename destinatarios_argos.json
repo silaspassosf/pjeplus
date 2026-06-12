@@ -2,14 +2,11 @@
   "numero_processo": "ATUAL",
   "destinatarios": [
     {
-      "nome_identificado": "EMERSON RIBEIRO DA SILVA",
-      "documento": "281.822.508-62",
-      "documento_normalizado": "28182250862",
-      "tipo_documento": "CPF",
-      "polo": "reu",
-      "nome_oficial": "EMERSON RIBEIRO DA SILVA"
+      "nome": "LEANDRO FERNANDES ARAUJO DIAS",
+      "cpfcnpj": "40805591869",
+      "tipo": "reu"
     }
   ],
-  "origem": "argos_despacho",
-  "timestamp": "2026-05-14T10:52:55.250950"
+  "origem": "argos_idpj_decisao",
+  "timestamp": "2026-06-09T19:54:01.988687"
 }

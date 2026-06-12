@@ -5464,3 +5464,613 @@ Traceback (most recent call last):
 selenium.common.exceptions.InvalidSessionIdException: Message: Tried to run command without establishing a connection
 ```
 
+
+## Execução 2026-06-08 01:23:28 — x_PC_Visible_20260608_012320.log
+
+- **ERROR** `[01:26:28]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:26:28]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:26:36]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:26:36]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:26:44]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:26:44]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:26:52]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:26:52]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-08 01:35:21 — x_PC_Visible_20260608_013516.log
+
+- **ERROR** `[01:38:52]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:38:52]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:00]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:00]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:08]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:08]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:16]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:16]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:24]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:24]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:32]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:32]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:40]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:40]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:48]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[01:39:48]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-08 01:48:49 — x_PC_Visible_20260608_014845.log
+
+- **ERROR** `[01:52:31]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8718024/tarefa/500/transicao
+
+- **ERROR** `[01:52:31]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8718024/tarefa/500/transicao
+
+- **ERROR** `[01:52:45]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+
+## Execução 2026-06-09 02:52:32 — x_PC_Visible_20260609_025215.log
+
+- **ERROR** `[02:52:33]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[02:52:33]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[02:52:33]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-09 02:52:51 — x_PC_Visible_20260609_025249.log
+
+- **ERROR** `[03:01:34]` `anexos_sigilo:visibilidade_sigilosos_lote_apenas` — [VISIBILIDADE_LOTE] Erro ao selecionar checkboxes dos anexos: Message: BrowsingContext does no longer exist
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+getMarionetteCommandsActorProxy/get/<@chrome://remote/content/marionette/actors/MarionetteCommandsParent.sys.mjs:422:21
+
+
+- **ERROR** `[03:01:34]` `core:buscar_documento_argos` — [ARGOS][DOC][ERRO] buscar_documento_argos falhou: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000700-31.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001232-05.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001304-89.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001474-61.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001674-68.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001675-53.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000071-23.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000071-23.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000071-23.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000842-98.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000815-16.2016.5.02.0720: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000180-13.2021.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000342-08.2021.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001293-65.2022.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001426-73.2023.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001426-73.2023.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000994-20.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001190-87.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001393-49.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001455-89.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001750-29.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000012-69.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000975-77.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001132-50.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001205-22.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001236-48.2025.5.02.0701: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001330-87.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002208-12.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000186-44.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000309-42.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000588-28.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000754-60.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000777-06.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[03:01:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001000-56.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-09 13:46:18 — x_PC_Visible_20260609_134611.log
+
+- **ERROR** `[13:47:18]` `carta_execucao:carta` — [CARTA] Juntada automatica falhou ou foi pulada.
+
+- **ERROR** `[13:48:08]` `carta_execucao:carta` — [CARTA] Juntada automatica falhou ou foi pulada.
+
+- **ERROR** `[13:53:16]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[13:53:21]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+
+## Execução 2026-06-09 16:24:17 — x_PC_Visible_20260609_162408.log
+
+
+## Execução 2026-06-09 16:33:39 — x_PC_Visible_20260609_163336.log
+
+- **ERROR** `[16:35:31]` `anexos_sigilo:visibilidade_sigilosos_lote_apenas` — [VISIBILIDADE_LOTE] Falha ao marcar partes no modal: Message: Unable to locate element: button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001232-05.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001304-89.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001474-61.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001293-65.2022.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001750-29.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000012-69.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001132-50.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001205-22.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001236-48.2025.5.02.0701: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001330-87.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002208-12.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000588-28.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:35:36]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000777-06.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-09 16:37:50 — x_PC_Visible_20260609_163746.log
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001232-05.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001304-89.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001474-61.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001293-65.2022.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001750-29.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000012-69.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001132-50.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001205-22.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001236-48.2025.5.02.0701: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001330-87.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002208-12.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000588-28.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:38:48]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000777-06.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-09 16:46:10 — x_PC_Visible_20260609_164607.log
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001304-89.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001474-61.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001293-65.2022.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001750-29.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000012-69.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001132-50.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001205-22.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001236-48.2025.5.02.0701: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001330-87.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002208-12.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000588-28.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[16:48:05]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000777-06.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-09 17:06:19 — x_PC_Visible_20260609_170614.log
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001750-29.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000012-69.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001132-50.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001205-22.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001236-48.2025.5.02.0701: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001330-87.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002208-12.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000588-28.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[17:10:20]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000777-06.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-09 19:34:40 — x_PC_Visible_20260609_193437.log
+
+- **ERROR** `[19:36:22]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]' (by=xpath, timeout=10, texto=None) -> Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:439:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:38:4
+dispatch@chrome://remote/content/marionette/server.sys.mjs:311:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[19:36:32]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000012-69.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:36:32]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001205-22.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:36:32]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001236-48.2025.5.02.0701: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:36:32]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001330-87.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:36:32]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002208-12.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[19:36:32]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000588-28.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-09 19:45:39 — x_PC_Visible_20260609_194536.log
+
+
+## Execução 2026-06-09 22:28:15 — x_PC_Visible_20260609_222810.log
+
+- **ERROR** `[22:31:33]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]' (by=css selector, timeout=15, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:31:33]` `wrappers_utils:visibilidade_sigilosos` — [VISIBILIDADE][ERRO] Falha ao aplicar visibilidade (função principal): Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:31:33]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[22:31:33]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=7, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:31:33]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=3, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[22:31:33]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+
+## Execução 2026-06-10 01:20:17 — x_PC_Visible_20260610_012013.log
+
+- **ERROR** `[01:23:56]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[01:24:00]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+
+## Execução 2026-06-10 14:31:49 — x_PC_Visible_20260610_143147.log
+
+- **ERROR** `[14:32:11]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[14:32:13]` `regras_execucao:def_sob` — [DEF_SOB] Exceção geral: Message: BrowsingContext does no longer exist
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+getMarionetteCommandsActorProxy/get/<@chrome://remote/content/marionette/actors/MarionetteCommandsParent.sys.mjs:422:21
+
+
+- **ERROR** `[14:32:13]` `regras_execucao:def_sob` — Traceback completo:
+```
+Traceback (most recent call last):
+  File "D:\PjePlus\PEC\regras_execucao.py", line 403, in def_sob
+    itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 937, in find_elements
+    return self.execute(Command.FIND_ELEMENTS, {"using": by, "value": value})["value"] or []
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 430, in execute
+    self.error_handler.check_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchWindowException: Message: BrowsingContext does no longer exist
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+getMarionetteCommandsActorProxy/get/<@chrome://remote/content/marionette/actors/MarionetteCommandsParent.sys.mjs:422:21
+```
+
+
+## Execução 2026-06-10 14:34:19 — x_PC_Visible_20260610_143417.log
+
+- **ERROR** `[14:34:27]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+
+## Execução 2026-06-10 14:35:48 — x_PC_Visible_20260610_143543.log
+
+- **ERROR** `[14:38:51]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]' (by=css selector, timeout=15, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[14:38:51]` `wrappers_utils:visibilidade_sigilosos` — [VISIBILIDADE][ERRO] Falha ao aplicar visibilidade (função principal): Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[14:38:51]` `wrappers_utils:executar_visibilidade_sigilosos_se_necessario` — [VISIBILIDADE][ERRO] Função visibilidade_sigilosos falhou.
+
+- **ERROR** `[14:38:51]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=7, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[14:38:51]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=3, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[14:38:51]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+
+## Execução 2026-06-10 14:39:50 — x_PC_Visible_20260610_143944.log
+
+- **ERROR** `[14:42:44]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:43:48]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:44:04]` `judicial_navegacao:preparar_campo_minutar` — [NAVEGAÇÃO] Falha ao preparar campo de filtro: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:44:04]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao preparar campo de minutar
+
+- **ERROR** `[14:44:04]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[14:44:57]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/minutar". URL atual: https://pje.trt2.jus.br/pjekz/processo/8042829/tarefa/502/conclusao
+
+- **ERROR** `[14:44:57]` `judicial_modelos:aguardar_transicao_minutar` — [CONCLUSÃO] URL não mudou para /minutar: https://pje.trt2.jus.br/pjekz/processo/8042829/tarefa/502/conclusao
+
+- **ERROR** `[14:44:57]` `judicial_fluxo:fluxo_cls` — [CLS] Falha na transição para minutar
+
+- **ERROR** `[14:44:57]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+
+## Execução 2026-06-11 15:35:45 — x_PC_Visible_20260611_153543.log
+
+- **ERROR** `[15:35:46]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[15:35:46]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[15:35:46]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-11 15:36:04 — x_PC_Visible_20260611_153601.log
+
+- **ERROR** `[15:36:53]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[15:37:40]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[15:38:29]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+
+## Execução 2026-06-11 22:52:59 — x_PC_Visible_20260611_225255.log
+
+- **ERROR** `[22:55:18]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha no login
+
+- **ERROR** `[22:55:19]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-11 23:00:22 — x_PC_Visible_20260611_230016.log
+
+- **ERROR** `[23:02:08]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:02:25]` `dom_engine:run_dom_api` — [DOMICILIO_ELETRONICO][API] Falha callback: 1000444-54.2026.5.02.0703
+
+- **ERROR** `[23:02:29]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TypeError: preencher_campo() missing 1 required positional argument: 'valor'
+
+- **ERROR** `[23:02:46]` `dom_engine:run_dom_api` — [DOMICILIO_ELETRONICO][API] Falha callback: 1000921-77.2026.5.02.0703
+

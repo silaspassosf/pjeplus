@@ -48,16 +48,13 @@ def _detectar_tipo_ato_para_modelo(driver, debug=False, log=None):
 
 
 def _linhas_correios(driver):
-    """Retorna lista de WebElement <tr> cujo meio de expedicao e Correios."""
-    resultado = []
-    for linha in driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag'):
-        try:
-            meio = linha.find_element(By.CSS_SELECTOR, '.pec-item-coluna-meio-expedicao-tabela-destinatarios .mat-select-min-line')
-            if 'correio' in meio.text.strip().lower():
-                resultado.append(linha)
-        except Exception:
-            continue
-    return resultado
+    """Retorna lista de WebElement <tr> cujo meio de expedicao e Correios.
+    Usa XPath com translate para case-insensitive — ignora hierarquia Angular."""
+    return driver.find_elements(By.XPATH,
+        '//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")]'
+        '[.//span[contains(@class,"mat-select-min-line") and '
+        'contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"correio")]]'
+    )
 
 
 def _botao_confeccionar_correios(driver, indice=0):
@@ -166,10 +163,22 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
             return False
 
         driver.execute_script('arguments[0].click();', btn_inserir)
-        try:
-            aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
-        except Exception:
-            pass
+
+        # Polling snackbar (idêntico ao fluxo geral de preenchimento)
+        for _poll in range(15):  # até 3s
+            if driver.execute_script("""
+                var bars = document.querySelectorAll('simple-snack-bar');
+                for (var i = 0; i < bars.length; i++) {
+                    var t = bars[i].textContent || '';
+                    if (t.indexOf('Modelo de documento inserido com sucesso') !== -1) return true;
+                }
+                return false;
+            """):
+                return True
+            time.sleep(0.2)
+
+        if debug:
+            log(f'[COMUNICACAO] Snackbar modelo não detectado para "{modelo_nome}", prosseguindo')
         return True
     except Exception as e:
         log(f'[COMUNICACAO][WARN] Falha ao inserir modelo "{modelo_nome}": {e}')
@@ -181,51 +190,76 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
         def log(_msg):
             return None
 
-    log('[COMUNICACAO] Iniciando troca de modelo na minuta')
+    log(f'[TROCAR_MODELO] Iniciando troca de modelo (modelo_troca={modelo_troca})')
 
     if not esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=20, by=By.CSS_SELECTOR):
-        log('[COMUNICACAO][WARN] Tabela de destinatarios nao carregou na pagina de minutas')
+        log('[TROCAR_MODELO] Tabela de destinatários não carregou')
         return False
 
     tipo_ato = _detectar_tipo_ato_para_modelo(driver, debug=debug, log=log)
     if not tipo_ato:
-        log('[COMUNICACAO][WARN] Não foi possível detectar tipo de ato para troca de modelo')
+        log('[TROCAR_MODELO] Não foi possível detectar tipo de ato')
         return False
 
-    # Se modelo_troca foi explicitamente passado, usar esse; senão, usar o padrão
     if modelo_troca:
         modelo_reaplicar = modelo_troca
-        log(f'[COMUNICACAO] Tipo de ato detectado: {tipo_ato}; modelo explícito a inserir: {modelo_reaplicar}')
     else:
         modelo_reaplicar = 'zsumc' if tipo_ato == 'ATSUM' else 'zordc'
-        log(f'[COMUNICACAO] Tipo de ato detectado: {tipo_ato}; modelo padrão a inserir: {modelo_reaplicar}')
+    log(f'[TROCAR_MODELO] Tipo={tipo_ato}, modelo={modelo_reaplicar}')
 
     total = _contar_linhas_correios(driver)
     if total == 0:
-        log('[COMUNICACAO][WARN] Nenhuma linha com Correios encontrada na tabela')
+        log('[TROCAR_MODELO] Nenhuma linha com Correios encontrada')
         return False
-    log(f'[COMUNICACAO] {total} linha(s) com Correios encontrada(s)')
+    log(f'[TROCAR_MODELO] {total} linha(s) Correios para processar')
 
     for i in range(total):
-        log(f'[COMUNICACAO] Processando linha Correios {i + 1}/{total}')
+        log(f'[TROCAR_MODELO] Linha {i + 1}/{total}: abrindo editor...')
         botao = _botao_confeccionar_correios(driver, indice=i)
         if not botao:
-            log(f'[COMUNICACAO][WARN] Botao Confeccionar ato nao encontrado para linha Correios {i + 1}')
+            log(f'[TROCAR_MODELO] Botão Confeccionar ato não encontrado na linha {i + 1}')
             continue
 
         if not _abrir_e_limpar_editor(driver, botao, debug=debug, log=log):
-            log(f'[COMUNICACAO][WARN] Falha ao abrir/limpar editor na linha {i + 1}, pulando')
+            log(f'[TROCAR_MODELO] Falha ao abrir/limpar editor na linha {i + 1}')
             continue
 
         if not _inserir_modelo_por_nome(driver, modelo_reaplicar, debug=debug, log=log):
-            log(f'[COMUNICACAO][WARN] Falha ao inserir modelo na linha {i + 1}, pulando')
+            log(f'[TROCAR_MODELO] Falha ao inserir modelo na linha {i + 1}')
             continue
 
-        log(f'[COMUNICACAO] Modelo "{modelo_reaplicar}" inserido na linha {i + 1}/{total}')
+        # Finalizar ato individual (igual dump: inserir → snackbar → finalizar)
+        try:
+            btn_finalizar = wait_for_clickable(
+                driver,
+                'pje-pec-dialogo-ato button[aria-label="Finalizar minuta"]',
+                timeout=10,
+                by=By.CSS_SELECTOR
+            )
+            if not btn_finalizar:
+                log(f'[TROCAR_MODELO] Botão Finalizar não encontrado na linha {i + 1}')
+                continue
 
-    log(f'[COMUNICACAO] Troca de modelo concluida ({total} linha(s))')
+            driver.execute_script('arguments[0].click();', btn_finalizar)
 
-    log(f'[COMUNICACAO] Troca de modelo concluida ({total} linha(s))')
+            # Polling snackbar "Ato elaborado" (idêntico ao fluxo geral)
+            for _poll in range(25):  # até 5s
+                if driver.execute_script("""
+                    var bars = document.querySelectorAll('simple-snack-bar');
+                    for (var i = 0; i < bars.length; i++) {
+                        var t = bars[i].textContent || '';
+                        if (t.indexOf('Ato elaborado com sucesso') !== -1) return true;
+                    }
+                    return false;
+                """):
+                    log(f'[TROCAR_MODELO] Linha {i + 1}/{total} finalizada')
+                    break
+                time.sleep(0.2)
+        except Exception as e:
+            log(f'[TROCAR_MODELO] Erro ao finalizar linha {i + 1}: {e}')
+            continue
+
+    log(f'[TROCAR_MODELO] Concluído — {total} linha(s) processadas')
     return True
 
 

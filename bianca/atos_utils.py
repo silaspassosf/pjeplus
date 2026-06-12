@@ -3,11 +3,18 @@
 bianca/atos_utils.py - Chip removal and PEC creation wrappers.
 
 Funcoes exportadas:
-  - def_chip             (de atos/movimentos_chips.py)
-  - make_comunicacao_wrapper  (de atos/comunicacao.py)
-    - pec_ord, pec_sum, pec_ordc, pec_sumc, pec_ordc2, pec_sumc2  (de atos/wrappers_pec.py)
+  - def_chip                   (remocao de chips)
+  - make_comunicacao_wrapper    (factory de atos/comunicacao.py)
+    - pec_ord, pec_sum          (notificacao inicial — modelos zordd/zsumd)
+    - pec_ordc, pec_sumc        (notificacao inicial — modelos zordc/zsumc)
+    - pec_arord, pec_arsum      (notificacao inicial AR — modelos AR-Or/AR-Su)
+  - make_ato_wrapper            (factory de atos/judicial_fluxo.py)
+    - ato_100                   (ato 100% digital, modelo aud100)
+    - ato_unap                  (ato sem audiencia, modelo aud una presenc)
+  - mov_aud                     (movimentar para Aguardando audiencia)
 
-Nenhuma dependencia externa a selenium, bianca.* e biblioteca padrao.
+Dependencias externas limitadas a factories de atos/ (comunicacao, judicial_fluxo,
+movimentos_fluxo). Nao importa wrappers prontos de atos/wrappers_*.py.
 """
 
 import re
@@ -641,3 +648,141 @@ def retificar_autuacao_inserir_uniao(
     except Exception as e:
         log_msg(f"Erro: {e}")
         return False
+
+
+# =============================================================================
+# ato_100 — Ato 100% digital (modelo aud100)
+# Wrapper local para o fluxo Bianca (NAO importa wrappers de atos/)
+# =============================================================================
+
+from atos.judicial_fluxo import make_ato_wrapper
+
+ato_100 = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='aud100',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    Assinar=False
+)
+
+
+# =============================================================================
+# PEC wrappers — Notificacoes Iniciais (pec_ord, pec_sum, pec_ordc, pec_sumc)
+# Wrappers locais para o fluxo Bianca (NAO importa wrappers de atos/)
+# =============================================================================
+
+from atos.comunicacao import make_comunicacao_wrapper
+
+pec_ord = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='zordd',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios=None,
+    trocar_modelo=True,
+    wrapper_name='pec_ord'
+)
+
+pec_sum = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='zsumd',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios=None,
+    trocar_modelo=True,
+    wrapper_name='pec_sum'
+)
+
+pec_ordc = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='zordc',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios=None,
+    mudar_expediente=True,
+)
+
+pec_sumc = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='zsumc',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios=None,
+    mudar_expediente=True,
+)
+
+pec_arord = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='AR-Or',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios='polo_passivo',
+    cliques_polo_passivo=0,
+    endereco_tipo='correios',
+)
+
+pec_arsum = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='AR-Su',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios='polo_passivo',
+    cliques_polo_passivo=0,
+    endereco_tipo='correios',
+)
+
+ato_unap = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='aud una presenc',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    Assinar=False
+)
+
+
+# =============================================================================
+# mov_aud — Movimentar para Aguardando audiência
+# Wrapper local para o fluxo Bianca (NAO importa wrappers de atos/)
+# =============================================================================
+
+from atos.movimentos_fluxo import movimentar_inteligente
+
+
+def mov_aud(driver: WebDriver, debug: bool = False) -> bool:
+    """Movimenta o processo para 'Aguardando audiência'.
+
+    Encapsula ``movimentar_inteligente`` com destino fixo.
+    Usada apos execucao de pec_ord/pec_sum no fluxo de triagem (bucket C).
+
+    Args:
+        driver: WebDriver Selenium.
+        debug: Se True, exibe logs detalhados.
+
+    Returns:
+        True se o movimento foi executado com sucesso.
+    """
+    return bool(movimentar_inteligente(driver, 'Aguardando audiência', timeout=8))

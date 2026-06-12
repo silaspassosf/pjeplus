@@ -143,12 +143,13 @@ def _validar_e_limpar_progresso(progresso: Dict[str, Any]) -> Dict[str, Any]:
 # CARREGAMENTO E SALVAMENTO DE PROGRESSO
 # ===============================================
 
-def carregar_progresso_unificado(tipo_execucao: str) -> Dict[str, Any]:
+def carregar_progresso_unificado(tipo_execucao: str, suppress_load_log: bool = False) -> Dict[str, Any]:
     """
     Carrega o estado de progresso do arquivo JSON unificado.
 
     Args:
         tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
+        suppress_load_log: Se True, suprime logs de carregamento (uso interno)
 
     Returns:
         Dict com estado do progresso para o tipo específico
@@ -156,6 +157,11 @@ def carregar_progresso_unificado(tipo_execucao: str) -> Dict[str, Any]:
     if not _validar_tipo_execucao(tipo_execucao):
         raise ValueError(f"Tipo de execução não suportado: {tipo_execucao}")
     tipo_execucao = _normalizar_tipo_execucao(tipo_execucao)
+
+    # Wrapper local que respeita suppress_load_log
+    def _log(tipo, msg, num=None):
+        if not suppress_load_log:
+            _log_progresso(tipo, msg, num)
 
     try:
         if os.path.exists(ARQUIVO_PROGRESSO_UNIFICADO):

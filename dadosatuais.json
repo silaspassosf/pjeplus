@@ -1,42 +1,36 @@
 {
   "numero": [
-    "1000813-97.2016.5.02.0703"
+    "1000292-06.2026.5.02.0703"
   ],
-  "id": 973199,
+  "id": 8309917,
   "autor": [
     {
-      "nome": "ADAO LEITE RODRIGUES",
-      "cpfcnpj": "27162132839",
+      "nome": "JESSICA DA SILVA FONSECA",
+      "cpfcnpj": "47029990870",
       "advogado": {
-        "nome": "GERALDO HENRIQUE LIMA SANTOS",
-        "cpf": "22226935860",
-        "oab": "SP454094"
+        "nome": "KARINA PACHECO DE FARIAS",
+        "cpf": "27263751895",
+        "oab": "SP335097"
       }
     }
   ],
   "reu": [
     {
-      "nome": "RN CONSTRUCOES EIRELI - EPP",
-      "cpfcnpj": "21765818000175"
-    },
-    {
-      "nome": "SEVERINO BARBOSA",
-      "cpfcnpj": "87539543434"
-    },
-    {
-      "nome": "TIB CONSTRUCOES LTDA",
-      "cpfcnpj": "47226786000123"
+      "nome": "FIK LIMP SERVICOS ESPECIALIZADOS LTDA",
+      "cpfcnpj": "02202705000117",
+      "advogado": {
+        "nome": "LARISSA GENTINE FERREIRA",
+        "cpf": "34115328827",
+        "oab": "SP446158"
+      }
     }
   ],
   "terceiro": [],
-  "divida": {
-    "valor": "R$ 119.281,80",
-    "data": "13/11/2025"
-  },
+  "divida": {},
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "04/05/2016",
+  "dtAutuacao": "21/02/2026",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",
@@ -50,7 +44,7 @@
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Execução",
+  "labelFaseProcessual": "Liquidação",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

@@ -173,6 +173,15 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
             try:
                 print("[TRIAGEM][%s] Processando..." % numero)
 
+                # --- Carta Precatória: fluxo mínimo, apenas comentário ---
+                if proc.get("bucket") == "CP":
+                    print("[TRIAGEM][%s] Carta Precatória — apenas comentário" % numero)
+                    try:
+                        criar_comentario(drv, "Bianca - CP despachar")
+                    except Exception as e:
+                        print(f"[TRIAGEM][{numero}] Falha ao registrar comentario CP: {e}")
+                    return resultado_ok()
+
                 triagem_txt = triagem_peticao(drv)
                 proc["triagem"] = triagem_txt
                 if triagem_txt:

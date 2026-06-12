@@ -49,7 +49,7 @@ def _lazy_import_mandado_regras():
     if not _mandado_regras_modules_cache:
         from Fix.utils import navegar_para_tela
         from Fix.core import buscar_seletor_robusto, buscar_documento_argos
-        from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, buscar_ultimo_mandado, extrair_destinatarios_decisao, indexar_e_processar_lista
+        from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, extrair_destinatarios_decisao, indexar_e_processar_lista
         from Fix.core import buscar_mandado_autor
         from Fix.extracao import criar_gigs
         from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
@@ -69,7 +69,6 @@ def _lazy_import_mandado_regras():
             'extrair_dados_processo': extrair_dados_processo,
             'buscar_documento_argos': buscar_documento_argos,
             'buscar_mandado_autor': buscar_mandado_autor,
-            'buscar_ultimo_mandado': buscar_ultimo_mandado,
             'extrair_destinatarios_decisao': extrair_destinatarios_decisao,
             'configurar_recovery_driver': configurar_recovery_driver,
         })
@@ -492,17 +491,22 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
         if debug:
             logger.info('[ARGOS][REGRAS] Regra decisao+tendo_em_vista reconhecida')
         try:
-            mods = _lazy_import_mandado_regras()
-            extrair_dados_processo = mods.get('extrair_dados_processo')
-            if not extrair_dados_processo:
-                raise Exception('extrair_dados_processo indisponível')
-            dados_processo = extrair_dados_processo(driver)
+            # API direta para contar reclamadas (muito mais leve que extrair_dados_processo)
+            from .apoio_fluxos import _extrair_id_processo_da_url, _criar_api_client_local
+            id_proc = _extrair_id_processo_da_url(driver)
+            num_reclamadas = 0
+            if id_proc:
+                client = _criar_api_client_local(driver)
+                if client:
+                    partes_raw = client.partes(id_proc) or {}
+                    passivos = partes_raw.get('PASSIVO') or []
+                    num_reclamadas = len(passivos)
+                    if debug:
+                        logger.info('[ARGOS][REGRAS] API partes: %d reclamada(s)', num_reclamadas)
         except Exception as e:
             if debug:
-                logger.error(f'[ARGOS][REGRAS][ERRO] Falha ao extrair dados do processo: {e}')
-            dados_processo = {}
-
-        num_reclamadas = len(dados_processo.get('reu', [])) if dados_processo else 0
+                logger.error(f'[ARGOS][REGRAS][ERRO] Falha ao consultar partes via API: {e}')
+            num_reclamadas = 0
         if num_reclamadas == 1:
             # Com uma reclamada, segue lógica semelhante a despacho
             if resultado_sisbajud != 'positivo' and all(v == 'nao' for v in (sigilo_anexos or {}).values()):

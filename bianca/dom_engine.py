@@ -26,8 +26,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from bianca.atos_utils import def_chip
-from atos.wrappers_pec import pec_arord, pec_arsum
+from bianca.atos_utils import def_chip, pec_arord, pec_arsum
 from bianca.extracao import (
     abrir_detalhes_processo,
     criar_comentario,
@@ -151,15 +150,22 @@ def _extrair_conteudo_lembrete_dom(driver: WebDriver) -> Optional[str]:
         String com conteúdo do lembrete, ou None se não encontrado.
     """
     try:
-        panels = driver.find_elements(
-            By.CSS_SELECTOR, "mat-expansion-panel"
-        )
+        panels = driver.find_elements(By.CSS_SELECTOR, "mat-expansion-panel")
+        if not panels:
+            logger.debug("[DOMICILIO_ELETRONICO] _extrair_conteudo_lembrete_dom: nenhum mat-expansion-panel encontrado")
+            return None
+
+        inspected = 0
         for panel in panels:
+            inspected += 1
             try:
                 title_elem = panel.find_element(
                     By.CSS_SELECTOR, "mat-panel-title.post-it-titulo"
                 )
-                title_text = title_elem.text.strip()
+                title_text = (title_elem.text or "").strip()
+                if not title_text:
+                    continue
+
                 if (
                     "Dom Eletronico" in title_text
                     or "DomicEletr" in title_text
@@ -170,16 +176,35 @@ def _extrair_conteudo_lembrete_dom(driver: WebDriver) -> Optional[str]:
                         desc_elem = panel.find_element(
                             By.CSS_SELECTOR, "mat-panel-description"
                         )
-                        conteudo = desc_elem.text.strip()
+                        conteudo = (desc_elem.text or "").strip()
+                        logger.info(
+                            "[DOMICILIO_ELETRONICO][LEMBRETE] painel encontrado: titulo=%r conteudo=%r",
+                            title_text,
+                            conteudo,
+                        )
                         return conteudo if conteudo else None
-                    except Exception:
+                    except Exception as e_desc:
+                        logger.warning(
+                            "[DOMICILIO_ELETRONICO][LEMBRETE] titulo bateu mas falhou extrair mat-panel-description: titulo=%r erro=%s",
+                            title_text,
+                            e_desc,
+                        )
                         return None
             except Exception:
+                # painel sem title/estrutura esperada
                 continue
+
+        logger.info(
+            "[DOMICILIO_ELETRONICO][LEMBRETE] painel nao encontrado (inspecionados=%d)",
+            inspected,
+        )
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning(
+            "[DOMICILIO_ELETRONICO][LEMBRETE] erro ao extrair conteudo: %s",
+            e,
+        )
         return None
-        return False
 
 
 def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
@@ -255,65 +280,44 @@ def _tem_ata_audiencia(id_processo: str, driver: WebDriver) -> bool:
         return False
 
 
-    """Le o painel de expedientes e retorna nomes de empresas com falha de confirmacao.
+def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
+    """Busca nomes das empresas com expedientes DOM abertos via API.
+
+    Substitui checar_empresas(driver) para evitar abertura de modal.
+    Filtra expedientes nao fechados cujo meio/tipo indique domicilio eletronico
+    ou onde dataCiencia seja nula (prazo expirado sem ciencia).
 
     Args:
-        driver: WebDriver Selenium.
+        id_processo: ID interno do processo (string numerica).
+        driver: WebDriver para extrair sessao.
 
     Returns:
-        String com nomes de empresas separados por virgula, ou string vazia.
+        String com nomes separados por virgula, ou string vazia em caso de erro.
     """
-    empresas = []
     try:
-        if not aguardar_e_clicar(driver, "#botao-menu", timeout=10, log=False):
-            logger.warning("[DOMICILIO_ELETRONICO] checar_empresas: menu nao encontrado")
-            return ""
-
-        if not aguardar_e_clicar(
-            driver, 'button[aria-label="Expedientes"]', timeout=8, log=False
-        ):
-            logger.warning("[DOMICILIO_ELETRONICO] checar_empresas: Expedientes nao encontrado")
-            return ""
-
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "tbody tr"))
-        )
-        rows = driver.find_elements(By.CSS_SELECTOR, "tbody tr")
-        for row in rows:
-            try:
-                cols = row.find_elements(By.TAG_NAME, "td")
-                if len(cols) < 2:
-                    continue
-                nome_empresa = cols[0].text.strip()
-                confirmacao = cols[-1].text.strip().lower()
-                if any(
-                    token in confirmacao
-                    for token in ["expirado", "automatica", "automtica", "erro"]
-                ):
-                    if nome_empresa:
-                        empresas.append(nome_empresa)
-            except Exception:
+        from bianca.api_client import PjeApiClient, session_from_driver as _sfp
+        _sess, _base = _sfp(driver)
+        _client = PjeApiClient(_sess, _base)
+        expedientes = _client.expedientes_processo(id_processo)
+        if not expedientes:
+            return ''
+        nomes: list = []
+        for exp in expedientes:
+            # só processa Domicílio Eletrônico
+            if (exp.get('meioExpedienteEnum') or '').upper() != 'DOMICILIO_ELETRONICO':
                 continue
+            nome = (exp.get('nomePessoaParte') or '').strip()
+            if not nome:
+                continue
+            # incluir se: ciência automática (sistema) OU sem dataCiencia (prazo expirado)
+            ciencia_sistema = exp.get('cienciaViaSistema', False)
+            data_ciencia = exp.get('dataCiencia')
+            if (ciencia_sistema or data_ciencia is None) and nome not in nomes:
+                nomes.append(nome)
+        return ', '.join(nomes)
     except Exception as e:
-        logger.warning(
-            "[DOMICILIO_ELETRONICO] checar_empresas: erro ao ler painel de expedientes: %s", e
-        )
-    finally:
-        try:
-            driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
-            WebDriverWait(driver, 2).until(
-                EC.invisibility_of_element_located(
-                    (By.CSS_SELECTOR, ".cdk-overlay-backdrop")
-                )
-            )
-        except Exception:
-            pass
-
-    unique_empresas: List[str] = []
-    for nome in empresas:
-        if nome not in unique_empresas:
-            unique_empresas.append(nome)
-    return ", ".join(unique_empresas)
+        logger.warning('[DOMICILIO_ELETRONICO] _checar_empresas_api falhou: %s', e)
+        return ''
 
 
 def is_processo_100_digital(driver: WebDriver) -> bool:
@@ -445,29 +449,60 @@ def callback_bucket2(
     # 4. Verificar lembrete Dom Eletronico (nova lógica simplificada)
     lembrete_existe = has_dom_eletronico_reminder(driver)
     executar_pec = False  # Flag para determinar se PEC deve ser executada
-    
+
     if lembrete_existe:
         # Lembrete existe - extrair conteúdo
         conteudo = _extrair_conteudo_lembrete_dom(driver)
-        logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existente encontrado")
-        
-        if conteudo and ("via correio" in conteudo.lower() or "correio enviado" in conteudo.lower()):
+
+        # Log adicional para debug: listar títulos encontrados (quando existir)
+        try:
+            titles = driver.find_elements(By.CSS_SELECTOR, "mat-panel-title.post-it-titulo")
+            titulos_texto = [(t.text or "").strip() for t in titles if (t.text or "").strip()]
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete_existe=True. Titulos encontrados=%s",
+                titulos_texto,
+            )
+        except Exception as e_titles:
+            logger.debug("[DOMICILIO_ELETRONICO][B2][CALLBACK] falha ao listar titulos: %s", e_titles)
+
+        logger.info(
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existente encontrado (conteudo=%r)",
+            conteudo,
+        )
+
+        # Normalização para aceitar variações
+        def _norm_text(s: str) -> str:
+            try:
+                import unicodedata
+                s2 = unicodedata.normalize("NFKD", s or "")
+                s2 = s2.encode("ascii", "ignore").decode("ascii", "ignore")
+                return s2.lower()
+            except Exception:
+                return (s or "").lower()
+
+        conteudo_norm = _norm_text(conteudo or "")
+        # aceitar: "via correio", "correio enviado", "correio" e "enviado" em qualquer ordem
+        contem_correio = "correio" in conteudo_norm
+        contem_enviado = "enviado" in conteudo_norm
+        contem_via_correio = ("via" in conteudo_norm and contem_correio) or ("correio enviado" in conteudo_norm)
+
+        if conteudo and (contem_via_correio or (contem_correio and contem_enviado)):
             # Sub-case 2a: Via correio já registrado
             logger.info(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete contem 'via correio' ou 'correio enviado'"
-                " - criando comentario e apagando chips (SEM PEC)"
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Conteudo indica correio (norm=%r) - criando comentario e apagando chips (SEM PEC)",
+                conteudo_norm,
             )
-            
+
             # Criar comentário Bianca
             try:
                 comentario = "Dom - verificado correio"
-                criar_comentario(driver, comentario, debug=True)
+                criar_comentario(driver, comentario, log=True)
                 logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Comentario criado: %s", comentario)
             except Exception as e:
                 logger.warning(
                     "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
                 )
-            
+
             # Apagar chips de domicilio
             result_chips = def_chip(
                 driver,
@@ -481,14 +516,17 @@ def callback_bucket2(
                 debug=True,
             )
             logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] def_chip result: %s", result_chips)
-            
+
             # NÃO executar PEC
             executar_pec = False
         else:
-            # Sub-case: Lembrete existe mas não é "via correio" ou "correio enviado"
+            # Sub-case: Lembrete existe mas não indica correio/enviado
             logger.warning(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existe mas nao contem 'via correio' ou 'correio enviado'"
-                " - pulando tudo (sem comentario, sem chips, sem PEC)"
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existe mas NAO indica correio enviado. contem_correio=%s contem_enviado=%s via_correio=%s. Pule (sem comentario, sem chips, sem PEC). conteudo_norm=%r",
+                contem_correio,
+                contem_enviado,
+                contem_via_correio,
+                conteudo_norm,
             )
             executar_pec = False
     else:
@@ -533,7 +571,7 @@ def callback_bucket2(
         # Criar comentário Bianca
         try:
             comentario = "Dom - criado lembrete e enviado correio"
-            criar_comentario(driver, comentario, debug=True)
+            criar_comentario(driver, comentario, log=True)
             logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Comentario criado: %s", comentario)
         except Exception as e:
             logger.warning(

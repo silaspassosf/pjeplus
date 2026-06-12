@@ -204,11 +204,21 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         # 4) Inserir com clique JS (padrao comunicacao_preenchimento.py)
         driver.execute_script("arguments[0].click();", btn_inserir)
 
-        # 5) Aguardar curto período para o modelo ser aplicado (não precisa de snackbar)
+        # 5) Aguardar modelo ser aplicado no editor — essencial: valida que o conteúdo
+        #    entrou antes de prosseguir para _inserir_conteudo_customizado/substituir_marcador.
         try:
-            aguardar_renderizacao_nativa(driver, timeout=2)  # apenas estabiliza
+            aguardar_renderizacao_nativa(driver, timeout=2)  # estabiliza Angular
         except Exception:
             pass
+        try:
+            WebDriverWait(driver, 8, poll_frequency=0.3).until(
+                lambda d: bool(d.execute_script(
+                    "var ed = document.querySelector('.ck-editor__editable[contenteditable=\"true\"]');"
+                    "return ed && ed.innerText && ed.innerText.trim().length > 10;"
+                ))
+            )
+        except Exception:
+            logger.warning('[JUNTADA][MODELO] Timeout aguardando conteúdo no editor — prosseguindo assim mesmo')
         return True
     except Exception as e:
         logger.error("ERRO em _selecionar_modelo_gigs: Falha ao selecionar/inserir modelo (modo atos.py): %s: %s", type(e).__name__, e)

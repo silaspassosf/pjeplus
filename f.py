@@ -1,7 +1,11 @@
-# ============================================================
 # f.py -- Harness de teste isolado: Multi-testes
-# Uso: py f.py [teste]
+# Uso: py f.py [teste] [id_processo]
 #   teste disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem, probe, tdbg, todos
+#   Exemplos:
+#     py f.py argos            → teste Argos no processo padrão (7508281)
+#     py f.py argos 7449746    → teste Argos no processo 7449746
+#     py f.py sisb 1234567     → teste SISBAJUD no processo 1234567
+#     py f.py probe 7449746 465383360  → probe documento 465383360 do processo 7449746
 # ============================================================
 
 import json
@@ -14,17 +18,33 @@ from x import criar_driver_vt
 from Fix.utils import login_cpf, navegar_para_tela
 
 # ============================================================
-# URLs de processos para testes
+# URLs de processos para testes (valores padrão)
 # ============================================================
-PROCESS_URL_ARGOS = 'https://pje.trt2.jus.br/pjekz/processo/7183091/detalhe'
-PROCESS_ID_ARGOS = '7183091'
-PROCESS_URL_SISB  = 'https://pje.trt2.jus.br/pjekz/processo/4863758/detalhe'
-PROCESS_URL_PEC      = 'https://pje.trt2.jus.br/pjekz/processo/6095583/detalhe'
-PROCESS_URL_PEC_ORD  = 'https://pje.trt2.jus.br/pjekz/processo/5455795/detalhe/peticao/460955334'
-PROCESS_URL_ANEX_CARTA = 'https://pje.trt2.jus.br/pjekz/processo/7258019/detalhe'
-PROCESS_URL_TRIAGEM = 'https://pje.trt2.jus.br/pjekz/processo/8685584/detalhe'
+_URL_BASE = 'https://pje.trt2.jus.br/pjekz/processo'
+
+def _resolver(id_padrao, id_override=None):
+    """Retorna (url, id_str) resolvendo id_override sobre id_padrao.
+    Uso: url, pid = _resolver(PADRAO, id_override)
+    """
+    pid = str(id_override or id_padrao)
+    return f'{_URL_BASE}/{pid}/detalhe', pid
+
+PROCESS_ID_ARGOS = '7508281'
+PROCESS_ID_SISB  = '4863758'
+PROCESS_ID_PEC      = '6095583'
+PROCESS_ID_PEC_ORD  = '5455795'
+PROCESS_ID_ANEX_CARTA = '7258019'
+PROCESS_ID_TRIAGEM = '8685584'
 PROBE_ID_PROCESSO = '8685584'
 PROBE_ID_DOC      = '461896095'  # documento que retornou vazio no log
+
+# Resolvidos com defaults
+PROCESS_URL_ARGOS, _ = _resolver(PROCESS_ID_ARGOS)
+PROCESS_URL_SISB, _  = _resolver(PROCESS_ID_SISB)
+PROCESS_URL_PEC, _      = _resolver(PROCESS_ID_PEC)
+PROCESS_URL_PEC_ORD, _  = _resolver(PROCESS_ID_PEC_ORD)
+PROCESS_URL_ANEX_CARTA, _ = _resolver(PROCESS_ID_ANEX_CARTA)
+PROCESS_URL_TRIAGEM, _ = _resolver(PROCESS_ID_TRIAGEM)
 
 # ============================================================
 # Logging
@@ -86,15 +106,16 @@ def etapa(nome: str):
 # TESTE 1: Argos — fluxo completo real
 # ============================================================
 
-def teste_buscar_sequenciais():
+def teste_buscar_sequenciais(id_processo=None):
     """Teste do fluxo completo Argos usando o entrypoint real de Mandado."""
     from Mandado.entrada_api import processar_mandado_detalhe
 
     configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_ARGOS, id_processo)
 
     LOGGER.info('=' * 60)
     LOGGER.info('[ARGOS_TEST] Teste real: fluxo completo Argos')
-    LOGGER.info('[ARGOS_TEST] Processo: %s (id=%s)', PROCESS_URL_ARGOS, PROCESS_ID_ARGOS)
+    LOGGER.info('[ARGOS_TEST] Processo: %s (id=%s)', url, pid)
     LOGGER.info('=' * 60)
 
     driver = None
@@ -113,7 +134,7 @@ def teste_buscar_sequenciais():
 
         with etapa('fluxo_argos_completo'):
             t0 = time.perf_counter()
-            resultado = processar_mandado_detalhe(driver, id_processo=PROCESS_ID_ARGOS)
+            resultado = processar_mandado_detalhe(driver, id_processo=pid)
             LOGGER.info('[ARGOS_TEST] processar_mandado_detalhe -> %r (%.2fs)',
                         resultado, time.perf_counter() - t0)
 
@@ -140,14 +161,15 @@ def teste_buscar_sequenciais():
 # TESTE 2: SISBAJUD — minuta_bloqueio (30/60 dias)
 # ============================================================
 
-def teste_sisbajud_minuta():
+def teste_sisbajud_minuta(id_processo=None):
     """Teste isolado da minuta de bloqueio SISBAJUD."""
     import re
     configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_SISB, id_processo)
 
     LOGGER.info('=' * 60)
     LOGGER.info('[SISB_TEST] Teste isolado: minuta_bloqueio SISBAJUD')
-    LOGGER.info('[SISB_TEST] Processo: %s', PROCESS_URL_SISB)
+    LOGGER.info('[SISB_TEST] Processo: %s', url)
     LOGGER.info('=' * 60)
 
     driver = None
@@ -166,8 +188,8 @@ def teste_sisbajud_minuta():
                 return
 
         with etapa('navegar_processo'):
-            LOGGER.info('[SISB_TEST] Navegando para %s', PROCESS_URL_SISB)
-            navegar_para_tela(driver, url=PROCESS_URL_SISB)
+            LOGGER.info('[SISB_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
 
         # Extrair dados do processo
         with etapa('extrair_dados'):
@@ -227,7 +249,7 @@ def teste_sisbajud_minuta():
 # TESTE 3: PEC — fluxo xs sigilo (pec_sigilo + mov_int)
 # ============================================================
 
-def teste_pec_sigilo():
+def teste_pec_sigilo(id_processo=None):
     """
     Teste isolado do fluxo PEC para observacao 'xs sigilo':
         1. pec_sigilo(driver) — cria comunicacao sigilosa (modelo xdecsig)
@@ -238,10 +260,11 @@ def teste_pec_sigilo():
     from atos.wrappers_pec import pec_sigilo
     from atos.movimentos_fluxo import movimentar_inteligente
     configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_PEC, id_processo)
 
     LOGGER.info('=' * 60)
     LOGGER.info('[PEC_TEST] Teste isolado: fluxo xs sigilo (pec_sigilo + mov_int)')
-    LOGGER.info('[PEC_TEST] Processo: %s', PROCESS_URL_PEC)
+    LOGGER.info('[PEC_TEST] Processo: %s', url)
     LOGGER.info('=' * 60)
 
     driver = None
@@ -259,8 +282,8 @@ def teste_pec_sigilo():
                 return
 
         with etapa('navegar_processo'):
-            LOGGER.info('[PEC_TEST] Navegando para %s', PROCESS_URL_PEC)
-            navegar_para_tela(driver, url=PROCESS_URL_PEC)
+            LOGGER.info('[PEC_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
 
         # ── ETAPA 1: pec_sigilo — comunicacao sigilosa ──
         with etapa('pec_sigilo'):
@@ -292,7 +315,7 @@ def teste_pec_sigilo():
 # TESTE 4: ato_pesquisas — fluxo BACEN (pesquisas para execucao)
 # ============================================================
 
-def teste_ato_pesquisas():
+def teste_ato_pesquisas(id_processo=None):
     """
     Teste isolado do ato_pesquisas — fluxo judicial BACEN:
         - Verifica e clica 'Iniciar a execucao' se disponivel
@@ -303,10 +326,11 @@ def teste_ato_pesquisas():
     """
     from atos.judicial import ato_pesquisas
     configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_PEC, id_processo)
 
     LOGGER.info('=' * 60)
     LOGGER.info('[PESQUISA_TEST] Teste isolado: ato_pesquisas (BACEN)')
-    LOGGER.info('[PESQUISA_TEST] Processo: %s', PROCESS_URL_PEC)
+    LOGGER.info('[PESQUISA_TEST] Processo: %s', url)
     LOGGER.info('=' * 60)
 
     driver = None
@@ -324,8 +348,8 @@ def teste_ato_pesquisas():
                 return
 
         with etapa('navegar_processo'):
-            LOGGER.info('[PESQUISA_TEST] Navegando para %s', PROCESS_URL_PEC)
-            navegar_para_tela(driver, url=PROCESS_URL_PEC)
+            LOGGER.info('[PESQUISA_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
 
         # ── ETAPA: ato_pesquisas ──
         with etapa('ato_pesquisas'):
@@ -366,7 +390,7 @@ def teste_ato_pesquisas():
 # TESTE 5: SISBAJUD — processar_ordem (xs resultado)
 # ============================================================
 
-def teste_sisbajud_ordem():
+def teste_sisbajud_ordem(id_processo=None):
     """
     Teste isolado do processamento de ordens SISBAJUD (fluxo 'xs resultado').
 
@@ -378,10 +402,11 @@ def teste_sisbajud_ordem():
     acionado por observacao contendo 'xs resultado' ou 'resultado'.
     """
     configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_SISB, id_processo)
 
     LOGGER.info('=' * 60)
     LOGGER.info('[ORDEM_TEST] Teste isolado: processar_ordem_sisbajud (xs resultado)')
-    LOGGER.info('[ORDEM_TEST] Processo: %s', PROCESS_URL_SISB)
+    LOGGER.info('[ORDEM_TEST] Processo: %s', url)
     LOGGER.info('=' * 60)
 
     driver = None
@@ -400,8 +425,8 @@ def teste_sisbajud_ordem():
                 return
 
         with etapa('navegar_processo'):
-            LOGGER.info('[ORDEM_TEST] Navegando para %s', PROCESS_URL_SISB)
-            navegar_para_tela(driver, url=PROCESS_URL_SISB)
+            LOGGER.info('[ORDEM_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
 
         # Extrair dados do processo
         with etapa('extrair_dados'):
@@ -455,7 +480,7 @@ def teste_sisbajud_ordem():
 # TESTE 6: PEC — fluxo pec_ord (Notificação Inicial, zordd, prazo=5)
 # ============================================================
 
-def teste_pec_ord():
+def teste_pec_ord(id_processo=None):
     """
     Teste isolado do wrapper pec_ord — Notificação Inicial:
         - pec_ord(driver) — cria comunicação com modelo zordd, prazo=5, sigilo=False
@@ -466,10 +491,16 @@ def teste_pec_ord():
     from atos.wrappers_pec import pec_ord
     from atos.movimentos_fluxo import movimentar_inteligente
     configurar_logging_debug()
+    # PEC_ORD usa /peticao/... com default; com override usa /detalhe simples
+    if id_processo:
+        url, pid = _resolver(PROCESS_ID_PEC_ORD, id_processo)
+    else:
+        url = PROCESS_URL_PEC_ORD
+        pid = PROCESS_ID_PEC_ORD
 
     LOGGER.info('=' * 60)
     LOGGER.info('[PEC_ORD_TEST] Teste isolado: pec_ord (Notificacao Inicial, zordd, prazo=5)')
-    LOGGER.info('[PEC_ORD_TEST] Processo: %s', PROCESS_URL_PEC_ORD)
+    LOGGER.info('[PEC_ORD_TEST] Processo: %s', url)
     LOGGER.info('=' * 60)
 
     driver = None
@@ -487,8 +518,8 @@ def teste_pec_ord():
                 return
 
         with etapa('navegar_processo'):
-            LOGGER.info('[PEC_ORD_TEST] Navegando para %s', PROCESS_URL_PEC_ORD)
-            navegar_para_tela(driver, url=PROCESS_URL_PEC_ORD)
+            LOGGER.info('[PEC_ORD_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
 
         # ETAPA 1: pec_ord — Notificacao Inicial (zordd)
         with etapa('pec_ord'):
@@ -520,7 +551,7 @@ def teste_pec_ord():
 # TESTE 7: Anex Carta — juntada completa com clipboard
 # ============================================================
 
-def teste_anex_carta():
+def teste_anex_carta(id_processo=None):
     """
     Teste isolado do wrapper anex_carta — juntada de e-carta:
         - Usa conteudo do clipboard.txt para substituicao no editor
@@ -531,10 +562,11 @@ def teste_anex_carta():
     """
     from PEC.anexos.anexos_wrappers import anex_carta
     configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_ANEX_CARTA, id_processo)
 
     LOGGER.info('=' * 60)
     LOGGER.info('[ANEX_CARTA_TEST] Teste isolado: anex_carta (juntada completa)')
-    LOGGER.info('[ANEX_CARTA_TEST] Processo: %s', PROCESS_URL_ANEX_CARTA)
+    LOGGER.info('[ANEX_CARTA_TEST] Processo: %s', url)
     LOGGER.info('=' * 60)
 
     driver = None
@@ -552,8 +584,8 @@ def teste_anex_carta():
                 return
 
         with etapa('navegar_processo'):
-            LOGGER.info('[ANEX_CARTA_TEST] Navegando para %s', PROCESS_URL_ANEX_CARTA)
-            navegar_para_tela(driver, url=PROCESS_URL_ANEX_CARTA)
+            LOGGER.info('[ANEX_CARTA_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
 
         # Executar juntada completa
         with etapa('anex_carta'):
@@ -579,10 +611,11 @@ def teste_anex_carta():
 # TESTE 8: TRIAGEM — fluxo real via run_triagem (igual ao producao)
 # ============================================================
 
-def teste_triagem_peticao():
+def teste_triagem_peticao(id_processo=None):
     """
-    Executa o fluxo de triagem direto no processo PROCESS_URL_TRIAGEM.
+    Executa o fluxo de triagem direto no processo.
     Nao usa a fila da API -- navega direto para o processo e roda o pipeline.
+    Uso: py f.py triagem [id_processo]
     """
     from bianca.triagem.service import triagem_peticao
     from bianca.triagem.acoes import (
@@ -599,8 +632,8 @@ def teste_triagem_peticao():
     configurar_logging_debug()
     logging.getLogger('bianca').setLevel(logging.DEBUG)
 
-    id_processo = PROBE_ID_PROCESSO
-    url = PROCESS_URL_TRIAGEM
+    url, pid = _resolver(PROBE_ID_PROCESSO, id_processo)
+    id_processo = pid
 
     LOGGER.info('=' * 60)
     LOGGER.info('[TRIAGEM_TEST] Teste direto: id=%s', id_processo)
@@ -702,15 +735,18 @@ def teste_triagem_peticao():
 def teste_triagem_debug(url_processo: str = None):
     """
     Debug passo a passo da coleta de texto da peticao inicial.
-    url_processo: URL do processo (default: PROCESS_URL_TRIAGEM)
-    Uso: py f.py tdbg https://pje.trt2.jus.br/pjekz/processo/XXXXXX/detalhe
+    url_processo: URL do processo (default: usa PROCESS_ID_TRIAGEM)
+    Uso: py f.py tdbg [url_ou_id_processo]
     """
     import io as _io
     from bianca.api_client import PjeApiClient, session_from_driver
     from bianca.triagem.coleta import _extrair_id_processo_da_url, _norm
     configurar_logging_debug()
 
-    url_alvo = url_processo or PROCESS_URL_TRIAGEM
+    if url_processo and url_processo.isdigit():
+        url_alvo, _ = _resolver(url_processo)
+    else:
+        url_alvo = url_processo or PROCESS_URL_TRIAGEM
 
     # habilitar DEBUG em bianca para ver todos os logs
     logging.getLogger('bianca').setLevel(logging.DEBUG)
@@ -856,9 +892,6 @@ def teste_triagem_debug(url_processo: str = None):
 # ============================================================
 
 _JS_PROBE_DOCUMENTO = """
-const idProcesso = arguments[0];
-const idDoc      = arguments[1];
-const callback   = arguments[2];
 
 (async function() {
     var base = location.origin;
@@ -911,16 +944,19 @@ const callback   = arguments[2];
 # TESTE 9: PROBE DOCUMENTO — diagnóstico raw de endpoint API
 # ============================================================
 
-def teste_probe_documento():
+def teste_probe_documento(id_processo=None, id_documento=None):
     """
     Probe direto: usa execute_async_script (JS com cookies do browser) para
     bater em TODOS os endpoints possíveis do documento e mostrar status,
     campos JSON e preview do corpo. Util para diagnosticar mudancas na API.
+    Uso: py f.py probe [id_processo] [id_documento]
     """
     configurar_logging_debug()
+    pid_probe = str(id_processo or PROBE_ID_PROCESSO)
+    doc_probe = str(id_documento or PROBE_ID_DOC)
 
     LOGGER.info('=' * 60)
-    LOGGER.info('[PROBE_DOC] processo=%s  documento=%s', PROBE_ID_PROCESSO, PROBE_ID_DOC)
+    LOGGER.info('[PROBE_DOC] processo=%s  documento=%s', pid_probe, doc_probe)
     LOGGER.info('=' * 60)
 
     driver = None
@@ -937,12 +973,13 @@ def teste_probe_documento():
                 return
 
         with etapa('navegar_processo'):
-            navegar_para_tela(driver, url=PROCESS_URL_TRIAGEM)
+            url_probe, _ = _resolver(pid_probe)
+            navegar_para_tela(driver, url=url_probe)
 
         with etapa('probe_endpoints'):
             driver.set_script_timeout(45)
             resultados = driver.execute_async_script(
-                _JS_PROBE_DOCUMENTO, PROBE_ID_PROCESSO, PROBE_ID_DOC)
+                _JS_PROBE_DOCUMENTO, pid_probe, doc_probe)
 
         LOGGER.info('[PROBE_DOC] --- Resultados por endpoint ---')
         for r in (resultados or []):
@@ -985,46 +1022,140 @@ def teste_probe_documento():
 
 if __name__ == '__main__':
     teste = sys.argv[1].lower() if len(sys.argv) > 1 else 'argos'
+    # id_processo opcional como 2º argumento (ex: py f.py argos 7449746)
+    id_p = sys.argv[2] if len(sys.argv) > 2 else None
 
     if teste in ('argos', '1'):
-        teste_buscar_sequenciais()
+        teste_buscar_sequenciais(id_p)
     elif teste in ('sisb', 'sisbajud', 'minuta', '2'):
-        teste_sisbajud_minuta()
+        teste_sisbajud_minuta(id_p)
     elif teste in ('pec', 'sigilo', '3'):
-        teste_pec_sigilo()
+        teste_pec_ord(id_p)
     elif teste in ('pesquisa', 'ato_pesquisas', '4'):
-        teste_ato_pesquisas()
+        teste_ato_pesquisas(id_p)
     elif teste in ('ordem', 'resultado', '5'):
-        teste_sisbajud_ordem()
+        teste_sisbajud_ordem(id_p)
     elif teste in ('pecord', '6'):
-        teste_pec_ord()
+        teste_pec_ord(id_p)
     elif teste in ('anex', 'anex_carta', 'carta', '7'):
-        teste_anex_carta()
+        teste_anex_carta(id_p)
     elif teste in ('triagem', 'bianca', '8'):
-        teste_triagem_peticao()
+        teste_triagem_peticao(id_p)
     elif teste in ('probe', 'probe_doc', '9'):
-        teste_probe_documento()
+        id_doc = sys.argv[3] if len(sys.argv) > 3 else None
+        teste_probe_documento(id_p, id_doc)
     elif teste in ('tdbg', 'triagem_debug', '10'):
         url_arg = sys.argv[2] if len(sys.argv) > 2 else None
         teste_triagem_debug(url_arg)
+    elif teste in ('dom', 'dom_lembrete', '11'):
+        def _teste_dom_eletronico_1_proc(id_processo=None):
+            """
+            Teste SEM mocks do fluxo DOM por 1 processo específico:
+            - cria driver
+            - login
+            - navega para /processo/{id}/detalhe
+            - extrai tipo do processo via JS (ATOrd/ATSum/ACum)
+            - chama diretamente bianca.dom_engine.callback_bucket2
+            """
+            from bianca import dom_engine as _dom_engine
+
+            configurar_logging_debug()
+
+            url, pid = _resolver(id_processo or '8296007', id_processo)
+            LOGGER.info('=' * 60)
+            LOGGER.info('[DOM_TEST] Teste real DOM ELETRONICO (1 processo)')
+            LOGGER.info('[DOM_TEST] Processo URL: %s', url)
+            LOGGER.info('[DOM_TEST] id=%s', pid)
+            LOGGER.info('=' * 60)
+
+            driver = None
+            try:
+                with etapa('criar_driver'):
+                    driver = criar_driver_vt(headless=False)
+                if not driver:
+                    LOGGER.error('[DOM_TEST] Falha ao criar driver')
+                    return
+
+                with etapa('login'):
+                    if not login_cpf(driver):
+                        LOGGER.error('[DOM_TEST] Falha no login')
+                        return
+
+                with etapa('navegar_processo'):
+                    LOGGER.info('[DOM_TEST] Navegando para %s', url)
+                    navegar_para_tela(driver, url=url)
+
+                # Extrair tipo do processo da aba de detalhes (equivalente ao run_dom_api)
+                with etapa('extrair_tipo'):
+                    tipo_processo = "ATOrd"
+                    try:
+                        tipo_js = driver.execute_script(
+                            """
+                            var cabecalho = document.querySelector('pje-cabecalho-processo');
+                            if (cabecalho) {
+                                var spansTipo = cabecalho.querySelectorAll(
+                                    'pje-descricao-processo span.align-end.ng-star-inserted'
+                                );
+                                for (var i = 0; i < spansTipo.length; i++) {
+                                    var texto = (spansTipo[i].innerText
+                                        || spansTipo[i].textContent || '').trim();
+                                    if (texto && (texto.includes('ATOrd')
+                                        || texto.includes('ATSum')
+                                        || texto.includes('ACum'))) {
+                                        return texto;
+                                    }
+                                }
+                            }
+                            return '';
+                            """
+                        )
+                        if tipo_js:
+                            tipo_processo = tipo_js.strip()
+                    except Exception as e:
+                        LOGGER.warning('[DOM_TEST] Falha ao extrair tipo, usando ATOrd: %s', e)
+
+                    LOGGER.info('[DOM_TEST] tipo_processo=%s', tipo_processo)
+
+                # setar numero_processo_lista para logs do callback_bucket2
+                driver._numero_processo_lista = pid  # type: ignore[attr-defined]
+
+                with etapa('callback_bucket2'):
+                    ok = _dom_engine.callback_bucket2(driver, tipo_processo=tipo_processo)
+                    LOGGER.info('[DOM_TEST] callback_bucket2 -> %s', ok)
+
+                LOGGER.info('[DOM_TEST] concluido')
+
+            except Exception:
+                LOGGER.exception('[DOM_TEST] Erro nao tratado')
+            finally:
+                try:
+                    if driver is not None:
+                        driver.quit()
+                except Exception:
+                    pass
+
+        _teste_dom_eletronico_1_proc(id_p)
     elif teste in ('todos', 'all'):
         print('=== Executando todos os testes ===')
         print('\n--- TESTE 1: ARGOS ---')
-        teste_buscar_sequenciais()
+        teste_buscar_sequenciais(id_p)
         print('\n--- TESTE 2: SISBAJUD MINUTA ---')
-        teste_sisbajud_minuta()
+        teste_sisbajud_minuta(id_p)
         print('\n--- TESTE 3: PEC SIGILO ---')
-        teste_pec_sigilo()
+        teste_pec_sigilo(id_p)
         print('\n--- TESTE 4: ATO PESQUISAS ---')
-        teste_ato_pesquisas()
+        teste_ato_pesquisas(id_p)
         print('\n--- TESTE 5: SISBAJUD ORDEM ---')
-        teste_sisbajud_ordem()
+        teste_sisbajud_ordem(id_p)
         print('\n--- TESTE 6: PEC ORD ---')
-        teste_pec_ord()
+        teste_pec_ord(id_p)
         print('\n--- TESTE 7: ANEX CARTA ---')
-        teste_anex_carta()
+        teste_anex_carta(id_p)
         print('\n--- TESTE 8: TRIAGEM ---')
-        teste_triagem_peticao()
+        teste_triagem_peticao(id_p)
+        print('\n--- TESTE 11: DOM ELETRONICO lembrete (isola decisao) ---')
+        teste_dom_lembrete_detection(id_p)
     else:
         print(f'Teste desconhecido: {teste}')
-        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem, probe, tdbg, todos')
+        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem, probe, tdbg, dom, todos')
+        print('Uso: py f.py <teste> [id_processo]')

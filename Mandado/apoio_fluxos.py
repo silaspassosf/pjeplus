@@ -209,6 +209,102 @@ def _criar_api_client_local(driver: WebDriver):
         return None
 
 
+def _extrair_texto_certidao_via_api(driver: WebDriver, log: bool = True) -> Optional[str]:
+    """Extrai o texto COMPLETO da certidão de devolução via API (todas as páginas).
+
+    Baixa o PDF binário pelo endpoint /conteudo e extrai com pdfplumber,
+    mesmo approach usado em bianca/triagem/coleta.py. Não depende do PDF
+    viewer do PJe (que só renderiza uma página por vez).
+    """
+    import io as _io
+
+    id_processo = _extrair_id_processo_da_url(driver)
+    if not id_processo:
+        if log:
+            logger.warning('[CERTIDAO_API] id_processo não encontrado na URL')
+        return None
+
+    client = _criar_api_client_local(driver)
+    if not client:
+        if log:
+            logger.warning('[CERTIDAO_API] Falha ao criar API client')
+        return None
+
+    try:
+        timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
+        if not timeline:
+            if log:
+                logger.warning('[CERTIDAO_API] Timeline vazia')
+            return None
+
+        import unicodedata
+        def _norm(t):
+            return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
+
+        id_certidao = None
+        for doc in timeline:
+            if not isinstance(doc, dict):
+                continue
+            # id numérico (ex: 465383360) — necessário para o endpoint /conteudo
+            # idUnicoDocumento é UID alfanumérico (ex: badd6fa) que a API não aceita
+            doc_id = str(doc.get('id') or doc.get('idUnicoDocumento') or '')
+            if not doc_id:
+                continue
+            t = _norm(doc.get('tipo', '')) + ' ' + _norm(doc.get('titulo', ''))
+            if 'certid' in t and 'devolu' in t:
+                id_certidao = doc_id
+                if log:
+                    logger.info('[CERTIDAO_API] Certidão encontrada: uid=%s', id_certidao)
+                break
+
+        if not id_certidao:
+            if log:
+                logger.warning('[CERTIDAO_API] Certidão de devolução não encontrada na timeline')
+            return None
+
+        url_pdf = client._url(
+            f'/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_certidao}/conteudo')
+        if log:
+            logger.info('[CERTIDAO_API] Baixando PDF: %s', url_pdf)
+        resp = client.sess.get(url_pdf, timeout=60)
+        if resp.status_code != 200:
+            if log:
+                logger.warning('[CERTIDAO_API] HTTP %s ao baixar PDF', resp.status_code)
+            return None
+
+        magic = resp.content[:5] if resp.content else b''
+        if magic != b'%PDF-':
+            if log:
+                logger.warning('[CERTIDAO_API] Resposta não é PDF (magic=%r)', magic)
+            return None
+
+        try:
+            import pdfplumber
+        except ImportError:
+            if log:
+                logger.warning('[CERTIDAO_API] pdfplumber não instalado')
+            return None
+
+        textos = []
+        with pdfplumber.open(_io.BytesIO(resp.content)) as pdf:
+            for i, pag in enumerate(pdf.pages):
+                t = pag.extract_text()
+                if t:
+                    textos.append(t)
+                if log:
+                    logger.debug('[CERTIDAO_API] Pág %d: %d chars', i + 1, len(t or ''))
+
+        texto_total = '\n'.join(textos).strip()
+        if log:
+            logger.info('[CERTIDAO_API] Texto extraído: %d chars, %d páginas', len(texto_total), len(pdf.pages))
+        return texto_total if texto_total else None
+
+    except Exception as e:
+        if log:
+            logger.error('[CERTIDAO_API] Erro: %s', e)
+        return None
+
+
 def _identificar_uids_sigilosos_por_api(driver: WebDriver, log: bool = False) -> Optional[List[str]]:
     """Consulta timeline via API e retorna UIDs de docs sigilosos.
 

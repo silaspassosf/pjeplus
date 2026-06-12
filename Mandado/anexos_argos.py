@@ -159,14 +159,46 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
 
     Não busca SISBAJUD em anexos, apenas analisa o texto recebido.
     """
+    import unicodedata
+
+    # ── Normalização robusta: remover acentos, colapsar whitespace ──
+    texto_normalizado = unicodedata.normalize('NFD', texto_pdf)
+    texto_normalizado = ''.join(c for c in texto_normalizado if unicodedata.category(c) != 'Mn')
+    texto_normalizado = texto_normalizado.lower()
+    # Colapsar espaços/quebras repetidas em espaço único
+    texto_colapsado = ' '.join(texto_normalizado.split())
+
+    # Buscar marcador no texto colapsado (tolera quebra de linha entre palavras)
+    if 'determinacoes normativas e legais' not in texto_colapsado:
+        if log:
+            from Fix.log import logger as _logger
+            amostra = texto_colapsado[:500] if len(texto_colapsado) > 500 else texto_colapsado
+            _logger.info('[SISBAJUD][DEBUG] Marcador nao encontrado. Texto normalizado (primeiros 500 chars):\n%s', amostra)
+        raise ValueError('[SISBAJUD][ERRO] Marcador "determinações normativas e legais" não encontrado no texto')
+
+    # Reconstruir lines e localizar det_idx com versão normalizada de cada linha
     lines = texto_pdf.splitlines()
     det_idx = -1
     for idx, line in enumerate(lines):
-        if 'determinações normativas e legais' in line.lower():
+        # Normalizar linha: remover acentos, lowercase
+        nl = unicodedata.normalize('NFD', line)
+        nl = ''.join(c for c in nl if unicodedata.category(c) != 'Mn').lower()
+        # Buscar parte do marcador na linha
+        if 'determinacoes' in nl or 'normativas e legais' in nl:
             det_idx = idx
             break
+    # Fallback: buscar marcador quebrado entre duas linhas consecutivas
     if det_idx == -1:
-        raise ValueError('[SISBAJUD][ERRO] Marcador "determinações normativas e legais" não encontrado no texto')
+        for idx in range(len(lines) - 1):
+            nl1 = unicodedata.normalize('NFD', lines[idx])
+            nl1 = ''.join(c for c in nl1 if unicodedata.category(c) != 'Mn').lower()
+            nl2 = unicodedata.normalize('NFD', lines[idx+1])
+            nl2 = ''.join(c for c in nl2 if unicodedata.category(c) != 'Mn').lower()
+            combinado = (nl1.rstrip() + ' ' + nl2.lstrip())
+            if 'determinacoes normativas e legais' in combinado:
+                det_idx = idx  # primeira linha do par
+                break
+
     executados = _extrair_executados_pdf(texto_pdf)
     bloqueio_idx = -1
     for offset in range(1, 21):
@@ -285,6 +317,20 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
     executados = []
     resultado_sisbajud = None
 
+    # === ATIVAR MÚLTIPLA SELEÇÃO (antes de qualquer ação nos anexos) ===
+    if log:
+        logger.info('[ARGOS][ANEXOS] Ativando múltipla seleção...')
+    try:
+        btn_multi = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]'))
+        )
+        driver.execute_script("arguments[0].click();", btn_multi)
+        if log:
+            logger.info('[ARGOS][ANEXOS]  ✅ Múltipla seleção ativada')
+    except Exception:
+        if log:
+            logger.warning('[ARGOS][ANEXOS]  ⚠️ Falha ao ativar múltipla seleção (não crítico)')
+
     # === FASE 1: INSERIR SIGILO INDIVIDUALMENTE ===
     if log:
         logger.info('[ARGOS][ANEXOS] === FASE 1: INSERIR SIGILO INDIVIDUALMENTE ===')
@@ -293,25 +339,38 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
 
     anexos_com_sigilo = []
 
+    # Desativa implicit_wait durante o loop para evitar latência em find_element
+    _implicit_saved = driver.timeouts.implicit_wait
+    driver.implicitly_wait(0)
+
     # 1. Inserir sigilo individualmente em cada anexo especial
-    for anexo in anexos:
-        texto_anexo = anexo.text.strip()
-        tipo = _identificar_tipo_anexo(texto_anexo)
-        if not tipo:
-            continue
+    try:
+        for anexo in anexos:
+            texto_anexo = anexo.text.strip()
+            tipo = _identificar_tipo_anexo(texto_anexo)
+            if not tipo:
+                continue
 
-        found_sigilo[tipo] = True
+            found_sigilo[tipo] = True
 
-        # Tentar inserir sigilo
-        if inserir_sigilo_individual(anexo, driver, debug=False):
-            anexos_com_sigilo.append((anexo, tipo))
-            sigilo_anexos[tipo] = "sim"
-            if log:
-                logger.info(f'[ARGOS][ANEXOS]  ✅ Sigilo inserido: {tipo.upper()}')
-        else:
-            if log:
-                logger.warning(f'[ARGOS][ANEXOS] ❌ Falha ao inserir sigilo em {tipo.upper()}')
-            sigilo_anexos[tipo] = "falha"
+            # Tentar inserir sigilo
+            if inserir_sigilo_individual(anexo, driver, debug=False):
+                anexos_com_sigilo.append((anexo, tipo))
+                sigilo_anexos[tipo] = "sim"
+                if log:
+                    logger.info(f'[ARGOS][ANEXOS]  ✅ Sigilo inserido: {tipo.upper()}')
+                # Selecionar checkbox imediatamente após inserir sigilo
+                try:
+                    chk = anexo.find_element(By.CSS_SELECTOR, 'span.mat-checkbox-inner-container')
+                    driver.execute_script("arguments[0].click();", chk)
+                except Exception:
+                    pass
+            else:
+                if log:
+                    logger.warning(f'[ARGOS][ANEXOS] ❌ Falha ao inserir sigilo em {tipo.upper()}')
+                sigilo_anexos[tipo] = "falha"
+    finally:
+        driver.implicitly_wait(_implicit_saved)
 
     # Disparar visibilidade se algum anexo especial foi processado (com sucesso OU falha)
     # Falha pode indicar que sigilo já estava presente mas não foi detectado
@@ -324,10 +383,7 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
             else:
                 logger.info('[ARGOS][ANEXOS] Anexos especiais encontrados (sigilo já presente) — aplicando visibilidade')
 
-        # Pequena espera antes de passar para visibilidade
-        time.sleep(1.0)
-
-        # === FASE 2: APLICAR VISIBILIDADE EM LOTE ===
+        # === FASE 2: APLICAR VISIBILIDADE EM LOTE (checkboxes já selecionados na FASE 1) ===
         if log:
             logger.info('[ARGOS][ANEXOS] === FASE 2: APLICAR VISIBILIDADE EM LOTE ===')
 

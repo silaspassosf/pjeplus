@@ -18,20 +18,20 @@ logger = logging.getLogger(__name__)
 def inserir_sigilo_individual(elemento, driver=None, debug=False):
     """
     Insere sigilo INDIVIDUALMENTE em um anexo/documento.
-    Padrão INVERSO de retirar_sigilo: 
+    Padrão INVERSO de retirar_sigilo:
     - retirar_sigilo: sem sigilo → retorna; com sigilo → clica e aguarda DESAPARECER
     - inserir_sigilo: com sigilo → retorna; sem sigilo → clica e aguarda APARECER
-    
+
     Lógica:
     1. Se JÁ TEM SIGILO (is-sigiloso) → retorna True (não precisa fazer nada)
     2. Se NÃO TEM SIGILO → clica botão para ADICIONAR sigilo
     3. Aguarda aplicação da classe 'is-sigiloso' (confirmação)
-    
+
     Args:
         elemento: WebElement do documento/anexo na timeline
         driver: WebDriver Selenium
         debug: Exibir logs detalhados
-    
+
     Returns:
         True se sigilo foi adicionado ou já existia, False em erro
     """
@@ -125,15 +125,13 @@ def inserir_sigilo_individual(elemento, driver=None, debug=False):
 
 def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
     """
-    Aplica visibilidade em lote APENAS nos anexos especiais da certidão de pesquisa
-    que já receberam sigilo (classe is-sigiloso no link do documento).
+    Aplica visibilidade em lote nos anexos que já receberam sigilo.
+    Checkboxes já selecionados individualmente na FASE 1 (após cada inserir_sigilo).
 
-    Sequência correta (dentro do painel de anexos, sem tocar na timeline principal):
-    1. Ativar múltipla seleção nos anexos (i.fa-check-square.fa-lg.far.icone-sozinho)
-    2. Selecionar APENAS os anexos com a.tl-documento.is-sigiloso
-    3. Clicar botão de visibilidade dos anexos (i.fas.fa-plus.fa-lg.tl-nao-sigiloso)
-    4. No modal: clicar header toggle (i.fa.fa-check.botao-icone-titulo-coluna) para marcar todas as partes
-    5. Salvar
+    Sequência (múltipla seleção já ativada antes da FASE 1):
+    1. Clicar botão "+" de visibilidade (i.fas.fa-plus.fa-lg)
+    2. No modal: clicar "Marcar todas" (button.botao-icone-titulo-coluna)
+    3. Salvar
 
     :param driver: A instância do WebDriver.
     :param polo: mantido por compatibilidade, não utilizado (modal usa toggle geral).
@@ -141,94 +139,50 @@ def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
     :return: True se executou com sucesso, False caso contrário.
     """
     try:
-        from Fix.utils_observer import aguardar_renderizacao_nativa
-
-        # 1. Ativar múltipla seleção nos ANEXOS
-        if log:
-            logger.info('[VISIBILIDADE_LOTE] Ativando múltipla seleção nos anexos...')
-        try:
-            btn_multi = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]'))
-            )
-            driver.execute_script("arguments[0].click();", btn_multi)
-            time.sleep(0.5)
-        except Exception as e:
-            if log:
-                logger.error(f'[VISIBILIDADE_LOTE] Falha ao ativar múltipla seleção nos anexos: {e}')
-            return False
-
-        # 2. Selecionar APENAS os anexos que receberam sigilo (is-sigiloso)
-        if log:
-            logger.info('[VISIBILIDADE_LOTE] Selecionando anexos com sigilo inserido...')
-        selecionados = 0
-        try:
-            anexos = driver.find_elements(By.CSS_SELECTOR, '.tl-item-anexo')
-            for anexo in anexos:
-                if not anexo.find_elements(By.CSS_SELECTOR, 'a.tl-documento.is-sigiloso'):
-                    continue
-                try:
-                    chk = anexo.find_element(By.CSS_SELECTOR, 'span.mat-checkbox-inner-container')
-                    driver.execute_script("arguments[0].click();", chk)
-                    selecionados += 1
-                    time.sleep(0.1)
-                except Exception:
-                    continue
-        except Exception as e:
-            if log:
-                logger.error(f'[VISIBILIDADE_LOTE] Erro ao selecionar checkboxes dos anexos: {e}')
-            return False
-
-        if selecionados == 0:
-            if log:
-                logger.warning('[VISIBILIDADE_LOTE] Nenhum anexo com is-sigiloso encontrado para selecionar')
-            return False
-
-        if log:
-            logger.info(f'[VISIBILIDADE_LOTE] {selecionados} anexo(s) selecionado(s)')
-        time.sleep(0.3)
-
-        # 3. Clicar botão de visibilidade dos anexos selecionados
+        # 1. Clicar botão "+" de visibilidade (anexos já selecionados via checkboxes na FASE 1)
         if log:
             logger.info('[VISIBILIDADE_LOTE] Abrindo modal de visibilidade...')
         try:
-            # Usando o seletor exato capturado no dump (aria-label)
             btn_vis = WebDriverWait(driver, 5).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Incluir visibilidade para Sigilo"]'))
             )
             driver.execute_script("arguments[0].click();", btn_vis)
-            time.sleep(0.5)
         except Exception as e:
             if log:
-                logger.error(f'[VISIBILIDADE_LOTE] Falha ao clicar botão de visibilidade dos anexos: {e}')
+                logger.error(f'[VISIBILIDADE_LOTE] Falha ao clicar botão de visibilidade: {e}')
             return False
 
-        # 4. Localizar modal
+        # 2. Aguardar modal carregar completamente (dump: ~1.8s entre "+" e "Marcar todas")
+        #    Espera as linhas da tabela (tr.cdk-drag) aparecerem dentro do modal
         modal_container = '.cdk-overlay-container .mat-dialog-container'
         try:
             modal = WebDriverWait(driver, 4, poll_frequency=0.1).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, modal_container))
             )
+            if log:
+                logger.info('[VISIBILIDADE_LOTE] Modal detectado, aguardando conteúdo carregar...')
+            # Aguarda conteúdo do modal — linhas da tabela de partes (tr.cdk-drag)
+            WebDriverWait(driver, 5, poll_frequency=0.1).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, f'{modal_container} tr.cdk-drag'))
+            )
         except TimeoutException:
             if log:
-                logger.error('[VISIBILIDADE_LOTE] Modal não apareceu')
-            return False
+                logger.warning('[VISIBILIDADE_LOTE] Linhas do modal não detectadas, tentando prosseguir...')
 
-        time.sleep(0.2)
-
-        # 5. Marcar todas as partes via header toggle
+        # 3. Marcar todas as partes — aguarda botão ficar clicável
         if log:
             logger.info('[VISIBILIDADE_LOTE] Marcando todas as partes no modal...')
         try:
-            # Seleciona de forma prioritária o botão com aria-label "Marcar todas" (conforme dump)
-            icone_header = modal.find_element(By.CSS_SELECTOR, 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna')
+            icone_header = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna'))
+            )
             driver.execute_script("arguments[0].click();", icone_header)
-            time.sleep(0.2)
         except Exception as e:
             if log:
                 logger.error(f'[VISIBILIDADE_LOTE] Falha ao marcar partes no modal: {e}')
             return False
 
-        # 6. Salvar
+        # 4. Salvar — aguarda botão ficar clicável
         if log:
             logger.info('[VISIBILIDADE_LOTE] Salvando configuração...')
         try:
@@ -236,8 +190,6 @@ def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
                 EC.element_to_be_clickable((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]'))
             )
             driver.execute_script("arguments[0].click();", btn_salvar)
-            # Retirada do timeout inútil de aguardar_renderizacao_nativa ('simple-snack-bar') para agilizar
-
         except Exception as e:
             if log:
                 logger.error(f'[VISIBILIDADE_LOTE] Falha ao salvar: {e}')

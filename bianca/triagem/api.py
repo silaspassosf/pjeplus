@@ -9,6 +9,7 @@ Funcoes:
     buscar_lista_triagem(driver)   Busca itens da fila via async JS fetch.
     enriquecer_processo(item)      Enriquece item bruto com metadados.
     _is_triagem_inicial(item)      Filtro de tarefa "Triagem Inicial".
+    _is_carta_precatoria(item)     Filtro de Carta Precatória (bucket CP).
     _numero_cnj(item)              Extrai numero CNJ do item.
 """
 
@@ -142,6 +143,21 @@ def _is_triagem_inicial(item: Dict) -> bool:
     return 'triagem inicial' in str(tarefa).lower()
 
 
+def _is_carta_precatoria(item: Dict) -> bool:
+    """Verifica se o processo e uma Carta Precatória.
+
+    Detecta pelos campos classeJudicial ou descricaoProcesso.
+    Ex: CartPrecCiv, Carta Precatória, etc.
+    """
+    classe = str(item.get('classeJudicial') or '').upper()
+    if 'CARTPREC' in classe or 'CART_PREC' in classe or 'CARTAPREC' in classe:
+        return True
+    descricao = str(item.get('descricaoProcesso') or item.get('descricao') or '').upper()
+    if 'CARTA PRECATORIA' in descricao or 'CARTAPREC' in descricao:
+        return True
+    return False
+
+
 def _numero_cnj(item: Dict) -> str:
     """Extrai o numero CNJ do item."""
     return str(item.get('numeroProcesso') or item.get('numero') or item.get('id') or '')
@@ -162,7 +178,16 @@ def enriquecer_processo(item: Dict) -> Optional[Dict]:
     digital = item.get('juizoDigital') is True or item.get('juizoDigital') == 'true'
     tem_aud = bool(item.get('dataProximaAudiencia'))
 
-    bucket = 'D' if 'HTE' in tipo else ('A' if not tem_aud else ('B' if digital else 'C'))
+    if _is_carta_precatoria(item):
+        bucket = 'CP'
+    elif 'HTE' in tipo:
+        bucket = 'D'
+    elif not tem_aud:
+        bucket = 'A'
+    elif digital:
+        bucket = 'B'
+    else:
+        bucket = 'C'
     return {
         'numero': numero,
         'id_processo': id_proc,

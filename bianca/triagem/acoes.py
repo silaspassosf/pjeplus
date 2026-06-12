@@ -258,6 +258,9 @@ def _aplicar_acao_pos_triagem(
     if bucket_proc == "D":
         ok, status = acao_bucket_d(driver, numero, processo_info)
         return ok, status
+    if bucket_proc == "CP":
+        print(f"[TRIAGEM/ACOES][{numero}] CP -- Carta Precatória (comentario ja registrado)")
+        return True, None
 
     print(f"[TRIAGEM/ACOES][{numero}] bucket desconhecido '{bucket_proc}'")
     return False, None
@@ -717,7 +720,7 @@ def acao_bucket_a(
             limpar_overlays_headless(driver)
 
             try:
-                from atos.wrappers_pec import ato_unap
+                from bianca.atos_utils import ato_unap
                 print(f"[TRIAGEM/A] Executando ato_unap para {numero_processo}")
                 resultado_ato = ato_unap(driver, debug=True)
                 _print_saida_funcao(f"ato_unap[{numero_processo}]", resultado_ato)
@@ -774,7 +777,7 @@ def acao_bucket_a(
                 print(f"[TRIAGEM/A] ❌ Erro ao criar GIGS pos-aud ({obs}): {e}")
 
         try:
-            from atos.wrappers_pec import ato_100
+            from bianca.atos_utils import ato_100
             print(f"[TRIAGEM/A] Executando ato_100 para {numero_processo}")
             resultado_ato = ato_100(driver, debug=True)
             _print_saida_funcao(f"ato_100[{numero_processo}]", resultado_ato)
@@ -823,7 +826,7 @@ def acao_bucket_b(
 
         # ato_100
         try:
-            from atos import ato_100
+            from bianca.atos_utils import ato_100
             print(f"[TRIAGEM/B] Executando ato_100 para {numero_processo}")
             resultado_ato = ato_100(driver, debug=True)
             _print_saida_funcao(f"ato_100[{numero_processo}]", resultado_ato)
@@ -858,8 +861,7 @@ def acao_bucket_c(
         True se todas as acoes foram executadas com sucesso.
     """
     try:
-        from atos.wrappers_pec import pec_ord, pec_sum, pec_ordc, pec_sumc
-        from atos.movimentos_fluxo import movimentar_inteligente
+        from bianca.atos_utils import pec_ord, pec_sum, pec_ordc, pec_sumc, mov_aud
         _PEC_MAP = {'pec_ord': pec_ord, 'pec_sum': pec_sum,
                     'pec_ordc': pec_ordc, 'pec_sumc': pec_sumc}
 
@@ -885,7 +887,7 @@ def acao_bucket_c(
 
         if ok:
             print(f"[TRIAGEM/C] Executando mov_aud para {numero_processo}")
-            resultado_mov = movimentar_inteligente(driver, destino='Aguardando audiência', debug=True)
+            resultado_mov = mov_aud(driver, debug=True)
             _print_saida_funcao(f"mov_aud[{numero_processo}]", resultado_mov)
             result = bool(resultado_mov)
             return result, "Direto - citado?" if result else None

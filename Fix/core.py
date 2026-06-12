@@ -3376,27 +3376,46 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
                 logger.warning('[ARGOS][DOC] Nenhum item na timeline')
             return None, None, None
 
-        # Localizar índice da primeira planilha (se houver) - LIMITE DE BUSCA
-        planilha_idx = len(itens)  # Default: buscar até o final
+        # ✅ Encontrar âncora: Certidão de Expedição/Pesquisa (sempre existe no bloco ARGOS).
+        # Buscamos decisões/despachos MAIS ANTIGOS que esta certidão
+        # (índices maiores = mais abaixo na timeline = mais antigos).
+        import unicodedata as _ud
+        def _norm_timeline(t):
+            return _ud.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
+
+        idx_certidao = -1
         for i, it in enumerate(itens):
             try:
-                link = it.find_element(By.CSS_SELECTOR, 'a.tl-documento')
-                txt = (link.text or '').lower()
-                if 'planilha de atualização' in txt or 'planilha de atuali' in txt:
-                    planilha_idx = i
+                # Buscar no texto COMPLETO do item (não só no <a>), como a API function faz.
+                # A certidão pode ter texto distribuído em múltiplos elementos dentro do container.
+                txt = _norm_timeline(it.text or '')
+                if 'certidao de expedicao' in txt:
+                    idx_certidao = i
+                    break
+                if 'certidao' in txt and ('expedicao' in txt or 'pesquisa' in txt):
+                    idx_certidao = i
                     break
             except Exception:
                 continue
 
-        # ✅ ITERAR A PARTIR DO PRÓXIMO ÍNDICE (como checar_prox faz)
-        start_idx = driver._argos_doc_idx + 1
+        if idx_certidao >= 0:
+            if log:
+                logger.info('[ARGOS][DOC] Âncora certidão no índice %d', idx_certidao)
+            # Buscar itens MAIS ANTIGOS que a certidão (índices maiores)
+            start_idx = max(driver._argos_doc_idx + 1, idx_certidao + 1)
+        else:
+            if log:
+                logger.warning('[ARGOS][DOC] Certidão de expedição/pesquisa não localizada — ABORTANDO (sem âncora não é seguro selecionar documentos)')
+            return None, None, None
+
         if ignorar_indices:
             start_idx = max(start_idx, max(ignorar_indices) + 1)
-            
-        if log:
-            logger.info('[ARGOS][DOC] Comecando busca do indice %d (limite planilha: %d)', start_idx, planilha_idx)
 
-        for idx in range(start_idx, planilha_idx):
+        if log:
+            logger.info('[ARGOS][DOC] Buscando decisões/despachos do índice %d ao %d (âncora certidão=%d, total=%d)',
+                       start_idx, len(itens) - 1, idx_certidao, len(itens))
+
+        for idx in range(start_idx, len(itens)):
             try:
                 item = itens[idx]
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')

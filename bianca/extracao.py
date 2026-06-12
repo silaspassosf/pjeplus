@@ -282,18 +282,31 @@ def criar_comentario(
             )
             logger.debug("[COMENTARIO] Criando: %s", com_preview)
 
+
         # 1. Clicar "Novo Comentario"
         if log:
             logger.debug("[COMENTARIO] Clicando Novo Comentario...")
-        btn_novo = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((
-                By.XPATH,
-                "//button[contains(., 'Novo Coment\u00e1rio') "
-                "or contains(., 'Novo coment\u00e1rio') "
-                "or contains(., 'Novo Comentario') "
-                "or contains(., 'Novo comentario')]"
-            ))
-        )
+
+        # Preferir id do botão quando existir
+        btn_novo = None
+        try:
+            btn_novo = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "#novo-comentario, button#novo-comentario"))
+            )
+        except Exception:
+            pass
+
+        if btn_novo is None:
+            btn_novo = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((
+                    By.XPATH,
+                    "//button[contains(., 'Novo Coment\u00e1rio') "
+                    "or contains(., 'Novo coment\u00e1rio') "
+                    "or contains(., 'Novo Comentario') "
+                    "or contains(., 'Novo comentario')]"
+                ))
+            )
+
         btn_novo.click()
         time.sleep(1)
 
@@ -481,17 +494,16 @@ def criar_lembrete_posit(
         aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
         time.sleep(0.5)
 
-        titulo_elem = esperar_elemento(
-            driver, '#tituloPostit', timeout=5
-        )
+        # preencher_campo espera (driver, seletor, valor)
+        titulo_elem = esperar_elemento(driver, '#tituloPostit', timeout=5)
         if titulo_elem:
-            preencher_campo(titulo_elem, titulo)
+            preencher_campo(driver, '#tituloPostit', titulo, log=debug)
 
         conteudo_elem = esperar_elemento(
             driver, '#conteudoPostit', timeout=5
         )
         if conteudo_elem:
-            preencher_campo(conteudo_elem, conteudo)
+            preencher_campo(driver, '#conteudoPostit', conteudo, log=debug)
 
         seletores_salvar = [
             'button[color="primary"]',

@@ -1,4 +1,5 @@
 import re
+import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
@@ -109,6 +110,85 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
 
 
 
+def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
+    """Aguarda CKEditor conter conteúdo não-vazio após inserção de modelo.
+
+    Faz polling leve via JS até o editor ter dados ou o timeout expirar.
+    Substitui sleep cego: garante que o modelo foi efetivamente injetado
+    antes de prosseguir para salvar o ato.
+    """
+    deadline = time.monotonic() + timeout
+    selectors = [
+        '.ck-editor__editable[contenteditable="true"]',
+        '.ck-content',
+        'div[contenteditable="true"]',
+        'textarea',
+        'iframe'
+    ]
+
+    while time.monotonic() < deadline:
+        try:
+            for sel in selectors:
+                try:
+                    tem_conteudo = driver.execute_script("""
+                        var sel = arguments[0];
+                        var el = document.querySelector(sel);
+                        if (!el) {
+                            if (sel === 'div[contenteditable="true"]') {
+                                el = document.querySelector('[contenteditable="true"]');
+                                if (!el) return false;
+                            } else return false;
+                        }
+
+                        // iframe case
+                        if (el.tagName === 'IFRAME') {
+                            try {
+                                var doc = el.contentDocument || el.contentWindow.document;
+                                var txt = doc && doc.body ? (doc.body.innerText || doc.body.textContent || '') : '';
+                                return (txt || '').trim().length > 0;
+                            } catch(e) { return false; }
+                        }
+
+                        // CKEditor classic instance on the editable element
+                        if (el.ckeditorInstance && typeof el.ckeditorInstance.getData === 'function') {
+                            var data = el.ckeditorInstance.getData();
+                            return (data || '').replace(/<[^>]*>/g,'').trim().length > 0;
+                        }
+
+                        // global CKEDITOR instances (fallback)
+                        if (window.CKEDITOR) {
+                            for (var k in window.CKEDITOR.instances) {
+                                try {
+                                    var d = window.CKEDITOR.instances[k].getData();
+                                    if ((d || '').replace(/<[^>]*>/g,'').trim().length > 0) return true;
+                                } catch(e) {}
+                            }
+                        }
+
+                        var html = el.innerHTML || el.value || el.textContent || '';
+                        return (html || '').replace(/<[^>]*>/g,'').trim().length > 0;
+                    """, sel)
+                except Exception:
+                    tem_conteudo = False
+
+                if tem_conteudo:
+                    return True
+        except Exception:
+            pass
+
+        # Pequena espera/trigger adicional para lidar com casos onde o
+        # preview fecha muito rápido e a injeção ocorre com micro-latência.
+        try:
+            from atos.wrappers_utils import esperar_insercao_modelo
+            esperar_insercao_modelo(driver, timeout=500)
+        except Exception:
+            time.sleep(0.3)
+
+        time.sleep(0.3)
+
+    return False
+
+
 def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
     """Aguarda confirmação pós-'Finalizar minuta'.
     Snackbar 'Ato elaborado com sucesso' = confirmação definitiva → return True imediato.
@@ -214,6 +294,9 @@ def executar_preenchimento_minuta(
         if not escolher_opcao_select_js(driver, 'mat-select[placeholder="Tipo de Expediente"]', tipo_expediente, debug=debug):
             log('[ERRO] Falha ao selecionar tipo de expediente')
             raise Exception('Falha ao selecionar tipo de expediente')
+
+        # Aguardar radio buttons aparecerem após select de tipo de expediente
+        aguardar_renderizacao_nativa(driver, 'mat-radio-button', 'aparecer', 5)
 
         log(f'2. Selecionando tipo de prazo: {tipo_prazo}')
         if prazo == "0" or prazo == 0:
@@ -422,26 +505,31 @@ def executar_preenchimento_minuta(
                     btn_inserir.send_keys(Keys.SPACE)
                     log(' Modelo inserido (2a tentativa)')
 
-                # Aguardar snackbar verde "Modelo de documento inserido com sucesso no editor"
+                # 6. Aguardar snackbar "Modelo de documento inserido com sucesso no editor"
+                #    Polling JS: snackbar pode demorar alguns ms para aparecer no DOM
                 try:
-                    snackbar_ok = driver.execute_script("""
-                        const bars = document.querySelectorAll('simple-snack-bar, snack-bar-container, .mat-snack-bar-container');
-                        for (let i = 0; i < bars.length; i++) {
-                            if ((bars[i].textContent || '').indexOf('Modelo de documento inserido com sucesso') !== -1) return true;
-                        }
-                        return false;
-                    """)
-                    if not snackbar_ok:
-                        snackbar_ok = aguardar_renderizacao_nativa(
-                            driver,
-                            'simple-snack-bar:has-text("Modelo de documento inserido"), snack-bar-container',
-                            'aparecer',
-                            3
-                        )
-                    if snackbar_ok:
-                        log('[MODELO] ✓ Snackbar verde detectado — modelo confirmado')
-                except Exception as e:
-                    log(f'[MODELO][WARN] Erro ao aguardar snackbar de modelo: {e}')
+                    snackbar_modelo_ok = False
+                    for _poll in range(15):  # até 3 segundos (15 × 200ms)
+                        if driver.execute_script("""
+                            var bars = document.querySelectorAll('simple-snack-bar');
+                            for (var i = 0; i < bars.length; i++) {
+                                var t = bars[i].textContent || '';
+                                if (t.indexOf('Modelo de documento inserido com sucesso') !== -1) return true;
+                            }
+                            return false;
+                        """):
+                            snackbar_modelo_ok = True
+                            break
+                        time.sleep(0.2)
+                    if snackbar_modelo_ok:
+                        log('[MODELO] ✓ Snackbar "Modelo inserido" confirmado')
+                    else:
+                        log('[MODELO][WARN] Snackbar "Modelo inserido" não detectado após 3s, prosseguindo')
+                except Exception as _e:
+                    log(f'[MODELO][WARN] Exceção ao verificar snackbar: {_e}')
+
+                # 7. Aguardar dialog fechar (rápido: só confirma que sumiu)
+                aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 5)
 
             except Exception as e:
                 log(f'[ERRO] Falha ao inserir modelo: {e}')

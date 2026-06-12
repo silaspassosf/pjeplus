@@ -27,7 +27,7 @@ from PEC.core_progresso import extrair_numero_processo_pec as extrair_numero_pro
 from atos import ato_meios
 
 from .regras import aplicar_regras_argos
-from .apoio_fluxos import retirar_sigilo_fluxo_argos, buscar_documentos_sequenciais_via_api
+from .apoio_fluxos import retirar_sigilo_fluxo_argos, buscar_documentos_sequenciais_via_api, _extrair_texto_certidao_via_api
 from .entrada_api import fechar_intimacao
 
 
@@ -125,15 +125,20 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
         # === ETAPA 3: ANÁLISE SISBAJUD VIA CERTIDÃO DE DEVOLUÇÃO ===
         # A certidão de devolução JÁ ESTÁ selecionada na timeline.
         # Após tratamento de anexos (ETAPA 2), ela continua selecionada.
-        # Usar extrair_direto para ler o conteúdo da certidão.
-        logger.info('[ARGOS][ETAPA 3] Lendo certidão de devolução via extrair_direto para análise SISBAJUD...')
+        # Estratégia: API com pdfplumber (todas as páginas) → fallback extrair_direto
+        logger.info('[ARGOS][ETAPA 3] Lendo certidão de devolução para análise SISBAJUD...')
 
         resultado_sisbajud = None
         executados = []
 
         try:
-            resultado_extracao = extrair_direto(driver, timeout=10, debug=log, formatar=True)
-            texto_certidao = resultado_extracao.get('conteudo') if resultado_extracao and resultado_extracao.get('sucesso') else None
+            # ── Via API (pdfplumber, todas as páginas) ──
+            texto_certidao = _extrair_texto_certidao_via_api(driver, log=log)
+            if not texto_certidao:
+                # ── Fallback: extrair_direto (PDF viewer, pode vir só 1 página) ──
+                logger.info('[ARGOS][ETAPA 3] API indisponível — fallback extrair_direto')
+                resultado_extracao = extrair_direto(driver, timeout=10, debug=log, formatar=True)
+                texto_certidao = resultado_extracao.get('conteudo') if resultado_extracao and resultado_extracao.get('sucesso') else None
 
             if texto_certidao:
                 logger.info('[ARGOS][ETAPA 3] Certidão extraída: %d chars', len(texto_certidao))
@@ -143,8 +148,11 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
                         logger.info(f'[ARGOS][ETAPA 3] SISBAJUD POSITIVO: {motivo}')
                     elif resultado_sisbajud == 'negativo':
                         logger.info(f'[ARGOS][ETAPA 3] SISBAJUD NEGATIVO: {motivo}')
-                except ValueError:
-                    logger.info('[ARGOS][ETAPA 3] SISBAJUD INDISPONIVEL: marcador "determinacoes normativas e legais" nao encontrado na certidao')
+                except ValueError as ve:
+                    logger.info('[ARGOS][ETAPA 3] SISBAJUD INDISPONIVEL: %s', ve)
+                    # Logar trecho inicial da certidão para diagnóstico
+                    amostra = (texto_certidao or '')[:300]
+                    logger.info('[ARGOS][ETAPA 3][DEBUG] Amostra da certidão (primeiros 300 chars):\n%s', amostra)
                     resultado_sisbajud = None
                     executados = []
                 except Exception as e:

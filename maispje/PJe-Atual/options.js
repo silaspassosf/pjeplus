@@ -21,20 +21,23 @@ var aaVariados_temp = [
 	{id:"Assinar Documentos",nm_botao:"Assinar Documentos",descricao:"Ação Automatizada que permite assinar em lote documentos pendentes no Anexar Documento.",temporizador:"0",ativar:true},
 	{id:"Excluir BNDT",nm_botao:"Excluir BNDT",descricao:"Ação Automatizada que permite excluir todas as partes do BNDT.",temporizador:"0",ativar:true},
 	{id:"Enviar Email",nm_botao:"Enviar Email",descricao:"Ação Automatizada que permite enviar email personalizado em Lote.",temporizador:"0",ativar:true,objeto:{destinatario:"",titulo:"",corpo:"",assinatura:""}},
-	{id:"AUTOGIGS>Renovar Atividade GIGS",nm_botao:"AUTOGIGS>Renovar Atividade GIGS",descricao:"Ação Automatizada que renova uma atividade GIGS, excluindo uma anterior e cadastrando outra igual.",temporizador:"0",ativar:true},
-	{id:"AUTOGIGS>Trocar Responsável Atividade GIGS",nm_botao:"AUTOGIGS>Trocar Responsável Atividade GIGS",descricao:"Ação Automatizada que renova o responsável por uma atividade GIGS já existente.",temporizador:"0",ativar:true},
+	{id:"AUTOGIGS>Renovar Atividade GIGS",nm_botao:"AUTOGIGS>Renovar Atividade GIGS",descricao:"Ação Automatizada que renova uma atividade GIGS existente, excluindo uma anterior e cadastrando outra exatamente igual, alterando apenas a data de criação da atividade.",temporizador:"0",ativar:true},
+	{id:"AUTOGIGS>Editar Atividade GIGS",nm_botao:"AUTOGIGS>Editar Atividade GIGS",descricao:"Ação Automatizada que atualiza uma atividade GIGS existente, ajustando um novo tipo/prazo/responsável/observação conforme configurado.",temporizador:"0",ativar:true,objeto:{tipo:"",prazo:"",responsavel:"",observacao:""}},
+    {id:"AUTOGIGS>Trocar Responsável Atividade GIGS",nm_botao:"AUTOGIGS>Trocar Responsável Atividade GIGS",descricao:"Ação Automatizada que renova o responsável por uma atividade GIGS já existente.",temporizador:"0",ativar:true},
 	{id:"DESPACHO>Trocar Magistrado Responsável",nm_botao:"DESPACHO>Trocar Magistrado Responsável",descricao:"Ação Automatizada que substitui o magistrado responsável pela minuta do DESPACHO, cancelando a atual minuta, salvando o conteúdo dela na memória e criando uma nova minuta com aquele conteúdo para o novo juiz configurado no módulo 8.",temporizador:"0",ativar:true},
 	{id:"DESPACHO>Rejeitar Prevenção",nm_botao:"DESPACHO>Rejeitar Prevenção",descricao:"Ação Automatizada para rejeitar a prevenção de um processo de forma automática.",temporizador:"0",ativar:true,objeto:{modelo:""}},
 	{id:"DESPACHO>Aceitar Prevenção",nm_botao:"DESPACHO>Aceitar Prevenção",descricao:"Ação Automatizada para aceitar a prevenção de um processo de forma automática.",temporizador:"0",ativar:true,objeto:{modelo:""}},
 	{id:"MOVIMENTO>Renovar a Data da Tarefa",nm_botao:"MOVIMENTO>Renovar a Data da Tarefa",descricao:"Ação Automatizada que renova a data em que o processo chegou na tarefa atual, movendo o processo para a tarefa Análise e devolvendo-o para a antiga tarefa..",temporizador:"0",ativar:true},
 	{id:"RETIFICAR AUTUAÇÃO>Cadastrar Advogado",nm_botao:"RETIFICAR AUTUAÇÃO>Cadastrar Advogado",descricao:"Ação Automatizada para vincular um advogado específico à uma parte no processo.",temporizador:"0",ativar:true,objeto:{advogado:"",parte:""}},
-	{id:"KAIZEN>Incluir em Pauta",nm_botao:"KAIZEN>Incluir em Pauta",descricao:"Ação Automatizada para incluir um determinado processo em pauta.",temporizador:"0",ativar:true}
+	{id:"KAIZEN>Incluir em Pauta",nm_botao:"KAIZEN>Incluir em Pauta",descricao:"Ação Automatizada para incluir um determinado processo em pauta.",temporizador:"0",ativar:true},
+    {id:"Aplicar Sigilo",nm_botao:"Aplicar Sigilo",descricao:"Ação Automatizada que aplica sigilo e visibilidade em documentos da timeline do processo",temporizador:"0",ativar:true,objeto:{documentos:"1",visibilidade:"Polo Ativo Polo Passivo"}},
 ];
+
 var listaModulo2_temp = [];
 var listaModulo8_temp = [];
 var listaModulo10_temp = [];
 var listaModulo11_temp = [];
-let aaItemMenuDetalhes = ['Listar Todas','Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes','Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Download do processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições','Consultar Domicílio Eletrônico','Copiar Número do Processo'];
+let aaItemMenuDetalhes = ['Escolher Ação Automatizada','Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes','Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Download do processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições','Consultar Domicílio Eletrônico','Copiar Número do Processo'];
 var filtros_storage = [];
 var mapeadosAADescendentes = false;
 var itensModulo1SemAtalhos = getItensModulo1SemAtalhos(salvarOpcoes)
@@ -322,8 +325,8 @@ async function mostrarOpcoes(restaurar=false) {
 		}
 		montar_modulo2();
 		document.getElementById("modulo2_criarRegra").addEventListener('click', filtro_Atividades);
-		document.getElementById("importar_modulo2").addEventListener('click', importarModulo2);
-		document.getElementById("exportar_modulo2").addEventListener('click', exportarModulo2);
+		document.getElementById("importar_modulo2").addEventListener('click', () => { importarModulo("modulo2") });
+		document.getElementById("exportar_modulo2").addEventListener('click', () => { exportarModulo("modulo2") });
 
 
 		document.querySelector('span[name="par"]').addEventListener('click', salvarOpcoes);
@@ -332,6 +335,8 @@ async function mostrarOpcoes(restaurar=false) {
 		document.querySelector('span[name="nenhum"]').addEventListener('click', salvarOpcoes);
 
 
+        document.getElementById("importar_modulo8").addEventListener('click', () => { importarModulo("modulo8") });
+		document.getElementById("exportar_modulo8").addEventListener('click', () => { exportarModulo("modulo8") });
 		document.querySelector('#modulo8_ignorarZero').checked = preferencias.modulo8_ignorarZero;
 		document.querySelector('#modulo8_ignorarZero').addEventListener('click', function () {
 			preferencias.modulo8_ignorarZero = document.querySelector('#modulo8_ignorarZero').checked;
@@ -411,7 +416,6 @@ async function mostrarOpcoes(restaurar=false) {
 		document.getElementById("convenio_ecarta").addEventListener('click', function(event) {modulo9('ecarta')});
 		document.getElementById("convenio_saj").style.backgroundColor = (preferencias.modulo9.ecarta) ? '#2196F3' : '#b0b0b0';
 		document.getElementById("convenio_saj").addEventListener('click', function(event) {modulo9('saj')});
-
 
 		listaModulo10_temp = preferencias.modulo10;
 		await montar_modulo10();
@@ -505,6 +509,18 @@ async function mostrarOpcoes(restaurar=false) {
 
 		preencherCampoDasPreferencias('#modulo10_salaFavorita', preferencias.modulo10_salaFavorita);
 
+        //modulo5 filtros timeline
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_0_nome', preferencias.filtrosTimeline[0].nome);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_0_filtro', preferencias.filtrosTimeline[0].filtro);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_1_nome', preferencias.filtrosTimeline[1].nome);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_1_filtro', preferencias.filtrosTimeline[1].filtro);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_2_nome', preferencias.filtrosTimeline[2].nome);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_2_filtro', preferencias.filtrosTimeline[2].filtro);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_3_nome', preferencias.filtrosTimeline[3].nome);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_3_filtro', preferencias.filtrosTimeline[3].filtro);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_4_nome', preferencias.filtrosTimeline[4].nome);
+        preencherCampoDasPreferencias('#modulo5_filtro_timeline_4_filtro', preferencias.filtrosTimeline[4].filtro);
+
 		//e-Rec
 		preencherCampoDasPreferencias('#extrasTiposDocumentoProcuracao', preferencias.extrasTiposDocumentoProcuracao);
 		preencherCampoDasPreferencias('#extrasTiposDocumentoCustas', preferencias.extrasTiposDocumentoCustas);
@@ -527,6 +543,8 @@ async function mostrarOpcoes(restaurar=false) {
 		preencherCampoDasPreferencias('#elPzoEmLote4', preferencias.extrasPrazoEmLote[4]);
 		preencherCampoDasPreferencias('#elPzoEmLote5', preferencias.extrasPrazoEmLote[5]);
 		preencherCampoDasPreferencias('#atalho_painelcopiaecola', preferencias?.atalho?.painelcopiaecola);
+
+
 
 
 		document.querySelector('#ProcurarExecucaoSAO').checked = (preferencias.extrasProcurarExecucao.includes('SAO')) ? true : false;
@@ -668,6 +686,19 @@ async function salvarOpcoes() {
 		preferencias.extrasPrazoEmLote[4] = document.getElementById("elPzoEmLote4").value;
 		preferencias.extrasPrazoEmLote[5] = document.getElementById("elPzoEmLote5").value;
 
+
+        preferencias.filtrosTimeline[0].nome = document.getElementById("modulo5_filtro_timeline_0_nome").value;
+        preferencias.filtrosTimeline[1].nome = document.getElementById("modulo5_filtro_timeline_1_nome").value;
+        preferencias.filtrosTimeline[2].nome = document.getElementById("modulo5_filtro_timeline_2_nome").value;
+        preferencias.filtrosTimeline[3].nome = document.getElementById("modulo5_filtro_timeline_3_nome").value;
+        preferencias.filtrosTimeline[4].nome = document.getElementById("modulo5_filtro_timeline_4_nome").value;
+        preferencias.filtrosTimeline[0].filtro = document.getElementById("modulo5_filtro_timeline_0_filtro").value;
+        preferencias.filtrosTimeline[1].filtro = document.getElementById("modulo5_filtro_timeline_1_filtro").value;
+        preferencias.filtrosTimeline[2].filtro = document.getElementById("modulo5_filtro_timeline_2_filtro").value;
+        preferencias.filtrosTimeline[3].filtro = document.getElementById("modulo5_filtro_timeline_3_filtro").value;
+        preferencias.filtrosTimeline[4].filtro = document.getElementById("modulo5_filtro_timeline_4_filtro").value;
+
+
 		preferencias.atalho.painelcopiaecola = document.getElementById("atalho_painelcopiaecola").value;
 
 		await browser.storage.local.set({
@@ -699,6 +730,7 @@ async function salvarOpcoes() {
 			modulo5_processosParadosHaMaisDeXXDias: document.querySelector('#modulo5_filtros_favoritos_paradosXXdias').checked,
 			modulo5_conferirGarimpoEmLote: document.querySelector('#modulo5_conferirGarimpoEmLote').checked,
 			modulo5_obterConcilia: document.querySelector('#modulo5_filtros_favoritos_conciliaJT').checked,
+            filtrosTimeline: preferencias.filtrosTimeline,
 			maisPje_velocidade_interacao: preferencias.maisPje_velocidade_interacao,
 			aaAnexar : aaAnexar_temp,
 			aaComunicacao : aaComunicacao_temp,
@@ -1100,7 +1132,7 @@ async function editar_filtro_Atividades(pos) {
 }
 
 async function montar_modulo2() {
-	listaModulo2_temp = await excluirRepetidos();
+    listaModulo2_temp = await excluirRepetidos(listaModulo2_temp);
 	let ancora = document.getElementById('lista_modulo2');
 	ancora.textContent = ""; //limpa a tabela
 	let tr_cabecalho = document.createElement("tr");
@@ -1217,7 +1249,7 @@ async function montar_modulo2() {
 		let div_editar = document.createElement("div");
 		div_editar.setAttribute("data-tooltip", "Editar");
 		let bt_editar = document.createElement("i");
-		bt_editar.className = "icone edit t16";
+		bt_editar.className = "icone maisPjeEdit t16";
 		bt_editar.style = "padding: 0 5px 0 5px;"
 		bt_editar.setAttribute("pos",cont-1);
 		bt_editar.onmouseenter = function() {
@@ -1308,17 +1340,6 @@ async function montar_modulo2() {
 		cont++;
 	});
 
-	async function excluirRepetidos() {
-		return new Promise(resolve => {
-			let lista = [];
-			for (const [pos, item] of listaModulo2_temp.entries()) {
-				if (lista.indexOf(item) == -1) {
-					lista.push(item);
-				}
-			}
-			resolve(lista);
-		});
-	}
 }
 
 //módulo 8
@@ -1505,11 +1526,12 @@ async function filtro_Magistrado() {
 			'</div></div><br>' +
 			'<span>Órgão Julgador Cargo:</span><br><br>' +
 			'<div id="escolherOrgaoJulgadorCargo" class="destacarToogle" style="padding: 10px;border-radius: .1875em;">' +
-			'<select id="modulo8_orgaoJulgadorCargo" class="swal2-select" style="background-color: white;width: 100%; border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
-				'<option value="TODOS"> TODOS </option>' +
-				'<option value="TITULAR"> Juiz Titular </option>' +
-				'<option value="SUBSTITUTO"> Juiz Substituto </option>' +
-			'</select>' +
+			'<input type="text" id="modulo8_orgaoJulgadorCargo" class="swal2-input" placeholder="Órgão Julgador Cargo">' +
+            // '<select id="modulo8_orgaoJulgadorCargo" class="swal2-select" style="background-color: white;width: 100%; border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+			// 	'<option value="TODOS"> TODOS </option>' +
+			// 	'<option value="TITULAR"> Juiz Titular </option>' +
+			// 	'<option value="SUBSTITUTO"> Juiz Substituto </option>' +
+			// '</select>' +
 			'</div></div>',
 		showCancelButton: true,
 		focusConfirm: false,
@@ -1616,11 +1638,12 @@ async function editar_filtro_Magistrado(pos) {
 			'</div></div><br>' +
 			'<span>Órgão Julgador Cargo:</span><br><br>' +
 			'<div id="escolherOrgaoJulgadorCargo" class="destacarToogle" style="padding: 10px;border-radius: .1875em;">' +
-			'<select id="modulo8_orgaoJulgadorCargo" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9; border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
-				'<option value="TODOS"> TODOS </option>' +
-				'<option value="TITULAR"' + (item[12].toLowerCase().includes('titular') ? 'selected' : '')  + '> Juiz Titular </option>' +
-				'<option value="SUBSTITUTO"' + (item[12].toLowerCase().includes('substituto') ? 'selected' : '')  + '> Juiz Substituto </option>' +
-			'</select>' +
+			'<input type="text" id="modulo8_orgaoJulgadorCargo" class="swal2-input" placeholder="Órgão Julgador Cargo" value="' + item[12] + '">' +
+            // '<select id="modulo8_orgaoJulgadorCargo" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9; border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+			// 	'<option value="TODOS"> TODOS </option>' +
+			// 	'<option value="TITULAR"' + (item[12].toLowerCase().includes('titular') ? 'selected' : '')  + '> Juiz Titular </option>' +
+			// 	'<option value="SUBSTITUTO"' + (item[12].toLowerCase().includes('substituto') ? 'selected' : '')  + '> Juiz Substituto </option>' +
+			// '</select>' +
 			'</div></div>',
 		showCancelButton: true,
 		focusConfirm: false,
@@ -1664,8 +1687,10 @@ async function editar_filtro_Magistrado(pos) {
 	}
 }
 
-function montar_modulo8() {
+async function montar_modulo8() {
 	// console.log('montar_modulo8: ' + listaModulo8_temp)
+    listaModulo8_temp = await excluirRepetidos(listaModulo8_temp);
+
 	let ancora = document.getElementById('lista_modulo8');
 	ancora.textContent = "";
 	let cont = 1;
@@ -1711,7 +1736,7 @@ function montar_modulo8() {
 		let div_editar = document.createElement("div");
 		div_editar.setAttribute("data-tooltip", "Editar");
 		let bt_editar = document.createElement("i");
-		bt_editar.className = "icone edit t16";
+		bt_editar.className = "icone maisPjeEdit t16";
 		bt_editar.style = "padding: 0 5px 0 5px;"
 		bt_editar.setAttribute("pos",cont-1);
 		bt_editar.onmouseenter = function() {
@@ -1754,6 +1779,115 @@ function montar_modulo8() {
 		ancora.appendChild(tr);
 		cont++;
 	});
+}
+
+async function importarModulo(nomeModulo) {
+
+	const { value: result } = await Swal.fire({
+		title: '    ',
+		html:
+		'<span style="font-weight: bold;"> Importar Configurações do módulo:</span><br>' +
+		'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;">Cole a configuração no campo abaixo</i><br>' +
+		'<br><textarea id="swal-input-importarModulo" placeholder="código da configuração" class="swal2-input" style="height: 50vh;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>',
+		confirmButtonText: 'Importar',
+		customClass: 'swal-wide',
+		focusConfirm: false,
+		preConfirm: async () => {
+			return document.getElementById('swal-input-importarModulo').value;
+		}
+	});
+
+	let printError = function(error) {
+		console.log(error.name + " : " + error.message);
+		alert(error.name + " : " + error.message);
+	}
+
+	try {
+		if (result) {
+			// console.log(result)
+			let i = result.replace(/(\[)|(\])/g,''); //tira os colchetes
+			i = i.replace(/(\")|(\")/g,''); //tira as aspas
+			// console.log(i)
+			let novasRegras = i.split(',');
+
+            let antigasRegras;
+            if (nomeModulo == 'modulo8') {
+                antigasRegras = listaModulo8_temp;
+                console.log(antigasRegras)
+                console.log(novasRegras)
+                listaModulo8_temp = [...antigasRegras, ...novasRegras]; //exclui regras duplicadas
+                await montar_modulo8();
+
+            } else if (nomeModulo == 'modulo2') {
+                antigasRegras = listaModulo2_temp;
+                console.log(antigasRegras)
+                console.log(novasRegras)
+                listaModulo2_temp = [...antigasRegras, ...novasRegras]; //exclui regras duplicadas
+                await montar_modulo2();
+
+            } else if (nomeModulo == 'modulo10') {
+                antigasRegras = listaModulo10_temp;
+                listaModulo10_temp = [...antigasRegras, ...novasRegras]; //exclui regras duplicadas
+                await montar_modulo10();
+
+            } else if (nomeModulo == 'modulo11') {
+                antigasRegras = listaModulo11_temp;
+                listaModulo11_temp = [...antigasRegras, ...novasRegras]; //exclui regras duplicadas
+                await montar_modulo11();
+
+            }
+			await salvarOpcoes();
+		}
+	} catch (e) {
+		printError(e);
+	}
+}
+
+function exportarModulo(nomeModulo) {
+	console.log('exportarModulo')
+	Swal.fire({
+		title: 'Exportar configurações?',
+		text: "",
+		showCancelButton: true,
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		confirmButtonText: 'Sim, exportar!',
+		cancelButtonText: 'Não'
+	}).then((result) => {
+		if (result.value) {
+            if (nomeModulo == 'modulo8') {
+                copiarDados(listaModulo8_temp);
+
+            } else if (nomeModulo == 'modulo2') {
+                copiarDados(listaModulo2_temp);
+
+            } else if (nomeModulo == 'modulo10') {
+                copiarDados(listaModulo10_temp);
+
+            } else if (nomeModulo == 'modulo11') {
+                copiarDados(listaModulo11_temp);
+
+            }
+
+		}
+	})
+
+	function copiarDados(dados) {
+		var textarea = document.createElement("textarea");
+		textarea.textContent = JSON.stringify(dados);
+		document.body.appendChild(textarea);
+		textarea.select();
+		document.execCommand("copy");
+		document.body.removeChild(textarea);
+
+		Swal.fire({
+		  position: 'center',
+		  icon: 'success',
+		  title: 'Conteúdo copiado com sucesso.',
+		  showConfirmButton: false,
+		  timer: 1500
+		})
+	}
 }
 
 //modulo 9
@@ -2676,6 +2810,7 @@ async function modulo9(convenio) {
 			}
 			break
 		case 'saj':
+            preferencias.saj.periodo = (!preferencias.saj.periodo) ? 'Nenhum' : preferencias.saj.periodo;
 			let { value: resultsaj } = await Swal.fire({
 				title: 'SAJ (AFASTAMENTO DE SIGILO BANCÁRIO)',
 				html:
@@ -2716,6 +2851,17 @@ async function modulo9(convenio) {
 				'<input id="swal-input4" class="swal2-input"" value="' + preferencias.saj.email + '">' +
 				'<label for="swal-input5" style="font-weight: bold;"> Telefone para contato: </label>' +
 				'<input id="swal-input5" class="swal2-input"" value="' + preferencias.saj.telefone + '">' +
+
+                '<label for="swal-inputPeriodo" style="font-weight: bold;">  Período da Pesquisa: </label>' +
+                '<select id="swal-inputPeriodo" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+                    '<option value="Nenhum"' + (preferencias.saj.periodo.toLowerCase().includes('Nenhum') ? 'selected' : '')  + '> Nenhum </option>' +
+                    '<option value="30"' + (preferencias.saj.periodo.includes('30') ? 'selected' : '')  + '> 30 dias </option>' +
+                    '<option value="60"' + (preferencias.saj.periodo.includes('60') ? 'selected' : '')  + '> 60 dias </option>' +
+                    '<option value="90"' + (preferencias.saj.periodo.includes('90') ? 'selected' : '')  + '> 90 dias </option>' +
+                    '<option value="120"' + (preferencias.saj.periodo.includes('120') ? 'selected' : '')  + '> 120 dias </option>' +
+                    '<option value="365"' + (preferencias.saj.periodo.includes('365') ? 'selected' : '')  + '> 365 dias </option>' +
+                '</select>' +
+
 				'</div>',
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2737,7 +2883,8 @@ async function modulo9(convenio) {
 						document.getElementById('swal2-saldofgts').checked,
 						document.getElementById('swal2-recebernotificacao').checked,
 						document.getElementById('swal-input4').value,
-						document.getElementById('swal-input5').value
+						document.getElementById('swal-input5').value,
+                        document.getElementById('swal-inputPeriodo').value
 					]
 				}
 			});
@@ -2763,6 +2910,7 @@ async function modulo9(convenio) {
 					recebernotificacao: resultsaj[13],
 					email: resultsaj[14],
 					telefone: resultsaj[15],
+                    periodo: resultsaj[16]
 				};
 				let var1_saj = browser.storage.local.set({'saj': preferencias.saj});
 				Promise.all([var1_saj]).then(values => {
@@ -2816,6 +2964,7 @@ async function guardarModulo9() {
 
 //modulo 10
 async function montar_modulo10() {
+    listaModulo10_temp = await excluirRepetidos(listaModulo10_temp);
 	let ancora = document.getElementById('lista_modulo10');
 	ancora.textContent = "";
 
@@ -2947,7 +3096,7 @@ async function ativarJuntadaDeMidia() {
 
 //modulo 11
 async function montar_modulo11() {
-	// console.log('montar_modulo8: ' + listaModulo8_temp)
+	listaModulo11_temp = await excluirRepetidos(listaModulo11_temp);
 	let ancora = document.getElementById('lista_modulo11');
 	ancora.textContent = "";
 	for (const [pos, item] of listaModulo11_temp.entries()) {
@@ -2978,7 +3127,7 @@ async function montar_modulo11() {
 		let div_editar = document.createElement("div");
 		div_editar.setAttribute("data-tooltip", "Editar");
 		let bt_editar = document.createElement("i");
-		bt_editar.className = "icone edit t16";
+		bt_editar.className = "icone maisPjeEdit t16";
 		bt_editar.style = "padding: 0 5px 0 5px;"
 		bt_editar.setAttribute("pos",pos);
 		bt_editar.onmouseenter = function() {
@@ -3890,7 +4039,7 @@ async function aa_nomearPerito() {
 		input: 'text',
 		confirmButtonText: 'Próximo &rarr;',
 		showCancelButton: true,
-		progressSteps: ['1', '2', '3', '4', '5', '6', '7']
+		progressSteps: ['1', '2', '3', '4', '5', '6', '7', '8']
 	}).queue([
 	{
 		title: 'Nome do Botão',
@@ -3916,6 +4065,10 @@ async function aa_nomearPerito() {
 			'Não': 'Não',
 		},
 		inputValue: 'Não',
+	},
+	{
+		title: 'Descrição da Intimação',
+		html: 'Se deixar o campo em branco, será utilizado o nome preenchido próprio do PJe.'
 	},
 	{
 		title: 'Modelo da Intimação',
@@ -3962,9 +4115,9 @@ async function aa_nomearPerito() {
                 tipo_prazo = "Dias Úteis";
             }
             console.log(prazo + ' : ' + tipo_prazo)
-			// id, nm_botao, profissao, perito, prazo, tipo_prazo, designar, modelo, assinar, cor, vinculo, visibilidade) {
-			criaBotao_aaNomearPerito(aaNomearPerito_temp.length, temp[0], temp[1].toUpperCase(), temp[2].toUpperCase(), prazo, tipo_prazo, temp[4], temp[5], temp[6], result[0], 'Nenhum', 'sim');
-			aaNomearPerito_temp.push(new AcaoAutomatizada_aaNomearPerito(temp[0], temp[1].toUpperCase(), temp[2].toUpperCase(), prazo, tipo_prazo, temp[4], temp[5], temp[6], result[0], 'Nenhum', 'sim'));
+			// id, nm_botao, profissao, perito, prazo, tipo_prazo, designar, descricao, modelo, assinar, cor, vinculo, visibilidade) {
+			criaBotao_aaNomearPerito(aaNomearPerito_temp.length, temp[0], temp[1].toUpperCase(), temp[2].toUpperCase(), prazo, tipo_prazo, temp[4], temp[5], temp[6], temp[7], result[0], 'Nenhum', 'sim');
+			aaNomearPerito_temp.push(new AcaoAutomatizada_aaNomearPerito(temp[0], temp[1].toUpperCase(), temp[2].toUpperCase(), prazo, tipo_prazo, temp[4], temp[5], temp[6], temp[7], result[0], 'Nenhum', 'sim'));
 			salvarOpcoes();
 		}
 	}
@@ -3975,13 +4128,13 @@ async function importarAA() {
 	const { value: result } = await Swal.fire({
 		title: '    ',
 		html:
-		'<span style="font-weight: bold;"> IMPORTAR AÇÃO AUTOMATIZADA:</span><br>' +
-		'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;">Cole uma configuração em cada campo. É possível importar no máximo cinco ações por vez.</i><br>' +
-		'<br><textarea id="swal-input-importarAA1" placeholder="código da Ação Automatizada 1" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>' +
-		'<br><textarea id="swal-input-importarAA2" placeholder="código da Ação Automatizada 2" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>' +
-		'<br><textarea id="swal-input-importarAA3" placeholder="código da Ação Automatizada 3" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>' +
-		'<br><textarea id="swal-input-importarAA4" placeholder="código da Ação Automatizada 4" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>' +
-		'<br><textarea id="swal-input-importarAA5" placeholder="código da Ação Automatizada 5" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>',
+		'<h2 style="font-size: 1.1em;"> IMPORTAR AÇÃO AUTOMATIZADA:</h2>' +
+		'<h3 style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;">Cole uma configuração em cada campo. É possível importar no máximo cinco ações por vez.</h3>' +
+		'<ol><li><textarea id="swal-input-importarAA1" placeholder="código da Ação Automatizada 1" aria-label="código da Ação Automatizada 1" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea></li>' +
+		'<li><textarea id="swal-input-importarAA2" placeholder="código da Ação Automatizada 2" aria-label="código da Ação Automatizada 2" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea></li>' +
+		'<li><textarea id="swal-input-importarAA3" placeholder="código da Ação Automatizada 3" aria-label="código da Ação Automatizada 3" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea></li>' +
+		'<li><textarea id="swal-input-importarAA4" placeholder="código da Ação Automatizada 4" aria-label="código da Ação Automatizada 4" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea></li>' +
+		'<li><textarea id="swal-input-importarAA5" placeholder="código da Ação Automatizada 5" aria-label="código da Ação Automatizada 5" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea></li></ol>',
 		confirmButtonText: 'Importar',
 		focusConfirm: false,
 		preConfirm: async () => {
@@ -4069,8 +4222,8 @@ async function importarAA() {
 					for (var i = 0; i < colecao.length; i++) {
                         let temp = JSON.parse(colecao[i]);
                         temp.tipo_prazo = (!temp.tipo_prazo) ? 'Dias Úteis' : temp.tipo_prazo; //corrige as AAs criadas no período de teste quando não existia essa variável
-						criaBotao_aaNomearPerito(aaNomearPerito_temp.length, temp.nm_botao, temp.profissao, temp.perito, temp.prazo, temp.tipo_prazo, temp.designar, temp.modelo, temp.assinar, temp.cor, temp.vinculo, temp.visibilidade);
-						aaNomearPerito_temp.push(new AcaoAutomatizada_aaNomearPerito(temp.nm_botao, temp.profissao, temp.perito, temp.prazo, temp.tipo_prazo, temp.designar, temp.modelo, temp.assinar, temp.cor, temp.vinculo, temp.visibilidade));
+						criaBotao_aaNomearPerito(aaNomearPerito_temp.length, temp.nm_botao, temp.profissao, temp.perito, temp.prazo, temp.tipo_prazo, temp.designar, temp.descricao, temp.modelo, temp.assinar, temp.cor, temp.vinculo, temp.visibilidade);
+						aaNomearPerito_temp.push(new AcaoAutomatizada_aaNomearPerito(temp.nm_botao, temp.profissao, temp.perito, temp.prazo, temp.tipo_prazo, temp.designar, temp.descricao, temp.modelo, temp.assinar, temp.cor, temp.vinculo, temp.visibilidade));
 					}
 					break;
 			}
@@ -5167,6 +5320,7 @@ async function montarBotoesaaChecklist() {
 }
 
 async function montarBotoesaaNomearPerito() {
+
 	if (typeof(aaNomearPerito_temp) != "undefined") {
 		// possibilita mover os botões de lugar arrastando e soltando o elemento
 		let el = document.getElementById("botoes_nomearPerito");
@@ -5264,11 +5418,12 @@ async function montarBotoesaaNomearPerito() {
             let aa = item;
             aa.tipo_prazo = (!item.tipo_prazo) ? 'Dias Úteis' : item.tipo_prazo; //corrige as AAs criadas no período de teste quando não existia essa variável
             aa.vinculo = (!item.vinculo) ? 'Nenhum' : item.vinculo;
+            aa.descricao = (!item.descricao) ? '' : item.descricao; //corrige as AAs criadas no período de teste quando não existia essa variável
 			aa.vinculo = await obterVinculosDescendentes(aa.nm_botao, aa.vinculo); //converto o vínculo antigo, criando a sequencia de vínculos descendentes.
-			aa = new AcaoAutomatizada_aaNomearPerito(aa.nm_botao, aa.profissao, aa.perito, aa.prazo, aa.tipo_prazo, aa.designar, aa.modelo, aa.assinar, aa.cor, aa.vinculo, (!aa.visibilidade?'sim':aa.visibilidade));
+			aa = new AcaoAutomatizada_aaNomearPerito(aa.nm_botao, aa.profissao, aa.perito, aa.prazo, aa.tipo_prazo, aa.designar, aa.descricao, aa.modelo, aa.assinar, aa.cor, aa.vinculo, (!aa.visibilidade?'sim':aa.visibilidade));
 			ajustandoLista.push(aa);
 
-			criaBotao_aaNomearPerito(pos, aa.nm_botao, aa.profissao, aa.perito, aa.prazo, aa.tipo_prazo, aa.designar, aa.modelo, aa.assinar, aa.cor, aa.vinculo, aa.visibilidade);
+			criaBotao_aaNomearPerito(pos, aa.nm_botao, aa.profissao, aa.perito, aa.prazo, aa.tipo_prazo, aa.designar, aa.descricao, aa.modelo, aa.assinar, aa.cor, aa.vinculo, aa.visibilidade);
 			if (pos == aaNomearPerito_temp.length-1) {
 				//cria espaçador para o último botão
 				let espaco = document.createElement("a");
@@ -5965,14 +6120,14 @@ function criaBotao_aaChecklist(id, nm_botao, tipo, observacao, estado, alerta, s
 	}
 }
 
-function criaBotao_aaNomearPerito(id, nm_botao, profissao, perito, prazo, tipo_prazo, designar, modelo, assinar, cor, vinculo, visibilidade) {
+function criaBotao_aaNomearPerito(id, nm_botao, profissao, perito, prazo, tipo_prazo, designar, descricao, modelo, assinar, cor, vinculo, visibilidade) {
 
 	//ajustar o vinculo para um array
 	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(',');
 
 	let el = document.getElementById("botoes_nomearPerito");
 
-	//nome=0,profissao=1,perito=2,prazo=3,tipo_prazo=4,designar=5,modelo=6,sigilo=7,assinar=8
+	//nome=0,profissao=1,perito=2,prazo=3,tipo_prazo=4,designar=5,descricao=6,modelo=6,sigilo=7,assinar=8
 
 	//cria espaçador entre os botões
 	let espaco = document.createElement("a");
@@ -5990,6 +6145,7 @@ function criaBotao_aaNomearPerito(id, nm_botao, profissao, perito, prazo, tipo_p
 	tt += "\u00bbPrazo: " + (prazo != "" ? prazo : "---") + "\n";
     tt += "\u00bbTipo de Prazo: " + (tipo_prazo != "" ? tipo_prazo : "---") + "\n";
 	tt += "\u00bbDesignar: " + (designar != "" ? designar : "---") + "\n";
+    tt += "\u00bbDescrição: " + (descricao != "" ? descricao : "---") + "\n";
 	tt += "\u00bbModelo: " + (modelo != "" ? modelo : "---") + "\n";
 	tt += "\u00bbAssinar: " + (assinar != "" ? assinar : "---") + "\n";
 	tt += "\u00bbVínculo: " + (vinculo.length > 2 ? vinculo[0] + ' e outros' : vinculo[0]) + "\n";
@@ -6001,7 +6157,7 @@ function criaBotao_aaNomearPerito(id, nm_botao, profissao, perito, prazo, tipo_p
 
 		if (e.ctrlKey) { //ativa/desativa a visibilidade
 			let v = (visibilidade.toLowerCase() == "sim") ? "não" : "sim";
-			aaNomearPerito_temp[id] = new AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, tipo_prazo, designar, modelo, assinar, cor, vinculo, v);
+			aaNomearPerito_temp[id] = new AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, tipo_prazo, designar, descricao, modelo, assinar, cor, vinculo, v);
 			salvarOpcoes();
 			document.getElementById("botoes_nomearPerito").textContent = '';
 			montarBotoesaaNomearPerito();
@@ -6889,17 +7045,21 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 				'<option value="nao"' + (aaNomearPerito_temp[id].designar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
 				'<option value="sim"' + (aaNomearPerito_temp[id].designar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select><br>' +
+            '<span style="font-weight: bold;"> Descrição </span>' +
+			'<input id="swal-input6" class="swal2-input" value="' + aaNomearPerito_temp[id].descricao + '">' +
 			'<span style="font-weight: bold;"> Modelo </span>' +
-			'<input id="swal-input6" class="swal2-input" value="' + aaNomearPerito_temp[id].modelo + '">' +
+			'<input id="swal-input7" class="swal2-input" value="' + aaNomearPerito_temp[id].modelo + '">' +
 			'<span style="font-weight: bold;"> Assinar </span>' +
-			'<br><select id="swal-input7" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+			'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
 				'<option value="nao"' + (aaNomearPerito_temp[id].assinar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
 				'<option value="sim"' + (aaNomearPerito_temp[id].assinar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select><br>' +
 			'<span style="font-weight: bold;"> Cor do Botão </span>' +
-			'<input id="swal-input8" class="swal2-input" type="color" value="' + aaNomearPerito_temp[id].cor + '">' +
+			'<input id="swal-input9" class="swal2-input" type="color" value="' + aaNomearPerito_temp[id].cor + '">' +
 			'<br><br><label class="container">' +
-			'<input type="checkbox" id="swal-input9" ' + (aaNomearPerito_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
+			'<input type="checkbox" id="swal-input10" ' + (aaNomearPerito_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
+            '<span class="checkmark"></span>' +
+			'<input id="swal-input_vinculo" style="display:none;" value="' + aaNomearPerito_temp[id].vinculo + '">' +
 			'</label>',
 			confirmButtonText: 'Salvar',
 			confirmButtonText: 'Salvar',
@@ -6914,7 +7074,9 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					document.getElementById('swal-input6').value,
 					document.getElementById('swal-input7').value,
 					document.getElementById('swal-input8').value,
-					document.getElementById('swal-input9').checked ? "sim" : "não"
+                    document.getElementById('swal-input9').value,
+                    document.getElementById('swal-input_vinculo')?.value,
+					document.getElementById('swal-input10').checked ? "sim" : "não"
 				]
 			}
 		});
@@ -6931,10 +7093,9 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
             } else {
                 tipo_prazo = "Dias Úteis";
             }
-            console.log(prazo + ' : ' + tipo_prazo)
 
-			//   new AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, aa.tipo_prazo, designar, modelo, assinar, cor, vinculo, v);
-			aaNomearPerito_temp[id] = new AcaoAutomatizada_aaNomearPerito(result[0], result[1], result[2], prazo, tipo_prazo, result[4], result[5], result[6], result[7], result[8], result[9]);
+			//   new AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, aa.tipo_prazo, designar, descricao, modelo, assinar, cor, vinculo, v);
+			aaNomearPerito_temp[id] = new AcaoAutomatizada_aaNomearPerito(result[0], result[1], result[2], prazo, tipo_prazo, result[4], result[5], result[6], result[7], result[8], result[9], result[10]);
 			salvarOpcoes();
 			document.getElementById("botoes_nomearPerito").textContent = '';
 			montarBotoesaaNomearPerito();
@@ -6942,7 +7103,6 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 	} else if (tipo == "variados") {
 		function texto_html() {
 			let var1 = '';
-			// console.log(aaVariados_temp[id].nm_botao)
 			switch (aaVariados_temp[id].nm_botao) {
 				case 'Atalho F2':
 					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
@@ -7040,7 +7200,76 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
 					'</select>';
 					break
-				default:
+                case 'AUTOGIGS>Editar Atividade GIGS':
+
+                    let atividade_tipo = aaVariados_temp[id]?.objeto?.tipo ? aaVariados_temp[id].objeto.tipo : '';
+                    let atividade_prazo = aaVariados_temp[id]?.objeto?.prazo ? aaVariados_temp[id].objeto.prazo : '';
+                    let atividade_responsavel = aaVariados_temp[id]?.objeto?.responsavel ? aaVariados_temp[id].objeto.responsavel : '';
+                    let atividade_observacao = aaVariados_temp[id]?.objeto?.observacao ? aaVariados_temp[id].objeto.observacao : '';
+
+                    var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
+                    '<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+                    '<span style="font-weight: bold;"> Ativar </span>' +
+                    '<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+                        '<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+                        '<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
+                    '</select>' +
+                    '<span style="font-size: .8em;color: darkcyan;"> Os comandos especiais existentes para o AUTOGIGS também valem aqui</span><br><br>' +
+                    '<span style="font-weight: bold;">Tipo de Atividade</span>' +
+					'<input id="swal-input1" class="swal2-input" value="' + atividade_tipo + '">' +
+                    '<span style="font-weight: bold;">Prazo da Atividade</span>' +
+					'<input id="swal-input2" class="swal2-input" value="' + atividade_prazo + '">' +
+                    '<span style="font-weight: bold;">Responsável pela Atividade</span>' +
+					'<input id="swal-input3" class="swal2-input" value="' + atividade_responsavel + '">' +
+                    '<span style="font-weight: bold;">Observação da Atividade</span>' +
+					'<input id="swal-input4" class="swal2-input" value="' + atividade_observacao + '">';
+                    break
+                case 'Aplicar Sigilo':
+                    if (typeof(aaVariados_temp[id].objeto) == "undefined") {
+                        aaVariados_temp[id].objeto = {documentos:"1",visibilidade:"Polo Ativo Polo Passivo"}
+                    }
+                    let regraDoSigilo = 0; //nenhum
+                    if (aaVariados_temp[id].objeto.visibilidade.includes('Polo Ativo') && aaVariados_temp[id].objeto.visibilidade.includes('Polo Passivo') && aaVariados_temp[id].objeto.visibilidade.includes('Perito')) {
+                        regraDoSigilo = 5; //todos
+                    } else if (aaVariados_temp[id].objeto.visibilidade.includes('Polo Ativo') && aaVariados_temp[id].objeto.visibilidade.includes('Polo Passivo')) {
+                        regraDoSigilo = 3; //ativo e passivo
+                    } else if (aaVariados_temp[id].objeto.visibilidade.includes('Polo Ativo')) {
+                        regraDoSigilo = 1; //ativo
+                    } else if (aaVariados_temp[id].objeto.visibilidade.includes('Polo Passivo')) {
+                        regraDoSigilo = 2; //passivo
+                    } else if (aaVariados_temp[id].objeto.visibilidade.includes('Perito')) {
+                        regraDoSigilo = 4; //perito
+                    }
+                    var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+                    '<span style="font-weight: bold;"> Documentos </span><br><br>' +
+                    '<div style="display: grid;grid-template-columns: 1fr 1fr 2fr;align-items: first baseline;">' +
+                    '<span style="font-size: .8em;color: darkcyan;"> Aplicar ao(s) </span>' +
+					'<input id="swal-input-documentos" class="swal2-input" value="' + aaVariados_temp[id].objeto.documentos + '" style="margin: 2px;">' +
+                    '<span style="font-size: .8em;color: darkcyan;"> último(s) juntado(s) </span><br><br>' +
+                    '</div><br><br>' +
+                    '<span style="font-weight: bold;"> Visibilidade </span><br><br>' +
+                    '<select id="swal-input-visibilidade" class="swal2-select" style="background-color: white;">' +
+                        '<optgroup label="Visibilidade do Documento">' +
+                        '<option value="Nenhum"' + (regraDoSigilo==0 ? 'selected' : '') + '> Nenhum </option>' +
+                        '<option value="Polo Ativo"' + (regraDoSigilo==1 ? 'selected' : '') + '> apenas Polo Ativo </option>' +
+                        '<option value="Polo Passivo"' + (regraDoSigilo==2 ? 'selected' : '') + '> apenas Polo Passivo </option>' +
+                        '<option value="Polo Ativo + Polo Passivo"' + (regraDoSigilo==3 ? 'selected' : '') + '> Polo Ativo + Polo Passivo </option>' +
+                        '<option value="Perito"' + (regraDoSigilo==4 ? 'selected' : '') + '> apenas Perito </option>' +
+                        '<option value="Todos"' + (regraDoSigilo==5 ? 'selected' : '') + '> Polo Ativo + Polo Passivo + Perito </option>' +
+                        '<option value="Perguntar"' + (regraDoSigilo==6 ? 'selected' : '') + '> Perguntar </option>' +
+                        '</optgroup>' +
+                    '</select>' +
+					'<span style="font-weight: bold; display:none;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
+					'<input id="swal-input-temporizador" style=" display:none;"class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">'+
+                    '<span style="font-weight: bold;display:none;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style="display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
+					'</select>';
+                    break
+
+                default:
 				var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
 					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
 					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
@@ -7060,7 +7289,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			confirmButtonText: 'Salvar',
 			focusConfirm: false,
 			preConfirm: () => {
-				let atv = (document.getElementById('swal-input-ativar').value == 'sim') ? true : false;
+				let atv = (document.getElementById('swal-input-ativar')?.value == 'sim') ? true : false;
 				if (aaVariados_temp[id].nm_botao == 'Enviar Email') {
 					return [
 						document.getElementById('swal-input5').value,
@@ -7078,7 +7307,25 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 						document.getElementById('swal-input3').value //parte
 					]
 
-				} else {
+				} else if (aaVariados_temp[id].nm_botao == 'AUTOGIGS>Editar Atividade GIGS') {
+                    return [
+                        atv, //ativar
+						document.getElementById('swal-input1').value, //tipo
+                        document.getElementById('swal-input2').value, //prazo
+                        document.getElementById('swal-input3').value, //responsavel
+                        document.getElementById('swal-input4').value //observacao
+					]
+
+                } else if (aaVariados_temp[id].nm_botao == 'Aplicar Sigilo') {
+                    return [
+                        document.getElementById('swal-input-temporizador').value, //temporizador
+                        atv, //ativar
+                        document.getElementById('swal-input-documentos').value, //documentos
+                        document.getElementById('swal-input-visibilidade').value //visibilidade
+					]
+
+
+                } else {
 					return [
 						document.getElementById('swal-input1').value,
 						atv
@@ -7097,7 +7344,11 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: 0 , ativar: result[1] , objeto:{modelo:result[0]}};
 			} else if (aaVariados_temp[id].nm_botao == 'DESPACHO>Aceitar Prevenção') {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: 0 , ativar: result[1] , objeto:{modelo:result[0]}};
-			} else {
+			} else if (aaVariados_temp[id].nm_botao == 'AUTOGIGS>Editar Atividade GIGS') {
+                aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: 0 , ativar: result[0] , objeto:{tipo:result[1],prazo:result[2],responsavel:result[3],observacao:result[4]}};
+            } else if (aaVariados_temp[id].nm_botao == 'Aplicar Sigilo') {
+                aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: result[0] , ativar: result[1] , objeto:{documentos:result[2],visibilidade:result[3]}};
+            } else {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: result[0] , ativar: result[1]};
 			}
 			salvarOpcoes();
@@ -7112,14 +7363,18 @@ function gerarListaDeVinculos(lista_de_vinculos, tamanho = 10) {
 
 	for (let i = 0; i < tamanho; i++) {
 		const index = i + 1;
-		html += '<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;">' +
+		html += '<div style="display: grid;grid-template-columns: 10% 80% 5% 5%;margin: 10px 0;">' +
 				'<span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">' + index + '</span>' +
-				'<button id="escolherAAVinculo' + index + '" aria-description="Escolha vínculo' + index + '" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+				'<button id="escolherAAVinculo' + index + '" aria-description="Escolha vínculo' + index + '" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em 0 0 .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.8em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
 				(lista_de_vinculos[i] ? lista_de_vinculos[i] : 'Nenhum') +
 				'</button>' +
-
+                '<div style="display: grid;grid-template-rows: 1fr 1fr;">' +
+                '<a href="#" id="subir-escolherAAVinculo' + index + '" data-tooltip="Subir Posição' + index + '" aria-label="Subir Posição' + index + '" pos="' + index + '" class="botaoUp">🡅</a>' +
+                '<a href="#" id="descer-escolherAAVinculo' + index + '" data-tooltip="Descer Posição' + index + '" aria-label="Descer Posição' + index + '" pos="' + index + '" class="botaoDown">🡇</a>' +
+                '</div>' +
 				'<button id="apagar-escolherAAVinculo' + index + '"   data-tooltip="Remover vínculo ' + index + '" aria-label="Remover vínculo ' + index + '" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">' +
-				'<i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>';
+				'<i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button>' +
+                '</div>';
 	}
 
 	return html;
@@ -7349,6 +7604,7 @@ function modalEditorClonar(elemento_pai, tipo, id) {
 				aa.perito = aaNomearPerito_temp[id].perito ? aaNomearPerito_temp[id].perito : "";
 				aa.prazo = aaNomearPerito_temp[id].prazo ? aaNomearPerito_temp[id].prazo : "";
 				aa.designar = aaNomearPerito_temp[id].designar ? aaNomearPerito_temp[id].designar : "";
+                aa.descricao = aaNomearPerito_temp[id].descricao ? aaNomearPerito_temp[id].descricao : "";
 				aa.modelo = aaNomearPerito_temp[id].modelo ? aaNomearPerito_temp[id].modelo : "";
 				aa.assinar = aaNomearPerito_temp[id].assinar ? aaNomearPerito_temp[id].assinar : "";
 				aa.cor = aaNomearPerito_temp[id].cor ? aaNomearPerito_temp[id].cor : "";
@@ -8041,11 +8297,16 @@ async function salvarConfig() {
 	Promise.all([limpar_residuos]).then(async values => {
 
 		preferencias =	await browser.storage.local.get(null);
+        preferencias = {
+            BackupDe: new Date().toLocaleDateString(),
+            ...preferencias
+        };
+
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
 			'<span style="font-weight: bold;"> Copie estes dados e salve em um arquivo de texto para recuperá-lo mais tarde. </span><br><br>' +
-			'<textarea id="swal-input1" class="swal2-input" style="height: 500px;font-family: inherit;line-height: 1.5em;margin:0;">***' + new Date().toLocaleDateString() + '***' + JSON.stringify(preferencias) + '</textarea>',
+			'<textarea id="swal-input1" class="swal2-input" style="min-height: 500px; height: 75vh; font-family: inherit;line-height: 1.5em;margin:0;">'+ JSON.stringify(preferencias, null, 2) + '</textarea>',
 			confirmButtonText: 'Copiar',
 			focusConfirm: false,
 			preConfirm: () => {
@@ -8075,7 +8336,7 @@ async function recuperarConfig() {
 		title: '    ',
 		html:
 		'<span style="font-weight: bold;"> Cole aqui as configurações para carregá-las.</span><br>' +
-		'<textarea id="swal-input1" class="swal2-input" style="height: 500px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>',
+		'<textarea id="swal-input1" class="swal2-input" style="min-height: 500px; height: 75vh; font-family: inherit;line-height: 1.5em;margin:0;"></textarea>',
 		confirmButtonText: 'Restaurar',
 		focusConfirm: false,
 		preConfirm: () => {
@@ -8514,7 +8775,7 @@ document.getElementById("modulo6_ignorar").addEventListener('focusout', function
 document.body.addEventListener("click", async function (event) {
 	// console.log(event.target.id + ' : ' + event.target.tagName + ' --> ' + event.target.parentElement.id);
 
-	if (event.target.id.includes("escolherAAVinculo") && !event.target.id.includes("apagar")) {
+	if (event.target.id.includes("escolherAAVinculo") && !event.target.id.includes("apagar") && !event.target.id.includes("subir") && !event.target.id.includes("descer")) {
 		const possivelAAAtual = event.target.innerText;
 		const aa = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para VINCULAR', possivelAAAtual, event.target);
 		if (!!aa) { event.target.innerText = aa; }
@@ -8799,6 +9060,9 @@ document.body.addEventListener("click", async function (event) {
 			case 'atalhos_2':
 				msg = 'Aqui é possível atribuir um atalho ao menu do maisPJe, acessível ao clicar no ícone da extensão na barra de endereços.<br><br>Para isso você deve escrever em cada linha o nome do atalho, dois pontos (:), o endereço do atalho.<br><br>Por exemplo:<br>&nbsp;&nbsp;&nbsp; Intranet:http://intranet.trt12.jus.br/caslogin<br><br>É possível também agrupá-los por cor, bastando para isso colocar a tag [azul], [verde], [vermelho] ou [amarelo] na frente do atalho.<br><br>Por exemplo:<br>&nbsp;&nbsp;&nbsp; [azul]Intranet:http://intranet.trt12.jus.br/caslogin <br>Experimente! <br><br> <i>Dica: você também usar cores hexadecimais dentro do colchetes ;)</i> <br><br> Para personalizar ainda mais, é possível inserir ícones.. clique no link do Emoji (ao lado), copie o ícone desejado e cole ele no início da linha, antes da cor.';
 				break
+            case 'extras_1':
+                msg = 'Essa funcionalidade foi programada (por enquanto) apenas para a janela principal do PJe.<br><br>Se ativada, na janela principal do PJe, clique no menu Kaizen e depois na opção "Configurar Clique Rápido".<br><br>Na tela serão exibidas marcações sobre os botões que a extensão irá mapear. Clique sobre aqueles botões que deseja mapear e salve.<br><br>A partir deste momento esses botões serão clicados automaticamente apenas repousando o mouse sobre eles. Fique tranquilo que haverá identificação visual quando o botão for mapeado e quando ele estiver sendo ativado.<br><br>Esta funcionalidade atua apenas nestas páginas:<br><br>MEU PAINEL<br>PAINEL GLOBAL<br>RELATORIO GIGS<br>ESCANINHO';
+                break
 			case 'config_1':
 				msg = 'Quer usar as suas configurações em outro computador?<br>Clique em "Guardar", copie o conteúdo e guarde.<br>No computador novo, com a extensão instalada, clique em "Recuperar", cole o conteúdo e pronto! Suas configurações foram restauradas.';
 				break
@@ -8892,24 +9156,6 @@ document.body.addEventListener("click", async function (event) {
             abrirVideo(video);
         }
 	}
-	//DESCRIÇÃO CRIA AS REGRAS DE SALVAMENTO QUANDO O USUARIO OPTAR PELO POSICIONAMENTO DOS MONITORES
-	// if (event.target.id.search('gigsMonitor') > -1) {
-		// if (document.querySelector('#desativarAjusteJanelas').checked) {
-			// document.querySelector('#desativarAjusteJanelas').checked = false;
-			// Swal.fire(
-				// 'Posição das Janelas',
-				// 'A partir de agora, a extensão controlará o posicionamento das janelas DETALHES, GIGS e TAREFAS para você ;)<br><br>Escolha os monitores de acordo com a sua preferência!<br><br>Se desejar voltar atrás, basta selecionar a opção "Desativar o posicionamento automático das janelas", que fica ao lado do botão "Verificar monitores"',
-				// 'info'
-			// ).then((result) => {
-				// atualizaMonitor(event.target.id);
-				// salvarOpcoes();
-			// })
-		// } else {
-			// atualizaMonitor(event.target.id);
-			// salvarOpcoes();
-		// }
-	// }
-
 
 	//ATALHOS DE Menu
 	let id_elemento = event.target.id || event.target.parentElement.id
@@ -8928,12 +9174,45 @@ document.body.addEventListener("click", async function (event) {
 			modulo5ParEimpar(msg.getAttribute('name'));
 		}
 
-
-
 		//eventos dos vinculos: lixeira
 		if (id_elemento.includes('apagar-escolherAAVinculo')) {
 			let seletor = id_elemento.replace('apagar-','');
 			document.getElementById(seletor).innerText = "Nenhum";
+		}
+
+        //eventos dos vinculos: subir posição
+		if (id_elemento.includes('subir-escolherAAVinculo')) {
+            let posA = parseInt(event.target.getAttribute('pos'));
+            if (posA > 1) {
+                let posB = posA-1; //de cima
+                let vinculoA = document.getElementById('escolherAAVinculo'+posA).innerText;
+                let vinculoB = document.getElementById('escolherAAVinculo'+posB).innerText;
+                document.getElementById('escolherAAVinculo'+posA).style.animation = "subindo 1s forwards";
+                document.getElementById('escolherAAVinculo'+posB).style.animation = "descendo 1s forwards";
+                setTimeout(()=>{
+                    document.getElementById('escolherAAVinculo'+posA).innerText = vinculoB;
+                    document.getElementById('escolherAAVinculo'+posB).innerText = vinculoA;
+                    document.getElementById('escolherAAVinculo'+posA).style.animation = 'none';
+                    document.getElementById('escolherAAVinculo'+posB).style.animation = 'none'
+                },1000);
+
+            }
+		}
+        if (id_elemento.includes('descer-escolherAAVinculo')) {
+            let posA = parseInt(event.target.getAttribute('pos'));
+            if (posA < 10) {
+                let posB = posA+1; //de cima
+                let vinculoA = document.getElementById('escolherAAVinculo'+posA).innerText;
+                let vinculoB = document.getElementById('escolherAAVinculo'+posB).innerText;
+                document.getElementById('escolherAAVinculo'+posA).style.animation = "descendo 1s forwards";
+                document.getElementById('escolherAAVinculo'+posB).style.animation = "subindo 1s forwards";
+                setTimeout(()=>{
+                    document.getElementById('escolherAAVinculo'+posA).innerText = vinculoB;
+                    document.getElementById('escolherAAVinculo'+posB).innerText = vinculoA;
+                    document.getElementById('escolherAAVinculo'+posA).style.animation = 'none';
+                    document.getElementById('escolherAAVinculo'+posB).style.animation = 'none'
+                },1000);
+            }
 		}
 	}
 
@@ -9085,13 +9364,14 @@ function AcaoAutomatizada_aaChecklist(nm_botao, tipo, observacao, estado, alerta
 	this.visibilidade = visibilidade;
 }
 
-function AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, tipo_prazo, designar, modelo, assinar, cor, vinculo, visibilidade='sim') {
+function AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, tipo_prazo, designar, descricao, modelo, assinar, cor, vinculo, visibilidade='sim') {
 	this.nm_botao = nm_botao;
 	this.profissao = profissao;
 	this.perito = perito;
     this.prazo = prazo;
     this.tipo_prazo = tipo_prazo;
     this.designar = designar;
+    this.descricao = descricao;
 	this.modelo = modelo;
 	this.assinar = assinar;
 	this.cor = cor;
@@ -9202,7 +9482,7 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 				container.appendChild(containerSelect);
 
 				if (!nomeBotaoContinuar.includes('Nenhum')) {
-					let bt_continuar = document.createElement("span");
+					let bt_continuar = document.createElement("button");
 					bt_continuar.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;font-size: 1.3em;";
 					bt_continuar.innerText = nomeBotaoContinuar;
 					bt_continuar.onmouseenter = function () {
@@ -9333,7 +9613,7 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 
 			container.appendChild(inputTexto);
 
-			let btOk = document.createElement("span");
+			let btOk = document.createElement("button");
 			btOk.id = 'maisPje_caixa_de_pergunta_btOK';
 			btOk.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;font-size: 1.4em;";
 			btOk.innerText = nomeDoBotao;
@@ -9377,6 +9657,18 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 
 function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function excluirRepetidos(lista) {
+    return new Promise(resolve => {
+        let novalista = [];
+        for (const [pos, item] of lista.entries()) {
+            if (novalista.indexOf(item) == -1) {
+                novalista.push(item);
+            }
+        }
+        resolve(novalista);
+    });
 }
 
 document.querySelector('button#modulo2_1_video')?.addEventListener('click', () => abrirVideo('https://www.youtube.com/embed/8tLj_3Uy3gU'));

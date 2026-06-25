@@ -27,7 +27,7 @@ from PEC.core_progresso import extrair_numero_processo_pec as extrair_numero_pro
 from atos import ato_meios
 
 from .regras import aplicar_regras_argos
-from .apoio_fluxos import retirar_sigilo_fluxo_argos, buscar_documentos_sequenciais_via_api, _extrair_texto_certidao_via_api
+from .apoio_fluxos import retirar_sigilo_fluxo_argos, buscar_documentos_sequenciais_via_api, _extrair_texto_certidao_via_api, _extrair_documentos_decisao_despacho_api
 from .entrada_api import fechar_intimacao
 
 
@@ -165,86 +165,148 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
             logger.error('[ARGOS][ETAPA 3] Falha ao extrair certidão: %s', e)
 
         # ════════════════════════════════════════
-        # === ETAPA 4: BUSCAR E APLICAR REGRAS ARGOS (LOOP ITERATIVO) ===
-        # Loop: abrir despacho/decisão → extrair → comparar regras → aplicar se tem regra → próximo se não
+        # === ETAPA 4: BUSCAR E APLICAR REGRAS ARGOS (VIA API — IGUAL P2B) ===
+        # Estratégia primária: extrair documentos despacho/decisão via API
+        # (timeline → PDF → pdfplumber), mesmo approach do extrair_documento_relevante
+        # do P2B. Fallback DOM apenas se API indisponível.
         # LIMITE: Máximo 3 documentos. Se passar de 3 sem encontrar regra, abortar busca.
 
         timing_etapa4_inicio = time.time()
-        logger.info('[ARGOS][TIMING][ETAPA4][INICIO] Iniciando busca e aplicação de regras ARGOS')
+        logger.info('[ARGOS][TIMING][ETAPA4][INICIO] Iniciando busca e aplicação de regras ARGOS (API)')
+
+        documentos_api = _extrair_documentos_decisao_despacho_api(driver, log=log)
 
         regra_aplicada = False
         max_documentos_testados = 3  # LIMITE: máximo 3 documentos
         documentos_testados = 0
-        documentos_ignorados = []
 
-        while documentos_testados < max_documentos_testados and not regra_aplicada:
-            # Buscar próximo documento com regra Argos
-            timing_busca_inicio = time.time()
-            resultado_documento = buscar_documento_argos(driver, log=True, ignorar_indices=documentos_ignorados)
-            timing_busca_fim = time.time()
-            logger.info(f'[ARGOS][TIMING][BUSCA_DOC] {timing_busca_fim - timing_busca_inicio:.3f}s')
+        if documentos_api:
+            # ── CAMINHO PRINCIPAL: API (igual P2B) ──
+            logger.info('[ARGOS][ETAPA 4] Usando extração API (%d documento(s) para testar)', len(documentos_api))
 
-            if not resultado_documento or not resultado_documento[0]:
-                logger.info('[ARGOS][ETAPA 4] Fim da busca: Nenhum documento candidato restou na timeline')
-                break
+            for documento_texto, documento_tipo, documento_idx in documentos_api:
+                if not documento_texto:
+                    continue
 
-            documento_texto, documento_tipo, documento_idx = resultado_documento
+                documentos_testados += 1
+                logger.info('[ARGOS][ETAPA 4] Testando documento %d/%d (API idx #%d, tipo: %s)...',
+                           documentos_testados, max_documentos_testados, documento_idx, documento_tipo)
 
-            if not documento_texto:
-                if documento_idx is not None:
-                    documentos_ignorados.append(documento_idx)
-                continue
+                # ════════════════════════════════════════
+                # === ETAPA 5: EXTRAIR DESTINATÁRIOS ===
+                try:
+                    dados_processo_cache = extrair_dados_processo(driver, debug=log)
+                except Exception:
+                    dados_processo_cache = {}
 
-            documentos_testados += 1
-            logger.info('[ARGOS][ETAPA 4] Testando documento %d/%d (índice #%d, tipo: %s)...',
-                       documentos_testados, max_documentos_testados, documento_idx, documento_tipo)
+                try:
+                    numero_proc_atual = extrair_numero_processo(driver)
+                except Exception:
+                    numero_proc_atual = ''
 
-            # ════════════════════════════════════════
-            # === ETAPA 5: EXTRAIR DESTINATÁRIOS ===
-            try:
-                dados_processo_cache = extrair_dados_processo(driver, debug=log)
-            except Exception as dados_err:
-                dados_processo_cache = {}
-
-            try:
-                numero_proc_atual = extrair_numero_processo(driver)
-            except Exception:
-                numero_proc_atual = ''
-
-            try:
-                destinatarios_extraidos = extrair_destinatarios_decisao(
-                    documento_texto,
-                    dados_processo=dados_processo_cache,
-                    debug=log
-                )
-                if destinatarios_extraidos:
-                    salvar_destinatarios_cache(
-                        "ATUAL",
-                        destinatarios_extraidos,
-                        origem=f'argos_{documento_tipo}'
+                try:
+                    destinatarios_extraidos = extrair_destinatarios_decisao(
+                        documento_texto,
+                        dados_processo=dados_processo_cache,
+                        debug=log
                     )
-            except Exception as dest_err:
-                pass
+                    if destinatarios_extraidos:
+                        salvar_destinatarios_cache(
+                            "ATUAL",
+                            destinatarios_extraidos,
+                            origem=f'argos_{documento_tipo}'
+                        )
+                except Exception:
+                    pass
 
-            # TENTAR APLICAR REGRAS
-            timing_regras_inicio = time.time()
-            regras_aplicadas = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, documento_tipo, documento_texto, debug=True)
-            timing_regras_fim = time.time()
-            logger.info(f'[ARGOS][TIMING][APLICAR_REGRAS] {timing_regras_fim - timing_regras_inicio:.3f}s')
+                # TENTAR APLICAR REGRAS
+                timing_regras_inicio = time.time()
+                regras_aplicadas = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, documento_tipo, documento_texto, debug=True)
+                timing_regras_fim = time.time()
+                logger.info(f'[ARGOS][TIMING][APLICAR_REGRAS] {timing_regras_fim - timing_regras_inicio:.3f}s')
 
-            if regras_aplicadas:
-                regra_aplicada = True
-                logger.info(f'[ARGOS][ETAPA 4] ✅ SUCESSO: Regra aplicada no documento #{documento_idx} ({documentos_testados}/{max_documentos_testados})')
-                break
-            else:
-                logger.info(f'[ARGOS][ETAPA 4] ❌ Nenhuma regra encontrada no documento #{documento_idx}')
-                documentos_ignorados.append(documento_idx)
-
-                # Se atingiu limite de documentos testados, parar busca
-                if documentos_testados >= max_documentos_testados:
-                    logger.info(f'[ARGOS][ETAPA 4] Limite de documentos ({max_documentos_testados}) atingido. Interrompendo busca por regras.')
+                if regras_aplicadas:
+                    regra_aplicada = True
+                    logger.info(f'[ARGOS][ETAPA 4] ✅ SUCESSO: Regra aplicada no documento #{documento_idx} ({documentos_testados}/{max_documentos_testados})')
                     break
-                continue
+                else:
+                    logger.info(f'[ARGOS][ETAPA 4] ❌ Nenhuma regra encontrada no documento API #{documento_idx}')
+
+                    if documentos_testados >= max_documentos_testados:
+                        logger.info(f'[ARGOS][ETAPA 4] Limite de documentos ({max_documentos_testados}) atingido. Interrompendo busca por regras.')
+                        break
+        else:
+            # ── FALLBACK DOM (legado) ──
+            logger.info('[ARGOS][ETAPA 4] API indisponível — fallback DOM (buscar_documento_argos)')
+
+            documentos_ignorados = []
+
+            while documentos_testados < max_documentos_testados and not regra_aplicada:
+                timing_busca_inicio = time.time()
+                resultado_documento = buscar_documento_argos(driver, log=log, ignorar_indices=documentos_ignorados)
+                timing_busca_fim = time.time()
+                logger.info(f'[ARGOS][TIMING][BUSCA_DOC] {timing_busca_fim - timing_busca_inicio:.3f}s')
+
+                if not resultado_documento or not resultado_documento[0]:
+                    logger.info('[ARGOS][ETAPA 4] Fim da busca: Nenhum documento candidato restou na timeline')
+                    break
+
+                documento_texto, documento_tipo, documento_idx = resultado_documento
+
+                if not documento_texto:
+                    if documento_idx is not None:
+                        documentos_ignorados.append(documento_idx)
+                    continue
+
+                documentos_testados += 1
+                logger.info('[ARGOS][ETAPA 4] Testando documento %d/%d (DOM índice #%d, tipo: %s)...',
+                           documentos_testados, max_documentos_testados, documento_idx, documento_tipo)
+
+                # ════════════════════════════════════════
+                # === ETAPA 5: EXTRAIR DESTINATÁRIOS ===
+                try:
+                    dados_processo_cache = extrair_dados_processo(driver, debug=log)
+                except Exception:
+                    dados_processo_cache = {}
+
+                try:
+                    numero_proc_atual = extrair_numero_processo(driver)
+                except Exception:
+                    numero_proc_atual = ''
+
+                try:
+                    destinatarios_extraidos = extrair_destinatarios_decisao(
+                        documento_texto,
+                        dados_processo=dados_processo_cache,
+                        debug=log
+                    )
+                    if destinatarios_extraidos:
+                        salvar_destinatarios_cache(
+                            "ATUAL",
+                            destinatarios_extraidos,
+                            origem=f'argos_{documento_tipo}'
+                        )
+                except Exception:
+                    pass
+
+                # TENTAR APLICAR REGRAS
+                timing_regras_inicio = time.time()
+                regras_aplicadas = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, documento_tipo, documento_texto, debug=True)
+                timing_regras_fim = time.time()
+                logger.info(f'[ARGOS][TIMING][APLICAR_REGRAS] {timing_regras_fim - timing_regras_inicio:.3f}s')
+
+                if regras_aplicadas:
+                    regra_aplicada = True
+                    logger.info(f'[ARGOS][ETAPA 4] ✅ SUCESSO: Regra aplicada no documento #{documento_idx} ({documentos_testados}/{max_documentos_testados})')
+                    break
+                else:
+                    logger.info(f'[ARGOS][ETAPA 4] ❌ Nenhuma regra encontrada no documento DOM #{documento_idx}')
+                    documentos_ignorados.append(documento_idx)
+
+                    if documentos_testados >= max_documentos_testados:
+                        logger.info(f'[ARGOS][ETAPA 4] Limite de documentos ({max_documentos_testados}) atingido. Interrompendo busca por regras.')
+                        break
+                    continue
 
         # === TIMING: FIM DA ETAPA 4 ===
         timing_etapa4_total = time.time() - timing_etapa4_inicio

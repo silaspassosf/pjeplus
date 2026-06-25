@@ -92,7 +92,7 @@
                     <li>
                         <a
                             id="baixarExtensao"
-                            href="https://www.trt12.jus.br/repo/maispje/Downloads/maispje.xpi"
+                            href="https://portal.trt12.jus.br/appexterno/maispje/maispje.xpi"
                             class="icon-button"
                             aria-label="Baixar extensão"
                             data-tooltip="Baixar extensão"
@@ -103,7 +103,7 @@
                     <li>
                         <a
                             id="versoesAntigas"
-                            href="https://www.trt12.jus.br/repo/maispje/Downloads/versoes"
+                            href="https://portal.trt12.jus.br/appexterno/maispje/versoes"
                             target="_blank"
                             class="icon-button"
                             aria-label="Histórico de versões"
@@ -412,11 +412,23 @@
                 </label>
             </div>
             <br>
+            <div>
+                <label class="container">
+                    <input
+                        type="checkbox"
+                        name="exibirBotoesCopiaIdTimeline"
+                        id="exibirBotoesCopiaIdTimeline"
+                    >
+                    Exibir botões para copiar ID dos documentos na Timeline
+                    <span class="checkmark"></span>
+                </label>
+            </div>
+            <br>
             <div class="textoItalico">Selecione o botão do menu que aparecerá como atalho na janela:
                 <i class="icone question-circle t20" id="modulo1_3"></i>
             </div>
             <div id="botoes_detalhes" style="border: #cccccc solid 1px; padding: 5px; font-size: 1.2rem;">
-                <label class="container" data-tooltip="Listar Todas">
+                <label class="container" data-tooltip="Escolher Ação Automatizada">
                     <input type="checkbox" id="c31">
                     <span class="checkmark"></span>
                     <a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px;">
@@ -1017,6 +1029,51 @@
                     </label>
                 </div>
             </div>
+            <br>
+            <br>
+            <br>
+            <div>
+                <div class="textoItalico">
+                    <b>Filtrar Documentos na Timeline:</b>
+                    <br>
+                    <br>
+                    <div style="margin-left: 30px;">
+                        <span class="subtitulo" style="font-size: .8em !important;">Crie até 5 filtros personalizados para a Timeline do Processo. Separe os argumentos com ponto e vírgula para filtrar documentos específicos. <br>Por exemplo: Petição Inicial;Procuração;Substabelecimento;Contestação</span>
+                    </div>
+                    <br>
+                    <div style="display: grid;grid-template-columns: 5% 15% 40% 40%;gap: 10px;align-items: center;">
+                        <span class="" style="margin-left: 5px;text-align: right;">1.</span>
+                        <input id="modulo5_filtro_timeline_0_nome" placeholder="nome do filtro" class="swal2-input inputNormal" type="text">
+                        <input id="modulo5_filtro_timeline_0_filtro" placeholder="argumentos" class="swal2-input inputNormal" type="text">
+                        <span></span>
+                    </div>
+                    <div style="display: grid;grid-template-columns: 5% 15% 40% 40%;gap: 10px;align-items: center;">
+                        <span class="" style="margin-left: 5px;text-align: right;">2.</span>
+                        <input id="modulo5_filtro_timeline_1_nome" placeholder="nome do filtro" class="swal2-input inputNormal" type="text">
+                        <input id="modulo5_filtro_timeline_1_filtro" placeholder="argumentos" class="swal2-input inputNormal" type="text">
+                        <span></span>
+                    </div>
+                    <div style="display: grid;grid-template-columns: 5% 15% 40% 40%;gap: 10px;align-items: center;">
+                        <span class="" style="margin-left: 5px;text-align: right;">3.</span>
+                        <input id="modulo5_filtro_timeline_2_nome" placeholder="nome do filtro" class="swal2-input inputNormal" type="text">
+                        <input id="modulo5_filtro_timeline_2_filtro" placeholder="argumentos" class="swal2-input inputNormal" type="text">
+                        <span></span>
+                    </div>
+                    <div style="display: grid;grid-template-columns: 5% 15% 40% 40%;gap: 10px;align-items: center;">
+                        <span class="" style="margin-left: 5px;text-align: right;">4.</span>
+                        <input id="modulo5_filtro_timeline_3_nome" placeholder="nome do filtro" class="swal2-input inputNormal" type="text">
+                        <input id="modulo5_filtro_timeline_3_filtro" placeholder="argumentos" class="swal2-input inputNormal" type="text">
+                        <span></span>
+                    </div>
+                    <div style="display: grid;grid-template-columns: 5% 15% 40% 40%;gap: 10px;align-items: center;">
+                        <span class="" style="margin-left: 5px;text-align: right;">5.</span>
+                        <input id="modulo5_filtro_timeline_4_nome" placeholder="nome do filtro" class="swal2-input inputNormal" type="text">
+                        <input id="modulo5_filtro_timeline_4_filtro" placeholder="argumentos" class="swal2-input inputNormal" type="text">
+                        <span></span>
+                    </div>
+                </div>
+                <br>
+            </div>
         </fieldset>
 
         <fieldset id="modulo6">
@@ -1135,118 +1192,163 @@
                     <i class="icone video t25" id="modulo7_2"></i>
                 </div>
             </div>
-            <br aria-hidden="true">
-            <div class="subtitulo" style="display:flex; font-size: 24px;">
-                7.1 ANEXAR DOCUMENTOS
-                <div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
-                    <i class="icone plus-square2 t25" id="aa_anexar_documentos"></i>
-                </div>
-                <div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone importar2 t25" id="aa_imp_anexar_documentos"></i>
-                </div>
-                <div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone search2 t25" id="aa_buscar_anexar_documentos"></i>
-                </div>
-            </div>
-            <div id="botoes_anexar_documentos" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;;"></div>
-            <br aria-hidden="true">
-            <div class="subtitulo" style="display:flex; font-size: 24px;">
-                7.2 INTIMAÇÃO/EXPEDIENTE
-                <div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
-                    <i class="icone plus-square2 t25" id="aa_comunicacao"></i>
-                </div>
-                <div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone importar2 t25" id="aa_imp_comunicacao"></i>
-                </div>
-                <div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone search2 t25" id="aa_buscar_comunicacao"></i>
-                </div>
-            </div>
-            <div id="botoes_comunicacao" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
-            <br aria-hidden="true">
-            <div class="subtitulo" style="display:flex; font-size: 24px;">
-                7.3 AUTOGIGS (Atividade, Comentário, Chip, Lembrete)
-                <div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
-                    <i class="icone plus-square2 t25" id="aa_autogigs"></i>
-                </div>
-                <div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone importar2 t25" id="aa_imp_autogigs"></i>
-                </div>
-                <div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone search2 t25" id="aa_buscar_autogigs"></i>
-                </div>
-            </div>
-            <div id="botoes_autogigs" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
-            <br aria-hidden="true">
-            <div class="subtitulo" style="display:flex; font-size: 24px;">
-                7.4 DESPACHO
-                <div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
-                    <i class="icone plus-square2 t25" id="aa_despacho"></i>
-                </div>
-                <div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone importar2 t25" id="aa_imp_despacho"></i>
-                </div>
-                <div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone search2 t25" id="aa_buscar_despacho"></i>
-                </div>
-            </div>
-            <div id="botoes_despacho" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
-            <br aria-hidden="true">
-            <div class="subtitulo" style="display:flex; font-size: 24px;">
-                7.5 MOVIMENTOS
-                <div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
-                    <i class="icone plus-square2 t25" id="aa_movimento"></i>
-                </div>
-                <div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone importar2 t25" id="aa_imp_movimento"></i>
-                </div>
-                <div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone search2 t25" id="aa_buscar_movimento"></i>
-                </div>
-            </div>
-            <div id="botoes_movimento" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
-            <br aria-hidden="true">
-            <div class="subtitulo" style="display:flex; font-size: 24px;">
-                7.6 CHECKLIST
-                <div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
-                    <i class="icone plus-square2 t25" id="aa_checklist"></i>
-                </div>
-                <div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone importar2 t25" id="aa_imp_checklist"></i>
-                </div>
-                <div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone search2 t25" id="aa_buscar_checklist"></i>
-                </div>
-            </div>
-            <div id="botoes_checklist" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
-            <br aria-hidden="true">
-            <div class="subtitulo" style="display:flex; font-size: 24px;">
-                7.7 (TESTE) NOMEAR PERITO
-                <div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
-                    <i class="icone plus-square2 t25" id="aa_nomearPerito"></i>
-                </div>
-                <div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone importar2 t25" id="aa_imp_nomearPerito"></i>
-                </div>
-                <div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
-                    <i class="icone search2 t25" id="aa_buscar_nomearPerito"></i>
-                </div>
-            </div>
-            <div id="botoes_nomearPerito" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
-            <br aria-hidden="true">
-            <div class="subtitulo" style="display:flex; font-size: 24px;">
-                7.8 VARIADOS
-            </div>
-            <div id="botoes_variados" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
-            <br aria-hidden="true">
+            <fieldset>
+                <legend class="subtitulo subtituloAAs">
+                    <h3>7.1 ANEXAR DOCUMENTOS</h3>
+                    <button class="icon-button" aria-label="Criar" data-tooltip="Criar" id="aa_anexar_documentos">
+                        <i class="icone plus-square2 t25"></i>
+                    </button>
+                    <button class="icon-button" aria-label="Importar" data-tooltip="Importar" id="aa_imp_anexar_documentos">
+                        <i class="icone importar2 t25"></i>
+                    </button>
+                    <button class="icon-button" aria-label="Buscar" data-tooltip="Buscar" id="aa_buscar_anexar_documentos">
+                        <i class="icone search2 t25"></i>
+                    </button>
+                </legend>
+
+                <div id="botoes_anexar_documentos" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
+            </fieldset>
+            <fieldset>
+                <legend class="subtitulo subtituloAAs">
+                    <h3>7.2 INTIMAÇÃO/EXPEDIENTE</h3>
+
+                    <button class="icon-button" aria-label="Criar" data-tooltip="Criar" id="aa_comunicacao">
+                        <i class="icone plus-square2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Importar" data-tooltip="Importar" id="aa_imp_comunicacao">
+                        <i class="icone importar2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Buscar" data-tooltip="Buscar" id="aa_buscar_comunicacao">
+                        <i class="icone search2 t25"></i>
+                    </button>
+                </legend>
+
+                <div id="botoes_comunicacao" style="padding: 20px; display: flex; height: auto; flex-flow: row wrap;"></div>
+            </fieldset>
+            <fieldset>
+                <legend class="subtitulo subtituloAAs">
+                    <h3>7.3 AUTOGIGS (Atividade, Comentário, Chip, Lembrete)</h3>
+
+                    <button class="icon-button" aria-label="Criar" data-tooltip="Criar" id="aa_autogigs">
+                        <i class="icone plus-square2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Importar" data-tooltip="Importar" id="aa_imp_autogigs">
+                        <i class="icone importar2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Buscar" data-tooltip="Buscar" id="aa_buscar_autogigs">
+                        <i class="icone search2 t25"></i>
+                    </button>
+                </legend>
+
+                <div id="botoes_autogigs" style="padding: 20px; display: flex; height: auto; flex-flow: row wrap;"></div>
+            </fieldset>
+
+            <fieldset>
+                <legend class="subtitulo subtituloAAs">
+                    <h3>7.4 DESPACHO</h3>
+
+                    <button class="icon-button" aria-label="Criar" data-tooltip="Criar Ações automatizadas de despacho" id="aa_despacho">
+                        <i class="icone plus-square2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Importar" data-tooltip="Importar Ações automatizadas de despacho" id="aa_imp_despacho">
+                        <i class="icone importar2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Buscar" data-tooltip="Buscar" id="aa_buscar_despacho">
+                        <i class="icone search2 t25"></i>
+                    </button>
+                </legend>
+
+                <div id="botoes_despacho" style="padding: 20px; display: flex; height: auto; flex-flow: row wrap;"></div>
+            </fieldset>
+
+            <fieldset>
+                <legend class="subtitulo subtituloAAs">
+                    <h3>7.5 MOVIMENTOS</h3>
+
+                    <button class="icon-button" aria-label="Criar" data-tooltip="Criar" id="aa_movimento">
+                        <i class="icone plus-square2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Importar" data-tooltip="Importar" id="aa_imp_movimento">
+                        <i class="icone importar2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Buscar" data-tooltip="Buscar" id="aa_buscar_movimento">
+                        <i class="icone search2 t25"></i>
+                    </button>
+                </legend>
+
+                <div id="botoes_movimento" style="padding: 20px; display: flex; height: auto; flex-flow: row wrap;"></div>
+            </fieldset>
+
+            <fieldset>
+                <legend class="subtitulo subtituloAAs">
+                    <h3>7.6 CHECKLIST</h3>
+
+                    <button class="icon-button" aria-label="Criar" data-tooltip="Criar" id="aa_checklist">
+                        <i class="icone plus-square2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Importar" data-tooltip="Importar" id="aa_imp_checklist">
+                        <i class="icone importar2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Buscar" data-tooltip="Buscar" id="aa_buscar_checklist">
+                        <i class="icone search2 t25"></i>
+                    </button>
+                </legend>
+
+                <div id="botoes_checklist" style="padding: 20px; display: flex; height: auto; flex-flow: row wrap;"></div>
+            </fieldset>
+
+            <fieldset>
+                <legend class="subtitulo subtituloAAs">
+                    <h3>7.7 NOMEAR PERITO</h3>
+
+                    <button class="icon-button" aria-label="Criar" data-tooltip="Criar" id="aa_nomearPerito">
+                        <i class="icone plus-square2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Importar" data-tooltip="Importar" id="aa_imp_nomearPerito">
+                        <i class="icone importar2 t25"></i>
+                    </button>
+
+                    <button class="icon-button" aria-label="Buscar" data-tooltip="Buscar" id="aa_buscar_nomearPerito">
+                        <i class="icone search2 t25"></i>
+                    </button>
+                </legend>
+
+                <div id="botoes_nomearPerito" style="padding: 20px; display: flex; height: auto; flex-flow: row wrap;"></div>
+            </fieldset>
+
+            <fieldset>
+                <legend class="subtitulo subtituloAAs">
+                    <h3>7.8 VARIADOS</h3>
+                </legend>
+
+                <div id="botoes_variados" style="padding: 20px; display: flex; height: auto; flex-flow: row wrap;"></div>
+            </fieldset>
+
         </fieldset>
 
         <fieldset id="modulo8">
             <legend>
-                <h2 class="titulo">
+                <h2 class="titulo" style="display: block ruby;">
                     Módulo 8: Juízes
                     <i class="icone question-circle t25" id="modulo8"></i>
                     <!-- <i class="icone video t25" id="modulo8"></i> -->
+                    <div data-tooltip="Importar" style="margin-left: 30px; margin-top: 7px;">
+                        <i class="icone importar2 t25" id="importar_modulo8"></i>
+                    </div>
+                    <div data-tooltip="Exportar" style="margin-left: 30px; margin-top: 7px;">
+                        <i class="icone exportar2 t25" id="exportar_modulo8"></i>
+                    </div>
                 </h2>
             </legend>
             <h3 class="textoItalico">
@@ -1265,7 +1367,9 @@
             </div>
             <br aria-hidden="true">
             <div>
-                <button id="modulo8_criarRegra" class="swal2-confirm swal2-styled"> Criar Regra </button>
+                <div>
+                    <button id="modulo8_criarRegra" class="swal2-confirm swal2-styled"> Criar Regra </button>
+                </div>
             </div>
             <div class="subtitulo">
                 <table id="lista_modulo8" style="padding-left: 2em;width: 100%;">
@@ -1425,9 +1529,10 @@
         </fieldset>
         <fieldset id="modulo11">
             <legend>
-                <h2 class="titulo">Módulo 11: Certidão de Habilitação de Crédito
+                <h2 class="titulo" style="display: block ruby;">Módulo 11: Certidão de Habilitação de Crédito
                     <i class="icone question-circle t25" id="modulo11"></i>
                 </h2>
+
             </legend>
             <div style="display: flex;align-items: baseline;">
                 <label class="container">
@@ -1959,7 +2064,9 @@
         </div>
         <br aria-hidden="true"><br aria-hidden="true">
         <div class="subtitulo" style="visibility: visible;">
-            <b><u>o) Clique rápido:</u></b> permite clicar em botões apenas repousando o mouse sobre eles.<br>
+            <b><u>o) Clique rápido:</u></b> permite clicar em botões apenas repousando o mouse sobre eles.
+            <i class="icone question-circle t25" id="extras_1"></i>
+            <br>
             <br aria-hidden="true">
             <label class="container" style="margin-left: 5px;">
                 <input type="checkbox" id="extrasAcionarBotoesSemCliqueAtivar">

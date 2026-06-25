@@ -32,6 +32,12 @@ function ajustarTamanhoJanelaVisualizadorDocumentos(ajustarJanela) {
     }
 }
 
+/**
+ *
+ * @param {boolean} ajustarJanela indica se o visualizador deve ficar sobre o conteudo do PJE
+ * ou se deve redimensionar a tela para que a pessoa possa ver todo o conteudo
+ * @returns {HTMLElement} container do visualizador de documentos. Não precisa ser adicionado ao body (a função já faz isso).
+ */
 function criarContainerVisualizadorDocumentos(ajustarJanela) {
     let container = document.querySelector("#" + idVisualizadorDocumentos);
     // se ja criou, ja retorna ele.

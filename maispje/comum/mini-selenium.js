@@ -91,7 +91,7 @@ function sleep(ms) {
 
 function querySelectorByText(tagname, texto){
 
-	if (texto.includes('[MMA]')) { //observar maiuscula, minúsula e acento
+	if (texto.includes('[MMA]')) { //observar maiuscula, minúscula e acento
 		texto = texto.replace('[MMA]','');
 		return Array.from(document.querySelectorAll(tagname)).find(el => el.textContent.trim() == texto);
 	} else if (texto.includes('[exato]')) { //tem que ser a expressão exata.. sem estar incluída no texto
@@ -223,6 +223,13 @@ function insertAfter(referenceNode, newNode) {
     referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
 
+/**
+ *
+ * @param {string|HTMLElement} seletor
+ * @param {number} qtde_minima
+ * @param {number} tempo_espera
+ * @returns {Promise<NodeListOf<any>>}
+ */
 async function esperarColecao(seletor, qtde_minima=1, tempo_espera=0) {
 	return new Promise(async resolve => {
 		let elemento = document.querySelectorAll(seletor);
@@ -256,14 +263,14 @@ async function esperarDesaparecer(el, intervalo=100) {
 	return new Promise(resolve => {
 		let check1 = setInterval(async function() {
 			// console.log('************** ' + el.isConnected);
-			if (!el.isConnected) {
+			if (!el?.isConnected) {
 				clearInterval(check1);
 				console.log('desapareceu1')
 				resolve(true);
 			}
 		}, intervalo);
 
-		if (el.style?.display) {
+		if (el?.style?.display) {
 			let check2 = setInterval(async function() {
 				// console.log('************** ' + el.style.display);
 				if (el.style.display == 'none') {
@@ -273,7 +280,7 @@ async function esperarDesaparecer(el, intervalo=100) {
 					resolve(true);
 				}
 			}, intervalo);
-		} else if (el.style?.visibility) {
+		} else if (el?.style?.visibility) {
 			let check3 = setInterval(async function() {
 				// console.log('************** ' + el.style.visibility);
 				if (el.style.visibility == 'hidden') {
@@ -607,6 +614,63 @@ function tooltip(posicao, ativarFundo) {
 		style.textContent += '@keyframes pulseLeve {0% {box-shadow: 0 0 0 0px rgba(80, 119, 164, .7);}50% {box-shadow: 0 0 0 0px rgba(80, 119, 164, .3); background: rgba(80, 119, 164, .7);} 100% {box-shadow: 0 0 0px 0px rgba(80, 119, 164, .05);}}';
 	}
 	document.body.appendChild(style);
+}
+
+function maispjetooltip(ancoraSeletor, posicao) {
+    return new Promise(async resolve => {
+        let ancora = await esperarElemento(ancoraSeletor);
+        ancora.onmouseenter = function (event) {
+            event.preventDefault();
+            let tt = document.querySelector('#' + this.id + '_maispjetooltip');
+            tt.style.display = 'flex';
+
+            let ttPos = tt.getBoundingClientRect();
+            let tt_x = parseInt(ttPos.left);
+            let tt_y = parseInt(ttPos.top);
+            let tt_w = parseInt(ttPos.width);
+            let tt_h = parseInt(ttPos.height);
+
+            let ancoraPos = this.getBoundingClientRect();
+            let x = parseInt(ancoraPos.left);
+            let y = parseInt(ancoraPos.top);
+            let w = parseInt(ancoraPos.width);
+            let h = parseInt(ancoraPos.height);
+
+            let coordenada = tt.getAttribute('coordenadas');
+            switch (coordenada) {
+                case 'abaixo':
+                    y = y + h + 10;
+                    x = (x-(tt_w/2)) + (w/2);
+                    break;
+                case 'acima':
+                    y = y - h - 10;
+                    x = (x-(tt_w/2)) + (w/2);
+                    break;
+                case 'esquerda':
+                    x = x - tt_w - 10;
+                    break;
+                case 'direita':
+                    x = x + w + 10;
+                    break;
+                default:
+                    // console.log("sem coordenada");
+            }
+
+            tt.style.top = y+'px';
+            tt.style.left = x+'px';
+        };
+        ancora.onmouseleave = function (event) {
+            event.preventDefault();
+            document.querySelector('#' + this.id + '_maispjetooltip').style.display = 'none';
+        };
+        let span = document.createElement('maispjetooltip');
+        span.id = ancora.id + '_maispjetooltip';
+        span.setAttribute('coordenadas', posicao);
+        span.style = 'position: fixed; z-index: 9999; display: none; font-size: 14px; text-shadow: none; font-weight: 500; width: auto; height: 1.5em; background-color: black; color: whitesmoke; border-radius: 4px; justify-content: center; align-items: center; padding: 0.6em; pointer-events: none;';
+        span.textContent = ancora.ariaLabel || ancora.title;
+        document.body.appendChild(span);
+        return resolve(true);
+    });
 }
 
 /**
@@ -955,6 +1019,20 @@ async function extrairValorDeColchetes(texto) {
     });
 }
 
+async function extrairValorDeParenteses(texto) {
+    return new Promise(async resolve => {
+        let resposta = ''
+        if (padraoParenteses.test(texto)) {
+            resposta = texto.match(padraoParenteses).join();
+            resposta = resposta.replace('(','');
+            resposta = resposta.replace(')','');
+            return resolve(resposta);
+        } else {
+            return resolve(null);
+        }
+    });
+}
+
 function decomporNumeroProcesso(numero) {
 	return new Promise(
 		resolver => {
@@ -1022,6 +1100,7 @@ function setDataDias(baseDeCalculo, dias, separador='/') {
 	let dataBase = new Date(baseDeCalculo);
 	let dataFim = new Date(baseDeCalculo);
 	dataFim.setDate(dataBase.getDate() + dias); //para diminuir basta colocar dias negativos
+    console.log(dataFim)
 	return dataFim;
 }
 
@@ -1199,7 +1278,7 @@ function simularDigitacaoDeTexto(elemento, texto, segundos=0.1) { //segundos = i
 	return new Promise(
 		async resolver => {
 			console.debug('maisPJe:simularDigitacaoDeTexto(digitando a palavra ' + texto + ' com intervalo de ' + segundos + 'segundos');
-			elemento.addEventListener('blur', () => { console.log('fim'); return resolver(true) });
+			elemento.addEventListener('blur', async () => { await sleep(500); console.log('fim'); return resolver(true) });
 			let keyEvent;
 			elemento.focus();
 			elemento.style.backgroundColor = 'orangered';
@@ -1251,4 +1330,14 @@ async function marcarChips(chips, salvarAoFinal = false) {
             await clicarBotao('pje-inclui-etiquetas-dialogo button', 'Cancelar');
         }
     }
+}
+
+function gerarNumeroAleatorio(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function imprimirElemento(elemento) {
+    const clone = elemento.cloneNode(true);
+    document.body.replaceChildren(clone)
+    window.print();
 }

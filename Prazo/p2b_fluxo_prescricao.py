@@ -33,15 +33,6 @@ def prescreve(driver):
     try:
         pass
         
-        # 0. Executa BNDT (exclusão via Fix.bndt)
-        pass
-        try:
-            from Fix.extracao import bndt
-            bndt_resultado = bndt(driver, inclusao=False)
-        except Exception as e:
-            pass
-            bndt_resultado = False
-        
         # 1. Checagem de timeline
         pass
         documentos = analisar_timeline_prescreve_js_puro(driver)
@@ -81,6 +72,14 @@ def prescreve(driver):
             except Exception as e:
                 logger.error(f'[PRESCREVE]  Erro ao criar GIGS: {e}')
         
+        # 3. Executa BNDT (exclusão) por último para não bloquear o fluxo em caso de falha
+        try:
+            from Fix.extracao import bndt
+            bndt_resultado = bndt(driver, inclusao=False)
+        except Exception as e:
+            logger.error(f'[PRESCREVE]  Erro ao extrair bndt: {e}')
+            bndt_resultado = False
+
         pass
         return True
         

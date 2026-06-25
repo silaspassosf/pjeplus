@@ -43,7 +43,7 @@ browser.runtime.onInstalled.addListener(async function(details) {
 				{id:"botao_lancar_movimento_7",nm_botao:"Leilão:designado"},
 				{id:"botao_lancar_movimento_9",nm_botao:"da Contadoria para Vara:prosseguimento"}
 			],
-            extrasAcionarBotoesSemCliqueAtivar: false,
+            // extrasAcionarBotoesSemCliqueAtivar: false,
             extrasAcionarBotoesSemCliqueRegras: [],
 			sisbajud: {juiz: '', vara: '', cnpjRaiz: '', teimosinha: '', contasalario: '', naorespostas: '', valor_desbloqueio: '', banco_preferido: '', agencia_preferida: '', preencherValor: '', confirmar: '', executarAAaoFinal: '', salvarEprotocolar: ''},
 			// configURLs : {descricao:'',urlSiscondj:'',idSiscondj:'',urlSAOExecucao:''},
@@ -80,7 +80,7 @@ browser.runtime.onInstalled.addListener(async function(details) {
 				{id:"botao_lancar_movimento_7",nm_botao:"Leilão:designado"},
 				{id:"botao_lancar_movimento_9",nm_botao:"da Contadoria para Vara:prosseguimento"}
 			],
-            extrasAcionarBotoesSemCliqueAtivar: false,
+            // extrasAcionarBotoesSemCliqueAtivar: false,
             extrasAcionarBotoesSemCliqueRegras: [],
 			tempAuto : 10,
 			anexadoDoctoEmSigilo: -1,
@@ -211,6 +211,7 @@ function storage_limpar(param) {
 			console.debug('maisPJe: background: tempAR... excluido');
 		});
 	} else if (param == "AALote") {
+        console.debug('param == "AALote" no storage limpar', param)
 		let limparStorage = browser.storage.local.set({'AALote': ''});
 		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: AALote... excluido');
@@ -224,6 +225,7 @@ function storage_limpar(param) {
 		});
 	} else if (param == "tempBt,tempAR,AALote,tempAAEspecial,anexadoDoctoEmSigilo") {
 		let limparStorage1 = browser.storage.local.set({'tempBt': []});
+        console.debug('interromper no storage limpar', param)
 		let limparStorage2 = browser.storage.local.set({'AALote': 'interromper'}); //este é interromper porque é o comando genérico disparado pela tecla ESC
 		let limparStorage3 = browser.storage.local.set({'tempAAEspecial': []});
 		let limparStorage4 = browser.storage.local.set({'anexadoDoctoEmSigilo': -1});
@@ -661,9 +663,8 @@ browser.menus.onClicked.addListener((info, tab) => {
         let var5 = browser.storage.local.set({'tempBt': []});
 		let var6 = browser.storage.local.set({'tempAAEspecial': []});
 		let var7 = browser.storage.local.set({'anexadoDoctoEmSigilo': false});
-		let var8 = browser.storage.local.set({'extensaoAtiva': false});
-        let var9 = browser.storage.local.set({'clipboard': ''});
-		Promise.all([var1,var2,var3,var4,var5,var6,var7,var8,var9]).then(values => {
+		let var8 = browser.storage.local.set({'clipboard': ''});
+		Promise.all([var1,var2,var3,var4,var5,var6,var7,var8]).then(values => {
 			Alerta('Limpar mem\u00f3ria...  conclu\u00eddo!!', 2)
 			browser.menus.removeAll();
 		});
@@ -687,22 +688,58 @@ browser.tabs.onCreated.addListener(IdentificadorDeJanelaOuAba);
 // browser.tabs.onActivated.addListener(IdentificadorDeJanelaOuAba);
 
 async function IdentificadorDeJanelaOuAba(tab) {
-
 	function sleep(ms) {
 		return new Promise(resolve => setTimeout(resolve, ms));
 	}
 
-	await sleep(2000); //espera carregar alguns dados da janela para obter a url senão ela vem vazia
-	try {
-		let urlInfo = await browser.tabs.get(tab.id);
-		if (!urlInfo?.url) { return }
-		// console.info('           |____tabid: ' + tab.id);
-		// console.info('           |____windowid: ' + tab.windowId);
-		// console.info('           |____url2: ' + urlInfo.url);
+    /*
+    Espera carregar alguns dados da janela para obter a url senão ela vem vazia
+    Porém uma aba vazia ficaria infinitamente neste looping
+    pra evitar isso defino um timer limitador de 5 segundos
+    */
+    let urlInfo;
+    let timerLimitador = 0;
+    while(true) { //
+        urlInfo = await browser.tabs.get(tab.id);
+        console.info('           |____tabid: ' + tab.id);
+        console.info('           |____windowid: ' + tab.windowId);
+        console.info('           |____url2: ' + urlInfo.url);
 
-		if (urlInfo.url.includes("popupPainelCopiaECola.html")) {
+        if (urlInfo.url || timerLimitador >= 50) { break }
+        console.log('*')
+        timerLimitador++;
+        await sleep(100);
+    }
+
+	try {
+        if (urlInfo.url.includes("popupPainelCopiaECola.html")) {
 			idJanelaPainelCopiaECola = {windowId: tab.windowId, id: tab.id, url: urlInfo.url}
 		}
+
+        let padrao = /(sniper.pdpj.jus.br\/investigacao-de-bens\/)(\d{4,})/g; //corresponde a impressão dos grafos e do relatório geral.. funciona automaticamente
+        if (padrao.test(urlInfo.url)) {
+            browser.storage.local.get('impressoraVirtual', async function(result){
+                let listapaginasTemp = result.impressoraVirtual;
+                console.log(result.impressoraVirtual.length)
+
+                await browser.tabs.executeScript(tab.id, {
+                    code: 'document.body.innerHTML;'
+                  }).then((results) => {
+                    // results is an array containing the last evaluated expression
+                    const bodyHtml = results[0];
+                    console.log("Tab body content:", bodyHtml);
+
+                    listapaginasTemp.push(bodyHtml);
+                    let var2 = browser.storage.local.set({'impressoraVirtual': listapaginasTemp});
+                    Promise.all([var2]).then(values => {
+                        console.log("Nova Página adicionada à impressora virtual");
+                        browser.tabs.remove(tab.id);
+                    });
+                  });
+
+            });
+        }
+
 	} catch (err) {
 		// console.log('tab.id ' + tab.id + ' inválida');
 	}

@@ -1143,26 +1143,32 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         pass
     operacao = "Inclusão" if inclusao else "Exclusão"
     logger.info(f'Iniciando operação BNDT: {operacao}')
-    
+
     main_window = driver.current_window_handle
     nova_aba = None
     erro_classe = False
-    
+
     try:
         # Etapa 1: Validar localização
         _bndt_validar_localizacao(driver)
-        
+
         # Etapa 2: Abrir menu e ícone
         _bndt_abrir_menu(driver)
         _bndt_clicar_icone(driver)
-        
+
         # Etapa 3: Abrir nova aba
         main_window, nova_aba = _bndt_abrir_nova_aba(driver)
-        
+
         # PROCESSAR APENAS POLO PASSIVO
         polo = 'Passivo'
         logger.info(f'============ Processando Polo {polo} ============')
-        
+
+        # Garantir foco na janela (equivalente ao window.focus() do maispje)
+        try:
+            driver.execute_script('window.focus();')
+        except Exception:
+            pass
+
         # 1. Clicar no botão do polo Passivo (único polo processado)
         logger.info(f'Procurando botão de polo {polo}...')
         try:
@@ -1203,8 +1209,8 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
             no_reg_elems = driver.find_elements(By.CSS_SELECTOR, '#tabela-registros-bndt div[class*="mensagem"], pje-bndt-partes-sem-registro .mensagem, mat-card .mensagem, div.mensagem.ng-star-inserted')
             for elem in no_reg_elems:
                 texto_no_reg = (elem.text or '').strip().lower()
-                if ('não há registros' in texto_no_reg or 
-                    'não há registros disponíveis' in texto_no_reg or 
+                if ('não há registros' in texto_no_reg or
+                    'não há registros disponíveis' in texto_no_reg or
                     'não existem partes a serem selecionadas' in texto_no_reg):
                     logger.info(f'Polo {polo}: "{elem.text}" — nada a fazer')
                     driver.close()
@@ -1227,21 +1233,21 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
         # 5. Processar seleções (marcar checkboxes)
         _bndt_processar_selecoes_polo(driver, polo, inclusao=inclusao)
-        
+
         # 6. Gravar e confirmar
         _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=inclusao)
-        
+
         logger.info(f'============ Finalizando operação {operacao} ============')
-        
+
         if erro_classe:
             logger.warning('ATENÇÃO: Classe do processo não suporta BNDT!')
-        
+
         # Fechar aba BNDT
         driver.close()
         driver.switch_to.window(main_window)
         logger.info(f'Operação {operacao} concluída no polo {polo}')
         return True
-    
+
     except Exception as e:
         logger.error(f'ERRO na operação {operacao}: {e}')
         # Fechar apenas a aba BNDT (se aberta) para não encerrar o driver principal
@@ -1443,9 +1449,15 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
     """Seleciona Inclusão ou Exclusão para um polo específico."""
     operacao = "Inclusão" if inclusao else "Exclusão"
     tipo_operacao = "INCLUSAO" if inclusao else "EXCLUSAO"
-    
+
     logger.info(f'Selecionando operação: {operacao} para polo {polo}')
-    
+
+    # Garantir foco na janela (equivalente ao window.focus() do maispje)
+    try:
+        driver.execute_script('window.focus();')
+    except Exception:
+        pass
+
     seletores_operacao = [
         (By.CSS_SELECTOR, f'#selecao-tipo-determinacao input[value="{tipo_operacao}"]'),
         (By.XPATH, f"//input[@value='{tipo_operacao}']/ancestor::mat-radio-button | //mat-radio-button[@value='{tipo_operacao}']"),
@@ -1492,38 +1504,104 @@ def _bndt_processar_selecoes(driver):
 
 
 def _bndt_processar_selecoes_polo(driver, polo, inclusao=False):
-    """Procurar e clicar em todos os checkboxes de débito/crédito para um polo específico."""
+    """Seleciona checkboxes de partes no BNDT.
+
+    Para INCLUSAO: seleciona APENAS o primeiro checkbox de parte real
+    (exclui o checkbox 'Selecionar todos'). Os checkboxes de partes têm
+    id no formato 'parte{idParte}', ex: 'parte35630958'.
+
+    Para EXCLUSAO: seleciona todos os labels de débito (como o maispje).
+    """
     logger.info(f'Procurando checkboxes para marcar no polo {polo}...')
     try:
         if inclusao:
-            seletor_principal = (
-                'pje-bndt-inclusao label[for*="debito"][for*="-input"], '
-                'pje-bndt-inclusao label[for*="credito"][for*="-input"]'
-            )
-        else:
-            seletor_principal = 'pje-bndt-exclusao label[for*="debito"][for*="-input"]'
-
-        labels = driver.find_elements(By.CSS_SELECTOR, seletor_principal)
-        if not labels:
-            labels = driver.find_elements(
-                By.CSS_SELECTOR,
-                'pje-bndt-exclusao label[for*="debito"][for*="-input"], '
-                'pje-bndt-inclusao label[for*="debito"][for*="-input"], '
-                'pje-bndt-inclusao label[for*="credito"][for*="-input"]'
-            )
-        if not labels:
-            logger.warning(f'Nenhum checkbox encontrado no polo {polo}')
-            return
-        
-        for label in labels:
+            # Aguardar seção de partes sem registro renderizar
             try:
-                driver.execute_script('arguments[0].click();', label)
-                time.sleep(0.1)
+                WebDriverWait(driver, 8).until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, 'pje-bndt-partes-sem-registro mat-checkbox')
+                    )
+                )
+            except Exception:
+                pass
+
+            # Buscar todos os mat-checkbox dentro de pje-bndt-partes-sem-registro
+            # excluindo o primeiro ("Selecionar todos", que tem id mat-checkbox-N)
+            # Os checkboxes de partes têm id no padrão "parte{idParte}"
+            todos_chk = driver.find_elements(
+                By.CSS_SELECTOR,
+                'pje-bndt-partes-sem-registro mat-checkbox[id^="parte"]'
+            )
+
+            if not todos_chk:
+                # Fallback: pegar todos e pular o primeiro (que é "Selecionar todos")
+                todos_chk_fallback = driver.find_elements(
+                    By.CSS_SELECTOR,
+                    'pje-bndt-partes-sem-registro mat-checkbox'
+                )
+                # Filtra os que não são o "Selecionar todos" (procurando por label sem "Selecionar todos")
+                todos_chk = [
+                    c for c in todos_chk_fallback
+                    if 'selecionar todos' not in (c.text or '').lower()
+                ]
+
+            if not todos_chk:
+                logger.warning(f'Nenhum checkbox de parte encontrado no polo {polo} para inclusão')
+                return
+
+            # Para INCLUSAO: clicar apenas NO PRIMEIRO checkbox de parte disponível
+            primeiro = todos_chk[0]
+            try:
+                lbl = primeiro.find_element(By.CSS_SELECTOR, 'label')
+                driver.execute_script('window.focus();')
+                driver.execute_script('arguments[0].click();', lbl)
+                logger.info(f'[BNDT/INCLUSAO] Primeiro checkbox de parte clicado: {primeiro.get_attribute("id")}')
+                time.sleep(0.3)
             except Exception as e:
-                logger.warning(f'Erro ao clicar checkbox: {e}')
-        
-        logger.info(f'{len(labels)} checkbox(es) marcados no polo {polo}')
-        time.sleep(0.5)
+                logger.warning(f'[BNDT/INCLUSAO] Erro ao clicar primeiro checkbox: {e}')
+                driver.execute_script('arguments[0].click();', primeiro)
+
+            logger.info(f'[BNDT/INCLUSAO] 1 checkbox marcado no polo {polo}')
+            time.sleep(0.5)
+
+        else:
+            # EXCLUSAO: usar seletor idêntico ao maispje
+            # 'pje-bndt-exclusao label[for*="debito"][for*="-input"]'
+            seletor_exclusao = 'pje-bndt-exclusao label[for*="debito"][for*="-input"]'
+            try:
+                WebDriverWait(driver, 8).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, seletor_exclusao))
+                )
+            except Exception:
+                pass
+
+            labels = driver.find_elements(By.CSS_SELECTOR, seletor_exclusao)
+            if not labels:
+                # Fallback: tentar com seletor de partes (caso o HTML seja similar ao inclusão)
+                labels = driver.find_elements(
+                    By.CSS_SELECTOR,
+                    'pje-bndt-exclusao mat-checkbox[id^="parte"] label'
+                )
+
+            if not labels:
+                logger.warning(f'Nenhum checkbox de débito encontrado no polo {polo} para exclusão')
+                return
+
+            try:
+                driver.execute_script('window.focus();')
+            except Exception:
+                pass
+
+            for label in labels:
+                try:
+                    driver.execute_script('arguments[0].click();', label)
+                    time.sleep(0.1)
+                except Exception as e:
+                    logger.warning(f'Erro ao clicar checkbox de débito: {e}')
+
+            logger.info(f'[BNDT/EXCLUSAO] {len(labels)} checkbox(es) de débito marcados no polo {polo}')
+            time.sleep(0.5)
+
     except Exception as e:
         logger.warning(f'Erro ao marcar checkboxes no polo {polo}: {e}')
 
@@ -1573,6 +1651,13 @@ def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
 def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
     """Clica Gravar e confirma para um polo específico."""
     logger.info(f'Procurando botão Gravar para polo {polo}...')
+
+    # Garantir foco na janela (equivalente ao window.focus() do maispje)
+    try:
+        driver.execute_script('window.focus();')
+    except Exception:
+        pass
+
     btn_gravar = None
     container_operacao = 'pje-bndt-inclusao' if inclusao else 'pje-bndt-exclusao'
     selectors_gravar = [

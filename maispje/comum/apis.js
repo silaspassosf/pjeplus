@@ -101,6 +101,7 @@ class ApiWrapper {
    * @param {string} dominio - Domínio base da API.
    * @param {Object} [params={}] - Parâmetros do path e query string.
    * @param {Object} [fetchOptions={}] - Opções adicionais para o fetch (headers, body, etc).
+   * @param {Object} [extraOptions={}] - Se precisar de alguma opção extra.
    * @returns {Promise<any>} Resposta da API em JSON.
    * @throws {Error} Se a resposta HTTP não for OK.
    */
@@ -351,7 +352,8 @@ const apis = {
       {
         somenteDocumentosAssinados: 'false', //tem que por entre aspas pois se deixar sem elas o parametro não aparece na url
         buscarMovimentos: 'false', //tem que por entre aspas pois se deixar sem elas o parametro não aparece na url
-        buscarDocumentos: true
+        buscarDocumentos: true,
+        ordemAscendente: undefined
       }
     ),
 
@@ -387,7 +389,8 @@ const apis = {
       {
         pagina: 1,
         nomeParte: '{nomeParte}',
-        tamanhoPagina: 1000
+        tamanhoPagina: 1000,
+        guia: undefined
       }
     ),
 
@@ -398,7 +401,9 @@ const apis = {
 
     consultaProcessosBasicos: new ApiWrapper(
       '/pje-consulta-api/api/processos/dadosbasicos/{numero}',
-      {}
+      {
+        guia: undefined
+      }
     ),
 
     pessoasFisicas: new ApiWrapper(

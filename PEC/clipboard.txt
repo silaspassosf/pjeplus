@@ -304,3 +304,118 @@ PROCESSO: 1001097-90.2025.5.02.0703
 Prazo: 15 dias (19/06/2026)
 ==================================================
 
+
+==================================================
+PROCESSO: 1001293-65.2022.5.02.0703
+==================================================
+    Id Pje: 910d2e5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH211575187BR
+    Destinatario: HENRIQUE MELO SOUSA BARROSO
+    Data do envio: 11/06/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: 60c74eb
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH211575173BR
+    Destinatario: HENRIQUE MELO SOUSA BARROSO
+    Data do envio: 11/06/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 15 dias (02/07/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001293-65.2022.5.02.0703
+==================================================
+    Id Pje: 910d2e5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH211575187BR
+    Destinatario: HENRIQUE MELO SOUSA BARROSO
+    Data do envio: 11/06/2026
+    Data da entrega: 23/06/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 60c74eb
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH211575173BR
+    Destinatario: HENRIQUE MELO SOUSA BARROSO
+    Data do envio: 11/06/2026
+    Data da entrega: 23/06/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (16/07/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001474-61.2025.5.02.0703
+==================================================
+    Id Pje: 88a931b
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH211599135BR
+    Destinatario: ERCILIA SALGUERO RODRIGUES GARCIA
+    Data do envio: 11/06/2026
+    Data da entrega: 23/06/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 741886c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH211599121BR
+    Destinatario: WELLINGTON SALGUEIRO GARCIA
+    Data do envio: 11/06/2026
+    Data da entrega: 23/06/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (16/07/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001922-34.2025.5.02.0703
+==================================================
+    Id Pje: 72ec0a1
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH211427016BR
+    Destinatario: RONALDO APARECIDO DE LIMA
+    Data do envio: 10/06/2026
+    Data da entrega: 19/06/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (01/07/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26050609354257500000458918463?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26050820534952200000459630983?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26020621143720500000442251455?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26042121180027500000456074443?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001555-44.2024.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1001555-44.2024.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>24/07/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 15.961,02 (quinze mil  e novecentos e sessenta e um reais e dois centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>JESICA ARLENE DA SILVA - [368.174.198-08]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>CASA DE REPOUSO VIDA ATIVA LTDA - [38.470.234]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+

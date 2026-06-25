@@ -199,10 +199,22 @@ def navigate_to_list(driver):
                 }
 
                 var tem_audiencia = false;
-                var audElements = linha.querySelectorAll('td, span, div');
-                for (var el of audElements) {
-                    var text = (el.innerText || el.textContent || '').trim();
-                    if (text.includes('Audiência em:') || text.includes('Audiência')) {
+
+                // Ajuste: evitar falso positivo do texto do header/menu.
+                // Só considera texto que esteja dentro de uma <td> daquela linha.
+                var tds = linha.querySelectorAll('td');
+                for (var i = 0; i < tds.length; i++) {
+                    var text = (tds[i].innerText || tds[i].textContent || '').trim();
+                    if (!text) continue;
+
+                    // Preferência: marcador completo "Audiência em:"
+                    if (text.includes('Audiência em:')) {
+                        tem_audiencia = true;
+                        break;
+                    }
+
+                    // Fallback: começa com "Audiência" (evita capturar "Audiência" solto espalhado)
+                    if (text.startsWith('Audiência')) {
                         tem_audiencia = true;
                         break;
                     }

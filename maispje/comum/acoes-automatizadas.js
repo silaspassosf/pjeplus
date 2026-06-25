@@ -259,7 +259,7 @@ function criarSelectAcoesAutomatizadas(preferencias, acao, aaAtual) {
 	const optionGR10 = criarOptGroup('LANÇAR MOVIMENTOS', 'LançarMovimento|', preferencias.aaLancarMovimentos, clicarContinuar, aaAtual);
 	selectAcaoAutomatizada.appendChild(optionGR10);
 
-	let aaItemMenuDetalhes = ['Listar Todas','Concluso ao Magistrado', 'Movimentar Processo', 'Guardar dados das partes', 'Abrir o Gigs', 'Acesso a Terceiros', 'Anexar documentos', 'Audiências e Sessões', 'Download do processo completo', 'BNDT', 'Abrir cálculos do processo', 'Criar Intimação/Expediente', 'Controle de Segredo', 'Abre a tela com os dados financeiros', 'Visualizar intimações/expedientes do processo', 'Histórico de Sigilo', 'Lembretes', 'Lançar movimentos', 'Obrigação de Pagar', 'Pagamento', 'Perícias', 'Quadro de recursos', 'Reprocessar chips do processo', 'Retificar autuação', 'Retirar Valor Histórico', 'Verificar Impedimentos e Suspeições', 'Consultar Domicílio Eletrônico','Copiar Número do Processo'];
+	let aaItemMenuDetalhes = ['Escolher Ação Automatizada','Concluso ao Magistrado', 'Movimentar Processo', 'Guardar dados das partes', 'Abrir o Gigs', 'Acesso a Terceiros', 'Anexar documentos', 'Audiências e Sessões', 'Download do processo completo', 'BNDT', 'Abrir cálculos do processo', 'Criar Intimação/Expediente', 'Controle de Segredo', 'Abre a tela com os dados financeiros', 'Visualizar intimações/expedientes do processo', 'Histórico de Sigilo', 'Lembretes', 'Lançar movimentos', 'Obrigação de Pagar', 'Pagamento', 'Perícias', 'Quadro de recursos', 'Reprocessar chips do processo', 'Retificar autuação', 'Retirar Valor Histórico', 'Verificar Impedimentos e Suspeições', 'Consultar Domicílio Eletrônico','Copiar Número do Processo'];
 	const optionGR11 = criarOptGroup('CLICAR EM', 'Clicar em|', aaItemMenuDetalhes, clicarContinuar, aaAtual);
 	selectAcaoAutomatizada.appendChild(optionGR11);
 
@@ -431,7 +431,6 @@ async function listaProcessoParaAcoesEmLote(listaPronta) {
 			lista_processos.id = 'maisPje_aaLote_lista_processos_textarea';
 			lista_processos.placeholder = '\n\nDigite ou cole a sua lista de processos aqui.\n\nOs números devem estar no padrão CNJ.\n\nNão importa se eles estão sozinhos ou misturados com outras palavras de texto.\n\nAo clicar em "CONTINUAR" a extensão irá encontrar os números dos processos no texto e criará uma lista.\n\nApenas os processos que fazem parte dessa nova lista é que serão utilizados para a ação automatizada em lote.\n\nBom proveito!'
 			lista_processos.ariaDescription = lista_processos.placeholder;
-			// lista_processos.value = (listaPronta) ? listaPronta : '';
 			lista_processos.value = (listaPronta) ? listaPronta : '';
 			lista_processos.style = 'width: 100%; height: 75vh;';
 			lista_processos.addEventListener("selectionchange", function (event) { ajustarNumeroDeProcessos() });
@@ -473,4 +472,91 @@ async function listaProcessoParaAcoesEmLote(listaPronta) {
 			await sleep(500);
 		}
 	}
+}
+
+/**
+ *
+ * @param {string} tarefa
+ * @param {*} aa
+ * @param {function} esperarTransicao
+ * @returns
+ */
+async function movimentar_analise(tarefa, aa, esperarTransicao) {
+    return new Promise(async resolve => {
+        let esperar = true;
+        console.log("maisPJe: movimentando o processo da tarefa " + tarefa.toUpperCase() + " para a tarefa ANÁLISE");
+        if (tarefa.includes('de desvio - controle de depend')) {
+            await clicarBotao('button', 'termino', true);
+        } else if (tarefa.includes('conclusao ao magistrado')) {
+            await clicarBotao('button', 'cancelar Conclusao', true);
+
+        } else if (tarefa.includes('preparar expedientes e comunicacoes') || tarefa.includes('comunicacoes e expedientes')) {
+            await clicarBotao('button', 'cancelar expedientes', true);
+            esperar = false;
+
+        } else if (tarefa.includes('arquivo provisorio')) {
+            await clicarBotao('input[value="Arquivo"]');
+            //interrompe qualquer ação vinculada
+            let guardarStorage = browser.storage.local.set({'AALote': ''});
+            Promise.all([guardarStorage]).then(values => {
+                window.close();
+            });
+
+        } else if (tarefa.includes('arquivo')) {
+            await clicarBotao('button', 'desarquivar', true);
+
+        } else if (tarefa.includes('aguardando final do sobrestamento')) {
+            await clicarBotao('button', 'encerrar');
+            await clicarBotao('button', 'Sim', true);
+
+        } else if (tarefa.includes('iniciar execucao')) {
+            await clicarBotao('pje-transicao-tarefa button', 'iniciar', true);
+
+        } else if (tarefa.includes('iniciar liquidacao')) {
+            await clicarBotao('pje-transicao-tarefa button', 'iniciar', true);
+
+        } else if (tarefa.includes('remeter')) {
+				// await clicarBotao('button', 'cancelar', true);
+
+            let aviso = await esperarElemento('pje-validacao-remessa mat-card');
+            await esperarDesaparecer(aviso, 500);
+            await clicarBotao('button[aria-label="Cancelar Remessa"]', null, true);
+
+        } else if (tarefa.includes('prazos vencidos - secretaria')) {
+            await clicarBotao('button', 'analise de secretaria', true);
+
+        } else if (tarefa.includes('prazos vencidos - gabinete')) {
+            await clicarBotao('button', 'analise de gabinete', true);
+
+        } else if (tarefa.includes('analise de recurso interno')) {
+            await clicarBotao('button', 'analise de gabinete', true);
+        } else if (tarefa.includes('transito em julgado')) {
+
+            let btAnalise = await esperarElemento('button[aria-label="Análise"]');
+            if (!btAnalise.hasAttribute('disabled')) {
+                await clicarBotao('button', 'analise', true);
+            }
+
+        } else { //movimentar para o Análise
+
+            if (aa && aa.destino && aa.destino.includes('?')) { aa.destino = aa.destino.replace('?','') } //a tarefa de origem é alocada como destino
+            await clicarBotao('button', 'analise', true);
+        }
+        await esperarTransicao(esperar);
+
+        resolve(true);
+    });
+}
+
+/**
+ *
+ * @param {string} responsavel
+ */
+async function inserirResponsavel(responsavel) {
+    acaoBotaoDetalhes("Abrir o GIGS"); // retirei o await pq demora uns 10 segundos para terminar
+    await esperarElemento('pje-gigs-ficha-processo'); // esse elemento ja eh parte do GIGs, entao quer dizer que carregou com sucesso.
+    await escolherOpcaoTeste('pje-gigs-cadastro-responsavel input[aria-label*="Responsável"]', responsavel.toUpperCase());
+    await clicarBotao('div[class*="cdk-overlay-backdrop"'); //fecha o gigs
+    let span_responsavel = await esperarElemento('span[class*="nome-responsavel"');
+    span_responsavel.innerText = responsavel.toUpperCase();
 }

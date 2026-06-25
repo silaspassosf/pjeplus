@@ -59,6 +59,7 @@
  *
  * @property {string} [ocultarPublicacoesDJEN]
  * @property {string} [ocultarDocumentosExcluidos]
+ * @property {string} [exibirBotoesCopiaIdTimeline]
  * @property {string} [exibirFaseProcessualNaTimeline]
  *
  * @property {number} [gigsTipoAtencao]
@@ -252,6 +253,7 @@
  * @property {string} [recebernotificacao]
  * @property {string} [email]
  * @property {string} [telefone]
+ * @property {string} [periodo]
  */
 
 /**
@@ -662,3 +664,11 @@
  * @property {string} numero - Número único do processo no formato CNJ.
  * @property {string} tarefa - Nome da tarefa ou fluxo atual em que o processo se encontra.
  */
+
+/**
+ * @typedef {Object} CalculoPJeCalc
+ * @property {number} idCalculo
+ * @property {string} reclamante
+ * @property {string} reclamada
+ */
+

@@ -122,6 +122,7 @@ function preencherVariaveisModulo1(preferencias) {
 	preferencias.ocultarPublicacoesDJEN = typeof(preferencias.ocultarPublicacoesDJEN) == "undefined" ? '' : preferencias.ocultarPublicacoesDJEN;
 	preferencias.ocultarDocumentosExcluidos = typeof(preferencias.ocultarDocumentosExcluidos) == "undefined" ? '' : preferencias.ocultarDocumentosExcluidos;
 	preferencias.exibirFaseProcessualNaTimeline = typeof(preferencias.exibirFaseProcessualNaTimeline) == "undefined" ? '' : preferencias.exibirFaseProcessualNaTimeline;
+	preferencias.exibirBotoesCopiaIdTimeline = typeof(preferencias.exibirBotoesCopiaIdTimeline) == "undefined" ? '' : preferencias.exibirBotoesCopiaIdTimeline;
 	preferencias.gigsTipoAtencao = typeof(preferencias.gigsTipoAtencao) == "undefined" ? 1 : preferencias.gigsTipoAtencao;
 
 	preferencias.gigsDetalhesLeft = typeof(preferencias.gigsDetalhesLeft) == "undefined" ? window.screen.availLeft : preferencias.gigsDetalhesLeft;
@@ -183,6 +184,7 @@ function preencherVariaveisModulo5(preferencias) {
 	preferencias.modulo5_processosParadosHaMaisDeXXDias = typeof (preferencias.modulo5_processosParadosHaMaisDeXXDias) == "undefined" ? true : preferencias.modulo5_processosParadosHaMaisDeXXDias;
 	preferencias.modulo5_conferirGarimpoEmLote = typeof (preferencias.modulo5_conferirGarimpoEmLote) == "undefined" ? true : preferencias.modulo5_conferirGarimpoEmLote;
 	preferencias.modulo5_obterConcilia = typeof (preferencias.modulo5_obterConcilia) == "undefined" ? true : preferencias.modulo5_obterConcilia;
+    preferencias.filtrosTimeline = typeof (preferencias.filtrosTimeline) == "undefined" ? [{nome:"",filtro:""},{nome:"",filtro:""},{nome:"",filtro:""},{nome:"",filtro:""},{nome:"",filtro:""}] : preferencias.filtrosTimeline;
 }
 
 /**
@@ -249,8 +251,8 @@ function preencherVariaveisConvenios(preferencias) {
 
 	preferencias.renajud = typeof(preferencias.renajud) == "undefined" ? {tipo_restricao: "", comarca: "", tribunal: "", orgao: "", juiz: "", juiz2: ""} : preferencias.renajud;
 
-	preferencias.saj = typeof(preferencias.saj) == "undefined" ? { vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "" } : preferencias.saj;
-
+	preferencias.saj = typeof(preferencias.saj) == "undefined" ? { vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "", periodo:"Nenhum" } : preferencias.saj;
+    preferencias.saj.periodo = (!preferencias.saj.periodo) ? 'Nenhum' : preferencias.saj.periodo;
 }
 
 /**

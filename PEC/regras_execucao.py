@@ -159,32 +159,32 @@ def _pz_idpj(driver, atv):
 
 
 def _xs_meios(driver, atv):
-    """xs meios: inclusao BNDT + ato meios."""
+    """xs meios: ato meios + inclusao BNDT."""
     from Fix.extracao import bndt
     from atos.judicial import ato_meios
     return _executar_passos(
-        lambda: bndt(driver, inclusao=True),
         lambda: ato_meios(driver),
+        lambda: bndt(driver, inclusao=True),
     )
 
 
 def _xs_socio(driver, atv):
-    """xs socio: inclusao BNDT + termo socio."""
+    """xs socio: termo socio + inclusao BNDT."""
     from Fix.extracao import bndt
     from atos.wrappers_ato import ato_termoS
     return _executar_passos(
-        lambda: bndt(driver, inclusao=True),
         lambda: ato_termoS(driver),
+        lambda: bndt(driver, inclusao=True),
     )
 
 
 def _empresa_termo(driver, atv):
-    """empresa termo: inclusao BNDT + termo empresa."""
+    """empresa termo: termo empresa + inclusao BNDT."""
     from Fix.extracao import bndt
     from atos.wrappers_ato import ato_termoE
     return _executar_passos(
-        lambda: bndt(driver, inclusao=True),
         lambda: ato_termoE(driver),
+        lambda: bndt(driver, inclusao=True),
     )
 
 
@@ -334,7 +334,9 @@ registry.register(r'\b(?:xs\s+sum|c\.sum)\b',                          'comunica
 registry.register(r'\bedital\s+aud\b|\bpec\s+aud\b',                    'comunicacoes', _w(_a(w, 'pec_editalaud')))
 registry.register(r'\bpz\s+idpj\b|\bidpjd\b|\bpzi\b',                 'comunicacoes', _pz_idpj)
 registry.register(r'\bpec\s+cp\b|\bxs\s+pec\s+cp\b',                   'comunicacoes', _w(_a(w, 'pec_cpgeral')))
-registry.register(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b',
+registry.register(r'\bmdd\s+pgto\b',                                  'comunicacoes', _w(_a(w, 'pec_mddpg')))
+registry.register(r'\bedital\s+(?:de\s+)?pgto\b|\bpec\s+edital\s+(?:de\s+)?pgto\b', 'comunicacoes', _w(_a(w, 'pec_editalpg')))
+registry.register(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b|\bedital\b',
                   'comunicacoes', _w(_a(w, 'pec_editaldec')))
 registry.register(r'\bpec\s+dec\b|\bxs\s+pec\s+dec\b',                 'comunicacoes', _w(_a(w, 'pec_decisao')))
 registry.register(r'\bpec\s+idpj\b|\bxs\s+pec\s+idpj\b',               'comunicacoes', _w(_a(w, 'pec_editalidpj')))
@@ -345,6 +347,7 @@ registry.register(r'\bxs\s+audx\b|\baudx\b|\baud\s+x\b',               'outros',
 registry.register(r'\bxs\s+parcial\b',                                  'outros',   _xs_parcial)
 registry.register(r'\bmeios\b',                                         'outros',   _xs_meios)
 registry.register(r'\bxs\s+socio\b',                                    'outros',   _xs_socio)
+registry.register(r'\bsociot\b',                                       'outros',   _xs_socio)
 registry.register(r'\bempresa\s*termo\b|\btermoempresa\b',              'outros',   _empresa_termo)
 
 REGRAS = registry.all_rules()

@@ -1,50 +1,57 @@
 {
   "numero": [
-    "1000292-06.2026.5.02.0703"
+    "1000352-13.2025.5.02.0703"
   ],
-  "id": 8309917,
+  "id": 7000240,
   "autor": [
     {
-      "nome": "JESSICA DA SILVA FONSECA",
-      "cpfcnpj": "47029990870",
+      "nome": "JOSEFA ANTONIA DA SILVA",
+      "cpfcnpj": "03784936474",
       "advogado": {
-        "nome": "KARINA PACHECO DE FARIAS",
-        "cpf": "27263751895",
-        "oab": "SP335097"
+        "nome": "MARCIO CARDOSO PUGLESI",
+        "cpf": "25968719800",
+        "oab": "SP219273"
       }
     }
   ],
   "reu": [
     {
-      "nome": "FIK LIMP SERVICOS ESPECIALIZADOS LTDA",
-      "cpfcnpj": "02202705000117",
-      "advogado": {
-        "nome": "LARISSA GENTINE FERREIRA",
-        "cpf": "34115328827",
-        "oab": "SP446158"
-      }
+      "nome": "DINIZ GASTRONOMIA LTDA",
+      "cpfcnpj": "30670530000108"
+    },
+    {
+      "nome": "BAR DO GYN BEBIDAS ESPECIALIZADAS LTDA",
+      "cpfcnpj": "53186294000154"
+    },
+    {
+      "nome": "BRUNA MARTINS DA SILVA",
+      "cpfcnpj": "36533008862"
     }
   ],
   "terceiro": [],
-  "divida": {},
+  "divida": {
+    "valor": "R$ 46.693,80",
+    "data": "22/05/2026"
+  },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "21/02/2026",
+  "dtAutuacao": "08/03/2025",
   "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 64840.01,
+    "pisoValorCausa": 3242.01,
+    "tetoValorCausa": 64840.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Liquidação",
+  "labelFaseProcessual": "Execução",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

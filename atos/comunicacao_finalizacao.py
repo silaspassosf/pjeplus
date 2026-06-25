@@ -206,7 +206,7 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
     if modelo_troca:
         modelo_reaplicar = modelo_troca
     else:
-        modelo_reaplicar = 'zsumc' if tipo_ato == 'ATSUM' else 'zordc'
+        modelo_reaplicar = 'ar-sum' if tipo_ato == 'ATSUM' else 'ar-ord'
     log(f'[TROCAR_MODELO] Tipo={tipo_ato}, modelo={modelo_reaplicar}')
 
     total = _contar_linhas_correios(driver)

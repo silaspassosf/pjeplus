@@ -19,21 +19,23 @@ const regrasGerais = [
     //JANELA ESCANINHO
     {id:12,url:['/pjekz/escaninho/'],regra:'button[aria-label*="Detalhes do Processo"]',ativado:false},
     {id:13,url:['/pjekz/escaninho/'],regra:'button[aria-label*="Abrir o GIGS"]',ativado:false},
+    {id:14,url:['/pjekz/escaninho/'],regra:'.link-icone-kz',ativado:false}, //é o kaizen da janela Situação Alvará no escaninho
+    {id:15,url:['/pjekz/escaninho/'],regra:'button[aria-label*="Visualizar comprovante"]',ativado:false},
+    {id:16,url:['/pjekz/escaninho/'],regra:'button[aria-label*="Importar comprovante de alvará"]',ativado:false},
+    {id:17,url:['/pjekz/escaninho/'],regra:'button[aria-label*="Remover alvará"]',ativado:false},
+    //aria-label="Visualizar comprovante"
+
+    //QUADRO AVISO
+    {id:18,url:['/pjekz/quadro-avisos/visualizar'],regra:'.item-menu',ativado:false}, //janela principal > painel lateral
+    {id:19,url:['/pjekz/quadro-avisos/visualizar'],regra:'button[aria-label="Menu Completo"]',ativado:false}, //botao do menu geral
+    //MENU SUSPENSO
+    {id:20,url:['/pjekz/gigs/meu-painel'],regra:'input[src*="assets/images/dock-menu/"]',ativado:false}, //botao do menu geral
 
     //JANELA DETALHES DO PROCESSO
-    {id:14,url:['/pjekz/processo/','/detalhe'],regra:'a[class*="tl-documento"][href*="/conteudo"]',ativado:false},
-    {id:15,url:['/pjekz/processo/','/detalhe'],regra:'button[mattooltip="Editar Atividade"]',ativado:false},
-    {id:16,url:['/pjekz/processo/','/detalhe'],regra:'button[mattooltip="Concluir Atividade"]',ativado:false},
+    // {id:14,url:['/pjekz/processo/','/detalhe'],regra:'a[class*="tl-documento"][href*="/conteudo"]',ativado:false},
+    // {id:15,url:['/pjekz/processo/','/detalhe'],regra:'button[mattooltip="Editar Atividade"]',ativado:false},
+    // {id:16,url:['/pjekz/processo/','/detalhe'],regra:'button[mattooltip="Concluir Atividade"]',ativado:false},
 ];
-
-        // '[id*="maisPje_bt_principal_"]:not([maispje_acionarcliquerapido="true"])', //janela principal > painel lateral - botoes inseridos pela maisPJe
-    // 'button[aria-label*="Detalhes do Processo"]:not([maispje_acionarcliquerapido="true"])', // menu do kaizen que leva a Janela Detalhes do processo
-    // '#botao-menu:not([maispje_acionarcliquerapido="true"])', //janela principal > menu geral
-    // '.mat-icon-button:not([maispje_acionarcliquerapido="true"])', //botoes gerais
-    // 'i[role="button"]:not([maispje_acionarcliquerapido="true"])', //janela principal > filtros pje
-    // 'pje-painel-item[linkpainel="/painel/global"] mat-card:not([maispje_acionarcliquerapido="true"])', //janela principal > filtros pje
-    // 'pje-item-menu-sobreposto .item-menu:not([maispje_acionarcliquerapido="true"])', //item do submenu principal
-    // 'pje-icone-clipboard:not([maispje_acionarcliquerapido="true"])', //não funciona por causa de questões de segurança
 
 var regrasUsuario;
 /*
@@ -45,18 +47,121 @@ var tempo;
 var configuracaoAtivada = false;
 const verificarURL = (url) => document.location.href.includes(url);
 
-function iniciar() {
+async function iniciar() {
     if (!preferencias.extrasAcionarBotoesSemCliqueAtivar) { return }
-    // console.log(preferencias.extrasAcionarBotoesSemCliqueRegras)
+    configuracaoAtivada = preferencias.extrasAcionarBotoesSemCliqueAtivar
     regrasUsuario = preferencias.extrasAcionarBotoesSemCliqueRegras;
-    // console.log(regrasUsuario)
     if (!regrasUsuario?.length) { regrasUsuario = [...regrasGerais] } //vazio, nulo ou undefined
     tempo = (preferencias.extrasAcionarBotoesSemCliqueTempo == null || preferencias.extrasAcionarBotoesSemCliqueTempo.trim() == '') ? '1' : preferencias.extrasAcionarBotoesSemCliqueTempo;
-    browser.runtime.sendMessage({
-        tipo: "insertCSS",
-        file: "maisPJe_cliquerapido.css",
-    });
+
+    //CSS
+    if (!document.querySelector('#maisPje_cliquerapido_css')) {
+        let scriptCcs = `maisPje_bloquearTela {
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 999; background-color: #0000;
+        }
+
+        maisPje_bloquearTela_btSalvar {
+            position: absolute;
+            cursor: pointer;
+            right: 48vw;
+            top: 90vh;
+            border: none;
+            background-color: white;
+            font-size: 2rem;
+            scale: 1;
+            border-radius: 50%;
+            width: 4rem;
+            height: 4rem;
+            align-content: center;
+            text-align: center;
+            box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+        }
+
+        maisPje_bloquearTela_btSalvar::before {
+            content: "💾";
+        }
+
+        maisPje_bloquearTela_btSalvar:hover {
+            scale: 1.2;
+        }
+
+        maispjeMap {
+            position: absolute;
+            z-index: 9;
+        }
+
+        maispjeMap.desativado {
+            outline: .2rem dashed orangered;
+            background-color: unset;
+        }
+
+        maispjeMap.ativado {
+            outline: .2rem solid orangered;
+            background-color: #ff45002e;
+        }
+
+        maispjeMap:hover {
+            background-color: #ff450099;
+            cursor: pointer;
+        }
+
+        .maisPJe-cliqueRapido-bloqueio {
+            pointer-events: none;
+        }
+
+        maisPJeLoader {
+            position: absolute;
+            display:block;
+            top:0;
+            left:0;
+            width:1em;
+            height:1em;
+            border-radius: 50%;
+            transform:rotate(45deg);
+            background: #fff;
+            outline: .1rem solid dodgerblue;
+        }
+
+        maisPJeLoader::before {
+            content: "";
+            box-sizing: border-box;
+            position: absolute;
+            inset: 0px;
+            border-radius: 50%;
+            border:.5em solid dodgerblue;
+            animation: maisPJe_acionarCliqueRapido var(--tempo) linear;
+        }
+
+        @keyframes maisPJe_acionarCliqueRapido {
+            0% { clip-path:polygon(50% 50%,0 0,0 0,0 0,0 0,0 0) }
+            25% { clip-path:polygon(50% 50%,0 0,100% 0,100% 0,100% 0,100% 0) }
+            50% { clip-path:polygon(50% 50%,0 0,100% 0,100% 100%,100% 100%,100% 100%) }
+            75% { clip-path:polygon(50% 50%,0 0,100% 0,100% 100%,0 100%,0 100%) }
+            100% { clip-path:polygon(50% 50%,0 0,100% 0,100% 100%,0 100%,0 0) }
+        }
+
+        @keyframes maisPJe_acionarCliqueRapido_mapeado {
+            0% { outline: 0px solid #ff450082 }
+            25% { outline: 2.5px solid #ff450082 }
+            50% { outline: 5px solid #ff450082 }
+            75% { outline: 2.5px solid #ff450082 }
+            100% { outline: 0px solid #ff450082 }
+        }
+
+        .div-coluna-processo-esquerda {
+            position: relative !important;
+        }`;
+
+        let style = document.createElement("style");
+        style.id = "maisPje_cliquerapido_css";
+        style.textContent = scriptCcs;
+        document.body.appendChild(style);
+    }
     return;
+
+    //não funcionou muito bem a injeção pelo background
+    // let injecaoCCS = await browser.runtime.sendMessage({ tipo: "insertCSS", file: "maisPJe_cliquerapido.css" });
+    // return injecaoCCS;
 }
 
 async function obterRegrasUsuario() {
@@ -76,12 +181,16 @@ async function obterRegrasUsuario() {
 async function mapearElementosParaCliqueRapido() {
 	return new Promise(async resolver => {
         if (!iniciar()) { return }
+
+        //primeiro acesso.. quando faz login
+        if (document.location.href.slice(-7) == '/pjekz/') { await esperarLogin() }
+
         let seletor = await obterRegrasUsuario();
         if (!seletor) { return }
         // console.log('maisPJe: mapearElementosParaCliqueRapido()');
 
-        await sleep(1000); //eséra 1 segundo antes de mapear
-        //PRIMEIRA ETAPA: MAPEIA DE IMEDIATO
+        // await sleep(1000); //espera 1 segundo antes de mapear
+        //PRIMEIRA ETAPA: MAPEIA DE IMEDIATO DOS ITENS QUE JÁ ESTÃO NA TELA
         document.querySelectorAll(seletor).forEach((item) => {
             // console.debug('    |___*' + item.tagName + ' id=' + item.id  + ' name=' + item.name + ' class=' + item.className + ' : mapeado!')
             acionarCliqueRapido(item);
@@ -89,15 +198,25 @@ async function mapearElementosParaCliqueRapido() {
 
 
         //SEGUNDA ETAPA: MAPEIA CONFORME OS ELEMENTOS VÃO SURGINDO
-        let timer; //faz com que a função de obeservar novos documentos seja executada apenas quando o intervalo entre cada mutation seja maior que 1 segundo
+        // let timer; //faz com que a função de observar novos documentos seja executada apenas quando o intervalo entre cada mutation seja maior que 1 segundo
         let trocaURL = ""; //sempre que troca a URL, refaz as regras do usuario
         let observerCliqueRapido = new MutationObserver(async function(mutationsDocumento) {
-            if (document.location.href != trocaURL) { console.log('*******************trocou a url');console.log('*******************era ' + trocaURL); console.log('*******************ficou ' + document.location.href); trocaURL = document.location.href; seletor = await obterRegrasUsuario();}
-            if (timer) clearTimeout(timer);
-			timer = setTimeout(() => {
+
+            if (document.location.href != trocaURL) {
+                console.log('*******************trocou a url');console.log('*******************era ' + trocaURL);
+                console.log('*******************ficou ' + document.location.href);
+                trocaURL = document.location.href;
+                seletor = await obterRegrasUsuario();
+            }
+
+            // if (timer) clearTimeout(timer);
+			// timer = setTimeout(() => {
                 mutationsDocumento.forEach(async function(mutation) {
                     if (!mutation.addedNodes[0]) { return }
                     if (!mutation.addedNodes[0].tagName) { return }
+
+                    // console.debug('    |___**' + mutation.addedNodes[0].tagName + ' id=' + mutation.addedNodes[0].id  + ' name=' + mutation.addedNodes[0].name + ' class=' + mutation.addedNodes[0].className)
+
                     if (mutation.addedNodes[0].hasAttribute('maispje_acionarcliquerapido')) { return } //itens já mapeados
                     if(!seletor?.length) { return }
                     for (const [pos, item] of document.querySelectorAll(seletor).entries()) {
@@ -105,7 +224,7 @@ async function mapearElementosParaCliqueRapido() {
                         await acionarCliqueRapido(item);
                     }
                 });
-            }, 1000);
+            // }, 1000);
         });
         observerCliqueRapido.observe(document.body, { childList: true, subtree: true });
 
@@ -128,16 +247,16 @@ async function acionarCliqueRapido(elemento) {
             // } else if (elemento.tagName == 'I' && elemento?.getAttribute('role') == 'button') { //EXCEÇÃO > filtros da janela principal
             // } else if (elemento.tagName == 'MAT-CARD' && elemento?.getAttribute('role') == 'list') { //painéis do painel global
             // } else {
-                if (!['BUTTON','A','MAT-CARD'].includes(elemento.tagName)) { //menu kaizen e gerais
+                if (!['BUTTON','A','MAT-CARD','INPUT'].includes(elemento.tagName)) { //menu kaizen e gerais
                     // console.debug('    |___"' + elemento.tagName + '" não compatível. Trocar por firstChild')
                     elemento = elemento.firstChild;
-                    if (elemento && !['BUTTON','A','MAT-CARD'].includes(elemento.tagName)) {
+                    if (elemento && !['BUTTON','A','MAT-CARD','INPUT'].includes(elemento.tagName)) {
                         // console.debug('    |___"' + elemento.tagName + '" não compatível. Trocar por firstChild')
                         elemento = elemento.firstChild;
-                        if (elemento && !['BUTTON','A','MAT-CARD'].includes(elemento.tagName)) {
+                        if (elemento && !['BUTTON','A','MAT-CARD','INPUT'].includes(elemento.tagName)) {
                             // console.debug('    |___"' + elemento.tagName + '" não compatível. Trocar por firstChild')
                             elemento = elemento.firstChild;
-                            if (elemento && !['BUTTON','A','MAT-CARD'].includes(elemento.tagName)) {
+                            if (elemento && !['BUTTON','A','MAT-CARD','INPUT'].includes(elemento.tagName)) {
                                 // console.debug('    |___"' + elemento.tagName + '" não compatível. Encerrar acionarSemClique()!')
                                 return;
                             }
@@ -152,26 +271,28 @@ async function acionarCliqueRapido(elemento) {
 
             elemento.classList.remove('maisPJe-cliqueRapido-desativado');
             elemento.setAttribute('maispje_acionarcliquerapido','true');
+            elemento.style.animation = 'maisPJe_acionarCliqueRapido_mapeado 0.5s linear';
 
             elemento.addEventListener("click", function (event) {
-                if (configuracaoAtivada) { return }
+                if (!configuracaoAtivada) { return }
                 let el = event.target;
                 clearInterval(check99);
                 mouseEmCima = false;
                 el.querySelector('maisPJeLoader')?.remove();
-                el.style.visibility = 'hidden'; //desaparece para não ficar acionando caso o usuário fique com o mouse parado. volta apenas após 4 segundos
-                setTimeout(function() {el.style.visibility = 'visible';}, 4000); //retorna após 4 segundos
+                el.style.pointerEvents = 'none'; //desativa os eventos do mouse caso o usuário fique com o mouse parado. volta apenas após 6 segundos
+                setTimeout(function() {el.style.pointerEvents = 'auto';}, 6000); //retorna após 6 segundos
             });
 
             elemento.onmouseenter = async function (event) {
-                if (configuracaoAtivada) { return }
+                if (!configuracaoAtivada) { return }
                 event.preventDefault();
                 if (mouseEmCima) { return }
                 let el = event.target;
                 if (!el.querySelector('maisPJeLoader')) {
                     let loader = document.createElement('maisPJeLoader');
                     loader.style.setProperty('--tempo',temporizador+'s');
-                    el.appendChild(loader)
+                    let elementoAncora = (el.tagName == 'INPUT') ? el.parentElement : el; //pq o input não exibe o loader dentro dele
+                    elementoAncora.appendChild(loader)
                 }
                 mouseEmCima = true;
                 let seg = 1;
@@ -187,9 +308,9 @@ async function acionarCliqueRapido(elemento) {
             };
 
             elemento.onmouseleave = function (event) {
-                if (configuracaoAtivada) { return }
+                if (!configuracaoAtivada) { return }
                 event.preventDefault();
-                let el = event.target;
+                let el = event.target.parentElement; // usei o parentelement por causa dos inputs, ver listener onmouseenter desse elemento
                 el.querySelector('maisPJeLoader')?.remove();
                 mouseEmCima = false;
                 clearInterval(check99);
@@ -201,8 +322,11 @@ async function acionarCliqueRapido(elemento) {
 
 async function configurarBotoesMapeados() {
     if (!iniciar()) { return }
+    await esperarElemento('#maisPje_cliquerapido_css')
+
     console.debug('maisPje: configurarBotoesMapeados()');
     configuracaoAtivada = true;
+    const estiloAntigo = document.querySelector('menumaispje').style.display;
     document.querySelector('menumaispje').style.display = 'none';//oculta o menu kaizen para não atrapalhar
     regrasGerais.forEach((item) => {
         if (item.url.every(verificarURL)) { //separa apenas as regras cabíveis à URL
@@ -213,6 +337,7 @@ async function configurarBotoesMapeados() {
             });
         }
     });
+    document.querySelector('menumaispje').style.display = estiloAntigo;//volta o menu kaizen para que ele nao fique sumido
 }
 
 async function criarSombra(rect, dados) {
@@ -220,7 +345,7 @@ async function criarSombra(rect, dados) {
 		if (!document.querySelector('maisPje_bloquearTela')) {
             let fundo = document.createElement("maisPje_bloquearTela");
             let btSalvar = document.createElement('maisPje_bloquearTela_btSalvar');
-            btSalvar.aria = 'Salvar regras';
+            btSalvar.ariaLabel = 'Salvar regras';
             btSalvar.onclick = function () {//salvar
                 let limparStorage = browser.storage.local.set({'extrasAcionarBotoesSemCliqueRegras': regrasUsuario});
                 Promise.all([limparStorage]).then(async values => {
@@ -258,3 +383,16 @@ async function criarSombra(rect, dados) {
         return resolve(true);
 	});
 }
+
+async function esperarLogin() {
+    return new Promise(async resolve => {
+        let check = setInterval(function() {
+            if (document.location.href.includes('/pjekz/gigs/meu-painel') || document.location.href.includes('/pjekz/quadro-avisos/visualizar')) {
+                clearInterval(check);
+                return resolve(true);
+            }
+        }, 100);
+    });
+}
+
+

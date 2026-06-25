@@ -70,17 +70,39 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             logger.warning(f'[PRAZOS] Erro ao preencher campos de prazo: {e}')
             return False
 
-        # Clicar em "Gravar"
+        # Clicar em "Gravar" (padrão leg — overlay clearing + XPATH seguro)
         try:
             logger.info('[PRAZOS] Tentando gravar prazos...')
 
+            # Limpar overlays antes de clicar (leg pattern)
+            driver.execute_script("""
+                const overlays = document.querySelectorAll('.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane');
+                overlays.forEach(overlay => {
+                    if (overlay.style) overlay.style.display = 'none';
+                });
+                const snackbars = document.querySelectorAll('snack-bar-container, simple-snack-bar');
+                snackbars.forEach(snack => {
+                    if (snack.style) snack.style.display = 'none';
+                });
+                document.body.style.overflow = 'visible';
+            """)
+
+            # XPATH com exclusão de botão movimento (leg pattern: not(contains(@aria-label, 'movimentos')))
             btn_gravar_prazo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button')]"))
+                EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]"))
             )
 
-            safe_click_no_scroll(driver, btn_gravar_prazo, log=False)
-            logger.info('[PRAZOS] Prazos gravados')
-            time.sleep(1)
+            if btn_gravar_prazo.is_displayed() and btn_gravar_prazo.is_enabled():
+                if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
+                    logger.info('[PRAZOS] ✅ Prazos gravados via safe_click_no_scroll')
+                else:
+                    logger.warning('[PRAZOS] Falha em safe_click_no_scroll, tentando .click()')
+                    btn_gravar_prazo.click()
+                    logger.info('[PRAZOS] ✅ Prazos gravados via Selenium')
+                time.sleep(1)
+                logger.info('[PRAZOS] ✅ Gravação de prazos concluída')
+            else:
+                logger.warning('[PRAZOS] Botão Gravar não está disponível')
 
         except Exception as e:
             logger.warning(f'[PRAZOS] Não foi possível gravar prazos: {e}')

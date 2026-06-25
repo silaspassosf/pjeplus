@@ -41,6 +41,7 @@ function getItensModulo1SemAtalhos(salvarOpcoes) {
         new ItemCheckboxMenu('ocultarPublicacoesDJEN', salvarOpcoes),
         new ItemCheckboxMenu('ocultarDocumentosExcluidos', salvarOpcoes),
         new ItemCheckboxMenu('exibirFaseProcessualNaTimeline', salvarOpcoes),
+        new ItemCheckboxMenu('exibirBotoesCopiaIdTimeline', salvarOpcoes),
     ]
-    return itensMenu    
+    return itensMenu
 }

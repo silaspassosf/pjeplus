@@ -211,7 +211,7 @@ async function obterUrlsConciliaJT(trt, forcar = false) {
 
 			if (forcar || verificador) {
 
-				let url = 'https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json';
+				let url = 'https://portal.trt12.jus.br/appexterno/maispje/versoes/configURLs.json';
 
 				configBase = await fetch(url).then(function (response) {  //configurações existentes do site
 					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
@@ -225,7 +225,7 @@ async function obterUrlsConciliaJT(trt, forcar = false) {
 				})
 				.then(data=> data[trt] || null)
 				.catch(function (err) {
-					console.error('configUrl error', err, data, trt)
+					console.error('configUrl error', err, trt)
 					alert(`maisPJE: erro ao acessar  ${url}`);
 					return resolve(undefined);
 				});

@@ -358,37 +358,39 @@
             if (qualidade.faltando && qualidade.faltando.length > 0) {
                 dbg('[HCalc] Qualidade insuficiente — tentando fallback OCR');
                 try {
-                    // Carregar Tesseract dinamicamente e renderizar páginas para OCR
-                    if (!window.Tesseract) {
-                        await new Promise(function (resolve, reject) {
-                            var s = document.createElement('script');
-                            s.src = 'https://unpkg.com/tesseract.js@2.1.5/dist/tesseract.min.js';
-                            s.onload = resolve; s.onerror = reject;
-                            document.head.appendChild(s);
+                    if (window.Tesseract) {
+                        dbg('[HCalc] Iniciando Tesseract Worker (via CDN permitida)...');
+                        const worker = await window.Tesseract.createWorker({
+                            workerPath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/worker.min.js',
+                            corePath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js-core/4.0.3/tesseract-core.wasm.js',
+                            langPath: 'https://raw.githubusercontent.com/naptha/tessdata/gh-pages/4.0.0',
+                            logger: function (m) { if (m.status === 'recognizing text' && HCALC_DEBUG) console.log(m); }
                         });
-                    }
-
-                    if (window.Tesseract && window.Tesseract.createWorker) {
-                        const worker = window.Tesseract.createWorker({ logger: function () {} });
-                        await worker.load();
-                        try { await worker.loadLanguage('por'); await worker.initialize('por'); } catch (e) { /* ignore */ }
+                        
+                        await worker.loadLanguage('por');
+                        await worker.initialize('por');
 
                         const ocrPages = [];
+                        // Renderizar e fazer OCR iterando paginas
                         for (let p2 = 1; p2 <= pdf.numPages; p2++) {
                             try {
                                 const page2 = await pdf.getPage(p2);
-                                const viewport = page2.getViewport({ scale: 2 });
+                                // Scale 1.5 é o sweet spot entre qualidade e performance de memória p/ OCR em navegador
+                                const viewport = page2.getViewport({ scale: 1.5 });
                                 const canvas = document.createElement('canvas');
                                 canvas.width = Math.floor(viewport.width);
                                 canvas.height = Math.floor(viewport.height);
                                 const ctx = canvas.getContext('2d');
                                 await page2.render({ canvasContext: ctx, viewport: viewport }).promise;
                                 const dataUrl = canvas.toDataURL('image/png');
-                                const res = await worker.recognize(dataUrl, 'por');
+                                const res = await worker.recognize(dataUrl);
                                 const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
                                 if (txt) ocrPages.push(txt);
+                                
+                                // Opcional: Se já extrairmos as informações cruciais na primeira página OCR, podemos abortar as demais para acelerar.
+                                // Porém, como a planilha pode ter honorários/INSS na última página, seguimos varrendo.
                             } catch (e) {
-                                console.warn('[HCalc] OCR página falhou', e && e.message);
+                                console.warn('[HCalc] OCR página ' + p2 + ' falhou:', e && e.message);
                             }
                         }
                         await worker.terminate();

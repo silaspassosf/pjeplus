@@ -374,11 +374,11 @@ function configurarBotaoPDF(pdfUrl, idDocumento) {
 }
 
 async function configurarERec(href) {
-    browser.runtime.sendMessage({
+    await browser.runtime.sendMessage({
         tipo: "insertCSS",
         file: "maisPJe_erec.css",
     });
-    browser.runtime.sendMessage({
+    await browser.runtime.sendMessage({
         tipo: "insertCSS",
         file: "maisPJe_icones.css",
     });

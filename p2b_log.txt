@@ -1,3 +1,3 @@
-# Ultima execucao P2B: 2026-06-12 00:03:44.576901
-# Script: D:\PjePlus\f.py
-# Argumentos: dom 8296007
+# Ultima execucao P2B: 2026-06-25 16:48:40.403249
+# Script: D:\PjePlus\x.py
+# Argumentos: 

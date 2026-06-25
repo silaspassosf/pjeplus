@@ -54,8 +54,7 @@ pec_idpj = make_comunicacao_wrapper(
     subtipo="Intimação",
     descricao="Intimação para manifestação sobre IDPJ",
     tipo_prazo='dias uteis',
-    gigs_extra=(7, 'xs carta'),
-    destinatarios='extraido',
+    gigs_extra=(7, 'xs carta'),    
     cliques_polo_passivo=2,
     endereco_tipo='correios'  # Alterado de mudar_expediente=True
 )
@@ -122,6 +121,17 @@ pec_mddgeral = make_comunicacao_wrapper(
     destinatarios='polo_passivo'
 )
 
+pec_mddpg = make_comunicacao_wrapper(
+    tipo_expediente='Mandado',
+    prazo=8,
+    nome_comunicacao='Mandado Pgto',
+    sigilo=False,
+    modelo_nome='mddpgt',
+    subtipo='Mandado',
+    gigs_extra=None,
+    destinatarios='polo_passivo'
+)
+
 pec_mddaud = make_comunicacao_wrapper(
     tipo_expediente='Mandado',
     prazo=1,
@@ -143,6 +153,18 @@ pec_editalaud = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios='polo_passivo',
     wrapper_name='pec_editalaud'
+)
+
+pec_editalpg = make_comunicacao_wrapper(
+    tipo_expediente='Edital',
+    prazo=2,
+    nome_comunicacao='Edital Pgto',
+    sigilo=False,
+    modelo_nome='PagamentoEd',
+    subtipo='Edital',
+    gigs_extra=None,
+    destinatarios='polo_passivo',
+    wrapper_name='pec_editalpg'
 )
 
 pec_sigilo = make_comunicacao_wrapper(

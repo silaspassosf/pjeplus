@@ -1,6 +1,6 @@
 # f.py -- Harness de teste isolado: Multi-testes
 # Uso: py f.py [teste] [id_processo]
-#   teste disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem, probe, tdbg, todos
+#   teste disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, juntada, triagem, probe, tdbg, todos
 #   Exemplos:
 #     py f.py argos            → teste Argos no processo padrão (7508281)
 #     py f.py argos 7449746    → teste Argos no processo 7449746
@@ -1037,7 +1037,7 @@ if __name__ == '__main__':
         teste_sisbajud_ordem(id_p)
     elif teste in ('pecord', '6'):
         teste_pec_ord(id_p)
-    elif teste in ('anex', 'anex_carta', 'carta', '7'):
+    elif teste in ('anex', 'anex_carta', 'carta', 'juntada', '7'):
         teste_anex_carta(id_p)
     elif teste in ('triagem', 'bianca', '8'):
         teste_triagem_peticao(id_p)
@@ -1157,5 +1157,5 @@ if __name__ == '__main__':
         teste_dom_lembrete_detection(id_p)
     else:
         print(f'Teste desconhecido: {teste}')
-        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem, probe, tdbg, dom, todos')
+        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, juntada, triagem, probe, tdbg, dom, todos')
         print('Uso: py f.py <teste> [id_processo]')

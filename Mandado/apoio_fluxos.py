@@ -193,7 +193,7 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
 def _extrair_id_processo_da_url(driver: WebDriver) -> Optional[str]:
     """Extrai id_processo numérico da URL atual do PJe (/processo/{id}/)."""
     try:
-        m = re.search(r'/processo/(\d+)/', driver.current_url)
+        m = re.search(r'/processo/(\d+)', driver.current_url)
         return m.group(1) if m else None
     except Exception:
         return None
@@ -303,6 +303,139 @@ def _extrair_texto_certidao_via_api(driver: WebDriver, log: bool = True) -> Opti
         if log:
             logger.error('[CERTIDAO_API] Erro: %s', e)
         return None
+
+
+
+# ── extração de documentos decisão/despacho via API (igual P2B) ─────────────
+
+def _extrair_documentos_decisao_despacho_api(driver: WebDriver, log: bool = True) -> List[Tuple[str, str, int]]:
+	"""Extrai documentos de decisão/despacho via API (timeline → PDF → pdfplumber).
+
+	Mesmo approach do P2B (extrair_documento_relevante em p2b_gateway.py).
+	Busca TODOS os documentos despacho/decisão/sentença/conclusão da timeline,
+	baixa o PDF de cada um e extrai o texto com pdfplumber.
+
+	Retorna lista de (texto_documento, tipo_documento, idx) — compatível com o
+	formato esperado pelo loop de aplicar_regras_argos().
+
+	Limite interno de 3 documentos (igual ao loop DOM original).
+	"""
+	import io as _io
+	import unicodedata
+
+	_TIPOS_RELEVANTES = re.compile(
+		r'^(despacho|decis[aã]o|senten[cç]a|conclus[aã]o)',
+		re.IGNORECASE,
+	)
+
+	def _norm(t):
+		return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
+
+	id_processo = _extrair_id_processo_da_url(driver)
+	if not id_processo:
+		if log:
+			logger.warning('[ARGOS_API] id_processo não encontrado na URL')
+		return []
+
+	client = _criar_api_client_local(driver)
+	if not client:
+		if log:
+			logger.warning('[ARGOS_API] Falha ao criar API client')
+		return []
+
+	try:
+		timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
+		if not timeline:
+			if log:
+				logger.info('[ARGOS_API] Timeline vazia')
+			return []
+
+		# Filtrar documentos relevantes (despacho/decisão/sentença/conclusão)
+		docs_relevantes = []
+		for i, doc in enumerate(timeline):
+			if not isinstance(doc, dict):
+				continue
+			tipo = (doc.get('tipo') or '').strip()
+			if _TIPOS_RELEVANTES.match(tipo):
+				docs_relevantes.append((i, doc))
+
+		if not docs_relevantes:
+			if log:
+				logger.info('[ARGOS_API] Nenhum documento despacho/decisão na timeline')
+			return []
+
+		if log:
+			logger.info(
+				'[ARGOS_API] %d documento(s) despacho/decisão encontrados na timeline',
+				len(docs_relevantes),
+			)
+
+		resultados = []
+		for idx_original, doc in docs_relevantes[:3]:
+			id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
+			tipo_doc = doc.get('tipo', '')
+			if not id_doc:
+				continue
+
+			try:
+				url_conteudo = client._url(
+					f'/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_doc}/conteudo'
+				)
+				resp = client.sess.get(url_conteudo, timeout=60)
+				if resp.status_code != 200:
+					if log:
+						logger.warning('[ARGOS_API] HTTP %s ao baixar doc %s', resp.status_code, id_doc)
+					continue
+
+				pdf_bytes = resp.content
+				if not pdf_bytes or not pdf_bytes.startswith(b'%PDF'):
+					if log:
+						logger.warning('[ARGOS_API] Doc %s não é PDF (magic=%r)', id_doc, (pdf_bytes or b'')[:5])
+					continue
+
+				try:
+					import pdfplumber
+				except ImportError:
+					if log:
+						logger.warning('[ARGOS_API] pdfplumber não instalado')
+					return resultados  # retorna o que já conseguiu
+
+				textos = []
+				with pdfplumber.open(_io.BytesIO(pdf_bytes)) as pdf:
+					for pag in pdf.pages:
+						t = pag.extract_text()
+						if t:
+							textos.append(t)
+
+				texto_total = '\n'.join(textos).strip()
+				if texto_total:
+					if log:
+						logger.info(
+							'[ARGOS_API] Documento tipo=%s extraído: %d chars, %d páginas',
+							tipo_doc,
+							len(texto_total),
+							len(pdf.pages),
+						)
+					resultados.append((texto_total, tipo_doc, idx_original))
+
+			except Exception as e:
+				if log:
+					logger.warning('[ARGOS_API] Erro ao extrair doc %s: %s', id_doc, e)
+				continue
+
+		if log:
+			logger.info(
+				'[ARGOS_API] Extração concluída: %d/%d documentos extraídos',
+				len(resultados),
+				min(len(docs_relevantes), 3),
+			)
+
+		return resultados
+
+	except Exception as e:
+		if log:
+			logger.error('[ARGOS_API] Erro na extração: %s', e)
+		return []
 
 
 def _identificar_uids_sigilosos_por_api(driver: WebDriver, log: bool = False) -> Optional[List[str]]:

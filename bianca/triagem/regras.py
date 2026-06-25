@@ -300,18 +300,41 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                         if tag == _CEP_TAG_RECLAMANTE]
     cands_ctx_fora_zona_sul = []
 
+    # Primeira passada: apenas TERRITORIAL + PRESTACAO (tags primarias).
+    # RECLAMADA e GENERICO sao referencias subsidiarias -- so devem ser
+    # usadas quando NAO HA CEP de prestacao/territorial no texto.
+    tem_primario = False
     for cand in candidatos:
         best_tag, _, _, _, _, cep_num, cep_fmt = cand
-        if best_tag == _CEP_TAG_RECLAMANTE:
+        if best_tag > _CEP_TAG_PRESTACAO:
             continue
-        label = tag_label[best_tag]
+        tem_primario = True
         matched = next(((lo, hi) for lo, hi in ZONA_SUL_CEPS if lo <= cep_num <= hi), None)
         if matched:
             lo_match, hi_match = matched
             return ("B2_CEP: OK - %s (%s) no intervalo %s-%s Zona Sul [%s]") % (
-                cep_fmt, cep_num, lo_match, hi_match, label)
+                cep_fmt, cep_num, lo_match, hi_match, tag_label[best_tag])
         _foro = _foro_competente(cep_num)
         cands_ctx_fora_zona_sul.append('%s (%s)' % (cep_fmt, _foro))
+
+    # Segunda passada: subsidiarias (RECLAMADA + GENERICO), so se nao
+    # havia primario. Se havia primario fora da Zona Sul, e incompetencia
+    # e nao se deve confirmar com CEP subsidiario.
+    if not tem_primario:
+        for cand in candidatos:
+            best_tag, _, _, _, _, cep_num, cep_fmt = cand
+            if best_tag == _CEP_TAG_RECLAMANTE:
+                continue
+            if best_tag <= _CEP_TAG_PRESTACAO:
+                continue  # ja processados na primeira passada
+            label = tag_label[best_tag]
+            matched = next(((lo, hi) for lo, hi in ZONA_SUL_CEPS if lo <= cep_num <= hi), None)
+            if matched:
+                lo_match, hi_match = matched
+                return ("B2_CEP: OK - %s (%s) no intervalo %s-%s Zona Sul [%s]") % (
+                    cep_fmt, cep_num, lo_match, hi_match, label)
+            _foro = _foro_competente(cep_num)
+            cands_ctx_fora_zona_sul.append('%s (%s)' % (cep_fmt, _foro))
 
     if ceps_api:
         _label_sub = 'sede da reclamada'
@@ -347,6 +370,9 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                 return ("B2_CEP: OK - %s (%s) no intervalo %s-%s Zona Sul "
                         "[endereco do reclamante | DOMICILIO_AUTOR]") % (
                     cep_fmt_r, cep_num_r, lo, hi)
+    if cands_ctx_fora_zona_sul:
+        return ("B2_CEP: ALERTA - Incompetencia Territorial - "
+                "CEP(s) fora da Zona Sul: %s") % ', '.join(cands_ctx_fora_zona_sul)
     return "B2_CEP: ALERTA - nenhum CEP de SP (Zona Sul/Leste/Rui Barbosa) identificado no processo"
 
 

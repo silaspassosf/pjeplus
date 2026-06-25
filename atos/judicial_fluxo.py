@@ -486,201 +486,183 @@ def ato_judicial(
             safe_click(driver, btn_salvar)
             logger.info('[ATO][SALVAR] Clique no botao Salvar realizado')
 
-            # Aguarda EXCLUSIVAMENTE o botão "Gravar a intimação/notificação" como
-            # condição de que a aba de destinatários realmente terminou de renderizar.
-            # Multi-seletores com OU lógico antecipavam o retorno e o fluxo seguia
-            # para movimentos antes das intimações estarem prontas para gravar.
+            # Aguarda controles da aba destinatários (OR de seletores como no leg)
+            # Toggle OU botão gravar OU PEC — qualquer um indica que a aba renderizou
             if not aguardar_renderizacao_nativa(
                 driver,
-                'button[aria-label="Gravar a intimação/notificação"]',
+                'button[aria-label="Gravar a intimação/notificação"], '
+                'pje-intimacao-automatica label.mat-slide-toggle-label, '
+                'mat-checkbox[aria-label="Enviar para PEC"], '
+                'div.checkbox-pec mat-checkbox',
                 modo='aparecer',
                 timeout=15,
             ):
-                logger.error('[ATO][SALVAR] Botão Gravar intimação não apareceu após salvar modelo — destinatários não renderizados')
-                return False, False
+                logger.warning('[ATO][SALVAR] Timeout aguardando controles de destinatários, prosseguindo...')
 
-            logger.info('[ATO][SALVAR] Aba destinatários ativa e botão Gravar intimação disponível')
+            # Compatibilidade com transição Angular (como no leg)
+            time.sleep(1.5)
+            logger.info('[ATO][SALVAR] Aguardando ativação da aba destinatários...')
 
         except Exception as e:
             logger.error(f'[ATO][SALVAR] Botão Salvar não encontrado ou não clicável: {e}')
             return False, False
 
-        # ===== ABA DESTINATÁRIOS - PRAZOS =====
-        # Verificar intimar_ativado (como no legado)
+        # ===== ABA DESTINATÁRIOS =====
+        # sigilo_ativado referenciado no retorno mesmo sem movimento
+        sigilo_ativado = False
+
+        # Verificar intimar_ativado
         intimar_ativado = True if intimar is None else str(intimar).lower() in ("sim", "true", "1")
 
-        # Se intimar_ativado for False, desativa o toggle de intimações (comportamento do legado)
+        # ----- 1. SIGILO (primeiro de tudo, logo após a aba renderizar) -----
+        if sigilo:
+            logger.info('[ATO][SIGILO] Aplicando sigilo...')
+            try:
+                slide = esperar_elemento(
+                    driver,
+                    'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo',
+                    timeout=5, by=By.CSS_SELECTOR
+                )
+                if slide:
+                    try:
+                        input_sig = slide.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                    except Exception:
+                        input_sig = None
+
+                    is_checked = False
+                    try:
+                        if input_sig:
+                            is_checked = (
+                                input_sig.get_attribute('aria-checked') == 'true'
+                                or input_sig.is_selected()
+                            )
+                        else:
+                            cls = slide.get_attribute('class') or ''
+                            is_checked = 'mat-checked' in cls
+                    except Exception:
+                        is_checked = False
+
+                    if not is_checked:
+                        try:
+                            label = slide.find_element(By.CSS_SELECTOR, 'label.mat-slide-toggle-label')
+                            safe_click_no_scroll(driver, label, log=False)
+                        except Exception:
+                            try:
+                                if input_sig:
+                                    driver.execute_script('arguments[0].click();', input_sig)
+                                else:
+                                    driver.execute_script('arguments[0].click();', slide)
+                            except Exception:
+                                try:
+                                    driver.execute_script(
+                                        'var el = arguments[0].querySelector(\'input[type="checkbox"]\') || arguments[0];'
+                                        ' el.checked = true;'
+                                        ' el.dispatchEvent(new Event(\'change\', {bubbles:true}));',
+                                        slide
+                                    )
+                                except Exception:
+                                    logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
+
+                    sigilo_ativado = True
+                    logger.info('[ATO][SIGILO] Sigilo ativado')
+                else:
+                    logger.debug('[ATO][SIGILO] Toggle de sigilo não encontrado')
+            except Exception as e:
+                logger.debug(f'[ATO][SIGILO] Erro ao aplicar sigilo: {e}')
+
+        # ----- 2. TOGGLE INTIMAR (desativar se intimar=False) -----
         if not intimar_ativado:
             logger.info('[ATO][INTIMAR] Desativando intimações automáticas...')
             try:
-                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=5, by=By.CSS_SELECTOR)
+                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10, by=By.CSS_SELECTOR)
                 if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
                     guia_intimacoes.click()
-                    # Aguarda a aba ficar ativa sem sleep fixo
-                    driver.execute_script("""
-                        const backdropElements = document.querySelectorAll('.cdk-overlay-backdrop');
-                        backdropElements.forEach(el => {
-                            if (el.classList.contains('cdk-overlay-backdrop-showing')) {
-                                el.style.pointerEvents = 'none';
-                                el.style.display = 'none';
-                            }
-                        });
-                    """)
-                    # Espera o toggle ficar visível (máximo 1s)
-                    try:
-                        aguardar_renderizacao_nativa(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', modo='aparecer', timeout=1)
-                    except:
-                        pass
 
                 toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10, by=By.CSS_SELECTOR)
                 if toggle_intimar:
                     parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
                     if 'mat-checked' in parent_toggle.get_attribute('class'):
-                        # Tentar clicar no input ao invés da label (mais robusto contra overlays)
-                        try:
-                            input_checkbox = toggle_intimar.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                            driver.execute_script('arguments[0].click();', input_checkbox)
-                        except:
-                            # Fallback: clicar via JavaScript na label
-                            driver.execute_script('arguments[0].click();', toggle_intimar)
+                        toggle_intimar.click()
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" desativado.')
                 else:
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" já estava desativado.')
             except Exception as e:
                 logger.error(f'[ATO][INTIMAR] Erro ao desativar intimações: {e}')
 
-        # Aguarda a aba ficar ativa sem sleep fixo
-        driver.execute_script("""
-            const backdropElements = document.querySelectorAll('.cdk-overlay-backdrop');
-            backdropElements.forEach(el => {
-                if (el.classList.contains('cdk-overlay-backdrop-showing')) {
-                    el.style.pointerEvents = 'none';
-                    el.style.display = 'none';
-                }
-            });
-        """)
-        # Espera o toggle ficar visível (máximo 1s)
-        try:
-            aguardar_renderizacao_nativa(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', modo='aparecer', timeout=1)
-        except:
-            pass
-
+        # ----- 3. PRAZO (apenas quando intimar=True — sem prazo quando intimar=False) -----
         if prazo is not None and intimar_ativado:
             logger.info(f'[ATO][PRAZO] Preenchendo prazos: {prazo} (apenas_primeiro={marcar_primeiro_destinatario})')
             try:
                 if not preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario, perito=perito):
                     logger.error('[ATO][PRAZO]  Falha ao preencher prazos')
                     return False, False
-                
-                # Remover overlays que possam bloquear
-                driver.execute_script("""
-                    const overlays = document.querySelectorAll('.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane');
-                    overlays.forEach(overlay => {
-                        if (overlay.style) overlay.style.display = 'none';
-                    });
-                    const snackbars = document.querySelectorAll('snack-bar-container, simple-snack-bar');
-                    snackbars.forEach(snack => {
-                        if (snack.style) snack.style.display = 'none';
-                    });
-                    document.body.style.overflow = 'visible';
-                """)
-                # Use native observer to ensure overlays are gone (best-effort)
-                try:
-                    aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane', modo='sumir', timeout=2)
-                except Exception:
-                    logger.debug('[ATO][PRAZO] Observer overlays indisponível (não crítico)')
-                
                 logger.info('[ATO][PRAZO]  Prazos concluídos')
             except Exception as e:
                 logger.error(f'[ATO][PRAZO]  Erro ao preencher prazos: {e}')
                 return False, False
 
-        # ===== ABA DESTINATÁRIOS - PEC =====
+        # ----- 4. PEC -----
         if marcar_pec is not None:
-            # Converter para booleano: "sim" / "nao" / True / False
             marcar_pec_bool = str(marcar_pec).lower() in ("sim", "true", "1", "yes")
             logger.info(f'[ATO][PEC] Parâmetro: marcar_pec={marcar_pec!r}')
             try:
                 pec_label = None
                 pec_input = None
-                
-                # NOVO: Procurar pela label com classe enviarPec (novo seletor)
+
                 pec_label = esperar_elemento(driver, 'label.enviarPec', timeout=10, by=By.CSS_SELECTOR)
                 if pec_label:
                     pec_input = pec_label.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
                 else:
-                    # Fallback: seletor antigo (mat-checkbox)
                     pec_checkbox = esperar_elemento(driver, 'mat-checkbox[aria-label="Enviar para PEC"]', timeout=5, by=By.CSS_SELECTOR)
                     if pec_checkbox:
                         pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
                     else:
-                        # Fallback adicional
                         pec_input = esperar_elemento(driver, 'input[type="checkbox"][aria-label="Enviar para PEC"]', timeout=5, by=By.CSS_SELECTOR)
                         if pec_input:
                             pec_label = pec_input.find_element(By.XPATH, './ancestor::label[contains(@class, "enviarPec")][1]')
                         else:
                             raise Exception("Checkbox PEC não encontrado")
-                
+
                 if not pec_input:
                     raise Exception("Checkbox PEC input não encontrado")
-                
-                # Verificar estado atual
+
                 is_checked = pec_input.is_selected()
-                
                 logger.info(f'[ATO][PEC] Estado: {"marcado" if is_checked else "desmarcado"} → esperado: {"marcar" if marcar_pec_bool else "desmarcar"}')
-                
-                # Se o estado não corresponde ao esperado, clicar para ajustar
+
                 if marcar_pec_bool != is_checked:
-                    # Priorizar clicar na label (mais seguro que o input)
                     if pec_label:
                         safe_click_no_scroll(driver, pec_label, log=False)
                     else:
-                        # Fallback: clicar via JavaScript no input
                         driver.execute_script('arguments[0].click();', pec_input)
-
                     logger.info(f'[ATO][PEC] {"Marcado" if marcar_pec_bool else "Desmarcado"}')
                 else:
                     logger.info('[ATO][PEC] Ja esta conforme esperado')
-                    
             except Exception as e:
                 logger.error(f'[ATO][PEC] {e}')
                 # Não interrompe o fluxo
 
-        # ===== GRAVAR INTIMAÇÕES (após prazos e PEC, ANTES de movimentos) =====
+        # ----- 5. GRAVAR INTIMAÇÕES (sempre — salva o estado do toggle, inclusive False) -----
         logger.info('[ATO][GRAVAR] Gravando intimações...')
         try:
             btn_gravar_intim = wait_for_clickable(driver, 'button[aria-label="Gravar a intimação/notificação"]', timeout=10, by=By.CSS_SELECTOR)
             if btn_gravar_intim:
                 safe_click_no_scroll(driver, btn_gravar_intim, log=False)
                 logger.info('[ATO][GRAVAR] Intimações gravadas')
-                # Aguarda processamento concluir antes de prosseguir para movimentos
                 try:
-                    aguardar_renderizacao_nativa(
-                        driver,
-                        '.loading-spinner, .mat-progress-spinner, .mat-progress-bar',
-                        modo='sumir',
-                        timeout=5
-                    )
+                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
                 except Exception:
-                    logger.debug('[ATO][GRAVAR] Timeout aguardando spinner após gravar (prosseguindo)')
+                    pass
             else:
-                logger.error('[ATO][GRAVAR] Botão Gravar intimação não encontrado — intimações não foram gravadas')
-                return False, False
+                logger.debug('[ATO][GRAVAR] Botão Gravar não encontrado (sem alterações?)')
         except Exception as e:
-            logger.error(f'[ATO][GRAVAR] Erro ao gravar intimações: {e}')
-            return False, False
+            logger.debug(f'[ATO][GRAVAR] {e}')
 
-        # sigilo_ativado inicializado fora do bloco movimento porque é referenciado
-        # no retorno da função (log_fim, return) mesmo quando não há movimento
-        sigilo_ativado = False
-
-        # ===== ABA DESTINATÁRIOS - MOVIMENTO =====
+        # ----- 6. MOVIMENTO -----
         if movimento:
             logger.info(f'[ATO][MOVIMENTO] Selecionando movimento: {movimento}')
             try:
-                # Clicar na aba "Movimentos" primeiro (via Python, mais confiável que JS setTimeout)
+                # Clicar na aba Movimentos
                 try:
-                    from selenium.webdriver.common.by import By
                     aba_mov_clicada = driver.execute_script(
                         """
                         var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
@@ -696,27 +678,19 @@ def ato_judicial(
                     )
                     if aba_mov_clicada:
                         logger.debug('[ATO][MOVIMENTO] Aba Movimentos clicada')
-                        # Aguarda checkboxes de movimento renderizarem na aba
-                        try:
-                            esperar_elemento(driver, 'mat-checkbox.mat-checkbox.movimento', timeout=2, by=By.CSS_SELECTOR)
-                        except:
-                            # Tenta usar mutation observer para detectar os checkboxes
-                            aguardar_renderizacao_nativa(driver, 'mat-checkbox.mat-checkbox.movimento', modo='aparecer', timeout=2)
+                        aguardar_renderizacao_nativa(driver, 'mat-checkbox.mat-checkbox.movimento', modo='aparecer', timeout=3)
                 except Exception as e:
                     logger.debug('[ATO][MOVIMENTO] Nao foi possivel clicar na aba Movimentos: %s', e)
 
                 # Movimento multi-estágio (combobox) vs simples (checkbox)
                 if '/' in movimento or '-' in movimento:
-                    # Fluxo combobox de dois estágios — garantir aba Movimentos ativa primeiro
                     try:
                         driver.execute_script("""
                             var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
                             var abaMov = abas.find(function(a) {
                                 return a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos');
                             });
-                            if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {
-                                abaMov.click();
-                            }
+                            if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') { abaMov.click(); }
                         """)
                         aguardar_renderizacao_nativa(driver, '.mat-tab-label[aria-selected="true"]', modo='aparecer', timeout=3)
                     except Exception:
@@ -726,7 +700,6 @@ def ato_judicial(
                         return False, False
                     logger.info('[ATO][MOVIMENTO]  Movimento selecionado via combobox')
                 else:
-                    # Fluxo checkbox simples (JS sem tab-finding — a aba ja foi clicada acima)
                     driver.execute_script(
                         'window.selecionadoMovimento = undefined; '
                         'window.labelSelecionadoMovimento = undefined;'
@@ -785,142 +758,48 @@ def ato_judicial(
                     '''
                     driver.execute_script(js_mov)
 
-                    # Ler resultado imediato (JS já executou de forma síncrona)
                     selecionado = driver.execute_script("return window.selecionadoMovimento;")
                     label_mov = driver.execute_script("return window.labelSelecionadoMovimento;")
-
-                    # Limpar variaveis globais do js
                     driver.execute_script("window.selecionadoMovimento = undefined; window.labelSelecionadoMovimento = undefined;")
 
                     if not selecionado:
                         logger.error(f'[ATO][MOVIMENTO]  Movimento não encontrado: {movimento}')
                         return False, False
                     logger.info(f'[ATO][MOVIMENTO]  Checkbox marcado: {label_mov}')
-                
-                # Gravar movimentos (botão "Gravar os movimentos a serem lançados")
-                logger.info('[ATO][MOVIMENTO] Gravando movimento...')
-                # Remover overlay/cdk-backdrop que possa obstruir o botão Gravar
-                try:
-                    driver.execute_script("""
-                        const overlays = document.querySelectorAll('.cdk-overlay-backdrop');
-                        overlays.forEach(el => {
-                            if (el.classList.contains('cdk-overlay-backdrop-showing')) {
-                                el.style.display = 'none';
-                                el.style.pointerEvents = 'none';
-                            }
-                        });
-                    """)
-                except Exception:
-                    logger.debug('[ATO][MOVIMENTO] Overlay removal failed or not needed')
-                btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=3, by=By.CSS_SELECTOR)
-                if btn_gravar_mov:
-                    driver.execute_script('arguments[0].click();', btn_gravar_mov)
-                # Aguardar botão Sim aparecer com timeout menor (2s)
-                try:
-                    aguardar_renderizacao_nativa(driver, 'button[aria-label="Sim"]', modo='aparecer', timeout=2)
-                except:
-                    pass
 
-                # Confirmar com "Sim"
+                # Gravar movimento
+                logger.info('[ATO][MOVIMENTO] Gravando movimento...')
+                btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10, by=By.CSS_SELECTOR)
+                if btn_gravar_mov:
+                    btn_gravar_mov.click()
+                time.sleep(1.5)
+
+                # Confirmar com Sim
                 logger.info('[ATO][MOVIMENTO] Confirmando...')
-                btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=5, by=By.XPATH)
+                btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=10, by=By.XPATH)
                 if btn_sim:
-                    driver.execute_script('arguments[0].click();', btn_sim)
-                    logger.info('[ATO][MOVIMENTO] Movimento gravado e confirmado (JS direto)')
+                    btn_sim.click()
+                    time.sleep(1)
+                    logger.info('[ATO][MOVIMENTO] Movimento gravado e confirmado')
                 else:
                     logger.warning('[ATO][MOVIMENTO] Botão Sim não encontrado')
-
-                # ===== SIGILO (apenas se houver movimento, como no legado) =====
-                sigilo_ativado = False
-                try:
-                    if sigilo:
-                        logger.info('[ATO][SIGILO] Aplicando sigilo após movimento...')
-                        try:
-                            slide = esperar_elemento(driver, 'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo', timeout=5, by=By.CSS_SELECTOR)
-                            if slide:
-                                try:
-                                    input_sig = slide.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                                except Exception:
-                                    input_sig = None
-
-                                is_checked = False
-                                try:
-                                    if input_sig:
-                                        is_checked = (input_sig.get_attribute('aria-checked') == 'true' or input_sig.is_selected())
-                                    else:
-                                        cls = slide.get_attribute('class') or ''
-                                        is_checked = 'mat-checked' in cls
-                                except Exception:
-                                    is_checked = False
-
-                                if not is_checked:
-                                    try:
-                                        label = slide.find_element(By.CSS_SELECTOR, 'label.mat-slide-toggle-label')
-                                        safe_click_no_scroll(driver, label, log=False)
-                                    except Exception:
-                                        try:
-                                            if input_sig:
-                                                driver.execute_script('arguments[0].click();', input_sig)
-                                            else:
-                                                driver.execute_script('arguments[0].click();', slide)
-                                        except Exception:
-                                            try:
-                                                driver.execute_script(
-                                                    'var el = arguments[0].querySelector(\'input[type="checkbox"]\') || arguments[0];'
-                                                    ' el.checked = true;'
-                                                    ' el.dispatchEvent(new Event(\'change\', {bubbles:true}));',
-                                                    slide
-                                                )
-                                            except Exception:
-                                                logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
-                                sigilo_ativado = True
-                                logger.info('[ATO][SIGILO] Sigilo ativado')
-                        except Exception:
-                            logger.debug('[ATO][SIGILO] Toggle de sigilo não encontrado')
-                except Exception as e:
-                    logger.debug(f'[ATO][SIGILO] Erro ao aplicar sigilo: {e}')
 
             except Exception as e:
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')
                 return False, False
 
-        # ===== INTIMAR (se necessário na aba destinatários) =====
-
-        # Intimação: o PJe normalmente já traz a intimação marcada por padrão.
-        # Não marcar explicitamente para evitar cliques redundantes e logs "Marcando intimação".
-        # Apenas registrar estado informativo em debug.
-        if intimar_ativado:
-            logger.debug('[ATO][INTIMAR] Intimação permanece marcada por padrão (nenhuma ação realizada)')
-
-        # ===== GRAVAR/SALVAR FINAL =====
-        # Se tem movimento, o SALVAR é feito após confirmar movimento
-        # Se não tem movimento, precisa GRAVAR as configurações (prazo/PEC/etc) e depois SALVAR
-        if movimento:
-            # Movimento já grava automaticamente, só precisa SALVAR
-            logger.info('[ATO][SALVAR] Salvando ato após movimento...')
-            try:
-                btn_salvar = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=1, by=By.CSS_SELECTOR)
-                if not btn_salvar:
-                    raise Exception('Botão Salvar não disponível')
-
-                driver.execute_script('arguments[0].click();', btn_salvar)
-                logger.info('[ATO][SALVAR] Ato salvo (JS direto)')
-
-            except Exception as e:
-                logger.error(f'[ATO][SALVAR]  Erro ao salvar após movimento: {e}')
-                return False, False
-        else:
-            # Sem movimento: SALVAR (intimações já foram gravadas acima)
-            logger.info('[ATO][SALVAR] Salvando ato (sem movimento)...')
-            try:
-                btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=5, by=By.CSS_SELECTOR)
-                if not btn_salvar_final:
-                    raise Exception('Botão Salvar não disponível')
-                driver.execute_script('arguments[0].click();', btn_salvar_final)
-                logger.info('[ATO][SALVAR] Ato salvo (JS direto)')
-            except Exception as e:
-                logger.error(f'[ATO][SALVAR] {e}')
-                return False, False
+        # ----- 7. SALVAR FINAL (único, sempre — com ou sem movimento) -----
+        logger.info('[ATO][SALVAR_FINAL] Salvando ato...')
+        try:
+            btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=10, by=By.CSS_SELECTOR)
+            if not btn_salvar_final:
+                raise Exception('Botão Salvar não disponível')
+            btn_salvar_final.click()
+            logger.info('[ATO][SALVAR_FINAL] Ato salvo')
+            time.sleep(1.5)
+        except Exception as e:
+            logger.error(f'[ATO][SALVAR_FINAL] {e}')
+            return False, False
 
         # 8. ASSINAR: Clicar em assinar se especificado
         if Assinar:

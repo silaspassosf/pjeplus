@@ -1,3 +1,3 @@
-# Última execução: 2026-06-12 00:03:44.580301
-# Script: D:\PjePlus\f.py
-# Argumentos: dom 8296007
+# Última execução: 2026-06-25 16:48:40.406443
+# Script: D:\PjePlus\x.py
+# Argumentos: 

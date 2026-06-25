@@ -6074,3 +6074,378 @@ dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
 
 - **ERROR** `[23:02:46]` `dom_engine:run_dom_api` — [DOMICILIO_ELETRONICO][API] Falha callback: 1000921-77.2026.5.02.0703
 
+
+## Execução 2026-06-21 11:50:25 — x_PC_Visible_20260621_114404.log
+
+- **ERROR** `[11:57:30]` `extracao:bndt` — ERRO na operação Inclusão: bndt deve ser executado a partir de /detalhe. URL atual: https://pje.trt2.jus.br/pjekz/processo/4978377/tarefa/503/minutar
+
+
+## Execução 2026-06-21 13:01:23 — x_PC_Visible_20260621_130120.log
+
+- **ERROR** `[13:01:25]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[13:01:25]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[13:01:25]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-21 13:01:48 — x_PC_Visible_20260621_130144.log
+
+- **ERROR** `[13:02:34]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: '.cabecalho-conteudo .mat-card-title' (by=css selector, timeout=5, texto=None) -> Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001009-23.2023.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000541-25.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001439-38.2024.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000424-97.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001815-18.2025.5.02.0047: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002165-75.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000715-73.2020.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000582-94.2021.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001445-16.2022.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001160-86.2023.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000166-87.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000697-76.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000907-30.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001030-28.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001723-12.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1001894-66.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002137-10.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002193-43.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1002202-05.2025.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000292-06.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[13:02:34]` `entrada_api:execute_item` — [MANDADOS_API] Erro ao processar 1000598-72.2026.5.02.0703: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-21 13:25:47 — x_PC_Visible_20260621_132542.log
+
+
+## Execução 2026-06-21 13:36:19 — x_PC_Visible_20260621_133616.log
+
+- **ERROR** `[13:38:12]` `carta_execucao:coletar_tabela_ecarta` — [CARTA]  Erro ao tentar navegar pelas páginas do eCarta: Message: Unable to locate element: a.ui-paginator-prev; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[13:38:12]` `carta_execucao:carta` — [CARTA] Nenhuma correlacao encontrada no eCarta.
+
+- **ERROR** `[13:38:36]` `carta_execucao:carta` — [CARTA] Nenhuma correlacao encontrada no eCarta.
+
+- **ERROR** `[13:39:19]` `anexos_juntador_metodos:_inserir_conteudo_customizado` — [JUNTADA][INSERIR][WARN] Erro durante inserção opcional: maximum recursion depth exceeded
+
+- **ERROR** `[13:39:19]` `carta_execucao:carta` — [CARTA] Juntada automatica falhou ou foi pulada.
+
+
+## Execução 2026-06-22 11:18:36 — x_PC_Visible_20260622_111833.log
+
+- **ERROR** `[11:20:21]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:20:29]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:20:29]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:20:37]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:20:37]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:20:45]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:20:45]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:20:53]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:20:53]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:21:01]` `service:triagem_peticao` — Erro na coleta: falha ao montar cliente autenticado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[11:21:01]` `extracao:criar_comentario` — ERRO em criar_comentario: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+
+## Execução 2026-06-23 13:40:12 — x_PC_Visible_20260623_134006.log
+
+- **ERROR** `[13:40:13]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[13:40:13]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[13:40:13]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-23 13:40:55 — x_PC_Visible_20260623_134028.log
+
+- **ERROR** `[13:43:18]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: NameError: name 'preencher_campo' is not defined
+
+- **ERROR** `[13:43:18]` `extracao:criar_gigs` — ERRO em criar_gigs: ElementClickInterceptedException: Message: Element <button id="nova-atividade" class="mat-focus-indicator mat-button mat-button-base mat-primary"> is not clickable at point (1558,369) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[13:45:41]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,188) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[13:50:22]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,188) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+
+## Execução 2026-06-23 13:52:22 — x_PC_Visible_20260623_135219.log
+
+- **ERROR** `[13:53:18]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[13:54:13]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/minutar". URL atual: https://pje.trt2.jus.br/pjekz/processo/4122289/tarefa/502/conclusao
+
+- **ERROR** `[13:54:13]` `judicial_modelos:aguardar_transicao_minutar` — [CONCLUSÃO] URL não mudou para /minutar: https://pje.trt2.jus.br/pjekz/processo/4122289/tarefa/502/conclusao
+
+- **ERROR** `[13:54:13]` `judicial_fluxo:fluxo_cls` — [CLS] Falha na transição para minutar
+
+- **ERROR** `[13:54:13]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+- **ERROR** `[13:54:23]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+
+## Execução 2026-06-23 19:48:23 — x_PC_Visible_20260623_194819.log
+
+
+## Execução 2026-06-23 19:55:37 — x_PC_Visible_20260623_195534.log
+
+- **ERROR** `[20:11:32]` `extracao:bndt` — ERRO na operação Inclusão: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+close@chrome://remote/content/marionette/driver.sys.mjs:656:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[20:11:36]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[20:11:49]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[20:11:51]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[20:11:55]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[20:11:57]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+
+## Execução 2026-06-24 12:55:29 — x_PC_Visible_20260624_125526.log
+
+- **ERROR** `[12:59:17]` `extracao:bndt` — ERRO na operação Inclusão: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+close@chrome://remote/content/marionette/driver.sys.mjs:656:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[13:00:12]` `extracao:bndt` — ERRO na operação Inclusão: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+close@chrome://remote/content/marionette/driver.sys.mjs:656:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[13:00:16]` `extracao:bndt` — ERRO na operação Inclusão: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+close@chrome://remote/content/marionette/driver.sys.mjs:656:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[13:00:21]` `extracao:bndt` — ERRO na operação Inclusão: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+close@chrome://remote/content/marionette/driver.sys.mjs:656:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[13:00:23]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[13:00:26]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[13:00:27]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[13:00:31]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[13:00:34]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[13:01:37]` `core:login_automatico_sisbajud` — Erro detectado
+```
+Traceback (most recent call last):
+  File "D:\PjePlus\SISB\core.py", line 349, in login_automatico_sisbajud
+    current_url = driver.current_url.lower()
+                  ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 561, in current_url
+    return self.execute(Command.GET_CURRENT_URL)["value"]
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 430, in execute
+    self.error_handler.check_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.InvalidSessionIdException: Message: Tried to run command without establishing a connection
+```
+
+
+## Execução 2026-06-25 13:22:38 — x_PC_Visible_20260625_132225.log
+
+- **ERROR** `[13:22:39]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[13:22:39]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[13:22:39]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-25 13:23:07 — x_PC_Visible_20260625_132302.log
+
+
+## Execução 2026-06-25 13:27:45 — x_PC_Visible_20260625_132741.log
+
+- **ERROR** `[13:33:24]` `extracao:bndt` — ERRO na operação Exclusão: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+close@chrome://remote/content/marionette/driver.sys.mjs:656:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+
+## Execução 2026-06-25 16:45:48 — x_PC_Visible_20260625_164544.log
+
+
+## Execução 2026-06-25 16:48:44 — x_PC_Visible_20260625_164840.log
+

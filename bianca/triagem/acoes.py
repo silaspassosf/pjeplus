@@ -474,21 +474,28 @@ _MESES_PT = [
 
 
 def _extrair_data_hora_pauta(linha) -> tuple:
-    """Extrai data e horario da linha da Tabela de Horarios Vagos.
+    """Extrai data e horário da linha da Tabela de Horários Vagos.
 
-    Estrutura esperada das colunas: Tipo | Data | Horario vago | Qtd dias uteis | Botao
-
-    Returns:
-        Tuple (data_str, hora_str) ex: ("24/08/2026", "09:50")
+    Usa seletores específicos baseados na estrutura real:
+      - Data: 2ª coluna (td.centralizado:nth-child(2) span)
+      - Horário: 3ª coluna (td.centralizado:nth-child(3) span)
     """
-    tds = linha.find_elements(By.CSS_SELECTOR, "td.td-class")
-    if len(tds) < 3:
-        raise ValueError(f"Linha de pauta com {len(tds)} colunas, esperado >= 3")
-    data_str = tds[1].find_element(By.CSS_SELECTOR, "span").text.strip()
-    hora_str = tds[2].find_element(By.CSS_SELECTOR, "span").text.strip()
-    if not data_str or not hora_str:
-        raise ValueError(f"Data ou hora vazios: data='{data_str}' hora='{hora_str}'")
-    return data_str, hora_str
+    try:
+        data_span = linha.find_element(
+            By.CSS_SELECTOR,
+            "td.centralizado.td-class:nth-child(2) span.ng-star-inserted"
+        )
+        hora_span = linha.find_element(
+            By.CSS_SELECTOR,
+            "td.centralizado.td-class:nth-child(3) span.ng-star-inserted"
+        )
+        data_str = data_span.text.strip()
+        hora_str = hora_span.text.strip()
+        if not data_str or not hora_str:
+            raise ValueError(f"Data='{data_str}' ou hora='{hora_str}' vazias")
+        return data_str, hora_str
+    except Exception as e:
+        raise ValueError(f"Falha ao extrair data/hora da linha: {e}")
 
 
 def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
@@ -501,33 +508,69 @@ def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
     alvo = _dt.strptime(data_str, "%d/%m/%Y")
     hoje = _dt.today()
     delta = (alvo.year - hoje.year) * 12 + (alvo.month - hoje.month)
+    print(f"[CALENDARIO] Navegando para {data_str}. Hoje: {hoje}. Delta meses: {delta}")
 
-    for _ in range(delta):
+    # Log do mês inicial exibido (capturar título do calendário)
+    try:
+        current_heading = driver.find_element(By.CSS_SELECTOR, ".cal-header h2").text
+        print(f"[CALENDARIO] Heading inicial: {current_heading}")
+    except:
+        print("[CALENDARIO] Não foi possível ler heading inicial")
+
+    for i in range(delta):
         btn_next = esperar_elemento(driver, "#next", by=By.CSS_SELECTOR, timeout=10)
         if not btn_next:
             raise Exception("Botao proximo mes nao encontrado")
         safe_click(driver, btn_next)
-        time.sleep(0.5)
+        time.sleep(0.3)
+        # Log após cada clique
+        try:
+            h2 = driver.find_element(By.CSS_SELECTOR, ".cal-header h2").text
+            print(f"[CALENDARIO] Após clique {i+1}: {h2}")
+        except:
+            pass
 
     mes_nome = _MESES_PT[alvo.month - 1]
     heading_xpath = f"//h2[contains(normalize-space(.), '{mes_nome}, {alvo.year}')]"
     heading = esperar_elemento(driver, heading_xpath, by=By.XPATH, timeout=10)
     if not heading:
         raise Exception(f"Heading do mes '{mes_nome}, {alvo.year}' nao encontrado")
+    print(f"[CALENDARIO] Heading confirmado: {heading.text}")
 
     dia_str = str(alvo.day)
-    dia_cell_xpath = f"//span[contains(@class,'cal-day-cell') and .//label[normalize-space(.)='{dia_str}']]"
+    # Usar XPath mais específico: célula que contém o número do dia exato e não está em heading
+    dia_cell_xpath = (
+        f"//span[contains(@class,'cal-day-cell') and "
+        f".//label[normalize-space(.)='{dia_str}'] and "
+        f"not(ancestor::div[contains(@class,'cal-day-heading')])]"
+    )
     dia_cell = esperar_elemento(driver, dia_cell_xpath, by=By.XPATH, timeout=10)
     if not dia_cell:
-        raise Exception(f"Celula do dia {dia_str} nao encontrada no calendario")
+        raise Exception(f"Celula do dia {dia_str} nao encontrada")
+
+    # Log para ver qual dia está sendo clicado
+    print(f"[CALENDARIO] Clicando no dia {dia_str}. Atributos: class={dia_cell.get_attribute('class')}")
+    dia_cell.location_once_scrolled_into_view
     safe_click(driver, dia_cell)
     time.sleep(0.8)
 
+    # Verificar confirmação – usar formato DD/MM/YYYY
     dia_fmt = alvo.strftime("%d/%m/%Y")
     confirm_xpath = f"//h2[contains(normalize-space(.), '{dia_fmt}')]"
     confirm = esperar_elemento(driver, confirm_xpath, by=By.XPATH, timeout=10)
     if not confirm:
-        raise Exception(f"Confirmacao do dia {dia_fmt} nao encontrada apos clique")
+        # fallback: pode estar em outro elemento
+        print("[CALENDARIO] Confirmação não encontrada pelo h2, verificando tabela...")
+        # Verificar se a tabela agora mostra apenas linhas com essa data
+        linhas_data = driver.find_elements(
+            By.XPATH,
+            f"//tr[.//td[@class='centralizado td-class'][2]//span[normalize-space(.)='{dia_fmt}']]"
+        )
+        if len(linhas_data) == 0:
+            raise Exception(f"Dia {dia_fmt} não refletido na tabela após clique")
+        print(f"[CALENDARIO] Tabela agora contém {len(linhas_data)} linhas com data {dia_fmt}")
+    else:
+        print(f"[CALENDARIO] Confirmação visual encontrada: {confirm.text}")
 
 
 def _encontrar_slot_dia(driver: WebDriver, hora_str: str) -> None:
@@ -540,15 +583,74 @@ def _encontrar_slot_dia(driver: WebDriver, hora_str: str) -> None:
         driver: WebDriver Selenium.
         hora_str: Horario no formato "HH:MM".
     """
+    print(f"[SLOT] Procurando slot com horário '{hora_str}'")
+    # Primeiro, registrar todas as linhas visíveis para diagnóstico
+    try:
+        todas_linhas = driver.find_elements(By.XPATH, "//tr[.//span[contains(@class,'ng-star-inserted')]]")
+        for idx, tr in enumerate(todas_linhas):
+            texto = tr.text[:120]
+            print(f"Linha {idx}: {texto}")
+    except:
+        pass
+
     linha_xpath = f"//tr[.//span[normalize-space(.)='{hora_str}']]"
     linha = esperar_elemento(driver, linha_xpath, by=By.XPATH, timeout=15)
     if not linha:
         raise Exception(f"Linha com horario '{hora_str}' nao encontrada na pauta diaria")
+
+    # Log detalhado da linha selecionada
+    print(f"[SLOT] Linha encontrada: {linha.text[:200]}")
+    # Clica no botão com aria-label "Designar Audiência"
     btn_plus = linha.find_element(
         By.XPATH,
         ".//button[contains(@aria-label,'Designar')] | .//i[contains(@class,'fa-plus-circle')]/ancestor::button",
     )
+    print(f"[SLOT] Clicando no botão designar")
     safe_click(driver, btn_plus)
+
+
+def _tem_audiencia_marcada(driver: WebDriver, processo_info: Optional[Dict] = None) -> bool:
+    """Verifica se o processo tem audiência marcada.
+
+    Fonte primária: campo `tem_audiencia` (derivado de `dataProximaAudiencia`) em
+    processo_info, preenchido via API antes de abrir o processo. Essa fonte é
+    mais confiável que o DOM porque o campo vem direto do servidor PJe.
+
+    Fallback (quando processo_info indisponível): inspeciona `dt#audiencias` no
+    DOM e valida presença de data/hora concretos.
+    """
+    # --- Fonte primária: API (processo_info) ---
+    if processo_info is not None:
+        tem = bool(processo_info.get('tem_audiencia', False))
+        print(f"[TRIAGEM] _tem_audiencia_marcada via API: tem_audiencia={tem} "
+              f"(dataProximaAudiencia={processo_info.get('dataProximaAudiencia', 'N/A')})")
+        return tem
+
+    # --- Fallback: DOM ---
+    try:
+        dt = driver.find_element(By.CSS_SELECTOR, "dt#audiencias")
+        if not dt.is_displayed():
+            return False
+
+        parent_text = ""
+        try:
+            parent = dt.find_element(By.XPATH, "./ancestor::*[1]")
+            parent_text = (parent.text or "").strip()
+        except Exception:
+            parent_text = (dt.text or "").strip()
+
+        if not parent_text:
+            return False
+
+        re_data = re.search(r"\b\d{2}/\d{2}/\d{4}\b", parent_text)
+        re_hora = re.search(r"\b\d{2}:\d{2}\b", parent_text)
+
+        # aud_kw removido: o rotulo do proprio dt#audiencias (ex: "Audiencia(s):")
+        # sempre contem a palavra, causando falso positivo. So considerar TRUE
+        # se houver data/hora concreta de audiencia.
+        return bool(re_data or re_hora)
+    except Exception:
+        return False
 
 
 def _marcar_aud(
@@ -568,25 +670,27 @@ def _marcar_aud(
     try:
         esperar_elemento(driver, "mat-card.card-pauta", by=By.CSS_SELECTOR, timeout=15)
 
-        if rito.upper() == 'ATSUM':
-            linha = esperar_elemento(
-                driver,
-                "//tr[.//span[contains(normalize-space(.), 'Una (rito sumaríssimo)')]]",
-                by=By.XPATH,
-                timeout=10,
-            )
-        else:
-            linha = esperar_elemento(
-                driver,
-                "//tr[.//span[normalize-space(.)='Una'] and not(.//span[contains(normalize-space(.), 'sumar')]) ]",
-                by=By.XPATH,
-                timeout=10,
-            )
+        # Determina o nome do rito para buscar na primeira coluna
+        rito_texto = "Una (rito sumaríssimo)" if rito.upper() == 'ATSUM' else "Una"
 
+        # XPath que encontra a linha onde a primeira coluna contém exatamente o texto do rito
+        linha_xpath = (
+            f"//tr[.//td[1]//span[normalize-space(.)='{rito_texto}']]"
+        )
+        linha = esperar_elemento(driver, linha_xpath, by=By.XPATH, timeout=10)
         if not linha:
-            raise Exception("Linha de pauta nao encontrada")
+            # fallback: tenta apenas o início do texto (ex: "Una" sem parênteses)
+            fallback_texto = "Una"
+            linha_xpath = f"//tr[.//td[1]//span[starts-with(normalize-space(.), '{fallback_texto}')]]"
+            linha = esperar_elemento(driver, linha_xpath, by=By.XPATH, timeout=5)
+        if not linha:
+            raise Exception("Linha de pauta não encontrada para o rito especificado")
+
+        print(f"[TRIAGEM/ACOES] Linha encontrada: {linha.text[:200]}...")
+        print(f"[TRIAGEM/ACOES] Extraindo data/hora...")
 
         data_str, hora_str = _extrair_data_hora_pauta(linha)
+        print(f"[MARCAR_AUD] Dados extraídos: data={data_str}, hora={hora_str}")
         _navegar_calendario_para_data(driver, data_str)
         _encontrar_slot_dia(driver, hora_str)
 
@@ -683,6 +787,12 @@ def acao_bucket_a(
     Returns:
         True se todas as acoes foram executadas com sucesso.
     """
+    # --- VERIFICAÇÃO EM TEMPO REAL ---
+    if _tem_audiencia_marcada(driver, processo_info):
+        print(f"[TRIAGEM/A] Processo {numero_processo} já possui audiência marcada. Pulando marcação.")
+        return True, "Já possui audiência"
+    # --- FIM VERIFICAÇÃO ---
+
     try:
         tipo = (processo_info.get('tipo') or '').upper().strip()
         tem_100 = bool(processo_info.get('digital', processo_info.get('tem_100', False)))
@@ -811,6 +921,12 @@ def acao_bucket_b(
     Returns:
         True se todas as acoes foram executadas com sucesso.
     """
+    # --- VERIFICAÇÃO EM TEMPO REAL (B) ---
+    if not _tem_audiencia_marcada(driver, processo_info):
+        print(f"[TRIAGEM/B] Processo {numero_processo} não possui audiência (embora esperado). Forçando bucket A.")
+        return acao_bucket_a(driver, numero_processo, processo_info)
+    # --- FIM VERIFICAÇÃO ---
+
     try:
         citacao_b = def_citacao(driver, processo_info)
         _print_saida_funcao(f"def_citacao[{numero_processo}]", citacao_b)
@@ -860,6 +976,12 @@ def acao_bucket_c(
     Returns:
         True se todas as acoes foram executadas com sucesso.
     """
+    # --- VERIFICACAO EM TEMPO REAL (C) ---
+    if not _tem_audiencia_marcada(driver, processo_info):
+        print(f"[TRIAGEM/C] Processo {numero_processo} nao possui audiencia (classificado como C por engano). Forcando bucket A.")
+        return acao_bucket_a(driver, numero_processo, processo_info)
+    # --- FIM VERIFICACAO ---
+
     try:
         from bianca.atos_utils import pec_ord, pec_sum, pec_ordc, pec_sumc, mov_aud
         _PEC_MAP = {'pec_ord': pec_ord, 'pec_sum': pec_sum,

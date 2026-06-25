@@ -195,6 +195,8 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
     if not esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=20, by=By.CSS_SELECTOR):
         log('[TROCAR_MODELO] Tabela de destinatários não carregou')
         return False
+        
+    time.sleep(2) # Aguarda Angular renderizar dropdowns de todas as linhas
 
     tipo_ato = _detectar_tipo_ato_para_modelo(driver, debug=debug, log=log)
     if not tipo_ato:
@@ -208,6 +210,8 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
     log(f'[TROCAR_MODELO] Tipo={tipo_ato}, modelo={modelo_reaplicar}')
 
     total = _contar_linhas_correios(driver)
+    total_linhas = len(driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag'))
+    log(f'[TROCAR_MODELO] Encontradas {total_linhas} linhas na tabela de destinatários, sendo {total} de Correios')
     if total == 0:
         log('[TROCAR_MODELO] Nenhuma linha com Correios encontrada')
         return False

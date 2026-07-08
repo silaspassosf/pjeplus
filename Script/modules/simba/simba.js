@@ -149,26 +149,38 @@
                 const yyyy = now.getFullYear();
                 const dataFimAfastamento = `${dd}/${mm}/${yyyy}`;
 
-                // Função auxiliar para definir valor e disparar eventos
-                const setVal = (id, val) => {
+                // Função auxiliar para definir valor simulando digitação
+                const setVal = async (id, val) => {
                     const el = document.getElementById(id);
-                    if (el) {
+                    if (el && val) {
                         el.focus();
-                        el.value = val;
-                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.value = '';
+                        for (let i = 0; i < val.length; i++) {
+                            el.value += val[i];
+                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                            await new Promise(r => setTimeout(r, 5));
+                        }
                         el.dispatchEvent(new Event('change', { bubbles: true }));
                         if (typeof el.onblur === 'function') el.onblur();
                         else el.blur();
+                        await new Promise(r => setTimeout(r, 50));
                     }
                 };
 
-                setVal('telefone_contato', '1137388145');
-                setVal('nome_caso', numProcesso);
-                setVal('numero_processo', numProcesso);
-                setVal('juiz_relator', 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA');
-                setVal('vara_tribunal', '3A VARA DO TRABALHO DA ZONA SUL DE SAO PAULO');
-                setVal('data_ini_afastamento', dataExecucao);
-                setVal('data_fim_afastamento', dataFimAfastamento);
+                if (!dataExecucao) {
+                    alert('[Simba] Atenção: Data da "Iniciada a execução" não foi capturada no PJe! O campo ficará vazio.');
+                }
+
+                await setVal('telefone_contato', '1137388145');
+                await setVal('nome_caso', numProcesso);
+                await setVal('numero_processo', numProcesso);
+                await setVal('juiz_relator', 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA');
+                await setVal('vara_tribunal', '3A VARA DO TRABALHO DA ZONA SUL DE SAO PAULO');
+                await setVal('data_ini_afastamento', dataExecucao);
+                await setVal('data_fim_afastamento', dataFimAfastamento);
+
+                // Aguarda meio segundo para garantir que o onblur de todos os campos processou
+                await new Promise(r => setTimeout(r, 500));
 
                 // 4. Clicar em Avançar
                 const btnAvancar = document.getElementById('avancar_formulario');

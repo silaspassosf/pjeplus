@@ -218,6 +218,10 @@
                 // Aguarda 1.5 segundos para garantir que o onblur de todos os campos processou
                 await new Promise(r => setTimeout(r, 1500));
 
+                // Reseta o índice de reclamados ao iniciar uma nova ordem
+                if (typeof GM_setValue !== 'undefined') GM_setValue('simba_reclamados_index', 0);
+                else localStorage.setItem('simba_reclamados_index', 0);
+
                 console.log('[Simba] Clicando em Avançar...');
                 // 4. Clicar em Avançar
                 const btnAvancar = document.getElementById('avancar_formulario');
@@ -235,6 +239,106 @@
             btn.disabled = false;
         };
 
-        document.body.appendChild(btn);
+        // Injeta o botão "Criar Ordem" (ex: breadcrumb superior)
+        const header = document.querySelector('.titulo_funcionalidade') || document.body;
+        header.appendChild(btn);
+
+        // --- ABA DE INVESTIGADOS (Preenchimento de Reclamados) ---
+        setInterval(() => {
+            const btnGravar = document.getElementById('botao_grava_investigado');
+            if (btnGravar && !document.getElementById('simba_btn_reclamado')) {
+                const btnReclamado = document.createElement('input');
+                btnReclamado.type = 'button';
+                btnReclamado.id = 'simba_btn_reclamado';
+                btnReclamado.className = 'botao_padrao';
+                btnReclamado.value = '🦁 Inserir Próximo Reclamado';
+                btnReclamado.style.marginLeft = '10px';
+                btnReclamado.style.backgroundColor = '#d4af37';
+                btnReclamado.style.color = '#fff';
+                btnReclamado.style.fontWeight = 'bold';
+                btnReclamado.style.border = 'none';
+                btnReclamado.style.padding = '5px 15px';
+                btnReclamado.style.cursor = 'pointer';
+                
+                btnGravar.parentNode.insertBefore(btnReclamado, btnGravar.nextSibling);
+                
+                btnReclamado.addEventListener('click', async () => {
+                    btnReclamado.disabled = true;
+                    btnReclamado.value = 'Preenchendo...';
+                    
+                    let reclamadosStr = '[]';
+                    let idx = 0;
+                    if (typeof GM_getValue !== 'undefined') {
+                        reclamadosStr = GM_getValue('simba_reclamados', '[]');
+                        idx = GM_getValue('simba_reclamados_index', 0);
+                    } else {
+                        reclamadosStr = localStorage.getItem('simba_reclamados') || '[]';
+                        idx = parseInt(localStorage.getItem('simba_reclamados_index') || '0', 10);
+                    }
+                    
+                    const reclamados = JSON.parse(reclamadosStr);
+                    if (!reclamados || reclamados.length === 0) {
+                        alert('[Simba] Nenhum reclamado encontrado na memória. Você clicou no Simba na aba do processo no PJe?');
+                        btnReclamado.value = '🦁 Inserir Próximo Reclamado';
+                        btnReclamado.disabled = false;
+                        return;
+                    }
+                    if (idx >= reclamados.length) {
+                        alert('[Simba] Todos os ' + reclamados.length + ' reclamados já foram inseridos!');
+                        btnReclamado.value = '✅ Todos Inseridos';
+                        return;
+                    }
+                    
+                    const r = reclamados[idx];
+                    console.log(`[Simba] Preenchendo reclamado ${idx + 1}/${reclamados.length}:`, r);
+                    
+                    const docLimpo = r.documento.replace(/\D/g, '');
+                    
+                    let dataExecucao = '';
+                    if (typeof GM_getValue !== 'undefined') dataExecucao = GM_getValue('simba_last_data_execucao', '');
+                    else dataExecucao = localStorage.getItem('simba_last_data_execucao') || '';
+                    
+                    const now = new Date();
+                    const dd = String(now.getDate()).padStart(2, '0');
+                    const mm = String(now.getMonth() + 1).padStart(2, '0');
+                    const yyyy = now.getFullYear();
+                    const dataFimAfastamento = `${dd}/${mm}/${yyyy}`;
+
+                    // Função local setVal (reuso)
+                    const setValAsync = async (id, val) => {
+                        const el = document.getElementById(id);
+                        if (el && val) {
+                            console.log(`[Simba] Preenchendo "${id}" com: "${val}"...`);
+                            el.focus();
+                            await new Promise(res => setTimeout(res, 100));
+                            el.value = '';
+                            for (let i = 0; i < val.length; i++) {
+                                el.value += val[i];
+                                el.dispatchEvent(new Event('input', { bubbles: true }));
+                                await new Promise(res => setTimeout(res, 20));
+                            }
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                            await new Promise(res => setTimeout(res, 50));
+                            if (typeof el.onblur === 'function') el.onblur();
+                            else el.blur();
+                            await new Promise(res => setTimeout(res, 300));
+                        }
+                    };
+                    
+                    await setValAsync('cpf_cnpj_investigado', docLimpo);
+                    await setValAsync('nome_investigado', r.nome);
+                    await setValAsync('data_ini_afastamento_investigado', dataExecucao);
+                    await setValAsync('data_fim_afastamento_investigado', dataFimAfastamento);
+                    
+                    // Incrementa e salva
+                    if (typeof GM_setValue !== 'undefined') GM_setValue('simba_reclamados_index', idx + 1);
+                    else localStorage.setItem('simba_reclamados_index', idx + 1);
+                    
+                    console.log('[Simba] Clicando em Salvar Investigado...');
+                    await new Promise(res => setTimeout(res, 1000));
+                    btnGravar.click();
+                });
+            }
+        }, 1000);
     }
 })();

@@ -254,7 +254,8 @@
             if (executandoReclamado) return;
             
             const btnGravar = document.getElementById('botao_grava_investigado');
-            if (!btnGravar || btnGravar.offsetParent === null) return; // Deve existir e estar visível
+            const tab1 = document.getElementById('container_tab1');
+            if (!btnGravar || !tab1 || tab1.style.display === 'none') return; // Só roda se a aba estiver visível
             
             let automacaoAtiva = false;
             let reclamadosStr = '[]';
@@ -269,6 +270,9 @@
                 reclamadosStr = localStorage.getItem('simba_reclamados') || '[]';
                 idx = parseInt(localStorage.getItem('simba_reclamados_index') || '0', 10);
             }
+            
+            // Console log silencioso a cada pulso apenas se estiver na aba, para sabermos se ele chegou aqui
+            console.log(`[Simba-Monitor] Aba Investigados ativa. automacaoAtiva=${automacaoAtiva}, idx=${idx}`);
             
             if (!automacaoAtiva) return;
             

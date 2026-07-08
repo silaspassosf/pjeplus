@@ -254,7 +254,7 @@
             if (executandoReclamado) return;
             
             const btnGravar = document.getElementById('botao_grava_investigado');
-            if (!btnGravar) return;
+            if (!btnGravar || btnGravar.offsetParent === null) return; // Deve existir e estar visível
             
             let automacaoAtiva = false;
             let reclamadosStr = '[]';
@@ -289,7 +289,8 @@
             }
             
             executandoReclamado = true;
-            const r = reclamados[idx];
+            try {
+                const r = reclamados[idx];
             console.log(`[Simba] [AUTOMAÇÃO] Preenchendo reclamado ${idx + 1}/${reclamados.length}:`, r);
             
             const docLimpo = r.documento.replace(/\D/g, '');
@@ -339,8 +340,14 @@
             btnGravar.click();
             
             // A partir daqui a página deve recarregar via Submit()! 
-            // O interval vai parar na destruição do frame e voltar na próxima.
+            // Se não recarregar (SPA), executandoReclamado voltará a ser false após uma pausa
+            await new Promise(res => setTimeout(res, 3000));
+            executandoReclamado = false;
             
+            } catch (err) {
+                console.error('[Simba] Erro no loop de Investigados:', err);
+                executandoReclamado = false;
+            }
         }, 1500);
     }
 })();

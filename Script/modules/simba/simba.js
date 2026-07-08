@@ -379,3 +379,4 @@
     
     // Inicia verificador de retomada a cada 2s
     setInterval(resumeAutomacaoSimba, 2000);
+})();

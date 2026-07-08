@@ -110,7 +110,7 @@
     };
 
     // ── LÓGICA DO SIMBA (na página simba-novo.redejt) ──
-    if (window.location.href.includes('simba-novo.redejt/simba/php/Simba.php')) {
+    if (window.location.href.includes('simba/php/')) {
         criarBotaoOrdemSimba();
     }
 
@@ -254,7 +254,7 @@
     // RETOMADA DA AUTOMAÇÃO (Pós-Reload)
     // =========================================================================
     async function resumeAutomacaoSimba() {
-        if (!window.location.href.includes('Simba.php')) return;
+        if (!window.location.href.includes('simba/php/')) return;
         
         let automacaoAtiva = false;
         let reclamadosStr = '[]';

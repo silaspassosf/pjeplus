@@ -532,10 +532,18 @@ def session_from_driver(driver: WebDriver, grau: int = 1) -> Tuple[requests.Sess
             xsrf_token = unquote(c['value'])
     parsed = urlparse(driver.current_url)
     trt_host = parsed.netloc
+    
+    # Extrai o User-Agent do driver para evitar bloqueios do WAF (Cloudflare/F5)
+    try:
+        user_agent = driver.execute_script("return navigator.userAgent;")
+    except Exception:
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        
     headers = {
         'Accept': 'application/json, text/plain, */*',
         'Content-Type': 'application/json',
         'X-Grau-Instancia': str(grau),
+        'User-Agent': user_agent,
     }
     if xsrf_token:
         headers['X-XSRF-TOKEN'] = xsrf_token

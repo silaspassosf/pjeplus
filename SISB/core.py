@@ -700,11 +700,15 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         valor = divida.get('valor')
         
         if not valor:
+            # Usar valor padrão 33,33 para garantir criação da minuta
+            # mesmo quando o valor da execução não foi extraído do processo
+            valor_padrao = '33,33'
             if log:
-                logger.info('[SISBAJUD]  Sem valor de bloqueio - função deveria ter sido chamada apenas com valor')
-            resultado['status'] = 'erro'
-            resultado['erros'].append('Sem valor de bloqueio')
-            return resultado
+                logger.info(f'[SISBAJUD]  Sem valor de bloqueio — usando padrão: R$ {valor_padrao}')
+            if 'divida' not in dados_processo or not isinstance(dados_processo.get('divida'), dict):
+                dados_processo['divida'] = {}
+            dados_processo['divida']['valor'] = valor_padrao
+            valor = valor_padrao
         
         if log:
             logger.info(f'[SISBAJUD]  Valor encontrado: {valor} - prosseguindo com minuta')
@@ -871,13 +875,15 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
 
                     # Criar GIGS 22/xs resultado (após visibilidade, ainda em /detalhe)
                     from Fix.extracao import criar_gigs
+                    gigs_prazo = '60' if prazo_dias == 60 else '22'
+                    gigs_str = f'{gigs_prazo}/xs resultado'
                     if log:
-                        logger.info('[SISBAJUD] Criando GIGS 22/xs resultado...')
-                    resultado_gigs = criar_gigs(driver_pje, '22/xs resultado', log=log)
+                        logger.info(f'[SISBAJUD] Criando GIGS {gigs_str}...')
+                    resultado_gigs = criar_gigs(driver_pje, gigs_str, log=log)
                     if resultado_gigs and log:
-                        logger.info('[SISBAJUD]  GIGS 22/xs resultado criado')
+                        logger.info(f'[SISBAJUD]  GIGS {gigs_str} criado')
                     elif log:
-                        logger.info('[SISBAJUD]  GIGS 22/xs resultado não foi criado')
+                        logger.info(f'[SISBAJUD]  GIGS {gigs_str} não foi criado')
             except Exception as e:
                 resultado['erros'].append(f'Erro na juntada PJE (minuta): {e}')
                 if log:
@@ -983,6 +989,10 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
             if log:
                 logger.info('[SISBAJUD]  Processo inserido e ENTER pressionado')
 
+            # Aguardar o carregamento da busca do processo (SPA Angular)
+            import time
+            time.sleep(5)
+
             # Aguardar carregamento da série
             from Fix.utils import aguardar_pagina_carregar
             aguardar_pagina_carregar(driver, timeout=15)
@@ -1073,6 +1083,39 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                 try:
                     from atos.wrappers_ato import ato_meios, ato_bloq
                     
+                    # Fechar aba da juntada (minuta de anexo) após salvar e voltar para /detalhe
+                    try:
+                        # Fechar aba atual (juntada)
+                        driver_pje.close()
+                        if log:
+                            logger.info('[SISBAJUD]  Aba de juntada fechada')
+                        
+                        # Procurar aba /detalhe e focar nela
+                        abas_disponiveis = driver_pje.window_handles
+                        aba_detalhe_encontrada = False
+                        
+                        for aba in abas_disponiveis:
+                            try:
+                                driver_pje.switch_to.window(aba)
+                                url_atual = driver_pje.current_url
+                                if '/detalhe' in url_atual:
+                                    aba_detalhe_encontrada = True
+                                    if log:
+                                        logger.info(f'[SISBAJUD]  Foco na aba /detalhe: {url_atual}')
+                                    break
+                            except Exception:
+                                continue
+                        
+                        if not aba_detalhe_encontrada:
+                            if log:
+                                logger.info('[SISBAJUD]  Aba /detalhe não encontrada, usando primeira aba disponível')
+                            # Fallback: usar primeira aba
+                            driver_pje.switch_to.window(driver_pje.window_handles[0])
+                            
+                    except Exception as e_fechar:
+                        if log:
+                            logger.info(f'[SISBAJUD]  Erro ao fechar aba de juntada: {e_fechar}')
+                    
                     if tipo_fluxo == 'POSITIVO':
                         # Fluxo POSITIVO: executar ato_bloq
                         if log:
@@ -1080,39 +1123,6 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                         ato_bloq(driver_pje)
                         if log:
                             logger.info('[SISBAJUD]  ato_bloq executado com sucesso')
-                        
-                        # Fechar aba da minuta após salvar e voltar para /detalhe
-                        try:
-                            # Fechar aba atual (minuta)
-                            driver_pje.close()
-                            if log:
-                                logger.info('[SISBAJUD]  Aba da minuta fechada')
-                            
-                            # Procurar aba /detalhe e focar nela
-                            abas_disponiveis = driver_pje.window_handles
-                            aba_detalhe_encontrada = False
-                            
-                            for aba in abas_disponiveis:
-                                try:
-                                    driver_pje.switch_to.window(aba)
-                                    url_atual = driver_pje.current_url
-                                    if '/detalhe' in url_atual:
-                                        aba_detalhe_encontrada = True
-                                        if log:
-                                            logger.info(f'[SISBAJUD]  Foco na aba /detalhe: {url_atual}')
-                                        break
-                                except Exception:
-                                    continue
-                            
-                            if not aba_detalhe_encontrada:
-                                if log:
-                                    logger.info('[SISBAJUD]  Aba /detalhe não encontrada, usando primeira aba disponível')
-                                # Fallback: usar primeira aba
-                                driver_pje.switch_to.window(driver_pje.window_handles[0])
-                                
-                        except Exception as e_fechar:
-                            if log:
-                                logger.info(f'[SISBAJUD]  Erro ao fechar aba: {e_fechar}')
                         
                         # Criar GIGS após ato_bloq (voltando para aba detalhe)
                         try:
@@ -1348,3 +1358,307 @@ def minuta_bloqueio_60(driver, dados_processo=None, driver_pje=None, log=True, f
         prazo_dias=60,
         protocolar=False
     )
+
+
+def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=True,
+                           fechar_driver=True, prazo_dias=None):
+    """
+    Cria DUAS minutas de bloqueio no SISBAJUD no mesmo fluxo de forma independente.
+
+    - 1ª minuta: prazo normal (30 ou 60 dias) - fluxo idêntico ao original.
+    - 2ª minuta: navega para /minuta/cadastrar, preenche idêntico à 1ª (30 ou 60 dias),
+                 mas marca "Agendar protocolo: Sim" com a data de amanhã.
+
+    A juntada no PJe (se driver_pje fornecido) é feita UMA única vez ao final.
+    """
+    resultado = {
+        'status': 'pendente',
+        'minuta_1': None,
+        'minuta_2': None,
+        'juntada_executada': False,
+        'erros': []
+    }
+
+    try:
+        logger.info('\n[SISBAJUD] INICIANDO CRIAÇÃO DE MINUTA DE BLOQUEIO (DUPLA — AGENDADA PARA AMANHÃ)')
+        logger.info('=' * 60)
+
+        # 0. EXTRAIR / CARREGAR DADOS DO PROCESSO
+        if dados_processo is None:
+            if log:
+                logger.info('[SISBAJUD] Extraindo dados do processo do PJe...')
+            try:
+                from Fix.extracao import extrair_dados_processo
+                if driver_pje:
+                    dados_processo = extrair_dados_processo(driver_pje)
+                else:
+                    from .utils import carregar_dados_processo
+                    dados_processo = carregar_dados_processo()
+
+                if not dados_processo:
+                    if log:
+                        logger.info('[SISBAJUD]  Falha ao extrair/carregar dados do processo')
+                    resultado['status'] = 'erro'
+                    resultado['erros'].append('Falha ao extrair/carregar dados do processo')
+                    return resultado
+            except Exception as e:
+                if log:
+                    logger.info(f'[SISBAJUD]  Erro ao extrair dados do processo: {e}')
+                resultado['status'] = 'erro'
+                resultado['erros'].append(f'Erro ao extrair dados: {e}')
+                return resultado
+
+        # 1. VERIFICAR/GARANTIR VALOR (padrão 33,33 se ausente)
+        divida = dados_processo.get('divida', {}) if dados_processo else {}
+        valor = divida.get('valor')
+
+        if not valor:
+            valor_padrao = '33,33'
+            if log:
+                logger.info(f'[SISBAJUD]  Sem valor de bloqueio — usando padrão: R$ {valor_padrao}')
+            if 'divida' not in dados_processo or not isinstance(dados_processo.get('divida'), dict):
+                dados_processo['divida'] = {}
+            dados_processo['divida']['valor'] = valor_padrao
+            valor = valor_padrao
+
+        # 2. VALIDAR DADOS DO PROCESSO
+        dados_validos, numero_processo = helpers._validar_dados(dados_processo)
+        if not dados_validos:
+            resultado['status'] = 'erro'
+            resultado['erros'].append('Dados do processo inválidos ou insuficientes')
+            return resultado
+
+        # 3. PRAZO DAS MINUTAS
+        if prazo_dias is None:
+            prazo_dias = 30
+
+        # =====================================================================
+        # === 1ª MINUTA (idêntica ao normal) ===
+        # =====================================================================
+        logger.info(f'[SISBAJUD] === CRIANDO 1ª MINUTA (prazo {prazo_dias} dias) ===')
+
+        # 3a. Clicar em "Nova Minuta" a partir do menu principal ou dashboard
+        sucesso_nova = _clicar_nova_minuta(driver, log)
+        if not sucesso_nova:
+            resultado['status'] = 'erro'
+            resultado['erros'].append('1ª minuta: Botão "Nova Minuta" não encontrado')
+            return resultado
+
+        # 3b. Preencher campos iniciais
+        campos_ok = helpers._preencher_campos_iniciais(driver, dados_processo, prazo_dias)
+        if not campos_ok:
+            resultado['status'] = 'erro'
+            resultado['erros'].append('1ª minuta: Falha ao preencher campos iniciais')
+            return resultado
+
+        # 3c. Processar réus
+        helpers._processar_reus_otimizado(driver, dados_processo.get('reu', []))
+
+        # 3d. Configurar valor
+        _configurar_valor(driver, dados_processo)
+
+        # 3e. Salvar
+        minuta_1_salva = helpers._salvar_minuta(driver)
+        if not minuta_1_salva:
+            resultado['status'] = 'erro'
+            resultado['erros'].append('1ª minuta: Falha ao salvar')
+            return resultado
+
+        logger.info('[SISBAJUD]  1ª minuta salva com sucesso')
+
+        # 3f. Coletar dados da 1ª minuta (protocolo e relatório)
+        dados_rel_1 = helpers._gerar_relatorio_minuta(driver, numero_processo)
+        protocolo_1 = dados_rel_1.get('protocolo') if dados_rel_1 else None
+        resultado['minuta_1'] = {
+            'prazo_dias': prazo_dias,
+            'protocolo': protocolo_1,
+            'relatorio_gerado': bool(dados_rel_1)
+        }
+
+        # =====================================================================
+        # === 2ª MINUTA (prazo teimosinha normal + AGENDAMENTO para amanhã) ===
+        # =====================================================================
+        logger.info('[SISBAJUD] === CRIANDO 2ª MINUTA (agendamento dia seguinte) ===')
+
+        # Navegar diretamente para /minuta/cadastrar
+        URL_CADASTRAR = "https://sisbajud.pdpj.jus.br/minuta/cadastrar"
+        try:
+            driver.get(URL_CADASTRAR)
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, timeout=3)
+        except Exception as e_nav:
+            if log:
+                logger.info(f'[SISBAJUD]  Erro ao navegar para /minuta/cadastrar: {e_nav}')
+            resultado['erros'].append(f'2ª minuta: erro ao navegar: {e_nav}')
+        else:
+            # 4b. Preencher campos (mesmo prazo, MAS com agendar_amanha=True)
+            # Como a assinatura da função em minutas_campos.py foi modificada, ela aceita kwargs
+            campos_ok_2 = False
+            try:
+                # O Helper re-exporta a função. Vamos chamar diretamente a implementação atualizada se o wrapper não expor kwargs:
+                from .processamento.minutas_campos import _preencher_campos_iniciais as preencher_campos_atualizado
+                campos_ok_2 = preencher_campos_atualizado(driver, dados_processo, prazo_dias=prazo_dias, agendar_amanha=True)
+            except Exception as e_kwargs:
+                # Fallback caso dê erro de assinatura
+                if log:
+                    logger.info(f'[SISBAJUD] Erro ao preencher campos da 2ª minuta com agendar_amanha: {e_kwargs}')
+
+            if not campos_ok_2:
+                if log:
+                    logger.info('[SISBAJUD]  2ª minuta: Falha ao preencher campos — pulando')
+                resultado['erros'].append('2ª minuta: Falha ao preencher campos')
+            else:
+                # 4c. Processar réus
+                helpers._processar_reus_otimizado(driver, dados_processo.get('reu', []))
+
+                # 4d. Configurar valor
+                _configurar_valor(driver, dados_processo)
+
+                # 4e. Salvar
+                minuta_2_salva = helpers._salvar_minuta(driver)
+                if minuta_2_salva:
+                    logger.info('[SISBAJUD]  2ª minuta salva com sucesso')
+
+                    # 4f. Coletar protocolo da 2ª minuta
+                    protocolo_2 = None
+                    try:
+                        url_2 = driver.current_url
+                        import re as _re
+                        match_2 = _re.search(r'/(\d{10,})/', url_2)
+                        if match_2:
+                            protocolo_2 = match_2.group(1)
+                    except Exception:
+                        pass
+
+                    resultado['minuta_2'] = {
+                        'prazo_dias': prazo_dias,
+                        'protocolo': protocolo_2,
+                        'salva': True
+                    }
+
+                    # 4g. Atualizar relatório com o 2º protocolo
+                    if protocolo_1 and protocolo_2:
+                        try:
+                            from .relatorios_integracao import _atualizar_relatorio_com_segundo_protocolo
+                            _atualizar_relatorio_com_segundo_protocolo(
+                                numero_processo, protocolo_1, protocolo_2, log=log
+                            )
+                            if log:
+                                logger.info('[SISBAJUD]  Relatório atualizado com ambos os protocolos')
+                        except Exception as e_rel:
+                            if log:
+                                logger.info(f'[SISBAJUD]  Aviso: erro ao atualizar relatório: {e_rel}')
+                else:
+                    if log:
+                        logger.info('[SISBAJUD]  2ª minuta: falha ao salvar — prosseguindo para juntada')
+                    resultado['erros'].append('2ª minuta: falha ao salvar')
+                    resultado['minuta_2'] = {'prazo_dias': prazo_dias, 'salva': False}
+
+        # =====================================================================
+        # === JUNTADA NO PJe (única, ao final de ambas as minutas) ===
+        # =====================================================================
+        juntada_executada = False
+        if dados_rel_1 and driver_pje:
+            try:
+                # Garantir foco na aba /detalhe do PJe
+                aba_detalhe = None
+                for handle in list(driver_pje.window_handles):
+                    try:
+                        driver_pje.switch_to.window(handle)
+                        url = driver_pje.current_url or ''
+                        if '/detalhe' in url:
+                            aba_detalhe = handle
+                            break
+                    except Exception:
+                        continue
+
+                if aba_detalhe:
+                    try:
+                        driver_pje.switch_to.window(aba_detalhe)
+                    except Exception:
+                        pass
+
+                # Executar juntada (modelo xteim)
+                from PEC.anexos import anex_sisbconsulta
+                if log:
+                    logger.info('[SISBAJUD] Executando juntada da minuta no PJe (modelo xteim)...')
+                juntada_executada = anex_sisbconsulta(driver_pje, numero_processo, debug=log, modelo='xteim')
+                resultado['juntada_executada'] = bool(juntada_executada)
+
+                # Visibilidade + GIGS
+                if juntada_executada:
+                    from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
+                    vis_ok = executar_visibilidade_sigilosos_se_necessario(driver_pje, True, debug=log)
+                    resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
+
+                    from Fix.extracao import criar_gigs
+                    gigs_prazo = '60' if prazo_dias == 60 else '22'
+                    gigs_str = f'{gigs_prazo}/xs resultado'
+                    if log:
+                        logger.info(f'[SISBAJUD] Criando GIGS {gigs_str}...')
+                    resultado_gigs = criar_gigs(driver_pje, gigs_str, log=log)
+            except Exception as e_junt:
+                resultado['erros'].append(f'Erro na juntada PJE: {e_junt}')
+                if log:
+                    logger.info(f'[SISBAJUD]  Erro ao executar juntada: {e_junt}')
+
+        # =====================================================================
+        # === FECHAR DRIVER ===
+        # =====================================================================
+        if fechar_driver:
+            try:
+                driver.quit()
+            except Exception as e:
+                pass
+
+        resultado['status'] = 'concluido'
+        if log:
+            logger.info('[SISBAJUD]  Fluxo duplo de minutas concluído')
+
+        return resultado
+
+    except Exception as e:
+        erro = f'Erro geral na criação de minuta dupla: {str(e)}'
+        if log:
+            logger.info(f'[SISBAJUD]  {erro}')
+        resultado['status'] = 'erro'
+        resultado['erros'].append(erro)
+
+        if fechar_driver:
+            try:
+                driver.quit()
+            except Exception:
+                pass
+
+        return resultado
+
+
+def _clicar_nova_minuta(driver, log=True):
+    """
+    Helper interno: clica no botão 'Nova Minuta' e aguarda o formulário carregar.
+    """
+    script_nova_minuta = """
+    var botaoNova = document.querySelector('button.mat-fab.mat-primary .fa-plus');
+    if (!botaoNova) {
+        botaoNova = document.querySelector('button.mat-fab.mat-primary');
+    }
+    if (botaoNova) {
+        if (botaoNova.tagName === 'MAT-ICON') {
+            botaoNova = botaoNova.closest('button');
+        }
+        botaoNova.click();
+        return true;
+    }
+    return false;
+    """
+    sucesso = driver.execute_script(script_nova_minuta)
+    if sucesso:
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder*="Juiz"], .mat-form-field, form'))
+            )
+        except Exception:
+            pass
+    return bool(sucesso)
+
+

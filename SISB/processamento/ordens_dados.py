@@ -53,13 +53,16 @@ def _extrair_ordens_da_serie(driver, log=True):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
 
+    import time
     ordens = []
     try:
+        # Aguarda a transição do SPA (evita pegar a tabela da série anterior que está sumindo do DOM)
+        time.sleep(2)
         tabela = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "table.mat-table tbody"))
         )
 
-        linhas = tabela.find_elements(By.CSS_SELECTOR, "tr.mat-row")
+        linhas = tabela.find_elements(By.CSS_SELECTOR, "tr.mat-row, tr[mat-row]")
 
         for linha in linhas:
             try:

@@ -95,6 +95,33 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
             logger.info('[ARGOS][ETAPA 1.5]  Todos os documentos sequenciais sem sigilo')
 
         # ════════════════════════════════════════
+        # === ETAPA 1.6: VERIFICAR FASE PARA GIGS (LIQUIDACAO) ===
+        logger.info('[ARGOS][ETAPA 1.6] Verificando fase do processo para possivel GIGS...')
+        try:
+            import re
+            from bianca.api_client import session_from_driver, PjeApiClient, obter_gigs_com_fase
+            
+            m = re.search(r'processo/(\d+)', driver.current_url)
+            id_proc = m.group(1) if m else None
+            
+            if id_proc:
+                sess, host = session_from_driver(driver)
+                client = PjeApiClient(sess, host)
+                info_fase = obter_gigs_com_fase(client, id_proc)
+                fase = info_fase.get('fase', '').lower() if info_fase else ''
+                
+                if 'liquidacao' in fase or 'liquidação' in fase or 'liquid' in fase:
+                    logger.info('[ARGOS][ETAPA 1.6] Fase de liquidacao detectada. Criando GIGS 2 / xs mov exec.')
+                    from Fix.extracao import criar_gigs
+                    criar_gigs(driver, dias_uteis=2, responsavel='xs mov exec', log=log)
+                else:
+                    logger.info(f'[ARGOS][ETAPA 1.6] Fase atual: {fase}. GIGS nao criado.')
+            else:
+                logger.info('[ARGOS][ETAPA 1.6] Nao foi possivel extrair o ID do processo da URL.')
+        except Exception as e:
+            logger.info(f'[ARGOS][ETAPA 1.6] Erro ao verificar fase para GIGS: {e}')
+
+        # ════════════════════════════════════════
         # === ETAPA 2: TRATAR ANEXOS ESPECIAIS INFOJUD (SIGILO + VISIBILIDADE) ===
         logger.info('[ARGOS][ETAPA 2] Tratando anexos especiais infojud (sigilo + visibilidade)...')
         anexos_info = tratar_anexos_argos(driver, documentos_sequenciais, log=log)

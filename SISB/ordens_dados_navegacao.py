@@ -179,6 +179,23 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                 if not select_element.is_displayed():
                     continue
 
+                # Pular bancos com saldo de 0,01
+                try:
+                    js_check_001 = """
+                    var s = arguments[0];
+                    var body = s.closest('.mat-expansion-panel-body');
+                    if (!body) return false;
+                    var saldoCell = body.querySelector('td.cdk-column-saldoRemanescente');
+                    return saldoCell && saldoCell.textContent.includes('0,01');
+                    """
+                    is_001 = driver.execute_script(js_check_001, select_element)
+                    if is_001:
+                        if log:
+                            logger.info(f"[_aplicar_acao] Pulando banco com saldo 0,01 (select #{idx})")
+                        continue
+                except Exception:
+                    pass
+
                 try:
                     parent_element = driver.execute_script(
                         "return arguments[0].parentElement.parentElement;", select_element

@@ -6449,3 +6449,586 @@ _onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
 
 ## Execução 2026-06-25 16:48:44 — x_PC_Visible_20260625_164840.log
 
+
+## Execução 2026-06-25 16:58:53 — x_PC_Visible_20260625_165849.log
+
+
+## Execução 2026-06-26 13:33:25 — x_PC_Visible_20260626_133321.log
+
+- **ERROR** `[13:39:33]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/549661/tarefa/510/aguardando-prazo
+
+- **ERROR** `[13:39:33]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/549661/tarefa/510/aguardando-prazo
+
+- **ERROR** `[13:39:48]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[13:40:28]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[13:40:28]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[13:40:28]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+
+## Execução 2026-06-26 14:20:42 — x_PC_Visible_20260626_142038.log
+
+- **ERROR** `[14:21:35]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TimeoutException: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:22:37]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]' (by=css selector, timeout=15, texto=None) -> Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+findElement@chrome://remote/content/marionette/driver.sys.mjs:1032:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+
+## Execução 2026-06-26 14:41:17 — x_PC_Visible_20260626_144113.log
+
+- **ERROR** `[14:42:12]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:44:40]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[14:44:41]` `judicial_fluxo:ato_judicial` — [ATO][MOVIMENTO]  Erro ao selecionar movimento: Message: Element <button class="mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base mat-primary"> is not clickable at point (1876,197) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[14:47:20]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[14:48:53]` `judicial_fluxo:ato_judicial` — [ATO][INTIMAR] Erro ao desativar intimações: Message: Element <label class="mat-slide-toggle-label"> is not clickable at point (1106,210) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[14:49:19]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:51:11]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:52:06]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[14:53:04]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+
+## Execução 2026-06-27 23:31:50 — x_PC_Visible_20260627_233146.log
+
+- **ERROR** `[23:33:46]` `extracao:get_cookies_dict` — ERRO em get_cookies_dict: InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:33:46]` `judicial_fluxo:fluxo_cls` — [CLS][TIMING][ERRO] 0.002s erro inesperado: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:33:46]` `judicial_fluxo:fluxo_cls` — [CLS] Erro inesperado no fluxo CLS: Message: Tried to run command without establishing a connection
+
+
+- **ERROR** `[23:33:46]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+
+## Execução 2026-06-28 18:31:49 — x_PC_Visible_20260628_183140.log
+
+- **ERROR** `[18:34:39]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]' (by=css selector, timeout=15, texto=None) -> Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+findElement@chrome://remote/content/marionette/driver.sys.mjs:1032:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+
+## Execução 2026-06-30 14:24:38 — x_PC_Headless_20260630_142419.log
+
+
+## Execução 2026-06-30 14:30:00 — x_PC_Visible_20260630_142955.log
+
+- **ERROR** `[14:30:01]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[14:30:01]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[14:30:01]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-06-30 14:30:55 — x_PC_Headless_20260630_143038.log
+
+
+## Execução 2026-06-30 14:32:22 — x_PC_Headless_20260630_143205.log
+
+- **ERROR** `[14:33:12]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,188) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[14:34:21]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/7154470/tarefa/500/transicao
+
+- **ERROR** `[14:34:21]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/7154470/tarefa/500/transicao
+
+- **ERROR** `[14:36:26]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,196) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[14:38:20]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,196) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+
+## Execução 2026-07-01 16:03:22 — x_PC_Headless_20260701_160219.log
+
+- **ERROR** `[16:03:41]` `utils:login_cpf` — ERRO em login_cpf: Falha ao clicar no botao SSO PDPJ: Message: Unable to locate element: [id="btnSsoPdpj"]; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[16:03:41]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha no login
+
+- **ERROR** `[16:03:42]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-07-01 17:03:30 — x_PC_Headless_20260701_170324.log
+
+- **ERROR** `[17:03:31]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[17:03:31]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[17:03:31]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-07-01 17:04:15 — x_PC_Headless_20260701_170405.log
+
+- **ERROR** `[17:05:42]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,188) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[17:07:01]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,188) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+- **ERROR** `[17:08:20]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,188) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+
+## Execução 2026-07-01 17:32:54 — x_PC_Headless_20260701_173247.log
+
+- **ERROR** `[17:33:23]` `extracao:bndt` — ERRO na operação Inclusão: bndt deve ser executado a partir de /detalhe. URL atual: https://pje.trt2.jus.br/pjekz/processo/6204316/tarefa/503/minutar
+
+
+## Execução 2026-07-01 23:15:36 — x_PC_Visible_20260701_231533.log
+
+- **ERROR** `[23:17:50]` `carta_execucao:carta` — [CARTA] Nenhuma correlacao encontrada no eCarta.
+
+
+## Execução 2026-07-02 09:35:21 — x_PC_Headless_20260702_093510.log
+
+- **ERROR** `[09:39:18]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: NameError: name 'preencher_campo' is not defined
+
+- **ERROR** `[09:39:18]` `extracao:criar_gigs` — ERRO em criar_gigs: ElementClickInterceptedException: Message: Element <button id="nova-atividade" class="mat-focus-indicator mat-button mat-button-base mat-primary"> is not clickable at point (1558,369) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+
+## Execução 2026-07-02 09:42:04 — x_PC_Visible_20260702_094159.log
+
+
+## Execução 2026-07-02 09:44:43 — x_PC_Headless_20260702_094435.log
+
+
+## Execução 2026-07-02 09:54:04 — x_PC_Visible_20260702_095401.log
+
+- **ERROR** `[09:57:35]` `extracao:criar_gigs` — ERRO em criar_gigs: ElementClickInterceptedException: Message: Element <button id="nova-atividade" class="mat-focus-indicator mat-button mat-button-base mat-primary"> is not clickable at point (1558,445) because another element <div class="mat-dialog-actions"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+
+## Execução 2026-07-02 20:59:04 — x_PC_Visible_20260702_205854.log
+
+- **ERROR** `[20:59:58]` `utils:login_cpf` — [LOGIN_CPF] Campo OTP não encontrado. Faça a validação manual.
+
+
+## Execução 2026-07-03 14:51:56 — x_PC_Headless_20260703_145149.log
+
+- **ERROR** `[14:54:21]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,188) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+
+## Execução 2026-07-03 14:57:19 — x_PC_Visible_20260703_145715.log
+
+- **ERROR** `[14:57:20]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[14:57:20]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[14:57:20]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+- **ERROR** `[14:57:39]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/conclusao". URL atual: https://pje.trt2.jus.br/pjekz/processo/8414559/tarefa/500/transicao
+
+- **ERROR** `[14:57:39]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] URL não mudou para /conclusao: https://pje.trt2.jus.br/pjekz/processo/8414559/tarefa/500/transicao
+
+
+## Execução 2026-07-03 14:57:42 — x_PC_Visible_20260703_145736.log
+
+
+## Execução 2026-07-03 15:07:36 — x_PC_Visible_20260703_150731.log
+
+- **ERROR** `[15:10:32]` `carta_execucao:carta` — [CARTA] Nenhuma correlacao encontrada no eCarta.
+
+
+## Execução 2026-07-06 11:49:10 — x_PC_Headless_20260706_114846.log
+
+- **ERROR** `[11:51:21]` `extracao:criar_lembrete_posit` — ERRO em criar_lembrete_posit: TimeoutException: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[11:52:57]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: Element <button class="mat-focus-indicator mat-raised-button mat-button-base ng-tns-c663-1 botao-app cor-icone-habilitado transicao-clicavel ng-star-inserted ng-animating"> is not clickable at point (708,188) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+
+## Execução 2026-07-06 21:05:21 — x_PC_Visible_20260706_210420.log
+
+- **ERROR** `[21:12:27]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[21:12:36]` `core:login_automatico_sisbajud` — Erro detectado
+```
+Traceback (most recent call last):
+  File "D:\PjePlus\SISB\core.py", line 257, in login_automatico_sisbajud
+    current_url = driver.current_url
+                  ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 561, in current_url
+    return self.execute(Command.GET_CURRENT_URL)["value"]
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 430, in execute
+    self.error_handler.check_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.InvalidSessionIdException: Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:439:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:38:4
+dispatch@chrome://remote/content/marionette/server.sys.mjs:311:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+observe@resource://gre/modules/AsyncShutdown.sys.mjs:587:17
+observe@resource:///modules/ContentCrashHandlers.sys.mjs:176:28
+```
+
+- **ERROR** `[21:12:48]` `core:login_automatico_sisbajud` — Erro detectado
+```
+Traceback (most recent call last):
+  File "D:\PjePlus\SISB\core.py", line 244, in login_automatico_sisbajud
+    driver.get('https://sisbajud.cnj.jus.br/')
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 455, in get
+    self.execute(Command.GET, {"url": url})
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\webdriver.py", line 430, in execute
+    self.error_handler.check_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\Silas\AppData\Roaming\Python\Python313\site-packages\selenium\webdriver\remote\errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchWindowException: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+navigateTo@chrome://remote/content/marionette/driver.sys.mjs:2362:41
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+```
+
+- **ERROR** `[21:13:55]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[21:14:36]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[21:14:41]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Análise": Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+- **ERROR** `[21:15:21]` `judicial_navegacao:navegar_para_conclusao` — [NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas
+
+- **ERROR** `[21:15:21]` `judicial_fluxo:fluxo_cls` — [CLS] Falha ao navegar para conclusão após 2 tentativas
+
+- **ERROR** `[21:15:21]` `judicial_fluxo:ato_judicial` — [ATO][CLS] Falha no fluxo CLS
+
+
+## Execução 2026-07-07 13:17:55 — x_PC_Headless_20260707_131740.log
+
+
+## Execução 2026-07-07 13:18:53 — x_PC_Visible_20260707_131851.log
+
+- **ERROR** `[13:24:51]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[13:24:54]` `regras_execucao:def_sob` — [DEF_SOB] Execução falhou
+
+- **ERROR** `[13:27:24]` `relatorios_integracao:_atualizar_relatorio_com_segundo_protocolo` — [SISBAJUD][RELATORIO]  Erro ao atualizar relatorio: cannot import name 'obter_caminho_clipboard' from 'PEC.anexos' (D:\PjePlus\PEC\anexos\__init__.py)
+
+- **ERROR** `[13:27:24]` `relatorios_integracao:_atualizar_relatorio_com_segundo_protocolo` — Erro detectado
+```
+Traceback (most recent call last):
+  File "D:\PjePlus\SISB\relatorios_integracao.py", line 541, in _atualizar_relatorio_com_segundo_protocolo
+    from PEC.anexos import obter_caminho_clipboard
+ImportError: cannot import name 'obter_caminho_clipboard' from 'PEC.anexos' (D:\PjePlus\PEC\anexos\__init__.py)
+```
+
+- **ERROR** `[13:28:05]` `minutas_campos:_preencher_campos_iniciais` — [SISBAJUD]  Falha no preenchimento: Erro: Elemento nao encontrado: input[placeholder*="Juiz"]
+
+- **ERROR** `[13:31:48]` `extracao:criar_gigs` — ERRO em criar_gigs: TimeoutException: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:538:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:137:16
+
+
+
+## Execução 2026-07-07 13:40:16 — x_PC_Visible_20260707_134006.log
+
+
+## Execução 2026-07-08 13:36:05 — x_PC_Headless_20260708_133553.log
+
+- **ERROR** `[13:36:06]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[13:36:06]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[13:36:06]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-07-08 13:36:18 — x_PC_Headless_20260708_133613.log
+
+
+## Execução 2026-07-08 13:37:52 — x_PC_Visible_20260708_133742.log
+
+- **ERROR** `[13:38:08]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'pje-cabecalho-tarefa h1.titulo-tarefa' (by=css selector, timeout=7, texto=None) -> Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+findElement@chrome://remote/content/marionette/driver.sys.mjs:1032:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[13:38:08]` `core:esperar_elemento` — [ESPERAR][ERRO] Falha ao esperar elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=3, texto=None) -> Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:765:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:581:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:169:4
+findElement@chrome://remote/content/marionette/driver.sys.mjs:1032:17
+dispatch@chrome://remote/content/marionette/server.sys.mjs:317:49
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+- **ERROR** `[13:38:08]` `movimentos_navegacao:navegar_para_tarefa` — [NAVEGAR_TAREFA] Não foi possível identificar tarefa atual
+
+- **ERROR** `[13:38:46]` `extracao:criar_gigs` — ERRO em criar_gigs: ElementClickInterceptedException: Message: Element <button id="nova-atividade" class="mat-focus-indicator mat-button mat-button-base mat-primary"> is not clickable at point (1558,403) because another element <div class="cdk-overlay-backdrop cdk-overlay-dark-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:321:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:178:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:334:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:206:31
+
+
+
+## Execução 2026-07-08 13:39:40 — x_PC_Visible_20260708_133935.log
+
+- **ERROR** `[13:41:15]` `minutas_campos:_preencher_campos_iniciais` — [SISBAJUD]  Falha no preenchimento: Erro: Elemento nao encontrado: mat-select[name*="varaJuizoSelect"]
+
+
+## Execução 2026-07-08 13:48:20 — x_PC_Visible_20260708_134816.log
+

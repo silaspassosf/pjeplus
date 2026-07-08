@@ -66,6 +66,9 @@ from .core import (
     login_automatico_sisbajud,
     login_manual_sisbajud,
     processar_bloqueios,  # usado internamente por executar_sisbajud_completo
+    minuta_bloqueio,
+    minuta_bloqueio_60,
+    minuta_bloqueio_amanha,
 )
 
 # --- Utils (SISB/utils.py) ---

@@ -681,12 +681,13 @@ pec_ord = make_comunicacao_wrapper(
     prazo=5,
     nome_comunicacao='Notificação',
     sigilo=False,
-    modelo_nome='zordd',
+    modelo_nome='ordd',
     subtipo="Notificação",
     gigs_extra=None,
     destinatarios=None,
     trocar_modelo=True,
-    wrapper_name='pec_ord'
+    wrapper_name='pec_ord',
+    modelo_troca_correios='ar-ord'
 )
 
 pec_sum = make_comunicacao_wrapper(
@@ -694,12 +695,13 @@ pec_sum = make_comunicacao_wrapper(
     prazo=5,
     nome_comunicacao='Notificação',
     sigilo=False,
-    modelo_nome='zsumd',
+    modelo_nome='sumd',
     subtipo="Notificação",
     gigs_extra=None,
     destinatarios=None,
     trocar_modelo=True,
-    wrapper_name='pec_sum'
+    wrapper_name='pec_sum',
+    modelo_troca_correios='ar-sum'
 )
 
 pec_ordc = make_comunicacao_wrapper(

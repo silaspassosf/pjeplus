@@ -20,28 +20,42 @@ def _filtrar_series(driver, data_limite):
 
         async function extrairSeries() {{
             try {{
+                function norm(text) {{
+                    return String(text || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').trim();
+                }}
+                function getCell(row, dataLabel, legacyClass) {{
+                    return row.querySelector('td[data-label="' + dataLabel + '"]') || row.querySelector('td.' + legacyClass) || null;
+                }}
+
                 let tabela = await esperarElemento('table.mat-table', 10000);
                 if (!tabela) return {{sucesso: false, erro: 'Tabela nao encontrada'}};
 
-                let linhas = tabela.querySelectorAll('tbody tr.mat-row');
+                let linhas = tabela.querySelectorAll('tbody tr.mat-row, tbody tr[mat-row]');
                 let series = [];
 
                 for (let i = 0; i < linhas.length; i++) {{
                     let linha = linhas[i];
-                    let colunas = linha.querySelectorAll('td');
+                    
+                    let idCell = getCell(linha, 'sequencial', 'cdk-column-sequencial');
+                    let protCell = getCell(linha, 'protocolo', 'cdk-column-protocolo');
+                    let procCell = getCell(linha, 'processo', 'cdk-column-processo');
+                    let valorBloquearCell = getCell(linha, 'valorBloquear', 'cdk-column-valorBloquear');
+                    let valorBloqueadoCell = getCell(linha, 'valorBloqueado', 'cdk-column-valorBloqueado');
+                    let dataProgCell = getCell(linha, 'dataProgramada', 'cdk-column-dataProgramada');
+                    let situacaoCell = getCell(linha, 'dataFim', 'cdk-column-dataFim');
 
                     let serie = {{
                         linha_index: i
                     }};
 
-                    if (colunas.length >= 8) {{
-                        serie.id_serie = colunas[0].textContent.trim();
-                        serie.protocolo = colunas[1].textContent.trim();
-                        serie.acao = colunas[2].textContent.trim();
-                        serie.valor_bloquear_text = colunas[3].textContent.trim();
-                        serie.valor_bloqueado_text = colunas[4].textContent.trim();
-                        serie.data_conclusao = colunas[5].textContent.trim();
-                        serie.situacao = colunas[6].textContent.trim();
+                    if (idCell) {{
+                        serie.id_serie = norm(idCell.textContent);
+                        serie.protocolo = protCell ? norm(protCell.textContent) : '';
+                        serie.acao = procCell ? norm(procCell.textContent) : '';
+                        serie.valor_bloquear_text = valorBloquearCell ? norm(valorBloquearCell.textContent) : '';
+                        serie.valor_bloqueado_text = valorBloqueadoCell ? norm(valorBloqueadoCell.textContent) : '';
+                        serie.data_conclusao = dataProgCell ? norm(dataProgCell.textContent) : '';
+                        serie.situacao = situacaoCell ? norm(situacaoCell.textContent) : '';
                     }}
 
                     series.push(serie);

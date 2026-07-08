@@ -48,6 +48,11 @@ def gerar_relatorio_bloqueios_processados(dados_bloqueios, log=True):
             total_format = f"R$ {total_executado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
             relatorio_html += f'<p {pStyle}><strong>Total do executado: {total_format}</strong></p>'
 
+            bancos_001 = dados_exec.get('bancos_001', [])
+            if bancos_001:
+                bancos_str = ", ".join(bancos_001)
+                relatorio_html += f'<p {pStyle}>Foram registrados bloqueios de 0,01 no banco ({bancos_str}) que podem indicar investimentos localizados nesta instituição.</p>'
+
         total_geral_format = f"R$ {dados_bloqueios['total_geral']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         relatorio_html += f'<p {pStyle}><strong>Total efetivamente transferido a conta judicial do processo: {total_geral_format}</strong></p>'
         relatorio_html += f'<p {pStyle}>Considerando os bloqueios realizados, as quantias localizadas foram <strong>TRANSFERIDAS</strong> a conta judicial do processo, acao que sera efetivada em ate 48h uteis.</p>'
@@ -116,6 +121,11 @@ def gerar_relatorio_bloqueios_conciso(dados_bloqueios, log=True):
             total_format = f"R$ {total_executado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
             relatorio_html += f'<p {pStyle}>Ordens com bloqueios transferidos desta parte: [{protocolos_str}] - Total transferido do executado: {total_format}</p>'
+
+            bancos_001 = dados_exec.get('bancos_001', [])
+            if bancos_001:
+                bancos_str = ", ".join(bancos_001)
+                relatorio_html += f'<p {pStyle}>Foram registrados bloqueios de 0,01 no banco ({bancos_str}) que podem indicar investimentos localizados nesta instituição.</p>'
 
         if dados_bloqueios.get('ordens_com_erro_bloqueio'):
             if log:

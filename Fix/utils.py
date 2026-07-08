@@ -483,14 +483,49 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                         return True
 
                     # Nova tela de autenticacao Keycloak (botao "Validar") = MFA/OTP
-                    # NAO clicar — usuario precisa inserir o codigo do Google Authenticator
-                    # e confirmar manualmente. Apenas avisar e aguardar.
+                    # Pede o código via terminal para suportar o modo headless
                     if not _nova_tela_validar_clicada:
                         try:
                             btn_validar = driver.find_element(By.CSS_SELECTOR, 'input#kc-login[value="Validar"]')
                             if btn_validar.is_displayed():
-                                logger.warning('[LOGIN_CPF] Tela MFA detectada — insira o codigo do Google Authenticator e clique Validar manualmente.')
-                                print('\n*** AGUARDANDO MFA: insira o codigo do Google Authenticator no browser e clique em "Validar" ***\n')
+                                logger.warning('[LOGIN_CPF] Tela MFA detectada.')
+                                
+                                # Detectar se o modo é headless
+                                from Fix.headless_helpers import is_headless_mode
+                                is_headless = False
+                                try:
+                                    is_headless = is_headless_mode(driver)
+                                except Exception:
+                                    pass
+                                
+                                if is_headless:
+                                    print('\n*** MFA DETECTADO (Autenticador) ***\n')
+                                    
+                                    # Solicita o código no terminal (funciona no PC e Headless)
+                                    codigo_mfa = input('Digite o código do autenticador e pressione ENTER (ou deixe vazio para manual): ').strip()
+                                    
+                                    if codigo_mfa:
+                                        try:
+                                            campo_otp = driver.find_element(By.ID, 'otp')
+                                        except Exception:
+                                            try:
+                                                campo_otp = driver.find_element(By.NAME, 'otp')
+                                            except Exception:
+                                                campo_otp = None
+                                                
+                                        if campo_otp:
+                                            campo_otp.clear()
+                                            campo_otp.send_keys(codigo_mfa)
+                                            time.sleep(0.5)
+                                            btn_validar.click()
+                                            logger.info('[LOGIN_CPF] Código MFA enviado. Aguardando login...')
+                                        else:
+                                            logger.error('[LOGIN_CPF] Campo OTP não encontrado. Faça a validação manual.')
+                                    else:
+                                        logger.warning('[LOGIN_CPF] Código não fornecido no terminal. Aguardando validação manual no browser...')
+                                else:
+                                    logger.info('[LOGIN_CPF] Execução visual (headful) detectada. Aguardando o usuário confirmar no DOM/browser...')
+                                
                                 _nova_tela_validar_clicada = True  # marcar para nao repetir o aviso
                         except Exception:
                             pass

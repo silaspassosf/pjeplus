@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Lista Check (via API)
 // @namespace    http://tampermonkey.net/
-// @version      0.1.0
+// @version      0.2.0
 // @description  Mesmo que exec.js (Argos, Sisbajud, etc.), mas obtém a timeline via endpoint de API em vez de varrer o DOM
 // @author       Silas
 // @match        https://pje.trt2.jus.br/*
@@ -329,6 +329,52 @@
             setTimeout(() => { observer.disconnect(); resolve(null); }, timeout);
         });
     }
+
+    window.executarSimba = async function() {
+        if (typeof showToast === 'function') {
+            showToast('Extraindo dados para Simba...', '#ff9800', 3000);
+        }
+
+        const btnGuardar = document.getElementById('maisPJe_bt_detalhes_guardarDados');
+        if (btnGuardar) {
+            btnGuardar.click();
+        } else {
+            console.warn('[Simba] Botão Guardar Dados não encontrado no DOM.');
+        }
+
+        const idProcesso = extrairIdProcessoUrl();
+        if (idProcesso) {
+            try {
+                const params = new URLSearchParams({
+                    buscarMovimentos: 'true',
+                    buscarDocumentos: 'false',
+                    somenteDocumentosAssinados: 'false',
+                });
+                const url = location.origin
+                    + '/pje-comum-api/api/processos/id/' + idProcesso
+                    + '/timeline?' + params.toString();
+
+                const resp = await fetch(url, { method: 'GET', credentials: 'include', headers: headersApi() });
+                if (resp.ok) {
+                    const itens = await resp.json();
+                    const movimentoExec = itens.find(item => item.titulo && item.titulo.includes('Iniciada execução'));
+                    if (movimentoExec) {
+                        const dataExecucao = normalizarDataApi(movimentoExec.data || movimentoExec.atualizadoEm || '');
+                        localStorage.setItem(`simba_data_execucao_${idProcesso}`, dataExecucao);
+                        console.log(`[Simba] Data da Iniciada execução salva: ${dataExecucao}`);
+                    } else {
+                        console.log('[Simba] Movimento "Iniciada execução" não encontrado.');
+                    }
+                }
+            } catch (e) {
+                console.error('[Simba] Erro ao buscar movimentos da execução:', e);
+            }
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('Dados salvos', '#28a745', 3000);
+        }
+    };
 
     async function init() {
         if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;

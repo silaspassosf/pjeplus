@@ -201,7 +201,8 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
             logger.error('[FLUXO_PZ] prescreve falhou: %s', e)
 
     # Prioridade alta: arquivamento
-    if gerar_regex_geral('julgo extinta a presente execução, nos termos do art. 924').search(texto_normalizado):
+    if gerar_regex_geral('julgo extinta a presente execução, nos termos do art. 924').search(texto_normalizado) or \
+       gerar_regex_geral('autos ao arquivo').search(texto_normalizado):
         try:
             if mov_arquivar:
                 if mov_arquivar(driver):

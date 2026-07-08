@@ -148,31 +148,9 @@ def _voltar_para_lista_principal(driver, log=True):
         except Exception:
             pass
 
-        # Tentar navegacao direta usando a URL
+        # Tentar usar botao voltar na interface (mais eficiente para SPA)
+        # O Angular gerencia o retorno e preserva o estado sem recarregar a pagina
         url_atual = driver.current_url
-
-        # Se estamos em uma pagina de detalhes de serie, voltar para teimosinha
-        if "/detalhes" in url_atual:
-            numero_processo = None
-
-            # Tentar extrair numero do processo
-            if "numeroProcesso=" in url_atual:
-                numero_processo = url_atual.split("numeroProcesso=")[1].split("&")[0]
-            elif hasattr(driver, '_numero_processo_atual'):
-                numero_processo = driver._numero_processo_atual
-
-            # Construir URL de volta
-            if numero_processo:
-                url_volta = f"https://sisbajud.cnj.jus.br/teimosinha?numeroProcesso={numero_processo}"
-            else:
-                url_volta = "https://sisbajud.cnj.jus.br/teimosinha"
-
-            driver.get(url_volta)
-            try:
-                WebDriverWait(driver, 5).until(EC.url_contains("teimosinha"))
-            except Exception:
-                pass
-            return True
 
         # Se nao esta em pagina de detalhes, tentar usar botao voltar (duas vezes)
         for _ in range(2):

@@ -196,31 +196,121 @@ def _marcar_concluido_mandado(numero: str) -> None:
 
 
 def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
-    """Fluxo completo: consulta API + lista fila + processa via engine run_batch."""
+    """Fluxo completo: consulta API + lista fila + processa certidões na UI + depois o resto via engine run_batch."""
     mandados = obter_mandados_devolvidos(driver, pagina=pagina, tamanho_pagina=tamanho_pagina, ordenacao_crescente=ordenacao_crescente)
 
     if not mandados:
         logger.info('[MANDADOS_API] Nenhum mandado devolvido encontrado')
         return False
 
+    # ABRIR ESCANINHO E FILTRAR (passo 1)
+    from Mandado.fluxo_ui import ativar_filtro_mandados_devolvidos
+    from Fix.core import wait_for_page_load
+    
+    url_escaninho = "https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos"
+    if "escaninho/documentos-internos" not in driver.current_url:
+        driver.get(url_escaninho)
+        wait_for_page_load(driver, timeout=15)
+        
+    ativar_filtro_mandados_devolvidos(driver)
+    escaninho_handle = driver.current_window_handle
+
     # ── Extrair itens normalizados
-    itens = []
+    itens_certidao = []
+    itens_outros = []
     for item in mandados:
         processo_obj = item.get('processo') or {}
         id_p = processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id')
         num = processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero')
+        
+        # Tentativa de identificar descricao para certidao de oficial
+        str_item = str(item).lower()
+        eh_certidao = "certid" in str_item and "oficial" in str_item
+        
         if id_p or num:
-            itens.append({'id': id_p, 'numero': num})
+            obj = {'id': id_p, 'numero': num}
+            if eh_certidao:
+                itens_certidao.append(obj)
+            else:
+                itens_outros.append(obj)
 
-    if not itens:
+    if not itens_certidao and not itens_outros:
         logger.info('[MANDADOS_API] Nenhum item na fila')
         return False
 
-    # ── Listar fila completa antes de comecar
-    logger.info(f'[MANDADOS_API] {len(itens)} processo(s) na fila:')
-    for i, it in enumerate(itens, 1):
-        logger.info(f'[MANDADOS_API]   #{i}: id={it["id"]}  numero={it["numero"]}')
+    logger.info(f'[MANDADOS_API] {len(itens_certidao)} Certidoes de Oficial, {len(itens_outros)} outros na fila')
 
+    # 1 - PRIMEIRO AS CERTIDOES (executar um por um mantendo a aba do escaninho aberta)
+    for it in itens_certidao:
+        num = it['numero']
+        id_p = it['id']
+        logger.info(f'[MANDADOS_API] Processando Certidao: #{num}')
+        
+        from Fix.variaveis import url_processo_detalhe
+        detalhe_url = url_processo_detalhe(id_p or num)
+        
+        # Abre em nova aba
+        driver.execute_script(f"window.open('{detalhe_url}', '_blank');")
+        novo_handle = [h for h in driver.window_handles if h != escaninho_handle][-1]
+        driver.switch_to.window(novo_handle)
+        
+        try:
+            wait_for_page_load(driver, timeout=15)
+            import time
+            time.sleep(2)
+            
+            tipo = _selecionar_doc_via_timeline(driver, log=True)
+            if tipo == 'outros':
+                from Fix.extracao import extrair_direto
+                from Fix.utils import normalizar_texto
+                from Peticao.core.extracao.extracao import criar_gigs
+                from selenium.webdriver.common.by import By
+                
+                texto_result = extrair_direto(driver, timeout=10, debug=True, formatar=True)
+                texto = texto_result.get('conteudo', '') if texto_result and texto_result.get('sucesso') else ''
+                texto_norm = normalizar_texto(texto).lower()
+                
+                if "procedi a intimacao" in texto_norm or "procedi à intimação" in texto_norm:
+                    logger.info(f"[MANDADOS_API] #{num}: Regra 'procedi à intimação' detectada. Executando ação Apagar.")
+                    criar_gigs(driver, dias_uteis="1", responsavel="", observacao="xs2", log=True)
+                    time.sleep(1)
+                    
+                    driver.close()
+                    driver.switch_to.window(escaninho_handle)
+                    
+                    # Apagar na UI
+                    try:
+                        lixeira_xpath = f"//tr[contains(@class, 'cdk-drag') and contains(., '{num}')]//button[@aria-label='Remover documento marcados' or @mattooltip='Remover documento' or contains(@aria-label, 'Remover documento')]"
+                        lixeiras = driver.find_elements(By.XPATH, lixeira_xpath)
+                        if lixeiras:
+                            driver.execute_script("arguments[0].click();", lixeiras[0])
+                            logger.info(f"[MANDADOS_API] Lixeira clicada para #{num}.")
+                            time.sleep(2)
+                            botoes_confirmacao = driver.find_elements(By.XPATH, "//button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')]")
+                            for btn in botoes_confirmacao:
+                                if btn.is_displayed():
+                                    driver.execute_script("arguments[0].click();", btn)
+                                    logger.info(f"[MANDADOS_API] Confirmação aceita para #{num}.")
+                                    time.sleep(1)
+                                    break
+                    except Exception as e:
+                        logger.error(f"[MANDADOS_API] Erro ao clicar lixeira para #{num}: {e}")
+                else:
+                    logger.info(f"[MANDADOS_API] #{num}: Regra não satisfeita. Pulando.")
+                    driver.close()
+                    driver.switch_to.window(escaninho_handle)
+            else:
+                logger.info(f"[MANDADOS_API] #{num}: Tipo na timeline={tipo}. Pulando.")
+                driver.close()
+                driver.switch_to.window(escaninho_handle)
+        except Exception as e:
+            logger.error(f"[MANDADOS_API] Erro ao processar certidão #{num}: {e}")
+            if len(driver.window_handles) > 1:
+                driver.close()
+                driver.switch_to.window(escaninho_handle)
+
+    # 2 - DEPOIS O RESTO
+    logger.info(f'[MANDADOS_API] Iniciando processamento do resto ({len(itens_outros)} itens)...')
     # ── Verificar progresso de execucoes anteriores
     concluidos = _carregar_concluidos_mandado()
     if concluidos:
@@ -264,7 +354,7 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                     _marcar_concluido_mandado(str(num))
 
     stats = run_batch(
-        items=itens,
+        items=itens_outros,
         should_skip=should_skip,
         open_item=open_item,
         execute_item=execute_item,
@@ -282,8 +372,7 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
         labels = [str(r["item"].get("numero") or r["item"].get("id", "")) for r in falhas_reg]
         logger.warning(f'[MANDADOS_API] Falhas: {labels}')
 
-    # Mantem compatibilidade: True se ao menos um sucesso ou todos pulados
-    return stats["sucesso"] > 0 or (stats["pulados"] == stats["total"] and stats["total"] > 0)
+    return True
 
 
 def _gigs_sem_prazo_via_js(driver, tamanho_pagina: int = 100) -> list:

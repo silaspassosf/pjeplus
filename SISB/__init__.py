@@ -44,11 +44,17 @@ from SISB.facades_contratos import (  # noqa: E402, F401
 
     # Processamento
     minuta_bloqueio_refatorada,
+
+    # Minutas (acesso direto)
+    minuta_bloqueio,
+    minuta_bloqueio_60,
+    minuta_bloqueio_amanha,
 )
 
 __all__ = [
     'iniciar_sisbajud', 'driver_sisbajud', 'login_automatico_sisbajud', 'login_manual_sisbajud',
     'minuta_bloqueio_refatorada',
+    'minuta_bloqueio', 'minuta_bloqueio_60', 'minuta_bloqueio_amanha',
     'criar_js_otimizado', 'safe_click', 'aguardar_elemento', 'log_sisbajud',
     'validar_numero_processo', 'formatar_valor_monetario',
     'SISBConstants', 'StatusProcessamento', 'TipoFluxo', 'DadosProcesso', 'ResultadoProcessamento',

@@ -631,6 +631,12 @@ class PECOrquestrador:
             stop_on_critical=True,
         )
 
+        # try:
+        #     from .regras_execucao import fechar_driver_sisbajud_compartilhado
+        #     fechar_driver_sisbajud_compartilhado()
+        # except Exception as e:
+        #     logger.error(f"[PEC] Erro ao fechar driver SISBAJUD compartilhado: {e}")
+
         if _critical_exc:
             raise _critical_exc
 

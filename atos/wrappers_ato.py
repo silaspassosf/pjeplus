@@ -292,6 +292,17 @@ ato_meiosub = make_ato_wrapper(
     sigilo=False
 )
 
+ato_HCL = make_ato_wrapper(
+    conclusao_tipo='Homologação de Cálculos',
+    modelo_nome='HCCL',
+    prazo=15,
+    marcar_pec=False,
+    movimento=False,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    sigilo=False
+)
+
 ato_presc = make_ato_wrapper(
     conclusao_tipo='Extinção',
     modelo_nome='ao-in',

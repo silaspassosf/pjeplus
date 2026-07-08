@@ -278,12 +278,27 @@
                         await setVal('data_ini_afastamento_investigado', dataExecucao);
                         await setVal('data_fim_afastamento_investigado', dataFimAfastamento);
                         
+                        const getNumRows = () => document.querySelectorAll('table.paginacao_corpo tbody tr').length;
+                        const initialRows = getNumRows();
+                        
                         console.log(`[Simba] Clicando em Salvar Investigado (${i + 1}/${reclamados.length})...`);
                         const btnGravar = document.getElementById('botao_grava_investigado');
                         if (btnGravar) btnGravar.click();
                         
-                        // Aguarda o processamento do AJAX limpar o formulário antes de ir para o próximo
-                        await new Promise(res => setTimeout(res, 2500));
+                        // Aguarda a nova linha surgir na tabela após o AJAX
+                        console.log('[Simba] Aguardando confirmação (nova linha na tabela)...');
+                        let waitCycles = 0;
+                        while (getNumRows() <= initialRows && waitCycles < 20) { // Timeout de 10s
+                            await new Promise(res => setTimeout(res, 500));
+                            waitCycles++;
+                        }
+                        
+                        if (getNumRows() > initialRows) {
+                            console.log('[Simba] Reclamado adicionado com sucesso na tabela!');
+                            await new Promise(res => setTimeout(res, 500)); // Pequena pausa extra por segurança
+                        } else {
+                            console.warn('[Simba] Tempo limite atingido. A tabela não atualizou (erro de validação?). Indo para o próximo...');
+                        }
                     }
                     alert(`✅ Automação concluída com sucesso! Todos os ${reclamados.length} reclamados foram inseridos.`);
                 }

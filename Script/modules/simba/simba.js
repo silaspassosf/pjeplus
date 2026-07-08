@@ -232,77 +232,10 @@
                 const btnAvancar = document.getElementById('avancar_formulario');
                 if (btnAvancar) {
                     btnAvancar.click();
+                    // O clique no Avançar recarrega a página. A automação continuará após o reload.
                 } else {
                     alert('Botão "Avançar" não encontrado.');
                 }
-                
-                // 5. Aguardar Aba de Investigados ficar ativa
-                console.log('[Simba] Aguardando aba de Investigados...');
-                await new Promise(resolve => {
-                    const checkTab = setInterval(() => {
-                        const tab = document.getElementById('tab_container_tab1');
-                        if (tab && tab.classList.contains('activeTab')) {
-                            clearInterval(checkTab);
-                            resolve();
-                        }
-                    }, 500);
-                });
-                
-                console.log('[Simba] Aba Investigados ativa! Iniciando loop de reclamados...');
-                
-                let reclamadosStr = '[]';
-                if (typeof GM_getValue !== 'undefined') reclamadosStr = GM_getValue('simba_reclamados', '[]');
-                else reclamadosStr = localStorage.getItem('simba_reclamados') || '[]';
-                
-                const reclamados = JSON.parse(reclamadosStr);
-                if (!reclamados || reclamados.length === 0) {
-                    alert('[Simba] Nenhum reclamado encontrado na memória.');
-                } else {
-                    for (let i = 0; i < reclamados.length; i++) {
-                        const r = reclamados[i];
-                        console.log(`[Simba] [AUTOMAÇÃO] Preenchendo reclamado ${i + 1}/${reclamados.length}:`, r);
-                        
-                        // Garante que o botão de salvar existe (caso o AJAX recarregue partes do DOM)
-                        await new Promise(resolve => {
-                            const checkBtn = setInterval(() => {
-                                if (document.getElementById('botao_grava_investigado')) {
-                                    clearInterval(checkBtn);
-                                    resolve();
-                                }
-                            }, 500);
-                        });
-                        
-                        const docLimpo = r.documento.replace(/\D/g, '');
-                        await setVal('cpf_cnpj_investigado', docLimpo);
-                        await setVal('nome_investigado', r.nome);
-                        await setVal('data_ini_afastamento_investigado', dataExecucao);
-                        await setVal('data_fim_afastamento_investigado', dataFimAfastamento);
-                        
-                        const getNumRows = () => document.querySelectorAll('table.paginacao_corpo tbody tr').length;
-                        const initialRows = getNumRows();
-                        
-                        console.log(`[Simba] Clicando em Salvar Investigado (${i + 1}/${reclamados.length})...`);
-                        const btnGravar = document.getElementById('botao_grava_investigado');
-                        if (btnGravar) btnGravar.click();
-                        
-                        // Aguarda a nova linha surgir na tabela após o AJAX
-                        console.log('[Simba] Aguardando confirmação (nova linha na tabela)...');
-                        let waitCycles = 0;
-                        while (getNumRows() <= initialRows && waitCycles < 20) { // Timeout de 10s
-                            await new Promise(res => setTimeout(res, 500));
-                            waitCycles++;
-                        }
-                        
-                        if (getNumRows() > initialRows) {
-                            console.log('[Simba] Reclamado adicionado com sucesso na tabela!');
-                            await new Promise(res => setTimeout(res, 500)); // Pequena pausa extra por segurança
-                        } else {
-                            console.warn('[Simba] Tempo limite atingido. A tabela não atualizou (erro de validação?). Indo para o próximo...');
-                        }
-                    }
-                    alert(`✅ Automação concluída com sucesso! Todos os ${reclamados.length} reclamados foram inseridos.`);
-                }
-                
             } catch (error) {
                 console.error('[Simba] Erro ao criar ordem:', error);
                 alert('Ocorreu um erro ao criar a ordem. Verifique o console.');
@@ -316,4 +249,133 @@
         const header = document.querySelector('.titulo_funcionalidade') || document.body;
         header.appendChild(btn);
     }
-})();
+    
+    // =========================================================================
+    // RETOMADA DA AUTOMAÇÃO (Pós-Reload)
+    // =========================================================================
+    async function resumeAutomacaoSimba() {
+        if (!window.location.href.includes('Simba.php')) return;
+        
+        let automacaoAtiva = false;
+        let reclamadosStr = '[]';
+        let idx = 0;
+        
+        if (typeof GM_getValue !== 'undefined') {
+            automacaoAtiva = GM_getValue('simba_automacao_ativa', false);
+            reclamadosStr = GM_getValue('simba_reclamados', '[]');
+            idx = GM_getValue('simba_reclamados_index', 0);
+        } else {
+            automacaoAtiva = localStorage.getItem('simba_automacao_ativa') === 'true';
+            reclamadosStr = localStorage.getItem('simba_reclamados') || '[]';
+            idx = parseInt(localStorage.getItem('simba_reclamados_index') || '0', 10);
+        }
+        
+        if (!automacaoAtiva) return;
+        
+        // Verifica se estamos na aba de Investigados
+        const tab1 = document.getElementById('tab_container_tab1');
+        if (!tab1 || !tab1.classList.contains('activeTab')) {
+            // Ainda não estamos na aba certa, pode estar carregando.
+            return;
+        }
+        
+        // Evita rodar duplicado
+        if (window.simbaAutomacaoRodando) return;
+        window.simbaAutomacaoRodando = true;
+        
+        console.log('[Simba] Retomando automação na aba Investigados (Pós-Reload)...');
+        
+        const reclamados = JSON.parse(reclamadosStr);
+        if (!reclamados || reclamados.length === 0) {
+            console.warn('[Simba] Automação ativa, mas nenhum reclamado encontrado na memória.');
+            return;
+        }
+        
+        let dataExecucao = '';
+        if (typeof GM_getValue !== 'undefined') dataExecucao = GM_getValue('simba_last_data_execucao', '');
+        else dataExecucao = localStorage.getItem('simba_last_data_execucao') || '';
+        
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, '0');
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = now.getFullYear();
+        const dataFimAfastamento = `${dd}/${mm}/${yyyy}`;
+
+        // Função local setVal (reuso)
+        const setValAsync = async (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val) {
+                console.log(`[Simba] Preenchendo "${id}" com: "${val}"...`);
+                el.focus();
+                await new Promise(res => setTimeout(res, 100));
+                el.value = '';
+                for (let i = 0; i < val.length; i++) {
+                    el.value += val[i];
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    await new Promise(res => setTimeout(res, 20));
+                }
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                await new Promise(res => setTimeout(res, 50));
+                if (typeof el.onblur === 'function') el.onblur();
+                else el.blur();
+                await new Promise(res => setTimeout(res, 300));
+            }
+        };
+
+        // Laço principal (AJAX)
+        for (let i = idx; i < reclamados.length; i++) {
+            const r = reclamados[i];
+            console.log(`[Simba] [AUTOMAÇÃO] Preenchendo reclamado ${i + 1}/${reclamados.length}:`, r);
+            
+            // Aguarda o formulário estar pronto (botão salvar visível)
+            await new Promise(resolve => {
+                const checkBtn = setInterval(() => {
+                    if (document.getElementById('botao_grava_investigado')) {
+                        clearInterval(checkBtn);
+                        resolve();
+                    }
+                }, 500);
+            });
+            
+            const docLimpo = r.documento.replace(/\D/g, '');
+            await setValAsync('cpf_cnpj_investigado', docLimpo);
+            await setValAsync('nome_investigado', r.nome);
+            await setValAsync('data_ini_afastamento_investigado', dataExecucao);
+            await setValAsync('data_fim_afastamento_investigado', dataFimAfastamento);
+            
+            const getNumRows = () => document.querySelectorAll('table.paginacao_corpo tbody tr').length;
+            const initialRows = getNumRows();
+            
+            console.log(`[Simba] Clicando em Salvar Investigado (${i + 1}/${reclamados.length})...`);
+            const btnGravar = document.getElementById('botao_grava_investigado');
+            if (btnGravar) btnGravar.click();
+            
+            // Aguarda a nova linha surgir na tabela após o AJAX
+            console.log('[Simba] Aguardando confirmação (nova linha na tabela)...');
+            let waitCycles = 0;
+            while (getNumRows() <= initialRows && waitCycles < 20) { // Timeout de 10s
+                await new Promise(res => setTimeout(res, 500));
+                waitCycles++;
+            }
+            
+            if (getNumRows() > initialRows) {
+                console.log('[Simba] Reclamado adicionado com sucesso na tabela!');
+                await new Promise(res => setTimeout(res, 500)); // Pequena pausa extra por segurança
+            } else {
+                console.warn('[Simba] Tempo limite atingido. A tabela não atualizou (erro de validação?). Indo para o próximo...');
+            }
+            
+            // Salva o progresso
+            if (typeof GM_setValue !== 'undefined') GM_setValue('simba_reclamados_index', i + 1);
+            else localStorage.setItem('simba_reclamados_index', i + 1);
+        }
+        
+        // Finalizou todos
+        console.log('[Simba] Todos os reclamados já foram inseridos! Finalizando automação.');
+        if (typeof GM_setValue !== 'undefined') GM_setValue('simba_automacao_ativa', false);
+        else localStorage.setItem('simba_automacao_ativa', 'false');
+        alert(`✅ Automação concluída com sucesso! Todos os ${reclamados.length} reclamados foram inseridos.`);
+    }
+    
+    // Inicia verificador de retomada a cada 2s
+    setInterval(resumeAutomacaoSimba, 2000);

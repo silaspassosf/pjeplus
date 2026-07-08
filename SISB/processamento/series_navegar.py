@@ -21,23 +21,46 @@ def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
             return []
 
         if log:
-            logger.info(f"[SISBAJUD] Navegando para detalhes da serie {id_serie}")
+            logger.info(f"[SISBAJUD] Navegando para detalhes da serie {id_serie} via clique")
 
-        url_serie = f"https://sisbajud.cnj.jus.br/teimosinha/{id_serie}/detalhes"
-        # evitar reload completo se ja estamos na pagina correta
-        if f"/{id_serie}/detalhes" not in driver.current_url:
-            driver.get(url_serie)
-            try:
-                wait_for_page_load(driver, timeout=10)
-            except Exception:
-                # fallback de curto sleep para compatibilidade
-                time.sleep(3)
-        else:
+        try:
+            # Identificar e clicar na linha correspondente na SPA
+            linha_index = serie.get('linha_index')
+            if linha_index is not None:
+                from selenium.webdriver.support.ui import WebDriverWait
+                from selenium.webdriver.support import expected_conditions as EC
+                
+                tabela = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "table.mat-table"))
+                )
+                linhas = tabela.find_elements(By.CSS_SELECTOR, "tbody tr.mat-row, tbody tr[mat-row]")
+                
+                if linha_index < len(linhas):
+                    linha_el = linhas[linha_index]
+                    
+                    # Scroll para o elemento
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", linha_el)
+                    time.sleep(0.5)
+                    
+                    # Tentar clicar no botao "detalhes" (lupa) ou na linha inteira
+                    try:
+                        btn_detalhes = linha_el.find_element(By.CSS_SELECTOR, "button.mat-icon-button, button mat-icon")
+                        driver.execute_script("arguments[0].click();", btn_detalhes)
+                    except:
+                        # Fallback: clicar na celula
+                        driver.execute_script("arguments[0].click();", linha_el.find_element(By.CSS_SELECTOR, "td"))
+                        
+                    if log:
+                        logger.info(f"[SISBAJUD] Clique bem-sucedido na serie {id_serie}")
+                else:
+                    raise Exception(f"Indice da linha {linha_index} fora de escopo ({len(linhas)} linhas)")
+            else:
+                raise Exception("Atributo linha_index nao fornecido na serie")
+                
+        except Exception as e:
             if log:
-                logger.info(f"[SISBAJUD] Ja estamos na pagina da serie {id_serie}, evitando driver.get")
-
-        if log:
-            logger.info(f"[SISBAJUD] Navegacao direta bem-sucedida para serie {id_serie}")
+                logger.info(f"[SISBAJUD] Falha ao clicar na serie, erro: {e}")
+            return []
 
         # Espera reativa: aguardar carregamento mínimo antes de extrair ordens
         try:

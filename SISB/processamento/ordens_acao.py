@@ -47,6 +47,12 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
             }
             var body = s.closest('.mat-expansion-panel-body');
             if (!body) return false;
+            
+            var saldoCell = body.querySelector('td.cdk-column-saldoRemanescente');
+            if (saldoCell && saldoCell.textContent.includes('0,01')) {
+                return false;
+            }
+            
             return !!body.querySelector('.com-acoes') && !body.querySelector('.com-acoes-nao-resposta');
         }).length;
     """
@@ -73,6 +79,12 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
             }
             var body = s.closest('.mat-expansion-panel-body');
             if (!body) return false;
+            
+            var saldoCell = body.querySelector('td.cdk-column-saldoRemanescente');
+            if (saldoCell && saldoCell.textContent.includes('0,01')) {
+                return false;
+            }
+            
             return !!body.querySelector('.com-acoes') && !body.querySelector('.com-acoes-nao-resposta');
         });
         if (sels[arguments[0]]) { sels[arguments[0]].click(); return true; }

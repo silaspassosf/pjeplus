@@ -2,6 +2,9 @@
 SISB Series - Helpers de fluxo
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 def _tratar_ordem_respondida(driver, ordem, tipo_fluxo, log, resultado):
     if tipo_fluxo != 'POSITIVO':
@@ -11,7 +14,7 @@ def _tratar_ordem_respondida(driver, ordem, tipo_fluxo, log, resultado):
         logger.info('[SISBAJUD] Extraindo dados da ordem ja processada...')
 
     try:
-        from .ordens_fluxo import _processar_ordem
+        from ..ordens_execucao import _processar_ordem
         sucesso = _processar_ordem(driver, ordem, tipo_fluxo, log, apenas_extrair=True)
 
         from .relatorios_dados import _agrupar_dados_bloqueios
@@ -29,7 +32,7 @@ def _tratar_ordem_respondida(driver, ordem, tipo_fluxo, log, resultado):
 
 
 def _executar_transferencia(driver, ordem, tipo_fluxo, log, valor_parcial, resultado):
-    from .ordens_fluxo import _processar_ordem
+    from ..ordens_execucao import _processar_ordem
 
     sucesso_processamento = _processar_ordem(
         driver,
@@ -93,7 +96,7 @@ def _executar_transferencia(driver, ordem, tipo_fluxo, log, valor_parcial, resul
 
 
 def _executar_desbloqueio(driver, ordem, log, resultado):
-    from .ordens_fluxo import _processar_ordem
+    from ..ordens_execucao import _processar_ordem
 
     sucesso_processamento = _processar_ordem(driver, ordem, 'DESBLOQUEIO', log)
     if not sucesso_processamento:

@@ -393,6 +393,12 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
 	                }
 	                var body = s.closest('.mat-expansion-panel-body');
 	                if (!body) return false;
+	                
+	                var saldoCell = body.querySelector('td.cdk-column-saldoRemanescente');
+	                if (saldoCell && saldoCell.textContent.includes('0,01')) {
+	                    return false;
+	                }
+	                
 	                return !!body.querySelector('.com-acoes') && !body.querySelector('.com-acoes-nao-resposta');
 	            });
 	        };

@@ -8,9 +8,17 @@ SISB Minutas - Preenchimento de campos iniciais
 """
 
 
-def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
+def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanha=False):
     """
     Helper para preencher campos iniciais da minuta de bloqueio.
+
+    Args:
+        driver: WebDriver do SISBAJUD
+        dados_processo: Dados do processo
+        prazo_dias: Prazo em dias (0, 1, 30 ou 60). 0 = amanhã para teimosinha.
+        agendar_amanha: Se True, seleciona 'Agendar protocolo = Sim' e define
+                        a data do protocolo para amanhã (usado na 2ª minuta).
+                        Lógica portada do maispje copiarDadosParaNovaOrdem2.
     """
     try:
         from ..utils import criar_js_otimizado
@@ -31,8 +39,92 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
 
         cpf_cnpj_limpo = cpf_cnpj_autor.replace('.', '').replace('-', '').replace('/', '')
 
-        if prazo_dias not in [30, 60]:
+        if prazo_dias not in [0, 1, 30, 60]:
             prazo_dias = 30
+
+        # Calcular amanhã para o agendamento do 2º protocolo (maispje: i=1 → numdias=-1 → hoje+1)
+        _amanha = datetime.now() + timedelta(days=1)
+        _ag_ano = _amanha.year
+        _ag_mes = _amanha.month - 1   # 0-based para JS
+        _ag_dia = _amanha.day
+        _meses_js = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho",
+                     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+        _meses_js_str = str(_meses_js)
+
+        if agendar_amanha:
+            # js_agendamento é uma f-string separada: os {{ }} aqui viram { } no valor final.
+            # Quando esse valor for injetado no script_unico_campos via {js_agendamento},
+            # o f-string externo insere o valor como está — sem reinterpretar as chaves.
+            js_agendamento = f"""
+                // 9. AGENDAR PROTOCOLO PARA AMANHÃ (2ª minuta — portado do maispje)
+                log.push('9. Selecionando agendamento para amanha (dia seguinte)...');
+                let agendado = false;
+                let todosRowsAg = Array.from(document.querySelectorAll('div.row, sisbajud-cadastro-minuta .row'));
+                for (let rwAg of todosRowsAg) {{
+                    if (rwAg.textContent.includes('Agendar protocolo do bloqueio')) {{
+                        let radsAg = rwAg.parentElement.querySelectorAll('mat-radio-button');
+                        for (let rAg of radsAg) {{
+                            if (rAg.innerText.includes('Sim')) {{
+                                rAg.querySelector('label').click();
+                                agendado = true;
+                                log.push('Agendamento: Sim clicado');
+                                break;
+                            }}
+                        }}
+                        break;
+                    }}
+                }}
+                await new Promise(r => setTimeout(r, 1000));
+
+                // 10. CALENDÁRIO DO AGENDAMENTO (amanhã)
+                // Lógica maispje escolherDataNocalendario(i=1): numdias=-1, data=hoje+1
+                if (agendado) {{
+                    log.push('10. Calendario agendamento (amanha)...');
+                    let agAno = {_ag_ano};
+                    let agMes = {_ag_mes};
+                    let agDia = {_ag_dia};
+                    let mesesAg = {_meses_js_str};
+
+                    let inputDataProt = await esperarElemento('input[placeholder="Data do protocolo:"]', 5000);
+                    if (inputDataProt) {{
+                        let paiDp = inputDataProt.parentElement.parentElement;
+                        let btnCalAg = paiDp.querySelector('button[aria-label="Open calendar"]');
+                        if (btnCalAg) {{
+                            btnCalAg.click();
+                            await new Promise(r => setTimeout(r, 1000));
+                            let btnMAAg = await esperarElemento('mat-calendar button[aria-label="Choose month and year"]', 3000);
+                            if (btnMAAg) {{
+                                btnMAAg.click();
+                                await new Promise(r => setTimeout(r, 1000));
+                                let anoCellAg = await esperarElemento('mat-calendar td[aria-label="' + agAno + '"]', 3000);
+                                if (anoCellAg) {{ anoCellAg.click(); await new Promise(r => setTimeout(r, 1000)); }}
+                                let mesAtAg = agMes;
+                                let diaDag = agDia;
+                                while (mesAtAg >= 0) {{
+                                    let msAg = mesesAg[mesAtAg] + ' de ' + agAno;
+                                    let msCellAg = document.querySelector('mat-calendar td[aria-label="' + msAg + '"]');
+                                    if (msCellAg && !msCellAg.getAttribute('aria-disabled')) {{ msCellAg.click(); break; }}
+                                    mesAtAg--; diaDag = 31;
+                                }}
+                                await new Promise(r => setTimeout(r, 1000));
+                                let mfAg = mesesAg[mesAtAg] + ' de ' + agAno;
+                                while (diaDag > 0) {{
+                                    let dStrAg = diaDag + ' de ' + mfAg;
+                                    let dCellAg = document.querySelector('mat-calendar td[aria-label="' + dStrAg + '"]');
+                                    if (dCellAg && !dCellAg.getAttribute('aria-disabled')) {{
+                                        dCellAg.click();
+                                        log.push('Data agendamento: ' + diaDag + '/' + (mesAtAg+1) + '/' + agAno);
+                                        break;
+                                    }}
+                                    diaDag--;
+                                }}
+                            }}
+                        }}
+                    }}
+                }}
+"""
+        else:
+            js_agendamento = ''
 
         numdias = prazo_dias
         hoje = datetime.now()
@@ -221,6 +313,7 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
                 let dataFinal = diaD + '/' + (mesAtual + 1) + '/{ano}';
                 log.push('Data final: ' + dataFinal);
 
+{js_agendamento}
                 return {{sucesso: true, msg: 'Campos preenchidos com sucesso', log: log, data_final: dataFinal}};
 
             }} catch(e) {{

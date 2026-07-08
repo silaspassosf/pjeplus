@@ -231,21 +231,21 @@ def _aplicar_acao_pos_triagem(
             bucket = 'b1_normal'
 
     if bucket == 'b2_incompetencia':
-        print(f"[TRIAGEM/ACOES][{numero}] b2 -- incompetencia territorial → processo nao processado")
+        print(f"[TRIAGEM/ACOES][{numero}] b2 -- incompetencia territorial -> processo nao processado")
         return True, None
     if bucket == 'e_menor':
-        print(f"[TRIAGEM/ACOES][{numero}] e_menor -- reclamante menor de idade → intimar MPT, processo nao processado")
+        print(f"[TRIAGEM/ACOES][{numero}] e_menor -- reclamante menor de idade -> intimar MPT, processo nao processado")
         return True, None
     if bucket == 'c_pedidos':
-        print(f"[TRIAGEM/ACOES][{numero}] c -- pedidos nao liquidados → placeholder despacho liquidar")
+        print(f"[TRIAGEM/ACOES][{numero}] c -- pedidos nao liquidados -> placeholder despacho liquidar")
         return True, None
     if bucket == 'd_docs':
-        print(f"[TRIAGEM/ACOES][{numero}] d -- falta de documentos pessoais → placeholder apresentar doc")
+        print(f"[TRIAGEM/ACOES][{numero}] d -- falta de documentos pessoais -> placeholder apresentar doc")
         return True, None
 
-    # b1: sem alertas criticos → execucao normal de buckets
+    # b1: sem alertas criticos -> execucao normal de buckets
     bucket_proc = processo_info.get("bucket", "C")
-    print(f"[TRIAGEM/ACOES][{numero}] b1 -- sem alertas → bucket {bucket_proc} (execucao normal)")
+    print(f"[TRIAGEM/ACOES][{numero}] b1 -- sem alertas -> bucket {bucket_proc} (execucao normal)")
     if bucket_proc == "A":
         ok, status = acao_bucket_a(driver, numero, processo_info)
         return ok, status
@@ -506,32 +506,57 @@ def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
         data_str: Data no formato "DD/MM/YYYY".
     """
     alvo = _dt.strptime(data_str, "%d/%m/%Y")
-    hoje = _dt.today()
-    delta = (alvo.year - hoje.year) * 12 + (alvo.month - hoje.month)
-    print(f"[CALENDARIO] Navegando para {data_str}. Hoje: {hoje}. Delta meses: {delta}")
-
-    # Log do mês inicial exibido (capturar título do calendário)
+    
+    heading_el = esperar_elemento(driver, "div.filtros h2, h2[role='status'], .cal-header h2", by=By.CSS_SELECTOR, timeout=10)
+    if not heading_el:
+        raise Exception("Nao foi possivel ler o heading inicial do calendario.")
+    current_heading = heading_el.text.strip()
+    
+    import re
+    match = re.search(r'([a-zA-ZçÇ]+)[^\d]+(\d{4})', current_heading)
+    if not match:
+        raise Exception(f"Formato de heading desconhecido: {current_heading}")
+    
+    mes_str = match.group(1).capitalize()
+    ano_atual = int(match.group(2))
+    
     try:
-        current_heading = driver.find_element(By.CSS_SELECTOR, ".cal-header h2").text
-        print(f"[CALENDARIO] Heading inicial: {current_heading}")
-    except:
-        print("[CALENDARIO] Não foi possível ler heading inicial")
+        mes_atual = _MESES_PT.index(mes_str) + 1
+    except ValueError:
+        raise Exception(f"Mes desconhecido no heading: {mes_str}")
+        
+    delta = (alvo.year - ano_atual) * 12 + (alvo.month - mes_atual)
+    print(f"[CALENDARIO] Navegando para {data_str}. Calendario exibe: {mes_str}/{ano_atual}. Delta meses: {delta}")
 
-    for i in range(delta):
-        btn_next = esperar_elemento(driver, "#next", by=By.CSS_SELECTOR, timeout=10)
-        if not btn_next:
-            raise Exception("Botao proximo mes nao encontrado")
-        safe_click(driver, btn_next)
-        time.sleep(0.3)
-        # Log após cada clique
-        try:
-            h2 = driver.find_element(By.CSS_SELECTOR, ".cal-header h2").text
-            print(f"[CALENDARIO] Após clique {i+1}: {h2}")
-        except:
-            pass
+    if delta > 0:
+        btn_selector = "button#next, div.filtros button#next"
+    elif delta < 0:
+        btn_selector = "button#previous, div.filtros button#previous"
+    else:
+        btn_selector = None
+
+    if btn_selector:
+        for i in range(abs(delta)):
+            btn = esperar_elemento(driver, btn_selector, by=By.CSS_SELECTOR, timeout=10)
+            if not btn:
+                # fallback para xpath se os seletores css falharem
+                if delta > 0:
+                    btn = driver.find_element(By.XPATH, "//button[.//i[contains(@class, 'fa-arrow-right')]]")
+                else:
+                    btn = driver.find_element(By.XPATH, "//button[.//i[contains(@class, 'fa-arrow-left')]]")
+                
+                if not btn:
+                    raise Exception(f"Botao mudanca de mes nao encontrado")
+            safe_click(driver, btn)
+            time.sleep(0.3)
+            try:
+                h2 = driver.find_element(By.CSS_SELECTOR, "div.filtros h2, h2[role='status']").text
+                print(f"[CALENDARIO] Após clique {i+1}: {h2}")
+            except:
+                pass
 
     mes_nome = _MESES_PT[alvo.month - 1]
-    heading_xpath = f"//h2[contains(normalize-space(.), '{mes_nome}, {alvo.year}')]"
+    heading_xpath = f"//h2[contains(normalize-space(.), '{mes_nome}') and contains(normalize-space(.), '{alvo.year}')]"
     heading = esperar_elemento(driver, heading_xpath, by=By.XPATH, timeout=10)
     if not heading:
         raise Exception(f"Heading do mes '{mes_nome}, {alvo.year}' nao encontrado")
@@ -540,9 +565,9 @@ def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
     dia_str = str(alvo.day)
     # Usar XPath mais específico: célula que contém o número do dia exato e não está em heading
     dia_cell_xpath = (
-        f"//span[contains(@class,'cal-day-cell') and "
-        f".//label[normalize-space(.)='{dia_str}'] and "
-        f"not(ancestor::div[contains(@class,'cal-day-heading')])]"
+        f"//mwl-calendar-month-cell[contains(@class, 'cal-in-month')]//"
+        f"span[contains(@class,'cal-day-cell') and "
+        f".//label[normalize-space(.)='{dia_str}']]"
     )
     dia_cell = esperar_elemento(driver, dia_cell_xpath, by=By.XPATH, timeout=10)
     if not dia_cell:
@@ -587,13 +612,15 @@ def _encontrar_slot_dia(driver: WebDriver, hora_str: str) -> None:
     # Primeiro, registrar todas as linhas visíveis para diagnóstico
     try:
         todas_linhas = driver.find_elements(By.XPATH, "//tr[.//span[contains(@class,'ng-star-inserted')]]")
-        for idx, tr in enumerate(todas_linhas):
-            texto = tr.text[:120]
-            print(f"Linha {idx}: {texto}")
+        # for idx, tr in enumerate(todas_linhas):
+        #     texto = tr.text[:120]
+        #     print(f"Linha {idx}: {texto}")
     except:
         pass
 
-    linha_xpath = f"//tr[.//span[normalize-space(.)='{hora_str}']]"
+    # Para garantir que pegamos a linha da pauta DIÁRIA (e não a tabela inicial que pode ainda estar no DOM),
+    # verificamos se o horário está na primeira ou segunda coluna (na tabela inicial o horário fica na 3ª coluna).
+    linha_xpath = f"//tr[td[position()<=2]//span[normalize-space(.)='{hora_str}']]"
     linha = esperar_elemento(driver, linha_xpath, by=By.XPATH, timeout=15)
     if not linha:
         raise Exception(f"Linha com horario '{hora_str}' nao encontrada na pauta diaria")
@@ -603,7 +630,7 @@ def _encontrar_slot_dia(driver: WebDriver, hora_str: str) -> None:
     # Clica no botão com aria-label "Designar Audiência"
     btn_plus = linha.find_element(
         By.XPATH,
-        ".//button[contains(@aria-label,'Designar')] | .//i[contains(@class,'fa-plus-circle')]/ancestor::button",
+        ".//button[contains(@aria-label,'Designar')] | .//i[contains(@class,'fa-plus-circle')]/ancestor::button"
     )
     print(f"[SLOT] Clicando no botão designar")
     safe_click(driver, btn_plus)
@@ -612,44 +639,34 @@ def _encontrar_slot_dia(driver: WebDriver, hora_str: str) -> None:
 def _tem_audiencia_marcada(driver: WebDriver, processo_info: Optional[Dict] = None) -> bool:
     """Verifica se o processo tem audiência marcada.
 
-    Fonte primária: campo `tem_audiencia` (derivado de `dataProximaAudiencia`) em
-    processo_info, preenchido via API antes de abrir o processo. Essa fonte é
-    mais confiável que o DOM porque o campo vem direto do servidor PJe.
-
-    Fallback (quando processo_info indisponível): inspeciona `dt#audiencias` no
-    DOM e valida presença de data/hora concretos.
+    Fonte primária: Inspeciona `dt#audiencias` no DOM e valida presença de data/hora concretos.
+    Isso é necessário pois a API muitas vezes retorna audiências que já foram canceladas.
     """
-    # --- Fonte primária: API (processo_info) ---
-    if processo_info is not None:
-        tem = bool(processo_info.get('tem_audiencia', False))
-        print(f"[TRIAGEM] _tem_audiencia_marcada via API: tem_audiencia={tem} "
-              f"(dataProximaAudiencia={processo_info.get('dataProximaAudiencia', 'N/A')})")
-        return tem
-
-    # --- Fallback: DOM ---
     try:
+        # Tenta extrair do DOM primeiro (mais confiável para audiências canceladas)
         dt = driver.find_element(By.CSS_SELECTOR, "dt#audiencias")
-        if not dt.is_displayed():
-            return False
+        if dt.is_displayed():
+            parent_text = ""
+            try:
+                parent = dt.find_element(By.XPATH, "./ancestor::*[1]")
+                parent_text = (parent.text or "").strip()
+            except Exception:
+                parent_text = (dt.text or "").strip()
 
-        parent_text = ""
-        try:
-            parent = dt.find_element(By.XPATH, "./ancestor::*[1]")
-            parent_text = (parent.text or "").strip()
-        except Exception:
-            parent_text = (dt.text or "").strip()
-
-        if not parent_text:
-            return False
-
-        re_data = re.search(r"\b\d{2}/\d{2}/\d{4}\b", parent_text)
-        re_hora = re.search(r"\b\d{2}:\d{2}\b", parent_text)
-
-        # aud_kw removido: o rotulo do proprio dt#audiencias (ex: "Audiencia(s):")
-        # sempre contem a palavra, causando falso positivo. So considerar TRUE
-        # se houver data/hora concreta de audiencia.
-        return bool(re_data or re_hora)
+            if parent_text:
+                re_data = re.search(r"\b\d{2}/\d{2}/\d{4}\b", parent_text)
+                re_hora = re.search(r"\b\d{2}:\d{2}\b", parent_text)
+                if re_data or re_hora:
+                    print("[TRIAGEM] _tem_audiencia_marcada via DOM: True")
+                    return True
+                
+        # Se encontrou dt mas não tem data/hora válida, ou não está exibido, é False
+        print("[TRIAGEM] _tem_audiencia_marcada via DOM: False (dt#audiencias encontrado mas sem data/hora)")
+        return False
+        
     except Exception:
+        # Se não encontrar dt#audiencias, significa que não tem audiência no DOM
+        print("[TRIAGEM] _tem_audiencia_marcada via DOM: False (dt#audiencias nao encontrado)")
         return False
 
 
@@ -700,18 +717,22 @@ def _marcar_aud(
 
         input_num = modal.find_element(By.CSS_SELECTOR, "input#inputNumeroProcesso")
         valor_atual = (input_num.get_attribute('value') or '').strip()
-        if not valor_atual:
-            try:
-                safe_click(driver, input_num)
-                input_num.clear()
-                input_num.send_keys(numero_processo)
-                driver.execute_script(
-                    "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
-                    "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
-                    input_num,
-                )
-            except Exception:
-                preencher_campo(driver, "#inputNumeroProcesso", numero_processo)
+        try:
+            safe_click(driver, input_num)
+            input_num.clear()
+            time.sleep(0.3)
+            # Remove mask and send only digits to avoid mask duplication
+            numero_limpo = "".join(filter(str.isdigit, numero_processo))
+            for ch in numero_limpo:
+                input_num.send_keys(ch)
+                time.sleep(0.02)
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
+                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
+                input_num,
+            )
+        except Exception:
+            preencher_campo(driver, "#inputNumeroProcesso", numero_processo)
         time.sleep(0.8)
 
         btn_confirmar = esperar_elemento(
@@ -727,21 +748,46 @@ def _marcar_aud(
 
         modal_confirmado = esperar_elemento(
             driver,
-            "div.container-conteudo h4",
+            "div.container-conteudo",
             by=By.CSS_SELECTOR,
             timeout=10,
         )
         if not modal_confirmado:
             raise Exception("Confirmacao de designacao de audiencia nao encontrada no dialogo")
 
+        # Usa textContent para ler o texto mesmo durante a animação do modal (onde .text retorna vazio)
+        texto_confirmacao = driver.execute_script("return arguments[0].textContent;", modal_confirmado).strip().lower()
+        print(f"[MARCAR_AUD] Texto do modal retornado: '{texto_confirmacao}'")
+
+        if "sucesso" not in texto_confirmacao and "confirmada" not in texto_confirmacao:
+            # Tentar capturar toast de erro
+            erro_msg = "Modal nao indicou sucesso."
+            try:
+                snack = driver.find_element(By.CSS_SELECTOR, "simple-snack-bar")
+                if snack.is_displayed():
+                    erro_msg = f"Erro do PJe: {snack.text.strip()}"
+            except:
+                pass
+            
+            # Clica no botao Fechar/Cancelar para não travar a tela
+            try:
+                btn_fechar_erro = driver.find_element(By.CSS_SELECTOR, "div.container-botoes button")
+                safe_click(driver, btn_fechar_erro)
+            except:
+                pass
+            
+            raise Exception(erro_msg)
+
         btn_fechar = esperar_elemento(
             driver,
-            "div.container-botoes button",
-            by=By.CSS_SELECTOR,
+            "//div[contains(@class,'container-botoes')]//button[.//span[contains(normalize-space(.), 'Fechar')]]",
+            by=By.XPATH,
             timeout=10,
         )
         if not btn_fechar:
-            raise Exception("Botao Fechar nao encontrado na confirmacao")
+            # Fallback para qualquer botão se 'Fechar' não for encontrado
+            btn_fechar = driver.find_element(By.CSS_SELECTOR, "div.container-botoes button")
+            
         safe_click(driver, btn_fechar)
         time.sleep(0.5)
         sucesso = True
@@ -805,7 +851,7 @@ def acao_bucket_a(
         rito = 'ATSum' if tipo == 'ATSUM' else 'ATOrd'
 
         if not tem_100:
-            print(f"[TRIAGEM/A] Processo {numero_processo} sem 100% digital. Marcando audiencia antes do despacho.")
+            print(f"[TRIAGEM/A] Processo {numero_processo} sem 100% digital. Desmarcando 100% (se houver), marcando audiencia, ativando 100% e despachando.")
 
             limpar_overlays_headless(driver)
 
@@ -821,12 +867,34 @@ def acao_bucket_a(
                 except Exception as e:
                     print(f"[TRIAGEM/A] ❌ Erro ao criar GIGS ({obs}): {e}")
 
-            marcou_aud = _marcar_aud(driver, numero_formatado, rito, driver.current_window_handle)
+            aba_retificar = desmarcar_100(driver, id_processo)
+            _print_saida_funcao(f"desmarcar_100[{numero_processo}]", aba_retificar)
+            if not aba_retificar:
+                print(f"[TRIAGEM/A] ❌ Nao foi possivel abrir aba retificar")
+                return False, None
+
+            marcou_aud = _marcar_aud(driver, numero_formatado, rito, aba_retificar)
             _print_saida_funcao(f"_marcar_aud[{numero_processo}]", marcou_aud)
             if not marcou_aud:
                 print(f"[TRIAGEM/A] ❌ Marcacao de audiencia falhou para {numero_processo}. Despacho abortado.")
                 return False, None
+            
+            try:
+                if aba_retificar in driver.window_handles:
+                    driver.switch_to.window(aba_retificar)
+                    remarcar_100_pos_aud(driver)
+                    driver.close()
+            except Exception as e:
+                print(f"[TRIAGEM/A] ⚠ Falha ao remarcar 100%: {e}")
 
+            try:
+                for handle in driver.window_handles:
+                    driver.switch_to.window(handle)
+                    if '/detalhe' in (driver.current_url or ''):
+                        break
+            except Exception:
+                pass
+                
             limpar_overlays_headless(driver)
 
             try:

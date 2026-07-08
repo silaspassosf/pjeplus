@@ -43,12 +43,17 @@ def _agrupar_dados_bloqueios(dados_acumulados, dados_novos, log=True):
 
                 exec_acum['protocolos'].extend(protocolos_novos)
                 exec_acum['total'] += dados_exec.get('total', 0.0)
+                
+                bancos_novos = dados_exec.get('bancos_001', [])
+                if bancos_novos:
+                    exec_acum['bancos_001'] = list(set(exec_acum.get('bancos_001', []) + bancos_novos))
             else:
                 dados_acumulados['executados'][chave_executado] = {
                     'nome': dados_exec.get('nome', 'Executado'),
                     'documento': dados_exec.get('documento', ''),
                     'protocolos': list(dados_exec.get('protocolos', [])),
-                    'total': float(dados_exec.get('total', 0.0))
+                    'total': float(dados_exec.get('total', 0.0)),
+                    'bancos_001': list(set(dados_exec.get('bancos_001', [])))
                 }
 
             dados_acumulados['total_geral'] += dados_exec.get('total', 0.0)
@@ -134,13 +139,31 @@ def extrair_dados_bloqueios_processados(driver, log=True, protocolo_ordem=None):
 
                     chave_executado = f"{nome_executado}|{documento_executado}"
 
+                    bancos_001 = []
+                    try:
+                        bancos_panels = header.find_elements(By.XPATH, '..//mat-expansion-panel[.//div[contains(@class, "div-title-instituicao")]]')
+                        for banco_panel in bancos_panels:
+                            try:
+                                nome_banco = banco_panel.find_element(By.CSS_SELECTOR, '.div-title-instituicao .col-reu-dados-nome-pessoa').text.strip()
+                                saldo_cell = banco_panel.find_element(By.CSS_SELECTOR, 'td.cdk-column-saldoRemanescente')
+                                if '0,01' in saldo_cell.text:
+                                    bancos_001.append(nome_banco)
+                            except:
+                                pass
+                    except:
+                        pass
+
                     if chave_executado not in dados_bloqueios['executados']:
                         dados_bloqueios['executados'][chave_executado] = {
                             'nome': nome_executado,
                             'documento': documento_executado,
                             'protocolos': [],
-                            'total': 0.0
+                            'total': 0.0,
+                            'bancos_001': []
                         }
+
+                    if bancos_001:
+                        dados_bloqueios['executados'][chave_executado]['bancos_001'] = list(set(dados_bloqueios['executados'][chave_executado].get('bancos_001', []) + bancos_001))
 
                     valor_formatado = f"R$ {valor_float:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
                     dados_bloqueios['executados'][chave_executado]['protocolos'].append({

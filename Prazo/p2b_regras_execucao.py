@@ -360,7 +360,7 @@ REGEX_PATTERNS = {
     'bloqueio_convertido': re.compile(r'bloqueio realizado, ora convertido', re.IGNORECASE),
     'parcelamento': re.compile(r'sobre o preenchimento dos pressupostos legais para concessão do parcelamento', re.IGNORECASE),
     'recolhimento': re.compile(r'comprovar recolhimento|comprovar recolhimentos', re.IGNORECASE),
-    'baixa': re.compile(r'determinar cancelamento/baixa|deixo de receber o Agravo|quanto à petição|art. 112 do CPC|comunique-se por Edital|Aguarde-se o cumprimento do mandado expedido', re.IGNORECASE),
+    'baixa': re.compile(r'determinar cancelamento/baixa|deixo\s+de\s+receber\s+o\s+Agravo|quanto à petição|art. 112 do CPC|comunique-se por Edital|Aguarde-se o cumprimento do mandado expedido', re.IGNORECASE),
     'penhora': re.compile(r'Defiro a penhora no rosto dos autos', re.IGNORECASE),
     'calculos': re.compile(r'RECLAMANTE para apresentar cálculos de liquidação', re.IGNORECASE),
     'tentativas': re.compile(r'deverá realizar tentativas', re.IGNORECASE),

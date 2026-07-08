@@ -208,11 +208,17 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
                         elif bucket == 'c_pedidos': status_str = "Pedidos nao liquidados"
                         elif bucket == 'd_docs': status_str = "Falta de documentos"
                         else:
-                            bp = proc.get("bucket", "C")
-                            if bp == "A": status_str = "Sem aud - marcado e despachado?"
-                            elif bp == "B": status_str = "100% digital - despachado?"
-                            elif bp == "C": status_str = "Direto - citado?"
-                            elif bp == "D": status_str = "HTE"
+                            from bianca.triagem.acoes import _tem_audiencia_marcada
+                            
+                            tem_aud = _tem_audiencia_marcada(drv, proc)
+                            tem_100 = bool(proc.get('digital', proc.get('tem_100', False)))
+                            
+                            if tem_aud:
+                                proc["bucket"] = "C"
+                                status_str = "Direto - aud marcada / citado?"
+                            else:
+                                proc["bucket"] = "A"  # acao_bucket_a lida com o 100% digital internamente
+                                status_str = "100% digital - marcado e despachado?" if tem_100 else "Sem aud - marcado e despachado?"
 
                         observacao = "BIANCA - TRIAGEM\n"
                         if status_str:
@@ -227,9 +233,9 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
                     except Exception as e:
                         print(f"[TRIAGEM][{numero}] Falha ao registrar comentario: {e}")
 
-                # Barreira: aguardar tabela GIGS pronta
+                # Barreira: aguardar tabela GIGS pronta (sem buscar botao especifico pois a lista pode estar vazia)
                 aguardar_renderizacao_nativa(
-                    drv, 'pje-gigs-lista-atividades button', 'aparecer', 8)
+                    drv, 'pje-gigs-lista-atividades', 'aparecer', 8)
 
                 # Acao pos-triagem
                 ok, status_line = _aplicar_acao_pos_triagem(drv, numero, proc, triagem_txt)

@@ -171,10 +171,11 @@ def _pag_contexto(texto: str, posicao: int, janela: int = 400) -> str:
 
 _CEP_TERMOS_TERRITORIAL = [
     'competencia territorial', 'competencia funcional', 'foro competente',
+    'competencia em razao do lugar',
     'art. 651', 'art 651', 'artigo 651', 'art.651', 'art651']
 _CEP_TERMOS_PRESTACAO = [
     'ultimo local', 'prestacao de servico', 'local de trabalho', 'local de prestacao',
-    'prestou servicos', 'prestava servicos', 'laborou', 'trabalhou',
+    'prestou servicos', 'prestava servicos', 'laborou', 'laborava', 'trabalhou', 'trabalhava',
     'desempenhou suas atividades', 'desempenhou suas funcoes', 'exerceu suas funcoes',
     'endereco da prestacao', 'prestacao de servicos', 'local de servicos']
 _CEP_TERMOS_RECLAMANTE = ['residente', 'domiciliad', 'endereco do reclamante', 'residencia do reclamante']
@@ -257,6 +258,10 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
     # (footer phone lines must not disqualify high-priority contextual CEPs)
     candidatos = [c for c in candidatos if c[3] == 0 or c[1] == 0 or c[0] <= _CEP_TAG_PRESTACAO]
     if not candidatos:
+        norm_texto = _norm(texto)
+        termos_estritos = _CEP_TERMOS_TERRITORIAL + _CEP_TERMOS_PRESTACAO
+        alegou_competencia = any(t in norm_texto for t in termos_estritos)
+
         if ceps_api:
             for cep_raw in ceps_api:
                 if not (len(cep_raw) == 8 and cep_raw.isdigit()):
@@ -265,8 +270,12 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                 cf = "%s.%s-%s" % (cep_raw[:2], cep_raw[2:5], cep_raw[5:])
                 for lo, hi in ZONA_SUL_CEPS:
                     if lo <= cn <= hi:
-                        return ("B2_CEP: OK - %s (%s) Zona Sul "
-                                "[sede da reclamada - referencia subsidiaria]") % (cf, cn)
+                        if alegou_competencia:
+                            return ("B2_CEP: OK - %s (%s) Zona Sul "
+                                    "[competencia territorial alegada - validado via CEP da reclamada]") % (cf, cn)
+                        else:
+                            return ("B2_CEP: OK - %s (%s) Zona Sul "
+                                    "[sede da reclamada - referencia subsidiaria]") % (cf, cn)
                 for lo, hi in ZONA_LESTE_CEPS:
                     if lo <= cn <= hi:
                         return ("B2_CEP: ALERTA - Incompetencia Territorial - "
@@ -277,9 +286,8 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                                 "CEP %s (%s) | foro competente: RUI BARBOSA") % (cf, cn)
             return ("B2_CEP: ALERTA - CEPs das reclamadas testados "
                     "mas nenhum pertence a faixa SP - verificar manualmente")
-        norm_texto = _norm(texto)
-        termos_estritos = _CEP_TERMOS_TERRITORIAL + _CEP_TERMOS_PRESTACAO
-        if any(t in norm_texto for t in termos_estritos):
+
+        if alegou_competencia:
             return ("B2_CEP: ALERTA - nenhum CEP de prestacao de servicos "
                     "identificado no contexto relevante")
         return ("B2_CEP: ALERTA - nenhum CEP de prestacao de servicos "
@@ -337,7 +345,11 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
             cands_ctx_fora_zona_sul.append('%s (%s)' % (cep_fmt, _foro))
 
     if ceps_api:
-        _label_sub = 'sede da reclamada'
+        norm_texto = _norm(texto)
+        termos_estritos = _CEP_TERMOS_TERRITORIAL + _CEP_TERMOS_PRESTACAO
+        alegou_competencia = any(t in norm_texto for t in termos_estritos)
+        
+        _label_sub = 'competencia territorial alegada - validado via CEP da reclamada' if alegou_competencia else 'sede da reclamada'
         api_fora_zona_sul = []
         for cep_raw in ceps_api:
             if not (len(cep_raw) == 8 and cep_raw.isdigit()):
@@ -346,7 +358,7 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
             cf = "%s.%s-%s" % (cep_raw[:2], cep_raw[2:5], cep_raw[5:])
             em_zona_sul = any(lo <= cn <= hi for lo, hi in ZONA_SUL_CEPS)
             if em_zona_sul:
-                ctx_suf = ' (apos nao localizar CEP de prestacao)' if cands_ctx_fora_zona_sul else ''
+                ctx_suf = ' (apos nao localizar CEP de prestacao)' if cands_ctx_fora_zona_sul and not alegou_competencia else ''
                 return ("B2_CEP: OK - %s (%s) Zona Sul [%s%s]") % (cf, cn, _label_sub, ctx_suf)
             _foro = _foro_competente(cn)
             api_fora_zona_sul.append("CEP %s (%s) [%s] | foro: %s" % (cf, cn, _label_sub, _foro))

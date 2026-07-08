@@ -21,7 +21,7 @@
             `min-width:190px;user-select:none;`;
 
         const titulo = document.createElement('div');
-        titulo.textContent = 'PJeTools v1.0';
+        titulo.textContent = 'PJeTools v1.1';
         titulo.style.cssText = `font-weight:bold;margin-bottom:8px;color:#333;font-size:12px;` +
             `text-align:center;border-bottom:1px solid #ddd;padding-bottom:6px;`;
         painel.appendChild(titulo);
@@ -88,6 +88,13 @@
         criarPainel([
             { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
             { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },
+            { id: 'btnSimba', texto: '🦁 Simba', bg: '#ff9800', fn: function() {
+                    if (typeof window.executarSimba === 'function') {
+                        window.executarSimba();
+                    } else {
+                        showToast('Módulo Simba não carregado', '#dc3545', 3000);
+                    }
+                }, titulo: 'Salvar dados e pesquisar Iniciada execução' },
             { id: 'btnDebito', texto: '💵 Débito', bg: '#17a2b8', fn: function () {
                     if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.executar === 'function') {
                         window.PjeRegistrarDebito.executar();

@@ -2,6 +2,10 @@
 SISB Series - Fluxo de processamento
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from .series_navegar import _navegar_e_extrair_ordens_serie, _extrair_nome_executado_serie
 from .series_estrategia import _calcular_estrategia_bloqueio
 from .ordens_dados import _identificar_ordens_com_bloqueio

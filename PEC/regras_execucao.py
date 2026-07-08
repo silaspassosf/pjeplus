@@ -36,9 +36,8 @@ if not logger.handlers:
     logger.addHandler(logging.StreamHandler())
 
 
-# ── Definicao de Buckets ──
 # Sobrestamento vencido deve ser processado por ÚLTIMO, imediatamente antes de SISBAJUD
-BUCKET_ORDEM = ['xs_sob', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud']
+BUCKET_ORDEM = ['xs_sob', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud_teimosinha', 'sisbajud_resultado']
 
 
 # ─── helpers: acoes com logica interna ou assinatura especial ────────────────
@@ -153,7 +152,7 @@ def _pz_idpj(driver, atv):
     from Fix.extracao import criar_gigs
     from atos.judicial import ato_idpj
     return _executar_passos(
-        lambda: criar_gigs(driver, 1, 'Ingrid', 'edital intimacao correio'),
+        lambda: criar_gigs(driver, "1/xs pec dec"),
         lambda: ato_idpj(driver),
     )
 
@@ -211,26 +210,46 @@ def _sob_n(driver, atv):
         return False
 
 
+_shared_driver_sisb = None
+
 def _executar_sisbajud(driver, atv, fn_sisb):
-    """Executa o fluxo completo PJE -> SISBAJUD para acoes SISBAJUD."""
+    """Executa o fluxo completo PJE -> SISBAJUD para acoes SISBAJUD usando driver compartilhado."""
+    global _shared_driver_sisb
     from Fix.extracao import extrair_dados_processo
     from SISB.core import iniciar_sisbajud
 
     dados_processo = extrair_dados_processo(driver)
     if not dados_processo:
+        logger.error('[SISBAJUD] Falha ao extrair dados do processo')
         raise RuntimeError('Falha ao extrair dados do processo para SISBAJUD')
 
-    driver_sisb = iniciar_sisbajud(driver_pje=driver, extrair_dados=False)
-    if not driver_sisb:
+    # Garantir que o driver compartilhado exista e esteja ativo
+    if _shared_driver_sisb is None:
+        logger.info('[SISBAJUD] Inicializando novo driver compartilhado')
+        _shared_driver_sisb = iniciar_sisbajud(driver_pje=driver, extrair_dados=False)
+    else:
+        try:
+            # Teste rápido para ver se a janela não foi fechada pelo usuário ou quebrou
+            _ = _shared_driver_sisb.window_handles
+        except Exception:
+            logger.info('[SISBAJUD] Driver compartilhado morto. Reinicializando...')
+            _shared_driver_sisb = iniciar_sisbajud(driver_pje=driver, extrair_dados=False)
+
+    if not _shared_driver_sisb:
         raise RuntimeError('Falha ao iniciar o driver SISBAJUD')
 
-    resultado = fn_sisb(
-        driver_sisb,
-        dados_processo=dados_processo,
-        driver_pje=driver,
-        log=True,
-        fechar_driver=True
-    )
+    # Executar a função (com fechar_driver=False para reaproveitar na próxima)
+    try:
+        resultado = fn_sisb(
+            _shared_driver_sisb,
+            dados_processo=dados_processo,
+            driver_pje=driver,
+            log=True,
+            fechar_driver=False
+        )
+    except Exception as e:
+        logger.error(f'[SISBAJUD] Exceção durante a execução de {fn_sisb.__name__}: {e}')
+        raise
 
     if isinstance(resultado, dict) and resultado.get('status') == 'erro':
         raise RuntimeError(f'SISBAJUD falhou: {resultado.get("erros")}')
@@ -238,14 +257,31 @@ def _executar_sisbajud(driver, atv, fn_sisb):
     return resultado
 
 
+def fechar_driver_sisbajud_compartilhado():
+    """Fecha o driver compartilhado do SISBAJUD de forma segura ao final do fluxo."""
+    global _shared_driver_sisb
+    if _shared_driver_sisb:
+        logger.info('[SISBAJUD] Encerrando driver compartilhado do SISBAJUD.')
+        try:
+            _shared_driver_sisb.quit()
+        except Exception as e:
+            logger.debug(f'[SISBAJUD] Erro ignorado ao fechar driver: {e}')
+        finally:
+            _shared_driver_sisb = None
+
+
 def _sisbajud_minuta(driver, atv):
-    from SISB.core import minuta_bloqueio
-    return _executar_sisbajud(driver, atv, minuta_bloqueio)
+    from SISB.core import minuta_bloqueio_amanha
+    # Usa a nova funcionalidade de 2 minutas independentes (com prazo padrão 30)
+    return _executar_sisbajud(driver, atv, lambda d, dados_processo, driver_pje, log, fechar_driver: 
+                              minuta_bloqueio_amanha(d, dados_processo, driver_pje, log, fechar_driver, prazo_dias=30))
 
 
 def _sisbajud_minuta_60(driver, atv):
-    from SISB.core import minuta_bloqueio_60
-    return _executar_sisbajud(driver, atv, minuta_bloqueio_60)
+    from SISB.core import minuta_bloqueio_amanha
+    # Usa a nova funcionalidade de 2 minutas independentes (com prazo padrão 60)
+    return _executar_sisbajud(driver, atv, lambda d, dados_processo, driver_pje, log, fechar_driver: 
+                              minuta_bloqueio_amanha(d, dados_processo, driver_pje, log, fechar_driver, prazo_dias=60))
 
 
 def _sisbajud_processar_ordem(driver, atv):
@@ -282,6 +318,16 @@ def _xs_sigilo(driver, atv):
     )
 
 
+def _mov_exec(driver, atv):
+    """mov exec: mov_int iniciar execução, mov_int aguardando prazo."""
+    from atos.movimentos_fluxo import movimentar_inteligente
+    return _executar_passos(
+        lambda: movimentar_inteligente(driver, 'Iniciar Execução'),
+        lambda: movimentar_inteligente(driver, 'Aguardando Prazo'),
+    )
+
+
+
 # ─── Lazy imports ────────────────────────────────────────────────────────────
 
 try:
@@ -315,9 +361,9 @@ def _a(mod, name):
 registry = RuleRegistry("pec", BUCKET_ORDEM)
 
 # ── SISBAJUD ──────────────────────────────────────────────────────────────────
-registry.register(r'teimosinha\s+60|t2\s+60|\b60\s*d\b|60\s+dias',    'sisbajud', _sisbajud_minuta_60)
-registry.register(r'\bteimosinha\b|\bt2\b',                             'sisbajud', _sisbajud_minuta)
-registry.register(r'\bxs\s+resultado\b|\bresultado\b',                  'sisbajud', _sisbajud_processar_ordem)
+registry.register(r'teimosinha\s+60|t2\s+60|\b60\s*d\b|60\s+dias',    'sisbajud_teimosinha', _sisbajud_minuta_60)
+registry.register(r'\bteimosinha\b|\bt2\b',                             'sisbajud_teimosinha', _sisbajud_minuta)
+registry.register(r'\b(?:xs\s+)?resultado\b|\bsisbajud\s+resultado\b|\bresultado\s+teimosinha\b', 'sisbajud_resultado', _sisbajud_processar_ordem)
 # ── CARTA ─────────────────────────────────────────────────────────────────────
 registry.register(r'\bxs\s+carta\b',                                    'carta',    _carta_exec)
 # ── SOB ───────────────────────────────────────────────────────────────────────
@@ -349,6 +395,7 @@ registry.register(r'\bmeios\b',                                         'outros'
 registry.register(r'\bxs\s+socio\b',                                    'outros',   _xs_socio)
 registry.register(r'\bsociot\b',                                       'outros',   _xs_socio)
 registry.register(r'\bempresa\s*termo\b|\btermoempresa\b',              'outros',   _empresa_termo)
+registry.register(r'\bmov\s+exec\b',                                    'outros',   _mov_exec)
 
 REGRAS = registry.all_rules()
 

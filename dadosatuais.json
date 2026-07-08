@@ -1,52 +1,61 @@
 {
   "numero": [
-    "1000352-13.2025.5.02.0703"
+    "1000618-78.2017.5.02.0703"
   ],
-  "id": 7000240,
+  "id": 1587782,
   "autor": [
     {
-      "nome": "JOSEFA ANTONIA DA SILVA",
-      "cpfcnpj": "03784936474",
+      "nome": "GILBERTO OMAR COSTA DAMIAN",
+      "cpfcnpj": "82897514949",
       "advogado": {
-        "nome": "MARCIO CARDOSO PUGLESI",
-        "cpf": "25968719800",
-        "oab": "SP219273"
+        "nome": "DALVINHA FERREIRA DA CONCEICAO",
+        "cpf": "76162885704",
+        "oab": "SP240246"
       }
     }
   ],
   "reu": [
     {
-      "nome": "DINIZ GASTRONOMIA LTDA",
-      "cpfcnpj": "30670530000108"
+      "nome": "BARAO BARONESA BAR E RESTAURANTE EIRELI - ME",
+      "cpfcnpj": "20954369000140",
+      "advogado": {
+        "nome": "DANIELA BUENO PAIVA MAGALHAES",
+        "cpf": "21851821880",
+        "oab": "SP293798"
+      }
     },
     {
-      "nome": "BAR DO GYN BEBIDAS ESPECIALIZADAS LTDA",
-      "cpfcnpj": "53186294000154"
-    },
-    {
-      "nome": "BRUNA MARTINS DA SILVA",
-      "cpfcnpj": "36533008862"
+      "nome": "FERNANDO AURELIO DE SOUZA",
+      "cpfcnpj": "14433956848",
+      "advogado": {
+        "nome": "DANIELA BUENO PAIVA MAGALHAES",
+        "cpf": "21851821880",
+        "oab": "SP293798"
+      }
     }
   ],
-  "terceiro": [],
+  "terceiro": [
+    {
+      "nome": "LEANDRO JOSE NATIVIDADE"
+    }
+  ],
   "divida": {
-    "valor": "R$ 46.693,80",
-    "data": "22/05/2026"
+    "valor": "R$ 11.207,59",
+    "data": "23/01/2026"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "08/03/2025",
+  "dtAutuacao": "14/04/2017",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3242.01,
-    "tetoValorCausa": 64840.0,
+    "pisoValorCausa": 64840.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

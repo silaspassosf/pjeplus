@@ -71,13 +71,18 @@ def _agrupar_dados_bloqueios(dados_acumulados, dados_novos, log=True):
 
                 exec_acum['protocolos'].extend(protocolos_novos)
                 exec_acum['total'] += dados_exec.get('total', 0.0)
+                
+                bancos_novos = dados_exec.get('bancos_001', [])
+                if bancos_novos:
+                    exec_acum['bancos_001'] = list(set(exec_acum.get('bancos_001', []) + bancos_novos))
             else:
                 # Novo executado - adicionar integralmente
                 dados_acumulados['executados'][chave_executado] = {
                     'nome': dados_exec.get('nome', 'Executado'),
                     'documento': dados_exec.get('documento', ''),
                     'protocolos': list(dados_exec.get('protocolos', [])),  #  Garantir que e sempre lista
-                    'total': float(dados_exec.get('total', 0.0))  #  Garantir que e sempre float
+                    'total': float(dados_exec.get('total', 0.0)),  #  Garantir que e sempre float
+                    'bancos_001': list(set(dados_exec.get('bancos_001', [])))
                 }
 
             # Somar ao total geral (soma os totais de cada executado novo)
@@ -172,13 +177,31 @@ def extrair_dados_bloqueios_processados(driver, log=True, protocolo_ordem=None):
 
                     chave_executado = f"{nome_executado}|{documento_executado}"
 
+                    bancos_001 = []
+                    try:
+                        bancos_panels = header.find_elements(By.XPATH, '..//mat-expansion-panel[.//div[contains(@class, "div-title-instituicao")]]')
+                        for banco_panel in bancos_panels:
+                            try:
+                                nome_banco = banco_panel.find_element(By.CSS_SELECTOR, '.div-title-instituicao .col-reu-dados-nome-pessoa').text.strip()
+                                saldo_cell = banco_panel.find_element(By.CSS_SELECTOR, 'td.cdk-column-saldoRemanescente')
+                                if '0,01' in saldo_cell.text:
+                                    bancos_001.append(nome_banco)
+                            except:
+                                pass
+                    except:
+                        pass
+
                     if chave_executado not in dados_bloqueios['executados']:
                         dados_bloqueios['executados'][chave_executado] = {
                             'nome': nome_executado,
                             'documento': documento_executado,
                             'protocolos': [],
-                            'total': 0.0
+                            'total': 0.0,
+                            'bancos_001': []
                         }
+
+                    if bancos_001:
+                        dados_bloqueios['executados'][chave_executado]['bancos_001'] = list(set(dados_bloqueios['executados'][chave_executado].get('bancos_001', []) + bancos_001))
 
                     valor_formatado = f"R$ {valor_float:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
                     dados_bloqueios['executados'][chave_executado]['protocolos'].append({
@@ -255,6 +278,11 @@ def gerar_relatorio_bloqueios_processados(dados_bloqueios, log=True):
             total_format = f"R$ {total_executado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
             relatorio_html += f'<p {pStyle}><strong>Total do executado: {total_format}</strong></p>'
 
+            bancos_001 = dados_exec.get('bancos_001', [])
+            if bancos_001:
+                bancos_str = ", ".join(bancos_001)
+                relatorio_html += f'<p {pStyle}>Foram registrados bloqueios de 0,01 no banco ({bancos_str}) que podem indicar investimentos localizados nesta instituição.</p>'
+
         total_geral_format = f"R$ {dados_bloqueios['total_geral']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         relatorio_html += f'<p {pStyle}><strong>Total efetivamente transferido a conta judicial do processo: {total_geral_format}</strong></p>'
         relatorio_html += f'<p {pStyle}>Considerando os bloqueios realizados, as quantias localizadas foram <strong>TRANSFERIDAS</strong> a conta judicial do processo, acao que sera efetivada em ate 48h uteis.</p>'
@@ -328,6 +356,11 @@ def gerar_relatorio_bloqueios_conciso(dados_bloqueios, log=True):
             total_format = f"R$ {total_executado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
             relatorio_html += f'<p {pStyle}>Ordens com bloqueios transferidos desta parte: [{protocolos_str}] - Total transferido do executado: {total_format}</p>'
+
+            bancos_001 = dados_exec.get('bancos_001', [])
+            if bancos_001:
+                bancos_str = ", ".join(bancos_001)
+                relatorio_html += f'<p {pStyle}>Foram registrados bloqueios de 0,01 no banco ({bancos_str}) que podem indicar investimentos localizados nesta instituição.</p>'
 
         if dados_bloqueios.get('ordens_com_erro_bloqueio'):
             if log:

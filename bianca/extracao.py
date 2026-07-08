@@ -162,7 +162,7 @@ def criar_gigs(
             ))
         )
         btn_nova.click()
-        time.sleep(1)
+        time.sleep(0.2)
 
         WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located(
@@ -308,7 +308,7 @@ def criar_comentario(
             )
 
         btn_novo.click()
-        time.sleep(1)
+        time.sleep(0.2)
 
         # 2. Aguardar formulario
         WebDriverWait(driver, timeout).until(
@@ -384,10 +384,10 @@ def criar_comentario(
             )
         )
         btn_salvar.click()
-        time.sleep(1)
+        time.sleep(0.2)
 
         # 6. Verificar se modal fechou
-        time.sleep(1)
+        time.sleep(0.2)
         try:
             modals = driver.find_elements(
                 By.CSS_SELECTOR, 'mat-dialog-container'

@@ -536,18 +536,20 @@
                 }
                 await wait(500);
 
-                if (MODO_EXECUCAO === 'COMPLETO') {
-                    let ruaAlvo = normalizar(d.rua || d.endRaw).split(',')[0].trim();
-                    if (ruaAlvo) {
-                        const icones = Array.from(document.querySelectorAll('.pec-icone-verde-endereco-tabela-destinatarios'));
-                        const alvo = icones.find(icone => normalizar(icone.getAttribute('aria-label') || '').includes(ruaAlvo));
-                        if (alvo) {
-                            const tr = alvo.closest('tr');
-                            const btnEdit = tr.querySelector('.fa-edit');
-                            if (btnEdit) { (btnEdit.closest('button') || btnEdit).click(); await wait(800); }
-                        }
+                // --- TROCA DE ENDEREÇO NA TABELA PRINCIPAL (Para ambos MODO DIRETO e COMPLETO) ---
+                let endAlvoRaw = d.rua || d.endRaw || d.logradouro || d.empresaEnderecoRaw || '';
+                let ruaAlvo = normalizar(endAlvoRaw).split(',')[0].trim();
+                if (ruaAlvo) {
+                    const icones = Array.from(document.querySelectorAll('.pec-icone-verde-endereco-tabela-destinatarios'));
+                    const alvo = icones.find(icone => normalizar(icone.getAttribute('aria-label') || '').includes(ruaAlvo));
+                    if (alvo) {
+                        const tr = alvo.closest('tr');
+                        const btnEdit = tr.querySelector('.fa-edit');
+                        if (btnEdit) { (btnEdit.closest('button') || btnEdit).click(); await wait(800); }
                     }
+                }
 
+                if (MODO_EXECUCAO === 'COMPLETO') {
                     const btnConfec = document.querySelector('button[aria-label="Confeccionar ato"]');
                     if (btnConfec) {
                         btnConfec.click();

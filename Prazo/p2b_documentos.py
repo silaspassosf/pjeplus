@@ -317,6 +317,8 @@ prazo_registry = RuleRegistry("prazo", [
     "susep",
     "tendo_em_vista",
     "nao_amparada",
+    "agravo_exequente_interlocutoria",
+    "incidente_idpj",
     "instaurado_em_face",
     "parcela_proxima",
     "indeferimento_desconsideracao",
@@ -369,6 +371,7 @@ def _definir_regras_processamento() -> List[Tuple]:
     ato_pesqliq = m.get('ato_pesqliq')
     ato_reitmeios = m.get('ato_reitmeios')
     ato_idpj = m.get('ato_idpj')
+    ato_HCL = m.get('ato_HCL')
     idpj = m.get('idpj')
     # wrappers/from PEC
     anex_retifidpj = m.get('anex_retifidpj')
@@ -429,6 +432,7 @@ def _definir_regras_processamento() -> List[Tuple]:
             'remessa ao sobrestamento, com fluência',
             'sob pena de sobrestamento e fluência do prazo prescricional',
             'cinco dias para a parte exequente apresentar',
+            'ausências de fundamentação fática e jurídica',
         ]],
          (ato_reitmeios,)),
 
@@ -448,7 +452,7 @@ def _definir_regras_processamento() -> List[Tuple]:
             'informar se aceita a imediata homologação',
             'apresentar impugnação, querendo',
         ]],
-         ("criar_gigs[1/Ana Lucia do A/Homologação]",),),
+         ("criar_gigs[1/Ana Lucia do A/Homologação]", ato_HCL),),
 
         # REGRA DE EMBARGOS
         ([gerar_regex_geral('exequente, ora embargado')], ("criar_gigs[1/fernanda/julgamento embargos]",)),
@@ -490,6 +494,12 @@ def _definir_regras_processamento() -> List[Tuple]:
 
         # REGRA DE NÃO AMPARADA
         ([gerar_regex_geral('não está amparada')], (ato_meios,),),
+
+        # REGRA DE AGRAVO EXEQUENTE E INTERLOCUTÓRIA
+        ([re.compile(r'(?=[\s\S]*interlocutoria)(?=[\s\S]*interposto[\s\n\r]*agravo[\s\n\r]*de[\s\n\r]*peticao[\s\n\r]*pela[\s\n\r]*parte[\s\n\r]*exequente)', re.IGNORECASE)], (ato_meios,)),
+
+        # REGRA DE INCIDENTE IDPJ
+        ([gerar_regex_geral('Incidente de Desconsideração da Personalidade Jurídica instaurado em face')], (ato_meios,)),
 
         # REGRA DE INSTAURADO EM FACE
         ([gerar_regex_geral('instaurado em face')], (idpj,)),
@@ -541,7 +551,8 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
             logger.error('[FLUXO_PZ] prescreve falhou: %s', e)
 
     # Prioridade alta: arquivamento
-    if gerar_regex_geral('julgo extinta a presente execução, nos termos do art. 924').search(texto_normalizado):
+    if gerar_regex_geral('julgo extinta a presente execução, nos termos do art. 924').search(texto_normalizado) or \
+       gerar_regex_geral('autos ao arquivo').search(texto_normalizado):
         try:
             if mov_arquivar:
                 if mov_arquivar(driver):

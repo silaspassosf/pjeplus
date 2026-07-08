@@ -106,7 +106,8 @@ def make_comunicacao_wrapper(
     trocar_modelo: bool = False,
     wrapper_name: Optional[str] = None,  # Nome específico para __name__
     terceiro_default: bool = False,
-    assinar: bool = False
+    assinar: bool = False,
+    modelo_troca_correios: Optional[str] = None
 ) -> Callable[[WebDriver, bool, Any], bool]:
     def wrapper(
         driver: WebDriver,
@@ -184,7 +185,8 @@ def make_comunicacao_wrapper(
             'endereco_tipo': endereco_tipo,
             'debug': debug,
             'terceiro': overrides.get('terceiro', terceiro_default),
-            'trocar_modelo': overrides.get('trocar_modelo', trocar_modelo)
+            'trocar_modelo': overrides.get('trocar_modelo', trocar_modelo),
+            'modelo_troca_correios': overrides.get('modelo_troca_correios', modelo_troca_correios)
         }
 
         # Log function: usa print quando passado via log=print no override (ex: f.py)

@@ -34,6 +34,8 @@ from Fix.utils_observer import aguardar_renderizacao_nativa
 _SIGILO_TYPES = [
     "infojud", "doi", "irpf", "ir2022", "ir2023", "ir2024", "ir2025", "ir2026",
     "ir 2023", "ir 2024", "ir 2025", "ir 2026", "ir23", "ir24", "ir25", "ir26",
+    "ir_2022", "ir_2023", "ir_2024", "ir_2025", "ir_2026",
+    "ir_22", "ir_23", "ir_24", "ir_25", "ir_26",
     "dimob", "ecac", "efinanceira", "e-financeira", "decred", "DEC9"
 ]
 
@@ -60,6 +62,12 @@ def _identificar_tipo_anexo(texto: str) -> Optional[str]:
                 return tipo
         elif tipo in texto_lower:
             return tipo
+    
+    # Fallback para IR_* ou qualquer IR seguido por número (ex: ir_2023, ir_24, ir-25)
+    ir_match = re.search(r"\bir[_\s-]*\d+", texto_lower)
+    if ir_match:
+        return ir_match.group(0)
+        
     return None
 
 
@@ -350,6 +358,12 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
             tipo = _identificar_tipo_anexo(texto_anexo)
             if not tipo:
                 continue
+
+            # Garante que chaves dinâmicas (como IR_*) existam nos dicionários de controle
+            if tipo not in found_sigilo:
+                found_sigilo[tipo] = False
+            if tipo not in sigilo_anexos:
+                sigilo_anexos[tipo] = "nao"
 
             found_sigilo[tipo] = True
 

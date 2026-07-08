@@ -91,7 +91,46 @@ def extrair_documento_relevante(driver: WebDriver) -> Dict[str, Any]:
     id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
     tipo = doc.get('tipo', '')
     titulo = doc.get('titulo', '')
-    logger.info(f'[p2b_api] doc relevante: tipo={tipo} id={id_doc}')
+    
+    # 2.5) Verifica a data do documento (se for < 5 dias, pular)
+    data_str = doc.get('dataJuntada') or doc.get('dataCadastro') or doc.get('data')
+    dias_idade = None
+    if data_str:
+        try:
+            from datetime import datetime, timezone, timedelta
+            from PEC.runtime_pec import _carregar_calendario_dias_uteis
+            
+            data_str_clean = data_str.replace('Z', '+00:00')
+            dt_doc = datetime.fromisoformat(data_str_clean)
+            if dt_doc.tzinfo is None:
+                dt_doc = dt_doc.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            
+            dias_calendario, intervalo = _carregar_calendario_dias_uteis()
+            data_atual = dt_doc.date()
+            data_fim = now.date()
+            
+            dias_uteis = 0
+            while data_atual < data_fim:
+                data_atual += timedelta(days=1)
+                dentro_intervalo = intervalo and intervalo[0] <= data_atual <= intervalo[1]
+                if dias_calendario and dentro_intervalo:
+                    if data_atual in dias_calendario:
+                        dias_uteis += 1
+                else:
+                    if data_atual.weekday() < 5:
+                        dias_uteis += 1
+                        
+            dias_idade = dias_uteis
+            logger.info(f'[p2b_api] Data documento: {data_str} -> {dt_doc.isoformat()} (Idade: {dias_idade} dias úteis)')
+            
+            if dias_idade <= 5:
+                logger.info(f'[p2b_api] doc relevante ({tipo}) tem data recente ({data_str}), pulando (<= 5 dias úteis).')
+                return _falha('decisao_recente_menos_5_dias', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo, decisao_recente=True, data_extraida=data_str, idade_dias=dias_idade)
+        except Exception as e:
+            logger.warning(f'[p2b_api] erro ao calcular data do doc {data_str}: {e}')
+            
+    logger.info(f'[p2b_api] doc relevante: tipo={tipo} id={id_doc} data_extraida={data_str} idade_dias={dias_idade}')
 
     # 3) download do conteúdo (PDF esperado)
     url_conteudo = f'{base}/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_doc}/conteudo'
@@ -133,6 +172,8 @@ def extrair_documento_relevante(driver: WebDriver) -> Dict[str, Any]:
         'id_documento': id_doc,
         'id_processo': id_processo,
         'erro': None,
+        'data_extraida': data_str,
+        'idade_dias': dias_idade,
     }
 
 
@@ -394,6 +435,21 @@ def fluxo_pz(driver: WebDriver) -> None:
     if not resultado or not resultado.get('sucesso'):
         if (resultado or {}).get('sessao_expirada'):
             raise SessaoExpiradaError('API retornou 401 — sessao expirada')
+            
+        if (resultado or {}).get('decisao_recente'):
+            logger.info('[FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.')
+            try:
+                from atos.movimentos_fluxo import movimentar_inteligente
+                movimentar_inteligente(driver, 'Aguardando Prazo')
+            except Exception as e:
+                logger.error(f'[FLUXO_PZ] Erro ao mover processo para Aguardando Prazo (decisão recente): {e}')
+                
+            try:
+                _fechar_aba_processo(driver)
+            except Exception:
+                pass
+            return True
+            
         logger.info('[FLUXO_PZ] Nenhum documento relevante extraído: %s', (resultado or {}).get('erro'))
         try:
             _fechar_aba_processo(driver)

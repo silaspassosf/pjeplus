@@ -54,9 +54,10 @@ pec_idpj = make_comunicacao_wrapper(
     subtipo="Intimação",
     descricao="Intimação para manifestação sobre IDPJ",
     tipo_prazo='dias uteis',
-    gigs_extra=(7, 'xs carta'),    
+    gigs_extra=(7, 'xs carta'),
+    destinatarios='polo_passivo',  # clica em btnIntimarSomentePoloPassivo 2x — sem alterar meio de expedição
     cliques_polo_passivo=2,
-    endereco_tipo='correios'  # Alterado de mudar_expediente=True
+    wrapper_name='pec_idpj'
 )
 
 pec_editalidpj = make_comunicacao_wrapper(

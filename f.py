@@ -1,6 +1,6 @@
 # f.py -- Harness de teste isolado: Multi-testes
 # Uso: py f.py [teste] [id_processo]
-#   teste disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, juntada, triagem, probe, tdbg, todos
+#   teste disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, juntada, triagem, probe, tdbg, excluiargos, todos
 #   Exemplos:
 #     py f.py argos            → teste Argos no processo padrão (7508281)
 #     py f.py argos 7449746    → teste Argos no processo 7449746
@@ -35,6 +35,7 @@ PROCESS_ID_PEC      = '6095583'
 PROCESS_ID_PEC_ORD  = '5455795'
 PROCESS_ID_ANEX_CARTA = '7258019'
 PROCESS_ID_TRIAGEM = '8685584'
+PROCESS_ID_BNDT   = '8685584'  # mesmo da triagem; sobrescreva via argumento
 PROBE_ID_PROCESSO = '8685584'
 PROBE_ID_DOC      = '461896095'  # documento que retornou vazio no log
 
@@ -673,6 +674,27 @@ def teste_triagem_peticao(id_processo=None):
             # DEBUG: interceptar texto_inicial antes da triagem
             from bianca.triagem.coleta import _coletar_textos_processo
             _coleta_debug = _coletar_textos_processo(driver)
+            
+            # Utiliza o CNJ que ja existe nos dados coletados via API
+            cnj_coletado = _coleta_debug.get('capa_dados', {}).get('numero_processo')
+            if cnj_coletado:
+                proc['numero'] = cnj_coletado
+                LOGGER.info('[TRIAGEM_TEST] CNJ atualizado via coleta: %s', proc['numero'])
+            
+            juizo_digital = _coleta_debug.get('capa_dados', {}).get('juizo_digital')
+            if juizo_digital is not None:
+                proc['digital'] = juizo_digital
+                proc['tem_100'] = juizo_digital
+                LOGGER.info('[TRIAGEM_TEST] juizo_digital atualizado via coleta: %s', juizo_digital)
+
+            rito_declarado = _coleta_debug.get('capa_dados', {}).get('rito_declarado', '')
+            if rito_declarado:
+                if 'SUMARÍSSIMO' in rito_declarado.upper() or 'SUMARISSIMO' in rito_declarado.upper():
+                    proc['tipo'] = 'ATSUM'
+                else:
+                    proc['tipo'] = 'ATORD'
+                LOGGER.info('[TRIAGEM_TEST] tipo atualizado via coleta: %s (%s)', proc['tipo'], rito_declarado)
+
             _texto_debug = _coleta_debug.get('texto_inicial', '')
             with open('triagem_debug_texto.txt', 'w', encoding='utf-8') as _f:
                 _f.write(_texto_debug or '(vazio)')
@@ -682,6 +704,9 @@ def teste_triagem_peticao(id_processo=None):
             LOGGER.info('[TRIAGEM_TEST] triagem_txt:\n%s', triagem_txt)
 
         if triagem_txt:
+            if "Juízo 100% digital: com pedido" in triagem_txt or "Juizo 100% digital: com pedido" in triagem_txt:
+                proc['digital'] = True
+            
             try:
                 bucket, _ = _determinar_acao_pos_triagem(triagem_txt)
                 if bucket == 'pre_bucket':
@@ -700,7 +725,17 @@ def teste_triagem_peticao(id_processo=None):
                 elif bucket == 'd_docs':
                     status_str = 'Falta de documentos'
                 else:
-                    status_str = 'Direto'
+                    from bianca.triagem.acoes import _tem_audiencia_marcada
+                    tem_aud = _tem_audiencia_marcada(driver, proc)
+                    tem_100 = bool(proc.get('digital', proc.get('tem_100', False)))
+                    
+                    if tem_aud:
+                        proc["bucket"] = "C"
+                        status_str = "Direto - aud marcada / citado?"
+                    else:
+                        proc["bucket"] = "A"
+                        status_str = "100% digital - marcado e despachado?" if tem_100 else "Sem aud - marcado e despachado?"
+                        
                 observacao = 'BIANCA - TRIAGEM\nESTADO DE FLUXO: %s\n\n%s' % (status_str, triagem_txt)
                 with etapa('criar_comentario'):
                     criar_comentario(driver, observacao)
@@ -1017,6 +1052,311 @@ def teste_probe_documento(id_processo=None, id_documento=None):
 
 
 # ============================================================
+# TESTE 12: BNDT — exclusão (bndt com inclusao=False)
+# ============================================================
+
+def teste_bndt_exclusao(id_processo=None):
+    """
+    Teste isolado da função bndt (exclusão) de Fix/extracao.
+    Navega para o /detalhe do processo e executa bndt(driver, inclusao=False).
+
+    Uso: py f.py bndt [id_processo]
+    """
+    from Fix.extracao import bndt
+
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_BNDT, id_processo)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[BNDT_TEST] Teste isolado: bndt exclusao')
+    LOGGER.info('[BNDT_TEST] Processo: %s (id=%s)', url, pid)
+    LOGGER.info('=' * 60)
+
+    driver = None
+
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[BNDT_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[BNDT_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[BNDT_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
+
+        with etapa('bndt_exclusao'):
+            LOGGER.info('[BNDT_TEST] Executando bndt(driver, inclusao=False)...')
+            t0 = time.perf_counter()
+            resultado = bndt(driver, inclusao=False)
+            LOGGER.info('[BNDT_TEST] bndt -> %r (%.2fs)', resultado, time.perf_counter() - t0)
+
+        if resultado:
+            LOGGER.info('[BNDT_TEST] concluido com sucesso')
+        else:
+            LOGGER.error('[BNDT_TEST] bndt retornou falha')
+
+    except Exception:
+        LOGGER.exception('[BNDT_TEST] Erro nao tratado')
+
+    finally:
+        LOGGER.info('[BNDT_TEST] encerrando driver')
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
+# TESTE 13: P2B - Leitura de Decisao e Indicacao de Regra
+# ============================================================
+
+def teste_p2b(id_processo=None):
+    """
+    Teste do fluxo P2B isolado:
+    Lê o documento e indica qual regra seria aplicada (sem executar a ação).
+    Também testa a lógica de verificar data < 5 dias.
+    Uso: py f.py p2b [id_processo]
+    """
+    from Prazo.p2b_gateway import extrair_documento_relevante
+    from Prazo.p2b_documentos import _definir_regras_processamento, prazo_registry, _popular_registry
+    from Prazo.p2b_core import normalizar_texto, gerar_regex_geral
+    
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_PEC, id_processo)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[P2B_TEST] Teste isolado: P2B extracao e match de regra (sem execucao)')
+    LOGGER.info('[P2B_TEST] Processo: %s (id=%s)', url, pid)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[P2B_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[P2B_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[P2B_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
+            
+        with etapa('p2b_teste'):
+            LOGGER.info('[P2B_TEST] Extraindo documento relevante (com logica de data < 5 dias)...')
+            resultado = extrair_documento_relevante(driver)
+            
+            if not resultado or not resultado.get('sucesso'):
+                if (resultado or {}).get('decisao_recente'):
+                    LOGGER.info('[P2B_TEST] ⚠️ A decisao encontrada tem 5 dias ou menos e seria PULADA. (Data: %s, Idade: %s dias úteis)', (resultado or {}).get('data_extraida', 'N/A'), (resultado or {}).get('idade_dias', 'N/A'))
+                    LOGGER.info('[P2B_TEST] >>> REGRA MATCH: Decisão Recente (<= 5 dias úteis) <<<')
+                    LOGGER.info('[P2B_TEST] Acoes que seriam chamadas: [\'movimentar_inteligente("Aguardando Prazo")\']')
+                    return
+                LOGGER.error('[P2B_TEST] Nenhuma decisao encontrada ou erro: %s', (resultado or {}).get('erro'))
+                return
+                
+            texto = resultado.get('conteudo', '')
+            if not texto:
+                LOGGER.error('[P2B_TEST] Documento foi extraido mas o texto esta vazio.')
+                return
+                
+            LOGGER.info('[P2B_TEST] Documento encontrado! Tipo: %s, Data: %s, Idade: %s dias úteis.', resultado.get('tipo', ''), resultado.get('data_extraida', 'N/A'), resultado.get('idade_dias', 'N/A'))
+            LOGGER.info('[P2B_TEST] Trecho (primeiros 200 chars): %s', texto[:200].replace('\n', ' '))
+            
+            try:
+                from Fix.extracao import _extrair_formatar_texto
+                texto_formatado = _extrair_formatar_texto(texto)
+            except Exception:
+                texto_formatado = texto
+                
+            texto_normalizado = normalizar_texto(texto_formatado)
+            
+            # Prioridade absoluta: prescricao
+            if gerar_regex_geral('A pronúncia da').search(texto_normalizado):
+                LOGGER.info('[P2B_TEST] >>> REGRA MATCH: Prescricao (Prioridade Maxima) - Acao: prescreve() <<<')
+                return
+
+            # Prioridade alta: arquivamento
+            if gerar_regex_geral('julgo extinta a presente execução, nos termos do art. 924').search(texto_normalizado) or \
+               gerar_regex_geral('autos ao arquivo').search(texto_normalizado):
+                LOGGER.info('[P2B_TEST] >>> REGRA MATCH: Arquivamento (Prioridade Alta) - Acao: mov_arquivar() <<<')
+                return
+                
+            _popular_registry()
+            bucket, marker = prazo_registry.match(texto_normalizado)
+            if marker:
+                rule_idx = marker()
+                regras = _definir_regras_processamento()
+                rule = regras[rule_idx]
+                keywords = rule[0]
+                tipo_acao = rule[1] if len(rule) > 1 else ()
+                
+                for regex in keywords:
+                    if regex.search(texto_normalizado):
+                        LOGGER.info(f'[P2B_TEST] >>> REGRA MATCH: "{bucket}" <<<')
+                        LOGGER.info(f'[P2B_TEST] Expressao casada: {regex.pattern}')
+                        
+                        acoes = []
+                        if isinstance(tipo_acao, (list, tuple)):
+                            acoes_raw = tipo_acao
+                        else:
+                            acoes_raw = [tipo_acao]
+                            
+                        for act in acoes_raw:
+                            if callable(act):
+                                acoes.append(act.__name__)
+                            else:
+                                acoes.append(str(act))
+                                
+                        LOGGER.info(f'[P2B_TEST] Acoes que seriam chamadas: {acoes}')
+                        return
+                        
+            LOGGER.info('[P2B_TEST] Nenhuma regra do P2B casou com o texto do documento.')
+
+    except Exception:
+        LOGGER.exception('[P2B_TEST] Erro nao tratado')
+
+    finally:
+        LOGGER.info('[P2B_TEST] encerrando driver')
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
+# TESTE 14: PEC — excluiargos
+# ============================================================
+
+def teste_pec_excluiargos(id_processo=None):
+    """
+    Teste isolado do wrapper pec_excluiargos:
+        - pec_excluiargos(driver) — cria comunicação
+    """
+    from atos.wrappers_pec import pec_excluiargos
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_PEC, id_processo)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[PEC_EXCLUIARGOS_TEST] Teste isolado: pec_excluiargos')
+    LOGGER.info('[PEC_EXCLUIARGOS_TEST] Processo: %s', url)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[PEC_EXCLUIARGOS_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[PEC_EXCLUIARGOS_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[PEC_EXCLUIARGOS_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
+
+        with etapa('pec_excluiargos'):
+            LOGGER.info('[PEC_EXCLUIARGOS_TEST] Executando pec_excluiargos...')
+            ok = pec_excluiargos(driver, debug=True)
+            LOGGER.info('[PEC_EXCLUIARGOS_TEST] pec_excluiargos -> %s', 'OK' if ok else 'FALHA')
+
+        LOGGER.info('[PEC_EXCLUIARGOS_TEST] concluido com sucesso')
+
+    except Exception:
+        LOGGER.exception('[PEC_EXCLUIARGOS_TEST] Erro nao tratado')
+
+    finally:
+        LOGGER.info('[PEC_EXCLUIARGOS_TEST] encerrando driver')
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
+# TESTE 15: SISBAJUD — direto (teimosinha)
+# ============================================================
+
+def teste_sisbajud_direto(numero_processo=None):
+    """
+    Teste isolado para começar direto no driver sisbajud com navegação para a tela 
+    de teimosinha (processar ordens) com um número de processo fixo.
+    """
+    configurar_logging_debug()
+    numero_processo = numero_processo or "1002077-60.2024.5.02.0060"
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[SISBAJUD_DIRETO_TEST] Teste isolado: processar_ordem_sisbajud (teimosinha direto)')
+    LOGGER.info('[SISBAJUD_DIRETO_TEST] Processo CNJ: %s', numero_processo)
+    LOGGER.info('=' * 60)
+
+    driver_pje = None
+    driver_sisb = None
+    try:
+        with etapa('criar_driver'):
+            driver_pje = criar_driver_vt(headless=False)
+        if not driver_pje:
+            LOGGER.error('[SISBAJUD_DIRETO_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver_pje):
+                LOGGER.error('[SISBAJUD_DIRETO_TEST] Falha no login')
+                return
+
+        with etapa('iniciar_sisbajud'):
+            from SISB.core import iniciar_sisbajud, processar_ordem_sisbajud
+            driver_sisb = iniciar_sisbajud(driver_pje=driver_pje, extrair_dados=False)
+            if not driver_sisb:
+                LOGGER.error('[SISBAJUD_DIRETO_TEST] Falha ao iniciar SISBAJUD')
+                return
+
+        with etapa('processar_ordens'):
+            LOGGER.info('[SISBAJUD_DIRETO_TEST] Executando processar_ordem_sisbajud...')
+            dados = {
+                'numero_processo': numero_processo,
+                'divida': {'valor': 'R$ 28.500,00', 'data': '10/05/2024'}
+            }
+            resultado = processar_ordem_sisbajud(driver_sisb, dados, driver_pje=driver_pje, fechar_driver=False)
+            LOGGER.info('[SISBAJUD_DIRETO_TEST] processar_ordem_sisbajud -> %s', resultado)
+
+        LOGGER.info('[SISBAJUD_DIRETO_TEST] concluido com sucesso')
+
+    except Exception:
+        LOGGER.exception('[SISBAJUD_DIRETO_TEST] Erro nao tratado')
+
+    finally:
+        LOGGER.info('[SISBAJUD_DIRETO_TEST] encerrando drivers')
+        try:
+            if driver_sisb is not None:
+                driver_sisb.quit()
+        except Exception:
+            pass
+        try:
+            if driver_pje is not None:
+                driver_pje.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
 # MAIN — seleciona qual teste executar
 # ============================================================
 
@@ -1135,6 +1475,8 @@ if __name__ == '__main__':
                     pass
 
         _teste_dom_eletronico_1_proc(id_p)
+    elif teste in ('bndt', 'exclusao', 'exclusão', '12'):
+        teste_bndt_exclusao(id_p)
     elif teste in ('todos', 'all'):
         print('=== Executando todos os testes ===')
         print('\n--- TESTE 1: ARGOS ---')
@@ -1155,7 +1497,17 @@ if __name__ == '__main__':
         teste_triagem_peticao(id_p)
         print('\n--- TESTE 11: DOM ELETRONICO lembrete (isola decisao) ---')
         teste_dom_lembrete_detection(id_p)
+        print('\n--- TESTE 13: P2B (match regras) ---')
+        teste_p2b(id_p)
+        print('\n--- TESTE 14: PEC EXCLUIARGOS ---')
+        teste_pec_excluiargos(id_p)
+    elif teste in ('p2b', '13'):
+        teste_p2b(id_p)
+    elif teste in ('excluiargos', 'exclui', '14'):
+        teste_pec_excluiargos(id_p)
+    elif teste in ('sisbdir', '15'):
+        teste_sisbajud_direto(id_p)
     else:
         print(f'Teste desconhecido: {teste}')
-        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, juntada, triagem, probe, tdbg, dom, todos')
+        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, juntada, triagem, probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, todos')
         print('Uso: py f.py <teste> [id_processo]')

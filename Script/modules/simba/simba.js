@@ -115,10 +115,7 @@
                 if (btnIncluir) {
                     btnIncluir.click();
                 } else {
-                    alert('Botão "Nova Cooperação" não encontrado.');
-                    btn.textContent = '🦁 Criar Ordem';
-                    btn.disabled = false;
-                    return;
+                    console.log('Botão "Nova Cooperação" não encontrado, prosseguindo...');
                 }
 
                 // 2. Aguardar a tab ficar ativa
@@ -156,10 +153,12 @@
                 const setVal = (id, val) => {
                     const el = document.getElementById(id);
                     if (el) {
+                        el.focus();
                         el.value = val;
                         el.dispatchEvent(new Event('input', { bubbles: true }));
                         el.dispatchEvent(new Event('change', { bubbles: true }));
-                        el.dispatchEvent(new Event('blur', { bubbles: true }));
+                        if (typeof el.onblur === 'function') el.onblur();
+                        else el.blur();
                     }
                 };
 

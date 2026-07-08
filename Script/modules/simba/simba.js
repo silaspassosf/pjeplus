@@ -51,6 +51,25 @@
         }
 
         const idProcesso = (window.__pjeApi && window.__pjeApi.idProcesso) ? window.__pjeApi.idProcesso() : null;
+        
+        // --- DEBUG STORAGE PARA O USUÁRIO ---
+        console.log('--- DEBUG: DADOS DO MAISPJE NO LOCALSTORAGE ---');
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const numLimpo = numProcesso ? numProcesso.replace(/\D/g, '') : 'xxxxxxxxxx';
+            if (key.includes('maisPJe') || (idProcesso && key.includes(idProcesso)) || key.includes(numLimpo) || key.includes('partes') || key.includes('processo')) {
+                try {
+                    const val = localStorage.getItem(key);
+                    // Mostrar apenas os primeiros 300 caracteres para evitar poluir demais, ou JSON parsed
+                    try {
+                        console.log(`[Key: ${key}]`, JSON.parse(val));
+                    } catch (e) {
+                        console.log(`[Key: ${key}]`, val.substring(0, 300));
+                    }
+                } catch (e) {}
+            }
+        }
+        console.log('------------------------------------------------');
         if (idProcesso) {
             try {
                 const params = new URLSearchParams({

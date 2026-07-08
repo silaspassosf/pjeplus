@@ -38,7 +38,10 @@
             numProcesso = matchProc[0];
         } else {
             const elProc = document.querySelector('.texto-numero-processo');
-            if (elProc) numProcesso = elProc.textContent.trim();
+            if (elProc) {
+                const m2 = elProc.textContent.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/);
+                if (m2) numProcesso = m2[0];
+            }
         }
 
         if (numProcesso && typeof GM_setValue !== 'undefined') {
@@ -62,7 +65,7 @@
                 const resp = await fetch(url, { method: 'GET', credentials: 'include', headers: headersApi() });
                 if (resp.ok) {
                     const itens = await resp.json();
-                    const movimentoExec = itens.find(item => item.titulo && item.titulo.includes('Iniciada execução'));
+                    const movimentoExec = itens.find(item => item.titulo && item.titulo.includes('Iniciada a execução'));
                     if (movimentoExec) {
                         const dataExecucao = normalizarDataApi(movimentoExec.data || movimentoExec.atualizadoEm || '');
                         if (typeof GM_setValue !== 'undefined') {
@@ -70,9 +73,9 @@
                         } else {
                             localStorage.setItem('simba_last_data_execucao', dataExecucao);
                         }
-                        console.log(`[Simba] Data da Iniciada execução salva: ${dataExecucao}`);
+                        console.log(`[Simba] Data da Iniciada a execução salva: ${dataExecucao}`);
                     } else {
-                        console.log('[Simba] Movimento "Iniciada execução" não encontrado.');
+                        console.log('[Simba] Movimento "Iniciada a execução" não encontrado.');
                     }
                 }
             } catch (e) {

@@ -153,17 +153,33 @@
                 const setVal = async (id, val) => {
                     const el = document.getElementById(id);
                     if (el && val) {
+                        console.log(`[Simba] Iniciando preenchimento de "${id}" com o valor: "${val}"...`);
                         el.focus();
+                        await new Promise(r => setTimeout(r, 100)); // Aguarda o campo receber foco real
+                        
                         el.value = '';
                         for (let i = 0; i < val.length; i++) {
                             el.value += val[i];
                             el.dispatchEvent(new Event('input', { bubbles: true }));
-                            await new Promise(r => setTimeout(r, 5));
+                            await new Promise(r => setTimeout(r, 20));
                         }
                         el.dispatchEvent(new Event('change', { bubbles: true }));
-                        if (typeof el.onblur === 'function') el.onblur();
-                        else el.blur();
                         await new Promise(r => setTimeout(r, 50));
+                        
+                        if (typeof el.onblur === 'function') {
+                            console.log(`[Simba] Chamando onblur nativo de "${id}"...`);
+                            el.onblur();
+                        } else {
+                            el.blur();
+                        }
+                        
+                        // Aguarda processamento de onblur
+                        await new Promise(r => setTimeout(r, 300));
+                        console.log(`[Simba] Preenchimento de "${id}" finalizado. Valor que ficou na tela: "${el.value}"`);
+                    } else if (!el) {
+                        console.warn(`[Simba] AVISO: Campo "${id}" não foi encontrado na página!`);
+                    } else if (!val) {
+                        console.warn(`[Simba] AVISO: Valor para o campo "${id}" está vazio!`);
                     }
                 };
 
@@ -179,9 +195,11 @@
                 await setVal('data_ini_afastamento', dataExecucao);
                 await setVal('data_fim_afastamento', dataFimAfastamento);
 
-                // Aguarda meio segundo para garantir que o onblur de todos os campos processou
-                await new Promise(r => setTimeout(r, 500));
+                console.log('[Simba] Todos os campos preenchidos. Aguardando antes de avançar...');
+                // Aguarda 1.5 segundos para garantir que o onblur de todos os campos processou
+                await new Promise(r => setTimeout(r, 1500));
 
+                console.log('[Simba] Clicando em Avançar...');
                 // 4. Clicar em Avançar
                 const btnAvancar = document.getElementById('avancar_formulario');
                 if (btnAvancar) {

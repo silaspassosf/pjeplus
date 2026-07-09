@@ -117,8 +117,8 @@
                     // Extrair PASSIVO
                     if (partes.PASSIVO && Array.isArray(partes.PASSIVO)) {
                         partes.PASSIVO.forEach(p => {
-                            if (p.nomeDocumento && p.numeroDocumento) {
-                                reclamados.push({ nome: p.nomeDocumento, documento: p.numeroDocumento });
+                            if (p.nome && p.documento) {
+                                reclamados.push({ nome: p.nome, documento: p.documento });
                             }
                         });
                     }
@@ -126,8 +126,8 @@
                     // Extrair TERCEIROS (Sócios, etc)
                     if (partes.TERCEIROS && Array.isArray(partes.TERCEIROS)) {
                         partes.TERCEIROS.forEach(p => {
-                            if (p.nomeDocumento && p.numeroDocumento) {
-                                reclamados.push({ nome: p.nomeDocumento, documento: p.numeroDocumento });
+                            if (p.nome && p.documento) {
+                                reclamados.push({ nome: p.nome, documento: p.documento });
                             }
                         });
                     }

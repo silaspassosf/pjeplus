@@ -112,35 +112,48 @@
                 const respPartes = await fetch(urlPartes, { method: 'GET', credentials: 'include', headers: headersApi() });
                 if (respPartes.ok) {
                     const partes = await respPartes.json();
+                    console.log('[Simba] RAW payload da API de partes:', partes);
+                    
                     let reclamados = [];
 
                     // Extrair PASSIVO
                     if (partes.PASSIVO && Array.isArray(partes.PASSIVO)) {
+                        console.log(`[Simba] Verificando ${partes.PASSIVO.length} partes no PASSIVO...`);
                         partes.PASSIVO.forEach(p => {
+                            console.log('[Simba] Analisando parte PASSIVO:', p);
                             if (p.nome && p.documento) {
                                 reclamados.push({ nome: p.nome, documento: p.documento });
+                                console.log(`[Simba] Adicionado PASSIVO: ${p.nome} - ${p.documento}`);
                             }
                         });
+                    } else {
+                        console.log('[Simba] Array PASSIVO não encontrado ou não é array:', partes.PASSIVO);
                     }
                     
                     // Extrair TERCEIROS (Sócios, etc)
                     if (partes.TERCEIROS && Array.isArray(partes.TERCEIROS)) {
+                        console.log(`[Simba] Verificando ${partes.TERCEIROS.length} partes em TERCEIROS...`);
                         partes.TERCEIROS.forEach(p => {
+                            console.log('[Simba] Analisando parte TERCEIROS:', p);
                             if (p.nome && p.documento) {
                                 reclamados.push({ nome: p.nome, documento: p.documento });
+                                console.log(`[Simba] Adicionado TERCEIRO: ${p.nome} - ${p.documento}`);
                             }
                         });
                     }
 
                     if (reclamados.length > 0) {
-                        console.log(`[Simba] Encontrados ${reclamados.length} investigados/reclamados.`);
+                        console.log(`[Simba] Encontrados ${reclamados.length} investigados/reclamados:`, reclamados);
                         const reclamadosStr = JSON.stringify(reclamados);
+                        console.log('[Simba] Salvando no GM_setValue simba_reclamados:', reclamadosStr);
                         if (typeof GM_setValue !== 'undefined') {
                             GM_setValue('simba_reclamados', reclamadosStr);
                             GM_setValue('simba_reclamados_index', 0); // Reseta o índice
+                            console.log('[Simba] Dados salvos com sucesso via GM_setValue.');
                         } else {
                             localStorage.setItem('simba_reclamados', reclamadosStr);
                             localStorage.setItem('simba_reclamados_index', 0);
+                            console.log('[Simba] Dados salvos com sucesso via localStorage.');
                         }
                     } else {
                         console.warn('[Simba] Polo passivo não retornou CPFs/CNPJs válidos.');

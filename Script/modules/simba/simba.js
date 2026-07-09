@@ -104,6 +104,55 @@
             console.warn('[Simba] ID do processo não encontrado para buscar a data de início da execução.');
         }
 
+        // --- BUSCA POLO PASSIVO VIA API ---
+        if (idProcesso) {
+            try {
+                console.log(`[Simba] Buscando polo passivo para o processo ID ${idProcesso}...`);
+                const urlPartes = location.origin + '/pje-comum-api/api/processos/id/' + idProcesso + '/partes';
+                const respPartes = await fetch(urlPartes, { method: 'GET', credentials: 'include', headers: headersApi() });
+                if (respPartes.ok) {
+                    const partes = await respPartes.json();
+                    let reclamados = [];
+
+                    // Extrair PASSIVO
+                    if (partes.PASSIVO && Array.isArray(partes.PASSIVO)) {
+                        partes.PASSIVO.forEach(p => {
+                            if (p.nomeDocumento && p.numeroDocumento) {
+                                reclamados.push({ nome: p.nomeDocumento, documento: p.numeroDocumento });
+                            }
+                        });
+                    }
+                    
+                    // Extrair TERCEIROS (Sócios, etc)
+                    if (partes.TERCEIROS && Array.isArray(partes.TERCEIROS)) {
+                        partes.TERCEIROS.forEach(p => {
+                            if (p.nomeDocumento && p.numeroDocumento) {
+                                reclamados.push({ nome: p.nomeDocumento, documento: p.numeroDocumento });
+                            }
+                        });
+                    }
+
+                    if (reclamados.length > 0) {
+                        console.log(`[Simba] Encontrados ${reclamados.length} investigados/reclamados.`);
+                        const reclamadosStr = JSON.stringify(reclamados);
+                        if (typeof GM_setValue !== 'undefined') {
+                            GM_setValue('simba_reclamados', reclamadosStr);
+                            GM_setValue('simba_reclamados_index', 0); // Reseta o índice
+                        } else {
+                            localStorage.setItem('simba_reclamados', reclamadosStr);
+                            localStorage.setItem('simba_reclamados_index', 0);
+                        }
+                    } else {
+                        console.warn('[Simba] Polo passivo não retornou CPFs/CNPJs válidos.');
+                    }
+                } else {
+                    console.error('[Simba] Falha ao buscar partes do processo. Status:', respPartes.status);
+                }
+            } catch (e) {
+                console.error('[Simba] Erro na requisição do polo passivo:', e);
+            }
+        }
+
         if (typeof showToast === 'function') {
             showToast('Dados salvos', '#28a745', 3000);
         }

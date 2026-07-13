@@ -537,14 +537,14 @@
 
             if (typeof GM_setValue !== 'undefined') {
                 numProcesso = GM_getValue('simba_last_processo', '');
-                email = GM_getValue('simba_bcb_email', 'nao-informado@pje.trt2.jus.br');
-                telefone = GM_getValue('simba_bcb_telefone', '1137388145');
+                email = GM_getValue('simba_bcb_email', 'vtsps03@trt2.jus.br');
+                telefone = GM_getValue('simba_bcb_telefone', '(11)9999-9999');
                 dataInicio = GM_getValue('simba_last_data_execucao', '');
                 dataFim = GM_getValue('simba_bcb_data_fim', '');
             } else {
                 numProcesso = localStorage.getItem('simba_last_processo') || '';
-                email = localStorage.getItem('simba_bcb_email') || 'nao-informado@pje.trt2.jus.br';
-                telefone = localStorage.getItem('simba_bcb_telefone') || '1137388145';
+                email = localStorage.getItem('simba_bcb_email') || 'vtsps03@trt2.jus.br';
+                telefone = localStorage.getItem('simba_bcb_telefone') || '(11)9999-9999';
                 dataInicio = localStorage.getItem('simba_last_data_execucao') || '';
                 dataFim = localStorage.getItem('simba_bcb_data_fim') || '';
             }
@@ -571,15 +571,27 @@
 
             console.log(`[Simba BCB P1] Dados carregados: processo=${numProcesso}, email=${email}, telefone=${telefone}, dataInicio=${dataInicio}, dataFim=${dataFim}`);
 
-            // 2. Preencher Vara (dropdown custom Angular)
-            await clickAndWait('input.form-control.saj-input-select-form-input.ng-pristine', 'Campo de Vara', 400);
-            
-            await new Promise(r => setTimeout(r, 500));
-            const opcaoVara = document.querySelector('div.saj-input-select-body-options-value');
-            if (opcaoVara) {
-                opcaoVara.click();
-                console.log('[Simba BCB P1] Selecionada vara padrão');
-                await new Promise(r => setTimeout(r, 400));
+            // 2. Preencher Vara (digitar 3ª VA e depois selecionar no dropdown)
+            const inputVara = document.querySelector('input.form-control.saj-input-select-form-input');
+            if (inputVara) {
+                inputVara.focus();
+                await new Promise(r => setTimeout(r, 100));
+                inputVara.value = '3ª VA';
+                inputVara.dispatchEvent(new Event('input', { bubbles: true }));
+                console.log('[Simba BCB P1] Digitado "3ª VA" no campo de Vara');
+                await new Promise(r => setTimeout(r, 500));
+                
+                // Procurar pela opção "3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO" no dropdown
+                const opcaoVara = document.querySelector('div.saj-input-select-body-options-value');
+                if (opcaoVara && opcaoVara.textContent.includes('3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO')) {
+                    opcaoVara.click();
+                    console.log('[Simba BCB P1] Selecionada: 3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO');
+                    await new Promise(r => setTimeout(r, 400));
+                } else {
+                    console.warn('[Simba BCB P1] Opção de vara não encontrada');
+                }
+            } else {
+                console.warn('[Simba BCB P1] Campo de Vara não encontrado');
             }
 
             // 3. Preencher Juiz (select normal)
@@ -588,14 +600,13 @@
             // 4. Preencher Código do Processo
             await preencherCampo('#codigoProcesso', numProcesso, 'Código do Processo', 300);
 
-            // 5. Preencher Prazo (usar 30 dias padrão)
-            await preencherCampo('#prazo', '30', 'Prazo', 300);
+            // 5. Preencher Prazo (60 dias)
+            await preencherCampo('#prazo', '60', 'Prazo', 300);
 
-            // 6. Selecionar Extractos
-            await selecionarCheckbox('input[name="defaultExampleRadios"]#1', 'Extrato Mercantil', 300);
+            // 6. Selecionar Extractos (2, 3, 4)
             await selecionarCheckbox('input[name="defaultExampleRadios"]#2', 'Extrato de movimentação', 300);
-            await selecionarCheckbox('#3.form-check-input', 'Extrato de aplicações financeiras', 300);
-            await selecionarCheckbox('#4.form-check-input', 'Fatura de cartão de crédito', 300);
+            await selecionarCheckbox('input[name="defaultExampleRadios"]#3', 'Extrato de aplicações financeiras', 300);
+            await selecionarCheckbox('input[name="defaultExampleRadios"]#4', 'Fatura de cartão de crédito', 300);
 
             // 7. Preencher Email
             await preencherCampo('#email', email, 'Email', 300);

@@ -538,13 +538,13 @@
             if (typeof GM_setValue !== 'undefined') {
                 numProcesso = GM_getValue('simba_last_processo', '');
                 email = GM_getValue('simba_bcb_email', 'vtsps03@trt2.jus.br');
-                telefone = GM_getValue('simba_bcb_telefone', '(11)9999-9999');
+                telefone = GM_getValue('simba_bcb_telefone', '(11)3738-8145');
                 dataInicio = GM_getValue('simba_last_data_execucao', '');
                 dataFim = GM_getValue('simba_bcb_data_fim', '');
             } else {
                 numProcesso = localStorage.getItem('simba_last_processo') || '';
                 email = localStorage.getItem('simba_bcb_email') || 'vtsps03@trt2.jus.br';
-                telefone = localStorage.getItem('simba_bcb_telefone') || '(11)9999-9999';
+                telefone = localStorage.getItem('simba_bcb_telefone') || '(11)3738-8145';
                 dataInicio = localStorage.getItem('simba_last_data_execucao') || '';
                 dataFim = localStorage.getItem('simba_bcb_data_fim') || '';
             }

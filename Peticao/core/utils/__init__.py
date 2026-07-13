@@ -1,1 +1,0 @@
-from .utils import criar_driver_e_logar

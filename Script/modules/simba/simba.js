@@ -443,25 +443,25 @@
     setInterval(resumeAutomacaoSimba, 2000);
 
     // =========================================================================
-    // EXECUÇÃO BCB (Requisição de Extratos Cadastro)
+    // EXECUÇÃO BCB - PARTE 1 (Preencher formulário principal)
     // =========================================================================
     
-    window.executarSimbaBcb = async function() {
-        console.log('[Simba BCB] Iniciando preenchimento automático do formulário BCB...');
+    window.executarSimbaBcbParte1 = async function() {
+        console.log('[Simba BCB P1] Iniciando preenchimento da primeira página...');
         
         if (typeof showToast === 'function') {
-            showToast('Preenchendo formulário BCB...', '#ff9800', 3000);
+            showToast('Preenchendo primeira página BCB...', '#ff9800', 3000);
         }
 
         // ── Helper: Clicar e aguardar renderização ──
         const clickAndWait = async (sel, desc, delayMs = 400) => {
             const el = document.querySelector(sel);
             if (!el) {
-                console.warn(`[Simba BCB] Elemento não encontrado: ${desc} (${sel})`);
+                console.warn(`[Simba BCB P1] Elemento não encontrado: ${desc} (${sel})`);
                 return false;
             }
             el.click();
-            console.log(`[Simba BCB] Clicado: ${desc}`);
+            console.log(`[Simba BCB P1] Clicado: ${desc}`);
             await new Promise(r => setTimeout(r, delayMs));
             return true;
         };
@@ -470,7 +470,7 @@
         const preencherCampo = async (sel, valor, desc, delayMs = 300) => {
             const el = document.querySelector(sel);
             if (!el) {
-                console.warn(`[Simba BCB] Campo não encontrado: ${desc} (${sel})`);
+                console.warn(`[Simba BCB P1] Campo não encontrado: ${desc} (${sel})`);
                 return false;
             }
             el.focus();
@@ -479,7 +479,7 @@
             el.dispatchEvent(new Event('input', { bubbles: true }));
             el.dispatchEvent(new Event('change', { bubbles: true }));
             el.blur();
-            console.log(`[Simba BCB] Preenchido: ${desc} = "${valor}"`);
+            console.log(`[Simba BCB P1] Preenchido: ${desc} = "${valor}"`);
             await new Promise(r => setTimeout(r, delayMs));
             return true;
         };
@@ -488,25 +488,24 @@
         const selecionarOpcao = async (sel, textoOpcao, desc, delayMs = 400) => {
             const el = document.querySelector(sel);
             if (!el) {
-                console.warn(`[Simba BCB] Dropdown não encontrado: ${desc} (${sel})`);
+                console.warn(`[Simba BCB P1] Dropdown não encontrado: ${desc} (${sel})`);
                 return false;
             }
             el.click();
-            console.log(`[Simba BCB] Dropdown aberto: ${desc}`);
+            console.log(`[Simba BCB P1] Dropdown aberto: ${desc}`);
             await new Promise(r => setTimeout(r, delayMs));
             
-            // Procura a opção com o texto
             const opcoes = document.querySelectorAll(`${sel} option`);
             for (const opt of opcoes) {
                 if (opt.textContent.includes(textoOpcao)) {
                     opt.selected = true;
                     el.dispatchEvent(new Event('change', { bubbles: true }));
-                    console.log(`[Simba BCB] Selecionado: ${desc} = "${textoOpcao}"`);
+                    console.log(`[Simba BCB P1] Selecionado: ${desc} = "${textoOpcao}"`);
                     await new Promise(r => setTimeout(r, delayMs));
                     return true;
                 }
             }
-            console.warn(`[Simba BCB] Opção não encontrada: ${textoOpcao} em ${desc}`);
+            console.warn(`[Simba BCB P1] Opção não encontrada: ${textoOpcao} em ${desc}`);
             return false;
         };
 
@@ -514,13 +513,13 @@
         const selecionarCheckbox = async (sel, desc, delayMs = 300) => {
             const el = document.querySelector(sel);
             if (!el) {
-                console.warn(`[Simba BCB] Checkbox/Radio não encontrado: ${desc} (${sel})`);
+                console.warn(`[Simba BCB P1] Checkbox/Radio não encontrado: ${desc} (${sel})`);
                 return false;
             }
             if (!el.checked) {
                 el.click();
                 el.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log(`[Simba BCB] Marcado: ${desc}`);
+                console.log(`[Simba BCB P1] Marcado: ${desc}`);
                 await new Promise(r => setTimeout(r, delayMs));
             }
             return true;
@@ -536,7 +535,7 @@
             let vara = '3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO';
             let juiz = 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA';
 
-            if (typeof GM_getValue !== 'undefined') {
+            if (typeof GM_setValue !== 'undefined') {
                 numProcesso = GM_getValue('simba_last_processo', '');
                 email = GM_getValue('simba_bcb_email', 'nao-informado@pje.trt2.jus.br');
                 telefone = GM_getValue('simba_bcb_telefone', '1137388145');
@@ -558,24 +557,28 @@
                 const mm = String(now.getMonth() + 1).padStart(2, '0');
                 const yyyy = now.getFullYear();
                 dataFim = `${dd}/${mm}/${yyyy}`;
+                
+                if (typeof GM_setValue !== 'undefined') {
+                    GM_setValue('simba_bcb_data_fim', dataFim);
+                } else {
+                    localStorage.setItem('simba_bcb_data_fim', dataFim);
+                }
             }
 
             if (!numProcesso) {
-                alert('[Simba BCB] Atenção: Número do processo não encontrado. O campo ficará vazio.');
+                alert('[Simba BCB P1] Atenção: Número do processo não encontrado. O campo ficará vazio.');
             }
 
-            console.log(`[Simba BCB] Dados carregados: processo=${numProcesso}, email=${email}, telefone=${telefone}, dataInicio=${dataInicio}, dataFim=${dataFim}`);
+            console.log(`[Simba BCB P1] Dados carregados: processo=${numProcesso}, email=${email}, telefone=${telefone}, dataInicio=${dataInicio}, dataFim=${dataFim}`);
 
             // 2. Preencher Vara (dropdown custom Angular)
-            // Campo: input.form-control.saj-input-select-form-input.ng-pristine
             await clickAndWait('input.form-control.saj-input-select-form-input.ng-pristine', 'Campo de Vara', 400);
             
-            // Esperar o dropdown abrir e procurar a opção
             await new Promise(r => setTimeout(r, 500));
             const opcaoVara = document.querySelector('div.saj-input-select-body-options-value');
             if (opcaoVara) {
                 opcaoVara.click();
-                console.log('[Simba BCB] Selecionada vara padrão');
+                console.log('[Simba BCB P1] Selecionada vara padrão');
                 await new Promise(r => setTimeout(r, 400));
             }
 
@@ -589,7 +592,6 @@
             await preencherCampo('#prazo', '30', 'Prazo', 300);
 
             // 6. Selecionar Extractos
-            // Opções: Mercantil (1), Movimentação (2), Aplicações Financeiras (3), Cartão de Crédito (4)
             await selecionarCheckbox('input[name="defaultExampleRadios"]#1', 'Extrato Mercantil', 300);
             await selecionarCheckbox('input[name="defaultExampleRadios"]#2', 'Extrato de movimentação', 300);
             await selecionarCheckbox('#3.form-check-input', 'Extrato de aplicações financeiras', 300);
@@ -601,11 +603,50 @@
             // 8. Preencher Telefone
             await preencherCampo('#telefone', telefone, 'Telefone', 300);
 
-            console.log('[Simba BCB] Primeira página preenchida! Aguardando para clicar em Adicionar Investigado...');
-            await new Promise(r => setTimeout(r, 1000));
+            console.log('[Simba BCB P1] Primeira página preenchida com sucesso!');
+            
+            // Marcar como concluído
+            if (typeof GM_setValue !== 'undefined') {
+                GM_setValue('simba_bcb_parte1_concluida', true);
+            } else {
+                localStorage.setItem('simba_bcb_parte1_concluida', 'true');
+            }
+            
+            if (typeof showToast === 'function') {
+                showToast('Primeira página preenchida! Clique novamente para adicionar investigados.', '#28a745', 4000);
+            }
 
-            // ── SEGUNDA PARTE: Adicionar Investigados ──
-            console.log('[Simba BCB] Iniciando adição de investigados...');
+        } catch (error) {
+            console.error('[Simba BCB P1] Erro ao preencher formulário:', error);
+            if (typeof showToast === 'function') {
+                showToast('Erro ao preencher primeira página BCB', '#dc3545', 3000);
+            }
+        }
+    };
+
+    // =========================================================================
+    // EXECUÇÃO BCB - PARTE 2 (Adicionar investigados)
+    // =========================================================================
+    
+    window.executarSimbaBcbParte2 = async function() {
+        console.log('[Simba BCB P2] Iniciando adição de investigados...');
+        
+        if (typeof showToast === 'function') {
+            showToast('Adicionando investigados...', '#ff9800', 3000);
+        }
+
+        try {
+            // Obter dados salvos
+            let dataInicio = '';
+            let dataFim = '';
+            
+            if (typeof GM_getValue !== 'undefined') {
+                dataInicio = GM_getValue('simba_last_data_execucao', '');
+                dataFim = GM_getValue('simba_bcb_data_fim', '');
+            } else {
+                dataInicio = localStorage.getItem('simba_last_data_execucao') || '';
+                dataFim = localStorage.getItem('simba_bcb_data_fim') || '';
+            }
             
             // Carregar lista de reclamados
             let reclamadosStr = '[]';
@@ -617,28 +658,31 @@
             
             let reclamados = JSON.parse(reclamadosStr);
             if (!reclamados || reclamados.length === 0) {
-                console.warn('[Simba BCB] Nenhum reclamado encontrado para adicionar.');
+                console.warn('[Simba BCB P2] Nenhum reclamado encontrado para adicionar.');
                 if (typeof showToast === 'function') {
-                    showToast('Primeira página preenchida! Nenhum investigado para adicionar.', '#28a745', 3000);
+                    showToast('Nenhum investigado para adicionar.', '#ffc107', 3000);
                 }
                 return;
             }
 
-            // Clicar no botão "Adicionar Investigado(a)" (com ícone plus)
-            const btnAdicionar = document.querySelector('button.btn.btn-primary');
-            if (btnAdicionar && btnAdicionar.textContent.includes('Adicionar Investigado')) {
-                await clickAndWait('button.btn.btn-primary', 'Botão Adicionar Investigado', 600);
-            } else {
-                console.warn('[Simba BCB] Botão Adicionar Investigado não encontrado. Tentando clicar via fa-icon...');
-                await clickAndWait('button.btn.btn-primary', 'Botão Adicionar', 600);
-            }
+            console.log(`[Simba BCB P2] Adicionando ${reclamados.length} investigados...`);
 
             // Loop por cada reclamado
             for (let i = 0; i < reclamados.length; i++) {
                 const r = reclamados[i];
                 const docLimpo = r.documento.replace(/\D/g, '');
                 
-                console.log(`[Simba BCB] Adicionando investigado ${i + 1}/${reclamados.length}: ${r.nome} (${docLimpo})...`);
+                console.log(`[Simba BCB P2] Processando investigado ${i + 1}/${reclamados.length}: ${r.nome} (${docLimpo})...`);
+                
+                // Clicar no botão "Adicionar Investigado(a)" antes de cada adição
+                const btnAdicionar = document.querySelector('button.btn.btn-primary');
+                if (btnAdicionar && btnAdicionar.textContent.includes('Adicionar Investigado')) {
+                    btnAdicionar.click();
+                    console.log(`[Simba BCB P2] Clicado botão Adicionar Investigado para item ${i + 1}`);
+                    await new Promise(r => setTimeout(r, 500));
+                } else {
+                    console.warn('[Simba BCB P2] Botão Adicionar Investigado não encontrado');
+                }
                 
                 // Preencher CPF/CNPJ
                 const inputItem = document.querySelector('input[formcontrolname="item"]');
@@ -649,10 +693,10 @@
                     inputItem.dispatchEvent(new Event('input', { bubbles: true }));
                     inputItem.dispatchEvent(new Event('change', { bubbles: true }));
                     inputItem.blur();
-                    console.log(`[Simba BCB] Preenchido CPF/CNPJ: ${docLimpo}`);
+                    console.log(`[Simba BCB P2] Preenchido CPF/CNPJ: ${docLimpo}`);
                     await new Promise(r => setTimeout(r, 300));
                 } else {
-                    console.warn('[Simba BCB] Campo de CPF/CNPJ não encontrado');
+                    console.warn('[Simba BCB P2] Campo de CPF/CNPJ não encontrado');
                 }
 
                 // Preencher Data Início
@@ -664,7 +708,7 @@
                     inputDataInicio.dispatchEvent(new Event('input', { bubbles: true }));
                     inputDataInicio.dispatchEvent(new Event('change', { bubbles: true }));
                     inputDataInicio.blur();
-                    console.log(`[Simba BCB] Preenchida Data Início: ${dataInicio}`);
+                    console.log(`[Simba BCB P2] Preenchida Data Início: ${dataInicio}`);
                     await new Promise(r => setTimeout(r, 300));
                 }
 
@@ -677,7 +721,7 @@
                     inputDataFim.dispatchEvent(new Event('input', { bubbles: true }));
                     inputDataFim.dispatchEvent(new Event('change', { bubbles: true }));
                     inputDataFim.blur();
-                    console.log(`[Simba BCB] Preenchida Data Fim: ${dataFim}`);
+                    console.log(`[Simba BCB P2] Preenchida Data Fim: ${dataFim}`);
                     await new Promise(r => setTimeout(r, 300));
                 }
 
@@ -685,16 +729,46 @@
                 await new Promise(r => setTimeout(r, 400));
             }
 
-            console.log('[Simba BCB] Todos os investigados preenchidos com sucesso!');
+            console.log('[Simba BCB P2] Todos os investigados preenchidos!');
+            
+            // Limpar flag
+            if (typeof GM_setValue !== 'undefined') {
+                GM_setValue('simba_bcb_parte1_concluida', false);
+            } else {
+                localStorage.setItem('simba_bcb_parte1_concluida', 'false');
+            }
+            
             if (typeof showToast === 'function') {
-                showToast(`✅ BCB: ${reclamados.length} investigados preenchidos!`, '#28a745', 3000);
+                showToast(`✅ ${reclamados.length} investigados adicionados!`, '#28a745', 3000);
             }
 
         } catch (error) {
-            console.error('[Simba BCB] Erro ao preencher formulário:', error);
+            console.error('[Simba BCB P2] Erro ao adicionar investigados:', error);
             if (typeof showToast === 'function') {
-                showToast('Erro ao preencher formulário BCB', '#dc3545', 3000);
+                showToast('Erro ao adicionar investigados', '#dc3545', 3000);
             }
+        }
+    };
+
+    // =========================================================================
+    // WRAPPER: Detecta estado e executa parte correta
+    // =========================================================================
+    
+    window.executarSimbaBcb = async function() {
+        let parte1Concluida = false;
+        
+        if (typeof GM_getValue !== 'undefined') {
+            parte1Concluida = GM_getValue('simba_bcb_parte1_concluida', false);
+        } else {
+            parte1Concluida = localStorage.getItem('simba_bcb_parte1_concluida') === 'true';
+        }
+        
+        if (parte1Concluida) {
+            console.log('[Simba BCB] Detectada Parte 1 concluída, executando Parte 2...');
+            await window.executarSimbaBcbParte2();
+        } else {
+            console.log('[Simba BCB] Executando Parte 1...');
+            await window.executarSimbaBcbParte1();
         }
     };
 

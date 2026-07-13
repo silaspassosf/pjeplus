@@ -441,4 +441,163 @@
     
     // Inicia verificador de retomada a cada 2s
     setInterval(resumeAutomacaoSimba, 2000);
+
+    // =========================================================================
+    // EXECUÇÃO BCB (Requisição de Extratos Cadastro)
+    // =========================================================================
+    
+    window.executarSimbaBcb = async function() {
+        console.log('[Simba BCB] Iniciando preenchimento automático do formulário BCB...');
+        
+        if (typeof showToast === 'function') {
+            showToast('Preenchendo formulário BCB...', '#ff9800', 3000);
+        }
+
+        // ── Helper: Clicar e aguardar renderização ──
+        const clickAndWait = async (sel, desc, delayMs = 400) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+                console.warn(`[Simba BCB] Elemento não encontrado: ${desc} (${sel})`);
+                return false;
+            }
+            el.click();
+            console.log(`[Simba BCB] Clicado: ${desc}`);
+            await new Promise(r => setTimeout(r, delayMs));
+            return true;
+        };
+
+        // ── Helper: Preencher campo text/input ──
+        const preencherCampo = async (sel, valor, desc, delayMs = 300) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+                console.warn(`[Simba BCB] Campo não encontrado: ${desc} (${sel})`);
+                return false;
+            }
+            el.focus();
+            await new Promise(r => setTimeout(r, 100));
+            el.value = valor;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            el.blur();
+            console.log(`[Simba BCB] Preenchido: ${desc} = "${valor}"`);
+            await new Promise(r => setTimeout(r, delayMs));
+            return true;
+        };
+
+        // ── Helper: Selecionar opção em dropdown ──
+        const selecionarOpcao = async (sel, textoOpcao, desc, delayMs = 400) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+                console.warn(`[Simba BCB] Dropdown não encontrado: ${desc} (${sel})`);
+                return false;
+            }
+            el.click();
+            console.log(`[Simba BCB] Dropdown aberto: ${desc}`);
+            await new Promise(r => setTimeout(r, delayMs));
+            
+            // Procura a opção com o texto
+            const opcoes = document.querySelectorAll(`${sel} option`);
+            for (const opt of opcoes) {
+                if (opt.textContent.includes(textoOpcao)) {
+                    opt.selected = true;
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    console.log(`[Simba BCB] Selecionado: ${desc} = "${textoOpcao}"`);
+                    await new Promise(r => setTimeout(r, delayMs));
+                    return true;
+                }
+            }
+            console.warn(`[Simba BCB] Opção não encontrada: ${textoOpcao} em ${desc}`);
+            return false;
+        };
+
+        // ── Helper: Selecionar checkbox/radio ──
+        const selecionarCheckbox = async (sel, desc, delayMs = 300) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+                console.warn(`[Simba BCB] Checkbox/Radio não encontrado: ${desc} (${sel})`);
+                return false;
+            }
+            if (!el.checked) {
+                el.click();
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log(`[Simba BCB] Marcado: ${desc}`);
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+            return true;
+        };
+
+        try {
+            // 1. Obter dados salvos do processo
+            let numProcesso = '';
+            let email = '';
+            let telefone = '';
+            let vara = '3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO';
+            let juiz = 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA';
+
+            if (typeof GM_getValue !== 'undefined') {
+                numProcesso = GM_getValue('simba_last_processo', '');
+                email = GM_getValue('simba_bcb_email', 'nao-informado@pje.trt2.jus.br');
+                telefone = GM_getValue('simba_bcb_telefone', '1137388145');
+            } else {
+                numProcesso = localStorage.getItem('simba_last_processo') || '';
+                email = localStorage.getItem('simba_bcb_email') || 'nao-informado@pje.trt2.jus.br';
+                telefone = localStorage.getItem('simba_bcb_telefone') || '1137388145';
+            }
+
+            if (!numProcesso) {
+                alert('[Simba BCB] Atenção: Número do processo não encontrado. O campo ficará vazio.');
+            }
+
+            console.log(`[Simba BCB] Dados carregados: processo=${numProcesso}, email=${email}, telefone=${telefone}`);
+
+            // 2. Preencher Vara (dropdown custom Angular)
+            // Campo: input.form-control.saj-input-select-form-input.ng-pristine
+            await clickAndWait('input.form-control.saj-input-select-form-input.ng-pristine', 'Campo de Vara', 400);
+            
+            // Esperar o dropdown abrir e procurar a opção
+            await new Promise(r => setTimeout(r, 500));
+            const opcaoVara = document.querySelector('div.saj-input-select-body-options-value');
+            if (opcaoVara) {
+                opcaoVara.click();
+                console.log('[Simba BCB] Selecionada vara padrão');
+                await new Promise(r => setTimeout(r, 400));
+            }
+
+            // 3. Preencher Juiz (select normal)
+            await selecionarOpcao('select.form-control.ng-untouched.ng-pristine', juiz, 'Juiz', 400);
+
+            // 4. Preencher Código do Processo
+            await preencherCampo('#codigoProcesso', numProcesso, 'Código do Processo', 300);
+
+            // 5. Preencher Prazo (usar 30 dias padrão)
+            await preencherCampo('#prazo', '30', 'Prazo', 300);
+
+            // 6. Selecionar Extractos
+            // Opções: Mercantil (1), Movimentação (2), Aplicações Financeiras (3), Cartão de Crédito (4)
+            await selecionarCheckbox('input[name="defaultExampleRadios"]#1', 'Extrato Mercantil', 300);
+            await selecionarCheckbox('input[name="defaultExampleRadios"]#2', 'Extrato de movimentação', 300);
+            await selecionarCheckbox('#3.form-check-input', 'Extrato de aplicações financeiras', 300);
+            await selecionarCheckbox('#4.form-check-input', 'Fatura de cartão de crédito', 300);
+
+            // 7. Preencher Email
+            await preencherCampo('#email', email, 'Email', 300);
+
+            // 8. Preencher Telefone
+            await preencherCampo('#telefone', telefone, 'Telefone', 300);
+
+            console.log('[Simba BCB] Todos os campos preenchidos! Aguardando confirmação...');
+            await new Promise(r => setTimeout(r, 1000));
+
+            if (typeof showToast === 'function') {
+                showToast('Formulário BCB preenchido com sucesso!', '#28a745', 3000);
+            }
+
+        } catch (error) {
+            console.error('[Simba BCB] Erro ao preencher formulário:', error);
+            if (typeof showToast === 'function') {
+                showToast('Erro ao preencher formulário BCB', '#dc3545', 3000);
+            }
+        }
+    };
+
 })();

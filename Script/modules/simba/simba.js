@@ -509,11 +509,41 @@
             return false;
         };
 
-        // ── Helper: Selecionar checkbox/radio ──
-        const selecionarCheckbox = async (sel, desc, delayMs = 300) => {
+        // ── Helper: Preencher telefone BCB (FocusEvent + keystrokes) ──
+        const preencherTelefoneBCB = async (telDigitos, delayMs = 300) => {
+            const el = document.querySelector('#telefone');
+            if (!el) {
+                console.warn('[Simba BCB P1] Campo Telefone não encontrado');
+                return false;
+            }
+            // Scroll e ativar máscara via FocusEvent
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, 500));
+            el.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 500));
+            
+            // Digitar dígito por dígito (máscara processa)
+            for (const digit of telDigitos) {
+                const cc = digit.charCodeAt(0);
+                el.dispatchEvent(new KeyboardEvent('keydown', { key: digit, code: `Digit${digit}`, keyCode: cc, which: cc, bubbles: true, cancelable: true, view: window }));
+                await new Promise(r => setTimeout(r, 30));
+                el.dispatchEvent(new KeyboardEvent('keypress', { key: digit, code: `Digit${digit}`, keyCode: cc, which: cc, bubbles: true, cancelable: true, view: window }));
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                await new Promise(r => setTimeout(r, 30));
+                el.dispatchEvent(new KeyboardEvent('keyup', { key: digit, code: `Digit${digit}`, keyCode: cc, which: cc, bubbles: true, cancelable: true, view: window }));
+                await new Promise(r => setTimeout(r, 60));
+            }
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log(`[Simba BCB P1] Telefone preenchido: "${el.value}"`);
+            await new Promise(r => setTimeout(r, delayMs));
+            return true;
+        };
+
+        // ── Helper: Selecionar checkbox BCB ──
+        const selecionarCheckboxBCB = async (sel, desc, delayMs = 300) => {
             const el = document.querySelector(sel);
             if (!el) {
-                console.warn(`[Simba BCB P1] Checkbox/Radio não encontrado: ${desc} (${sel})`);
+                console.warn(`[Simba BCB P1] Checkbox não encontrado: ${desc} (${sel})`);
                 return false;
             }
             if (!el.checked) {
@@ -583,7 +613,7 @@
                 
                 // Procurar pela opção "3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO" no dropdown
                 const opcaoVara = document.querySelector('div.saj-input-select-body-options-value');
-                if (opcaoVara && opcaoVara.textContent.includes('3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO')) {
+                if (opcaoVara && opcaoVara.textContent.startsWith('3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO')) {
                     opcaoVara.click();
                     console.log('[Simba BCB P1] Selecionada: 3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO');
                     await new Promise(r => setTimeout(r, 400));
@@ -595,7 +625,7 @@
             }
 
             // 3. Preencher Juiz (select normal)
-            await selecionarOpcao('select.form-control.ng-untouched.ng-pristine', juiz, 'Juiz', 400);
+            await selecionarOpcao('select.form-control', juiz, 'Juiz', 400);
 
             // 4. Preencher Código do Processo
             await preencherCampo('#codigoProcesso', numProcesso, 'Código do Processo', 300);
@@ -604,15 +634,21 @@
             await preencherCampo('#prazo', '60', 'Prazo', 300);
 
             // 6. Selecionar Extractos (2, 3, 4)
-            await selecionarCheckbox('input[name="defaultExampleRadios"]#2', 'Extrato de movimentação', 300);
-            await selecionarCheckbox('input[name="defaultExampleRadios"]#3', 'Extrato de aplicações financeiras', 300);
-            await selecionarCheckbox('input[name="defaultExampleRadios"]#4', 'Fatura de cartão de crédito', 300);
+            // Checkbox 2 (Movimentação) - via label <b>
+            const bMov = Array.from(document.querySelectorAll('b')).find(b => b.textContent.includes('Extrato de movimentação - Carta-Circular 3454 (Simba)'));
+            if (bMov) {
+                bMov.click();
+                console.log('[Simba BCB P1] Marcado: Extrato de movimentação');
+                await new Promise(r => setTimeout(r, 300));
+            }
+            await selecionarCheckboxBCB('input[id="3"]', 'Extrato de aplicações financeiras', 300);
+            await selecionarCheckboxBCB('input[id="4"]', 'Fatura de cartão de crédito', 300);
 
             // 7. Preencher Email
             await preencherCampo('#email', email, 'Email', 300);
 
-            // 8. Preencher Telefone
-            await preencherCampo('#telefone', telefone, 'Telefone', 300);
+            // 8. Preencher Telefone (FocusEvent + keystrokes)
+            await preencherTelefoneBCB(telefone.replace(/\D/g, ''), 300);
 
             console.log('[Simba BCB P1] Primeira página preenchida com sucesso!');
             

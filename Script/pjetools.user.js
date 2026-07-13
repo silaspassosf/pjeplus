@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.1.58
+// @version      2.1.59
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -13,6 +13,7 @@
 // @match        https://sisbajud.pdpj.jus.br/*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*
 // @match        https://simba-novo.redejt/*
+// @match        https://www3.bcb.gov.br/saj/requisicao-extratos-cadastro*
 // ── Único require: o loader (bumpar só ele ao adicionar módulos)
 // (loader injetado inline — remove dependência externa)
 // @grant        GM_setValue
@@ -35,12 +36,12 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.58
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.59
 // ==/UserScript==
 
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.1.58 loaded');
+    console.log('[Loader] PJe Tools Pro v2.1.59 loaded');
     if (window.self !== window.top) return;
 
     // W = window real da página (unsafeWindow quando disponível)
@@ -51,9 +52,46 @@
     const isReceita  = url.includes('cav.receita.fazenda.gov.br');
     const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');
     const isPjeDomain = url.includes('pje.trt2.jus.br') || url.includes('pje1g.trt2.jus.br');
+    const isBcb = url.includes('bcb.gov.br/saj/requisicao-extratos-cadastro');
 
     // (No match da Receita, content scripts já estão via @require em header)
     if (isSisbajud) return;
+
+    // ── Lógica BCB (terceira execução Simba) ──
+    if (isBcb) {
+        console.log('[Loader] Detectada URL do BCB, carregando Simba BCB...');
+        setTimeout(() => {
+            if (!document.getElementById('btnSimbaBcbExtratos')) {
+                const btn = document.createElement('button');
+                btn.id = 'btnSimbaBcbExtratos';
+                btn.textContent = '🦁 Preencher BCB';
+                btn.title = 'Preencher automaticamente o formulário de requisição de extratos do BCB';
+                btn.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:999999999;
+                    padding:10px 15px;background-color:#ff6600;color:white;border:none;
+                    border-radius:4px;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);
+                    font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,0.3);`;
+                
+                btn.onclick = async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    btn.disabled = true;
+                    btn.textContent = 'Processando...';
+                    try {
+                        await window.executarSimbaBcb?.();
+                    } catch (err) {
+                        console.error('[Loader BCB] Erro:', err);
+                        alert('Erro ao preencher formulário BCB: ' + err.message);
+                    }
+                    btn.textContent = '🦁 Preencher BCB';
+                    btn.disabled = false;
+                };
+                
+                document.body.appendChild(btn);
+                console.log('[Loader] Botão BCB criado com sucesso');
+            }
+        }, 800);
+        return;
+    }
 
     // ── Roteamento (roda depois de todos os @require carregados)
     if (isPjeDomain || isReceita) {

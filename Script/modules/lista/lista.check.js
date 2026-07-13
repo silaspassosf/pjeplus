@@ -233,6 +233,7 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
     document.getElementById(id)?.remove();
     const c = document.createElement('div');
     c.id = id;
+    c.setAttribute('data-pjetools-panel', 'true');  // Marcador para MutationObserver
     c.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:999999999;background:#fff;` +
         `border:2px solid ${corBorda};border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.18);` +
         `min-width:360px;max-height:60vh;overflow:auto;font-family:sans-serif;` +
@@ -245,7 +246,8 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
     hdr.innerHTML = `<span style="font-weight:bold;color:${corBorda};font-size:13px">${titulo}</span>` +
         `<button style="background:#dc3545;color:#fff;border:none;border-radius:50%;` +
         `width:24px;height:24px;cursor:pointer;font-size:14px;line-height:1">✕</button>`;
-    hdr.querySelector('button').onclick = () => c.remove();
+    const closeBtn = hdr.querySelector('button');
+    closeBtn.onclick = (e) => { e.stopPropagation(); c.remove(); };
     c.appendChild(hdr);
 
     if (!saida.length) {
@@ -292,16 +294,37 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
         const tr = ev.target.closest('tr[data-idx]');
         if (!tr) return;
         ev.stopPropagation();
+        ev.preventDefault();
         tbody.querySelectorAll('tr').forEach(r =>
             r.style.background = '');
         tr.style.background = '#fff7d6';
         const doc = saida[parseInt(tr.dataset.idx, 10)];
         if (doc) {
-            // Preservar painel durante click para evitar re-render Angular remover
-            const panelRef = c; // manter referência ao container
-            await onRowClick(doc);
-            // Garantir que painel ainda existe após operação
-            if (!document.body.contains(panelRef)) document.body.appendChild(panelRef);
+            // Preservar painel: manter referência ANTES de qualquer operação
+            const panelRef = c;
+            const panelParent = c.parentElement;
+            
+            // Executar ação de clique
+            try {
+                await onRowClick(doc);
+            } catch (err) {
+                console.error('[CHECK] Erro ao executar ação:', err);
+            }
+            
+            // SEMPRE garantir que painel volta ao DOM no mesmo lugar
+            if (!document.body.contains(panelRef)) {
+                if (panelParent && document.body.contains(panelParent)) {
+                    panelParent.appendChild(panelRef);
+                } else {
+                    document.body.appendChild(panelRef);
+                }
+            }
+            
+            // Restaurar highlight da linha se ainda está no DOM
+            if (document.body.contains(panelRef)) {
+                const row = tbody.querySelector(`tr[data-idx="${tr.dataset.idx}"]`);
+                if (row) row.style.background = '#fff7d6';
+            }
         }
     });
 
@@ -318,6 +341,28 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
 
     c.appendChild(tbl);
     document.body.appendChild(c);
+    
+    // MutationObserver para monitorar remoção e re-adicionar imediatamente
+    const observer = new MutationObserver(() => {
+        if (!document.body.contains(c)) {
+            console.warn('[CHECK] Painel foi removido pelo Angular, restaurando...');
+            // Re-adicionar ao DOM com delay mínimo para evitar conflicts
+            requestAnimationFrame(() => {
+                if (!document.body.contains(c)) {
+                    document.body.appendChild(c);
+                }
+            });
+        }
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: false });
+    
+    // Armazenar observer para poder cancelar após fechar
+    const originalRemove = c.remove;
+    c.remove = function() {
+        observer.disconnect();
+        originalRemove.call(this);
+    };
 }
 
 async function onCheckRowClick(doc) {

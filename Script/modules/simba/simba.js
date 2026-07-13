@@ -531,6 +531,8 @@
             let numProcesso = '';
             let email = '';
             let telefone = '';
+            let dataInicio = '';
+            let dataFim = '';
             let vara = '3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO';
             let juiz = 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA';
 
@@ -538,17 +540,31 @@
                 numProcesso = GM_getValue('simba_last_processo', '');
                 email = GM_getValue('simba_bcb_email', 'nao-informado@pje.trt2.jus.br');
                 telefone = GM_getValue('simba_bcb_telefone', '1137388145');
+                dataInicio = GM_getValue('simba_last_data_execucao', '');
+                dataFim = GM_getValue('simba_bcb_data_fim', '');
             } else {
                 numProcesso = localStorage.getItem('simba_last_processo') || '';
                 email = localStorage.getItem('simba_bcb_email') || 'nao-informado@pje.trt2.jus.br';
                 telefone = localStorage.getItem('simba_bcb_telefone') || '1137388145';
+                dataInicio = localStorage.getItem('simba_last_data_execucao') || '';
+                dataFim = localStorage.getItem('simba_bcb_data_fim') || '';
+            }
+
+            // Se dataFim não foi setada, usar último dia do mês anterior
+            if (!dataFim) {
+                const now = new Date();
+                now.setDate(0);
+                const dd = String(now.getDate()).padStart(2, '0');
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const yyyy = now.getFullYear();
+                dataFim = `${dd}/${mm}/${yyyy}`;
             }
 
             if (!numProcesso) {
                 alert('[Simba BCB] Atenção: Número do processo não encontrado. O campo ficará vazio.');
             }
 
-            console.log(`[Simba BCB] Dados carregados: processo=${numProcesso}, email=${email}, telefone=${telefone}`);
+            console.log(`[Simba BCB] Dados carregados: processo=${numProcesso}, email=${email}, telefone=${telefone}, dataInicio=${dataInicio}, dataFim=${dataFim}`);
 
             // 2. Preencher Vara (dropdown custom Angular)
             // Campo: input.form-control.saj-input-select-form-input.ng-pristine
@@ -585,11 +601,93 @@
             // 8. Preencher Telefone
             await preencherCampo('#telefone', telefone, 'Telefone', 300);
 
-            console.log('[Simba BCB] Todos os campos preenchidos! Aguardando confirmação...');
+            console.log('[Simba BCB] Primeira página preenchida! Aguardando para clicar em Adicionar Investigado...');
             await new Promise(r => setTimeout(r, 1000));
 
+            // ── SEGUNDA PARTE: Adicionar Investigados ──
+            console.log('[Simba BCB] Iniciando adição de investigados...');
+            
+            // Carregar lista de reclamados
+            let reclamadosStr = '[]';
+            if (typeof GM_getValue !== 'undefined') {
+                reclamadosStr = GM_getValue('simba_reclamados', '[]');
+            } else {
+                reclamadosStr = localStorage.getItem('simba_reclamados') || '[]';
+            }
+            
+            let reclamados = JSON.parse(reclamadosStr);
+            if (!reclamados || reclamados.length === 0) {
+                console.warn('[Simba BCB] Nenhum reclamado encontrado para adicionar.');
+                if (typeof showToast === 'function') {
+                    showToast('Primeira página preenchida! Nenhum investigado para adicionar.', '#28a745', 3000);
+                }
+                return;
+            }
+
+            // Clicar no botão "Adicionar Investigado(a)" (com ícone plus)
+            const btnAdicionar = document.querySelector('button.btn.btn-primary');
+            if (btnAdicionar && btnAdicionar.textContent.includes('Adicionar Investigado')) {
+                await clickAndWait('button.btn.btn-primary', 'Botão Adicionar Investigado', 600);
+            } else {
+                console.warn('[Simba BCB] Botão Adicionar Investigado não encontrado. Tentando clicar via fa-icon...');
+                await clickAndWait('button.btn.btn-primary', 'Botão Adicionar', 600);
+            }
+
+            // Loop por cada reclamado
+            for (let i = 0; i < reclamados.length; i++) {
+                const r = reclamados[i];
+                const docLimpo = r.documento.replace(/\D/g, '');
+                
+                console.log(`[Simba BCB] Adicionando investigado ${i + 1}/${reclamados.length}: ${r.nome} (${docLimpo})...`);
+                
+                // Preencher CPF/CNPJ
+                const inputItem = document.querySelector('input[formcontrolname="item"]');
+                if (inputItem) {
+                    inputItem.focus();
+                    await new Promise(r => setTimeout(r, 100));
+                    inputItem.value = docLimpo;
+                    inputItem.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputItem.dispatchEvent(new Event('change', { bubbles: true }));
+                    inputItem.blur();
+                    console.log(`[Simba BCB] Preenchido CPF/CNPJ: ${docLimpo}`);
+                    await new Promise(r => setTimeout(r, 300));
+                } else {
+                    console.warn('[Simba BCB] Campo de CPF/CNPJ não encontrado');
+                }
+
+                // Preencher Data Início
+                const inputDataInicio = document.querySelector('input[formcontrolname="dataInicio"]');
+                if (inputDataInicio && dataInicio) {
+                    inputDataInicio.focus();
+                    await new Promise(r => setTimeout(r, 100));
+                    inputDataInicio.value = dataInicio;
+                    inputDataInicio.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputDataInicio.dispatchEvent(new Event('change', { bubbles: true }));
+                    inputDataInicio.blur();
+                    console.log(`[Simba BCB] Preenchida Data Início: ${dataInicio}`);
+                    await new Promise(r => setTimeout(r, 300));
+                }
+
+                // Preencher Data Fim
+                const inputDataFim = document.querySelector('input[formcontrolname="dataFim"]');
+                if (inputDataFim && dataFim) {
+                    inputDataFim.focus();
+                    await new Promise(r => setTimeout(r, 100));
+                    inputDataFim.value = dataFim;
+                    inputDataFim.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputDataFim.dispatchEvent(new Event('change', { bubbles: true }));
+                    inputDataFim.blur();
+                    console.log(`[Simba BCB] Preenchida Data Fim: ${dataFim}`);
+                    await new Promise(r => setTimeout(r, 300));
+                }
+
+                // Aguardar pequeno delay antes do próximo
+                await new Promise(r => setTimeout(r, 400));
+            }
+
+            console.log('[Simba BCB] Todos os investigados preenchidos com sucesso!');
             if (typeof showToast === 'function') {
-                showToast('Formulário BCB preenchido com sucesso!', '#28a745', 3000);
+                showToast(`✅ BCB: ${reclamados.length} investigados preenchidos!`, '#28a745', 3000);
             }
 
         } catch (error) {

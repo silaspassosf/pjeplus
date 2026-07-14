@@ -771,24 +771,7 @@
                     console.log(`[Simba BCB P2] Preenchida Data Fim: ${dataFim}`);
                     await new Promise(r => setTimeout(r, 300));
                 }
-
-                // Aguardar pequeno delay antes do próximo
-                await new Promise(r => setTimeout(r, 400));
             }
-
-            console.log('[Simba BCB P2] Todos os investigados preenchidos!');
-            
-            // Limpar flag
-            if (typeof GM_setValue !== 'undefined') {
-                GM_setValue('simba_bcb_parte1_concluida', false);
-            } else {
-                localStorage.setItem('simba_bcb_parte1_concluida', 'false');
-            }
-            
-            if (typeof showToast === 'function') {
-                showToast(`✅ ${reclamados.length} investigados adicionados!`, '#28a745', 3000);
-            }
-
         } catch (error) {
             console.error('[Simba BCB P2] Erro ao adicionar investigados:', error);
             if (typeof showToast === 'function') {
@@ -797,10 +780,7 @@
         }
     };
 
-    // =========================================================================
-    // WRAPPER: Detecta estado e executa parte correta
-    // =========================================================================
-    
+    // Integração com o botão BCB (Parte 1 + Parte 2)
     window.executarSimbaBcb = async function() {
         let parte1Concluida = false;
         

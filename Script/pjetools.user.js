@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.1.65
+// @version      2.1.66
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -22,26 +22,26 @@
 // @grant        window.close
 // @grant        unsafeWindow
 // @run-at       document-idle
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=2.1.37
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.65
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.66
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.66
 // ==/UserScript==
 
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.1.65 loaded');
+    console.log('[Loader] PJe Tools Pro v2.1.66 loaded');
     
     if (window.self !== window.top) return;
 
@@ -138,13 +138,18 @@
             return;
         }
 
-        if (!isDetalhe) return;
+        if (!isDetalhe) {
+            console.log('[Loader] URL não corresponde a página de detalhe, abortando roteamento. URL:', url);
+            return;
+        }
 
         // ── Detalhe: registrar SPA monitor uma vez e inicializar
         if (!window.__pjeToolsLoaded) {
             window.__pjeToolsLoaded = true;
+            console.log('[Loader] Registrando monitor de SPA...');
 
             window.monitorarSPA && window.monitorarSPA(() => {
+                console.log('[Loader] Navegação SPA detectada, dispose + reboot...');
                 window.PJeState && window.PJeState.dispose();
                 setTimeout(() => {
                     if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
@@ -157,11 +162,23 @@
         bootDetalhe();
 
         function bootDetalhe() {
-            if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
+            console.log('[Loader] bootDetalhe() chamado. URL atual:', window.location.href);
+            if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) {
+                console.log('[Loader] bootDetalhe: URL não é de detalhe, abortando.');
+                return;
+            }
             // FIX: módulos registrados via @require expõem suas funções no sandbox `window`,
             // portanto chamamos `window.*` aqui em vez de `W` (unsafeWindow).
-            if (!window.PJeState || window.PJeState._iniciado) return;
+            if (!window.PJeState) {
+                console.warn('[Loader] bootDetalhe: window.PJeState ainda não existe! Módulo state.js carregou?');
+                return;
+            }
+            if (window.PJeState._iniciado) {
+                console.log('[Loader] bootDetalhe: já inicializado anteriormente (PJeState._iniciado=true).');
+                return;
+            }
             window.PJeState._iniciado = true;
+            console.log('[Loader] Inicializando painel e atalhos. inicializarPainel existe?', typeof window.inicializarPainel, '| initAtalhos existe?', typeof window.initAtalhos);
             window.inicializarPainel && window.inicializarPainel();
             window.initAtalhos && window.initAtalhos();
         }

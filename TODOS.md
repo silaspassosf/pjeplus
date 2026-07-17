@@ -1,0 +1,1 @@
+- [x] Atualizar `_tem_audiencia_marcada` em `bianca/triagem/acoes.py` para reduzir falso positivo (validar conteúdo associado ao `dt#audiencias`, não apenas `is_displayed()`).

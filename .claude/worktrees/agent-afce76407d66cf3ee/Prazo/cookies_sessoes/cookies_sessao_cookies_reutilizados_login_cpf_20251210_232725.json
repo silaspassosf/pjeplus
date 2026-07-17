@@ -1,0 +1,87 @@
+{
+  "timestamp": "2025-12-10T23:27:25.023678",
+  "url_base": "https://pje.trt2.jus.br/pjekz/gigs/meu-painel",
+  "cookies": [
+    {
+      "name": "ASSINADOR_PJE",
+      "value": "PJEOFFICE",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "MO",
+      "value": "PJEOFFICE",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "sso_refresh_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI4ZmViYjJiOS0zYmIzLTQzZmItYTMxMS0xMjJmMmNlODIwNGUifQ.eyJleHAiOjE3NjU0NDU1NDQsImlhdCI6MTc2NTQxNjc0NSwianRpIjoiOTA5ZTEyMDItZDJmMi00OTllLThhMTQtYTIxM2ZjMThhMjE1IiwiaXNzIjoiaHR0cHM6Ly9zc28uY2xvdWQucGplLmp1cy5ici9hdXRoL3JlYWxtcy9wamUiLCJhdWQiOiJodHRwczovL3Nzby5jbG91ZC5wamUuanVzLmJyL2F1dGgvcmVhbG1zL3BqZSIsInN1YiI6IjAzNDcwZGMxLTg2ZGQtNDRhOS1hNTE5LTI5NGE0OTE5OTBlNCIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJwamUtdHJ0Mi0xZyIsInNlc3Npb25fc3RhdGUiOiI2MmJhMWI5YS1mNTYzLTQwNTYtOTRjMS00OTZiYzg3NWU2NDciLCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwic2lkIjoiNjJiYTFiOWEtZjU2My00MDU2LTk0YzEtNDk2YmM4NzVlNjQ3In0._DSiJEKDqYsNZaHsvFLsBQJVYPjSY-rXxJ0XpVqLsjA",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "access_token",
+      "value": "eyJraWQiOiJJWDBETTdYYkN4ZGNIR0x1WE1kZW1XSnZYaFF1UmN3b0piZ3gwU3JnVHFRIiwiYWxnIjoiRVMyNTYifQ.eyJqdGkiOiI4MDE2ZDgyNy1kY2Y0LTRiMmEtOTcxOS1lYWNlMTZhOWZmMmUiLCJpc3MiOiJodHRwczovL3BqZS50cnQyLmp1cy5ici9wamUtc2VndXJhbmNhLyIsImlhdCI6MTc2NTQxNjc0NSwic3ViIjoiZTk5NzVhY2EtYTMxOS00N2VlLWE1MDYtZDk2Y2RkNTMyZTI2LnBqZSIsImV4cCI6MTc2NTQyMDM0NSwic2lnbGFTaXN0ZW1hIjoiUEpFIiwiaW5zdGFuY2lhIjoxLCJ0aXBvIjoiVVNVQVJJTyIsImlkIjo2Nzg4MzksImxvZ2luIjoiMzUzMDUyMDM4MTMiLCJub21lIjoiU0lMQVMgUEFTU09TIEZFUlJFSVJBIiwicGVyZmlsIjoyMDY4MjAsInBhcGVsIjp7ImlkIjo1Mzk5LCJub21lIjoiU2VjcmV0w6FyaW8gZGUgQXVkacOqbmNpYSIsImlkZW50aWZpY2Fkb3IiOiJTRUNSRVRBUklPIn0sInBhcGVsS3oiOnsiaWQiOjIzLCJub21lIjoiU2Vydmlkb3IiLCJpZGVudGlmaWNhZG9yIjoiU0VSVklET1IifSwibG9jYWxpemFjYW8iOnsiaWQiOjQsImRlc2NyaWNhbyI6IkNvbnRyb2xlIGRlIEF1ZGnDqm5jaWEifSwibWV0b2RvQXV0ZW50aWNhY2FvIjoiQ0VSVElGSUNBRE8iLCJzaWQiOiJjOTA5N2FjZC1mNTU3LTRmNGEtYWRlYy05ZTc1MTkyNjE5MzIiLCJvcmdhb0p1bGdhZG9yIjp7ImlkIjoxODcsImRlc2NyaWNhbyI6IjPCqiBWYXJhIGRvIFRyYWJhbGhvIGRlIFPDo28gUGF1bG8gLSBab25hIFN1bCJ9LCJvcmlnZW0iOiJUUlQyIiwib3RwUGVyc2lzdGlkbyI6ZmFsc2V9",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "access_token_footer",
+      "value": "KPvIE20XJAZB-A8s6KNr0E8XY3FJcY4mA0HpJpoKcESK3WDQgzFHS50VaOfW6d3prEhnfHKZH6PINV18bbUPnA",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "Xsrf-Token",
+      "value": "FAF7C07F08D66DB46F9F61CFDE96C945E94544F3EAC1275E438ACAC9C0AF9C339B89F6E2A707BD77696DFD216DF9AB2D79F6",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "refresh_token",
+      "value": "eyJraWQiOiJJWDBETTdYYkN4ZGNIR0x1WE1kZW1XSnZYaFF1UmN3b0piZ3gwU3JnVHFRIiwiYWxnIjoiRVMyNTYifQ.eyJqdGkiOiJiMjlhNDRiZi0yMmI4LTRhMWQtYTczZC0xNWQ4ODhmYjgxZWMiLCJpc3MiOiJodHRwczovL3BqZS50cnQyLmp1cy5ici9wamUtc2VndXJhbmNhLyIsImlhdCI6MTc2NTQxNjc0NSwic3ViIjoiZTk5NzVhY2EtYTMxOS00N2VlLWE1MDYtZDk2Y2RkNTMyZTI2LnBqZSIsImV4cCI6MTc2NTQ1OTk0NSwic2lnbGFTaXN0ZW1hIjoiUEpFIiwiaW5zdGFuY2lhIjoxLCJ0aXBvIjoiUkVGUkVTSF9UT0tFTiIsImxvZ2luIjoiMzUzMDUyMDM4MTMiLCJwZXJmaWwiOjIwNjgyMCwic2lkIjoiYzkwOTdhY2QtZjU1Ny00ZjRhLWFkZWMtOWU3NTE5MjYxOTMyIiwibWV0b2RvQXV0ZW50aWNhY2FvIjoiQ0VSVElGSUNBRE8iLCJvcmlnZW0iOiJUUlQyIn0.QiPN_1aaQBkD2HT4EbxV3OLEOx1jGLnzf4qQE8QdrvlINQhn7wuYi25E_EZb7oKtzw_HH_sa0_j-BZhMSjkFeQ",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "ASSINADOR_PJE",
+      "value": "PJEOFFICE",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "MO",
+      "value": "PJEOFFICE",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    }
+  ]
+}

@@ -1,0 +1,1778 @@
+QUESTÃO 1 (ID: Q2635811)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: Considere os textos a seguir:
+
+1. Trata-se de uma das principais técnicas que define a programação orientada a objetos. É embasada em um dos princípios que adicionam segurança à aplicação em uma programação orientada a objetos, pelo fato de esconder as propriedades, criando uma espécie de caixa preta. A maior parte das linguagens orientadas a objetos a implementam, baseada em propriedades privadas, ligadas a métodos especiais chamados getters e setters, que irão retomar e setar o valor da propriedade, respectivamente.
+2. Objetos filhos herdam as características e ações de seus “ancestrais”. Entretanto, em alguns casos, é necessário que as ações para um mesmo método sejam diferentes. Em outras palavras, essa técnica consiste na alteração do funcionamento interno de um método herdado de um objeto pai. Como um exemplo, imagine-se um objeto genérico “Processante” (ancestral). Esse objeto possui um método, ou ação, “Obter()". Tem-se dois objetos, “Processante Pessoa” e “Processante Empresa” (filhos de Processante), que irão ser obtidos de formas diferentes.
+
+Os textos tratam, correta e respectivamente, de princípios e técnicas da orientação a objetos, que são:
+ALTERNATIVAS:
+  A) persistência e polimorfismo.
+  B) visibilidade e persistência.
+  C) herança e visibilidade.
+  D) instanciação e encapsulamento.
+  E) encapsulamento e polimorfismo.
+COMENTÁRIO: 07 de Janeiro de 2025 às 22:58
+COMENTÁRIO: Resp. E. encapsulamento e polimorfismo.
+COMENTÁRIO: O primeiro texto descreve o encapsulamento, uma técnica que protege e esconde as propriedades de um objeto, utilizando getters e setters para acessar e modificar esses atributos.
+COMENTÁRIO: O segundo texto aborda o polimorfismo, que permite a um método ter comportamentos diferentes em subclasses distintas. Assim, métodos herdados de uma classe pai podem ser implementados de formas diferentes nas classes filhas.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2635807)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: Suponha que uma Analista está trabalhando em um projeto de Assistência Dirigida ao Cidadão e necessita estimar o tamanho (complexidade) do software usando a análise de Pontos de Função, internacionalmente aceita.
+
+Ao analisar o processo, considerando seu correto conhecimento sobre as funções, ela contou:
+
+- dois arquivos internos simples (baixa), um médio e um complexo (alta);
+- três consultas médias;
+- cinco entradas médias e duas complexas (alta),
+- três interfaces médias e uma complexa (alta);
+- duas saídas simples (baixa) e uma média.
+
+Dados:
+
+Valores das Complexidade das funções
+
+EE: Baixa: 4 Média: 4 Alta: 6
+SE: Baixa: 4 Média: 5 Alta: 7
+CE: Baixa: 3 Média: 4 Alta: 6
+ALI: Baixa: 7 Média: 10 Alta:15
+AIE: Baixa: 5 Média: 7 Alta: 10
+
+A Analista contou corretamente (contagem detalhada) a seguinte quantidade de Pontos de Função brutos:
+ALTERNATIVAS:
+  A) 173
+  B) 167
+  C) 127
+  D) 153
+  E) 123
+COMENTÁRIO: 25 de Janeiro de 2025 às 18:15
+COMENTÁRIO: Gab: C
+COMENTÁRIO: Conceitos Iniciais da Análise por Pontos de Função;
+COMENTÁRIO: Componentes Fundamentais:
+COMENTÁRIO: Arquivo Lógico Interno (ALI);
+COMENTÁRIO: Arquivo de Interface Externa (AIE);
+COMENTÁRIO: Entrada Externa (EE);
+COMENTÁRIO: Saída Externa (SE);
+COMENTÁRIO: Consulta Externa (CE);
+COMENTÁRIO: Os Valores das Complexidade das funções são mostrados na questão.
+COMENTÁRIO: EE: Baixa: 4 Média: 4 Alta: 6
+COMENTÁRIO: SE: Baixa: 4 Média: 5 Alta: 7
+COMENTÁRIO: CE: Baixa: 3 Média: 4 Alta: 6
+COMENTÁRIO: ALI: Baixa: 7 Média: 10 Alta:15
+COMENTÁRIO: AIE: Baixa: 5 Média: 7 Alta: 10
+COMENTÁRIO: Com base nessas informações é só fazer uma soma simples:
+COMENTÁRIO: - dois arquivos internos simples (baixa), um médio e um complexo (alta); 7+7+10+15 = 39
+COMENTÁRIO: - três consultas médias; 4+4+4 = 12
+COMENTÁRIO: - cinco entradas médias e duas complexas (alta), 4+4+4+4+4+6+6=32
+COMENTÁRIO: - três interfaces médias e uma complexa (alta); 7+7+7+10=31
+COMENTÁRIO: - duas saídas simples (baixa) e uma média. 4+4+5=13
+COMENTÁRIO: Somando tudo: 39+12+32+31+13 = 127 (C)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2635803)
+ASSUNTO: Arquitetura de Software
+CMMI (Capability Maturity Model Integration) ,
+Software
+ENUNCIADO: Considere, por hipótese, que o Analista de um Tribunal Regional do Trabalho está estudando o Capability Maturity Model Integration (CMMI-DEV v2.0) para uma apresentação à diretoria do órgão. Ele verificou que o modelo possui Areas de Categoria (Category Areas). Uma dessa áreas é Doing (fazer, fazendo), que
+ALTERNATIVAS:
+  A) envolve áreas que se concentram no desenvolvimento, gestão e melhoria de processos e ativos relacionados, com foco principal na melhoria do desempenho organizacional.
+  B) abrange áreas relacionadas à análise de causas, tomada de decisão, manutenção da integridade do produto e comunicação com stakeholders.
+  C) abrange áreas relacionadas à produção, compra e entrega de soluções de alta qualidade.
+  D) inclui áreas relacionadas à capacidade de planejar e gerenciar o trabalho e a força de trabalho.
+  E) envolve áreas que se concentram em capacitação de equipes, melhoria e inovação tecnológica dos produtos.
+COMENTÁRIO: 10 de Dezembro de 2024 às 22:56
+COMENTÁRIO: C. abrange áreas relacionadas à produção, compra e entrega de soluções de alta qualidade.
+COMENTÁRIO: A área de categoria "Doing" no modelo CMMI-DEV v2.0 inclui atividades diretamente relacionadas à produção, compra e entrega de soluções de alta qualidade. Isso envolve as práticas e processos que asseguram que o trabalho é realizado de maneira eficaz e eficiente para cumprir os objetivos do projeto.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (2)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2635802)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: Na Engenharia de Requisitos, um processo genérico de
+ALTERNATIVAS:
+  A) especificação e validação de requisitos não funcionais se compõe de atividades como a análise e coleta, a modelagem de visão, a recuperação de dados e o rastreamento.
+  B) priorização de requisitos se compõe de atividades como a identificação de fontes de informação, a elicitação e a comunicação.
+  C) elicitação de requisitos se compõe de atividades como o rastreamento, a verificação e a validação.
+  D) modelagem e decomposição de requisitos se compõe de atividades como a validação, a especificação e a modelagem top-down.
+  E) elicitação e análise de requisitos se compõe de atividades como a descoberta, a classificação e organização, a priorização e negociação e a Especificação.
+COMENTÁRIO: 10 de Dezembro de 2024 às 23:02
+COMENTÁRIO: E. elicitação e análise de requisitos se compõe de atividades como a descoberta, a classificação e organização, a priorização e negociação e a Especificação.
+COMENTÁRIO: Na Engenharia de Requisitos, a elicitação e análise de requisitos envolvem várias atividades fundamentais para compreender e documentar o que é necessário para um sistema ou projeto. Essas atividades incluem:
+COMENTÁRIO: Descoberta: Identificação de requisitos através de entrevistas, workshops, questionários, etc.
+COMENTÁRIO: Classificação e Organização: Agrupamento e estruturação dos requisitos identificados.
+COMENTÁRIO: Prioritização e Negociação: Determinação da importância relativa dos requisitos e resolução de conflitos entre stakeholders.
+COMENTÁRIO: Especificação: Documentação dos requisitos de forma clara e detalhada para futura referência.
+COMENTÁRIO: Essas etapas são essenciais para garantir que os requisitos do sistema sejam compreendidos e acordados por todas as partes interessadas, servindo como base para o desenvolvimento e testes subsequentes.
+COMENTÁRIO: Copilot
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2635801)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: O Gitflow trabalha com dois branches principais: Develop e Master, que são permanentes, e
+ALTERNATIVAS:
+  A) dois branches opcionais, Catalog e Basic. que são contínuos durante todo o fluxo CI/CD.
+  B) três branches de suporte, Feature, Release e Hotfix, que são temporários e duram até realizar o merge com os branches principais.
+  C) dois branches operacionais, Deploy e Release, que são temporários e duram até realizar o merge com os branches principais.
+  D) quatro branches hotfix, Feature, Release, Hotfix e Deploy, que são contínuos durante todo o fluxo CI/CD.
+  E) três branches de desenvolvimento, Feature, Release e Deploy, que são temporários e duram até realizar o merge com os branches principais.
+COMENTÁRIO: 10 de Dezembro de 2024 às 23:07
+COMENTÁRIO: B. três branches de suporte, Feature, Release e Hotfix, que são temporários e duram até realizar o merge com os branches principais.
+COMENTÁRIO: O Gitflow é um modelo de ramificação que utiliza dois branches principais:
+COMENTÁRIO: Master: Contém o código de produção.
+COMENTÁRIO: Develop: Contém o código em desenvolvimento.
+COMENTÁRIO: Além desses, o Gitflow utiliza três branches de suporte temporários:
+COMENTÁRIO: Feature: Usado para desenvolver novas funcionalidades. Cada nova funcionalidade tem um branch próprio e, ao ser concluída, é mesclada no branch Develop.
+COMENTÁRIO: Release: Usado para preparar uma nova versão de produção. Ele é criado a partir do Develop e, após os ajustes finais, é mesclado nos branches Master e Develop.
+COMENTÁRIO: Hotfix: Usado para corrigir bugs críticos em produção. Ele é criado a partir do Master e, após a correção, é mesclado nos branches Master e Develop.
+COMENTÁRIO: Esses branches de suporte são criados quando necessários e são removidos após o merge com os branches principais.
+COMENTÁRIO: Copilot
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2635800)
+ASSUNTO: Segurança da Informação
+Auditoria de Sistemas
+ENUNCIADO: Considere o texto a seguir:
+
+Ter os dados de configuração organizados e adicionados a um repositório permite a colaboração e a visibilidade da configuração do sistema. O fluxo de trabalho de solicitação pull que as equipes de software usam para revisar e editar código pode ser aplicado aos arquivos de dados de configuração. Assim, fica mais fácil construir um sistema de rastreio. Quaisquer alterações aplicadas à configuração devem ser revisadas e aceitas pela equipe. Assim, as mudanças de configuração ganham responsabilidade e visibilidade.
+
+Dentre os passos do processo de gerenciamento que monitora itens de configuração individuais de um sistema de TI, o texto trata da implementação do gerenciamento de configuração em ambientes Deves e correlatos e se refere à atividade de
+ALTERNATIVAS:
+  A) balanceamento de carga.
+  B) linha de base.
+  C) implantação.
+  D) auditoria.
+  E) renderização.
+COMENTÁRIO: 10 de Dezembro de 2024 às 23:16
+COMENTÁRIO: D. auditoria.
+COMENTÁRIO: O texto destaca a importância de adicionar dados de configuração a um repositório, permitindo a colaboração e visibilidade, bem como a revisão e aceitação das alterações pela equipe. Isso se refere à atividade de auditoria no processo de gerenciamento de configuração, que envolve o monitoramento e verificação das mudanças aplicadas à configuração para garantir responsabilidade e visibilidade.
+COMENTÁRIO: Copilot
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2635799)
+ASSUNTO: Arquitetura de Software
+Internet ,
+Nuvem ("cloud computing" e "cloud storage")
+ENUNCIADO: Um Analista avalia a implantação de uma arquitetura em nuvem na qual os recursos de processamento pertencem e são operados por um único provedor de serviços de computação em nuvem, compartilhados e redistribuídos a vários locatários pela internet, tendo como vantagens o custo operacional reduzido, fácil dimensionamento e a baixa manutenção. Com base nessas características, o Analista deve optar por uma arquitetura de nuvem
+ALTERNATIVAS:
+  A) pública.
+  B) dual-homed.
+  C) multi-cloud.
+  D) híbrida.
+  E) privada.
+COMENTÁRIO: 11 de Setembro de 2024 às 14:55
+COMENTÁRIO: A) Pública.
+COMENTÁRIO: Explicação:
+COMENTÁRIO: A descrição fornecida corresponde a uma nuvem pública, onde os recursos de processamento são de propriedade e operados por um único provedor de serviços de computação em nuvem. Esses recursos são compartilhados e redistribuídos a vários locatários (multi-tenancy) pela internet.
+COMENTÁRIO: Vantagens da nuvem pública incluem:
+COMENTÁRIO: Custo operacional reduzido: Os custos são geralmente mais baixos, pois o provedor de serviços arca com a manutenção e atualização da infraestrutura.
+COMENTÁRIO: Fácil dimensionamento (scalability): Recursos adicionais podem ser facilmente alocados conforme a demanda.
+COMENTÁRIO: Baixa manutenção: A manutenção é responsabilidade do provedor de serviços.
+COMENTÁRIO: Essas características são típicas da nuvem pública, que é ideal para empresas que procuram reduzir custos e aproveitar a infraestrutura e os serviços de um provedor de nuvem confiável e escalável.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (4)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2635798)
+ASSUNTO: Segurança da Informação
+Backup em Segurança da Informação
+ENUNCIADO: Para diminuir o ponto de recuperação (RPO) para um servidor de aplicação da rede local, contido no plano de recuperação de desastre, um Analista deve
+ALTERNATIVAS:
+  A) aumentar a quantidade máxima de tempo decorrida antes da conclusão da recuperação do servidor de aplicação após um desastre.
+  B) migrar o servidor para nuvem.
+  C) realizar o balanceamento de carga dos links de acesso a internet.
+  D) aumentar o tempo médio entre a ocorrência e a detecção de falha.
+  E) aumentar a frequência de backup para diminuir a quantidade de informação que é tolerável perder.
+COMENTÁRIO: 23 de Dezembro de 2024 às 19:50
+COMENTÁRIO: O RPO (Recovery Point Objective) é o ponto no tempo até o qual os dados devem ser recuperados após um desastre. Ele determina a quantidade máxima de dados que pode ser perdida em um evento de falha. Para reduzir o RPO, é necessário diminuir o intervalo entre backups ou implementar métodos de replicação de dados quase em tempo real.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (8)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2635797)
+ASSUNTO: Redes de Computadores
+Redes sem Fio ,
+Protocolo
+ENUNCIADO: Um Analista deve escolher, entre os diferentes protocolos de rede sem fio, aquele que utiliza: AES-CCMP como padrão de encriptação; CBC-MAC como padrão para integridade; e autenticação em modo enterprise. Para atender às especificações, o Analista deve escolher o
+ALTERNATIVAS:
+  A) TKIP.
+  B) WPA2.
+  C) WEP.
+  D) WPA.
+  E) EAP.
+COMENTÁRIO: 16 de Dezembro de 2024 às 19:48
+COMENTÁRIO: A resposta correta é B. WPA2.
+COMENTÁRIO: Explicação:
+COMENTÁRIO: AES-CCMP: O WPA2 utiliza o AES (Advanced Encryption Standard) com o protocolo CCMP (Counter Mode Cipher Block Chaining Message Authentication Code Protocol) como padrão de encriptação, que oferece maior segurança em comparação a outros protocolos.
+COMENTÁRIO: CBC-MAC: O CCMP, utilizado pelo WPA2, inclui um mecanismo para integridade baseado no CBC-MAC (Cipher Block Chaining Message Authentication Code).
+COMENTÁRIO: Autenticação em modo enterprise: O WPA2 suporta autenticação no modo enterprise, que utiliza protocolos como o EAP (Extensible Authentication Protocol) e servidores RADIUS (Remote Authentication Dial-In User Service) para fornecer autenticação robusta e segura em redes corporativas.
+COMENTÁRIO: A. TKIP: TKIP (Temporal Key Integrity Protocol) é usado no WPA e não utiliza AES-CCMP, sendo menos seguro.
+COMENTÁRIO: C. WEP: O WEP (Wired Equivalent Privacy) é obsoleto e utiliza RC4, não AES-CCMP.
+COMENTÁRIO: D. WPA: O WPA (Wi-Fi Protected Access) pode usar TKIP, mas não oferece AES-CCMP como padrão.
+COMENTÁRIO: E. EAP: O EAP é um protocolo de autenticação e não um protocolo de segurança completo para redes Wi-Fi.
+COMENTÁRIO: Portanto, a opção que atende a todas as especificações é o WPA2.
+COMENTÁRIO: gpt
+COMENTÁRIO: Gostei
+COMENTÁRIO: (7)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2635796)
+ASSUNTO: Arquitetura de Software
+Segurança da Informação
+ENUNCIADO: Um Analista de segurança deve implementar um tipo de firewall que atenda APENAS os seguintes requisitos:
+
+- Opere na camada de rede.
+- Forneça controle de acesso entre as redes com base no endereço IP de origem e destino.
+- Estabeleça o controle com base na interface que está sendo percorrida pelo pacote e sua direção (entrada ou saída).
+
+O tipo de firewall que atende tais requisitos é
+ALTERNATIVAS:
+  A) UTM.
+  B) SIEM.
+  C) IDS.
+  D) Filtro de pacote.
+  E) Baseado em estados.
+COMENTÁRIO: 07 de Janeiro de 2025 às 23:04
+COMENTÁRIO: D. Filtro de pacote.
+COMENTÁRIO: Vamos detalhar cada uma das alternativas:
+COMENTÁRIO: A. UTM (Unified Threat Management)
+COMENTÁRIO: UTM é uma solução de segurança abrangente que integra múltiplas funções de segurança em uma única plataforma. Isso pode incluir firewall, detecção e prevenção de intrusões (IDS/IPS), antivírus, VPN, filtragem de conteúdo e muito mais. UTM opera em várias camadas do modelo OSI, não apenas na camada de rede.
+COMENTÁRIO: B. SIEM (Security Information and Event Management)
+COMENTÁRIO: SIEM é uma solução que combina a gestão de informações de segurança (SIM) e a gestão de eventos de segurança (SEM). Ele coleta e analisa dados de eventos de segurança em tempo real para detectar e responder a ameaças. SIEM não é um tipo de firewall e opera em camadas superiores, analisando logs e eventos de sistemas diversos.
+COMENTÁRIO: C. IDS (Intrusion Detection System)
+COMENTÁRIO: IDS é uma tecnologia que monitora o tráfego de rede ou atividades de sistemas em busca de atividades maliciosas ou violações de políticas. Ele pode operar em várias camadas do modelo OSI, mas seu foco principal não é fornecer controle de acesso baseado em IP, interface ou direção de pacotes.
+COMENTÁRIO: D. Filtro de Pacote
+COMENTÁRIO: Um filtro de pacotes é um tipo de firewall que opera na camada de rede (camada 3 do modelo OSI). Ele examina os cabeçalhos dos pacotes de dados para controlar o tráfego com base nos endereços IP de origem e destino, tipo de protocolo, porta de origem e destino e outras informações. Fornece controle de acesso baseado na interface e na direção do tráfego, conforme descrito nos requisitos.
+COMENTÁRIO: E. Baseado em Estados
+COMENTÁRIO: Um firewall baseado em estados, ou stateful firewall, monitora o estado das conexões de rede (como TCP streams) e toma decisões de filtragem com base no estado e no contexto das conexões. Ele opera na camada de rede e pode fornecer controle de acesso detalhado, mas os requisitos especificam operações mais simples que são mais associadas aos filtros de pacotes.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2635795)
+ASSUNTO: Segurança da Informação
+Malware
+ENUNCIADO: Ao analisar um incidente em apenas um computador da rede, um Analista observou que um malware atingiu o registro mestre de inicialização do disco rígido e de setores de inicialização de mídias removíveis, afetando a inicialização do sistema operacional. Além disso, o usuário desse computador relatou que os problemas de inicialização começaram após a execução de um arquivo recebido por e-mail. Por meio da análise e do relato do usuário, conclui-se que o malware é um
+ALTERNATIVAS:
+  A) Vírus.
+  B) Backdoor.
+  C) Keystroke Loggers.
+  D) Adware.
+  E) E-Mail Generators.
+COMENTÁRIO: 17 de Novembro de 2024 às 17:40
+COMENTÁRIO: VÍRUS BOOT: Ataca a inicialização do Sistema Operacional
+COMENTÁRIO: Gostei
+COMENTÁRIO: (14)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2635794)
+ASSUNTO: Arquitetura de Software
+Segurança da Informação
+ENUNCIADO: As medidas de segurança abaixo são parte do Controle 01 - Inventário e controle de ativos corporativos definidas no CIS Controls v8:
+
+I. Estabelecer e manter um inventário detalhado de ativos corporativos.
+II. Endereçar ativos não autorizados.
+III. Usar uma ferramenta de descoberta ativa.
+
+As funções de segurança correspondentes a cada uma das medidas citadas são, respectivamente,
+ALTERNATIVAS:
+  A) responder, detectar e responder.
+  B) proteger, identificar e responder.
+  C) responder, detectar e identificar.
+  D) identificar, responder e detectar.
+  E) detectar, responder e proteger.
+COMENTÁRIO: 07 de Janeiro de 2025 às 23:11
+COMENTÁRIO: Vamos analisar as funções de segurança correspondentes a cada medida descrita:
+COMENTÁRIO: Estabelecer e manter um inventário detalhado de ativos corporativos - Isso se enquadra na função de Identificar, pois envolve a catalogação e documentação dos ativos.
+COMENTÁRIO: Endereçar ativos não autorizados - Isso se enquadra na função de Responder, pois envolve a tomada de ações corretivas para lidar com ativos que não deveriam estar presentes na rede.
+COMENTÁRIO: Usar uma ferramenta de descoberta ativa - Isso se enquadra na função de Detectar, pois envolve a identificação ativa de ativos na rede.
+COMENTÁRIO: Portanto, as funções de segurança correspondentes a cada medida, respectivamente, são:
+COMENTÁRIO: D. identificar, responder e detectar.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2635793)
+ASSUNTO: Sistemas Operacionais
+Cloud Computing
+ENUNCIADO: Na definição do NIST SP 800-145, a computação em nuvem é um modelo composto de cinco características essenciais, três modelos de serviço e quatro modelos de implantação, sendo um exemplo de cada um deles, respectivamente,
+ALTERNATIVAS:
+  A) PaaS, On-demand self-service e Resource pooling.
+  B) Saas, Private cloud e On-demand self-service.
+  C) Broad network access, laaS e Public cloud.
+  D) Rapid elasticity, Private cloud e Paas.
+  E) Hybrid cloud, laaS e Community cloud.
+COMENTÁRIO: 31 de Dezembro de 2024 às 16:39
+COMENTÁRIO: Essential Characteristics:
+COMENTÁRIO: - On-demand self-service
+COMENTÁRIO: - Broad network acess
+COMENTÁRIO: - Resource pooling
+COMENTÁRIO: - Rapid elasticity
+COMENTÁRIO: - Measured servisse
+COMENTÁRIO: Service Models:
+COMENTÁRIO: - SaaS
+COMENTÁRIO: - PaaS
+COMENTÁRIO: - IaaS
+COMENTÁRIO: Deployment Models:
+COMENTÁRIO: - Private cloud
+COMENTÁRIO: - Community cloud
+COMENTÁRIO: - Public cloud
+COMENTÁRIO: - Hybrid cloud
+COMENTÁRIO: Gostei
+COMENTÁRIO: (6)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2635792)
+ASSUNTO: Arquitetura de Software
+Servidores de Aplicação ,
+Arquitetura de Software
+ENUNCIADO: Por padrão, o WildFly é distribuído com a segurança ativada para acesso à interface de gerenciamento. Isso significa que, antes de se conectar usando o console de administração ou, remotamente, usando a CLI, será necessário adicionar um novo usuário ao WildFty. Isso pode ser feito executando o
+ALTERNATIVAS:
+  A) script add-user . sh contido no diretório bin
+  B) comando adduser no diretório tmp/auth
+  C) comando adduser -a seguido do nome do usuário e senha.
+  D) script adduser.sh contido no diretório server
+  E) comando adauser -a seguido do nome do usuário
+COMENTÁRIO: 05 de Dezembro de 2024 às 22:27
+COMENTÁRIO: Fonte de estudo responder a questão:
+COMENTÁRIO: https://jboss-books.gitbooks.io/wildfly/content/instalacao/criando_usuario_de_gerenciamento.html
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2635790)
+ASSUNTO: Arquitetura de Software
+Redes de Computadores
+ENUNCIADO: O EIGRP é um protocolo avançado de vetor de distância que se baseia no DUAL (Diffused Update Algorithm) para calcular o melhor caminho até um destino a partir de múltiplos fatores. Sabendo que uma Analista definiu os valores de K1=1, K2=0, K3=1, K4=0 e K5=0 para todos os roteadores de uma rede, a métrica EIGRP será calculada a partir dos fatores de
+ALTERNATIVAS:
+  A) Bandwith, Delay e Load.
+  B) Bandwith e Delay.
+  C) Reliability, Load e MTU.
+  D) Delay e Load.
+  E) Reliability, Load e Bandwith.
+COMENTÁRIO: 22 de Janeiro de 2025 às 22:57
+COMENTÁRIO: Os valores dos parâmetros K indicam como o EIGRP (Enhanced Interior Gateway Routing Protocol) calculará a métrica das rotas. Os valores definidos de K1=1, K2=0, K3=1, K4=0 e K5=0 significam que a métrica será calculada utilizando os seguintes fatores:
+COMENTÁRIO: K1 (Bandwidth) está ativo.
+COMENTÁRIO: K3 (Delay) está ativo.
+COMENTÁRIO: K2 (Load), K4 (MTU) e K5 (Reliability) não estão ativos.
+COMENTÁRIO: Portanto, a métrica EIGRP será calculada usando a largura de banda (Bandwidth) e o atraso (Delay).
+COMENTÁRIO: A alternativa correta é: B - Bandwith e Delay.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (5)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2635787)
+ASSUNTO: Arquitetura de Software
+Redes de Computadores
+ENUNCIADO: Para fornecer alta disponibilidade de rede, fornecendo redundância de primeiro salto para hosts em uma rede IPv4, um Analista configurou o Hot Standby Router (HSRP), ativando o recurso de preempção apenas no roteador de maior prioridade HSRP. Ao ativar a preempção nesse roteador.
+ALTERNATIVAS:
+  A) ele será eleito o roteador de backup em caso de indisponibilidade do roteador ativo.
+  B) ele será eleito o standby.
+  C) ele não será eleito o roteador ativo.
+  D) será forçado a um novo processo de eleição HSRP, em caso de reinicialização ou falha.
+  E) o endereço IP mais baixo configurado na sua interface física será utilizado como IP virtual (VIP).
+COMENTÁRIO: 22 de Janeiro de 2025 às 23:01
+COMENTÁRIO: O HSRP (Hot Standby Router Protocol) é um protocolo Cisco que fornece alta disponibilidade de rede e redundância de primeiro salto em uma rede IPv4, permitindo que múltiplos roteadores funcionem juntos para formar um grupo HSRP. Dentro deste grupo, apenas um roteador será o ativo (active) e os outros serão standby.
+COMENTÁRIO: Ao ativar a preempção (preemption) no roteador de maior prioridade HSRP, você permite que este roteador tome o lugar do roteador ativo atual, se ele tiver uma prioridade mais alta e estiver disponível. Isso significa que em caso de reinicialização ou falha do roteador ativo atual, o roteador com preempção ativada e maior prioridade tomará o controle do grupo HSRP como o roteador ativo.
+COMENTÁRIO: Assim, a resposta correta é: D - será forçado a um novo processo de eleição HSRP, em caso de reinicialização ou falha.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2635786)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: Considere o código abaixo.
+
+self.addEventListener('install', function(event) {
+event.waitUntil(
+caches.open ('my-cache').then(function(cache) {
+return cache.addA11([
+'/',
+'/index.html',
+'/styles.css',
+'/script.js'
+]);
+})
+);
+});
+
+self.addEventListener ('fetch', function(event) {
+event.respondWith(
+caches.match (event.request) .then (function(response) {
+return response || fetch(event.request);
+})
+);
+});
+
+Trata-se de um exemplo de implementação de
+ALTERNATIVAS:
+  A) Service Worker JavaScript em um Progressive Web App.
+  B) Script de autenticação de usuário.
+  C) Aplicativo JavaScript autônomo e executável.
+  D) Node.js web server completo.
+  E) Single Page Application (SPA) em uma aplicação web estática com JavaScript.
+COMENTÁRIO: 25 de Janeiro de 2025 às 14:40
+COMENTÁRIO: Gab: A
+COMENTÁRIO: Mesmo não tento um profundo conhecimento sobre as tecnologias em questão, é possivel resover por eliminação, exemplo:
+COMENTÁRIO: Service Worker JavaScript em um Progressive Web App. (Não sei oque é, mas é possível)
+COMENTÁRIO: Script de autenticação de usuário. (Pela estrutura docódigo, essa não faz muito sentido)
+COMENTÁRIO: Aplicativo JavaScript autônomo e executável. (Também não faz sentido)
+COMENTÁRIO: Node.js web server completo. ( não faz sentido algum)
+COMENTÁRIO: Single Page Application (SPA) em uma aplicação web estática com JavaScript. ( Essa é a minha outra opção, que estava em dúvida)
+COMENTÁRIO: Diante das opções eu chutei a A, porque as outras não fazem muito sentido.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (2)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2635784)
+ASSUNTO: Programação
+Java ,
+Linguagens de programação
+ENUNCIADO: Em uma aplicação Java que utiliza MapStruct, em condições ideais, um usuário tem uma classe chamada Processo e uma chamada ProcessoDto. Deseja criar uma interface MapStruct chamada ProcessoMap para mapear de ProcessocDto para Processo & vice-versa. Essa interface deve ser anotada, imediatamente antes de sua declaração, com
+ALTERNATIVAS:
+  A) @Map (type="MapStruct")
+  B) @mapping
+  C) @Mapstruct
+  D) @mapper
+  E) @InterfaceMapper
+COMENTÁRIO: 30 de Setembro de 2024 às 07:42
+COMENTÁRIO: GAB D) Mapper
+COMENTÁRIO: Falou em atributos, o correto é mapping.
+COMENTÁRIO: Mas, a questão fala em interface, logo é mapper a opção correta.
+COMENTÁRIO: @Mapper
+COMENTÁRIO: public interface UserMapper {
+COMENTÁRIO: @Mapping(target = "id", source = "userId")
+COMENTÁRIO: private User toUser(UserDto userDto);
+COMENTÁRIO: }
+COMENTÁRIO: go@head2!
+COMENTÁRIO: Gostei
+COMENTÁRIO: (15)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2635783)
+ASSUNTO: Programação
+Frameworks em Programação
+ENUNCIADO: O Spring Eureka é uma implementação do padrão de registro de serviços que permite que os microsserviços se registrem automaticamente e se descubram uns aos outros. A porta padrão em que o servidor Eureka irá executar na aplicação Spring Boot e o arquivo em que essa porta é configurada são, respectivamente,
+ALTERNATIVAS:
+  A) 80 e eureka-server.xml
+  B) 15000 e application-server.yml
+  C) 8080 e pom.xml
+  D) 8005 e eureca-registry.xml
+  E) 8761 e application.properties
+COMENTÁRIO: 27 de Novembro de 2024 às 16:19
+COMENTÁRIO: 1. O que é o Spring Eureka?
+COMENTÁRIO: O Spring Eureka é uma implementação do Netflix Eureka, um registro de serviços que permite que os microsserviços em uma arquitetura de microsserviços se descubram automaticamente. Ele ajuda na escalabilidade e resiliência da comunicação entre serviços.
+COMENTÁRIO: 2. Porta padrão do Eureka Server
+COMENTÁRIO: O Eureka Server, por padrão, é configurado para rodar na porta 8761. Essa é a porta que ele usa para se tornar acessível e onde outros microsserviços podem se registrar.
+COMENTÁRIO: 3. Arquivo onde a porta é configurada
+COMENTÁRIO: Em aplicações Spring Boot, a configuração do servidor é geralmente feita no arquivo application.properties ou application.yml. Esse arquivo permite configurar várias propriedades do servidor, incluindo a porta.
+COMENTÁRIO: 8761 e application.properties
+COMENTÁRIO: Gostei
+COMENTÁRIO: (5)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2635782)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: Um Analista fez um programa Java que permite ao usuário informar o número de anos de serviço de um funcionário e, em seguida, calcula a quantidade total de dias de férias acumuladas com base nas regras estabelecidas: 15 dias de férias para funcionários com até 5 anos de serviço e 15 dias adicionais para cada novo período de até 5 anos.
+import java.util.Scanner;
+public class Férias {
+public static void main(String[] args) {
+Scanner scanner = new Scanner (System.in);
+System.out.print ("Informe o número de anos de serviço: ");
+int anosServico = scanner.nextInt();
+int diasFerias = calcular (anosServico) ;
+System.out.println("Dias de férias acumuladas: " + diasFerias);
+}
+public static int calcular (int anosservico) {
+if (anosservico <= 5) {
+return 15;
+} else {
+}
+}
+}
+
+Para que o programa execute corretamente na forma descrita, no interior do bloco else do método calcular deve ser colocada a instrução
+ALTERNATIVAS:
+  A) return calcular (anosServico - 5);
+  B) return 15 + calcular (anosservico = 15);
+  C) return 15 + (anosServico - 5);
+  D) return 15 + calcular (anosServico - 5);
+  E) return anosservico + 15;
+COMENTÁRIO: 30 de Janeiro de 2025 às 22:24
+COMENTÁRIO: A alternativa correta é:
+COMENTÁRIO: D) return 15 + calcular(anosServico - 5);
+COMENTÁRIO: O método calcular(int anosServico) segue uma lógica recursiva para calcular os dias de férias acumuladas com base na quantidade de anos de serviço do funcionário.
+COMENTÁRIO: A opção D) return 15 + calcular(anosServico - 5); é a correta, pois usa recursão para acumular os dias de férias conforme os períodos de serviço.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2635781)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: Considere os dados abaixo.
+
+Personal Access Token (PAT) = ghp_RCnTgfJovGy6b2WX1WaVyrcfGoHMbdl20Myk
+Repositório = developer. git
+Usuário: trt15
+
+Como administrador no prompt de um computador com o Windows, com o Git devidamente instalado e em condições ideais, para criar uma cópia local do repositório na máquina, permitindo a colaboração no projeto, um Analista deve usar o comando
+ALTERNATIVAS:
+  A) git get https://ghp RenTgfJovey6b2wxlWavVyrciGoHMbdi20Myk@github.com/trti5/developer.git
+  B) git clone https://github.com/trtl5@ghp RCnTqtJovGy6b2WxlWaVyrcfGoHMbdl20Myk/developer.git
+  C) git clone https://github.com/user:trtl5@pass:ghp _RCnTafJovGy6b2WXIWaVyrofGoHMbdl20Myk/developer.git
+  D) git clone https://ghp_RCnTafJovGy6b2wxlWaVyrcfGoHMbdl20Myk@github.com/trt1l5/developer.git
+  E) git connect https://github.com/trt15@ghp_RCnTqfJovGy6b2WxlWaVyrcfGoHMbdl20Myk/developer.git
+COMENTÁRIO: 23 de Outubro de 2024 às 16:47
+COMENTÁRIO: A questao D falta um @ entre o access token e a dominio github.com
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2635780)
+ASSUNTO: Segurança da Informação
+Norma ISO 27001
+ENUNCIADO: A norma ABNT NBR ISO/IEC 27701:2019, na subseção 7.2.8, trata do registro das operações de tratamento de dados pessoais. Para manter esses registros, a norma sugere
+ALTERNATIVAS:
+  A) a criação de um documento, assinado digitalmente, compartilhado com a Autoridade Nacional de Proteção de Dados (ANPD).
+  B) uma política específica por tema, para os registros das operações de tratamento de dados pessoais.
+  C) um inventário ou lista de atividades de tratamento de dados pessoais que a organização realiza.
+  D) um ambiente cloud computing para dados, de alta disponibilidade, para garantir que os dados de registro estejam sempre disponíveis.
+  E) um repositório remoto baseado em git, protegido por criptografia e controle de acesso, para gerenciar as versões dos registros de tratamento de dados pessoais que a organização realiza.
+COMENTÁRIO: 22 de Janeiro de 2025 às 23:05
+COMENTÁRIO: A norma ABNT NBR ISO/IEC 27701:2019, na subseção 7.2.8, sugere a criação de um inventário ou lista de atividades de tratamento de dados pessoais que a organização realiza. Isso ajuda a manter registros claros e organizados das operações de tratamento de dados pessoais.
+COMENTÁRIO: Dito isto, a alternativa correta é: C - um inventário ou lista de atividades de tratamento de dados pessoais que a organização realiza.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2635779)
+ASSUNTO: Segurança da Informação
+ISO 27002
+ENUNCIADO: A orientação da ABNT NBR ISO/IEC 27002:2022 sobre controle de acesso recomenda que
+ALTERNATIVAS:
+  A) seja definida uma política específica por tema, sobre controle de acesso.
+  B) as regras de controle de acesso não sejam implementadas em diferentes granularidades, focando sempre no sistema inteiro.
+  C) as regras de controle de acesso não contenham elementos dinâmicos, como, por exemplo, funções que avaliam acessos passados ou valores específicos do ambiente.
+  D) as formas de controle de acesso sejam detalhadas na Política de Segurança da Informação, sem necessidade de política específica sobre o assunto.
+  E) as regras para controle de acesso físico incluam métodos como validação por senha, autenticação multifator (MFA) e Single Sign-On (SSO).
+COMENTÁRIO: 25 de Novembro de 2024 às 19:42
+COMENTÁRIO: Os itemas da assertiva "e" dizem respeito a acesso lógico e não físico.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (7)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2635778)
+ASSUNTO: Segurança da Informação
+Segurança de sistemas de informação
+ENUNCIADO: Para proteger todas as formas de código contra acesso e alteração não autorizados (PS.1), o NIST Secure Software Development Framework (SSDF), version 1.1, sugere, dentre outras medidas,
+ALTERNATIVAS:
+  A) definir critérios para verificações de segurança de software (por exemplo: medidas de desempenho e gravidade de vulnerabilidade) e acompanhar sua implementação durante todo o ciclo de vida de desenvolvimento.
+  B) validar entradas, evitar o uso de funções inseguras, detectar e tratar erros, fornecer registros e rastreamento, padronizar o estilo de código e realizar revisões de código por desenvolvedores.
+  C) armazenar o código em repositórios protegidos, controlar versões, assinar commits e utilizar criptografia para proteger a integridade de arquivos executáveis.
+  D) coletar e compartilhar dados de procedência para todos os componentes do software e proteger esses dados quanto à integridade e disponibilizá-los a adquirentes de software e equipes de operações e respostas.
+  E) implementar medidas como autenticação multifator, controle de acesso, segmentação de rede e monitoramento contínuo.
+COMENTÁRIO: 29 de Janeiro de 2025 às 12:24
+COMENTÁRIO: A alternativa correta é C: Armazenar o código em repositórios protegidos, controlar versões, assinar commits e utilizar criptografia para proteger a integridade de arquivos executáveis.
+COMENTÁRIO: Explicação:
+COMENTÁRIO: O NIST Secure Software Development Framework (SSDF) versão 1.1, tem como objetivo garantir que o software seja desenvolvido de maneira segura e que todas as etapas do ciclo de vida do software considerem práticas de segurança.
+COMENTÁRIO: A medida que mais se alinha com a recomendação para proteger o código contra acesso e alteração não autorizados (PS.1) é a  Ela destaca práticas essenciais para garantir a integridade e segurança do código, como o uso de repositórios protegidos (para armazenamento seguro), controle de versões, assinatura de commits (para garantir a autenticidade do código) e uso de criptografia (para proteger a integridade dos arquivos executáveis).
+COMENTÁRIO: Vamos analisar as demais alternativas para comparar:
+COMENTÁRIO: A: Define critérios para verificações de segurança de software e acompanhamento durante o ciclo de vida, o que é importante, mas está mais focado em práticas de verificação e monitoramento do que em proteger o código contra acessos não autorizados. Não se trata diretamente de proteção contra alterações não autorizadas.
+COMENTÁRIO: B: Foca em validação de entradas, funções inseguras e revisões de código. Embora esses sejam passos cruciais para a segurança do software, não se concentram diretamente na proteção do código contra alterações não autorizadas.
+COMENTÁRIO: D: Coletar e compartilhar dados de procedência é uma boa prática para garantir a rastreabilidade e transparência do software, mas não está diretamente relacionado à proteção do código contra acesso não autorizado ou alterações.
+COMENTÁRIO: E: Implementar medidas como autenticação multifator, controle de acesso, e monitoramento contínuo são fundamentais para a segurança em nível de infraestrutura e operações, mas não abordam diretamente o controle de acesso e alteração do código em si.
+COMENTÁRIO: Portanto, a é a mais apropriada para proteger todas as formas de código contra acesso e alteração não autorizados, conforme sugerido pelo NIST SSDF.
+COMENTÁRIO: chatgpt
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2635777)
+ASSUNTO: Arquitetura de Software
+Banco de Dados
+ENUNCIADO: Um Advogado deseja aplicar uma técnica de Machine Learning para prever a probabilidade de uma decisão judicial ser favorável ou desfavorável a uma das partes com base em variáveis como jurisprudência, detalhes do caso e histórico de decisões anteriores. O recurso de Machine Learning mais adequado para essa finalidade é
+ALTERNATIVAS:
+  A) Convolutional Neural Network (CNN).
+  B) a técnica de Logistic Regression.
+  C) o algoritmo de K-Means Clustering.
+  D) Support Vector Machines (SVM) for regression.
+  E) Autoencoders.
+COMENTÁRIO: 05 de Setembro de 2024 às 22:38
+COMENTÁRIO: A regressão logística estima a probabilidade de ocorrência de um evento com base em um determinado conjunto de dados de variáveis independentes, frequentemente é usada para classificação e análise preditiva.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (2)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2635776)
+ASSUNTO: Programação
+Linguagens de programação ,
+R
+ENUNCIADO: Para uma Analista ler dados de um arquivo CSV chamado amostras.csv e armazená-los em um dataframe chamado dados, utilizando a linguagem R, ele deve utilizar o comando
+ALTERNATIVAS:
+  A) dados <- read(type='csv', file='amostras.csv')
+  B) dados <- load (file='amostras.csv')
+  C) dados <- load.csv("amostras.csv")
+  D) dados <- read('csv', 'amostras.csv')
+  E) dados <- read.csv('amostras.csv')
+COMENTÁRIO: 26 de Outubro de 2024 às 10:31
+COMENTÁRIO: O comando em R é usado para ler arquivos CSV (Comma-Separated Values), que são arquivos de texto que contêm dados organizados em tabelas.
+COMENTÁRIO: sintaxe:
+COMENTÁRIO: dados <- read.csv(file, header = TRUE, sep = ",", stringsAsFactors = FALSE, na.strings = "")
+COMENTÁRIO: questão:
+COMENTÁRIO: dados <- read.csv('amostras.csv')
+COMENTÁRIO: gab c
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2635761)
+ASSUNTO: Português
+Pontuação
+TEXTO ASSOCIADO: Atenção: Para responder às questões de números 8 a 10, leia o trecho de “Torto Arado”. 
+De loucura meu pai entendia, assim diziam, porque ele mesmo já havia caído louco num período remoto de sua vida. Os curadores serviam para restituir a saúde do corpo e do espírito dos doentes, era o que sabíamos desde o nascimento. O que mais chegava à nossa porta eram as moléstias do espírito dividido, gente esquecida de suas histórias, memórias, apartada do próprio eu, sem se distinguir de uma fera perdida na mata. Diziam que talvez fosse por conta do passado minerador do povo que chegou à região, ensandecido pela sorte de encontrar um diamante, de percorrer seu brilho na noite, deixando um monte para adentrar noutro, deixando a terra para entrar no rio. Gente que perseguia a fortuna, que dormia e acordava desejando a ventura, mas que se frustrava depois de tempos prolongados de trabalho fatigante, quebrando rochas, lavando cascalho, sem que o brilho da pedra pudesse tocar de forma ínfima o seu horizonte. Quantos dos que encontravam a pedra estavam libertos dos delírios? Quantos tinham que proteger seu bambúrrio da cobiça alheia, passando dias sem dormir. com os diamantes debaixo do corpo, sem se banhar nas águas dos rios, atentos a qualquer gesto de trapaça que poderia vir de onde menos se esperava? 
+(VIEIRA Jr., Itamar. Torto arado. São Paulo: Todavia, 2019. Edição eletrônica)
+ENUNCIADO: Mantendo as relações de sentido estabelecidas pelo contexto, uma pontuação alternativa para um segmento do texto está em:
+ALTERNATIVAS:
+  A) Quantos tinham que, proteger seu bambúrrio, da cobiça alheia; passando dias sem dormir com os diamantes debaixo do corpo?
+  B) Gente que perseguia, a fortuna, que dormia e acordava desejando a ventura; mas que, se frustrava depois de tempos prolongados de trabalho fatigante: quebrando rochas.
+  C) De loucura meu pai entendia. Assim diziam porque, ele mesmo, já havia caído louco num período, remoto de sua vida.
+  D) Diziam que - talvez fosse por conta do passado minerador do povo que chegou à região -, ensandecido pela sorte de encontrar um diamante.
+  E) O que mais chegava à nossa porta eram as moléstias do espírito dividido: gente esquecida de suas histórias, memórias, apartada do próprio eu, sem se distinguir de uma fera perdida na mata.
+COMENTÁRIO: 08 de Janeiro de 2025 às 13:45
+COMENTÁRIO: Já é a terceira vez que vejo essa questão no mesmo dia
+COMENTÁRIO: Gostei
+COMENTÁRIO: (13)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2635756)
+ASSUNTO: Português
+Pontuação
+TEXTO ASSOCIADO: Atenção: Para responder às questões de números 1 a 7, leia o trecho do conto “Sol nascente” 
+Ainda hoje, quando lanço o olhar ao mar, imagino a vida de meus avós como ilhas distantes, cercadas pela vastidão de um oceano de histórias (muitas delas guardadas na linha de um horizonte que não pode mais ser lido). No alto do Morro de São Sebastião, contemplo o sol nascente e me inspiro a iniciar estas linhas. Talvez elas não contenham toda a verdade, talvez haja imprecisões e deslizes históricos, mas foi assim que eu as recebi, pela boca dos que sobreviveram. leiri-san inspecionava as conversas dos navios que nasciam no estaleiro que dirigia com disciplina. Há décadas os japoneses iniciaram a colonização da ilha de Taiwan, tomada da China após a guerra sino-japonesa. Para lá a família leiri emigrou para prosperar. Chiyoko, filha do patriarca leiri, cresceu entre finas bonecas de porcelana, tendo os melhores instrutores, tornando-se de pianista a carateca. Sempre ávida por conhecimento, aprendeu com seu tio diversos procedimentos, tais como a realização de partos e, sobretudo, a quiropraxia. Chiyoko se transformou em uma mulher extraordinária, nadando em alto-mar e, apesar de sua compleição esguia, aveniurando-se até a praticar sumô. Após aprender tantas coisas, não poderia ter se tomado outra coisa a não ser professora. Naquele dia, apesar da triste guerra, Chiyoko estava feliz. Era o dia do aniversário de seu pai. Não importava a ela que seu otosan estivesse em um leito de hospital nem que o medo rondasse cada esquina. Ela tinha conseguido, a grande custo, algumas iguarias que seu pai gostava de comer. Era para comemorar a data, para celebrar a vida. E seus passos eram alegres quando a sirene tocou. E era alegre o dia quando as bombas caíram. O hospital em que seu pai estava foi atingido. A vida naufragou. [...] Por ter aprendido tantas coisas com o tio médico, Chiyoko auxiliava os feridos durante a guerra, que estava para ser perdida. 
+(Adaptado de: KONDO, André. Origens. Editora do Brasil, 2019. Edição Eletrônica)
+ENUNCIADO: As vírgulas foram empregadas para isolar um aposto no seguinte segmento:
+ALTERNATIVAS:
+  A) tais como a realização de partos e, sobretudo, a quiropraxia.
+  B) Ela tinha conseguido, a grande custo, algumas iguarias que seu pai gostava de comer.
+  C) Chiyoko, filha do patriarca leiri, cresceu entre finas bonecas de porcelana.
+  D) Ainda hoje, quando lanço o olhar ao mar, imagino a vida de meus avós como ilhas distantes.
+  E) Talvez elas não contenham toda a verdade, talvez haja imprecisões e deslizes históricos, mas foi assim que eu as recebi.
+COMENTÁRIO: 30 de Outubro de 2024 às 16:08
+COMENTÁRIO: Já resolvi 36 vezes essa questão repetida aqui
+COMENTÁRIO: Gostei
+COMENTÁRIO: (27)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2635578)
+ASSUNTO: Arquitetura de Software
+Segurança da Informação
+ENUNCIADO: A Resolução CNJ nº 396/2021, Capitulo VI - Da Rede Nacional de Cooperação do Poder Judiciário na Área de Segurança Cibernética, em seu artigo 18, estabelece que a Rede de Cooperação do Judiciário na área de segurança cibernética tem os seguintes objetivos:
+
+- Promover ambiente participativo, colaborativo e seguro entre os órgãos do Poder Judiciário, por meio do acompanhamento contínuo e proativo das ameaças e dos ataques cibernéticos;
+- Estimular o compartilhamento de informações sobre incidentes e vulnerabilidades cibernéticas;
+- Realizar exercícios cibernéticos com a participação de múltiplos entes;
+- Fortalecer o Centro de Prevenção, Tratamento e Resposta a Incidentes Cibernéticos (CPTRIC-PJ) do CNJ;
+- Aperfeiçoar a estrutura judiciária para o aprimoramento de investigações de crimes cibernéticos;
+- Incentivar a criação e a atuação de ETIR em cada órgão do Poder Judiciário;
+- Emitir alertas e recomendações de segurança cibernética;
+
+e, também,
+ALTERNATIVAS:
+  A) Ampliar ações destinadas a assegurar a disponibilidade, a integridade, a confidencialidade e a autenticidade de dados e de informações.
+  B) Executar ações de comunicação, de conscientização, de formação de cultura e de direcionamento institucional com vistas à segurança cibernética.
+  C) Preservar a segurança física e proteção de dados pessoais e institucionais, nos aspectos relacionados à cibersegurança.
+  D) Aprimorar o nível de maturidade em segurança cibernética nos órgãos do Poder Judiciário, abrangendo os aspectos fundamentais da segurança da informação para o aperfeiçoamento necessário à consecução desse propósito.
+  E) Ampliar parceria com outros órgãos do Poder Executivo, do Poder Legislativo, do Ministério Público, da polícia judiciária, do setor privado e do meio acadêmico, com vistas a elevar, de modo geral, o nível de segurança cibernética.
+COMENTÁRIO: 18 de Novembro de 2024 às 17:13
+COMENTÁRIO: Art. 18. A Rede de Cooperação do Judiciário na área de segurança cibernética tem os seguintes objetivos:
+COMENTÁRIO: I – promover ambiente participativo, colaborativo e seguro entre os órgãos do Poder Judiciário, por meio do acompanhamento contínuo e proativo das ameaças e dos ataques cibernéticos;
+COMENTÁRIO: II – estimular o compartilhamento de informações sobre incidentes e vulnerabilidades cibernéticas;
+COMENTÁRIO: III – realizar exercícios cibernéticos com a participação de múltiplos entes;
+COMENTÁRIO: IV – fortalecer o Centro de Prevenção, Tratamento e Incidentes Cibernéticos (CPTRIC-PJ) do CNJ;
+COMENTÁRIO: V – aperfeiçoar a estrutura judiciária para o aprimoramento de investigações de crimes cibernéticos;
+COMENTÁRIO: VI – incentivar a criação e a atuação de ETIR em cada órgão do Poder Judiciário;
+COMENTÁRIO: VII – emitir alertas e recomendações de segurança cibernética; e
+COMENTÁRIO: VIII – ampliar parceria com outros órgãos do Poder Executivo, do Poder Legislativo, do Ministério Público, da polícia judiciária, do setor privado e do meio acadêmico, com vistas a elevar, de modo geral, o nível de segurança cibernética.
+COMENTÁRIO: Parágrafo único. Para fins de cumprimento dos objetivos estabelecidos, todos os órgãos do Judiciário que detectarem incidentes de segurança cibernética deverão reportá-los ao CPTRIC-PJ.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2635575)
+ASSUNTO: Arquitetura de Software
+Redes de Computadores
+ENUNCIADO: O servidor DHCP armazena as informações de configuração em um banco de dados que inclui:
+
+I. Os protocolos de comunicação IP válidos para todos os clientes na rede.
+II. Endereços IP válidos, mantidos em um pool para atribuição a clientes, bem como endereços excluídos.
+III. Endereços IP associados a clientes HTTP. Isso permite a atribuição consistente de um único endereço IP a um único cliente TCP.
+
+Está correto o que se afirma APENAS em
+ALTERNATIVAS:
+  A) I.
+  B) II.
+  C) III.
+  D) I e II.
+  E) II e III.
+COMENTÁRIO: 05 de Setembro de 2024 às 10:26
+COMENTÁRIO: A alternativa correta é
+COMENTÁRIO: B) II.
+COMENTÁRIO: Explicação:
+COMENTÁRIO: O DHCP (Dynamic Host Configuration Protocol) armazena endereços IP válidos em um pool para atribuição dinâmica aos clientes, bem como endereços que são excluídos de uso. Isso está de acordo com a afirmação II.
+COMENTÁRIO: A afirmação I está incorreta, pois o DHCP não armazena os protocolos de comunicação IP, mas sim configurações de rede como endereços IP, máscara de sub-rede, gateway padrão e servidores DNS.
+COMENTÁRIO: A afirmação III está incorreta porque o DHCP não atribui endereços IP a clientes HTTP especificamente; ele atribui endereços IP a qualquer cliente de rede que solicite uma configuração de IP, independentemente do protocolo de camada superior como HTTP ou TCP.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (2)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2635572)
+ASSUNTO: Arquitetura de Software
+Conceitos Básicos em Governança de TI
+ENUNCIADO: Utilizando o prompt do sistema operacional Windows 10 (Command) em condições ideais, um Analista obteve, dentre outras, as seguintes informações:
+
+Nome do host: DESKTOP-S8D0UKN
+Nome do sistema operacional: Microsoft Windows 10 Home
+Versão do sistema operacional: 10.0.19045 N/A compilação 19045
+Fabricante do sistema operacional: Microsoft Corporation
+Configuração do SO: Estação de trabalho autônoma
+Versão do BIOS: American Megatrends lnc. 6.14, 05/11/2010
+Pasta do Windows: C:\WINDOWS
+Pasta do sistema: C:\WINDOWS\system32
+Inicializar dispositivo: \Device\HarddiskVolume2
+localidade do sistema: pt-br:Português (Brasil)
+localidade de entrada: pt-br:Português (Brasil)
+
+O comando utilizado foi o
+ALTERNATIVAS:
+  A) QSystem
+  B) Systemlist
+  C) Taskinfo
+  D) Fcinfo
+  E) Systeminfo
+COMENTÁRIO: 14 de Fevereiro de 2025 às 09:09
+COMENTÁRIO: SYsteminfo : Exibe as informações detalhadas de configuração sobre um computador e seu sistema operacional, incluindo configuração do sistema operacional, informações de segurança, ID do produto e propriedades de hardware (como RAM, espaço em disco e cartões de rede).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2635566)
+ASSUNTO: Segurança da Informação
+DMZ (DeMilitarized Zone)
+ENUNCIADO: Em uma reunião relativa à segurança da informação, uma Analista do Tribunal Regional do Trabalho foi solicitada a apresentar as diferenças entre os sistemas de proteção UTM e WAF, e explicar como esses se relacionam com uma DMZ. A Analista afirmou, corretamente, que o UTM
+ALTERNATIVAS:
+  A) e o WAF agem de forma conjunta e centralizada, oferecendo recursos como antivírus, filtragem de conteúdo, filtragem de e-mail, antispam etc., enquanto a DMZ fornece segregação entre redes internas e externas.
+  B) é projetado para proteger apenas a camada de aplicação das ameaças da web, enquanto o WAF abrange todas as ameaças de rede. Havendo esses sistemas de segurança implantados, a DMZ ficaria como uma proteção redundante.
+  C) é voltado para a proteção de toda a rede, incluindo funções de firewall, antivírus e IDS/IPS, enquanto o WAF se concentra exclusivamente em proteger aplicativos web. A DMZ atua como uma camada adicional de isolamento entre a rede interna e a externa.
+  D) e o WAF oferecem mecanismos de proteção à rede interna contra ameaças internas, enquanto a DMZ lida principalmente com a filtragem de tráfego externo não autorizado, devendo ser utilizados em conjunto.
+  E) oferece proteção exclusiva para o tráfego de entrada, enquanto o WAF se concentra no tráfego de saída. A DMZ age como um proxy reverso para inspecionar todo o tráfego antes que este alcance a rede interna.
+COMENTÁRIO: 21 de Setembro de 2024 às 10:13
+COMENTÁRIO: Os dispositivos UTM geralmente integram uma variedade de funcionalidades de segurança, como:
+COMENTÁRIO: Firewall: Protege a rede contra acessos não autorizados, controlando o tráfego de entrada e saída com base em regras predefinidas.
+COMENTÁRIO: VPN (Virtual Private Network): Oferece conectividade segura e criptografada para usuários remotos ou filiais, permitindo acesso protegido à rede corporativa.
+COMENTÁRIO: Antivírus e Antimalware: Escaneia o tráfego de rede e arquivos em busca de vírus, malwares, ransomware, e outras ameaças de software nocivo.
+COMENTÁRIO: IPS/IDS (Intrusion Prevention/Detection System): Monitora a rede para identificar e, se possível, bloquear tentativas de intrusão ou exploração de vulnerabilidades.
+COMENTÁRIO: Filtro de Conteúdo: Bloqueia acesso a sites maliciosos ou inadequados, além de limitar o download de arquivos perigosos.
+COMENTÁRIO: Controle de Aplicações: Gerencia e monitora o uso de determinadas aplicações dentro da rede, permitindo ou bloqueando o uso de software não autorizado.
+COMENTÁRIO: DLP (Data Loss Prevention): Protege contra vazamentos de dados sensíveis, monitorando e controlando as informações que saem da rede.
+COMENTÁRIO: Antispam: Filtra e bloqueia e-mails indesejados ou maliciosos, prevenindo ataques de phishing e spam.
+COMENTÁRIO: Sandboxing: Isola arquivos e programas desconhecidos em um ambiente seguro para testar seu comportamento antes de permitir sua execução na rede.
+COMENTÁRIO: Relatórios e Monitoramento: Oferece ferramentas de análise para gerar relatórios detalhados sobre o tráfego de rede, eventos de segurança e possíveis vulnerabilidades.
+COMENTÁRIO: O WAF age como uma camada de defesa entre os usuários da internet e os servidores que hospedam a aplicação web. Ele inspeciona todas as requisições HTTP(S) que chegam à aplicação e toma decisões com base em regras configuradas, bloqueando ou permitindo o tráfego conforme as políticas de segurança.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (6)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2635565)
+ASSUNTO: Segurança da Informação
+Sistemas de Prevenção-Detecção de Intrusão ,
+IDS (Intrusion Detection System)
+ENUNCIADO: Considerando a segurança da rede e dos sistemas do Tribunal Regional do Trabalho (TRT), um IDS
+ALTERNATIVAS:
+  A) pode ser usado da mesma forma que um IPS, de maneira intercambiável, para proteger a rede e os sistemas do TRT, uma vez que funcionam de forma semelhante.
+  B) e um IPS devem ser implantados, pois ambos atuam de forma preventiva, identificando e bloqueando atividades suspeitas antes que elas causem danos à rede e aos sistemas do TRT.
+  C) deve ser implantado como uma solução de hardware e um IPS deve ser implantado, de forma conjunta, como uma solução de software, trabalhando, de forma intercambiável, para identificar e prevenir intrusões aos sistemas e à rede do TRT.
+  D) busca monitorar e identificar atividades suspeitas e intrusões após a sua ocorrência e um IPS busca agir de forma proativa para bloquear atividades maliciosas, devendo ambos serem utilizados para proteger a rede e os sistemas do TRT.
+  E) é um sistema ativo, enquanto o IPS é um sistema passivo. Assim, o IPS automatiza o procedimento de detectar um Intruso e o IDS previne e impede os ataques, devendo ser usados em conjunto no TRT.
+COMENTÁRIO: 01 de Fevereiro de 2025 às 19:55
+COMENTÁRIO: A questão aborda a diferença entre dois sistemas importantes para a segurança de redes e sistemas: o IDS (Sistema de Detecção de Intrusos) e o IPS (Sistema de Prevenção de Intrusos). Ambos têm o objetivo de proteger a rede e os sistemas contra ataques, mas eles funcionam de maneiras distintas.
+COMENTÁRIO: O IDS é um sistema passivo, ou seja, ele monitoriza o tráfego de rede em tempo real e gera alertas quando detecta atividades suspeitas ou intrusões. No entanto, ele não impede ativamente o ataque, apenas notifica os administradores de rede para que possam tomar medidas corretivas. Em contraste, o IPS é um sistema ativo, que não só detecta atividades maliciosas, mas também bloqueia ou interrompe os ataques antes que causem danos à rede ou aos sistemas.
+COMENTÁRIO: Agora, vamos analisar as alternativas:
+COMENTÁRIO: Alternativa A: "Pode ser usado da mesma forma que um IPS, de maneira intercambiável, para proteger a rede e os sistemas do TRT, uma vez que funcionam de forma semelhante."
+COMENTÁRIO: Errado. O IDS e o IPS não são intercambiáveis. O IDS apenas detecta e alerta sobre intrusões, enquanto o IPS também age de forma preventiva, bloqueando ataques. Eles têm funções diferentes e não devem ser usados da mesma maneira.
+COMENTÁRIO: Alternativa B: "Um IDS e um IPS devem ser implantados, pois ambos atuam de forma preventiva, identificando e bloqueando atividades suspeitas antes que elas causem danos à rede e aos sistemas do TRT."
+COMENTÁRIO: Errado. Apenas o IPS atua de forma preventiva e bloqueia ataques. O IDS apenas detecta e alerta, sem bloquear ativamente a ameaça. Assim, os dois sistemas devem ser usados juntos, mas com funções diferentes.
+COMENTÁRIO: Alternativa C: "Deve ser implantado como uma solução de hardware e um IPS deve ser implantado, de forma conjunta, como uma solução de software, trabalhando, de forma intercambiável, para identificar e prevenir intrusões aos sistemas e à rede do TRT."
+COMENTÁRIO: Errado. O IDS e o IPS não são intercambiáveis, e a implantação como soluções de hardware e software não é uma exigência fixa. Eles podem ser implementados de diversas formas, mas suas funções continuam distintas.
+COMENTÁRIO: Alternativa D: "Busca monitorar e identificar atividades suspeitas e intrusões após a sua ocorrência e um IPS busca agir de forma proativa para bloquear atividades maliciosas, devendo ambos serem utilizados para proteger a rede e os sistemas do TRT."
+COMENTÁRIO: Certo. Esta é a descrição mais precisa do funcionamento de um IDS e um IPS. O IDS monitora e identifica atividades suspeitas depois que elas ocorrem, enquanto o IPS age de forma proativa, bloqueando os ataques antes que causem danos.
+COMENTÁRIO: Alternativa E: "É um sistema ativo, enquanto o IPS é um sistema passivo. Assim, o IPS automatiza o procedimento de detectar um intruso e o IDS previne e impede os ataques, devendo ser usados em conjunto no TRT."
+COMENTÁRIO: Errado. A afirmação está invertida. O IDS é passivo, enquanto o IPS é ativo. O IDS detecta e alerta, e o IPS bloqueia e previne ataques. Eles devem ser usados juntos, mas com suas funções corretamente atribuídas.
+COMENTÁRIO: - chatgpt
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2635564)
+ASSUNTO: Arquitetura de Software
+Conceitos Básicos em Governança de TI ,
+Software
+ENUNCIADO: No âmbito de um Tribunal Regional do Trabalho, o processo do PMBOK 6ª edição, que envolve a adaptação de estratégias para envolver as partes interessadas e comunicá-las sobre as informações pertinentes ao longo dos casos judiciais ali tratados, é:
+ALTERNATIVAS:
+  A) Orientar e gerenciar o trabalho das partes interessadas do projeto.
+  B) Identificar as partes interessadas.
+  C) Planejar a estratégia das partes interessadas.
+  D) Monitorar o engajamento das partes interessadas.
+  E) Controlar as partes interessadas.
+COMENTÁRIO: 14 de Janeiro de 2025 às 10:55
+COMENTÁRIO: monitoram para adapatar a estratégia as partes interessadas ou stakeholders
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2635560)
+ASSUNTO: Programação
+PHP ,
+Linguagens de programação ,
+C
+ENUNCIADO: Examine os programas em PHP, C# e C a seguir:
+PHP
+
+<?php
+$num = "SoH";
+$result - $num + 5,
+echo "Result: " . $result;
+?>
+
+
+
+
+C#
+
+using System;
+namespace Teste {
+class Testando {
+static void Main(string{} args) {
+int num = "SoH";
+int result = num + 5;
+Console.WriteLine($"Resultado: {r}");
+}
+}
+}
+C
+
+#include <stdio.h>
+int main() {
+int num, result;
+num= "SoH";
+result = num + 5;
+printf("\n Resultado: %d",
+result);
+return 0;
+}
+
+Considerando que os programas serão executados em condições ideais,
+ALTERNATIVAS:
+  A) todos os programas executarão sem erros de compilação.
+  B) os resultados apresentados pelos programas em C# e em C serão iguais, pois C# é compilada por um compilador escrito em C.
+  C) todos os programas apresentarão erros, pois não é possível atribuir strings a variáveis numéricas.
+  D) todos os programas deixarão de apresentar erros, caso seja colocado (int) antes de "SoH".
+  E) os programas em PHP e em C não apresentarão erros, mesmo sem o uso explícito de cast.
+COMENTÁRIO: 13 de Novembro de 2024 às 08:26
+COMENTÁRIO: Eu não achei essa questão muito clara
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2635554)
+ASSUNTO: Programação
+Java ,
+Linguagens de programação
+ENUNCIADO: Em uma aplicação Java que utiliza JPA, em condições ideais, considere manager um objeto válido criado por meio da instrução abaixo.
+
+EntityManager manager =
+Persistence.createEntityManagerFactory("trtPU").createEntityManager();
+
+A instrução manager.createNamedQuery("Acesso.findByUserSenha", Acesso.class); irá retomar um objeto do tipo
+ALTERNATIVAS:
+  A) Acesso
+  B) Query<Acesso>
+  C) TypedQuery<Acesso>
+  D) ArrayList<Acesso>
+  E) List<Acesso>
+COMENTÁRIO: 10 de Novembro de 2024 às 17:05
+COMENTÁRIO: Gabarito: Letra C
+COMENTÁRIO: A instrução retorna um objeto do tipo TypedQuery<Acesso>. Esse método é utilizado para criar consultas nomeadas e, quando é especificado um tipo de classe (neste caso, ), o método retorna uma instância de TypedQuery, que é uma subclasse de . A TypedQuery<Acesso> permite consultas com tipagem, garantindo que os resultados retornados sejam do tipo Acesso e, assim, evita a necessidade de casting ao manipular o resultado da consulta.
+COMENTÁRIO: @_gilson.nogueira_
+COMENTÁRIO: Gostei
+COMENTÁRIO: (4)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2635552)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: Uma Analista está desenvolvendo uma API REST para um aplicativo e deseja criar a documentação usando o Swagger. Essa documentação é criada adequadamente através
+ALTERNATIVAS:
+  A) da interface Swagger Editor, que permite criar a especificação OpenAPI interativamente.
+  B) da elaboração de um arquivo de documentação PDF com o Swagger PDF Editor contendo a descrição das APls.
+  C) da interface Swagger GetJet, que cria e exibe automaticamente a documentação.
+  D) da elaboração de um arquivo XML de forma manual, contendo a especificação OpenDocumentAPI.
+  E) do Swagger Codegen, que permite a criação manual da especificação OpenAPI.
+COMENTÁRIO: 05 de Janeiro de 2025 às 11:20
+COMENTÁRIO: Gabarito(A)
+COMENTÁRIO: Projete, descreva e documente sua API no primeiro editor de código aberto que suporta múltiplas especificações de API e formatos de serialização. O Swagger Editor oferece uma maneira fácil de começar com a OpenAPI Specification (anteriormente conhecida como Swagger).
+COMENTÁRIO: fonte:https://swagger.io/tools/swagger-editor/
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2635551)
+ASSUNTO: Engenharia de Software
+Gerência de Configuração
+ENUNCIADO: Em um ambiente de versionamento Git, um Analista possuí duas branches no repositório: a principal chamada main e uma secundária chamada novaFunc. Após certificar.se de estar na main por meio do comando git checkout main, para combinar as alterações feitas na branch novaFunc na main ele deve utilizar o comando
+ALTERNATIVAS:
+  A) git push novaFunc merge main
+  B) git join novaFunc
+  C) git merge novaFunc
+  D) git git add novaFunc to main
+  E) git pull novaFunc merge main
+COMENTÁRIO: 23 de Janeiro de 2025 às 19:12
+COMENTÁRIO: Gabarito (C)
+COMENTÁRIO: Merge de branches em um repositório local
+COMENTÁRIO: Para fazer merge de branches localmente, use git checkout para alternar para o branch no qual você quer que o merge aconteça. Esse branch é geralmente o main. Em seguida, use git merge e especifique o nome do outro branch para colocar nesse branch. Este exemplo faz merge do branch jeff/feature1 com o main. O
+COMENTÁRIO: git checkout main
+COMENTÁRIO: git merge jeff/feature1
+COMENTÁRIO: Fonte: https://www.varonis.com/pt-br/blog/git-branching
+COMENTÁRIO: Gostei
+COMENTÁRIO: (2)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2635549)
+ASSUNTO: Arquitetura de Software
+Software
+ENUNCIADO: Considere o bloco de código TypeScript a seguir:
+
+pessoa = ['Paulo Freitas', 'Rua Barreto de Freitas ', 45];
+console.log(pessoa);
+
+Para que o bloco seja executado corretamente, em condições ideais, a tupla pessoa deve ter sido definida anteriormente peta instrução
+ALTERNATIVAS:
+  A) let pessoa[3];
+  B) let pessoa: [string, string, number];
+  C) let pessoa: typeof[String, String, Number];
+  D) let pessoa[string, string, number];
+  E) let pessoa [3]: [any];
+COMENTÁRIO: 10 de Novembro de 2024 às 20:06
+COMENTÁRIO: A alternativa correta é a B:
+COMENTÁRIO: let pessoa: [string, string, number];
+COMENTÁRIO: Explicação:
+COMENTÁRIO: No TypeScript, para definir uma tupla, você deve especificar os tipos dos elementos em uma estrutura de array. A instrução correta para definir a tupla pessoa com os tipos de dados correspondentes seria let pessoa: [string, string, number];, pois essa definição indica que pessoa deve conter uma string (nome), outra string (endereço) e um número (id
+COMENTÁRIO: ade).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2635548)
+ASSUNTO: Arquitetura de Software
+Segurança da Informação
+ENUNCIADO: O Auth2 foi construído com base em quatro papéis (ou atores) principais, cada um com responsabilidades específicas no processo de autorização. Esses papéis são:
+ALTERNATIVAS:
+  A) Resource Owner, Client, Resource Server e Authorization Server.
+  B) Authorization Agent, Client, Authentication Server e End User.
+  C) Identity Provider, Client, Authorization Agent e Authentication Server.
+  D) Protected Resource Server, Resource Agent, Identity Provider e Authentication Serve.
+  E) End User, Client, Resource Provider e Authentication Server.
+COMENTÁRIO: 11 de Outubro de 2024 às 20:24
+COMENTÁRIO: a-
+COMENTÁRIO: Resource Owner: dono do recurso
+COMENTÁRIO: Client: quer acessar o recurso
+COMENTÁRIO: Authorization Server: autoriza e emite tokens
+COMENTÁRIO: Resource Server: onde esta o recurso
+COMENTÁRIO: Authorization Server é responsável por gerenciar autenticação e autorização e emitir tokens de acesso para cliente acesse os recursos. Quando um cliente solicita acesso, ele é redirecionado para o Authorization Server, que autentica o usuário (se necessário) e verifica permissão. Se concedida, o Authorization Server emite um token, para acessar o recurso protegido.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2635546)
+ASSUNTO: Redes de Computadores
+Comutação de células
+ENUNCIADO: Um dos principais benefícios da técnica de comutação de pacotes é que a mesma
+ALTERNATIVAS:
+  A) elimina a latência e reduz o tempo de transmissão dos dados, garantindo que eles cheguem ao destino em tempo real.
+  B) oferece uma transmissão dedicada de ponta a ponta, garantindo a entrega confiável dos dados.
+  C) permite uma utilização eficiente dos recursos da rede, compartilhando a largura de banda disponível entre múltiplos usuários.
+  D) é mais segura do que outras técnicas de comutação, como a comutação de circuitos, porque os pacotes são criptografados antes de serem transmitidos.
+  E) é a melhor alternativa para redes locais de pequeno porte; porém, não é viável para redes de longa distância.
+COMENTÁRIO: 11 de Setembro de 2024 às 12:18
+COMENTÁRIO: Conceito de Comutação de Pacotes:
+COMENTÁRIO: A comutação de pacotes é uma técnica de transmissão de dados em redes de computadores na qual a informação é dividida em pequenos blocos chamados "pacotes". Cada pacote é transmitido individualmente através da rede, podendo seguir diferentes rotas até o destino final, onde são reorganizados para reconstruir a mensagem original. Esse método é amplamente utilizado em redes digitais, como a Internet, devido à sua eficiência e flexibilidade.
+COMENTÁRIO: Um dos Principais Benefícios da Técnica de Comutação de Pacotes:
+COMENTÁRIO: Um dos principais benefícios da comutação de pacotes é a eficiência no uso da largura de banda da rede. Como os pacotes podem seguir diferentes rotas para evitar congestionamentos, a rede é utilizada de maneira otimizada, o que melhora o desempenho geral e reduz a possibilidade de sobrecarga em um único caminho. Além disso, se um pacote se perder ou for corrompido, apenas esse pacote específico precisa ser retransmitido, em vez de retransmitir toda a mensagem.
+COMENTÁRIO: Exemplo de Uso:
+COMENTÁRIO: Um exemplo comum do uso da comutação de pacotes é a navegação na Internet. Quando você acessa uma página web, o conteúdo da página (textos, imagens, vídeos, etc.) é dividido em pacotes e enviado do servidor web para o seu navegador através de diferentes rotas na rede. Cada pacote é transmitido de forma independente, e seu navegador os reagrupa para exibir a página completa. Essa técnica permite que a Internet funcione de forma eficiente e rápida, mesmo com milhões de usuários simultaneamente transmitindo dados.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2635545)
+ASSUNTO: Segurança da Informação
+Criptografia ,
+Assinatura Digital
+ENUNCIADO: Com relação ao uso de hashes criptográficos nas assinaturas digitais, é correto afirmar que
+ALTERNATIVAS:
+  A) o hash criptográfico permite que o destinatário de uma mensagem verifique a identidade e a assinatura do remetente.
+  B) os hashes serão idênticos, se dois documentos contiverem o mesmo texto, diferindo apenas na pontuação.
+  C) a chave pública é usada para criptografar o hash do documento na criação de uma assinatura digital.
+  D) a assinatura digital é criada em um processo que envolve a criptografia do hash do documento com a chave privada do signatário.
+  E) os hashes criptográficos são usados para garantir a disponibilidade do serviço de assinatura digital.
+COMENTÁRIO: 08 de Novembro de 2024 às 11:35
+COMENTÁRIO: 1-gerar-se o hash da mensagem
+COMENTÁRIO: 2-aplicar-se a criptografia assimétrica com a chave privada do emissor
+COMENTÁRIO: Gostei
+COMENTÁRIO: (6)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2635544)
+ASSUNTO: Redes de Computadores
+Acesso Remoto - VPN (Virtual Private Network), Software para Acesso Remoto e Team Viwer
+ENUNCIADO: A VPN-SSL é um tipo específico de VPN que
+ALTERNATIVAS:
+  A) utiliza exclusivamente o protocolo SSL (Secure Sockets Layer) para estabelecer uma conexão segura entre o cliente e o servidor.
+  B) requer, geralmente, a instalação de um software cliente dedicado em cada dispositivo para ser utilizada.
+  C) não é compatível com dispositivos móveis e tablets, pois necessita de software cliente no dispositivo desktop para sua utilização.
+  D) pode ser acessada através de um navegador web padrão, usando o protocolo HTTPS.
+  E) é mais adequada em ambientes que exigem configurações avançadas e controle granular sobre políticas de segurança e recursos de rede.
+COMENTÁRIO: 15 de Janeiro de 2025 às 10:17
+COMENTÁRIO: Protocolos de Criptografia por Tunelamento:
+COMENTÁRIO: . Para garantir segurança, protocolos de criptografia por tunelamento são empregados, como:
+COMENTÁRIO: a) IPSec (protocolo padrão)
+COMENTÁRIO: . Utiliza o cabeçalho de autenticação (AH - Authentication Header)
+COMENTÁRIO: b) SSL/TLS (comumente usados para VPNs baseadas em navegador)
+COMENTÁRIO: . é usado em VPNs baseadas em navegador ou serviço de nuvem
+COMENTÁRIO: . Não utiliza o cabeçalho de autenticação (AH - Authentication Header)
+COMENTÁRIO: _
+COMENTÁRIO: GAB D
+COMENTÁRIO: Gostei
+COMENTÁRIO: (2)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2635541)
+ASSUNTO: Arquitetura de Software
+Redes de Computadores
+ENUNCIADO: No cabeçalho IPv6, há um campo de 20 bits utilizado para fornecer um identificador para pacotes que pertencem ao mesmo fluxo de tráfego. Esse campo pode ser usado pelos dispositivos de rede para aplicar políticas de QoS, como garantir uma determinada largura de banda, latência ou priorização para pacotes de um mesmo fluxo. Trata-se do campo
+ALTERNATIVAS:
+  A) Next Flow.
+  B) Traffic Flow.
+  C) Traffic Class.
+  D) Flow Label.
+  E) Type of Service.
+COMENTÁRIO: 11 de Setembro de 2024 às 12:15
+COMENTÁRIO: A alternativa correta é:
+COMENTÁRIO: D) Flow Label.
+COMENTÁRIO: O campo Flow Label no cabeçalho IPv6 é um campo de 20 bits utilizado para identificar pacotes que pertencem ao mesmo fluxo de tráfego. Esse campo é usado para permitir que os dispositivos de rede, como roteadores e switches, apliquem políticas de QoS (Qualidade de Serviço), como priorização, garantia de largura de banda e controle de latência, a pacotes pertencentes a um mesmo fluxo.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2635540)
+ASSUNTO: Redes de Computadores
+Sub-Redes ,
+Protocolo ,
+IP (Internet Protocol)
+ENUNCIADO: Considere uma rede classe C 192.168.15.0/24. Para criar 8 sub-redes com 32 IPs cada (30 hosts + 1 endereço de rede + 1 endereço de broadcast), a quantidade de bits da porção de host necessária para criar as sub-redes e para acomodar os IPs são, correta e respectivamente,
+ALTERNATIVAS:
+  A) 2 e 6.
+  B) 3 e 5.
+  C) 4 e 4.
+  D) 6 e 2.
+  E) 5 e 3.
+COMENTÁRIO: 20 de Outubro de 2024 às 14:36
+COMENTÁRIO: Letra B!
+COMENTÁRIO: Para resolver essa questão, vamos seguir o processo de criação de sub-redes a partir de uma rede Classe C com o endereço 192.168.15.0/24.
+COMENTÁRIO: O prefixo /24 indica que a máscara de sub-rede original é 255.255.255.0, ou seja, 24 bits são reservados para a porção de rede, e os 8 bits restantes são usados para a porção de host.
+COMENTÁRIO: Passo 1: Definir a quantidade de sub-redes
+COMENTÁRIO: Para criar 8 sub-redes, precisamos calcular quantos bits da porção de host serão “emprestados” para criar essas sub-redes. Isso é feito com a fórmula:
+COMENTÁRIO: ￼2^n
+COMENTÁRIO: Onde:
+COMENTÁRIO: N
+COMENTÁRIO: • ￼ é o número de bits emprestados da porção de host.
+COMENTÁRIO: Para 8 sub-redes:
+COMENTÁRIO: ￼2^3 = 8
+COMENTÁRIO: Portanto, precisamos emprestar 3 bits da porção de host para criar as 8 sub-redes.
+COMENTÁRIO: Passo 2: Determinar o número de IPs por sub-rede
+COMENTÁRIO: Ao emprestar 3 bits da porção de host, restam 8-3= 5￼ bits para a porção de host. O número de IPs disponíveis em cada sub-rede é dado por:
+COMENTÁRIO: ￼2^5= 32
+COMENTÁRIO: Desses 32 IPs, dois são reservados para o endereço de rede e o endereço de broadcast, restando 30 endereços utilizáveis por hosts.
+COMENTÁRIO: Conclusão:
+COMENTÁRIO: • A quantidade de bits da porção de host emprestados para criar as sub-redes é 3 bits.
+COMENTÁRIO: • A quantidade de bits restantes na porção de host para acomodar os IPs é 5 bits.
+COMENTÁRIO: Logo, a resposta correta é: 3 bits para as sub-redes e 5 bits para os hosts.
+COMENTÁRIO: Fonte: ChatGPT
+COMENTÁRIO: Gostei
+COMENTÁRIO: (4)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2635539)
+ASSUNTO: Arquitetura de Software
+Conceitos Básicos em Governança de TI
+ENUNCIADO: Em um ambiente Linux configurado em condições ideais, utiliza-se o comando nmap 192.168.246.142 para realizar uma varredura de portas no host 192.168.246.142 e verificar quais estão abertas. Para tentar identificar os serviços e suas versões nessas portas, deve-se acrescentar a esse comando, no lugar correio, o parâmetro
+ALTERNATIVAS:
+  A) -s --version
+  B) -sS
+  C) -V
+  D) -sP
+  E) -sV
+COMENTÁRIO: 12 de Fevereiro de 2025 às 00:06
+COMENTÁRIO: Para identificar os serviços e suas versões nas portas abertas, você deve adicionar o parâmetro -sV ao comando nmap. Assim, o comando ficaria: nmap -sV 192.168.246.142
+COMENTÁRIO: Gostei
+COMENTÁRIO: (2)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2635538)
+ASSUNTO: Direito Administrativo
+Agentes públicos e Lei 8.112 de 1990 ,
+Cargo, emprego, função
+ENUNCIADO: Nos termos previstos na Lei nº 8.112/1990, considere:
+
+Servidor A: Não foi aprovado em estágio probatório.
+Servidor B: Não entrou em exercício no prazo estabelecido, após ter tomado posse.
+Servidor C: Foi deslocado, de ofício, no interesse da Administração, no âmbito do mesmo quadro, com mudança de sede.
+
+Esses servidores passaram, correta e respectivamente, pelos processos de
+ALTERNATIVAS:
+  A) demissão, exoneração e remoção.
+  B) exoneração, exoneração e transferência.
+  C) demissão, demissão e transferência.
+  D) exoneração, exoneração e remoção.
+  E) exoneração, demissão e transferência.
+COMENTÁRIO: 03 de Setembro de 2024 às 18:38
+COMENTÁRIO: Seção VI
+COMENTÁRIO: Da Transferência
+COMENTÁRIO: Art. 23.(Revogado pela Lei nº 9.527, de 10.12.97)
+COMENTÁRIO: Art. 36. Remoção é o deslocamento do servidor, a pedido ou de ofício, no âmbito do MESMO QUADRO, com ou sem mudança de sede. FCC**
+COMENTÁRIO: Art. 34. A exoneração de cargo efetivo dar-se-á a pedido do servidor, ou de ofício.
+COMENTÁRIO: Parágrafo único. A exoneração de ofício dar-se-á:
+COMENTÁRIO: I - quando não satisfeitas as condições do estágio probatório;
+COMENTÁRIO: II - quando, tendo tomado posse, o servidor não entrar em exercício no prazo estabelecido.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (183)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2635537)
+ASSUNTO: Direito Administrativo
+Agentes públicos e Lei 8.112 de 1990 ,
+Cargo, emprego, função
+ENUNCIADO: A Lei nº 8.112/1990 dita que recondução é forma de
+ALTERNATIVAS:
+  A) nomeação para provimento de cargo público.
+  B) promoção para cargo público.
+  C) provimento de cargo público.
+  D) posse de cargo público.
+  E) designação para cargo público.
+COMENTÁRIO: 03 de Setembro de 2024 às 11:15
+COMENTÁRIO: INVESTIDURA - > POSSE
+COMENTÁRIO: PROVIMENTO - > NOMEAÇÃO, PROMOÇÃO, REINTEGRAÇÃO, RECONDUÇÃO, READAPTAÇÃO, REVERSÃO, APROVEITAMENTO
+COMENTÁRIO: Gostei
+COMENTÁRIO: (143)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2635524)
+ASSUNTO: Português
+Morfologia ,
+Formação das Palavras: Composição, Derivação, Hibridismo, Onomatopeia e Abreviação
+TEXTO ASSOCIADO: Atenção: Leia o texto abaixo para responder às questões de números 6 a 10.
+	Luís Bernardo Honwana é um dos precursores da literatura moçambicana e um dos maiores intérpretes da moçambicanidade. Quando tinha 22 anos, em 1964, fez publicar uma obra seminal e fundadora da moderna ficção moçambicana - Nós Matamos o Cão Tinhoso. O início desta obra é um dos mais belos que se podem cotejar entre nós: "O Cão Tinhoso tinha uns olhos azuis que n/lo tinham brilho nenhum, mas eram enormes e estavam sempre cheios de lágrimas, que lhe escorriam pelo focinho. Metiam medo aqueles olhos, assim tão grandes, a olhar como uma pessoa a pedir qualquer coisa sem querer dizer". 	O Jovem autor de Nós Matamos o Cão Tinhoso redigira uma nota biográfica Igualmente singular: "Não sei se sou realmente escritor. Acho que apenas escrevo sobre coisas que, acontecendo à minha volta, se relacionem Intimamente comigo ou traduzam fatos que me pareçam decentes. Este livro de histórias é o testemunho em que tento retratar uma série de situações e procedimentos que talvez interesse conhecer". 	A realidade que estas histórias narram ultrapassa, em muito, a circunstância da mera biografia. Estes textos denunciavam, de forma resoluta e corajosa, uma realidade social profundamente injusta e desigual. Textos breves, quase todos, à exceção daquele que nomeia o volume. Este livro é uma surpreendente obra literária e é um libelo acusatório virulento. Provavelmente, a grande literatura seja Isso mesmo: a combinação entre as faculdades da arte em si e o poder de esta nos Interpelar com a realidade que ilustra ou denuncia. 
+(Disponível em: https://opais.co.mz. Adaptado)
+ENUNCIADO: Um sufixo é um afixo que se acrescenta ao final de uma palavra para formar novas palavras. O substantivo formado por sufixação a partir de um outro substantivo está sublinhado em:
+ALTERNATIVAS:
+  A) O jovem autor de Nós Matamos o Cão Tinhoso redigira uma nota biográfica igualmente singular.
+  B) Quando tinha 22 anos, em 1964, fez publicar uma obra seminal e fundadora da moderna ficção moçambicana.
+  C) Honwana é um dos precursores da literatura moçambicana e um dos maiores Intérpretes da moçambicanidade.
+  D) Acho que apenas escrevo sobre coisas que, acontecendo à minha volta, se relacionem intimamente comigo.
+  E) Este livro é uma surpreendente obra literária e é um libelo acusatório virulento.
+COMENTÁRIO: 14 de Setembro de 2024 às 15:53
+COMENTÁRIO: Vamos analisar cada uma das alternativas para entender por que estão incorretas:
+COMENTÁRIO: A. “singular” - A palavra “singular” é um adjetivo, não um substantivo formado por sufixação.
+COMENTÁRIO: B. “fundadora” - A palavra “fundadora” é um adjetivo formado a partir do substantivo “fundador” com o sufixo “-a”, mas não é um substantivo formado por sufixação a partir de outro substantivo.
+COMENTÁRIO: D. “intimamente” - A palavra “intimamente” é um advérbio, não um substantivo.
+COMENTÁRIO: E. “virulento” - A palavra “virulento” é um adjetivo, não um substantivo.
+COMENTÁRIO: Portanto, a única alternativa correta é a C, onde “moçambicanidade” é um substantivo formado por sufixação a partir do substantivo “Moçambique”.
+COMENTÁRIO: Fonte: Inteligência artificial
+COMENTÁRIO: Gostei
+COMENTÁRIO: (160)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2398015)
+ASSUNTO: Direito Administrativo
+Atos administrativos ,
+Teoria das nulidades
+ENUNCIADO: Pedro, servidor público que atua em órgão da Administração, se deu conta de que havia emitido autorização de uso de um bem público, quando, pela normatização vigente, a competência para a prática do ato seria de seu superior, embora, no passado, já tenha recebido delegação para a prática de atos de tal natureza. Ciente da situação, o particular interessado solicitou a regularização do referido ato administrativo, o que
+ALTERNATIVAS:
+  A) é mandatório com base na teoria da aparência, desde que o particular comprove que não houve erro grosseiro no endereçamento do pedido.
+  B) é juridicamente possível, porém demanda um juízo de conveniência e oportunidade do detentor da competência, eis que se trata de ato discricionário.
+  C) constitui direito do particular, com base no princípio da confiança legitima, salvo se comprovado dolo ou má-fé.
+  D) assegura a convalidação do ato, mediante ratificação, não sendo possível, contudo, a manutenção dos efeitos do ato praticado pela autoridade incompetente.
+  E) afigura-se juridicamente inviável, eis que vícios de competência não são passíveis de saneamento, devendo o particular iniciar novo procedimento, autônomo, perante a autoridade competente.
+COMENTÁRIO: 22 de Março de 2024 às 11:30
+COMENTÁRIO: TUDO QUE VOCÊ PRECISA SABER SOBRE CONVALIDAÇÃO.
+COMENTÁRIO: Também é conhecida como Sanatória. Cuida-se da correção do vício existente no ato administrativo como forma de manter esse ato produzindo seus efeitos e restaurando a legalidade.
+COMENTÁRIO: A convalidação possui efeitos retroativos (ex tunc), pois aproveita os efeitos produzidos no passado.
+COMENTÁRIO: Requisitos:
+COMENTÁRIO: Não acarretar lesão ao interesse público;
+COMENTÁRIO: Não acarretar prejuízo a terceiros;
+COMENTÁRIO: Apresentar vício sanável.
+COMENTÁRIO: A doutrina tem entendido que os vícios sanáveis, passíveis de convalidação, são os vícios de competência (salvo se for competência exclusiva) e forma (quando essa forma não for essencial à validade do ato administrativo).
+COMENTÁRIO: A lei (art. 55 da Lei n. 9.784/99) assevera que a convalidação é uma faculdade da administração. A doutrina, contrariamente, entende que é um dever convalidar, e não uma faculdade.
+COMENTÁRIO: A única exceção que exclui essa regra da obrigatoriedade de convalidação, segundo a doutrina, é a hipótese em que o ato apresenta vício de competência em ato discricionário. Nessa hipótese, reconhece-se que optar pela convalidação, ou não, é faculdade atribuída ao agente de fato que é capaz e competente para praticar o ato.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (833)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (10)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2398014)
+ASSUNTO: Direito Administrativo
+Organização da Administração Pública ,
+Consórcios públicos
+ENUNCIADO: Considere que determinados municípios do estado do Rio Grande do Norte pretendam consorciar-se, tendo por objetivo a gestão associada de serviços públicos de transporte. Para tanto, de acordo com o que dispõe a legislação de regência,
+ALTERNATIVAS:
+  A) devem celebrar prévio protocolo de intenções, ratificado por lei, sempre que o consórcio ostentar natureza pública.
+  B) o consórcio deverá adotar a forma pública, sendo constituído como entidade autárquica ou fundacional de natureza inter-federativa.
+  C) dependem de anuência do Estado, que poderá, também, participar do consórcio, salvo se os municípios forem integrantes de região metropolitana.
+  D) o consórcio somente será possível se adotada a forma de associação privada, mediante prévia autorização legislativa de todos os entes consorciados.
+  E) dependem da prévia celebração de convênio de cooperação entre os entes federados que pretendam consorciar-se.
+COMENTÁRIO: 22 de Março de 2024 às 13:11
+COMENTÁRIO: Lei 11.107/2005
+COMENTÁRIO: Art. 3º O consórcio público será constituído por contrato cuja celebração dependerá da prévia subscrição de protocolo de intenções.
+COMENTÁRIO: Art. 5º O contrato de consórcio público será celebrado com a ratificação, mediante lei, do protocolo de intenções.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (426)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2398013)
+ASSUNTO: Direito Administrativo
+Responsabilidade civil do estado ,
+Excludentes e atenuantes da responsabilidade civil objetiva e teoria do risco integral ,
+Previsão constitucional e elementos da responsabilidade civil objetiva do Estado
+ENUNCIADO: Considere que tenha ocorrido acidente com trem de passageiros em linha operada por uma concessionária privada, resultando em ferimentos graves em alguns ocupantes. À concessionária negou-se a indenizar os passageiros pelos danos sofridos no acidente, afirmando que não houve comprovação de culpa de seus agentes e que a responsabilização deveria recair sobre o Poder Concedente. Diante de tal cenário,
+ALTERNATIVAS:
+  A) a concessionária, dada sua natureza de pessoa jurídica de direito privado, responde pelos danos nos termos da legislação civil, inexistindo, por outro lado, responsabilidade extracontratual do poder público quando delega a prestação dos serviços.
+  B) está correto o entendimento da concessionária, eis que apenas o titular do serviço, pessoa jurídica de direito público, responde objetivamente pelos danos decorrentes da prestação direta ou por terceiros, e a concessionária somente será responsável em caso de comprovação de culpa.
+  C) a concessionária possui responsabilidade objetiva, que independe de comprovação de culpa, demandando comprovação de nexo de causalidade e ausência de excludentes de responsabilização, respondendo o Poder Concedente apenas em caráter subsidiário.
+  D) tanto o poder concedente como a concessionária poderão ser responsabilizados pelos danos, sempre em caráter solidário, se não houver comprovação de caso fortuito, força maior ou culpa exclusiva de terceiros.
+  E) trata-se de hipótese de responsabilidade subjetiva, que recai sobre o poder concedente ou, subsidiariamente, sobre a concessionária e seus agentes, condicionada à comprovação do nexo de causalidade e da culpabilidade de cada qual.
+COMENTÁRIO: 23 de Março de 2024 às 17:09
+COMENTÁRIO: gabarito c: a concessionária prestadora de serviço público responde OBJETIVAMENTE, recaindo ao estado apenas as responsabilidade SUBSIDIÁRIA.
+COMENTÁRIO: Teoria do Risco Administrativo
+COMENTÁRIO: RESPONSABILIDADE OBJETIVA
+COMENTÁRIO: ART. 37, § 6º, CF: regra do sistema constitucional
+COMENTÁRIO: admite EXCLUDENTES
+COMENTÁRIO: Independe de qualquer falta do Estado, que pode ter agido inclusive de forma lícita. Basta comprovar que houve conduta do agente público com resultado danoso e a presença de nexo de causalidade entre a conduta e o resultado.
+COMENTÁRIO: Perceba que o dolo e a culpa podem estar presentes, entretanto, ainda que ausentes, haverá responsabilidade estatal.
+COMENTÁRIO: Desse modo, o dolo e a culpa são elementos meramente acidentais.
+COMENTÁRIO: Ademais, a Responsabilidade Civil Objetiva admite as seguintes excludentes da responsabilidade:
+COMENTÁRIO: culpa exclusiva da vítima;
+COMENTÁRIO: fato exclusivo de terceiro;
+COMENTÁRIO: caso fortuito ou força maior.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (194)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2398012)
+ASSUNTO: Direito Administrativo
+Parcerias público-privadas ,
+Serviços Públicos
+ENUNCIADO: Considere que o Estado pretenda celebrar um contrato de parceria público-privada, na modalidade concessão patrocinada, para construção, manutenção e operação, pelo prazo de 30 anos, de um hospital de alta complexidade, estimando que o valor do contrato seja da ordem de R$ 50 milhões. De acordo com a legislação de regência, a referida pretensão afigura-se juridicamente
+ALTERNATIVAS:
+  A) viável, desde que não envolva contraprestação pecuniária a cargo do parceiro público, admitindo-se apenas aporte de recursos em bens reversíveis.
+  B) inviável, eis que a modalidade pretendida pressupõe a cobrança de tarifa do usuário, complementada por contraprestação do parceiro público, sendo viável, em tese, concessão administrativa.
+  C) viável, sendo a Administração usuária indireta do serviço, podendo, em tal modalidade, arcar com a integralidade da remuneração devida ao parceiro privado.
+  D) inviável, haja vista a extrapolação do valor contratual máximo para a modalidade pretendida, salvo se contar com autorização legislativa específica.
+  E) inviável, haja vista a conjugação de objetos e a consequente restrição à competitividade, bem como a extrapolação do prazo máximo admissível para a modalidade pretendida (20 anos).
+COMENTÁRIO: 29 de Março de 2024 às 20:08
+COMENTÁRIO: Olhem, meus amigos, há duas modalidade de concessões nas PPP's. Elas são excludentes. Numa a adm. banca tudo. E é a concessão ADMINISTRATIVA. Noutra, a adm dá uma parte e o usuário do serviço público também PATROCINA o serviço. É a concessão patrocinada. Com isso, mente, pergunte-se: alguma vez você foi no hospital público e pagou alguma taxa? Entonces, essa concessão aí do caso, como é pra construir e manter um hospital jamais poderia ser patrocinada. O SUS é quem vai bancar o serviço. Logo, a única modalidade viável, em tese, seria a concessão administrativa, onde a adm seria a usuaria direta da construção e depois os administrados seriam atendidos no interesse primário, o interesse público. E de grátis. Por isso, letra B.
+COMENTÁRIO: PS: espero ter ajudado vocês e me ajudado também.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (737)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (17)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2398010)
+ASSUNTO: Direito Administrativo
+Intervenção do estado na propriedade ,
+Noções gerais e desapropriação
+ENUNCIADO: Sobre a desapropriação, o Decreto-lei nº 3.365/1942, que estabelece normas gerais sobre o instituto, em sua redação vigente preceitua:
+ALTERNATIVAS:
+  A) E dispensada a autorização legislativa para desapropriação de bem de outro ente federativo, desde que seja realizado acordo entre os entes envolvidos, com fixação das respectivas responsabilidades financeiras relativas às indenizações.
+  B) Em razão do princípio da indisponibilidade do interesse público, não se poderá empregar arbitragem nos processos de desapropriação.
+  C) A concordância escrita do expropriado com a imissão na posse do bem pelo expropriante implica renúncia ao seu direito de questionar o preço ofertado em juízo.
+  D) A desapropriação deverá efetivar-se mediante acordo ou intentar-se judicialmente, dentro de cinco anos, contados da data da expedição do respectivo decreto e findos os quais este caducará definitivamente, sem possibilidade de renovação.
+  E) O expropriante poderá constituir servidões, que não serão indenizáveis.
+COMENTÁRIO: 22 de Março de 2024 às 09:23
+COMENTÁRIO: DECRETO LEI 3365/41
+COMENTÁRIO: A) CORRETA: ART. 2º
+COMENTÁRIO: § 2º-A. Será dispensada a autorização legislativa a que se refere o § 2º quando a desapropriação for realizada mediante acordo entre os entes federativos, no qual serão fixadas as respectivas responsabilidades financeiras quanto ao pagamento das indenizações correspondentes.
+COMENTÁRIO: B) ERRADO
+COMENTÁRIO: Art. 10-B. Feita a opção pela mediação ou pela via arbitral, o particular indicará um dos órgãos ou instituições especializados em mediação ou arbitragem previamente cadastrados pelo órgão responsável pela desapropriação.
+COMENTÁRIO: C) ERRADO
+COMENTÁRIO: Art. 34-A. Se houver concordância, reduzida a termo, do expropriado, a decisão concessiva da imissão provisória na posse implicará a aquisição da propriedade pelo expropriante com o consequente registro da propriedade na matrícula do imóvel.
+COMENTÁRIO: § 1  A concordância escrita do expropriado não implica renúncia ao seu direito de questionar o preço ofertado em juízo.
+COMENTÁRIO: D) ERRADO
+COMENTÁRIO: Art. 10. A desapropriação deverá efetivar-se mediante acordo ou intentar-se judicialmente, dentro de cinco anos, contados da data da expedição do respectivo decreto e findos os quais este caducará.
+COMENTÁRIO: Neste caso, somente decorrido um ano, poderá ser o mesmo bem objeto de nova declaração.
+COMENTÁRIO: E) ERRADO
+COMENTÁRIO: Art. 40.  O expropriante poderá constituir servidões, mediante indenização na forma desta lei.
+COMENTÁRIO: OBS: ATENTAR PARA RECENTES ALTERAÇÕES LEGISLATIVAS.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (247)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2398008)
+ASSUNTO: Direito Administrativo
+Lei nº 8.112-1990 - Regime jurídico dos servidores públicos federais ,
+Agentes públicos e Lei 8.112 de 1990
+ENUNCIADO: Otelo, servidor público federal titular de cargo efetivo, foi acusado em processo administrativo disciplinar de utilizar computador do Ministério onde trabalhava para armazenar e difundir vídeos ponográficos envolvendo crianças e adolescentes, acusação que resultou em sua demissão. Dias após a publicação do ato demissional, Otelo cometeu suicídio, sem deixar quaisquer familiares ou dependentes. Cinco anos após a morte de Otelo, lago, seu colega de repartição, também titular de cargo efetivo, encaminha ao Ministro de Estado uma carta em que confessa ter invadido o computador utilizado por Otelo sem o seu conhecimento e que era responsável pela prática da infração atribuída ao colega falecido, apresentando provas documentais da conduta confessada.
+
+
+Diante da situação acima narrada e à luz da Lei nº 8.112/1990 (Regime Jurídico dos Servidores Públicos Civis da União, das autarquias e das fundações públicas federais) deve-se concluir que
+ALTERNATIVAS:
+  A) a confissão de lago resultará em sua demissão sumária, sendo desnecessária a instauração de processo administrativo disciplinar.
+  B) não será possível a revisão póstuma da penalidade aplicada a Otelo, visto que essa deve ser requerida por pessoa da família.
+  C) a pretensão punitiva da Administração em relação a lago encontra-se prescrita, pois a lei preconiza que a prescrição começa a correr da data da ocorrência da infração, sendo que os fatos ocorreram há mais de cinco anos.
+  D) não será possível a revisão póstuma da penalidade aplicada a Otelo, visto que o prazo para anular o ato demissional prescreve em cinco anos, de forma fatal e improrrogável.
+  E) a Administração deverá instaurar de ofício o processo de revisão da punição a Otelo, sendo que, caso conclua pela veracidade da confissão de lago, deverá anular o ato demissional.
+COMENTÁRIO: 25 de Março de 2024 às 09:24
+COMENTÁRIO: Nossa, que história triste. Uma tragédia à la Shakespeare.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (899)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (14)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2398007)
+ASSUNTO: Direito Administrativo
+Organização da Administração Pública ,
+Fundações Públicas
+ENUNCIADO: Considere as seguintes características:
+
+I. Sujeição às normas da Lei de Licitações e Contratos Administrativos (Lei nº 14.133/2021).
+
+II. Existência legal a partir da inscrição do ato constitutivo, na forma do artigo 45 do Código Civil.
+
+III. Imunidade tributária, nos termos do artigo 150, §2º da Constituição Federal de 1988.
+
+IV. Previsão de suas despesas no orçamento fiscal componente da Lei Orçamentária Anual, nos termos do artigo 165, §5º da Constituição Federal de 1988.
+
+Em relação às entidades da Administração indireta, todas as características acima se aplicam, sem exceções, às
+ALTERNATIVAS:
+  A) agências reguladoras.
+  B) autarquias.
+  C) empresas públicas.
+  D) fundações públicas de direito privado.
+  E) sociedades de economia mista.
+COMENTÁRIO: 22 de Março de 2024 às 05:50
+COMENTÁRIO: GAB D
+COMENTÁRIO: São características em comum das Fundações Públicas de direito público e da Fundações Públicas de direito privado:
+COMENTÁRIO: 1 - ambas realizam licitações conforme a lei 14.133
+COMENTÁRIO: 2 - ambas possuem imunidade tributária
+COMENTÁRIO: Por outro lado, são características apenas das Fundações Públicas de direito público:
+COMENTÁRIO: 1 - prerrogativas processuais, como o prazo em dobro
+COMENTÁRIO: 2 - regime de precatórios
+COMENTÁRIO: 3 - regime estatutário
+COMENTÁRIO: Há outras diferenças, mas, basicamente, para esta questão, essas informações ajudam.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (508)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2398006)
+ASSUNTO: Direitos Humanos
+Direitos Humanos no Ordenamento Nacional ,
+Incidente de Deslocamento de Competência - Federalização dos Crimes Graves contra os Direitos Humanos
+TEXTO ASSOCIADO: Atenção: Para responder à questão, considere a Constituição Federal de 1988.
+ENUNCIADO: Na hipótese de grave violação de direitos humanos, com a finalidade de assegurar o cumprimento de obrigações decorrentes de tratados internacionais de direitos humanos dos quais o Brasil seja parte, poderá suscitar incidente de deslocamento de competência para a Justiça Federal, perante o
+ALTERNATIVAS:
+  A) Superior Tribunal de Justiça, o Procurador-Geral da República, apenas antes de iniciado o processo, em qualquer fase do inquérito.
+  B) Superior Tribunal de Justiça, apenas o juiz federal, em qualquer fase do inquérito ou processo.
+  C) Superior Tribunal de Justiça, o Procurador-Geral da República, em qualquer fase do inquérito ou processo.
+  D) Supremo Tribunal Federal, o Procurador-Geral da República, apenas antes de iniciado o processo, em qualquer fase do inquérito.
+  E) Supremo Tribunal Federal, apenas o juiz federal, em qualquer fase do inquérito ou processo.
+COMENTÁRIO: 22 de Março de 2024 às 07:46
+COMENTÁRIO: CFRB, art. 109. § 5º Nas hipóteses de grave violação de direitos humanos, o Procurador-Geral da República, com a finalidade de assegurar o cumprimento de obrigações decorrentes de tratados internacionais de direitos humanos dos quais o Brasil seja parte, poderá suscitar, perante o Superior Tribunal de Justiça, em qualquer fase do inquérito ou processo, incidente de deslocamento de competência para a Justiça Federal.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (189)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2398005)
+ASSUNTO: Direito Constitucional
+Processo Legislativo ,
+Processo Legislativo Ordinário
+ENUNCIADO: A discussão e votação do projeto de lei que disponha sobre a organização da Defensoria Pública da União terá início
+ALTERNATIVAS:
+  A) na Câmara dos Deputados, se for de iniciativa do Supremo Tribunal Federal, e no Senado Federal, se for de iniciativa do Presidente da República, não se tratando de matéria de iniciativa privativa do Presidente da República.
+  B) na Câmara dos Deputados, se for de iniciativa do Presidente da República ou do Supremo Tribunal Federal, não se tratando de matéria de iniciativa privativa do Presidente da República.
+  C) no Senado Federal, sendo que leis que tratam dessa matéria são de iniciativa privativa do Presidente da República.
+  D) na Câmara dos Deputados, sendo que leis que tratam dessa matéria são de iniciativa privativa do Presidente da República.
+  E) no Senado Federal, se for de iniciativa do Presidente da República ou do Supremo Tribunal Federal, não se tratando de matéria de iniciativa privativa do Presidente da República.
+COMENTÁRIO: 22 de Março de 2024 às 11:04
+COMENTÁRIO: CORRETA - D: na Câmara dos Deputados, sendo que leis que tratam dessa matéria são de iniciativa privativa do Presidente da República.
+COMENTÁRIO: CF/88, Art. 61. A iniciativa das leis complementares e ordinárias cabe a qualquer membro ou Comissão da Câmara dos Deputados, do Senado Federal ou do Congresso Nacional, ao Presidente da República, ao Supremo Tribunal Federal, aos Tribunais Superiores, ao Procurador-Geral da República e aos cidadãos, na forma e nos casos previstos nesta Constituição.
+COMENTÁRIO: § 1º São de iniciativa PRIVATIVA do Presidente da República as leis que:
+COMENTÁRIO: (...)
+COMENTÁRIO: II - disponham sobre:
+COMENTÁRIO: (...)
+COMENTÁRIO: d) organização do Ministério Público e da Defensoria Pública da União, bem como normas gerais para a organização do Ministério Público e da Defensoria Pública dos Estados, do Distrito Federal e dos Territórios;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (323)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2398004)
+ASSUNTO: Direito Constitucional
+Direitos Políticos
+ENUNCIADO: Laerte exerce seu segundo mandato consecutivo de Prefeito no Município “Y” e deseja, nas próximas eleições Municipais, reeleger-se ao mesmo cargo nesse Município. Laerte
+ALTERNATIVAS:
+  A) não poderá se candidatar à reeleição, salvo se tiver sido substituído no curso do seu mandato pelo Vice-Prefeito.
+  B) poderá se candidatar à reeleição, desde que renuncie ao respectivo mandato até quatro meses antes do pleito.
+  C) poderá se candidatar à reeleição, desde que renuncie ao respectivo mandato até seis meses antes do pleito.
+  D) poderá se candidatar à reeleição, sem necessidade de renunciar ao seu mandato.
+  E) não poderá se candidatar à reeleição.
+COMENTÁRIO: 22 de Março de 2024 às 17:31
+COMENTÁRIO: Somente é possível eleger-se para o cargo de Prefeito 2x consecutivas.
+COMENTÁRIO: CF. Art. 14. § 5º O Presidente da República, os Governadores de Estado e do Distrito Federal, os prefeitos e quem os houver sucedido ou substituído no curso dos mandatos poderão ser reeleitos para um único período subsequente.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (284)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2398003)
+ASSUNTO: Direito Constitucional
+Direitos Sociais
+TEXTO ASSOCIADO: Atenção: Para responder à questão, considere a Constituição Federal de 1988.
+ENUNCIADO: O trabalhador rural terá, dentre outros, o direito ao
+ALTERNATIVAS:
+  A) aviso prévio proporcional ao tempo de serviço, sendo no máximo de 30 dias, e o direito de ação, quanto aos créditos resultantes das relações de trabalho, com prazo prescricional de cinco anos, até o limite de dois anos após a extinção do contrato de trabalho.
+  B) seguro-desemprego, em caso de desemprego involuntário, e o direito de ação, quanto aos créditos resultantes das relações de trabalho, com prazo prescricional de cinco anos, até o limite de dois anos após a extinção do contrato de trabalho.
+  C) repouso semanal remunerado, preferencialmente aos domingos, e o direito de ação, quanto aos créditos resultantes das relações de trabalho, com prazo prescricional de três anos, até o limite de um ano após a extinção do contrato de trabalho.
+  D) seguro-desemprego, em caso de desemprego voluntário ou involuntário, e o direito ao repouso semanal remunerado, preferencialmente aos domingos.
+  E) seguro-desemprego, em caso de desemprego voluntário ou involuntário, e o adicional de remuneração para as atividades penosas, insalubres ou perigosas, na forma da lei.
+COMENTÁRIO: 04 de Abril de 2024 às 17:52
+COMENTÁRIO: Você tem dois anos para correr atrás dos outros cinco.
+COMENTÁRIO: Assim que gravei!
+COMENTÁRIO: Gostei
+COMENTÁRIO: (303)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+
+GABARITO FINAL
+--------------------
+Questão 1 (ID: Q2635811): E
+Questão 2 (ID: Q2635807): C
+Questão 3 (ID: Q2635803): C
+Questão 4 (ID: Q2635802): E
+Questão 5 (ID: Q2635801): B
+Questão 6 (ID: Q2635800): D
+Questão 7 (ID: Q2635799): A
+Questão 8 (ID: Q2635798): E
+Questão 9 (ID: Q2635797): B
+Questão 10 (ID: Q2635796): D
+Questão 11 (ID: Q2635795): A
+Questão 12 (ID: Q2635794): D
+Questão 13 (ID: Q2635793): C
+Questão 14 (ID: Q2635792): A
+Questão 15 (ID: Q2635790): B
+Questão 16 (ID: Q2635787): D
+Questão 17 (ID: Q2635786): A
+Questão 18 (ID: Q2635784): D
+Questão 19 (ID: Q2635783): E
+Questão 20 (ID: Q2635782): D
+Questão 1 (ID: Q2635781): D
+Questão 2 (ID: Q2635780): C
+Questão 3 (ID: Q2635779): A
+Questão 4 (ID: Q2635778): C
+Questão 5 (ID: Q2635777): 
+Questão 6 (ID: Q2635776): E
+Questão 7 (ID: Q2635761): 
+Questão 8 (ID: Q2635756): C
+Questão 9 (ID: Q2635578): E
+Questão 10 (ID: Q2635575): B
+Questão 11 (ID: Q2635572): E
+Questão 12 (ID: Q2635566): C
+Questão 13 (ID: Q2635565): 
+Questão 14 (ID: Q2635564): D
+Questão 15 (ID: Q2635560): E
+Questão 16 (ID: Q2635554): 
+Questão 17 (ID: Q2635552): A
+Questão 18 (ID: Q2635551): C
+Questão 19 (ID: Q2635549): B
+Questão 20 (ID: Q2635548): A
+Questão 1 (ID: Q2635546): C
+Questão 2 (ID: Q2635545): D
+Questão 3 (ID: Q2635544): D
+Questão 4 (ID: Q2635541): 
+Questão 5 (ID: Q2635540): B
+Questão 6 (ID: Q2635539): E
+Questão 7 (ID: Q2635538): D
+Questão 8 (ID: Q2635537): C
+Questão 9 (ID: Q2635524): C
+Questão 10 (ID: Q2398015): B
+Questão 11 (ID: Q2398014): A
+Questão 12 (ID: Q2398013): C
+Questão 13 (ID: Q2398012): 
+Questão 14 (ID: Q2398010): A
+Questão 15 (ID: Q2398008): 
+Questão 16 (ID: Q2398007): D
+Questão 17 (ID: Q2398006): C
+Questão 18 (ID: Q2398005): D
+Questão 19 (ID: Q2398004): 
+Questão 20 (ID: Q2398003): B

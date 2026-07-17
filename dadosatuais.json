@@ -1,0 +1,84 @@
+{
+  "numero": [
+    "1000294-78.2023.5.02.0703"
+  ],
+  "id": 5092205,
+  "autor": [
+    {
+      "nome": "JOSE JAIMISON DE FREITAS SARAIVA",
+      "cpfcnpj": "05270939479",
+      "advogado": {
+        "nome": "ARLEY DONIZETE BARBOSA",
+        "cpf": "03488246612",
+        "oab": "SP249280"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "KUBA VIACAO URBANA LTDA",
+      "cpfcnpj": "00277649000154",
+      "advogado": {
+        "nome": "THAIS SALGUEIRO LIMA PEDROSA",
+        "cpf": "04294035420",
+        "oab": "PE26485"
+      }
+    },
+    {
+      "nome": "TRANSKUBA TRANSPORTES GERAIS LTDA.",
+      "cpfcnpj": "05482282000124",
+      "advogado": {
+        "nome": "THAIS SALGUEIRO LIMA PEDROSA",
+        "cpf": "04294035420",
+        "oab": "PE26485"
+      }
+    },
+    {
+      "nome": "KBPX ADMINISTRACAO E PARTICIPACAO LTDA.",
+      "cpfcnpj": "13838043000192",
+      "advogado": {
+        "nome": "THAIS SALGUEIRO LIMA PEDROSA",
+        "cpf": "04294035420",
+        "oab": "PE26485"
+      }
+    },
+    {
+      "nome": "CONSORCIO KBPX",
+      "cpfcnpj": "33504169000138",
+      "advogado": {
+        "nome": "THAIS SALGUEIRO LIMA PEDROSA",
+        "cpf": "04294035420",
+        "oab": "PE26485"
+      }
+    }
+  ],
+  "terceiro": [
+    {
+      "nome": "ROGERIO APARECIDO ROSA"
+    }
+  ],
+  "divida": {
+    "valor": "R$ 541.955,42",
+    "data": "30/06/2026"
+  },
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "07/03/2023",
+  "classeJudicial": {
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
+    "podeIncluirAutoridade": false,
+    "pisoValorCausa": 64840.01,
+    "ativo": true,
+    "idClasseJudicialPai": 323,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Execução",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
+}

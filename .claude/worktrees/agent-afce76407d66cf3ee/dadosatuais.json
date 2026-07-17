@@ -1,0 +1,54 @@
+{
+  "numero": [
+    "1001375-91.2025.5.02.0703"
+  ],
+  "id": 7591758,
+  "autor": [
+    {
+      "nome": "ROGERIO MARTINS DE MELO",
+      "cpfcnpj": "06123946897",
+      "advogado": {
+        "nome": "ALESSANDRA FERREIRA LISBOA",
+        "cpf": "16311283883",
+        "oab": "SP143090"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "CARREFOUR COMERCIO E INDUSTRIA LTDA",
+      "cpfcnpj": "45543915000181",
+      "advogado": {
+        "nome": "RAQUEL NASSIF MACHADO PANEQUE",
+        "cpf": "25220469851",
+        "oab": "SP173491"
+      }
+    }
+  ],
+  "terceiro": [
+    {
+      "nome": "REGIANE SOUZA ROCHA SILVA"
+    }
+  ],
+  "divida": {},
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "08/08/2025",
+  "classeJudicial": {
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
+    "podeIncluirAutoridade": false,
+    "pisoValorCausa": 64840.01,
+    "ativo": true,
+    "idClasseJudicialPai": 323,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Liquidação",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
+}

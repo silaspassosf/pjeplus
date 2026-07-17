@@ -1,0 +1,15 @@
+botao#avjt-janela-salvar-dimensoes{
+	background:var(--extensao-icone-dimensoes) no-repeat center / 100%;
+	cursor:pointer;
+	display: block;
+	height:20px;
+	left:0;
+	position:fixed !important;
+	top:0;
+	width:20px;
+	z-index:1000000;
+}
+
+botao#avjt-janela-salvar-dimensoes.encolher-crescer{
+	animation:encolher-crescer 1s ease-in;
+}

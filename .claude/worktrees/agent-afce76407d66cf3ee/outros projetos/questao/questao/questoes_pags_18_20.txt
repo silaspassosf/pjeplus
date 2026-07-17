@@ -1,0 +1,1186 @@
+QUESTÃO 1 (ID: Q2098416)
+ASSUNTO: Direito Processual do Trabalho
+Competência da Justiça do Trabalho ,
+Conflitos de competência
+ENUNCIADO: Cícero propôs ação trabalhista em face do seu ex-empregador, o Banco Poupe Aqui, perante a Vara do Trabalho da localidade em que reside, diante da facilidade e para ter o pleno acesso à Justiça. O réu pretende arguir exceção de incompetência territorial. Nessa situação, com base no que dispõe a Consolidação das Leis do Trabalho, deverá fazê-lo
+ALTERNATIVAS:
+  A) no prazo para a juntada de contestação, em peça apartada.
+  B) por escrito, ou ainda de forma oral, em audiência.
+  C) no prazo de 5 dias a contar da notificação, antes da audiência.
+  D) como matéria preliminar de defesa, dentro de 10 dias após a notificação.
+  E) apenas por escrito, em audiência, onde o juiz dará a palavra à parte contrária e decidirá em 48 horas.
+COMENTÁRIO: 13 de Abril de 2023 às 20:09
+COMENTÁRIO: Esqueminha do processamento da exceção de incompetência territorial:
+COMENTÁRIO: 1 - Reclamante ajuíza a ação
+COMENTÁRIO: 2 - Notificação ao reclamado
+COMENTÁRIO: 3 - Reclamado entende que o juízo é incompetente territorialmente e apresenta peça que sinalize a exceção até 5 dias depois da notificação e antes da audiência (obviamente. O reclamado não pode deixar o juiz que ele entende ser incompetente dirigir a audiência)
+COMENTÁRIO: 4 - Processo é suspenso e não é realizada a audiência de julgamento
+COMENTÁRIO: 5 - Autos conclusos ao juiz
+COMENTÁRIO: 6 - Intimação do reclamante e eventual litisconsorte para manifestação no prazo comum de 5 dias
+COMENTÁRIO: 7 - Se o juiz entender necessária a produção de prova oral, designa audiência (excipiente e suas testemunhas podem ser ouvidos por carta precatória)
+COMENTÁRIO: 8 - Juiz decide a exceção de incompetência e o processo retoma seu curso, com designação de audiência, apresentação de defesa e instrução no juízo competente
+COMENTÁRIO: 9 - Após a decisão, temos dois caminhos para a parte recorrer:
+COMENTÁRIO: • Se os autos ficarem no mesmo TRT, a parte não poderá recorrer de imediato
+COMENTÁRIO: • Se os autos forem remetidos para um TRT diferente, a parte poderá interpor recurso ordinário no prazo de 8 dias (súmula 214 TST)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (302)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2098415)
+ASSUNTO: Direito Processual do Trabalho
+Atos, termos e prazos processuais. Vícios dos atos processuais. Provas no processo do trabalho ,
+Prazos processuais
+ENUNCIADO: O juízo do trabalho de Aparecida de Goiânia publica uma sentença em 3 de janeiro, condenando a empresa Terra Plana a pagar verbas rescisórias da sua ex-empregada Vênus. Pretendendo recorrer da sentença, com base no que prevê a Consolidação das Leis do Trabalho, a empresa deverá fazê-lo no prazo legal, contando-se o prazo a partir de
+ALTERNATIVAS:
+  A) 7 de janeiro, quando voltam a fluir os prazos na Justiça do Trabalho, pois de 20 de dezembro a 6 de janeiro os prazos estão suspensos.
+  B) 21 de janeiro, quando voltam a fluir os prazos na Justiça do Trabalho, pois de 20 de dezembro a 20 de janeiro, inclusive, os prazos estão suspensos.
+  C) 7 de janeiro, quando voltam a fluir os prazos na Justiça do Trabalho, pois de 20 de dezembro a 6 de janeiro os prazos estão interrompidos.
+  D) 20 de janeiro, quando voltam a fluir os prazos na Justiça do Trabalho, pois de 20 de dezembro a 20 de janeiro os prazos estão suspensos.
+  E) 20 de janeiro, quando voltam a fluir os prazos na Justiça do Trabalho, pois de 20 de dezembro a 19 de janeiro os prazos estão interrompidos.
+COMENTÁRIO: 13 de Abril de 2023 às 20:19
+COMENTÁRIO: Resuminho para fixação, my friends (:
+COMENTÁRIO: Do dia 20/12 a 06/01 - NÃO SE FAZ NAAAADA, TUDO PARADO!!!
+COMENTÁRIO: Do dia 07/01 até o dia 20/01 - NÃO TEM SESSÃO E NEM AUDIÊNCIA, MAS PODE TER EXECUÇÃO DE MANDADO, PENHORA, ATOS PROCESSUAIS EM GERAL (MAS OS PRAZOS PROCESSUAIS ESTÃO SUSPENSOS)
+COMENTÁRIO: Do dia 21/01 em diante, os prazos voltam a correr normalmente (os prazos ficaram suspenso do dia 20/12 a 20/01)
+COMENTÁRIO: Fonte: colegas do QC (:
+COMENTÁRIO: Gostei
+COMENTÁRIO: (302)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (4)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2098414)
+ASSUNTO: Direito Processual do Trabalho
+Dissídio individual
+ENUNCIADO: Arquimedes, tendo contratado advogado particular, teve julgada procedente a sua ação trabalhista proposta em face da sua empregadora, a empresa de segurança Águia de Ouro, tendo a Fazenda Pública do Estado de Goiás como litisconsorte, por ser a tomadora de serviços. O juízo condenou a empresa prestadora e, de forma subsidiária, a Fazenda Pública ao pagamento, além das verbas devidas decorrentes do contrato de trabalho, também de honorários sucumbenciais no importe de 20% do valor que resultar da liquidação de sentença. Analisando a hipótese em tela, à luz do que prevê a Consolidação das Leis do Trabalho, a sentença está
+ALTERNATIVAS:
+  A) incorreta, na medida em que extrapola o limite máximo de 10%, nas hipóteses em que esteja presente a Fazenda Pública no polo passivo.
+  B) incorreta, eis que no processo do trabalho não são devidos honorários sucumbenciais, ressalvada a situação de assistência judiciária pelo sindicato.
+  C) incorreta, eis que o limite máximo de condenação em honorários sucumbenciais é de 15% do que resultar da liquidação de sentença.
+  D) correta quanto ao limite máximo de 20% de honorários sucumbenciais, mas deve ser reformada a sentença quanto à Fazenda Pública, que não pode suportar tal condenação.
+  E) correta, tanto em relação ao percentual, quanto em relação à Fazenda Pública, que também pode ser condenada em honorários sucumbenciais.
+COMENTÁRIO: 30 de Março de 2023 às 17:24
+COMENTÁRIO: CLT
+COMENTÁRIO: Art. 791-A. Ao advogado, ainda que atue em causa própria, serão devidos honorários de sucumbência, fixados entre o mínimo de 5% (cinco por cento) e o máximo de 15% (quinze por cento) sobre o valor que resultar da liquidação da sentença, do proveito econômico obtido ou, não sendo possível mensurá-lo, sobre o valor atualizado da causa.
+COMENTÁRIO: CLT 5 a 15 %
+COMENTÁRIO: CPC 10 a 20 %
+COMENTÁRIO: Gostei
+COMENTÁRIO: (204)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2098413)
+ASSUNTO: Direito Processual do Trabalho
+Sistema recursal trabalhista ,
+Recurso ordinário
+ENUNCIADO: O Tribunal Regional do Trabalho julgou improcedente um dissídio coletivo de greve, condenando o Sindicato autor a uma multa de R$ 100.000,00 por dia em caso de não restabelecimento das atividades consideradas essenciais. O autor pretende recorrer da decisão. Nessa hipótese, poderá interpor
+ALTERNATIVAS:
+  A) recurso ordinário ao Tribunal Superior do Trabalho no prazo de 8 dias.
+  B) recurso de revista ao Tribunal Superior do Trabalho no prazo de 10 dias.
+  C) agravo de petição ao Tribunal Superior do Trabalho no prazo de 8 dias.
+  D) recurso ordinário ao Tribunal Superior do Trabalho no prazo de 10 dias.
+  E) recurso de revista ao Tribunal Superior do Trabalho no prazo de 8 dias.
+COMENTÁRIO: 05 de Abril de 2023 às 10:37
+COMENTÁRIO: Lembre-se que o TST também processa e julga recursos de natureza ordinária, como o recurso ordinário interposto das decisões proferidas pelos Tribunais Regionais do Trabalho, em processos de sua competência originária.(CLT, art. 895, II)
+COMENTÁRIO: Assim, combinando o art. 895, II, da CLT com o art. 245 do RITST, tem-se que é cabível recurso ordinário para o TST das decisões finais dos Tribunais Regionais do Trabalho, em processos de sua competência originária, no prazo legal, contado da publicação do acórdão ou de sua conclusão no órgão oficial, proferidas em:
+COMENTÁRIO: I - Ação anulatória;
+COMENTÁRIO: II - Ação para obtenção de tutela provisória em caráter antecedente;
+COMENTÁRIO: III - Ação declaratória;
+COMENTÁRIO: IV - Agravo interno;
+COMENTÁRIO: V - Ação rescisória;
+COMENTÁRIO: VI - Dissídio coletivo;
+COMENTÁRIO: VII - Habeas corpus;
+COMENTÁRIO: VIII - Habeas data;
+COMENTÁRIO: IX - Mandado de segurança;
+COMENTÁRIO: X - Reclamação.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (253)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2098412)
+ASSUNTO: Direito do Trabalho
+Estabilidade e garantias provisórias no emprego ,
+Questões essenciais relativas aos contratos de emprego
+ENUNCIADO: Temístocles foi indicado pelo seu empregador para exercer cargo de direção na Comissão Interna de Prevenção de Acidentes (CIPA). Com base no que prevê o ordenamento jurídico brasileiro vigente, referido empregado
+ALTERNATIVAS:
+  A) não possui garantia de emprego, pois esta é restrita a membros eleitos pelos empregados, desde o registro da candidatura até 1 ano após o término do mandato.
+  B) é detentor de garantia de emprego, desde o início do mandato até 1 ano após seu término.
+  C) goza de garantia no emprego, desde a sua indicação até 2 anos após o final de seu mandato.
+  D) tem seu emprego garantido, desde sua aprovação no Conselho de Representantes da CIPA até 1 ano após o término do mandato.
+  E) não possui garantia de emprego, pois esta é restrita a membros eleitos pelos empregados, desde o registro da candidatura até 2 anos após o término do mandato.
+COMENTÁRIO: 05 de Abril de 2023 às 13:15
+COMENTÁRIO: CIPA
+COMENTÁRIO: CLT, Art. 165 - Os titulares da representação dos EMPREGADOS nas CIPA (s) não poderão sofrer despedida arbitrária, entendendo-se como tal a que não se fundar em motivo disciplinar, técnico, econômico ou financeiro.
+COMENTÁRIO: ADCT, Art. 10, II, a - fica vedada a dispensa arbitrária ou sem justa causa: do empregado eleito para cargo de direção de comissões internas de prevenção de acidentes, desde o registro de sua candidatura até um ano após o final de seu mandato;
+COMENTÁRIO: Temístocles foi indicado pelo seu EMPREGADOR para exercer cargo de direção na CIPA, logo não possui garantia de emprego.
+COMENTÁRIO: .
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (275)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2098411)
+ASSUNTO: Direito do Trabalho
+Descanso no trabalho: repouso anual (férias) e semanal ,
+Efeitos e duração do trabalho nos contratos de emprego
+ENUNCIADO: Tibério, de 60 anos, é empregado na empresa metalúrgica Açoforte, e seu empregador, para organização interna da empresa, pretende fracionar as suas próximas férias em 4 períodos, sendo um período de 10 dias, dois períodos de 7 dias e um período de 6 dias. Conforme prevê a Consolidação das Leis do Trabalho, esse fracionamento é
+ALTERNATIVAS:
+  A) irregular, porque para os empregados menores de 18 e maiores de 50 anos, as férias só podem ser concedidas em no máximo dois períodos, sendo um deles de no mínimo 20 dias corridos.
+  B) possível, eis que atendido o requisito de ter no mínimo um período de 10 dias, para empregados com mais de 55 anos de idade.
+  C) possível, desde que haja a concordância do empregado, na medida em que as férias podem ser concedidas em até 4 períodos, sendo um deles de no mínimo 10 dias.
+  D) irregular, eis que as férias, desde haja concordância do empregado, pode ter seu período fracionado em até 3 períodos, sendo um deles de no mínimo 14 dias corridos.
+  E) irregular, porque para os empregados menores de 18 e maiores de 55 anos, as férias só podem ser concedidas em no máximo três períodos, sendo um deles de no mínimo 15 dias corridos.
+COMENTÁRIO: 05 de Abril de 2023 às 13:44
+COMENTÁRIO: CLT, Art. 134, §1° - Desde que haja concordância do empregado, as férias poderão ser usufruídas em até três períodos, sendo que um deles não poderá ser inferior a quatorze dias corridos e os demais não poderão ser inferiores a cinco dias corridos, cada um.
+COMENTÁRIO: OBS: Essa questão dos 60 anos se baseia em norma da CLT, revogada pela Reforma Trabalhista, que estabelecia que, no caso de empregados menores de 18 anos e maiores de 50, as férias deveriam ser concedidas de uma só vez.
+COMENTÁRIO: ___________________________________________________________________________________________________________________
+COMENTÁRIO: SINTESE:
+COMENTÁRIO: Regra ⇾ em 1 só período
+COMENTÁRIO: Com concordância do empregado ⇾ até 3 períodos:
+COMENTÁRIO: 1 período ⇾ 14 dias ⇾ mínimo
+COMENTÁRIO: 1 período ⇾ 5 dias ⇾mínimo
+COMENTÁRIO: 1 período ⇾ 5 dias ⇾ mínimo
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA D)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (376)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2098410)
+ASSUNTO: Direito do Trabalho
+Efeitos e duração do trabalho nos contratos de emprego ,
+Jornadas especiais de trabalho
+ENUNCIADO: Sócrates trabalha na empresa de segurança Alerta Máximo em jornada das 19 horas às 7 horas, exercendo as funções de vigilante ronda. Conforme previsão da Consolidação das Leis do Trabalho, o período laborado pelo empregado das
+ALTERNATIVAS:
+  A) 22 horas às 6 horas será considerado noturno, e a sua remuneração em relação à hora diurna deve ser no mínimo em 15% a mais.
+  B) 21 horas às 5 horas será considerado noturno, e a sua remuneração em relação à hora diurna deve ser no mínimo em 20% a mais.
+  C) 21 horas às 4 horas será considerado noturno, e a sua remuneração em relação à hora diurna deve ser no mínimo em 15% a mais.
+  D) 22 horas às 6 horas será considerado noturno, e a sua remuneração em relação à hora diurna deve ser no mínimo em 10% a mais.
+  E) 22 horas às 5 horas será considerado noturno, e a sua remuneração em relação à hora diurna deve ser no mínimo em 20% a mais.
+COMENTÁRIO: 05 de Abril de 2023 às 13:54
+COMENTÁRIO: CLT, Art. 73. (...) o trabalho noturno terá remuneração superior a do diurno e, para esse efeito, sua remuneração terá um acréscimo de 20 % (vinte por cento), pelo menos, sobre a hora diurna.
+COMENTÁRIO: § 2º Considera-se noturno, para os efeitos deste artigo, o trabalho executado entre as 22 horas de um dia e as 5 horas do dia seguinte.
+COMENTÁRIO: =============================================================================================
+COMENTÁRIO: RESUMO:
+COMENTÁRIO: Trabalho noturno:
+COMENTÁRIO: Hora URBANA: 22 h - 5 h / ad. 20% / hora 52:30 seg. (obs: Na Lei nº 8.112 é 25%!)
+COMENTÁRIO: Hora LAVOURA: 21 h - 5 h / ad. 25% / hora 60 min
+COMENTÁRIO: Hora PECUÁRIA: 20 h - 4 h / ad. 25% / hora 60 min
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA E)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (402)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2098409)
+ASSUNTO: Direito do Trabalho
+Contratos de Trabalho Especiais ,
+Dos contratos de natureza trabalhista
+ENUNCIADO: Poliana está prestando serviços em teletrabalho para o Banco Mediterrâneo. O seu empregador pretende fazer a reversão do trabalho da empregada para a modalidade presencial. Para que a mesma se efetive, conforme prevê a Consolidação das Leis do Trabalho,
+ALTERNATIVAS:
+  A) deve haver a concordância da empregada, além de ser respeitado o prazo mínimo de transição de 10 dias.
+  B) é necessária a observância do prazo mínimo de transição de 15 dias, podendo ser realizada por ato unilateral do empregador.
+  C) é imprescindível a concordância da trabalhadora, além de ser respeitado o prazo mínimo de transição de 15 dias.
+  D) é necessária a observância do prazo mínimo de transição de 10 dias, podendo ser realizada por ato unilateral do empregador.
+  E) não há necessidade de prazo de transição, desde que haja concordância da empregada.
+COMENTÁRIO: 05 de Abril de 2023 às 06:31
+COMENTÁRIO: Art. 75-C. A prestação de serviços na modalidade de teletrabalho deverá constar expressamente do instrumento de contrato individual de trabalho.
+COMENTÁRIO: § 1  Poderá ser realizada a alteração entre regime presencial e de teletrabalho desde que haja mútuo acordo entre as partes, registrado em aditivo contratual.
+COMENTÁRIO: § 2  Poderá ser realizada a alteração do regime de teletrabalho para o presencial por determinação do empregador, garantido prazo de transição mínimo de quinze dias, com correspondente registro em aditivo contratual.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (324)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2098408)
+ASSUNTO: Direito do Trabalho
+Fundo de Garantia do Tempo de Serviço (FGTS) ,
+Questões essenciais relativas aos contratos de emprego
+ENUNCIADO: Penélope e seu empregador, o Restaurante Cuccina, pretendem rescindir, por acordo mútuo, o vínculo empregatício que mantêm desde 10/10/2020. Sabe-se que Penélope possui saldo de R$ 3.000,00 na conta do Fundo de Garantia do Tempo de Serviço (FGTS). Nesses termos, com base no que prevê a Consolidação das Leis do Trabalho, com relação ao FGTS, poderá a empregada sacar
+ALTERNATIVAS:
+  A) o valor total de R$ 3.000,00 da conta vinculada, mas a indenização sobre o saldo do FGTS ficará limitada a R$ 960,00.
+  B) até o valor de R$ 1.500,00 da conta vinculada, e a indenização sobre o saldo do FGTS ficará limitada a R$ 600,00.
+  C) o valor total de R$ 3.000,00 da conta vinculada, mas a indenização sobre o saldo do FGTS ficará limitada a R$ 600,00.
+  D) até o valor de R$ 2.400,00 da conta vinculada, e a indenização sobre o saldo do FGTS ficará limitada a R$ 600,00.
+  E) o valor total de R$ 3.000,00 da conta vinculada, mas a indenização sobre o saldo do FGTS ficará limitada a R$ 720,00.
+COMENTÁRIO: 05 de Abril de 2023 às 14:00
+COMENTÁRIO: VERBAS RESCISÓRIAS:
+COMENTÁRIO: Definitivas: Saldo de salário e férias vencidas.
+COMENTÁRIO: Proporcionais: 13º salário e férias
+COMENTÁRIO: Indenizatórias: aviso prévio e multa dos 40% FGTS (indenização)
+COMENTÁRIO: Em caso de acordo será devido 100% das verbas definitivas e proporcionais e, também, 50% das verbas indenizatórias. Além disso, a empregada poderá sacar 80% do FGTS.
+COMENTÁRIO: Dito isso, Penélope poderá levantar o valor de R$ 2.400,00 (80% de 3.000,00) de FGTS, bem como receber indenização sobre o saldo da conta do FGTS no valor de R$ 600,00 (20% de 3.000,00 OU 50% de 1.200,00).
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA D)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (313)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2098407)
+ASSUNTO: Direito do Trabalho
+Princípios do Direito do Trabalho ,
+Direito do Trabalho
+ENUNCIADO: O princípio norteador do exercício do jus variandi pelo empregador, conforme disciplina a Consolidação das Leis do Trabalho é o
+ALTERNATIVAS:
+  A) do in dubio pro operario, desde que haja acordo mútuo entre empregado e empregador, sendo irrelevante o resultado de prejuízo ao trabalhador.
+  B) da ausência de prejuízo ao empregado, independente de haver ou não mútuo consentimento.
+  C) da primazia da realidade, não sendo relevante o resultado de prejuízo ao empregado.
+  D) da condição mais benéfica ao trabalhador, não sendo condição essencial a concordância do empregado.
+  E) do mútuo consentimento, aliado ao da ausência de prejuízo, quer direto, quer indireto ao empregado.
+COMENTÁRIO: 05 de Abril de 2023 às 11:19
+COMENTÁRIO: Gabarito letra "E": do mútuo consentimento, aliado ao da ausência de prejuízo, quer direto, quer indireto ao empregado.
+COMENTÁRIO: Art. 468 - Nos contratos individuais de trabalho só é lícita a alteração das respectivas condições (jus variandi é igual a ...) por mútuo consentimento (+), e ainda assim desde que não resultem, direta ou indiretamente, prejuízos ao empregado, sob pena de nulidade da cláusula infringente desta garantia.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (801)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2098406)
+ASSUNTO: Direito Administrativo
+Poderes da Administração ,
+Poder de polícia
+ENUNCIADO: A apreensão de documentos pertencentes à pessoa jurídica, por agentes da Administração Pública durante ação de fiscalização de estabelecimentos em determinado segmento,
+ALTERNATIVAS:
+  A) é expressão do princípio da eficiência, que, em razão de expressa previsão constitucional e de seu status hierarquicamente superior, prescinde de fundamento legal para o respectivo exercício.
+  B) depende de expressa autorização judicial, diante da natureza cautelar da medida, o que excederia os limites da ação fiscalizatória disciplinar da Administração Pública.
+  C) configura exercício do poder disciplinar, que submete não apenas os servidores públicos à autoridade administrativa, mas também os administrados à tutela estatal.
+  D) é manifestação do poder normativo da Administração Pública, que pode editar atos normativos originários para fundamentar a adoção de ações e medidas cautelares repressivas em face dos administrados.
+  E) configura legítima atuação do poder de polícia administrativa, que não dispensa a observância do contraditório em favor da empresa, admitido, contudo, de forma justificada, o diferimento desse exercício.
+COMENTÁRIO: 05 de Abril de 2023 às 16:00
+COMENTÁRIO: CONTRADITÓRIO DIFERIDO: Tendo em vista que um dos atributos do poder de polícia é a AUTOEXECUTORIEDADE, (decorrente de lei ou de situações emergenciais) existe então a possibilidade do contraditório diferido em situações em que para que o interesse público seja alcançado, a administração pratica o ato e POSTERIORMENTE confere o direito de defesa.
+COMENTÁRIO: Existe também a MOTIVAÇÃO DIFERIDA, quando é admitida a convalidação de ato imotivado por meio da explicação posterior dos motivos que levaram à sua prática.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (385)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2098405)
+ASSUNTO: Direito Administrativo
+Atos administrativos ,
+Conceito e classificação dos atos administrativos
+ENUNCIADO: Considerando a natureza jurídica dos atos administrativos e a competência para sua edição,
+ALTERNATIVAS:
+  A) somente autoridades integrantes da Administração Pública podem proferi-los, na medida em que representam ou veiculam manifestação de vontade do Poder Executivo.
+  B) somente os atos vinculados editados com vício de competência podem ser convalidados, não se admitindo convalidação de atos de natureza discricionária.
+  C) são proferidos pelas autoridades indicadas pela legislação, não se admitindo convalidação de atos discricionários ou vinculados.
+  D) podem ser editados por agentes públicos integrantes da estrutura da Administração Pública, mas também por integrantes do Poder Judiciário, quando no exercício de funções executivas típicas.
+  E) os atos praticados com vício de forma ou de procedimento admitem convalidação, o que não se aplica ao vício de competência, porque insanável.
+COMENTÁRIO: 05 de Abril de 2023 às 10:12
+COMENTÁRIO: FUNÇÃO TÍPICA DO PODER JUDICIARO : JULGAR
+COMENTÁRIO: FUNÇÃO ATIPICA DO JUDICIARIO: LEGISLAR E ADMINISTRAR
+COMENTÁRIO: Acredito que seja uma questão passível de anulação
+COMENTÁRIO: Gostei
+COMENTÁRIO: (573)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (13)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2098404)
+ASSUNTO: Direito Administrativo
+Parcerias público-privadas ,
+Serviços Públicos
+ENUNCIADO: A contratação de uma parceria público-privada impõe à Administração Pública a observância de critérios previstos na Lei federal nº 11.079/2004, além de lhe facultar a previsão de disposições específicas, de forma que
+ALTERNATIVAS:
+  A) a vigência contratual seja obrigatoriamente superior a 20 anos, como forma de garantir a amortização dos investimentos realizados pelo parceiro privado, com exceção dos contratos de concessão administrativa nos quais não haja previsão de aporte de recursos públicos, os quais podem ter vigência por prazo inferior.
+  B) seja prevista, no contrato firmado, a repartição de riscos entre as partes, inclusive com tratamento sobre caso fortuito e força maior, inexistindo vedação para que estes sejam integralmente assumidos pelo parceiro público, sendo justificada a escolha.
+  C) seja facultada a previsão contratual de exigência de garantias, a serem prestadas pelo parceiro privado e pelo parceiro público, proporcional aos valores envolvidos para a execução do contrato e para a realização dos aportes de recursos públicos.
+  D) haja tratamento, no edital de licitação e no respectivo contrato, sobre a repartição de riscos entre as partes, não se admitindo integral assunção de responsabilidade pela Administração Pública, com exceção daqueles atinentes a caso fortuito e força maior, que não podem ser trespassados ao parceiro privado, em razão de disposição legal expressa.
+  E) seja permitido à Administração Pública a realização de aporte de recursos exclusivamente para fins de aquisição de bens reversíveis, na medida em que referidos ativos serão transferidos ao poder concedente quando da extinção do contrato.
+COMENTÁRIO: 05 de Abril de 2023 às 14:14
+COMENTÁRIO: Lei nº 11.079/2004
+COMENTÁRIO: Art. 5º As cláusulas dos contratos de parceria público-privada atenderão ao disposto no art. 23 da Lei nº 8.987/1995 no que couber, devendo também prever: (obs: não é uma faculdade!)
+COMENTÁRIO: I – o prazo de vigência do contrato, compatível com a amortização dos investimentos realizados, não inferior a 5 (cinco), nem superior a 35 (trinta e cinco) anos, incluindo eventual prorrogação;
+COMENTÁRIO: III – a repartição de riscos entre as partes, inclusive os referentes a caso fortuito, força maior, fato do príncipe e álea econômica extraordinária;
+COMENTÁRIO: VIII – a prestação, pelo parceiro privado, de garantias de execução suficientes e compatíveis com os ônus e riscos envolvidos, observados os limites dos (...) e, no que se refere às concessões patrocinadas, o disposto no (...)
+COMENTÁRIO: XI - o cronograma e os marcos para o repasse ao parceiro privado das parcelas do aporte de recursos, na fase de investimentos do projeto e/ou após a disponibilização dos serviços, sempre que verificada a hipótese do § 2º do art. 6º desta Lei.
+COMENTÁRIO: Art. 6º
+COMENTÁRIO: § 2º O contrato poderá prever o aporte de recursos em favor do parceiro privado para a realização de obras e aquisição de bens reversíveis, nos termos dos incisos X e XI do caput do art. 18 da Lei nº 8.987, de 13 de fevereiro de 1995, desde que autorizado no edital de licitação, se contratos novos, ou em lei específica, se contratos celebrados até 8 de agosto de 2012.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA B)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (277)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2098403)
+ASSUNTO: Direito Administrativo
+Improbidade administrativa - Lei nº 8.429 de 1992 e Lei nº 14.230 de 2021 ,
+Atos de Improbidade Administrativa e suas Sanções
+ENUNCIADO: Dentre as alterações introduzidas pela Lei federal nº 14.230/2021, na Lei federal nº 8.429/92, destaca-se a
+ALTERNATIVAS:
+  A) expressa previsão da responsabilização solidária dos representantes legais das pessoas jurídicas, quando a estas forem imputados atos de improbidade.
+  B) extensão da responsabilização solidária aos sucessores, herdeiros e outros beneficiados pelo ato de improbidade praticado, desde que seja demonstrada dolo ou culpa do sujeito ativo principal.
+  C) expressa exigência do elemento subjetivo dolo para extensão das disposições da lei aos particulares que induzirem ou concorrerem para a prática de ato de improbidade, ainda que não se enquadrem no conceito de agente público.
+  D) exclusão da previsão de responsabilização de pessoas jurídicas, restringindo-se os efeitos da lei aos limites da participação dos respectivos representantes legais, em razão da exigência do aspecto volitivo dolo.
+  E) exclusão da previsão de responsabilidade dos servidores públicos que não detenham vínculo funcional em razão de cargo efetivo ou emprego público.
+COMENTÁRIO: 05 de Abril de 2023 às 10:05
+COMENTÁRIO: Art. 3º As disposições desta Lei são aplicáveis, no que couber, àquele que, mesmo não sendo agente público, induza ou concorra dolosamente para a prática do ato de improbidade.
+COMENTÁRIO: Gab. C
+COMENTÁRIO: Gostei
+COMENTÁRIO: (275)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2098402)
+ASSUNTO: Direito Administrativo
+Processo Administrativo - Lei nº 9.784 de 1999 e Lei nº 14.210 de 2021 ,
+Demais aspectos da lei 9.784/99
+ENUNCIADO: A conclusão da instrução do processo administrativo regido pela Lei federal nº 9.784/1999
+ALTERNATIVAS:
+  A) enseja a faculdade de a Administração proferir decisão sobre o objeto do processo ou, alternativamente, sobrestar o trâmite do feito por até 90 dias, independentemente de oitiva do interessado ou de justificativa.
+  B) pode autorizar a tomada de decisão coordenada, caso, por exemplo, seja necessária a participação de 3 ou mais órgãos da Administração e não se trate de processo sancionador.
+  C) obriga a Administração a proferir decisão no prazo de 30 dias, sob pena de se considerar deferido o pleito, reconhecido o direito ou afastada a infração disciplinar imputada ao interessado.
+  D) permite que, nos casos de processos disciplinares, a Administração solicite a participação de outras autoridades hierarquicamente superiores, para deliberação mediante decisão coordenada.
+  E) dá lugar à fase decisória do processo, na qual a autoridade competente profere decisão ou, mediante justificativa, delega este ato a outros órgãos ou setores integrantes da mesma estrutura administrativa, para que seja adotada a chamada decisão coordenada.
+COMENTÁRIO: 05 de Abril de 2023 às 09:54
+COMENTÁRIO: Lei 9784:
+COMENTÁRIO: Art. 49-A. No âmbito da Administração Pública federal, as decisões administrativas que exijam a participação de 3 (três) ou mais setores, órgãos ou entidades poderão ser tomadas mediante decisão coordenada, sempre que:
+COMENTÁRIO: I - for justificável pela relevância da matéria; e
+COMENTÁRIO: II - houver discordância que prejudique a celeridade do processo administrativo decisório.
+COMENTÁRIO: § 1º Para os fins desta Lei, considera-se decisão coordenada a instância de natureza interinstitucional ou intersetorial que atua de forma compartilhada com a finalidade de simplificar o processo administrativo mediante participação concomitante de todas as autoridades e agentes decisórios e dos responsáveis pela instrução técnico-jurídica, observada a natureza do objeto e a compatibilidade do procedimento e de sua formalização com a legislação pertinente.
+COMENTÁRIO: (...)
+COMENTÁRIO: § 6º Não se aplica a decisão coordenada aos processos administrativos:
+COMENTÁRIO: I - de licitação;
+COMENTÁRIO: II - relacionados ao poder sancionador; ou
+COMENTÁRIO: III - em que estejam envolvidas autoridades de Poderes distintos.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (511)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2098401)
+ASSUNTO: Direito Constitucional
+Funções Essenciais à Justiça ,
+Defensoria Pública no Direito Constitucional
+ENUNCIADO: De acordo com a Constituição Federal, a incumbência para defender os direitos individuais daquele que comprovar a insuficiência de recursos é
+ALTERNATIVAS:
+  A) da Advocacia Pública, representada pela Advocacia-Geral da União, em todos os graus, apenas judicialmente, de forma integral e gratuita.
+  B) da Advocacia Pública, representada pela Advocacia-Geral da União, em todos os graus, judicial e extrajudicial, de forma integral e gratuita.
+  C) de qualquer integrante da advocacia privada, pois o advogado é indispensável à administração da justiça, sendo, nesse caso, violável por seus atos e manifestações no exercício da profissão.
+  D) da Defensoria Pública, em todos os graus, apenas judicialmente, de forma integral e gratuita.
+  E) da Defensoria Pública, em todos os graus, judicial e extrajudicial, de forma integral e gratuita.
+COMENTÁRIO: 05 de Abril de 2023 às 14:24
+COMENTÁRIO: CF/88, Art. 134. A Defensoria Pública é instituição permanente, essencial à função jurisdicional do Estado, incumbindo-lhe, como expressão e instrumento do regime democrático, fundamentalmente, a orientação jurídica, a promoção dos direitos humanos e a defesa, em todos os graus, judicial e extrajudicial, dos direitos individuais e coletivos, de forma integral e gratuita, aos necessitados (...)
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA E)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (280)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2098400)
+ASSUNTO: Direito Constitucional
+Supremo Tribunal Federal ,
+Organização do Poder Judiciário
+ENUNCIADO: De acordo com a Constituição Federal, compete ao Supremo Tribunal Federal processar e julgar, originariamente, dentre outros casos, o mandado de segurança contra ato
+ALTERNATIVAS:
+  A) da Mesa da Câmara dos Deputados e o habeas corpus, quando o coator for Tribunal Superior.
+  B) da Mesa da Câmara dos Deputados e o habeas corpus decidido em única instância pelos Tribunais Superiores, se denegatória a decisão.
+  C) de Ministro de Estado e o habeas corpus quando o coator for Tribunal Superior.
+  D) da Mesa da Câmara dos Deputados e o habeas data contra ato de Comandante da Marinha.
+  E) de Ministro de Estado e o habeas data contra o ato de Comandante do Exército.
+COMENTÁRIO: 08 de Abril de 2023 às 17:53
+COMENTÁRIO: DICA RÁPIDA
+COMENTÁRIO: O STF julga o M.S ou H.D contra ato de : (Art. 102. I - d)
+COMENTÁRIO: # 2 Autoridades: Presidente e PGR
+COMENTÁRIO: # 2 Mesas: Mesa da câmera e Mesa do senado
+COMENTÁRIO: # 2 Tribunais: TCU e STF
+COMENTÁRIO: .
+COMENTÁRIO: O STF julga o H.C. sendo paciente:
+COMENTÁRIO: # Ministro de Estado,
+COMENTÁRIO: # Comandantes do Exército, Marinha e Aeronáutica,
+COMENTÁRIO: # Membro dos Tribunais Superiores, TCU, Chefes de Missão Diplomática Permanente
+COMENTÁRIO: .
+COMENTÁRIO: O STJ julga o M.S ou H.D contra ato de :
+COMENTÁRIO: # Ministro de Estado,
+COMENTÁRIO: # Comandantes do Exército, Marinha e Aeronáutica,
+COMENTÁRIO: # e do próprio STJ
+COMENTÁRIO: .
+COMENTÁRIO: Qualquer erro me avisem.
+COMENTÁRIO: ========================================================================================
+COMENTÁRIO: Bons estudos pessoal.
+COMENTÁRIO: SIGA @pefs_trt
+COMENTÁRIO: Gostei
+COMENTÁRIO: (706)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2098399)
+ASSUNTO: Direito Constitucional
+Direitos Políticos
+ENUNCIADO: Jacinto foi eleito, em 2020, Prefeito do Município “X”, estando em seu primeiro mandato, sendo que, em 2022, sua esposa, Eleonora, ganhou, pela primeira vez, as eleições para Governadora do Estado “XY”, que engloba o Município “X”. Nas eleições de 2024, Jacinto pretende tentar a reeleição. De acordo com a Constituição Federal, com base apenas nas informações fornecidas e considerando que as demais condições de elegibilidade foram atendidas, Jacinto
+ALTERNATIVAS:
+  A) poderá se candidatar como pretende, pois não é inelegível para Prefeito, no território de jurisdição do Governador, o seu cônjuge, independentemente de ser candidato à reeleição.
+  B) não poderá se candidatar como pretende, pois é cônjuge da Governadora do Estado que engloba o Município “X”.
+  C) poderá se candidatar como pretende apenas se renunciar ao cargo de Prefeito seis meses antes do pleito.
+  D) poderá se candidatar como pretende, pois já é titular de mandato eletivo (Prefeito) e candidato à reeleição.
+  E) não poderá se candidatar como pretende, salvo se Eleonora renunciar ao seu mandato de Governadora até seis meses antes do pleito.
+COMENTÁRIO: 05 de Abril de 2023 às 11:11
+COMENTÁRIO: Art. 14, § 7º CF. São inelegíveis, no território de jurisdição do titular, o cônjuge e os parentes consanguíneos ou afins, até o segundo grau ou por adoção, do Presidente da República, de Governador de Estado ou Território, do Distrito Federal, de Prefeito ou de quem os haja substituído dentro dos seis meses anteriores ao pleito, salvo se já titular de mandato eletivo e candidato à reeleição (JACINTO).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (317)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2098398)
+ASSUNTO: Direito Constitucional
+Organização do Estado - União ,
+Organização Político-Administrativa do Estado
+ENUNCIADO: De acordo com a Constituição Federal, compete à União, dentre outras possibilidades,
+ALTERNATIVAS:
+  A) declarar a guerra e celebrar a paz, sendo uma de suas competências privativas a de legislar sobre o direito do trabalho.
+  B) manter o serviço postal e o correio aéreo nacional, sendo que a competência para legislar sobre o direito do trabalho é concorrente da União, dos Estados e do Distrito Federal.
+  C) declarar a guerra e celebrar a paz, sendo que a competência para legislar sobre o direito do trabalho é concorrente da União, dos Estados e do Distrito Federal.
+  D) manter o serviço postal e o correio aéreo nacional, sendo que a competência para legislar sobre o direito do trabalho é comum da União, dos Estados e do Distrito Federal.
+  E) declarar a guerra e celebrar a paz, sendo que a competência para legislar sobre o direito do trabalho é comum da União, dos Estados e do Distrito Federal.
+COMENTÁRIO: 05 de Abril de 2023 às 10:29
+COMENTÁRIO: Art. 21. Compete à União:
+COMENTÁRIO: II - declarar a guerra e celebrar a paz;
+COMENTÁRIO: Art. 22. Compete privativamente à União legislar sobre:
+COMENTÁRIO: I - direito civil, comercial, penal, processual, eleitoral, agrário, marítimo, aeronáutico, espacial e do trabalho;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (394)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2098397)
+ASSUNTO: Direito Constitucional
+Direitos da Nacionalidade
+ENUNCIADO: Martina nasceu quando seus pais, brasileiros natos, faziam um intercâmbio para aprender inglês em um determinado país estrangeiro. Ela foi registrada em repartição brasileira competente e, logo após seu nascimento, seus pais com ela voltaram para o Brasil, onde residem até o momento. Martina irá completar dezoito anos e deseja fazer curso superior com o objetivo de, futuramente, exercer cargo da carreira diplomática no Brasil. De acordo com a Constituição Federal, baseando-se apenas nas informações fornecidas, com relação ao cargo pretendido, Martina poderá exercê-lo
+ALTERNATIVAS:
+  A) independentemente de possuir nacionalidade brasileira.
+  B) apenas se se naturalizar brasileira, pois que não é considerada brasileira nata.
+  C) em razão de ser brasileira nata.
+  D) apenas se optar pela nacionalidade brasileira depois que atingida a sua maioridade.
+  E) apenas se seus pais tiverem feito a opção pela nacionalidade brasileira de Martina assim que chegaram no Brasil.
+COMENTÁRIO: 05 de Abril de 2023 às 09:53
+COMENTÁRIO: Martina é brasileira nata e pretende exercer cargo privativo de brasileiro nato (art. 12, §3º, V, CF). Assim, não há nenhum impedimento para que ela venha a exercê-lo.
+COMENTÁRIO: CF/88. Art. 12. São brasileiros:
+COMENTÁRIO: I - natos:
+COMENTÁRIO: c) os nascidos no estrangeiro de pai brasileiro ou de mãe brasileira, desde que sejam registrados em repartição brasileira competente ou venham a residir na República Federativa do Brasil e optem, em qualquer tempo, depois de atingida a maioridade, pela nacionalidade brasileira;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (300)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2098396)
+ASSUNTO: Direito Administrativo
+Lei nº 8.112-1990 - Regime jurídico dos servidores públicos federais ,
+Agentes públicos e Lei 8.112 de 1990
+ENUNCIADO: Nos termos da Lei nº 8.112/1990,
+ALTERNATIVAS:
+  A) a remoção do servidor está condicionada à mudança de sede.
+  B) a redistribuição é processo previsto para cargos de provimento efetivo e em comissão.
+  C) o servidor estável inabilitado em estágio probatório relativo a outro cargo será submetido à recondução ao cargo anteriormente ocupado, desde que não provido.
+  D) a reintegração é a reinvestidura do servidor estável ou em estágio probatório.
+  E) a reversão é o processo que alcança servidores ativos e aposentados.
+COMENTÁRIO: 05 de Abril de 2023 às 10:54
+COMENTÁRIO: Lei nº 8.112/1990
+COMENTÁRIO: A) ERRADA! Art. 36.  Remoção é o deslocamento do servidor, a pedido ou de ofício, no âmbito do mesmo quadro, com OU sem mudança de sede.
+COMENTÁRIO: B) ERRADA! Art. 37.  Redistribuição é o deslocamento de cargo de provimento efetivo, ocupado ou vago no âmbito do quadro geral de pessoal, para outro órgão ou entidade do mesmo Poder, com prévia apreciação do órgão central do SIPEC (...)
+COMENTÁRIO: C) CORRETA! Art. 20. § 2  O servidor não aprovado no estágio probatório será exonerado ou, se estável, reconduzido ao cargo anteriormente ocupado, observado o disposto no parágrafo único do art. 29.
+COMENTÁRIO: Art. 29.  Parágrafo único.  Encontrando-se provido o cargo de origem, o servidor será aproveitado em outro, observado o disposto no art. 30.
+COMENTÁRIO: D) ERRADA! Art. 28.  A reintegração é a reinvestidura do servidor estável no cargo anteriormente ocupado, ou no cargo resultante de sua transformação, quando invalidada a sua demissão por decisão administrativa ou judicial, com ressarcimento de todas as vantagens.
+COMENTÁRIO: E) ERRADA! Art. 25.  Reversão é o retorno à atividade de servidor aposentado (...)
+COMENTÁRIO: .
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (606)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2098395)
+ASSUNTO: Direito Administrativo
+Lei nº 8.112-1990 - Regime jurídico dos servidores públicos federais ,
+Agentes públicos e Lei 8.112 de 1990
+ENUNCIADO: Considere o seguinte histórico, referente a servidor no mesmo município:
+
+- data da publicação do ato de provimento: 10/3/2022.
+- data da posse: 20/3/2022.
+- data da entrada em exercício: 30/5/2022.
+
+Nos termos constantes da Lei nº 8.112/1990, há ilegalidade, uma vez que
+ALTERNATIVAS:
+  A) a data da posse não tem como referência a data da publicação do ato de provimento.
+  B) a posse deve ocorrer no prazo de quinze dias contados da publicação do ato de provimento.
+  C) a posse e a entrada em exercício devem ocorrer na mesma data.
+  D) a entrada em exercício independe da data da posse.
+  E) é de quinze dias o prazo para o servidor empossado em cargo público entrar em exercício, contados da data da posse.
+COMENTÁRIO: 05 de Abril de 2023 às 10:38
+COMENTÁRIO: Lei nº 8.112/1990
+COMENTÁRIO: Art. 13.  § 1  A posse ocorrerá no prazo de trinta dias contados da publicação do ato de provimento.
+COMENTÁRIO: Art. 15.  § 1  É de quinze dias o prazo para o servidor empossado em cargo público entrar em exercício, contados da data da posse.
+COMENTÁRIO: O servidor demorou mais de 2 meses para entrar em exercício, não obedecendo o prazo de 15 dias conforme a Lei nº 8.112. Logo, essa é a ilegalidade a ser apontada.
+COMENTÁRIO: _________________________________________________________________________________________________________________
+COMENTÁRIO: ESQUEMA:
+COMENTÁRIO: Nomeação (provimento) --> Prazo MÁX: 30 dias --> Posse (Investidura) --> Prazo MÁX: 15 dias --> Entrar em exercício
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA E)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (377)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2098391)
+ASSUNTO: Matemática
+Aritmética e Problemas ,
+Porcentagem
+ENUNCIADO: João pediu emprestado R$ 1.000,00 a serem pagos em 30 dias com acréscimo de 10%, mas como pagou antes do prazo recebeu desconto de 5% sobre o valor que deveria pagar. O valor pago pelo empréstimo foi de
+ALTERNATIVAS:
+  A) R$ 1.105,00
+  B) R$ 1.005,00
+  C) R$ 1.045,00
+  D) R$ 1.255,00
+  E) R$ 1.095,00
+COMENTÁRIO: 06 de Abril de 2023 às 22:55
+COMENTÁRIO: O valor empréstimo de R$ 1.000 se pago em 30 dias teria acréscimo de 10%, portanto:
+COMENTÁRIO: R$ 1.000 + 10% = R$ 1.100
+COMENTÁRIO: Pagou antes teve desconto de 5% sobre o valor que deveria pagar. Qual o valor que deveria pagar? R$ 1.100. Portanto:
+COMENTÁRIO: R$ 1.100 - 5% = R$ 1045
+COMENTÁRIO: "Seja forte e corajoso" (Josué 1:9)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (49)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2098390)
+ASSUNTO: Matemática
+Aritmética e Problemas ,
+Médias
+ENUNCIADO: Em uma turma de 60 alunos, 10 foram reprovados. Sabendo-se que a média dos alunos aprovados foi 8,5 e a média dos alunos reprovados foi de 3,4, a média da turma foi
+ALTERNATIVAS:
+  A) 8,35
+  B) 7,65
+  C) 7,95
+  D) 6,95
+  E) 7,05
+COMENTÁRIO: 10 de Abril de 2023 às 19:43
+COMENTÁRIO: Gabarito Letra B
+COMENTÁRIO: 50 . 8,5 = 425
+COMENTÁRIO: 10 . 3,4 = 34
+COMENTÁRIO: 425 + 34 = 459
+COMENTÁRIO: 459/60 = 7,65
+COMENTÁRIO: Gostei
+COMENTÁRIO: (120)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2098389)
+ASSUNTO: Matemática
+Progressões ,
+Progressão Aritmética - PA
+ENUNCIADO: Dois números diferentes são escolhidos do conjunto {1, 2, 3, 4, 5, 6, 7, 8, 9}. Em relação aos dois números escolhidos, sabe-se que a soma deles é igual ao produto deles menos 2 e que a diferença entre eles é 2. A soma dos dois números escolhidos é:
+ALTERNATIVAS:
+  A) 4
+  B) 8
+  C) 14
+  D) 6
+  E) 10
+COMENTÁRIO: 09 de Abril de 2023 às 16:48
+COMENTÁRIO: Montei a equação e testei a primeira opção com 1 e 3, não funcionou, a segunda opção com 2 e 4 deu certo.
+COMENTÁRIO: *Diferença entre os números é 2
+COMENTÁRIO: *Soma deles é igual ao produto deles menos 2
+COMENTÁRIO: =============
+COMENTÁRIO: 2 + 4 = (2 x 4) - 2
+COMENTÁRIO: 6 = 8 - 2
+COMENTÁRIO: 6 = 6 ✔
+COMENTÁRIO: Gostei
+COMENTÁRIO: (69)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2098388)
+ASSUNTO: Matemática
+Aritmética e Problemas ,
+Álgebra ,
+Potência
+( assuntos)
+ENUNCIADO: O valor da expressão (1/3)-1 + (2/3)-1 + (3/3)-1 + (4/3)-1 é:
+ALTERNATIVAS:
+  A) (5/2)2
+  B) (2/5)2
+  C) (5/3)-1
+  D) (5/3)2
+  E) (3/5)2
+COMENTÁRIO: 11 de Abril de 2023 às 19:37
+COMENTÁRIO: Quando há uma fração elevada a um expoente negativo é necessário inverter numerador e denominador. Desse modo, deve-se calcular:
+COMENTÁRIO: 3/1 + 3/2 + 3/3 + 3/4
+COMENTÁRIO: Gostei
+COMENTÁRIO: (84)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2098387)
+ASSUNTO: Matemática
+Aritmética e Problemas ,
+Porcentagem
+ENUNCIADO: João recebeu um aumento de 2% em sua remuneração semanal e Maria, que ganhava o dobro de João antes do aumento de 2%, recebeu um aumento de 10% em sua remuneração semanal. A soma das duas remunerações semanais após os respectivos aumentos é de R$ 3.220,00. O valor da remuneração semanal de João antes do aumento era de
+ALTERNATIVAS:
+  A) R$ 780,00
+  B) R$ 720,00
+  C) R$ 1.360,00
+  D) R$ 1.200,00
+  E) R$ 1.000,00
+COMENTÁRIO: 06 de Abril de 2023 às 23:16
+COMENTÁRIO: Consideremos que a remuneração de João seja a variável x
+COMENTÁRIO: João recebe um aumento de 2%, que podemos representar por 0,02x
+COMENTÁRIO: Então após o aumento a remuneração de João pode ser representada assim: x + 0,02x
+COMENTÁRIO: Maria ganhava o dobro da remuneração do João antes do aumento, ou seja: 2x
+COMENTÁRIO: Maria recebeu um aumento de 10% , que podemos representar por 0,1 . 2x , portanto: 0,2x
+COMENTÁRIO: Então após o aumento a remuneração de Maria pode ser representada assim: 2x + 0,2x
+COMENTÁRIO: A soma das duas remunerações após os aumentos é de R$ 3.220
+COMENTÁRIO: Logo: (x + 0,02x) + (2x + 0,2x) = 3.220
+COMENTÁRIO: Portanto resolvemos a equação para descobrir o valor da variável x , que representa o valor da remuneração de João antes do aumento
+COMENTÁRIO: Temos:
+COMENTÁRIO: (x + 0,02x) + (2x + 0,2x) = 3.220
+COMENTÁRIO: x + 0,02x + 2x + 0,2x = 3.220
+COMENTÁRIO: 3x + 0,22x = 3.220
+COMENTÁRIO: 3,22x = 3.220
+COMENTÁRIO: x = 3.220 / 3,22
+COMENTÁRIO: x = 1.000
+COMENTÁRIO: "Seja forte e corajoso" (Josué 1:9)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (66)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2098386)
+ASSUNTO: Matemática
+Aritmética e Problemas ,
+Porcentagem
+ENUNCIADO: Sabe-se que 10% da metade de um número mais 80% do dobro desse mesmo número vale 33. Esse número é:
+ALTERNATIVAS:
+  A) 21
+  B) 12
+  C) 20
+  D) 14
+  E) 18
+COMENTÁRIO: 10 de Abril de 2023 às 20:12
+COMENTÁRIO: Gabarito letra C
+COMENTÁRIO: Nesse tipo de alternativa eu uso a alternativa que é o meio termo.
+COMENTÁRIO: Eu poderia ter pego 18, como havia 20( que era muito mais facil de calcular) optei por ele. E ja era o gabarito.
+COMENTÁRIO: 10% da metade de 20 ~>10 = 1
+COMENTÁRIO: 80% do dobro de 20 ~>40 = 32
+COMENTÁRIO: 32+1 = 33
+COMENTÁRIO: Gostei
+COMENTÁRIO: (110)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2098385)
+ASSUNTO: Matemática
+Aritmética e Problemas ,
+Porcentagem
+ENUNCIADO: Abelardo gasta sua renda mensal da seguinte maneira: metade da renda é destinada para gastos fixos, tais como moradia e supermercado. Para os gastos variáveis, como lazer, ele destina 25% da renda, e com saúde ele gasta 15% de sua renda. O restante ele destina à sua poupança. Se no mês de novembro Abelardo poupou R$ 1.200,00, sua renda nesse mês foi de
+ALTERNATIVAS:
+  A) R$ 12.000,00
+  B) R$ 6.000,00
+  C) R$ 24.000,00
+  D) R$ 8.000,00
+  E) R$ 10.000,00
+COMENTÁRIO: 10 de Abril de 2023 às 20:17
+COMENTÁRIO: Gabarito Letra A
+COMENTÁRIO: Usa metade para os gastos fixos = 50%
+COMENTÁRIO: Usa 25% para lazer
+COMENTÁRIO: Usa 15% para saude
+COMENTÁRIO: Somando tudo da 90%
+COMENTÁRIO: Ou seja, o que ele investiu foi 10% que era 1200..
+COMENTÁRIO: Logo, ele investiu 1 de 10. Isto é, faltam os outros 9 de 10
+COMENTÁRIO: 1 + 9 = 10 e 10 . 1,200 = 12.000
+COMENTÁRIO: Gostei
+COMENTÁRIO: (39)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2098383)
+ASSUNTO: Português
+Interpretação de Textos ,
+Redação - Reescritura de texto
+TEXTO ASSOCIADO: Atenção: Para responder à questão, baseie-se no texto abaixo.
+Uma visita
+   Era já no fim da tarde quando a moça − muito linda, mas muito aflita −, de nome Francisca Bastos Cordeiro, foi entrando pela
+porta entreaberta do chalé, seguiu direto ao quarto (antiga sala de costura da casa, ao tempo em que sua dona era viva), onde
+encontrou, estendido e frágil numa pequena cama de ferro, aquele homem, muito velhinho já, agonizante quase, que lhe fora bom
+companheiro em noites idas de sua infância, quando com ela jogava o sete e meio e lhe ensinava a recitar poemas na casa de sua
+avó.
+   − Vim vê-lo, foi dizendo a moça, inventando uma alegria na voz que lhe disfarçasse a emoção. Estou com muitas saudades
+suas. E o senhor, não está com saudades de mim?   − Estou, sim − disse o velho, numa voz muito cava e muito triste. Estou com saudade da vida.
+   No dia seguinte morria Machado de Assis. A tarde era a de 28 de setembro de 1908. A rua era a do Cosme Velho.
+(Adaptado de: MELLO, Thiago de. Escritor por escritor − Machado de Assis por seus pares – 1939-2008. São Paulo: Imprensa Oficial do
+Estado, 2019, p. 278-279)
+ENUNCIADO: Ela encontrou estendido na cama, agonizante quase, aquele que lhe fora um valioso companheiro em noites idas de sua infância.
+
+Numa nova redação, o período acima permanecerá gramaticalmente correto no caso de se substituir os elementos sublinhados, na ordem dada, por:
+ALTERNATIVAS:
+  A) à beira da agonia − cuja companhia fora preciosa
+  B) em eminente agonia − na qual companhia se enriquecera
+  C) à margem da agonia − a quem obtivera a rica companhia
+  D) relativamente agônico − de quem usufruíra bom companheirismo
+  E) agonizando mesmo − de cujo valor de companhia tivera
+COMENTÁRIO: 08 de Abril de 2023 às 16:41
+COMENTÁRIO: Dá para responder no jogo de palavras que a FCC gosta de usar, palavras sinônimas que possam expressar o mesmo sentido no texto...
+COMENTÁRIO: Ela encontrou estendido na cama, agonizante quase, aquele que lhe fora um valioso companheiro em noites idas de sua infância.
+COMENTÁRIO: "Agonizante quase" -> à beira da agonia
+COMENTÁRIO: "aquele que lhe fora um valioso companheiro em noites idas de sua infância." -> Cuja companhia fora preciosa
+COMENTÁRIO: Eu acho que faltou grifar os outros termos, contudo mesmo assim dá para fazer a questão...
+COMENTÁRIO: Gostei
+COMENTÁRIO: (89)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2098382)
+ASSUNTO: Português
+Morfologia - Verbos ,
+Flexão verbal de tempo (presente, pretérito, futuro) ,
+Flexão verbal de modo (indicativo, subjuntivo, imperativo)
+ENUNCIADO: Está plenamente adequada a correlação entre os tempos e os modos verbais na frase:
+ALTERNATIVAS:
+  A) A moça fora visitar o soberbo escritor em respeito à amizade que desde os tempos de sua meninice cultivasse com ele.
+  B) Foi tocante a sinceridade das palavras que o grande escritor Machado de Assis houvera dito assim que a moça lhe fez aquela confissão.
+  C) Caso não houvesse entre ambos uma antiga e sólida amizade, a cena de despedida não viesse a despertar a comoção final.
+  D) Mal faz a moça sua declaração de saudades e já ouve do mestre as palavras gratas e melancólicas de quem da vida se despede.
+  E) A moça disfarçaria sua emoção inventando uma alegria que o escritor recebera com a melancólica consciência de quem esteja à morte.
+COMENTÁRIO: 10 de Abril de 2023 às 11:38
+COMENTÁRIO: Eu resolvi assim, pessoal. Qualquer erro pvf informem!
+COMENTÁRIO: (A) A moça fora visitar o soberbo escritor em respeito à amizade que desde os tempos de sua meninice cultivasse (cultivava) com ele.
+COMENTÁRIO: Pretérito mais que perfeito indicativo + Pretérito Imperfeito do indicativo (expressa ideia passado com continuidade)
+COMENTÁRIO: (B) Foi tocante a sinceridade das palavras que o grande escritor Machado de Assis houvera dito assim que a moça lhe fez
+COMENTÁRIO: aquela confissão.
+COMENTÁRIO: Pretérito + Pretérito + Presente(?) = passado só correlaciona com pretérito e futuro do pretérito
+COMENTÁRIO: (C) Caso não houvesse entre ambos uma antiga e sólida amizade, a cena de despedida não viesse (viria) a despertar a comoção final.
+COMENTÁRIO: pretérito imperfeito do subjuntivo + futuro do pretérito indicativo (correlação muito cobrada)
+COMENTÁRIO: (D) Mal faz a moça sua declaração de saudades e já ouve do mestre as palavras gratas e melancólicas de quem da vida se
+COMENTÁRIO: despede.
+COMENTÁRIO: Presente + Presente + Presente (Ok, é a resposta)
+COMENTÁRIO: (E) A moça disfarçaria sua emoção inventando uma alegria que o escritor recebera com a melancólica consciência de quem esteja à morte.
+COMENTÁRIO: Disfarçaria = futuro do pretérito indicativo (ideia de incerteza, logo não se encaixa no contexto da frase)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (196)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (6)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2098381)
+ASSUNTO: Português
+Interpretação de Textos ,
+Tipos de Discurso: Direto, Indireto e Indireto Livre
+ENUNCIADO: − Vim vê-lo, foi dizendo a moça, estou com muitas saudades suas. E o senhor, não está com saudades de mim?
+Transpondo o texto acima para o discurso indireto, ele deverá ficar:
+A moça foi dizendo que...
+ALTERNATIVAS:
+  A) fora visitá-lo, por estar com muitas saudades dele, se ele também estava com as mesmas saudades suas.
+  B) estou vindo pra lhe visitar, que estou com muitas saudades suas, e se ele também estava com as mesmas.
+  C) tinha vindo para lhe ver, e que estava com muitas saudades dele, tanto quanto ele as tinha por ela.
+  D) fora vê-lo por ter estado com saudades dele, e se o senhor também estava com muitas saudades dela.
+  E) tinha ido vê-lo, que estava com muitas saudades dele, e se ele também não estaria com saudades dela.
+COMENTÁRIO: 13 de Abril de 2023 às 18:36
+COMENTÁRIO: No discurso indireto é só pensar que você está contanto uma fofoca para alguém.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (344)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (7)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2098380)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: As informações que identificam aquele homem, muito velhinho já, agonizante quase, surgem tão somente no fecho do texto. Como efeito desse procedimento,
+ALTERNATIVAS:
+  A) a visita comovida da moça se explica plenamente em virtude da celebridade do moribundo, a quem ela foi prestar homenagem.
+  B) reverencia-se melhor a humildade com que um célebre escritor acolhia admiradores de sua importante obra literária.
+  C) toda a visitação acaba marcada pela razão simples da profunda amizade que ligava a moça a um seu velho amigo.
+  D) fica a impressão de que a visitante desconhecia a real importância histórica daquele seu amigo agonizante.
+  E) a declinação do nome completo da moça não deixa dúvida em qualquer leitor quanto a quem seja o doente visitado.
+COMENTÁRIO: 05 de Abril de 2023 às 09:49
+COMENTÁRIO: ➥ Perceba que o autor só diz quem é o homem ao final do texto. O mais importante para o enredo do texto não é “quem” está doente, e sim o que aquela pessoa representou para outro personagem (a moça).
+COMENTÁRIO: O efeito (a consequência) desse procedimento (de citar o nome da pessoa ao final) é o de a visitação acabar marcada pela razão simples da profunda amizade que ligava a moça a um seu velho amigo, isto é, a moça visitou o velho amigo não pelo o que ele era (um grande escritor), mas sim pelos laços afetivos que eles mantiveram ao longo da vida.
+COMENTÁRIO: Espero ter ajudado.
+COMENTÁRIO: Bons estudos! :)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (228)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (5)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2098379)
+ASSUNTO: Português
+Morfologia - Pronomes ,
+Pronomes pessoais oblíquos
+TEXTO ASSOCIADO: Atenção: Para responder à questão, baseie-se no texto abaixo.
+Encenação da morte
+   A vida nos quer, a morte nos quer. Somos o resultado da tensão ocasionada pelas duas forças que nos puxam. Esse equilíbrio
+não é estável. Amplo, diverso e elástico é o campo de força da vida, e vale a mesma coisa para o campo da morte. Se ficamos
+facilmente deprimidos ou exaltados é em razão das oscilações de intensidade desses dois campos magnéticos, sendo o tédio o
+relativo equilíbrio entre os dois.
+   Às vezes é mais intensa a pressão da vida, outras vezes é mais intensa a pressão da morte. Não se quer dizer com isso que a
+exaltação seja a morte e a depressão seja a vida. Há exaltações e exultações que se polarizam na morte, assim como há sistemas de
+depressão que gravitam em torno da vida. O estranho, do ponto de vista biológico, é que somos medularmente solitários com ambos
+os estados de imantação mais intensa, os da vida e os da morte. Não aproveitamos apenas a vida, mas usufruímos também as
+experiências da morte, desde que essas não nos matem.   Ganhei várias vezes da morte, isto é, inúmeras vezes os papéis que a morte representou para mim não chegaram a ser
+convincentes ou não chegaram a fazer grande sucesso. Matei várias mortes. (...) Mas outro dia dei dentro de mim com uma morte tão
+madura, tão forte, tão irrespondível, tão parecida comigo que fiquei no mais confuso dos sentimentos. Esta eu não posso matar, esta é
+a minha morte. O Vinícius de Moraes, que entende muito de morte, disse que nesse terreno há sempre margem de erro, e que talvez
+eu tenha ainda de andar um bocado mais antes de encontrar a minha morte. Pode ser. Não sei. Quem sabe?
+(Adaptado de CAMPOS, Paulo Mendes. Os sabiás da crônica. Antologia. Org. Augusto Massi. Belo Horizonte: Autêntica, 2021, p. 246-248,
+passim)
+ENUNCIADO: Ao tratar da morte, o cronista atribui à morte um poder de imantação tal que acaba por identificar a morte como uma força que, paradoxalmente, exerce uma estranha atração até mesmo sobre os que temem a morte.
+Evitam-se as viciosas repetições do período acima substituindo-se os elementos sublinhados, na ordem dada, por:
+ALTERNATIVAS:
+  A) atribui-lhe − identificá-la − a temem
+  B) lhe atribui − identificar a ela − lhe temem
+  C) atribui-lhe − a identificar − temem-lhe
+  D) atribui nela − lhe identificar − temem-na
+  E) a atribui − identificar-lhe − a temem
+COMENTÁRIO: 05 de Abril de 2023 às 09:58
+COMENTÁRIO: A regrinha que eu utilizo é a seguinte:
+COMENTÁRIO: 1- Para o verbos transitivos diretos:
+COMENTÁRIO: O verbo terminou em R, S ou Z? → Tire o R, S, Z e coloque LO/LA → Vender a casa → Vendê-la
+COMENTÁRIO: O verbo terminou em  ÕE ou M? → Adicione o NO/NA → Venderam a casa → Venderam-na.
+COMENTÁRIO: 2- Para o verbos transitivos indiretos:
+COMENTÁRIO: Adicione o lhe → "Responderam ao pastor que queriam (...)" (responderam A alguém) → "Responderam-lhe (referência ao pastor) que queriam".
+COMENTÁRIO: Lembre-se de ver se há atrativo antes rsrs (isso é pegadinha).
+COMENTÁRIO: Na questão:
+COMENTÁRIO: “Ao tratar da morte, o cronista atribui à morte um poder de imantação...”
+COMENTÁRIO: ➥ Quem atribui, atribui algo (um poder de imantação) A alguém (à morte). Para o objeto indireto, usamos o LHE. O correto, portanto, é “o cronista atribui-LHE um poder...” ou “o cronista LHE atribui um poder...”, pois, quando há sujeito explícito (o cronista) e não há palavra atrativa (palavras negativas, advérbios...), podemos optar pela próclise ou pela ênclise. Ex.: “Bruno te ama” ou “Bruno ama-te”.
+COMENTÁRIO: Com isso, eliminamos as alternativas D e E.
+COMENTÁRIO: “tal que acaba por identificar a morte como uma força que...”
+COMENTÁRIO: ➥ Seguindo o esqueminha, em verbos que terminam em R, S ou Z, retiramos esses finais e adicionamos o LO/LA: “acaba por identificá-LA”.
+COMENTÁRIO: ➥ Complementando: e a construção “identificar a ela” da B? Está correta? Sim, pessoal, mas só a assinalem se não houver "identificá-la" nas alternativas. Temos um objeto direto preposicionado. Como não podemos colocar pronome reto (eu, tu, ele, ela...) como objeto direto de um verbo (ex.: João ama ela), colocamos uma preposição para admitir essa construção (João ama a ela). Veja que o verbo não deixou de ser transitivo direto por isso (ainda dizemos: "quem ama, ama alguém"). O objeto direto (o "alguém") possui uma preposição, por isso chamamos a construção de objeto direto [que está] preposicionado.
+COMENTÁRIO: (FCC/TRT11/2017) Em “que um dia lhe valeu o desgastado título que o aclama como ’o maior país católico do mundo’”, o pronome destacado pode ser substituído por “a ele”, sem prejuízo do sentido e da correção originais. → Correto. Não poderíamos dizer “que aclama ele”, pois pronomes retos não podem ser objetos diretos. Para permitir a construção, colocamos a preposição “a”. Com isso, dizemos que há objeto direto preposicionado.
+COMENTÁRIO: “exerce uma estranha atração até mesmo sobre os que temem a morte...”
+COMENTÁRIO: ➥ Quem teme, teme algo. Como o verbo termina em M, colocamos um NA (temem-na) para concordar com a morte, certo? Não, pessoal! Vejam que temos um pronome relativo “que” antes do verbo. Pronomes relativos puxam o pronome e provocam a próclise. O correto é: “sobre os que A temem...”
+COMENTÁRIO: Espero ter ajudado.
+COMENTÁRIO: Bons estudos! :)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (378)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (6)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2098378)
+ASSUNTO: Português
+Interpretação de Textos ,
+Figuras de Linguagem
+ENUNCIADO: Ao longo do texto o autor se vale de vários paradoxos, tal como o que ocorre na seguinte formulação:
+ALTERNATIVAS:
+  A) Somos o resultado da tensão ocasionada pelas duas forças que nos puxam.
+  B) oscilações de intensidade desses dois campos magnéticos.
+  C) Às vezes é mais intensa a pressão da vida
+  D) usufruímos também as experiências da morte, desde que essas não nos matem.
+  E) O Vinícius de Moraes (...) disse que nesse terreno há sempre margem de erro.
+COMENTÁRIO: 05 de Abril de 2023 às 20:01
+COMENTÁRIO: O paradoxo é uma figura de linguagem que remete a aproximação de palavras contrárias que expressam ideias contraditórias. Ex: "Quanto mais damos, mais recebemos"; "O riso é uma coisa séria"; "O melhor improviso é aquele que é melhor preparado".
+COMENTÁRIO: GAB: D
+COMENTÁRIO: Gostei
+COMENTÁRIO: (215)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2098377)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: Considerando-se o contexto, um segmento do texto tem seu significado bem interpretado em:
+ALTERNATIVAS:
+  A) Amplo, diverso e elástico é o campo de força da vida (1º parágrafo) = O campo de força da vida é previsível em sua singularidade.
+  B) nesse terreno há sempre margem de erro (3º parágrafo) = em assuntos como esse é fatal que nos equivoquemos.
+  C) há sistemas de depressão que gravitam em torno da vida (2º parágrafo) = sobrevém a depressão quando nos entregamos aos instintos de viver.
+  D) usufruímos também as experiências da morte (2º parágrafo) = gerenciamos sobretudo uma vivência da eternidade.
+  E) sendo o tédio o relativo equilíbrio entre os dois (1º parágrafo) = ocorre o tédio quando somos atraídos por ambos os campos.
+COMENTÁRIO: 11 de Abril de 2023 às 16:19
+COMENTÁRIO: FATAL: que é inevitável; que ocorre como se fora determinado pelo destino.
+COMENTÁRIO: b) nesse terreno há sempre margem de erro (3º parágrafo) = em assuntos como esse é fatal que nos equivoquemos.
+COMENTÁRIO: Margem de erro= probabilidade pequena de erro, e não propriamente inevitável (fatal). Logo margem de erro é diferente de fatal.
+COMENTÁRIO: ...
+COMENTÁRIO: E) sendo o tédio o relativo equilíbrio entre os dois (1º parágrafo) = ocorre o tédio quando somos atraídos por ambos os campos.
+COMENTÁRIO: Ora, se o tédio fica equidistante das forças, logo é atraído por igual intensidade. Essa questão poderia cair em física tranquilo. Campos magnéticos e força magnética.
+COMENTÁRIO: Avante!
+COMENTÁRIO: Gostei
+COMENTÁRIO: (175)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2098376)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: Ao afirmar Matei várias mortes, o cronista está sugerindo que
+ALTERNATIVAS:
+  A) superou bravamente todos os riscos de morrer.
+  B) encenou a própria morte para sentir como seria.
+  C) venceu os desafios de uma ilusória fatalidade.
+  D) imaginou morrer quando nada o ameaçava.
+  E) supôs ter morrido num estado de delírio.
+COMENTÁRIO: 08 de Abril de 2023 às 21:51
+COMENTÁRIO: GAB.: C
+COMENTÁRIO: A citação "Matei várias mortes" é observada no seguinte trecho, que remete à ilusória fatalidade mencionada na alternativa:
+COMENTÁRIO: "...inúmeras vezes os papéis que a morte representou para mim não chegaram a ser convincentes ou não chegaram a fazer grande sucesso."
+COMENTÁRIO: Gostei
+COMENTÁRIO: (95)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2098375)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: Ao situar especificamente a tensão ocasionada pelas duas forças que nos puxam, no início do texto, o cronista está se referindo a um fenômeno que expressará em outro lugar como
+ALTERNATIVAS:
+  A) estados de imantação mais intensa.
+  B) diverso e elástico é o campo da vida.
+  C) somos medularmente solitários.
+  D) há sempre uma margem de erro.
+  E) talvez eu tenha ainda de andar um bocado.
+COMENTÁRIO: 08 de Abril de 2023 às 18:00
+COMENTÁRIO: Marquei B, contudo ao pesquisar sobre o que é "imantação" vi que tem referência a magnetismo e imã, o que tem relação com o enunciado da questão. "tensão ocasionada pelas duas forças que nos puxam"
+COMENTÁRIO: Gostei
+COMENTÁRIO: (179)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2098374)
+ASSUNTO: Português
+Morfologia - Verbos ,
+Flexão de voz (ativa, passiva, reflexiva) ,
+Formas nominais do verbo (particípio, gerúndio, infinitivo)
+TEXTO ASSOCIADO: Atenção: Para responder à questão, baseie-se no texto abaixo.
+[Acerca da “Igualdade”]
+  “Liberdade, Igualdade, Fraternidade” foi o grito de guerra da Revolução Francesa. Hoje há disciplinas inteiras − ramos da filosofia, da ciência política e dos estudos jurídicos − que têm a “igualdade” como tema central de estudos. Todos concordam que a
+igualdade é um valor; ninguém parece concordar quanto ao que se refere o termo. Igualdade de oportunidades? Igualdade de condições? Igualdade formal perante a lei?
+   Estaremos falando de uma ideologia, a crença de que todos na sociedade deveriam ser iguais − claro que não em todos os
+aspectos, mas nos mais importantes? Ou será uma sociedade em que as pessoas são efetivamente iguais? O que isso significaria de
+fato, na prática, em ambos os casos? Que todos os membros da sociedade têm igual acesso à terra, ou tratam uns aos outros com
+igual dignidade, ou são igualmente livres para expor suas opiniões em assembleias públicas?
+   A igualdade seria o apagamento do indivíduo ou a celebração do indivíduo? Numa sociedade, por exemplo, em que os mais
+poderosos são tratados como divindades e tomam as decisões mais importantes, é possível falar em igualdade? E as relações de
+gênero? Muitas sociedades tratadas como “igualitárias” na verdade têm seu igualitarismo restrito aos homens adultos. Em casos
+assim, podemos falar em igualdade de gêneros?
+   Como não existe nenhuma resposta clara e consensual a questões desse tipo, o uso do termo “igualitário” tem levado a
+discussões infindáveis. Para alguns teóricos do século XVII, a igualdade se manifestava no estado da Natureza. Igualdade, pois,
+seria um termo definido por omissão: identificaria uma humanidade que pudesse estar livre depois de removidas todas as armadilhas
+da civilização. Povos “igualitários” seriam, pois, aqueles sem príncipes, sem juízes, sem inspetores, sem sacerdotes, possivelmente
+sem cidades, sem escrita ou sequer agricultura. Seriam sociedades de iguais apenas no sentido estrito de que estariam ausentes
+todos os sinais mais evidentes de desigualdade.
+   Não há dúvida, pensando-se sempre no ideal de “igualdade”, de que algo deu muito errado no mundo. Uma ínfima parte da
+população controla o destino de quase todos os outros, e de uma maneira cada vez mais desastrosa.
+(Adaptado de: GRAEBER, David, e WENGROW, David. O despertar de tudo − Uma nova história da humanidade. Trad. Denise Bottmann e
+Claudio Marcondes. São Paulo: Companhia das Letras, 2022, p. 91 a 94, passim)
+ENUNCIADO: A frase o uso do termo “igualitário” tem levado a discussões infindáveis permanecerá gramaticalmente correta caso se substitua o elemento sublinhado por
+ALTERNATIVAS:
+  A) tem sido propiciado de
+  B) vem ensejando
+  C) abrange-se em
+  D) investe-se para
+  E) conclama à essas
+COMENTÁRIO: 15 de Abril de 2023 às 18:23
+COMENTÁRIO: ensejar = possibilitar, justificar, almejar
+COMENTÁRIO: Gostei
+COMENTÁRIO: (137)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2098373)
+ASSUNTO: Português
+Pontuação
+ENUNCIADO: É plenamente adequada a pontuação da seguinte frase:
+ALTERNATIVAS:
+  A) Diga-me, então: se você acha de fato pertinente esse quadro de definições, do termo “igualdade”.
+  B) Eu desejaria saber qual a dificuldade, que se apresenta, desde sempre para se definir o que é igualdade?
+  C) Sem dúvida não há consenso: devido ao fato de um conceito como este ser, dúbio já na raiz.
+  D) Há ainda os que esperam, apesar de tudo, que um dia se estabeleça, como prática real, um efetivo igualitarismo.
+  E) O conceito de igualitarismo, desde sempre vacilante aguarda, que sua prática, enfim venha a se dar, entre os que nele confiam.
+COMENTÁRIO: 05 de Abril de 2023 às 10:20
+COMENTÁRIO: (A) Diga-me, então: (1- x) se você acha de fato pertinente esse quadro de definições, (2- x) do termo “igualdade”.
+COMENTÁRIO: 1- Quem diz, diz algo. Diga a mim o quê? “se você acha...” (diga a mim isso). Os dois-pontos separam o verbo do objeto direto (complemento).
+COMENTÁRIO: 2- Definições do quê? Do termo igualdade. O adjunto adnominal (do termo igualdade) não pode ser separado do nome (substantivo) a que se refere.
+COMENTÁRIO: Correção: diga-me, então [,] se você acha de fato pertinente esse quadro de definições do termo “igualdade”.
+COMENTÁRIO: (B) Eu desejaria saber qual a dificuldade, que se apresenta, desde sempre para se definir o que é igualdade? → Errado. Pessoal, aqui há prejuízo no sentido. Veja que, ao isolar por vírgulas a oração adjetiva, ela se torna explicativa, mas o sentido no texto é o de restrição: eu não estou falando de toda dificuldade e explicando que ela é apresentada. Estou falando SOMENTE da dificuldade que se apresenta.
+COMENTÁRIO: Correção: Eu desejaria saber qual a dificuldade que se apresenta desde sempre para se definir o que é igualdade?
+COMENTÁRIO: ➥ Se você quiser saber a diferença entre explicativa e restritiva, veja esta questão: Q1913154
+COMENTÁRIO: (C) Sem dúvida não há consenso: devido ao fato de um conceito como este ser, (1- x) dúbio já na raiz. → Errado. Esse conceito é o quê? Dúbio. Não separamos o sujeito (conceito) do seu predicativo (dúbio) por apenas uma vírgula.
+COMENTÁRIO: (D) Há ainda os que esperam [,] apesar de tudo [,] (1) que um dia se estabeleça [,] como prática real [,] (2) um efetivo igualitarismo. → Correto.
+COMENTÁRIO: 1- Não poderíamos separar a expressão concessiva “apesar de tudo” com apenas uma vírgula , pois separaríamos o objeto direto do verbo esperar (quem espera, espera algo. Eles esperam o quê? Que um dia se estabeleça um efetivo igualitarismo. Eles esperam ISSO (que um dia...);
+COMENTÁRIO: 2- O que se estabelecerá? Um efetivo igualitarismo. O verbo não pode ser separado do seu sujeito por apenas uma vírgula. Veja que, entre o sujeito e o verbo há um expressão intercalada (como prática real), que está corretamente isolado por duas vírgulas.
+COMENTÁRIO: (E) O conceito de igualitarismo [,] desde sempre vacilante (1- x) aguarda, (2- x) que sua prática, (3- x) enfim venha a se dar, entre os que nele confiam. → Errado.
+COMENTÁRIO: 1- Até poderíamos colocar vírgula antes de “desde sempre vacilante”, desde que colocássemos outra vírgula após a expressão.
+COMENTÁRIO: 2- O conceito aguarda o quê? Que sua prática venha a se dar... O conceito aguarda ISSO. Não separamos o verbo do objeto direto.
+COMENTÁRIO: 3- Não separamos o sujeito (prática) do verbo (venha a se dar).
+COMENTÁRIO: 4- A prática vem a se dar entre o quê? Entre os que nele confiam. Não se separa verbo de complemento.
+COMENTÁRIO: Correção: O conceito de igualitarismo, desde sempre vacilante [,] aguarda que sua prática [,] enfim [,] venha a se dar entre os que nele confiam.
+COMENTÁRIO: Espero ter ajudado.
+COMENTÁRIO: Bons estudos! :)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (183)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+
+GABARITO FINAL
+--------------------
+Questão 1 (ID: Q2098416): C
+Questão 2 (ID: Q2098415): 
+Questão 3 (ID: Q2098414): C
+Questão 4 (ID: Q2098413): A
+Questão 5 (ID: Q2098412): A
+Questão 6 (ID: Q2098411): D
+Questão 7 (ID: Q2098410): 
+Questão 8 (ID: Q2098409): B
+Questão 9 (ID: Q2098408): D
+Questão 10 (ID: Q2098407): 
+Questão 11 (ID: Q2098406): E
+Questão 12 (ID: Q2098405): D
+Questão 13 (ID: Q2098404): B
+Questão 14 (ID: Q2098403): C
+Questão 15 (ID: Q2098402): 
+Questão 16 (ID: Q2098401): E
+Questão 17 (ID: Q2098400): A
+Questão 18 (ID: Q2098399): D
+Questão 19 (ID: Q2098398): A
+Questão 20 (ID: Q2098397): C
+Questão 1 (ID: Q2098396): C
+Questão 2 (ID: Q2098395): E
+Questão 3 (ID: Q2098391): C
+Questão 4 (ID: Q2098390): B
+Questão 5 (ID: Q2098389): D
+Questão 6 (ID: Q2098388): A
+Questão 7 (ID: Q2098387): E
+Questão 8 (ID: Q2098386): C
+Questão 9 (ID: Q2098385): A
+Questão 10 (ID: Q2098383): A
+Questão 11 (ID: Q2098382): 
+Questão 12 (ID: Q2098381): E
+Questão 13 (ID: Q2098380): 
+Questão 14 (ID: Q2098379): A
+Questão 15 (ID: Q2098378): 
+Questão 16 (ID: Q2098377): 
+Questão 17 (ID: Q2098376): C
+Questão 18 (ID: Q2098375): A
+Questão 19 (ID: Q2098374): B
+Questão 20 (ID: Q2098373): D

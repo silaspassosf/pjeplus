@@ -1,0 +1,24 @@
+[COMPETENCIA]
+CEP: 04.745-060 (4745060) - intervalo 4708000-4967999 Zona Sul [ultimo local de prestacao de servicos (art.651 CLT)]
+
+[Alertas]
+- nenhum alerta identificado
+
+[ITENS OK]
+- Documentos essenciais: procuracao (titulo do anexo) [nome reclamante localizado na procuracao] e documento de identidade (titulo do anexo) presentes
+- Partes: reclamante: REGIS APARECIDO CUSTODIO CPF: 36938909865
+- Segredo de justica: OK
+- B5_RECLAMADAS OK - 1/1 reclamada(s) com DOMICILIO ELETRONICO
+- Reclamadas: 1 reclamada(s); 1 com endereco detectado; CEPs analisados: 04745060
+- Responsabilidade subsidiaria / solidaria: unica reclamada, nao aplicavel
+- Tutela provisoria: OK
+- Juizo 100% digital: sem pedido expresso de Juizo 100% Digital na peticao
+- Pedidos liquidados: 29 pedido(s) com valor:
+    [pedido - R$ 1.749,80]
+    [pedido - R$ 524,94]
+- Pessoa fisica no polo passivo: sem pessoa fisica no polo passivo
+- Litispendencia / prevencao: OK
+- Endereco do reclamante: reclamante reside em Grande Sao Paulo/SP (UF nao informada) [fonte: api]
+- Audiencia virtual / telepresencial: sem pedido de audiencia virtual / telepresencial
+- Rito processual: SUMARISSIMO compativel (R$ 49416.36 entre alcada e 40 SM)
+- Art. 611-B CLT: OK

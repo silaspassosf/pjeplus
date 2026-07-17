@@ -1,0 +1,461 @@
+"""
+PEC.anexos.juntador.base - Funções base de juntada automática.
+
+Parte da refatoracao do PEC/anexos/core.py para melhor granularidade IA.
+Contém wrapper_juntada_geral, create_juntador e executar_juntada_ate_editor.
+"""
+
+import logging
+logger = logging.getLogger(__name__)
+
+import os
+import re
+import types
+from typing import Optional, Dict, Any, Callable, Union, List
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+
+# Imports do Fix
+from Fix.core import (
+    aguardar_e_clicar,
+    aguardar_renderizacao_nativa,
+    selecionar_opcao,
+    preencher_campo,
+    safe_click,
+    wait_for_clickable,
+    wait_for_visible,
+)
+from Fix.utils import (
+    inserir_html_no_editor_apos_marcador,
+    obter_ultimo_conteudo_clipboard,
+    executar_coleta_parametrizavel,
+    inserir_link_ato_validacao,
+)
+
+# Imports dos módulos refatorados
+from .anexos_extracao import extrair_numero_processo_da_url
+from .anexos_formatacao import formatar_conteudo_ecarta
+from .anexos_juntador_metodos import (
+    _escolher_opcao_gigs,
+    _preencher_input_gigs,
+    _clicar_elemento_gigs,
+    _selecionar_modelo_gigs,
+    _executar_coleta_opcional,
+    _preencher_tipo,
+    _preencher_descricao,
+    _configurar_sigilo,
+    _selecionar_e_inserir_modelo,
+    _inserir_conteudo_customizado,
+    _salvar_documento,
+    _assinar_se_necessario,
+)
+from .anexos_juntador_helpers import (
+    _abrir_interface_anexacao,
+    _preencher_campos_basicos,
+    _inserir_modelo,
+)
+
+
+def wrapper_juntada_geral(
+    driver: WebDriver,
+    tipo: str = 'Certidão',
+    descricao: Optional[str] = None,
+    sigilo: str = 'nao',
+    modelo: Optional[str] = None,
+    inserir_conteudo: Optional[Callable[[WebDriver, Optional[str], bool], bool]] = None,
+    assinar: str = 'nao',
+    coleta_conteudo: Optional[str] = None,
+    substituir_link: bool = False,
+    debug: bool = True
+) -> bool:
+    """
+    Wrapper geral para juntada automática, sequencial e parametrizado, inspirado em ato_judicial de atos.py.
+    Permite criar wrappers específicos apenas repassando os parâmetros desejados.
+    """
+    # Guard clause: validar driver
+    if not driver:
+        if debug:
+            logger.error('[WRAPPER_JUNTADA_GERAL] Driver inválido')
+        return False
+
+    if debug:
+        logger.info('[WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...')
+
+    # 0. Coleta de conteúdo (opcional)
+    if coleta_conteudo:
+        try:
+            numero_processo = extrair_numero_processo_da_url(driver)
+            if numero_processo:
+                logger.info(f'[WRAPPER_JUNTADA_GERAL][COLETA] Iniciando coleta: {coleta_conteudo} | processo: {numero_processo}')
+                executar_coleta_parametrizavel(driver, numero_processo, coleta_conteudo, debug=debug)
+            else:
+                if debug:
+                    logger.warning('[WRAPPER_JUNTADA_GERAL][COLETA][WARN] Número do processo não identificado')
+        except Exception as e:
+            if debug:
+                logger.warning(f'[WRAPPER_JUNTADA_GERAL][COLETA][WARN] Falha ao executar coleta opcional: {e}')
+
+    # 1. Cria juntador
+    juntador = create_juntador(driver)
+    configuracao = {
+        'tipo': tipo,
+        'descricao': descricao if descricao else 'Juntada automática',
+        'sigilo': sigilo,
+        'modelo': modelo,
+        'inserir_conteudo': inserir_conteudo,
+        'assinar': assinar,
+        'coleta_conteudo': coleta_conteudo,
+    }
+    # 2. Executa juntada principal
+    resultado = False
+    if hasattr(juntador, 'executar_juntada'):
+        resultado = juntador.executar_juntada(configuracao, substituir_link=substituir_link)
+    else:
+        if debug:
+            logger.error('[WRAPPER_JUNTADA_GERAL][ERRO] Objeto juntador não possui método executar_juntada')
+        return False
+
+    # Pequena pausa para permitir que snackbar desapareça antes de retornar
+    if resultado:
+        try:
+            aguardar_renderizacao_nativa(driver, timeout=2)
+        except Exception:
+            pass
+
+    if resultado:
+        if debug:
+            logger.info('[WRAPPER_JUNTADA_GERAL] Juntada automática concluída com sucesso!')
+    else:
+        if debug:
+            logger.warning('[WRAPPER_JUNTADA_GERAL] Juntada automática falhou ou foi pulada')
+    return resultado
+
+
+def make_juntada_wrapper(
+    tipo: str = 'Certidao',
+    descricao: Optional[str] = None,
+    sigilo: str = 'nao',
+    modelo: Optional[str] = None,
+    assinar: str = 'nao',
+    inserir_conteudo: Optional[Callable[[WebDriver, Optional[str], bool], bool]] = None,
+    coleta_conteudo: Optional[str] = None,
+    **extra: Any
+) -> Callable[..., bool]:
+    """
+    Factory que cria wrappers de juntada com parametros pre-definidos.
+
+    Segue o mesmo padrao de make_ato_wrapper (atos/judicial_fluxo.py) e
+    make_comunicacao_wrapper (atos/comunicacao.py): parametros de configuracao
+    sao capturados no closure e podem ser sobrescritos via **overrides.
+
+    Returns:
+        Callable: wrapper (driver, debug=True, **overrides) -> bool
+    """
+    def wrapper(driver: WebDriver, numero_processo: Optional[str] = None, debug: bool = True, **overrides: Any) -> bool:
+        params = {
+            'tipo': tipo,
+            'descricao': descricao,
+            'sigilo': sigilo,
+            'modelo': modelo,
+            'assinar': assinar,
+            'inserir_conteudo': inserir_conteudo,
+            'coleta_conteudo': coleta_conteudo,
+        }
+        params.update(overrides)
+        return wrapper_juntada_geral(driver=driver, debug=debug, **params)
+
+    # Nome para debugging
+    modelo_part = modelo.lower().replace(' ', '_') if modelo else 'sem_modelo'
+    wrapper.__name__ = f'juntada_{tipo.lower()}_{modelo_part}'
+    return wrapper
+
+
+def create_juntador(driver: WebDriver) -> Any:
+    """Cria um objeto simples com driver e métodos vinculados aos helpers existentes."""
+    ns = types.SimpleNamespace(driver=driver)
+    # Bind helpers
+    try:
+        ns._escolher_opcao_gigs = types.MethodType(globals().get('_escolher_opcao_gigs'), ns)
+    except Exception:
+        pass
+    try:
+        ns._preencher_input_gigs = types.MethodType(globals().get('_preencher_input_gigs'), ns)
+    except Exception:
+        pass
+    try:
+        ns._clicar_elemento_gigs = types.MethodType(globals().get('_clicar_elemento_gigs'), ns)
+    except Exception:
+        pass
+    try:
+        ns._selecionar_modelo_gigs = types.MethodType(globals().get('_selecionar_modelo_gigs'), ns)
+    except Exception:
+        pass
+    # Bind flows
+    ns.executar_juntada_ate_editor = types.MethodType(executar_juntada_ate_editor, ns)
+    try:
+        ns.executar_juntada = types.MethodType(globals().get('executar_juntada'), ns)
+    except Exception:
+        pass
+    # Bind decomposed helpers for executar_juntada
+    try:
+        ns._executar_coleta_opcional = types.MethodType(globals().get('_executar_coleta_opcional'), ns)
+    except Exception:
+        pass
+    try:
+        ns._preencher_tipo = types.MethodType(globals().get('_preencher_tipo'), ns)
+    except Exception:
+        pass
+    try:
+        ns._preencher_descricao = types.MethodType(globals().get('_preencher_descricao'), ns)
+    except Exception:
+        pass
+    try:
+        ns._configurar_sigilo = types.MethodType(globals().get('_configurar_sigilo'), ns)
+    except Exception:
+        pass
+    try:
+        ns._selecionar_e_inserir_modelo = types.MethodType(globals().get('_selecionar_e_inserir_modelo'), ns)
+    except Exception:
+        pass
+    try:
+        ns._inserir_conteudo_customizado = types.MethodType(globals().get('_inserir_conteudo_customizado'), ns)
+    except Exception:
+        pass
+    try:
+        ns._salvar_documento = types.MethodType(globals().get('_salvar_documento'), ns)
+    except Exception:
+        pass
+    try:
+        ns._assinar_se_necessario = types.MethodType(globals().get('_assinar_se_necessario'), ns)
+    except Exception:
+        pass
+    # Bind decomposed helpers for executar_juntada_ate_editor
+    try:
+        ns._abrir_interface_anexacao = types.MethodType(globals().get('_abrir_interface_anexacao'), ns)
+    except Exception:
+        pass
+    try:
+        ns._preencher_campos_basicos = types.MethodType(globals().get('_preencher_campos_basicos'), ns)
+    except Exception:
+        pass
+    try:
+        ns._inserir_modelo = types.MethodType(globals().get('_inserir_modelo'), ns)
+    except Exception:
+        pass
+    return ns
+
+
+def executar_juntada_ate_editor(self, configuracao: Dict[str, Any]) -> bool:
+    """
+    Executa a juntada até o ponto em que o editor está disponível e o modelo foi inserido,
+    mas NÃO clica em Salvar. Retorna True se sucesso, False se falha.
+
+    Orquestra: validação → abrir interface → preencher campos → inserir modelo
+    """
+    # Guard clause: validar parâmetros
+    if not self or not hasattr(self, 'driver') or not self.driver:
+        return False
+
+    if not configuracao:
+        return False
+
+    driver = self.driver
+    modelo = configuracao.get('modelo', '').strip().upper()
+
+    # Guard clause: validar modelo
+    if modelo == 'PDF':
+        logger.error('[JUNTADA][ERRO] Não faz sentido juntar PDF nesse fluxo!')
+        return False
+
+    try:
+        # 1. Abrir interface de anexação
+        if not self._abrir_interface_anexacao():
+            return False
+
+        # 2. Preencher campos básicos
+        if not self._preencher_campos_basicos(configuracao):
+            return False
+
+        # 3. Inserir modelo e verificar editor
+        if not self._inserir_modelo(configuracao):
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f'[JUNTADA][ERRO] Erro ao executar juntada até o editor: {e}')
+        return False
+
+
+def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool = False) -> bool:
+    """
+    Orquestra juntada automatica de anexos COM auto-navegacao.
+
+    Fluxo: navegacao (se necessario) -> tipo -> descricao -> sigilo -> modelo -> insercao -> salvar -> assinar
+    """
+    if not self or not hasattr(self, 'driver') or not self.driver:
+        return False
+
+    if not configuracao:
+        return False
+
+    driver = self.driver
+
+    # 0. Garantir interface de anexacao aberta
+    try:
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                if not driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'):
+                    if not self._abrir_interface_anexacao():
+                        return False
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'))
+                )
+                break
+            except Exception as inner_e:
+                if attempt == max_retries - 1:
+                    logger.error(f'[JUNTADA][ERRO] Interface de anexacao nao detectada apos {max_retries} tentativas: {inner_e}')
+                    return False
+                try:
+                    logger.info('[JUNTADA][WARN] Interface nao detectada — recarregando a pagina e tentando novamente')
+                    try:
+                        driver.refresh()
+                    except Exception:
+                        pass
+                    aguardar_renderizacao_nativa(driver, timeout=3)
+                    try:
+                        self._abrir_interface_anexacao()
+                    except Exception:
+                        pass
+                    aguardar_renderizacao_nativa(
+                        driver,
+                        'input[aria-label="Tipo de Documento"], input[data-placeholder="Tipo de Documento"]',
+                        'aparecer',
+                        3,
+                    )
+                    continue
+                except Exception:
+                    return False
+    except Exception as e:
+        logger.error(f'[JUNTADA][ERRO] Erro ao garantir interface de anexacao: {e}')
+        return False
+
+    # 1. Coleta opcional
+    if not self._executar_coleta_opcional(configuracao):
+        return False
+
+    # 2. Preencher tipo
+    if not self._preencher_tipo(configuracao):
+        return False
+
+    # 3. Preencher descricao
+    if not self._preencher_descricao(configuracao):
+        return False
+
+    # 4. Configurar sigilo
+    if not self._configurar_sigilo(configuracao):
+        return False
+
+    # 5. Selecionar modelo
+    if not self._selecionar_e_inserir_modelo(configuracao):
+        return False
+
+    # 6. Inserir conteudo customizado
+    if not self._inserir_conteudo_customizado(configuracao, substituir_link):
+        return False
+
+    # 7. Salvar documento
+    if not self._salvar_documento():
+        return False
+
+    # 8. Assinar se necessario
+    if not self._assinar_se_necessario(configuracao):
+        return False
+
+    return True
+
+
+def wrapper_juntada_com_navegacao(
+    driver: WebDriver,
+    tipo: str = 'Certidao',
+    descricao: Optional[str] = None,
+    sigilo: str = 'nao',
+    modelo: Optional[str] = None,
+    inserir_conteudo: Optional[Callable[[WebDriver, Optional[str], bool], bool]] = None,
+    assinar: str = 'nao',
+    coleta_conteudo: Optional[str] = None,
+    substituir_link: bool = False,
+    debug: bool = True,
+    fechar_aba_apos: bool = True
+) -> bool:
+    """
+    Wrapper completo de juntada COM navegacao.
+
+    Diferente de wrapper_juntada_geral (que espera ja estar na pagina /anexar),
+    esta funcao faz tudo a partir de qualquer aba do PJe:
+    1. Abre interface de anexacao (hamburguer -> Anexar Documentos -> switch aba)
+    2. Executa juntada completa (tipo, modelo, inserir, salvar, assinar)
+    3. Fecha a aba de anexacao e retorna para a aba original
+
+    Args:
+        driver: WebDriver do PJe
+        fechar_aba_apos: Se True (default), fecha a aba /anexar apos concluir
+        (demais parametros identicos a wrapper_juntada_geral)
+
+    Returns:
+        bool: True se a juntada foi concluida com sucesso
+    """
+    if not driver:
+        if debug:
+            logger.error('[JUNTADA_COMPLETA] Driver invalido')
+        return False
+
+    # Salvar aba original antes de navegar
+    try:
+        aba_original = driver.current_window_handle
+    except Exception:
+        aba_original = None
+
+    if debug:
+        logger.info('[JUNTADA_COMPLETA] Iniciando juntada com navegacao...')
+
+    # 1. Abrir interface de anexacao (navegacao)
+    juntador_nav = create_juntador(driver)
+    if not juntador_nav._abrir_interface_anexacao():
+        if debug:
+            logger.error('[JUNTADA_COMPLETA] Falha ao abrir interface de anexacao')
+        return False
+
+    # 2. Executar juntada completa (wrapper_juntada_geral ja faz tudo)
+    resultado = wrapper_juntada_geral(
+        driver=driver,
+        tipo=tipo,
+        descricao=descricao,
+        sigilo=sigilo,
+        modelo=modelo,
+        inserir_conteudo=inserir_conteudo,
+        assinar=assinar,
+        coleta_conteudo=coleta_conteudo,
+        substituir_link=substituir_link,
+        debug=debug
+    )
+
+    # 3. Fechar aba de anexacao e voltar para aba original
+    if fechar_aba_apos and aba_original:
+        try:
+            handles = driver.window_handles
+            if len(handles) > 1:
+                driver.close()
+                driver.switch_to.window(aba_original)
+                if debug:
+                    logger.info('[JUNTADA_COMPLETA] Aba de anexacao fechada, retornando a aba original')
+        except Exception as e:
+            if debug:
+                logger.warning('[JUNTADA_COMPLETA] Erro ao fechar aba de anexacao: %s', e)
+
+    return resultado

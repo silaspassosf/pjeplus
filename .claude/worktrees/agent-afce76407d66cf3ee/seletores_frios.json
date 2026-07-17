@@ -1,0 +1,5 @@
+{
+  "_frio__css selector_button[mattooltip=\"Abre a tarefa do processo\"]": "button[mattooltip=\"Abre a tarefa do processo\"]",
+  "_frio__css selector_.mat-progress-bar-primary.mat-progress-bar-fill": "//*[contains(normalize-space(.), \".mat-progress-bar-primary.mat-progress-bar-fill\")]",
+  "_frio__css selector_mat-dialog-container": "mat-dialog-container"
+}

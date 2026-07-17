@@ -1,0 +1,1811 @@
+QUESTÃO 1 (ID: Q3088357)
+ASSUNTO: Direito Constitucional
+Direitos Individuais - Remédios Constitucionais e Garantias Processuais ,
+Habeas Data ,
+Habeas Corpus
+ENUNCIADO: De acordo com a Constituição Federal,
+ALTERNATIVAS:
+  A) apenas a ação de habeas data é gratuita, e. na forma da lei, são gratuitos os atos necessários ao exercício da cidadania, bem como, independentemente da condição social, são gratuitos o registro civil de nascimento e a certidão de óbito.
+  B) apenas a ação de habeas corpus é gratuita, e, na forma da lei, são gratuitos os atos necessários ao exercício da cidadania, bem como, independentemente da condição social, são gratuitos o registro civil de nascimento e a certidão de óbito.
+  C) apenas a ação de habeas corpus é gratuita, e, na forma da lei, são gratuitos 05 atos necessários ao exercício da cidadania, bem como, para os reconhecidamente pobres, na forma da lei, são gratuitos o registro civil de nascimento e a certidão de óbito.
+  D) as ações de habeas corpus e habeas data são gratuitas, e, na forma da lei, são gratuitos os atos necessários ao exercício da cidadania, bem como, independentemente da condição social, são gratuitos o registro civil de nascimento e a certidão de óbito.
+  E) as ações de habeas corpus e habeas data são gratuitas, e, na forma da lei, são gratuitos os atos necessários ao exercício da cidadania, bem como, para os reconhecidamente pobres, na forma da lei, são gratuitos o registro civil de nascimento e a certidão de óbito.
+COMENTÁRIO: 30 de Novembro de 2024 às 10:22
+COMENTÁRIO: ART. 5. LXXVII - são gratuitas as ações de habeas corpus e habeas data, e, na forma da lei, os atos necessários ao exercício da cidadania.
+COMENTÁRIO: LXXVI - são gratuitos para os reconhecidamente pobres, na forma da lei:
+COMENTÁRIO: a) o registro civil de nascimento;
+COMENTÁRIO: b) a certidão de óbito;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (284)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q3088355)
+ASSUNTO: Noções de Informática
+Sistema Operacional ,
+Windows 10
+ENUNCIADO: No prompt de comando do Windows 10 é possível obter o endereço IPv4 do computador
+ALTERNATIVAS:
+  A) digitando o comando ipconfig e, após, pressionando Enter.
+  B) clicando em alt+F12.
+  C) digitando o comando ipaddress e, após, pressionando Enter.
+  D) clicando em configuração, digitando exibir ip e, após, pressionando Enter.
+  E) digitando o comando ipv4 e, após, pressionando Enter.
+COMENTÁRIO: 01 de Dezembro de 2024 às 08:40
+COMENTÁRIO: Quer descobrir o endereço IPv4 do seu computador?
+COMENTÁRIO: -> Abra o CMD ( Prompt de Comando )
+COMENTÁRIO: -> Digite: ipconfig e aperte enter
+COMENTÁRIO: -> Uma das linhas que aparecerá estará:
+COMENTÁRIO: Endereço IPv4. . . . . . . . . . . . . . . : ( Seu endereço de IPv4 )
+COMENTÁRIO: Obs.: Além disso, existe também o comando ipconfig/all se você quiser informações mais detalhadas sobre sua conexão de rede.
+COMENTÁRIO: No Linux, abra o bash (prompt de comando) e digite ifconfig
+COMENTÁRIO: Gabarito: Letra A
+COMENTÁRIO: Gostei
+COMENTÁRIO: (42)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q3088352)
+ASSUNTO: Noções de Informática
+Editor de Textos - Microsoft Word e BrOffice.org Writer ,
+Microsoft Word 2016 e 365
+ENUNCIADO: Usando o Word no Microsoft Office 365, em português, aberto e funcionando em condições ideais, o servidor de um Tribunal Regional do Trabalho produziu uma carta onde, em determinado local do texto, inseriu um endereço eletrônico. Quando fez isso, o Word criou um hyperlink para o endereço. Para excluir esse formato e deixar em texto normal, o servidor deve
+ALTERNATIVAS:
+  A) acessar a quia Formatar, escolher Referências é clicar em Remover e-mail.
+  B) clicar com o botão direito do mouse no hyperlink e escolher Remover hyperlink.
+  C) clicarem Remover Hyperlink na opção Formatar Hyperlink na guia Formatar.
+  D) acessar a quia Referências, escolher Referências Cruzadas e clicar em Remover e-mail.
+  E) clicar com o botão direito do mouse no hyperlink, escolher Referências Cruzadas e clicar em Remover Hyperlink.
+COMENTÁRIO: 30 de Novembro de 2024 às 06:13
+COMENTÁRIO: Essa foi o famoso chute técnico, imaginei que seria o mais fácil possível fazer isso.
+COMENTÁRIO: Então clicou com o botão direito e em seguida já clica em remover hyperlink.
+COMENTÁRIO: Ah Felipe, mas eu quero ficar bom em informática sem chute.
+COMENTÁRIO: Meu amigo, isso aqui é loteria, vai se preocupar com direito do trabalho e direito processual do trabalho, isso aqui depende da sorte te privilegiar no dia, os caras não sabem cobrar informática e não querem que ninguém feche a prova deles.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (151)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (5)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q3088351)
+ASSUNTO: Noções de Informática
+Sistema Operacional ,
+Windows 10
+ENUNCIADO: O servidor de um Tribunal Regional do Trabalho ajustou corretamente o formato de data do seu computador no Windows 10 Home, em português, aberto e funcionando em condições ideais, por meio do Painel de Controle exibido por categoria, clicando em
+ALTERNATIVAS:
+  A) Data e Hora e depois em Relógio e Região.
+  B) Relógios Região e depois em Data e Hora.
+  C) Data e Hora é depois em Configurar Data.
+  D) Relógio e Região é depois em Região.
+  E) Data e Hora e depois em Ajustar Data.
+COMENTÁRIO: 30 de Novembro de 2024 às 06:14
+COMENTÁRIO: Mais uma daquelas que eu errei e depois fui conferir no painel de controle, o que não adianta absolutamente nada, porque eles simplesmente vão pegar outro caminho maluco e cobrar na próxima, sem lei dos concursos fica difícil mesmo, fica essa impunidade dos examinadores.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (259)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (7)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q3088349)
+ASSUNTO: Direitos Humanos
+Sistema Interamericano de Proteção aos Direitos Humanos: Instrumentos Normativos ,
+Convenção Americana sobre Direitos Humanos (Pacto de San José)
+ENUNCIADO: Com relação ao disposto na Convenção Americana sobre Direitos Humanos, considere:
+
+I. Ninguém deve ser detido por dívida. Esse principio não limita os mandados de autoridade judiciária competente expedidos em virtude de inadimplemento de obrigação alimentar.
+
+II. Toda pessoa acusada de delito tem direito renunciável a, durante o processo, ser assistido por um defensor proporcionado pelo Estado, obrigatoriamente remunerado, segundo a legislação interna, se o acusado não se defender ele próprio nem nomear defensor dentro do prazo estabelecido pela lei.
+
+III. A liberdade de manifestar a própria religião e as próprias crenças está sujeita unicamente às limitações prescritas pela lei e que sejam necessárias para proteger a segurança, a ordem, a saúde ou a moral públicas ou os direitos ou liberdades das demais pessoas.
+
+
+Está correto o que se afirma em
+ALTERNATIVAS:
+  A) II e III, apenas.
+  B) I, II e III.
+  C) I e III, apenas.
+  D) I, apenas.
+  E) III, apenas.
+COMENTÁRIO: 30 de Novembro de 2024 às 17:34
+COMENTÁRIO: GABARITO LETRA C
+COMENTÁRIO: I. Ninguém deve ser detido por dívida. Esse principio não limita os mandados de autoridade judiciária competente expedidos em virtude de inadimplemento de obrigação alimentar.
+COMENTÁRIO: VERDADEIRA. Art. 7. 7.  Ninguém deve ser detido por dívidas. Este princípio não limita os mandados de autoridade judiciária competente expedidos em virtude de inadimplemento de obrigação alimentar.
+COMENTÁRIO: II. Toda pessoa acusada de delito tem direito renunciável a, durante o processo, ser assistido por um defensor proporcionado pelo Estado, obrigatoriamente remunerado, segundo a legislação interna, se o acusado não se defender ele próprio nem nomear defensor dentro do prazo estabelecido pela lei.
+COMENTÁRIO: ERRADA. Art.8. 2. Toda pessoa acusada de delito tem direito a que se presuma sua inocência enquanto não se comprove legalmente sua culpa. Durante o processo, toda pessoa tem direito, em plena igualdade, às seguintes garantias mínimas:
+COMENTÁRIO: d.       direito do acusado de defender-se pessoalmente ou de ser assistido por um defensor de sua escolha e de comunicar-se, livremente e em particular, com seu defensor;
+COMENTÁRIO: e.       direito irrenunciável de ser assistido por um defensor proporcionado pelo Estado, remunerado ou não, segundo a legislação interna, se o acusado não se defender ele próprio nem nomear defensor dentro do prazo estabelecido pela lei;
+COMENTÁRIO: III. A liberdade de manifestar a própria religião e as próprias crenças está sujeita unicamente às limitações prescritas pela lei e que sejam necessárias para proteger a segurança, a ordem, a saúde ou a moral públicas ou os direitos ou liberdades das demais pessoas.
+COMENTÁRIO: VERDADEIRA. Art. 12. 3.    A liberdade de manifestar a própria religião e as próprias crenças está sujeita unicamente às limitações prescritas pela lei e que sejam necessárias para proteger a segurança, a ordem, a saúde ou a moral públicas ou os direitos ou liberdades das demais pessoas.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (53)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q3088326)
+ASSUNTO: Português
+Morfologia ,
+Preposições
+TEXTO ASSOCIADO: Tira férias
+    A noção de férias está ligada a figuras de viagem, esporte, aplicações intensivas do
+corpo, quase nada a descanso. As pessoas executam durante esse intervalo aquilo que não
+puderam fazer ao longo do ano; fazem “mais” alguma coisa, de sorte que não há férias, no
+sentido religioso e romano de suspensão de atividades.
+    Matutando nisso, resolvi tirar férias e gozá-las como devem ser gozadas, sem esforço
+para torná-las amenas. A ideia de viagem foi expulsa do programa: é das iniciativas mais
+comprometedoras e tresloucadas que poderia tomar o trabalhador vacante. As viagens ou não
+existem, como é próprio da era do jato, em que somos transportados em velocidade superior à
+do nosso poder de percepção e de ruminação de impressões, ou existem demais como
+burocracia de passaporte, filas, falta de vaga em hotel, atrasos, moeda aviltada, alfândega,
+pneu estourado no ermo, que mais?
+    Tudo aboli e fiz a experiência das férias propriamente ditas. Se me pedirem para
+contar o que fiz afinal nestas férias, direi legalmente: ignoro. Aos convites disse não, alegando
+estar em férias, alegação tão forte como a de estar ocupadíssimo. Durante esse período, o
+pensamento errou entre mil paragens, não se deteve em nenhuma; cada dia amadureceu e caiu como um fruto. Nada aconteceu? O não acontecimento é a essência das férias. E agora, é
+trabalhar duro onze meses para merecer as inofensivas e deliciosas férias do não.
+(ANDRADE, Carlos Drummond. Cadeira de balanço. 22a. ed. Rio de Janeiro: Record, 2009, p. 69-
+71)
+ENUNCIADO: É adequado o emprego do elemento sublinhado na frase:
+ALTERNATIVAS:
+  A) É trabalhar duro para fazer jus de novas férias.
+  B) A noção de férias está vinculada à figuras de linguagem.
+  C) Restringindo-me a essa minha concepção, resolvi tirar férias.
+  D) A pressa é um elemento constitutivo na era do jatos.
+  E) Disse não aos convites, sobre a alegação de motivos pessoais.
+COMENTÁRIO: 30 de Novembro de 2024 às 22:38
+COMENTÁRIO: Letra A - incorreta. "É trabalhar duro para fazer jus de novas férias."
+COMENTÁRIO: O uso da expressão "É trabalhar duro para fazer jus de novas férias" está incorreto. A forma correta seria "fazer jus a novas férias". O verbo "fazer jus" requer a preposição "a", como em "fazer jus a algo".
+COMENTÁRIO: Letra B - incorreta."A noção de férias está vinculada à figuras de linguagem."
+COMENTÁRIO: A expressão "à figuras de linguagem" está inadequada. O correto seria "a figuras de linguagem" porque "à" é a combinação da preposição "a" com o artigo definido feminino "a", e a palavra "figuras" está no plural, portanto, a preposição "a" deve ser usada sozinha.
+COMENTÁRIO: Letra C) é a assertiva correta "Restringindo-me a essa minha concepção, resolvi tirar férias."
+COMENTÁRIO: O uso de "Restringindo-me a essa minha concepção" está de modo exato. A expressão "restringir-se a" significa limitar-se a algo, e o uso da preposição "a" está adequado para indicar o objeto da limitação.
+COMENTÁRIO: Letra D - incorreta"A pressa é um elemento constitutivo na era do jatos."
+COMENTÁRIO: Nessa, o uso de "na era do jatos" está errado. O correto seria "na era dos jatos". A palavra "jatos" está no plural, então, o artigo definido também deve estar no plural ("dos").
+COMENTÁRIO: Letra E - incorreta "Disse não aos convites, sobre a alegação de motivos pessoais."
+COMENTÁRIO: Aqui, O uso de "sobre a alegação de motivos pessoais" está errado. A preposição adequada seria "com", formando a expressão "com a alegação de motivos pessoais", que é a forma correta para indicar a razão.
+COMENTÁRIO: Logo..
+COMENTÁRIO: A ("Restringindo-me a essa minha concepção, resolvi tirar férias.") é a única que vejo como adequada.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (169)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (5)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q3088321)
+ASSUNTO: Português
+Sintaxe ,
+Análise sintática
+TEXTO ASSOCIADO: História de uma praça
+    Numa crônica antiga, intitulada “A rotina e a quimera”, Carlos
+Drummond de Andrade considerava o fato de que grandes escritores
+brasileiros, a começar por Machado de Assis, eram também
+funcionários públicos. Na lista numerosa, Drummond não incluiu a si
+mesmo, funcionário que foi de mais de um órgão público. A “rotina” do
+funcionário, outrora cercado de blocos de papéis, lápis e canetas,
+multas vezes levava-o à “quimera”, ao universo da ficção e à
+imaginação criativa.
+   Mas há também funcionários cuja quimera é, na verdade, a
+pesquisa histórica. Valem-se de seu talento e de sua disposição para
+investigar a origem de nomes, de lugares, de fatos primordiais. Foi o
+que aconteceu, por exemplo, com Eliézer Rodrigues, veterano assessor
+de imprensa da Justiça do Trabalho do Ceará. Dedicou-se a pesquisar
+dados e a escrever um livro — “Praça José de Alencar — Tempos e
+viventes” dá de si, 0 titulo indica o âmbito do livro.
+    O jornalista escritor resgata os primórdios dessa praça de
+Fortaleza, quando ainda se chamava Praça do Patrocínio, e aborda os
+principais acontecimentos que envolveram as edificações e pessoas
+que já habitaram seu entorno. O prédio da Fênix Caixeiral, à Igreja do
+Patrocinio, a Escola de Comércio, o Centro Médico, o Instituto de
+Patrimônio Histórico, o Lord Hotel, o INSS, a Associação Cearense de
+Imprensa e a 1ª Junta de Conciliação e Julgamento de Fortaleza são
+algumas das instituições retratadas na obra.
+    É importante haver cronistas desse porte para que a história de
+um lugar e de seus personagens se mantenha viva. Políticos, militares,
+empresários, intelectuais, artistas, músicos, juristas, celebridades,
+médicos, comerciantes e cidadãos comuns são alguns dos
+personagens reais que envolvem as tramas retratadas. Até mesmo
+uma cigana é um fantasma protagonizam causos curiosos.
+    Vê-se que a “quimera” desse escritor cearense está ancorada
+em impressões, fatos e pessoas que ele não quis deixar esquecer. É
+mais que um momento da rotina: é um momento da memória pessoal
+e social dedicado ao lugar de afeto e de interesse pública, a que dá a
+força de uma permanência temporal.
+(SÁ, Herculano Perez de. Com apoio na página eletrônica:
+https://www.trt7.jus.br. Adaptado)
+ENUNCIADO: Toda forma verbal concorda com seu sujeito em:
+ALTERNATIVAS:
+  A) Importam muito que os pesquisadores se empenhem na reconstituição de histórias que com tanta frequência se perde no esquecimento.
+  B) Muitas vezes couberam a alguns funcionários públicos ocuparem os intervalos de seu tempo com a criação literária.
+  C) Cercavam-se de papéis, lápis e canetas quem, nos escritórios, viam nesses instrumentos estímulos para a literatura.
+  D) Foi para resgatarem os primórdios daquela praça que o funcionário do tribunal lançou-se às pesquisas que teve tanto empenho seu.
+  E) É preciso que haja cronistas empenhados na reconstituição de fatos históricos que, sem seu trabalho, se apagariam no tempo.
+COMENTÁRIO: 29 de Novembro de 2024 às 14:37
+COMENTÁRIO: a. Importa muito que os pesquisadores se empenhem na reconstituição de histórias que com tanta frequência se perdem no esquecimento
+COMENTÁRIO: b. Muitas vezes coube a alguns funcionários públicos ocupar os intervalos de seu tempo com a criação literária.
+COMENTÁRIO: Essa eu passei pra voz direta pra facilitar: Ocupar os intervalos de seu tempo com a criação literária coube, muitas vezes, a alguns funcionários.
+COMENTÁRIO: c. Cercava-se de papéis, lápis e canetas quem, nos escritórios, via nesses instrumentos estímulos para a literatura.
+COMENTÁRIO: d. Foi para resgatar os primórdios daquela praça que o funcionário do tribunal lançou-se às pesquisas que teve tanto empenho seu.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (77)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2564510)
+ASSUNTO: Direito Previdenciário
+Regime Próprio de Previdência Social - RPPS
+ENUNCIADO: De acordo com a Lei nº 9.717/1998, os regimes próprios de previdência social dos servidores públicos da União, dos Estados, do Distrito Federal e dos Municípios, dos militares dos Estados e do Distrito Federal deverão ser organizados e baseados em normas gerais de
+ALTERNATIVAS:
+  A) contabilidade e atuária, de modo a garantir o seu equilíbrio financeiro e atuarial, observando critérios para realização de avaliação atuarial inicial e em cada balanço com parâmetros gerais para a organização e revisão apenas do plano de benefícios, além de observar o financiamento mediante recursos provenientes somente dos Estados, do Distrito Federal e dos Municípios e das contribuições do pessoal civil e militar, ativo, inativo e dos pensionistas, para Os seus respectivos regimes.
+  B) governança e atuaria, de modo a garantir o seu equilíbrio financeiro e atuarial, observando critérios para realização de avaliação atuarial inicial e em cada balanço com parâmetros gerais para a organização e revisão do plano de custeio e benefícios, além de observar o financiamento mediante recursos provenientes da União, dos Estados, do Distrito Federal e dos Municípios e das contribuições apenas do pessoal civil e militar ativo e dos pensionistas, para os seus respectivos regimes.
+  C) governança e atuária, de modo a garantir o seu equilíbrio financeiro e atuarial, observando critérios para realização de avaliação atuarial final e em alguns balanços com parâmetros gerais para a organização e revisão do plano de custeio e benefícios, além de observar o financiamento mediante recursos provenientes da União, dos Estados, do Distrito Federal e dos Municípios e das contribuições do pessoal civil e militar, ativo, inativo e dos pensionistas, para os seus respectivos regimes.
+  D) contabilidade e atuária, de modo a garantir o seu equilíbrio financeiro e atuarial, observando critérios para realização de avaliação atuarial inicial e em cada balanço com parâmetros gerais para a organização e revisão do plano de custeio e benefícios, além de observar o financiamento mediante recursos provenientes da União, dos Estados, do Distrito Federal e dos Municípios e das contribuições do pessoal civil e militar, ativo, inativo e dos pensionistas, para os seus respectivos regimes.
+  E) contabilidade e atuária, de modo a garantir o seu equilíbrio financeiro e atuarial, observando critérios para realização de avaliação atuarial inicial e em cada balanço com parâmetros divergentes para a organização e revisão apenas do plano de custeio, além de observar o financiamento mediante recursos provenientes da União, dos Estados, do Distrito Federal e dos Municípios e das contribuições do pessoal civil e militar, ativo, inativo e dos pensionistas, para os seus respectivos regimes.
+COMENTÁRIO: 28 de Agosto de 2024 às 19:06
+COMENTÁRIO: Resposta letra D
+COMENTÁRIO: Lei N. 7.717/98
+COMENTÁRIO: Art. 1º Os regimes próprios de previdência social dos servidores públicos da União, dos Estados, do Distrito Federal e dos Municípios, dos militares dos Estados e do Distrito Federal deverão ser organizados, baseados em normas gerais de contabilidade e atuária, de modo a garantir o seu equilíbrio financeiro e atuarial, observados os seguintes critérios:
+COMENTÁRIO: I - realização de avaliação atuarial inicial e em cada balanço utilizando-se parâmetros gerais, para a organização e revisão do plano de custeio e benefícios; (Redação dada pela Medida Provisória nº 2.187-13, de 2001)
+COMENTÁRIO: II - financiamento mediante recursos provenientes da União, dos Estados, do Distrito Federal e dos Municípios e das contribuições do pessoal civil e militar, ativo, inativo e dos pensionistas, para os seus respectivos regimes;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (81)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2564509)
+ASSUNTO: Direito Previdenciário
+Seguridade Social ,
+Organização e Custeio da Seguridade Social - Lei n. 8.212, de 24 de julho de 1991 ,
+Beneficiários do Regime Geral de Previdência Social - RGPS
+( assuntos)
+ENUNCIADO: Segundo a Lei nº 8.212/1991, além das contribuições provenientes do faturamento ou receita e do lucro, a contribuição a cargo da empresa, destinada à Seguridade Social, é de 20% sobre o total das remunerações pagas, devidas ou creditadas a qualquer título, durante o mês aos segurados empregados e
+ALTERNATIVAS:
+  A) trabalhadores avulsos que lhe prestem serviços, destinadas a retribuir o trabalho, qualquer que seja a sua forma, inclusive as gorjetas, os ganhos habituais sob a forma de utilidades e os adiantamentos decorrentes de reajuste salarial, quer pelos serviços efetivamente prestados, quer pelo tempo à disposição do empregador ou tomador de serviços, nos termos da lei ou do contrato ou, ainda, de convenção ou acordo coletivo de trabalho ou sentença normativa.
+  B) facultativos que lhe prestem serviços, destinadas a retribuir o trabalho, a depender da sua forma, inclusive as gorjetas, 05 ganhos eventuais sob a forma de utilidades e os adiantamentos decorrentes de reajuste salarial, quer pelos serviços efetivamente prestados, quer pelo tempo à disposição do empregador ou tomador de serviços, nos termos da lei ou do contrato ou, ainda, de convenção ou acordo coletivo de trabalho ou sentença normativa.
+  C) trabalhadores avulsos que lhe prestem serviços, destinadas a retribuir o capital investido, qualquer que seja a sua forma, inclusive as gorjetas, mas com exceção dos ganhos habituais sob a forma de utilidades e os adiantamentos decorrentes de reajuste salarial, quer pelos serviços efetivamente prestados, quer pelo tempo à disposição do empregador ou tomador de serviços, nos termos da lei ou do contrato ou, ainda, de convenção ou acordo coletivo de trabalho ou sentença normativa.
+  D) trabalhadores avulsos que lhe prestem serviços, destinadas a retribuir o capital investido, qualquer que seja a sua forma, inclusive as gorjetas, os ganhos eventuais sob a forma de utilidades e os adiantamentos decorrentes de reajuste salarial, quer pelos serviços efetivamente prestados, quer pelo tempo à disposição do empregador ou tomador de serviços, nos termos da lei ou do contrato, não se aplicando os termos de convenção ou acordo coletivo de trabalho ou sentença normativa.
+  E) trabalhadores avulsos que lhe prestem serviço, destinadas a retribuir o trabalho, qualquer que seja a sua forma, inclusive os ganhos habituais sob a forma de utilidades e os adiantamentos decorrentes de reajuste salarial, exceto as gorjetas, quer pelos serviços efetivamente prestados, quer pelo tempo à disposição do empregador ou tomador de serviços, nos termos da lei ou do contrato ou, ainda, de convenção ou acordo coletivo de trabalho ou sentença normativa.
+COMENTÁRIO: 15 de Agosto de 2024 às 06:34
+COMENTÁRIO: Art. 28 da LEI Nº 8.212/1991. Entende-se por salário-de-contribuição:
+COMENTÁRIO: I - para o empregado e trabalhador avulso: a remuneração auferida em uma ou mais empresas, assim entendida a totalidade dos rendimentos pagos, devidos ou creditados a qualquer título, durante o mês, destinados a retribuir o trabalho, qualquer que seja a sua forma, inclusive as gorjetas, os ganhos habituais sob a forma de utilidades e os adiantamentos decorrentes de reajuste salarial, quer pelos serviços efetivamente prestados, quer pelo tempo à disposição do empregador ou tomador de serviços nos termos da lei ou do contrato ou, ainda, de convenção ou acordo coletivo de trabalho ou sentença normativa;
+COMENTÁRIO: II - para o empregado doméstico: a remuneração registrada na Carteira de Trabalho e Previdência Social, observadas as normas a serem estabelecidas em regulamento para comprovação do vínculo empregatício e do valor da remuneração;
+COMENTÁRIO: III - para o contribuinte individual: a remuneração auferida em uma ou mais empresas ou pelo exercício de sua atividade por conta própria, durante o mês, observado o limite máximo a que se refere o § 5;
+COMENTÁRIO: IV - para o segurado facultativo: o valor por ele declarado, observado o limite máximo a que se refere o § 5.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (113)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2564507)
+ASSUNTO: Direito Previdenciário
+Seguridade Social ,
+Regime Geral de Previdência Social - RGPS ,
+Organização e Custeio da Seguridade Social - Lei n. 8.212, de 24 de julho de 1991
+( assuntos)
+ENUNCIADO: À previdência social será organizada sob a forma do Regime Geral de Previdência Social, de caráter contributivo e de filiação obrigatória, observados critérios que preservem o equilíbrio financeiro e atuarial, e atenderá, na forma da lei, a cobertura dos eventos de
+ALTERNATIVAS:
+  A) incapacidade temporária ou permanente para o trabalho e idade avançada, proteção à natalidade, especialmente à gestante; proteção ao trabalhador em situação de desemprego involuntário; salário-família e auxílio-reclusão aos segurados de baixa renda; e pensão por morte do segurado, homem ou mulher, ao cônjuge ou companheiro e dependentes.
+  B) incapacidade temporária ou permanente para o trabalho e idade avançada; proteção à maternidade, especialmente à gestante, proteção ao trabalhador em situação de desemprego involuntário, salário-família e auxílio-reclusão para os dependentes dos segurados de baixa renda; e pensão por morte do segurado, homem ou mulher, ao cônjuge ou companheiro e dependentes.
+  C) incapacidade temporária ou permanente para o trabalho e idade avançada; proteção à maternidade, especialmente à gestante; proteção ao trabalhador em situação de desemprego involuntário; salário-família e auxílio-reclusão para os dependentes dos segurados de baixa renda, e pensão por morte do segurado, homem ou mulher, apenas ao cônjuge ou companheiro.
+  D) capacidade temporária ou permanente para o trabalho e idade avançada, proteção à maternidade, especialmente à gestante; proteção ao trabalhador em situação de desemprego voluntário ou involuntário, salário-família e auxílio-reclusão para 05 dependentes dos segurados de baixa renda; e pensão por morte do segurado, homem ou mulher, ao cônjuge ou companheiro e dependentes.
+  E) incapacidade temporária ou permanente para o trabalho e idade avançada; proteção à maternidade, especialmente à gestante, proteção ao trabalhador em situação de desemprego involuntário; salário-família e auxílio-reclusão para os dependentes dos segurados de qualquer renda, e pensão por morte do dependente, homem ou mulher, ao cônjuge ou companheiro e dependentes.
+COMENTÁRIO: 15 de Agosto de 2024 às 06:39
+COMENTÁRIO: Art. 201 da CF. A previdência social será organizada sob a forma do Regime Geral de Previdência Social, de caráter contributivo e de filiação obrigatória, observados critérios que preservem o equilíbrio financeiro e atuarial, e atenderá, na forma da lei, a:
+COMENTÁRIO: I - cobertura dos eventos de incapacidade temporária ou permanente para o trabalho e idade avançada;
+COMENTÁRIO: II - proteção à maternidade, especialmente à gestante;
+COMENTÁRIO: III - proteção ao trabalhador em situação de desemprego involuntário;
+COMENTÁRIO: IV - salário-família e auxílio-reclusão para os dependentes dos segurados de baixa renda;
+COMENTÁRIO: V - pensão por morte do segurado, homem ou mulher, ao cônjuge ou companheiro e dependentes, observado o disposto no § 2º.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (131)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2564504)
+ASSUNTO: Direito Tributário
+Conceito de Tributo e Espécies Tributárias ,
+Conceito legal de tributo ,
+Imposto
+ENUNCIADO: De acordo com a disciplina estabelecida na Constituição Federal de 1988 e no Código Tributário Nacional (CTN), hã uma relação estreita entre às institutos jurídicos do “tributo” e do “imposto”, de modo que tributo é
+ALTERNATIVAS:
+  A) espécie e imposto é gênero, sendo que imposto é toda prestação pecuniária compulsória, em moeda ou cujo valor nela se possa exprimir, que não constitua sanção de ato ilícito, instituída em lei e cobrada mediante atividade administrativa plenamente vinculada, como ocorre, por exemplo, com a instituição e cobrança da laxa de coleta de lixo.
+  B) gênero e imposto é espécie, sendo que imposto é o tributo que tem como fato gerador o exercício regular do poder de polícia, ou a utilização, efetiva ou potencial, de serviço público específico e divisível, prestado ao contribuinte ou posto à sua disposição, como ocorre, por exemplo, com a cobrança do Imposto de Renda.
+  C) espécie e imposto é gênero, sendo que imposto é toda prestação pecuniária compulsória, em moeda ou cujo valor nela se possa exprimir, que não constitua sanção de ato ilícito, instituída em lei e cobrada mediante atividade administrativa plenamente vinculada, como ocorre, por exemplo, com a instituição e cobrança do Imposto de Renda.
+  D) gênero e imposto é espécie, sendo que imposto é o tributo cuja obrigação tem por fato gerador uma situação independente de qualquer atividade estatal específica, relativa ao contribuinte, como ocorre, por exemplo, com a instituição e cobrança da taxa de coleta de lixo.
+  E) gênero e imposto é espécie, sendo que imposto é o tributo cuja obrigação tem por fato gerador uma situação independente de qualquer atividade estatal específica, relativa ao contribuinte, como ocorre, por exemplo, com a instituição e cobrança do Imposto de Renda.
+COMENTÁRIO: 29 de Agosto de 2024 às 14:54
+COMENTÁRIO: Alternativa correta: letra E.
+COMENTÁRIO: ☑ Tributo é toda prestação pecuniária compulsória, em moeda ou cujo valor nela se possa exprimir, que não constitua sanção de ato ilícito, instituída em lei e cobrada mediante atividade administrativa plenamente vinculada (art. 3º do CTN).
+COMENTÁRIO: ☑ Os tributos são impostos, taxas e contribuições de melhoria (art. 5º do CTN).
+COMENTÁRIO: ☑ Imposto é o tributo cuja obrigação tem por fato gerador uma situação independente de qualquer atividade estatal específica, relativa ao contribuinte (art. 16 do CTN).
+COMENTÁRIO: ☑ As taxas cobradas pela União, pelos Estados, pelo Distrito Federal ou pelos Municípios, no âmbito de suas respectivas atribuições, têm como fato gerador o exercício regular do poder de polícia, ou a utilização, efetiva ou potencial, de serviço público específico e divisível, prestado ao contribuinte ou posto à sua disposição (art. 77, caput, do CTN).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (74)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2564503)
+ASSUNTO: Direito Tributário
+Competência Tributária ,
+Introdução e Características ,
+Partilha e Tipologia (Repartição de Competência)
+( assuntos)
+ENUNCIADO: No Sistema Tributário Nacional brasileiro, a Constituição Federal de 1988 (CF) atribui a cada ente federativo competências específicas para criar e legislar sobre impostos. Portanto, a competência tributária para instituir impostos está dividida entre a União, os Estados, o Distrito Federal e os Municípios. Sobre a competência tributária, as limitações constitucionais ao poder de tributar e a imunidade tributária, a CF dispõe:
+
+I.É vedado à União, aos Estados, ao Distrito Federal e aos Municípios exigir ou instituir tributo sem lei que o estabeleça.
+
+II. O imposto de importação de produtos estrangeiros é de competência da União.
+
+III. É vedado à União, aos Estados, ao Distrito Federal e aos Municípios instituir impostos sobre o patrimônio, a renda ou os serviços, uns dos outros.
+
+IV. O imposto sobre a propriedade de veículos automotores é de competência da União.
+
+
+Está coreto o que consta APENAS de
+ALTERNATIVAS:
+  A) I, II e lIII.
+  B) III e IV.
+  C) I e lIII.
+  D) II e IV.
+  E) I e lI.
+COMENTÁRIO: 28 de Agosto de 2024 às 13:32
+COMENTÁRIO: I:   Art. 150. Sem prejuízo de outras garantias asseguradas ao contribuinte, é vedado à União, aos Estados, ao Distrito Federal e aos Municípios:
+COMENTÁRIO: I - Exigir ou aumentar tributo sem lei que o estabeleça; (Princípio da legalidade).
+COMENTÁRIO: II: Art. 153. Compete à União instituir impostos sobre:
+COMENTÁRIO: I - Importação de produtos estrangeiros;
+COMENTÁRIO: III: Art. 150. Sem prejuízo de outras garantias asseguradas ao contribuinte, é vedado à União, aos Estados, ao Distrito Federal e aos Municípios:
+COMENTÁRIO: VI - Instituir IMPOSTOS sobre:
+COMENTÁRIO: a)  patrimônio, renda ou serviços, uns dos outros;  (imunidade reciproca)
+COMENTÁRIO: IV: Art. 155. Compete aos Estados e ao Distrito Federal instituir impostos sobre:
+COMENTÁRIO: III - propriedade de veículos automotores.
+COMENTÁRIO: FONTE: CF/88
+COMENTÁRIO: GAB: A
+COMENTÁRIO: Gostei
+COMENTÁRIO: (87)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2564502)
+ASSUNTO: Direito Tributário
+Obrigação Tributária ,
+Obrigação Principal e Acessória ,
+Capacidade, Domicílio e Sujeitos da Obrigação Tributária
+( assuntos)
+ENUNCIADO: De acordo com o artigo 121 do CTN, o sujeito passivo da obrigação principal é a pessoa obrigada ao pagamento de tributo ou penalidade pecuniária, podendo o sujeito passivo ser o contribuinte ou o responsável tributário.
+
+De acordo com o referido Código, o responsável tributário é aquele que:
+ALTERNATIVAS:
+  A) sem revestir a condição de contribuinte, tenha obrigação que decorra de disposição expressa de lei complementar, como ocorre, por exemplo, com a indústria, que é responsável pelo IPI (imposto sobre produtos industrializados) ao promover a saída de produtos industrializados.
+  B) tem relação pessoal e direta com a situação que constitua o respectivo fato gerador, como, por exemplo, o produtor rural (proprietário de uma fazenda), que é responsável pelo imposto sobre propriedade territorial rural — ITR.
+  C) tem relação pessoal e direta com a situação que constitua o respectivo fato gerador, como, por exemplo, o adquirente de um imóvel, que é pessoalmente responsável pelos tributos relativos ao bem adquirido que não tenham sido quitados.
+  D) sem revestir a condição de contribuinte, tenha obrigação que decorra de disposição expressa de lei, como, por exemplo, o adquirente de um imóvel, que é pessoalmente responsável pelos tributos relativos ao bem adquirido que não tenham sido quitados.
+  E) tem relação pessoal e direta com a situação que constitua o respectivo fato gerador, como, por exemplo, a pessoa jurídica em relação ao imposto de renda da pessoa jurídica.
+COMENTÁRIO: 14 de Agosto de 2024 às 07:31
+COMENTÁRIO: LETRA D.
+COMENTÁRIO: Art. 121. Sujeito passivo da obrigação principal é a pessoa obrigada ao pagamento de tributo ou penalidade pecuniária.
+COMENTÁRIO: Parágrafo único. O sujeito passivo da obrigação principal diz-se:
+COMENTÁRIO: I - contribuinte, quando tenha relação pessoal e direta com a situação que constitua o respectivo fato gerador;
+COMENTÁRIO: II - responsável, quando, sem revestir a condição de contribuinte, sua obrigação decorra de disposição expressa de lei.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (120)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2564501)
+ASSUNTO: Direito Tributário
+Suspensão do Crédito Tributário ,
+Extinção do Crédito Tributário ,
+Exclusão do Crédito Tributário
+( assuntos)
+ENUNCIADO: O Código Tributário Nacional (CTN) traz diversas regras sobre o crédito tributário e as hipóteses de suspensão, extinção e exclusão do crédito tributário, dispondo:
+
+I. O depósito do montante integral do crédito tributário é uma hipótese de suspensão do crédito tributário.
+
+II. A exclusão do crédito tributário dispensa o cumprimento das obrigações acessórias dependentes da obrigação principal, de modo que uma pessoa jurídica que realize a venda de uma mercadoria, com isenção do imposto, está dispensada da emissão de documento fiscal.
+
+III. O pagamento do tributo devido pelo contribuinte é uma das formas de extinção do crédito tributário.
+
+IV. O parcelamento do crédito tributário é concedido na forma e condição estabelecidas em lei específica.
+
+
+
+Está correto o que consta APENAS de
+ALTERNATIVAS:
+  A) I, II e lIII.
+  B) III e IV.
+  C) I, III e IV.
+  D) II e IV.
+  E) I e lI.
+COMENTÁRIO: 14 de Agosto de 2024 às 07:30
+COMENTÁRIO: I (CORRETO): SUSPENSAO DE EXIGIBILIDADE É DEMORE A LIMPAR
+COMENTÁRIO: DE: DEPOSITO
+COMENTÁRIO: MO: MORATORIA
+COMENTÁRIO: RE: RECURSO
+COMENTÁRIO: LIM: LIMINAR
+COMENTÁRIO: PAR: PARCELAMENTO
+COMENTÁRIO: II (ERRADO) Art. 151. Suspendem a exigibilidade do crédito tributário:  Parágrafo único. O disposto neste artigo não dispensa o cumprimento das obrigações assessórios dependentes da obrigação principal cujo crédito seja suspenso, ou dela conseqüentes.
+COMENTÁRIO: III (CORRETO)  Art. 156. Extinguem o crédito tributário:        I - o pagamento;
+COMENTÁRIO: IV( CORRETO) Art. 155-A. O parcelamento será concedido na forma e condição estabelecidas em lei específica.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (82)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2564499)
+ASSUNTO: Direito Processual Penal
+Competência no Processo Penal ,
+Competência territorial
+ENUNCIADO: Xisto e Benício, residentes na área territorial da Subseção Judiciária X, cometeram um crime de roubo na divisa entre as Subseções Judiciárias Y e Z, quando abordaram funcionário público federal em serviço, que reside na Subseção Judiciária A, e subtraíram, mediante grave ameaça, o veículo de propriedade da União, por ele conduzido. Xisto e Benício foram presos em flagrante na posse da res furtiva durante a fuga, quando já estavam na área territorial da Subseção Judiciária B. No caso hipotético apresentado, a competência para processar e julgar Xisto e Benício será
+ALTERNATIVAS:
+  A) do juízo da Subseção Judiciária A, local do domicílio da vítima.
+  B) determinada pela prevenção, e poderá ser do juízo de qualquer das Subseções Judiciárias descritas no enunciado.
+  C) determinada pela prevenção e poderá ser tanto do juízo federal da Subseção Judiciária Y quanto da Z.
+  D) do juízo federal da Subseção Judiciária B, onde Xisto e Benício foram presos.
+  E) do juízo da Subseção Judiciária X, local do domicílio dos réus.
+COMENTÁRIO: 14 de Agosto de 2024 às 03:12
+COMENTÁRIO: Código de Processo Penal
+COMENTÁRIO: Art. 70.  A competência será, de regra, determinada pelo lugar em que se consumar a infração, ou, no caso de tentativa, pelo lugar em que for praticado o último ato de execução.
+COMENTÁRIO: [...]
+COMENTÁRIO: § 3 Quando incerto o limite territorial entre duas ou mais jurisdições, ou quando incerta a jurisdição por ter sido a infração consumada ou tentada nas divisas de duas ou mais jurisdições, a competência firmar-se-á pela prevenção.
+COMENTÁRIO: Súmula n. 147, STJ: Compete à Justiça Federal processar e julgar os crimes praticados contra funcionário público federal, quando relacionados com o exercício da função.
+COMENTÁRIO: Para fixação de competência, o CPP adota a Teoria do Resultado, que preconiza que o local da infração é aquele onde se produziu ou se deveria ter produzido o resultado do crime, não importando o local da conduta em si. Entretanto, o parágrafo 3º aponta solução para situações em que consumação do crime tenha ocorrido na divisa de duas jurisdições (X e Y), qual seja, a prevenção, que se verifica, conforme o art. 83 do CPP, "toda vez que, concorrendo dois ou mais juízes igualmente competentes ou com jurisdição cumulativa, um deles tiver antecedido aos outros na prática de algum ato do processo ou de medida a este relativa, ainda que anterior ao oferecimento da denúncia ou da queixa".
+COMENTÁRIO: Além disso, o enunciado indica que o crime de roubo foi cometido contra funcionário público federal em serviço e resultou na subtração de veículo de propriedade da União, o que atrai a competência da Justiça Federal em razão do disposto no art. 109, IV da Constituição Federal, segundo o qual "aos juízes federais compete processar e julgar os crimes políticos e as infrações penais praticadas em detrimento de bens, serviços ou interesse da União ou de suas entidades autárquicas ou empresas públicas, excluídas as contravenções e ressalvada a competência da Justiça Militar e da Justiça Eleitoral".
+COMENTÁRIO: Gostei
+COMENTÁRIO: (184)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2564497)
+ASSUNTO: Direito Processual Penal
+Da Prisão e da Liberdade Provisória ,
+Da Prisão Preventiva ,
+Prisão domiciliar
+ENUNCIADO: Considere as seguintes situações hipotéticas de pessoas que estão presas preventivamente:
+
+-Marilda, gestante, cometeu crime de roubo juntamente com outros três indivíduos e mediante emprego de arma de fogo.
+-Ricardo, único responsável pelos cuidados do seu filho Mateus, de 10 anos de idade, cometeu crime de estelionato.
+-Rodolfo, 75 anos de idade, cometeu crime de concussão.
+-Giselda, mãe de dois filhos (Renato de 13 anos e Gael de 14 anos) cometeu crime de “lavagem” de bens, previsto na Lei nº 9.613/1998.
+
+Nos termos preconizados pelo Código de Processo Penal, presentes 05 demais requisitos legais, o juiz poderá, em tese, substituir a prisão preventiva pela prisão domiciliar APENAS para:
+ALTERNATIVAS:
+  A) Marilda e Giselda.
+  B) Marilda, Rodolfo e Giselda.
+  C) Ricardo, Rodolfo e Giselda.
+  D) Ricardo e Rodolfo.
+  E) Ricardo.
+COMENTÁRIO: 14 de Agosto de 2024 às 02:52
+COMENTÁRIO: CÓDIGO DE PROCESSO PENAL
+COMENTÁRIO: Art. 318. Poderá o juiz substituir a prisão preventiva pela domiciliar quando o agente for:
+COMENTÁRIO: I - maior de 80 (oitenta) anos; (Rodolfo - possui 75 anos)
+COMENTÁRIO: II - extremamente debilitado por motivo de doença grave;
+COMENTÁRIO: III - imprescindível aos cuidados especiais de pessoa menor de 6 (seis) anos de idade ou com deficiência;
+COMENTÁRIO: IV - gestante; (Marilda)
+COMENTÁRIO: V - mulher com filho de até 12 (doze) anos de idade incompletos; (Giselda - filhos possuem 13 e 14 anos)
+COMENTÁRIO: VI - homem, caso seja o único responsável pelos cuidados do filho de até 12 (doze) anos de idade incompletos. (Ricardo)
+COMENTÁRIO: Parágrafo único. Para a substituição, o juiz exigirá prova idônea dos requisitos estabelecidos neste artigo.
+COMENTÁRIO: Art. 318-A. A prisão preventiva imposta à mulher gestante ou que for mãe ou responsável por crianças ou pessoas com deficiência será substituída por prisão domiciliar, desde que:
+COMENTÁRIO: I - não tenha cometido crime com violência ou grave ameaça a pessoa; (Marilda)
+COMENTÁRIO: II - não tenha cometido o crime contra seu filho ou dependente.
+COMENTÁRIO: Embora Marilda seja gestante, o que configuraria, em tese, a hipótese do art. 318, IV, CPP, o cometimento do crime com violência ou grave ameaça a pessoa impossibilita a substituição da prisão preventiva pela prisão domiciliar, por força da vedação expressa pelo art. 318-A, I do CPP. Portanto, apenas Ricardo faz jus à substituição.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (493)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2564496)
+ASSUNTO: Direito Processual Penal
+Procedimento comum sumaríssimo - Lei nº 9.099 de 1995 - Lei dos Juizados Especiais Criminais - JECRIM ,
+Procedimento Penal
+ENUNCIADO: Alice conduzia seu veiculo, em determinada rodovia federal, em velocidade superior à permitida, sendo parada em posto da polícia rodoviária federal e multada pelo agente federal que ali trabalhava. Neste momento, passou a ofendê-lo verbalmente em razão da função. Alice foi conduzida à repartição pública competente para lavratura de Termo Circunstanciado objetivando apuração de crime, em tese, de desacato. Os autos foram encaminhados ao Ministério Público Federal, após a colheita de todas as informações necessárias e, por não fazer jus a qualquer benefício, em razão de possuir péssimos antecedentes e ser reincidente, Alice é denunciada pelo Ministério Público Federal pelo crime do artigo 331, do Código Penal (desacato), seguindo-se o rito do procedimento sumarissimo previsto na Lei nº 9.099/1995 (art. 12 da Lei nº 10.259/2001). O Magistrado competente, em decisão fundamentada, rejeita a denúncia apresentada pelo Parquet. Nesse caso, inconformado, o Ministério Público Federal poderá interpor
+ALTERNATIVAS:
+  A) recurso inominado, no prazo de 5 dias.
+  B) apelação, no prazo de 5 dias.
+  C) apelação, no prazo de 10 dias.
+  D) recurso em sentido estrito, no prazo de 5 dias.
+  E) recurso em sentido estrito, no prazo de 10 dias.
+COMENTÁRIO: 18 de Agosto de 2024 às 14:13
+COMENTÁRIO: Gabarito: Letra C
+COMENTÁRIO: EMBARGOS DE DECLARAÇÃO
+COMENTÁRIO: CPP: 2 dias
+COMENTÁRIO: Lei n. 9.099/95: 5 dias
+COMENTÁRIO: APELAÇÃO
+COMENTÁRIO: CPP: 5 dias (8 dias para arrazoar se for crime; 3 dias se for contravenção)
+COMENTÁRIO: Lei n. 9.099/95: 10 dias (razões no mesmo prazo)
+COMENTÁRIO: DECISÃO QUE NÃO RECEBE A DENÚNCIA OU QUEIXA
+COMENTÁRIO: CPP: RESE em 5 dias
+COMENTÁRIO: Lei n. 9.099/95: APELAÇÃO em 10 dias
+COMENTÁRIO: Gostei
+COMENTÁRIO: (288)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (5)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2564495)
+ASSUNTO: Direito Penal
+Crimes contra a administração pública ,
+Descaminho
+ENUNCIADO: Mauro é comerciante de produtos eletrônicos e reside em uma pequena cidade do Estado do Mato Grosso do Sul. Viajou para O Paraguai, na cidade de Pedro Juan Caballero, onde adquiriu um carregamento de produtos eletrônicos, avaliados em US$ 30.000 (trinta mil dólares americanos), para serem revendidos em sua loja. Mauro retorna ao Brasil com a carga pela via terrestre em um furgão. Logo após passar a fronteira entre os países, sem declarar as mercadorias adquiridas às autoridades aduaneiras e pagar os impostos necessários, ao ingressar em território brasileiro, na cidade de Ponta Porã, o veículo conduzido por Mauro é abordado pela polícia Rodoviária Federal. Mauro é preso em flagrante e cometeu, no caso hipotético acima, o crime de
+ALTERNATIVAS:
+  A) tráfico de influência.
+  B) corrupção ativa.
+  C) contrabando.
+  D) estelionato.
+  E) descaminho.
+COMENTÁRIO: 17 de Agosto de 2024 às 17:48
+COMENTÁRIO: A DIFERENÇA ENTRE DESCAMINHO E CONTRABANDO, É QUE O PRIMEIRO ESTÁ RELACIONADO COM O PAGAMENTO DE TRIBUTO DAVIDO, JÁ O SEGUNDO, CONSISTE EM IMPORTAR OU EXPORTAR MERCADORIA PROIBIDA NO BRASIL.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (98)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2564494)
+ASSUNTO: Direito Penal
+Crimes contra a administração pública ,
+Crimes em Licitações e Contratos Administrativos
+ENUNCIADO: A empresa “X, declarada inidônea, é admitida pelos funcionários públicos José, Mônica e Rubens, à licitação promovida pelo órgão federal em que lotados. Nesse caso, nos termos preconizados pelo Código Penal, José, Mônica e Rubens cometeram, em tese, o crime de
+ALTERNATIVAS:
+  A) Modificação ou pagamento irregular em contrato administrativo — artigo 337-H, do Código Penal.
+  B) Frustração do caráter competitivo de licitação — artigo 337-F, do Código Penal.
+  C) Contratação inidônea — artigo 337-M, do Código Penal.
+  D) Fraude em licitação ou contrato — artigo 337-L, do Código Penal.
+  E) Afastamento de licitante — art. 337-K, do Código Penal.
+COMENTÁRIO: 14 de Agosto de 2024 às 07:12
+COMENTÁRIO: LETRA C.
+COMENTÁRIO: Contratação inidônea
+COMENTÁRIO: Art. 337-M. Admitir à licitação empresa ou profissional declarado inidôneo:
+COMENTÁRIO: Pena - reclusão, de 1 (um) ano a 3 (três) anos, e multa.
+COMENTÁRIO: § 1º Celebrar contrato com empresa ou profissional declarado inidôneo:
+COMENTÁRIO: Pena - reclusão, de 3 (três) anos a 6 (seis) anos, e multa.
+COMENTÁRIO: § 2º Incide na mesma pena do caput deste artigo aquele que, declarado inidôneo, venha a participar de licitação e, na mesma pena do § 1º deste artigo, aquele que, declarado inidôneo, venha a contratar com a Administração Pública.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (206)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2564489)
+ASSUNTO: Controle Externo
+Jurisprudência do Supremo Tribunal Federal - STF
+ENUNCIADO: Considere o seguinte julgado do Supremo Tribunal Federal:
+
+Mandado de Segurança. Tribunal de Contas da União. Tomada de Contas Especial. Desconsideração da Personalidade Jurídica. Possibilidade. Requisitos Legais Observados. Ausência de Direito Liquido e Certo. Denegação da Segurança.
+
+1. Ao TCU é assegurado plexo de poderes e mecanismos cautelares voltados à garantia da eficácia de eventuais provimentos definitivos que imponham sanções a agentes públicos ou particulares responsáveis por irregularidades no trato de recursos públicos.
+
+2. O levantamento do véu da pessoa jurídica, embora grave do ponto de vista da segurança jurídica e da liberdade econômica, não se afeiçoa àquele estrito rol de direitos fundamentais cuja restrição apenas pode ser operacionalizada pelo Poder Judiciário. E equivocado equiparar, para fins de proteção judicial, o conteúdo de comunicações telefônicas de cidadãos à desconsideração, em situações pontuais e fundamentadas, da pessoa jurídica. Não há, nessa hipótese, supressão ou malferimento de qualquer direito fundamental, seja do sócio pessoa física, seja da empresa pessoa jurídica.
+
+3.É legal e constitucionalmente fundada a desconsideração da pessoa jurídica pelo TCU, de modo a alcançar o patrimônio de pessoas físicas ou jurídicas envolvidas na prática de atos lesivos ao erário público, observados o contraditório e a ampla defesa.
+
+4. Segurança denegada.
+
+
+A jurisprudência do Supremo Tribunal Federal que reconhece às Cortes de Contas a possibilidade de impor medidas acautelatórias, ainda que não previstas expressamente na lei, é baseada na chamada teoria
+ALTERNATIVAS:
+  A) da dupla imputação.
+  B) da puissance publique.
+  C) da responsabilidade ampliada por alcance.
+  D) da encampação dos poderes.
+  E) dos poderes implícitos.
+COMENTÁRIO: 14 de Agosto de 2024 às 18:05
+COMENTÁRIO: Teoria dos poderes implícitos, segundo a qual, uma vez estabelecidas expressamente as competências e atribuições de um órgão estatal, desde que observados os princípios da proporcionalidade e razoabilidade, ele está implicitamente autorizado a utilizar os meios necessários para poder exercer essas competências.
+COMENTÁRIO: STJ. 5ª Turma. AgRg no RMS 55.050/SP, Rel. Min. Reynaldo Soares da Fonseca, julgado em 03/10/2017.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (138)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2564484)
+ASSUNTO: Direito Constitucional
+Direitos Políticos ,
+Direitos da Nacionalidade
+ENUNCIADO: Roberval é um diplomata brasileiro que se casou com Anésia. Algum tempo após sua união, Roberval foi trabalhar na Alemanha, a serviço da República Federativa do Brasil, e lã passou a residir com sua esposa, onde, alguns meses depois, nasceu seu filho, Niveo. Embora tenha crescido na Alemanha, Niveo pretende seguir os passos de seu pai e representar o pais de origem de Roberval. Para isso, quando atingir a maioridade, Niveo quer estudar no Brasil e aqui ter um cargo da carreira diplomática. Considerando apenas os dados fornecidos nessa situação hipotética, isso
+ALTERNATIVAS:
+  A) não é possível, pois Níveo é considerado brasileiro naturalizado e o cargo que pretende é privativo de brasileiro nato.
+  B) é possível, pois se trata de cargo que pode ser ocupado por pessoas de qualquer nacionalidade, desde que residentes no país há mais de dez anos ininterruptos.
+  C) não é possível, pois Níveo não é brasileiro e o cargo que pretende é privativo de brasileiro nato ou naturalizado.
+  D) é possível, desde que Níveo se naturalize brasileiro, pois o cargo que pretende é privativo de brasileiro nato ou naturalizado.
+  E) é possível, pois Níveo é brasileiro nato e o cargo que pretende é privativo de brasileiro nato.
+COMENTÁRIO: 14 de Agosto de 2024 às 17:45
+COMENTÁRIO: Art. 12 da CF
+COMENTÁRIO: Art. 12. São brasileiros:
+COMENTÁRIO: I - natos:
+COMENTÁRIO: b) os nascidos no estrangeiro, de pai brasileiro ou mãe brasileira, desde que qualquer deles esteja a serviço da República Federativa do Brasil;
+COMENTÁRIO: ________________
+COMENTÁRIO: § 3º São privativos de brasileiro nato os cargos:
+COMENTÁRIO: V - da carreira diplomática;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (146)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2564482)
+ASSUNTO: Direito Constitucional
+Direitos Individuais - Remédios Constitucionais e Garantias Processuais ,
+Ação Popular
+ENUNCIADO: Florêncio, advogado, tem, dentre seus clientes, Florisbal, ex-Prefeito do Município “X" e atual industrial que, estando com todas as condições de elegibilidade atendidas, deseja se candidatar, nas próximas eleições, a Vereador do mesmo Município. Ocorre que, Florisbal procurou Florêncio com a finalidade de propor ação judicial contra Dito, atual Prefeito do Município “X", visando anular ato lesivo ao meio ambiente, dizendo que tem como comprovar que Dito praticou referido ato. Florêncio, então, esclarece, dentre outros fatos, que Florisbal
+ALTERNATIVAS:
+  A) poderá propor ação popular ou ação civil pública, não havendo, em ambos os casos, isenção de custas judiciais e do ônus da sucumbência, ainda que esteja de boa-fé.
+  B) poderá propor ação popular, ação civil pública ou mandado de segurança, ficando, em todos os casos, isento de custas judiciais e do ônus da sucumbência, independentemente de boa-fé.
+  C) poderá propor ação civil pública, pois, como candidato a cargo político, é o único legitimado para a propositura dessa ação.
+  D) poderá propor ação popular, ficando, salvo comprovada má-fé, isento de custas judiciais e do ônus da sucumbência.
+  E) não poderá propor ação popular, pois a legitimidade para a propositura dessa ação é exclusiva do Ministério Público.
+COMENTÁRIO: 14 de Agosto de 2024 às 17:32
+COMENTÁRIO: Art. 5º da CF
+COMENTÁRIO: LXXIII - qualquer cidadão é parte legítima para propor ação popular que vise a anular ato lesivo ao patrimônio público ou de entidade de que o Estado participe, à moralidade administrativa, ao meio ambiente e ao patrimônio histórico e cultural, ficando o autor, salvo comprovada má-fé, isento de custas judiciais e do ônus da sucumbência;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (217)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2564479)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Intervenção de Terceiro ,
+Incidente de Desconsideração da Personalidade Jurídica
+ENUNCIADO: Em ação de cobrança segundo à procedimento comum movida contra a sociedade XPTO Comércio Ltda., o autor requereu, depois de concluída a instrução, mas antes da sentença, a instauração de incidente de desconsideração da personalidade jurídica do réu. Nesse caso, de acordo com o Código de Processo Civil, o juiz deverá
+ALTERNATIVAS:
+  A) suspender o processo até a decisão do incidente.
+  B) sobrestar a apreciação do incidente para depois da sentença, admitindo o seu ulterior processamento independentemente do acolhimento ou rejeição do pedido de cobrança.
+  C) indeferir liminarmente o processamento do incidente, em razão da preclusão.
+  D) indeferir liminarmente o processamento do incidente, porque incabível na fase de conhecimento.
+  E) sobrestar a apreciação do incidente para depois da sentença, admitindo o seu ulterior processamento apenas se o pedido de cobrança for acolhido ao menos em parte.
+COMENTÁRIO: 14 de Agosto de 2024 às 06:32
+COMENTÁRIO: IPDJ
+COMENTÁRIO: Na inicial: dispensa IDPJ e suspensão
+COMENTÁRIO: X
+COMENTÁRIO: Depois da inicial: IDPJ + suspensão
+COMENTÁRIO: Gostei
+COMENTÁRIO: (218)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2564475)
+ASSUNTO: Direito Civil
+Contratos em Espécie ,
+Depósito, Mandato, Comissão, Agência e Distribuição
+ENUNCIADO: De acordo com o Código Civil, o mandato
+ALTERNATIVAS:
+  A) presume-se oneroso sempre que as partes não estipularem retribuição.
+  B) outorgado por instrumento público não pode ser substabelecido por instrumento particular, mas o contrário é permitido.
+  C) não poderá ser aceito tacitamente, exceto para evitar ao mandante dano grave.
+  D) pode ser verbal, exceto quando o ato deva ser celebrado por escrito.
+  E) em termos gerais não confere poderes de administração, que dependem de previsão expressa.
+COMENTÁRIO: 14 de Agosto de 2024 às 09:30
+COMENTÁRIO: Art. 655. Ainda quando se outorgue mandato por instrumento público, pode substabelecer-se mediante instrumento particular
+COMENTÁRIO: Art. 656. O mandato pode ser expresso ou tácito, verbal ou escrito.
+COMENTÁRIO: Art. 657. A outorga do mandato está sujeita à forma exigida por lei para o ato a ser praticado. Não se admite mandato verbal quando o ato deva ser celebrado por escrito.
+COMENTÁRIO: Art. 658. O mandato presume-se gratuito quando não houver sido estipulada retribuição, exceto se o seu objeto corresponder ao daqueles que o mandatário trata por ofício ou profissão lucrativa.
+COMENTÁRIO: Art. 661. O mandato em termos gerais só confere poderes de administração.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (316)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2564472)
+ASSUNTO: Direito Civil
+Pessoa Jurídica ,
+Parte Geral
+ENUNCIADO: Um banco concedeu empréstimos de mais de R$ 200 milhões à sociedade ABC Indústria Ltda. para financiar a ampliação das suas instalações. Dois terços das quotas dessa sociedade pertenciam às sociedades DEF Indústria Ltda, e GHI Indústria Ltda., ao passo que o terço restante pertencia a João da Silva, que, por sua vez, era titular de todas as quotas dessas outras duas sociedades. Como a mutuária não honrou o empréstimo, o banco ajuizou contra ela uma execução. Posteriormente, o banco requereu a desconsideração da personalidade jurídica de ABC Indústria Ltda., para que os bens dos seus sócios (ou seja, DEF Indústria Ltda, GHI Indústria Ltda. e João da Silva) pudessem ser alcançados pela execução, sob o fundamento exclusivo de todos eles integrarem um mesmo grupo econômico. Nesse caso, de acordo com o Código Civil, a mera existência de grupo econômico.
+ALTERNATIVAS:
+  A) autoriza a desconsideração da personalidade jurídica, para que sejam alcançados os bens das sociedades DEF Indústria Ltda. e GHI Indústria Ltda., mas não de João da Silva.
+  B) não autoriza a desconsideração da personalidade jurídica da sociedade ABC Indústria Ltda. em relação a nenhum dos seus sócios.
+  C) autoriza a desconsideração da personalidade jurídica, para que sejam alcançados 05 bens das sociedades DEF Indústria Lida. e GHI Indústria Ltda., bem como de João da Silva, desde que ele também seja administrador de qualquer uma das sociedades.
+  D) autoriza a desconsideração da personalidade jurídica, para que sejam alcançados os bens das sociedades DEF Indústria Ltda. e GHI Indústria Ltda., bem como de João da Silva, desde que ele também seja administrador de todas as sociedades.
+  E) autoriza a desconsideração da personalidade jurídica, para que sejam alcançados os bens das sociedades DEF Indústria Ltda. e GHI Indústria Ltda., bem como de João da Silva, independentemente de ele ser ou não administrador de quaisquer das sociedades.
+COMENTÁRIO: 14 de Agosto de 2024 às 01:59
+COMENTÁRIO: Código Civil
+COMENTÁRIO: Art. 50. Em caso de abuso da personalidade jurídica, caracterizado pelo desvio de finalidade ou pela confusão patrimonial, pode o juiz, a requerimento da parte, ou do Ministério Público quando lhe couber intervir no processo, desconsiderá-la para que os efeitos de certas e determinadas relações de obrigações sejam estendidos aos bens particulares de administradores ou de sócios da pessoa jurídica beneficiados direta ou indiretamente pelo abuso.
+COMENTÁRIO: [...]
+COMENTÁRIO: § 4º A mera existência de grupo econômico sem a presença dos requisitos de que trata o caput deste artigo não autoriza a desconsideração da personalidade da pessoa jurídica.
+COMENTÁRIO: Com base na Teoria Maior da desconsideração da personalidade jurídica, encampada no art. 50 do CC, é fundamental que ocorra o abuso da personalidade jurídica, que se configura pelo desvio de finalidade ou pela confusão patrimonial, o que não se verificou na hipótese do enunciado.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (304)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2564470)
+ASSUNTO: Estatuto da Pessoa com Deficiência - Lei nº 13.146 de 2015
+Legislação das Pessoas com Deficiência ,
+Lei nº 10.048 de 2000, Lei nº 10.098 de 2000 e Decreto nº 5.296 de 2004: Acessibilidade e Atendimento Prioritário
+ENUNCIADO: Imagine a seguinte situação hipotética: A empresa ABC, concessionária de serviço público de transporte coletivo, deixou de reservar assentos, devidamente identificados, às pessoas com deficiência, razão pela qual seus responsáveis foram penalizados com multa. Nos termos da Lei nº 10.048/2000, a multa para a hipótese mencionada é de R$ 500,00 a
+ALTERNATIVAS:
+  A) R$ 3.000,00, por veículos sem as condições narradas no enunciado, e será elevada ao dobro em caso de reincidência.
+  B) R$ 2.500,00, por veículos sem as condições narradas no enunciado, e será elevada ao triplo em caso de reincidência.
+  C) R$ 2.500,00, por veículos sem as condições narradas nó enunciado, e será elevada ao dobro em caso de reincidência.
+  D) R$ 1.000,00, por veículos sem as condições narradas no enunciado, e será elevada ao triplo em caso de reincidência.
+  E) R$ 2.000,00 por veículos sem as condições narradas no enunciado, não podendo ser majorada ainda que houver reincidência.
+COMENTÁRIO: 14 de Agosto de 2024 às 01:31
+COMENTÁRIO: LEI N 10.048, DE 8 DE NOVEMBRO DE 2000.
+COMENTÁRIO: Art. 6 A infração ao disposto nesta Lei sujeitará os responsáveis:
+COMENTÁRIO: I – no caso de servidor ou de chefia responsável pela repartição pública, às penalidades previstas na legislação específica;
+COMENTÁRIO: II – no caso de empresas concessionárias de serviço público, a multa de R$ 500,00 (quinhentos reais) a R$ 2.500,00 (dois mil e quinhentos reais), por veículos sem as condições previstas nos arts. 3 e 5;
+COMENTÁRIO: III – no caso das instituições financeiras, às penalidades previstas no art. 44, incisos I, II e III, da Lei n 4.595, de 31 de dezembro de 1964.
+COMENTÁRIO: Parágrafo único. As penalidades de que trata este artigo serão elevadas ao dobro, em caso de reincidência.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (125)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2564469)
+ASSUNTO: Estatuto da Pessoa com Deficiência - Lei nº 13.146 de 2015
+Legislação das Pessoas com Deficiência ,
+Lei nº 7.853, de 1989 - Apoio às Pessoas Portadoras de Deficiência e Sobre a Coordenadoria Nacional para Integração da Pessoa Portadora de Deficiência – CORDE
+ENUNCIADO: A Lei nº 7.853/1989 dispõe, dentre outras, sobre medidas judiciais destinadas à proteção de interesses coletivos, difusos, individuais homogêneos e individuais indisponíveis da pessoa com deficiência. Nos termos da referida Lei, a sentença proferida
+ALTERNATIVAS:
+  A) contra o autor da ação poderá ser objeto de recurso por qualquer legitimado ativo, inclusive o Ministério Público.
+  B) de improcedência da ação produzirá efeitos imediatos, independentemente de sua reapreciação em sede de duplo grau de jurisdição.
+  C) terá sempre eficácia inter partes, independentemente do seu desfecho, isto é, se procedente ou improcedente a ação.
+  D) terá eficácia de coisa julgada oponível erga omnes, exceto no caso de haver sido a ação julgada improcedente por deficiência de prova, hipótese em que apenas o Ministério Público poderá intentar outra ação com idêntico fundamento, valendo-se de nova prova.
+  E) que concluir pela carência da ação não estará sujeita ao duplo grau de jurisdição, pois apenas a sentença de improcedência sujeita-se a esta sistemática.
+COMENTÁRIO: 14 de Agosto de 2024 às 01:28
+COMENTÁRIO: LEI Nº 7.853, DE 24 DE OUTUBRO DE 1989.
+COMENTÁRIO: Art. 4º A sentença terá eficácia de coisa julgada oponível erga omnes, (C - ERRADA), exceto no caso de haver sido a ação julgada improcedente por deficiência de prova, hipótese em que qualquer legitimado (D - ERRADA) poderá intentar outra ação com idêntico fundamento, valendo-se de nova prova.
+COMENTÁRIO: § 1º A sentença que concluir pela carência ou pela improcedência da ação fica sujeita ao duplo grau de jurisdição (E - ERRADA), não produzindo efeito senão depois de confirmada pelo tribunal. (B - ERRADA)
+COMENTÁRIO: § 2º Das sentenças e decisões proferidas contra o autor da ação e suscetíveis de recurso, poderá recorrer qualquer legitimado ativo, inclusive o Ministério Público. (A - GABARITO)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (124)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2564460)
+ASSUNTO: Português
+Interpretação de Textos ,
+Figuras de Linguagem
+TEXTO ASSOCIADO: Valor social da memória
+     Não há evocação, não há memória sem uma inteligência do presente, um homem não sabe o que ele é se
+não for capaz de sair das determinações atuais. Aturada reflexão pode preceder e acompanhar a evocação.
+Uma lembrança é um diamante bruto que precisa ser lapidado pelo espírito: sem o trabalho da reflexão e da
+localização, seria uma imagem fugidia. O sentimento também precisa acompanhá-la, para que ela não seja
+uma repetição do estado antigo, mas uma reaparição.
+     Se existe uma memória voltada para a ação, com sua prática de hábitos assimilados, e uma outra
+memória que simplesmente revive o passado, parece ser esta a dos velhos, já libertos das atividades
+profissionais e familiares. Mas o ancião não sonha quando rememora: desempenha uma função para a qual
+está maduro, a alta função de unir o começo ao fim, de divisar os limites de uma história inteira. Um mundo
+social que possui uma riqueza e uma diversidade que não conhecemos pode chegar-nos pela memória dos velhos. Momentos desse mundo perdido podem ser compreendidos por quem não os viveu. À conversa
+evocativa de um velho é sempre uma experiência profunda: para quem sabe ouvi-la, cria um nexo entre o
+passado e o presente, é instigante e inspiradora.
+(Adaptado de: BOSI, Ecléa. Memória a sociedade = Lembranças de velhos. 20.ed. São Paulo: Companhia
+das Letras, p. 84)
+ENUNCIADO: Está correta a seguinte afirmação sobre um elemento de construção do texto:
+ALTERNATIVAS:
+  A) na expressão já libertos das atividades (2º parágrafo), das tem o valor de pelas.
+  B) na expressão para a qual está maduro (2º parágrafo), o referente de a qual é uma história.
+  C) a forma verbal ser lapidado (1º parágrafo) constitui um caso de voz ativa.
+  D) a expressão um diamante bruto (1º parágrafo) é exemplo de linguagem figurada.
+  E) opcional o uso da virgula colocada imediatamente após a palavra fim (2º parágrafo).
+COMENTÁRIO: 15 de Agosto de 2024 às 11:47
+COMENTÁRIO: GABARITO CORRETO LETRA D)
+COMENTÁRIO: ADENDO
+COMENTÁRIO: A expressão "um diamante bruto" é um exemplo de linguagem figurada, especificamente uma metáfora, que compara a lembrança a algo que precisa ser refinado.
+COMENTÁRIO: Analisemos cada alternativa..
+COMENTÁRIO: - Incorreta. A preposição "das" não tem o mesmo valor que "pelas". "Das" indica que algo foi liberado de algo, enquanto "pelas" indica meio ou causa. "Das" não tem o valor de "pelas"
+COMENTÁRIO: - Incorreta. "A qual" refere-se a "função" e não a "história".
+COMENTÁRIO: Alternativa C- Incorreta. "Ser lapidado" é voz passiva. "Ser lapidado" é um exemplo de voz passiva. Na voz ativa, o sujeito realiza a ação.
+COMENTÁRIO: - Correta. "Um diamante bruto" é uma metáfora. É uma forma de linguagem figurada que compara uma lembrança não refinada a um diamante bruto que precisa ser trabalhado nesse texto.
+COMENTÁRIO: - Incorreta. A vírgula após "fim" é obrigatória para separar a oração adicional, não opcional.
+COMENTÁRIO: Lembrando que as figuras de linguagem devem estar correndo no seu sangue para fazer as provas da FCC.
+COMENTÁRIO: Vamos revisar as figuras de linguagens?
+COMENTÁRIO: ANTÍTESE: palavras com sentidos opostos (ex: ruim/bom, perto/longe)
+COMENTÁRIO: PARADOXO: referente a duas ideias contraditórias em uma só frase ou pensamento. (ex: o silêncio é ensurdecedor)
+COMENTÁRIO: EUFEMISMO: intenção de suavizar um fato ou atitude, busca tornar mais aceitável a conotação de determinada palavra. (ex: foi para o céu, bateu as botas, Deus chamara o farmacêutico, virou estrelinha)
+COMENTÁRIO: HIPÉRBOLE: exagero intencional. (ex: estou morrendo de fome, morto de sono, gastou rios de dinheiro)
+COMENTÁRIO: PROSOPOPEIA OU PERSONIFICAÇÃO: atribuição de características/hábitos/comportamentos humanos a objetos, animais ou coisas. (ex: o sol está tímido hoje)
+COMENTÁRIO: CATACRESE: emprego de uma palavra no sentido figurado por não haver um termo próprio. (ex: dente de alho, a perna do óculos, pé da mesa)
+COMENTÁRIO: ONOMATOPEIA: imitação de um som. (ex: ding-dong)
+COMENTÁRIO: SINESTESIA: mistura de diferentes impressões sensoriais. (ex: o doce som da flauta)
+COMENTÁRIO: METÁFORA X COMPARAÇÃO
+COMENTÁRIO: Ambas as figuras de linguagem tem por objetivo fazer uma COMPARAÇÃO. a ÚNICA diferença entre as duas é que na comparação existe uma palavra explícita que expressa claramente a comparação (como, parecia, tal qual, assim como) e na metáfora essa palavra está implícita.
+COMENTÁRIO: exemplo de metáfora: a menina é uma flor.
+COMENTÁRIO: exemplo de comparação: minha filha é como um anjo.
+COMENTÁRIO: METONÍMIA: é a troca de um nome por outro. (ex: Vou tomar uma xícara de café). Ninguém uma xícara de café, mas sim o café que está dentro da xícara.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (86)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2564459)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: Considerando-se o contexto, deve-se entender que a expressão
+ALTERNATIVAS:
+  A) divisar os limites de uma história (2º parágrafo) aponta para a relevância social da memória dos velhos.
+  B) para quem sabe ouvi-la (2º parágrafo) personaliza um receptor de atenção descurada.
+  C) inteligência do presente (1º parágrafo) refere-se à racionalidade de quem se aliena do que já passou.
+  D) diamante bruto (1º parágrafo) é utilizada para acentuar o desprestígio de que sofre a memória dos velhos.
+  E) prática de hábitos assimilados (2º parágrafo) acentua a capacidade máxima de criação que tem a memória.
+COMENTÁRIO: 15 de Agosto de 2024 às 12:06
+COMENTÁRIO: GABARITO CORRETO LETRA A)
+COMENTÁRIO: ADENDO
+COMENTÁRIO: Questão difícil. Confesso que tive de voltar ao texto para conseguir resolver.
+COMENTÁRIO: "divisar os limites de uma história (2º parágrafo) aponta para a relevância social da memória dos velhos".
+COMENTÁRIO: "Divisar os limites de uma história" diz respeito à capacidade dos velhos de compreender e conectar o começo e o fim de uma narrativa, o que sugere a importância da memória dos velhos para entender e manter a continuidade histórica e social. Com isso, a está correta, pois a expressão destaca a importância da memória dos velhos na preservação e compreensão da história e da sociedade. Ou seja, mostra a importância da memória dos velhos para entender e preservar a continuidade da história e da sociedade.
+COMENTÁRIO: Analisemos cada alternativa..
+COMENTÁRIO: - Incorreta. "Para quem sabe ouvi-la" fala de quem escuta e valoriza, não de alguém com atenção descurada.
+COMENTÁRIO: Alternativa C- Incorreta. "Inteligência do presente" não é sobre ignorar o passado, mas entender o presente.
+COMENTÁRIO: - Incorreta. "Diamante bruto" não significa que a memória dos velhos é desvalorizada, mas que precisa ser refinada.
+COMENTÁRIO: - Incorreta. "Prática de hábitos assimilados" é sobre hábitos, não criatividade da memória.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (74)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2564458)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: O valor da memória dos velhos está, sobretudo,
+ALTERNATIVAS:
+  A) no árduo trabalho das fantasias que descrevem a totalidade de uma vida.
+  B) na capacidade que têm os velhos de registrar detalhes avulsos de uma história perdida.
+  C) na capacidade que têm de articular experiências já vividas às questões abertas no presente.
+  D) na repercussão subjetiva que 0 passado adquire quando fielmente reconstituído.
+  E) no estímulo das poderosas imagens passadas que relativizam a importância do presente.
+COMENTÁRIO: 15 de Agosto de 2024 às 12:17
+COMENTÁRIO: GABARITO CORRETO LETRA C)
+COMENTÁRIO: "na capacidade que têm de articular experiências já vividas às questões abertas no presente".
+COMENTÁRIO: A está correta porque destaca, no texto, que o valor da memória dos velhos está na capacidade deles de articular experiências já vividas às questões abertas no presente. Ou seja, a memória e as experiências dos velhos são valiosas porque ajudam a lidar com essas questões contemporâneas (questões abertas).
+COMENTÁRIO: Analisemos cada alternativa..
+COMENTÁRIO: - Incorreta. Fala sobre o trabalho das fantasias e a totalidade de uma vida, mas não é o principal valor da memória dos velhos.
+COMENTÁRIO: - Incorreta. Foca na capacidade de registrar detalhes avulsos, que não é o aspecto central do valor da memória dos velhos.
+COMENTÁRIO: - Incorreta. Refere-se à repercussão subjetiva do passado, que não é o foco principal na valorização da memória dos velhos.
+COMENTÁRIO: - Incorreta.  Sugere que o valor está em estimular imagens passadas que minimizam o presente, o que não representa corretamente o valor principal da memória dos velhos.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (29)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2564457)
+ASSUNTO: Português
+Interpretação de Textos ,
+Redação - Reescritura de texto
+ENUNCIADO: Momentos desse mundo perdido podem ser compreendidos por quem não os viveu.
+
+A frase acima ganha nova, coerente e correta redação em:
+ALTERNATIVAS:
+  A) Para viver os momentos de um mundo perdido implica em compreendê-los.
+  B) E possível compreender um mundo perdido por quem não o pôde ainda assim viver.
+  C) Mesmo quem não os tenha vivido poderá compreender momentos desse mundo perdido.
+  D) Conquanto os tenha vivido, quem não compreendeu aqueles momentos perdidos pode agora fazê-lo.
+  E) O mundo perdido tem momentos onde sua compreensão se dá para quem não os viveu.
+COMENTÁRIO: 15 de Agosto de 2024 às 23:43
+COMENTÁRIO: A) Incorreta. Muda o sentido original e contém erro gramatical ("implica em").
+COMENTÁRIO: B) Incorreta. Há um erro de concordância ("é possível" deveria ser usado no lugar de "E possível") e a estrutura da frase altera o sentido original.
+COMENTÁRIO: C) Correta. Esta alternativa mantém o sentido original da frase e está gramaticalmente correta. Ela expressa que é possível compreender momentos de um mundo passado mesmo sem tê-los vivido diretamente.
+COMENTÁRIO: D) Incorreta. Inverte o sentido da frase original, sugerindo que quem viveu os momentos não os compreendeu.
+COMENTÁRIO: E) Incorreta. Contém erro no uso de "onde" (deveria ser "cujos") e a estrutura da frase não é clara.
+COMENTÁRIO: Portanto, a alternativa correta é a C: "Mesmo quem não os tenha vivido poderá compreender momentos desse mundo perdido."
+COMENTÁRIO: Esta versão mantém a ideia central da frase original - que é possível compreender aspectos de um tempo passado mesmo sem tê-lo experimentado diretamente. Além disso, a estrutura gramatical está correta e o sentido é preservado de forma clara e concisa.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (41)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2564456)
+ASSUNTO: Português
+Sintaxe ,
+Concordância verbal, Concordância nominal
+TEXTO ASSOCIADO: Leis dos homens e leis da Natureza
+    Enquanto as leis dos homens buscam ordenar o comportamento dos indivíduos e da sociedade como
+um todo, de modo a tornar a vida comunal mais segura, as leis da Natureza são deduzidas de observações de
+toda uma variedade de fenômenos. Da mesma forma, enquanto as leis dos homens são baseadas em valores
+morais que variam de cultura para cultura e conforme o decorrer do tempo, as leis da Natureza buscam uma
+universalidade, tentando descrever comportamentos concretos - e verificáveis — que ocorrem no espaço e no
+tempo.
+     Com isso, se para um grupo certos rituais são aceitáveis, enquanto para outro os mesmos rituais são
+considerados bárbaros, estrelas em todo à cosmos vêm fundindo hidrogênio em hélio seguindo as mesmas
+regras desde o seu aparecimento, por volta de 200 milhões de anos após o Big Bang. Se em alguns países a
+pena de morte é um ato imoral, enquanto em outros é instituída com um zelo quase que fanático, moléculas
+em trilhões de planetas e luas nesta e em outras galáxias combinam-se e recombinam-se em reações químicas
+que seguem as mesmas leis de conservação, de atração e repulsão entre 05 reagentes.
+     Às variações nas leis dos homens mostram que pouco sabemos sobre nós mesmos, e tampouco
+conseguimos concordar sobre quais são os valores morais universais, ou mesmo se esses existem. Por outro
+lado, a precisão das leis da Natureza, sua universalidade, vem inspirando muitos pensadores a usá-las como
+base para todas as leis, incluindo as leis dos homens. Basta lembrar-se da busca de leis sociais,
+fundamentadas rigidamente na racionalidade que caracterizou à Iluminismo. Essa busca não começou aí,
+existindo já bem antes do século XVIII. Consideremos, por exemplo, Platão e suas Formas Ideais: há no
+pensamento desse filósofo da Antiguidade, um senso de veneração com o poder da matemática, e ainda mais
+com o poder da mente humana, por ter concebido o que pareciam ser verdades eternas a partir da observação
+do comportamento da Natureza.
+(Adaptado de: GLEISER, Marcelo. A Ilha do conhecimento. Rio de Janeiro: Record, 2023, 7.ed., p. 288-
+289)
+ENUNCIADO: Às normas de concordância verbal estão plenamente respeitadas na frase:
+ALTERNATIVAS:
+  A) Às variações das leis dos homens não se submetem a rígida regularidade das leis naturais.
+  B) Sempre haverá filósofos que busquem nas leis naturais o que os inspire no âmbito das leis humanas.
+  C) Não cabem às leis dos homens buscar corrigir ou disciplinar as leis da natureza.
+  D) Regem-se pelos princípios da natureza toda manifestação de fenômenos que independem da ação humana.
+  E) Impõem-se aos que defendem a pena de morte que se amparem em justificativas cabíveis.
+COMENTÁRIO: 16 de Agosto de 2024 às 16:10
+COMENTÁRIO: A) Às variações das leis dos homens não se submetem a rígida regularidade das leis naturais.
+COMENTÁRIO: NÃO existe sujeito preposicionado
+COMENTÁRIO: "Às variações das leis dos homens" NÃO é sujeito e sim Objeto Indireto de "submetem"
+COMENTÁRIO: Quem se submete, se submete A alguma coisa
+COMENTÁRIO: Sujeito: "a rígida regularidade das leis naturais"
+COMENTÁRIO: Sujeito no singular, verbo deve ficar no singular
+COMENTÁRIO: B) Sempre haverá filósofos que busquem nas leis naturais o que os inspire no âmbito das leis humanas.
+COMENTÁRIO: Verbo HAVER no sentido de existir é impessoal
+COMENTÁRIO: Filósofos buscam
+COMENTÁRIO: C) Não cabem às leis dos homens buscar corrigir ou disciplinar as leis da natureza.
+COMENTÁRIO: Cabe isso ou isso (como é uma exclusão, tem que ser no singular)
+COMENTÁRIO: D) Regem-se pelos princípios da natureza toda manifestação de fenômenos que independem da ação humana.
+COMENTÁRIO: nucleo do sujeito no singular, logo verbo deve ficar no singular
+COMENTÁRIO: E) Impõem-se aos que defendem a pena de morte que se amparem em justificativas cabíveis.
+COMENTÁRIO: ISSO impõe-se (sujeito no singular, verbo deve ficar no singular)
+COMENTÁRIO: impõe-se A quem? "aos que defendem a pena de morte" (Obj.Indireto)
+COMENTÁRIO: Lembrando que: NÃO existe sujeito preposicionado
+COMENTÁRIO: Gostei
+COMENTÁRIO: (193)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2564455)
+ASSUNTO: Português
+Sintaxe ,
+Regência
+ENUNCIADO: É plenamente regular o emprego do elemento sublinhado na frase:
+ALTERNATIVAS:
+  A) Muitos fiéis consideram bárbaros os mesmos ritos de que outros fiéis consideram sagrados.
+  B) As leis humanas buscam o equilíbrio comunal à que aspiram as sociedades mais justas.
+  C) As leis da natureza constituem um repertório de fenômenos aonde sua regularidade é incontestável.
+  D) A veneração com cuja Platão considerava o poder da matemática levou-o às formas ideais.
+  E) É admirável o rigoroso zelo a que se obriga aquele cientista no acompanhamento de sua experiência.
+COMENTÁRIO: 15 de Agosto de 2024 às 13:02
+COMENTÁRIO: GABARITO CORRETO LETRA E)
+COMENTÁRIO: "É admirável o rigoroso zelo a que se obriga aquele cientista no acompanhamento de sua experiência".
+COMENTÁRIO: - incorreta.  O uso do pronome relativo "de que" está inadequado. A frase exige a preposição "que", não "de que", já que está se referindo àquilo que é considerado.
+COMENTÁRIO: - incorreta.  O uso da preposição "à" está incorreto. O correto seria usar "ao", pois "à que" não é usado de modo adequado. Deveria ser "ao qual".
+COMENTÁRIO: - incorreta.  O uso da palavra "aonde" se encontra inadequado. O termo correto é "onde" (LUGAR), pois "aonde" é usado para indicar movimento e não localização estática.
+COMENTÁRIO: - incorreta. O uso da expressão "com cuja" não está certo. A preposição correta é "com a qual", pois "cuja" não se aplica nesse contexto. plus: Use o "cujo" para indicar posse e deve concordar com o substantivo que vem depois dele.
+COMENTÁRIO: - correta. O uso da expressão "a que" está correto. O pronome relativo "que" (no caso "a que") está sendo utilizado adequadamente para indicar a relação de posse e obrigação com o zelo mencionado.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (156)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2564454)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: Quando, no 3º terceiro parágrafo, o autor se refere à busca de leis sociais, fundamentadas rigidamente na racionalidade, ele está querendo demonstrar
+ALTERNATIVAS:
+  A) a universalidade das leis naturais em oposição à variação mesma das discutíveis leis morais.
+  B) o poder da mente humana quando calcado na contestação platônica da existência das formas ideais.
+  C) o desapego que os homens ao tempo do Iluminismo mantinham em relação aos valores morais.
+  D) o inconformismo radical de Platão quanto ao prestígio exagerado de que gozava a matemática.
+  E) a racionalidade das leis morais presente na observação dos comportamentos da natureza.
+COMENTÁRIO: 15 de Agosto de 2024 às 13:40
+COMENTÁRIO: GABARITO CORRETO LETRA A)
+COMENTÁRIO: "Enquanto as leis dos homens são baseadas em valores morais que variam de cultura para cultura e conforme o decorrer do tempo.."
+COMENTÁRIO: Ou seja..
+COMENTÁRIO: A universalidade das leis naturais em oposição à variação mesma das discutíveis leis morais.
+COMENTÁRIO: O autor mostra, no texto, que as leis naturais são universais e sempre se aplicam da mesma forma, enquanto as leis sociais variam de acordo com a cultura e o tempo. Ou seja, as leis sociais mudam e são discutíveis, mas as leis naturais são constantes e verificáveis.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (67)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (6)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2564453)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: No 2º segundo parágrafo, o autor
+ALTERNATIVAS:
+  A) sugere que os aspectos discutíveis da pena de morte variam por alguma influência de fatores naturais.
+  B) afirma que o fanatismo com que alguns se apegam a duros princípios morais deriva de convicções científicas.
+  C) faz ver que as leis das reações químicas concorrem para o estabelecimento de certos princípios morais.
+  D) mostra que o processo de formação das constelações ratifica a variabilidade de certos ritos humanos.
+  E) demonstra a variabilidade das leis humanas quando considera as diferentes valorizações de um mesmo ritual.
+COMENTÁRIO: 15 de Agosto de 2024 às 13:33
+COMENTÁRIO: GABARITO LETRA E)
+COMENTÁRIO: "Se para um grupo certos rituais são aceitáveis, enquanto para outro os mesmos rituais são considerados bárbaros.."
+COMENTÁRIO: Ou seja..
+COMENTÁRIO: Esse trecho do texto demonstra a variabilidade das leis humanas quando considera as diferentes valorizações de um mesmo ritual.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (36)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2564452)
+ASSUNTO: Português
+Interpretação de Textos ,
+Noções Gerais de Compreensão e Interpretação de Texto
+ENUNCIADO: No 1º parágrafo, argumenta-se em favor da ideia de que
+ALTERNATIVAS:
+  A) as leis humanas potenciam as leis da Natureza quando imbuídas de um propósito de universalidade.
+  B) a vigência temporal das leis dos homens é o que essencialmente as distingue das leis naturais.
+  C) os códigos das leis humanas buscam organizar e disciplinar toda uma variedade de fenômenos.
+  D) o caráter verificável de comportamentos concretos é um componente característico das leis naturais.
+  E) nas diferentes culturas variam os valores morais com base na variação mesma dos valores naturais.
+COMENTÁRIO: 15 de Agosto de 2024 às 13:23
+COMENTÁRIO: GABARITO CORRETO LETRA D)
+COMENTÁRIO: “as leis da Natureza buscam uma universalidade, tentando descrever comportamentos concretos - e verificáveis — que ocorrem no espaço e no tempo.”
+COMENTÁRIO: Ou seja..
+COMENTÁRIO: O caráter verificável de comportamentos concretos é um componente característico das leis naturais.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (50)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2564451)
+ASSUNTO: Português
+Interpretação de Textos ,
+Significação Contextual de Palavras e Expressões. Sinônimos e Antônimos.
+ENUNCIADO: Considerando-se o contexto, traduz-se adequadamente o sentido de um segmento do texto em:
+ALTERNATIVAS:
+  A) um senso de veneração com o poder (3º parágrafo) = uma consideração respeitável da potência
+  B) é instituída com um zelo quase que fanático (2º parágrafo) = se estabelece com um empenho próximo da obsessão
+  C) o que pareciam ser verdades eternas (3º parágrafo) = aquilo que dissimulava aspectos estáveis
+  D) de modo a formar a vida comunal mais segura (1º parágrafo) = apesar de regulamentar a vida em comunidade
+  E) tampouco conseguimos concordar (3º parágrafo) = a despeito de firmarmos um acordo
+COMENTÁRIO: 15 de Agosto de 2024 às 13:12
+COMENTÁRIO: GABARITO CORRETO LETRA B)
+COMENTÁRIO: "é instituída com um zelo quase que fanático (2º parágrafo) = se estabelece com um empenho próximo da obsessão."
+COMENTÁRIO: Analisemos cada alternativa de modo breve..
+COMENTÁRIO: - incorreta.  "Uma consideração respeitável da potência" não captura o significado de "senso de veneração", que implica um respeito mais profundo e reverencial.
+COMENTÁRIO: - correta. Estabelece com um empenho próximo da obsessão" traduz bem a ideia de um zelo intenso e quase obsessivo.
+COMENTÁRIO: - incorreta. "Aquilo que dissimulava aspectos estáveis" não corresponde a "verdades eternas", que sugere algo imutável e inalterável.
+COMENTÁRIO: - incorreta. "Apesar de regulamentar a vida em comunidade" não reflete a intenção de "formar a vida comunal mais segura", que é melhorar a segurança da vida comunal.
+COMENTÁRIO: - incorreta. A despeito de firmarmos um acordo qual" sugere uma tentativa de acordo, enquanto "tampouco conseguimos concordar" indica que não houve consenso.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (34)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2400739)
+ASSUNTO: Direitos Humanos
+Sistema Interamericano de Proteção aos Direitos Humanos: Instrumentos Normativos ,
+Convenção Americana sobre Direitos Humanos (Pacto de San José)
+ENUNCIADO: Relativamente à liberdade de pensamento e de expressão e a outros direitos correlatos, a Convenção Americana sobre Direitos Humanos estabelece que
+ALTERNATIVAS:
+  A) a lei não pode submeter os espetáculos públicos a censura prévia, por meios diretos, nem por meios indiretos, como com o objetivo de regular o acesso a eles, para proteção moral da infância e da adolescência.
+  B) a lei deve proibir toda propaganda a favor da guerra, bem como toda apologia ao ódio nacional, racial ou religioso que constitua incitação à discriminação, à hostilidade, ao crime ou à violência.
+  C) todas as pessoas têm o direito de associar-se livremente com fins ideológicos, religiosos, políticos, econômicos, trabalhistas, ou de qualquer outra natureza, não podendo ser impostas restrições legais ao exercício do direito de associação por membros das forças armadas e da polícia.
+  D) para a efetiva proteção da honra e da reputação, toda publicação ou empresa jornalística, cinematográfica, de rádio ou televisão, deve ler uma pessoa responsável, que não seja protegida por imunidades, ainda que goze de foro especial.
+  E) o direito de expressão não pode ser restringido por meios destinados a obstar a comunicação e a circulação de ideias e opiniões, não sendo, contudo, consideradas restrições indevidas ou abusivas as veiculadas por quaisquer controles oficiais prévios.
+COMENTÁRIO: 25 de Março de 2024 às 10:50
+COMENTÁRIO: Relativamente à liberdade de pensamento e de expressão e a outros direitos correlatos, a Convenção Americana sobre Direitos Humanos estabelece que
+COMENTÁRIO: Alternativas
+COMENTÁRIO: A a lei não pode submeter os espetáculos públicos a censura prévia, por meios diretos, nem por meios indiretos, como com o objetivo de regular o acesso a eles, para proteção moral da infância e da adolescência.
+COMENTÁRIO: Art.13. 4 A lei pode submeter os espetáculos públicos a censura prévia, com o objetivo exclusivo de regular o acesso a eles, para proteção moral da infância e da adolescência, sem prejuízo do disposto no inciso 2.
+COMENTÁRIO: B a lei deve proibir toda propaganda a favor da guerra, bem como toda apologia ao ódio nacional, racial ou religioso que constitua incitação à discriminação, à hostilidade, ao crime ou à violência.
+COMENTÁRIO: Art.13. 5
+COMENTÁRIO: C todas as pessoas têm o direito de associar-se livremente com fins ideológicos, religiosos, políticos, econômicos, trabalhistas, ou de qualquer outra natureza, não podendo ser impostas restrições legais ao exercício do direito de associação por membros das forças armadas e da polícia.
+COMENTÁRIO: Art.16 .1 Todas as pessoas têm o direito de associar-se livremente com fins ideológicos, religiosos, políticos, econômicos, trabalhistas, sociais, culturais, desportivos ou de qualquer outra natureza.
+COMENTÁRIO: Art. 16 .3 O disposto neste artigo não impede a imposição de restrições legais, e mesmo a privação do exercício do direito de associação, aos membros das forças armadas e da polícia.
+COMENTÁRIO: D para a efetiva proteção da honra e da reputação, toda publicação ou empresa jornalística, cinematográfica, de rádio ou televisão, deve ler uma pessoa responsável, que não seja protegida por imunidades, ainda que goze de foro especial.
+COMENTÁRIO: Art. 14. 3. Para a efetiva proteção da honra e da reputação, toda publicação ou empresa jornalística, cinematográfica, de rádio ou televisão, deve ter uma pessoa responsável que não seja protegida por imunidades nem goze de foro especial.
+COMENTÁRIO: E o direito de expressão não pode ser restringido por meios destinados a obstar a comunicação e a circulação de ideias e opiniões, não sendo, contudo, consideradas restrições indevidas ou abusivas as veiculadas por quaisquer controles oficiais prévios.
+COMENTÁRIO: Art.13. 3.  Não se pode restringir o direito de expressão por vias ou meios indiretos, tais como o abuso de controles oficiais ou particulares de papel de imprensa, de freqüências radioelétricas ou de equipamentos e aparelhos usados na difusão de informação, nem por quaisquer outros meios destinados a obstar a comunicação e a circulação de idéias e opiniões.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (158)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2400738)
+ASSUNTO: Direitos Humanos
+Direito Internacional dos Direitos Humanos
+ENUNCIADO: Conforme expressamente estabelecido na Convenção Americana sobre Direitos Humanos, nenhuma disposição da Convenção pode ser interpretada no sentido de limitar o gozo e exercício de qualquer direito ou liberdade que possam ser reconhecidos de acordo com as leis de qualquer dos Estados-Partes ou de acordo com outra convenção em que seja parte um dos referidos Estados. Cuida-se do princípio da
+ALTERNATIVAS:
+  A) imprescritibilidade.
+  B) não exaustividade dos fatores de discriminação.
+  C) universalidade.
+  D) primazia da norma mais favorável.
+  E) transnacionalidade.
+COMENTÁRIO: 22 de Março de 2024 às 07:45
+COMENTÁRIO: A. Imprescritibilidade Este princípio se refere à ideia de que certos direitos não podem ser perdidos com o passar do tempo. No entanto, a descrição na pergunta não se encaixa neste princípio.
+COMENTÁRIO: B. Não exaustividade dos fatores de discriminação Este princípio sugere que a lista de motivos pelos quais a discriminação é proibida não é exaustiva. No entanto, a descrição na pergunta não se refere a discriminação.
+COMENTÁRIO: C. Universalidade O princípio da universalidade afirma que os direitos humanos se aplicam a todos, independentemente de onde eles estão ou quem são. Embora este princípio seja fundamental para os direitos humanos, a descrição na pergunta não se encaixa especificamente neste princípio.
+COMENTÁRIO: D. Primazia da norma mais favorável Este princípio estabelece que, quando há várias normas aplicáveis, deve-se aplicar aquela que for mais favorável à pessoa. A descrição na pergunta se encaixa neste princípio, pois menciona a aplicação de leis ou convenções que possam reconhecer mais direitos ou liberdades.
+COMENTÁRIO: E. Transnacionalidade Este princípio se refere à ideia de que certos direitos ou normas se aplicam além das fronteiras nacionais. No entanto, a descrição na pergunta não se encaixa neste princípio.
+COMENTÁRIO: Portanto, a alternativa correta é a letra D, que se refere ao princípio da primazia da norma mais favorável.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (298)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2400736)
+ASSUNTO: Contabilidade Pública
+Normas e Legislações de Contabilidade Pública ,
+Manual de Contabilidade Aplicada ao Setor Público - MCASP
+ENUNCIADO: Quanto à classificação da receita orçamentária, de acordo com o Manual de Contabilidade Aplicada ao Setor Público, a receita com
+ALTERNATIVAS:
+  A) contribuição social se classifica em Contribuição de Melhoria.
+  B) taxas pela prestação de serviços se classifica em Receitas de Serviços.
+  C) depósito em caução se classifica em Transferências Correntes.
+  D) venda de veículos se classifica em Receita Patrimonial.
+  E) indenização se classifica em Outras Receitas Correntes.
+COMENTÁRIO: 22 de Março de 2024 às 16:23
+COMENTÁRIO: A) contribuição social se classifica em Contribuição de Melhoria.
+COMENTÁRIO: Contribuição Social é um espécie da origem de Receitas de Contribuições.
+COMENTÁRIO: B) taxas pela prestação de serviços se classifica em Receitas de Serviços.
+COMENTÁRIO: Taxas pela prestação de Serviços é espécie da origem de Receitas Tributárias (Impostos, Taxas e Contribuições de Melhoria)
+COMENTÁRIO: C) depósito em caução se classifica em Transferências Correntes.
+COMENTÁRIO: Depósito caução é uma Receita Extraorçamentária.
+COMENTÁRIO: D) venda de veículos se classifica em Receita Patrimonial.
+COMENTÁRIO: Venda de veículos é Receita de Capital.
+COMENTÁRIO: E) indenização se classifica em Outras Receitas Correntes.
+COMENTÁRIO: Outras Receitas Correntes: constituem-se pelas receitas cujas características não permitam o enquadramento nas demais classificações da receita corrente, tais como indenizações, restituições, ressarcimentos, multas previstas em legislações específicas, entre outras.
+COMENTÁRIO: Gab: E
+COMENTÁRIO: Gostei
+COMENTÁRIO: (60)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2400729)
+ASSUNTO: Direito Administrativo
+Licitações e Lei nº 14.133 de 2021 ,
+Modalidades e Critérios de Julgamento
+ENUNCIADO: A Lei de Licitações (Lei nº 14.133/2021) prevê a possibilidade de pregão para
+ALTERNATIVAS:
+  A) seleção de leiloeiro oficial.
+  B) serviço especial de engenharia.
+  C) inovação tecnológica ou técnica.
+  D) serviço técnico intelectual.
+  E) elaboração de projeto executivo.
+COMENTÁRIO: 22 de Março de 2024 às 07:16
+COMENTÁRIO: A modalidade Pregão passou a ser tratada na própria Lei Geral de Licitações (14.133/21).
+COMENTÁRIO: O pregão é do tipo menor preço ou maior desconto e não há limitação de valor para realização do pregão.
+COMENTÁRIO: O leilão é realizado pelo leiloeiro, que pode ser o leiloeiro oficial ou um servidor designado pela Administração Pública para cumprir a função de leiloeiro.
+COMENTÁRIO: § 1º do artigo 31: ''Se optar pela realização de leilão por intermédio de leiloeiro oficial, a Administração deverá selecioná-lo mediante credenciamento ou licitação na modalidade pregão e adotar o critério de julgamento de maior desconto para as comissões a serem cobradas, utilizados como parâmetro máximo os percentuais definidos na lei que regula a referida profissão e observados os valores dos bens a serem leiloados.''
+COMENTÁRIO: Pra ajudar a lembrar: o pregão é uma modalidade de licitação para aquisição de bens – por esta razão parte da doutrina o chama de “leilão reverso” – e serviços comuns, cujos padrões mínimos de qualidade serão previamente estipulados no instrumento convocatório.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (510)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2400728)
+ASSUNTO: Direito Administrativo
+Poderes da Administração ,
+Poder de polícia
+ENUNCIADO: Discricionariedade, autoexecutoriedade e coercibilidade são atributos do poder
+ALTERNATIVAS:
+  A) regulamentar.
+  B) normativo.
+  C) de polícia.
+  D) hierárquico.
+  E) disciplinar.
+COMENTÁRIO: 22 de Março de 2024 às 07:22
+COMENTÁRIO: Majoritariamente, a doutrina aponta como atributos do poder de polícia: a discricionariedade, a autoexecutoriedade e a coercibilidade.
+COMENTÁRIO: Atenção, pois para Celso Antônio Bandeira de Melo o correto seria nominar-se de "características do Poder de Polícia" no lugar de "atributos" uma vez que atributos seriam apenas a discricionariedade e a autoexecutoriedade.
+COMENTÁRIO: Discricionariedade: Liberdade que a lei estabelece para que o administrador decida no caso concreto. Lembrando que esse atributo só poderá ser reconhecido quando o poder de polícia for utilizado em sentido amplo.
+COMENTÁRIO: Autoexecutoriedade: A polícia administrativa não precisa de decisão judicial, como regra, para executar seus atos, sempre que estes forem autorizados por lei. Ex.: apreensão de alimentos inviáveis ao consumo. Neste caso, há o chamado “contraditório diferido”. Há situações, contudo, que o ato não é autoexecutável, como nos casos de multas de trânsito.
+COMENTÁRIO: Coercibilidade: Esse atributo torna o ato obrigatório. independente da vontade do particular.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (303)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2400727)
+ASSUNTO: Direito Administrativo
+Organização da Administração Pública
+ENUNCIADO: Podem se constituir como pessoas jurídicas de direito público ou de direito privado
+ALTERNATIVAS:
+  A) as empresas públicas e as organizações sociais.
+  B) os serviços autônomos e as autarquias profissionais.
+  C) as empresas subsidiadas e as sociedades de economia mista.
+  D) as autarquias e as empresas estatais.
+  E) os consórcios públicos e as fundações públicas.
+COMENTÁRIO: 22 de Março de 2024 às 07:29
+COMENTÁRIO: Fundações Públicas:
+COMENTÁRIO: São pessoas jurídicas de direito privado ou público, conforme disposição de lei que a autorizar ou criar, formada pela destinação de um patrimônio privado ou público, conforme o caso.
+COMENTÁRIO: Se forem criadas como pessoa jurídica de direito público, terão natureza de autarquia (autarquia fundacional), portanto, terão regime de fazenda pública e a elas se aplicarão tudo o que for aplicável às autarquias.
+COMENTÁRIO: As fundações públicas constituídas como pessoa jurídica de direito privado (fundações governamentais), obedecerão ao regime jurídico das empresas estatais (regime jurídico híbrido ou misto – não gozam de prerrogativas, mas se sujeitam as limitações) e serão autorizadas por lei, tendo sua criação a partir do registro no cartório de pessoas jurídicas.
+COMENTÁRIO: IMPORTANTE: Segundo o STJ, as fundações públicas de direito privado não fazem jus à isenção das custas processuais. REsp 1.409.199-SC, Rel. Min. Luis Felipe Salomão, Quarta Turma, por unanimidade, julgado em 10/03/2020, DJe 04/08/2020.
+COMENTÁRIO: Consórcios Públicos:
+COMENTÁRIO: O Consórcio Público de Direito Público adquire personalidade jurídica mediante a vigência das leis dos Entes da federação que a instituírem. Pode exercer competências privativas e não privativas de estado, visto que, incide o regime jurídico de direito público estabelecido pela Constituição Federal e legislação federal aplicável, devendo a lei, de todos os seus Entes instituidores, dispor sobre as demais disposições legais e normativas, nas áreas de competência concorrente dos Entes consorciados.
+COMENTÁRIO: O Consórcio Público de Direito Privado tem sua criação autorizada pelas leis dos Entes federados instituidores e sua personalidade jurídica é adquirida mediante o atendimento dos ritos da legislação civil.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (403)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2400726)
+ASSUNTO: Direito do Trabalho
+Dos contratos de natureza trabalhista
+ENUNCIADO: Acerca do que dispõe o ordenamento jurídico e a jurisprudência sobre os diversos contratos de trabalho,
+ALTERNATIVAS:
+  A) a transferência do regime jurídico de celetista para estatutário não implica a extinção do contrato de trabalho.
+  B) os direitos oriundos da existência do contrato de trabalho deixarão de subsistir em caso de falência ou dissolução da empresa.
+  C) o contrato de trabalho por prazo determinado, para serviços cuja natureza ou transitoriedade justifique a predeterminação do prazo, terá duração máxima de 90 dias.
+  D) a prestação de serviços a mais de uma empresa do mesmo grupo econômico, durante a mesma jornada de trabalho, sempre caracterizará coexistência de mais de um contrato de trabalho.
+  E) a mudança na propriedade ou na estrutura jurídica da empresa não afetará os contratos de trabalho dos respectivos empregados.
+COMENTÁRIO: 22 de Março de 2024 às 08:49
+COMENTÁRIO: A - errada. A transferência do regime jurídico de celetista para estatutário implica extinção do contrato de trabalho, nos termos da Súmula 382 do C. TST, todavia, não corresponde à dispensa sem justa causa do empregado.
+COMENTÁRIO: B - errada. Art. 449 - Os direitos oriundos da existência do contrato de trabalho subsistirão em caso de falência, concordata ou dissolução da empresa. § 1º - Na falência, constituirão créditos privilegiados a totalidade dos salários devidos ao empregado e a totalidade das indenizações a que tiver direito.
+COMENTÁRIO: C - errada. O prazo máximo é de 2 anos. Sim, pode ser prorrogado quantas vezes as partes quiserem, desde que não ultrapasse o limite de 2 anos.
+COMENTÁRIO: D - errada. A prestação de serviços a mais de uma empresa do mesmo grupo econômico, durante a mesma jornada de trabalho, não caracteriza a coexistência de mais de um contrato de trabalho, salvo ajuste em contrário.
+COMENTÁRIO: E- correta. a mudança na propriedade ou na estrutura jurídica da empresa não afetará os contratos de trabalho dos respectivos empregados.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (309)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (12)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2400724)
+ASSUNTO: Direito do Trabalho
+Questões essenciais relativas aos contratos de emprego
+ENUNCIADO: Enzo é empregado de uma loja de sapatos e teve a notícia do falecimento de sua bisavó paterna ocorrido em uma segunda-feira, Valentina trabalha como atendente em uma lanchonete e é mãe de uma criança de 3 anos, tendo agendado duas consultas médicas para quarta e quinta-feira, Julieta trabalha como vendedora de uma loja de brinquedos e vai se casar com Romeu na terça-feira. Considerando o que prevê a Consolidação das Leis do Trabalho,
+ALTERNATIVAS:
+  A) os três poderão se ausentar do trabalho sem prejuízo do seu salário, sendo Enzo por até 2 dias, Valentina somente por um dia e Julieta por 3 dias.
+  B) nenhum dos três empregados poderá faltar sem prejuízo do salário, por não se enquadrarem nas hipóteses legais de interrupção do contrato de trabalho.
+  C) os três poderão se ausentar do trabalho sem prejuízo do seu salário, sendo Enzo apenas no dia seguinte ao do falecimento de sua bisavó, Valentina pelos dois dias de consulta e Julieta por 5 dias.
+  D) apenas Julieta poderá se ausentar por 5 dias, sem prejuízo de seu salário; Enzo e Valentina, em caso de ausência, terão os dias descontados de seu salário.
+  E) Enzo não poderá se ausentar do trabalho, sem prejuízo de seu salário, por se tratar de falecimento de parente distante; Valentina e Julieta poderão se ausentar sem prejuízo de seu salário, a primeira por 2 dias e a segunda por 3 dias consecutivos.
+COMENTÁRIO: 22 de Março de 2024 às 04:53
+COMENTÁRIO: Art. 473 - O empregado poderá deixar de comparecer ao serviço sem prejuízo do salário:
+COMENTÁRIO: I - até 2 (dois) dias consecutivos, em caso de falecimento do cônjuge, ascendente, descendente, irmão ou pessoa que, declarada em sua carteira de trabalho e previdência social, viva sob sua dependência econômica;
+COMENTÁRIO: II - até 3 (três) dias consecutivos, em virtude de casamento;
+COMENTÁRIO: XI - por 1 (um) dia por ano para acompanhar filho de até 6 (seis) anos em consulta médica.
+COMENTÁRIO: Obs.: caso algum deles fosse professor, as licenças de casamento e falecimento s seriam de 9 dias.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (463)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2400723)
+ASSUNTO: Direito do Trabalho
+Extinção do contrato de emprego: modalidades e obrigações legais ,
+Cessação do contrato de emprego
+ENUNCIADO: Margareth é empregada da loja de roupas “Fina Estampa” e, mesmo advertida por duas vezes, em meses anteriores, faltou injustificadamente ao trabalho por 16 dias consecutivos, reapresentando-se, após a ausência, para dar continuidade ao trabalho. Considerando o que prevê a Consolidação das Leis do Trabalho, bem como o entendimento jurisprudencial acerca da matéria, o empregador de Margareth, para dispensá-la por justa causa, devera invocar a hipótese de:
+ALTERNATIVAS:
+  A) insubordinação.
+  B) ato de improbidade.
+  C) abandono de emprego.
+  D) desídia no desempenho das respectivas funções.
+  E) Incontinência de conduta.
+COMENTÁRIO: 22 de Março de 2024 às 07:17
+COMENTÁRIO: Insubordinação: se refere ao descumprimento de ordens pessoais que são dadas pelo líder a determinada pessoa individualmente ou em grupo.
+COMENTÁRIO: Ato de improbidade: vontade livre e consciente do agente público de causar algum tipo de prejuízo ao erário, ferir os princípios da Administração Pública ou enriquecer ilicitamente
+COMENTÁRIO: Abandono de emprego: se configura pela ausência ao trabalho por 30 dias consecutivos.
+COMENTÁRIO: Desídia no desempenho das respectivas funções: remete à ideia de trabalhador negligente, imprudente, relapso, culposamente improdutivo. Refere-se, também, à reiteração de faltas leves. (Gabarito)
+COMENTÁRIO: Incontinência de conduta: constitui falta funcional específica e grave do empregado que não controla seus impulsos de natureza sexual. Ex: assédio sexual.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (679)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2400722)
+ASSUNTO: Direito Constitucional
+Poder Legislativo ,
+Senado Federal
+ENUNCIADO: De acordo com a Constituição Federal, compete privativamente
+ALTERNATIVAS:
+  A) ao Senado Federal aprovar, por maioria absoluta e por voto secreto, a exoneração, de ofício, do Procurador-Geral da República antes do término de seu mandato.
+  B) ao Congresso Nacional aprovar previamente, por voto secreto, após arguição em sessão secreta, a escolha dos chefes de missão diplomática de caráter permanente.
+  C) ao Senado Federal autorizar, por dois terços de seus membros, a instauração de processo contra o Presidente e o Vice-Presidente da República e os Ministros de Estado.
+  D) à Câmara dos Deputados suspender a execução, no todo ou em parte, de lei declarada inconstitucional por decisão definitiva do Supremo Tribunal Federal.
+  E) à Câmara dos Deputados avaliar periodicamente a funcionalidade do Sistema Tributário Nacional, em sua estrutura e seus componentes, e o desempenho das administrações tributárias da União, dos Estados e do Distrito Federal e dos Municípios.
+COMENTÁRIO: 22 de Março de 2024 às 07:38
+COMENTÁRIO: CF/88
+COMENTÁRIO: A) Art. 52. Compete privativamente ao Senado Federal:
+COMENTÁRIO: XI - aprovar, por maioria absoluta e por voto secreto, a exoneração, de ofício, do Procurador-Geral da República antes do término de seu mandato;
+COMENTÁRIO: B) Art. 52. Compete privativamente ao Senado Federal:
+COMENTÁRIO: IV - aprovar previamente, por voto secreto, após argüição em sessão secreta, a escolha dos chefes de missão diplomática de caráter permanente;
+COMENTÁRIO: C) Art. 51. Compete privativamente à Câmara dos Deputados:
+COMENTÁRIO: I - autorizar, por dois terços de seus membros, a instauração de processo contra o Presidente e o Vice-Presidente da República e os Ministros de Estado;
+COMENTÁRIO: D) Art. 52. Compete privativamente ao Senado Federal:
+COMENTÁRIO: X - suspender a execução, no todo ou em parte, de lei declarada inconstitucional por decisão definitiva do Supremo Tribunal Federal;
+COMENTÁRIO: E) Art. 52. Compete privativamente ao Senado Federal:
+COMENTÁRIO: XV - avaliar periodicamente a funcionalidade do Sistema Tributário Nacional, em sua estrutura e seus componentes, e o desempenho das administrações tributárias da União, dos Estados e do Distrito Federal e dos Municípios.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (498)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2400721)
+ASSUNTO: Direito Constitucional
+Presidente da República, Vice-Presidente da República e Ministros de Estado. ,
+Poder Executivo
+ENUNCIADO: De acordo com a Constituição Federal, compete privativamente ao Presidente da República
+ALTERNATIVAS:
+  A) aprovar o estado de defesa e a intervenção federal, autorizar o estado de sítio, ou suspender qualquer uma dessas medidas.
+  B) autorizar referendo e convocar plebiscito.
+  C) conferir condecorações e distinções honorificas.
+  D) estabelecer limites globais e condições para o montante da divida mobiliária dos Estados, do Distrito Federal e dos Municípios.
+  E) apreciar os atos de concessão e renovação de concessão de emissoras de rádio e televisão.
+COMENTÁRIO: 22 de Março de 2024 às 07:43
+COMENTÁRIO: CF/88
+COMENTÁRIO: A)   Art. 49. É da competência exclusiva do Congresso Nacional:
+COMENTÁRIO: IV - aprovar o estado de defesa e a intervenção federal, autorizar o estado de sítio, ou suspender qualquer uma dessas medidas;
+COMENTÁRIO: B) Art. 49. É da competência exclusiva do Congresso Nacional:
+COMENTÁRIO: XV - autorizar referendo e convocar plebiscito;
+COMENTÁRIO: C) Art. 84. Compete privativamente ao Presidente da República:
+COMENTÁRIO: XXI - conferir condecorações e distinções honoríficas;
+COMENTÁRIO: D) Art. 52. Compete privativamente ao Senado Federal:
+COMENTÁRIO: IX - estabelecer limites globais e condições para o montante da dívida mobiliária dos Estados, do Distrito Federal e dos Municípios;
+COMENTÁRIO: E) Art. 49. É da competência exclusiva do Congresso Nacional:
+COMENTÁRIO: XII - apreciar os atos de concessão e renovação de concessão de emissoras de rádio e televisão;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (591)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2400719)
+ASSUNTO: Direito Constitucional
+Teoria dos Direitos Fundamentais
+ENUNCIADO: De acordo com o que estabelece a Constituição Federal, acerca dos direitos e garantias fundamentais,
+ALTERNATIVAS:
+  A) ninguém será submetido a tortura nem a tratamento desumano ou degradante, salvo, no último caso, por ordem judicial, nas hipóteses e na forma que a lei estabelecer para fins de investigação criminal ou instrução processual penal.
+  B) a pequena propriedade rural, assim definida em lei, desde que trabalhada pela família, só poderá ser compulsoriamente dissolvida ou ter sua atividade suspensa por decisão judicial, exigindo-se, no primeiro caso, o trânsito em julgado.
+  C) no caso de iminente perigo público, a autoridade competente poderá usar de propriedade particular, mediante justa e prévia indenização em dinheiro.
+  D) é livre a expressão da atividade intelectual, artística, científica e de comunicação, salvo se as invocar para eximir-se de obrigação legal a todos imposta e recusar-se a cumprir prestação alternativa, fixada em lei.
+  E) todos podem reunir-se pacificamente, sem armas, em locais abertos ao público, independentemente de autorização, desde que não frustrem outra reunião anteriormente convocada para o mesmo local, sendo apenas exigido prévio aviso à autoridade competente.
+COMENTÁRIO: 22 de Março de 2024 às 08:28
+COMENTÁRIO: [GAB E - CORRETO] Todos versam sobre o artigo quinto
+COMENTÁRIO: A III - NINGUÉM será submetido a tortura nem a tratamento desumano ou degradante;
+COMENTÁRIO: -------------------------------------------------------------------------------------------------------------------------
+COMENTÁRIO: B XXVI - a pequena propriedade rural, assim definida em lei, desde que trabalhada pela família, não será objeto de penhora para pagamento de débitos decorrentes de sua atividade produtiva, dispondo a lei sobre os meios de financiar o seu desenvolvimento;
+COMENTÁRIO: -------------------------------------------------------------------------------------------------------------------------
+COMENTÁRIO: C XXV - no caso de iminente perigo público, a autoridade competente poderá usar de propriedade particular, assegurada ao proprietário indenização ulterior (POSTERIOR), se houver dano;
+COMENTÁRIO: -------------------------------------------------------------------------------------------------------------------------
+COMENTÁRIO: D IX - é livre a expressão da atividade intelectual, artística, científica e de comunicação, independentemente de censura ou licença;
+COMENTÁRIO: OBS:VIII - ninguém será privado de direitos por motivo de crença religiosa ou de convicção filosófica ou política, salvo se as invocar para eximir-se de obrigação legal a todos imposta e recusar-se a cumprir prestação alternativa, fixada em lei;
+COMENTÁRIO: -------------------------------------------------------------------------------------------------------------------------
+COMENTÁRIO: E XVI - todos podem reunir-se pacificamente, sem armas, em locais abertos ao público, independentemente de autorização, desde que não frustrem outra reunião anteriormente convocada para o mesmo local, sendo apenas exigido prévio aviso à autoridade competente;
+COMENTÁRIO: RE 806339, STF- A exigência constitucional de aviso prévio relativamente ao direito de reunião é satisfeita com a veiculação de informação que permita ao poder público zelar para que seu exercício se dê de forma pacífica ou para que não frustre outra reunião no mesmo local”.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (520)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2400717)
+ASSUNTO: Administração Geral
+Gestão Estratégica ,
+Clima e Cultura Organizacional na Administração Geral
+ENUNCIADO: Cultura organizacional e clima organizacional relacionam-se, respectivamente, com
+ALTERNATIVAS:
+  A) crenças e valores da empresa - ao sentimento dos colaboradores em relação ao ambiente de trabalho.
+  B) ações coordenadas dentre os agentes de uma empresa buscando um fim comum — objetivos indicados pela empresa para a execução das ações de seus colaboradores.
+  C) objetivos buscados pela empresa — ação coordenada dentre os agentes da empresa na busca desses objetivos.
+  D) sentimento dos colaboradores em relação ao ambiente de trabalho — crenças e valores da empresa.
+  E) valores praticados pelos agentes de uma empresa — crenças e valores da empresa.
+COMENTÁRIO: 22 de Março de 2024 às 07:38
+COMENTÁRIO: Falou em artefatos, valores, crenças e pressupostos básicos, lembre-se de cultura organizacional. Falou em percepções e sentimentos, lembre-se de clima organizacional.
+COMENTÁRIO: Rememorar os termos: cultura organizacional é possível ser alterada, porém demanda tempo e é mais difícil de acontecer. Já o clima organizacional sofre alterações muito rápidas e pode variar até mesmo durante um expediente de trabalho.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (151)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2400716)
+ASSUNTO: Gestão de Pessoas
+Gestão de Conhecimento
+ENUNCIADO: Os elementos que compõem o modelo de gestão de pessoas vão muito além das práticas normalizadas em RH. Os objetivos e parâmetros dos processos de gestão de pessoas classificam-se em
+ALTERNATIVAS:
+  A) introdução, manutenção e aproveitamento.
+  B) inserção, aproveitamento e interatividade.
+  C) movimentação, alternância e comprometimento.
+  D) alternância, comprometimento e valorização.
+  E) movimentação, desenvolvimento e valorização.
+COMENTÁRIO: 23 de Março de 2024 às 13:45
+COMENTÁRIO: Os objetivos e parâmetros dos processos de gestão de pessoas classificam-se em: movimentação,
+COMENTÁRIO: desenvolvimento e valorização (Dutra et al., 2017).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (84)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2400715)
+ASSUNTO: Gestão de Pessoas
+Desenho de Cargos
+ENUNCIADO: O processo decisório relaciona-se com os três níveis organizacionais de gestão, quando considerados os graus de níveis de decisão. Nesse contexto, as decisões proferidas pela alta cúpula de Administração são identificadas como
+ALTERNATIVAS:
+  A) definitivas.
+  B) referenciais.
+  C) estratégicas.
+  D) táticas.
+  E) operacionais.
+COMENTÁRIO: 23 de Março de 2024 às 10:16
+COMENTÁRIO: Gabarito: Letra C - estratégicas
+COMENTÁRIO: Nível estratégico = caracterizado pela diretoria (alta cúpula)
+COMENTÁRIO: Nível tático = caracteriza pelos gerentes
+COMENTÁRIO: Nível operacional = caracteriza pelos supervisores
+COMENTÁRIO: Qualquer erro, por favor, me avisem :)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (63)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2400714)
+ASSUNTO: Ética na Administração Pública
+Introdução, Ética e Moral e Orientações Gerais
+ENUNCIADO: O decoro e a civilidade são qualidades que focam mais de perto a natureza ético-política do serviço público. Quanto a essas qualidades, é correto afirmar que o decoro é uma postura
+ALTERNATIVAS:
+  A) parametrizada, visando a ação coordenada e contida do servidor público para com os administrados, enquanto a civilidade se volta ao aspecto interno do serviço, ou seja, a postura do servidor em contato com seus pares.
+  B) exigida de todo servidor público e que possui aspecto unicamente interno de portar-se de acordo com as regras éticas locais, enquanto a civilidade carrega aspecto externo, de postura para com os administrados.
+  C) interligada à conduta externa, sendo este seu principal aspecto, enquanto a civilidade direciona-se à ação do servidor público relacionada à urbanidade, em especial com aqueles com os quais divide suas tarefas.
+  D) que compreende a retidão de uma ação e a visão da sociedade para com essa ação tomando-a por correta, enquanto a civilidade revela a disposição em justificar publicamente suas ações e agir de modo a acomodar as diferenças.
+  E) voltada ao aspecto interno do servidor público, que age de forma polida e educada com seus pares, enquanto a civilidade indica a preocupação em agir como cidadão no empenho de suas tarefas em prol do serviço público.
+COMENTÁRIO: 22 de Março de 2024 às 17:13
+COMENTÁRIO: O termo "decoro" refere-se ao comportamento socialmente aceitável, respeitoso e adequado em determinado contexto ou situação. Envolve agir de acordo com as normas de conduta e ética esperadas em uma sociedade, instituição ou ambiente específico. O decoro está relacionado à dignidade, cortesia e bom senso nas interações pessoais, profissionais e públicas. Isso inclui mostrar consideração pelos outros, respeitar seus direitos e privacidade, e evitar comportamentos que possam ser considerados ofensivos, vulgares ou desrespeitosos.
+COMENTÁRIO: A civilidade, por sua vez, refere-se ao comportamento cortês, polido e respeitoso que se espera de indivíduos em suas interações diárias. É a qualidade de ser civilizado e demonstrar educação, gentileza e tolerância com os outros, independentemente de diferenças de opinião, crenças ou origens. A civilidade envolve tratar os outros com cortesia, consideração e empatia, mesmo em situações de discordância ou conflito. Isso inclui ouvir atentamente, expressar-se de maneira respeitosa, evitar insultos ou ataques pessoais e buscar soluções construtivas para resolver disputas ou diferenças. Em resumo, a civilidade promove um ambiente de convivência harmoniosa e respeitosa entre os membros de uma comunidade ou sociedade.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (68)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2400712)
+ASSUNTO: Gerência de Projetos
+Gerenciamento de Projetos, Programas e Portfólio
+ENUNCIADO: Na esfera da administração pública, um programa de governo é composto por diversos projetos, daí a importância da gestão desses projetos. E, visando a organização que domine as técnicas e ferramentas da disciplina do gerenciamento de projetos, a fim de apoiá-los e viabilizá-los, tem-se a criação de
+ALTERNATIVAS:
+  A) hub de projetos.
+  B) escritório de projetos.
+  C) executor de projetos.
+  D) folder de projetos.
+  E) cartela de projetos.
+COMENTÁRIO: 22 de Março de 2024 às 14:45
+COMENTÁRIO: Escritório de projetos ou Project Management Office (PMO), é um departamento que define e mantém padrões para a gestão de projetos dentro de uma empresa. Sua função principal é padronizar processos, prestar orientação, garantir a alocação correta de recursos e acompanhar o progresso das frentes de trabalho.
+COMENTÁRIO: O PMO aumenta a eficácia das operações, garantindo que os projetos estejam alinhados aos objetivos estratégicos da organização.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (243)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2400711)
+ASSUNTO: Administração Pública
+Gestão por resultados
+ENUNCIADO: Na gestão por resultados, em relação à produção de serviços públicos, há a etapa de formulação da política pública e a de implementação de ações. Nesta última, considerando que a formulação traduz os objetivos da política pública em resultados, a coordenação para atingi-los se dá
+ALTERNATIVAS:
+  A) pela indicação de metas burocráticas.
+  B) por avaliação sem definição de indicadores.
+  C) por anotação de eixos cumpridos.
+  D) pela orientação por resultados.
+  E) pela busca de menor autonomia.
+COMENTÁRIO: 17 de Junho de 2024 às 17:33
+COMENTÁRIO: LETRA D: PELA ORIENTAÇÃO POR RESULTADOS
+COMENTÁRIO: No processo de implementação, há um intenso esforço de coordenação interorganizacional para a efetiva transformação das políticas públicas em resultados.
+COMENTÁRIO: IMPLEMENTAÇÃO = efetiva transformação das políticas públicas em resultados.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (69)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2400703)
+ASSUNTO: História e Geografia de Estados e Municípios
+História e Geografia do Estado do Amazonas
+ENUNCIADO: Chico Mendes, assassinado em 1988, e Dorothy Stang, assassinada em 2005, são nomes referenciais na história dos movimentos sociais na Amazônia e têm suas trajetórias marcadas, respectivamente, pela
+ALTERNATIVAS:
+  A) ação politica como deputado federal comprometido com a preservação do meio ambiente a reforma agrária, no estado do Acre; é pelas denúncias levadas à ONU a respeito da conivência entre o governo é empresas ligadas à extração de madeira
+  B) vida dedicada à melhoria das condições de vida dos trabalhadores rurais, no Acre, sendo eleito presidente do Conselho Nacional dos Seringueiros; e pela propagação da Teologia da Libertação em escolas fundadas por igrejas católicas e evangélicas, no Pará.
+  C) luta em prol da melhoria das condições de trabalho dos seringalistas, no Acre, e pela ação caridosa em defesa dos direitos básicos dos camponeses, como a escolarização, no Pará, onde foi recentemente canonizada pela Igreja Católica.
+  D) criação da União dos Povos da Floresta, no Acre, ONG que contou com reconhecimento e apoio da Unesco; e pela liderança no âmbito do MST na região nordeste do Pará.
+  E) atuação na defesa do meio ambiente florestal contra o avanço das pastagens e na sindicalização dos seringueiros, no Acre; e pela defesa dos trabalhadores rurais em detrimento da atuação de fazendeiros e madeireiros em localidades às margens da rodovia Transamazônica, como missionária crista.
+COMENTÁRIO: 17 de Abril de 2024 às 09:58
+COMENTÁRIO: GAB E
+COMENTÁRIO: Gostei
+COMENTÁRIO: (2)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2400702)
+ASSUNTO: História
+História do Brasil ,
+Período Colonial: produção de riqueza e escravismo
+ENUNCIADO: Considere a seguinte descrição:
+
+Originária de Cametá, a dança expressa gratidão dos índios e escravos africanos por um milagre. Depois de um dia exaustivo de trabalho, os escravos eram liberados, sob fiscalização, para conseguir algo para comer. Certo dia foram à praia e encontraram grandes quantidades de siris que se deixavam apanhar facilmente. Em agradecimento, ensaiaram uma dança e deram o nome de Siriá, que narra o fato.
+
+(Disponível: http://www. belem.pa.gov.br)
+
+Em termos históricos, o texto indica a
+ALTERNATIVAS:
+  A) antiga tradição alimentar das populações ribeirinhas do Amazonas, estado onde se originou a festa.
+  B) invisibilidade da herança indígena nas festas da região norte, uma vez que inexistem características da cultura indígena nessa manifestação.
+  C) existência de uma convivência harmoniosa entre índios, negros e brancos, apesar das adversidades, e que deu origem a incontáveis manifestações festivas.
+  D) precariedade da sobrevivência imposta aos escravos, responsáveis por complementar sua própria alimentação.
+  E) marca do sincretismo religioso presente na ideia de milagre, no batuque, e na origem africana da palavra Siri da qual deriva o nome da dança.
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2400701)
+ASSUNTO: História
+História do Brasil ,
+República Autoritária : 1964- 1984
+ENUNCIADO: Leia o trecho de um discurso do General Emilio Garrastazu Médici, proferido em Manaus em 08 de outubro de 1970:
+
+
+A Amazônia ainda não encontrou sua vocação econômica. O café e o cacau, a madeira e a borracha, o boi a juta e a castanha têm sido momentos passageiros de riqueza; momentos que não trouxeram mais duradouras mudanças na infraestrutura socioeconômica. [...] Somente depois da Revolução é que vieram os tratores e o idealismo da engenharia militar, desvendando e aproximando a Amazônia. [...] O coração da Amazônia é O cenário para que se diga ao povo que a Revolução e este governo são essencialmente nacionalistas, entendido o nacionalismo como a afirmação do interesse nacional sobre quaisquer interesses e a prevalência das soluções brasileiras para os problemas do Brasil.
+
+(APUD MIRANDA, Camila Barbosa Monção. Ditadura militar s Amazônia: as promessas desenvolvimentistas de um governo autoritário. Anais do XXTX Simpósio Nacional de História, Brasília (DF), 2017, p. 9. Disponível em: https:/!/snh2017 .anpuh.org)
+
+
+A partir do trecho acima e considerando as ações do governo militar na Amazônia, o discurso
+ALTERNATIVAS:
+  A) propagandeia os feitos do governo militar na região, que decide eliminar a pecuária e práticas extrativistas como a castanha, a madeira, entre outras para dar lugar a obras de engenharia e infraestrutura geradas pela instalação de empresas na Zona Franca de Manaus.
+  B) defende o povoamento do coração da Amazônia, uma vez que o vazio demográfico, na visão daquele governo, deveria ser combatido com idealismo e a militarização da região.
+  C) revela uma interpretação do golpe de 1964 como uma revolução e um diagnóstico de que o governo militar estava proporcionando desenvolvimento econômico perene para a região e de viés nacionalista.
+  D) atesta a falta de desenvolvimento econômico na região como um desafio ainda sem solução e celebra Manaus como sendo o centro político e econômico da Amazônia.
+  E) alerta para o fato de que as atividades econômicas realizadas na região até aquele momento foram iniciativas estrangeiras, havendo a necessidade de uma revolução imediata para alterar essa situação.
+COMENTÁRIO: 17 de Abril de 2024 às 10:07
+COMENTÁRIO: GAB C
+COMENTÁRIO: Gostei
+COMENTÁRIO: (1)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2400700)
+ASSUNTO: História
+História Geral ,
+Segunda Grande Guerra – 1939-1945
+ENUNCIADO: Um dos principais impactos da II Guerra Mundial para a Amazônia foi a assinatura dos chamados acordos de Washington que
+ALTERNATIVAS:
+  A) possibilitaram a modernização das Forças Armadas para a defesa da região, em troca do fornecimento de alimentos para os países em guerra, por meio do Serviço Especial de Mobilização de Trabalhadores para a Amazônia.
+  B) fundaram o Banco de Crédito da Borracha na Amazônia, com capital norte-americano, incentivando a ocupação da região por meio da distribuição de terras a pequenos proprietários do sul, o que reforçou o fenômeno migratório da diáspora gaúcha.
+  C) estimularam a extração do látex amazônico em face dos problemas de abastecimento causados pelo conflito no Pacífico, nos seringais da Malásia, região que chegou a ser ocupada pelos japoneses.
+  D) estipularam uma quota de recrutamento de soldados brasileiros na região, os chamados “soldados da borracha”, para reforçar as tropas aliadas que protegiam a região, após o ataque sofrido pelo Brasil por submarinos alemães.
+  E) iniciaram a construção de uma base aérea no Pará para facilitar o abastecimento dos aviões norte-americanos, fato que contribuiu para o ataque japonês a Pearl Harbor.
+COMENTÁRIO: 24 de Março de 2024 às 18:01
+COMENTÁRIO: explicação: O Acordo de Washington de 1942 foi um acordo entre o Brasil e os Estados Unidos. O acordo declarou a Amazônia como a principal fonte de matérias-primas para a defesa das Américas. Os Estados Unidos comprometeram-se a comprar toda a produção de borracha e outros insumos do Brasil nos cinco anos seguintes. O Brasil comprometeu-se a fornecer aos Aliados (Estados Unidos, Inglaterra e França) um mínimo de 5.000 toneladas de borracha por ano
+COMENTÁRIO: Gostei
+COMENTÁRIO: (19)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2400699)
+ASSUNTO: História
+História do Brasil ,
+Brasil Monárquico – Segundo Reinado 1831- 1889
+ENUNCIADO: Na área atualmente identificada como Amazônia legal ocorreram, durante o período regencial, diversas revoltas sociais que envolveram participação de membros da elite local, a exemplo da
+ALTERNATIVAS:
+  A) Balaiada e da Revolta dos Malês.
+  B) Revolta Praieira e da Confederação do Equador.
+  C) Sabinada e da Comuna de Manaus.
+  D) Revolta dos Galegos e da Revolta da Praia de Sangue.
+  E) Cabanagem e da Rusga do Mato Grosso.
+COMENTÁRIO: 26 de Abril de 2024 às 10:01
+COMENTÁRIO: Gab. Letra E
+COMENTÁRIO: Importante saber nessa questão os estados envoltos pela amazônia legal. São eles: Acre, Amapá, Amazonas, Maranhão, Mato Grosso, Pará, Rondônia, Roraima, Tocantins.
+COMENTÁRIO: A. Balaiada e Revolta dos Malês:
+COMENTÁRIO: - A Balaiada ocorreu na província do Maranhão, no Nordeste do Brasil.
+COMENTÁRIO: - A Revolta dos Malês ocorreu em Salvador, na Bahia.
+COMENTÁRIO: B. Revolta Praieira e Confederação do Equador:
+COMENTÁRIO: - A Revolta Praieira ocorreu em Pernambuco, no Nordeste do Brasil.
+COMENTÁRIO: - A Confederação do Equador foi uma rebelião que ocorreu em 1824, também em Pernambuco.
+COMENTÁRIO: C. Sabinada e Comuna de Manaus:
+COMENTÁRIO: - A Sabinada ocorreu na província da Bahia.
+COMENTÁRIO: - A Comuna de Manaus, também conhecida como Revolução do Amazonas, ocorreu em Manaus, na região Norte do Brasil.
+COMENTÁRIO: D. Revolta dos Galegos e Revolta da Praia de Sangue:
+COMENTÁRIO: - A Revolta da Praia de Sangue foi uma revolta ocorrida em Roraima, Brasil, em 1790.
+COMENTÁRIO: Já ''galegos'' é apenas o nome de grupos pró-governo paraense, liderados principalmente pelas famílias árabes de Marabá. Não foi uma revolta em si.
+COMENTÁRIO: E. Cabanagem e Rusga do Mato Grosso:
+COMENTÁRIO: - A Cabanagem ocorreu na província do Grão-Pará, na região Norte do Brasil, entre 1835 e 1840. Foi uma revolta popular liderada por cabanos, em sua maioria indígenas, mestiços e negros, que contestavam as injustiças sociais e políticas da época.
+COMENTÁRIO: - A Rusga do Mato Grosso ocorreu na província de Mato Grosso, na região Centro-Oeste do Brasil, em 1834. Foi um movimento de resistência contra as medidas centralizadoras do governo imperial brasileiro, liderado pelos fazendeiros locais.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (39)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+
+GABARITO FINAL
+--------------------
+Questão 1 (ID: Q3088357): E
+Questão 2 (ID: Q3088355): A
+Questão 3 (ID: Q3088352): B
+Questão 4 (ID: Q3088351): D
+Questão 5 (ID: Q3088349): C
+Questão 6 (ID: Q3088326): C
+Questão 7 (ID: Q3088321): E
+Questão 8 (ID: Q2564510): D
+Questão 9 (ID: Q2564509): A
+Questão 10 (ID: Q2564507): 
+Questão 11 (ID: Q2564504): E
+Questão 12 (ID: Q2564503): A
+Questão 13 (ID: Q2564502): D
+Questão 14 (ID: Q2564501): 
+Questão 15 (ID: Q2564499): C
+Questão 16 (ID: Q2564497): E
+Questão 17 (ID: Q2564496): C
+Questão 18 (ID: Q2564495): E
+Questão 19 (ID: Q2564494): C
+Questão 20 (ID: Q2564489): E
+Questão 1 (ID: Q2564484): E
+Questão 2 (ID: Q2564482): D
+Questão 3 (ID: Q2564479): A
+Questão 4 (ID: Q2564475): D
+Questão 5 (ID: Q2564472): B
+Questão 6 (ID: Q2564470): C
+Questão 7 (ID: Q2564469): A
+Questão 8 (ID: Q2564460): D
+Questão 9 (ID: Q2564459): A
+Questão 10 (ID: Q2564458): 
+Questão 11 (ID: Q2564457): C
+Questão 12 (ID: Q2564456): B
+Questão 13 (ID: Q2564455): E
+Questão 14 (ID: Q2564454): 
+Questão 15 (ID: Q2564453): E
+Questão 16 (ID: Q2564452): 
+Questão 17 (ID: Q2564451): B
+Questão 18 (ID: Q2400739): B
+Questão 19 (ID: Q2400738): D
+Questão 20 (ID: Q2400736): E
+Questão 1 (ID: Q2400729): A
+Questão 2 (ID: Q2400728): C
+Questão 3 (ID: Q2400727): E
+Questão 4 (ID: Q2400726): E
+Questão 5 (ID: Q2400724): A
+Questão 6 (ID: Q2400723): D
+Questão 7 (ID: Q2400722): A
+Questão 8 (ID: Q2400721): C
+Questão 9 (ID: Q2400719): E
+Questão 10 (ID: Q2400717): A
+Questão 11 (ID: Q2400716): 
+Questão 12 (ID: Q2400715): C
+Questão 13 (ID: Q2400714): D
+Questão 14 (ID: Q2400712): B
+Questão 15 (ID: Q2400711): 
+Questão 16 (ID: Q2400703): E
+Questão 17 (ID: Q2400702): D
+Questão 18 (ID: Q2400701): C
+Questão 19 (ID: Q2400700): C
+Questão 20 (ID: Q2400699): E

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Configurações de Certidões Automáticas</title>
+		<link href="../../imagens/icones/extensao/azul.svg" property="stylesheet" rel="icon" type="image/svg+xml">
+		<link rel="stylesheet" href="estilo.css" />
+	</head>
+	<body>
+		<header>
+			<h1></h1>
+		</header>
+		<main>
+			<form>
+				<fieldset>
+					<section>
+						<h2>Configurações de Certidões Automáticas</h2>
+						<informacoes>
+							<i aria-label="Preencha os campos espelhando-se na Página Anexar Documento do PJe"></i>
+						</informacoes>
+						<configuracoes id="cadastro">
+							<label>Posição do Botão:<br>
+								<input
+									type = "number"
+									class = "configuracao"
+									id = "posicao"
+									min = "1"
+									value = "1"
+								>
+							</label>
+							<label>Cor do Botão:<br>
+								<input
+									type = "color"
+									class = "configuracao"
+									id = "cor"
+									value = "#8800FF"
+								>
+							</label>
+							<label class="largura32">Texto do Botão:<br>
+								<input autocomplete	required
+									type = "text"
+									class = "configuracao"
+									id = "rotulo"
+									value = ""
+								>
+							</label>
+							<label class="largura49">Tipo de Documento:<br>
+								<input
+									type = "text"
+									class = "configuracao"
+									id = "tipo"
+									value = ""
+									list = "tipos"
+								>
+							</label>
+							<label class="largura49">Descrição do Documento:<br>
+								<input
+									type = "text"
+									class = "configuracao"
+									id = "descricao"
+									value = ""
+								>
+							</label>
+							<label class="ativador assistente largura32">
+								<input
+									type = "checkbox"
+									class = "configuracao"
+									id = "pdf"
+								>
+								<span
+									data-ativado = "PDF"
+									data-desativado = "Editor"
+								></span>
+							</label>
+							<label class="ativador assistente largura32">
+								<input
+									type = "checkbox"
+									class = "configuracao"
+									id = "sigiloso"
+								>
+								<span
+									data-ativado = "Sigilosa"
+									data-desativado = "Não Sigilosa"
+								></span>
+							</label>
+							<label class="ativador assistente largura32">
+								<input
+									type = "checkbox"
+									class = "configuracao"
+									id = "assinar"
+								>
+								<span
+									data-ativado = "Clicar em Assinar"
+									data-desativado = "Não Clicar em Assinar"
+								></span>
+							</label>
+							<label class="largura100">Texto da Certidão:<br>
+								<textarea
+									rows = "3"
+									class = "configuracao"
+									id = "certidao"
+								></textarea>
+							</label>
+						</configuracoes>
+					</section>
+				</fieldset>
+				<input type="submit" id="salvar" value="Salvar" title="Salvar">
+			</form>
+			<section>
+				<h2>Importar Configurações</h2>
+				<configuracoes>
+					<label class="largura100">Importar:<br>
+						<textarea
+						rows = "3"
+						class = "configuracao"
+						id = "importar-configuracoes"
+						></textarea>
+					</label>
+					<input type="button" id="importar" value="Importar Configurações" title="Importar Configurações">
+				</configuracoes>
+				<h2>Exportar Configurações</h2>
+				<configuracoes id="exportar">
+					<label class="largura100">Exportar:<br>
+						<textarea
+						rows = "3"
+						class = "configuracao"
+						id = "exportar-configuracoes"
+						></textarea>
+					</label>
+				</configuracoes>
+			</section>
+		</main>
+		<footer></footer>
+	</body>
+	<datalist id="tipos">
+		<option value="Auto de Adjudicação">
+		<option value="Auto de Arrematação">
+		<option value="Aviso de Recebimento (AR)">
+		<option value="BacenJud (bloqueio)">
+		<option value="BacenJud (desbloqueio)">
+		<option value="BacenJud (transferência)">
+		<option value="Carta de Adjudicação">
+		<option value="Carta de Arrematação">
+		<option value="Carteira de Trabalho e Previdência Social (CTPS)">
+		<option value="Certidão da Central de Atendimento/Anexação de Documentos">
+		<option value="Certidão de Crédito para Habilitação no Juízo Falimentar">
+		<option value="Certidão de Crédito Trabalhista">
+		<option value="Certidão de Entrega de Documentos pela Secretaria">
+		<option value="Certidão de Praça/Leilão">
+		<option value="Certidão de Trânsito em Julgado">
+		<option value="Certidão do Cartório de Registro de Imóveis">
+		<option value="Certidão">
+		<option value="Comprovante de Depósito Judicial">
+		<option value="Correspondência Eletrônica/E-mail">
+		<option value="Declaração de Operações Imobiliárias - DOI (consulta)">
+		<option value="Documento de Arrecadação de Receitas Federais (DARF)">
+		<option value="Documento Diverso">
+		<option value="Extrato Bancário">
+		<option value="Extrato de FGTS">
+		<option value="Guia da Previdência Social (GPS)">
+		<option value="Infojud (consulta)">
+		<option value="Infoseg (consulta)">
+		<option value="Mandado de Levantamento">
+		<option value="Mandado de Pagamento">
+		<option value="Manifestação do Calculista">
+		<option value="Número de Identificação do Trabalhador (NIT)">
+		<option value="Ofício Precatório">
+		<option value="Ofício Requisitório">
+		<option value="Ofício">
+		<option value="Planilha de Atualização de Cálculos">
+		<option value="Planilha de Cálculos">
+		<option value="Programa de Integração Social (PIS)">
+		<option value="Registro na Junta Comercial">
+		<option value="Renajud (consulta)">
+		<option value="Requisição Antecipada de Honorários Periciais">
+		<option value="Requisição de Pequeno Valor (RPV)">
+		<option value="Requisição Final de Honorários Periciais">
+		<option value="SIMBA (consulta)">
+	</datalist>
+<script src="/publicas/definicoes.js"></script>
+<script src="/publicas/gerais.js"></script>
+<script src="/publicas/relatar.js"></script>
+<script src="/publicas/navegador.js"></script>
+<script src="/publicas/dom.js"></script>
+<script src="/navegador/cabecalho.js"></script>
+<script src="/navegador/rodape.js"></script>
+<script src="programa.js"></script>
+</html>

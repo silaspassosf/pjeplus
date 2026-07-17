@@ -1,0 +1,294 @@
+:root{
+	--quinzinho-icone-ativo:					url(/imagens/icones/extensao/ativo.svg);
+	--quinzinho-icone-branco:					url(/imagens/icones/extensao/branco.svg);
+	--quinzinho-icone-inativo:				url(/imagens/icones/extensao/inativo.svg);
+	--quinzinho-icone-advogado:				url(/imagens/icones/advogado.svg);
+	--quinzinho-icone-agenda:					url(/imagens/icones/agenda.svg);
+	--quinzinho-icone-apontador:			url(/imagens/icones/apontador.svg);
+	--quinzinho-icone-arroba:					url(/imagens/icones/arroba.svg);
+	--quinzinho-icone-audiencia:			url(/imagens/icones/audiencia.svg);
+	--quinzinho-icone-cnc:						url(/imagens/icones/cnc.svg);
+	--quinzinho-icone-cnj:						url(/imagens/icones/cnj.svg);
+	--quinzinho-icone-codigo:					url(/imagens/icones/codigo.svg);
+	--quinzinho-icone-correios:				url(/imagens/icones/correios.svg);
+	--quinzinho-icone-egestao:				url(/imagens/icones/egestao.svg);
+	--quinzinho-icone-esincor:				url(/imagens/icones/esincor.svg);
+	--quinzinho-icone-engrenagem:			url(/imagens/icones/engrenagem.svg);
+	--quinzinho-icone-exe15:					url(/imagens/icones/exe15.svg);
+	--quinzinho-icone-gigs:						url(/imagens/icones/gigs.svg);
+	--quinzinho-icone-github:					url(/imagens/icones/github.svg);
+	--quinzinho-icone-i:							url(/imagens/icones/i.svg);
+	--quinzinho-icone-intranet:				url(/imagens/icones/intranet.svg);
+	--quinzinho-icone-lupa:						url(/imagens/icones/lupa.svg);
+	--quinzinho-icone-adicao:					url(/imagens/icones/operador-adicao.svg);
+	--quinzinho-icone-divisao:				url(/imagens/icones/operador-divisao.svg);
+	--quinzinho-icone-multiplicacao:	url(/imagens/icones/operador-multiplicacao.svg);
+	--quinzinho-icone-subtracao:			url(/imagens/icones/operador-subtracao.svg);
+	--quinzinho-icone-martelo:				url(/imagens/icones/martelo.svg);
+	--quinzinho-icone-painel:					url(/imagens/icones/painel.svg);
+	--quinzinho-icone-pericias:				url(/imagens/icones/pericias.svg);
+	--quinzinho-icone-pje:						url(/imagens/icones/pje.svg);
+	--quinzinho-icone-seta:						url(/imagens/icones/seta.svg);
+	--quinzinho-icone-sig:						url(/imagens/icones/sig.svg);
+	--quinzinho-icone-termos:					url(/imagens/icones/termos.svg);
+	--quinzinho-icone-trt:						url(/imagens/icones/trt.svg);
+	--quinzinho-icone-wikivt:					url(/imagens/icones/wikivt.svg);
+}
+
+quinzinho-botao.trt{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-trt) no-repeat center / 65% 65%,
+		rgba(var(--quinzinho-cor-branco),1)
+	;
+}
+
+quinzinho-botao.sig{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-sig) no-repeat center / 65% 65%,
+		rgba(var(--quinzinho-cor-branco),1)
+	;
+}
+
+quinzinho-botao.egestao{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-egestao) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-clarear),
+		rgba(var(--quinzinho-cor-preto),1)
+	;
+}
+
+quinzinho-botao.configuracao-magistrado{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-apontador) no-repeat 5px 5px / 45% 45%,
+		var(--quinzinho-icone-engrenagem) no-repeat 33px 5px / 12px 12px,
+		var(--quinzinho-icone-martelo) no-repeat center 25px / 50% 50%,
+		var(--quinzinho-cor-clarear),
+		rgba(var(--quinzinho-cor-preto),1)
+	;
+}
+
+quinzinho-botao.audiencias{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-audiencia) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-laranja),1)
+	;
+}
+
+quinzinho-botao.designacoes{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-audiencia) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-escurecer),
+		var(--quinzinho-cor-escurecer),
+		rgba(var(--quinzinho-cor-verde),1)
+	;
+}
+
+quinzinho-botao.pje-instancia-1{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-pje) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-branco),1)
+	;
+}
+
+quinzinho-botao.pje-instancia-2{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-pje) no-repeat center / 70% 70%,
+    var(--quinzinho-cor-clarear),
+		rgba(var(--quinzinho-cor-preto),1)
+	;
+}
+
+quinzinho-botao.cnj{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-cnj) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-vermelho),1)
+	;
+}
+
+quinzinho-botao.pje1{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-pje) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		rgba(var(--quinzinho-cor-amarelo),1)
+	;
+}
+
+quinzinho-botao.pje-painel-global{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-painel) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-clarear),
+		rgba(var(--quinzinho-cor-preto),1)
+	;
+}
+
+quinzinho-botao.gigs{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-gigs) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-vermelho),1)
+	;
+}
+
+quinzinho-botao.mail{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-arroba) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-vermelho),1)
+	;
+}
+
+quinzinho-botao.exe15{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-exe15) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-laranja),1)
+	;
+}
+
+quinzinho-botao.pericias{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-pericias) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-escurecer),
+		rgba(var(--quinzinho-cor-amarelo),1)
+	;
+}
+
+quinzinho-botao.correios{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-correios) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-escurecer),
+		rgba(var(--quinzinho-cor-amarelo),1)
+	;
+}
+
+quinzinho-botao.pje-consulta-processos{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-lupa) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-azul),1)
+	;
+}
+
+quinzinho-botao.pje-consulta-pessoa{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-agenda) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-indigo),1)
+	;
+}
+
+quinzinho-botao.intranet{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-intranet) no-repeat center / 70% 70%,
+		rgba(var(--quinzinho-cor-violeta),1)
+	;
+}
+
+quinzinho-botao.pje-consulta-advogado{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-advogado) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-escurecer),
+		var(--quinzinho-cor-escurecer),
+		rgba(var(--quinzinho-cor-violeta),1)
+	;
+}
+
+quinzinho-botao.pje-modelos-de-documentos{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-codigo) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-escurecer),
+		var(--quinzinho-cor-escurecer),
+		rgba(var(--quinzinho-cor-verde),1)
+	;
+}
+
+quinzinho-botao.wikivt{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-wikivt) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-clarear),
+		rgba(var(--quinzinho-cor-preto),1)
+	;
+}
+
+quinzinho-botao.proad{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		rgba(var(--quinzinho-cor-azul),1)
+	;
+}
+
+quinzinho-botao.pjecor{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		linear-gradient(
+			rgba(var(--quinzinho-cor-indigo),0.5)   0%,
+			rgba(var(--quinzinho-cor-indigo),0.5) 100%
+		)
+		rgba(var(--quinzinho-cor-azul),1)
+	;
+}
+
+quinzinho-botao.pje-calc{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-pje) no-repeat center / 50% 50%,
+		var(--quinzinho-icone-adicao) no-repeat 5px 5px / 10px 10px,
+		var(--quinzinho-icone-subtracao) no-repeat 5px 35px / 10px 10px,
+		var(--quinzinho-icone-multiplicacao) no-repeat 35px 5px / 10px 10px,
+		var(--quinzinho-icone-divisao) no-repeat 35px 35px / 10px 10px,
+		rgba(var(--quinzinho-cor-indigo),1)
+	;
+}
+
+quinzinho-botao.cnc{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-cnc) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		rgba(var(--quinzinho-cor-amarelo),1)
+	;
+}
+
+quinzinho-botao.esincor{
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-esincor) no-repeat center / 70% 70%,
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		var(--quinzinho-cor-clarear),
+		rgba(var(--quinzinho-cor-amarelo),1)
+	;
+}

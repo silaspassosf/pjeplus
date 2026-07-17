@@ -1,0 +1,142 @@
+{
+  "name": "Assistente Virtual para Justi\u00e7a do Trabalho",
+  "short_name": "AVJT",
+  "description": "Otimiza as rotinas de tarefas inerentes aos sistemas da Justi\u00e7a do Trabalho",
+  "manifest_version": 2,
+  "version": "142.9",
+  "author": "Sisenando Calixto",
+  "homepage_url": "https://github.com/SisenandoCalixto/avjt/",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{fcaf8e22-fd89-4a3f-99a0-c49fff1c4ac4}"
+    }
+  },
+  "developer": {
+    "name": "Sisenando Gomes Calixto de Sousa",
+    "url": "https://github.com/SisenandoCalixto/"
+  },
+  "icons": {
+    "16": "imagens/icones/extensao/azul.svg",
+    "24": "imagens/icones/extensao/azul.svg",
+    "32": "imagens/icones/extensao/azul.svg",
+    "48": "imagens/icones/extensao/azul.svg",
+    "128": "imagens/icones/extensao/azul.svg"
+  },
+  "background": {
+    "scripts": [
+      "publicas/definicoes.js",
+      "publicas/gerais.js",
+      "publicas/relatar.js",
+      "publicas/dom.js",
+      "publicas/esforcos.js",
+      "publicas/datas.js",
+      "publicas/navegador.js",
+      "publicas/whatsapp.js",
+      "navegador/navegador.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "css": [
+        "css/animacoes.css",
+        "css/avjt.css",
+        "css/cores.css",
+        "css/google-docs.css",
+        "css/icones.css",
+        "css/dimensoes.css",
+        "css/informacoes.css",
+        "css/selecao.css",
+        "css/maispje.css",
+        "css/pje.css",
+        "css/pje-paineis.css",
+        "css/pje-gigs.css",
+        "css/planilha.css",
+        "css/rolagem.css"
+      ],
+      "js": [
+        "publicas/definicoes.js",
+        "publicas/gerais.js",
+        "publicas/relatar.js",
+        "publicas/dom.js",
+        "publicas/datas.js",
+        "publicas/email.js",
+        "publicas/esforcos.js",
+        "publicas/estilizar.js",
+        "publicas/extenso.js",
+        "publicas/navegador.js",
+        "publicas/janela.js",
+        "publicas/pje.js",
+        "publicas/pje-api.js",
+        "publicas/pje-anexar.js",
+        "publicas/pje-calc.js",
+        "publicas/pje-certidoes.js",
+        "publicas/pje-conclusao-magistrado.js",
+        "publicas/pje-gigs.js",
+        "publicas/pje-editor.js",
+        "publicas/pje-legado.js",
+        "publicas/pje-listas.js",
+        "publicas/pje-paginas.js",
+        "publicas/pje-paineis.js",
+        "publicas/pje-painel-superior.js",
+        "publicas/pje-processo-detalhes.js",
+        "publicas/pje-processo-retificar-autuacao.js",
+        "publicas/pje-processo-tarefas.js",
+        "publicas/pje-rolagem.js",
+        "publicas/whatsapp.js",
+        "publicas/youtube.js",
+        "iniciar.js",
+        "bb.js",
+        "cef.js",
+        "chamado.js",
+        "cndt.js",
+        "correios.js",
+        "ecarta.js",
+        "google-docs.js",
+        "google-mail.js",
+        "infojud.js",
+        "captcha.js",
+        "lgpd.js",
+        "penhora.js",
+        "pje.js",
+        "planilha.js",
+        "renajud.js",
+        "sinesp.js",
+        "sigeo.js",
+        "sif.js",
+        "simples.js",
+        "sisbajud.js",
+        "siscondj.js",
+        "trt.js",
+        "trt15.js",
+        "tst.js",
+        "selecao.js",
+        "ad-hoc.js"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_end"
+    }
+  ],
+  "permissions": [
+    "<all_urls>",
+    "activeTab",
+    "clipboardRead",
+    "clipboardWrite",
+    "contextMenus",
+    "scripting",
+    "storage",
+    "tabs",
+    "unlimitedStorage"
+  ],
+  "options_ui": {
+    "page": "navegador/configuracoes/pagina.htm",
+    "open_in_tab": true
+  },
+  "browser_action": {
+    "browser_style": true,
+    "default_popup": "navegador/menu/pagina.htm"
+  }
+}

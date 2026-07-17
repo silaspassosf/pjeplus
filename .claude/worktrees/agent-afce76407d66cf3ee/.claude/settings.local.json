@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "PowerShell(*)",
+      "Edit(*)",
+      "Write(*)",
+      "Read(*)",
+      "WebSearch(*)",
+      "Skill(*)",
+      "mcp__ide__getDiagnostics"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[DELEGAÇÃO] Orquestrador usou leitura direta. Considere delegar ao flash-worker.'",
+            "blocking": false
+          }
+        ]
+      }
+    ]
+  }
+}

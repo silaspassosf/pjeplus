@@ -1,0 +1,6 @@
+{
+  "ciclo2_mat_select_combobox": [
+    "css selector",
+    "mat-select[role='combobox']"
+  ]
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Configurações</title>
+		<link href="../../imagens/icones/extensao/azul.svg" property="stylesheet" rel="icon" type="image/svg+xml">
+		<link rel="stylesheet" href="estilo.css" />
+	</head>
+	<body>
+		<header><h1></h1></header>
+		<main>
+			<section>
+				<h2>Política de Privacidade</h2>
+				<p>Esta extensão não captura, coleta ou compartilha qualquer dado do usuário, nem permite ou facilita qualquer tipo de acesso de terceiros (inclundo o seu desenvolvedor) a esses dados.</p>
+				<p>Os dados fornecidos nesta página são armazenados apenas localmente, no navegador em que esta extensão está instalada.</p>
+			</section>
+			<form>
+				<fieldset>
+					<section>
+						<h2>Configurações da Extensão</h2>
+						<informacoes><i aria-label="Os dados informados nesta seção servirão para definir o contexto de uso da extensão (links, por exemplo)."></i></informacoes>
+						<configuracoes class="instituicao">
+							<label class="largura49" aria-label="Tribunal (TST=0)">Tribunal:<br>
+								<input type="number" class="tribunal" min="0" max="24" value="15">
+							</label>
+							<label class="largura49">Instância:<br>
+								<input type="number" class="instancia" min="1" max="3" value="1">
+							</label>
+						</configuracoes>
+					</section>
+					<section>
+						<h2>Configurações Pessoais</h2>
+						<informacoes><i aria-label="Os dados informados nesta seção servirão para definir variáveis em contextos específicos (envio de mensagens e GIGS, por exemplo)."></i></informacoes>
+						<configuracoes class="usuario">
+							<label class="largura49">Nome Completo:<br>
+								<input type="text" class="nome" value="" aria-label="Nome Completo">
+							</label>
+							<label class="largura49">E-mail Institucional:<br>
+								<input type="email" class="email" value="@trt.jus.br" aria-label="E-mail Institucional">
+							</label>
+							<label class="largura49">Cargo:<br>
+								<input type="text" class="cargo" value="Técnico Judiciário" aria-label="Cargo">
+							</label>
+							<label class="largura49">Unidade Judiciária:<br>
+								<input type="text" class="unidade" value="ª Vara do Trabalho de " aria-label="Unidade Judiciária">
+							</label>
+						</configuracoes>
+					</section>
+					<section>
+						<h2>Delegações</h2>
+						<informacoes><i aria-label="Os dados informados nesta seção servirão para alimentar campos que os exijam, quando necessário."></i></informacoes>
+						<configuracoes class="delegacoes">
+							<label class="largura49">CPF para Depósitos Recursais na CEF:<br>
+								<input type="text" class="cefDepositosRecursais" value="" aria-label="CPF com Separadores" pattern="\d{3}[.]\d{3}[.]\d{3}[-]\d{2}" title="CPF com Separadores" placeholder="###.###.###-##">
+							</label>
+						</configuracoes>
+					</section>
+					<section>
+						<h2>Configurações de Mensagens Automatizadas</h2>
+							<informacoes><i aria-label="Nesta seção é possível definir os textos usados nas automações de mensagens. Para redefinir uma configuração para o padrão da extensão, limpe todo o texto, salve e recarregue."></i></informacoes>
+						<configuracoes class="texto">
+							<label class="largura32">Assinatura:<br>
+								<textarea rows="10" class="assinatura" aria-label="Assinatura"></textarea>
+							</label>
+							<label class="largura32">Texto padrão para e-mails:<br>
+								<textarea rows="10" class="emailDocumentos" aria-label="Texto padrão para envio de documentos por e-mail"></textarea>
+							</label>
+							<label class="largura32">Texto padrão para WhatsApp:<br>
+								<textarea rows="10" class="whatsapp" aria-label="Texto padrão para envio de documentos por WhatsApp"></textarea>
+							</label>
+						</configuracoes>
+					</section>
+					<section>
+						<h2>Exportação e Importação de Configurações</h2>
+							<informacoes><i aria-label="Nesta seção é possível exportar e importar configurações da extensão."></i></informacoes>
+						<configuracoes class="texto">
+							<label class="largura49">Exportar:<br>
+								<textarea rows="10" class="exportar" aria-label="Exportar Configurações"></textarea>
+							</label>
+							<label class="largura49">Importar:<br>
+								<textarea rows="10" class="importar" aria-label="Importar Configurações"></textarea>
+							</label>
+							<input type="button" id="importar" value="Importar Configurações" title="Importar Configurações">
+						</configuracoes>
+					</section>
+					<section>
+						<h2>Reservado a Desenvolvedores</h2>
+						<informacoes><i aria-label="Não alimente os campos abaixo se não souber do que se tratam"></i></informacoes>
+						<configuracoes class="diagnostico">
+							<label class="largura100">URL Raiz do PJe para Testes:<br>
+								<input type="text" class="pjeUrlRaiz" list="pjeUrlRaizLista" value="" aria-label="URL Raiz do PJe para Testes">
+							</label>
+							<label class="ativador assistente largura100">
+								<input type="checkbox" class="diagnosticar">
+								<span data-ativado="Modo de Diagnóstico Ativado" data-desativado="Modo de Diagnóstico Desativado"></span>
+							</label>
+						</configuracoes>
+					</section>
+				</fieldset>
+				<input type="submit" id="salvar" value="Salvar" title="Salvar">
+			</form>
+		</main>
+		<footer></footer>
+	</body>
+<datalist id="pjeUrlRaizLista">
+	<option value="https://desenvolvimento.pje.csjt.jus.br">
+	<option value="https://desenvolvimento.pje.csjt.jus.br/primeirograu">
+	<option value="https://desenvolvimento.pje.csjt.jus.br/segundograu">
+	<option value="https://desenvolvimento-tst.pje.csjt.jus.br/tst">
+	<option value="https://producao.pje.csjt.jus.br">
+	<option value="https://evolucao.pje.csjt.jus.br">
+</datalist>
+<script src="/publicas/definicoes.js"></script>
+<script src="/publicas/gerais.js"></script>
+<script src="/publicas/relatar.js"></script>
+<script src="/publicas/navegador.js"></script>
+<script src="/publicas/dom.js"></script>
+<script src="/navegador/cabecalho.js"></script>
+<script src="/navegador/rodape.js"></script>
+<script src="/lgpd.js"></script>
+<script src="programa.js"></script>
+</html>

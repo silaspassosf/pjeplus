@@ -1,0 +1,76 @@
+﻿# ============================================================================
+# COMPARAÇÃO: ANTES vs DEPOIS
+# ============================================================================
+
+ANTES (Versão Frágil - pet_novo.py):
+------------------------------------
+Regra "Acordo":
+  [
+    gerar_regex_flexivel('aguardando cumprimento de acordo'),
+    lambda txt: gerar_regex_flexivel('contestação').search(txt) or ...
+  ]
+
+PROBLEMA: Busca em texto concatenado "tipo_peticao descricao tarefa fase"
+- "aguardando cumprimento de acordo" PODE estar em qualquer campo
+- "contestação" PODE estar em qualquer campo
+- Funciona porque esses termos SÓ aparecem em campos específicos
+- MAS é frágil: se aparecer em lugar errado, dá falso positivo!
+
+------------------------------------
+
+DEPOIS (Versão Robusta - pet2.py):
+----------------------------------
+Regra "Acordo":
+  [
+    campo('tarefa', gerar_regex_flexivel('aguardando cumprimento de acordo')),
+    campo('tipo_peticao', lambda txt: gerar_regex_flexivel('contestação').search(txt) or ...)
+  ]
+
+VANTAGEM: Cada padrão especifica EXATAMENTE qual campo testar
+- "aguardando cumprimento de acordo"  busca SOMENTE em 'tarefa'
+- "contestação"  busca SOMENTE em 'tipo_peticao'
+- Impossível ter falso positivo por termo em campo errado
+- Código autodocumentado: fica claro ONDE cada termo deve aparecer
+
+------------------------------------
+
+EXEMPLO PRÁTICO:
+---------------
+Petição:
+  tipo_peticao = "Contestação"
+  descricao = "Apresentação de documentos"  
+  tarefa = "Aguardando cumprimento de acordo"
+  fase = "Conhecimento"
+
+VERSÃO ANTIGA (concatena tudo):
+  texto = "contestacao apresentacao de documentos aguardando cumprimento de acordo conhecimento"
+   Match: "aguardando cumprimento" encontrado
+   Match: "contestação" encontrado
+  RESULTADO:  Executaria ação (CORRETO por sorte!)
+
+VERSÃO NOVA (campos isolados):
+  campo('tarefa'): "aguardando cumprimento de acordo" 
+  campo('tipo_peticao'): "contestação" 
+  RESULTADO:  Executaria ação (CORRETO por design!)
+
+------------------------------------
+
+CASO DE FALSO POSITIVO (hipotético):
+------------------------------------
+Petição estranha:
+  tipo_peticao = "Manifestação"
+  descricao = "Aguardando cumprimento de acordo sobre contestação"  
+  tarefa = "Análise"
+  fase = "Liquidação"
+
+VERSÃO ANTIGA:
+  texto = "manifestacao aguardando cumprimento de acordo sobre contestacao analise liquidacao"
+   Match: "aguardando cumprimento" encontrado (na descrição!)
+   Match: "contestação" encontrado (na descrição!)
+  RESULTADO:  Executaria ação ERRADA! (Falso positivo)
+
+VERSÃO NOVA:
+  campo('tarefa'): "aguardando cumprimento de acordo"  (não está na tarefa!)
+  RESULTADO:  NÃO executaria (CORRETO - evitou falso positivo!)
+
+============================================================================

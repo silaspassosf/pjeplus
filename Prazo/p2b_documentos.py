@@ -475,6 +475,9 @@ def _definir_regras_processamento() -> List[Tuple]:
         # REGRA DE PARCELAMENTO
         ([gerar_regex_geral('sobre o preenchimento dos pressupostos legais para concessão do parcelamento')], ("criar_gigs[1/Bruna/Liberação]",)),
 
+        # REGRA DE OPOSIÇÃO DE EMBARGOS
+        ([gerar_regex_geral('para oposição de embargos')], ("criar_gigs[-1//Bruna - Liberação]",)),
+
         # REGRA DE PENHORA
         ([gerar_regex_geral('Defiro a penhora no rosto dos autos')], ("criar_gigs[1//xs sob 6]", ato_180)),
 

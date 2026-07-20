@@ -122,6 +122,9 @@ def make_comunicacao_wrapper(
         diretamente para `comunicacao_judicial`, tratando `mudar_expediente` como um
         parâmetro comum (como `descricao`, `prazo`, etc.).
         """
+        # Salvar handle da aba original (chamador) — NÃO usar window_handles[0] (escaninho)
+        _aba_original = driver.current_window_handle
+
         # Resolve destinatários override explicitamente se presente
         destinatarios_param = destinatarios_override if destinatarios_override is not None else (
             overrides.get('destinatarios') if 'destinatarios' in overrides else destinatarios
@@ -355,7 +358,7 @@ def make_comunicacao_wrapper(
             return False
         finally:
             try:
-                _fechar_abas_tabs(driver, driver.window_handles[0])
+                _fechar_abas_tabs(driver, _aba_original)
             except Exception:
                 pass
 

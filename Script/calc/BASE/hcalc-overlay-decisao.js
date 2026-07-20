@@ -635,7 +635,10 @@
                             // Garante que a Solidária puxe os valores monetários da sua própria planilha!
                             let dadosOverridePrin = null;
                             if (!prin.usarMesmaPlanilha && prin.idPlanilha) {
-                                dadosOverridePrin = (window.hcalcState.planilhasDisponiveis || []).find(p => p.dados && p.dados.idPlanilha === prin.idPlanilha)?.dados;
+                                const planilhasPrin = window.hcalcState.planilhasDisponiveis || [];
+                                const entradaPrin = planilhasPrin.find(p => p.id === prin.idPlanilha)
+                                    || planilhasPrin.find(p => p.dados && p.dados.idPlanilha === prin.idPlanilha);
+                                dadosOverridePrin = entradaPrin?.dados || null;
                             }
 
                             appendBaseAteAntesPericiais({
@@ -669,7 +672,11 @@
 
                         Object.values(grupos).forEach((grupo, index) => {
                             // Busca os dados da planilha extraída na memória
-                            let pData = (window.hcalcState.planilhasDisponiveis || []).find(p => p.dados && p.dados.idPlanilha === grupo.idPlanilha)?.dados;
+                            // Busca primeiro por p.id (chave primária usada ao registrar), depois por dados.idPlanilha como fallback
+                            const planilhasAll = window.hcalcState.planilhasDisponiveis || [];
+                            const entradaSub = planilhasAll.find(p => p.id === grupo.idPlanilha)
+                                || planilhasAll.find(p => p.dados && p.dados.idPlanilha === grupo.idPlanilha);
+                            let pData = entradaSub?.dados || null;
                             
                             // Correção Crítica: parseMoney antes do formatMoney impede o crash TypeError
                             const vCred = formatMoney(parseMoney(pData ? pData.verbas : '0'));

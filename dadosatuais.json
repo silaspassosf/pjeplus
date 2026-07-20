@@ -1,70 +1,47 @@
 {
   "numero": [
-    "1000294-78.2023.5.02.0703"
+    "1001382-42.2023.5.02.0707"
   ],
-  "id": 5092205,
+  "id": 5587992,
   "autor": [
     {
-      "nome": "JOSE JAIMISON DE FREITAS SARAIVA",
-      "cpfcnpj": "05270939479",
+      "nome": "LOURIVAL DE SOUZA JUNIOR",
+      "cpfcnpj": "07363810826",
       "advogado": {
-        "nome": "ARLEY DONIZETE BARBOSA",
-        "cpf": "03488246612",
-        "oab": "SP249280"
+        "nome": "RENATA APARECIDA DOS SANTOS",
+        "cpf": "30441050808",
+        "oab": "SP312416"
       }
     }
   ],
   "reu": [
     {
-      "nome": "KUBA VIACAO URBANA LTDA",
-      "cpfcnpj": "00277649000154",
+      "nome": "AMAZONAS SERVICOS DE LIMPEZA E COMERCIO DE EQUIPAMENTOS ELETRONICOS LTDA",
+      "cpfcnpj": "08672233000142",
       "advogado": {
-        "nome": "THAIS SALGUEIRO LIMA PEDROSA",
-        "cpf": "04294035420",
-        "oab": "PE26485"
+        "nome": "JOSE NIJAR SAUAIA NETO",
+        "cpf": "00805310320",
+        "oab": "MA7983"
       }
     },
     {
-      "nome": "TRANSKUBA TRANSPORTES GERAIS LTDA.",
-      "cpfcnpj": "05482282000124",
-      "advogado": {
-        "nome": "THAIS SALGUEIRO LIMA PEDROSA",
-        "cpf": "04294035420",
-        "oab": "PE26485"
-      }
-    },
-    {
-      "nome": "KBPX ADMINISTRACAO E PARTICIPACAO LTDA.",
-      "cpfcnpj": "13838043000192",
-      "advogado": {
-        "nome": "THAIS SALGUEIRO LIMA PEDROSA",
-        "cpf": "04294035420",
-        "oab": "PE26485"
-      }
-    },
-    {
-      "nome": "CONSORCIO KBPX",
-      "cpfcnpj": "33504169000138",
-      "advogado": {
-        "nome": "THAIS SALGUEIRO LIMA PEDROSA",
-        "cpf": "04294035420",
-        "oab": "PE26485"
-      }
+      "nome": "TARCILIA ERICEIRA SILVA",
+      "cpfcnpj": "00911206329"
     }
   ],
   "terceiro": [
     {
-      "nome": "ROGERIO APARECIDO ROSA"
+      "nome": "CARLOS IRAYBA CREMONINI"
     }
   ],
   "divida": {
-    "valor": "R$ 541.955,42",
-    "data": "30/06/2026"
+    "valor": "R$ 15.567,01",
+    "data": "02/07/2026"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "07/03/2023",
+  "dtAutuacao": "21/09/2023",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",

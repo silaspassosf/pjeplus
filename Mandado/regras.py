@@ -459,7 +459,7 @@ def estrategia_decisao_manifestar(driver, resultado_sisbajud, sigilo_anexos, tip
         return False
 
     # Triggers que, segundo m1.py, devem acionar checar_prox para avançar ao próximo documento
-    trechos_checar_prox = ['devendo se manifestar', 'nada a deferir']
+    trechos_checar_prox = ['devendo se manifestar', 'nada a deferir', 'comunique-se por edital']
     for trecho in trechos_checar_prox:
         if texto_documento and trecho in texto_documento.lower():
             if debug:

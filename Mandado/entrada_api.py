@@ -256,15 +256,14 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
             num = it['numero']
             id_p = it['id']
             logger.info(f'[MANDADOS_API][BLOCO1] Processando Argos/Sigilo: #{num}')
-            
+
             detalhe_url = url_processo_detalhe(id_p or num)
-            driver.execute_script(f"window.open('{detalhe_url}', '_blank');")
-            novo_handle = [h for h in driver.window_handles if h != escaninho_handle][-1]
-            driver.switch_to.window(novo_handle)
-            
             try:
+                # Navega na aba do escaninho (sem abrir nova aba).
+                # Isso garante que _aba_original no wrapper pec_idpj seja o escaninho,
+                # e não o processo, evitando que o wrapper feche o escaninho como "extra".
+                driver.get(detalhe_url)
                 wait_for_page_load(driver, timeout=15)
-                # Processar via processar_mandado_detalhe (rota argos completa)
                 from Mandado.fluxo_argos import processar_argos
                 result = processar_argos(driver, log=True)
                 if result:
@@ -274,9 +273,21 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
             except Exception as e:
                 logger.error(f'[MANDADOS_API][BLOCO1] Erro ao processar Argos #{num}: {e}')
             finally:
-                if len(driver.window_handles) > 1:
-                    driver.close()
-                    driver.switch_to.window(escaninho_handle)
+                # Fechar todas as abas extras e retornar ao escaninho.
+                _fechar_abas_extras(driver, escaninho_handle)
+                # Se o escaninho foi fechado pelo wrapper (não deveria ocorrer mais),
+                # navega de volta para garantir estado consistente.
+                try:
+                    if driver.current_window_handle != escaninho_handle:
+                        driver.switch_to.window(escaninho_handle)
+                except Exception:
+                    pass
+
+        # Ao fim do BLOCO 1, a aba está no último processo processado.
+        # Renavegar para o escaninho para restaurar o estado esperado pelo BLOCO 2.
+        driver.get(url_escaninho)
+        wait_for_page_load(driver, timeout=10)
+        ativar_filtro_mandados_devolvidos(driver)
 
     # ════════════════════════════════════════
     # BLOCO 2: CERTIDAO DE OFICIAL (segundo)

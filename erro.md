@@ -7268,3 +7268,45 @@ NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:555:5
 dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
 
 
+
+## Execução 2026-07-20 11:44:34 — x_PC_Visible_20260720_114424.log
+
+- **ERROR** `[11:44:34]` `core:criar_driver_PC` — ERRO em criar_driver_PC: NoSuchDriverException: Message: Unable to obtain driver for firefox; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors/driver_location
+
+
+- **ERROR** `[11:44:34]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[11:44:34]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-07-20 11:50:10 — x_PC_Visible_20260720_115005.log
+
+- **ERROR** `[11:51:38]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/minutas". URL atual: https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos
+
+
+## Execução 2026-07-20 11:59:38 — x_PC_Visible_20260720_115931.log
+
+- **ERROR** `[11:59:39]` `core:criar_driver_PC` — ERRO em criar_driver_PC: WebDriverException: Message: Process unexpectedly closed with status 0
+
+
+- **ERROR** `[11:59:39]` `x:criar_e_logar_driver` — ERRO em criar_e_logar_driver: falha ao criar driver
+
+- **ERROR** `[11:59:39]` `x:main` — ERRO em main: falha ao inicializar driver/logar
+
+
+## Execução 2026-07-20 11:59:57 — x_PC_Visible_20260720_115954.log
+
+
+## Execução 2026-07-20 12:00:21 — x_PC_Visible_20260720_120017.log
+
+
+## Execução 2026-07-20 12:05:49 — x_PC_Visible_20260720_120545.log
+
+- **ERROR** `[12:06:31]` `core:esperar_url_conter` — [URL] Erro ao esperar URL: Message: Failed to decode response from marionette
+
+
+
+## Execução 2026-07-20 12:14:10 — x_PC_Visible_20260720_121406.log
+
+- **ERROR** `[12:14:53]` `core:esperar_url_conter` — [URL] Timeout esperando URL conter: "/minutas". URL atual: https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos
+

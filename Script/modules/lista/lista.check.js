@@ -302,7 +302,6 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
         if (doc) {
             // Preservar painel: manter referência ANTES de qualquer operação
             const panelRef = c;
-            const panelParent = c.parentElement;
             
             // Executar ação de clique
             try {
@@ -311,17 +310,13 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
                 console.error('[CHECK] Erro ao executar ação:', err);
             }
             
-            // SEMPRE garantir que painel volta ao DOM no mesmo lugar
-            if (!document.documentElement.contains(panelRef)) {
-                if (panelParent && document.documentElement.contains(panelParent)) {
-                    panelParent.appendChild(panelRef);
-                } else {
-                    (document.documentElement || document.body).appendChild(panelRef);
-                }
+            // SEMPRE garantir que painel volta ao DOM no mesmo lugar (body)
+            if (!document.body.contains(panelRef)) {
+                document.body.appendChild(panelRef);
             }
 
             // Restaurar highlight da linha se ainda está no DOM
-            if (document.documentElement.contains(panelRef)) {
+            if (document.body.contains(panelRef)) {
                 const row = tbody.querySelector(`tr[data-idx="${tr.dataset.idx}"]`);
                 if (row) row.style.background = '#fff7d6';
             }
@@ -340,7 +335,9 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
     }, true);
 
     c.appendChild(tbl);
-    (document.documentElement || document.body).appendChild(c);
+    
+    // SEMPRE garantir que seja adicionado ao document.body
+    document.body.appendChild(c);
 
     // Impedir que cliques/mousedown no painel disparem handlers do Angular
     c.addEventListener('mousedown', e => e.stopPropagation());
@@ -348,18 +345,18 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
 
     // MutationObserver para monitorar remoção e re-adicionar imediatamente
     const observer = new MutationObserver(() => {
-        if (!document.documentElement.contains(c)) {
+        if (!document.body.contains(c)) {
             console.warn('[CHECK] Painel foi removido pelo Angular, restaurando...');
             // Re-adicionar ao DOM com delay mínimo para evitar conflitos
             requestAnimationFrame(() => {
-                if (!document.documentElement.contains(c)) {
-                    (document.documentElement || document.body).appendChild(c);
+                if (!document.body.contains(c)) {
+                    document.body.appendChild(c);
                 }
             });
         }
     });
 
-    observer.observe(document.documentElement, { childList: true, subtree: false });
+    observer.observe(document.body, { childList: true, subtree: false });
 
     // Armazenar observer para poder cancelar após fechar
     const originalRemove = c.remove;
@@ -459,20 +456,12 @@ async function onCheckRowClick(doc) {
 }
 
 // Abre o painel nativo de seleção de documentos e marca CNIB + Serasa de pesquisas
-window.autoSelecionarPesquisaCheck = async function () {
-    // 1) Clicar no ícone de check-square nativo do PJe
-    const icone = document.querySelector('i.icone-sozinho.fa-check-square, i.far.fa-check-square, .fa-check-square');
-    if (!icone) {
-        showToast('Ícone de check-square não encontrado', '#dc3545', 3000);
-        return;
-    }
-    (icone.closest('button') || icone).click();
-    await sleep(600);
+window.autoSelecionarPesquisaCheck = async function (docs) {
+    if (!docs || !docs.length) return;
 
-    // 2) Usar a timeline já lida para saber exatamente quais pesquisas têm CNIB+Serasa
-    const docs = await lerTimelineCompleta();
+    // 1) Identificar pares pelas APIs (não DOM)
     const pares = [];
-    const pais = docs.filter(d => !d.isAnexo && /pesquisa/i.test(d.tipo || d.texto || ''));
+    const pais = docs.filter(d => !d.isAnexo && /pesquisa|certid[aã]o|oficial de justi[cç]a/i.test(d.tipo || d.texto || ''));
     for (const pai of pais) {
         const anexos = docs.filter(d => d.isAnexo && d.parentId === pai.id);
         const temCnib = anexos.some(a => a.tipo === 'CNIB');
@@ -481,48 +470,77 @@ window.autoSelecionarPesquisaCheck = async function () {
             pares.push({ pai, anexos: anexos.filter(a => a.tipo === 'CNIB' || a.tipo === 'Serasa') });
         }
     }
-    if (!pares.length) {
-        showToast('Nenhuma pesquisa com par CNIB + Serasa encontrada', '#6c757d', 3000);
-        return;
-    }
+    
+    if (!pares.length) return; // Se não tem par, não entra na seleção nativa
 
+    // 2) Entrar no modo de seleção múltipla da SPA
+    const icone = document.querySelector('i.icone-sozinho.fa-check-square, i.far.fa-check-square, .fa-check-square');
+    if (!icone) return;
+    const btnCheck = icone.closest('button') || icone;
+    btnCheck.click();
+    console.log('[AutoCheck] Entrou no modo seleção múltipla. Aguardando SPA...');
+    
+    // Aguardar checkboxes aparecerem (indicador de que o Angular recriou a lista)
+    await sleep(2000); 
+
+    // Helper text-match para encontrar itens na nova view
+    const nTexto = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    // 3) Expandir e marcar trabalhando no DOM re-renderizado
     let marcados = 0;
     for (const { pai, anexos } of pares) {
-        const paiEl = encontrarElementoPorUid(pai.id);
-        if (!paiEl) {
-            console.warn('[autoSelecionarPesquisaCheck] Pai não encontrado no DOM:', pai.id);
+        // Encontrar container do Pai pelo uid ou titulo
+        const elemUID = encontrarElementoPorUid(pai.id);
+        const alvoBusca = pai.texto || '';
+        
+        let containerPai = elemUID;
+        if (!containerPai) {
+            // Tentar localizar pelo titulo
+            const listItems = Array.from(document.querySelectorAll('li.tl-item-container, .documento-item'));
+            containerPai = listItems.find(el => nTexto(el.textContent).includes(nTexto(alvoBusca).substring(0,25)));
+        }
+
+        if (!containerPai) {
+            console.warn('[AutoCheck] Não achei a pesquisa no DOM pós-render:', pai.id);
             continue;
         }
-        await expandirAnexos(paiEl);
-        await sleep(400);
 
-        const anexoLinks = Array.from(paiEl.querySelectorAll('a.tl-documento[id^="anexo_"]'));
+        // Expandir anexos clicando no botão toggle no novo DOM
+        const toggle = containerPai.querySelector('button.botao-anexos, mat-icon[svgicon*="expand"]');
+        if (toggle && !containerPai.querySelector('.tl-item-anexo')) {
+            toggle.click();
+            await sleep(800);
+        }
+
+        // Selecionar os Checkboxes dos anexos
+        const labelsAnexos = Array.from(containerPai.querySelectorAll('.tl-item-anexo, .anexo, a.tl-documento[id^="anexo_"]'));
+        
         for (const anexo of anexos) {
-            const uidLower = String(anexo.id || '').toLowerCase();
-            const link = anexoLinks.find(l =>
-                (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
-                (l.textContent || '').toLowerCase().includes(uidLower)
-            ) || anexoLinks.find(l => {
-                const t = (l.textContent || '').toLowerCase();
-                return anexo.tipo === 'CNIB' ? /cnib|indisp/.test(t) : /serasa/.test(t);
+            const ehCnib = anexo.tipo === 'CNIB';
+            const matcher = ehCnib ? /cnib|indisp/ : /serasa/;
+            
+            // Encontrar elemento do anexo
+            const anexoEl = labelsAnexos.find(el => {
+                const t = nTexto(el.textContent);
+                return matcher.test(t);
             });
-            if (!link) {
-                console.warn('[autoSelecionarPesquisaCheck] Link do anexo não encontrado:', anexo.id);
-                continue;
-            }
-            const row = link.closest('li, tr, div, .tl-item-anexo') || link.parentElement;
-            const cb = row.querySelector('input[type="checkbox"]');
-            if (cb && !cb.checked) {
-                cb.scrollIntoView({ block: 'nearest' });
-                cb.click();
-                marcados++;
-            } else if (!cb) {
-                console.warn('[autoSelecionarPesquisaCheck] Checkbox não encontrado para:', anexo.id);
+            
+            if (anexoEl) {
+                const row = anexoEl.closest('li, tr, div') || anexoEl.parentElement;
+                // No modo seleção do PJe, os inputs as vezes re-utilizam tag, garantir o da row corrente
+                const cb = row.querySelector('input[type="checkbox"]');
+                if (cb && !cb.checked) {
+                    cb.scrollIntoView({ behavior: "smooth", block: "center" });
+                    cb.click();
+                    marcados++;
+                }
             }
         }
     }
-
-    showToast(`AutoCheck: ${marcados} documento(s) marcado(s)`, marcados ? '#28a745' : '#dc3545', 3000);
+    
+    if (marcados > 0) {
+        showToast(`AutoCheck: ${marcados} documento(s) marcado(s)`, '#28a745', 3000);
+    }
 };
 
 window.executarCheck = async function () {
@@ -531,30 +549,18 @@ window.executarCheck = async function () {
     const saida = construirOrdem(filtrados);
     renderTabela('listaDocsExecucaoSimples', '📋 Relatório de Medidas', '#007bff',
         saida, onCheckRowClick);
+    
+    // Execução automática do Auto-check sem botão
+    setTimeout(() => {
+        window.autoSelecionarPesquisaCheck(docs).catch(e => console.error('[CHECK] Erro autocheck', e));
+    }, 500);
+
     // Adicionar botões no topo (header) da lista gerada pelo check
     const panel = document.getElementById('listaDocsExecucaoSimples');
     if (panel) {
         const hdr = panel.querySelector('div'); // header criado por renderTabela
         if (hdr) {
             const closeBtn = hdr.querySelector('button');
-
-            // Botão Auto-check CNIB/Serasa
-            const existingAuto = panel.querySelector('#maisPje_btn_autocheck');
-            if (existingAuto) existingAuto.remove();
-            const btnAuto = document.createElement('button');
-            btnAuto.id = 'maisPje_btn_autocheck';
-            btnAuto.textContent = '☑️ CNIB+Serasa';
-            btnAuto.title = 'Selecionar automaticamente CNIB + Serasa de pesquisas';
-            btnAuto.style.cssText = 'margin-left:8px;padding:6px 10px;background:#17a2b8;color:#fff;border:none;cursor:pointer;' +
-                'border-radius:4px;font-size:12px;pointer-events:auto;z-index:999999999;';
-            btnAuto.onclick = async (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                try { await window.autoSelecionarPesquisaCheck(); }
-                catch (err) { console.error('[CHECK] Erro no auto-check:', err); }
-            };
-            if (closeBtn) hdr.insertBefore(btnAuto, closeBtn);
-            else hdr.appendChild(btnAuto);
 
             // Botão Conferir alvarás
             const existing = panel.querySelector('#maisPje_btn_conferir_alvaras');

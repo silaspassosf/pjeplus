@@ -289,49 +289,102 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
         tbody.appendChild(tr);
     });
 
+    // ── Restaurar highlights persistentes de visitas anteriores ──
+    saida.forEach((d, idx) => {
+        if (window._checkVisited && window._checkVisited.has(d.id)) {
+            const row = tbody.querySelector(`tr[data-idx="${idx}"]`);
+            if (row) row.style.background = '#fff7d6';
+        }
+    });
+
+    // DblClick tracker (300ms threshold)
+    let clickTimer = null;
+
     // Event delegation – 1 listener para toda a tabela
     tbl.addEventListener('click', async ev => {
         const tr = ev.target.closest('tr[data-idx]');
         if (!tr) return;
         ev.stopPropagation();
         ev.preventDefault();
-        tbody.querySelectorAll('tr').forEach(r =>
-            r.style.background = '');
-        tr.style.background = '#fff7d6';
+
         const doc = saida[parseInt(tr.dataset.idx, 10)];
-        if (doc) {
-            // Preservar painel: manter referência ANTES de qualquer operação
-            const panelRef = c;
-            
-            // Executar ação de clique
+        if (!doc) return;
+
+        // Detectar double-click (300ms)
+        if (clickTimer) {
+            clearTimeout(clickTimer);
+            clickTimer = null;
+
+            // ── DOUBLE CLICK: Abrir documento (clica no textLink Angular) ──
+            if (!doc.isAnexo) {
+                const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
+                if (elem) {
+                    const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
+                    if (textLink) textLink.click();
+                }
+            } else if (doc.isAnexo && doc.parentId) {
+                // Para anexos, abrir novamente em nova aba
+                const parentItem = encontrarElementoPorUid(doc.parentId);
+                if (parentItem) {
+                    const anexoLinks = parentItem.querySelectorAll('a.tl-documento[id^="anexo_"]');
+                    let alvo = null;
+                    if (doc.id) {
+                        const uidLower = doc.id.toLowerCase();
+                        alvo = Array.from(anexoLinks).find(l =>
+                            (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
+                            (l.textContent || '').toLowerCase().includes(uidLower)
+                        );
+                    }
+                    alvo = alvo || anexoLinks[0];
+                    if (alvo) {
+                        const anexoHref = alvo.getAttribute('href');
+                        if (anexoHref) window.open(anexoHref, '_blank');
+                    }
+                }
+            }
+            return;
+        }
+
+        // ── SINGLE CLICK: Selecionar + destacar (persistente, sem navegação) ──
+        clickTimer = setTimeout(async () => {
+            clickTimer = null;
+
+            // Destacar linha atual
+            tbody.querySelectorAll('tr').forEach(r => {
+                const d = saida[parseInt(r.dataset.idx, 10)];
+                if (d && window._checkVisited && window._checkVisited.has(d.id)) {
+                    r.style.background = '#fff7d6';
+                } else {
+                    r.style.background = '';
+                }
+            });
+            tr.style.background = '#fff7d6';
+
+            // Executar ação (scroll + highlight, SEM navegação)
             try {
                 await onRowClick(doc);
             } catch (err) {
                 console.error('[CHECK] Erro ao executar ação:', err);
             }
-            
-            // SEMPRE garantir que painel volta ao DOM no mesmo lugar (body)
-            if (!document.body.contains(panelRef)) {
-                document.body.appendChild(panelRef);
-            }
-
-            // Restaurar highlight da linha se ainda está no DOM
-            if (document.body.contains(panelRef)) {
-                const row = tbody.querySelector(`tr[data-idx="${tr.dataset.idx}"]`);
-                if (row) row.style.background = '#fff7d6';
-            }
-        }
+        }, 300);
     });
 
     tbl.addEventListener('mouseenter', ev => {
         const tr = ev.target.closest('tr[data-idx]');
-        if (tr && tr.style.background !== 'rgb(255, 247, 214)')
+        if (!tr) return;
+        const doc = saida[parseInt(tr.dataset.idx, 10)];
+        const isVisited = doc && window._checkVisited && window._checkVisited.has(doc.id);
+        if (tr.style.background !== 'rgb(255, 247, 214)' && !isVisited)
             tr.style.background = '#f0f7ff';
     }, true);
     tbl.addEventListener('mouseleave', ev => {
         const tr = ev.target.closest('tr[data-idx]');
-        if (tr && tr.style.background !== 'rgb(255, 247, 214)')
-            tr.style.background = '';
+        if (!tr) return;
+        const doc = saida[parseInt(tr.dataset.idx, 10)];
+        const isVisited = doc && window._checkVisited && window._checkVisited.has(doc.id);
+        if (tr.style.background !== 'rgb(255, 247, 214)') {
+            tr.style.background = isVisited ? '#fff7d6' : '';
+        }
     }, true);
 
     c.appendChild(tbl);
@@ -343,52 +396,79 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
     c.addEventListener('mousedown', e => e.stopPropagation());
     c.addEventListener('click', e => e.stopPropagation());
 
-    // MutationObserver para monitorar remoção e re-adicionar imediatamente
+    // ── Persistência reforçada: MutationObserver + polling ──
+    c.dataset.userClosed = 'false';
+    let watchdogTimer = null;
+
     const observer = new MutationObserver(() => {
+        if (c.dataset.userClosed === 'true') return;
         if (!document.body.contains(c)) {
-            console.warn('[CHECK] Painel foi removido pelo Angular, restaurando...');
-            // Re-adicionar ao DOM com delay mínimo para evitar conflitos
+            console.warn('[CHECK] Painel removido pelo Angular, restaurando...');
             requestAnimationFrame(() => {
-                if (!document.body.contains(c)) {
+                if (!document.body.contains(c) && c.dataset.userClosed !== 'true') {
                     document.body.appendChild(c);
                 }
             });
         }
     });
 
-    observer.observe(document.body, { childList: true, subtree: false });
+    // Observer com subtree:true e também observar documentElement como fallback
+    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
 
-    // Armazenar observer para poder cancelar após fechar
+    // Polling de fallback a cada 600ms (caso o MutationObserver perca o evento)
+    watchdogTimer = setInterval(() => {
+        if (c.dataset.userClosed === 'true') {
+            clearInterval(watchdogTimer);
+            observer.disconnect();
+            return;
+        }
+        if (!document.body.contains(c)) {
+            console.warn('[CHECK] Watchdog: painel ausente, restaurando...');
+            document.body.appendChild(c);
+        }
+    }, 600);
+
+    // Armazenar observer/watchdog para poder cancelar após fechar
     const originalRemove = c.remove;
     c.remove = function () {
+        c.dataset.userClosed = 'true';
+        if (watchdogTimer) clearInterval(watchdogTimer);
         observer.disconnect();
         originalRemove.call(this);
     };
 }
 
+// ── Estado persistente de seleção ──
+window._checkVisited = new Set();
+
 async function onCheckRowClick(doc) {
-    // ── CAMINHO 1: Documento principal — clicar link de texto (abre no painel inline) ──
+    // ── CAMINHO 1: Documento principal — scroll + highlight persistente ──
     if (!doc.isAnexo) {
         const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
         if (elem) {
-            // Clicar no link de texto (não o ícone _blank) — padrão idêntico ao Argos
-            const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
-            if (textLink) textLink.click();
-            // Highlight visual sem scrollIntoView (evita quebrar header Angular)
-            const origBorder = elem.style.border;
-            const origBg = elem.style.background;
+            // NUNCA clicar no textLink (dispara navegação Angular → remove painel)
+            // Apenas scroll suave + highlight persistente
+            elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Destacar persistentemente (não some após timeout)
             elem.style.transition = 'all 0.3s ease';
             elem.style.border = '2px solid #fbbf24';
             elem.style.background = '#fffbeb';
+            elem.dataset.pjeChecked = 'true';
+            window._checkVisited.add(doc.id);
+
+            // Expandir anexos após scroll
             setTimeout(() => expandirAnexos(elem), 600);
+
+            // Destaque diminui mas permanece visível (não some totalmente)
             setTimeout(() => {
-                elem.style.transition = 'all 0.5s ease';
-                elem.style.border = origBorder;
-                elem.style.background = origBg;
-                setTimeout(() => { elem.style.transition = ''; }, 500);
-            }, 3000);
+                elem.style.transition = 'all 0.8s ease';
+                elem.style.border = '1px solid #fcd34d';
+                elem.style.background = '#fffbeb';
+                setTimeout(() => { elem.style.transition = ''; }, 800);
+            }, 4000);
         }
-        invalidarCacheTimeline();
         return;
     }
 
@@ -419,23 +499,24 @@ async function onCheckRowClick(doc) {
             return;
         }
 
-        // Abrir diretamente via href do link (bypass dispatchEvent)
+        // Scroll até o anexo + highlight persistente
+        alvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        parentItem.style.transition = 'all 0.3s ease';
+        parentItem.style.boxShadow = '0 0 0 3px #fbbf24';
+        parentItem.dataset.pjeChecked = 'true';
+        window._checkVisited.add(doc.id);
+
+        setTimeout(() => {
+            parentItem.style.boxShadow = '0 0 0 1px #fcd34d';
+            parentItem.style.transition = '';
+        }, 4000);
+
+        // Abrir anexo em nova aba (não afeta o painel)
         const anexoHref = alvo.getAttribute('href');
         if (anexoHref) {
             window.open(anexoHref, '_blank');
-        } else {
-            safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
         }
 
-        // Destacar visualmente
-        parentItem.style.transition = 'all 0.3s ease';
-        parentItem.style.boxShadow = '0 0 0 3px #fbbf24';
-        setTimeout(() => {
-            parentItem.style.boxShadow = '';
-            parentItem.style.transition = '';
-        }, 3000);
-
-        invalidarCacheTimeline();
         return;
     }
 
@@ -446,13 +527,12 @@ async function onCheckRowClick(doc) {
         return;
     }
 
-    // Usar apenas highlight visual, SEM dispatchEvent para evitar quebra de cabeçalho
-    // (o dispatchEvent causa re-render agressivo do Angular)
+    elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
     elem.classList.add('pjetools-destaque');
-    setTimeout(() => elem?.classList.remove('pjetools-destaque'), 3000);
-    setTimeout(() => expandirAnexos(elem), 800);
+    elem.dataset.pjeChecked = 'true';
+    window._checkVisited.add(doc.id);
 
-    invalidarCacheTimeline();
+    setTimeout(() => expandirAnexos(elem), 800);
 }
 
 // Abre o painel nativo de seleção de documentos e marca CNIB + Serasa de pesquisas

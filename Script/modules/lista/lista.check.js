@@ -255,7 +255,7 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
         nd.textContent = 'Nenhum item encontrado';
         nd.style.cssText = 'padding:20px;text-align:center;color:#666;font-style:italic;';
         c.appendChild(nd);
-        document.body.appendChild(c);
+        (document.documentElement || document.body).appendChild(c);
         return;
     }
 
@@ -312,16 +312,16 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
             }
             
             // SEMPRE garantir que painel volta ao DOM no mesmo lugar
-            if (!document.body.contains(panelRef)) {
-                if (panelParent && document.body.contains(panelParent)) {
+            if (!document.documentElement.contains(panelRef)) {
+                if (panelParent && document.documentElement.contains(panelParent)) {
                     panelParent.appendChild(panelRef);
                 } else {
-                    document.body.appendChild(panelRef);
+                    (document.documentElement || document.body).appendChild(panelRef);
                 }
             }
-            
+
             // Restaurar highlight da linha se ainda está no DOM
-            if (document.body.contains(panelRef)) {
+            if (document.documentElement.contains(panelRef)) {
                 const row = tbody.querySelector(`tr[data-idx="${tr.dataset.idx}"]`);
                 if (row) row.style.background = '#fff7d6';
             }
@@ -340,26 +340,30 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
     }, true);
 
     c.appendChild(tbl);
-    document.body.appendChild(c);
-    
+    (document.documentElement || document.body).appendChild(c);
+
+    // Impedir que cliques/mousedown no painel disparem handlers do Angular
+    c.addEventListener('mousedown', e => e.stopPropagation());
+    c.addEventListener('click', e => e.stopPropagation());
+
     // MutationObserver para monitorar remoção e re-adicionar imediatamente
     const observer = new MutationObserver(() => {
-        if (!document.body.contains(c)) {
+        if (!document.documentElement.contains(c)) {
             console.warn('[CHECK] Painel foi removido pelo Angular, restaurando...');
-            // Re-adicionar ao DOM com delay mínimo para evitar conflicts
+            // Re-adicionar ao DOM com delay mínimo para evitar conflitos
             requestAnimationFrame(() => {
-                if (!document.body.contains(c)) {
-                    document.body.appendChild(c);
+                if (!document.documentElement.contains(c)) {
+                    (document.documentElement || document.body).appendChild(c);
                 }
             });
         }
     });
-    
-    observer.observe(document.body, { childList: true, subtree: false });
-    
+
+    observer.observe(document.documentElement, { childList: true, subtree: false });
+
     // Armazenar observer para poder cancelar após fechar
     const originalRemove = c.remove;
-    c.remove = function() {
+    c.remove = function () {
         observer.disconnect();
         originalRemove.call(this);
     };

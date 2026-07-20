@@ -458,21 +458,107 @@ async function onCheckRowClick(doc) {
     invalidarCacheTimeline();
 }
 
+// Abre o painel nativo de seleção de documentos e marca CNIB + Serasa de pesquisas
+window.autoSelecionarPesquisaCheck = async function () {
+    // 1) Clicar no ícone de check-square nativo do PJe
+    const icone = document.querySelector('i.icone-sozinho.fa-check-square, i.far.fa-check-square, .fa-check-square');
+    if (!icone) {
+        showToast('Ícone de check-square não encontrado', '#dc3545', 3000);
+        return;
+    }
+    (icone.closest('button') || icone).click();
+    await sleep(600);
+
+    // 2) Usar a timeline já lida para saber exatamente quais pesquisas têm CNIB+Serasa
+    const docs = await lerTimelineCompleta();
+    const pares = [];
+    const pais = docs.filter(d => !d.isAnexo && /pesquisa/i.test(d.tipo || d.texto || ''));
+    for (const pai of pais) {
+        const anexos = docs.filter(d => d.isAnexo && d.parentId === pai.id);
+        const temCnib = anexos.some(a => a.tipo === 'CNIB');
+        const temSerasa = anexos.some(a => a.tipo === 'Serasa');
+        if (temCnib && temSerasa) {
+            pares.push({ pai, anexos: anexos.filter(a => a.tipo === 'CNIB' || a.tipo === 'Serasa') });
+        }
+    }
+    if (!pares.length) {
+        showToast('Nenhuma pesquisa com par CNIB + Serasa encontrada', '#6c757d', 3000);
+        return;
+    }
+
+    let marcados = 0;
+    for (const { pai, anexos } of pares) {
+        const paiEl = encontrarElementoPorUid(pai.id);
+        if (!paiEl) {
+            console.warn('[autoSelecionarPesquisaCheck] Pai não encontrado no DOM:', pai.id);
+            continue;
+        }
+        await expandirAnexos(paiEl);
+        await sleep(400);
+
+        const anexoLinks = Array.from(paiEl.querySelectorAll('a.tl-documento[id^="anexo_"]'));
+        for (const anexo of anexos) {
+            const uidLower = String(anexo.id || '').toLowerCase();
+            const link = anexoLinks.find(l =>
+                (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
+                (l.textContent || '').toLowerCase().includes(uidLower)
+            ) || anexoLinks.find(l => {
+                const t = (l.textContent || '').toLowerCase();
+                return anexo.tipo === 'CNIB' ? /cnib|indisp/.test(t) : /serasa/.test(t);
+            });
+            if (!link) {
+                console.warn('[autoSelecionarPesquisaCheck] Link do anexo não encontrado:', anexo.id);
+                continue;
+            }
+            const row = link.closest('li, tr, div, .tl-item-anexo') || link.parentElement;
+            const cb = row.querySelector('input[type="checkbox"]');
+            if (cb && !cb.checked) {
+                cb.scrollIntoView({ block: 'nearest' });
+                cb.click();
+                marcados++;
+            } else if (!cb) {
+                console.warn('[autoSelecionarPesquisaCheck] Checkbox não encontrado para:', anexo.id);
+            }
+        }
+    }
+
+    showToast(`AutoCheck: ${marcados} documento(s) marcado(s)`, marcados ? '#28a745' : '#dc3545', 3000);
+};
+
 window.executarCheck = async function () {
     const docs = await lerTimelineCompleta();
     const filtrados = filtrarDocs(docs);
     const saida = construirOrdem(filtrados);
     renderTabela('listaDocsExecucaoSimples', '📋 Relatório de Medidas', '#007bff',
         saida, onCheckRowClick);
-    // Adicionar botão "Conferir alvarás" no topo (header) da lista gerada pelo check
+    // Adicionar botões no topo (header) da lista gerada pelo check
     const panel = document.getElementById('listaDocsExecucaoSimples');
     if (panel) {
-        // evitar duplicatas
-        const existing = panel.querySelector('#maisPje_btn_conferir_alvaras');
-        if (existing) existing.remove();
-
         const hdr = panel.querySelector('div'); // header criado por renderTabela
         if (hdr) {
+            const closeBtn = hdr.querySelector('button');
+
+            // Botão Auto-check CNIB/Serasa
+            const existingAuto = panel.querySelector('#maisPje_btn_autocheck');
+            if (existingAuto) existingAuto.remove();
+            const btnAuto = document.createElement('button');
+            btnAuto.id = 'maisPje_btn_autocheck';
+            btnAuto.textContent = '☑️ CNIB+Serasa';
+            btnAuto.title = 'Selecionar automaticamente CNIB + Serasa de pesquisas';
+            btnAuto.style.cssText = 'margin-left:8px;padding:6px 10px;background:#17a2b8;color:#fff;border:none;cursor:pointer;' +
+                'border-radius:4px;font-size:12px;pointer-events:auto;z-index:999999999;';
+            btnAuto.onclick = async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                try { await window.autoSelecionarPesquisaCheck(); }
+                catch (err) { console.error('[CHECK] Erro no auto-check:', err); }
+            };
+            if (closeBtn) hdr.insertBefore(btnAuto, closeBtn);
+            else hdr.appendChild(btnAuto);
+
+            // Botão Conferir alvarás
+            const existing = panel.querySelector('#maisPje_btn_conferir_alvaras');
+            if (existing) existing.remove();
             const btn = document.createElement('button');
             btn.id = 'maisPje_btn_conferir_alvaras';
             btn.textContent = 'Conferir alvarás';
@@ -485,7 +571,7 @@ window.executarCheck = async function () {
                 try {
                     if (typeof window.executarPgto === 'function') {
                         // Delay para garantir que painel não é removido antes do executarPgto
-                        setTimeout(() => window.executarPgto().catch(err => 
+                        setTimeout(() => window.executarPgto().catch(err =>
                             console.error('Erro ao executar conferir alvarás:', err)
                         ), 100);
                     } else {
@@ -495,7 +581,6 @@ window.executarCheck = async function () {
             };
 
             // Inserir antes do botão fechar (último botão no header)
-            const closeBtn = hdr.querySelector('button');
             if (closeBtn) hdr.insertBefore(btn, closeBtn);
             else hdr.appendChild(btn);
         }

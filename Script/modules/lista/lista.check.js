@@ -23,14 +23,19 @@ function _pjeTlNormData(s) {
     const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
     return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : s;
 }
+function _norm(t) {
+    return (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+window.norm = _norm;
 function _pjeTlClassApi(item) {
-    const low = ((item.titulo || '') + ' ' + (item.nomeDocumento || '') + ' ' + (item.descricao || '')).toLowerCase();
-    if (low.includes('devolução de ordem')) return 'Certidão devolução pesquisa';
-    if (low.includes('certidão de oficial') || low.includes('oficial de justiça')) return 'Certidão de oficial de justiça';
-    if (low.includes('mandado de pagamento') && low.includes('alvará')) return 'Alvarás';
-    if (low.includes('alvará') || low.includes('juntada de alvará')) return 'Alvarás';
-    if (low.includes('sobrestamento')) return 'Decisão (Sobrestamento)';
-    if (low.includes('serasa') || low.includes('apjur') || low.includes('carta ação') || low.includes('carta acao')) return 'SerasaAntigo';
+    const raw = (item.titulo || '') + ' ' + (item.nomeDocumento || '') + ' ' + (item.descricao || '');
+    const low = _norm(raw);
+    if (low.includes('devolucao de ordem')) return 'Certidão devolução pesquisa';
+    if (low.includes('certidao de oficial') || low.includes('oficial de justica')) return 'Certidão de oficial de justiça';
+    if (low.includes('mandado de pagamento') && low.includes('alvara')) return 'Alvarás';
+    if (low.includes('alvara') || low.includes('juntada de alvara')) return 'Alvarás';
+    if (low.includes('sobrestamento')) return 'Decisao (Sobrestamento)';
+    if (low.includes('serasa') || low.includes('apjur') || low.includes('carta acao')) return 'SerasaAntigo';
     if (low.includes('edital')) return 'Edital';
     return null;
 }
@@ -166,9 +171,9 @@ window.resolverLink = function (doc) {
 }
 
 // ── Predicados ──────────────────────────────────────────────────
-window.isCertDevolucao = d => d.tipo.toLowerCase().includes('certidão devolução');
-window.isCertOficial = d => d.tipo.toLowerCase().includes('certidão de oficial');
-window.isAlvara = d => d.tipo.toLowerCase() === 'alvarás';
+window.isCertDevolucao = d => _norm(d.tipo).includes('certidao devolucao');
+window.isCertOficial = d => _norm(d.tipo).includes('certidao de oficial');
+window.isAlvara = d => _norm(d.tipo) === 'alvaras';
 window.isSobrest = d => d.tipo.toLowerCase().includes('sobrestamento');
 window.isSerasaAntigo = d => d.tipo === 'SerasaAntigo';
 
@@ -564,7 +569,7 @@ window.autoSelecionarPesquisaCheck = async function (docs) {
     await sleep(2000); 
 
     // Helper text-match para encontrar itens na nova view
-    const nTexto = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const nTexto = t => window.norm(t);
 
     // 3) Expandir e marcar trabalhando no DOM re-renderizado
     let marcados = 0;

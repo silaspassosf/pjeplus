@@ -9,6 +9,7 @@ Parte da refatoração do SISB/processamento.py para melhor granularidade IA.
 
 import time
 from .utils import criar_js_otimizado, log_sisbajud
+from Fix import espera
 
 def _processar_reus_otimizado(driver, dados_processo):
     """
@@ -202,7 +203,7 @@ def _configurar_valor(driver, dados_processo):
             """
 
             driver.execute_script(script_valor)
-            time.sleep(1)
+            espera.ate_aparecer(driver, '#maisPJe_valor_execucao', teto=1)
 
             # Clicar no overlay
             driver.execute_script("""
@@ -214,7 +215,7 @@ def _configurar_valor(driver, dados_processo):
             return false;
             """)
 
-            time.sleep(1)
+            espera.assentar(driver, 1)
 
             # Confirmar valor
             driver.execute_script("""

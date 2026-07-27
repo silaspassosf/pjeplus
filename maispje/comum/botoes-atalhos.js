@@ -214,75 +214,6 @@ function getAtalhosNovaAba() {
             },
             condicao_adicionar: () => document.location.href.search("/detalhe") > -1
         }),
-        preferenciaF2: new BotaoAtalhoNovaAba({
-            id: "maisPje_menuKaizen_itemmenu_preferencia_f2",
-            icone: "textoComoIcone t100 tamanho70",
-            texto: "F2",
-            aria: (!preferencias.tempF2) ? "Atalho F2: [definir]" : "Atalho F2: " + preferencias.tempF2,
-            cor_de_fundo: (!preferencias.tempF2) ? "darkcyan" : "rgb(47, 138, 88)",
-            onClick: async function () {
-                const button = document.querySelector('#maisPje_menuKaizen_itemmenu_preferencia_f2 button');
-                preferencias.tempF2 = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para guardar no atalho "F2"', preferencias.tempF2, button);
-                let guardarStorage1 = browser.storage.local.set({ 'tempF2': preferencias.tempF2 });
-                Promise.all([guardarStorage1]).then(values => {
-                    browser.runtime.sendMessage({ tipo: 'criarAlerta', valor: 'Janela Detalhes do Processo: definida a tecla F2 como atalho da AA ' + preferencias.tempF2 + '...', icone: '5' });
-                    tempTitle = (!preferencias.tempF2 || preferencias.tempF2 == 'Nenhum') ? "Atalho F2: [definir]" : "Atalho F2: " + preferencias.tempF2;
-                    button?.setAttribute('aria-label', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuEsquerda', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuDireita', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuAcima', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuAbaixo', tempTitle);
-					criarAreaDoPreferenciasF2();
-                });
-            },
-            condicao_adicionar: () => document.location.href.search("/detalhe") > -1
-        }),
-        preferenciaF3: new BotaoAtalhoNovaAba({
-            id: "maisPje_menuKaizen_itemmenu_preferencia_f3",
-            icone: "textoComoIcone t100 tamanho70",
-            texto: "F3",
-            aria: (!preferencias.tempF3) ? "Atalho F3: [definir]" : "Atalho F3: " + preferencias.tempF3,
-            cor_de_fundo: (!preferencias.tempF3) ? "darkcyan" : "rgb(159, 56, 18)",
-            onClick: async function () {
-                const button = document.querySelector('#maisPje_menuKaizen_itemmenu_preferencia_f3 button');
-                preferencias.tempF3 = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para guardar no atalho "F3"', preferencias.tempF3, button);
-                let guardarStorage1 = browser.storage.local.set({ 'tempF3': preferencias.tempF3 });
-                Promise.all([guardarStorage1]).then(values => {
-                    browser.runtime.sendMessage({ tipo: 'criarAlerta', valor: 'Janela Detalhes do Processo: definida a tecla F3 como atalho da AA ' + preferencias.tempF3 + '...', icone: '5' });
-                    tempTitle = (!preferencias.tempF3 || preferencias.tempF3 == 'Nenhum') ? "Atalho F3: [definir]" : "Atalho F3: " + preferencias.tempF3;
-                    button?.setAttribute('aria-label', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuEsquerda', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuDireita', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuAcima', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuAbaixo', tempTitle);
-					criarAreaDoPreferenciasF3();
-                });
-            },
-            condicao_adicionar: () => document.location.href.search("/detalhe") > -1
-        }),
-        preferenciaF4: new BotaoAtalhoNovaAba({
-            id: "maisPje_menuKaizen_itemmenu_preferencia_f4",
-            icone: "textoComoIcone t100 tamanho70",
-            texto: "F4",
-            aria: (!preferencias.tempF4) ? "Atalho F4: [definir]" : "Atalho F4: " + preferencias.tempF4,
-            cor_de_fundo: (!preferencias.tempF4) ? "darkcyan" : "rgb(15, 131, 200)",
-            onClick: async function () {
-                const button = document.querySelector('#maisPje_menuKaizen_itemmenu_preferencia_f4 button');
-                preferencias.tempF4 = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para guardar no atalho "F4"', preferencias.tempF4, button);
-                let guardarStorage1 = browser.storage.local.set({ 'tempF4': preferencias.tempF4 });
-                Promise.all([guardarStorage1]).then(values => {
-                    browser.runtime.sendMessage({ tipo: 'criarAlerta', valor: 'Janela Detalhes do Processo: definida a tecla F4 como atalho da AA ' + preferencias.tempF4 + '...', icone: '5' });
-                    tempTitle = (!preferencias.tempF4 || preferencias.tempF4 == 'Nenhum') ? "Atalho F4: [definir]" : "Atalho F4: " + preferencias.tempF4;
-                    button?.setAttribute('aria-label', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuEsquerda', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuDireita', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuAcima', tempTitle);
-                    button?.setAttribute('maisPje-tooltip-menuAbaixo', tempTitle);
-					criarAreaDoPreferenciasF4();
-                });
-            },
-            condicao_adicionar: () => document.location.href.search("/detalhe") > -1
-        }),
         acoesAutomatizadasLote: new BotaoAtalhoNovaAba({
             id: "maisPje_menuKaizen_itemmenu_aa_lote",
             icone: "icone aaLote t100 tamanho70",
@@ -393,6 +324,7 @@ function getAtalhosNovaAba() {
             cor_de_fundo: "#0078aa",
             onClick: async function () {
                 let opcoes = await criarCaixaSelecao(['Caixa Econômica Federal','Banco do Brasil'],titulo='Escolha a Instituição Financeira');
+                console.log(opcoes)
                 if (opcoes == 'Caixa Econômica Federal') {
                     janelaAlvarasSIF('SIF');
                 } else {

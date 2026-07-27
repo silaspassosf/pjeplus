@@ -15,12 +15,12 @@ import types
 from typing import Optional, Dict, Any, Callable, Union, List
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 # Imports do Fix
+from Fix import espera
 from Fix.core import (
+    safe_click_no_scroll,
     aguardar_e_clicar,
     selecionar_opcao,
     preencher_campo,
@@ -51,16 +51,15 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
 
         # 2. Clica no elemento pai para abrir dropdown (padrão GIGS)
         parent_element = campo.find_element(By.XPATH, '../..')
-        driver.execute_script("arguments[0].click();", parent_element)
-        time.sleep(1)
+        safe_click_no_scroll(driver, parent_element)
+        espera.assentar(self.driver, 1)
 
         # 3. Aguarda opções aparecerem e clica na desejada
-        wait = WebDriverWait(driver, 10)
-        opcoes = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "mat-option[role='option']")))
+        opcoes = espera.elementos(driver, "mat-option[role='option']", teto=10)
 
         for opcao in opcoes:
             if valor.lower() in opcao.text.lower():
-                driver.execute_script("arguments[0].click();", opcao)
+                safe_click_no_scroll(driver, opcao)
                 print(f'[JUNTADA][DEBUG] {nome_campo} selecionado: {valor}')
                 return True
 
@@ -179,7 +178,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                             # Verifica se elemento é clicável
                             if elemento.is_enabled() and elemento.is_displayed():
                                 # Tenta clique JavaScript
-                                driver.execute_script("arguments[0].click();", elemento)
+                                safe_click_no_scroll(driver, elemento)
                                 print(f'[JUNTADA][DEBUG] ✅ Clique realizado: {nome_elemento} (seletor {i+1}, tentativa {tentativa + 1})')
                                 return True
                             else:
@@ -213,7 +212,6 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
     """Seleciona e insere o modelo exatamente como em comunicacao_judicial (atos.py)."""
     try:
         driver = self.driver
-        wait = WebDriverWait(driver, 15)
 
         # 1) Preenche filtro como em atos.py (focus + value + eventos + ENTER)
         campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
@@ -225,20 +223,22 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
 
         # 2) Clica no item destacado .nodo-filtrado (sem fallback para evitar modelo errado)
         seletor_item_filtrado = '.nodo-filtrado'
-        nodo = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_item_filtrado)))
+        espera.ate_habilitar(driver, seletor_item_filtrado, teto=15)
+        nodo = driver.find_element(By.CSS_SELECTOR, seletor_item_filtrado)
         driver.execute_script('arguments[0].scrollIntoView({block:"center"});', nodo)
-        driver.execute_script('arguments[0].click();', nodo)
+        safe_click_no_scroll(driver, nodo)
 
         # 3) Aguarda preview e localiza botão Inserir (seletor de atos.py)
         seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
-        btn_inserir = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn_inserir)))
-        time.sleep(0.6)
+        espera.ate_habilitar(driver, seletor_btn_inserir, teto=15)
+        btn_inserir = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
+        espera.pausa(driver, 0.6, 'assentamento do preview do modelo')
 
         # 4) Inserir com tecla ESPAÇO (padrão MaisPje)
         btn_inserir.send_keys(Keys.SPACE)
 
-        # 5) Pequeno aguardo para o editor receber o conteúdo
-        time.sleep(2)
+        # 5) O diálogo de preview fecha quando o modelo entra no editor.
+        espera.ate_sumir(driver, 'pje-dialogo-visualizar-modelo', teto=2)
         return True
     except Exception as e:
         logger.error(f'[JUNTADA][ERRO] Falha ao selecionar/inserir modelo (modo atos.py): {e}')
@@ -346,11 +346,16 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
 
         elif substituir_link:
             # Compat: caminho antigo de substituição
-            time.sleep(3)
+            espera.ate_js(
+                self.driver,
+                "typeof CKEDITOR !== 'undefined'"
+                " && Object.keys(CKEDITOR.instances || {}).length > 0",
+                teto=3,
+            )
             if not substituir_marcador_por_conteudo(self.driver, debug=True):
                 logger.error('[JUNTADA][ERRO] Falha na substituição do link!')
                 return False
-            time.sleep(2)
+            espera.pausa(self.driver, 2, 'assentamento pos-substituicao no editor')
             return True
 
         return True  # Não é erro não ter conteúdo para inserir
@@ -367,17 +372,17 @@ def _salvar_documento(self) -> bool:
         print('[JUNTADA][ERRO] Falha no salvamento principal!')
         return False
 
-    # Aguardar processamento
+    # O Salvar desabilita enquanto a requisição corre — é o fim do processamento.
     print('[JUNTADA] Aguardando processamento do salvamento...')
-    time.sleep(2)
+    espera.ate_desabilitar(self.driver, 'button[aria-label="Salvar"]', teto=2)
 
     # Verificar se salvamento foi efetivo
     try:
         salvar_btn = self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
         if salvar_btn.is_enabled():
             print('[JUNTADA][WARN] Documento ainda não salvo, tentando novamente...')
-            self.driver.execute_script("arguments[0].click();", salvar_btn)
-            time.sleep(2)
+            safe_click_no_scroll(self.driver, salvar_btn)
+            espera.ate_desabilitar(self.driver, 'button[aria-label="Salvar"]', teto=2)
     except:
         print('[JUNTADA][INFO] Botão Salvar não disponível - documento já salvo')
 
@@ -387,6 +392,7 @@ def _salvar_documento(self) -> bool:
 def _assinar_se_necessario(self, configuracao: Dict[str, Any]) -> bool:
     """Assina documento se configurado."""
     if configuracao.get('assinar', 'nao').lower() == 'sim':
-        time.sleep(3)
-        return self._clicar_elemento_gigs('button[aria-label="Assinar documento e juntar ao processo"]', 'Assinar')
+        seletor_assinar = 'button[aria-label="Assinar documento e juntar ao processo"]'
+        espera.ate_habilitar(self.driver, seletor_assinar, teto=3)
+        return self._clicar_elemento_gigs(seletor_assinar, 'Assinar')
     return True  # Não é erro não assinar

@@ -1,10 +1,10 @@
 import logging
+from Fix.core import safe_click_no_scroll
 import time
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from Fix import espera
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +38,7 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
             return False
 
         # Aguardar pagina carregar completamente
-        try:
-            WebDriverWait(driver, 3).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-        except Exception:
-            pass
+        espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
 
         # Seletores para o botao voltar (chevron-left)
         seletores_voltar = [
@@ -64,7 +59,7 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
 
                 for elemento in elementos:
                     if elemento.is_displayed() and elemento.is_enabled():
-                        driver.execute_script("arguments[0].click();", elemento)
+                        safe_click_no_scroll(driver, elemento)
                         botao_encontrado = True
                         break
 
@@ -99,18 +94,14 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
 
         # Aguardar URL mudar (sinal de que navegacao iniciou)
         for _ in range(10):
-            time.sleep(0.5)
+            espera.ate_js(driver, "!location.href.includes('/desdobrar')", teto=0.5)
             if "/desdobrar" not in driver.current_url:
                 break
 
         # Aguardar tabela de ordens reaparecer
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
-            )
-        except Exception as e:
+        if not espera.ate_aparecer(driver, 'table.mat-table', teto=10):
             if log:
-                logger.error(f"[SISBAJUD]  Erro ao aguardar tabela: {e}")
+                logger.error("[SISBAJUD]  Erro ao aguardar tabela: nao apareceu")
         return True
 
     except Exception as e:
@@ -138,13 +129,17 @@ def _voltar_para_lista_principal(driver, log=True):
                 for overlay in overlays:
                     try:
                         overlay.click()
-                        time.sleep(0.5)
+                        espera.ate_sumir(
+                            driver,
+                            'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing',
+                            teto=0.5,
+                        )
                     except Exception:
                         try:
                             driver.execute_script("arguments[0].style.display = 'none';", overlay)
                         except Exception:
                             pass
-                time.sleep(1.0)
+                espera.assentar(driver, 1)
         except Exception:
             pass
 
@@ -168,7 +163,11 @@ def _voltar_para_lista_principal(driver, log=True):
                     # Pressionar ESC antes para fechar possiveis modais
                     try:
                         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                        time.sleep(0.5)
+                        espera.ate_sumir(
+                            driver,
+                            'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing',
+                            teto=0.5,
+                        )
                     except Exception:
                         pass
 
@@ -179,14 +178,9 @@ def _voltar_para_lista_principal(driver, log=True):
                     except Exception:
                         botao = botao_icon
 
-                    driver.execute_script("arguments[0].click();", botao)
+                    safe_click_no_scroll(driver, botao)
                     botao_voltar_clicado = True
-                    try:
-                        WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
-                        )
-                    except Exception:
-                        pass
+                    espera.ate_aparecer(driver, 'table.mat-table', teto=5)
                     break
                 except Exception:
                     continue

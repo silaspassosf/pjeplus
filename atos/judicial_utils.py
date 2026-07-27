@@ -9,11 +9,10 @@ e cria��o de wrappers para atos judiciais.
 from Fix.core import logger
 from selenium.webdriver.common.by import By
 from Fix.selenium_base import preencher_multiplos_campos, safe_click_no_scroll
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import re
 import time
 from datetime import datetime, timedelta
+from Fix import espera
 
 def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=False, perito_nomes=None):
     """
@@ -24,24 +23,21 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
         logger.info(f'[PRAZOS] Preenchendo prazos: {prazo}')
 
         # Aguardar tabela de prazos carregar
-        try:
-            WebDriverWait(driver, 20).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, 'table.t-class tr.ng-star-inserted')) > 0
-            )
+        if espera.ate_js(driver, "__pjeEls('table.t-class tr.ng-star-inserted').length > 0", teto=20):
             logger.info('[PRAZOS] Tabela de destinatários carregada')
-        except Exception:
+        else:
             logger.warning('[PRAZOS] Tabela de destinatários não carregou no tempo esperado')
             return False
 
         # Se apenas_primeiro, clicar no botão "Selecionar polo ativo"
         if apenas_primeiro:
             try:
-                btn_polo_ativo = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.ID, 'selecionar-polo-ativo'))
-                )
+                if not espera.ate_habilitar(driver, '#selecionar-polo-ativo', teto=10):
+                    raise Exception('#selecionar-polo-ativo não habilitou')
+                btn_polo_ativo = driver.find_element(By.ID, 'selecionar-polo-ativo')
                 safe_click_no_scroll(driver, btn_polo_ativo, log=False)
                 logger.info('[PRAZOS] Polo ativo selecionado - apenas primeiro destinatário marcado')
-                time.sleep(0.5)
+                espera.assentar(driver, 0.5)
             except Exception as e:
                 logger.warning(f'[PRAZOS] Não foi possível clicar em polo ativo: {e}')
 
@@ -64,7 +60,7 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
                     logger.warning(f'[PRAZOS] Erro ao preencher campo {i+1}: {e}')
                     continue
             
-            time.sleep(0.3)
+            espera.assentar(driver, 0.3)
             
         except Exception as e:
             logger.warning(f'[PRAZOS] Erro ao preencher campos de prazo: {e}')
@@ -88,18 +84,19 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             """)
 
             # XPATH com exclusão de botão movimento (leg pattern: not(contains(@aria-label, 'movimentos')))
-            btn_gravar_prazo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]"))
-            )
+            xpath_gravar = "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]"
+            btn_gravar_prazo = None
+            if espera.ate_habilitar(driver, xpath_gravar, teto=10):
+                btn_gravar_prazo = driver.find_element(By.XPATH, xpath_gravar)
 
-            if btn_gravar_prazo.is_displayed() and btn_gravar_prazo.is_enabled():
+            if btn_gravar_prazo and btn_gravar_prazo.is_displayed() and btn_gravar_prazo.is_enabled():
                 if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
                     logger.info('[PRAZOS] ✅ Prazos gravados via safe_click_no_scroll')
                 else:
                     logger.warning('[PRAZOS] Falha em safe_click_no_scroll, tentando .click()')
                     btn_gravar_prazo.click()
                     logger.info('[PRAZOS] ✅ Prazos gravados via Selenium')
-                time.sleep(1)
+                espera.assentar(driver, 1)
                 logger.info('[PRAZOS] ✅ Gravação de prazos concluída')
             else:
                 logger.warning('[PRAZOS] Botão Gravar não está disponível')

@@ -1,6 +1,6 @@
 from Fix.selenium_base.click_operations import safe_click_no_scroll
 from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable
-from Fix.core import aguardar_renderizacao_nativa
+from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
 from Fix.headless_helpers import click_headless_safe
 from Fix.utils import normalizar_texto as normalizar_string
 import re
@@ -10,6 +10,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from Fix.log import log_seletor_multiplo, logger
+from Fix import espera
 
 
 def _normalizar_nome_para_match(nome):
@@ -131,7 +132,7 @@ def _clicar_e_aguardar_spinner(driver, btn, timeout_s=15):
     3. Retorna quando DOM estiver pronto
     """
     import time
-    driver.execute_script("arguments[0].click();", btn)
+    safe_click_no_scroll(driver, btn)
     
     # Aguardar APENAS até spinner sumir — nenhum sleep fixo
     seletores_loading = (
@@ -450,13 +451,15 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
         cliques = cliques_polo_passivo if destinatarios == 'polo_passivo' else 2
         log(f'[DESTINATARIOS] Clicando no polo passivo ({cliques}x)')
         try:
-            btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=10, by=By.CSS_SELECTOR)
+            btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=5, by=By.CSS_SELECTOR)
             if not btn_polo_passivo:
                 raise RuntimeError('Botão polo passivo não clicável')
             for i in range(cliques):
                 _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
                 if i < cliques - 1:
-                    esperar_elemento(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=3, by=By.CSS_SELECTOR)
+                    # Spinner já sumiu (garantido por _clicar_e_aguardar_spinner) — apenas
+                    # reobter a referência (Angular pode recriar o nó), sem novo timeout de espera.
+                    btn_polo_passivo = driver.find_element(By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]')
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo: {e}')
@@ -465,14 +468,12 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     if destinatarios == 'terceiros':
         log('[DESTINATARIOS] OPÇÃO TERCEIROS: Clicando em terceiros interessados')
         try:
-            try:
-                btn_terceiro = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomenteTerceirosInteressados"]'))
-                )
-            except Exception:
-                btn_terceiro = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-user.pec-polo-outros-partes-processo'))
-                )
+            if espera.ate_habilitar(driver, 'button[name="btnIntimarSomenteTerceirosInteressados"]', teto=5):
+                btn_terceiro = driver.find_element(By.CSS_SELECTOR, 'button[name="btnIntimarSomenteTerceirosInteressados"]')
+            else:
+                # <i> não tem estado disabled real: ate_aparecer, não ate_habilitar
+                espera.ate_aparecer(driver, 'i.fa.fa-user.pec-polo-outros-partes-processo', teto=5)
+                btn_terceiro = driver.find_element(By.CSS_SELECTOR, 'i.fa.fa-user.pec-polo-outros-partes-processo')
             _clicar_e_aguardar_spinner(driver, btn_terceiro)
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
@@ -487,25 +488,25 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                 '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo")'
                 ' and contains(normalize-space(.), "Polo Passivo")]]'
             )
-            painel_header = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, painel_header_xpath))
-            )
+            painel_header = espera.elemento(driver, painel_header_xpath, teto=10, visivel=False)
+            if painel_header is None:
+                raise Exception('painel Polo Passivo não apareceu')
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", painel_header)
-            driver.execute_script("arguments[0].click();", painel_header)
-            time.sleep(0.5)
+            safe_click_no_scroll(driver, painel_header)
+            espera.assentar(driver, 0.5)
 
             # 2. Clicar na primeira seta do Polo Passivo (legado: WebDriverWait + execute_script)
-            primeira_seta = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((
-                    By.XPATH,
-                    '//mat-expansion-panel[.//*[contains(text(), "Polo Passivo")]]'
-                    '//button[@aria-label="Clique para acrescentar esta parte '
-                    'à lista de destinatários de expedientes e comunicações."][1]'
-                ))
+            seta_xpath = (
+                '//mat-expansion-panel[.//*[contains(text(), "Polo Passivo")]]'
+                '//button[@aria-label="Clique para acrescentar esta parte '
+                'à lista de destinatários de expedientes e comunicações."][1]'
             )
-            driver.execute_script("arguments[0].click();", primeira_seta)
+            if not espera.ate_habilitar(driver, seta_xpath, teto=10):
+                raise Exception('primeira seta do Polo Passivo não habilitou')
+            primeira_seta = driver.find_element(By.XPATH, seta_xpath)
+            safe_click_no_scroll(driver, primeira_seta)
             log('[DESTINATARIOS] Primeira seta (primeiro destinatário) clicada')
-            time.sleep(1)
+            espera.assentar(driver, 1)
 
             # 3. Buscar e adicionar TRIBUNAL se necessário (pec_excluiargos)
             try:
@@ -536,8 +537,8 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                     campo_cep.clear()
                     for char in '01302906':
                         campo_cep.send_keys(char)
-                        time.sleep(0.1)
-                    time.sleep(1)
+                        espera.assentar(driver, 0.1)
+                    espera.ate_texto(driver, 'span.mat-option-text', '01302-906', teto=1)
 
                     log('[DESTINATARIOS] 3d. Clicando na opção do tribunal TRT2 São Paulo')
                     opcao_tribunal = WebDriverWait(driver, 10).until(
@@ -545,7 +546,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                     )
                     opcao_tribunal.click()
                     log('[DESTINATARIOS] Opção do tribunal selecionada')
-                    time.sleep(0.5)
+                    espera.ate_habilitar(driver, 'button[aria-label="Salva as alterações"]', teto=0.5)
 
                     log('[DESTINATARIOS] 3e. Clicando no botão Salvar das alterações')
                     btn_salvar_alteracoes = WebDriverWait(driver, 10).until(
@@ -553,7 +554,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                     )
                     btn_salvar_alteracoes.click()
                     log('[DESTINATARIOS] Alterações salvas')
-                    time.sleep(0.5)
+                    espera.ate_aparecer(driver, 'i.fa.fa-window-close.btn-fechar', teto=0.5)
 
                     log('[DESTINATARIOS] 3f. Clicando no botão fechar para fechar endereços')
                     btn_fechar = WebDriverWait(driver, 10).until(

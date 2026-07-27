@@ -54,7 +54,9 @@ class ApiWrapper {
 
       #normalizarDominio(dominio) {
         if (!dominio) {
-          alert('mais PJe: Atenção usuário, a extensão identifica o seu TRT, instância e versão do sistema a partir da tela de login do PJe.\nAcesse a tela de login para normalizar suas congiurações básicas.');
+            if (!document.location.href.includes('popupPainelCopiaECola.html')) {
+                alert('mais PJe: Atenção usuário, a extensão identifica o seu TRT, instância e versão do sistema a partir da tela de login do PJe.\nAcesse a tela de login para normalizar suas congiurações básicas.');
+            }
           return 'ERRO';
         }
         if (!dominio.startsWith('http')) {
@@ -328,16 +330,6 @@ const apis = {
       {}
     ),
 
-    documentoProcessoPreview: new ApiWrapper(
-      '/pje-comum-api/api/processos/nrprocesso/{nrProcesso}/documentos/idUnico/{idUnicoDocumento}/preview',
-      {
-        incluirCapa: false,
-        incluirAssinatura: true,
-        incluirSumario: false,
-        formato: '.jpeg'
-      }
-    ),
-
     associados: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/associados',
       {
@@ -561,6 +553,12 @@ const apis = {
 
     orgaoJulgadorPorId: new ApiWrapper(
         '/pje-comum-api/api/orgaosjulgadores/{codigoOJ}',
+        {
+        }
+    ),
+
+    tiposAtividadesChecklist: new ApiWrapper(
+        '/pje-gigs-api/api/execucao/tiposatividades',
         {
         }
     )

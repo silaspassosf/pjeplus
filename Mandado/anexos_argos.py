@@ -20,13 +20,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from core.resultado_execucao import ResultadoExecucao
 
 from Fix.log import logger
 from Fix.utils_observer import aguardar_renderizacao_nativa
+from Fix.core import safe_click_no_scroll
+from Fix import espera
 
 
 # ══════════════════════ Constantes ══════════════════════
@@ -91,17 +92,13 @@ def _localizar_modal_visibilidade(driver: WebDriver, timeout: int = 4) -> Option
 
 def _processar_modal_visibilidade(driver: WebDriver, modal: WebElement, log: bool = True) -> bool:
     """Processa modal: seleciona checkboxes e salva (modo rápido)."""
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.common.exceptions import TimeoutException
-    import time
     try:
-        time.sleep(0.12)
+        espera.assentar(driver, 0.12)
         selecionar_todos_ok = False
         try:
             icone = modal.find_element(By.CSS_SELECTOR, _SELETORES_ANEXOS['selecionar_todos'])
-            driver.execute_script("arguments[0].click();", icone)
-            time.sleep(0.15)
+            safe_click_no_scroll(driver, icone)
+            espera.assentar(driver, 0.15)
             selecionar_todos_ok = True
         except Exception:
             pass
@@ -111,21 +108,19 @@ def _processar_modal_visibilidade(driver: WebDriver, modal: WebElement, log: boo
                 try:
                     checkbox_input = checkbox.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
                     if not checkbox_input.is_selected():
-                        driver.execute_script("arguments[0].click();", checkbox)
-                        time.sleep(0.1)
+                        safe_click_no_scroll(driver, checkbox)
+                        espera.assentar(driver, 0.1)
                 except Exception:
                     continue
-        time.sleep(0.08)
+        espera.assentar(driver, 0.08)
         btn_salvar = modal.find_element(By.XPATH, _SELETORES_ANEXOS['btn_salvar'])
         if not (btn_salvar.is_displayed() and btn_salvar.is_enabled()):
             return False
-        driver.execute_script("arguments[0].click();", btn_salvar)
-        try:
-            WebDriverWait(driver, 4, poll_frequency=0.1).until(EC.staleness_of(modal))
-            time.sleep(0.05)
+        safe_click_no_scroll(driver, btn_salvar)
+        if espera.ate_obsoleto(driver, modal, teto=4):
+            espera.assentar(driver, 0.05)
             return True
-        except TimeoutException:
-            return False
+        return False
     except Exception as e:
         if log:
             logger.error(f"[MODAL][ERRO] {e}")
@@ -297,7 +292,7 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
     if btn_anexos_encontrado:
         try:
             # JavaScript direto conforme legado (evita abertura de aba e ignora overlays)
-            driver.execute_script("arguments[0].click();", btn_anexos_encontrado)
+            safe_click_no_scroll(driver, btn_anexos_encontrado)
             if log:
                 logger.info('[ARGOS][ANEXOS]  Anexos abertos (via clique no botão de anexos)')
             aguardar_renderizacao_nativa(driver, _SELETORES_ANEXOS['anexos'], modo='aparecer', timeout=5)
@@ -329,12 +324,14 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
     if log:
         logger.info('[ARGOS][ANEXOS] Ativando múltipla seleção...')
     try:
-        btn_multi = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]'))
-        )
-        driver.execute_script("arguments[0].click();", btn_multi)
-        if log:
-            logger.info('[ARGOS][ANEXOS]  ✅ Múltipla seleção ativada')
+        seletor_multi = 'button[aria-label="Exibir múltipla seleção."]'
+        if espera.ate_habilitar(driver, seletor_multi, teto=10):
+            btn_multi = driver.find_element(By.CSS_SELECTOR, seletor_multi)
+            safe_click_no_scroll(driver, btn_multi)
+            if log:
+                logger.info('[ARGOS][ANEXOS]  ✅ Múltipla seleção ativada')
+        elif log:
+            logger.warning('[ARGOS][ANEXOS]  ⚠️ Falha ao ativar múltipla seleção (não crítico)')
     except Exception:
         if log:
             logger.warning('[ARGOS][ANEXOS]  ⚠️ Falha ao ativar múltipla seleção (não crítico)')
@@ -376,7 +373,7 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
                 # Selecionar checkbox imediatamente após inserir sigilo
                 try:
                     chk = anexo.find_element(By.CSS_SELECTOR, 'span.mat-checkbox-inner-container')
-                    driver.execute_script("arguments[0].click();", chk)
+                    safe_click_no_scroll(driver, chk)
                 except Exception:
                     pass
             else:

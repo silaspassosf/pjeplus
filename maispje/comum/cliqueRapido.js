@@ -235,6 +235,7 @@ async function mapearElementosParaCliqueRapido() {
 async function acionarCliqueRapido(elemento) {
     return new Promise(async resolver => {
         if (elemento) {
+            console.log(elemento)
             //define os alvos do clique.. elementos que possuam event listener de click
             // if (elemento.tagName == 'DIV' && elemento.className.includes('item-menu')) { //EXCEÇÃO > item de submenu da janela principal
             //     console.log(elemento?.firstChild.tagName)
@@ -247,7 +248,8 @@ async function acionarCliqueRapido(elemento) {
             // } else if (elemento.tagName == 'I' && elemento?.getAttribute('role') == 'button') { //EXCEÇÃO > filtros da janela principal
             // } else if (elemento.tagName == 'MAT-CARD' && elemento?.getAttribute('role') == 'list') { //painéis do painel global
             // } else {
-                if (!['BUTTON','A','MAT-CARD','INPUT'].includes(elemento.tagName)) { //menu kaizen e gerais
+
+                if (!['PJE-ALTERAR-PRAZO-LOTE','BUTTON','A','MAT-CARD','INPUT'].includes(elemento.tagName)) { //menu kaizen e gerais
                     // console.debug('    |___"' + elemento.tagName + '" não compatível. Trocar por firstChild')
                     elemento = elemento.firstChild;
                     if (elemento && !['BUTTON','A','MAT-CARD','INPUT'].includes(elemento.tagName)) {
@@ -302,6 +304,9 @@ async function acionarCliqueRapido(elemento) {
                         clearInterval(check99);
                         mouseEmCima = false;
                         window.focus(); // garante o clique mesmo que o usuário clique em outra janela
+                        if (elemento.tagName == 'PJE-ALTERAR-PRAZO-LOTE') {
+                            el.querySelector('mat-select div').click();
+                        }
                         el.click();
                     }
                 }, temporizador*1000);

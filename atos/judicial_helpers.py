@@ -3,6 +3,7 @@ from Fix.log import logger
 from Fix.extracao import bndt
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
+from Fix import espera
 
 from .judicial_fluxo import ato_judicial
 from .wrappers_ato import ato_bloq, ato_meios
@@ -22,7 +23,7 @@ def ato_pesquisas(driver, debug=False, gigs=None, **kwargs):
             if btn_iniciar and btn_iniciar.is_displayed() and btn_iniciar.is_enabled():
                 safe_click(driver, btn_iniciar)
                 import time
-                time.sleep(1)
+                espera.assentar(driver, 1)
         except Exception:
             pass
         
@@ -107,6 +108,7 @@ def idpj(
 
 # Reexportar a implementação canônica de preencher_prazos_destinatarios
 from atos.judicial_utils import preencher_prazos_destinatarios
+from Fix import espera
 
 
 def verificar_bloqueio_recente(driver, debug=False):
@@ -121,13 +123,8 @@ def verificar_bloqueio_recente(driver, debug=False):
         import re
         from datetime import datetime, timedelta
         
-        try:
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            lembretes_section = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'div.post-it-set'))
-            )
-        except Exception:
+        lembretes_section = espera.elemento(driver, 'div.post-it-set', teto=10, visivel=False)
+        if lembretes_section is None:
             return False
         
         # Encontrar todos os lembretes expandidos

@@ -44,6 +44,15 @@ cookies_sessoes/*.json
 build/supervisor_gui/
 build/temp/
 
+# Artefatos de runtime (regenerados a cada execução, não são seeds/fixtures)
+erro.md
+p2b_log.txt
+progresso.json
+log.py
+dadosatuais.json
+destinatarios_argos.json
+PEC/clipboard.txt
+
 # Large binaries
 *.exe
 *.dmg

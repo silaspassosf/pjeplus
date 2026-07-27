@@ -76,6 +76,7 @@ from typing import Optional, Any, Dict, List, Tuple
 import requests
 import re
 import html as _html
+import unicodedata
 from urllib.parse import urlparse
 from Fix.log import logger
 
@@ -382,6 +383,65 @@ def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
     return sess, trt_host
 
 
+class _RequestContextComoSessao:
+    """Adapta o `APIRequestContext` do Playwright à fatia de `requests.Session`
+    que `PjeApiClient` usa (`.get(url, params=, timeout=, headers=)` -> objeto
+    com `.ok`/`.json()`). `APIResponse` já expõe `.ok` e `.json()` com a mesma
+    forma, então nenhum método de `PjeApiClient` precisa ser duplicado.
+    """
+
+    def __init__(self, contexto, grau: int = 1):
+        self._ctx = contexto
+        self._headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json',
+            'X-Grau-Instancia': str(grau),
+        }
+
+    def get(self, url, params=None, timeout=15, headers=None, **kwargs):
+        hdrs = dict(self._headers)
+        if headers:
+            hdrs.update(headers)
+        segundos = timeout[1] if isinstance(timeout, (tuple, list)) else timeout
+        timeout_ms = int(segundos * 1000) if segundos is not None else None
+        return self._ctx.get(url, params=params, headers=hdrs, timeout=timeout_ms)
+
+
+def cliente_para(driver, grau: int = 1) -> PjeApiClient:
+    """Devolve um `PjeApiClient` adequado ao motor corrente.
+
+    Playwright (`PWDriver`): a sessão vem do `APIRequestContext` do contexto do
+    browser (`pjeplay.api.requisicao`) — mesma sessão da aba, então um
+    re-login vale imediatamente e não há cookie copiado envelhecendo. A
+    superfície pública devolvida é a mesma `PjeApiClient` de sempre; só o
+    objeto "sessão" por trás muda (`_RequestContextComoSessao`).
+
+    Selenium (ou qualquer coisa que não pareça um `PWDriver`): caminho de
+    sempre, `session_from_driver` + `PjeApiClient`.
+
+    Nunca levanta: qualquer falha na detecção/uso do caminho Playwright cai
+    para o caminho `requests`.
+
+    Candidatos a `api.esperar_resposta` (fora de escopo aqui — pertencem aos
+    fluxos de E5-E8): os pontos em que um clique é seguido de uma chamada a
+    `PjeApiClient` que só faz sentido depois do XHR do próprio clique
+    terminar, hoje sincronizados por `espera.assentar`/DOM.
+    """
+    if hasattr(driver, "page") and hasattr(driver, "context"):
+        try:
+            from pjeplay import api as _pjeplay_api
+
+            contexto = _pjeplay_api.requisicao(driver)
+            trt_host = urlparse(driver.current_url).netloc
+            sessao_pw = _RequestContextComoSessao(contexto, grau=grau)
+            return PjeApiClient(sessao_pw, trt_host, grau=grau)
+        except Exception:
+            pass  # cai para o caminho requests abaixo
+
+    sess, trt_host = session_from_driver(driver, grau=grau)
+    return PjeApiClient(sess, trt_host, grau=grau)
+
+
 def obter_codigo_validacao_documento(client: PjeApiClient, id_processo: str, id_documento: str) -> Optional[str]:
     """Replica a construção de 'chave' feita na extensão.
 
@@ -629,7 +689,35 @@ def get_all_variables(client: PjeApiClient, id_processo: str) -> Dict[str, Optio
     return result
 
 
-def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_processo: str, tipos: Optional[List[str]] = None, itens_timeline: Optional[List[Dict]] = None, driver = None) -> Optional[str]:
+def condensar_conteudo_documento(conteudo: str, tipo_documento: str, id_documento) -> str:
+    """Formata o texto de um documento no mesmo padrão do botão "Copiar" do
+    maispje (gigs-plugin.js::copiarDocumentoProcesso): colapsa espaços em
+    branco redundantes e envolve com o cabeçalho de transcrição, para ser
+    reconhecido por `Fix.utils.inserir_conteudo_formatado` (que busca no
+    clipboard interno pelo padrão "Transcrição do(a)").
+    """
+    texto_condensado = re.sub(r'\s{2,}', ' ', conteudo or '')
+    return f'Transcrição do(a) {tipo_documento} (ID {id_documento}): \n"{texto_condensado}"'
+
+
+def _normalizar_texto_verificacao(texto: str) -> str:
+    """Normaliza texto para checagem de exceções: lowercase, remove acentos,
+    colapsa qualquer whitespace (incl. nbsp/\\xa0) em um único espaço."""
+    if not texto:
+        return ''
+    sem_acento = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('ascii')
+    return re.sub(r'\s+', ' ', sem_acento.lower()).strip()
+
+
+PADROES_EXCECAO_LINK_VALIDACAO = (
+    'comunique-se por edital',
+    'comunique se por edital',
+    'comunique-se, por edital',
+    'de forma concomitante',
+)
+
+
+def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_processo: str, tipos: Optional[List[str]] = None, itens_timeline: Optional[List[Dict]] = None, driver = None, incluir_conteudo_condensado: bool = False):
     """Retorna a chave de validação do documento mais recente entre
     Despacho, Decisão ou Sentença.
 
@@ -637,6 +725,11 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
     - Itera os elementos (documentos + anexos) na ordem retornada pela
       API (a extensão assume que o primeiro item é o mais recente).
     - FILTRA: Pula despachos que contenham "Comunique-se por edital"
+
+    Se `incluir_conteudo_condensado=True`, retorna a tupla
+    `(link, conteudo_condensado)` — sempre uma tupla (`(None, None)` se
+    nada for encontrado) — em vez de apenas o link (comportamento padrão,
+    inalterado, usado pelos demais chamadores).
     - Ao encontrar o primeiro documento válido cujo `tipo` esteja na lista de
       `tipos` (padrão: ['Sentença','Decisão','Despacho']), retorna a chave
       construída via `obter_codigo_validacao_documento`.
@@ -676,29 +769,24 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
                 continue
             
             try:
-                # ✅ NOVO: Se for Despacho e temos driver, verificar conteúdo
-                if driver and tipo == 'Despacho':
-                    try:
-                        # Construir URL do documento para extrair conteúdo
-                        base = client.trt_host
-                        if not base.startswith('http'):
-                            base = 'https://' + base
-                        url_doc = f"{base}/pjekz/processo/{id_processo}/detalhe/timeline/documento/{doc_id}"
-                        
-                        # Extrair conteúdo do documento
-                        from Fix.extracao import extrair_direto
-                        resultado = extrair_direto(driver, timeout=10, debug=False, formatar=True)
-                        
-                        if resultado and resultado.get('sucesso'):
-                            conteudo = (resultado.get('conteudo') or resultado.get('conteudo_bruto') or '').lower()
-                            
-                            # Se contém "Comunique-se por edital", pular este despacho
-                            if 'comunique-se por edital' in conteudo or 'comunique se por edital' in conteudo:
-                                logger.debug('[VARIAVEIS] Despacho com "Comunique-se por edital" encontrado - pulando para proximo')
-                                continue  # Pular para próximo documento
-                    except Exception as e_check:
-                        logger.warning('[VARIAVEIS][WARN] Erro ao verificar conteudo do despacho: %s - prosseguindo', e_check)
-                
+                # Verificar conteudo via API (sem depender de driver/DOM), para
+                # qualquer tipo (Sentenca, Decisao ou Despacho) — pular para o
+                # proximo documento mais recente quando o conteudo indicar que
+                # este nao e o documento-alvo (edital ou concomitancia).
+                conteudo_original = ''
+                try:
+                    conteudo_original = obter_texto_documento(client, id_processo, doc_id) or ''
+                    conteudo_normalizado = _normalizar_texto_verificacao(conteudo_original)
+                    if conteudo_normalizado:
+                        padrao_encontrado = next((p for p in PADROES_EXCECAO_LINK_VALIDACAO if p in conteudo_normalizado), None)
+                        if padrao_encontrado:
+                            logger.debug('[VARIAVEIS] %s com padrao de excecao "%s" - pulando para proximo', tipo, padrao_encontrado)
+                            continue
+                    else:
+                        logger.warning('[VARIAVEIS][WARN] Conteudo de %s (doc %s) nao pode ser extraido - checagem de excecao NAO aplicada, prosseguindo com risco', tipo, doc_id)
+                except Exception as e_check:
+                    logger.warning('[VARIAVEIS][WARN] Erro ao verificar conteudo de %s: %s - prosseguindo', tipo, e_check)
+
                 # Documento válido: obter chave
                 chave = obter_codigo_validacao_documento(client, id_processo, doc_id)
                 if not chave:
@@ -709,12 +797,15 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
                     base = 'https://' + base
                 instancia = getattr(client, 'grau', 1)
                 link = f"{base}/pjekz/validacao/{chave}?instancia={instancia}"
+                if incluir_conteudo_condensado:
+                    conteudo_condensado = condensar_conteudo_documento(conteudo_original, tipo, doc_id) if conteudo_original else None
+                    return link, conteudo_condensado
                 return link
             except Exception:
                 # falha ao obter, tentar próximo
                 continue
 
-    return None
+    return (None, None) if incluir_conteudo_condensado else None
 
 
 def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: str) -> Optional[str]:
@@ -738,9 +829,10 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
                     text = v
                     # se parecer HTML, remover tags
                     if text.lstrip().startswith('<') or '<p' in text[:200] or '<div' in text[:200]:
-                        clean = re.sub(r'<[^>]+>', '', text)
+                        clean = re.sub(r'<[^>]+>', ' ', text)
                         clean = _html.unescape(clean)
-                        return re.sub(r"\s{2,}", ' ', clean).strip()
+                        clean = re.sub(r"\s+", ' ', clean).strip()
+                        return re.sub(r'\s+([,.;:!?])', r'\1', clean)
                     else:
                         return re.sub(r"\s{2,}", ' ', text).strip()
 
@@ -769,9 +861,10 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
 
             if text_body:
                 if 'html' in ctype or text_body.lstrip().startswith('<'):
-                    clean = re.sub(r'<[^>]+>', '', text_body)
+                    clean = re.sub(r'<[^>]+>', ' ', text_body)
                     clean = _html.unescape(clean)
-                    return re.sub(r"\s{2,}", ' ', clean).strip()
+                    clean = re.sub(r"\s+", ' ', clean).strip()
+                    return re.sub(r'\s+([,.;:!?])', r'\1', clean)
                 # json with nested content
                 if 'json' in ctype:
                     try:
@@ -780,9 +873,10 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
                             v = j.get(k)
                             if v and isinstance(v, str) and v.strip():
                                 if v.lstrip().startswith('<'):
-                                    clean = re.sub(r'<[^>]+>', '', v)
+                                    clean = re.sub(r'<[^>]+>', ' ', v)
                                     clean = _html.unescape(clean)
-                                    return re.sub(r"\s{2,}", ' ', clean).strip()
+                                    clean = re.sub(r"\s+", ' ', clean).strip()
+                                    return re.sub(r'\s+([,.;:!?])', r'\1', clean)
                                 return re.sub(r"\s{2,}", ' ', v).strip()
                     except Exception:
                         pass

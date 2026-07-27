@@ -14,8 +14,6 @@ from typing import Optional
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
     TimeoutException,
     ElementClickInterceptedException,
@@ -24,7 +22,8 @@ from selenium.common.exceptions import (
 )
 
 from Fix.log import logger
-from Fix.core import aguardar_e_clicar
+from Fix.core import aguardar_e_clicar, safe_click_no_scroll
+from Fix import espera
 
 
 # ============================================================
@@ -241,6 +240,35 @@ def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> s
     raise TimeoutException('Nenhuma nova aba detectada dentro do timeout')
 
 
+def abrir_em_nova_aba(driver, acao, timeout: float = 15) -> Optional[str]:
+    """Executa `acao` e devolve o handle da aba que ela abriu.
+
+    Sem corrida: no backend Playwright a escuta e armada antes da acao
+    (`pje.abrir_em_nova_aba`, via `context.expect_page`), eliminando a janela
+    em que a aba abre e fecha entre duas leituras de `window_handles`. No
+    Selenium replica o mesmo padrao antes/depois, com `espera.ate_abas`
+    cobrindo a espera pela nova janela.
+
+    Devolve `None` se nenhuma aba nova for detectada dentro de `timeout`.
+    """
+    handles_antes = set(driver.window_handles)
+
+    if hasattr(driver, "page") and hasattr(driver, "context"):
+        try:
+            from pjeplay import pje as _pjeplay_pje
+            _pjeplay_pje.abrir_em_nova_aba(driver.page, acao, timeout=timeout)
+        except Exception:
+            pass  # cai para a leitura de handles abaixo
+    else:
+        acao()
+        espera.ate_abas(driver, len(handles_antes) + 1, teto=timeout)
+
+    for h in driver.window_handles:
+        if h not in handles_antes:
+            return h
+    return None
+
+
 def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
     """Fecha todas as abas extras, mantendo apenas aba_lista_original."""
     try:
@@ -265,6 +293,10 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
     """
     Remove modals, tooltips e overlays que bloqueiam cliques em modo headless.
     Executado via JavaScript para maxima confiabilidade.
+
+    Compensacao especifica do caminho Selenium headless (geckodriver renderiza
+    por caminho diferente do headed). Sob o backend Playwright vira no-op
+    efetivo: `locator.click()` ja checa actionability igual em headless/headed.
 
     Returns:
         bool: True se limpeza foi executada com sucesso
@@ -301,7 +333,7 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
     """
     try:
         driver.execute_script(script)
-        WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle apos remover overlays
+        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos remover overlays
         return True
     except Exception as e:
         logger.warning(f"[HEADLESS] Aviso: Nao foi possivel limpar overlays: {e}")
@@ -311,6 +343,10 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
 def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
     """
     Scroll seguro para elemento com multiplas estrategias.
+
+    Compensacao especifica do caminho Selenium headless. Sob o backend
+    Playwright vira no-op efetivo: `locator.scroll_into_view_if_needed()`
+    ja e usado pelo auto-scroll do `locator.click()`.
 
     Args:
         driver: WebDriver instance
@@ -325,7 +361,7 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
             "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
             element
         )
-        WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle apos scroll
+        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos scroll
         return True
     except Exception:
         try:
@@ -334,7 +370,7 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
                 "window.scrollTo(0, arguments[0].getBoundingClientRect().top + window.pageYOffset - 200);",
                 element
             )
-            WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle apos scroll
+            espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos scroll
             return True
         except Exception:
             return False
@@ -348,6 +384,11 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     Estrategia 2: Limpar overlays + scroll + wait + click
     Estrategia 3: JavaScript click direto (ultimo recurso)
 
+    Compensacao especifica do caminho Selenium headless (geckodriver renderiza
+    por caminho diferente do headed). Sob o backend Playwright vira no-op
+    efetivo: `locator.click()` faz a mesma checagem de actionability em
+    headless e headed — ja substituida por `pjeplay/nativo.py`.
+
     Args:
         driver: WebDriver instance
         selector: Seletor CSS ou XPath
@@ -360,9 +401,9 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
 
     # Estrategia 1: Wait padrao element_to_be_clickable
     try:
-        element = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((by, selector))
-        )
+        if not espera.ate_habilitar(driver, selector, teto=timeout):
+            raise TimeoutException(f"element_to_be_clickable: {selector}")
+        element = driver.find_element(by, selector)
         element.click()
         return True
     except (ElementClickInterceptedException, TimeoutException):
@@ -371,12 +412,13 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     # Estrategia 2: Limpar overlays + scroll + wait + click
     try:
         limpar_overlays_headless(driver)
-        element = WebDriverWait(driver, timeout // 2).until(
-            EC.presence_of_element_located((by, selector))
-        )
+        element = espera.elemento(driver, selector, teto=timeout // 2, visivel=False)
+        if element is None:
+            raise TimeoutException(f"presence_of_element_located: {selector}")
         scroll_to_element_safe(driver, element)
         # Aguarda elemento estar clicavel apos scroll (DOM-settle)
-        WebDriverWait(driver, timeout // 2).until(EC.element_to_be_clickable((by, selector)))
+        if not espera.ate_habilitar(driver, selector, teto=timeout // 2):
+            raise TimeoutException(f"element_to_be_clickable: {selector}")
         driver.find_element(by, selector).click()
         return True
     except (ElementClickInterceptedException, StaleElementReferenceException):
@@ -385,8 +427,8 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     # Estrategia 3: JavaScript click (fallback final)
     try:
         element = driver.find_element(by, selector)
-        driver.execute_script("arguments[0].click();", element)
-        WebDriverWait(driver, 2).until(lambda d: d.execute_script("return document.readyState") in ("complete", "interactive"))  # DOM-settle apos click JS
+        safe_click_no_scroll(driver, element)
+        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos click JS
         return True
     except Exception as e:
         logger.error(f"[HEADLESS] Todas estrategias falharam para '{selector}': {e}")
@@ -397,14 +439,19 @@ def is_headless_mode(driver: WebDriver) -> bool:
     """
     Detecta se driver esta em modo headless.
 
+    Compensacao especifica do caminho Selenium (heuristica de `outerWidth`).
+    Sob o backend Playwright vira no-op efetivo: headless e headed usam o
+    mesmo caminho de renderizacao — ja substituida por `pjeplay/nativo.py`.
+
     Returns:
         bool: True se headless
     """
     try:
-        result = driver.execute_script("return navigator.webdriver;")
-        # Heuristica: headless geralmente tem window.outerWidth == 0
+        # Heuristica: headless geralmente tem window.outerWidth == 0.
+        # NAO usar navigator.webdriver aqui - ele e True para qualquer driver
+        # controlado por Selenium (headless OU visivel), nao e sinal de headless.
         outer_width = driver.execute_script("return window.outerWidth;")
-        return outer_width == 0 or result is True
+        return outer_width == 0
     except Exception:
         return False
 
@@ -472,6 +519,7 @@ __all__ = [
     'forcar_fechamento_abas_extras',
     'is_browsing_context_discarded_error',
     'aguardar_nova_aba',
+    'abrir_em_nova_aba',
     # headless
     'limpar_overlays_headless',
     'scroll_to_element_safe',

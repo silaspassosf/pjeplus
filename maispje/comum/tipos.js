@@ -156,6 +156,7 @@
  * @property {string} extrasTiposDocumentoDepositoRecursal
  * @property {string} extrasTiposDocumentoSentencasAcordao
  * @property {boolean} extrasExibirPreviaDocumentoMouseOver
+ * @property {boolean} extrasExibirBTFecharPreviaDocumento
  * @property {boolean} extrasExibirPreviaDocumentoFocus
  * @property {boolean} extrasFocusSempre
  * @property {boolean} extrasAcionarBotoesSemCliqueAtivar
@@ -641,7 +642,6 @@
  * @typedef {Object} LinksDocumento
  * @property {number} id
  * @property {string} link
- * @property {string} preview
  * @property {string} conteudoDocumento
  * @property {Documento} documento
  */

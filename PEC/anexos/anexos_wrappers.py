@@ -139,3 +139,36 @@ def anex_retifidpj(
         substituir_link=False,
         debug=debug
     )
+
+
+def anex_devcp(
+    driver: WebDriver,
+    numero_processo: Optional[str] = None,
+    debug: bool = True,
+) -> bool:
+    """
+    Wrapper para juntada de devolução de Carta Precatória (Fluxo CP).
+
+    Parâmetros fixos conforme padrão do fluxo:
+      tipo: Certidão
+      descricao: Devolução CP
+      modelo: xj2 d
+      assinar: nao
+      sigilo: nao
+    """
+    def inserir_fn(driver: WebDriver, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
+        # Não insere conteúdo adicional; usa modelo padrão (mesmo padrão de anex_retifidpj)
+        return True
+
+    return wrapper_juntada_geral(
+        driver=driver,
+        tipo='Certidão',
+        descricao='Devolução CP',
+        modelo='xj2 d',
+        assinar='nao',
+        sigilo='nao',
+        inserir_conteudo=inserir_fn,
+        coleta_conteudo=None,
+        substituir_link=False,
+        debug=debug
+    )

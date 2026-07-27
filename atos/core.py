@@ -3,8 +3,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from Fix import espera
 from Fix.utils import login_pc
 from Fix.selenium_base.element_interaction import safe_click, preencher_campos_prazo
 from Fix.selenium_base.wait_operations import esperar_elemento, esperar_url_conter
@@ -43,13 +42,11 @@ def selecionar_opcao_select(
         bool: True se selecionado com sucesso, False caso contrário
     """
     try:
-        select = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
-        )
+        if not espera.ate_habilitar(driver, seletor, teto=timeout):
+            raise Exception(f'{seletor} não habilitou')
+        select = driver.find_element(By.CSS_SELECTOR, seletor)
         select.send_keys(Keys.ENTER)
-        WebDriverWait(driver, timeout).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, 'mat-option'))
-        )
+        espera.ate_aparecer(driver, 'mat-option', teto=timeout)
         opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option')
         for opcao in opcoes:
             if texto_opcao.lower() in opcao.text.lower():
@@ -173,11 +170,7 @@ def aguardar_e_verificar_aba(
     try:
         # Se URL esperada foi especificada, aguarda ela aparecer
         if url_esperada:
-            try:
-                WebDriverWait(driver, timeout_aba).until(
-                    lambda d: url_esperada in d.current_url
-                )
-            except TimeoutException:
+            if not espera.ate_url(driver, url_esperada, teto=timeout_aba):
                 if log:
                     logger.warning(f"[ABA]  Timeout aguardando URL com '{url_esperada}'. URL atual: {driver.current_url}")
                 # Continua mesmo assim para verificar o carregamento

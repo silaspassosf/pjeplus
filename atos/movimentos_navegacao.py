@@ -9,6 +9,7 @@ Move o processo para uma tarefa específica independente de onde ele estiver.
 from .core import *
 from typing import Optional
 from selenium.webdriver.remote.webdriver import WebDriver
+from Fix import espera
 
 
 def navegar_para_tarefa(
@@ -249,7 +250,7 @@ def _encerrar_prazo(driver: WebDriver, debug: bool) -> bool:
         if not _clicar_botao_por_texto(driver, 'encerrar prazo', debug):
             return False
         import time
-        time.sleep(0.5)
+        espera.assentar(driver, 0.5)
         return _clicar_botao_por_texto(driver, 'Sim', debug)
     except Exception as e:
         if debug:

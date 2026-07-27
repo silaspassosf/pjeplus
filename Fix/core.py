@@ -19,6 +19,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import re, time, datetime, json, unicodedata
 from .log import logger
+from Fix import espera
 
 # Variáveis de compatibilidade para logs antigos
 DEBUG = os.getenv('PJEPLUS_DEBUG', '0').lower() in ('1', 'true', 'on')
@@ -613,7 +614,7 @@ def _clicar_botao_movimentar(driver, timeout=10, log=False):
                 elemento.click()
                 if log:
                     logger.debug("_clicar_botao_movimentar: clicado com: %s", seletor)
-                time.sleep(0.5)
+                espera.assentar(driver, 0.5)
                 return True
 
         except Exception as e:
@@ -652,8 +653,10 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
                 if log:
                     logger.debug("_clicar_botao_tarefa_processo: %d overlay(s) detectado(s) - aguardando desaparecer...", len(overlays))
                 # Aguardar overlays desaparecerem
-                WebDriverWait(driver, 5).until(
-                    lambda d: len(d.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel')) == 0
+                espera.ate_sumir(
+                    driver,
+                    '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel',
+                    teto=5,
                 )
                 if log:
                     logger.debug("_clicar_botao_tarefa_processo: overlays desapareceram")
@@ -664,7 +667,7 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
         # Passo 3: Scroll para o elemento
         try:
             driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", elemento)
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
         except Exception as e:
             if log:
                 logger.warning("_clicar_botao_tarefa_processo: erro no scroll: %s", e)
@@ -674,7 +677,7 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             elemento.click()
             if log:
                 logger.debug("_clicar_botao_tarefa_processo: clique direto realizado")
-            time.sleep(1)
+            espera.assentar(driver, 1)
             return True
         except ElementClickInterceptedException:
             if log:
@@ -685,10 +688,10 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
 
         # Passo 5: Tentar JavaScript click
         try:
-            driver.execute_script("arguments[0].click();", elemento)
+            safe_click_no_scroll(driver, elemento)
             if log:
                 logger.debug("_clicar_botao_tarefa_processo: JavaScript click realizado")
-            time.sleep(1)
+            espera.assentar(driver, 1)
             return True
         except Exception as e:
             if log:
@@ -701,7 +704,7 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             actions.move_to_element(elemento).click().perform()
             if log:
                 logger.debug("_clicar_botao_tarefa_processo: ActionChains click realizado")
-            time.sleep(1)
+            espera.assentar(driver, 1)
             return True
         except Exception as e:
             if log:
@@ -714,7 +717,7 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
                 parent.click()
                 if log:
                     logger.debug("_clicar_botao_tarefa_processo: parent click realizado")
-                time.sleep(1)
+                espera.assentar(driver, 1)
                 return True
         except Exception as e:
             if log:
@@ -872,11 +875,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                         continue
 
                     # Aguardar opções aparecerem (WebDriverWait substitui time.sleep animação)
-                    try:
-                        WebDriverWait(driver, 3).until(
-                            lambda d: len(d.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"], option')) >= 1
-                        )
-                    except:
+                    if not espera.ate_aparecer(driver, 'mat-option[role="option"], option', teto=3):
                         continue
 
                     # Procurar opção dentro do overlay ou painel
@@ -895,7 +894,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                                 if log:
                                     logger.debug("[SELECIONAR_OPCAO] Opcao '%s' selecionada via auto-deteccao (seletor: %s)", texto_opcao, seletor_auto)
                                 opcao.click()
-                                time.sleep(0.3)
+                                espera.assentar(driver, 0.3)
                                 return True
                         except StaleElementReferenceException:
                             continue
@@ -954,11 +953,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                     continue
 
                 # Aguardar opções aparecerem (WebDriverWait substitui time.sleep animação)
-                try:
-                    WebDriverWait(driver, 3).until(
-                        lambda d: len(d.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"], option')) >= 1
-                    )
-                except:
+                if not espera.ate_aparecer(driver, 'mat-option[role="option"], option', teto=3):
                     continue
 
                 # Procurar opção usando seletor mais robusto (inspiração do a.py)
@@ -977,7 +972,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                             if log:
                                 logger.debug("[SELECIONAR_OPCAO] Opcao '%s' selecionada (seletor: %s)", texto_opcao, seletor_atual)
                             opcao.click()
-                            time.sleep(0.3)
+                            espera.assentar(driver, 0.3)
                             return True
                     except StaleElementReferenceException:
                         continue
@@ -998,13 +993,11 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="destinos"]'))
             )
             select.click()
-            time.sleep(1)
+            espera.assentar(driver, 1)
 
             # Aguardar painel aparecer
             painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
-            painel = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, painel_selector))
-            )
+            painel = espera.elemento(driver, painel_selector, teto=10, visivel=False)
 
             # Procurar opção no painel
             opcoes = painel.find_elements(By.XPATH, ".//mat-option")
@@ -1012,7 +1005,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                 try:
                     texto = opcao.text.strip().lower()
                     if texto_opcao.lower() in texto:
-                        driver.execute_script("arguments[0].click();", opcao)
+                        safe_click_no_scroll(driver, opcao)
                         if log:
                             logger.debug("[SELECIONAR_OPCAO] Opcao '%s' selecionada via painel (estrategia 2)", texto_opcao)
                         return True
@@ -1304,6 +1297,32 @@ def _criar_driver_firefox(options, headless=False):
     return driver
 
 
+# Caminhos conhecidos do binario Firefox usado por PC/SISB_PC.
+# Mesmos literais ja usados em criar_driver_VT/criar_driver_sisb_vt.
+FIREFOX_BINARY_PADRAO = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+FIREFOX_BINARY_PADRAO_ALT = r"C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe"
+
+
+def _resolver_binario_firefox_padrao():
+    """
+    Resolve o binario Firefox valido entre os caminhos conhecidos.
+    Causa raiz do InvalidArgumentException ("binary is not a Firefox
+    executable"): _montar_options_pc/criar_driver_sisb_pc fixavam
+    FIREFOX_BINARY_PADRAO sem checar existencia (diferente de criar_driver_VT,
+    que ja faz fallback). Se o caminho mudar/nao existir na maquina, o
+    geckodriver falha na largada. Aqui testamos os caminhos conhecidos antes
+    de configurar options.binary_location.
+    """
+    for caminho in (FIREFOX_BINARY_PADRAO, FIREFOX_BINARY_PADRAO_ALT):
+        if os.path.exists(caminho):
+            return caminho
+    logger.error(
+        "Nenhum binario Firefox encontrado nos caminhos conhecidos: %s | %s",
+        FIREFOX_BINARY_PADRAO, FIREFOX_BINARY_PADRAO_ALT,
+    )
+    return None
+
+
 def _montar_options_pc(headless=False):
     """Monta options para driver PC."""
     from selenium.webdriver.firefox.options import Options
@@ -1350,7 +1369,9 @@ def _montar_options_pc(headless=False):
         _aplicar_preferencias(options, prefs_download_headless)
     _aplicar_preferencias(options, prefs_anti_throttling)
 
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    binario = _resolver_binario_firefox_padrao()
+    if binario:
+        options.binary_location = binario
     return options
 
 
@@ -1794,7 +1815,16 @@ def criar_driver_PC(headless=False):
     """
     try:
         options = _montar_options_pc(headless=headless)
-        driver = _criar_driver_firefox(options, headless=headless)
+        # WebDriverException "Process unexpectedly closed with status 0" e
+        # transiente (AV/handshake do processo Firefox recem-lancado) e some
+        # numa nova tentativa; com_retry ja e o padrao de retry do projeto.
+        driver = com_retry(
+            _criar_driver_firefox, max_tentativas=2, backoff_base=2, log=True,
+            options=options, headless=headless,
+        )
+        if driver is None:
+            logger.error("ERRO em criar_driver_PC: driver nao criado apos retries")
+            return None
         logger.info("driver criado: PC")
         return driver
     except Exception as e:
@@ -1914,9 +1944,11 @@ def criar_driver_sisb_pc(headless=False):
     options = Options()
     if headless:
         options.add_argument('--headless')
-    
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    
+
+    binario = _resolver_binario_firefox_padrao()
+    if binario:
+        options.binary_location = binario
+
     options.set_preference("browser.startup.homepage", "about:blank")
     options.set_preference("startup.homepage_welcome_url", "about:blank")
     options.set_preference("startup.homepage_welcome_url.additional", "about:blank")
@@ -1959,7 +1991,8 @@ def criar_driver_sisb_pc(headless=False):
             options_fallback = Options()
             if headless:
                 options_fallback.add_argument('--headless')
-            options_fallback.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+            if binario:
+                options_fallback.binary_location = binario
             driver = webdriver.Firefox(service=service, options=options_fallback)
             driver.implicitly_wait(10)
             logger.info("driver criado: SISB_PC (fallback)")
@@ -1967,6 +2000,65 @@ def criar_driver_sisb_pc(headless=False):
         except Exception as e2:
             logger.error("ERRO em criar_driver_sisb_pc: %s: %s", type(e2).__name__, e2)
             return None
+
+
+def criar_driver_sisb_vt(headless=False):
+    """
+    Driver SISBAJUD - VT (temporario, sem perfil fixo).
+    Segue a logica do criar_driver_PC: auto-detecta o binario Firefox
+    entre os caminhos conhecidos e nao exige perfil especifico da maquina.
+    """
+    from selenium.webdriver.firefox.options import Options
+    from selenium.webdriver.firefox.service import Service
+
+    FIREFOX_BINARY = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
+    FIREFOX_BINARY_ALT = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+
+    options = Options()
+    if headless:
+        options.add_argument('--headless')
+
+    firefox_bin = None
+    for bin_path in [FIREFOX_BINARY, FIREFOX_BINARY_ALT]:
+        if os.path.exists(bin_path):
+            firefox_bin = bin_path
+            break
+    if firefox_bin:
+        options.binary_location = firefox_bin
+        logger.debug("[DRIVER_SISB_VT] Usando binario: %s", firefox_bin)
+    else:
+        logger.warning("[DRIVER_SISB_VT] Nenhum binario Firefox conhecido encontrado, usando padrao do sistema")
+
+    # Perfil sempre temporario (novo a cada execucao) - nao depende de maquina especifica
+    options.set_preference("browser.startup.homepage", "about:blank")
+    options.set_preference("startup.homepage_welcome_url", "about:blank")
+    options.set_preference("startup.homepage_welcome_url.additional", "about:blank")
+    options.set_preference("browser.startup.page", 0)
+    options.set_preference("browser.cache.disk.enable", False)
+    options.set_preference("browser.cache.memory.enable", False)
+    options.set_preference("browser.cache.offline.enable", False)
+    options.set_preference("network.http.use-cache", False)
+    options.set_preference("browser.safebrowsing.enabled", False)
+    options.set_preference("browser.safebrowsing.malware.enabled", False)
+    options.set_preference("datareporting.healthreport.uploadEnabled", False)
+    options.set_preference("datareporting.policy.dataSubmissionEnabled", False)
+    options.set_preference("toolkit.telemetry.enabled", False)
+
+    # ===== ANTI-THROTTLING: Evitar lentidao quando janela esta em background =====
+    options.set_preference("dom.min_background_timeout_value", 0)
+    options.set_preference("dom.timeout.throttling_delay", 0)
+    options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
+
+    service = Service(executable_path=GECKODRIVER_PATH)
+
+    try:
+        driver = webdriver.Firefox(service=service, options=options)
+        driver.implicitly_wait(10)
+        logger.info("driver criado: SISB_VT (temporario)")
+        return driver
+    except Exception as e:
+        logger.error("ERRO em criar_driver_sisb_vt: %s: %s", type(e).__name__, e)
+        return None
 
 
 def criar_driver_sisb_notebook(headless=False):
@@ -2008,7 +2100,7 @@ def finalizar_driver(driver, log=True):
         
         # Pequeno delay para operações pendentes (mantido pois não há condição
         # observável para esperar — operações internas do Selenium/Geckodriver)
-        time.sleep(0.5)
+        espera.assentar(driver, 0.5)
         
         # Fecha o driver
         driver.quit()
@@ -2286,7 +2378,7 @@ def verificar_e_aplicar_cookies(driver):
                 url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
                 logger.debug("[COOKIES] Navegando para: %s", url_login)
                 driver.get(url_login)
-                time.sleep(1.2)
+                espera.assentar(driver, 1.2)
 
                 try:
                     cpf = os.environ.get('PJE_USER')
@@ -2301,14 +2393,14 @@ def verificar_e_aplicar_cookies(driver):
 
                     username_field.clear()
                     username_field.send_keys(cpf)
-                    time.sleep(0.3)
+                    espera.assentar(driver, 0.3)
 
                     password_field.clear()
                     password_field.send_keys(senha)
-                    time.sleep(0.3)
+                    espera.assentar(driver, 0.3)
 
                     submit_button.click()
-                    time.sleep(3)
+                    espera.assentar(driver, 3)
 
                     if SALVAR_COOKIES_AUTOMATICO:
                         salvar_cookies_sessao(driver, info_extra='login_forcado_apos_acesso_negado')
@@ -2384,9 +2476,7 @@ def aplicar_filtro_100(driver):
             mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
             safe_click_no_scroll(driver, mat_select)
             aguardar_renderizacao_nativa(driver)
-            overlay = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-            )
+            overlay = espera.elemento(driver, ".cdk-overlay-pane", teto=5, visivel=False)
             opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']]")
             safe_click_no_scroll(driver, opcao_100)
             aguardar_renderizacao_nativa(driver)
@@ -2423,7 +2513,7 @@ def filtro_fase(driver):
             logger.error('[FILTRO_FASE] Dropdown nao encontrado.')
             return False
         
-        time.sleep(0.3)
+        espera.assentar(driver, 0.3)
         
         # Seleciona ambas fases usando JavaScript (1 requisição)
         script = f"""
@@ -2452,7 +2542,7 @@ def filtro_fase(driver):
         
         # Fecha dropdown
         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-        time.sleep(0.2)
+        espera.assentar(driver, 0.2)
         
         logger.info('Filtro aplicado com sucesso!')
         return True
@@ -2464,18 +2554,10 @@ def filtro_fase(driver):
 def _aguardar_loader_painel(driver, timeout=10):
     """Espera loader (mat-progress-bar) sumir antes de seguir."""
     loader_selector = ".mat-progress-bar-primary.mat-progress-bar-fill"
-    try:
-        WebDriverWait(driver, 1).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, loader_selector))
-        )
-    except TimeoutException:
-        pass
-    try:
-        WebDriverWait(driver, timeout).until(
-            EC.invisibility_of_element_located((By.CSS_SELECTOR, loader_selector))
-        )
-        time.sleep(0.3)
-    except TimeoutException:
+    espera.ate_aparecer(driver, loader_selector, teto=1)
+    if espera.ate_sumir(driver, loader_selector, teto=timeout):
+        espera.assentar(driver, 0.3)
+    else:
         logger.warning('[FILTRO] Loader nao desapareceu dentro do timeout.')
 
 
@@ -2684,33 +2766,27 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
         try:
             btn_multi.click()
         except ElementClickInterceptedException:
-            driver.execute_script("arguments[0].click();", btn_multi)
+            safe_click_no_scroll(driver, btn_multi)
         # Aguardar checkbox do documento aparecer (substitui time.sleep(0.5))
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, f'mat-card[id*="{id_documento}"] mat-checkbox'))
-        )
+        espera.elemento(driver, f'mat-card[id*="{id_documento}"] mat-checkbox', teto=5, visivel=False)
         # 3. Marca o checkbox do documento
         mat_checkbox = driver.find_element(By.CSS_SELECTOR, f'mat-card[id*="{id_documento}"] mat-checkbox label')
         # ✨ OTIMIZADO: Click headless-safe
         try:
             mat_checkbox.click()
         except ElementClickInterceptedException:
-            driver.execute_script("arguments[0].click();", mat_checkbox)
+            safe_click_no_scroll(driver, mat_checkbox)
         # Aguardar botão de visibilidade (substitui time.sleep(0.5))
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]'))
-        )
+        espera.elemento(driver, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]', teto=5, visivel=False)
         # 4. Clica no botão de visibilidade
         btn_visibilidade = driver.find_element(By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]')
         # ✨ OTIMIZADO: Click headless-safe
         try:
             btn_visibilidade.click()
         except ElementClickInterceptedException:
-            driver.execute_script("arguments[0].click();", btn_visibilidade)
+            safe_click_no_scroll(driver, btn_visibilidade)
         # Aguardar modal de sigilo (substitui time.sleep(1))
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"]'))
-        )
+        espera.elemento(driver, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"]', teto=5, visivel=False)
         # 5. No modal, seleciona o polo desejado
         if polo == 'ativo':
             icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.POLO_ATIVO')
@@ -2734,12 +2810,11 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
         )
         btn_salvar.click()
         # Aguardar modal fechar (substitui time.sleep(1))
-        try:
-            WebDriverWait(driver, 5).until(
-                EC.invisibility_of_element_located((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]/ancestor::div[contains(@class,"cdk-overlay")]'))
-            )
-        except TimeoutException:
-            pass  # Continua mesmo se o modal não fechar
+        espera.ate_sumir(
+            driver,
+            '//button[.//span[contains(text(),"Salvar")]]/ancestor::div[contains(@class,"cdk-overlay")]',
+            teto=5,
+        )  # segue mesmo se o modal não fechar
         # 7. Oculta múltipla seleção
         try:
             btn_ocultar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Ocultar múltipla seleção."]')
@@ -2763,11 +2838,8 @@ def criar_botoes_detalhes(driver):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
 
-    try:
-        base_element = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "pjextension_bt_detalhes_base"))
-        )
-    except:
+    base_element = espera.elemento(driver, "#pjextension_bt_detalhes_base", teto=10, visivel=False)
+    if base_element is None:
         base_element = driver.find_element(By.TAG_NAME, "body")
 
     # Cria o container se não existir
@@ -2835,7 +2907,7 @@ def buscar_ultimo_mandado(driver, log=True):
 
                 if 'mandado' in doc_text:
                     link.click()
-                    time.sleep(1)
+                    espera.assentar(driver, 1)
 
                     texto = item.text
                     if log:
@@ -2876,7 +2948,7 @@ def buscar_mandado_autor(driver, log=True):
                 doc_text = link.text.lower()
                 if 'mandado' in doc_text:
                     link.click()
-                    time.sleep(1)
+                    espera.assentar(driver, 1)
                     texto = item.text
                     autor = 'DESCONHECIDO'
                     try:
@@ -2956,12 +3028,7 @@ def buscar_documentos_sequenciais(driver, log=True):
             logger.debug('[DOCUMENTOS_SEQUENCIAIS] Buscando documentos do bloco ARGOS')
 
         aguardar_renderizacao_nativa(driver, timeout=10)
-        from selenium.webdriver.support.ui import WebDriverWait
-        try:
-            WebDriverWait(driver, 8).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, "li.tl-item-container")) > 0
-            )
-        except TimeoutException:
+        if not espera.elementos(driver, "li.tl-item-container", teto=8):
             if log:
                 logger.warning('[DOCUMENTOS_SEQUENCIAIS] Timeline pode nao ter carregado completamente')
         elementos = driver.find_elements(By.CSS_SELECTOR, "li.tl-item-container")
@@ -3035,6 +3102,160 @@ def buscar_documentos_sequenciais(driver, log=True):
         return []
 
 
+_CP_ANCORA = 'certidao de distribuicao'
+_CP_DESPACHO = re.compile(r'\bdespacho\b')
+_CP_MANDADO = '(mandado)'
+_CP_CERTIDAO_OJ = '(certidao de oficial de justica)'
+
+
+def _cp_normalizar(texto):
+    return unicodedata.normalize('NFD', (texto or '').lower()).encode('ascii', 'ignore').decode()
+
+
+def _cp_texto_documento(elem):
+    """Le o texto do link a.tl-documento de um <li class="tl-item-container">."""
+    try:
+        link = elem.find_element(By.CSS_SELECTOR, 'a.tl-documento')
+        return _cp_normalizar(link.text.strip())
+    except NoSuchElementException:
+        return _cp_normalizar(elem.text.strip())
+    except StaleElementReferenceException:
+        return ''
+
+
+def _cp_marcar_checkbox(driver, elem, timeout):
+    """Marca o checkbox mat-checkbox de um item da timeline (idempotente)."""
+    from Fix.browser_suporte import click_headless_safe
+
+    try:
+        li_id = elem.get_attribute('id')
+        if not li_id:
+            return False
+        try:
+            input_cb = elem.find_element(By.CSS_SELECTOR, 'input.mat-checkbox-input')
+            if input_cb.get_attribute('aria-checked') == 'true':
+                return True
+        except NoSuchElementException:
+            pass
+    except StaleElementReferenceException:
+        return False
+    return click_headless_safe(driver, f'#{li_id} span.mat-checkbox-inner-container', timeout=timeout)
+
+
+def contar_mandados_e_certidoes_oficial(driver, log=True):
+    """Conta, na timeline atual (sem alternar 'multipla selecao'), quantos
+    itens sao 'Mandado' e quantos sao 'Certidao de Oficial de Justica',
+    reaproveitando os mesmos criterios de baixarCP (_cp_texto_documento /
+    _CP_MANDADO / _CP_CERTIDAO_OJ). Nao clica em nada — apenas le a timeline
+    ja renderizada. Deve ser chamada ANTES de decidir se baixarCP() sera
+    acionado (baixarCP nao expoe essa contagem).
+
+    Raises:
+        ElementoNaoEncontradoError: timeline vazia.
+
+    Returns:
+        tuple[int, int]: (qtd_mandados, qtd_certidoes_oficial)
+    """
+    from Fix.facade_publica import ElementoNaoEncontradoError
+
+    elementos = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+    if not elementos:
+        raise ElementoNaoEncontradoError('[CONTAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
+
+    qtd_mandados = 0
+    qtd_certidoes = 0
+    for elem in elementos:
+        texto = _cp_texto_documento(elem)
+        if _CP_MANDADO in texto:
+            qtd_mandados += 1
+        elif _CP_CERTIDAO_OJ in texto:
+            qtd_certidoes += 1
+
+    if log:
+        logger.info('[CONTAR_CP] mandados=%d certidoes_oficial=%d', qtd_mandados, qtd_certidoes)
+
+    return qtd_mandados, qtd_certidoes
+
+
+def baixarCP(driver, timeout=15, log=True):
+    """
+    Seleciona na timeline (ul.pje-timeline) a Certidao de Distribuicao (ancora),
+    o Despacho imediatamente seguinte (se houver) e todos os Mandados/Certidoes de
+    Oficial de Justica ate o item mais recente, e baixa a selecao como PDF unico.
+
+    Raises:
+        ElementoNaoEncontradoError: timeline vazia, ancora ausente, ou falha em
+            etapa obrigatoria (botao/menu nao encontrado ou nao clicavel).
+
+    Returns:
+        bool: True quando o download "PDF unico" foi iniciado com sucesso.
+    """
+    from Fix.browser_suporte import click_headless_safe
+    from Fix.facade_publica import ElementoNaoEncontradoError
+
+    if log:
+        logger.info('[BAIXAR_CP] Iniciando selecao de Certidao de Distribuicao + anexos')
+
+    if not click_headless_safe(driver, '#exibirOcultarMultiplaSelecao', timeout=timeout):
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Botao "Exibir multipla selecao" nao encontrado/clicavel')
+
+    aguardar_renderizacao_nativa(driver, 'li.tl-item-container mat-checkbox', modo='aparecer', timeout=timeout)
+
+    elementos = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+    if not elementos:
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
+
+    # elementos[0] = mais recente; varredura do topo para baixo pega a Certidao de
+    # Distribuicao mais RECENTE como ancora (relevante se houver redistribuicao).
+    idx_ancora = None
+    for idx, elem in enumerate(elementos):
+        if _CP_ANCORA in _cp_texto_documento(elem):
+            idx_ancora = idx
+            break
+    if idx_ancora is None:
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Certidao de Distribuicao (item ancora) nao encontrada')
+
+    if not _cp_marcar_checkbox(driver, elementos[idx_ancora], timeout):
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Falha ao marcar checkbox da Certidao de Distribuicao')
+
+    marcados = 1
+    idx_imediato = idx_ancora - 1
+
+    if idx_imediato >= 0 and _CP_DESPACHO.search(_cp_texto_documento(elementos[idx_imediato])):
+        if _cp_marcar_checkbox(driver, elementos[idx_imediato], timeout):
+            marcados += 1
+        elif log:
+            logger.warning('[BAIXAR_CP] Despacho seguinte encontrado mas falhou ao marcar')
+
+    for idx in range(idx_imediato - 1, -1, -1):
+        texto = _cp_texto_documento(elementos[idx])
+        if _CP_MANDADO in texto or _CP_CERTIDAO_OJ in texto:
+            if _cp_marcar_checkbox(driver, elementos[idx], timeout):
+                marcados += 1
+            elif log:
+                logger.warning('[BAIXAR_CP] Mandado/Certidao OJ (idx=%d) falhou ao marcar', idx)
+
+    if log:
+        logger.info('[BAIXAR_CP] %d item(ns) marcado(s)', marcados)
+
+    if not click_headless_safe(driver, '#baixar-docs-selecionados', timeout=timeout):
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Botao "#baixar-docs-selecionados" nao encontrado/clicavel')
+
+    aguardar_renderizacao_nativa(driver, 'button[role="menuitem"].mat-focus-indicator', modo='aparecer', timeout=timeout)
+
+    xpath_pdf_unico = "//button[@role='menuitem' and contains(@class,'mat-focus-indicator')][normalize-space()='PDF único']"
+    if not click_headless_safe(driver, xpath_pdf_unico, by=By.XPATH, timeout=timeout):
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Opcao "PDF unico" nao encontrada no menu de download')
+
+    aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='aparecer', timeout=5)
+    aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='sumir', timeout=timeout)
+
+    if log:
+        logger.info('[BAIXAR_CP] Download "PDF unico" iniciado com sucesso')
+
+    return True
+
+
 def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
     """
     Busca documentos do polo ativo (autor) na timeline.
@@ -3053,11 +3274,7 @@ def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
             logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Iniciando busca de documentos do polo ativo...")
 
         aguardar_renderizacao_nativa(driver, timeout=10)
-        try:
-            WebDriverWait(driver, 8).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, "li.tl-item-container")) > 0
-            )
-        except TimeoutException:
+        if not espera.elementos(driver, "li.tl-item-container", teto=8):
             if debug:
                 logger.warning("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Timeline pode nao ter carregado completamente")
 
@@ -3158,7 +3375,7 @@ def _tentar_click_javascript(driver, element, log):
     try:
         if log:
             logger.debug("[SAFE_CLICK] Tentando click via JavaScript")
-        driver.execute_script("arguments[0].click();", element)
+        safe_click_no_scroll(driver, element)
         if log:
             logger.debug("[SAFE_CLICK] Click JavaScript bem sucedido!")
         return True
@@ -3441,7 +3658,7 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
                     from Fix.headless_helpers import limpar_overlays_headless, scroll_to_element_safe
                     limpar_overlays_headless(driver)
                     scroll_to_element_safe(driver, link)
-                    time.sleep(0.3)
+                    espera.assentar(driver, 0.3)
                 except ImportError:
                     pass
                 
@@ -3451,16 +3668,16 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
                 except ElementClickInterceptedException:
                     if log:
                         logger.info('[ARGOS][DOC] Click intercepted, usando JS fallback')
-                    driver.execute_script("arguments[0].click();", link)
+                    safe_click_no_scroll(driver, link)
                 
-                time.sleep(2)  # Aguardar carregamento
+                espera.assentar(driver, 2, motivo="Aguardar carregamento")
             except Exception as e:
                 if log:
                     logger.warning('[ARGOS][DOC] Falha ao clicar no documento: %s', e)
                 continue
 
             # ✨ EXTRAIR TEXTO
-            time.sleep(1.5)
+            espera.assentar(driver, 1.5)
             texto = None
             try:
                 if log:

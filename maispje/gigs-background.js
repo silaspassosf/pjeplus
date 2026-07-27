@@ -1,5 +1,6 @@
 browser.runtime.onInstalled.addListener(async function(details) {
 	if(details.reason == "install"){
+        console.log('extensão maisPJe instalada');
 		//Ao instalar a extensão
 		browser.storage.local.set({
 			extensaoAtiva: false,
@@ -43,6 +44,7 @@ browser.runtime.onInstalled.addListener(async function(details) {
 				{id:"botao_lancar_movimento_7",nm_botao:"Leilão:designado"},
 				{id:"botao_lancar_movimento_9",nm_botao:"da Contadoria para Vara:prosseguimento"}
 			],
+            modoLGPD: false,
             // extrasAcionarBotoesSemCliqueAtivar: false,
             extrasAcionarBotoesSemCliqueRegras: [],
 			sisbajud: {juiz: '', vara: '', cnpjRaiz: '', teimosinha: '', contasalario: '', naorespostas: '', valor_desbloqueio: '', banco_preferido: '', agencia_preferida: '', preencherValor: '', confirmar: '', executarAAaoFinal: '', salvarEprotocolar: ''},
@@ -55,17 +57,15 @@ browser.runtime.onInstalled.addListener(async function(details) {
 	}else if(details.reason == "update"){
 		//Ao atualizar a extensão
 		browser.storage.local.set({
-			extensaoAtiva: false,
+			extensaoAtiva: true,
 			videoAtualizacao : false, //Se quiser que o painel de novidades abra automaticamente marque como FALSE
 			tempBt : [], //limpa a variável das ações automatizadas
 			processo_memoria : "",
 			versao: 0,
 			versaoPje: "",
 			tempAR : "",
-			tempF2 : "",
-			tempF3 : "",
-			tempF4 : "",
             clipboard: "",
+            modoLGPD: false,
 			tempRespostaTeimosinha : [],
 			aaLancarMovimentos:[
 				{id:"botao_lancar_movimento_0",nm_botao:"para Contadoria:atualização"},
@@ -90,8 +90,8 @@ browser.runtime.onInstalled.addListener(async function(details) {
 			conciliajt: {'primeirograu': {'enabled':false,'url':'','ads_enabled':false,'ads_url':'https://portal.trt12.jus.br/noticias/trt-sc-desenvolve-ferramenta-que-utiliza-inteligencia-artificial-para-estimar-chances-de'},'segundograu': {'enabled':false,'url':'','ads_enabled':false,'ads_url':'https://portal.trt12.jus.br/noticias/trt-sc-desenvolve-ferramenta-que-utiliza-inteligencia-artificial-para-estimar-chances-de'}},
 			verificadorDiario: -1
 		}, function() {
-			requestTermoDeUso();
-			// browser.runtime.openOptionsPage();
+            console.log('extensão maisPJe atualizada');
+            abrirOpcoes('./PJe-Atual/options.html');
 		});
 	}
 });
@@ -701,12 +701,12 @@ async function IdentificadorDeJanelaOuAba(tab) {
     let timerLimitador = 0;
     while(true) { //
         urlInfo = await browser.tabs.get(tab.id);
-        console.info('           |____tabid: ' + tab.id);
-        console.info('           |____windowid: ' + tab.windowId);
-        console.info('           |____url2: ' + urlInfo.url);
+        // console.info('           |____tabid: ' + tab.id);
+        // console.info('           |____windowid: ' + tab.windowId);
+        // console.info('           |____url2: ' + urlInfo.url);
 
         if (urlInfo.url || timerLimitador >= 50) { break }
-        console.log('*')
+        // console.log('*')
         timerLimitador++;
         await sleep(100);
     }

@@ -133,6 +133,18 @@ pec_mddpg = make_comunicacao_wrapper(
     destinatarios='polo_passivo'
 )
 
+pec_mddsent = make_comunicacao_wrapper(
+    tipo_expediente='Mandado',
+    prazo=8,
+    nome_comunicacao='Mandado Sentença',
+    sigilo=False,
+    modelo_nome='mandadosent',
+    subtipo='Mandado',
+    gigs_extra=None,
+    cliques_polo_passivo=2,
+    destinatarios='polo_passivo'
+)
+
 pec_mddaud = make_comunicacao_wrapper(
     tipo_expediente='Mandado',
     prazo=1,
@@ -269,16 +281,15 @@ def wrapper_pec_ord_com_domicilio(driver, debug=False, **kwargs):
     - SÓ SEM domicílio: executa pec_ordc
     - MISTURADO: executa pec_ord + pec_ordc
     """
-    from Fix.variaveis import session_from_driver, PjeApiClient
+    from Fix.variaveis import cliente_para
     from Fix.core import extrair_id_processo
-    
+
     try:
         id_processo = extrair_id_processo(driver)
         if not id_processo:
             return pec_ord(driver, debug=debug, **kwargs)
-        
-        sess, trt = session_from_driver(driver)
-        client = PjeApiClient(sess, trt)
+
+        client = cliente_para(driver)
         partes = client.partes(id_processo)
         
         if not partes:
@@ -358,16 +369,15 @@ def wrapper_pec_sum_com_domicilio(driver, debug=False, **kwargs):
     - SÓ SEM domicílio: executa pec_sumc
     - MISTURADO: executa pec_sum + pec_sumc
     """
-    from Fix.variaveis import session_from_driver, PjeApiClient
+    from Fix.variaveis import cliente_para
     from Fix.core import extrair_id_processo
-    
+
     try:
         id_processo = extrair_id_processo(driver)
         if not id_processo:
             return pec_sum(driver, debug=debug, **kwargs)
-        
-        sess, trt = session_from_driver(driver)
-        client = PjeApiClient(sess, trt)
+
+        client = cliente_para(driver)
         partes = client.partes(id_processo)
         
         if not partes:

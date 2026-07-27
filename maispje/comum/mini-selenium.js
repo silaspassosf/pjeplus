@@ -349,6 +349,7 @@ function acionarSemClique(elemento,cor1,cor2,tempo,angulo='0deg') {
 
         if (elemento.tagName == 'DIV' && elemento.className.includes('item-menu')) { //EXCEÇÃO > item de submenu da janela principal
         } else if (elemento.tagName.includes('PJE-ICONE')) { //EXCEÇÃO > filtros da janela principal
+        } else if (elemento.tagName.includes('OPTION')) { //EXCEÇÃO > caixas de seleção
         } else if (elemento.tagName == 'I' && elemento?.getAttribute('role') == 'button') { //EXCEÇÃO > filtros da janela principal
         } else if (elemento.tagName == 'MAT-CARD' && elemento?.getAttribute('role') == 'list') { //painéis do painel global
         } else if (!['BUTTON','A'].includes(elemento.tagName)) { //menu kaizen e gerais
@@ -371,6 +372,8 @@ function acionarSemClique(elemento,cor1,cor2,tempo,angulo='0deg') {
             cor1 = (cor1!='') ? cor1 : elemento.style.background;
             cor1 = (cor1!='') ? cor1 : 'orangered';
             // console.debug('    |___ cor base ' + cor1)
+        } else if (elemento.tagName.includes('PJE-ALTERAR-PRAZO-LOTE')) {
+
         }
 
         //inserir css
@@ -616,7 +619,7 @@ function tooltip(posicao, ativarFundo) {
 	document.body.appendChild(style);
 }
 
-function maispjetooltip(ancoraSeletor, posicao) {
+function maispjetooltip(ancoraSeletor, posicao, bgColor='black', fontColor='whitesmoke') {
     return new Promise(async resolve => {
         let ancora = await esperarElemento(ancoraSeletor);
         ancora.onmouseenter = function (event) {
@@ -666,7 +669,7 @@ function maispjetooltip(ancoraSeletor, posicao) {
         let span = document.createElement('maispjetooltip');
         span.id = ancora.id + '_maispjetooltip';
         span.setAttribute('coordenadas', posicao);
-        span.style = 'position: fixed; z-index: 9999; display: none; font-size: 14px; text-shadow: none; font-weight: 500; width: auto; height: 1.5em; background-color: black; color: whitesmoke; border-radius: 4px; justify-content: center; align-items: center; padding: 0.6em; pointer-events: none;';
+        span.style = 'position: fixed; z-index: 9999; display: none; font-size: 14px; text-shadow: none; font-weight: 500; width: auto; height: 1.5em; background-color: ' + bgColor + '; color: ' + fontColor + '; border-radius: 4px; justify-content: center; align-items: center; padding: 0.6em; pointer-events: none;';
         span.textContent = ancora.ariaLabel || ancora.title;
         document.body.appendChild(span);
         return resolve(true);
@@ -776,6 +779,24 @@ function criarPopup(id, resolver = () => {}) {
 	};
 	elemento1.addEventListener('keyup', fecharComEsc);
 	return elemento1;
+}
+
+function criarLoading(ancora) {
+    return new Promise(async resolve => {
+        const elemento1 = document.createElement("i");
+        elemento1.id = 'maisPje_Loading_' + ancora.id;
+        elemento1.className = 'fas fa-spinner spin';
+        ancora.appendChild(elemento1);
+        await sleep(500);
+        return resolve(true);
+    });
+}
+
+function removerLoading(ancora) {
+    return new Promise(resolve => {
+        document.getElementById('maisPje_Loading_' + ancora.id).remove();
+        return resolve(true);
+    });
 }
 
 //FUNÇÃO QUE MONITORA O APARECIMENTO E DESAPARECIMENTO DO OBJETO DE PROCESSAMENTO, PARA QUANDO FOR NECESSÁRIO ESPERAR O CARREGAMENTO DE ALGO
@@ -1059,6 +1080,11 @@ function decomporNumeroProcesso(numero) {
 	);
 }
 
+function numeroProcessoFormatado(texto) {
+	texto = extrairNumeros(texto);
+	return texto.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/,"$1-$2.$3.$4.$5.$6");
+}
+
 function decomporData(texto) {
 	return new Promise(
 		resolver => {
@@ -1282,21 +1308,36 @@ function simularDigitacaoDeTexto(elemento, texto, segundos=0.1) { //segundos = i
 			let keyEvent;
 			elemento.focus();
 			elemento.style.backgroundColor = 'orangered';
-			for (const [pos, letra] of texto.split("").entries()) {
-				console.debug("   |___pos " + pos + ": " + letra);
-				elemento.dispatchEvent(new KeyboardEvent('keydown', { key: letra, bubbles: true, cancelable: true }));
-				elemento.dispatchEvent(new KeyboardEvent('keypress', { key: letra, bubbles: true, cancelable: true }));
-				if (elemento.tagName == 'INPUT') {
-					if (document.location.href.includes('renajud.pdpj')) { //comando não funciona no renajud novo
-					} else {
-						elemento.value += letra
-						triggerEvent(elemento, 'input');
-						triggerEvent(elemento, 'change');
-					}
-				}
-				elemento.dispatchEvent(new KeyboardEvent('keyup', { key: letra, bubbles: true, cancelable: true }));
-				await sleep(segundos*1000)
-			}
+            if (texto == '{Backspace}') {
+                elemento.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 8, bubbles: true, cancelable: true }));
+                elemento.dispatchEvent(new KeyboardEvent('keypress', { keyCode: 8, bubbles: true, cancelable: true }));
+                if (elemento.tagName == 'INPUT') {
+                    if (document.location.href.includes('renajud.pdpj')) { //comando não funciona no renajud novo
+                    } else {
+                        elemento.value = elemento.value.slice(0,-1);
+                        triggerEvent(elemento, 'input');
+                        triggerEvent(elemento, 'change');
+                    }
+                }
+                elemento.dispatchEvent(new KeyboardEvent('keyup', { keyCode: 8, bubbles: true, cancelable: true }));
+                await sleep(segundos*1000)
+            } else {
+                for (const [pos, letra] of texto.split("").entries()) {
+                    console.debug("   |___pos " + pos + ": " + letra);
+                    elemento.dispatchEvent(new KeyboardEvent('keydown', { key: letra, bubbles: true, cancelable: true }));
+                    elemento.dispatchEvent(new KeyboardEvent('keypress', { key: letra, bubbles: true, cancelable: true }));
+                    if (elemento.tagName == 'INPUT') {
+                        if (document.location.href.includes('renajud.pdpj')) { //comando não funciona no renajud novo
+                        } else {
+                            elemento.value += letra
+                            triggerEvent(elemento, 'input');
+                            triggerEvent(elemento, 'change');
+                        }
+                    }
+                    elemento.dispatchEvent(new KeyboardEvent('keyup', { key: letra, bubbles: true, cancelable: true }));
+                    await sleep(segundos*1000)
+                }
+            }
 			elemento.style.backgroundColor = 'unset';
 			elemento.blur();
 		}
@@ -1337,7 +1378,35 @@ function gerarNumeroAleatorio(min, max) {
 }
 
 function imprimirElemento(elemento) {
-    const clone = elemento.cloneNode(true);
-    document.body.replaceChildren(clone)
+    let estiloLGPD = document.createElement("style");
+    estiloLGPD.id = 'maisPJeEstiloImprimirElemento'
+    estiloLGPD.textContent = `
+         @media print {
+            body {
+              visibility: hidden;
+            }
+            .maisPJe-to-print {
+              visibility: visible;
+              position: absolute;
+              left: 0;
+              top: 0;
+            }
+
+            .tooltip {
+                visibility: hidden !important;
+            }
+          }
+    `
+    document.body.appendChild(estiloLGPD);
+    elemento.classList.add('maisPJe-to-print');
+    if (document.querySelector('table[class="banner"]')) { document.querySelector('table[class="banner"]').style.display = 'none;' } //exclui o banner de PJE NÃO OFICIAL
     window.print();
+    elemento.classList.remove('maisPJe-to-print');
+    document.getElementById('maisPJeEstiloImprimirElemento').remove();
+
+    // const clone = elemento.cloneNode(true);
+    // document.body.replaceChildren(clone)
+    // window.print();
+
+
 }

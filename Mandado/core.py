@@ -72,6 +72,7 @@ from Fix.monitoramento_progresso_unificado import (
     processo_ja_executado_mandado,
     marcar_processo_executado_mandado,
 )
+from Fix import espera
 
 # Funções de compatibilidade (aliases para manter compatibilidade com código existente)
 carregar_progresso = carregar_progresso_mandado
@@ -103,15 +104,15 @@ def _aguardar_estabilizacao_pos_processo(driver: WebDriver, timeout: float = 6.0
                     _ = driver.find_elements(By.CSS_SELECTOR, 'tbody tr.tr-class, tr.cdk-drag')
                 except Exception:
                     pass
-                time.sleep(0.1)
+                espera.assentar(driver, 0.1)
                 return True
         except Exception:
             pass
 
-        time.sleep(0.05)
+        espera.assentar(driver, 0.05)
 
     # fallback não-bloqueante: pequena pausa extra para reduzir corrida
-    time.sleep(0.2)
+    espera.assentar(driver, 0.2)
     logger.warning('[FLUXO][POS] Timeout de estabilização pós-processo; seguindo com buffer de segurança')
     return True
 

@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from Fix import espera
 
 logger = logging.getLogger(__name__)
 
@@ -50,17 +51,12 @@ def _extrair_ordens_da_serie(driver, log=True):
         list: Lista de ordens com estrutura {'sequencial', 'data', 'valor_bloquear', 'protocolo', 'linha_el'}
     """
     from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
 
-    import time
     ordens = []
     try:
         # Aguarda a transição do SPA (evita pegar a tabela da série anterior que está sumindo do DOM)
-        time.sleep(2)
-        tabela = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "table.mat-table tbody"))
-        )
+        espera.ate_sumir(driver, 'table.mat-table tbody', teto=2)
+        tabela = espera.elemento(driver, "table.mat-table tbody", teto=10)
 
         linhas = tabela.find_elements(By.CSS_SELECTOR, "tr.mat-row, tr[mat-row]")
 

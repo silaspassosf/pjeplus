@@ -45,11 +45,16 @@ except Exception:
         from Fix.core import criar_driver_sisb_pc as criar_driver_sisb
     except Exception:
         criar_driver_sisb = None
+try:
+    from Fix.core import criar_driver_sisb_vt
+except Exception:
+    criar_driver_sisb_vt = None
 from . import helpers
 # Importar função diretamente do módulo de campos para evitar depender
 # do namespace `processamento` em tempo de execução.
 from .processamento_campos import _configurar_valor
 from . import utils
+from Fix import espera
 
 # Função auxiliar para simulação humana (extraída de sisb.py)
 def simular_movimento_humano(driver, elemento):
@@ -192,7 +197,7 @@ def injetar_tokens_sisbajud(driver, access_token: str, refresh_token: str = None
     try:
         # Navegar para o domínio SISBAJUD para permissão de localStorage
         driver.get('https://sisbajud.cnj.jus.br/')
-        time.sleep(1)
+        espera.assentar(driver, 1)
         
         # Injetar access_token
         driver.execute_script(
@@ -215,22 +220,40 @@ def injetar_tokens_sisbajud(driver, access_token: str, refresh_token: str = None
 
 
 def driver_sisbajud():
-    """Cria o driver para SISBAJUD usando a fábrica definida em driver_config."""
+    """Cria o driver para SISBAJUD usando a fábrica definida em driver_config.
+
+    Se a fábrica principal (driver_config, ou criar_driver_sisb_pc como fallback)
+    falhar ou indisponivel — comum quando a maquina ativa e a VT, sem o binario/perfil
+    fixo do PC — cai para um driver SISB temporario (sem perfil especifico).
+    """
     try:
         if not criar_driver_sisb:
             logger.info('[SISBAJUD][DRIVER]  criar_driver_sisb indisponível (driver_config ausente)')
-            return None
-        logger.info('[SISBAJUD][DRIVER] Iniciando criação do driver Firefox SISBAJUD...')
-        # A fábrica criar_driver_sisb devolve um WebDriver configurado para SISBAJUD
-        driver = criar_driver_sisb()
-        if driver:
-            logger.info('[SISBAJUD][DRIVER]  Driver criado com sucesso')
         else:
-            logger.info('[SISBAJUD][DRIVER]  criar_driver_sisb retornou None')
-        return driver
+            logger.info('[SISBAJUD][DRIVER] Iniciando criação do driver Firefox SISBAJUD...')
+            # A fábrica criar_driver_sisb devolve um WebDriver configurado para SISBAJUD
+            driver = criar_driver_sisb()
+            if driver:
+                logger.info('[SISBAJUD][DRIVER]  Driver criado com sucesso')
+                return driver
+            logger.info('[SISBAJUD][DRIVER]  criar_driver_sisb retornou None, tentando driver temporario (VT)')
     except Exception as e:
         logger.info(f"[SISBAJUD][DRIVER]  Erro ao criar driver SISBAJUD via driver_config: {e}")
-        import traceback
+        logger.exception("Erro detectado")
+
+    if not criar_driver_sisb_vt:
+        logger.info('[SISBAJUD][DRIVER]  criar_driver_sisb_vt indisponível')
+        return None
+    try:
+        logger.info('[SISBAJUD][DRIVER] Iniciando criação do driver Firefox SISBAJUD temporario (VT)...')
+        driver = criar_driver_sisb_vt()
+        if driver:
+            logger.info('[SISBAJUD][DRIVER]  Driver temporario (VT) criado com sucesso')
+        else:
+            logger.info('[SISBAJUD][DRIVER]  criar_driver_sisb_vt retornou None')
+        return driver
+    except Exception as e:
+        logger.info(f"[SISBAJUD][DRIVER]  Erro ao criar driver SISB VT temporario: {e}")
         logger.exception("Erro detectado")
         return None
 
@@ -991,7 +1014,7 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
 
             # Aguardar o carregamento da busca do processo (SPA Angular)
             import time
-            time.sleep(5)
+            espera.assentar(driver, 5)
 
             # Aguardar carregamento da série
             from Fix.utils import aguardar_pagina_carregar

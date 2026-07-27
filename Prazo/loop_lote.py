@@ -14,7 +14,9 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from Fix import espera
 from Fix.core import (
+    safe_click_no_scroll,
     aguardar_renderizacao_nativa,
     aplicar_filtro_100,
     com_retry,
@@ -104,16 +106,10 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
 
         # Aguardar spinner do filtro (div.carregando) — garante que Angular processou
         # o filtro ANTES de iniciar o polling de células (evita detectar linhas stale)
-        try:
-            WebDriverWait(driver, 4).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
-            )
-            WebDriverWait(driver, 15).until(
-                EC.invisibility_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
-            )
+        if espera.elemento(driver, 'div.carregando', teto=4, visivel=False) is not None \
+                and espera.ate_sumir(driver, 'div.carregando', teto=15):
             logger.info('[CICLO1][FILTRO] Spinner de filtro sumiu — lista pronta para polling')
-        except Exception:
-            pass  # sem spinner visível — pode ter sido rápido; polling cobre o restante
+        # sem spinner visível — pode ter sido rápido; polling cobre o restante
 
         # AGUARDAR LISTA CARREGAR - loop manual com break imediato ao encontrar células
         t1 = time.perf_counter()
@@ -183,7 +179,7 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
         except Exception:
             pass
 
-        time.sleep(0.2)  # TODO: classificar
+        espera.assentar(driver, 0.2)
         return True
     except Exception as e:
         logger.error(f'[CICLO1] Erro ao aplicar filtro de fases: {e}')
@@ -263,14 +259,10 @@ def _ciclo1_marcar_todas(driver: WebDriver) -> str:
 def _ciclo1_abrir_suitcase(driver: WebDriver) -> bool:
     """Abre suitcase para movimentação em lote usando JavaScript click (VERSÃO CORRIGIDA)."""
     logger.info("[DEBUG] Aguardando suitcase aparecer...")
-    try:
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'i.fas.fa-suitcase.icone'))
-        )
-        logger.info("[DEBUG] Suitcase apareceu na página.")
-    except Exception as e:
-        logger.info(f"[DEBUG] Suitcase não apareceu: {e}")
+    if espera.elemento(driver, 'i.fas.fa-suitcase.icone', teto=10, visivel=False) is None:
+        logger.info("[DEBUG] Suitcase não apareceu")
         return False
+    logger.info("[DEBUG] Suitcase apareceu na página.")
 
     def _tentar_abrir_suitcase():
         if not pausar_confirmacao('CICLO1/SUITCASE_INTERNO', 'Executar clique no suitcase'):
@@ -326,9 +318,7 @@ def _ciclo1_aguardar_movimentacao_lote(driver: WebDriver) -> bool:
     """
     logger.info("[DEBUG] Aguardando URL /painel/movimentacao-lote...")
     try:
-        WebDriverWait(driver, 15).until(
-            EC.url_contains('/painel/movimentacao-lote')
-        )
+        espera.ate_url(driver, '/painel/movimentacao-lote', teto=15)
         logger.info(f"[DEBUG] URL atual: {driver.current_url}")
         if '/painel/movimentacao-lote' not in driver.current_url:
             logger.info(f"[LOOP_PRAZO][ERRO] URL inesperada após suitcase: {driver.current_url}")
@@ -338,15 +328,11 @@ def _ciclo1_aguardar_movimentacao_lote(driver: WebDriver) -> bool:
         # ── Aguardar spinner "Recuperando transições possíveis..." desaparecer ──
         # Sem isso, o dropdown de destino não terá opções e o clique nunca funciona
         logger.info("[CICLO1/LOTE] Aguardando transições carregarem (div.carregando sumir)...")
-        try:
-            WebDriverWait(driver, 25).until(
-                EC.invisibility_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
-            )
-            logger.info("[CICLO1/LOTE] Transições carregadas (spinner sumiu)")
-        except TimeoutException:
+        if not espera.ate_sumir(driver, 'div.carregando', teto=25):
             logger.error("[CICLO1/LOTE] Timeout: spinner 'Recuperando transições possíveis...' não sumiu em 25s")
             logger.error("[CICLO1/LOTE] Algum processo do lote não possui a transição de destino — abortando")
             return False
+        logger.info("[CICLO1/LOTE] Transições carregadas (spinner sumiu)")
 
         aguardar_renderizacao_nativa(driver, timeout=2)
         return True
@@ -360,16 +346,13 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
     opcao_destino = 'Cumprimento de providências'
     logger.info(f"[LOOP_PRAZO] Selecionando destino: '{opcao_destino}'")
     try:
-        seta_dropdown = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "div.mat-select-arrow-wrapper"))
-        )
+        espera.ate_habilitar(driver, "div.mat-select-arrow-wrapper", teto=10)
+        seta_dropdown = driver.find_element(By.CSS_SELECTOR, "div.mat-select-arrow-wrapper")
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", seta_dropdown)
-        driver.execute_script("arguments[0].click();", seta_dropdown)
+        safe_click_no_scroll(driver, seta_dropdown)
 
         # Aguardar um mat-option aparecer (garante que as opções foram carregadas)
-        WebDriverWait(driver, 8).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane mat-option"))
-        )
+        espera.ate_aparecer(driver, ".cdk-overlay-pane mat-option", teto=8)
 
         opcao_elemento = None
         for xpath in [
@@ -388,15 +371,14 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
             return False
 
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
-        driver.execute_script("arguments[0].click();", opcao_elemento)
+        safe_click_no_scroll(driver, opcao_elemento)
         logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] Opção '{opcao_destino}' selecionada")
 
         seletor_btn = "button.mat-raised-button[color='primary']"
-        btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn))
-        )
+        espera.ate_habilitar(driver, seletor_btn, teto=10)
+        btn = driver.find_element(By.CSS_SELECTOR, seletor_btn)
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
-        driver.execute_script("arguments[0].click();", btn)
+        safe_click_no_scroll(driver, btn)
         logger.info("[LOOP_PRAZO] Botão 'Movimentar processos' clicado")
         return True
     except Exception as e:
@@ -416,20 +398,17 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
         seletor_dropdown = "div.mat-select-arrow-wrapper"
         logger.info(f"[CICLO1/DESTINO_DROPDOWN] Abrindo dropdown com seletor: {seletor_dropdown}")
         try:
-            seta_dropdown = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_dropdown))
-            )
+            espera.ate_habilitar(driver, seletor_dropdown, teto=10)
+            seta_dropdown = driver.find_element(By.CSS_SELECTOR, seletor_dropdown)
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", seta_dropdown)
-            driver.execute_script("arguments[0].click();", seta_dropdown)
+            safe_click_no_scroll(driver, seta_dropdown)
             log_seletor_vencedor('CICLO1/DESTINO_DROPDOWN', By.CSS_SELECTOR, seletor_dropdown)
         except Exception as e:
             logger.error(f"[LOOP_PRAZO] Erro ao abrir dropdown de destino com seletor {seletor_dropdown}: {e}")
             return False
 
         # Aguardar um mat-option aparecer (garante que as opções foram carregadas)
-        WebDriverWait(driver, 6).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane mat-option"))
-        )
+        espera.ate_aparecer(driver, ".cdk-overlay-pane mat-option", teto=6)
 
         opcao_xpath = f"//mat-option//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
         logger.info(f"[CICLO1/DESTINO_OPCAO] Selecionando opção com xpath: {opcao_xpath}")
@@ -441,7 +420,7 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
             return False
 
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
-        driver.execute_script("arguments[0].click();", opcao_elemento)
+        safe_click_no_scroll(driver, opcao_elemento)
 
         if not pausar_confirmacao('CICLO1/DESTINO_MOVIMENTAR', 'Clique no botão Movimentar'):
             return False
@@ -449,11 +428,10 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
         seletor_movimentar = "button.mat-raised-button[color='primary']"
         logger.info(f"[CICLO1/DESTINO_BOTAO_MOVIMENTAR] Clicando botão movimentar com seletor: {seletor_movimentar}")
         try:
-            btn_movimentar = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_movimentar))
-            )
+            espera.ate_habilitar(driver, seletor_movimentar, teto=10)
+            btn_movimentar = driver.find_element(By.CSS_SELECTOR, seletor_movimentar)
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_movimentar)
-            driver.execute_script("arguments[0].click();", btn_movimentar)
+            safe_click_no_scroll(driver, btn_movimentar)
             log_seletor_vencedor('CICLO1/DESTINO_BOTAO_MOVIMENTAR', By.CSS_SELECTOR, seletor_movimentar)
         except Exception as e:
             logger.error(f"[LOOP_PRAZO] Erro ao clicar botão Movimentar com seletor {seletor_movimentar}: {e}")
@@ -522,15 +500,10 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
             return False
         # Aguardar spinner do filtro de fases (div.carregando) ANTES de selecionar processos.
         # Garante que a lista reflete o filtro antes de selecionar_todos / suitcase.
-        try:
-            WebDriverWait(driver, 4).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
-            )
-            WebDriverWait(driver, 15).until(
-                EC.invisibility_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
-            )
+        if espera.elemento(driver, 'div.carregando', teto=4, visivel=False) is not None \
+                and espera.ate_sumir(driver, 'div.carregando', teto=15):
             logger.info('[CICLO2][FILTRO] Spinner de filtro sumiu — lista pronta')
-        except Exception:
+        else:
             try:
                 aguardar_renderizacao_nativa(driver, 'tr.cdk-drag', timeout=6)
             except Exception:

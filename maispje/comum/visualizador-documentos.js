@@ -80,9 +80,11 @@ function criarContainerVisualizadorDocumentos(ajustarJanela) {
         ajustarTamanhoJanelaVisualizadorDocumentos(ajustarJanela);
     };
 
-    if (preferencias.extrasExibirPreviaDocumentoMouseOver) {
-        container.addEventListener("mouseleave", fecharVisualizador);
-    } else {
+    // if (preferencias.extrasExibirPreviaDocumentoMouseOver) {
+
+    // }
+
+    if (preferencias.extrasExibirBTFecharPreviaDocumento) {
         const closeBtn = document.createElement("button");
         closeBtn.id = "close-pdf-btn";
         closeBtn.innerText = "🡲";
@@ -92,6 +94,8 @@ function criarContainerVisualizadorDocumentos(ajustarJanela) {
             "Recolher visualizador de documentos maisPJE"
         );
         container.appendChild(closeBtn);
+    } else {
+        container.addEventListener("mouseleave", fecharVisualizador);
     }
 
     // 3. Redimensionamento (Resizer)

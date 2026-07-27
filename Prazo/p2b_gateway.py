@@ -39,6 +39,7 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 from Fix.variaveis import url_processo_detalhe
+from Fix import espera
 
 
 class SessaoExpiradaError(Exception):
@@ -196,7 +197,7 @@ def processar_processo_por_id_api(driver: WebDriver, id_processo: int, host: str
         return {'sucesso': False, 'erro': 'nav_failure', 'mensagem': str(e)}
 
     # pequena espera para carregar timeline
-    time.sleep(1.5)
+    espera.assentar(driver, 1.5)
 
     # Usar exclusivamente o pipeline API-based (timeline -> conteudo -> pdfplumber)
     try:

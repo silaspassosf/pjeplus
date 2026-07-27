@@ -4,6 +4,7 @@ logger = logging.getLogger(__name__)
 import time
 
 from selenium.webdriver.common.by import By
+from Fix import espera
 
 
 def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=False):
@@ -55,10 +56,10 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
                     SCRIPTS_DIR = Path(__file__).parent / "scripts"
                     script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
                     driver.execute_script(script_scroll, link)
-                    time.sleep(0.5)
+                    espera.assentar(driver, 0.5)
 
                     link.click()
-                    time.sleep(2)
+                    espera.assentar(driver, 2)
 
                     log_msg("Documento aberto com sucesso")
 

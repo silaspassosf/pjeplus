@@ -18,7 +18,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from Fix.core import safe_click
+from Fix.core import safe_click, safe_click_no_scroll
 from Fix.log import logger
 
 # ---------------------------------------------------------------------------
@@ -189,7 +189,7 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
         abriu = False
         try:
             btn_menu = linha_el.find_element(By.CSS_SELECTOR, "button.mat-menu-trigger")
-            driver.execute_script("arguments[0].click();", btn_menu)
+            safe_click_no_scroll(driver, btn_menu)
             time_module.sleep(0.6)
 
             itens = WebDriverWait(driver, 3).until(
@@ -198,7 +198,7 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
             for item in itens:
                 txt = item.text.strip().lower()
                 if any(k in txt for k in ['detalh', 'desdobr', 'abrir']):
-                    driver.execute_script("arguments[0].click();", item)
+                    safe_click_no_scroll(driver, item)
                     abriu = True
                     logger.debug("[SISBAJUD] [ORDEM] Menu → '%s' clicado +%.1fs", item.text.strip(), time_module.time()-_start_geral)
                     break

@@ -6,9 +6,8 @@ import re
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
+from Fix import espera
 from Fix.core import preencher_campo
 
 
@@ -17,10 +16,7 @@ def navegar_para_atividades(driver):
     try:
         url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
         driver.get(url_atividades)
-        try:
-            WebDriverWait(driver, 10).until(lambda d: 'atividades' in d.current_url)
-        except Exception:
-            pass
+        espera.ate_url(driver, 'atividades', teto=10)
 
         if 'atividades' in driver.current_url:
             return True
@@ -59,27 +55,16 @@ def aplicar_filtro_xs(driver):
 
         # Limpar campo e digitar 'xs'
         campo_descricao.clear()
-        try:
-            WebDriverWait(driver, 1).until(lambda d: campo_descricao.get_attribute('value') == '')
-        except Exception:
-            pass
+        espera.ate_js(driver, "__pjeEls(%r).some(el => el.value === '')" % seletor, teto=1)
         campo_descricao.send_keys('xs')
-        try:
-            WebDriverWait(driver, 1).until(lambda d: campo_descricao.get_attribute('value') == 'xs')
-        except Exception:
-            pass
+        espera.ate_js(driver, "__pjeEls(%r).some(el => el.value === 'xs')" % seletor, teto=1)
         
         # Pressionar Enter para aplicar filtro
         campo_descricao.send_keys(Keys.ENTER)
         logger.info("[FILTRO_XS]  Filtro 'xs' aplicado, aguardando recarga...")
         
         # Aguardar recarga da tabela
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag, table tbody tr, .ag-root'))
-            )
-        except Exception:
-            pass
+        espera.ate_aparecer(driver, 'tr.cdk-drag, table tbody tr, .ag-root', teto=10)
         
         return True
 

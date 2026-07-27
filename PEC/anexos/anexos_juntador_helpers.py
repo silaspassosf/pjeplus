@@ -31,12 +31,14 @@ from Fix.core import (
     wait_for_visible,
     esperar_url_conter,
 )
+from Fix.browser_suporte import aguardar_nova_aba
 from Fix.utils import (
     inserir_html_no_editor_apos_marcador,
     obter_ultimo_conteudo_clipboard,
     executar_coleta_parametrizavel,
     inserir_link_ato_validacao,
 )
+from Fix import espera
 # NOTA: substituir_marcador_por_conteudo NÃO é importado de Fix.utils
 # (causaria recursão infinita: Fix.utils → helpers → Fix.utils).
 # A implementação real está definida localmente abaixo.
@@ -56,16 +58,22 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
 
     # 2. Clique em "Anexar Documentos"
     print('[JUNTADA][DEBUG] Clicando em "Anexar documentos"...')
+    handle_original = driver.current_window_handle
     if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
         return False
-    # Aguardar nova aba abrir (substitui time.sleep(2))
-    aguardar_renderizacao_nativa(driver, timeout=2)
 
-    # 3. Aguarda nova aba/janela e muda para ela
+    # 3. Aguarda nova aba/janela e muda para ela.
+    # Antes: aguardar_renderizacao_nativa(driver, timeout=2) checava document.readyState da
+    # aba ATUAL (ainda não trocada) — não esperava nada de fato — e em seguida lia
+    # window_handles imediatamente após o clique, arriscando corrida com a nova aba ainda
+    # não criada. Isso derrubava para o retry lento com refresh de página em executar_juntada.
     print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
-    all_windows = driver.window_handles
-    if len(all_windows) > 1:
-        driver.switch_to.window(all_windows[-1])
+    try:
+        nova_aba = aguardar_nova_aba(driver, handle_original, timeout=5)
+    except Exception:
+        nova_aba = None
+    if nova_aba:
+        driver.switch_to.window(nova_aba)
         if not esperar_url_conter(driver, '/anexar', timeout=10):
             print('[JUNTADA][AVISO] URL não contém /anexar, mas prosseguindo...')
     else:
@@ -230,12 +238,12 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
 
         # Foco e rolagem
         driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
-        time.sleep(0.2)
+        espera.assentar(driver, 0.2)
         try:
             editable.click()
         except Exception:
             driver.execute_script('arguments[0].focus();', editable)
-        time.sleep(0.1)
+        espera.assentar(driver, 0.1)
 
         # Limpar caracteres problemáticos e escapar para JavaScript
         html_content_clean = (conteudo_para_usar

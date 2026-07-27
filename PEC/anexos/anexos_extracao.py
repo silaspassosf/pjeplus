@@ -6,6 +6,7 @@ Contém funções de extração de dados do PJe.
 """
 
 import logging
+from Fix.core import safe_click_no_scroll
 logger = logging.getLogger(__name__)
 
 import re
@@ -14,6 +15,7 @@ import pyperclip
 from typing import Optional
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
+from Fix import espera
 
 
 def extrair_numero_processo_da_pagina(driver: WebDriver, debug: bool = True) -> Optional[str]:
@@ -36,8 +38,8 @@ def extrair_numero_processo_da_pagina(driver: WebDriver, debug: bool = True) -> 
         # 2. Tenta clicar no ícone de copiar e ler do clipboard
         try:
             icone = driver.find_element(By.CSS_SELECTOR, 'i.far.fa-copy.fa-lg')
-            driver.execute_script('arguments[0].click();', icone)
-            time.sleep(0.2)
+            safe_click_no_scroll(driver, icone)
+            espera.assentar(driver, 0.2)
             try:
                 numero = pyperclip.paste().strip()
                 if numero:

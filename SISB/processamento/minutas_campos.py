@@ -164,21 +164,54 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
                 }}
 
                 log.push('2. Preenchendo Vara...');
-                let varaSelect = await esperarElemento('mat-select[name*="varaJuizoSelect"]', 3000);
+                let varaSelect = await esperarElemento('mat-select[name*="varaJuizoSelect"],mat-select[aria-label*="Selecione a Vara"]', 3000);
                 if (varaSelect) {{
                     varaSelect.focus();
                     varaSelect.click();
 
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
-                    for (let opcao of opcoes) {{
-                        if (opcao.textContent.includes('{vara}')) {{
-                            opcao.click();
-                            log.push('Vara: {vara}');
-                            break;
+                    let campoPesquisaVara = await esperarElemento('.mat-select-panel input[placeholder="Pesquisar Vara/Juízo..."]', 3000);
+                    if (campoPesquisaVara) {{
+                        // Buffer identico ao original (esperarElemento -> sleep(1000) -> digitar):
+                        // o painel de busca ainda esta se estabilizando (Angular) no instante em
+                        // que o input aparece no DOM. Digitar cedo demais faz os primeiros
+                        // caracteres serem descartados (ex.: "30006" virava "006").
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+
+                        // Digitacao caractere-a-caractere (identico a simularDigitacaoDeTexto do
+                        // maispje/comum/mini-selenium.js): o painel de busca da Vara/Juizo filtra
+                        // a lista via evento de teclado por caractere, nao via um unico 'input' em
+                        // bloco.
+                        campoPesquisaVara.focus();
+                        campoPesquisaVara.value = '';
+                        for (const letraVara of '{vara}'.split('')) {{
+                            campoPesquisaVara.dispatchEvent(new KeyboardEvent('keydown', {{ key: letraVara, bubbles: true, cancelable: true }}));
+                            campoPesquisaVara.dispatchEvent(new KeyboardEvent('keypress', {{ key: letraVara, bubbles: true, cancelable: true }}));
+                            campoPesquisaVara.value += letraVara;
+                            triggerEvent(campoPesquisaVara, 'input');
+                            triggerEvent(campoPesquisaVara, 'change');
+                            campoPesquisaVara.dispatchEvent(new KeyboardEvent('keyup', {{ key: letraVara, bubbles: true, cancelable: true }}));
+                            await new Promise(resolve => setTimeout(resolve, 100));
                         }}
+                        // Selecao explicita por texto (formato real da opcao filtrada:
+                        // "30006 - 3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO") — clicar
+                        // direto na mat-option correta em vez de confiar no Enter para
+                        // confirmar o item destacado, que nao e o item filtrado nesse painel.
+                        let opcoesVara = await esperarOpcoes('mat-option[role="option"]', 3000);
+                        let varaSelecionada = false;
+                        for (let opcaoVara of opcoesVara) {{
+                            let textoOpcaoVara = (opcaoVara.textContent || '').trim();
+                            if (textoOpcaoVara.split(' - ')[0].trim() === '{vara}') {{
+                                opcaoVara.click();
+                                log.push('Vara: ' + textoOpcaoVara);
+                                varaSelecionada = true;
+                                break;
+                            }}
+                        }}
+                        if (!varaSelecionada) {{
+                            log.push('[AVISO] Vara {vara} nao encontrada nas opcoes filtradas');
+                        }}
+                        await new Promise(resolve => setTimeout(resolve, 800));
                     }}
-                    await new Promise(resolve => setTimeout(resolve, 800));
                 }}
 
                 log.push('3. Preenchendo Numero Processo...');

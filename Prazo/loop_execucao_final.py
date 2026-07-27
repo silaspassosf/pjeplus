@@ -16,12 +16,14 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from Fix import espera
 from Fix.core import (
+    safe_click_no_scroll,
     aguardar_renderizacao_nativa,
     aplicar_filtro_100,
 )
 from Fix.facade_publica import buscar
-from Fix.variaveis import PjeApiClient, session_from_driver
+from Fix.variaveis import cliente_para
 
 from .loop_lote import (
     _ciclo1_abrir_suitcase,
@@ -68,12 +70,12 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
         try:
             aguardar_renderizacao_nativa(driver, "i.fa.fa-tag.icone.texto-verde", timeout=10)
             tag_verde = driver.find_element(By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde')
-            driver.execute_script("arguments[0].click();", tag_verde)
+            safe_click_no_scroll(driver, tag_verde)
         except Exception:
             tag_verde = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde'))
             )
-            driver.execute_script("arguments[0].click();", tag_verde)
+            safe_click_no_scroll(driver, tag_verde)
 
         # Aguardar renderização do menu de atividades
         aguardar_renderizacao_nativa(driver, "button.mat-menu-item", timeout=10)
@@ -83,7 +85,7 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
         btns = driver.find_elements(By.CSS_SELECTOR, "button.mat-menu-item")
         for btn in btns:
             if "Atividade" in btn.text:
-                driver.execute_script("arguments[0].click();", btn)
+                safe_click_no_scroll(driver, btn)
                 sucesso_atividade = True
                 break
 
@@ -97,7 +99,7 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
                 "button.mat-menu-item"
             ])
             if btn_atividade:
-                driver.execute_script("arguments[0].click();", btn_atividade)
+                safe_click_no_scroll(driver, btn_atividade)
                 sucesso_atividade = True
 
         if not sucesso_atividade:
@@ -136,7 +138,7 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
                     "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
                     campo_prazo
                 )
-                time.sleep(0.3)
+                espera.assentar(driver, 0.3)
 
         # Preencher observação
         campo_obs = None
@@ -163,7 +165,7 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
             "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
             campo_obs
         )
-        time.sleep(0.3)
+        espera.assentar(driver, 0.3)
 
         # Aguardar até que o textarea contenha o texto (sincronização mínima)
         try:
@@ -186,7 +188,7 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
 
         # Scroll e clique no botão salvar
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_pai)
-        driver.execute_script("arguments[0].click();", btn_pai)
+        safe_click_no_scroll(driver, btn_pai)
 
         # Aguardar fechamento do modal via observer
         try:
@@ -273,8 +275,7 @@ def ciclo2_processar_livres_apenas_uma_vez(driver: WebDriver, opcao_destino: str
     # 1. Criar client GIGS para busca de atividades
     client = None
     try:
-        sess, trt = session_from_driver(driver)
-        client = PjeApiClient(sess, trt)
+        client = cliente_para(driver)
     except Exception as e:
         logger.warning(f'[LOOP_PRAZO][WARN] Falha ao inicializar client GIGS (continuando sem GIGS): {e}')
         client = None
@@ -489,8 +490,7 @@ def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências
             # Inicializar client GIGS quando possível
             client = None
             try:
-                sess, trt = session_from_driver(driver)
-                client = PjeApiClient(sess, trt)
+                client = cliente_para(driver)
             except Exception as e:
                 logger.warning(f'[CICLO2][WARN] Falha ao inicializar client GIGS: {e}')
 
@@ -636,7 +636,7 @@ def ciclo3(driver: WebDriver) -> bool:
             if pagina < paginas - 1:
                 try:
                     btn_next = driver.find_element(By.CSS_SELECTOR, 'mat-paginator button[aria-label="Próxima página"]')
-                    driver.execute_script('arguments[0].click();', btn_next)
+                    safe_click_no_scroll(driver, btn_next)
                     try:
                         aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
                     except Exception:

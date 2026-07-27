@@ -1,10 +1,12 @@
 import logging
+from Fix.core import safe_click_no_scroll
 logger = logging.getLogger(__name__)
 
 from .core import *
 import time
 
 from selenium.webdriver.remote.webdriver import WebDriver
+from Fix import espera
 
 
 def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
@@ -153,7 +155,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
         if not click_ok:
             # fallback para clique via JS se safe_click falhar
             try:
-                driver.execute_script('arguments[0].click();', btn_abrir_tarefa)
+                safe_click_no_scroll(driver, btn_abrir_tarefa)
                 click_ok = True
             except Exception:
                 click_ok = False
@@ -171,7 +173,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             if novas_abas:
                 nova_aba = novas_abas.pop()
                 break
-            time.sleep(0.3)
+            espera.assentar(driver, 0.3)
 
         if nova_aba:
             # Ao abrir a tarefa, a nova aba é a que devemos usar (não procurar por '/detalhe').
@@ -230,7 +232,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
                     log_msg(' Clique direto no botão calendário executado')
                 except Exception:
                     try:
-                        driver.execute_script('arguments[0].click();', btn_calendario)
+                        safe_click_no_scroll(driver, btn_calendario)
                         log_msg(' Clique via JavaScript no botão calendário executado')
                     except Exception:
                         # última tentativa: clicar no ícone interno
@@ -260,7 +262,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             campo_prazo.clear()
             campo_prazo.send_keys(prazo_meses)
             log_msg(f" Prazo {prazo_meses} meses preenchido no campo")
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
         except Exception as e:
             log_msg(f' Erro ao preencher prazo no modal: {e}')
             return False
@@ -273,9 +275,9 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             try:
                 btn_prosseguir.click()
             except Exception:
-                driver.execute_script('arguments[0].click();', btn_prosseguir)
+                safe_click_no_scroll(driver, btn_prosseguir)
             log_msg(' Botão "Prosseguir" clicado')
-            time.sleep(1.5)
+            espera.ate_texto(driver, 'snack-bar-container.success simple-snack-bar span', 'sucesso', teto=1.5)
 
             # AGUARDAR SUCESSO: Verificar snackbar de sucesso OU fechamento do modal
             sucesso_detectado = False

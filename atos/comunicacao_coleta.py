@@ -1,4 +1,5 @@
 import re
+from Fix.core import safe_click_no_scroll
 from typing import Any
 
 
@@ -33,9 +34,11 @@ def executar_coleta_conteudo(driver, config_coleta, debug=False) -> bool:
                 from Fix.variaveis import session_from_driver, PjeApiClient, obter_chave_ultimo_despacho_decisao_sentenca
                 sess_tmp, trt_tmp = session_from_driver(driver)
                 client_tmp = PjeApiClient(sess_tmp, trt_tmp)
-                link_validacao = obter_chave_ultimo_despacho_decisao_sentenca(client_tmp, str(numero_processo), driver=driver)
+                link_validacao, conteudo_condensado = obter_chave_ultimo_despacho_decisao_sentenca(
+                    client_tmp, str(numero_processo), driver=driver, incluir_conteudo_condensado=True
+                ) or (None, None)
             except Exception:
-                link_validacao = None
+                link_validacao, conteudo_condensado = None, None
 
             if link_validacao:
                 try:
@@ -46,6 +49,11 @@ def executar_coleta_conteudo(driver, config_coleta, debug=False) -> bool:
                         link_validacao = f"{base}/pjekz/validacao/{link_validacao}?instancia=1"
                     from PEC.anexos import salvar_conteudo_clipboard
                     sucesso_coleta = salvar_conteudo_clipboard(conteudo=link_validacao, numero_processo=str(numero_processo), tipo_conteudo=f"link_ato_validacao", debug=debug)
+                    # Condensado (transcrição, no mesmo padrão do botão "Copiar" do
+                    # maispje) fica logo abaixo do link ao inserir no modelo, pois
+                    # `inserir_conteudo_formatado` busca por esse marcador em separado.
+                    if conteudo_condensado:
+                        salvar_conteudo_clipboard(conteudo=conteudo_condensado, numero_processo=str(numero_processo), tipo_conteudo="conteudo_formatado", debug=debug)
                     if sucesso_coleta:
                         return True
                     else:
@@ -61,7 +69,7 @@ def executar_coleta_conteudo(driver, config_coleta, debug=False) -> bool:
                 if doc_link:
                     try:
                         driver.execute_script('arguments[0].scrollIntoView(true);', doc_link)
-                        driver.execute_script('arguments[0].click();', doc_link)
+                        safe_click_no_scroll(driver, doc_link)
                         # Espera orientada a estado da UI apos abrir o documento,
                         # evitando atraso fixo quando o carregamento ja terminou.
                         aguardar_renderizacao_nativa(

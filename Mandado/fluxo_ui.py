@@ -2,14 +2,13 @@ import time
 import re
 from Fix.log import logger
 from Fix.selenium_base import aguardar_e_clicar, safe_click
-from Fix.core import wait_for_page_load
+from Fix.core import wait_for_page_load, safe_click_no_scroll
 from Fix.utils import normalizar_texto
 from Fix.extracao import extrair_direto
 from Peticao.core.extracao.extracao import criar_gigs
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+from Fix import espera
 
 def ativar_filtro_mandados_devolvidos(driver):
     """Ativa o filtro 'Mandados devolvidos' caso nao esteja ativo."""
@@ -29,7 +28,7 @@ def ativar_filtro_mandados_devolvidos(driver):
         else:
             logger.info('[MANDADOS_UI] Clicando para ativar filtro...')
             aguardar_e_clicar(driver, 'i[aria-label*="Mandados devolvidos"]', timeout=10)
-            time.sleep(2)
+            espera.assentar(driver, 2)
             return True
     except Exception as e:
         logger.error(f'[MANDADOS_UI] Erro ao ativar filtro: {e}')
@@ -50,9 +49,7 @@ def processar_mandados_escaninho_ui(driver):
     ativar_filtro_mandados_devolvidos(driver)
     
     # Aguarda a tabela renderizar
-    try:
-        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "table[name='Tabela de Documentos'] tbody tr")))
-    except TimeoutException:
+    if not espera.elemento(driver, "table[name='Tabela de Documentos'] tbody tr", teto=15, visivel=False):
         logger.warning('[MANDADOS_UI] Tabela de documentos não carregou ou está vazia.')
         return False
 
@@ -89,12 +86,10 @@ def processar_mandados_escaninho_ui(driver):
                         
                         # Pegar handles antes do clique
                         handles_antes = driver.window_handles
-                        driver.execute_script("arguments[0].click();", botao_kz)
+                        safe_click_no_scroll(driver, botao_kz)
                         
                         # Aguarda nova aba abrir
-                        try:
-                            WebDriverWait(driver, 10).until(lambda d: len(d.window_handles) > len(handles_antes))
-                        except TimeoutException:
+                        if not espera.ate_abas(driver, len(handles_antes) + 1, teto=10):
                             logger.error(f"[MANDADOS_UI] Nova aba não abriu para {numero_processo}")
                             continue
                             
@@ -121,7 +116,7 @@ def processar_mandados_escaninho_ui(driver):
                                     logger.info(f"[MANDADOS_UI] #{numero_processo}: Regra 'procedi à intimação' detectada. Executando ação Apagar.")
                                     # a) gigs 1, , xs2
                                     criar_gigs(driver, dias_uteis="1", responsavel="", observacao="xs2", log=True)
-                                    time.sleep(1)
+                                    espera.assentar(driver, 1)
                                     
                                     # b) fecha aba e volta foco
                                     driver.close()
@@ -132,17 +127,17 @@ def processar_mandados_escaninho_ui(driver):
                                     if idx < len(linhas_refresh):
                                         linha_ref = linhas_refresh[idx]
                                         lixeira = linha_ref.find_element(By.CSS_SELECTOR, "button[aria-label*='Remover documento']")
-                                        driver.execute_script("arguments[0].click();", lixeira)
+                                        safe_click_no_scroll(driver, lixeira)
                                         logger.info(f"[MANDADOS_UI] Lixeira clicada para #{numero_processo}.")
-                                        time.sleep(2)
+                                        espera.ate_aparecer(driver, "//button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')]", teto=2)
                                         # Lidar com eventual modal de confirmacao do pje
                                         try:
                                             botoes_confirmacao = driver.find_elements(By.XPATH, "//button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')]")
                                             for btn in botoes_confirmacao:
                                                 if btn.is_displayed():
-                                                    driver.execute_script("arguments[0].click();", btn)
+                                                    safe_click_no_scroll(driver, btn)
                                                     logger.info(f"[MANDADOS_UI] Confirmação de lixeira aceita para #{numero_processo}.")
-                                                    time.sleep(1)
+                                                    espera.assentar(driver, 1)
                                                     break
                                         except Exception:
                                             pass # Se nao houver modal, segue em frente

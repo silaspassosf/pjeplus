@@ -1,8 +1,9 @@
 import logging
 import time
-from Fix.core import wait_for_page_load
+from Fix.core import wait_for_page_load, safe_click_no_scroll
 
 from selenium.webdriver.common.by import By
+from Fix import espera
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +28,7 @@ def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
             # Identificar e clicar na linha correspondente na SPA
             linha_index = serie.get('linha_index')
             if linha_index is not None:
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                
-                tabela = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "table.mat-table"))
-                )
+                tabela = espera.elemento(driver, "table.mat-table", teto=10)
                 linhas = tabela.find_elements(By.CSS_SELECTOR, "tbody tr.mat-row, tbody tr[mat-row]")
                 
                 if linha_index < len(linhas):
@@ -40,12 +36,12 @@ def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
                     
                     # Scroll para o elemento
                     driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", linha_el)
-                    time.sleep(0.5)
+                    espera.assentar(driver, 0.5)
                     
                     # Tentar clicar no botao "detalhes" (lupa) ou na linha inteira
                     try:
                         btn_detalhes = linha_el.find_element(By.CSS_SELECTOR, "button.mat-icon-button, button mat-icon")
-                        driver.execute_script("arguments[0].click();", btn_detalhes)
+                        safe_click_no_scroll(driver, btn_detalhes)
                     except:
                         # Fallback: clicar na celula
                         driver.execute_script("arguments[0].click();", linha_el.find_element(By.CSS_SELECTOR, "td"))

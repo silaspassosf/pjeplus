@@ -5,12 +5,13 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
 from Fix.selenium_base.click_operations import aguardar_e_clicar
-from Fix.core import aguardar_renderizacao_nativa
+from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
 from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
 from Fix.log import logger
 from Fix.utils import normalizar_texto as normalizar_string
 from typing import Optional, Union, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver
+from Fix import espera
 
 
 def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
@@ -60,7 +61,14 @@ def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False
         el_presente = wait_for_clickable(driver, seletor_select, timeout=10, by=By.CSS_SELECTOR)
         if not el_presente:
             return False
-        driver.execute_script("arguments[0].click();", el_presente)
+        safe_click_no_scroll(driver, el_presente)
+
+        # Buffer curto pos-click (identico ao legado _escolher_opcao_select_js):
+        # no primeiro select da pagina, o overlay do mat-select ainda esta
+        # animando/inicializando quando o click e disparado via JS puro; sem
+        # esse respiro, o MutationObserver abaixo pode ganhar a corrida contra
+        # a abertura real do painel.
+        espera.ate_aparecer(driver, 'div.cdk-overlay-pane', teto=0.3)
 
         # Aguardar mat-options aparecerem (observer nativo)
         aguardar_renderizacao_nativa(driver, 'mat-option[role="option"]', 'aparecer', 10)
@@ -70,7 +78,7 @@ def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False
         for opcao in opcoes:
             texto_opcao = opcao.get_attribute('innerText') or opcao.text or ''
             if valor_norm == normalizar_string(texto_opcao) or valor_norm in normalizar_string(texto_opcao):
-                driver.execute_script("arguments[0].click();", opcao)
+                safe_click_no_scroll(driver, opcao)
                 return True
 
         # Fechar painel sem seleção
@@ -184,7 +192,7 @@ def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
         except Exception:
             time.sleep(0.3)
 
-        time.sleep(0.3)
+        espera.assentar(driver, 0.3)
 
     return False
 
@@ -197,34 +205,8 @@ def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, time
     if log is None:
         def log(_msg): return None
 
-    # Snackbar já presente?
-    snackbar_ok = False
-    try:
-        snackbar_ok = driver.execute_script("""
-            var bars = document.querySelectorAll('simple-snack-bar');
-            for (var i = 0; i < bars.length; i++) {
-                if ((bars[i].textContent || '').indexOf('Ato elaborado com sucesso') !== -1) return true;
-            }
-            return false;
-        """)
-    except Exception:
-        pass
-
-    if not snackbar_ok:
-        try:
-            from selenium.webdriver.support.ui import WebDriverWait
-            WebDriverWait(driver, 5).until(
-                lambda d: d.execute_script("""
-                    var bars = document.querySelectorAll('simple-snack-bar');
-                    for (var i = 0; i < bars.length; i++) {
-                        if ((bars[i].textContent || '').indexOf('Ato elaborado com sucesso') !== -1) return true;
-                    }
-                    return false;
-                """)
-            )
-            snackbar_ok = True
-        except Exception:
-            pass
+    # Snackbar já presente ou aparece em até 5s (teto do WebDriverWait original)
+    snackbar_ok = espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=5)
 
     if snackbar_ok:
         log('[MINUTA] Snackbar "Ato elaborado com sucesso" detectada — prosseguindo imediatamente')
@@ -241,9 +223,10 @@ def finalizar_minuta(driver: WebDriver, log=None) -> bool:
 
     log('9. Finalizando minuta')
     try:
-        # Clique direto, sem retry headless
         seletor_finalizar = 'button[aria-label="Finalizar minuta"]'
-        btn = driver.find_element(By.CSS_SELECTOR, seletor_finalizar)
+        btn = wait_for_clickable(driver, seletor_finalizar, timeout=5, by=By.CSS_SELECTOR)
+        if not btn:
+            raise NoSuchElementException(seletor_finalizar)
         driver.execute_script("""
             var btn = arguments[0];
             btn.scrollIntoView({block:'center'});
@@ -405,7 +388,7 @@ def executar_preenchimento_minuta(
                     opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option')
                     for opcao in opcoes:
                         if subtipo.lower() in (opcao.text or '').lower():
-                            driver.execute_script("arguments[0].click();", opcao)
+                            safe_click_no_scroll(driver, opcao)
                             log(f' Subtipo selecionado: {subtipo}')
                             sucesso_subtipo = True
                             break
@@ -414,10 +397,10 @@ def executar_preenchimento_minuta(
                         log('[SUBTIPO] Opção não encontrada, tentando novamente...')
                         try:
                             btn_fechar = driver.find_element(By.CSS_SELECTOR, 'pje-pec-dialogo-ato a[mattooltip="Fechar"]')
-                            driver.execute_script("arguments[0].click();", btn_fechar)
+                            safe_click_no_scroll(driver, btn_fechar)
                             aguardar_renderizacao_nativa(driver, 'button[aria-label="Confeccionar ato agrupado"]', 'aparecer', 5)
                             btn_confeccionar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Confeccionar ato agrupado"]')
-                            driver.execute_script("arguments[0].click();", btn_confeccionar)
+                            safe_click_no_scroll(driver, btn_confeccionar)
                         except Exception:
                             pass
 
@@ -439,7 +422,7 @@ def executar_preenchimento_minuta(
             try:
                 input_sigilo = driver.find_element(By.CSS_SELECTOR, 'input[name="sigiloso"]')
                 if not input_sigilo.is_selected():
-                    driver.execute_script("arguments[0].click();", input_sigilo)
+                    safe_click_no_scroll(driver, input_sigilo)
                     log(' Sigilo marcado')
             except Exception as e:
                 log(f'[WARN] Falha ao marcar sigilo: {e}')
@@ -520,7 +503,7 @@ def executar_preenchimento_minuta(
                         """):
                             snackbar_modelo_ok = True
                             break
-                        time.sleep(0.2)
+                        espera.ate_texto(driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=0.2)
                     if snackbar_modelo_ok:
                         log('[MODELO] ✓ Snackbar "Modelo inserido" confirmado')
                     else:
@@ -529,7 +512,7 @@ def executar_preenchimento_minuta(
                     log(f'[MODELO][WARN] Exceção ao verificar snackbar: {_e}')
 
                 # 7. Aguardar dialog fechar (rápido: só confirma que sumiu)
-                aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 5)
+                aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 2)
 
             except Exception as e:
                 log(f'[ERRO] Falha ao inserir modelo: {e}')

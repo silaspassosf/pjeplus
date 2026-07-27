@@ -6,20 +6,18 @@ Funções para abertura de tarefas, navegação entre estados do PJE,
 limpeza de overlays e transição entre URLs.
 """
 
-from Fix.selenium_base import aguardar_e_clicar, safe_click_no_scroll, safe_click, esperar_url_conter
+from Fix.selenium_base import aguardar_e_clicar, safe_click_no_scroll, safe_click
 from Fix.abas import aguardar_nova_aba
-from Fix.core import wait_for_page_load, aguardar_renderizacao_nativa
+from Fix.core import wait_for_page_load, aguardar_renderizacao_nativa, encontrar_elemento_inteligente
 from Fix.log import logger
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
+from Fix import espera
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
 
 from typing import Optional, Tuple
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support.ui import WebDriverWait
-import time
 
 
 def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
@@ -116,6 +114,17 @@ def limpar_overlays(driver: WebDriver) -> None:
         logger.debug(f'[NAVEGAÇÃO] Erro ao limpar overlays: {e}')
 
 
+def _estrategias_botao_navegacao(aria_label: str):
+    """Fallbacks para localizar botões de navegação de tarefa (Análise, Conclusão ao
+    magistrado) cujo seletor único vinha causando NoSuchElementError imediato quando
+    o aria-label do PJe muda de formatação entre versões/varas."""
+    return [
+        (By.CSS_SELECTOR, f"button[aria-label='{aria_label}']"),
+        (By.CSS_SELECTOR, f"button[aria-label*='{aria_label}']"),
+        (By.XPATH, f"//button[.//span[normalize-space(text())='{aria_label}']]"),
+    ]
+
+
 def navegar_para_conclusao(driver: WebDriver) -> bool:
     """
     Navega da tarefa atual para "Conclusão ao Magistrado".
@@ -123,7 +132,8 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
     Estratégia:
     1. Tenta clicar diretamente em "Conclusão ao Magistrado"
     2. Se não disponível, clica em "Análise" primeiro, remove overlays, depois clica em "Conclusão ao Magistrado"
-    3. Aguarda URL /conclusao
+    3. Aguarda o elemento da próxima tela (botões de tipo de conclusão) — não a URL,
+       que não é um sinal confiável dessa transição (mesmo padrão do gigs-plugin.js)
 
     Returns:
         bool: True se conseguiu navegar para conclusão
@@ -151,30 +161,32 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
         try:
             btn_conclusao_encontrado = False
 
-            # Tentar clique direto em "Conclusão ao magistrado" independente do tipo de tarefa
-            try:
-                btn_conclusao = WebDriverWait(driver, 2).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
-                )
-                btn_conclusao.click()
+            # Tentar clique direto em "Conclusão ao magistrado" independente do tipo de tarefa.
+            # Busca robusta (múltiplas estratégias) no lugar de um único seletor fixo: o aria-label
+            # do PJe varia de formatação entre versões/varas e causava NoSuchElementError imediato.
+            btn_conclusao_direto = encontrar_elemento_inteligente(
+                driver, 'Conclusão ao magistrado',
+                estrategias_custom=_estrategias_botao_navegacao('Conclusão ao magistrado')
+            )
+            if btn_conclusao_direto and btn_conclusao_direto.is_displayed() and safe_click_no_scroll(driver, btn_conclusao_direto):
                 btn_conclusao_encontrado = True
                 logger.info('[NAVEGAÇÃO] Clique direto em "Conclusão ao magistrado" realizado')
-            except Exception:
+            else:
                 logger.info('[NAVEGAÇÃO] Conclusão não disponível diretamente, tentando via "Análise"...')
 
             # Se não encontrou, usar estratégia via "Análise"
             if not btn_conclusao_encontrado:
                 logger.info('[NAVEGAÇÃO] Tentando via "Análise"...')
 
-                # Clicar em "Análise"
-                try:
-                    btn_analise = WebDriverWait(driver, 2).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Análise']"))
-                    )
-                    btn_analise.click()
+                # Clicar em "Análise" (mesma busca robusta; clique via JS dispatchEvent evita
+                # ElementClickInterceptedException por overlay ainda em transição)
+                btn_analise = encontrar_elemento_inteligente(
+                    driver, 'Análise', estrategias_custom=_estrategias_botao_navegacao('Análise')
+                )
+                if btn_analise and safe_click_no_scroll(driver, btn_analise):
                     logger.info('[NAVEGAÇÃO] Clique em "Análise" realizado')
-                except Exception as e:
-                    logger.error(f'[NAVEGAÇÃO] Falha ao clicar em "Análise": {e}')
+                else:
+                    logger.error('[NAVEGAÇÃO] Falha ao clicar em "Análise": botão não encontrado no DOM')
                     # Não re-levanta o erro imediatamente, deixa o fluxo tentar tratar ou retornar False.
 
         finally:
@@ -193,57 +205,30 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
         finally:
             driver.implicitly_wait(10)
 
-        # Aguardar renderização e tentar clicar na conclusão
+        # Aguardar renderização e clicar na conclusão
         if not btn_conclusao_encontrado:
-            try:
-                # Aguardar o botão aparecer
-                aguardar_renderizacao_nativa(driver, "button[aria-label='Conclusão ao magistrado']", 'aparecer', timeout=8)
-
-                # Agora clicar em "Conclusão ao magistrado" usando confirmação direta (JS)
-                logger.info('[NAVEGAÇÃO] Tentando "Conclusão ao magistrado" após Análise...')
-                max_tentativas_clique = 3
-
-                for tentativa_clique in range(max_tentativas_clique):
-                    try:
-                        btn_conclusao = WebDriverWait(driver, 3).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
-                        )
-                        # JS Click bypassa overlays e delay de Angular CD
-                        driver.execute_script('arguments[0].click();', btn_conclusao)
-                        btn_conclusao_encontrado = True
-                        logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise via JS')
-                        break
-                    except Exception as other_err:
-                        logger.warning(f'[NAVEGAÇÃO] Erro na tentativa {tentativa_clique + 1}: {other_err}')
-                        time.sleep(0.2)
-
-                if not btn_conclusao_encontrado:
-                    logger.error('[NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas')
-                    return False
-
-            except Exception as e2:
-                logger.error(f'[NAVEGAÇÃO] Falha na navegação via Análise: {e2}')
+            seletor_conclusao = "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado']"
+            aguardar_renderizacao_nativa(driver, seletor_conclusao, 'aparecer', timeout=8)
+            btn_conclusao = encontrar_elemento_inteligente(
+                driver, 'Conclusão ao magistrado',
+                estrategias_custom=_estrategias_botao_navegacao('Conclusão ao magistrado')
+            )
+            if not btn_conclusao or not safe_click_no_scroll(driver, btn_conclusao):
+                logger.error('[NAVEGAÇÃO] Falha na navegação via Análise: botão "Conclusão ao magistrado" não encontrado após aguardar renderização')
                 return False
+            logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise')
 
-        # Aguardar URL /conclusao
-        if not esperar_url_conter(driver, '/conclusao', timeout=15):
-            current_after = (driver.current_url or '').lower()
-            logger.error(f'[NAVEGAÇÃO] URL não mudou para /conclusao: {driver.current_url}')
+        # Confirmar chegada: /minutar (pulou direto) ou botões de tipo de conclusão renderizados.
+        # Não checar a URL /conclusao aqui: ela não reflete a transição do Angular de forma
+        # confiável (o próprio gigs-plugin.js espera o elemento seguinte aparecer, não a URL).
+        current_after = (driver.current_url or '').lower()
+        if '/minutar' in current_after:
+            logger.info('[NAVEGAÇÃO] Processo foi direto para /minutar')
+            return True
 
-            # Verificar se foi direto para /minutar
-            if '/minutar' in current_after:
-                logger.info('[NAVEGAÇÃO] Processo foi direto para /minutar')
-                return True
-
-            # Verificar se há botões de conclusão disponíveis
-            try:
-                WebDriverWait(driver, 6).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button'))
-                )
-                logger.info('[NAVEGAÇÃO] Botões de conclusão disponíveis em /transicao')
-                return True
-            except Exception:
-                return False
+        if not aguardar_renderizacao_nativa(driver, 'pje-concluso-tarefa-botao button', 'aparecer', timeout=10):
+            logger.error(f'[NAVEGAÇÃO] Botões de conclusão não apareceram. URL atual: {driver.current_url}')
+            return False
 
         logger.info('[NAVEGAÇÃO] Navegação para conclusão concluída com sucesso')
         return True
@@ -264,9 +249,9 @@ def preparar_campo_minutar(driver: WebDriver) -> bool:
         logger.info('[NAVEGAÇÃO] Preparando campo de filtro para minutar...')
 
         # Aguardar campo de filtro
-        campo_filtro_modelo = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, 'input#inputFiltro'))
-        )
+        campo_filtro_modelo = espera.elemento(driver, 'input#inputFiltro', teto=10)
+        if not campo_filtro_modelo:
+            raise Exception('input#inputFiltro não apareceu')
 
         # Limpar e preparar campo
         driver.execute_script('arguments[0].removeAttribute("disabled"); arguments[0].removeAttribute("readonly");', campo_filtro_modelo)

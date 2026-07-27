@@ -1125,7 +1125,7 @@ def teste_p2b(id_processo=None):
     Uso: py f.py p2b [id_processo]
     """
     from Prazo.p2b_gateway import extrair_documento_relevante
-    from Prazo.p2b_documentos import _definir_regras_processamento, prazo_registry, _popular_registry
+    from Prazo.p2b_documentos import _definir_regras_processamento
     from Prazo.p2b_core import normalizar_texto, gerar_regex_geral
     
     configurar_logging_debug()
@@ -1182,46 +1182,27 @@ def teste_p2b(id_processo=None):
                 
             texto_normalizado = normalizar_texto(texto_formatado)
             
-            # Prioridade absoluta: prescricao
-            if gerar_regex_geral('A pronúncia da').search(texto_normalizado):
-                LOGGER.info('[P2B_TEST] >>> REGRA MATCH: Prescricao (Prioridade Maxima) - Acao: prescreve() <<<')
+            regras = _definir_regras_processamento()
+            for idx, (trechos, tipo_acao) in enumerate(regras):
+                match = None
+                for trecho in trechos:
+                    padrao = trecho if hasattr(trecho, 'search') else gerar_regex_geral(trecho)
+                    encontrado = padrao.search(texto_normalizado)
+                    if encontrado:
+                        match = encontrado
+                        break
+                if not match:
+                    continue
+
+                LOGGER.info(f'[P2B_TEST] >>> REGRA MATCH (indice {idx}) <<<')
+                LOGGER.info(f'[P2B_TEST] Expressao casada: {match.re.pattern}')
+
+                acoes_raw = list(tipo_acao) if isinstance(tipo_acao, (list, tuple)) else [tipo_acao]
+                acoes = [act.__name__ if callable(act) else str(act) for act in acoes_raw]
+
+                LOGGER.info(f'[P2B_TEST] Acoes que seriam chamadas: {acoes}')
                 return
 
-            # Prioridade alta: arquivamento
-            if gerar_regex_geral('julgo extinta a presente execução, nos termos do art. 924').search(texto_normalizado) or \
-               gerar_regex_geral('autos ao arquivo').search(texto_normalizado):
-                LOGGER.info('[P2B_TEST] >>> REGRA MATCH: Arquivamento (Prioridade Alta) - Acao: mov_arquivar() <<<')
-                return
-                
-            _popular_registry()
-            bucket, marker = prazo_registry.match(texto_normalizado)
-            if marker:
-                rule_idx = marker()
-                regras = _definir_regras_processamento()
-                rule = regras[rule_idx]
-                keywords = rule[0]
-                tipo_acao = rule[1] if len(rule) > 1 else ()
-                
-                for regex in keywords:
-                    if regex.search(texto_normalizado):
-                        LOGGER.info(f'[P2B_TEST] >>> REGRA MATCH: "{bucket}" <<<')
-                        LOGGER.info(f'[P2B_TEST] Expressao casada: {regex.pattern}')
-                        
-                        acoes = []
-                        if isinstance(tipo_acao, (list, tuple)):
-                            acoes_raw = tipo_acao
-                        else:
-                            acoes_raw = [tipo_acao]
-                            
-                        for act in acoes_raw:
-                            if callable(act):
-                                acoes.append(act.__name__)
-                            else:
-                                acoes.append(str(act))
-                                
-                        LOGGER.info(f'[P2B_TEST] Acoes que seriam chamadas: {acoes}')
-                        return
-                        
             LOGGER.info('[P2B_TEST] Nenhuma regra do P2B casou com o texto do documento.')
 
     except Exception:
@@ -1352,6 +1333,67 @@ def teste_sisbajud_direto(numero_processo=None):
         try:
             if driver_pje is not None:
                 driver_pje.quit()
+        except Exception:
+            pass
+
+
+# ============================================================
+# TESTE 16: CARTA — fluxo completo (intimacoes + eCarta + juntada)
+# ============================================================
+
+def teste_carta_completa(id_processo=None):
+    """
+    Teste isolado do orquestrador carta() -- PEC/carta_execucao.py:
+        coletar_intimacoes -> coletar_tabela_ecarta -> formatar_dados_ecarta
+        -> salvar_conteudo_clipboard -> anex_carta (juntada)
+
+    Diferente de teste_anex_carta (que só testa a juntada isolada, assumindo
+    conteudo ja pronto no clipboard), este roda o fluxo completo do zero,
+    exatamente como em producao -- util pra depurar coleta de intimacoes e
+    correlacao com a tabela do eCarta.
+    """
+    from PEC.carta_execucao import carta
+
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_ANEX_CARTA, id_processo)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[CARTA_TEST] Teste isolado: carta() (fluxo completo)')
+    LOGGER.info('[CARTA_TEST] Processo: %s', url)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[CARTA_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_cpf(driver):
+                LOGGER.error('[CARTA_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[CARTA_TEST] Navegando para %s', url)
+            navegar_para_tela(driver, url=url)
+
+        with etapa('carta'):
+            LOGGER.info('[CARTA_TEST] Executando carta()...')
+            resultado = carta(driver, log=True)
+            LOGGER.info('[CARTA_TEST] carta() -> %s', resultado)
+
+        LOGGER.info('[CARTA_TEST] concluido')
+
+    except Exception:
+        LOGGER.exception('[CARTA_TEST] Erro nao tratado')
+
+    finally:
+        LOGGER.info('[CARTA_TEST] encerrando driver')
+        try:
+            if driver is not None:
+                driver.quit()
         except Exception:
             pass
 
@@ -1507,7 +1549,9 @@ if __name__ == '__main__':
         teste_pec_excluiargos(id_p)
     elif teste in ('sisbdir', '15'):
         teste_sisbajud_direto(id_p)
+    elif teste in ('carta_completa', 'carta_full', 'fluxo_carta', '16'):
+        teste_carta_completa(id_p)
     else:
         print(f'Teste desconhecido: {teste}')
-        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, juntada, triagem, probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, todos')
+        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, juntada, triagem, probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, carta_completa, todos')
         print('Uso: py f.py <teste> [id_processo]')

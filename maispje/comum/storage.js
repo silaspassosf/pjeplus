@@ -31,8 +31,7 @@ function preencherVariaveisComuns(preferencias, restaurar=false) {
 	preferencias.modoNoite = typeof(preferencias.modoNoite) == "undefined" ? false : preferencias.modoNoite;
 
 	//LGPD
-	if (preferencias.modoLGPD) { ativarLGPD() }
-
+    ativarLGPD(preferencias.modoLGPD);
 	//Modo Noite
 	ativarModoNoite(preferencias.modoNoite);
 
@@ -49,9 +48,13 @@ function preencherVariaveisComuns(preferencias, restaurar=false) {
 	preferencias.tempAR = typeof(preferencias.tempAR) == "undefined" ? "" : preferencias.tempAR;
 	preferencias.tempBt = typeof(preferencias.tempBt) == "undefined" ? [] : preferencias.tempBt;
 	preferencias.tempAAEspecial = typeof(preferencias.tempAAEspecial) == "undefined" ? [] : preferencias.tempAAEspecial;
+    preferencias.atalhosDelay = typeof(preferencias.atalhosDelay) == "undefined" ? 2 : preferencias.atalhosDelay;
 	preferencias.tempF2 = typeof(preferencias.tempF2) == "undefined" ? "" : preferencias.tempF2;
 	preferencias.tempF3 = typeof(preferencias.tempF3) == "undefined" ? "" : preferencias.tempF3;
 	preferencias.tempF4 = typeof(preferencias.tempF4) == "undefined" ? "" : preferencias.tempF4;
+    preferencias.tempF6 = typeof(preferencias.tempF6) == "undefined" ? "" : preferencias.tempF6;
+    preferencias.tempF7 = typeof(preferencias.tempF7) == "undefined" ? "" : preferencias.tempF7;
+    preferencias.tempF8 = typeof(preferencias.tempF8) == "undefined" ? "" : preferencias.tempF8;
     preferencias.ctrlv = typeof(preferencias.ctrlv) == "undefined" ? "" : preferencias.ctrlv;
 
 	preferencias.modulo4PaginaInicial = typeof(preferencias.modulo4PaginaInicial) == "undefined" ? 'nenhum' : preferencias.modulo4PaginaInicial;
@@ -194,6 +197,7 @@ function preencherVariaveisModulo6(preferencias) {
 	preferencias.emailAutomatizado = typeof (preferencias.emailAutomatizado) == "undefined" ? new EmailAutomatizado("Processo n. #{processo} (#{tipoDocumento} Id. #{idDocumento})", "Encaminho o(a) #{tipoDocumento} (Id. #{idDocumento}), expedido no processo #{processo}, para ciência ou cumprimento.\n\nO documento poderá ser acessado via internet mediante o seguinte link: #{autenticacao}\n\nAtenciosamente,", "#{servidor}\nDiretor de Secretaria\n#{OJServidor}", false, '') : preferencias.emailAutomatizado;
 	preferencias.emailAutomatizado.destinatario = typeof (preferencias.emailAutomatizado.destinatario) == "undefined" ? false : preferencias.emailAutomatizado.destinatario;
 	preferencias.emailAutomatizado.ignorar = typeof (preferencias.emailAutomatizado.ignorar) == "undefined" ? false : preferencias.emailAutomatizado.ignorar;
+    preferencias.emailAutomatizado.AAVinculo = typeof (preferencias.emailAutomatizado.AAVinculo) == "undefined" ? 'Nenhum' : preferencias.emailAutomatizado.AAVinculo;
 }
 
 /**
@@ -250,9 +254,6 @@ function preencherVariaveisConvenios(preferencias) {
 	preferencias.prevjud.opt1 = preferencias.prevjud.opt1 ? preferencias.prevjud.opt1 : false;
 
 	preferencias.renajud = typeof(preferencias.renajud) == "undefined" ? {tipo_restricao: "", comarca: "", tribunal: "", orgao: "", juiz: "", juiz2: ""} : preferencias.renajud;
-
-	preferencias.saj = typeof(preferencias.saj) == "undefined" ? { vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "", periodo:"Nenhum" } : preferencias.saj;
-    preferencias.saj.periodo = (!preferencias.saj.periodo) ? 'Nenhum' : preferencias.saj.periodo;
 }
 
 /**
@@ -263,8 +264,7 @@ function preencherVariaveisModulo9(preferencias) {
 	preferencias.modulo9 = typeof (preferencias.modulo9) == "undefined" ? { sisbajud: true, renajud: true, cnib: cnibNovaConfiguracao, serasajud: true, ccs: [true, false, false, false, false, 5], crcjud: true, onr: false, gprec: true, ajjt: true, siscondj: [true, 10], garimpo: [true, ""], sif: [true, 10], pjecalc: true, prevjud: true, protestojud: true, sniper: true, censec: true, celesc: true, casan: true, sigef: true, infoseg: true, ecarta: true, saj: true } : preferencias.modulo9;
 	preferencias.modulo9.cnib = typeof (preferencias.modulo9.cnib) == "undefined" ? cnibNovaConfiguracao : preferencias.modulo9.cnib;
 	preferencias.modulo9.cnib = Array.isArray(preferencias.modulo9.cnib) ? cnibNovaConfiguracao : preferencias.modulo9.cnib;
-
-	preferencias.modulo9.ccs = Array.isArray(preferencias.modulo9.ccs) ? preferencias.modulo9.ccs : [preferencias.modulo9.ccs,false,false,false,false,5,'Nenhum','Nenhum'];
+    preferencias.modulo9.ccs = Array.isArray(preferencias.modulo9.ccs) ? preferencias.modulo9.ccs : [preferencias.modulo9.ccs,false,false,false,false,5,'Nenhum','Nenhum'];
 	preferencias.modulo9.ccs[6] = (preferencias.modulo9.ccs[6] ? preferencias.modulo9.ccs[6] : 'Nenhum');
     preferencias.modulo9.ccs[7] = (preferencias.modulo9.ccs[7] ? preferencias.modulo9.ccs[7] : 'Nenhum');
 	preferencias.modulo9.sif = (preferencias.modulo9.sif[1]) ? preferencias.modulo9.sif : [true,10];
@@ -274,9 +274,24 @@ function preencherVariaveisModulo9(preferencias) {
 	preferencias.modulo9.gprec = preferencias.modulo9.gprec[1] ? preferencias.modulo9.gprec : [true,5,false];
 	preferencias.modulo9.gprec = !preferencias.modulo9.gprec[2] ? [preferencias.modulo9.gprec[0],preferencias.modulo9.gprec[1],false] : [preferencias.modulo9.gprec[0],preferencias.modulo9.gprec[1],preferencias.modulo9.gprec[2]];
 	preferencias.modulo9.gprec = !preferencias.modulo9.gprec[3] ? [preferencias.modulo9.gprec[0],preferencias.modulo9.gprec[1],preferencias.modulo9.gprec[2],'rpv'] : [preferencias.modulo9.gprec[0],preferencias.modulo9.gprec[1],preferencias.modulo9.gprec[2],preferencias.modulo9.gprec[3]];
-	if (!Array.isArray(preferencias.modulo9.garimpo)) { preferencias.modulo9.garimpo = [preferencias.modulo9.garimpo,''] }
+
+    if (preferencias.saj) {
+        console.log('teste')
+        preferencias.modulo9.saj = (preferencias.modulo9.saj) ? preferencias.modulo9.saj : preferencias.saj;
+        //exclui definitivamente o item do storage.. se entrou é porque o item existe, não precisa verificar
+        browser.storage.local.remove('saj')
+        .then(() => console.debug('Item removido do storage: saj'))
+        .catch(error => console.error(error));
+    }
+    //preferencias.modulo9.siscondj[2] = typeof(preferencias.modulo9.siscondj[2]) == "undefined" ? true : preferencias.modulo9.siscondj[2];
+    preferencias.modulo9.saj = (preferencias.modulo9.saj) ? preferencias.modulo9.saj : { ativar: false, vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "", periodo: "Nenhum", salvarEprotocolar: "nao", vinculoSAJ1: "Nenhum", vinculoSAJ2: "Nenhum" };
+    preferencias.modulo9.saj = (preferencias.modulo9.saj === true) ? { ativar: false, vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "", periodo: "Nenhum", salvarEprotocolar: "nao", vinculoSAJ1: "Nenhum", vinculoSAJ2: "Nenhum" } : preferencias.modulo9.saj;
+
+    if (!Array.isArray(preferencias.modulo9.garimpo)) { preferencias.modulo9.garimpo = [preferencias.modulo9.garimpo,''] }
 	//TODO
 	if (!Array.isArray(preferencias.modulo9.ecarta)) { preferencias.modulo9.ecarta = [preferencias.modulo9.ecarta,''] }
+
+    preferencias.modulo9.googlePlanilhas = typeof (preferencias.modulo9.googlePlanilhas) == "undefined" ? [true,true,true] : preferencias.modulo9.googlePlanilhas;
 
 }
 
@@ -298,8 +313,6 @@ function preencherVariaveisModulo11(preferencias) {
 	preferencias.modulo11 = typeof (preferencias.modulo11) == "undefined" ? [] : preferencias.modulo11;
 	preferencias.modulo11_AssinarAutomaticamente = typeof (preferencias.modulo11_AssinarAutomaticamente) == "undefined" ? false : preferencias.modulo11_AssinarAutomaticamente;
 }
-
-
 /** @param {Partial<Preferencias>} preferencias */
 function preencherVariaveisModuloExtras(preferencias) {
 	preferencias.zoom_editor = typeof(preferencias.zoom_editor) == "undefined" ? 1 : preferencias.zoom_editor;
@@ -312,6 +325,7 @@ function preencherVariaveisModuloExtras(preferencias) {
 	preferencias.extrasTiposDocumentoCustas =  preferencias.extrasTiposDocumentoCustas ?? 'Custas, emolumentos, Preparo';
 	preferencias.extrasTiposDocumentoDepositoRecursal =  preferencias.extrasTiposDocumentoDepositoRecursal ?? 'Recursal, Preparo';
 	preferencias.extrasExibirPreviaDocumentoMouseOver = preferencias.extrasExibirPreviaDocumentoMouseOver ?? false;
+    preferencias.extrasExibirBTFecharPreviaDocumento = preferencias.extrasExibirBTFecharPreviaDocumento ?? true;
 	preferencias.extrasExibirPreviaDocumentoFocus = preferencias.extrasExibirPreviaDocumentoFocus ?? false;
 	preferencias.extrasFocusSempre = preferencias.extrasFocusSempre ?? false;
     preferencias.extrasAcionarBotoesSemCliqueAtivar = preferencias.extrasAcionarBotoesSemCliqueAtivar ?? false;
@@ -392,8 +406,9 @@ async function checarVariaveis(restaurar=false) {
 			preferencias.modulo9.ecarta[1] = '';
 			await guardarModulo9();
 		}
+
 		if (typeof(preferencias.modulo9.saj) == "undefined") {
-			preferencias.modulo9.saj = true;
+			preferencias.modulo9.saj = { ativar: false, vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "", periodo: "Nenhum", salvarEprotocolar: "nao", vinculoSAJ1: "Nenhum", vinculoSAJ2: "Nenhum" };
 			await guardarModulo9();
 		}
 

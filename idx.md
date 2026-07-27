@@ -1,6 +1,6 @@
 # PJePlus — Índice de Navegação Precisa (IDX)
 
-Atualizado: 2026-05-11 (granularização cirúrgica pós-agentes)
+Atualizado: 2026-07-24 (removido registro de bugs — idx.md cobre apenas arquitetura e referência de funções)
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 
@@ -102,7 +102,7 @@ Arquivos agrupados pelo QUE fazem, independente de ONDE estão:
 | Aguardar renderização Angular | `Fix/core.py` | `aguardar_renderizacao_nativa` — usar em vez de `time.sleep` |
 | Preencher campo Angular Material | `Fix/core.py` | `preencher_campo` |
 | Selecionar opção (mat-select) | `Fix/core.py` | `selecionar_opcao` |
-| Retry genérico | `Fix/core.py` | `com_retry` |
+| Retry genérico | `Fix/core.py` | `com_retry` — usar `log=True`; se importado direto de `Fix.selenium_base.retry_logic`, o parâmetro é `log_enabled=True` |
 | Busca inteligente de seletor | `Fix/core.py` | `buscar_seletor_robusto`, `encontrar_elemento_inteligente` |
 | JS base | `Fix/core.py` | `js_base` |
 | Scroll seguro (headless) | `Fix/browser_suporte.py` | `scroll_to_element_safe` |
@@ -208,11 +208,15 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `idpj` | `atos/judicial_helpers.py` |
 | `indexar`, `indexar_processos` | `Fix/extracao.py` |
 | `juntada`, `juntar`, `wrapper_juntada` | `PEC/anexos/anexos_juntador_base.py` |
+| `abrir_interface_anexacao`, `menu anexar`, `hamburguer` | `PEC/anexos/anexos_juntador_helpers.py` (`_abrir_interface_anexacao` — clique no menu hambúrguer → "Anexar Documentos" → troca de aba) |
 | `login`, `login_cpf`, `login_manual` | `Fix/utils.py` |
+| `link_ato_validacao`, `link de validacao`, `obter_chave_ultimo_despacho_decisao_sentenca` | `atos/comunicacao_coleta.py::executar_coleta_conteudo` (chama a API e salva no clipboard interno) → `Fix/variaveis.py::obter_chave_ultimo_despacho_decisao_sentenca` (seleciona o Sentença/Decisão/Despacho mais recente via API, filtra edital/concomitância) → `Fix/utils.py::inserir_link_ato`/`inserir_link_ato_validacao` (lê o clipboard e cola no modelo, link + conteúdo condensado junto). ⚠️ NÃO CONFUNDIR com `Andrei/helpers.py::obter_chave_ultimo_despacho_decisao_sentenca` — mesmo nome, porém cópia standalone isolada usada apenas pelo módulo Petição (`Andrei/`), nunca chamada pelo fluxo PEC/comunicação |
+| `condensar_conteudo_documento`, `conteudo_formatado`, `transcricao` | `Fix/variaveis.py::condensar_conteudo_documento` (formata texto já lido via API no padrão "Transcrição do(a) X (ID Y): "..."", igual ao botão Copiar do maispje — `maispje/PJe-Atual/gigs-plugin.js::copiarDocumentoProcesso`, linha ~10602) — salvo no clipboard com `tipo_conteudo="conteudo_formatado"`, consumido por `Fix/utils.py::inserir_conteudo_formatado` |
 | `mandado`, `mandados_devolvidos` | `Mandado/entrada_api.py` |
 | `medir_tempo`, `tempo_execucao` | `Fix/core.py` (decorator `medir_tempo`) |
 | `minuta`, `minutar`, `modelo` | `atos/judicial_modelos.py`, `atos/comunicacao_preenchimento.py` |
 | `modelo_insercao`, `snackbar` | `atos/comunicacao_preenchimento.py` (`aguardar_ato_confeccionado`) |
+| `tipo_expediente`, `escolher_opcao_select_js` | `atos/comunicacao_preenchimento.py` (linhas ~52-84 def, chamada no passo 1 de `executar_preenchimento_minuta`) — versão legado de referência: `LEGADO.md` linhas 1690-1718 (`_escolher_opcao_select_js`) |
 | `movimentar`, `mov`, `mov_simples` | `atos/movimentos_fluxo.py` (IMPLEMENTAÇÃO REAL), `atos/movimentos.py` (FACHADA) |
 | `mov_arquivar`, `mov_exec`, `mov_aud` | `atos/wrappers_mov.py` |
 | `mov_sob`, `sobrestamento` | `atos/movimentos_sobrestamento.py` |
@@ -229,7 +233,8 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `retirar_sigilo`, `visibilidade_sigilosos` | `Mandado/apoio_fluxos.py`, `Fix/core.py` |
 | `run_batch`, `resultado_ok`, `resultado_falha` | `utilitarios_processamento.py` (genérico), `bianca/utils.py` (cópia) |
 | `selecionar_opcao` | `Fix/core.py` |
-| `sisbajud`, `minuta_bloqueio` | `SISB/core.py`, `PEC/anexos/anexos_sisbajud.py` |
+| `sisbajud`, `minuta_bloqueio` | `SISB/core.py` (`processar_ordem_sisbajud` — entry point real de processamento de ordens; `driver_sisbajud()` tenta `criar_driver_sisb_pc` e cai para `criar_driver_sisb_vt` automaticamente — não depende de `driver_config.py`, módulo externo que NÃO existe neste repo), `PEC/anexos/anexos_sisbajud.py`, `SISB/processamento/minutas_campos.py` (preenchimento de campos iniciais: juiz, vara/juízo, ação, CPF, calendário), `SISB/processamento/minutas_salvar.py` (salvar/verificar minuta), `SISB/processamento/series_fluxo.py::_processar_series` (loop principal: navega séries → ordens, throttle + backoff anti-deteccao), `SISB/processamento/ordens_acao.py::_aplicar_acao_por_fluxo` (aplica Transferir/Desbloquear por instituição com saldo) |
+| `captcha`, `anti_deteccao`, `rate_limit_sisbajud` | `SISB/Core/utils_web.py` (`detectar_captcha`, `anti_detection_measures`, `smart_wait`, `aplicar_rate_limiting`) — chamado a partir de `SISB/processamento/series_fluxo.py::_processar_series` (proativo antes de cada ordem + reativo no handler de erro) |
 | `sob`, `def_sob` | `PEC/regras_execucao.py` |
 | `timeline`, `documento_por_id` | `Fix/variaveis.py` (`PjeApiClient`) |
 | `triagem`, `run_triagem` | `bianca/triagem_engine.py` (runner), `Triagem/` (cópia legada) |
@@ -276,7 +281,7 @@ x.py: executar_prazo()
           ├─ testar_gigs_sem_prazo() [API: GIGS API]
           ├─ Prazo/p2b_documentos.py: _encontrar_documento_relevante() [DOM: timeline]
           ├─ Prazo/p2b_gateway.py: extrair_documento_relevante() [API: /timeline → /conteudo → pdfplumber]
-          └─ Prazo/p2b_regras_execucao.py: CriteriaMatcher + RegraProcessamento
+          └─ Prazo/p2b_documentos.py: _processar_regras_gerais (varredura sequencial regex → ação, ver _definir_regras_processamento)
 ```
 
 ### Fluxo E — PEC
@@ -398,7 +403,7 @@ Estes arquivos têm ≤30 linhas e apenas re-exportam de `facade_publica.py` ou 
 |---|---|---|---|
 | **Mandado** | `Mandado/entrada_api.py::processar_mandados_devolvidos_api` | `Mandado/fluxo_argos.py::processar_argos` | `Mandado/regras.py::aplicar_regras_argos` |
 | **Prazo** | `Prazo/loop_orquestrador.py::loop_prazo` | `Prazo/loop_lote.py`, `Prazo/loop_execucao_final.py` | N/A (regras embutidas nos loops) |
-| **P2B** | `Prazo/p2b_gateway.py::processar_gigs_sem_prazo_p2b` | `Prazo/p2b_gateway.py` | `Prazo/p2b_regras_execucao.py::CriteriaMatcher` |
+| **P2B** | `Prazo/p2b_gateway.py::processar_gigs_sem_prazo_p2b` | `Prazo/p2b_gateway.py` | `Prazo/p2b_documentos.py::_processar_regras_gerais` (lista em `p2b_regras_execucao.py::_definir_regras_processamento`) |
 | **PEC** | `PEC/runtime_pec.py::executar_fluxo_novo_simplificado` | `PEC/runtime_pec.py::PECOrquestrador` | `PEC/regras_execucao.py::determinar_regra` |
 | **Triagem** | `bianca/triagem_engine.py::run_triagem` | `bianca/triagem/runner.py` | `Triagem/regras.py::determinar_acao_pos_triagem` |
 | **Petição** | `Peticao/runtime_pet.py::run_pet` | `Peticao/runtime_pet.py::PETOrquestrador` | `Peticao/regras_execucao.py::classificar` |
@@ -529,34 +534,25 @@ git show 2ab0fca:<caminho/do/arquivo.py>
 
 ---
 
-## 10. Registro de Bugs
-
-| Data | ID | Módulo | Sintoma | Causa Raiz | Fix |
-|---|---|---|---|---|---|
-| 31/03/2026 | #001 | `Fix/navigation/filters.py` | `aplicar_filtro_100` retorna False silencioso | `com_retry` chamado com `log=True` mas implementação usa `log_enabled` → TypeError silencioso | Trocar `log=True` → `log_enabled=True` |
-
-**Regra do Bug #001:** Preferir sempre `from Fix.core import com_retry` e usar `log=True`. Se importar direto de `Fix.selenium_base.retry_logic`, usar `log_enabled=True`.
-
----
-
-## 11. Extensões Firefox (referência JS)
+## 10. Extensões Firefox (referência JS)
 
 | Diretório | Descrição |
 |---|---|
 | `AVJT/` | Extensão principal: painéis, GIGS, cálculos, captcha, correios |
-| `maispje/` | Extensão complementar: interface PJe avançada |
+| `maispje/` | Extensão complementar: interface PJe avançada — referência de seletores/endpoints já validados (ex. `maispje/PJe-Atual/gigs-plugin.js::acao2`, `maispje/comum/mini-selenium.js::simularDigitacaoDeTexto`) |
 
 ---
 
-## 12. Ferramentas e Suporte
+## 11. Ferramentas e Suporte
 
 | Diretório | Descrição |
 |---|---|
 | `Agente/` | Extensão VSCode para PJePlus (TypeScript) |
 | `AHK/` | Scripts AutoHotKey (UX Windows) |
 | `scripts/` | Scripts auxiliares |
-| `tools/` | Ferramentas de diagnóstico e análise |
+| `tools/` | Ferramentas de diagnóstico e análise — inclui `tools/pje_probe.user.js` (userscript "PJe Probe": grava seletores clicados + endpoints fetch/XHR durante navegação manual, para mapear fluxos antes de automatizar) |
 | `docs/` | Documentação complementar |
+| `play/` | Backend **Playwright** (`play/pjeplay/`) — implementa a superfície WebDriver sobre Playwright e se registra em `sys.modules` no lugar do `selenium`. Não é cópia do projeto: `Fix/`, `atos/`, `PEC/` etc. rodam sem alteração. Entrada: `py play/rodar.py`; verificação: `py play/smoke.py --projeto`. Detalhes em `play/README.md` |
 | `xcode/` | Plano de simplificação (9 docs + README) |
 | `_archive/` | Código removido/legado organizado por data |
 | `ref/` | Referência externa e manifests de arquitetura |

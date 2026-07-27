@@ -13,9 +13,6 @@ var aaVariados_temp = [
 	{id:"Atualizar Pagina",nm_botao:"Atualizar Pagina",descricao:"Ação Automatizada para ATUALIZAR a janela DETALHES DO PROCESSO",temporizador:"1",ativar:true},
 	{id:"Fechar Pagina",nm_botao:"Fechar Pagina",descricao:"Ação Automatizada para fechar a janela DETALHES DO PROCESSO",temporizador:"3",ativar:true},
 	{id:"Apreciar Peticoes",nm_botao:"Apreciar Peticoes",descricao:"Ação Automatizada para apreciar petições na janela DETALHES DO PROCESSO",temporizador:"1",ativar:true},
-	{id:"Atalho F2",nm_botao:"Atalho F2",descricao:"Funcionalidade do Menu KAIZEN: Permite ativar/desativar a criação de uma área na tela para acionar a tecla 'F2' ao repousar o mouse em cima pelo tempo ajustado no 'temporizador'.",temporizador:"2",ativar:true},
-	{id:"Atalho F3",nm_botao:"Atalho F3",descricao:"Funcionalidade do Menu KAIZEN: Permite ativar/desativar a criação de uma área na tela para acionar a tecla 'F3' ao repousar o mouse em cima pelo tempo ajustado no 'temporizador'.",temporizador:"2",ativar:true},
-	{id:"Atalho F4",nm_botao:"Atalho F4",descricao:"Funcionalidade do Menu KAIZEN: Permite ativar/desativar a criação de uma área na tela para acionar a tecla 'F4' ao repousar o mouse em cima pelo tempo ajustado no 'temporizador'.",temporizador:"2",ativar:true},
 	{id:"SISBAJUD F2",nm_botao:"SISBAJUD F2",descricao:"Funcionalidade SISBAJUD: ativa automaticamente uma minuta de bloqueio de valores sobre o polo passivo no convênio SISBAJUD. A janela do convênio precisa estar aberta e visível.",temporizador:"2",ativar:true},
 	{id:"Assinar Expedientes",nm_botao:"Assinar Expedientes",descricao:"Ação Automatizada que permite assinar os expedientes em lote.",temporizador:"0",ativar:true},
 	{id:"Assinar Documentos",nm_botao:"Assinar Documentos",descricao:"Ação Automatizada que permite assinar em lote documentos pendentes no Anexar Documento.",temporizador:"0",ativar:true},
@@ -292,6 +289,7 @@ async function mostrarOpcoes(restaurar=false) {
 		document.getElementById("corpo_email").value = preferencias.emailAutomatizado.corpo;
 		document.getElementById("assinatura_email").value = preferencias.emailAutomatizado.assinatura;
 		document.getElementById("modulo6_destinatario").checked = preferencias.emailAutomatizado.destinatario;
+        document.getElementById("escolherAAVinculoModulo6").value = preferencias.emailAutomatizado.AAVinculo;
 
 		if (preferencias.emailAutomatizado.destinatario) {
 			document.getElementById("modulo6_ignorar").value = preferencias.emailAutomatizado.ignorar;
@@ -316,6 +314,17 @@ async function mostrarOpcoes(restaurar=false) {
 			}
 			salvarOpcoes();
 		});
+
+        document.getElementById('escolherAAVinculoModulo6').addEventListener('input', () => {
+            preferencias.emailAutomatizado.AAVinculo = document.getElementById('escolherAAVinculoModulo6').value;
+            salvarOpcoes();
+        });
+        document.getElementById('apagar-escolherAAVinculoModulo6').addEventListener('click', () => {
+            document.getElementById('escolherAAVinculoModulo6').value = '';
+            preferencias.emailAutomatizado.AAVinculo = '';
+            salvarOpcoes()
+        });
+
 		document.getElementById("salvarConfig").addEventListener('click', salvarConfig);
 		document.getElementById("recuperarConfig").addEventListener('click', recuperarConfig);
 
@@ -414,8 +423,11 @@ async function mostrarOpcoes(restaurar=false) {
 		document.getElementById("convenio_infoseg").addEventListener('click', function(event) {modulo9('infoseg')});
 		document.getElementById("convenio_ecarta").style.backgroundColor = (preferencias.modulo9.ecarta) ? '#2196F3' : '#b0b0b0';
 		document.getElementById("convenio_ecarta").addEventListener('click', function(event) {modulo9('ecarta')});
-		document.getElementById("convenio_saj").style.backgroundColor = (preferencias.modulo9.ecarta) ? '#2196F3' : '#b0b0b0';
+		document.getElementById("convenio_saj").style.backgroundColor = (preferencias.modulo9.saj.ativar) ? '#2196F3' : '#b0b0b0';
 		document.getElementById("convenio_saj").addEventListener('click', function(event) {modulo9('saj')});
+        document.getElementById("convenio_googlePlanilhas").style.backgroundColor = (preferencias.modulo9.googlePlanilhas[0]) ? '#2196F3' : '#b0b0b0';
+		document.getElementById("convenio_googlePlanilhas").addEventListener('click', function(event) {modulo9('googlePlanilhas')});
+
 
 		listaModulo10_temp = preferencias.modulo10;
 		await montar_modulo10();
@@ -485,6 +497,73 @@ async function mostrarOpcoes(restaurar=false) {
 			});
 		});
 
+        //módulo ATALHOS
+        document.getElementById("atalhosDelay").value = preferencias.atalhosDelay;
+        document.getElementById('atalhosDelay').addEventListener('input', () => {
+            preferencias.atalhosDelay = document.getElementById('atalhosDelay').value;
+            salvarOpcoes();
+        });
+        document.getElementById("escolherAAVinculoAtalhoF2").value = preferencias.tempF2;
+        document.getElementById('escolherAAVinculoAtalhoF2').addEventListener('input', () => {
+            preferencias.tempF2 = document.getElementById('escolherAAVinculoAtalhoF2').value;
+            salvarOpcoes();
+        });
+        document.getElementById('apagar-escolherAAVinculoAtalhoF2').addEventListener('click', () => {
+            document.getElementById('escolherAAVinculoAtalhoF2').value = '';
+            preferencias.tempF2 = '';
+            salvarOpcoes();
+        });
+        document.getElementById("escolherAAVinculoAtalhoF3").value = preferencias.tempF3;
+        document.getElementById('escolherAAVinculoAtalhoF3').addEventListener('input', () => {
+            preferencias.tempF3 = document.getElementById('escolherAAVinculoAtalhoF3').value;
+            salvarOpcoes();
+        });
+        document.getElementById('apagar-escolherAAVinculoAtalhoF3').addEventListener('click', () => {
+            document.getElementById('escolherAAVinculoAtalhoF3').value = '';
+            preferencias.tempF3 = '';
+            salvarOpcoes()
+        });
+        document.getElementById("escolherAAVinculoAtalhoF4").value = preferencias.tempF4;
+        document.getElementById('escolherAAVinculoAtalhoF4').addEventListener('input', () => {
+            preferencias.tempF4 = document.getElementById('escolherAAVinculoAtalhoF4').value;
+            salvarOpcoes();
+        });
+        document.getElementById('apagar-escolherAAVinculoAtalhoF4').addEventListener('click', () => {
+            document.getElementById('escolherAAVinculoAtalhoF4').value = '';
+            preferencias.tempF4 = '';
+            salvarOpcoes()
+        });
+        document.getElementById("escolherAAVinculoAtalhoF6").value = preferencias.tempF6;
+        document.getElementById('escolherAAVinculoAtalhoF6').addEventListener('input', () => {
+            preferencias.tempF6 = document.getElementById('escolherAAVinculoAtalhoF6').value;
+            salvarOpcoes();
+        });
+        document.getElementById('apagar-escolherAAVinculoAtalhoF6').addEventListener('click', () => {
+            document.getElementById('escolherAAVinculoAtalhoF6').value = '';
+            preferencias.tempF6 = '';
+            salvarOpcoes()
+        });
+        document.getElementById("escolherAAVinculoAtalhoF7").value = preferencias.tempF7;
+        document.getElementById('escolherAAVinculoAtalhoF7').addEventListener('input', () => {
+            preferencias.tempF7 = document.getElementById('escolherAAVinculoAtalhoF7').value;
+            salvarOpcoes();
+        });
+        document.getElementById('apagar-escolherAAVinculoAtalhoF7').addEventListener('click', () => {
+            document.getElementById('escolherAAVinculoAtalhoF7').value = '';
+            preferencias.tempF7 = '';
+            salvarOpcoes()
+        });
+        document.getElementById("escolherAAVinculoAtalhoF8").value = preferencias.tempF8;
+        document.getElementById('escolherAAVinculoAtalhoF8').addEventListener('input', () => {
+            preferencias.tempF8 = document.getElementById('escolherAAVinculoAtalhoF8').value;
+            salvarOpcoes();
+        });
+        document.getElementById('apagar-escolherAAVinculoAtalhoF8').addEventListener('click', () => {
+            document.getElementById('escolherAAVinculoAtalhoF8').value = '';
+            preferencias.tempF8 = '';
+            salvarOpcoes()
+        });
+
 		function preencherCampoDasPreferencias(id, valor, acaoSalvar = salvarOpcoes) {
 			/** @type {HTMLInputElement} */
 			const campo = document.querySelector(id);
@@ -528,6 +607,7 @@ async function mostrarOpcoes(restaurar=false) {
 		preencherCampoDasPreferencias('#extrasTiposDocumentoSentencasAcordao', preferencias.extrasTiposDocumentoSentencasAcordao);
 
 		preencherCampoDasPreferencias('#extrasExibirPreviaDocumentoMouseOver', preferencias.extrasExibirPreviaDocumentoMouseOver);
+        preencherCampoDasPreferencias('#extrasExibirBTFecharPreviaDocumento', preferencias.extrasExibirBTFecharPreviaDocumento);
 		preencherCampoDasPreferencias('#extrasExibirPreviaDocumentoFocus', preferencias.extrasExibirPreviaDocumentoFocus);
 		preencherCampoDasPreferencias('#extrasERecTipoGigsSemTema', preferencias.extrasERecTipoGigsSemTema);
 
@@ -761,10 +841,18 @@ async function salvarOpcoes() {
 			kaizenNaHorizontal: document.querySelector('#kaizenNaHorizontal').checked,
 			extrasTiposDocumentoProcuracao: /** @type {HTMLInputElement} */ (document.querySelector('#extrasTiposDocumentoProcuracao'))?.value,
 			modulo10_salaFavorita: /** @type {HTMLInputElement} */ (document.querySelector('#modulo10_salaFavorita'))?.value,
-			extrasTiposDocumentoCustas: document.querySelector('#extrasTiposDocumentoCustas')?.value,
+			atalhosDelay: preferencias.atalhosDelay,
+            tempF2: preferencias.tempF2,
+            tempF3: preferencias.tempF3,
+            tempF4: preferencias.tempF4,
+            tempF6: preferencias.tempF6,
+            tempF7: preferencias.tempF7,
+            tempF8: preferencias.tempF8,
+            extrasTiposDocumentoCustas: document.querySelector('#extrasTiposDocumentoCustas')?.value,
 			extrasTiposDocumentoDepositoRecursal: document.querySelector('#extrasTiposDocumentoDepositoRecursal')?.value,
 			extrasTiposDocumentoSentencasAcordao: document.querySelector('#extrasTiposDocumentoSentencasAcordao')?.value,
 			extrasExibirPreviaDocumentoMouseOver: document.querySelector('#extrasExibirPreviaDocumentoMouseOver')?.checked,
+            extrasExibirBTFecharPreviaDocumento: document.querySelector('#extrasExibirBTFecharPreviaDocumento')?.checked,
 			extrasExibirPreviaDocumentoFocus: document.querySelector('#extrasExibirPreviaDocumentoFocus').checked,
 			extrasFocusSempre: document.querySelector('#extrasFocusSempre').checked,
             extrasAcionarBotoesSemCliqueAtivar: document.querySelector('#extrasAcionarBotoesSemCliqueAtivar').checked,
@@ -2320,7 +2408,7 @@ async function modulo9(convenio) {
                     '<br aria-hidden="true"><br aria-hidden="true"><label for="swal-input3" style="font-weight: bold;"> Escolher Ação Automatizada para executar após o DOWNLOAD da resposta </label>' +
                     '<br aria-hidden="true"><div style="display: grid;grid-template-columns: 5fr 1fr;align-items: center;padding-top: 20px;"><button id="escolherAAVinculoAACCS2" aria-description="Escolher Ação Automatizada para executar após o DOWNLOAD da resposta" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
 					aaCCS2 +
-					'</button><button id="apagar-escolherAAVinculoAACCS2" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de INCLUSÃO" aria-label="Remover Ação Automatizada para executar após o DOWNLOAD da resposta" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>',
+					'</button><button id="apagar-escolherAAVinculoAACCS2" data-tooltip="Remover Ação Automatizada após DOWNLOAD da resposta" aria-label="Remover Ação Automatizada para executar após o DOWNLOAD da resposta" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>',
 
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2810,57 +2898,78 @@ async function modulo9(convenio) {
 			}
 			break
 		case 'saj':
-            preferencias.saj.periodo = (!preferencias.saj.periodo) ? 'Nenhum' : preferencias.saj.periodo;
-			let { value: resultsaj } = await Swal.fire({
+            preferencias.modulo9.saj.periodo = (!preferencias.modulo9.saj.periodo) ? 'Nenhum' : preferencias.modulo9.saj.periodo;
+            preferencias.modulo9.saj.salvarEprotocolar = (!preferencias.modulo9.saj.salvarEprotocolar) ? 'nao' : preferencias.modulo9.saj.salvarEprotocolar;
+            preferencias.modulo9.saj.vinculoSAJ1 = (!preferencias.modulo9.saj.vinculoSAJ1) ? 'Nenhum' : preferencias.modulo9.saj.vinculoSAJ1;
+            preferencias.modulo9.saj.vinculoSAJ2 = (!preferencias.modulo9.saj.vinculoSAJ2) ? 'Nenhum' : preferencias.modulo9.saj.vinculoSAJ2;
+
+            let salvarEprotocolarDisabled = preferencias.modulo9.saj.salvarEprotocolar == 'sim' ? true : false;
+
+            let { value: resultsaj } = await Swal.fire({
 				title: 'SAJ (AFASTAMENTO DE SIGILO BANCÁRIO)',
 				html:
 				'A extensão leva a varinha mágica para dentro do SAJ (AFASTAMENTO DE SIGILO BANCÁRIO). Com isso na tela de cadastro de nova ordem, ao acioná-la, basta escolher os executados para pesquisa e pronto, a extensão faz a inclusão de todos pra você.Ela também preenche o número do processo nas telas de consulta e cancelamento para facilitar a busca.<br><br>' +
-				'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.saj ? ' checked ' : '') + '>' +
+				'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.saj.ativar ? ' checked ' : '') + '>' +
 				'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><div style="display: grid;grid-template-columns: 1fr 1fr;align-items: center;">' +
 				'<label for="swal-input1" style="font-weight: bold;"> Vara da ordem: </label>' +
-				'<input id="swal-input1" class="swal2-input"" value="' + preferencias.saj.vara + '">' +
+				'<input id="swal-input1" class="swal2-input"" value="' + preferencias.modulo9.saj.vara + '">' +
 				'<label for="swal-input2" style="font-weight: bold;"> Juiz solicitante da Ordem: </label>' +
-				'<input id="swal-input2" class="swal2-input"" value="' + preferencias.saj.juiz + '" style="margin-bottom: 0;">' +
+				'<input id="swal-input2" class="swal2-input"" value="' + preferencias.modulo9.saj.juiz + '" style="margin-bottom: 0;">' +
 				'<span style="font-weight: bold;" aria-hidden="true"> </span>' +
 				'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;"> Para usar a regra do Módulo 8 digite: MODULO8 </span>' +
 				'<label for="swal-input3" style="font-weight: bold;"> Prazo da resposta: </label>' +
-				'<input id="swal-input3" class="swal2-input"" value="' + preferencias.saj.prazoResposta + '">' +
+				'<input id="swal-input3" class="swal2-input"" value="' + preferencias.modulo9.saj.prazoResposta + '">' +
 				'<span style="font-weight: bold;"> Informações Solicitadas </span>' +
 				'<span style="font-weight: bold;" aria-hidden="true"> </span>' +
 				'<label for="swal2-extratomercantil" class="swal2-label" style="text-align: right; padding: 20px 0 10px 0;"> Extrato Mercantil </label>' +
-				'<span style="text-align: left; padding: 20px 0 10px 0;"><input type="checkbox" id="swal2-extratomercantil"' + (preferencias.saj.extratomercantil ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 20px 0 10px 0;"><input type="checkbox" id="swal2-extratomercantil"' + (preferencias.modulo9.saj.extratomercantil ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-extratomovimentacao" class="swal2-label" style=" padding: 10px 0;text-align: right;"> Extrato de movimentação - Carta-Circular 3454 (Simba)</label>' +
-				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-extratomovimentacao"' + (preferencias.saj.extratomovimentacao ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-extratomovimentacao"' + (preferencias.modulo9.saj.extratomovimentacao ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-extratomovfinanceira" class="swal2-label" style=" padding: 10px 0;text-align: right;"> Extrato de aplicações financeiras</label>' +
-				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-extratomovfinanceira"' + (preferencias.saj.extratomovfinanceira ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-extratomovfinanceira"' + (preferencias.modulo9.saj.extratomovfinanceira ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-faturacartaocredito" class="swal2-label" style=" padding: 10px 0;text-align: right;"> Fatura de cartão de crédito</label>' +
-				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-faturacartaocredito"' + (preferencias.saj.faturacartaocredito ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-faturacartaocredito"' + (preferencias.modulo9.saj.faturacartaocredito ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-propostaaberturaconta" class="swal2-label" style=" padding: 10px 0;text-align: right;"> Proposta de abertura de conta</label>' +
-				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-propostaaberturaconta"' + (preferencias.saj.propostaaberturaconta ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-propostaaberturaconta"' + (preferencias.modulo9.saj.propostaaberturaconta ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-contratocambio" class="swal2-label" style=" padding: 10px 0;text-align: right;"> Contrato de Câmbio</label>' +
-				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-contratocambio"' + (preferencias.saj.contratocambio ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-contratocambio"' + (preferencias.modulo9.saj.contratocambio ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-registrocambio" class="swal2-label" style=" padding: 10px 0;text-align: right;"> Registro de Câmbio</label>' +
-				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-registrocambio"' + (preferencias.saj.registrocambio ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-registrocambio"' + (preferencias.modulo9.saj.registrocambio ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-copiacheque" class="swal2-label" style=" padding: 10px 0;text-align: right;"> Cópia de cheque</label>' +
-				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-copiacheque"' + (preferencias.saj.copiacheque ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-copiacheque"' + (preferencias.modulo9.saj.copiacheque ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-saldofgts" class="swal2-label" style="padding: 10px 0;text-align: right;"> Saldos do FGTS e do PIS</label>' +
-				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-saldofgts"' + (preferencias.saj.saldofgts ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-saldofgts"' + (preferencias.modulo9.saj.saldofgts ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-recebernotificacao" class="swal2-label" style="text-align: right;padding: 10px 0 20px 0;"> Receber as notificações de respostas por e-mail</label>' +
-				'<span style="text-align: left; padding: 10px 0 20px 0;"><input type="checkbox" id="swal2-recebernotificacao"' + (preferencias.saj.recebernotificacao ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
+				'<span style="text-align: left; padding: 10px 0 20px 0;"><input type="checkbox" id="swal2-recebernotificacao"' + (preferencias.modulo9.saj.recebernotificacao ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal-input4" style="font-weight: bold;"> E-mail institucional: </label>' +
-				'<input id="swal-input4" class="swal2-input"" value="' + preferencias.saj.email + '">' +
+				'<input id="swal-input4" class="swal2-input"" value="' + preferencias.modulo9.saj.email + '">' +
 				'<label for="swal-input5" style="font-weight: bold;"> Telefone para contato: </label>' +
-				'<input id="swal-input5" class="swal2-input"" value="' + preferencias.saj.telefone + '">' +
+				'<input id="swal-input5" class="swal2-input"" value="' + preferencias.modulo9.saj.telefone + '">' +
 
                 '<label for="swal-inputPeriodo" style="font-weight: bold;">  Período da Pesquisa: </label>' +
                 '<select id="swal-inputPeriodo" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
-                    '<option value="Nenhum"' + (preferencias.saj.periodo.toLowerCase().includes('Nenhum') ? 'selected' : '')  + '> Nenhum </option>' +
-                    '<option value="30"' + (preferencias.saj.periodo.includes('30') ? 'selected' : '')  + '> 30 dias </option>' +
-                    '<option value="60"' + (preferencias.saj.periodo.includes('60') ? 'selected' : '')  + '> 60 dias </option>' +
-                    '<option value="90"' + (preferencias.saj.periodo.includes('90') ? 'selected' : '')  + '> 90 dias </option>' +
-                    '<option value="120"' + (preferencias.saj.periodo.includes('120') ? 'selected' : '')  + '> 120 dias </option>' +
-                    '<option value="365"' + (preferencias.saj.periodo.includes('365') ? 'selected' : '')  + '> 365 dias </option>' +
+                    '<option value="Nenhum"' + (preferencias.modulo9.saj.periodo.toLowerCase().includes('nenhum') ? 'selected' : '')  + '> Nenhum </option>' +
+                    '<option value="30"' + (preferencias.modulo9.saj.periodo.includes('30') ? 'selected' : '')  + '> 30 dias </option>' +
+                    '<option value="60"' + (preferencias.modulo9.saj.periodo.includes('60') ? 'selected' : '')  + '> 60 dias </option>' +
+                    '<option value="90"' + (preferencias.modulo9.saj.periodo.includes('90') ? 'selected' : '')  + '> 90 dias </option>' +
+                    '<option value="120"' + (preferencias.modulo9.saj.periodo.includes('120') ? 'selected' : '')  + '> 120 dias </option>' +
+                    '<option value="365"' + (preferencias.modulo9.saj.periodo.includes('365') ? 'selected' : '')  + '> 365 dias </option>' +
                 '</select>' +
+
+                '<label for="swal-inputSalvarEProtocolar" style="font-weight: bold;"> Clicar em Salvar e Protocolar? </label>' +
+                '<select id="swal-inputSalvarEProtocolar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+                    '<option value="nao"' + (preferencias.modulo9.saj.salvarEprotocolar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+                    '<option value="sim"' + (preferencias.modulo9.saj.salvarEprotocolar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
+                '</select>' +
+
+                '<label for="escolherAAVinculoSAJ1"' + (salvarEprotocolarDisabled ? ' style="opacity: 1; pointer-events: all;' : ' style="opacity: .2;pointer-events: none;') + 'font-weight: bold; margin-right: 1rem;"> Ação Automatizada para executar após o protocolo da ordem SAJ </label>' +
+                '<div' + (salvarEprotocolarDisabled ? ' style="opacity: 1; pointer-events: all;' : ' style="opacity: .2;pointer-events: none;') + 'display: grid;grid-template-columns: 5fr 1fr;align-items: center;padding-top: 20px;"><button id="escolherAAVinculoSAJ1" aria-description="Ação Automatizada para executar após o protocolo da ordem SAJ" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+                preferencias.modulo9.saj.vinculoSAJ1 +
+                '</button><button id="apagar-escolherAAVinculoSAJ1" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de INCLUSÃO" aria-label="Remover Ação Automatizada para executar após o protocolo da ordem CCS" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>' +
+                '<label for="escolherAAVinculoSAJ2" style="font-weight: bold; margin-right: 1rem;"> Ação Automatizada para executar após o DOWNLOAD da resposta </label>' +
+                '<div style="display: grid;grid-template-columns: 5fr 1fr;align-items: center;padding-top: 20px;"><button id="escolherAAVinculoSAJ2" aria-description="Ação Automatizada para executar após o DOWNLOAD da resposta" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+                preferencias.modulo9.saj.vinculoSAJ2 +
+                '</button><button id="apagar-escolherAAVinculoSAJ2" data-tooltip="Remover Ação Automatizada após o DOWNLOAD da resposta" aria-label="Remover Ação Automatizada para executar após o DOWNLOAD da resposta" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button>' +
 
 				'</div>',
 				focusConfirm: false,
@@ -2884,17 +2993,17 @@ async function modulo9(convenio) {
 						document.getElementById('swal2-recebernotificacao').checked,
 						document.getElementById('swal-input4').value,
 						document.getElementById('swal-input5').value,
-                        document.getElementById('swal-inputPeriodo').value
+                        document.getElementById('swal-inputPeriodo').value,
+                        document.getElementById('swal-inputSalvarEProtocolar').value,
+						document.getElementById('escolherAAVinculoSAJ1').innerText,
+                        document.getElementById('escolherAAVinculoSAJ2').innerText,
 					]
 				}
 			});
 
 			if (resultsaj) {
-				preferencias.modulo9.saj = resultsaj[0];
-				await guardarModulo9();
-				document.getElementById("convenio_saj").style.backgroundColor = (preferencias.modulo9.saj) ? '#2196F3' : '#b0b0b0';
-
-				preferencias.saj = {
+				preferencias.modulo9.saj = {
+                    ativar: resultsaj[0],
 					vara: resultsaj[1],
 					juiz: resultsaj[2],
 					prazoResposta: resultsaj[3],
@@ -2910,29 +3019,48 @@ async function modulo9(convenio) {
 					recebernotificacao: resultsaj[13],
 					email: resultsaj[14],
 					telefone: resultsaj[15],
-                    periodo: resultsaj[16]
+                    periodo: resultsaj[16],
+                    salvarEprotocolar: resultsaj[17],
+                    vinculoSAJ1: resultsaj[18],
+                    vinculoSAJ2: resultsaj[19]
+
 				};
-				let var1_saj = browser.storage.local.set({'saj': preferencias.saj});
-				Promise.all([var1_saj]).then(values => {
-					let Toast = Swal.mixin({
-						toast: true,
-						position: 'bottom-end',
-						showConfirmButton: false,
-						timer: 1500,
-						timerProgressBar: true,
-						didOpen: (toast) => {
-						toast.addEventListener('mouseenter', Swal.stopTimer)
-						toast.addEventListener('mouseleave', Swal.resumeTimer)
-						}
-					})
-					Toast.fire({
-						icon: 'success',
-						title: 'Informações salvas com sucesso!'
-					})
-				});
+
+
+				document.getElementById("convenio_saj").style.backgroundColor = (preferencias.modulo9.saj.ativar) ? '#2196F3' : '#b0b0b0';
+                await guardarModulo9();
 			}
 			break
-	}
+        case 'googlePlanilhas':
+            let { value: resultgooglePlanilhas } = await Swal.fire({
+                title: 'google Planilhas',
+                html:
+                    'A extensão cria dois atalhos nas planilhas do google:<br> o atalho F1, botão vermelho que quando pressionado abre os Detalhes do Processo no Pje em nova janela. e,<br> o atalho F2, botão cinza que automatiza a inclusão do processo em pauta no PJe.<br><br>Você pode ativar ou desativar cada atalho conforme sua preferência.<br><br>' +
+                    '<input type="checkbox" id="swal2-checkboxf1"' + (preferencias.modulo9.googlePlanilhas[1] ? ' checked ' : '') + '>' +
+                    '<label for="swal2-checkbox" class="swal2-label"> Ativar Atalho F1</label><br><br>' +
+                    '<input type="checkbox" id="swal2-checkboxf2"' + (preferencias.modulo9.googlePlanilhas[2] ? ' checked ' : '') + '>' +
+                    '<label for="swal2-checkbox" class="swal2-label"> Ativar Atalho F2</label><br><br>' +
+                    '<input type="checkbox" id="swal2-checkboxAtivar"' + (preferencias.modulo9.googlePlanilhas[0] ? ' checked ' : '') + '>' +
+                    '<label for="swal2-checkbox" class="swal2-label"> Ativar</label><br>',
+                focusConfirm: false,
+                confirmButtonText: 'Salvar',
+                width: 800,
+                preConfirm: () => {
+                    return [
+                        document.getElementById('swal2-checkboxAtivar').checked,
+                        document.getElementById('swal2-checkboxf1').checked,
+                        document.getElementById('swal2-checkboxf2').checked,
+                    ];
+                }
+            });
+
+            if (resultgooglePlanilhas) {
+                preferencias.modulo9.googlePlanilhas = [resultgooglePlanilhas[0],resultgooglePlanilhas[1],resultgooglePlanilhas[2]];
+                await guardarModulo9();
+                document.getElementById("convenio_googlePlanilhas").style.backgroundColor = (preferencias.modulo9.googlePlanilhas) ? '#2196F3' : '#b0b0b0';
+            }
+            break
+    }
 }
 
 async function guardarModulo9() {
@@ -6306,6 +6434,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		['botao_retificar_autuacao_3','addLeiloeiro'],
 		['botao_retificar_autuacao_4','addPerito'],
 		['botao_retificar_autuacao_5','addTestemunha'],
+        ['botao_retificar_autuacao_51', 'addArrematante'],
 		['botao_retificar_autuacao_6','addTerceiro'],
 		['botao_retificar_autuacao_100Digital','Juízo 100% Digital'],
 		['botao_retificar_autuacao_tutelaLiminar','Pedido de Tutela'],
@@ -7104,39 +7233,6 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 		function texto_html() {
 			let var1 = '';
 			switch (aaVariados_temp[id].nm_botao) {
-				case 'Atalho F2':
-					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
-					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
-					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
-					'<span style="font-weight: bold;"> Ativar </span>' +
-					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
-					'</select>';
-					break
-				case 'Atalho F3':
-					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
-					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
-					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
-					'<span style="font-weight: bold;"> Ativar </span>' +
-					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
-					'</select>';
-					break
-				case 'Atalho F4':
-					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
-					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
-					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
-					'<span style="font-weight: bold;"> Ativar </span>' +
-					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
-					'</select>';
-					break
 				case 'RETIFICAR AUTUAÇÃO>Cadastrar Advogado':
 					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
 					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
@@ -8773,12 +8869,20 @@ document.getElementById("modulo6_ignorar").addEventListener('focusout', function
 });
 
 document.body.addEventListener("click", async function (event) {
-	// console.log(event.target.id + ' : ' + event.target.tagName + ' --> ' + event.target.parentElement.id);
+	console.log(event.target.id + ' : ' + event.target.tagName + ' --> ' + event.target.parentElement.id);
 
 	if (event.target.id.includes("escolherAAVinculo") && !event.target.id.includes("apagar") && !event.target.id.includes("subir") && !event.target.id.includes("descer")) {
 		const possivelAAAtual = event.target.innerText;
 		const aa = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para VINCULAR', possivelAAAtual, event.target);
-		if (!!aa) { event.target.innerText = aa; }
+		if (event.target.tagName == 'INPUT') {
+            if (!!aa) {
+                Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(event.target, aa);
+                triggerEvent(event.target, 'input');
+            }
+        } else {
+            if (!!aa) { event.target.innerText = aa; }
+        }
+
 	}
 
 	if (event.target.id.includes('maisPje_configuracoes_basicas_restaurar_')) {
@@ -8788,6 +8892,21 @@ document.body.addEventListener("click", async function (event) {
 			await obterUrlsConciliaJT(preferencias.num_trt, true);
 		});
 	}
+
+    if (event.target.parentElement.id == 'swal-inputSalvarEProtocolar') { //MODULO9 > SAJ oculta as opções caso a resposta seja não
+        console.log(event.target.parentElement.value)
+        if (event.target.parentElement.value == 'sim') {
+            document.querySelector('label[for="escolherAAVinculoSAJ1"]').style.opacity = '1'
+            document.querySelector('button[id="escolherAAVinculoSAJ1"]').parentElement.style.opacity = '1'
+            document.querySelector('label[for="escolherAAVinculoSAJ1"]').parentElement.style.pointerEvents = 'all'
+            document.querySelector('button[id="escolherAAVinculoSAJ1"]').parentElement.style.pointerEvents = 'all'
+        } else {
+            document.querySelector('label[for="escolherAAVinculoSAJ1"]').style.opacity = '.2'
+            document.querySelector('button[id="escolherAAVinculoSAJ1"]').parentElement.style.opacity = '.2'
+            document.querySelector('label[for="escolherAAVinculoSAJ1"]').parentElement.style.pointerEvents = 'none'
+            document.querySelector('button[id="escolherAAVinculoSAJ1"]').parentElement.style.pointerEvents = 'none'
+        }
+    }
 
 	function onButtonClickById(id, callback) {
 		const button = event.target.closest(id);
@@ -9198,6 +9317,7 @@ document.body.addEventListener("click", async function (event) {
 
             }
 		}
+
         if (id_elemento.includes('descer-escolherAAVinculo')) {
             let posA = parseInt(event.target.getAttribute('pos'));
             if (posA < 10) {
@@ -9214,6 +9334,8 @@ document.body.addEventListener("click", async function (event) {
                 },1000);
             }
 		}
+
+
 	}
 
 

@@ -2,6 +2,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .core import *
+from Fix import espera
 
 
 def def_chip(driver, numero_processo='', observacao='', chips_para_remover=None, debug=False, timeout=10):
@@ -76,7 +77,7 @@ def def_chip(driver, numero_processo='', observacao='', chips_para_remover=None,
                 )
                 botao_remover.click()
                 log_msg("  -> Botão remover clicado")
-                time.sleep(1)
+                espera.assentar(driver, 1)
 
                 try:
                     botao_sim = WebDriverWait(driver, 5).until(
@@ -87,7 +88,7 @@ def def_chip(driver, numero_processo='', observacao='', chips_para_remover=None,
                     )
                     log_msg(f"Confirmando remoção do chip '{chip_text}'")
                     botao_sim.click()
-                    time.sleep(2)
+                    espera.assentar(driver, 2)
                     chips_removidos += 1
                     log_msg(f"  -> Chip '{chip_text}' removido com sucesso")
                 except Exception as e:

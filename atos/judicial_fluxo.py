@@ -13,7 +13,7 @@ from Fix.selenium_base import (
     esperar_elemento, wait_for_clickable, esperar_url_conter,
     preencher_multiplos_campos,
 )
-from Fix.core import aguardar_renderizacao_nativa
+from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
 from Fix.log import getmodulelogger, log_start, log_fim
 logger = getmodulelogger(__name__)
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
@@ -48,6 +48,7 @@ from .judicial_utils import (
     preencher_prazos_destinatarios,
     verificar_bloqueio_recente
 )
+from Fix import espera
 
 
 @medir_tempo('fluxo_cls')
@@ -500,7 +501,7 @@ def ato_judicial(
                 logger.warning('[ATO][SALVAR] Timeout aguardando controles de destinatários, prosseguindo...')
 
             # Compatibilidade com transição Angular (como no leg)
-            time.sleep(1.5)
+            espera.assentar(driver, 1.5)
             logger.info('[ATO][SALVAR] Aguardando ativação da aba destinatários...')
 
         except Exception as e:
@@ -549,9 +550,9 @@ def ato_judicial(
                         except Exception:
                             try:
                                 if input_sig:
-                                    driver.execute_script('arguments[0].click();', input_sig)
+                                    safe_click_no_scroll(driver, input_sig)
                                 else:
-                                    driver.execute_script('arguments[0].click();', slide)
+                                    safe_click_no_scroll(driver, slide)
                             except Exception:
                                 try:
                                     driver.execute_script(
@@ -633,7 +634,7 @@ def ato_judicial(
                     if pec_label:
                         safe_click_no_scroll(driver, pec_label, log=False)
                     else:
-                        driver.execute_script('arguments[0].click();', pec_input)
+                        safe_click_no_scroll(driver, pec_input)
                     logger.info(f'[ATO][PEC] {"Marcado" if marcar_pec_bool else "Desmarcado"}')
                 else:
                     logger.info('[ATO][PEC] Ja esta conforme esperado')
@@ -769,17 +770,20 @@ def ato_judicial(
 
                 # Gravar movimento
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
+                # Overlay de um passo anterior (aba Movimentos, checkbox) pode ainda estar
+                # animando a saída — aguarda sumir em vez de confiar num sleep cego, que
+                # deixava o clique cair sobre o cdk-overlay-backdrop.
+                aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=3)
                 btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10, by=By.CSS_SELECTOR)
                 if btn_gravar_mov:
-                    btn_gravar_mov.click()
-                time.sleep(1.5)
+                    safe_click_no_scroll(driver, btn_gravar_mov)
 
-                # Confirmar com Sim
+                # Confirmar com Sim (dentro do próprio diálogo de confirmação — o backdrop aqui
+                # é esperado; o clique via safe_click_no_scroll dispensa sobreposição física)
                 logger.info('[ATO][MOVIMENTO] Confirmando...')
                 btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=10, by=By.XPATH)
                 if btn_sim:
-                    btn_sim.click()
-                    time.sleep(1)
+                    safe_click_no_scroll(driver, btn_sim)
                     logger.info('[ATO][MOVIMENTO] Movimento gravado e confirmado')
                 else:
                     logger.warning('[ATO][MOVIMENTO] Botão Sim não encontrado')
@@ -796,7 +800,7 @@ def ato_judicial(
                 raise Exception('Botão Salvar não disponível')
             btn_salvar_final.click()
             logger.info('[ATO][SALVAR_FINAL] Ato salvo')
-            time.sleep(1.5)
+            espera.assentar(driver, 1.5)
         except Exception as e:
             logger.error(f'[ATO][SALVAR_FINAL] {e}')
             return False, False
@@ -807,7 +811,7 @@ def ato_judicial(
             try:
                 btn_assinar = wait_for_clickable(driver, 'button#assinar', timeout=5, by=By.CSS_SELECTOR)
                 if btn_assinar:
-                    driver.execute_script('arguments[0].click();', btn_assinar)
+                    safe_click_no_scroll(driver, btn_assinar)
                     logger.info('[ATO][ASSINAR] Assinar clicado (JS direto)')
                 else:
                     raise Exception('Botão assinar não disponível')

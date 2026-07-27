@@ -1,6 +1,7 @@
 import logging
 import time
 from pathlib import Path
+from Fix import espera
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,14 @@ def _salvar_minuta(driver):
         script_salvar = _carregar_js("salvar_minuta.js", SCRIPTS_DIR)
         salvou = driver.execute_script(script_salvar)
         if salvou:
-            # Aguardar confirmação do salvamento
-            time.sleep(3)
+            # Aguardar confirmação do salvamento: botão "Alterar" reaparece
+            # (mesmo sinal checado logo abaixo por verificar_salvamento_minuta.js)
+            espera.ate_js(
+                driver,
+                "Array.from(document.querySelectorAll('button mat-icon.fa-edit')).some("
+                "el => el.closest('button') && el.closest('button').textContent.includes('Alterar'))",
+                teto=3,
+            )
 
             # Verificar se foi salvo
             script_verificar_salvamento = _carregar_js("verificar_salvamento_minuta.js", SCRIPTS_DIR)

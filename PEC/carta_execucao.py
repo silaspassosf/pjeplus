@@ -21,10 +21,13 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 
+from Fix import espera
 from Fix.extracao import extrair_direto, extrair_pdf
+from Fix.core import safe_click_no_scroll
 from PEC.anexos.core import anex_carta, salvar_conteudo_clipboard
 from PEC.carta_formatacao import formatar_dados_ecarta
 from PEC.carta_utils import _obter_numero_processo
+from PEC.carta_ecarta_api import coletar_tabela_ecarta_api  # API-based (substitui DOM)
 
 logger = logging.getLogger(__name__)
 
@@ -98,12 +101,7 @@ def _processar_item(driver, item, contexto, log):
             pass
 
         link.click()
-        try:
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, '.conteudo-principal'))
-            )
-        except TimeoutException:
-            pass
+        espera.ate_aparecer(driver, '.conteudo-principal', teto=5)
 
         texto_completo = _extrair_texto_completo(driver, log)
         if not texto_completo or len(texto_completo.strip()) < 10:
@@ -113,6 +111,28 @@ def _processar_item(driver, item, contexto, log):
         if log:
             excerpt = (texto_completo[:200] + '...') if len(texto_completo) > 200 else texto_completo
             logger.info(f"[CARTA][DEBUG] documento extraído (excerpt): {excerpt[:400]}")
+
+        # Data da intimação: mesma fonte de texto que alimenta _texto_e_correio()
+        # (nao um seletor DOM separado) -- extrai do rodape padrao do documento,
+        # ex: "Sao Paulo/SP, 07 de julho de 2026." Usada como referencia pra
+        # correlacao no eCarta em vez do ID do documento: um documento especifico
+        # pode nao ter side no eCarta (ex: destinatario sem endereco -> "Expediente
+        # enviado por outro meio", eCarta nunca gera carta pra ele), mas a DATA do
+        # lote de intimacoes continua valida pra achar as OUTRAS cartas do mesmo
+        # dia que foram enviadas normalmente.
+        data_intimacao = ''
+        try:
+            m_data = re.search(
+                r'(\d{1,2})\s+de\s+(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|'
+                r'setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})',
+                texto_completo, re.IGNORECASE,
+            )
+            if m_data:
+                data_intimacao = m_data.group(0)
+                if log:
+                    logger.info(f"[CARTA][DEBUG] data_intimacao extraida do texto: '{data_intimacao}'")
+        except Exception:
+            pass
 
         texto_upper = texto_completo.upper()
         correio_detectado = _texto_e_correio(texto_upper)
@@ -145,7 +165,7 @@ def _processar_item(driver, item, contexto, log):
         if log:
             logger.info(f"[CARTA][DEBUG] extracted_id={id_curto} (source={id_source})")
 
-        return id_curto, tem_desconsideracao
+        return id_curto, tem_desconsideracao, data_intimacao
     except Exception as e:
         # Se o driver estiver morto, lançar erro para parar o loop superior (evita flood de logs)
         from Fix.utils import verificar_driver_ativo
@@ -187,6 +207,7 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
 
     intimation_ids = []
     intimacoes_info = []
+    data_referencia = ''
     limite = limite_intimacoes if limite_intimacoes is not None else float('inf')
     count_intimacoes = 0
     intimacao_encontrada = False
@@ -200,12 +221,15 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
             if texto_link.startswith('Intimação('):
                 resultado = _processar_item(driver, primeiro_item, 'primeiro item', log)
                 if resultado:
-                    id_curto, tem_desconsideracao = resultado
+                    id_curto, tem_desconsideracao, data_intimacao = resultado
                     intimation_ids.append(id_curto)
                     intimacoes_info.append({
                         'id': id_curto,
                         'tem_desconsideracao': tem_desconsideracao,
+                        'data_intimacao': data_intimacao,
                     })
+                    if data_intimacao and not data_referencia:
+                        data_referencia = data_intimacao
                     intimacao_encontrada = True
         except Exception:
             pass
@@ -217,17 +241,20 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
 
             resultado = _processar_item(driver, item, f'item {idx + 1}', log)
             if resultado:
-                id_curto, tem_desconsideracao = resultado
+                id_curto, tem_desconsideracao, data_intimacao = resultado
                 intimation_ids.append(id_curto)
                 intimacoes_info.append({
                     'id': id_curto,
                     'tem_desconsideracao': tem_desconsideracao,
+                    'data_intimacao': data_intimacao,
                 })
+                if data_intimacao and not data_referencia:
+                    data_referencia = data_intimacao
                 count_intimacoes += 1
                 intimacao_encontrada = True
                 break
 
-    return intimation_ids, intimacoes_info
+    return intimation_ids, intimacoes_info, data_referencia
 
 
 def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
@@ -264,10 +291,7 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
     ecarta_url = f"https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo={process_number}"
     driver.execute_script(f"window.open('{ecarta_url}', '_blank');")
 
-    try:
-        WebDriverWait(driver, 5).until(EC.number_of_windows_to_be(original_window_count + 1))
-    except TimeoutException:
-        pass
+    espera.ate_abas(driver, original_window_count + 1, teto=5)
 
     all_windows = driver.window_handles
     if len(all_windows) > 1:
@@ -299,20 +323,10 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
         username_field.send_keys("s164283")
         driver.find_element(By.CSS_SELECTOR, "#input_password").send_keys("SpFintra861!")
         driver.find_element(By.CSS_SELECTOR, "input.btn").click()
-        try:
-            WebDriverWait(driver, 5).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-        except TimeoutException:
-            pass
+        espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
 
         driver.get(ecarta_url)
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "#main\\:tabDoc_data tr, table[id*='tabDoc'] tr, .ui-datatable tbody tr"))
-            )
-        except TimeoutException:
-            pass
+        espera.ate_aparecer(driver, "#main\\:tabDoc_data tr, table[id*='tabDoc'] tr, .ui-datatable tbody tr", teto=10)
     except TimeoutException:
         pass
 
@@ -542,7 +556,7 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                         SCRIPTS_DIR = Path(__file__).parent / "scripts"
                         script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
                         driver.execute_script(script_scroll, prev_btn)
-                        driver.execute_script('arguments[0].click();', prev_btn)
+                        safe_click_no_scroll(driver, prev_btn)
                         try:
                             WebDriverWait(driver, 5).until(
                                 EC.presence_of_element_located((By.CSS_SELECTOR, '#main\\:tabDoc_data tr, table[id*="tabDoc"] tr'))
@@ -567,7 +581,7 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                                 SCRIPTS_DIR = Path(__file__).parent / "scripts"
                                 script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
                                 driver.execute_script(script_scroll, last_page_link)
-                                driver.execute_script('arguments[0].click();', last_page_link)
+                                safe_click_no_scroll(driver, last_page_link)
                                 try:
                                     WebDriverWait(driver, 5).until(
                                         EC.presence_of_element_located((By.CSS_SELECTOR, '#main\\:tabDoc_data tr, table[id*="tabDoc"] tr'))
@@ -619,12 +633,7 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
         except TimeoutException:
             pass
         driver.switch_to.window(original_window)
-        try:
-            WebDriverWait(driver, 3).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-        except TimeoutException:
-            pass
+        espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
     except Exception as e:
         if log:
             logger.error(f"[CARTA] Erro ao fechar aba eCarta: {e}")
@@ -642,12 +651,15 @@ def carta(driver: WebDriver, log: bool = True, limite_intimacoes: Optional[int] 
     process_number = _obter_numero_processo(driver, log)
 
     t_ci = time.time()
-    intimation_ids, intimacoes_info = coletar_intimacoes(
+    intimation_ids, intimacoes_info, data_referencia = coletar_intimacoes(
         driver, limite_intimacoes=limite_intimacoes, log=log
     )
     dur_ci = time.time() - t_ci
     if log:
-        logger.info(f"[CARTA] coletar_intimacoes retornou {len(intimation_ids)} ids (took {dur_ci:.2f}s): {intimation_ids}")
+        logger.info(
+            f"[CARTA] coletar_intimacoes retornou {len(intimation_ids)} ids (took {dur_ci:.2f}s): "
+            f"{intimation_ids} | data_referencia={data_referencia!r}"
+        )
 
     if not intimation_ids:
         if log:
@@ -664,10 +676,12 @@ def carta(driver: WebDriver, log: bool = True, limite_intimacoes: Optional[int] 
             return ""
 
     t_ct = time.time()
-    table_data = coletar_tabela_ecarta(driver, process_number, intimation_ids, log=log)
+    table_data = coletar_tabela_ecarta_api(
+        driver, process_number, intimation_ids, log=log, data_referencia=data_referencia
+    )
     dur_ct = time.time() - t_ct
     if log:
-        logger.info(f"[CARTA] coletar_tabela_ecarta retornou {len(table_data) if table_data else 0} registros (took {dur_ct:.2f}s)")
+        logger.info(f"[CARTA] coletar_tabela_ecarta_api retornou {len(table_data) if table_data else 0} registros (took {dur_ct:.2f}s)")
 
     if not table_data:
         if log:

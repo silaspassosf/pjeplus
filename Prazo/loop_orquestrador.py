@@ -20,6 +20,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from Fix import espera
 from Fix.core import (
     aguardar_renderizacao_nativa,
     aplicar_filtro_100,
@@ -591,9 +592,8 @@ def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
         driver.get(url_lista)
         # Espera dinâmica: aguardar elemento chave do painel de atividades
         try:
-            WebDriverWait(driver, 12).until(
-                EC.presence_of_element_located((By.XPATH, "//span[contains(text(), 'Fase processual')]") )
-            )
+            if espera.elemento(driver, "//span[contains(text(), 'Fase processual')]", teto=12, visivel=False) is None:
+                raise TimeoutException()
             logger.info('[LOOP_PRAZO] Elemento "Fase processual" presente - prosseguindo')
         except Exception:
             logger.info('[LOOP_PRAZO] Timeout aguardando elemento "Fase processual" - prosseguindo mesmo assim')
@@ -627,10 +627,7 @@ def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
             return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 8")
         logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 8: {url_painel8}')
         driver.get(url_painel8)
-        try:
-            WebDriverWait(driver, 5).until(EC.url_contains("painel/global/8"))
-        except Exception:
-            pass
+        espera.ate_url(driver, "painel/global/8", teto=5)
 
         # FASE 2: Ciclo 2
         logger.info("[LOOP_PRAZO] Fase 2: Executando ciclo 2")

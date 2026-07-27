@@ -13,7 +13,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException
 from Fix.utils import aguardar_pagina_carregar
-from Fix.core import aguardar_renderizacao_nativa
+from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
+from Fix import espera
 
 
 def esperar_insercao_modelo(driver, timeout=8000):
@@ -206,8 +207,8 @@ def _clicar_botao_visibilidade(driver, log):
             return False
             
         driver.execute_script('arguments[0].scrollIntoView(true);', btn_visibilidade)
-        time.sleep(0.3)
-        driver.execute_script('arguments[0].click();', btn_visibilidade)
+        espera.assentar(driver, 0.3)
+        safe_click_no_scroll(driver, btn_visibilidade)
         
         aguardar_renderizacao_nativa(driver, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"]', 'aparecer', 5)
         return True

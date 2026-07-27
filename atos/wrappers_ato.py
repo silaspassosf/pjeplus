@@ -176,6 +176,16 @@ ato_termoE = make_ato_wrapper(
     marcar_primeiro_destinatario=True
 )
 
+ato_antes = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='talantes',
+    intimar=False,
+    descricao='Edital concomitante',
+    marcar_pec=False,
+    movimento=None,
+    gigs=None    
+)
+
 ato_termoS = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='xsocio',

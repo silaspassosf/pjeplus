@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 from Fix.utils import remover_acentos
 
 from .core import *
-from Fix.core import aguardar_renderizacao_nativa
+from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
 from Fix.selenium_base import safe_click_no_scroll
 
 from typing import Optional
@@ -652,7 +652,7 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
             try:
                 bt = _localizar_botao_destino_movimento(driver, destino, timeout=timeout)
                 if bt and bt.is_enabled():
-                    driver.execute_script('arguments[0].click();', bt)
+                    safe_click_no_scroll(driver, bt)
                     # último lance, chip e responsavel manejados por helpers
                     if ultimo_lance:
                         try:

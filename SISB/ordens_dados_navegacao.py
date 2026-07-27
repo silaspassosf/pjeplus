@@ -4,6 +4,7 @@ Consolida SISB/ordens/processor.py e SISB/navigation/navigator.py
 """
 
 import logging
+from Fix.core import safe_click_no_scroll
 import time
 from datetime import datetime
 
@@ -12,6 +13,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from Fix import espera
 from .utils import carregar_dados_processo, safe_click
 
 logger = logging.getLogger(__name__)
@@ -62,9 +64,7 @@ def _extrair_ordens_da_serie(driver, log=True):
     """
     ordens = []
     try:
-        tabela = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "table.mat-table tbody"))
-        )
+        tabela = espera.elemento(driver, "table.mat-table tbody", teto=10)
 
         linhas = tabela.find_elements(By.CSS_SELECTOR, "tr.mat-row")
         meses = {
@@ -449,12 +449,7 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
                 return True
             return False
 
-        try:
-            WebDriverWait(driver, 3).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-        except Exception:
-            pass
+        espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
 
         seletores_voltar = [
             "button[aria-label='Voltar'] i.fa-chevron-left",
@@ -472,7 +467,7 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
                 elementos = driver.find_elements(By.CSS_SELECTOR, seletor)
                 for elemento in elementos:
                     if elemento.is_displayed() and elemento.is_enabled():
-                        driver.execute_script("arguments[0].click();", elemento)
+                        safe_click_no_scroll(driver, elemento)
                         botao_encontrado = True
                         break
                 if botao_encontrado:
@@ -504,20 +499,11 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
         if not botao_encontrado:
             return False
 
-        try:
-            WebDriverWait(driver, 5).until(
-                lambda d: "/desdobrar" not in d.current_url
-            )
-        except Exception:
-            pass
+        espera.ate_js(driver, "!location.href.includes('/desdobrar')", teto=5)
 
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
-            )
-        except Exception as e:
+        if not espera.ate_aparecer(driver, 'table.mat-table', teto=10):
             if log:
-                logger.error(f"[SISBAJUD] Erro ao aguardar tabela: {e}")
+                logger.error("[SISBAJUD] Erro ao aguardar tabela: nao apareceu")
         return True
 
     except Exception as e:
@@ -550,14 +536,7 @@ def _voltar_para_lista_principal(driver, log=True):
                 for overlay in overlays:
                     try:
                         overlay.click()
-                        try:
-                            WebDriverWait(driver, 1).until(
-                                EC.invisibility_of_element_located(
-                                    (By.CSS_SELECTOR, ".cdk-overlay-backdrop-showing")
-                                )
-                            )
-                        except Exception:
-                            pass
+                        espera.ate_sumir(driver, ".cdk-overlay-backdrop-showing", teto=1)
                     except Exception:
                         try:
                             driver.execute_script(
@@ -565,12 +544,7 @@ def _voltar_para_lista_principal(driver, log=True):
                             )
                         except Exception:
                             pass
-                try:
-                    WebDriverWait(driver, 2).until(
-                        lambda d: d.execute_script("return document.readyState") == "complete"
-                    )
-                except Exception:
-                    pass
+                espera.ate_js(driver, "document.readyState === 'complete'", teto=2)
         except Exception:
             pass
 
@@ -592,10 +566,7 @@ def _voltar_para_lista_principal(driver, log=True):
                 url_volta = "https://sisbajud.cnj.jus.br/teimosinha"
 
             driver.get(url_volta)
-            try:
-                WebDriverWait(driver, 5).until(EC.url_contains("teimosinha"))
-            except Exception:
-                pass
+            espera.ate_url(driver, "teimosinha", teto=5)
             return True
 
         for _clique in range(2):
@@ -612,14 +583,7 @@ def _voltar_para_lista_principal(driver, log=True):
                 try:
                     try:
                         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                        try:
-                            WebDriverWait(driver, 1).until(
-                                EC.invisibility_of_element_located(
-                                    (By.CSS_SELECTOR, ".cdk-overlay-pane")
-                                )
-                            )
-                        except Exception:
-                            pass
+                        espera.ate_sumir(driver, ".cdk-overlay-pane", teto=1)
                     except Exception:
                         pass
 
@@ -631,14 +595,9 @@ def _voltar_para_lista_principal(driver, log=True):
                     except Exception:
                         botao = botao_icon
 
-                    driver.execute_script("arguments[0].click();", botao)
+                    safe_click_no_scroll(driver, botao)
                     botao_voltar_clicado = True
-                    try:
-                        WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
-                        )
-                    except Exception:
-                        pass
+                    espera.ate_aparecer(driver, 'table.mat-table', teto=5)
                     break
                 except Exception:
                     continue

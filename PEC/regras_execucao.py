@@ -11,8 +11,6 @@ from pathlib import Path
 from typing import Any
 
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from atos.judicial import ato_fal, ato_prov, ato_termoS
 from atos.movimentos import def_chip, mov_sob, mov_fimsob
@@ -22,6 +20,7 @@ from Fix.facade_publica import carregar_js
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix.selenium_base import esperar_elemento, safe_click
 from Fix.utils import normalizar_texto
+from Fix import espera
 
 # Configuração global de logging (caso não tenha sido feita no script principal)
 logging.basicConfig(
@@ -65,12 +64,11 @@ def _xs_ord(driver, atv):
     from atos.wrappers_pec import pec_ord, pec_arord
     from atos.wrappers_mov import mov_aud
     try:
-        from Fix.variaveis import session_from_driver, PjeApiClient
+        from Fix.variaveis import cliente_para
         from Fix.core import extrair_id_processo
         id_proc = extrair_id_processo(driver)
         if id_proc:
-            sess, trt = session_from_driver(driver)
-            client = PjeApiClient(sess, trt)
+            client = cliente_para(driver)
             reclamadas = [p for p in (client.partes(id_proc) or [])
                           if p.get('poloProcessual', '').lower() in ['passivo', 'reclamada']]
             if reclamadas:
@@ -106,12 +104,11 @@ def _xs_sum(driver, atv):
     from atos.wrappers_pec import pec_sum, pec_arsum
     from atos.wrappers_mov import mov_aud
     try:
-        from Fix.variaveis import session_from_driver, PjeApiClient
+        from Fix.variaveis import cliente_para
         from Fix.core import extrair_id_processo
         id_proc = extrair_id_processo(driver)
         if id_proc:
-            sess, trt = session_from_driver(driver)
-            client = PjeApiClient(sess, trt)
+            client = cliente_para(driver)
             reclamadas = [p for p in (client.partes(id_proc) or [])
                           if p.get('poloProcessual', '').lower() in ['passivo', 'reclamada']]
             if reclamadas:
@@ -148,12 +145,22 @@ def _def_sob(driver, atv):
 
 
 def _pz_idpj(driver, atv):
-    """pz idpj: cria gigs edital intimacao + gigs xs mdd2 + ato IDPJ."""
+    """pz idpj: cria gigs xs mddid + ato IDPJ."""
     from Fix.extracao import criar_gigs
     from atos.judicial import ato_idpj
     return _executar_passos(
-        lambda: criar_gigs(driver, "1", "", "xs mdd2"),
+        lambda: criar_gigs(driver, "1", "", "xs mddid"),
         lambda: ato_idpj(driver),
+    )
+
+
+def _mddid(driver, atv):
+    """mdd id: criar_gigs(1,xs pec edital) + pec_mddsent + ato_antes."""
+    from atos.wrappers_ato import ato_antes
+    return _executar_passos(
+        lambda: criar_gigs(driver, "1", "", "xs pec edital"),
+        lambda: _a(w, 'pec_mddsent')(driver),
+        lambda: ato_antes(driver),
     )
 
 
@@ -382,6 +389,7 @@ registry.register(r'\bpz\s+idpj\b|\bidpjd\b|\bpzi\b',                 'comunicac
 registry.register(r'\bpec\s+cp\b|\bxs\s+pec\s+cp\b',                   'comunicacoes', _w(_a(w, 'pec_cpgeral')))
 registry.register(r'\bmdd\s+pgto\b',                                  'comunicacoes', _w(_a(w, 'pec_mddpg')))
 registry.register(r'\bmdd\s*2\b',                                    'comunicacoes', _w(_a(w, 'pec_mddgeral')))
+registry.register(r'\bmdd\s+id\b|\bmddid\b',                         'comunicacoes', _mddid)
 registry.register(r'\bedital\s+(?:de\s+)?pgto\b|\bpec\s+edital\s+(?:de\s+)?pgto\b', 'comunicacoes', _w(_a(w, 'pec_editalpg')))
 registry.register(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b|\bedital\b',
                   'comunicacoes', _w(_a(w, 'pec_editaldec')))
@@ -493,10 +501,8 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             driver.execute_script("arguments[0].scrollIntoView(true);", doc_link)
             doc_link.click()
             # Aguardar aparecimento do conteúdo (não apenas readyState)
-            WebDriverWait(driver, timeout).until(
-                lambda d: d.execute_script("return !!document.querySelector('.documento-visualizacao, #documento, pje-arvore-documento')")
-            )
-            time.sleep(0.5)
+            espera.ate_aparecer(driver, '.documento-visualizacao, #documento, pje-arvore-documento', teto=timeout)
+            espera.assentar(driver, 0.5)
             logger.debug("[DEF_SOB] Documento clicado e aguardado")
         except Exception as e:
             logger.error(f"[DEF_SOB] Falha ao clicar/aguardar: {e}")

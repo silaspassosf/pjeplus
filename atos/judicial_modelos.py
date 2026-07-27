@@ -6,19 +6,18 @@ Funções para inserção e monitoramento de modelos, além de seleção
 de tipos de conclusão no editor de atos judiciais.
 """
 
-import time
 from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
 from Fix.selenium_base.element_interaction import safe_click
 from Fix.selenium_base.wait_operations import esperar_url_conter
 from Fix.log import logger
+from Fix.core import safe_click_no_scroll
+from Fix import espera
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import ElementClickInterceptedException
 
 from typing import Optional
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support.ui import WebDriverWait
 
 
 def esperar_insercao_modelo(driver: WebDriver, timeout: int = 8000) -> bool:
@@ -37,7 +36,7 @@ def esperar_insercao_modelo(driver: WebDriver, timeout: int = 8000) -> bool:
         # Converte timeout de ms para segundos
         timeout_segundos = timeout / 1000.0
         logger.info(f'[MODELO] Aguardando {timeout_segundos}s para inserção do modelo...')
-        time.sleep(timeout_segundos)
+        espera.assentar(driver, timeout_segundos, motivo='inserção de modelo')
         logger.info('[MODELO] Timeout de espera concluído')
         return True
     except Exception as e:
@@ -66,11 +65,7 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
         logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
 
         # Aguardar presença dos botões de conclusão
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-concluso-tarefa-botao'))
-            )
-        except Exception:
+        if not espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=10):
             logger.warning('[CONCLUSÃO] Botões de conclusão não carregaram')
 
         btn_tipo_conclusao = None
@@ -133,18 +128,14 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
         logger.info(f'[CONCLUSÃO] Clicando em tipo de conclusão...')
         try:
             driver.execute_script('arguments[0].scrollIntoView({block: "center", behavior: "instant"});', btn_tipo_conclusao)
-            driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
+            safe_click_no_scroll(driver, btn_tipo_conclusao)
             logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado')
         except Exception as click_err:
             logger.error(f'[CONCLUSÃO] ❌ Erro ao clicar: {click_err}')
             return False
 
         # Aguardar navegação pós-clique (observer para readyState complete)
-        try:
-            from Fix.core import aguardar_renderizacao_nativa as _obs_conc
-            WebDriverWait(driver, 10).until(lambda d: d.execute_script("return document.readyState") == "complete")
-        except Exception:
-            pass
+        espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
         return True
 
     except Exception as e:
@@ -210,9 +201,9 @@ def focar_campo_minutar_se_necessario(driver: WebDriver) -> bool:
     try:
         if verificar_estado_atual(driver) == 'minutar':
             logger.info('[CONCLUSÃO] Já em minutar - focando no campo de filtro')
-            campo_filtro_modelo = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, 'input#inputFiltro'))
-            )
+            campo_filtro_modelo = espera.elemento(driver, 'input#inputFiltro', teto=10)
+            if not campo_filtro_modelo:
+                raise Exception('input#inputFiltro não apareceu')
             driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
             logger.info('[CONCLUSÃO] Foco no campo #inputFiltro realizado')
         return True

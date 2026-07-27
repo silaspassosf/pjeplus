@@ -31,6 +31,7 @@ import sys
 import time
 import logging
 import os
+import shutil
 from datetime import datetime
 from pprint import pformat
 from typing import Dict, Any, Optional, Tuple, Callable
@@ -563,6 +564,24 @@ def selecionar_ambiente_e_fluxo() -> Optional[Tuple[DriverType, bool, str]]:
 # CONFIGURAO DE LOGGING
 # ============================================================================
 
+_ERRO_MD_LIMITE_BYTES = 1_500_000  # ~1.5MB
+
+
+def _rotacionar_erro_md(caminho_erro_md):
+    """Se erro.md já existir e ultrapassar o limite de tamanho, arquiva o
+    conteúdo atual em logs_execucao/erro_AAAAMMDD_HHMMSS.md e libera um
+    erro.md novo e limpo para a sessão atual."""
+    if not os.path.exists(caminho_erro_md):
+        return
+    if os.path.getsize(caminho_erro_md) < _ERRO_MD_LIMITE_BYTES:
+        return
+    destino = os.path.join(LOG_DIR, f"erro_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md")
+    try:
+        shutil.move(caminho_erro_md, destino)
+    except OSError:
+        pass  # se falhar, segue com o erro.md existente (append normal)
+
+
 def configurar_logging(driver_type: DriverType, debug: bool = False):
     """Configura logging baseado no tipo de driver"""
     
@@ -617,8 +636,9 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     console_handler.setFormatter(_DestaqueConsoleFormatter())
     root_logger.addHandler(console_handler)
 
-    # Handler exclusivo para erros → erro.md na raiz
+    # Handler exclusivo para erros → erro.md na raiz (com rotação por tamanho)
     _ERRO_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'erro.md')
+    _rotacionar_erro_md(_ERRO_MD)
     erro_handler = logging.FileHandler(_ERRO_MD, encoding='utf-8', mode='a')
     erro_handler.setLevel(logging.ERROR)
 

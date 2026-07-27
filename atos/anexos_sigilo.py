@@ -4,13 +4,12 @@ Especializado em separar sigilo (individual) de visibilidade (lote).
 """
 
 import logging
+from Fix.core import safe_click_no_scroll
 import time
 from typing import Optional
 
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from Fix import espera
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +97,7 @@ def inserir_sigilo_individual(elemento, driver=None, debug=False):
 
         # Clica para ADICIONAR sigilo
         try:
-            driver.execute_script('arguments[0].click();', btn_sigilo)
+            safe_click_no_scroll(driver, btn_sigilo)
         except Exception:
             btn_sigilo.click()
 
@@ -143,10 +142,10 @@ def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
         if log:
             logger.info('[VISIBILIDADE_LOTE] Abrindo modal de visibilidade...')
         try:
-            btn_vis = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Incluir visibilidade para Sigilo"]'))
-            )
-            driver.execute_script("arguments[0].click();", btn_vis)
+            if not espera.ate_habilitar(driver, 'button[aria-label="Incluir visibilidade para Sigilo"]', teto=5):
+                raise Exception('botão de visibilidade não habilitou')
+            btn_vis = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Incluir visibilidade para Sigilo"]')
+            safe_click_no_scroll(driver, btn_vis)
         except Exception as e:
             if log:
                 logger.error(f'[VISIBILIDADE_LOTE] Falha ao clicar botão de visibilidade: {e}')
@@ -155,28 +154,25 @@ def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
         # 2. Aguardar modal carregar completamente (dump: ~1.8s entre "+" e "Marcar todas")
         #    Espera as linhas da tabela (tr.cdk-drag) aparecerem dentro do modal
         modal_container = '.cdk-overlay-container .mat-dialog-container'
-        try:
-            modal = WebDriverWait(driver, 4, poll_frequency=0.1).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, modal_container))
-            )
+        modal = espera.elemento(driver, modal_container, teto=4, visivel=False)
+        linhas_modal = None
+        if modal:
             if log:
                 logger.info('[VISIBILIDADE_LOTE] Modal detectado, aguardando conteúdo carregar...')
             # Aguarda conteúdo do modal — linhas da tabela de partes (tr.cdk-drag)
-            WebDriverWait(driver, 5, poll_frequency=0.1).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, f'{modal_container} tr.cdk-drag'))
-            )
-        except TimeoutException:
-            if log:
-                logger.warning('[VISIBILIDADE_LOTE] Linhas do modal não detectadas, tentando prosseguir...')
+            linhas_modal = espera.elemento(driver, f'{modal_container} tr.cdk-drag', teto=5, visivel=False)
+        if not linhas_modal and log:
+            logger.warning('[VISIBILIDADE_LOTE] Linhas do modal não detectadas, tentando prosseguir...')
 
         # 3. Marcar todas as partes — aguarda botão ficar clicável
         if log:
             logger.info('[VISIBILIDADE_LOTE] Marcando todas as partes no modal...')
         try:
-            icone_header = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna'))
-            )
-            driver.execute_script("arguments[0].click();", icone_header)
+            seletor_marcar = 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna'
+            if not espera.ate_habilitar(driver, seletor_marcar, teto=5):
+                raise Exception('botão Marcar todas não habilitou')
+            icone_header = driver.find_element(By.CSS_SELECTOR, seletor_marcar)
+            safe_click_no_scroll(driver, icone_header)
         except Exception as e:
             if log:
                 logger.error(f'[VISIBILIDADE_LOTE] Falha ao marcar partes no modal: {e}')
@@ -186,10 +182,11 @@ def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
         if log:
             logger.info('[VISIBILIDADE_LOTE] Salvando configuração...')
         try:
-            btn_salvar = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]'))
-            )
-            driver.execute_script("arguments[0].click();", btn_salvar)
+            xpath_salvar = '//button[.//span[contains(text(),"Salvar")]]'
+            if not espera.ate_habilitar(driver, xpath_salvar, teto=10):
+                raise Exception('botão Salvar não habilitou')
+            btn_salvar = driver.find_element(By.XPATH, xpath_salvar)
+            safe_click_no_scroll(driver, btn_salvar)
         except Exception as e:
             if log:
                 logger.error(f'[VISIBILIDADE_LOTE] Falha ao salvar: {e}')

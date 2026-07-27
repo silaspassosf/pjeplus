@@ -7,6 +7,7 @@ Contém funções de salvar minuta, gerar relatórios e finalizar.
 
 import time
 from datetime import datetime
+from Fix import espera
 
 def _salvar_minuta(driver):
     """Salva a minuta com múltiplas estratégias."""
@@ -33,7 +34,13 @@ def _salvar_minuta(driver):
 
         if driver.execute_script(script_salvar):
             log_sisbajud("Botão salvar clicado")
-            time.sleep(3)
+            # Aguardar confirmação: botão "Alterar" reaparece (mesmo sinal checado abaixo)
+            espera.ate_js(
+                driver,
+                "Array.from(document.querySelectorAll('button mat-icon.fa-edit')).some("
+                "el => el.closest('button') && el.closest('button').textContent.includes('Alterar'))",
+                teto=3,
+            )
 
             # Verificar se salvou
             status = driver.execute_script("""

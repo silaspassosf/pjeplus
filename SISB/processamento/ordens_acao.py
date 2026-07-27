@@ -1,11 +1,10 @@
 import logging
 import time
+import random
 
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
+from Fix import espera
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +25,9 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
     Não usa referências Python (evita StaleElementReferenceException).
     Cada interação faz query fresh no DOM — idêntico ao que funciona no console.
     """
-    time.sleep(0.5)
+    espera.assentar(driver, 0.5)
 
-    try:
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "mat-select[name='assessor']"))
-        )
-    except Exception:
+    if not espera.ate_aparecer(driver, "mat-select[name='assessor']", teto=5):
         if log:
             logger.error("[_acao] Nenhum mat-select[name='assessor'] encontrado")
         return False
@@ -108,7 +103,7 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                 logger.warning(f"[_acao] Select com-saldo #{i} não encontrado via JS")
             continue
 
-        time.sleep(0.8)  # aguarda overlay do Angular Material abrir
+        time.sleep(random.uniform(0.7, 1.2))  # aguarda overlay do Angular Material abrir (jitter anti-deteccao)
 
         resultado = driver.execute_script(JS_CLICK_OPT, texto_alvo)
 
@@ -121,6 +116,6 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
             if log:
                 logger.warning(f"[_acao] com-saldo #{i}: opção '{texto_alvo}' não encontrada no overlay")
 
-        time.sleep(0.3)
+        time.sleep(random.uniform(0.25, 0.5))
 
     return processados > 0

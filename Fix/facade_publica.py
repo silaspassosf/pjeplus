@@ -14,6 +14,7 @@ Fontes consolidadas:
 """
 
 from pathlib import Path
+from Fix.core import safe_click_no_scroll
 from typing import Dict, Optional, Tuple, Union
 
 from selenium.webdriver.common.by import By
@@ -242,7 +243,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
                         'arguments[0].parentElement.parentElement.click();', sel
                     )
                 except Exception:
-                    driver.execute_script('arguments[0].click();', sel)
+                    safe_click_no_scroll(driver, sel)
 
                 opts = WebDriverWait(driver, timeout_select).until(
                     EC.presence_of_all_elements_located(
@@ -252,7 +253,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
                 for op in opts:
                     try:
                         if termo_norm in _normalize_text(op.text or ''):
-                            driver.execute_script('arguments[0].click();', op)
+                            safe_click_no_scroll(driver, op)
                             usados.add(idx)
                             encontrado = True
                             break
@@ -302,7 +303,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
                             'arguments[0].parentElement.parentElement.click();', sel
                         )
                     except Exception:
-                        driver.execute_script('arguments[0].click();', sel)
+                        safe_click_no_scroll(driver, sel)
                     opts = WebDriverWait(driver, 1).until(
                         EC.presence_of_all_elements_located(
                             (By.CSS_SELECTOR, "mat-option[role='option']")
@@ -310,7 +311,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
                     )
                     for op in opts:
                         if termo_norm in _normalize_text(op.text or ''):
-                            driver.execute_script('arguments[0].click();', op)
+                            safe_click_no_scroll(driver, op)
                             encontrado = True
                             break
                     if encontrado:

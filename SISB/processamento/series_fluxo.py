@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 from .series_navegar import _navegar_e_extrair_ordens_serie, _extrair_nome_executado_serie
 from .series_estrategia import _calcular_estrategia_bloqueio
 from .ordens_dados import _identificar_ordens_com_bloqueio
+from ..Core.utils_web import detectar_captcha
 from .series_fluxo_helpers import (
     _tratar_ordem_respondida,
     _executar_transferencia,
@@ -107,6 +108,14 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                 for idx_ordem, ordem in enumerate(ordens_bloqueadas, 1):
                     sequencial_ordem = ordem.get('sequencial')
                     situacao_ordem = ordem.get('situacao', '')
+
+                    if detectar_captcha(driver):
+                        if log:
+                            logger.info(f'[SISBAJUD] Possivel bloqueio/CAPTCHA detectado antes da ordem {sequencial_ordem}, aplicando backoff preventivo')
+                        for b in (30, 60, 120):
+                            time.sleep(b)
+                            if not detectar_captcha(driver):
+                                break
 
                     if "Respondida com minuta" in situacao_ordem:
                         if log:
@@ -224,7 +233,7 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                             pass
 
                         # detectar possivel rate-limit/excesso de requisicoes e aplicar backoff
-                        if 'excesso' in msg or 'limite' in msg or 'rate' in msg or '429' in msg:
+                        if 'excesso' in msg or 'limite' in msg or 'rate' in msg or '429' in msg or detectar_captcha(driver):
                             backoffs = [30, 60, 120]
                             for b in backoffs:
                                 if log:

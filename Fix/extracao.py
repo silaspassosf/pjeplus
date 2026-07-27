@@ -26,9 +26,11 @@ import requests
 from urllib.parse import urlparse
 from pathlib import Path
 from Fix.log import logger
+from Fix.core import safe_click_no_scroll
 from .core import aguardar_e_clicar, safe_click, wait
 from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
 from .utils import normalizar_cpf_cnpj, formatar_moeda_brasileira, formatar_data_brasileira
+from Fix import espera
 
 def extrair_direto(driver, timeout=10, debug=False, formatar=True):
     """
@@ -59,15 +61,8 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
     }
     try:
         # Validar documento ativo
-        try:
-            WebDriverWait(driver, timeout).until(
-                EC.presence_of_element_located((By.ID, "documento"))
-            )
-        except:
-            try:
-                driver.find_element(By.ID, "documento")
-            except:
-                return resultado
+        if not espera.elemento(driver, '#documento', teto=timeout, visivel=False):
+            return resultado
         # Tentar 3 estratégias de extração (Strategy Pattern)
         strategies = [
             lambda: _extrair_via_pdf_viewer(driver, timeout, debug),
@@ -120,7 +115,7 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
             return None
 
         safe_click(driver, btn_html)
-        time.sleep(1)
+        espera.ate_aparecer(driver, '#previewModeloDocumento', teto=1)
 
         preview = wait(driver, '#previewModeloDocumento', timeout)
         if not preview:
@@ -136,7 +131,7 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
         try:
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
             logger.debug('[EXTRAI] Modal HTML fechado')
-            time.sleep(0.5)
+            espera.ate_sumir(driver, '#previewModeloDocumento', teto=0.5)
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.TAB)
             logger.debug('[WORKAROUND] Pressionada tecla TAB apos fechar modal de documento')
         except Exception as e_esc:
@@ -198,27 +193,33 @@ def extrair_pdf(driver, log=True):
                     titulo = modal.find_element(By.CSS_SELECTOR, '.mat-dialog-title')
                     if 'Texto Extraido' in titulo.text:
                         try:
-                            btn_copiar = modal.find_element(By.CSS_SELECTOR, 'i.far.fa-copy')
-                            btn_copiar.click()
-                            time.sleep(0.3)
-                            texto = pyperclip.paste()
+                            # Caminho headless-safe: ler o <pre> do DOM diretamente,
+                            # sem depender do clipboard do SO (pyperclip.paste()).
+                            pre = modal.find_element(By.CSS_SELECTOR, 'pre')
+                            texto = (pre.text or '').strip()
+                            if not texto:
+                                raise ValueError('<pre> vazio')
                             if log:
-                                logger.debug('[EXPORT] Texto extraido do modal via copiar')
+                                logger.debug('[EXPORT] Texto extraido do modal via <pre>')
                         except Exception as e:
                             if log:
-                                logger.warning('[EXPORT] Falha ao copiar texto do modal: %s', e)
-                            pre = modal.find_element(By.CSS_SELECTOR, 'pre')
-                            texto = pre.text
+                                logger.warning('[EXPORT] <pre> indisponivel/vazio (%s), usando clipboard do SO', e)
+                            btn_copiar = modal.find_element(By.CSS_SELECTOR, 'i.far.fa-copy')
+                            btn_copiar.click()
+                            espera.assentar(driver, 0.3)
+                            texto = pyperclip.paste()
+                            if log:
+                                logger.debug('[EXPORT] Texto extraido do modal via copiar (fallback)')
                         try:
                             btn_fechar = modal.find_element(By.CSS_SELECTOR, 'button[mat-dialog-close]')
                             btn_fechar.click()
                         except Exception:
                             modal.send_keys(Keys.ESCAPE)
-                        time.sleep(0.5)
+                        espera.ate_sumir(driver, 'pje-conteudo-documento-dialog', teto=0.5)
                         return texto
                 except Exception:
                     continue
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
         if log:
             logger.error('ERRO em extrair_pdf: Modal de texto extraido nao apareceu')
         return None
@@ -677,14 +678,14 @@ def _extrair_via_pdf_viewer(driver, timeout, debug=False):
         logger.debug('[EXTRAIR_DIRETO] Tentando extracao via PDF viewer...')
     
     try:
-        pdf_object = WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "object.conteudo-pdf"))
-        )
-        
-        WebDriverWait(driver, timeout).until(
-            lambda d: pdf_object.get_attribute("data") is not None
-        )
-        
+        pdf_object = espera.elemento(driver, "object.conteudo-pdf", teto=timeout, visivel=False)
+        if not pdf_object or not espera.ate_js(
+            driver,
+            "__pjeEls('object.conteudo-pdf').some(el => el.getAttribute('data') !== null)",
+            teto=timeout,
+        ):
+            return None
+
         js_script = """
         try {
             var pdfObject = document.querySelector('object[type="application/pdf"]') || document.querySelector('object.conteudo-pdf');
@@ -799,13 +800,22 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
         if debug:
             logger.debug('[LEMBRETE][POSIT] Criando: "%s" / "%s"', titulo, conteudo)
 
-        menu_clicked = aguardar_e_clicar(driver, '.fa-bars', log=debug)
-        time.sleep(0.8)
+        # Tenta #botao-menu primeiro (seletor mais confiável no PJe atual);
+        # .fa-bars como fallback. Sem isso, uma exceção do Selenium escapava
+        # crua daqui e só era pega pelo catch-all no fim da função.
+        menu_clicked = aguardar_e_clicar(driver, '#botao-menu', timeout=8, log=debug)
+        if not menu_clicked:
+            menu_clicked = aguardar_e_clicar(driver, '.fa-bars', timeout=5, log=debug)
+        if not menu_clicked:
+            if debug:
+                logger.warning('[LEMBRETE][POSIT] Botão hamburger não encontrado')
+            return False
+        espera.assentar(driver, 0.8)
 
         seletores_lembrete = [
+            'pje-icone-post-it button',
             'button[aria-label*="Lembrete"]',
             'button[title*="Lembrete"]',
-            'pje-icone-post-it button',
             '.lista-itens-menu li:nth-child(16) button',
         ]
 
@@ -817,13 +827,18 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
                     if debug:
                         logger.debug('[LEMBRETE][POSIT] Icone: %s', seletor)
                     break
-            except:
+            except Exception:
                 continue
 
-        time.sleep(0.8)
+        if not lembrete_clicked:
+            if debug:
+                logger.warning('[LEMBRETE][POSIT] Botão de lembrete não encontrado no menu')
+            return False
+
+        espera.ate_aparecer(driver, '.mat-dialog-content', teto=0.8)
 
         aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
-        time.sleep(0.8)
+        espera.ate_aparecer(driver, '#tituloPostit', teto=0.8)
 
         titulo_elem = aguardar_e_clicar(driver, '#tituloPostit', timeout=5)
         if titulo_elem:
@@ -843,10 +858,10 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
             try:
                 if aguardar_e_clicar(driver, seletor, timeout=3, log=False):
                     break
-            except:
+            except Exception:
                 continue
 
-        time.sleep(0.8)
+        espera.assentar(driver, 0.8)
         if debug:
             logger.debug('[LEMBRETE][POSIT] "%s" criado', titulo)
         return True
@@ -938,18 +953,18 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
 
         if log:
             logger.debug('[GIGS] Clicando Nova Atividade...')
-        btn_nova = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((By.XPATH,
-                "//button[.//span[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')] "
-                "or contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')]")
-            )
+        btn_nova = espera.elemento(
+            driver, "//button[.//span[contains(translate(normalize-space(.), "
+            "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')] "
+            "or contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')]",
+            teto=timeout,
         )
+        if not btn_nova:
+            raise TimeoutException("Botao 'Nova Atividade' nao encontrado")
         btn_nova.click()
-        time.sleep(1)
+        espera.ate_aparecer(driver, 'textarea[formcontrolname="observacao"]', teto=1)
 
-        WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
-        )
+        espera.ate_aparecer(driver, 'textarea[formcontrolname="observacao"]', teto=timeout)
         if log:
             logger.debug('[GIGS] Formulario aberto')
 
@@ -957,7 +972,7 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             campo_dias = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="dias"]')
             campo_dias.clear()
             campo_dias.send_keys(str(dias_uteis))
-            time.sleep(0.3)
+            espera.assentar(driver, 0.3)
             if log:
                 logger.debug('[GIGS] Prazo: %s dias', dias_uteis)
 
@@ -965,9 +980,9 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             campo_resp = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="responsavel"]')
             campo_resp.clear()
             campo_resp.send_keys(responsavel)
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
             campo_resp.send_keys(Keys.ARROW_DOWN)
-            time.sleep(0.2)
+            espera.assentar(driver, 0.2)
             campo_resp.send_keys(Keys.ENTER)
             if log:
                 logger.debug('[GIGS] Responsavel: %s', responsavel)
@@ -982,7 +997,7 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
                 "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
                 campo_obs
             )
-            time.sleep(0.3)
+            espera.assentar(driver, 0.3)
             if log:
                 obs_preview = observacao[:50] + '...' if len(observacao) > 50 else observacao
                 logger.debug('[GIGS] Observacao: %s', obs_preview)
@@ -990,24 +1005,24 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
         # 6. Salvar
         if log:
             logger.debug('[GIGS] Salvando...')
-        btn_salvar = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Salvar')]"))
-        )
+        btn_salvar = espera.elemento(driver, "//button[contains(., 'Salvar')]", teto=timeout)
+        if not btn_salvar:
+            raise TimeoutException("Botao 'Salvar' nao encontrado")
         btn_salvar.click()
-        
+
         # 7. Aguardar confirmação (não esperar sumir)
-        time.sleep(0.3)
-        try:
-            WebDriverWait(driver, timeout).until(
-                EC.presence_of_element_located((By.XPATH, "//snack-bar-container//span[contains(normalize-space(.), 'Atividade salva com sucesso')]"))
-            )
+        espera.assentar(driver, 0.3)
+        if espera.ate_aparecer(
+            driver,
+            "//snack-bar-container//span[contains(normalize-space(.), 'Atividade salva com sucesso')]",
+            teto=timeout,
+        ):
             if log:
                 logger.debug('[GIGS] Atividade criada com sucesso')
-            return True
-        except TimeoutException:
+        else:
             if log:
                 logger.warning('[GIGS] Confirmacao nao detectada, assumindo sucesso')
-            return True
+        return True
         
     except Exception as e:
         if log:
@@ -1034,24 +1049,39 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
         criar_comentario(driver, "Informação sigilosa", visibilidade='RESTRITA')
         criar_comentario(driver, "Comentário geral", visibilidade='GLOBAL')
     """
+    # Causa raiz do erro recorrente (91% dos casos): a funcao tentava a
+    # interacao inteira contra uma sessao Selenium ja morta (browser fechado/
+    # crashado), gerando InvalidSessionIdException em ponto aleatorio do fluxo
+    # a cada chamada. Falha rapido usando o mesmo guard ja usado em
+    # _indexar_processar_item/trocar_para_nova_aba neste arquivo.
+    conexao_status = validar_conexao_driver(driver, "COMENTARIO")
+    if conexao_status == "FATAL":
+        if log:
+            logger.error('ERRO em criar_comentario: sessao do driver inutilizavel (contexto descartado) - abortando sem tentar interacao')
+        return False
+    if not conexao_status:
+        if log:
+            logger.error('ERRO em criar_comentario: driver desconectado - abortando sem tentar interacao')
+        return False
+
     try:
         if log:
             com_preview = observacao[:50] + '...' if len(observacao) > 50 else observacao
             logger.debug("[COMENTARIO] Criando: %s", com_preview)
-        
+
         # 1. Clicar "Novo Comentário"
         if log:
             logger.debug('[COMENTARIO] Clicando Novo Comentario...')
-        btn_novo = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Novo Comentário') or contains(., 'Novo comentário')]"))
+        btn_novo = espera.elemento(
+            driver, "//button[contains(., 'Novo Comentário') or contains(., 'Novo comentário')]", teto=timeout
         )
+        if not btn_novo:
+            raise TimeoutException("Botao 'Novo Comentario' nao encontrado")
         btn_novo.click()
-        time.sleep(1)
-        
+        espera.ate_aparecer(driver, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]', teto=1)
+
         # 2. Aguardar formulário
-        WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]'))
-        )
+        espera.ate_aparecer(driver, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]', teto=timeout)
         if log:
             logger.debug('[COMENTARIO] Formulario aberto')
         
@@ -1064,7 +1094,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
             "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
             campo_obs
         )
-        time.sleep(0.3)
+        espera.assentar(driver, 0.3)
         if log:
             logger.debug('[COMENTARIO] Descricao preenchida')
         
@@ -1079,13 +1109,13 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
                 index_map = {'LOCAL': 0, 'RESTRITA': 1, 'GLOBAL': 2}
                 idx = index_map.get(visibilidade_upper, 0)
                 radio_buttons[idx].find_element(By.CSS_SELECTOR, 'input').click()
-                time.sleep(0.3)
+                espera.assentar(driver, 0.3)
                 
                 # Se RESTRITA, pode ter campo adicional (usuários)
                 if visibilidade_upper == 'RESTRITA':
                     if log:
                         logger.debug('[COMENTARIO] Visibilidade RESTRITA - pode requerer selecao de usuarios')
-                    time.sleep(0.5)  # Aguardar campo adicional
+                    espera.assentar(driver, 0.5)
         except Exception as e:
             if log:
                 logger.warning('[COMENTARIO][AVISO] Nao foi possivel selecionar visibilidade: %s', e)
@@ -1093,15 +1123,15 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
         # 5. Salvar
         if log:
             logger.debug('[COMENTARIO] Salvando...')
-        btn_salvar = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Salvar')]"))
-        )
+        btn_salvar = espera.elemento(driver, "//button[contains(., 'Salvar')]", teto=timeout)
+        if not btn_salvar:
+            raise TimeoutException("Botao 'Salvar' nao encontrado")
         btn_salvar.click()
-        time.sleep(1)
-        
+        espera.assentar(driver, 1)
+
         # 6. Comentário não dá confirmação explícita, apenas fecha
         # Verificar se modal fechou
-        time.sleep(1)
+        espera.ate_sumir(driver, 'mat-dialog-container', teto=1)
         try:
             modals = driver.find_elements(By.CSS_SELECTOR, 'mat-dialog-container')
             modal_aberto = any(m.is_displayed() for m in modals)
@@ -1112,7 +1142,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
             else:
                 # Forçar fechar com ESC
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                time.sleep(0.5)
+                espera.ate_sumir(driver, 'mat-dialog-container', teto=0.5)
                 if log:
                     logger.debug('[COMENTARIO] Comentario criado (modal fechado manualmente)')
                 return True
@@ -1149,14 +1179,12 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
     erro_classe = False
 
     try:
-        # Etapa 1: Validar localização
-        _bndt_validar_localizacao(driver)
-
-        # Etapa 2: Abrir menu e ícone
+        # Etapa 1: Abrir menu e ícone (BNDT abre em nova aba própria — não
+        # depende da URL de partida, dispensando validação de localização)
         _bndt_abrir_menu(driver)
         _bndt_clicar_icone(driver)
 
-        # Etapa 3: Abrir nova aba
+        # Etapa 2: Abrir nova aba
         main_window, nova_aba = _bndt_abrir_nova_aba(driver)
 
         # PROCESSAR APENAS POLO PASSIVO
@@ -1179,21 +1207,19 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
             btn_polo = None
             for by, selector in seletor_polo:
-                try:
-                    btn_polo = WebDriverWait(driver, 3).until(EC.presence_of_element_located((by, selector)))
+                btn_polo = espera.elemento(driver, selector, teto=3, visivel=False)
+                if btn_polo:
                     break
-                except Exception:
-                    continue
 
             if not btn_polo:
                 raise Exception('Botao de polo Passivo nao encontrado')
 
             try:
-                driver.execute_script('arguments[0].click();', btn_polo)
+                safe_click_no_scroll(driver, btn_polo)
             except Exception:
                 btn_polo.click()
             logger.info(f'Polo {polo} selecionado')
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
         except Exception as e:
             logger.error(f'Erro ao selecionar polo {polo}: {e}')
             raise
@@ -1268,16 +1294,6 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
 
 
-def _bndt_validar_localizacao(driver):
-    """Valida se está em /detalhe."""
-    current_url = driver.current_url
-    if '/detalhe' not in current_url:
-        raise Exception(f'bndt deve ser executado a partir de /detalhe. URL atual: {current_url}')
-    logger.info('Confirmado: Estamos na página /detalhe')
-    return True
-
-
-
 def _bndt_abrir_menu(driver: WebDriver) -> bool:
     """
     Abre o menu hambúrguer com validação robusta.
@@ -1289,16 +1305,14 @@ def _bndt_abrir_menu(driver: WebDriver) -> bool:
         True se menu aberto com sucesso, False caso contrário
     """
     try:
-        btn_menu = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa-bars.icone-botao-menu'))
-        )
+        btn_menu = espera.elemento(driver, 'i.fa-bars.icone-botao-menu', teto=10)
+        if not btn_menu:
+            logger.error('Menu hambúrguer não encontrado')
+            return False
         btn_menu.click()
         logger.info('Menu hambúrguer clicado')
-        time.sleep(0.2)  # ⚡ Otimizado: validação já feita pelo wait
+        espera.assentar(driver, 0.2)
         return True
-    except TimeoutException:
-        logger.error('Menu hambúrguer não encontrado')
-        return False
     except Exception as e:
         logger.error(f'Erro ao abrir menu: {e}')
         return False
@@ -1316,16 +1330,14 @@ def _bndt_clicar_icone(driver: WebDriver) -> bool:
         True se ícone clicado com sucesso, False caso contrário
     """
     try:
-        btn_bndt = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fas.fa-money-check-alt.icone-padrao'))
-        )
+        btn_bndt = espera.elemento(driver, 'i.fas.fa-money-check-alt.icone-padrao', teto=10)
+        if not btn_bndt:
+            logger.error('Ícone BNDT não encontrado')
+            return False
         btn_bndt.click()
         logger.info('Ícone BNDT clicado')
-        time.sleep(0.3)  # ⚡ Otimizado: nova aba será aguardada no próximo wait
+        espera.assentar(driver, 0.3)
         return True
-    except TimeoutException:
-        logger.error('Ícone BNDT não encontrado')
-        return False
     except Exception as e:
         logger.error(f'Erro ao clicar ícone BNDT: {e}')
         return False
@@ -1344,16 +1356,13 @@ def _bndt_abrir_nova_aba(driver):
     
     nova_aba = nova_aba[-1]
     driver.switch_to.window(nova_aba)
-    WebDriverWait(driver, 15).until(lambda d: '/bndt' in d.current_url)
-    
-    time.sleep(0.5)  # ⚡ Otimizado: URL já validada, elementos serão aguardados
-    try:
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-card, mat-radio-group, button'))
-        )
+    espera.ate_url(driver, '/bndt', teto=15)
+
+    espera.assentar(driver, 0.5)
+    if espera.ate_aparecer(driver, 'mat-card, mat-radio-group, button', teto=10):
         logger.info('Elementos da página BNDT detectados')
-    except Exception as e:
-        logger.warning(f'AVISO: Elementos podem não ter carregado: {e}')
+    else:
+        logger.warning('AVISO: Elementos podem não ter carregado')
     
     logger.info(f'Nova aba BNDT aberta: {driver.current_url}')
     return main_window, nova_aba
@@ -1364,12 +1373,8 @@ def _bndt_selecionar_operacao(driver, inclusao):
     """Seleciona Inclusão ou Exclusão."""
     operacao = "Inclusão" if inclusao else "Exclusão"
 
-    try:
-        WebDriverWait(driver, 10).until(
-            lambda d: d.execute_script("return document.readyState") == "complete"
-        )
-    except Exception as e:
-        logger.warning(f'AVISO: Página pode não ter carregado: {e}')
+    if not espera.ate_js(driver, "document.readyState === 'complete'", teto=10):
+        logger.warning('AVISO: Página pode não ter carregado a tempo')
 
     # IMPORTANT: the BNDT page normally opens with 'Inclusão' already selected.
     # When inclusao=True we should NOT attempt to switch radios — simply assume
@@ -1396,7 +1401,7 @@ def _bndt_selecionar_operacao(driver, inclusao):
                         parent = inp.find_element(By.XPATH, 'ancestor::mat-radio-button')
                         parent.click()
                         logger.info('BNDT: Radio Inclusão clicado (detected unchecked -> clicked)')
-                        time.sleep(0.5)
+                        espera.assentar(driver, 0.5)
                         return True
                     except Exception:
                         logger.info('BNDT: Inclusão requisitada — assumindo opção padrão já selecionada')
@@ -1419,19 +1424,17 @@ def _bndt_selecionar_operacao(driver, inclusao):
 
     radio_operacao = None
     for by, selector in selectors:
-        try:
-            radio_operacao = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((by, selector)))
+        radio_operacao = espera.elemento(driver, selector, teto=5)
+        if radio_operacao:
             logger.info(f'Radio {operacao} encontrado')
             break
-        except Exception:
-            continue
 
     if not radio_operacao:
         raise Exception(f'Não foi possível encontrar o radio button de {operacao}')
 
     radio_operacao.click()
     logger.info(f'Radio {operacao} clicado')
-    time.sleep(0.5)
+    espera.assentar(driver, 0.5)
 
     # Após selecionar o radio, verificar se existe a mensagem "Não existem partes a serem selecionadas"
     # Se existir, significa que não há partes para selecionar, então a operação está cumprida
@@ -1464,17 +1467,16 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
     ]
 
     for by, selector in seletores_operacao:
-        try:
-            btn_operacao = WebDriverWait(driver, 5).until(EC.presence_of_element_located((by, selector)))
-            try:
-                driver.execute_script('arguments[0].click();', btn_operacao)
-            except Exception:
-                btn_operacao.click()
-            logger.info(f'Operação {operacao} selecionada para polo {polo} via seletor: {selector}')
-            time.sleep(0.5)
-            return True
-        except Exception:
+        btn_operacao = espera.elemento(driver, selector, teto=5, visivel=False)
+        if not btn_operacao:
             continue
+        try:
+            safe_click_no_scroll(driver, btn_operacao)
+        except Exception:
+            btn_operacao.click()
+        logger.info(f'Operação {operacao} selecionada para polo {polo} via seletor: {selector}')
+        espera.assentar(driver, 0.5)
+        return True
 
     logger.warning(f'Erro ao selecionar operação {operacao} no polo {polo}: nenhum seletor funcionou')
     return False
@@ -1493,9 +1495,9 @@ def _bndt_processar_selecoes(driver):
     for by, selector in selectors:
         try:
             chk_todos = driver.find_element(by, selector)
-            driver.execute_script('arguments[0].click();', chk_todos)
+            safe_click_no_scroll(driver, chk_todos)
             logger.info('Checkbox "Selecionar todos" clicado (sem aguardar elementos extras)')
-            time.sleep(0.25)
+            espera.assentar(driver, 0.25)
             return
         except Exception:
             continue
@@ -1516,14 +1518,7 @@ def _bndt_processar_selecoes_polo(driver, polo, inclusao=False):
     try:
         if inclusao:
             # Aguardar seção de partes sem registro renderizar
-            try:
-                WebDriverWait(driver, 8).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, 'pje-bndt-partes-sem-registro mat-checkbox')
-                    )
-                )
-            except Exception:
-                pass
+            espera.ate_aparecer(driver, 'pje-bndt-partes-sem-registro mat-checkbox', teto=8)
 
             # Buscar todos os mat-checkbox dentro de pje-bndt-partes-sem-registro
             # excluindo o primeiro ("Selecionar todos", que tem id mat-checkbox-N)
@@ -1554,26 +1549,21 @@ def _bndt_processar_selecoes_polo(driver, polo, inclusao=False):
             try:
                 lbl = primeiro.find_element(By.CSS_SELECTOR, 'label')
                 driver.execute_script('window.focus();')
-                driver.execute_script('arguments[0].click();', lbl)
+                safe_click_no_scroll(driver, lbl)
                 logger.info(f'[BNDT/INCLUSAO] Primeiro checkbox de parte clicado: {primeiro.get_attribute("id")}')
-                time.sleep(0.3)
+                espera.assentar(driver, 0.3)
             except Exception as e:
                 logger.warning(f'[BNDT/INCLUSAO] Erro ao clicar primeiro checkbox: {e}')
-                driver.execute_script('arguments[0].click();', primeiro)
+                safe_click_no_scroll(driver, primeiro)
 
             logger.info(f'[BNDT/INCLUSAO] 1 checkbox marcado no polo {polo}')
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
 
         else:
             # EXCLUSAO: usar seletor idêntico ao maispje
             # 'pje-bndt-exclusao label[for*="debito"][for*="-input"]'
             seletor_exclusao = 'pje-bndt-exclusao label[for*="debito"][for*="-input"]'
-            try:
-                WebDriverWait(driver, 8).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, seletor_exclusao))
-                )
-            except Exception:
-                pass
+            espera.ate_aparecer(driver, seletor_exclusao, teto=8)
 
             labels = driver.find_elements(By.CSS_SELECTOR, seletor_exclusao)
             if not labels:
@@ -1594,13 +1584,13 @@ def _bndt_processar_selecoes_polo(driver, polo, inclusao=False):
 
             for label in labels:
                 try:
-                    driver.execute_script('arguments[0].click();', label)
-                    time.sleep(0.1)
+                    safe_click_no_scroll(driver, label)
+                    espera.assentar(driver, 0.1)
                 except Exception as e:
                     logger.warning(f'Erro ao clicar checkbox de débito: {e}')
 
             logger.info(f'[BNDT/EXCLUSAO] {len(labels)} checkbox(es) de débito marcados no polo {polo}')
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
 
     except Exception as e:
         logger.warning(f'Erro ao marcar checkboxes no polo {polo}: {e}')
@@ -1617,30 +1607,24 @@ def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
     
     btn_gravar = None
     for by, selector in selectors_gravar:
-        try:
-            btn_gravar = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((by, selector)))
+        btn_gravar = espera.elemento(driver, selector, teto=5)
+        if btn_gravar:
             logger.info('Botão Gravar encontrado')
             break
-        except Exception:
-            continue
-    
+
     if not btn_gravar:
         raise Exception('Botão Gravar não encontrado')
-    
+
     btn_gravar.click()
     logger.info('Botão Gravar clicado')
-    time.sleep(1)
-    
+    espera.assentar(driver, 1)
+
     # Verificar confirmação final
-    try:
-        btn_sim = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[.//span[contains(text(),'Sim')]]"))
-        )
+    btn_sim = espera.elemento(driver, "//button[.//span[contains(text(),'Sim')]]", teto=3)
+    if btn_sim:
         btn_sim.click()
         logger.info('Confirmação clicada')
-        time.sleep(1)
-    except Exception:
-        pass
+        espera.assentar(driver, 1)
     
     # Fechar aba
     driver.close()
@@ -1667,53 +1651,41 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
         (By.XPATH, "//pje-bndt-exclusao//button[contains(text(),'Gravar')] | //pje-bndt-inclusao//button[contains(text(),'Gravar')]")
     ]
     for by, selector in selectors_gravar:
-        try:
-            btn_gravar = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((by, selector)))
+        btn_gravar = espera.elemento(driver, selector, teto=3)
+        if btn_gravar:
             logger.info('Botão Gravar encontrado')
             break
-        except Exception:
-            continue
-    
+
     if not btn_gravar:
         logger.warning(f'Botão Gravar não encontrado no polo {polo}')
         return
 
     try:
         try:
-            driver.execute_script('arguments[0].click();', btn_gravar)
+            safe_click_no_scroll(driver, btn_gravar)
         except Exception:
             btn_gravar.click()
         logger.info('Botão Gravar clicado')
-        time.sleep(0.5)
+        espera.assentar(driver, 0.5)
     except Exception as e:
         logger.warning(f'Erro ao clicar no botão Gravar: {e}')
         return
 
     # Confirmar ação (botão Sim)
-    try:
-        btn_sim = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[contains(@class,'cdk-overlay-pane')]//button[contains(.,'Sim')]"))
-        )
+    btn_sim = espera.elemento(driver, "//div[contains(@class,'cdk-overlay-pane')]//button[contains(.,'Sim')]", teto=3)
+    if btn_sim:
         btn_sim.click()
         logger.info('Confirmação "Sim" clicada')
-        time.sleep(0.5)
-    except Exception:
+        espera.assentar(driver, 0.5)
+    else:
         logger.warning('Botão "Sim" não encontrado (pode não ser necessário)')
 
     # Aguardar desaparecer loading
-    try:
-        WebDriverWait(driver, 10).until_not(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'div[class*="container-loading"] mat-progress-spinner'))
-        )
-        time.sleep(0.5)
-    except Exception:
-        pass
+    espera.ate_sumir(driver, 'div[class*="container-loading"] mat-progress-spinner', teto=10)
 
     # Verificar mensagem de sucesso ou erro
     try:
-        aviso = WebDriverWait(driver, 3).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'simple-snack-bar'))
-        )
+        aviso = espera.elemento(driver, 'simple-snack-bar', teto=3, visivel=False)
         if aviso:
             texto_aviso = aviso.text
             logger.info(f'Aviso: {texto_aviso}')
@@ -1730,6 +1702,8 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
                 logger.warning('Classe judicial não permite BNDT')
             else:
                 logger.warning(f'Mensagem inesperada: {texto_aviso}')
+        else:
+            logger.warning('Nenhum aviso detectado')
     except Exception:
         logger.warning('Nenhum aviso detectado')
 
@@ -1754,8 +1728,8 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
         if not fase_element:
             logger.error('ERRO em filtrofases: Nao encontrou o seletor de fase processual')
             return False
-        driver.execute_script("arguments[0].click();", fase_element)
-        time.sleep(1)
+        safe_click_no_scroll(driver, fase_element)
+        espera.ate_aparecer(driver, '.mat-select-panel-wrap.ng-trigger-transformPanelWrap', teto=1)
         painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
         painel = None
         for _ in range(10):
@@ -1775,10 +1749,10 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                 try:
                     texto = opcao.text.strip().lower()
                     if fase in texto and opcao.is_displayed():
-                        driver.execute_script("arguments[0].click();", opcao)
+                        safe_click_no_scroll(driver, opcao)
                         fases_clicadas.add(fase)
                         logger.debug('[FILTROFASES] Fase "%s" selecionada', fase)
-                        time.sleep(0.5)
+                        espera.assentar(driver, 0.5)
                         break
                 except Exception:
                     continue
@@ -1787,9 +1761,9 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
             return False
         try:
             botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-            driver.execute_script('arguments[0].click();', botao_filtrar)
+            safe_click_no_scroll(driver, botao_filtrar)
             logger.debug('[FILTROFASES] Fases selecionadas e filtro aplicado')
-            time.sleep(1)
+            espera.assentar(driver, 1)
         except Exception as e:
             logger.error('ERRO em filtrofases: Nao conseguiu clicar no botao de filtrar: %s', e)
         if tarefas_alvo:
@@ -1810,8 +1784,8 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
             if not tarefa_element:
                 logger.error('ERRO em filtrofases: Nao encontrou o seletor de tarefa: %s', seletor_tarefa)
                 return False
-            driver.execute_script("arguments[0].click();", tarefa_element)
-            time.sleep(1)
+            safe_click_no_scroll(driver, tarefa_element)
+            espera.ate_aparecer(driver, '.mat-select-panel-wrap.ng-trigger-transformPanelWrap', teto=1)
             painel = None
             painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
             for _ in range(10):
@@ -1831,10 +1805,10 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                     try:
                         texto = opcao.text.strip().lower()
                         if tarefa.lower() in texto and opcao.is_displayed():
-                            driver.execute_script("arguments[0].click();", opcao)
+                            safe_click_no_scroll(driver, opcao)
                             tarefas_clicadas.add(tarefa)
                             logger.debug('[FILTROFASES] Tarefa "%s" selecionada', tarefa)
-                            time.sleep(0.5)
+                            espera.assentar(driver, 0.5)
                             break
                     except Exception:
                         continue
@@ -1843,9 +1817,9 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                 return False
             try:
                 botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-                driver.execute_script('arguments[0].click();', botao_filtrar)
+                safe_click_no_scroll(driver, botao_filtrar)
                 logger.debug('[FILTROFASES] Tarefas selecionadas e filtro aplicado')
-                time.sleep(1)
+                espera.assentar(driver, 1)
             except Exception as e:
                 logger.error('ERRO em filtrofases: Nao conseguiu clicar no botao de filtrar para tarefas: %s', e)
     except Exception as e:
@@ -2002,7 +1976,7 @@ def abrir_detalhes_processo(driver, linha):
         except Exception:
             return False
     driver.execute_script("arguments[0].scrollIntoView(true);", btn)
-    driver.execute_script("arguments[0].click();", btn)
+    safe_click_no_scroll(driver, btn)
     return True
 
 
@@ -2143,7 +2117,7 @@ def _indexar_tentar_reindexar(driver: WebDriver, proc_id: str, max_tentativas: i
             if linha:
                 return linha
             logger.debug('[PROCESSAR] Tentativa %s/%s - Reindexando', tent+1, max_tentativas)
-            time.sleep(1)
+            espera.assentar(driver, 1)
         except Exception as e:
             logger.debug('[PROCESSAR] Falha na tentativa %s: %s', tent+1, e)
             time.sleep(1)
@@ -2181,10 +2155,10 @@ def _indexar_tentar_trocar_aba(driver: WebDriver, aba_original: str, max_tentati
                     logger.debug('[PROCESSAR] Trocado para nova aba: %s', url_legivel)
                 except:
                     logger.debug('[PROCESSAR] Trocado para nova aba')
-                time.sleep(0.5)
+                espera.assentar(driver, 0.5)
                 return nova_aba
             logger.debug('[PROCESSAR] Tentativa %s/%s - Aguardando aba', tent+1, max_tentativas)
-            time.sleep(1)
+            espera.assentar(driver, 1)
         except Exception as e:
             logger.debug('[PROCESSAR] Falha ao trocar aba (tent %s): %s', tent+1, e)
             time.sleep(1)
@@ -2239,7 +2213,7 @@ def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback
         logger.error('ERRO em _indexar_processar_item: Falha ao abrir detalhes: %s', e)
         return "ERRO"
 
-    time.sleep(1)
+    espera.assentar(driver, 1)
 
     nova_aba = _indexar_tentar_trocar_aba(driver, aba_lista_original)
     if not nova_aba:
@@ -2247,7 +2221,7 @@ def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback
         return "ERRO"
 
     try:
-        time.sleep(1)
+        espera.assentar(driver, 1)
         def callback_wrapper(driver_inner):
             driver_inner._numero_processo_lista = proc_id
             return callback(driver_inner)

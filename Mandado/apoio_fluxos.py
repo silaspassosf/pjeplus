@@ -21,9 +21,11 @@ from typing import Optional, Any, List, Tuple
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 
 from Fix.abas import validar_conexao_driver
+from Fix.browser_suporte import forcar_fechamento_abas_extras
+from Fix.core import aguardar_renderizacao_nativa, baixarCP, contar_mandados_e_certidoes_oficial, safe_click_no_scroll
+from Fix.facade_publica import ElementoNaoEncontradoError
 from Fix.extracao import extrair_direto, extrair_documento, criar_lembrete_posit
 from Fix.log import logger
 from Fix.selenium_base import aguardar_e_clicar
@@ -43,6 +45,14 @@ from atos import (
     mov_arquivar,
     ato_meiosub,
 )
+from Fix import espera
+
+
+# ════════════════════════════════════════
+# 0. Controle de GIGS por processo (evita duplicidade)
+# ════════════════════════════════════════
+
+_GIGS_CRIADO_PARA_PROCESSO: set = set()
 
 
 # ════════════════════════════════════════
@@ -163,13 +173,13 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
             return False
 
         try:
-            driver.execute_script('arguments[0].click();', btn_sigilo)
+            safe_click_no_scroll(driver, btn_sigilo)
         except Exception:
             btn_sigilo.click()
 
         import time
         for _ in range(8):
-            time.sleep(0.25)
+            espera.assentar(driver, 0.25)
             try:
                 if not _tem_sigilo_link():
                     if debug:
@@ -304,6 +314,122 @@ def _extrair_texto_certidao_via_api(driver: WebDriver, log: bool = True) -> Opti
             logger.error('[CERTIDAO_API] Erro: %s', e)
         return None
 
+
+
+# ── extração de documentos da timeline via API (certidão/mandado, sem DOM) ──
+
+def _extrair_texto_documento_timeline_api(driver: WebDriver, match_fn, log: bool = True, contexto: str = '') -> Optional[str]:
+    """Localiza (via timeline API) o primeiro documento cujo tipo/título (já
+    normalizados, sem acento) satisfaçam match_fn(tipo_norm, titulo_norm) e
+    extrai seu texto completo via /conteudo + pdfplumber — sem depender do PDF
+    viewer nem de nenhum elemento do DOM (ícone, autor, etc.).
+
+    A API de timeline já expõe tipo/título categorizados (ex.: tipo='Mandado',
+    'Certidão'), então localizar o documento certo é só uma questão de filtrar
+    por essas strings — não é necessário saber quem assinou.
+    """
+    import io as _io
+    import unicodedata
+
+    def _norm(t):
+        return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
+
+    id_processo = _extrair_id_processo_da_url(driver)
+    if not id_processo:
+        if log:
+            logger.info(f'[MANDADOS][OUTROS][API]{contexto} id_processo não encontrado na URL')
+        return None
+
+    client = _criar_api_client_local(driver)
+    if not client:
+        if log:
+            logger.info(f'[MANDADOS][OUTROS][API]{contexto} Falha ao criar API client')
+        return None
+
+    try:
+        timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
+        if not timeline:
+            if log:
+                logger.info(f'[MANDADOS][OUTROS][API]{contexto} Timeline vazia')
+            return None
+
+        id_doc = None
+        for doc in timeline:
+            if not isinstance(doc, dict):
+                continue
+            tipo_norm = _norm(doc.get('tipo', ''))
+            titulo_norm = _norm(doc.get('titulo', ''))
+            if match_fn(tipo_norm, titulo_norm):
+                id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
+                if log:
+                    logger.info(f'[MANDADOS][OUTROS][API]{contexto} Documento localizado: id=%s tipo=%s', id_doc, doc.get('tipo'))
+                break
+
+        if not id_doc:
+            if log:
+                logger.info(f'[MANDADOS][OUTROS][API]{contexto} Nenhum documento correspondente na timeline')
+            return None
+
+        url_pdf = client._url(f'/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_doc}/conteudo')
+        resp = client.sess.get(url_pdf, timeout=60)
+        if resp.status_code != 200:
+            if log:
+                logger.warning(f'[MANDADOS][OUTROS][API]{contexto} HTTP %s ao baixar PDF', resp.status_code)
+            return None
+
+        magic = resp.content[:5] if resp.content else b''
+        if magic != b'%PDF-':
+            if log:
+                logger.warning(f'[MANDADOS][OUTROS][API]{contexto} Resposta não é PDF (magic=%r)', magic)
+            return None
+
+        try:
+            import pdfplumber
+        except ImportError:
+            if log:
+                logger.warning(f'[MANDADOS][OUTROS][API]{contexto} pdfplumber não instalado')
+            return None
+
+        textos = []
+        with pdfplumber.open(_io.BytesIO(resp.content)) as pdf:
+            for pag in pdf.pages:
+                t = pag.extract_text()
+                if t:
+                    textos.append(t)
+
+        texto_total = '\n'.join(textos).strip()
+        if log:
+            logger.info(f'[MANDADOS][OUTROS][API]{contexto} Texto extraído: %d chars', len(texto_total))
+        return texto_total if texto_total else None
+
+    except Exception as e:
+        if log:
+            logger.info(f'[MANDADOS][OUTROS][API]{contexto} Erro: {e}')
+        return None
+
+
+def _extrair_texto_certidao_oficial_via_api(driver: WebDriver, log: bool = True) -> Optional[str]:
+    """Extrai o texto da certidão de Oficial de Justiça (documento atual) via API."""
+    return _extrair_texto_documento_timeline_api(
+        driver,
+        match_fn=lambda tipo, titulo: 'certidao' in tipo or 'certidao' in titulo,
+        log=log,
+        contexto='[CERTIDAO]',
+    )
+
+
+def _localizar_texto_mandado_anterior_via_api(driver: WebDriver, log: bool = True) -> Optional[str]:
+    """Localiza e extrai o texto do mandado (tipo/título 'Mandado') mais recente
+    na timeline via API — substitui a busca por ícone de gavel + autor no DOM."""
+    return _extrair_texto_documento_timeline_api(
+        driver,
+        match_fn=lambda tipo, titulo: (
+            ('mandado' in tipo or 'mandado' in titulo)
+            and 'certidao' not in tipo and 'certidao' not in titulo
+        ),
+        log=log,
+        contexto='[MANDADO_ANTERIOR]',
+    )
 
 
 # ── extração de documentos decisão/despacho via API (igual P2B) ─────────────
@@ -629,12 +755,7 @@ def buscar_documentos_sequenciais_via_api(driver: WebDriver, log: bool = True) -
         # API ja confirmou que os documentos existem; agora encontramos os
         # WebElements correspondentes pelo conteudo textual, sem depender de
         # UIDs que nao batem com os hrefs do DOM.
-        try:
-            WebDriverWait(driver, 5).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')) > 0
-            )
-        except Exception:
-            pass
+        espera.elemento(driver, 'li.tl-item-container', teto=5, visivel=False)
 
         elementos = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if log:
@@ -953,6 +1074,69 @@ def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=Tr
 # Defina a variável de ambiente PJE_ALLOW_MANDADO_ATOS=1 para permitir
 ALLOW_MANDADO_ATOS = os.environ.get('PJE_ALLOW_MANDADO_ATOS', '0').lower() in ('1', 'true', 'yes', 'y')
 
+# Motor de regras da certidão de Oficial de Justiça (fluxo Outros/não-Argos).
+# Texto de entrada já passa por remover_acentos() antes do match — por isso os
+# padrões abaixo são escritos sem acento (uma variante acentuada nunca bateria).
+PADRAO_CANCELAMENTO = (
+    "ordem de cancelamento total",
+)
+
+PADRAO_POSITIVO = (
+    "citei",
+    "intimei",
+    "recebeu o mandado",
+    "de tudo ficou ciente",
+    "procedi a intimacao",
+    "procedi a citacao",
+    "procedi a entrega do mandado",
+    "procedi a penhora",
+    "penhorei",
+)
+
+# Hipótese negativa de penhora: certidão relata ausência de bens penhoráveis.
+# Aciona ato_meios ANTES de o mandado ser apagado do escaninho (ver
+# _executar_acoes_padrao_negativo / arquivar_mandado_outros_reconhecido).
+PADRAO_HIPOTESE_NEGATIVA_PENHORA = (
+    "deixei de proceder a penhora",
+    "penhora negativa",
+    "nao encontrei bens",
+    "padrao de vida",
+    "padrao medio de vida",
+    "padrao media de vida",
+)
+
+PADRAO_NEGATIVO = (
+    "nao localizado",
+    "resultado negativo",
+    "diligencias negativas",
+    "diligencia negativa",
+    "nao encontrado",
+    "deixei de citar",
+    "deixei de efetuar",
+    "deixei de comparecer",
+    "deixei de intimar",
+    "deixei de penhorar",
+    "nao logrei exito",
+    "desconhecido no local",
+    "nao foi possivel efetuar",
+    "parou de responder",
+    "nao foi possivel localizar",
+) + PADRAO_HIPOTESE_NEGATIVA_PENHORA
+
+
+def _normalizar_certidao(texto: Optional[str]) -> str:
+    """Remove acentos, lowercase e colapsa espacos irregulares (quebras de
+    linha/nbsp de extracao via API ou PDF) em um unico espaco — evita que uma
+    frase-gatilho quebrada entre linhas deixe de casar (mesma classe de bug
+    corrigida em Fix/variaveis.py para o link de validacao de comunicacoes)."""
+    if not texto:
+        return ''
+    try:
+        base = remover_acentos(texto)
+    except Exception:
+        base = texto
+    return re.sub(r'\s+', ' ', base.lower()).strip()
+
 
 def ultimo_mdd(driver: WebDriver, log: bool = True) -> Tuple[Optional[str], Optional[Any]]:
     """
@@ -1037,201 +1221,351 @@ def ultimo_mdd(driver: WebDriver, log: bool = True) -> Tuple[Optional[str], Opti
         return None, None
 
 
-def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
+def _executar_acoes_padrao_negativo(driver: WebDriver, texto_lower: str, log: bool = True) -> None:
+    """Ações adicionais quando a certidão reconhece o padrão NEGATIVO.
+
+    0. Hipótese negativa de penhora (ausência de bens/padrão de vida): chama
+       ato_meios ANTES do caller apagar o mandado do escaninho (a exclusão só
+       acontece depois que esta função retorna — ver fluxo_mandados_outros /
+       arquivar_mandado_outros_reconhecido).
+    1. Localiza e lê o mandado anterior via API (tipo/título já filtram por
+       categoria — dispensa DOM/ícone/autor): se o texto contiver 'penhora',
+       chama ato_meios.
+    2. Depois olha o texto da certidão atual: 'penhora de bens' / 'deixei de
+       penhorar' -> ato_meios; senão, se o texto do mandado anterior citar
+       'silas passos' -> ato_edital.
+
+    ato_meios só é efetivamente invocado uma vez por certidão mesmo que mais de
+    um gatilho bata (evita ato duplicado no processo); cada chamada fecha
+    qualquer aba extra que ato_meios tenha aberto antes de devolver o controle,
+    para que a troca de aba subsequente (apagar do escaninho) não opere na aba
+    errada.
     """
-    Processa o fluxo de mandados não-Argos (Oficial de Justiça).
-    1. Verifica se é certidão de oficial através do cabeçalho
-    2. Extrai e analisa o texto da certidão
-    3. Verifica padrões de mandado positivo/negativo
-    4. Cria GIGS ou executa atos conforme resultado
-    """
-    try:
-        # Usa aguardar_e_clicar mais robusto ao invés de find_element direto
-        cabecalho = aguardar_e_clicar(driver, ".cabecalho-conteudo .mat-card-title", timeout=5, retornar_elemento=True)
-        if not cabecalho:
+    logger.info("Padrão de mandado NEGATIVO encontrado no texto.")
+
+    ato_meios_executado = False
+
+    def _chamar_ato_meios(motivo: str) -> None:
+        nonlocal ato_meios_executado
+        if ato_meios_executado:
             if log:
-                logger.warning('[MANDADOS][OUTROS][ALERTA] Cabeçalho não encontrado. Tentando fallback.')
-            cabecalho = driver.find_element(By.CSS_SELECTOR, ".cabecalho-conteudo .mat-card-title")
-
-        titulo_documento = cabecalho.text.lower()
-        if log:
-            logger.info(f"[MANDADOS][OUTROS] Cabeçalho detectado: {cabecalho.text}")
-
-        eh_certidao_oficial = any(p in titulo_documento for p in [
-            "certidão de oficial",
-            "certidão de oficial de justiça"
-        ])
-
-        if not eh_certidao_oficial:
+                logger.info(f'[MANDADOS][OUTROS] ato_meios() já executado para esta certidão — pulando novo acionamento ({motivo})')
             return
-
-    except Exception as e:
-        if log:
-            logger.error(f"[MANDADOS][OUTROS][ERRO] Erro ao verificar cabeçalho: {e}. Criando GIGS fallback.")
-        # REMOVIDO: GIGS 0/PZ MDD considerado inútil
-
-        # Fechamento simples sem verificações excessivas (igual ao ARGOS)
-        return
-
-    def analise_padrao(texto):
-        # Diagnostic: confirmar entrada em analise_padrao
-        logger.info('[MANDADOS][OUTROS] ENTER analise_padrao()')
-        # Normalizar texto removendo acentos para facilitar matching
+        if not ALLOW_MANDADO_ATOS:
+            logger.info(f'[MANDADOS][OUTROS] atos automáticos desabilitados (PJE_ALLOW_MANDADO_ATOS=0) — pulando ato_meios() ({motivo})')
+            return
+        aba_atual = driver.current_window_handle
+        logger.info(f'[MANDADOS][OUTROS] Invocando ato_meios() ({motivo})')
         try:
-            texto_norm = remover_acentos(texto)
+            ato_meios(driver)
+            ato_meios_executado = True
+            logger.info(f'[MANDADOS][OUTROS] ato_meios() retornou ({motivo})')
         except Exception as e:
-            logger.info(f'[MANDADOS][OUTROS] analise_padrao: falha na normalizacao: {e}')
-            texto_norm = texto
-        texto_lower = texto_norm.lower()
-        if log:
-            logger.info(f"[MANDADOS][OUTROS] Texto (normalizado) para análise (len={len(texto_lower)}):\n{texto_lower[:800]}\n---Fim do documento---")
-
-        padrao_positivo = any(p in texto_lower for p in [
-            "citei",
-            "intimei",
-            "recebeu o mandado",
-            "de tudo ficou ciente"
-            "procedi à intimação",
-            "procedi à citação",
-            "procedi à entrega do mandado",
-            "procedi à penhora",
-            "penhorei"
-
-        ])
-        padrao_negativo = any(p in texto_lower for p in [
-            "não localizado",
-            "resultado negativo",
-            "diligencias negativas",
-            "diligência negativa",
-            "não encontrado",
-            "deixei de citar",
-            "deixei de efetuar",
-            "deixei de comparacer",
-            "deixei de intimar",
-            "deixei de penhorar",
-            "não logrei êxito",
-            "desconhecido no local",
-            "não foi possível efetuar"
-            "parou de responder",
-            "não foi possível localizar",
-        ])
-
-        padrao_cancelamento_total = any(p in texto_lower for p in [
-            "ordem de cancelamento total",
-        ])
-        if padrao_cancelamento_total:
-            return None
-
-        if padrao_positivo:
-            pass
-        elif padrao_negativo:
-            if log:
-                logger.info("Padrão de mandado NEGATIVO encontrado no texto.")  # NOVA REGRA: localizar mandado anterior na timeline, extrair conteúdo e, se contiver 'penhora', chamar ato_meios
-                logger.info('[MANDADOS][OUTROS] padrao_negativo detectado — invocando ultimo_mdd()')
-                autor_ant, elemento_ant = ultimo_mdd(driver, log=log)
-                if elemento_ant:
-                    try:
-                        link_ant = elemento_ant.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-                        # Comportamento idêntico ao p2b: abrir link, aguardar estabilização e chamar extrair_direto
-                        try:
-                            aguardar_e_clicar(driver, link_ant)
-                        except Exception:
-                            try:
-                                driver.execute_script("arguments[0].click();", link_ant)
-                            except Exception:
-                                pass
-                        # Usar WebDriverWait ao invés de time.sleep
-                        from Fix.core import wait_for_page_load
-                        wait_for_page_load(driver, timeout=5)
-                        try:
-                            texto_mandado_ant_result = extrair_direto(driver, timeout=10, debug=True, formatar=True)
-                        except Exception:
-                            texto_mandado_ant_result = extrair_documento(driver, regras_analise=None, timeout=10, log=log)
-                        texto_mandado_ant = texto_mandado_ant_result.get('conteudo', '') if texto_mandado_ant_result and texto_mandado_ant_result.get('sucesso') else None
-                        if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
-                            if not ALLOW_MANDADO_ATOS:
-                                logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados (PJE_ALLOW_MANDADO_ATOS=0) — pulando ato_meios()')
-                            else:
-                                logger.info('[MANDADOS][OUTROS] Invocando ato_meios() (do mandado anterior)')
-                                try:
-                                    ato_meios(driver)
-                                    logger.info('[MANDADOS][OUTROS] ato_meios() retornou')
-                                except Exception as e:
-                                    logger.error(f'[MANDADOS][OUTROS] erro em ato_meios(): {e}')
-                    except Exception as e:
-                        if log:
-                            logger.error(f"Falha ao processar mandado anterior: {e}")
-            # Verifica se contém "penhora de bens" no texto
-            if "penhora de bens" in texto_lower:
-                if not ALLOW_MANDADO_ATOS:
-                    logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_meios() (penhora de bens)')
+            logger.error(f'[MANDADOS][OUTROS] erro em ato_meios() ({motivo}): {e}')
+        finally:
+            try:
+                if aba_atual in driver.window_handles:
+                    forcar_fechamento_abas_extras(driver, aba_atual)
                 else:
-                    logger.info('[MANDADOS][OUTROS] Invocando ato_meios() (penhora de bens)')
-                    try:
-                        ato_meios(driver)
-                        logger.info('[MANDADOS][OUTROS] ato_meios() retornou')
-                    except Exception as e:
-                        logger.error(f'[MANDADOS][OUTROS] erro em ato_meios(): {e}')
-            elif "deixei de penhorar" in texto_lower:
-                if not ALLOW_MANDADO_ATOS:
-                    logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_meios() (deixei de penhorar)')
-                else:
-                    logger.info('[MANDADOS][OUTROS] Invocando ato_meios() (deixei de penhorar)')
-                    try:
-                        ato_meios(driver)
-                        logger.info('[MANDADOS][OUTROS] ato_meios() retornou')
-                    except Exception as e:
-                        logger.error(f'[MANDADOS][OUTROS] erro em ato_meios(): {e}')
-            else:
-                # Busca último mandado na timeline
-                autor, elemento = ultimo_mdd(driver, log=log)
-                if autor:
-                    if 'silas passos' in autor.lower():
-                        if not ALLOW_MANDADO_ATOS:
-                            logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_edital()')
-                        else:
-                            logger.info('[MANDADOS][OUTROS] Invocando ato_edital()')
-                            try:
-                                ato_edital(driver)
-                                logger.info('[MANDADOS][OUTROS] ato_edital() retornou')
-                            except Exception as e:
-                                logger.error(f'[MANDADOS][OUTROS] erro em ato_edital(): {e}')
-                    else:
-                        pass
-                else:
-                    pass
+                    logger.warning(f'[MANDADOS][OUTROS] Aba original ({aba_atual}) não existe mais após ato_meios ({motivo}) — driver pode ficar em aba inesperada')
+            except Exception as e_aba:
+                logger.error(f'[MANDADOS][OUTROS] Falha ao normalizar abas após ato_meios ({motivo}): {e_aba}')
+
+    frase_hipotese_negativa = next((p for p in PADRAO_HIPOTESE_NEGATIVA_PENHORA if p in texto_lower), None)
+    if frase_hipotese_negativa:
+        _chamar_ato_meios(f'hipótese negativa de penhora: "{frase_hipotese_negativa}"')
+
+    logger.info('[MANDADOS][OUTROS] padrao_negativo detectado — localizando mandado anterior via API')
+    texto_mandado_ant = _localizar_texto_mandado_anterior_via_api(driver, log=log)
+
+    if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
+        _chamar_ato_meios('do mandado anterior')
+
+    if "penhora de bens" in texto_lower:
+        _chamar_ato_meios('penhora de bens')
+    elif "deixei de penhorar" in texto_lower:
+        _chamar_ato_meios('deixei de penhorar')
+    elif texto_mandado_ant and 'silas passos' in texto_mandado_ant.lower():
+        if not ALLOW_MANDADO_ATOS:
+            logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_edital()')
         else:
-            pass
-    try:
-        # ALWAYS emit a short diagnostic log before attempting extraction
-        logger.info('[MANDADOS][OUTROS] Invocando extrair_direto() (debug ON para diagnóstico)')
-        texto_result = extrair_direto(driver, timeout=10, debug=True, formatar=True)
-        logger.info(f'[MANDADOS][OUTROS] extrair_direto returned (diagnostic): {bool(texto_result and texto_result.get("sucesso"))}')
-    except Exception as e:
-        logger.error(f'[MANDADOS][OUTROS] extrair_direto falhou: {e}')
-        texto_result = None
+            logger.info('[MANDADOS][OUTROS] Invocando ato_edital()')
+            try:
+                ato_edital(driver)
+                logger.info('[MANDADOS][OUTROS] ato_edital() retornou')
+            except Exception as e:
+                logger.error(f'[MANDADOS][OUTROS] erro em ato_edital(): {e}')
 
-    if not texto_result or not texto_result.get('sucesso'):
+
+def _classificar_certidao_oficial(texto: str) -> Optional[str]:
+    """Classifica o texto da certidão de Oficial de Justiça.
+
+    Retorna 'cancelamento' | 'positivo' | 'negativo' | None (nenhum padrão reconhecido).
+    """
+    texto_lower = _normalizar_certidao(texto)
+
+    if any(p in texto_lower for p in PADRAO_CANCELAMENTO):
+        return 'cancelamento'
+    if any(p in texto_lower for p in PADRAO_POSITIVO):
+        return 'positivo'
+    if any(p in texto_lower for p in PADRAO_NEGATIVO):
+        return 'negativo'
+    return None
+
+
+def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> Optional[str]:
+    """
+    Processa a certidão de Oficial de Justiça já aberta (fluxo Outros/não-Argos).
+
+    O chamador (BLOCO 2 / processar_mandado_detalhe) já garantiu, via classificação
+    da API + confirmação por _selecionar_doc_via_timeline, que o documento aberto é
+    uma certidão de oficial — não há necessidade de reler cabeçalho aqui.
+
+    1. Extrai o texto da certidão
+    2. Classifica em cancelamento/positivo/negativo (motor de regras declarativo)
+    3. Para negativo, executa ações adicionais (ato_meios/ato_edital conforme padrão)
+
+    Returns:
+        Nome da regra reconhecida ('cancelamento'|'positivo'|'negativo') para o
+        chamador decidir o pós-processamento padrão (GIGS xs2 + apagar do
+        escaninho, via arquivar_mandado_outros_reconhecido), ou None se nenhuma
+        regra foi reconhecida / falha na extração.
+    """
+    texto = None
+    try:
+        texto = _extrair_texto_certidao_oficial_via_api(driver, log=log)
+    except Exception as e:
+        logger.info(f'[MANDADOS][OUTROS][API] Extração via API levantou exceção: {e}')
+
+    if not texto:
         if log:
-            logger.info('[MANDADOS][OUTROS] extrair_direto não retornou conteúdo; usando extrair_documento() fallback')
-        texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=log)
-        texto = texto_tuple[0] if texto_tuple and texto_tuple[0] else None
-    else:
-        texto = texto_result.get('conteudo', '')
-    # Diagnostic: confirmar atribuição de texto
+            logger.info('[MANDADOS][OUTROS] API sem resultado — usando extrair_direto() (DOM)')
+        try:
+            texto_result = extrair_direto(driver, timeout=10, debug=True, formatar=True)
+            logger.info(f'[MANDADOS][OUTROS] extrair_direto returned (diagnostic): {bool(texto_result and texto_result.get("sucesso"))}')
+        except Exception as e:
+            logger.error(f'[MANDADOS][OUTROS] extrair_direto falhou: {e}')
+            texto_result = None
+
+        if not texto_result or not texto_result.get('sucesso'):
+            if log:
+                logger.info('[MANDADOS][OUTROS] extrair_direto não retornou conteúdo; usando extrair_documento() fallback')
+            texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=log)
+            texto = texto_tuple[0] if texto_tuple and texto_tuple[0] else None
+        else:
+            texto = texto_result.get('conteudo', '')
+
     logger.info(f'[MANDADOS][OUTROS] Texto atribuído len={len(texto) if texto else 0}')
     if not texto:
         if log:
             logger.error("[MANDADOS][OUTROS][ERRO] Não foi possível extrair o texto da certidão.")
-        return
+        return None
     if log:
         logger.info(f"[MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): {texto[:200].replace(chr(10),' ')}")
-    logger.info('[MANDADOS][OUTROS] Chamando analise_padrao()')
-    # Analisar o texto extraído e executar ações padrão (positivo/negativo/cancelamento)
+
+    regra = _classificar_certidao_oficial(texto)
+    logger.info(f'[MANDADOS][OUTROS] Regra reconhecida: {regra or "nenhuma"}')
+
+    if regra == 'negativo':
+        texto_lower = _normalizar_certidao(texto)
+        try:
+            _executar_acoes_padrao_negativo(driver, texto_lower, log=log)
+        except Exception as e:
+            if log:
+                logger.error(f"[MANDADOS][OUTROS][ERRO] Falha ao executar ações do padrão negativo: {e}")
+
+    return regra
+
+
+def arquivar_mandado_outros_reconhecido(
+    driver: WebDriver,
+    numero_processo: str,
+    escaninho_handle: str,
+    log: bool = True,
+) -> bool:
+    """Ação padrão para QUALQUER regra reconhecida no fluxo Outros (cancelamento,
+    positivo ou negativo).
+
+    A aba 0 (escaninho de mandados devolvidos) é aberta uma única vez no início
+    da execução e NUNCA é fechada — por isso não há fallback de navegação aqui,
+    apenas o fluxo fixo:
+    a) cria GIGS sem prazo (xs1) na aba /detalhe ATUAL, logo após as ações da
+       regra (chamado antes de qualquer troca de aba, para não perder o contexto).
+       A criação ocorre UMA VEZ por processo; chamadas subsequentes para o mesmo
+       processo pulam a criação.
+    b) troca para a aba do escaninho (escaninho_handle) e remove o item da lista.
+    """
+    from Fix.extracao import criar_gigs
+
+    if numero_processo not in _GIGS_CRIADO_PARA_PROCESSO:
+        try:
+            criar_gigs(driver, dias_uteis="1", responsavel="", observacao="xs1", log=log)
+            _GIGS_CRIADO_PARA_PROCESSO.add(numero_processo)
+        except Exception as e:
+            if log:
+                logger.error(f'[MANDADOS][OUTROS] Falha ao criar GIGS xs1 para #{numero_processo}: {e}')
+    elif log:
+        logger.info(f'[MANDADOS][OUTROS] GIGS já criado para #{numero_processo}. Pulando criação.')
+
     try:
-        analise_padrao(texto)
-        logger.info('[MANDADOS][OUTROS] analise_padrao returned')
+        driver.close()
+    except Exception:
+        pass
+    driver.switch_to.window(escaninho_handle)
+
+    try:
+        lixeira_xpath = (
+            f"//tr[contains(@class, 'cdk-drag') and contains(., '{numero_processo}')]"
+            "//button[@aria-label='Remover documento marcados' or @mattooltip='Remover documento' "
+            "or contains(@aria-label, 'Remover documento')]"
+        )
+        lixeiras = driver.find_elements(By.XPATH, lixeira_xpath)
+        if not lixeiras:
+            if log:
+                logger.warning(f'[MANDADOS][OUTROS] Lixeira não encontrada no escaninho para #{numero_processo}')
+            return False
+
+        safe_click_no_scroll(driver, lixeiras[0])
+        if log:
+            logger.info(f'[MANDADOS][OUTROS] Lixeira clicada para #{numero_processo}')
+
+        aguardar_renderizacao_nativa(driver, 'mat-dialog-container, .cdk-overlay-pane', modo='aparecer', timeout=3)
+        botoes_confirmacao = driver.find_elements(
+            By.XPATH, "//button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')]"
+        )
+        for btn in botoes_confirmacao:
+            if btn.is_displayed():
+                safe_click_no_scroll(driver, btn)
+                if log:
+                    logger.info(f'[MANDADOS][OUTROS] Remoção confirmada para #{numero_processo}')
+                break
+        return True
     except Exception as e:
         if log:
-            logger.error(f"[MANDADOS][OUTROS][ERRO] Falha na análise padrão: {e}")
-    return
+            logger.error(f'[MANDADOS][OUTROS] Falha ao apagar #{numero_processo} do escaninho: {e}')
+        return False
+
+
+# ════════════════════════════════════════
+# 5. Fluxo CP (CartPrecCiv) — sub-fluxo Mandado/Outros
+# ════════════════════════════════════════
+
+# Saudacao formal que abre o corpo do mandado ('O(a) Exmo(a). Juiz(a) do
+# Trabalho...'). Aplicada sobre texto ja normalizado (remover_acentos +
+# lowercase + espacos colapsados, via _normalizar_certidao) — por isso sem
+# acentos e tolerante a variacoes de parenteses/genero.
+_CP_SAUDACAO_RE = re.compile(
+    r'[oa]\s*\(?\s*a?\s*\)?\s*exm[oa]\s*\(?\s*a?\s*\)?\.?\s*juiz\s*\(?\s*a?\s*\)?\s*do\s*trabalho'
+)
+
+
+def _extrair_ementa_mandado(texto: str) -> str:
+    """Retorna a parte do texto do mandado ANTERIOR a saudacao formal
+    ('O(a) Exmo(a). Juiz(a) do Trabalho...') — normalmente o titulo/ementa do
+    mandado (ex.: 'MANDADO DE PENHORA, AVALIACAO...'). Se a saudacao nao for
+    encontrada, retorna o texto normalizado inteiro (fallback conservador —
+    mantem a checagem de 'penhora' funcionando)."""
+    normalizado = _normalizar_certidao(texto)
+    match = _CP_SAUDACAO_RE.search(normalizado)
+    return normalizado[:match.start()] if match else normalizado
+
+
+def fluxo_mandados_cp(
+    driver: WebDriver,
+    numero_processo: str,
+    escaninho_handle: str,
+    log: bool = True,
+) -> Optional[str]:
+    """Processa o Fluxo CP (processo com cabecalho 'CartPrecCiv') no ramo
+    Mandado/Outros — alternativa a fluxo_mandados_outros() quando o processo
+    e uma Carta Precatoria Civel (dispatch feito pelo caller via
+    _classificar_tipo_processo_cabecalho em Mandado/entrada_api.py).
+
+    0. Le o mandado mais recente da timeline via API (reaproveita
+       _localizar_texto_mandado_anterior_via_api).
+    1. Extrai a ementa (texto ANTES da saudacao formal) e verifica se contem
+       'penhora'.
+    2. Se contem 'penhora' mas o texto NAO bate no PADRAO_NEGATIVO (penhora
+       positiva): fluxo incompleto direto.
+    3. Caso contrario (penhora + PADRAO_NEGATIVO, OU sem 'penhora'): conta
+       mandados x certidoes de oficial na timeline — iguais => fluxo
+       completo (baixarCP + anex_devcp + mov_arquivar); diferentes => fluxo
+       incompleto (GIGS xs1 + apagar do escaninho via
+       arquivar_mandado_outros_reconhecido).
+
+    Returns:
+        'completo'   baixarCP + juntada devcp + mov_arquivar executados com
+                     sucesso (processo arquivado; aba do processo permanece
+                     aberta — caller deve fechar e retornar ao escaninho).
+        'incompleto' GIGS xs1 + remocao do item ja executados via
+                     arquivar_mandado_outros_reconhecido (aba ja fechada,
+                     driver ja no escaninho_handle).
+        None         falha em alguma etapa obrigatoria (extracao do mandado,
+                     contagem, baixarCP, juntada ou movimento).
+    """
+    from PEC.anexos.anexos_wrappers import anex_devcp
+
+    logger.info(f'[MANDADOS][CP] === INICIO Fluxo CP === processo=#{numero_processo}')
+
+    texto_mandado = _localizar_texto_mandado_anterior_via_api(driver, log=log)
+    if not texto_mandado:
+        logger.error(f'[MANDADOS][CP] #{numero_processo}: falha ao localizar texto do mandado via API — abortando')
+        return None
+
+    ementa = _extrair_ementa_mandado(texto_mandado)
+    contem_penhora = 'penhora' in ementa
+    logger.info(f'[MANDADOS][CP] #{numero_processo}: ementa contem "penhora"={contem_penhora}')
+
+    def _incompleto(motivo: str) -> str:
+        logger.info(f'[MANDADOS][CP] #{numero_processo}: fluxo incompleto ({motivo}) — GIGS xs1 + apagar do escaninho')
+        arquivar_mandado_outros_reconhecido(
+            driver, numero_processo=numero_processo, escaninho_handle=escaninho_handle, log=log,
+        )
+        return 'incompleto'
+
+    if contem_penhora:
+        texto_lower = _normalizar_certidao(texto_mandado)
+        bate_negativo = any(p in texto_lower for p in PADRAO_NEGATIVO)
+        logger.info(f'[MANDADOS][CP] #{numero_processo}: padrao NEGATIVO reconhecido no mandado={bate_negativo}')
+        if not bate_negativo:
+            return _incompleto('penhora positiva — sem padrao negativo')
+
+    try:
+        qtd_mandados, qtd_certidoes = contar_mandados_e_certidoes_oficial(driver, log=log)
+    except ElementoNaoEncontradoError as e:
+        logger.error(f'[MANDADOS][CP] #{numero_processo}: falha ao contar mandados/certidoes: {e}')
+        return None
+
+    logger.info(f'[MANDADOS][CP] #{numero_processo}: mandados={qtd_mandados} certidoes_oficial={qtd_certidoes}')
+    if qtd_mandados != qtd_certidoes:
+        return _incompleto('contagem mandados/certidoes divergente')
+
+    logger.info(f'[MANDADOS][CP] #{numero_processo}: fluxo completo — baixarCP + juntada devcp + mov arquivar')
+    try:
+        if not baixarCP(driver, log=log):
+            logger.error(f'[MANDADOS][CP] #{numero_processo}: baixarCP() retornou False — abortando')
+            return None
+    except ElementoNaoEncontradoError as e:
+        logger.error(f'[MANDADOS][CP] #{numero_processo}: baixarCP() falhou: {e}')
+        return None
+
+    aba_processo = driver.current_window_handle
+    sucesso_juntada = anex_devcp(driver, numero_processo=numero_processo, debug=log)
+    try:
+        if aba_processo in driver.window_handles:
+            forcar_fechamento_abas_extras(driver, aba_processo)
+        else:
+            logger.warning(f'[MANDADOS][CP] #{numero_processo}: aba original ({aba_processo}) não existe mais após anex_devcp()')
+    except Exception as e_aba:
+        logger.error(f'[MANDADOS][CP] #{numero_processo}: falha ao normalizar abas após anex_devcp(): {e_aba}')
+
+    if not sucesso_juntada:
+        logger.error(f'[MANDADOS][CP] #{numero_processo}: anex_devcp() falhou')
+        return None
+
+    if not mov_arquivar(driver):
+        logger.error(f'[MANDADOS][CP] #{numero_processo}: mov_arquivar() falhou')
+        return None
+
+    logger.info(f'[MANDADOS][CP] #{numero_processo}: fluxo completo concluido com sucesso')
+    return 'completo'

@@ -1162,6 +1162,14 @@
                         >
                     </div>
                     <br aria-hidden="true">
+                    <label for="swal-input3" style="font-weight: bold;"> Escolha uma Ação Automatizada para executar após o ENVIO DO EMAIL </label>
+                    <br aria-hidden="true">
+                    <div style="display: grid;grid-template-columns: 1fr 1fr 2fr;align-items: center;padding-top: 20px;">
+                        <input id="escolherAAVinculoModulo6" aria-description="Escolher Ação Automatizada para executar após o ENVIO DO EMAIL" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">
+                        <button id="apagar-escolherAAVinculoModulo6" data-tooltip="Remover Ação Automatizada após o ENVIO DO EMAIL" aria-label="Remover Ação Automatizada para executar após o ENVIO DO EMAIL" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">
+                            <i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </fieldset>
@@ -1462,6 +1470,9 @@
                 <li>
                     <button id="convenio_saj" class="swal2-confirm swal2-styled">SAJ - AFASTAMENTO DE SIGILO BANCÁRIO</button>
                 </li>
+                <li>
+                    <button id="convenio_googlePlanilhas" class="swal2-confirm swal2-styled">GOOGLE PLANILHAS</button>
+                </li>
             </ul>
 
             <br aria-hidden="true">
@@ -1608,6 +1619,68 @@
                 )
             </b> &nbsp; Abrir Painel Copia e Cola</div>
         <br aria-hidden="true">
+        <div style="padding: 30px;background-color: #5f9ea030;border-radius: 8px;">
+            <div class="textoItalico">Configuração dos Atalhos F2, F3, F4, F6, F7 e F8 na página DETALHES</div>
+            <br aria-hidden="true">
+            <div style="display: flex;align-items: center;padding-top: 20px;">
+                <span>Temporizador</span>
+                <a class="tip" role="presentation">
+                    <div style="background-color: unset;border: none;"><i class="icone question-circle t18" style="background-color: black;"></i></div>
+                    <span>Quantos segundos o mouse deverá ficar repousado sobre o botão para acioná-lo</span>
+                </a>
+                <input id="atalhosDelay" aria-description="Tempo de espera do clique" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;text-align: right;font-size: 1em;margin:0 10px;">
+                <span>Segundos</span>
+            </div>
+            <br aria-hidden="true">
+            <div style="display: grid;grid-template-columns: 5% auto 5% 60%;align-items: center;padding-top: 20px;">
+                <span>Atalho F2</span>
+                <input id="escolherAAVinculoAtalhoF2" aria-description="Escolher Ação Automatizada para o Atalho F2" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">
+                <button id="apagar-escolherAAVinculoAtalhoF2" data-tooltip="Remover Ação Automatizada do Atalho F2" aria-label="Remover Ação Automatizada do Atalho F2" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">
+                    <i class="icone trash-alt t20" style="background-color: black; vertical-align: middle;"></i>
+                </button>
+            </div>
+            <br aria-hidden="true">
+            <div style="display: grid;grid-template-columns: 5% auto 5% 60%;align-items: center;padding-top: 20px;">
+                <span>Atalho F3</span>
+                <input id="escolherAAVinculoAtalhoF3" aria-description="Escolher Ação Automatizada para o Atalho F3" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">
+                <button id="apagar-escolherAAVinculoAtalhoF3" data-tooltip="Remover Ação Automatizada do Atalho F3" aria-label="Remover Ação Automatizada do Atalho F3" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">
+                    <i class="icone trash-alt t20" style="background-color: black; vertical-align: middle;"></i>
+                </button>
+            </div>
+            <br aria-hidden="true">
+            <div style="display: grid;grid-template-columns: 5% auto 5% 60%;align-items: center;padding-top: 20px;">
+                <span>Atalho F4</span>
+                <input id="escolherAAVinculoAtalhoF4" aria-description="Escolher Ação Automatizada para o Atalho F4" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">
+                <button id="apagar-escolherAAVinculoAtalhoF4" data-tooltip="Remover Ação Automatizada do Atalho F4" aria-label="Remover Ação Automatizada do Atalho F4" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">
+                    <i class="icone trash-alt t20" style="background-color: black; vertical-align: middle;"></i>
+                </button>
+            </div>
+            <br aria-hidden="true">
+            <div style="display: grid;grid-template-columns: 5% auto 5% 60%;align-items: center;padding-top: 20px;">
+                <span>Atalho F6</span>
+                <input id="escolherAAVinculoAtalhoF6" aria-description="Escolher Ação Automatizada para o Atalho F6" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">
+                <button id="apagar-escolherAAVinculoAtalhoF6" data-tooltip="Remover Ação Automatizada do Atalho F6" aria-label="Remover Ação Automatizada do Atalho F6" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">
+                    <i class="icone trash-alt t20" style="background-color: black; vertical-align: middle;"></i>
+                </button>
+            </div>
+            <br aria-hidden="true">
+            <div style="display: grid;grid-template-columns: 5% auto 5% 60%;align-items: center;padding-top: 20px;">
+                <span>Atalho F7</span>
+                <input id="escolherAAVinculoAtalhoF7" aria-description="Escolher Ação Automatizada para o Atalho F7" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">
+                <button id="apagar-escolherAAVinculoAtalhoF7" data-tooltip="Remover Ação Automatizada do Atalho F7" aria-label="Remover Ação Automatizada do Atalho F7" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">
+                    <i class="icone trash-alt t20" style="background-color: black; vertical-align: middle;"></i>
+                </button>
+            </div>
+            <br aria-hidden="true">
+            <div style="display: grid;grid-template-columns: 5% auto 5% 60%;align-items: center;padding-top: 20px;">
+                <span>Atalho F8</span>
+                <input id="escolherAAVinculoAtalhoF8" aria-description="Escolher Ação Automatizada para o Atalho F8" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">
+                <button id="apagar-escolherAAVinculoAtalhoF8" data-tooltip="Remover Ação Automatizada do Atalho F8" aria-label="Remover Ação Automatizada do Atalho F8" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">
+                    <i class="icone trash-alt t20" style="background-color: black; vertical-align: middle;"></i>
+                </button>
+            </div>
+            <br aria-hidden="true">
+        </div>
         <h2
             class="titulo"
             style="background-color: rgba(0,0,0,0.1);"
@@ -1956,7 +2029,7 @@
             </label>
         </div>
         <br aria-hidden="true"><br aria-hidden="true">
-        <div class="subtitulo somenteTRT12">
+        <div class="subtitulo">
             <b><u>l)e-Rec:</u></b>
             <br aria-hidden="true">
             <br aria-hidden="true">
@@ -2040,11 +2113,17 @@
             <b><u>m) Prévia dos documentos:</u></b>
             <br aria-hidden="true">
             <br aria-hidden="true">
+            <br aria-hidden="true">
             <label class="container" style="margin-left: 5px;">
                 <input type="checkbox" id="extrasExibirPreviaDocumentoMouseOver">
                 <span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Exibir prévia ao passar o mouse sobre o link do documento</span>
                 <span class="checkmark"></span>
-            </label>
+            </label><br aria-hidden="true"><br aria-hidden="true">
+            <label class="container" style="margin-left: 5px;">
+                <input type="checkbox" id="extrasExibirBTFecharPreviaDocumento">
+                <span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Exibir botão de FECHAR a prévia do documento</span>
+                <span class="checkmark"></span>
+            </label><br aria-hidden="true"><br aria-hidden="true">
             <label class="container" style="margin-left: 5px;">
                 <input type="checkbox" id="extrasExibirPreviaDocumentoFocus">
                 <span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Exibir prévia ao dar foco no link do documento (via teclado)</span>

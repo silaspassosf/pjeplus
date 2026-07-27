@@ -272,15 +272,14 @@ function criarListaDocumentosERec(
   ul.id = getIdLista(idLista);
   const itens = documentos.map((doc) => {
     const metadadosLink = montarURLsDocumentos(numeroProcesso, doc, idProcesso);
-    const linkDoc = criarLinkComPreviewDocumento(metadadosLink);
+    const linkDoc = criarLinkComVisualizadorDocumento(metadadosLink);
     linkDoc.textContent = metadadosLink.documento.idUnicoDocumento;
     const li = document.createElement("li");
     li.id = "maisPJEdoc_" + doc.idUnicoDocumento;
     li.classList.add("erec-documento-item");
-    // o acórdão eh HTML atualmente, por isso, abrimos a página do PJE para visualizar.
-    // Para os PDFs, carregamos diretamente o documento, já que escala melhor (a janela do PJE tem um tamanho mínimo e corta parte do PDF se a largura for pequena)
-    const pdfUrl = doc.tipo === 'Acórdão' ? metadadosLink.link : metadadosLink.conteudoDocumento;
-    const botaoAbrirVisualizadorDocumento = configurarBotaoPDF(pdfUrl, doc.idUnicoDocumento)
+    // abre sempre a tela do PJE, pois há usuários que configuram o PJE para baixar automaticamente os documentos, ae não apareceria nada para eles.
+    const docUrl = metadadosLink.link;
+    const botaoAbrirVisualizadorDocumento = configurarBotaoPDF(docUrl, doc.idUnicoDocumento)
     li.appendChild(botaoAbrirVisualizadorDocumento);
     li.appendChild(linkDoc);
     li.appendChild(criarBotaoCopiar(doc.idUnicoDocumento));
@@ -360,7 +359,7 @@ async function configurarPressupostosExtrinsecos(abaPressupostosExtrinsecos) {
 function configurarBotaoPDF(pdfUrl, idDocumento) {
     // Criar o botão
     const button = document.createElement('button');
-    button.id = 'maisPJE_verDoc' + idDocumento;
+    button.id = 'maisPJE_verDoc_' + idDocumento;
     // button.innerText = 'PDF';
     button.classList = 'matish-icon-button';
     const icone = document.createElement('i');
@@ -378,18 +377,20 @@ async function configurarERec(href) {
         tipo: "insertCSS",
         file: "maisPJe_erec.css",
     });
-    await browser.runtime.sendMessage({
-        tipo: "insertCSS",
-        file: "maisPJe_icones.css",
-    });
+    // essa linha causou erros. ela eh necessaria para o número de processos
+    // await browser.runtime.sendMessage({
+    //     tipo: "insertCSS",
+    //     file: "maisPJe_icones.css",
+    // });
     const match = urlFuncoes.find(u => u.test(href));
     match?.exec();
 }
 
 async function configurarAssistente() {
     criarContainerVisualizadorDocumentos(true);
-    configurarObservablePressupostos();
     const processo = await obterIdNumeroProcessoDaTelaErec();
+    configurarBotaoAdicionarGigsSemTese(processo.idProcesso);
+    configurarObservablePressupostos();
     const documentos = await carregarDocumentosProcessoErec(processo.idProcesso);
     const documentosEAnexos = documentos.flatMap((d) => [
         d,
@@ -400,9 +401,8 @@ async function configurarAssistente() {
         processo.numeroProcesso,
         processo.idProcesso
     );
-  configurarBotaoAdicionarGigsSemTese(processo.idProcesso);
 }
-/** @returns {idNumeroProcesso} id do processo. */
+/** @returns {idNumeroProcesso} id e número do processo. */
 async function obterIdNumeroProcessoDaTelaErec() {
     const tituloProcesso = await esperarElemento(
         'span[class="texto-numero-processo"]'
@@ -532,9 +532,6 @@ async function selecionarProcessosNaTabela(tabelaSelector, processos, colunaChec
     linhas.forEach(async linha => {
         const colunas = linha.querySelectorAll('td');
 
-        // Verificamos se a linha tem colunas suficientes
-        // Coluna 2 (índice 1) é o Checkbox
-        // Coluna 3 (índice 2) é o Número do Processo
         if (colunas.length >= 3) {
             const numeroProcesso = colunas[colunaNumero].innerText.trim();
             // const checkbox = colunas[1].querySelector('input[type="checkbox"]');

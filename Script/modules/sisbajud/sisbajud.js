@@ -286,52 +286,117 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
             }
         }
 
-        // 6. Fechar snack OK
-        var snackOk = await _sisbWait('button.snack-messenger-close-button', 4000);
-        if (snackOk) { snackOk.click(); await sleep(500); }
-
-        // 7. Gerar Recibo (protocola)
-        var btnRecibo = await _sisbWait(function() {
-            var btns = document.querySelectorAll('button.mat-fab.mat-button-base');
-            for (var f = 0; f < btns.length; f++) {
-                if ((btns[f].textContent || '').indexOf('Gerar Recibo') > -1) return btns[f];
+        // 6. PROTOCULAR (martelo + "Protocolar", espelha SISB/_protocolar_minuta)
+        var btnProtocolar = await _sisbWait(function() {
+            var btns = document.querySelectorAll('button');
+            for (var g = 0; g < btns.length; g++) {
+                var spans = btns[g].querySelectorAll('span.mat-button-wrapper');
+                for (var h = 0; h < spans.length; h++) {
+                    if (spans[h].querySelector('mat-icon.fa-gavel') &&
+                        (spans[h].textContent || '').indexOf('Protocolar') > -1) {
+                        return btns[g];
+                    }
+                }
+            }
+            // Fallback: qualquer botao com "Protocolar"
+            for (var j = 0; j < btns.length; j++) {
+                if ((btns[j].textContent || '').indexOf('Protocolar') > -1 && !btns[j].hasAttribute('disabled')) return btns[j];
             }
             return null;
-        }, 6000);
-        if (btnRecibo) { btnRecibo.click(); await sleep(1500); }
+        }, 8000);
 
-        // 8. Extrair dados e acumular (passa protocolo da tabela)
-        try {
-            var dados = await window.SisbCore.extrairDadosBloqueios(ordem.protocolo);
-            if (dados && Object.keys(dados.executados).length > 0) {
-                window.SisbCore.agruparDados(dados);
-                console.log('[SISB Fluxo] Dados acumulados');
+        if (btnProtocolar) {
+            btnProtocolar.click();
+            console.log('[SISB Fluxo] Protocolar clicado');
+            await sleep(1500);
+
+            // 7. Modal de senha: digitar e confirmar
+            var campo_senha = await _sisbWait('input[type="password"][formcontrolname="senha"]', 5000);
+            if (campo_senha) {
+                campo_senha.click();
+                await sleep(200);
+                var senha = 'Fl@quinh182';
+                for (var c = 0; c < senha.length; c++) {
+                    campo_senha.value = (campo_senha.value || '') + senha[c];
+                    campo_senha.dispatchEvent(new Event('input', { bubbles: true }));
+                    await sleep(100);
+                }
+                campo_senha.dispatchEvent(new Event('change', { bubbles: true }));
+                await sleep(300);
+                console.log('[SISB Fluxo] Senha digitada');
+
+                var btnConfirmarSenha = await _sisbWait(function() {
+                    var btns = document.querySelectorAll('button[type="submit"]');
+                    for (var k = 0; k < btns.length; k++) {
+                        var w = btns[k].querySelector('span.mat-button-wrapper');
+                        if (w && (w.textContent || '').trim() === 'Confirmar') return btns[k];
+                    }
+                    var allBtns = document.querySelectorAll('button');
+                    for (var l = 0; l < allBtns.length; l++) {
+                        if ((allBtns[l].textContent || '').indexOf('Confirmar') > -1) return allBtns[l];
+                    }
+                    return null;
+                }, 5000);
+                if (btnConfirmarSenha) { btnConfirmarSenha.click(); await sleep(2000); }
             }
-        } catch(ex) { console.warn('[SISB Fluxo] Erro extracao:', ex); }
+
+            // 8. Fechar snack de sucesso
+            var snackOk = await _sisbWait('button.snack-messenger-close-button', 4000);
+            if (snackOk) { snackOk.click(); await sleep(500); }
+
+            // 9. Extrair dados ANTES de voltar (overlay ainda visivel)
+            try {
+                var dados = await window.SisbCore.extrairDadosBloqueios(ordem.protocolo);
+                if (dados && Object.keys(dados.executados).length > 0) {
+                    window.SisbCore.agruparDados(dados);
+                    console.log('[SISB Fluxo] Dados acumulados');
+                }
+            } catch(ex) { console.warn('[SISB Fluxo] Erro extracao:', ex); }
+
+            // 10. VOLTAR para a lista (history.back)
+            window.history.back();
+            await sleep(2000);
+
+            // Aguardar tabela de ordens reaparecer
+            await _sisbWait('SISBAJUD-DETALHES-TEIMOSINHA', 10000);
+            await sleep(500);
+        } else {
+            console.warn('[SISB Fluxo] Botao Protocolar nao encontrado — pulando protocolo');
+            // Fallback: tenta snack OK + Gerar Recibo (fluxo antigo)
+            var snackOkFallback = await _sisbWait('button.snack-messenger-close-button', 3000);
+            if (snackOkFallback) { snackOkFallback.click(); await sleep(500); }
+            var btnRecibo = await _sisbWait(function() {
+                var btns = document.querySelectorAll('button.mat-fab.mat-button-base');
+                for (var m = 0; m < btns.length; m++) {
+                    if ((btns[m].textContent || '').indexOf('Gerar Recibo') > -1) return btns[m];
+                }
+                return null;
+            }, 4000);
+            if (btnRecibo) { btnRecibo.click(); await sleep(1500); }
+            window.history.back();
+            await sleep(2000);
+            await _sisbWait('SISBAJUD-DETALHES-TEIMOSINHA', 10000);
+            await sleep(500);
+        }
 
         return { ok: true };
     }
 
-    // ── Executar fluxo ───────────────────────────────────────────────
+    // ── Executar fluxo (re-scan apos cada history.back) ──────────────
     async function _sisbExecutarFluxo(tipo) {
-        var ordens = _sisbObterOrdensComBloqueio();
-        _sisbTotalOrdens = ordens.length;
+        var totalProcessados = 0;
 
-        if (ordens.length === 0) {
-            mostrarToast('Nenhuma ordem com bloqueio (> R$ 0,01) encontrada na tabela', 'aviso');
-            return;
-        }
+        while (_sisbFluxoAtivo) {
+            // Re-scan: apos history.back(), o DOM se renova
+            var ordens = _sisbObterOrdensComBloqueio();
+            if (ordens.length === 0) break;
 
-        mostrarToast('Iniciando ' + tipo + ' de ' + ordens.length + ' ordens...', 'ok');
-        console.log('[SISB Fluxo] Ordens com bloqueio:', ordens.length);
+            var ordem = ordens[0];
+            totalProcessados++;
+            _sisbOrdensProcessadas = totalProcessados;
 
-        for (var i = 0; i < ordens.length; i++) {
-            if (!_sisbFluxoAtivo) break;
-
-            var ordem = ordens[i];
-            _sisbOrdensProcessadas = i + 1;
-
-            mostrarToast((i + 1) + '/' + ordens.length + ': ' + (ordem.protocolo || ordem.nome), 'aviso');
+            mostrarToast(totalProcessados + 'ª: ' + (ordem.protocolo || ordem.nome), 'aviso');
+            console.log('[SISB Fluxo] Ordem ' + totalProcessados + ':', ordem.protocolo);
 
             var resultado = await _sisbProcessarOrdem(ordem, tipo);
 
@@ -340,13 +405,13 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
                 mostrarToast('Erro: ' + resultado.erro + ' — continuando...', 'erro');
             }
 
-            await sleep(1500);
+            await sleep(1000);
         }
 
         _sisbFluxoAtivo = false;
         atualizarBadge();
         var totalFmt = window.SisbCore.formatarValor(window.SisbCore.acumulador.total_geral);
-        mostrarToast('Concluido! ' + _sisbOrdensProcessadas + ' ordens. Total acumulado: ' + totalFmt, 'ok');
+        mostrarToast('Concluido! ' + totalProcessados + ' ordens. Total acumulado: ' + totalFmt, 'ok');
     }
 
     // ── Transferir ───────────────────────────────────────────────────

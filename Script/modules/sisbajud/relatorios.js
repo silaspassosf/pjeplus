@@ -231,7 +231,7 @@ window.SisbRelatorios = {
 
         if (this.copiarHTML(html)) {
             const numExec = Object.keys(dados.executados).length;
-            const totalFmt = SisbCore.formatarValor(dados.total_geral);
+            const totalFmt = window.SisbCore.formatarValor(dados.total_geral);
 
             return {
                 sucesso: true,

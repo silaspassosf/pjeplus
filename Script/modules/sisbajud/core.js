@@ -116,21 +116,23 @@ window.SisbCore = {
     },
 
     // ── Extrair dados da página SISBAJUD ─────────────────────────────
-    async extrairDadosBloqueios() {
+    async extrairDadosBloqueios(protocoloFornecido) {
         console.log('[SISB Core] Iniciando extração de bloqueios...');
 
-        // Aguardar container principal (modal ou página PDPJ) e painéis de réus aparecerem (até 15s)
-        let cont = null;
-        for (let tentativa = 0; tentativa < 25; tentativa++) {
-            cont = document.querySelector('.cdk-overlay-container .mat-dialog-container') || document.querySelector('.container-fluid');
+        // Aguardar container (modal CDK, overlay teimosinha, ou página PDPJ)
+        var cont = null;
+        for (var tentativa = 0; tentativa < 25; tentativa++) {
+            cont = document.querySelector('SISBAJUD-INCLUSAO-DESDOBRAMENTO')
+                || document.querySelector('.cdk-overlay-container .mat-dialog-container')
+                || document.querySelector('.container-fluid');
             if (cont) {
-                const txt = cont.innerText || cont.textContent || '';
-                const formatTxt = txt.toLowerCase();
-                if (formatTxt.includes('protocolo')) {
-                    break;
-                }
+                // Se for overlay de teimosinha, não precisa validar "protocolo" no texto
+                if (cont.tagName === 'SISBAJUD-INCLUSAO-DESDOBRAMENTO') break;
+                var txt = cont.innerText || cont.textContent || '';
+                if (txt.toLowerCase().indexOf('protocolo') > -1) break;
+                if (txt.toLowerCase().indexOf('bloqueio') > -1 || txt.toLowerCase().indexOf('saldo') > -1) break;
             }
-            await new Promise(resolve => setTimeout(resolve, 600));
+            await new Promise(function(r) { setTimeout(r, 600); });
         }
 
         if (!cont) {
@@ -138,27 +140,24 @@ window.SisbCore = {
             return null;
         }
 
-        // Aguardar headers de executados aparecerem
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(function(r) { setTimeout(r, 500); });
 
-        // Extrair protocolo da ordem
-        let protocolo = 'N/A';
-        // 1. Tentar estrutura HTML PDPJ
-        const protoLabels = Array.from(document.querySelectorAll('.sisbajud-label')).filter(el => {
-            return el.textContent && el.textContent.trim().toLowerCase().includes('protocolo');
-        });
-        if (protoLabels.length > 0 && protoLabels[0].nextElementSibling) {
-            protocolo = protoLabels[0].nextElementSibling.textContent.trim();
-        } else {
-            // 2. Tentar regex ignorando tags HTML
-            const txtSemTags = cont.innerHTML.replace(/<[^>]+>/g, ' ');
-            const matchProto = txtSemTags.match(/Número do protocolo:\s*(\d+)/i);
-            if (matchProto) {
-                protocolo = matchProto[1];
+        // Extrair protocolo (do parâmetro ou do DOM)
+        var protocolo = protocoloFornecido || 'N/A';
+        if (!protocoloFornecido) {
+            var protoLabels = Array.from(document.querySelectorAll('.sisbajud-label')).filter(function(el) {
+                return el.textContent && el.textContent.trim().toLowerCase().indexOf('protocolo') > -1;
+            });
+            if (protoLabels.length > 0 && protoLabels[0].nextElementSibling) {
+                protocolo = protoLabels[0].nextElementSibling.textContent.trim();
+            } else {
+                var txtSemTags = cont.innerHTML.replace(/<[^>]+>/g, ' ');
+                var matchProto = txtSemTags.match(/Número do protocolo:\s*(\d+)/i);
+                if (matchProto) protocolo = matchProto[1];
             }
         }
 
-        console.log('[SISB Core] Protocolo encontrado:', protocolo);
+        console.log('[SISB Core] Protocolo:', protocolo);
 
         // Estrutura de retorno
         const dados_bloqueios = {

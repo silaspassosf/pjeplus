@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+*.egg
+
+# Virtual env
+venv/
+env/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Playwright
+playwright-report/
+test-results/
+downloads/
+
+# Logs and sessions
+logs/
+logs_execucao/
+cookies_sessoes/
+*.log
+
+# Progress and state
+progresso*.json
+dadosatuais.json
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Cache
+cache/
+.cache/
+
+# Sensitive
+.env
+*.pem
+.aider*

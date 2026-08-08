@@ -342,6 +342,12 @@ def make_comunicacao_wrapper(
             _assinar_efetivo = overrides.get('assinar', assinar)
             salvar_minuta_final(driver, sigilo, debug=debug, log=log_fn, executar_visibilidade=False, assinar=_assinar_efetivo)
 
+            # Fechar a aba de minutas imediatamente após salvar/assinar
+            try:
+                _fechar_abas_tabs(driver, _aba_original)
+            except Exception:
+                pass
+
             if str(sigilo).lower() in ("sim", "true", "1"):
                 try:
                     log_fn('[COMUNICACAO][ORQUESTRA] Executando visibilidade_sigilosos após fechamento da aba de minutas')

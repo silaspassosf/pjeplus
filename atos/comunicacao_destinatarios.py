@@ -1,7 +1,7 @@
 from Fix.selenium_base.click_operations import safe_click_no_scroll
 from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable
 from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
-from Fix.headless_helpers import click_headless_safe
+from Fix.browser_suporte import click_headless_safe
 from Fix.utils import normalizar_texto as normalizar_string
 import re
 import json
@@ -389,6 +389,87 @@ def _selecionar_por_lista(driver, lista_destinatarios, origem_log, log, fallback
         return {'status': 'ok', 'count': selecionados}
 
 
+def _incluir_tribunal_por_cep(driver, log, debug=False):
+    try:
+        campo_cep = wait_for_clickable(driver, 'input#inputCep', timeout=10, by=By.CSS_SELECTOR)
+        if not campo_cep:
+            raise RuntimeError('Campo CEP não encontrado')
+        campo_cep.clear()
+        for char in '01302906':
+            campo_cep.send_keys(char)
+            espera.assentar(driver, 0.1)
+        espera.assentar(driver, 1)
+
+        opcao_tribunal = wait_for_clickable(
+            driver,
+            "//span[@class='mat-option-text' and contains(text(), '01302-906')]",
+            timeout=10,
+            by=By.XPATH
+        )
+        if not opcao_tribunal:
+            raise RuntimeError('Opção tribunal não encontrada')
+        safe_click_no_scroll(driver, opcao_tribunal, log=False)
+
+        btn_salvar_alteracoes = wait_for_clickable(driver, 'button[aria-label="Salva as alterações"]', timeout=10, by=By.CSS_SELECTOR)
+        if btn_salvar_alteracoes:
+            safe_click_no_scroll(driver, btn_salvar_alteracoes, log=False)
+
+        btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10, by=By.CSS_SELECTOR)
+        if btn_fechar:
+            safe_click_no_scroll(driver, btn_fechar, log=False)
+        espera.assentar(driver, 0.5)
+        return True
+    except Exception as e:
+        if debug:
+            log(f'[DESTINATARIOS][WARN] Falha ao incluir tribunal via CEP: {e}')
+        return False
+
+
+def _selecionar_endereco_tribunal(driver, log, debug=False):
+    try:
+        if not esperar_elemento(driver, '.pec-consulta-enderecos', timeout=5, by=By.CSS_SELECTOR):
+            if debug:
+                log('[DESTINATARIOS] Endereço do tribunal não solicitado após seleção do destinatário')
+            return False
+    except Exception as e:
+        if debug:
+            log(f'[DESTINATARIOS][WARN] Falha ao detectar painel de endereços: {e}')
+        return False
+
+    try:
+        if esperar_elemento(driver, "//*[contains(text(), 'Nenhum resultado encontrado')]", timeout=3, by=By.XPATH):
+            log('[DESTINATARIOS] 3b. Nenhum resultado encontrado -> incluir tribunal via CEP')
+            return _incluir_tribunal_por_cep(driver, log, debug=debug)
+    except Exception:
+        pass
+
+    try:
+        linhas_tribunal = driver.find_elements(
+            By.XPATH,
+            "//td[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tribunal')]"
+        )
+        for linha in linhas_tribunal:
+            try:
+                linha_tr = linha.find_element(By.XPATH, './ancestor::tr')
+                seta = linha_tr.find_element(By.CSS_SELECTOR, 'button[aria-label="Selecionar endereço"]')
+                if seta:
+                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', seta)
+                    safe_click_no_scroll(driver, seta, log=False)
+                    log('[DESTINATARIOS] ✓ Endereço do tribunal selecionado')
+                    btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10, by=By.CSS_SELECTOR)
+                    if btn_fechar:
+                        safe_click_no_scroll(driver, btn_fechar, log=False)
+                    espera.assentar(driver, 0.5)
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    log('[DESTINATARIOS] 3c. Nenhum endereço do tribunal encontrado na tabela - incluindo tribunal via CEP')
+    return _incluir_tribunal_por_cep(driver, log, debug=debug)
+
+
 def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False, log=None, cliques_polo_passivo=1, cliques_informado=2, observacao=None, numero_processo=None, dados_processo=None):
     from core.resultado_execucao import ResultadoExecucao
     if log is None:
@@ -483,157 +564,41 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     if destinatarios == 'primeiro':
         log('[DESTINATARIOS] OPCAO PRIMEIRO: primeiro do Polo Passivo (pec_excluiargos)')
         try:
-            # 1. Expandir painel Polo Passivo (legado: WebDriverWait + execute_script)
             painel_header_xpath = (
                 '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo")'
                 ' and contains(normalize-space(.), "Polo Passivo")]]'
             )
-            painel_header = espera.elemento(driver, painel_header_xpath, teto=10, visivel=False)
-            if painel_header is None:
-                raise Exception('painel Polo Passivo não apareceu')
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", painel_header)
-            safe_click_no_scroll(driver, painel_header)
-            espera.assentar(driver, 0.5)
+            if not click_headless_safe(driver, painel_header_xpath, by=By.XPATH):
+                raise RuntimeError('Falha ao expandir painel Polo Passivo')
 
-            # 2. Clicar na primeira seta do Polo Passivo (legado: WebDriverWait + execute_script)
+            aguardar_renderizacao_nativa(
+                driver,
+                '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row',
+                modo='aparecer',
+                timeout=5,
+            )
+
             seta_xpath = (
                 '//mat-expansion-panel[.//*[contains(text(), "Polo Passivo")]]'
                 '//button[@aria-label="Clique para acrescentar esta parte '
                 'à lista de destinatários de expedientes e comunicações."][1]'
             )
-            if not espera.ate_habilitar(driver, seta_xpath, teto=10):
-                raise Exception('primeira seta do Polo Passivo não habilitou')
-            primeira_seta = driver.find_element(By.XPATH, seta_xpath)
-            safe_click_no_scroll(driver, primeira_seta)
+            if not click_headless_safe(driver, seta_xpath, by=By.XPATH):
+                raise RuntimeError('Falha ao clicar primeira seta do Polo Passivo')
             log('[DESTINATARIOS] Primeira seta (primeiro destinatário) clicada')
-            espera.assentar(driver, 1)
 
-            # 3. Buscar e adicionar TRIBUNAL se necessário (pec_excluiargos)
-            try:
-                log('[DESTINATARIOS] 3. Buscando tribunal nos endereços disponíveis...')
-
-                # Verificar se formulário de consulta de endereços apareceu
-                try:
-                    WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, '.pec-consulta-enderecos'))
-                    )
-                    log('[DESTINATARIOS] 3a. Formulário de consulta de endereços detectado')
-                except Exception:
-                    log('[DESTINATARIOS] 3a. Formulário de consulta de endereços não apareceu')
-                    raise Exception('Consulta não apareceu')
-
-                # Verificar se há snack-bar de "Nenhum resultado encontrado"
-                try:
-                    WebDriverWait(driver, 3).until(
-                        EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Nenhum resultado encontrado')]"))
-                    )
-                    log('[DESTINATARIOS] 3b. Snack-bar detectado: "Nenhum resultado encontrado" -> incluir tribunal via CEP')
-
-                    # Digitar CEP 01302906 no campo inputCep
-                    log('[DESTINATARIOS] 3c. Digitando CEP 01302906 no campo inputCep')
-                    campo_cep = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'input#inputCep'))
-                    )
-                    campo_cep.clear()
-                    for char in '01302906':
-                        campo_cep.send_keys(char)
-                        espera.assentar(driver, 0.1)
-                    espera.ate_texto(driver, 'span.mat-option-text', '01302-906', teto=1)
-
-                    log('[DESTINATARIOS] 3d. Clicando na opção do tribunal TRT2 São Paulo')
-                    opcao_tribunal = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), '01302-906')]"))
-                    )
-                    opcao_tribunal.click()
-                    log('[DESTINATARIOS] Opção do tribunal selecionada')
-                    espera.ate_habilitar(driver, 'button[aria-label="Salva as alterações"]', teto=0.5)
-
-                    log('[DESTINATARIOS] 3e. Clicando no botão Salvar das alterações')
-                    btn_salvar_alteracoes = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Salva as alterações"]'))
-                    )
-                    btn_salvar_alteracoes.click()
-                    log('[DESTINATARIOS] Alterações salvas')
-                    espera.ate_aparecer(driver, 'i.fa.fa-window-close.btn-fechar', teto=0.5)
-
-                    log('[DESTINATARIOS] 3f. Clicando no botão fechar para fechar endereços')
-                    btn_fechar = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-window-close.btn-fechar'))
-                    )
-                    btn_fechar.click()
-                    log('[DESTINATARIOS] Janela de endereços fechada')
-                except Exception:
-                    # Se não houver snack-bar, procurar tribunal nas linhas da tabela
-                    log('[DESTINATARIOS] 3b. Nenhum snack-bar - buscando tribunal na tabela de endereços')
-                    try:
-                        WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'table[name="Endereços do destinatário no sistema"]'))
-                        )
-
-                        # Procura por linhas que contenham "TRIBUNAL" (case insensitive)
-                        linhas_tribunal = driver.find_elements(
-                            By.XPATH,
-                            "//td[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tribunal')]"
-                        )
-
-                        if linhas_tribunal:
-                            log('[DESTINATARIOS] 3c. Encontrado endereço do tribunal, clicando na seta')
-                            linha_tribunal = linhas_tribunal[0].find_element(By.XPATH, './ancestor::tr')
-                            seta_tribunal = linha_tribunal.find_element(By.CSS_SELECTOR, 'button[aria-label="Selecionar endereço"]')
-                            seta_tribunal.click()
-                            log('[DESTINATARIOS] Endereço do tribunal selecionado')
-                            time.sleep(0.5)
-
-                            log('[DESTINATARIOS] 3d. Clicando no botão fechar para fechar endereços')
-                            btn_fechar = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-window-close.btn-fechar'))
-                            )
-                            btn_fechar.click()
-                            log('[DESTINATARIOS] Janela de endereços fechada')
-                        else:
-                            log('[DESTINATARIOS] 3c. Nenhum endereço do tribunal encontrado na tabela - incluindo tribunal via CEP')
-
-                            log('[DESTINATARIOS] 3d. Digitando CEP 01302906 no campo inputCep')
-                            campo_cep = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'input#inputCep'))
-                            )
-                            campo_cep.clear()
-                            for char in '01302906':
-                                campo_cep.send_keys(char)
-                                time.sleep(0.1)
-                            time.sleep(1)
-
-                            log('[DESTINATARIOS] 3e. Clicando na opção do tribunal TRT2')
-                            opcao_tribunal = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), '01302-906')]"))
-                            )
-                            opcao_tribunal.click()
-                            log('[DESTINATARIOS] Tribunal selecionado')
-                            time.sleep(0.5)
-
-                            log('[DESTINATARIOS] 3f. Clicando em Salvar alterações')
-                            btn_salvar_alteracoes = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Salva as alterações"]'))
-                            )
-                            btn_salvar_alteracoes.click()
-                            log('[DESTINATARIOS] Alterações salvas')
-                            time.sleep(0.5)
-
-                            log('[DESTINATARIOS] 3g. Fechando janela de endereços')
-                            btn_fechar = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-window-close.btn-fechar'))
-                            )
-                            btn_fechar.click()
-                            log('[DESTINATARIOS] Janela fechada')
-                    except Exception as e_tabela:
-                        log(f'[DESTINATARIOS] Erro ao processar endereços: {e_tabela}')
-            except Exception as tribunal_err:
-                log(f'[DESTINATARIOS] Aviso: Não foi possível adicionar tribunal: {tribunal_err}')
-
-            return ResultadoExecucao(sucesso=True, status='ok', detalhes={'count': 1})
+            endereco_ok = _selecionar_endereco_tribunal(driver, log, debug=debug)
+            if not endereco_ok:
+                log('[DESTINATARIOS][WARN] Endereço do tribunal não foi ajustado; a seleção do destinatário foi concluída')
+            return ResultadoExecucao(
+                sucesso=True,
+                status='ok' if endereco_ok else 'warning',
+                detalhes={'count': 1, 'endereco_tribunal': endereco_ok}
+            )
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao selecionar primeiro destinatário: {e}')
             return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
+
     # opção padrão: clicar polo passivo 1x
     log('[DESTINATARIOS] OPÇÃO PADRÃO: Clicando no polo passivo (1x)')
     try:

@@ -1275,6 +1275,10 @@ def _executar_acoes_padrao_negativo(driver: WebDriver, texto_lower: str, log: bo
     if frase_hipotese_negativa:
         _chamar_ato_meios(f'hipótese negativa de penhora: "{frase_hipotese_negativa}"')
 
+    # Mandado contém penhora (ex.: certidão de mandado de penhora como no CP) + padrão negativo → ato_meios
+    if 'penhora' in texto_lower:
+        _chamar_ato_meios('certidão negativa de mandado de penhora')
+
     logger.info('[MANDADOS][OUTROS] padrao_negativo detectado — localizando mandado anterior via API')
     texto_mandado_ant = _localizar_texto_mandado_anterior_via_api(driver, log=log)
 

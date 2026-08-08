@@ -101,7 +101,7 @@ def _processar_item(driver, item, contexto, log):
             pass
 
         link.click()
-        espera.ate_aparecer(driver, '.conteudo-principal', teto=5)
+        time.sleep(2)
 
         texto_completo = _extrair_texto_completo(driver, log)
         if not texto_completo or len(texto_completo.strip()) < 10:
@@ -142,6 +142,18 @@ def _processar_item(driver, item, contexto, log):
             tem_desconsideracao = bool(re.search(r'desconsider[aã][çc][ãa]o', texto_completo, re.IGNORECASE))
 
         if not correio_detectado:
+            if log:
+                tem_ecarta = 'ecarta' in texto_completo or 'e-carta' in texto_completo
+                tem_via = 'via ecarta' in texto_completo
+                tem_rastreio = bool(re.search(r'[a-z]{2}\d{9}br', texto_completo))
+                logger.info(
+                    f"[CARTA][DEBUG] correio_detectado=False | len_texto={len(texto_completo)} | "
+                    f"contem_ecarta={tem_ecarta} | contem_via_ecarta={tem_via} | tem_rastreio={tem_rastreio}"
+                )
+                # Amostra do meio do texto (onde costuma estar o conteudo postal)
+                meio = len(texto_completo) // 2
+                amostra = texto_completo[max(0, meio - 100):meio + 100]
+                logger.info(f"[CARTA][DEBUG] amostra_meio_texto: {amostra[:300]}")
             return None
 
         # Extract ID using legacy order: link_text -> aria -> item attribute

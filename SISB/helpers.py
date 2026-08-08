@@ -16,6 +16,7 @@ from .facades_contratos import (
     _processar_reus_otimizado,
     _salvar_minuta,
     _gerar_relatorio_minuta,
+    _protocolar_minuta,
 )
 
 # ===== ORDENS =====

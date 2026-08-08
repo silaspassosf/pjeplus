@@ -31,7 +31,7 @@ from Fix.core import (
     wait_for_visible,
     esperar_url_conter,
 )
-from Fix.browser_suporte import aguardar_nova_aba
+from Fix.browser_suporte import aguardar_nova_aba  # unused now, kept for compat
 from Fix.utils import (
     inserir_html_no_editor_apos_marcador,
     obter_ultimo_conteudo_clipboard,
@@ -53,34 +53,27 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
     print('[JUNTADA][DEBUG] Clicando no menu hambúrguer...')
     if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
         return False
-    # Aguardar renderização em vez de sleep fixo
-    aguardar_renderizacao_nativa(driver, 'button[aria-label="Anexar Documentos"]', 'aparecer', 2)
+    time.sleep(1)
 
     # 2. Clique em "Anexar Documentos"
     print('[JUNTADA][DEBUG] Clicando em "Anexar documentos"...')
     handle_original = driver.current_window_handle
     if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
         return False
+    time.sleep(2)
 
-    # 3. Aguarda nova aba/janela e muda para ela.
-    # Antes: aguardar_renderizacao_nativa(driver, timeout=2) checava document.readyState da
-    # aba ATUAL (ainda não trocada) — não esperava nada de fato — e em seguida lia
-    # window_handles imediatamente após o clique, arriscando corrida com a nova aba ainda
-    # não criada. Isso derrubava para o retry lento com refresh de página em executar_juntada.
+    # 3. Aguarda nova aba/janela e muda para ela
     print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
-    try:
-        nova_aba = aguardar_nova_aba(driver, handle_original, timeout=5)
-    except Exception:
-        nova_aba = None
-    if nova_aba:
-        driver.switch_to.window(nova_aba)
+    all_windows = driver.window_handles
+    if len(all_windows) > 1:
+        driver.switch_to.window(all_windows[-1])
+        from Fix.core import esperar_url_conter
         if not esperar_url_conter(driver, '/anexar', timeout=10):
             print('[JUNTADA][AVISO] URL não contém /anexar, mas prosseguindo...')
     else:
         print('[JUNTADA][DEBUG] Nova aba não detectada, prosseguindo na mesma aba...')
 
-    # Aguardar renderização da página de anexação
-    aguardar_renderizacao_nativa(driver, 'input[aria-label="Tipo de Documento"]', 'aparecer', 5)
+    time.sleep(1)
     return True
 
 

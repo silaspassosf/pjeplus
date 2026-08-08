@@ -226,7 +226,11 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
 
 
 def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> str:
-    """Compatibilidade para aguardar o handle de uma nova aba."""
+    """Compatibilidade para aguardar o handle de uma nova aba.
+
+    No backend Playwright, usa driver.pulsar() em vez de time.sleep()
+    para que o loop de eventos do Playwright processe a abertura da aba.
+    """
     limite = time.time() + float(timeout)
     while time.time() < limite:
         try:
@@ -235,7 +239,12 @@ def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> s
                     return handle
         except Exception:
             break
-        time.sleep(0.2)  # rate-limit
+        # No Playwright, time.sleep não despacha eventos de página;
+        # pulsar() cede ao loop de eventos do Playwright.
+        if hasattr(driver, 'pulsar'):
+            driver.pulsar(0.05)
+        else:
+            time.sleep(0.2)
 
     raise TimeoutException('Nenhuma nova aba detectada dentro do timeout')
 
@@ -439,13 +448,16 @@ def is_headless_mode(driver: WebDriver) -> bool:
     """
     Detecta se driver esta em modo headless.
 
-    Compensacao especifica do caminho Selenium (heuristica de `outerWidth`).
-    Sob o backend Playwright vira no-op efetivo: headless e headed usam o
-    mesmo caminho de renderizacao — ja substituida por `pjeplay/nativo.py`.
+    Usa atributo `_headless` setado em `_configurar_driver_pos_criacao`
+    quando o driver foi criado com headless=True. Fallback para heuristica
+    de `outerWidth` para drivers legados sem o atributo.
 
     Returns:
         bool: True se headless
     """
+    # Atributo deterministico setado na criacao do driver (caminho Selenium).
+    if getattr(driver, '_headless', False):
+        return True
     try:
         # Heuristica: headless geralmente tem window.outerWidth == 0.
         # NAO usar navigator.webdriver aqui - ele e True para qualquer driver

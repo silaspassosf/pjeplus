@@ -838,15 +838,16 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
         espera.ate_aparecer(driver, '.mat-dialog-content', teto=0.8)
 
         aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
-        espera.ate_aparecer(driver, '#tituloPostit', teto=0.8)
+        espera.assentar(driver, 0.5)
 
-        titulo_elem = aguardar_e_clicar(driver, '#tituloPostit', timeout=5)
+        # preencher_campo espera (driver, seletor, valor)
+        titulo_elem = esperar_elemento(driver, '#tituloPostit', timeout=5)
         if titulo_elem:
-            preencher_campo(titulo_elem, titulo)
+            preencher_campo(driver, '#tituloPostit', titulo, log=debug)
 
-        conteudo_elem = aguardar_e_clicar(driver, '#conteudoPostit', timeout=5)
+        conteudo_elem = esperar_elemento(driver, '#conteudoPostit', timeout=5)
         if conteudo_elem:
-            preencher_campo(conteudo_elem, conteudo)
+            preencher_campo(driver, '#conteudoPostit', conteudo, log=debug)
 
         seletores_salvar = [
             'button[color="primary"]',

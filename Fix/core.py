@@ -1285,6 +1285,7 @@ def _configurar_driver_pos_criacao(driver, headless=False):
         driver.maximize_window()
     else:
         driver.set_window_size(1920, 1080)
+        driver._headless = True
     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
 

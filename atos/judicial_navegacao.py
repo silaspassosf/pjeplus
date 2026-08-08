@@ -156,6 +156,21 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
 
         logger.info(f'[NAVEGAÇÃO] Nome da Tarefa Detectado: "{nome_tarefa}"')
 
+        # Garantir que a página Angular terminou de renderizar os botões de navegação
+        # antes de desligar o wait implícito. No Playwright, a navegação é mais rápida
+        # que no Selenium, e o Angular pode ainda não ter renderizado os botões quando
+        # esta função é chamada. Sem esta espera, find_element com implicitly_wait=0
+        # faz query_selector() imediato que retorna None.
+        # Usa espera.elemento (wait_for_selector nativo no PW) em vez de aguardar_
+        # renderizacao_nativa: o _ALGUM_VISIVEL JS pode achar "Conclusão" visível e
+        # retornar antes do "Análise" entrar no DOM, gerando falso positivo.
+        if not (
+            espera.elemento(driver, "button[aria-label='Análise'], button[aria-label*='Análise']", teto=5)
+            or espera.elemento(driver, "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado']", teto=5)
+        ):
+            logger.error('[NAVEGAÇÃO] Botões de navegação não apareceram no DOM')
+            return False
+
         # Desabilitar implicit_wait temporariamente para evitar delays de 10s ao buscar elementos que não existem
         driver.implicitly_wait(0)
         try:

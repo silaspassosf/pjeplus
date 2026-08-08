@@ -53,7 +53,7 @@ from .processamento.minutas_prazo import _selecionar_prazo_bloqueio
 from .processamento.minutas_campos import _preencher_campos_iniciais
 from .processamento.minutas_reus import _processar_reus_otimizado
 from .processamento.minutas_salvar import _salvar_minuta
-from .processamento.minutas_relatorio import _gerar_relatorio_minuta
+from .processamento.minutas_relatorio import _gerar_relatorio_minuta, _protocolar_minuta
 
 # =============================================================================
 # SECAO 2 - MODULOS PRINCIPAIS (core, utils, performance, batch, SISB-level)
@@ -638,6 +638,7 @@ __all__ = [
     '_configurar_opcoes_adicionais',
     '_salvar_minuta',
     '_gerar_relatorio_minuta',
+    '_protocolar_minuta',
     '_salvar_relatorios',
     '_finalizar_minuta',
     '_extrair_cpf_autor',

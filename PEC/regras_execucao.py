@@ -16,6 +16,7 @@ from atos.judicial import ato_fal, ato_prov, ato_termoS
 from atos.movimentos import def_chip, mov_sob, mov_fimsob
 from core.rule_registry import RuleRegistry, adapt_action as _w
 from Fix.extracao import extrair_direto, extrair_documento, extrair_pdf, criar_gigs, bndt
+from Fix.core import safe_click_no_scroll, aguardar_renderizacao_nativa
 from Fix.facade_publica import carregar_js
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix.selenium_base import esperar_elemento, safe_click
@@ -155,12 +156,10 @@ def _pz_idpj(driver, atv):
 
 
 def _mddid(driver, atv):
-    """mdd id: criar_gigs(1,xs pec edital) + pec_mddsent + ato_antes."""
-    from atos.wrappers_ato import ato_antes
+    """mdd id: pec_mddsent + pec_editalsent."""
     return _executar_passos(
-        lambda: criar_gigs(driver, "1", "", "xs pec edital"),
         lambda: _a(w, 'pec_mddsent')(driver),
-        lambda: ato_antes(driver),
+        lambda: _a(w, 'pec_editalsent')(driver),
     )
 
 
@@ -498,11 +497,10 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
 
         # ── Step 2: Clicar e aguardar ──
         try:
-            driver.execute_script("arguments[0].scrollIntoView(true);", doc_link)
-            doc_link.click()
-            # Aguardar aparecimento do conteúdo (não apenas readyState)
-            espera.ate_aparecer(driver, '.documento-visualizacao, #documento, pje-arvore-documento', teto=timeout)
-            espera.assentar(driver, 0.5)
+            if not safe_click_no_scroll(driver, doc_link, log=True):
+                logger.error("[DEF_SOB] safe_click_no_scroll falhou no link do documento")
+                return False
+            aguardar_renderizacao_nativa(driver, "div.conteudo-principal")
             logger.debug("[DEF_SOB] Documento clicado e aguardado")
         except Exception as e:
             logger.error(f"[DEF_SOB] Falha ao clicar/aguardar: {e}")

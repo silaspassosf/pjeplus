@@ -8,12 +8,11 @@ usando os módulos especializados para navegação, conclusão, modelos,
 prazos e bloqueios.
 """
 
-from Fix.selenium_base import (
+from Fix.core import (
     aguardar_e_clicar, safe_click_no_scroll, safe_click,
     esperar_elemento, wait_for_clickable, esperar_url_conter,
-    preencher_multiplos_campos,
+    preencher_multiplos_campos, aguardar_renderizacao_nativa,
 )
-from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
 from Fix.log import getmodulelogger, log_start, log_fim
 logger = getmodulelogger(__name__)
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO

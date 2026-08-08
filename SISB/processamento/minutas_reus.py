@@ -8,9 +8,18 @@ SISB Minutas - Processamento de reus
 """
 
 
-def _processar_reus_otimizado(driver, reus):
+def _processar_reus_otimizado(driver, reus, max_validos=10):
     """
     Helper para processar reus de forma otimizada.
+
+    Args:
+        driver: WebDriver do SISBAJUD
+        reus: Lista de dicts com 'cpfcnpj' e 'nome'
+        max_validos: Limite de reus validos a adicionar (default 10).
+                     Para de adicionar quando atinge esse numero.
+
+    Returns:
+        dict com 'sucesso', 'adicionados', 'removidos', 'processados_ate' (indice)
     """
     try:
         from ..utils import criar_js_otimizado
@@ -41,6 +50,8 @@ def _processar_reus_otimizado(driver, reus):
             let log = [];
             let reusAdicionados = 0;
             let reusRemovidos = 0;
+            let maxValid = {max_validos};
+            let processadosAte = 0;
 
             try {{
                 for (let i = 0; i < reus.length; i++) {{
@@ -122,6 +133,11 @@ def _processar_reus_otimizado(driver, reus):
                                 }} else {{
                                     log.push('Reu possui ' + qtde + ' conta(s) - mantido');
                                     reusAdicionados++;
+                                    if (reusAdicionados >= maxValid) {{
+                                        log.push('Limite de ' + maxValid + ' reus validos atingido');
+                                        processadosAte = i + 1;
+                                        break;
+                                    }}
                                 }}
                             }}
                         }}
@@ -136,7 +152,8 @@ def _processar_reus_otimizado(driver, reus):
                     sucesso: true,
                     log: log,
                     adicionados: reusAdicionados,
-                    removidos: reusRemovidos
+                    removidos: reusRemovidos,
+                    processados_ate: processadosAte || reus.length
                 }};
 
             }} catch(e) {{
@@ -145,7 +162,8 @@ def _processar_reus_otimizado(driver, reus):
                     msg: 'Erro: ' + e.message,
                     log: log,
                     adicionados: reusAdicionados,
-                    removidos: reusRemovidos
+                    removidos: reusRemovidos,
+                    processados_ate: processadosAte || reus.length
                 }};
             }}
         }}
@@ -178,13 +196,15 @@ def _processar_reus_otimizado(driver, reus):
                 return {
                     'sucesso': True,
                     'adicionados': adicionados,
-                    'removidos': removidos
+                    'removidos': removidos,
+                    'processados_ate': resultado_reus.get('processados_ate', len(reus))
                 }
             return {
                 'sucesso': False,
                 'msg': resultado_reus.get('msg', ''),
                 'adicionados': adicionados,
-                'removidos': removidos
+                'removidos': removidos,
+                'processados_ate': resultado_reus.get('processados_ate', 0)
             }
 
         return {'sucesso': False, 'msg': 'Falha no processamento de reus'}

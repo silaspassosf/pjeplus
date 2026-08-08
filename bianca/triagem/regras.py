@@ -987,6 +987,83 @@ def _checar_endereco_reclamante(texto: str, capa_dados: Dict[str, Any] = None) -
         fonte_info = ' [fonte tentada: %s]' % fonte if fonte else ''
         linhas.append("B12_ENDERECO: INFO - endereco do reclamante nao identificado%s" % fonte_info)
 
+    # Detectar endereco no EXTERIOR (peticao vs API)
+    # Se a peticao menciona pais/cidade estrangeira perto do nome do reclamante,
+    # emitir ALERTA mesmo que a API tenha endereco brasileiro cadastrado.
+    _PAISES_ESTRANGEIROS = [
+        'argentina', 'paraguai', 'paraguay', 'uruguai', 'uruguay',
+        'chile', 'bolivia', 'peru', 'colombia', 'venezuela', 'equador',
+        'estados unidos', 'eua', 'united states', 'japao', 'japan',
+        'portugal', 'italia', 'espanha', 'alemanha', 'germany',
+        'franca', 'inglaterra',
+        'canada', 'australia', 'mexico', 'suiça', 'suica',
+        'belgica', 'holanda', 'paises baixos', 'irlanda',
+        'noruega', 'suecia', 'dinamarca', 'austria',
+    ]
+    _CIDADES_ESTRANGEIRAS = [
+        'buenos aires', 'avellaneda', 'montevideo', 'montevideu',
+        'assuncao', 'assuncion', 'santiago', 'miami', 'orlando',
+        'nova york', 'new york', 'los angeles', 'londres', 'london',
+        'paris', 'madri', 'madrid', 'roma', 'milao', 'milan',
+        'toquio', 'tokyo', 'lisboa', 'porto',
+    ]
+    _TERMOS_EXTERIOR = [
+        'exterior', 'estrangeiro', 'no exterior', 'do exterior',
+        'reside na', 'residente na', 'domiciliado na',
+    ]
+
+    nome_rec_ex = cd.get('reclamante_nome') or ''
+    trecho_ex = norm
+    if nome_rec_ex:
+        nome_norm_ex = _norm(nome_rec_ex)[:25]
+        idx_nome_ex = norm.find(nome_norm_ex)
+        if idx_nome_ex >= 0:
+            inicio_ex = max(0, idx_nome_ex)
+            fim_ex = min(len(norm), idx_nome_ex + 1500)
+            trecho_ex = norm[inicio_ex:fim_ex]
+
+    pais_detectado = None
+    for pais in _PAISES_ESTRANGEIROS:
+        if re.search(r'\b' + re.escape(pais) + r'\b', trecho_ex):
+            pais_detectado = pais
+            break
+
+    cidade_ext_detectada = None
+    if not pais_detectado:
+        for cid in _CIDADES_ESTRANGEIRAS:
+            if re.search(r'\b' + re.escape(cid) + r'\b', trecho_ex):
+                cidade_ext_detectada = cid
+                break
+
+    termo_ext_detectado = None
+    if not pais_detectado and not cidade_ext_detectada:
+        for termo in _TERMOS_EXTERIOR:
+            m_termo = re.search(r'\b' + re.escape(termo) + r'\b', trecho_ex)
+            if m_termo:
+                ctx_ini = max(0, m_termo.start() - 20)
+                ctx_fim = min(len(trecho_ex), m_termo.end() + 80)
+                termo_ext_detectado = trecho_ex[ctx_ini:ctx_fim].replace('\n', ' ').strip()
+                break
+
+    if pais_detectado:
+        linhas.append(
+            "B12_ENDERECO: ALERTA - reclamante com endereco no EXTERIOR (%s) "
+            "[ATENCAO: endereco da API pode estar desatualizado - conferir peticao]"
+            % pais_detectado.upper()
+        )
+    elif cidade_ext_detectada:
+        linhas.append(
+            "B12_ENDERECO: ALERTA - reclamante com endereco no EXTERIOR (%s) "
+            "[ATENCAO: cidade estrangeira detectada - conferir peticao]"
+            % cidade_ext_detectada.upper()
+        )
+    elif termo_ext_detectado:
+        linhas.append(
+            "B12_ENDERECO: ALERTA - reclamante possivelmente no EXTERIOR "
+            "[contexto: \"%s\"] [ATENCAO: verificar endereco na peticao]"
+            % termo_ext_detectado[:150]
+        )
+
     termos_aud = [
         'audiencia virtual', 'audiencia telepresencial', 'videoconferencia',
         'audiencia hibrida', 'audiencia online', 'telepresencialmente',

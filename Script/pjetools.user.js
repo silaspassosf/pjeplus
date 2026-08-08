@@ -19,8 +19,12 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_openInTab
+// @grant        GM_xmlhttpRequest
 // @grant        window.close
 // @grant        unsafeWindow
+// @connect      127.0.0.1
+// @connect      localhost
+// @connect      raw.githubusercontent.com
 // @run-at       document-idle
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=2.1.70
@@ -34,7 +38,6 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=2.1.70
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // ==/UserScript==
@@ -42,6 +45,58 @@
 (async function () {
     'use strict';
     console.log('[Loader] PJe Tools Pro v2.1.70 loaded');
+
+    async function loadLocalScript(url) {
+        const source = await new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url,
+                onload: (resp) => {
+                    if (resp.status >= 200 && resp.status < 300) resolve(resp.responseText);
+                    else reject(new Error(`HTTP ${resp.status}`));
+                },
+                onerror: () => reject(new Error('network error')),
+                ontimeout: () => reject(new Error('timeout'))
+            });
+        });
+
+        if (source) {
+            // new Function: parâmetro sleep no escopo da função, IIFE interno captura via closure.
+            // window.eval (indirect eval) não funciona no sandbox do Tampermonkey para isso.
+            const sleepFn = window.sleep || function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+            new Function('sleep', source)(sleepFn);
+            console.log(`[Loader] Script carregado: ${url}`);
+            return true;
+        }
+
+        return false;
+    }
+
+    async function loadSisbModule() {
+        const cb = '?cb=' + Date.now();
+        const baseUrl = 'http://127.0.0.1:8000/Script/modules/sisbajud';
+        const files = [
+            `${baseUrl}/core.js${cb}`,
+            `${baseUrl}/relatorios.js${cb}`,
+            `${baseUrl}/sisbajud.js${cb}`
+        ];
+
+        for (const file of files) {
+            try {
+                const ok = await loadLocalScript(file);
+                if (!ok) {
+                    throw new Error(`Falha ao carregar ${file}`);
+                }
+            } catch (err) {
+                console.error(`[Loader] Falha ao carregar SISB via ${file}:`, err);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    await loadSisbModule();
     
     if (window.self !== window.top) return;
 

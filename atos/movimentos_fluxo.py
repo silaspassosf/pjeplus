@@ -51,60 +51,74 @@ def _localizar_botao_tarefa(driver: WebDriver, timeout: int = 8):
 
 
 def _obter_tarefa_atual_robusta(driver: WebDriver, timeout: int = 6, debug: bool = False) -> Optional[str]:
-    """Obtém a tarefa atual pelo cabeçalho e, se necessário, pelo botão de abrir tarefa."""
+    """Obtém a tarefa atual sem depender do cabeçalho da tarefa estar renderizado."""
     from selenium.webdriver.common.by import By
 
-    try:
-        tarefa_el = esperar_elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', timeout=timeout)
-        if tarefa_el and (tarefa_el.text or '').strip():
-            return tarefa_el.text.strip()
-    except Exception:
-        pass
+    seletores_tarefa = [
+        'pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1, pje-cabecalho-tarefa',
+        'span.texto-tarefa-processo',
+        'mat-card-title',
+        'h1',
+    ]
 
-    try:
-        tarefa_btn = _localizar_botao_tarefa(driver, timeout=max(2, timeout // 2))
-        if tarefa_btn:
-            try:
-                span_tarefa = tarefa_btn.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
-                tarefa_texto = (span_tarefa.text or '').strip()
-            except Exception:
-                tarefa_texto = (tarefa_btn.text or '').strip()
+    for seletor in seletores_tarefa:
+        try:
+            for el in driver.find_elements(By.CSS_SELECTOR, seletor):
+                texto = (el.text or '').strip()
+                if texto:
+                    return texto
+        except Exception:
+            continue
 
-            if tarefa_texto:
-                if debug:
-                    logger.info(f'[MOV_INT] Tarefa identificada pelo botão: {tarefa_texto}')
+    url_atual = driver.current_url or ''
+    if '/tarefa/' in url_atual:
+        try:
+            titulo = (driver.title or '').strip()
+            if titulo:
+                return titulo
+        except Exception:
+            pass
+        return 'Tarefa'
 
+    if '/detalhe' in url_atual:
+        try:
+            tarefa_btn = _localizar_botao_tarefa(driver, timeout=max(2, timeout // 2))
+            if tarefa_btn:
                 try:
-                    abas_antes = set(driver.window_handles)
-                    if safe_click_no_scroll(driver, tarefa_btn, log=debug):
-                        try:
-                            from Fix.abas import aguardar_nova_aba
-                            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=4)
-                            if nova_aba:
-                                driver.switch_to.window(nova_aba)
-                        except Exception:
-                            pass
-                        try:
-                            aguardar_renderizacao_nativa(driver, 'pje-cabecalho-tarefa', modo='aparecer', timeout=5)
-                        except Exception:
-                            pass
-
-                        tarefa_el = esperar_elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', timeout=timeout)
-                        if tarefa_el and (tarefa_el.text or '').strip():
-                            return tarefa_el.text.strip()
+                    span_tarefa = tarefa_btn.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
+                    tarefa_texto = (span_tarefa.text or '').strip()
                 except Exception:
-                    pass
+                    tarefa_texto = (tarefa_btn.text or '').strip()
 
-                return tarefa_texto
-    except Exception:
-        pass
+                if tarefa_texto:
+                    if debug:
+                        logger.info(f'[MOV_INT] Tarefa identificada pelo botão: {tarefa_texto}')
 
-    try:
-        el = buscar_seletor_robusto(driver, ['titulo-tarefa', 'pje-cabecalho-tarefa', 'tarefa'], timeout=timeout)
-        if el and (el.text or '').strip():
-            return el.text.strip()
-    except Exception:
-        pass
+                    try:
+                        abas_antes = set(driver.window_handles)
+                        if safe_click_no_scroll(driver, tarefa_btn, log=debug):
+                            try:
+                                from Fix.abas import aguardar_nova_aba
+                                nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=4)
+                                if nova_aba:
+                                    driver.switch_to.window(nova_aba)
+                            except Exception:
+                                pass
+
+                            for seletor_fallback in ['pje-cabecalho-tarefa h1.titulo-tarefa', 'span.texto-tarefa-processo', 'mat-card-title', 'h1']:
+                                try:
+                                    for el in driver.find_elements(By.CSS_SELECTOR, seletor_fallback):
+                                        texto = (el.text or '').strip()
+                                        if texto:
+                                            return texto
+                                except Exception:
+                                    continue
+                    except Exception:
+                        pass
+
+                    return tarefa_texto
+        except Exception:
+            pass
 
     return None
 
@@ -502,20 +516,24 @@ def _localizar_botao_destino_movimento(driver: WebDriver, destino: str, timeout:
 def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
     """Abre a tarefa mais recente do processo via API REST (padrao gigs-plugin).
 
-    Referencia: api/gigs-plugin.js L4491-4516 (abrirTarefaDoProcesso)
-    - Extrai idProcesso da URL /detalhe
-    - Chama GET /pje-comum-api/api/processos/id/{idProcesso}/tarefas?maisRecente=true
-    - Extrai idTarefa da resposta e navega direto para a URL da tarefa
-
-    Returns:
-        bool: True se conseguiu abrir a tarefa via API
+    Este fluxo não depende do cabeçalho da tarefa estar renderizado para prosseguir.
     """
     import re as _re
-    import time as _time
+
+    def _extrair_id_tarefa(payload):
+        """Extrai idTarefa da resposta da API (padrao gigs-plugin L4512: payload[0].idTarefa)."""
+        if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+            # gigs-plugin: tarefaAtualProcesso[0].idTarefa
+            return payload[0].get('idTarefa') or payload[0].get('id')
+        if isinstance(payload, dict):
+            # fallback: resposta envelopada {idTarefa: ...} ou {id: ...}
+            return payload.get('idTarefa') or payload.get('id')
+        return None
+
     try:
         url_atual = driver.current_url or ''
         if '/tarefa' in url_atual:
-            return False  # ja esta na tarefa, nao precisa abrir
+            return True
         if '/processo/' not in url_atual:
             return False
 
@@ -524,26 +542,32 @@ def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
             return False
         id_processo = m.group(1)
         base = url_atual.split('/pjekz/')[0]
+        endpoints = [
+            f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true",
+            f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas",
+        ]
 
-        dados = driver.execute_async_script(
-            """
-            const url = arguments[0];
-            const done = arguments[arguments.length - 1];
-            fetch(url, {method: 'GET', credentials: 'include', headers: {'Content-Type':'application/json'}})
-                .then(resp => resp.json())
-                .then(json => done(json))
-                .catch(err => done({__erro: err && err.message ? err.message : String(err)}));
-            """,
-            f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
-        )
         id_tarefa = None
-        if isinstance(dados, dict) and dados.get('__erro'):
-            logger.warning(f"[API_TAREFA] fetch error: {dados['__erro']}")
-            dados = []
-        if isinstance(dados, list) and dados:
-            id_tarefa = dados[0].get('id') or dados[0].get('idTarefa')
-        elif isinstance(dados, dict):
-            id_tarefa = dados.get('id') or dados.get('idTarefa')
+        for endpoint in endpoints:
+            dados = driver.execute_async_script(
+                """
+                const url = arguments[0];
+                const done = arguments[arguments.length - 1];
+                fetch(url, {method: 'GET', credentials: 'include', headers: {'Content-Type':'application/json', 'Accept':'application/json'}})
+                    .then(resp => resp.json())
+                    .then(json => done(json))
+                    .catch(err => done({__erro: err && err.message ? err.message : String(err)}));
+                """,
+                endpoint
+            )
+
+            if isinstance(dados, dict) and dados.get('__erro'):
+                logger.warning(f"[API_TAREFA] fetch error: {dados['__erro']}")
+                continue
+
+            id_tarefa = _extrair_id_tarefa(dados)
+            if id_tarefa:
+                break
 
         if not id_tarefa:
             logger.warning('[API_TAREFA] API nao retornou idTarefa')
@@ -560,8 +584,7 @@ def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
         except Exception:
             pass
 
-        aguardar_renderizacao_nativa(driver, 'pje-cabecalho-tarefa', modo='aparecer', timeout=min(8, timeout))
-        aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(8, timeout))
+        aguardar_renderizacao_nativa(driver, 'body', modo='aparecer', timeout=min(6, timeout))
         logger.info(f'[API_TAREFA] Tarefa aberta via API: processo={id_processo} tarefa={id_tarefa}')
         return True
     except Exception as e:
@@ -580,9 +603,11 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
 
     try:
         # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API (padrao gigs-plugin L4491-4516) =====
-        abrir_tarefa_por_api(driver, timeout=timeout)
+        api_ok = abrir_tarefa_por_api(driver, timeout=timeout)
 
-        tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
+        tarefa_text = None
+        if api_ok:
+            tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
         if not tarefa_text:
             try:
                 from .movimentos_navegacao import navegar_para_tarefa
@@ -592,7 +617,8 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
                 pass
 
         if not tarefa_text:
-            tarefa_text = 'Análise'
+            logger.warning('[MOV_INT] Não foi possível determinar tarefa atual — abortando')
+            return False
 
         tarefa_norm = _remover_acentos((tarefa_text or '').lower())
         destino_norm = _remover_acentos((destino or '').lower())

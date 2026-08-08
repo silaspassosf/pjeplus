@@ -66,8 +66,10 @@ ALIASES_TIPO_EXECUCAO = {
     'aud': 'aud',
 }
 
-# Arquivo único de progresso
-ARQUIVO_PROGRESSO_UNIFICADO = "progresso.json"
+# Arquivo único de progresso — caminho absoluto para ser imune a mudanças de CWD
+# (ex: Playwright pode rodar com CWD diferente do Selenium).
+_ARQUIVO_RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ARQUIVO_PROGRESSO_UNIFICADO = os.path.join(_ARQUIVO_RAIZ, "progresso.json")
 
 # ===============================================
 # UTILITÁRIOS COMUNS

@@ -1,3 +1,0 @@
-# Última execução P2B: 2026-04-28 16:26:02.503438
-# Script: D:\PjePlus\Prazo\t3.py
-# Argumentos: 

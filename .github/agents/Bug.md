@@ -83,55 +83,22 @@ Com base no código lido e no `idx.md`, defina:
 Se o caminho violar um padrão do `idx.md`, registre o conflito explicitamente —
 o modelo pesado precisa saber.
 
-### 6 — Escrever `00act_map.json`
-Use `edit/editFiles` para **sobrescrever** (nunca acumular):
+### 6 — Resposta Final (entrega direta, sem dump)
 
-```json
-{
-  "contexto":  "resumo do pedido em 1-2 frases",
-  "causa":     "causa técnica objetiva",
-  "objetivo":  "estado esperado",
-  "abordagem": "caminho proposto em até 5 linhas",
-  "conflitos": "padrão do idx.md que pode ser afetado, ou vazio",
-  "funcoes": [
-    {
-      "arquivo": "Modulo/arquivo.py",
-      "funcao":  "nome_exato",
-      "papel":   "o que esta função faz neste fluxo"
-    }
-  ],
-  "nao_mapeado": []
-}
-```
+**NÃO gere `00act_map.json`, `00act.md`, nem rode `act_dump.py`.** A entrega é a própria resposta.
 
-Lista `funcoes` ordenada pela cadeia de execução — ponto de entrada primeiro.
-Se uma função não existir com o nome exato, registre em `nao_mapeado` e continue.
-
-### 7 — Compilação
-Execute:
-```
-py act_dump.py
-```
-Aguarde output. Se aparecer `ERRO:` para alguma função, corrija `arquivo` ou `funcao`
-no JSON e execute novamente.
-
-### 8 — Resposta Final
-Responda com este bloco — sucinto, mas informativo:
+Formato obrigatório:
 
 ```
-## Debug compilado
+## Diagnóstico
+[Causa raiz em 2-3 frases. O que no código provoca o problema e por quê.]
 
-**Contexto:** <1-2 frases do pedido>
-**Causa:**    <causa técnica>
-**Caminho:**  <direção proposta em 2-3 linhas>
-
-**Funções em 00act.md** (N):
-- Modulo/arquivo.py → funcao (papel)
-- ...
-
-Conflitos com idx.md: <sim: qual / não>
-Arquivo pronto: 00act.md
+## Correção
+1. **arquivo.py:funcao()** — o que mudar, onde (linha aproximada) e por quê.
+2. **arquivo2.py:funcao()** — o que mudar, onde e por quê.
 ```
+
+**Nada mais.** Sem sumário, sem "próximos passos", sem colar código. Apenas diagnóstico + alterações pontuais por arquivo.
 
 ---
 
@@ -139,7 +106,7 @@ Arquivo pronto: 00act.md
 
 - Nunca escreva patches ou edite arquivos de negócio.
 - Nunca leia um arquivo inteiro — trechos via `read/file`.
-- `00act_map.json` e `00act.md` são sempre sobrescritos, nunca acumulados.
+- **Proibido gerar** `00act_map.json`, `00act.md` ou rodar `act_dump.py`.
 - Dúvida sobre arquitetura? Consulte `idx.md` — não invente.
-- O caminho proposto é rascunho técnico para o modelo pesado, não decisão final.
+- Resposta final: máx. 10 linhas de texto (excluindo a lista de correções).
 ```

@@ -180,6 +180,18 @@ pec_editalpg = make_comunicacao_wrapper(
     wrapper_name='pec_editalpg'
 )
 
+pec_editalsent = make_comunicacao_wrapper(
+    tipo_expediente='Edital',
+    prazo=8,
+    nome_comunicacao='Edital Sentença',
+    sigilo=False,
+    modelo_nome='editalsent',
+    subtipo='Edital',
+    gigs_extra=None,
+    cliques_polo_passivo=1,
+    destinatarios='polo_passivo'
+)
+
 pec_sigilo = make_comunicacao_wrapper(
     tipo_expediente='Intimação',
     prazo=30,

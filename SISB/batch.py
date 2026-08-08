@@ -408,6 +408,13 @@ def _processar_grupo(
             else:
                 # Fallback para fn_executar se não tiver ações (compatibilidade)
                 resultado = fn_executar(driver_sisbajud, dados_processo, driver_pje)
+
+            # Limpar driver SISBAJUD entre processos (evita estado residual da SPA Angular)
+            try:
+                driver_sisbajud.get("about:blank")
+                aguardar_renderizacao_nativa(driver_sisbajud, timeout=2)
+            except Exception:
+                pass
             
             # FECHAR TODAS AS ABAS DO PJE EXCETO A LISTA
             # (Evita que abas remanescentes causem confusão entre processos)

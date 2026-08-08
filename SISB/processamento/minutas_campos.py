@@ -8,7 +8,7 @@ SISB Minutas - Preenchimento de campos iniciais
 """
 
 
-def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanha=False):
+def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanha=False, agendar_offset=1):
     """
     Helper para preencher campos iniciais da minuta de bloqueio.
 
@@ -17,8 +17,11 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
         dados_processo: Dados do processo
         prazo_dias: Prazo em dias (0, 1, 30 ou 60). 0 = amanhã para teimosinha.
         agendar_amanha: Se True, seleciona 'Agendar protocolo = Sim' e define
-                        a data do protocolo para amanhã (usado na 2ª minuta).
-                        Lógica portada do maispje copiarDadosParaNovaOrdem2.
+                        a data do protocolo conforme agendar_offset + regras de
+                        horário/dia da semana.
+        agendar_offset: Offset base em dias para o agendamento (default=1).
+                        Ex: offset=1 → amanhã (d+1), offset=2 → d+2.
+                        Aplica-se a regra de pós-19h e sexta-feira sobre o offset.
     """
     try:
         from ..utils import criar_js_otimizado
@@ -42,8 +45,21 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
         if prazo_dias not in [0, 1, 30, 60]:
             prazo_dias = 30
 
-        # Calcular amanhã para o agendamento do 2º protocolo (maispje: i=1 → numdias=-1 → hoje+1)
-        _amanha = datetime.now() + timedelta(days=1)
+        # Calcular data de agendamento da 2ª minuta conforme horário e dia da semana
+        _agora = datetime.now()
+        _hora = _agora.hour
+        _dia_semana = _agora.weekday()  # 0=segunda .. 4=sexta, 5=sáb, 6=dom
+
+        if _dia_semana == 4:            # Sexta-feira
+            if _hora < 19:
+                _amanha = _agora + timedelta(days=agendar_offset + 2)   # pula fim de semana → segunda (offset 1) ou terça (offset 2)
+            else:
+                _amanha = _agora + timedelta(days=agendar_offset + 3)   # pula fim de semana → terça (offset 1) ou quarta (offset 2)
+        elif _hora >= 19:
+            _amanha = _agora + timedelta(days=agendar_offset + 1)       # após 19h → d+offset+1
+        else:
+            _amanha = _agora + timedelta(days=agendar_offset)           # antes 19h, dia útil → d+offset
+
         _ag_ano = _amanha.year
         _ag_mes = _amanha.month - 1   # 0-based para JS
         _ag_dia = _amanha.day

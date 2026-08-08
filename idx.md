@@ -520,6 +520,7 @@ Proibido usar `WebDriverWait`, `ActionChains`, `time.sleep` ou `element.click()`
 | P6 | Retornos complexos → `@dataclass` |
 | P7 | Driver via context manager em orquestradores novos |
 | P8 | Imports sempre no topo do módulo |
+| P9 | **Funções de interação Selenium (`safe_click_no_scroll`, `wait_for_clickable`, `aguardar_e_clicar`, `safe_click`, `esperar_elemento`, `esperar_url_conter`, `preencher_multiplos_campos`) devem ser importadas direto de `Fix.core`, NUNCA de `Fix.selenium_base`.** `Fix.selenium_base.__init__.py` faz `from ..core import (...)` no momento do import — uma cópia congelada. Quando `pjeplay.nativo.aplicar()` roda depois e troca essas funções em `Fix.core` via `setattr` pelas versões nativas Playwright (`ctx.wait_for_selector`, actionability engine real), a cópia em `Fix.selenium_base` permanece com a implementação Selenium antiga (ex: `dispatchEvent`). Isso gera falsos negativos (`wait_for_clickable` retorna `None` com elemento visível), cliques que não disparam handlers Angular e timeouts em modo headless PW. **Arquivos já corrigidos por este padrão:** `atos/judicial_utils.py`, `atos/judicial_fluxo.py`. Se encontrar `from Fix.selenium_base import safe_click_no_scroll, wait_for_clickable, ...` em qualquer módulo de negócio, troque para `from Fix.core import ...`. |
 
 ---
 
@@ -552,7 +553,7 @@ git show 2ab0fca:<caminho/do/arquivo.py>
 | `scripts/` | Scripts auxiliares |
 | `tools/` | Ferramentas de diagnóstico e análise — inclui `tools/pje_probe.user.js` (userscript "PJe Probe": grava seletores clicados + endpoints fetch/XHR durante navegação manual, para mapear fluxos antes de automatizar) |
 | `docs/` | Documentação complementar |
-| `play/` | Backend **Playwright** (`play/pjeplay/`) — implementa a superfície WebDriver sobre Playwright e se registra em `sys.modules` no lugar do `selenium`. Não é cópia do projeto: `Fix/`, `atos/`, `PEC/` etc. rodam sem alteração. Entrada: `py play/rodar.py`; verificação: `py play/smoke.py --projeto`. Detalhes em `play/README.md` |
+| `play/` | Backend **Playwright** (`play/pjeplay/`) — implementa a superfície WebDriver sobre Playwright e se registra em `sys.modules` no lugar do `selenium`. Não é cópia do projeto: `Fix/`, `atos/`, `PEC/` etc. rodam sem alteração. Entrada: `py pw.py` (executor na raiz); verificação: `py play/smoke.py --projeto`. Detalhes em `play/README.md`. ⚠️ **Regra P9 é crítica para PW:** imports de funções de interação devem vir de `Fix.core`, nunca de `Fix.selenium_base` (cópia congelada pré-`nativo.aplicar()`). |
 | `xcode/` | Plano de simplificação (9 docs + README) |
 | `_archive/` | Código removido/legado organizado por data |
 | `ref/` | Referência externa e manifests de arquitetura |

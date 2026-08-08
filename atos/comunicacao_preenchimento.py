@@ -420,10 +420,21 @@ def executar_preenchimento_minuta(
         if sigilo:
             log('7. Marcando sigilo')
             try:
-                input_sigilo = driver.find_element(By.CSS_SELECTOR, 'input[name="sigiloso"]')
-                if not input_sigilo.is_selected():
-                    safe_click_no_scroll(driver, input_sigilo)
-                    log(' Sigilo marcado')
+                # Playwright: find_element com implicit_wait trava em inputs hidden Angular.
+                # execute_script puro funciona em Selenium e PW sem depender de visibilidade DOM.
+                marcado = driver.execute_script(
+                    "var el = document.querySelector('input[name=\"sigiloso\"]');"
+                    "if (!el) return 'nao_encontrado';"
+                    "if (el.checked) return 'ja_marcado';"
+                    "el.click();"
+                    "if (!el.checked) {"
+                    "  el.checked = true;"
+                    "  el.dispatchEvent(new Event('change', {bubbles:true}));"
+                    "  el.dispatchEvent(new Event('input',  {bubbles:true}));"
+                    "}"
+                    "return 'marcado';"
+                )
+                log(f' Sigilo: {marcado}')
             except Exception as e:
                 log(f'[WARN] Falha ao marcar sigilo: {e}')
         else:

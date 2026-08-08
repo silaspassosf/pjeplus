@@ -8,7 +8,8 @@ e cria��o de wrappers para atos judiciais.
 
 from Fix.core import logger
 from selenium.webdriver.common.by import By
-from Fix.selenium_base import preencher_multiplos_campos, safe_click_no_scroll
+from Fix.browser_suporte import safe_click_no_scroll
+from Fix.selenium_base import preencher_multiplos_campos
 import re
 import time
 from datetime import datetime, timedelta

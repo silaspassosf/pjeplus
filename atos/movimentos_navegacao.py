@@ -95,8 +95,8 @@ def _extrair_tarefa_do_dom(driver: WebDriver) -> Optional[str]:
         if elementos_tarefa:
             return elementos_tarefa[0].text.strip()
 
-        # Fallback: outras possibilidades
-        return 'Análise'  # Default fallback
+        # Nenhum elemento de tarefa encontrado no DOM — tarefa desconhecida
+        return None
     except Exception:
         return None
 

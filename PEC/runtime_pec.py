@@ -587,7 +587,7 @@ class PECOrquestrador:
                 if isinstance(acao, tuple):
                     for f in acao:
                         retorno = f(self.driver, atv)
-                        if retorno is None or retorno is False:
+                        if retorno is None or retorno is False or (isinstance(retorno, tuple) and not all(retorno)):
                             nome_acao = getattr(f, '__name__', repr(f))
                             return resultado_falha(
                                 f"Acao {nome_acao} retornou {retorno!r}",
@@ -597,7 +597,7 @@ class PECOrquestrador:
                             ultimo_retorno = retorno
                 else:
                     retorno = acao(self.driver, atv)
-                    if retorno is None or retorno is False:
+                    if retorno is None or retorno is False or (isinstance(retorno, tuple) and not all(retorno)):
                         nome_acao = getattr(acao, '__name__', repr(acao))
                         return resultado_falha(
                             f"Acao {nome_acao} retornou {retorno!r}",

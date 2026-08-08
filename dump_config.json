@@ -1,0 +1,60 @@
+{
+    "targets": [
+        {
+            "file": "atos/comunicacao_destinatarios.py",
+            "function": "selecionar_destinatarios",
+            "line": 392,
+            "relevance": "Ponto de entrada — contem o bloco 'primeiro' com a falha (L484-636)",
+            "callers": ["atos/comunicacao.py:make_comunicacao_wrapper()"],
+            "callees": ["espera.elemento()", "safe_click_no_scroll()", "espera.ate_habilitar()"]
+        },
+        {
+            "file": "leg/atos/comunicacao_destinatarios.py",
+            "function": "selecionar_destinatarios",
+            "line": 451,
+            "relevance": "Versao funcional de referencia no leg/ — bloco 'primeiro' simplificado (L548-563)",
+            "callers": ["atos/comunicacao.py:make_comunicacao_wrapper()"],
+            "callees": ["click_headless_safe()", "aguardar_renderizacao_nativa()", "_selecionar_endereco_tribunal()"]
+        },
+        {
+            "file": "leg/atos/comunicacao_destinatarios.py",
+            "function": "_selecionar_endereco_tribunal",
+            "line": 179,
+            "relevance": "Funcao auxiliar que encapsula a logica de endereco do tribunal (a ser portada para o codigo ativo)",
+            "callers": ["leg/atos/comunicacao_destinatarios.py:selecionar_destinatarios()"],
+            "callees": ["esperar_elemento()", "_incluir_tribunal_por_cep()", "safe_click_no_scroll()"]
+        },
+        {
+            "file": "leg/atos/comunicacao_destinatarios.py",
+            "function": "_incluir_tribunal_por_cep",
+            "line": 143,
+            "relevance": "Implementa o fluxo CEP 01302906 -> TRT2 Sao Paulo (a ser portada para o codigo ativo)",
+            "callers": ["leg/atos/comunicacao_destinatarios.py:_selecionar_endereco_tribunal()"],
+            "callees": ["wait_for_clickable()", "safe_click_no_scroll()"]
+        },
+        {
+            "file": "Fix/browser_suporte.py",
+            "function": "safe_click_no_scroll",
+            "line": 511,
+            "relevance": "Mecanismo de clique usado no codigo atual — dispatchEvent(MouseEvent) em vez de .click() nativo",
+            "callers": ["atos/comunicacao_destinatarios.py:selecionar_destinatarios()"],
+            "callees": ["driver.execute_script()"]
+        },
+        {
+            "file": "Fix/browser_suporte.py",
+            "function": "click_headless_safe",
+            "line": 388,
+            "relevance": "Mecanismo de clique alternativo com 3 estrategias — estrategia 1 usa element.click() nativo (Selenium)",
+            "callers": ["leg/atos/comunicacao_destinatarios.py:selecionar_destinatarios()"],
+            "callees": ["espera.ate_habilitar()", "element.click()", "safe_click_no_scroll()"]
+        },
+        {
+            "file": "atos/comunicacao.py",
+            "function": "make_comunicacao_wrapper",
+            "line": 88,
+            "relevance": "Factory que cria pec_excluiargos com destinatarios='primeiro' — ponto de configuracao do fluxo",
+            "callers": ["atos/wrappers_pec.py:pec_excluiargos"],
+            "callees": ["selecionar_destinatarios()"]
+        }
+    ]
+}

@@ -219,12 +219,10 @@ def injetar_tokens_sisbajud(driver, access_token: str, refresh_token: str = None
         return False
 
 
-def driver_sisbajud():
+def driver_sisbajud(headless=False):
     """Cria o driver para SISBAJUD usando a fábrica definida em driver_config.
 
-    Se a fábrica principal (driver_config, ou criar_driver_sisb_pc como fallback)
-    falhar ou indisponivel — comum quando a maquina ativa e a VT, sem o binario/perfil
-    fixo do PC — cai para um driver SISB temporario (sem perfil especifico).
+    headless: se True, o driver SISB também será headless (herdado do driver PJe).
     """
     try:
         if not criar_driver_sisb:
@@ -232,7 +230,7 @@ def driver_sisbajud():
         else:
             logger.info('[SISBAJUD][DRIVER] Iniciando criação do driver Firefox SISBAJUD...')
             # A fábrica criar_driver_sisb devolve um WebDriver configurado para SISBAJUD
-            driver = criar_driver_sisb()
+            driver = criar_driver_sisb(headless=headless)
             if driver:
                 logger.info('[SISBAJUD][DRIVER]  Driver criado com sucesso')
                 return driver
@@ -246,7 +244,7 @@ def driver_sisbajud():
         return None
     try:
         logger.info('[SISBAJUD][DRIVER] Iniciando criação do driver Firefox SISBAJUD temporario (VT)...')
-        driver = criar_driver_sisb_vt()
+        driver = criar_driver_sisb_vt(headless=headless)
         if driver:
             logger.info('[SISBAJUD][DRIVER]  Driver temporario (VT) criado com sucesso')
         else:
@@ -276,11 +274,16 @@ def login_automatico_sisbajud(driver):
         except Exception:
             pass
 
-        # Verificar se já está logado
-        current_url = driver.current_url
-        if not any(indicador in current_url.lower() for indicador in ['login', 'auth', 'realms']):
-            logger.info('[SISBAJUD][LOGIN]  Já está logado!')
-            return True
+        # Verificar se já está logado: se o campo CPF (#username) não aparece
+        # após a navegação, está logado. Checagem por URL é frágil no Playwright
+        # (wait_until=domcontentloaded retorna antes do redirect Keycloak).
+        try:
+            from Fix import espera
+            if not espera.elemento(driver, '#username, input[name="username"]', teto=3):
+                logger.info('[SISBAJUD][LOGIN]  Já está logado! (campo CPF não encontrado)')
+                return True
+        except Exception:
+            pass
 
         # 1. Clicar no campo de login e digitar CPF como humano
         logger.info('[SISBAJUD][LOGIN] 1. Clicando no campo de login e digitando CPF como humano...')
@@ -494,9 +497,17 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
         elif extrair_dados and not driver_pje:
             logger.info('[SISBAJUD]  Driver PJE não fornecido, não é possível extrair dados')
 
-        # 2. Criar driver Firefox SISBAJUD
-        logger.info('[SISBAJUD] Criando driver Firefox SISBAJUD...')
-        driver = driver_sisbajud()
+        # 2. Criar driver Firefox SISBAJUD (herda modo headless do driver PJe)
+        sisb_headless = False
+        if driver_pje is not None:
+            # PWDriver expõe .headless; Selenium usa is_headless_mode()
+            if hasattr(driver_pje, 'headless'):
+                sisb_headless = bool(driver_pje.headless)
+            else:
+                from Fix.browser_suporte import is_headless_mode
+                sisb_headless = is_headless_mode(driver_pje)
+        logger.info(f'[SISBAJUD] Criando driver Firefox SISBAJUD (headless={sisb_headless})...')
+        driver = driver_sisbajud(headless=sisb_headless)
         
         if not driver:
             logger.info('[SISBAJUD]  Falha ao criar driver - driver_sisbajud() retornou None')
@@ -689,6 +700,8 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         logger.info('\n[SISBAJUD] INICIANDO CRIAÇÃO DE MINUTA DE BLOQUEIO')
         logger.info('=' * 60)
 
+        pendencia = None  # será definido após verificação de cálculo
+
         # 0. EXTRAIR DADOS DO PROCESSO (se necessário) e VERIFICAR VALOR
         if dados_processo is None:
             if log:
@@ -732,6 +745,26 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                 dados_processo['divida'] = {}
             dados_processo['divida']['valor'] = valor_padrao
             valor = valor_padrao
+
+        # Detectar pendências de cálculo
+        pendencia = None
+        _data_divida = divida.get('data', '') if isinstance(divida, dict) else ''
+        _usando_padrao = (valor == '33,33')
+
+        if _usando_padrao:
+            pendencia = 'sem_calculo'
+            if log:
+                logger.info('[SISBAJUD]  Pendência: sem cálculo (padrão 33,33)')
+        elif _data_divida:
+            try:
+                from datetime import datetime as _dt
+                _dt_divida = _dt.strptime(_data_divida, '%d/%m/%Y')
+                if (_dt.now() - _dt_divida).days > 90:
+                    pendencia = 'calculo_antigo'
+                    if log:
+                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>3 meses)')
+            except Exception:
+                pass
         
         if log:
             logger.info(f'[SISBAJUD]  Valor encontrado: {valor} - prosseguindo com minuta')
@@ -793,8 +826,17 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
             resultado['erros'].append('Falha ao preencher campos iniciais')
             return resultado
 
-        # 4. Processar REUs otimizado
-        reus_processados = helpers._processar_reus_otimizado(driver, dados_processo.get('reu', []))
+        # 4. Processar REUs otimizado (com alerta de excesso)
+        todos_reus = dados_processo.get('reu', []) or []
+        if len(todos_reus) > 10 and log:
+            logger.info(
+                '[SISBAJUD] ALERTA: %d reus excedem limite de 10 — '
+                'apenas os 10 primeiros validos serao incluidos nesta minuta',
+                len(todos_reus)
+            )
+            resultado['alerta_excesso_reus'] = True
+            resultado['total_reus'] = len(todos_reus)
+        reus_processados = helpers._processar_reus_otimizado(driver, todos_reus, max_validos=10)
         resultado['reus_processados'] = reus_processados
 
         # 5. Configurar valor da execução
@@ -820,6 +862,24 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
             if log:
                 logger.info('[SISBAJUD]  Falha ao gerar relatório da minuta')
             # Prosseguir com fechamento e retorno com status de erro parcial
+
+        # Se valor mock (33,33), substituir no relatório
+        if relatorio_gerado and pendencia == 'sem_calculo':
+            conteudo = relatorio_gerado.get('conteudo', '') if isinstance(relatorio_gerado, dict) else relatorio_gerado
+            if isinstance(conteudo, str) and '33,33' in conteudo:
+                conteudo = conteudo.replace('33,33', '(ver planilha mais recente)')
+                if isinstance(relatorio_gerado, dict):
+                    relatorio_gerado['conteudo'] = conteudo
+                try:
+                    from PEC.anexos import salvar_conteudo_clipboard
+                    salvar_conteudo_clipboard(
+                        conteudo=conteudo,
+                        numero_processo=numero_processo,
+                        tipo_conteudo="sisbajud_minuta",
+                        debug=log
+                    )
+                except Exception:
+                    pass
 
         # 6.5 Se o relatório foi gerado e um driver PJE foi passado, executar a juntada
         # (usa relatório da PRIMEIRA minuta)
@@ -896,10 +956,13 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     elif log:
                         logger.info('[SISBAJUD]  Falha ao aplicar visibilidade para certidão sigilosa')
 
-                    # Criar GIGS 22/xs resultado (após visibilidade, ainda em /detalhe)
-                    from Fix.extracao import criar_gigs
+                    # Criar GIGS (após visibilidade, ainda em /detalhe)
+                    from Fix.extracao import criar_gigs, criar_comentario
                     gigs_prazo = '60' if prazo_dias == 60 else '22'
-                    gigs_str = f'{gigs_prazo}/xs resultado'
+                    if pendencia == 'calculo_antigo':
+                        gigs_str = f'{gigs_prazo}/xs resultado CALC'
+                    else:
+                        gigs_str = f'{gigs_prazo}/xs resultado'
                     if log:
                         logger.info(f'[SISBAJUD] Criando GIGS {gigs_str}...')
                     resultado_gigs = criar_gigs(driver_pje, gigs_str, log=log)
@@ -907,6 +970,11 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                         logger.info(f'[SISBAJUD]  GIGS {gigs_str} criado')
                     elif log:
                         logger.info(f'[SISBAJUD]  GIGS {gigs_str} não foi criado')
+
+                    if pendencia == 'sem_calculo':
+                        if log:
+                            logger.info('[SISBAJUD] Criando comentário "Bruna - Atualizar"...')
+                        criar_comentario(driver_pje, 'Bruna - Atualizar', log=log)
             except Exception as e:
                 resultado['erros'].append(f'Erro na juntada PJE (minuta): {e}')
                 if log:
@@ -926,6 +994,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                 logger.info('[SISBAJUD] Driver SISBAJUD mantido aberto (modo lote)')
 
         resultado['status'] = 'concluido'
+        resultado['pendencia'] = pendencia
         if log:
             logger.info(f'[SISBAJUD]  Minuta de bloqueio concluída: {resultado["reus_processados"]} REUs processados')
 
@@ -994,37 +1063,62 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
         if log:
             logger.info(f'[SISBAJUD] Navegando para teimosinha com processo: {numero_processo}')
 
-        try:
-            # Navegar para a URL da teimosinha
-            driver.get("https://sisbajud.pdpj.jus.br/teimosinha")
-            if log:
-                logger.info('[SISBAJUD]  Navegação para teimosinha realizada')
+        teimosinha_ok = False
+        ultimo_erro = None
+        for tentativa in range(2):
+            try:
+                # Resetar driver para estado limpo antes de navegar (evita conflito com SPA residual)
+                if tentativa > 0 or not fechar_driver:
+                    driver.get("about:blank")
+                    aguardar_renderizacao_nativa(driver, timeout=2)
 
-            # Aguardar carregamento da página e campo de processo
-            campo_processo = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Número do Processo"]'))
-            )
+                # Navegar para a URL da teimosinha
+                driver.get("https://sisbajud.pdpj.jus.br/teimosinha")
+                # Aguardar carregamento completo da página antes de buscar elemento
+                aguardar_renderizacao_nativa(driver, timeout=10)
+                if log:
+                    logger.info('[SISBAJUD]  Navegação para teimosinha realizada')
 
-            # Limpar, inserir o número do processo e pressionar ENTER
-            campo_processo.clear()
-            campo_processo.send_keys(numero_processo + Keys.RETURN)
+                # Aguardar carregamento da página e campo de processo
+                campo_processo = WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Número do Processo"]'))
+                )
 
-            if log:
-                logger.info('[SISBAJUD]  Processo inserido e ENTER pressionado')
+                # Limpar, inserir o número do processo e pressionar ENTER
+                campo_processo.clear()
+                campo_processo.send_keys(numero_processo + Keys.RETURN)
 
-            # Aguardar o carregamento da busca do processo (SPA Angular)
-            import time
-            espera.assentar(driver, 5)
+                if log:
+                    logger.info('[SISBAJUD]  Processo inserido e ENTER pressionado')
 
-            # Aguardar carregamento da série
-            from Fix.utils import aguardar_pagina_carregar
-            aguardar_pagina_carregar(driver, timeout=15)
+                # Aguardar o carregamento da busca do processo (SPA Angular)
+                import time
+                espera.assentar(driver, 5)
 
-            if log:
-                logger.info('[SISBAJUD]  Processo inserido no SISBAJUD e série aberta')
+                # Aguardar carregamento da série
+                from Fix.utils import aguardar_pagina_carregar
+                aguardar_pagina_carregar(driver, timeout=15)
 
-        except Exception as e:
-            erro = f'Erro ao navegar/inserir processo no SISBAJUD: {str(e)}'
+                if log:
+                    logger.info('[SISBAJUD]  Processo inserido no SISBAJUD e série aberta')
+
+                # Dispensar dialog de ordens pendentes se aparecer
+                try:
+                    from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
+                    dispensar_dialog_ordem_pendente(driver, log)
+                except Exception:
+                    pass
+
+                teimosinha_ok = True
+                break
+
+            except Exception as e:
+                ultimo_erro = e
+                if log and tentativa == 0:
+                    logger.info(f'[SISBAJUD]  Tentativa {tentativa + 1} falhou, retentando... ({str(e)[:100]})')
+
+        if not teimosinha_ok:
+            erro = f'Erro ao navegar/inserir processo no SISBAJUD: {str(ultimo_erro)}'
             if log:
                 logger.info(f'[SISBAJUD]  {erro}')
             resultado['status'] = 'erro'
@@ -1075,6 +1169,14 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
         if tipo_fluxo in ['POSITIVO', 'DESBLOQUEIO']:
             resultado_processamento = helpers._processar_series(driver, series_validas, tipo_fluxo, log, estrategia=estrategia)
             resultado.update(resultado_processamento)
+
+            # Fail-safe: se havia series para processar mas 0 foram processadas, e erro
+            if len(series_validas) > 0 and resultado.get('series_processadas', 0) == 0 and resultado.get('ordens_processadas', 0) == 0:
+                if not resultado.get('erros'):
+                    resultado['erros'] = []
+                resultado['erros'].append('Falha ao processar series: nenhuma ordem extraida (possivel problema de navegacao)')
+                if log:
+                    logger.error('[SISBAJUD] FAIL-SAFE: 0 ordens extraidas de %d series — marcando como erro', len(series_validas))
         else:
             # NEGATIVO: sem bloqueios, pular processamento de séries
             if log:
@@ -1444,6 +1546,26 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
             dados_processo['divida']['valor'] = valor_padrao
             valor = valor_padrao
 
+        # Detectar pendências de cálculo
+        pendencia = None
+        _data_divida = divida.get('data', '') if isinstance(divida, dict) else ''
+        _usando_padrao = (valor == '33,33')
+
+        if _usando_padrao:
+            pendencia = 'sem_calculo'
+            if log:
+                logger.info('[SISBAJUD]  Pendência: sem cálculo (padrão 33,33)')
+        elif _data_divida:
+            try:
+                from datetime import datetime as _dt
+                _dt_divida = _dt.strptime(_data_divida, '%d/%m/%Y')
+                if (_dt.now() - _dt_divida).days > 90:
+                    pendencia = 'calculo_antigo'
+                    if log:
+                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>3 meses)')
+            except Exception:
+                pass
+
         # 2. VALIDAR DADOS DO PROCESSO
         dados_validos, numero_processo = helpers._validar_dados(dados_processo)
         if not dados_validos:
@@ -1460,7 +1582,17 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         # =====================================================================
         logger.info(f'[SISBAJUD] === CRIANDO 1ª MINUTA (prazo {prazo_dias} dias) ===')
 
-        # 3a. Clicar em "Nova Minuta" a partir do menu principal ou dashboard
+        # 3a. Navegar para listagem de minutas (resetar estado do driver)
+        URL_MINUTA = "https://sisbajud.pdpj.jus.br/minuta"
+        try:
+            driver.get(URL_MINUTA)
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, timeout=3)
+        except Exception as e_nav:
+            if log:
+                logger.info(f'[SISBAJUD]  Erro ao navegar para listagem de minutas: {e_nav}')
+
+        # 3b. Clicar em "Nova Minuta" a partir do menu principal ou dashboard
         sucesso_nova = _clicar_nova_minuta(driver, log)
         if not sucesso_nova:
             resultado['status'] = 'erro'
@@ -1468,14 +1600,29 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
             return resultado
 
         # 3b. Preencher campos iniciais
-        campos_ok = helpers._preencher_campos_iniciais(driver, dados_processo, prazo_dias)
+        agendar_m1 = (pendencia == 'sem_calculo')
+        campos_ok = helpers._preencher_campos_iniciais(
+            driver, dados_processo, prazo_dias,
+            agendar_amanha=agendar_m1, agendar_offset=1
+        )
         if not campos_ok:
             resultado['status'] = 'erro'
             resultado['erros'].append('1ª minuta: Falha ao preencher campos iniciais')
             return resultado
 
-        # 3c. Processar réus
-        helpers._processar_reus_otimizado(driver, dados_processo.get('reu', []))
+        # 3c. Processar réus — loteamento (máx. 10 válidos por minuta)
+        todos_reus = dados_processo.get('reu', []) or []
+        if len(todos_reus) > 10 and log:
+            logger.info(
+                '[SISBAJUD] ALERTA: %d reus excedem limite de 10 por minuta — '
+                'serao distribuidos em lotes', len(todos_reus)
+            )
+            resultado['alerta_excesso_reus'] = True
+            resultado['total_reus'] = len(todos_reus)
+
+        resultado_reus_1 = helpers._processar_reus_otimizado(driver, todos_reus, max_validos=10)
+        processados_ate = resultado_reus_1.get('processados_ate', len(todos_reus)) if isinstance(resultado_reus_1, dict) else len(todos_reus)
+        reus_restantes = todos_reus[processados_ate:] if processados_ate < len(todos_reus) else []
 
         # 3d. Configurar valor
         _configurar_valor(driver, dados_processo)
@@ -1489,9 +1636,31 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
 
         logger.info('[SISBAJUD]  1ª minuta salva com sucesso')
 
-        # 3f. Coletar dados da 1ª minuta (protocolo e relatório)
+        # 3f. PROTOColar 1ª minuta (apenas se sem pendencia)
+        protocolo_1 = None
+        if pendencia is None:
+            if log:
+                logger.info('[SISBAJUD]  Protocolando 1ª minuta...')
+            protocolo_1 = helpers._protocolar_minuta(driver, log=log)
+            if protocolo_1:
+                logger.info('[SISBAJUD]  1ª minuta protocolada: %s', protocolo_1)
+                resultado['minuta_1_protocolada'] = True
+            else:
+                logger.info('[SISBAJUD]  1ª minuta nao protocolada — prosseguindo')
+        else:
+            if log:
+                logger.info('[SISBAJUD]  Pulando protocolo — pendencia: %s', pendencia)
+
+        # 3g. Coletar dados da 1ª minuta (protocolo e relatório)
+        if not protocolo_1:
+            try:
+                import re as _re
+                m = _re.search(r'/(\d{10,})/', driver.current_url)
+                if m:
+                    protocolo_1 = m.group(1)
+            except Exception:
+                pass
         dados_rel_1 = helpers._gerar_relatorio_minuta(driver, numero_processo)
-        protocolo_1 = dados_rel_1.get('protocolo') if dados_rel_1 else None
         resultado['minuta_1'] = {
             'prazo_dias': prazo_dias,
             'protocolo': protocolo_1,
@@ -1520,7 +1689,12 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
             try:
                 # O Helper re-exporta a função. Vamos chamar diretamente a implementação atualizada se o wrapper não expor kwargs:
                 from .processamento.minutas_campos import _preencher_campos_iniciais as preencher_campos_atualizado
-                campos_ok_2 = preencher_campos_atualizado(driver, dados_processo, prazo_dias=prazo_dias, agendar_amanha=True)
+                agendar_m2 = True  # sempre agenda a 2ª minuta; offset depende de pendencia
+                offset_m2 = 2 if pendencia == 'sem_calculo' else 1
+                campos_ok_2 = preencher_campos_atualizado(
+                    driver, dados_processo, prazo_dias=prazo_dias,
+                    agendar_amanha=agendar_m2, agendar_offset=offset_m2
+                )
             except Exception as e_kwargs:
                 # Fallback caso dê erro de assinatura
                 if log:
@@ -1531,8 +1705,16 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     logger.info('[SISBAJUD]  2ª minuta: Falha ao preencher campos — pulando')
                 resultado['erros'].append('2ª minuta: Falha ao preencher campos')
             else:
-                # 4c. Processar réus
-                helpers._processar_reus_otimizado(driver, dados_processo.get('reu', []))
+                # 4c. Processar réus restantes (se houver)
+                if reus_restantes:
+                    if log:
+                        logger.info(
+                            '[SISBAJUD] Processando %d reus restantes na 2ª minuta',
+                            len(reus_restantes)
+                        )
+                    helpers._processar_reus_otimizado(driver, reus_restantes, max_validos=10)
+                else:
+                    helpers._processar_reus_otimizado(driver, todos_reus, max_validos=10)
 
                 # 4d. Configurar valor
                 _configurar_valor(driver, dados_processo)
@@ -1542,16 +1724,28 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                 if minuta_2_salva:
                     logger.info('[SISBAJUD]  2ª minuta salva com sucesso')
 
-                    # 4f. Coletar protocolo da 2ª minuta
+                    # 4f. PROTOColar 2ª minuta (apenas se sem pendencia)
                     protocolo_2 = None
-                    try:
-                        url_2 = driver.current_url
-                        import re as _re
-                        match_2 = _re.search(r'/(\d{10,})/', url_2)
-                        if match_2:
-                            protocolo_2 = match_2.group(1)
-                    except Exception:
-                        pass
+                    if pendencia is None:
+                        if log:
+                            logger.info('[SISBAJUD]  Protocolando 2ª minuta...')
+                        protocolo_2 = helpers._protocolar_minuta(driver, log=log)
+                        if protocolo_2:
+                            logger.info('[SISBAJUD]  2ª minuta protocolada: %s', protocolo_2)
+                            resultado['minuta_2_protocolada'] = True
+                        else:
+                            logger.info('[SISBAJUD]  2ª minuta nao protocolada — prosseguindo')
+
+                    # Extrair protocolo da URL se nao obtido via protocolo
+                    if not protocolo_2:
+                        try:
+                            url_2 = driver.current_url
+                            import re as _re
+                            match_2 = _re.search(r'/(\d{10,})/', url_2)
+                            if match_2:
+                                protocolo_2 = match_2.group(1)
+                        except Exception:
+                            pass
 
                     resultado['minuta_2'] = {
                         'prazo_dias': prazo_dias,
@@ -1576,6 +1770,52 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                         logger.info('[SISBAJUD]  2ª minuta: falha ao salvar — prosseguindo para juntada')
                     resultado['erros'].append('2ª minuta: falha ao salvar')
                     resultado['minuta_2'] = {'prazo_dias': prazo_dias, 'salva': False}
+
+        # =====================================================================
+        # === CONSOLIDAR RELATÓRIO COM TODOS OS RÉUS (antes da juntada) ===
+        # =====================================================================
+        # O relatório da 1ª minuta (dados_rel_1) só contém os réus da página
+        # atual. Se houve loteamento, reconstruímos com a lista completa.
+        if todos_reus and dados_rel_1:
+            pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"'
+            consolidado = f'<p {pStyle}><strong>Dados das Teimosinhas protocoladas:</strong></p>'
+            consolidado += f'<p {pStyle}>Número do processo: <strong>{numero_processo}</strong></p>'
+            consolidado += f'<p {pStyle}>Protocolo 1ª minuta: <strong>{protocolo_1 or "N/A"}</strong></p>'
+            consolidado += f'<p {pStyle}>Protocolo 2ª minuta: <strong>{protocolo_2 or "N/A"}</strong></p>'
+
+            valor_exibicao = valor
+            if pendencia == 'sem_calculo':
+                valor_exibicao = '(ver planilha mais recente)'
+            consolidado += f'<p {pStyle}>Valor do bloqueio: <strong>{valor_exibicao}</strong></p>'
+
+            consolidado += f'<p {pStyle}>Total de reclamadas: <strong>{len(todos_reus)}</strong> '
+            consolidado += f'(10 por minuta, apenas válidas com contas)</p>'
+            consolidado += f'<p {pStyle}><strong>Partes alvo do bloqueio:</strong></p>'
+
+            for reu in todos_reus:
+                nome = reu.get('nome', '')
+                doc = reu.get('cpfcnpj', '')
+                if nome:
+                    consolidado += f'<p {pStyle}><strong>{nome} - [{doc}]</strong></p>'
+
+            consolidado += f'<p {pStyle}>Notas:</p>'
+            consolidado += f'<p {pStyle}>-Por padrão é consultado CNPJ raiz.</p>'
+            consolidado += f'<p {pStyle}>-Partes sem relacionamento bancário são '
+            consolidado += f'automaticamente removidas pelo sistema (0 contas/recuperação judicial).</p>'
+
+            try:
+                from PEC.anexos import salvar_conteudo_clipboard
+                salvar_conteudo_clipboard(
+                    conteudo=consolidado,
+                    numero_processo=numero_processo,
+                    tipo_conteudo="sisbajud_minuta",
+                    debug=log
+                )
+                if log:
+                    logger.info('[SISBAJUD]  Relatório consolidado salvo com %d reclamadas', len(todos_reus))
+            except Exception as e_cons:
+                if log:
+                    logger.info(f'[SISBAJUD]  Aviso: erro ao gerar relatório consolidado: {e_cons}')
 
         # =====================================================================
         # === JUNTADA NO PJe (única, ao final de ambas as minutas) ===
@@ -1614,12 +1854,20 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     vis_ok = executar_visibilidade_sigilosos_se_necessario(driver_pje, True, debug=log)
                     resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
 
-                    from Fix.extracao import criar_gigs
+                    from Fix.extracao import criar_gigs, criar_comentario
                     gigs_prazo = '60' if prazo_dias == 60 else '22'
-                    gigs_str = f'{gigs_prazo}/xs resultado'
+                    if pendencia == 'calculo_antigo':
+                        gigs_str = f'{gigs_prazo}/xs resultado CALC'
+                    else:
+                        gigs_str = f'{gigs_prazo}/xs resultado'
                     if log:
                         logger.info(f'[SISBAJUD] Criando GIGS {gigs_str}...')
                     resultado_gigs = criar_gigs(driver_pje, gigs_str, log=log)
+
+                    if pendencia == 'sem_calculo':
+                        if log:
+                            logger.info('[SISBAJUD] Criando comentário "Bruna - Atualizar"...')
+                        criar_comentario(driver_pje, 'Bruna - Atualizar', log=log)
             except Exception as e_junt:
                 resultado['erros'].append(f'Erro na juntada PJE: {e_junt}')
                 if log:
@@ -1635,6 +1883,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                 pass
 
         resultado['status'] = 'concluido'
+        resultado['pendencia'] = pendencia
         if log:
             logger.info('[SISBAJUD]  Fluxo duplo de minutas concluído')
 

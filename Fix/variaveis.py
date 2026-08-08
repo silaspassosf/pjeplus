@@ -713,8 +713,11 @@ PADROES_EXCECAO_LINK_VALIDACAO = (
     'comunique-se por edital',
     'comunique se por edital',
     'comunique-se, por edital',
-    'de forma concomitante',
+    'comunique-se por edital,',
+    'comunique-se através de edital',
 )
+
+PADRAO_CONCOMITANTE = 'de forma concomitante'
 
 
 def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_processo: str, tipos: Optional[List[str]] = None, itens_timeline: Optional[List[Dict]] = None, driver = None, incluir_conteudo_condensado: bool = False):
@@ -724,7 +727,8 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
     - Busca a timeline (ou usa `itens_timeline` se fornecido).
     - Itera os elementos (documentos + anexos) na ordem retornada pela
       API (a extensão assume que o primeiro item é o mais recente).
-    - FILTRA: Pula despachos que contenham "Comunique-se por edital"
+    - FILTRA: Pula despachos que contenham "de forma concomitante" E
+      "comunique-se por edital" simultaneamente (usa proxima Sentenca/Decisao).
 
     Se `incluir_conteudo_condensado=True`, retorna a tupla
     `(link, conteudo_condensado)` — sempre uma tupla (`(None, None)` se
@@ -778,10 +782,15 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
                     conteudo_original = obter_texto_documento(client, id_processo, doc_id) or ''
                     conteudo_normalizado = _normalizar_texto_verificacao(conteudo_original)
                     if conteudo_normalizado:
-                        padrao_encontrado = next((p for p in PADROES_EXCECAO_LINK_VALIDACAO if p in conteudo_normalizado), None)
-                        if padrao_encontrado:
-                            logger.debug('[VARIAVEIS] %s com padrao de excecao "%s" - pulando para proximo', tipo, padrao_encontrado)
-                            continue
+                        # Excecao apenas para Despacho: se contiver AMBOS os padroes
+                        # "de forma concomitante" E "comunique-se por edital", pular
+                        # para o proximo documento (Sentenca ou Decisao).
+                        if tipo == 'Despacho':
+                            tem_concomitante = PADRAO_CONCOMITANTE in conteudo_normalizado
+                            tem_edital = any(p in conteudo_normalizado for p in PADROES_EXCECAO_LINK_VALIDACAO)
+                            if tem_concomitante and tem_edital:
+                                logger.debug('[VARIAVEIS] Despacho com "de forma concomitante" + "comunique-se por edital" - pulando para proximo')
+                                continue
                     else:
                         logger.warning('[VARIAVEIS][WARN] Conteudo de %s (doc %s) nao pode ser extraido - checagem de excecao NAO aplicada, prosseguindo com risco', tipo, doc_id)
                 except Exception as e_check:

@@ -40,49 +40,13 @@ def _encontrar_documento_relevante(driver: WebDriver) -> Tuple[Optional[Any], Op
     Returns:
         Tupla (doc_encontrado, doc_link, doc_idx)
     """
-    # Preferir funções já existentes no projeto (Fix.documents) — comportamento legado
-    try:
-        from Fix.core import buscar_documentos_sequenciais, verificar_documento_decisao_sentenca
-
-        # Se existir um bloco sequencial (ARGOS), ele já retorna os elementos na ordem correta
-        try:
-            docs = buscar_documentos_sequenciais(driver, log=False)
-            if docs:
-                # Retornar o primeiro elemento que possua um link clicável
-                for idx, elem in enumerate(docs):
-                    try:
-                        try:
-                            link = elem.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-                        except Exception:
-                            links = elem.find_elements(By.TAG_NAME, 'a')
-                            link = None
-                            for l in links:
-                                try:
-                                    if l.is_displayed():
-                                        link = l
-                                        break
-                                except Exception:
-                                    continue
-                        if link:
-                            return elem, link, idx
-                    except Exception:
-                        continue
-        except Exception:
-            # Se a busca sequencial falhar, continuar para heurística DOM abaixo
-            pass
-
-        # Se não encontrou via sequencial, tentar apenas verificar se existe decisão/sentença
-        try:
-            if verificar_documento_decisao_sentenca(driver):
-                # fallback para heurística DOM se a verificação retorna True
-                pass
-        except Exception:
-            pass
-    except Exception:
-        # se Fix.documents não estiver disponível, continuar com heurística DOM
-        pass
-
-    # Heurística DOM (fallback): múltiplos seletores de container — diferentes versões do PJe
+    # Heurística DOM: itera a timeline completa e filtra pelo tipo real do documento.
+    # NÃO depende de buscar_documentos_sequenciais (ARGOS) — o fluxo P2B/PEC já tem
+    # API própria (obter_chave_ultimo_despacho_decisao_sentenca) como caminho primário,
+    # que inclui filtro de exceção (comunique-se por edital, concomitante) via
+    # PADROES_EXCECAO_LINK_VALIDACAO com leitura de conteúdo via API.
+    # A heurística DOM aqui é fallback — filtra apenas por tipo_real.
+    # Múltiplos seletores de container — diferentes versões do PJe
     container_selectors = [
         'li.tl-item-container',
         'div.tl-item-container',

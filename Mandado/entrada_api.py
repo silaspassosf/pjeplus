@@ -32,10 +32,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from Fix import espera
 from Fix.core import wait_for_page_load, safe_click_no_scroll, esperar_elemento
 from Fix.log import logger
-from Fix.monitoramento_progresso_unificado import marcar_processo_executado_unificado, carregar_progresso_unificado
+from utilitarios_processamento import mark_done, is_done, get_concluidos
 from Fix.selenium_base import aguardar_e_clicar, safe_click
 from Fix.core import aguardar_renderizacao_nativa
-from Fix.abas import fechar_abas_extras as _fechar_abas_extras
+from Fix.abas import fechar_abas_extras as _fechar_abas_extras, aguardar_nova_aba
 
 from Mandado.apoio_fluxos import fluxo_mandados_outros, fluxo_mandados_cp, arquivar_mandado_outros_reconhecido
 
@@ -176,23 +176,17 @@ def obter_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao_cre
     return processos
 
 
-def _carregar_concluidos_mandado() -> set:
-    """Lega progresso.json via System A e retorna set de numeros de processo MANDADO ja concluidos."""
-    try:
-        dados = carregar_progresso_unificado('mandado', suppress_load_log=True)
-        return set(dados.get('processos_executados', []))
-    except Exception:
-        pass
-    return set()
+def _should_skip_mandado(numero: str) -> bool:
+    """Verifica se mandado ja foi concluido em execucao anterior."""
+    if not numero:
+        return False
+    return is_done('mandado', str(numero))
 
 
 def _marcar_concluido_mandado(numero: str) -> None:
-    """Marca numero como executado em progresso.json via System A."""
-    try:
-        dados = carregar_progresso_unificado('mandado', suppress_load_log=True)
-        marcar_processo_executado_unificado('mandado', numero, dados, sucesso=True)
-    except Exception as e:
-        logger.warning(f'[MANDADOS_API] Falha ao salvar concluidos: {e}')
+    """Marca mandado como concluido no progresso.json."""
+    if numero:
+        mark_done('mandado', str(numero), sucesso=True)
 
 
 def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
@@ -251,10 +245,18 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
     if itens_argos_sigilo:
         logger.info(f'[MANDADOS_API] BLOCO 1: Processando {len(itens_argos_sigilo)} itens Argos/Sigilo...')
         from Fix.variaveis import url_processo_detalhe
+        concluidos_antes = get_concluidos('mandado')
+        if concluidos_antes:
+            logger.info(f'[MANDADOS_API] BLOCO 1: {len(concluidos_antes)} ja concluidos — serao pulados')
         
         for it in itens_argos_sigilo:
             num = it['numero']
             id_p = it['id']
+            
+            if _should_skip_mandado(num):
+                logger.info(f'[MANDADOS_API][BLOCO1] #{num} ja concluido — pulando')
+                continue
+            
             logger.info(f'[MANDADOS_API][BLOCO1] Processando Argos/Sigilo: #{num}')
 
             detalhe_url = url_processo_detalhe(id_p or num)
@@ -295,14 +297,20 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
     for it in itens_certidao:
         num = it['numero']
         id_p = it['id']
+        
+        if _should_skip_mandado(num):
+            logger.info(f'[MANDADOS_API][BLOCO2] #{num} ja concluido — pulando')
+            continue
+        
         logger.info(f'[MANDADOS_API] Processando Certidao: #{num}')
         
         from Fix.variaveis import url_processo_detalhe
         detalhe_url = url_processo_detalhe(id_p or num)
         
-        # Abre em nova aba
+        # Abre em nova aba — usa aguardar_nova_aba (com pulsar() no PW)
+        # em vez de window_handles[-1] direto (race condition no Playwright).
         driver.execute_script(f"window.open('{detalhe_url}', '_blank');")
-        novo_handle = [h for h in driver.window_handles if h != escaninho_handle][-1]
+        novo_handle = aguardar_nova_aba(driver, escaninho_handle, timeout=10)
         driver.switch_to.window(novo_handle)
         
         try:
@@ -317,9 +325,11 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                     resultado_cp = fluxo_mandados_cp(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                     if resultado_cp == 'incompleto':
                         logger.info(f"[MANDADOS_API] #{num}: Fluxo CP incompleto — GIGS xs1 + apagar do escaninho ja executado.")
+                        _marcar_concluido_mandado(str(num))
                     else:
                         if resultado_cp == 'completo':
                             logger.info(f"[MANDADOS_API] #{num}: Fluxo CP completo — processo arquivado.")
+                            _marcar_concluido_mandado(str(num))
                         else:
                             logger.warning(f"[MANDADOS_API] #{num}: Fluxo CP falhou.")
                         driver.close()
@@ -329,6 +339,7 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                     if regra:
                         logger.info(f"[MANDADOS_API] #{num}: Regra '{regra}' reconhecida. Executando GIGS xs1 + apagar do escaninho.")
                         arquivar_mandado_outros_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
+                        _marcar_concluido_mandado(str(num))
                     else:
                         logger.info(f"[MANDADOS_API] #{num}: Nenhuma regra reconhecida. Pulando.")
                         driver.close()
@@ -358,7 +369,7 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
     # 2 - DEPOIS O RESTO
     logger.info(f'[MANDADOS_API] Iniciando processamento do resto ({len(itens_outros)} itens)...')
     # ── Verificar progresso de execucoes anteriores
-    concluidos = _carregar_concluidos_mandado()
+    concluidos = get_concluidos('mandado')
     if concluidos:
         logger.info(f'[MANDADOS_API] {len(concluidos)} processo(s) ja concluidos em execucao anterior — serao ignorados')
 

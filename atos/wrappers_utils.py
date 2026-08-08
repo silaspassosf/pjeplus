@@ -206,7 +206,7 @@ def _clicar_botao_visibilidade(driver, log):
             logger.error('[VISIBILIDADE][ERRO] Botão de visibilidade não encontrado')
             return False
             
-        driver.execute_script('arguments[0].scrollIntoView(true);', btn_visibilidade)
+        driver.execute_script('arguments[0].scrollIntoView({block: "center", inline: "center"});', btn_visibilidade)
         espera.assentar(driver, 0.3)
         safe_click_no_scroll(driver, btn_visibilidade)
         

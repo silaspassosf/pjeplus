@@ -16,6 +16,7 @@ anti-detecção, job assíncrono no servidor. Mantê-la nomeada deixa esses caso
 greppáveis, em vez de escondidos entre centenas de `time.sleep` anônimos.
 """
 import time
+import traceback
 
 from selenium.webdriver.common.by import By
 
@@ -104,11 +105,28 @@ def ate_js(driver, expressao, teto=2.0):
             if driver.execute_script(script):
                 return True
         except Exception as e:
-            logger.debug("ate_js: %s", e)
+            _log_falha(expressao, teto, str(e))
             return False
         if time.monotonic() >= limite:
+            _log_falha(expressao, teto, "timeout")
             return False
         time.sleep(_INTERVALO_POLL)
+
+
+def _log_falha(expressao, teto, motivo):
+    """Loga falha de ate_* com caller fora de Fix/espera.py."""
+    stack = traceback.extract_stack()
+    caller = None
+    for frame in reversed(stack):
+        if 'Fix\\espera.py' not in frame.filename.replace('/', '\\'):
+            caller = frame
+            break
+    if caller:
+        expr_curta = expressao[:120] + ('...' if len(expressao) > 120 else '')
+        logger.info("ate_js FALHA (%s, %.1fs) ← %s:%s | %s",
+                     motivo, teto, caller.filename.split('\\')[-1], caller.lineno, expr_curta)
+    else:
+        logger.info("ate_js FALHA (%s, %.1fs)", motivo, teto)
 
 
 def assentar(driver, teto=2.0, motivo=""):

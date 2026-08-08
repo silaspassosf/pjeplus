@@ -236,6 +236,67 @@ def create_skip_checker(tipo: str) -> Callable[[Any], bool]:
     return should_skip
 
 
+def mark_done(tipo: str, numero: str, sucesso: bool = True, motivo: Optional[str] = None) -> None:
+    """Marca processo como executado no progresso.json (unico ponto de escrita).
+
+    TODOS os modulos (mandado, pec, p2b, triagem, etc.) devem usar esta funcao
+    para persistir progresso. Centraliza a logica de load-modify-save.
+
+    Args:
+        tipo: Chave de secao no progresso.json ('mandado', 'pec', 'p2b', etc.)
+        numero: Numero do processo
+        sucesso: True para marcar como executado, False como erro
+        motivo: Descricao opcional do erro
+    """
+    try:
+        from Fix.monitoramento_progresso_unificado import (
+            carregar_progresso_unificado,
+            marcar_processo_executado_unificado,
+        )
+        dados = carregar_progresso_unificado(tipo, suppress_load_log=True)
+        marcar_processo_executado_unificado(tipo, numero, dados, sucesso=sucesso, motivo=motivo)
+    except Exception as e:
+        logger.warning('[PROGRESSO] mark_done(%s, %s) falhou: %s', tipo, numero, e)
+
+
+def is_done(tipo: str, numero: str) -> bool:
+    """Verifica se processo ja foi executado (unico ponto de leitura).
+
+    Args:
+        tipo: Chave de secao no progresso.json
+        numero: Numero do processo
+
+    Returns:
+        True se ja consta como executado com sucesso
+    """
+    try:
+        from Fix.monitoramento_progresso_unificado import (
+            carregar_progresso_unificado,
+            processo_ja_executado_unificado,
+        )
+        dados = carregar_progresso_unificado(tipo, suppress_load_log=True)
+        return processo_ja_executado_unificado(numero, dados)
+    except Exception:
+        return False
+
+
+def get_concluidos(tipo: str) -> set:
+    """Retorna set de numeros ja concluidos para o tipo.
+
+    Args:
+        tipo: Chave de secao no progresso.json
+
+    Returns:
+        Set de strings com numeros de processo
+    """
+    try:
+        from Fix.monitoramento_progresso_unificado import carregar_progresso_unificado
+        dados = carregar_progresso_unificado(tipo, suppress_load_log=True)
+        return set(dados.get('processos_executados', []))
+    except Exception:
+        return set()
+
+
 def run_batch(
     items: List[T],
     should_skip: Callable[[T], bool],

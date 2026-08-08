@@ -108,10 +108,59 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         return true;
     }
 
-    // ── Varrer ordens COM BLOQUEIO (inspirado em SISB/_identificar_ordens_com_bloqueio) ──
-    function _sisbObterOrdensComBloqueio() {
+    async function _resolverSenhaSisb() {
+        // 1. Tampermonkey storage (GM_getValue)
+        try {
+            if (typeof GM_getValue !== 'undefined') {
+                var v = GM_getValue('BP_PASS');
+                if (v) return String(v);
+                v = GM_getValue('sisbajud_senha');
+                if (v) return String(v);
+            }
+        } catch (e) {}
+
+        // 2. Server local (le .env da raiz do projeto, com CORS)
+        try {
+            var resp = await fetch('http://127.0.0.1:8000/api/env/BP_PASS');
+            if (resp.ok) {
+                var txt = await resp.text();
+                if (txt && txt.trim()) return txt.trim();
+            }
+        } catch (e) {}
+        try {
+            var resp = await fetch('http://127.0.0.1:8000/.env');
+            if (resp.ok) {
+                var txt = await resp.text();
+                var m = txt.match(/BP_PASS\s*=\s*(.+)/i);
+                if (m && m[1]) return m[1].trim();
+            }
+        } catch (e) {}
+
+        // 3. Fallback: window globals
+        try {
+            if (typeof process !== 'undefined' && process && process.env) {
+                if (process.env.BP_PASS) return String(process.env.BP_PASS);
+                if (process.env.bp_pass) return String(process.env.bp_pass);
+            }
+        } catch (e) {}
+
+        if (window.__sisbSenha) return String(window.__sisbSenha);
+        if (window.BP_PASS) return String(window.BP_PASS);
+        if (window.__BP_PASS) return String(window.__BP_PASS);
+        if (window.__env && window.__env.BP_PASS) return String(window.__env.BP_PASS);
+        if (window.__env && window.__env.bp_pass) return String(window.__env.bp_pass);
+        if (window.__ENV__ && window.__ENV__.BP_PASS) return String(window.__ENV__.BP_PASS);
+        if (window.__ENV__ && window.__ENV__.bp_pass) return String(window.__ENV__.bp_pass);
+
+        return '';
+    }
+
+    // ── Extrair TODAS as ordens da tabela (com valores e situacao) ──
+    // Espelha SISB/processamento/ordens_dados.py:_extrair_ordens_da_serie
+    function _sisbExtrairTodasOrdens() {
         var container = document.querySelector('SISBAJUD-DETALHES-TEIMOSINHA');
         if (!container) return [];
+
         var rows = container.querySelectorAll('tbody tr');
         var ordens = [];
 
@@ -120,28 +169,144 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
             if (!menuBtn) return;
 
             var cells = row.querySelectorAll('td');
-            var protocolo = '';
+            var sequencial = 0;
+            var dataRaw = '';
             var valor = 0;
+            var protocolo = '';
+            var situacao = '';
             var nome = '';
 
-            cells.forEach(function(cell) {
-                var text = (cell.textContent || '').trim();
-                if (/^\d{10,}$/.test(text)) protocolo = text;
-                var m = text.match(/R\$\s*([0-9.,]+)/);
-                if (m) valor = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+            cells.forEach(function(cell, idx) {
+                var text = (cell.textContent || '').trim().replace(/\u00a0/g, ' ');
+
+                // Sequencial (cols[0])
+                if (idx === 0) {
+                    var seq = parseInt(text, 10);
+                    if (!isNaN(seq)) sequencial = seq;
+                }
+                // Data (cols[2])
+                else if (idx === 2) {
+                    dataRaw = text;
+                }
+                // Valor a bloquear (cols[4])
+                else if (idx === 4) {
+                    var m = text.match(/R\$\s*([0-9.,]+)/);
+                    if (m) {
+                        valor = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+                    }
+                }
+                // Protocolo (cols[5])
+                else if (idx === 5) {
+                    if (/^\d{10,}$/.test(text)) protocolo = text;
+                }
+
+                // Nome (fallback catch-all)
                 if (text.length > 3 && !/^\d{10,}$/.test(text) && !/R\$/.test(text) && text !== 'Detalhar') {
                     if (!nome) nome = text.substring(0, 60);
                 }
             });
 
-            // ── FILTRO: só ordens com bloqueio efetivo (> 0,01) ──
-            // Espelha _identificar_ordens_com_bloqueio + JS_SELS do ordens_acao.py
-            if (valor <= 0.01) return;
+            // Extrair situacao do texto completo da linha
+            var allText = Array.from(cells).map(function(c) { return (c.textContent || '').trim(); }).join(' ');
+            if (allText.indexOf('Respondida com minuta') > -1) {
+                situacao = 'Respondida com minuta';
+            } else if (allText.indexOf('Respondida') > -1) {
+                situacao = 'Respondida';
+            } else if (allText.indexOf('Não enviado') > -1 || allText.indexOf('Nao enviado') > -1 || allText.indexOf('não enviado') > -1 || allText.indexOf('nao enviado') > -1) {
+                situacao = 'Não enviado';
+            }
 
-            ordens.push({ row: row, menuBtn: menuBtn, protocolo: protocolo, valor: valor, nome: nome });
+            ordens.push({
+                row: row,
+                menuBtn: menuBtn,
+                sequencial: sequencial,
+                dataRaw: dataRaw,
+                valor_bloquear: valor,
+                protocolo: protocolo,
+                situacao: situacao,
+                nome: nome
+            });
         });
 
+        // Ordenar por sequencial (garantir ordem cronologica)
+        ordens.sort(function(a, b) { return a.sequencial - b.sequencial; });
+
         return ordens;
+    }
+
+    // ── Identificar ordens COM BLOQUEIO EFETIVO ──
+    // Espelha EXATAMENTE SISB/processamento/ordens_dados.py:_identificar_ordens_com_bloqueio
+    // Logica: 1) diferenca valores consecutivos 2) fallback ultima ordem 3) fallback valor total
+    var _sisbProtocolosProcessados = {};
+
+    function _sisbPossuiBloqueio(ordem, valorBloqueio) {
+        ordem.valor_bloqueio_esperado = valorBloqueio;
+        ordem._relatorio = {
+            protocolo: ordem.protocolo || 'N/A',
+            valor_esperado: valorBloqueio,
+            status: 'pendente',
+            discriminacao: null
+        };
+        return ordem;
+    }
+
+    function _sisbIdentificarOrdensComBloqueio(ordens) {
+        if (!ordens || ordens.length === 0) return [];
+
+        var bloqueios = [];
+
+        // 1 ordem: filtro simples valor > 0.01
+        if (ordens.length === 1) {
+            if (ordens[0].valor_bloquear > 0.01) {
+                bloqueios.push(_sisbPossuiBloqueio(ordens[0], ordens[0].valor_bloquear));
+            }
+            return bloqueios;
+        }
+
+        // 2+ ordens: diferenca de valores consecutivos
+        for (var i = 0; i < ordens.length - 1; i++) {
+            if (ordens[i].valor_bloquear > ordens[i + 1].valor_bloquear) {
+                bloqueios.push(_sisbPossuiBloqueio(ordens[i], ordens[i].valor_bloquear - ordens[i + 1].valor_bloquear));
+            }
+        }
+
+        // Se nenhuma diferenca detectada, pega a ultima com valor > 0.01
+        if (bloqueios.length === 0) {
+            for (var j = ordens.length - 1; j >= 0; j--) {
+                if (ordens[j].valor_bloquear > 0.01) {
+                    bloqueios.push(_sisbPossuiBloqueio(ordens[j], ordens[j].valor_bloquear));
+                    break;
+                }
+            }
+        }
+
+        return bloqueios;
+    }
+
+    // ── Varrer ordens COM BLOQUEIO (wrapper, espelha series_fluxo.py) ──
+    function _sisbObterOrdensComBloqueio() {
+        var todas = _sisbExtrairTodasOrdens();
+        var bloqueios = _sisbIdentificarOrdensComBloqueio(todas);
+
+        // Filtro pos-identificacao (espelha series_fluxo.py: checa situacao no loop)
+        // Remove ja processadas, respondidas e nao enviadas
+        bloqueios = bloqueios.filter(function(o) {
+            if (_sisbProtocolosProcessados[o.protocolo]) {
+                console.log('[SISB Fluxo] Pulando ja processada:', o.protocolo);
+                return false;
+            }
+            if (o.situacao === 'Respondida com minuta') {
+                console.log('[SISB Fluxo] Pulando ja respondida (com minuta):', o.protocolo);
+                return false;
+            }
+            if (o.situacao === 'Não enviado') {
+                console.log('[SISB Fluxo] Pulando nao enviada:', o.protocolo);
+                return false;
+            }
+            return true;
+        });
+
+        return bloqueios;
     }
 
     // ── Selecionar ação nos dropdowns com-saldo (inspirado em _aplicar_acao_por_fluxo) ──
@@ -203,7 +368,7 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
 
     // ── Processar uma ordem individual ───────────────────────────────
     async function _sisbProcessarOrdem(ordem, tipo) {
-        console.log('[SISB Fluxo] Ordem:', ordem.protocolo, 'tipo:', tipo, 'valor:', ordem.valor);
+        console.log('[SISB Fluxo] Ordem:', ordem.protocolo, 'tipo:', tipo, 'valor:', ordem.valor_bloquear);
 
         // 1. Menu 3 pontinhos → "Detalhar"
         await _sisbClick(ordem.menuBtn);
@@ -286,21 +451,19 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
             }
         }
 
-        // 6. PROTOCULAR (martelo + "Protocolar", espelha SISB/_protocolar_minuta)
+        // 6. PROTOCULAR (probe: button.mat-fab.mat-button-base.mat-primary)
         var btnProtocolar = await _sisbWait(function() {
-            var btns = document.querySelectorAll('button');
+            // Seletor exato do probe: FAB button primary com texto "Protocolar"
+            var btns = document.querySelectorAll('button.mat-fab.mat-button-base.mat-primary');
             for (var g = 0; g < btns.length; g++) {
-                var spans = btns[g].querySelectorAll('span.mat-button-wrapper');
-                for (var h = 0; h < spans.length; h++) {
-                    if (spans[h].querySelector('mat-icon.fa-gavel') &&
-                        (spans[h].textContent || '').indexOf('Protocolar') > -1) {
-                        return btns[g];
-                    }
+                if ((btns[g].textContent || '').indexOf('Protocolar') > -1 && !btns[g].hasAttribute('disabled')) {
+                    return btns[g];
                 }
             }
             // Fallback: qualquer botao com "Protocolar"
-            for (var j = 0; j < btns.length; j++) {
-                if ((btns[j].textContent || '').indexOf('Protocolar') > -1 && !btns[j].hasAttribute('disabled')) return btns[j];
+            var allBtns = document.querySelectorAll('button');
+            for (var j = 0; j < allBtns.length; j++) {
+                if ((allBtns[j].textContent || '').indexOf('Protocolar') > -1 && !allBtns[j].hasAttribute('disabled')) return allBtns[j];
             }
             return null;
         }, 8000);
@@ -310,34 +473,58 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
             console.log('[SISB Fluxo] Protocolar clicado');
             await sleep(1500);
 
-            // 7. Modal de senha: digitar e confirmar
-            var campo_senha = await _sisbWait('input[type="password"][formcontrolname="senha"]', 5000);
-            if (campo_senha) {
-                campo_senha.click();
-                await sleep(200);
-                var senha = 'Fl@quinh182';
-                for (var c = 0; c < senha.length; c++) {
-                    campo_senha.value = (campo_senha.value || '') + senha[c];
-                    campo_senha.dispatchEvent(new Event('input', { bubbles: true }));
-                    await sleep(100);
-                }
-                campo_senha.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(300);
-                console.log('[SISB Fluxo] Senha digitada');
+            // 7. Modal de senha (probe: mat-dialog-container "Digite sua senha")
+            // Aumentar timeout pois o dialog pode demorar para renderizar
+            var dialogSenha = await _sisbWait('mat-dialog-container.mat-dialog-container', 8000);
+            if (dialogSenha && (dialogSenha.textContent || '').indexOf('senha') > -1) {
+                // Campo de senha (probe: input.mat-input-element.mat-form-field-autofill-control)
+                var campo_senha = dialogSenha.querySelector('input.mat-input-element');
+                if (!campo_senha) campo_senha = dialogSenha.querySelector('input[type="password"]');
+                if (!campo_senha) campo_senha = dialogSenha.querySelector('input');
 
-                var btnConfirmarSenha = await _sisbWait(function() {
-                    var btns = document.querySelectorAll('button[type="submit"]');
-                    for (var k = 0; k < btns.length; k++) {
-                        var w = btns[k].querySelector('span.mat-button-wrapper');
-                        if (w && (w.textContent || '').trim() === 'Confirmar') return btns[k];
+                if (campo_senha) {
+                    campo_senha.focus();
+                    await sleep(300);
+
+                    var senha = await _resolverSenhaSisb();
+                    if (!senha) {
+                        console.warn('[SISB Fluxo] Nenhuma senha BP_PASS encontrada; o protocolo pode falhar.');
                     }
-                    var allBtns = document.querySelectorAll('button');
-                    for (var l = 0; l < allBtns.length; l++) {
-                        if ((allBtns[l].textContent || '').indexOf('Confirmar') > -1) return allBtns[l];
+
+                    // Usar execCommand (simula typing real) + fallback nativo para Angular Material
+                    // Angular Material (MatInput) escuta Event('input') com inputType
+                    campo_senha.select();
+                    if (document.execCommand('insertText', false, senha)) {
+                        console.log('[SISB Fluxo] Senha digitada via execCommand');
+                    } else {
+                        // Fallback: nativeInputValueSetter (React/Angular update detector)
+                        var nativeSetter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        ).set;
+                        nativeSetter.call(campo_senha, senha);
+                        campo_senha.dispatchEvent(new Event('input', { bubbles: true }));
+                        console.log('[SISB Fluxo] Senha digitada via nativeSetter');
                     }
-                    return null;
-                }, 5000);
-                if (btnConfirmarSenha) { btnConfirmarSenha.click(); await sleep(2000); }
+
+                    campo_senha.dispatchEvent(new Event('change', { bubbles: true }));
+                    await sleep(500);
+
+                    // Confirmar (probe: button.mat-raised-button.mat-button-base.mat-primary)
+                    var btnConfirmarSenha = await _sisbWait(function() {
+                        var btns = document.querySelectorAll('button.mat-raised-button.mat-button-base.mat-primary');
+                        for (var k = 0; k < btns.length; k++) {
+                            if ((btns[k].textContent || '').trim() === 'Confirmar') return btns[k];
+                        }
+                        var allBtns = document.querySelectorAll('button');
+                        for (var l = 0; l < allBtns.length; l++) {
+                            if ((allBtns[l].textContent || '').indexOf('Confirmar') > -1) return allBtns[l];
+                        }
+                        return null;
+                    }, 6000);
+                    if (btnConfirmarSenha) { btnConfirmarSenha.click(); await sleep(3000); }
+                }
+            } else {
+                console.warn('[SISB Fluxo] Modal de senha nao encontrado');
             }
 
             // 8. Fechar snack de sucesso
@@ -379,6 +566,8 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
             await sleep(500);
         }
 
+        // Marcar como processada (evita loop infinito no re-scan)
+        _sisbProtocolosProcessados[ordem.protocolo] = true;
         return { ok: true };
     }
 
@@ -404,6 +593,9 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
                 console.warn('[SISB Fluxo] Erro:', ordem.protocolo, resultado.erro);
                 mostrarToast('Erro: ' + resultado.erro + ' — continuando...', 'erro');
             }
+
+            // Marcar como processada (sucesso ou erro — evita loop infinito)
+            _sisbProtocolosProcessados[ordem.protocolo] = true;
 
             await sleep(1000);
         }

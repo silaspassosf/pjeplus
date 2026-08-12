@@ -1704,14 +1704,8 @@
                         }
                     }
 
-                    // Aplicar IRPF se tributável
-                    if (dados.irpfIsento === false) {
-                        const irpfTipoEl = document.getElementById('irpf-tipo');
-                        if (irpfTipoEl && irpfTipoEl.options.length > 1) {
-                            irpfTipoEl.value = irpfTipoEl.options[1].value; // primeiro != 'isento'
-                            irpfTipoEl.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    }
+                    // IRPF: padrão é sempre 'isento'. Usuário marca manualmente se houver tributação.
+                    // (Não aplicar automaticamente mesmo que dados.irpfIsento === false)
 
                     // Auto-selecionar origem como PJeCalc
                     if ($('calc-origem')) $('calc-origem').value = 'pjecalc';
@@ -1870,93 +1864,7 @@
             $('fgts-opcoes').classList.toggle('hidden', !isChecked);
             $('row-fgts-valor').classList.toggle('hidden', !isChecked);
             updateHighlight();
-
-            try {
-                // Se FGTS separado e marcado como 'depositado', exibir modal bloqueante
-                if (isChecked) {
-                    const fgtsTipo = document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido';
-                    if (fgtsTipo === 'depositado') {
-                        if (document.getElementById('maisPje_fgts_modal_overlay')) return;
-                        const overlay = document.createElement('div');
-                        overlay.id = 'maisPje_fgts_modal_overlay';
-                        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
-
-                        const box = document.createElement('div');
-                        box.id = 'maisPje_fgts_modal_box';
-                        box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
-
-                        const title = document.createElement('div');
-                        title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
-                        title.textContent = 'Atenção';
-
-                        const msg = document.createElement('div');
-                        msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
-                        msg.textContent = 'Se depositado, o valor deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
-
-                        const actions = document.createElement('div');
-                        actions.style.cssText = 'text-align:right;';
-                        const ok = document.createElement('button');
-                        ok.id = 'maisPje_fgts_modal_ok';
-                        ok.textContent = 'OK';
-                        ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
-
-                        actions.appendChild(ok);
-                        box.appendChild(title);
-                        box.appendChild(msg);
-                        box.appendChild(actions);
-                        overlay.appendChild(box);
-                        document.body.appendChild(overlay);
-
-                        ok.addEventListener('click', () => overlay.remove());
-                    }
-                }
-            } catch (ex) { console.warn('maisPJe: erro ao mostrar modal FGTS (BASE)', ex); }
         };
-        // Adicionar listener para mudanças no tipo de FGTS (ex.: usuário marca 'depositado' depois)
-        try {
-            document.querySelectorAll('input[name="fgts-tipo"]').forEach(r => {
-                r.addEventListener('change', (ev) => {
-                    try {
-                        const val = ev.target.value;
-                        if (val === 'depositado' && $('calc-fgts') && $('calc-fgts').checked) {
-                            // Reusar código do modal definido acima
-                            if (document.getElementById('maisPje_fgts_modal_overlay')) return;
-                            const overlay = document.createElement('div');
-                            overlay.id = 'maisPje_fgts_modal_overlay';
-                            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
-
-                            const box = document.createElement('div');
-                            box.id = 'maisPje_fgts_modal_box';
-                            box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
-
-                            const title = document.createElement('div');
-                            title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
-                            title.textContent = 'Atenção';
-
-                            const msg = document.createElement('div');
-                            msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
-                            msg.textContent = 'Se depositado, o valor deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
-
-                            const actions = document.createElement('div');
-                            actions.style.cssText = 'text-align:right;';
-                            const ok = document.createElement('button');
-                            ok.id = 'maisPje_fgts_modal_ok';
-                            ok.textContent = 'OK';
-                            ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
-
-                            actions.appendChild(ok);
-                            box.appendChild(title);
-                            box.appendChild(msg);
-                            box.appendChild(actions);
-                            overlay.appendChild(box);
-                            document.body.appendChild(overlay);
-
-                            ok.addEventListener('click', () => overlay.remove());
-                        }
-                    } catch (ex) { console.warn('maisPJe: erro no fgts-tipo change handler', ex); }
-                });
-            });
-        } catch (e) { /* ignore */ }
         $('calc-indice').onchange = (e) => { $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
         $('ignorar-hon-autor').onchange = (e) => { $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
         $('ignorar-inss').onchange = (e) => {

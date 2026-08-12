@@ -41,6 +41,7 @@
             const pecaPerito = $('calc-peca-perito').value || '[ID PEÇA]';
             const indice = $('calc-indice').value;
             const isFgtsSep = $('calc-fgts').checked;
+            const fgtsTipo = document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido';
             const ignorarInss = $('ignorar-inss').checked;
 
             const xxx = () => u(bold('XXX'));
@@ -101,6 +102,11 @@
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${reclamadaLabel}</strong></p>`;
                 }
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
+
+                // FGTS: adicionar texto se já depositado
+                if (fgtsTipo === 'depositado') {
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">FGTS já depositado e guias apresentadas.</p>`;
+                }
 
                 // Honorário contábil: exibir logo após o parágrafo introdutório
                 try {

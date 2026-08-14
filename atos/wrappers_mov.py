@@ -23,8 +23,13 @@ def mov_arquivar(driver, debug=False):
     if result:
         # Aguardar carregamento da página após arquivar
         logger.info('[MOV_ARQUIVAR] Aguardando carregamento da página após arquivar...')
-        from Fix.utils import aguardar_pagina_carregar
-        aguardar_pagina_carregar(driver, timeout=10)
+        try:
+            from Fix.utils import aguardar_pagina_carregar
+            aguardar_pagina_carregar(driver, timeout=10)
+        except Exception as e:
+            logger.warning('[MOV_ARQUIVAR] Erro ao aguardar carregamento: %s', e)
+    else:
+        logger.error('[MOV_ARQUIVAR] movimentar_inteligente retornou False — movimento não executado')
     return result
 
 

@@ -439,9 +439,10 @@ def fluxo_pz(driver: WebDriver) -> None:
             
         if (resultado or {}).get('decisao_recente'):
             logger.info('[FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.')
+            mov_ok = False
             try:
                 from atos.movimentos_fluxo import movimentar_inteligente
-                movimentar_inteligente(driver, 'Aguardando Prazo')
+                mov_ok = movimentar_inteligente(driver, 'Aguardando Prazo')
             except Exception as e:
                 logger.error(f'[FLUXO_PZ] Erro ao mover processo para Aguardando Prazo (decisão recente): {e}')
                 
@@ -449,7 +450,9 @@ def fluxo_pz(driver: WebDriver) -> None:
                 _fechar_aba_processo(driver)
             except Exception:
                 pass
-            return True
+            
+            # Se movimento falhou, retorna False; caso contrário, sucesso
+            return bool(mov_ok)
             
         logger.info('[FLUXO_PZ] Nenhum documento relevante extraído: %s', (resultado or {}).get('erro'))
         try:

@@ -3109,19 +3109,30 @@ _CP_MANDADO = '(mandado)'
 _CP_CERTIDAO_OJ = '(certidao de oficial de justica)'
 
 
-def _cp_normalizar(texto):
-    return unicodedata.normalize('NFD', (texto or '').lower()).encode('ascii', 'ignore').decode()
-
-
-def _cp_texto_documento(elem):
-    """Le o texto do link a.tl-documento de um <li class="tl-item-container">."""
+def _cp_texto_documento(elem, debug=False):
+    """Le o texto do link a.tl-documento de um <li class="tl-item-container">.
+    Usa normalizar_texto (Remove acentos corretamente, sem .encode('ascii').
+    """
+    from Fix.utils import normalizar_texto
+    
+    texto_bruto = ''
     try:
         link = elem.find_element(By.CSS_SELECTOR, 'a.tl-documento')
-        return _cp_normalizar(link.text.strip())
+        texto_bruto = link.text.strip()
     except NoSuchElementException:
-        return _cp_normalizar(elem.text.strip())
+        try:
+            texto_bruto = elem.text.strip()
+        except Exception:
+            return ''
     except StaleElementReferenceException:
         return ''
+    
+    texto_normalizado = normalizar_texto(texto_bruto)
+    
+    if debug and texto_bruto:
+        logger.debug(f'[_CP_TEXTO] Bruto: "{texto_bruto[:80]}" => Normalizado: "{texto_normalizado[:80]}"')
+    
+    return texto_normalizado
 
 
 def _cp_marcar_checkbox(driver, elem, timeout):
@@ -3165,15 +3176,25 @@ def contar_mandados_e_certidoes_oficial(driver, log=True):
 
     qtd_mandados = 0
     qtd_certidoes = 0
-    for elem in elementos:
-        texto = _cp_texto_documento(elem)
+    if log:
+        logger.info('[CONTAR_CP] Lendo %d elementos da timeline...', len(elementos))
+    
+    for idx, elem in enumerate(elementos):
+        texto = _cp_texto_documento(elem, debug=log)
+        if log and texto:
+            logger.debug(f'[CONTAR_CP] Item {idx}: "{texto[:100]}"')
+        
         if _CP_MANDADO in texto:
             qtd_mandados += 1
+            if log:
+                logger.info(f'[CONTAR_CP] Item {idx}: MANDADO encontrado')
         elif _CP_CERTIDAO_OJ in texto:
             qtd_certidoes += 1
+            if log:
+                logger.info(f'[CONTAR_CP] Item {idx}: CERTIDAO_OJ encontrada')
 
     if log:
-        logger.info('[CONTAR_CP] mandados=%d certidoes_oficial=%d', qtd_mandados, qtd_certidoes)
+        logger.info('[CONTAR_CP] Totais: mandados=%d certidoes_oficial=%d', qtd_mandados, qtd_certidoes)
 
     return qtd_mandados, qtd_certidoes
 
@@ -3208,27 +3229,52 @@ def baixarCP(driver, timeout=15, log=True):
     if not elementos:
         raise ElementoNaoEncontradoError('[BAIXAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
 
+    if log:
+        logger.info('[BAIXAR_CP] Lendo %d elementos da timeline para localizar âncora...', len(elementos))
+
     # Estratégia de âncora: tentar Certidão de Distribuição; se não existir, usar Despacho
     idx_ancora = None
     eh_cdist = False
     
     for idx, elem in enumerate(elementos):
-        if _CP_ANCORA in _cp_texto_documento(elem):
+        texto = _cp_texto_documento(elem, debug=True)
+        if log:
+            logger.debug(f'[BAIXAR_CP] Item {idx}: "{texto[:100]}"')
+        
+        if _CP_ANCORA in texto:
             idx_ancora = idx
             eh_cdist = True
+            if log:
+                logger.info(f'[BAIXAR_CP] Item {idx}: CERTIDAO_DISTRIBUICAO encontrada (âncora primária)')
             break
     
     # Se não houver CDist, procura pelo primeiro Despacho (item mais antigo com Despacho)
     if idx_ancora is None:
+        if log:
+            logger.info('[BAIXAR_CP] CDist não encontrada; procurando por Despacho como fallback...')
+        
         for idx in range(len(elementos) - 1, -1, -1):  # varredura de baixo para cima = antigo para recente
-            if _CP_DESPACHO.search(_cp_texto_documento(elementos[idx])):
+            texto = _cp_texto_documento(elementos[idx], debug=True)
+            if log:
+                logger.debug(f'[BAIXAR_CP] Item {idx} (fallback Despacho): "{texto[:100]}"')
+            
+            if _CP_DESPACHO.search(texto):
                 idx_ancora = idx
                 eh_cdist = False
                 if log:
-                    logger.info('[BAIXAR_CP] Certidao de Distribuicao nao encontrada; usando Despacho como ancora')
+                    logger.info(f'[BAIXAR_CP] Item {idx}: DESPACHO encontrado (âncora secundária)')
                 break
+        
+        if idx_ancora is not None and log:
+            logger.info(f'[BAIXAR_CP] Usando Despacho no índice {idx_ancora} como âncora')
     
     if idx_ancora is None:
+        if log:
+            logger.error('[BAIXAR_CP] FALHA: Nem CDist nem Despacho encontrados na timeline.')
+            logger.error('[BAIXAR_CP] Documentos lidos:')
+            for idx, elem in enumerate(elementos):
+                texto = _cp_texto_documento(elem, debug=False)
+                logger.error(f'  [Item {idx}] {texto[:120]}')
         raise ElementoNaoEncontradoError('[BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados')
 
     # Marca o item âncora (CDist ou Despacho)

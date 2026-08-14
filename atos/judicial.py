@@ -43,8 +43,12 @@ def fluxo_cls(
     driver: WebDriver,
     conclusao_tipo: str,
     forcar_iniciar_execucao: bool = False
-) -> bool:
-    """Wrapper para atos.judicial_fluxo.fluxo_cls com navegação inteligente via mov_cls."""
+) -> Tuple[bool, bool]:
+    """Wrapper para atos.judicial_fluxo.fluxo_cls com navegação inteligente via mov_cls.
+    
+    Returns:
+        (sucesso: bool, ja_estava_estado_final: bool)
+    """
     return _fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=forcar_iniciar_execucao)
 
 

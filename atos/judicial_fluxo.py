@@ -93,12 +93,12 @@ def fluxo_cls(
             logger.info('[CLS]  Processo já está em /assinar - ato cumprido')
             timing_total = time.time() - timing_inicio
             logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
-            return True
+            return True, True  # (sucesso, ja_estava_estado_final=True)
         elif estado_atual == 'minutar':
             logger.info('[CLS]  Processo ja em /minutar — marcando como concluido')
             timing_total = time.time() - timing_inicio
             logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar)')
-            return True
+            return True, True  # (sucesso, ja_estava_estado_final=True)
         elif estado_atual == 'conclusao':
             logger.info('[CLS] Já estamos em /conclusao - pulando navegação')
             ja_em_conclusao = True
@@ -120,7 +120,7 @@ def fluxo_cls(
                     logger.error('[CLS] Falha ao abrir tarefa do processo')
                     timing_total = time.time() - timing_inicio
                     logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao abrir tarefa')
-                    return False
+                    return False, False
 
                 # Se já está em /minutar após abrir tarefa, pular navegação e transição
                 if ja_em_minutar:
@@ -135,7 +135,7 @@ def fluxo_cls(
                         logger.info('[CLS] Ja em /minutar apos abrir tarefa — marcando como concluido')
                         timing_total = time.time() - timing_inicio
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
-                        return True
+                        return True, True  # (sucesso, ja_estava_estado_final=True)
                     elif '/conclusao' in current_after:
                         logger.info('[CLS] Detectado /conclusao após abrir tarefa — executando tipo de conclusão para transicionar a /minutar')
                         # Escolher o tipo de conclusão e aguardar transição para minutar
@@ -193,12 +193,12 @@ def fluxo_cls(
                     logger.error('[CLS] Falha ao navegar para conclusão após 2 tentativas')
                     timing_total = time.time() - timing_inicio
                     logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao navegar conclusão')
-                    return False
+                    return False, False
             except Exception as e:
                 logger.error(f'[CLS][ERRO CRÍTICO] Exceção em navegar_para_conclusao: {e}')
                 import traceback
                 logger.error(traceback.format_exc())
-                return False
+                return False, False
             timing_nav = time.time() - timing_nav_inicio
             logger.info(f'[CLS][TIMING][NAVEGAR_CONCLUSAO] {timing_nav:.3f}s')
 
@@ -210,12 +210,12 @@ def fluxo_cls(
                 logger.error(f'[CLS] Falha ao escolher tipo de conclusão: {conclusao_tipo}')
                 timing_total = time.time() - timing_inicio
                 logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao escolher tipo conclusão')
-                return False
+                return False, False
         except Exception as e:
             logger.error(f'[CLS][ERRO CRÍTICO] Exceção em escolher_tipo_conclusao: {e}')
             import traceback
             logger.error(traceback.format_exc())
-            return False
+            return False, False
         timing_tipo = time.time() - timing_tipo_inicio
         logger.info(f'[CLS][TIMING][ESCOLHER_TIPO] {timing_tipo:.3f}s tipo={conclusao_tipo}')
 
@@ -227,12 +227,12 @@ def fluxo_cls(
                 logger.error('[CLS] Falha na transição para minutar')
                 timing_total = time.time() - timing_inicio
                 logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha na transição minutar')
-                return False
+                return False, False
         except Exception as e:
             logger.error(f'[CLS][ERRO CRÍTICO] Exceção em aguardar_transicao_minutar: {e}')
             import traceback
             logger.error(traceback.format_exc())
-            return False
+            return False, False
         timing_transicao = time.time() - timing_transicao_inicio
         logger.info(f'[CLS][TIMING][TRANSICAO_MINUTAR] {timing_transicao:.3f}s')
 
@@ -244,7 +244,7 @@ def fluxo_cls(
                 logger.error('[CLS] Falha ao preparar campo de minutar')
                 timing_total = time.time() - timing_inicio
                 logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao preparar campo minutar')
-                return False
+                return False, False
         except Exception as e:
             logger.error(f'[CLS][ERRO CRÍTICO] Exceção em preparar_campo_minutar: {e}')
             import traceback
@@ -260,14 +260,14 @@ def fluxo_cls(
         timing_total = time.time() - timing_inicio
         log_fim('CLS', {'status': 'sucesso', 'tempo': f'{timing_total:.3f}s'})
         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (fluxo completo)')
-        return True
+        return True, False  # (sucesso, ja_estava_estado_final)
 
     except Exception as e:
         timing_total = time.time() - timing_inicio
         log_fim('CLS', {'status': 'erro', 'motivo': str(e)[:80]})
         logger.error(f'[CLS][TIMING][ERRO] {timing_total:.3f}s erro inesperado: {e}')
         logger.error(f'[CLS] Erro inesperado no fluxo CLS: {e}')
-        return False
+        return False, False  # (sucesso=False, ja_estava_estado_final=False)
 
 
 def ato_judicial(
@@ -345,13 +345,29 @@ def ato_judicial(
         # 1. MODELO: Executar fluxo_cls sempre (navega para conclusao/minutar)
         logger.info(f'[ATO][CLS] Iniciando fluxo CLS: conclusao_tipo={conclusao_tipo}')
         timing_fluxo_cls_inicio = time.time()
-        if not fluxo_cls(driver, conclusao_tipo or 'decisão'):
+        resultado_cls = fluxo_cls(driver, conclusao_tipo or 'decisão')
+        # resultado_cls é tupla (sucesso, ja_estava_estado_final)
+        if isinstance(resultado_cls, tuple) and len(resultado_cls) == 2:
+            sucesso_cls, ja_estava_estado_final = resultado_cls
+        else:
+            # Fallback para versão antiga que retornava apenas bool
+            sucesso_cls = bool(resultado_cls)
+            ja_estava_estado_final = False
+            
+        if not sucesso_cls:
             logger.error('[ATO][CLS] Falha no fluxo CLS')
             timing_total = time.time() - timing_inicio
             logger.info(f'[ATO][TIMING][ERRO] {timing_total:.3f}s falha fluxo CLS')
             return False, False
         timing_fluxo_cls = time.time() - timing_fluxo_cls_inicio
         logger.info(f'[ATO][TIMING][FLUXO_CLS] {timing_fluxo_cls:.3f}s')
+
+        # Se já estava em estado final (/minutar ou /assinar), não prosseguir com modelo/descrição/etc
+        if ja_estava_estado_final:
+            logger.info('[ATO][CLS] Já estava em estado final — não prosseguindo com modelo/descrição/sigilo/etc')
+            timing_total = time.time() - timing_inicio
+            logger.info(f'[ATO][TIMING][SUCESSO_ESTADO_FINAL] {timing_total:.3f}s')
+            return True, sigilo_ativado  # Retorna sucesso sem prosseguir
 
         if modelo_nome:
 

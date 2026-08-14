@@ -41,6 +41,44 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
                 espera.assentar(driver, 0.5)
             except Exception as e:
                 logger.warning(f'[PRAZOS] Não foi possível clicar em polo ativo: {e}')
+        else:
+            # Selecionar todos e filtrar apenas "Diário" (excluir "Domicílio Eletrônico")
+            try:
+                # Clicar em "Selecionar todas"
+                if espera.ate_habilitar(driver, '#selecionar-todas', teto=10):
+                    btn_selecionar_todas = driver.find_element(By.ID, 'selecionar-todas')
+                    safe_click_no_scroll(driver, btn_selecionar_todas, log=False)
+                    logger.info('[PRAZOS] Todas as partes selecionadas')
+                    espera.assentar(driver, 0.5)
+                    
+                    # Desmarcar aqueles com "Domicílio Eletrônico"
+                    linhas = driver.find_elements(By.CSS_SELECTOR, 'table.t-class tbody tr.ng-star-inserted')
+                    desmarcados = 0
+                    
+                    for linha in linhas:
+                        try:
+                            # Verificar se o campo MEIO contém "Domicílio Eletrônico"
+                            meio_elementos = linha.find_elements(By.CSS_SELECTOR, 'td.envio mat-select .mat-select-value-text')
+                            if meio_elementos:
+                                meio_texto = meio_elementos[0].text.strip()
+                                if 'Domicílio Eletrônico' in meio_texto or 'Domicilio Eletronico' in meio_texto:
+                                    # Desmarcar checkbox desta linha
+                                    checkbox = linha.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                                    if checkbox.is_selected():
+                                        checkbox.click()
+                                        desmarcados += 1
+                                        logger.info(f'[PRAZOS] Desmarcado destinatário com Domicílio Eletrônico')
+                        except Exception as e:
+                            logger.debug(f'[PRAZOS] Erro ao processar linha: {e}')
+                            continue
+                    
+                    if desmarcados > 0:
+                        logger.info(f'[PRAZOS] {desmarcados} destinatário(s) com Domicílio Eletrônico desmarcado(s)')
+                        espera.assentar(driver, 0.3)
+                else:
+                    logger.warning('[PRAZOS] Botão selecionar-todas não habilitou')
+            except Exception as e:
+                logger.warning(f'[PRAZOS] Erro ao filtrar destinatários: {e}')
 
         # Preenche todos os campos de prazo visíveis nas linhas selecionadas
         try:

@@ -395,22 +395,27 @@ def _parse_partial_response(xml_text: str) -> list[dict]:
 # Classificação de falso positivo
 # ═══════════════════════════════════════════════════════════════════
 
-def _classificar_status(status_original: str, eventos: list[dict]) -> str:
-    """Determina o status real considerando o histórico de eventos."""
+def _classificar_status(status_original: str, eventos: list[dict]) -> tuple[str, Optional[str]]:
+    """Determina o status real considerando o histórico de eventos.
+    
+    Returns:
+        (status, evidencia) onde evidencia é None ou "data — descrição" do evento de devolução
+    """
     if RE_STATUS_DEVOLVIDO.search(status_original):
-        return 'DEVOLVIDO'
+        return 'DEVOLVIDO', None
 
     if not eventos:
-        return status_original or 'SEM_EVENTOS'
+        return status_original or 'SEM_EVENTOS', None
 
     for ev in eventos:
         if RE_DEVOLUCAO.search(ev.get('descricao', '')):
-            return 'DEVOLVIDO'
+            evidencia = f"{ev.get('dataEvento', '')} — {ev.get('descricao', '')}"
+            return 'DEVOLVIDO', evidencia
 
     if RE_STATUS_ENTREGUE.search(status_original):
-        return 'ENTREGUE'
+        return 'ENTREGUE', None
 
-    return status_original or 'INDETERMINADO'
+    return status_original or 'INDETERMINADO', None
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -589,6 +594,7 @@ def coletar_tabela_ecarta_api(
         rastreio = row.get('objeto', '')
         status_original = row.get('status', '')
         status_final = status_original
+        evidencia_devolucao = None
 
         # Auditar apenas se tem código de rastreio e status sugere "entregue"
         if re.match(r'^[A-Z]{2}\d{9}BR$', rastreio):
@@ -600,7 +606,7 @@ def coletar_tabela_ecarta_api(
                 eventos = []
 
             if eventos:
-                status_final = _classificar_status(status_original, eventos)
+                status_final, evidencia_devolucao = _classificar_status(status_original, eventos)
                 if log:
                     falso = (
                         RE_STATUS_ENTREGUE.search(status_original)
@@ -620,6 +626,7 @@ def coletar_tabela_ecarta_api(
             'DATA_ENVIO': row.get('dataEnvio', ''),
             'DATA_ENTREGA': row.get('dataEntrega', ''),
             'STATUS': status_final,
+            'EVIDENCIA': evidencia_devolucao,
         })
 
     dur_total = time.time() - t_start

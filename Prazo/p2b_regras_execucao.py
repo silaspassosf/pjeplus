@@ -559,6 +559,10 @@ def checar_prox(driver: WebDriver, itens: List[Any], doc_idx: int, regras: List[
             if not re.search(r'despacho|decisao|decisão|sentenca|sentença|conclusao|conclusão|embargos de declaracao', doc_text):
                 continue
 
+            # FILTRO: pular documentos com "art. 112 do CPC" (baixa/nulidade)
+            if re.search(r'art\.?\s*112\s+do\s+cpc', doc_text, re.IGNORECASE):
+                continue
+
             # Verificar magistrados (otavio ou mariana)
             mag_icons = item.find_elements(By.CSS_SELECTOR, 'div.tl-icon[aria-label*="Magistrado"]')
             mag_ok = any('otavio' in (mag.get_attribute('aria-label') or '').lower() or

@@ -464,6 +464,18 @@ def formatar_dados_ecarta(dados_mais_recentes, intimacoes_info, log=True):
         bloco.append(f"    Data do envio: {item.get('DATA_ENVIO', '') if item.get('DATA_ENVIO') else 'Indisponivel'}")
         bloco.append(f"    Data da entrega: {item.get('DATA_ENTREGA', '') if item.get('DATA_ENTREGA') else 'Indisponivel'}")
         bloco.append(f"    Status: {item.get('STATUS', '')}")
+        if item.get('EVIDENCIA'):
+            bloco.append(f"    └ Evidência: {item.get('EVIDENCIA')}")
+        
+        # Calcular prazos individuais para entregas confirmadas
+        status = item.get('STATUS', '')
+        if not re.search(r'devolvid[oa]', status, re.IGNORECASE):
+            data_entrega = _parse_data_ecarta(item.get('DATA_ENTREGA', ''))
+            if data_entrega:
+                prazo_8 = _somar_dias_uteis(data_entrega, 8)
+                prazo_15 = _somar_dias_uteis(data_entrega, 15)
+                if prazo_8 and prazo_15:
+                    bloco.append(f"    Prazo: 08 dias={prazo_8.strftime('%d/%m/%Y')} / 15 dias={prazo_15.strftime('%d/%m/%Y')}")
         bloco_texto = '\n'.join(bloco)
         if i < len(dados_mais_recentes):
             bloco_texto += '\n' + '-' * 50

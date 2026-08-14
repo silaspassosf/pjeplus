@@ -473,7 +473,20 @@ def fluxo_pz(driver: WebDriver) -> None:
     # Normalizar e aplicar regras
     texto_normalizado = normalizar_texto(texto_formatado)
     try:
-        _processar_regras_gerais(driver, texto_normalizado, 0)
+        resultado_regras = _processar_regras_gerais(driver, texto_normalizado, 0)
+        # resultado_regras pode ser:
+        # - True: regra casou e ações completaram com sucesso
+        # - False: regra casou mas alguma ação falhou (ex: mov_arquivar retornou False)
+        # - None: nenhuma regra casou
+        # - tuple: resultado de checar_prox
+        
+        if resultado_regras is False:
+            logger.warning('[FLUXO_PZ] Regra casou mas ação falhou (retornou False)')
+            try:
+                _fechar_aba_processo(driver)
+            except Exception:
+                pass
+            return False
     except Exception as e:
         logger.error('[FLUXO_PZ] Erro ao processar regras: %s', e)
         try:

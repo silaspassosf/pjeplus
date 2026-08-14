@@ -52,6 +52,8 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
             'metodo': str              # Método que funcionou
         }
     """
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
     
     resultado = {
         'conteudo': None,
@@ -60,10 +62,22 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
         'sucesso': False
     }
     try:
-        # Validar documento ativo
-        if not espera.elemento(driver, '#documento', teto=timeout, visivel=False):
-            return resultado
-        # Tentar 3 estratégias de extração (Strategy Pattern)
+        # ── Validação robusta (padrão LEGADO que funciona) ──
+        # Tenta WebDriverWait PRIMEIRO (mais confiável para elementos críticos)
+        try:
+            WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.ID, "documento"))
+            )
+        except Exception as e_wait:
+            # Fallback: tentar find_element direto
+            try:
+                driver.find_element(By.ID, "documento")
+            except Exception as e_find:
+                if debug:
+                    logger.debug('[EXTRAIR_DIRETO] Elemento #documento nao encontrado: %s, %s', e_wait, e_find)
+                return resultado
+        
+        # ── Tentar 3 estratégias de extração (Strategy Pattern) ──
         strategies = [
             lambda: _extrair_via_pdf_viewer(driver, timeout, debug),
             lambda: _extrair_via_iframe(driver, timeout, debug),

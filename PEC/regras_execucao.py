@@ -8,9 +8,10 @@ import re
 import time
 import unicodedata
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from atos.judicial import ato_fal, ato_prov, ato_termoS
 from atos.movimentos import def_chip, mov_sob, mov_fimsob
@@ -446,172 +447,248 @@ DEF_SOB_PATTERNS = {
 }
 
 
+def _extrair_decisao_sobrestamento_api(driver: WebDriver, timeout: int = 10) -> Optional[str]:
+    """
+    Extrai conteúdo da decisão de sobrestamento via API REST + pdfplumber.
+    ANTES de clicar no documento (enquanto URL ainda é /processo).
+    
+    Reusa lógica de Prazo/p2b_gateway.py que funciona de verdade.
+    """
+    try:
+        from api.variaveis_client import session_from_driver
+        import io
+        import pdfplumber
+        
+        # 1) Obter id_processo da URL
+        m = re.search(r'/processo/(\d+)', driver.current_url)
+        if not m:
+            logger.warning('[DEF_SOB_API] id_processo não detectado na URL')
+            return None
+        id_processo = m.group(1)
+        
+        sess, host = session_from_driver(driver)
+        base = f'https://{host}'
+        
+        # 2) Timeline via API
+        url_timeline = (
+            f'{base}/pje-comum-api/api/processos/id/{id_processo}/timeline'
+            '?buscarDocumentos=true&buscarMovimentos=false'
+        )
+        try:
+            r = sess.get(url_timeline, timeout=timeout)
+            if r.status_code == 401:
+                logger.warning('[DEF_SOB_API] Sessão expirada (401)')
+                return None
+            r.raise_for_status()
+            timeline = r.json()
+        except Exception as e:
+            logger.warning(f'[DEF_SOB_API] timeline HTTP error: {e}')
+            return None
+        
+        # 3) Buscar decisão de sobrestamento
+        doc = None
+        for item in timeline:
+            tipo = (item.get('tipo') or '').lower().strip()
+            if 'decis' in tipo and 'sobrest' in tipo:
+                doc = item
+                logger.debug(f'[DEF_SOB_API] Encontrado: {item.get("titulo", "?")}')
+                break
+        
+        # Fallback: qualquer decisão
+        if not doc:
+            for item in timeline:
+                tipo = (item.get('tipo') or '').lower().strip()
+                if 'decis' in tipo:
+                    doc = item
+                    logger.debug(f'[DEF_SOB_API] Fallback decisão: {item.get("titulo", "?")}')
+                    break
+        
+        if not doc:
+            logger.warning('[DEF_SOB_API] Nenhuma decisão encontrada na timeline')
+            return None
+        
+        id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
+        
+        # 4) Baixar PDF
+        url_conteudo = f'{base}/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_doc}/conteudo'
+        try:
+            r = sess.get(url_conteudo, timeout=timeout, stream=True)
+            r.raise_for_status()
+            pdf_bytes = r.content
+        except Exception as e:
+            logger.warning(f'[DEF_SOB_API] /conteudo download error: {e}')
+            return None
+        
+        if not pdf_bytes or not pdf_bytes.startswith(b'%PDF'):
+            logger.warning(f'[DEF_SOB_API] Não é PDF válido')
+            return None
+        
+        # 5) Extrair com pdfplumber
+        try:
+            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+                paginas = [p.extract_text() or '' for p in pdf.pages]
+            texto = '\n\n'.join(paginas).strip()
+            if texto:
+                logger.debug(f'[DEF_SOB_API] Texto extraído: {len(texto)} chars')
+                return texto
+        except Exception as e:
+            logger.warning(f'[DEF_SOB_API] pdfplumber error: {e}')
+        
+        return None
+    except Exception as e:
+        logger.error(f'[DEF_SOB_API] Erro geral: {e}')
+        return None
+
+
 def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = False, timeout: int = 10) -> bool:
     """
-    Analisa decisão na aba /detalhe e executa ação (Padrão P2B).
-    Versão instrumentada com logs detalhados.
+    Analisa decisão de sobrestamento via API+PDF (padrão P2B).
+    Extrai conteúdo ANTES de clicar, garantindo extração completa.
     """
     logger.debug(f"[DEF_SOB] Iniciando para {numero_processo}")
     if not driver or not numero_processo:
         logger.error("[DEF_SOB] Driver ou numero_processo inválidos")
         return False
 
+    # ── Step 1: Tentar extração via API (ANTES de clicar) ──
+    texto = None
     try:
-        # ── Step 1: Localizar última decisão ──
-        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-        logger.debug(f"[DEF_SOB] Encontrados {len(itens)} itens na timeline")
-        if not itens:
-            logger.warning(f"[DEF_SOB] Nenhum item na timeline para {numero_processo}")
-            return True
-
-        doc_item, doc_link = None, None
-        # Prioridade: documento COM ícone de magistrado
-        for item in itens:
-            try:
-                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-                # ✅ Apenas decisões (NUNCA despacho, sentença, conclusão)
-                if not re.search(r'^decis[ãa]o', link.text.lower()):
-                    continue
-                mag_icons = item.find_elements(By.CSS_SELECTOR, 'div.tl-icon[aria-label*="Magistrado"]')
-                if mag_icons:
-                    doc_item, doc_link = item, link
-                    logger.debug(f"[DEF_SOB] Documento com ícone magistrado: '{link.text}'")
-                    break
-            except Exception as e:
-                logger.warning(f"[DEF_SOB] Erro ao processar item (magistrado): {e}")
-        # Fallback: primeiro documento relevante
-        if not doc_link:
+        texto = _extrair_decisao_sobrestamento_api(driver, timeout=timeout)
+        if texto and len(texto.strip()) > 50:
+            logger.info(f'[DEF_SOB] Extração via API bem-sucedida ({len(texto)} chars)')
+    except Exception as e:
+        logger.warning(f'[DEF_SOB] Extração via API falhou: {e}')
+    
+    # ── Fallback: tentar via DOM (clicar no documento) ──
+    if not texto or len((texto or '').strip()) < 50:
+        logger.debug('[DEF_SOB] Tentando fallback DOM...')
+        try:
+            itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+            logger.debug(f"[DEF_SOB] Encontrados {len(itens)} itens na timeline")
+            
+            doc_link = None
             for item in itens:
                 try:
                     link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                     if re.search(r'^decis[ãa]o', link.text.lower()):
-                        doc_item, doc_link = item, link
-                        logger.debug(f"[DEF_SOB] Fallback: '{link.text}'")
+                        doc_link = link
+                        logger.debug(f"[DEF_SOB] Documento localizado: '{link.text}'")
                         break
                 except Exception:
                     continue
-
-        if not doc_link:
-            logger.warning(f"[DEF_SOB] Nenhuma decisão/despacho encontrada")
-            return True
-
-        # ── Step 2: Clicar e aguardar ──
-        try:
-            if not safe_click_no_scroll(driver, doc_link, log=True):
-                logger.error("[DEF_SOB] safe_click_no_scroll falhou no link do documento")
-                return False
-            aguardar_renderizacao_nativa(driver, "div.conteudo-principal")
-            logger.debug("[DEF_SOB] Documento clicado e aguardado")
+            
+            if doc_link:
+                try:
+                    if safe_click_no_scroll(driver, doc_link, log=True):
+                        aguardar_renderizacao_nativa(driver, "div.conteudo-principal", timeout=timeout//2)
+                        resultado = extrair_direto(driver, timeout=timeout//2, debug=False, formatar=True)
+                        if resultado and resultado.get('sucesso'):
+                            texto = resultado.get('conteudo')
+                            if texto:
+                                logger.debug(f"[DEF_SOB] Extração DOM bem-sucedida ({len(texto)} chars)")
+                except Exception as e:
+                    logger.warning(f'[DEF_SOB] Extração DOM falhou: {e}')
         except Exception as e:
-            logger.error(f"[DEF_SOB] Falha ao clicar/aguardar: {e}")
-            return False
+            logger.error(f'[DEF_SOB] Erro em fallback DOM: {e}')
 
-        # ── Step 3: Extrair conteúdo (com debug=True) ──
-        texto = None
-        try:
-            resultado = extrair_direto(driver, timeout=timeout, debug=True, formatar=True)
-            if resultado and resultado.get('sucesso'):
-                texto = resultado.get('conteudo')
-                if texto:
-                    logger.debug(f"[DEF_SOB] Texto extraído ({len(texto)} chars): {texto[:200]}")
-                else:
-                    logger.warning("[DEF_SOB] extrair_direto retornou conteúdo vazio")
-            else:
-                logger.warning(f"[DEF_SOB] extrair_direto falhou: resultado={resultado}")
-        except Exception as e:
-            logger.error(f"[DEF_SOB] Erro em extrair_direto: {e}")
-
-        if not texto or len(texto.strip()) < 10:
-            logger.warning(f"[DEF_SOB] Texto muito curto (len={len(texto) if texto else 0})")
-            return True
-
-        # ── Step 4: Normalizar e testar padrões ──
-        texto_norm = normalizar_texto(texto)
-        logger.debug(f"[DEF_SOB] Texto normalizado (200): {texto_norm[:200]}")
-
-        # Ações associadas
-        def executar_retorno_feito():
-            try:
-                return mov_sob(driver, numero_processo, "sob 4", debug=debug, timeout=timeout)
-            except Exception:
-                return False
-
-        def executar_penhora_rosto():
-            try:
-                chips_padrao = ["Prazo vencido", "Prazo vencido pos sentenca", "SISBAJUD"]
-                def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
-            except Exception:
-                pass
-            try:
-                ok_gigs = criar_gigs(driver, 1, '', 'xs rosto', detalhe=True)
-            except Exception:
-                ok_gigs = False
-            try:
-                if mov_sob(driver, numero_processo, "sob 1", debug=debug):
-                    return True
-                return ok_gigs
-            except Exception:
-                return ok_gigs
-
-        def executar_precatorio():
-            try:
-                chips_padrao = ["Prazo vencido", "Prazo vencido pos sentenca", "SISBAJUD"]
-                def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
-            except Exception:
-                pass
-            try:
-                if criar_gigs(driver, '-1', 'silas', 'precatorio'):
-                    return True
-            except Exception:
-                pass
-            try:
-                return mov_sob(driver, numero_processo, "sob 1", debug=debug, timeout=timeout)
-            except Exception:
-                return False
-
-        def executar_prescricao():
-            try:
-                from PEC.prescricao import def_presc
-                return def_presc(driver, numero_processo, texto, debug=debug)
-            except Exception:
-                return False
-
-        def executar_autos_principais():
-            try:
-                if mov_fimsob(driver, debug=debug):
-                    return ato_prov(driver, debug=debug)
-            except Exception:
-                return False
-
-        # ── Step 5: Testar e executar regras ──
-        regras = [
-            (DEF_SOB_PATTERNS['retorno_feito_principal'], executar_retorno_feito, 'Retorno do feito principal'),
-            (DEF_SOB_PATTERNS['penhora_rosto'], executar_penhora_rosto, 'Penhora no rosto'),
-            (DEF_SOB_PATTERNS['precatorio'], executar_precatorio, 'Precatorio/RPV/Pequeno valor'),
-            (DEF_SOB_PATTERNS['prescricao'], executar_prescricao, 'Prazo prescricional'),
-            (DEF_SOB_PATTERNS['autos_principais'], executar_autos_principais, 'Autos principais'),
-        ]
-
-        for pattern, acao, descricao in regras:
-            match = pattern.search(texto_norm)
-            logger.debug(f"[DEF_SOB] Padrão '{descricao}': match={'SIM' if match else 'NÃO'}")
-            if match:
-                logger.info(f"[DEF_SOB] Regra '{descricao}' ativada")
-                resultado_acao = acao()
-                if resultado_acao:
-                    logger.info(f"[DEF_SOB] Execução OK")
-                    return True
-                else:
-                    logger.error(f"[DEF_SOB] Execução falhou")
-                    return False
-
-        logger.warning(f"[DEF_SOB] Nenhum padrão correspondeu ao texto")
+    if not texto or len(texto.strip()) < 10:
+        logger.warning(f"[DEF_SOB] Texto muito curto (len={len(texto) if texto else 0})")
         return True
 
-    except Exception as e:
-        logger.error(f"[DEF_SOB] Exceção geral: {e}")
-        logger.exception("Traceback completo:")
-        return False
+    # ── Step 2: Normalizar e testar padrões ──
+    texto_norm = normalizar_texto(texto)
+    logger.debug(f"[DEF_SOB] Texto normalizado (200): {texto_norm[:200]}")
+
+    # Ações associadas
+    def executar_retorno_feito():
+        try:
+            return mov_sob(driver, numero_processo, "sob 4", debug=debug, timeout=timeout)
+        except Exception:
+            return False
+
+    def executar_penhora_rosto():
+        try:
+            chips_padrao = ["Prazo vencido", "Prazo vencido pos sentenca", "SISBAJUD"]
+            def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
+        except Exception:
+            pass
+        try:
+            ok_gigs = criar_gigs(driver, 1, '', 'xs rosto', detalhe=True)
+        except Exception:
+            ok_gigs = False
+        try:
+            if mov_sob(driver, numero_processo, "sob 1", debug=debug):
+                return True
+            return ok_gigs
+        except Exception:
+            return ok_gigs
+
+    def executar_precatorio():
+        try:
+            chips_padrao = ["Prazo vencido", "Prazo vencido pos sentenca", "SISBAJUD"]
+            def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
+        except Exception:
+            pass
+        try:
+            if criar_gigs(driver, '-1', 'silas', 'precatorio'):
+                return True
+        except Exception:
+            pass
+        try:
+            return mov_sob(driver, numero_processo, "sob 1", debug=debug, timeout=timeout)
+        except Exception:
+            return False
+
+    def executar_prescricao():
+        try:
+            logger.info(f"[DEF_SOB][PRESCRICAO] Iniciando def_presc para {numero_processo}")
+            from PEC.prescricao import def_presc
+            resultado = def_presc(driver, numero_processo, texto, debug=debug)
+            logger.info(f"[DEF_SOB][PRESCRICAO] def_presc retornou: {resultado}")
+            return resultado
+        except Exception as e:
+            logger.error(f"[DEF_SOB][PRESCRICAO] Exceção em def_presc: {e}")
+            import traceback
+            logger.error(f"[DEF_SOB][PRESCRICAO] Traceback:\n{traceback.format_exc()}")
+            return False
+
+    def executar_autos_principais():
+        try:
+            if mov_fimsob(driver, debug=debug):
+                return ato_prov(driver, debug=debug)
+        except Exception:
+            return False
+
+    # ── Step 5: Testar e executar regras ──
+    regras = [
+        (DEF_SOB_PATTERNS['retorno_feito_principal'], executar_retorno_feito, 'Retorno do feito principal'),
+        (DEF_SOB_PATTERNS['penhora_rosto'], executar_penhora_rosto, 'Penhora no rosto'),
+        (DEF_SOB_PATTERNS['precatorio'], executar_precatorio, 'Precatorio/RPV/Pequeno valor'),
+        (DEF_SOB_PATTERNS['prescricao'], executar_prescricao, 'Prazo prescricional'),
+        (DEF_SOB_PATTERNS['autos_principais'], executar_autos_principais, 'Autos principais'),
+    ]
+
+    for pattern, acao, descricao in regras:
+        match = pattern.search(texto_norm)
+        logger.debug(f"[DEF_SOB] Padrão '{descricao}': match={'SIM' if match else 'NÃO'}")
+        if match:
+            logger.info(f"[DEF_SOB] Regra '{descricao}' ativada")
+            try:
+                resultado_acao = acao()
+                if resultado_acao:
+                    logger.info(f"[DEF_SOB] Execução OK para '{descricao}'")
+                    return True
+                else:
+                    logger.error(f"[DEF_SOB] Execução falhou para '{descricao}' (retornou False)")
+                    return False
+            except Exception as e:
+                logger.error(f"[DEF_SOB] Exceção ao executar '{descricao}': {e}")
+                import traceback
+                logger.error(f"[DEF_SOB] Traceback:\n{traceback.format_exc()}")
+                return False
+
+    logger.warning(f"[DEF_SOB] Nenhum padrão correspondeu ao texto")
+    return True
 
 
 # ───────────────────────────────────────────────────────

@@ -191,23 +191,24 @@ def safe_click_no_scroll(driver, element, log=False):
     if not isinstance(element, PWElement):
         return _delegar("safe_click_no_scroll", driver, element, log)
     try:
-        # Tenta click nativo apenas se o elemento estiver visível.
-        # Elementos Angular ocultos (input dentro de mat-slide-toggle, mat-checkbox)
-        # não passam pela verificação de visibilidade do Playwright e travam
-        # com _handle.click() — nesse caso vai direto para o evaluate (JS click).
-        if element._handle.is_visible():
-            element._handle.click(timeout=5000)
-        else:
-            element._handle.evaluate("el => el.click()")
-        return True
-    except Exception:
+        # Estratégia: JS puro primeiro (garantido funcionar mesmo off-viewport),
+        # fallback para nativo só se JS falhar (para compatibilidade com listeners especiais).
+        # Isto espelha o padrão Selenium (dispatchEvent MouseEvent) que funciona
+        # mesmo quando elemento está fora da viewport após scrollIntoView.
         try:
             element._handle.evaluate("el => el.click()")
             return True
-        except Exception as e:
-            if log:
-                logger.error("safe_click_no_scroll: %s", e)
-            return False
+        except Exception:
+            # Fallback: tentar click nativo (pode falhar off-viewport, mas tenta)
+            if element._handle.is_visible():
+                element._handle.click(timeout=5000)
+            else:
+                raise
+            return True
+    except Exception as e:
+        if log:
+            logger.error("safe_click_no_scroll: %s", e)
+        return False
 
 
 def scroll_to_element_safe(driver, element):

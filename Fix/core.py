@@ -3180,16 +3180,18 @@ def contar_mandados_e_certidoes_oficial(driver, log=True):
 
 def baixarCP(driver, timeout=15, log=True):
     """
-    Seleciona na timeline (ul.pje-timeline) a Certidao de Distribuicao (ancora),
-    o Despacho imediatamente seguinte (se houver) e todos os Mandados/Certidoes de
-    Oficial de Justica ate o item mais recente, e baixa a selecao como PDF unico.
+    Seleciona na timeline (ul.pje-timeline) documentos CP (Carta Precatória):
+    - Tenta usar Certidão de Distribuição como âncora (se existir)
+    - Se não houver CDist, usa o primeiro Despacho encontrado (mais antigo)
+    - Depois marca todos os Mandados/Certidões de Oficial de Justiça até o topo
+    - Baixa a seleção como PDF único
 
     Raises:
-        ElementoNaoEncontradoError: timeline vazia, ancora ausente, ou falha em
-            etapa obrigatoria (botao/menu nao encontrado ou nao clicavel).
+        ElementoNaoEncontradoError: timeline vazia, nenhuma âncora/despacho encontrado,
+            ou falha em etapa obrigatória (botão/menu não clicável).
 
     Returns:
-        bool: True quando o download "PDF unico" foi iniciado com sucesso.
+        bool: True quando o download "PDF único" foi iniciado com sucesso.
     """
     from Fix.browser_suporte import click_headless_safe
     from Fix.facade_publica import ElementoNaoEncontradoError
@@ -3206,28 +3208,45 @@ def baixarCP(driver, timeout=15, log=True):
     if not elementos:
         raise ElementoNaoEncontradoError('[BAIXAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
 
-    # elementos[0] = mais recente; varredura do topo para baixo pega a Certidao de
-    # Distribuicao mais RECENTE como ancora (relevante se houver redistribuicao).
+    # Estratégia de âncora: tentar Certidão de Distribuição; se não existir, usar Despacho
     idx_ancora = None
+    eh_cdist = False
+    
     for idx, elem in enumerate(elementos):
         if _CP_ANCORA in _cp_texto_documento(elem):
             idx_ancora = idx
+            eh_cdist = True
             break
+    
+    # Se não houver CDist, procura pelo primeiro Despacho (item mais antigo com Despacho)
     if idx_ancora is None:
-        raise ElementoNaoEncontradoError('[BAIXAR_CP] Certidao de Distribuicao (item ancora) nao encontrada')
+        for idx in range(len(elementos) - 1, -1, -1):  # varredura de baixo para cima = antigo para recente
+            if _CP_DESPACHO.search(_cp_texto_documento(elementos[idx])):
+                idx_ancora = idx
+                eh_cdist = False
+                if log:
+                    logger.info('[BAIXAR_CP] Certidao de Distribuicao nao encontrada; usando Despacho como ancora')
+                break
+    
+    if idx_ancora is None:
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados')
 
+    # Marca o item âncora (CDist ou Despacho)
     if not _cp_marcar_checkbox(driver, elementos[idx_ancora], timeout):
-        raise ElementoNaoEncontradoError('[BAIXAR_CP] Falha ao marcar checkbox da Certidao de Distribuicao')
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Falha ao marcar checkbox da ancora (CDist ou Despacho)')
 
     marcados = 1
     idx_imediato = idx_ancora - 1
 
-    if idx_imediato >= 0 and _CP_DESPACHO.search(_cp_texto_documento(elementos[idx_imediato])):
-        if _cp_marcar_checkbox(driver, elementos[idx_imediato], timeout):
-            marcados += 1
-        elif log:
-            logger.warning('[BAIXAR_CP] Despacho seguinte encontrado mas falhou ao marcar')
+    # Se a âncora foi CDist, procura por Despacho imediatamente anterior
+    if eh_cdist:
+        if idx_imediato >= 0 and _CP_DESPACHO.search(_cp_texto_documento(elementos[idx_imediato])):
+            if _cp_marcar_checkbox(driver, elementos[idx_imediato], timeout):
+                marcados += 1
+            elif log:
+                logger.warning('[BAIXAR_CP] Despacho seguinte encontrado mas falhou ao marcar')
 
+    # Marca todos os Mandados e Certidões de Oficial posteriores
     for idx in range(idx_imediato - 1, -1, -1):
         texto = _cp_texto_documento(elementos[idx])
         if _CP_MANDADO in texto or _CP_CERTIDAO_OJ in texto:

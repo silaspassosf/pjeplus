@@ -448,8 +448,10 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
         doc_idx: Índice atual do documento na timeline (para checar_prox)
 
     Returns:
-        Tupla (doc_encontrado, doc_link, doc_idx) se checar_prox encontrou próximo documento,
-        None caso contrário
+        - Tupla (doc_encontrado, doc_link, doc_idx) se checar_prox encontrou próximo documento
+        - True se regra casou e todas as ações completaram com sucesso
+        - False se alguma ação retornou False (movimento falhou, etc.)
+        - None se nenhuma regra casou
     """
     m = _lazy_import()
     criar_gigs = m.get('criar_gigs')
@@ -490,6 +492,11 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
                 except Exception as e:
                     logger.error('[FLUXO_PZ] Erro ao executar action callable: %s', e)
                     res = None
+                
+                # Logar se ação retorna False (falha sem exceção)
+                if res is False:
+                    action_name = getattr(action, '__name__', str(action))
+                    logger.warning('[FLUXO_PZ] Ação retornou False: %s', action_name)
 
                 # Cleanup: fechar abas extras que a action possa ter aberto
                 try:
@@ -536,12 +543,19 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
             logger.info('[FLUXO_PZ] Regra casou: tipo_acao=%s', tipo_acao)
 
         acoes = list(tipo_acao) if isinstance(tipo_acao, (list, tuple)) else [tipo_acao]
+        resultado_acoes = True  # Assume sucesso até que ação falhe
+        
         for acao in acoes:
             res = _executar_acao(acao)
+            # Se retorna tupla, é resultado de checar_prox — passa adiante
             if isinstance(res, tuple) and len(res) == 3:
                 return res
-
-        return None
+            # Se retorna False, regra falhou
+            if res is False:
+                resultado_acoes = False
+        
+        # Regra executada (resultou em True/False), não procura mais regras
+        return resultado_acoes
 
     # Nenhuma regra casou
     return None

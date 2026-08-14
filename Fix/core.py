@@ -3109,6 +3109,125 @@ _CP_MANDADO = '(mandado)'
 _CP_CERTIDAO_OJ = '(certidao de oficial de justica)'
 
 
+def _obter_timeline_via_api(driver, log=True):
+    """Obtem timeline via API REST (mais confiavel que DOM parsing).
+    
+    Returns:
+        list[dict] ou None se falhar
+    """
+    try:
+        from Fix.variaveis import PjeApiClient, obter_sessao_do_driver
+        from Fix.extracao import extrair_numero_processo_url
+        
+        # Extrair número do processo da URL
+        url_atual = driver.current_url
+        numero_processo = extrair_numero_processo_url(url_atual)
+        if not numero_processo:
+            if log:
+                logger.warning('[TIMELINE_API] Nao conseguiu extrair numero_processo da URL: %s', url_atual)
+            return None
+        
+        # Obter sessão e cliente API
+        sess = obter_sessao_do_driver(driver)
+        if not sess:
+            if log:
+                logger.warning('[TIMELINE_API] Nao conseguiu extrair sessao do driver')
+            return None
+        
+        # Extrair host da URL
+        from urllib.parse import urlparse
+        parsed = urlparse(url_atual)
+        host = parsed.netloc
+        
+        # Criar cliente API
+        client = PjeApiClient(sess, host)
+        
+        # Chamar endpoint /timeline
+        timeline = client.timeline(numero_processo, buscarDocumentos=True, buscarMovimentos=False)
+        if timeline:
+            if log:
+                logger.info('[TIMELINE_API] ✓ Obtido timeline com %d itens via API', len(timeline))
+        else:
+            if log:
+                logger.warning('[TIMELINE_API] API retornou timeline vazia/None')
+        
+        return timeline
+    
+    except Exception as e:
+        if log:
+            logger.error('[TIMELINE_API] Erro ao chamar /timeline: %s', str(e))
+        return None
+
+
+def _normalizar_para_cp(texto):
+    """Normaliza texto removendo acentos e espaços extras (para matching)."""
+    if not texto:
+        return ''
+    from Fix.utils import normalizar_texto
+    return normalizar_texto(texto).strip()
+
+
+def _encontrar_documento_na_timeline_api(timeline, padrao_normalize, padrao_regex=None):
+    """Procura documento na timeline que combine com padrão normalizado.
+    
+    Args:
+        timeline: lista de dicts do /timeline API
+        padrao_normalize: string que deve estar presente após normalização
+        padrao_regex: opcional, regex pattern alternativo
+        
+    Returns:
+        dict do documento encontrado, ou None
+    """
+    if not timeline:
+        return None
+    
+    for doc in timeline or []:
+        if not isinstance(doc, dict):
+            continue
+        
+        titulo = _normalizar_para_cp(doc.get('titulo') or '')
+        tipo = _normalizar_para_cp(doc.get('tipo') or '')
+        texto_completo = titulo + ' ' + tipo
+        
+        # Tentar matching por string normalizada
+        if padrao_normalize and padrao_normalize in texto_completo:
+            return doc
+        
+        # Tentar matching por regex (se fornecido)
+        if padrao_regex and padrao_regex.search(texto_completo):
+            return doc
+    
+    return None
+
+
+def _contar_documentos_na_timeline_api(timeline, padrao_normalize, padrao_regex=None):
+    """Conta documentos na timeline que combinam com padrão.
+    
+    Returns:
+        int: quantidade encontrada
+    """
+    if not timeline:
+        return 0
+    
+    count = 0
+    for doc in timeline or []:
+        if not isinstance(doc, dict):
+            continue
+        
+        titulo = _normalizar_para_cp(doc.get('titulo') or '')
+        tipo = _normalizar_para_cp(doc.get('tipo') or '')
+        texto_completo = titulo + ' ' + tipo
+        
+        # Tentar matching por string normalizada
+        if padrao_normalize and padrao_normalize in texto_completo:
+            count += 1
+        # Tentar matching por regex (se fornecido e string não encontrou)
+        elif padrao_regex and padrao_regex.search(texto_completo):
+            count += 1
+    
+    return count
+
+
 def _cp_texto_documento(elem, debug=False):
     """Le o texto do link a.tl-documento de um <li class="tl-item-container">.
     Usa normalizar_texto (Remove acentos corretamente, sem .encode('ascii').
@@ -3116,21 +3235,71 @@ def _cp_texto_documento(elem, debug=False):
     from Fix.utils import normalizar_texto
     
     texto_bruto = ''
+    
     try:
-        link = elem.find_element(By.CSS_SELECTOR, 'a.tl-documento')
-        texto_bruto = link.text.strip()
-    except NoSuchElementException:
+        # Diagnostic 1: Check element properties
+        if debug:
+            try:
+                elem_id = elem.get_attribute('id')
+                elem_class = elem.get_attribute('class')
+                elem_tag = elem.tag_name
+                logger.debug(f'[_CP_TEXTO] elem: tag={elem_tag} id={elem_id} class={elem_class}')
+            except Exception as e:
+                logger.debug(f'[_CP_TEXTO] Falha ao ler propriedades elem: {e}')
+        
+        # Tentativa 1: Buscar <a class="tl-documento">
         try:
-            texto_bruto = elem.text.strip()
-        except Exception:
+            link = elem.find_element(By.CSS_SELECTOR, 'a.tl-documento')
+            if debug:
+                logger.debug(f'[_CP_TEXTO] Encontrou a.tl-documento')
+            texto_bruto = link.text.strip()
+            if debug:
+                logger.debug(f'[_CP_TEXTO] text do link: "{texto_bruto[:100]}"')
+        except NoSuchElementException as nse:
+            if debug:
+                logger.debug(f'[_CP_TEXTO] a.tl-documento NAO ENCONTRADO (NoSuchElementException)')
+                # Tentar diagnosticar quais elementos estão dentro
+                try:
+                    all_children = elem.find_elements(By.CSS_SELECTOR, '*')
+                    logger.debug(f'[_CP_TEXTO] Total de elementos filhos: {len(all_children)}')
+                    for i, child in enumerate(all_children[:5]):  # Primeiros 5
+                        try:
+                            logger.debug(f'  [{i}] {child.tag_name}.{child.get_attribute("class")} => "{child.text[:50]}"')
+                        except:
+                            pass
+                except Exception as e2:
+                    logger.debug(f'[_CP_TEXTO] Falha ao listar filhos: {e2}')
+            
+            # Tentativa 2: Pegar text do elemento pai
+            try:
+                texto_bruto = elem.text.strip()
+                if debug:
+                    logger.debug(f'[_CP_TEXTO] Recuperado text() do li.tl-item-container: "{texto_bruto[:100]}"')
+            except Exception as e:
+                if debug:
+                    logger.debug(f'[_CP_TEXTO] Falha ao ler elem.text: {e}')
+                return ''
+        
+        except StaleElementReferenceException as sre:
+            if debug:
+                logger.debug(f'[_CP_TEXTO] StaleElementReferenceException (elemento foi removido do DOM)')
             return ''
-    except StaleElementReferenceException:
+        
+        except Exception as e:
+            if debug:
+                logger.debug(f'[_CP_TEXTO] Exceção inesperada ao buscar a.tl-documento: {type(e).__name__}: {e}')
+            return ''
+    
+    except Exception as e:
+        if debug:
+            logger.debug(f'[_CP_TEXTO] Exceção em bloco externo: {type(e).__name__}: {e}')
         return ''
     
+    # Normalizar texto
     texto_normalizado = normalizar_texto(texto_bruto)
     
-    if debug and texto_bruto:
-        logger.debug(f'[_CP_TEXTO] Bruto: "{texto_bruto[:80]}" => Normalizado: "{texto_normalizado[:80]}"')
+    if debug:
+        logger.debug(f'[_CP_TEXTO] FINAL => Bruto: "{texto_bruto[:80]}" | Normalizado: "{texto_normalizado[:80]}"')
     
     return texto_normalizado
 
@@ -3155,12 +3324,14 @@ def _cp_marcar_checkbox(driver, elem, timeout):
 
 
 def contar_mandados_e_certidoes_oficial(driver, log=True):
-    """Conta, na timeline atual (sem alternar 'multipla selecao'), quantos
-    itens sao 'Mandado' e quantos sao 'Certidao de Oficial de Justica',
-    reaproveitando os mesmos criterios de baixarCP (_cp_texto_documento /
-    _CP_MANDADO / _CP_CERTIDAO_OJ). Nao clica em nada — apenas le a timeline
-    ja renderizada. Deve ser chamada ANTES de decidir se baixarCP() sera
-    acionado (baixarCP nao expoe essa contagem).
+    """Conta, na timeline atual, quantos itens sao 'Mandado' e 'Certidao de Oficial de Justica'.
+    
+    ESTRATÉGIA:
+    1. Tentar obter via API /timeline (confiavel, sem problemas de DOM)
+    2. Se falhar, fallback para parsing do DOM (legacy)
+    
+    Nao clica em nada — apenas le a timeline ja renderizada.
+    Deve ser chamada ANTES de decidir se baixarCP() sera acionado.
 
     Raises:
         ElementoNaoEncontradoError: timeline vazia.
@@ -3170,6 +3341,29 @@ def contar_mandados_e_certidoes_oficial(driver, log=True):
     """
     from Fix.facade_publica import ElementoNaoEncontradoError
 
+    # ========================================================================
+    # TENTATIVA 1: Via API /timeline (RECOMENDADO - confiável)
+    # ========================================================================
+    if log:
+        logger.info('[CONTAR_CP] Tentando obter timeline via API /timeline...')
+    
+    timeline_api = _obter_timeline_via_api(driver, log=log)
+    if timeline_api is not None:
+        qtd_mandados = _contar_documentos_na_timeline_api(timeline_api, _CP_MANDADO)
+        qtd_certidoes = _contar_documentos_na_timeline_api(timeline_api, _CP_CERTIDAO_OJ)
+        
+        if log:
+            logger.info('[CONTAR_CP] ✅ Via API: mandados=%d certidoes_oficial=%d', 
+                       qtd_mandados, qtd_certidoes)
+        
+        return qtd_mandados, qtd_certidoes
+    
+    if log:
+        logger.warning('[CONTAR_CP] ⚠️ Falha na API; usando fallback DOM parsing...')
+    
+    # ========================================================================
+    # FALLBACK: Via DOM (legacy, menos confiavel)
+    # ========================================================================
     elementos = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
     if not elementos:
         raise ElementoNaoEncontradoError('[CONTAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
@@ -3177,26 +3371,32 @@ def contar_mandados_e_certidoes_oficial(driver, log=True):
     qtd_mandados = 0
     qtd_certidoes = 0
     if log:
-        logger.info('[CONTAR_CP] Lendo %d elementos da timeline...', len(elementos))
+        logger.info('[CONTAR_CP] [FALLBACK-DOM] Lendo %d elementos da timeline...', len(elementos))
     
     for idx, elem in enumerate(elementos):
-        texto = _cp_texto_documento(elem, debug=log)
-        if log and texto:
-            logger.debug(f'[CONTAR_CP] Item {idx}: "{texto[:100]}"')
+        # SEMPRE usar debug=True durante fallback; ativa logging detalhado
+        texto = _cp_texto_documento(elem, debug=True if log else False)
+        
+        # Logar SEMPRE, mesmo que texto seja vazio (para diagnosticar por quê)
+        if log:
+            status = "OK" if texto else "VAZIO/FALHA"
+            logger.info(f'[CONTAR_CP] [FALLBACK] Item {idx}: {status} => "{texto[:100] if texto else "(sem conteúdo)"}"')
         
         if _CP_MANDADO in texto:
             qtd_mandados += 1
             if log:
-                logger.info(f'[CONTAR_CP] Item {idx}: MANDADO encontrado')
+                logger.info(f'[CONTAR_CP] Item {idx}: ✓ MANDADO encontrado')
         elif _CP_CERTIDAO_OJ in texto:
             qtd_certidoes += 1
             if log:
-                logger.info(f'[CONTAR_CP] Item {idx}: CERTIDAO_OJ encontrada')
+                logger.info(f'[CONTAR_CP] Item {idx}: ✓ CERTIDAO_OJ encontrada')
 
     if log:
-        logger.info('[CONTAR_CP] Totais: mandados=%d certidoes_oficial=%d', qtd_mandados, qtd_certidoes)
+        logger.info('[CONTAR_CP] [FALLBACK-DOM] Totais: mandados=%d certidoes_oficial=%d', 
+                   qtd_mandados, qtd_certidoes)
 
     return qtd_mandados, qtd_certidoes
+
 
 
 def baixarCP(driver, timeout=15, log=True):
@@ -3236,33 +3436,46 @@ def baixarCP(driver, timeout=15, log=True):
     idx_ancora = None
     eh_cdist = False
     
+    if log:
+        logger.info('[BAIXAR_CP] BUSCANDO ÂNCORA — Estratégia: 1º CDist, 2º Despacho')
+    
     for idx, elem in enumerate(elementos):
-        texto = _cp_texto_documento(elem, debug=True)
+        texto = _cp_texto_documento(elem, debug=True)  # SEMPRE debug=True para diagnosticar
+        
+        # Logar SEMPRE o resultado, mesmo se vazio
         if log:
-            logger.debug(f'[BAIXAR_CP] Item {idx}: "{texto[:100]}"')
+            status = "OK" if texto else "VAZIO"
+            logger.info(f'[BAIXAR_CP] Item {idx}: {status} | "{texto[:80] if texto else "(sem conteúdo)"}"')
+            # Verificar padrões explicitamente
+            if _CP_ANCORA in texto:
+                logger.info(f'  ✓ Padrão _CP_ANCORA ("{_CP_ANCORA}") ENCONTRADO')
+            if _CP_DESPACHO.search(texto):
+                logger.info(f'  ✓ Padrão _CP_DESPACHO (regex) ENCONTRADO')
         
         if _CP_ANCORA in texto:
             idx_ancora = idx
             eh_cdist = True
             if log:
-                logger.info(f'[BAIXAR_CP] Item {idx}: CERTIDAO_DISTRIBUICAO encontrada (âncora primária)')
+                logger.info(f'[BAIXAR_CP] ✅ Item {idx}: CERTIDAO_DISTRIBUICAO é a ÂNCORA PRIMÁRIA')
             break
     
     # Se não houver CDist, procura pelo primeiro Despacho (item mais antigo com Despacho)
     if idx_ancora is None:
         if log:
-            logger.info('[BAIXAR_CP] CDist não encontrada; procurando por Despacho como fallback...')
+            logger.info('[BAIXAR_CP] 🔄 CDist não encontrada; procurando DESPACHO como fallback...')
         
         for idx in range(len(elementos) - 1, -1, -1):  # varredura de baixo para cima = antigo para recente
-            texto = _cp_texto_documento(elementos[idx], debug=True)
+            texto = _cp_texto_documento(elementos[idx], debug=True if log else False)
+            
             if log:
-                logger.debug(f'[BAIXAR_CP] Item {idx} (fallback Despacho): "{texto[:100]}"')
+                status = "OK" if texto else "VAZIO"
+                logger.info(f'[BAIXAR_CP] Item {idx} (fallback Despacho): {status} | "{texto[:80] if texto else "(sem conteúdo)"}"')
             
             if _CP_DESPACHO.search(texto):
                 idx_ancora = idx
                 eh_cdist = False
                 if log:
-                    logger.info(f'[BAIXAR_CP] Item {idx}: DESPACHO encontrado (âncora secundária)')
+                    logger.info(f'[BAIXAR_CP] ✅ Item {idx}: DESPACHO encontrado (âncora secundária)')
                 break
         
         if idx_ancora is not None and log:
@@ -3270,11 +3483,22 @@ def baixarCP(driver, timeout=15, log=True):
     
     if idx_ancora is None:
         if log:
-            logger.error('[BAIXAR_CP] FALHA: Nem CDist nem Despacho encontrados na timeline.')
-            logger.error('[BAIXAR_CP] Documentos lidos:')
+            logger.error('[BAIXAR_CP] ❌ FALHA: Nem CDist nem Despacho encontrados na timeline (DOM).')
+            logger.error('[BAIXAR_CP] Documentos lidos do DOM:')
             for idx, elem in enumerate(elementos):
                 texto = _cp_texto_documento(elem, debug=False)
-                logger.error(f'  [Item {idx}] {texto[:120]}')
+                logger.error(f'  [Item {idx}] "{texto[:120] if texto else "(sem conteúdo)"}"')
+        
+        # Último recurso: mostrar diagnóstico da API também
+        timeline_api = _obter_timeline_via_api(driver, log=False)
+        if timeline_api:
+            if log:
+                logger.error('[BAIXAR_CP] Documentos na API /timeline:')
+                for idx, doc in enumerate(timeline_api):
+                    titulo = doc.get('titulo', '(sem titulo)')
+                    tipo = doc.get('tipo', '(sem tipo)')
+                    logger.error(f'  [API {idx}] tipo="{tipo}" titulo="{titulo}"')
+        
         raise ElementoNaoEncontradoError('[BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados')
 
     # Marca o item âncora (CDist ou Despacho)

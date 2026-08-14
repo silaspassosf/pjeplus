@@ -514,21 +514,17 @@ def _localizar_botao_destino_movimento(driver: WebDriver, destino: str, timeout:
 
 
 def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
-    """Abre a tarefa mais recente do processo via API REST (padrao gigs-plugin).
-
+    """Abre a tarefa mais recente do processo via API REST (padrão gigs-plugin).
+    
+    Estratégia:
+    1. GET /pje-comum-api/api/processos/id/{idProcesso}/tarefas?maisRecente=true
+    2. Extrai idTarefa de payload[0].idTarefa
+    3. Navega direto (driver.get) para /pjekz/processo/{idProcesso}/tarefa/{idTarefa}
+    
     Este fluxo não depende do cabeçalho da tarefa estar renderizado para prosseguir.
     """
     import re as _re
-
-    def _extrair_id_tarefa(payload):
-        """Extrai idTarefa da resposta da API (padrao gigs-plugin L4512: payload[0].idTarefa)."""
-        if isinstance(payload, list) and payload and isinstance(payload[0], dict):
-            # gigs-plugin: tarefaAtualProcesso[0].idTarefa
-            return payload[0].get('idTarefa') or payload[0].get('id')
-        if isinstance(payload, dict):
-            # fallback: resposta envelopada {idTarefa: ...} ou {id: ...}
-            return payload.get('idTarefa') or payload.get('id')
-        return None
+    from Fix.variaveis import session_from_driver
 
     try:
         url_atual = driver.current_url or ''
@@ -542,53 +538,55 @@ def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
             return False
         id_processo = m.group(1)
         base = url_atual.split('/pjekz/')[0]
-        endpoints = [
-            f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true",
-            f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas",
-        ]
 
-        id_tarefa = None
-        for endpoint in endpoints:
-            dados = driver.execute_async_script(
-                """
-                const url = arguments[0];
-                const done = arguments[arguments.length - 1];
-                fetch(url, {method: 'GET', credentials: 'include', headers: {'Content-Type':'application/json', 'Accept':'application/json'}})
-                    .then(resp => resp.json())
-                    .then(json => done(json))
-                    .catch(err => done({__erro: err && err.message ? err.message : String(err)}));
-                """,
-                endpoint
-            )
-
-            if isinstance(dados, dict) and dados.get('__erro'):
-                logger.warning(f"[API_TAREFA] fetch error: {dados['__erro']}")
-                continue
-
-            id_tarefa = _extrair_id_tarefa(dados)
-            if id_tarefa:
-                break
-
-        if not id_tarefa:
-            logger.warning('[API_TAREFA] API nao retornou idTarefa')
+        # Etapa 1: Obter session autenticada via cookies do driver (padrão apis.js)
+        try:
+            sess, host = session_from_driver(driver)
+        except Exception as e:
+            logger.warning(f'[API_TAREFA] session_from_driver falhou: {e}')
             return False
 
-        url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
-        abas_antes = set(driver.window_handles)
-        driver.execute_script(f"window.open('{url_tarefa}', '_blank');")
+        # Etapa 2: GET /tarefas?maisRecente=true (padrão gigs-plugin L4511-4512)
+        endpoint = f"https://{host}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
         try:
-            from Fix.abas import aguardar_nova_aba
-            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=5)
-            if nova_aba:
-                driver.switch_to.window(nova_aba)
-        except Exception:
-            pass
+            r = sess.get(endpoint, timeout=10)
+            r.raise_for_status()
+            dados = r.json()
+        except Exception as e:
+            logger.warning(f'[API_TAREFA] GET {endpoint} falhou: {e}')
+            return False
 
-        aguardar_renderizacao_nativa(driver, 'body', modo='aparecer', timeout=min(6, timeout))
-        logger.info(f'[API_TAREFA] Tarefa aberta via API: processo={id_processo} tarefa={id_tarefa}')
+        # Etapa 3: Extrair idTarefa (resposta é array [0].idTarefa conforme gigs-plugin)
+        id_tarefa = None
+        if isinstance(dados, list) and dados:
+            id_tarefa = dados[0].get('idTarefa') or dados[0].get('id')
+        elif isinstance(dados, dict):
+            # Fallback: resposta envelopada {idTarefa: ...}
+            id_tarefa = dados.get('idTarefa') or dados.get('id')
+
+        if not id_tarefa:
+            logger.warning(f'[API_TAREFA] idTarefa não encontrado na resposta: {dados}')
+            return False
+
+        # Etapa 4: Navegar direto para a tarefa (padrão gigs-plugin apis.abrirTarefa.abrir(..., 'self'))
+        url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
+        try:
+            driver.get(url_tarefa)
+        except Exception as e:
+            logger.error(f'[API_TAREFA] Erro ao navegar para tarefa: {e}')
+            return False
+
+        # Etapa 5: Aguardar renderização
+        try:
+            aguardar_renderizacao_nativa(driver, 'body', modo='aparecer', timeout=min(6, timeout))
+        except Exception:
+            pass  # Fallback: continuar mesmo se renderização falhar
+
+        logger.info(f'[API_TAREFA] Tarefa aberta via API com sucesso: processo={id_processo} tarefa={id_tarefa}')
         return True
+
     except Exception as e:
-        logger.warning(f'[API_TAREFA] Falha ao abrir tarefa via API: {e}')
+        logger.error(f'[API_TAREFA] Falha ao abrir tarefa via API: {e}', exc_info=True)
         return False
 
 
@@ -719,6 +717,7 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
             logger.error(f'[MOV_INT][ERRO] {e}')
         except Exception:
             pass
+        return False
         return False
 
 

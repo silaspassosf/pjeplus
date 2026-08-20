@@ -360,15 +360,23 @@
                 try {
                     if (window.Tesseract) {
                         dbg('[HCalc] Iniciando Tesseract Worker (via CDN permitida)...');
-                        const worker = await window.Tesseract.createWorker({
+
+                        // Timeout de 30s para evitar trava no download do modelo
+                        let worker;
+                        const workerPromise = window.Tesseract.createWorker('por', 1, {
                             workerPath: 'https://unpkg.com/tesseract.js@4.1.1/dist/worker.min.js',
                             corePath: 'https://unpkg.com/tesseract.js-core@4.0.3/tesseract-core.wasm.js',
-                            langPath: 'https://raw.githubusercontent.com/naptha/tessdata/gh-pages/4.0.0',
-                            logger: function (m) { if (m.status === 'recognizing text' && HCALC_DEBUG) console.log(m); }
+                            langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@4/tessdata',
+                            logger: function (m) { if (HCALC_DEBUG) console.log('[Tesseract]', m.status, m.progress); }
                         });
-                        
-                        await worker.loadLanguage('por');
-                        await worker.initialize('por');
+                        const timeoutPromise = new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('Tesseract timeout: download do modelo excedeu 30s')), 30000)
+                        );
+                        try {
+                            worker = await Promise.race([workerPromise, timeoutPromise]);
+                        } catch (initErr) {
+                            throw initErr;
+                        }
 
                         const ocrPages = [];
                         // Renderizar e fazer OCR iterando paginas
@@ -386,9 +394,6 @@
                                 const res = await worker.recognize(dataUrl);
                                 const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
                                 if (txt) ocrPages.push(txt);
-                                
-                                // Opcional: Se já extrairmos as informações cruciais na primeira página OCR, podemos abortar as demais para acelerar.
-                                // Porém, como a planilha pode ter honorários/INSS na última página, seguimos varrendo.
                             } catch (e) {
                                 console.warn('[HCalc] OCR página ' + p2 + ' falhou:', e && e.message);
                             }

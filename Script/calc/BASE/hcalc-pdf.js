@@ -7,18 +7,18 @@
 
     // PDF.js carregado via @require no userscript header
     function carregarPDFJSSeNecessario() {
-        if (window.hcalcState.pdfjsLoaded) return true;
-
         if (!window.pdfjsLib) {
             console.error('[HCalc] pdfjsLib não encontrado. Verifique o @require.');
             return false;
         }
 
+        // Sempre re-afirma o worker: outro código (ex.: hcalc-prep.js) pode ter
+        // sobrescrito workerSrc para o worker do PJe (2.9.359), causando
+        // "API version does not match Worker version" na 2ª planilha.
         window.pdfjsLib.GlobalWorkerOptions.workerSrc =
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         window.hcalcState.pdfjsLoaded = true;
-        console.log('[HCalc] PDF.js worker configurado (lazy).');
         return true;
     }
 

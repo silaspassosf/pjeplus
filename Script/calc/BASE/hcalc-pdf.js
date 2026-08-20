@@ -277,37 +277,41 @@
 
             dbg('[hcalc] extracted honAutor=', honAutor, 'honReu=', honReu);
 
-            const matchPerito = textoCompleto.match(regexHonPerito);
-            let peritoNome = matchPerito ? matchPerito[1].trim() : "";
-            let peritoValor = matchPerito ? matchPerito[2] : "";
+            // Perito explícito na planilha: "HONORÁRIOS PERICIAIS [PARA <NOME>] <valor>"
+            // (independe de o perito constar no processo)
+            const regexHonPeritoExplicito = /HONOR[AÁ]RIOS\s+PERICIAIS(?:\s+PARA\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿ\s.]{2,60}?))?\s*([\d.,]{3,})/i;
+            const matchPeritoExplicito = textoCompleto.match(regexHonPeritoExplicito);
+            let peritoNome = matchPeritoExplicito
+                ? (matchPeritoExplicito[1] ? matchPeritoExplicito[1].trim() : "Perito")
+                : "";
+            let peritoValor = matchPeritoExplicito ? matchPeritoExplicito[2] : "";
 
-            // VALIDAÇÃO: Verificar se "honorário para..." é perito ou advogado autor
-            // REGRA: Default = honorário advogado autor
-            //        Só registra como perito se nome bater com perito detectado
-            // PREVALÊNCIA: Valor da planilha prevalece sobre valor da sentença (mais atualizado)
-            if (peritoNome && peritoValor) {
-                const peritosConhecidos = window.hcalcPeritosDetectados || [];
+            if (!peritoNome && !peritoValor) {
+                // Fallback legado: "HONORÁRIOS LÍQUIDOS PARA <NOME> <valor>" + disambiguação
+                const matchPerito = textoCompleto.match(regexHonPerito);
+                peritoNome = matchPerito ? matchPerito[1].trim() : "";
+                peritoValor = matchPerito ? matchPerito[2] : "";
 
-                // Verificar se nome bate com perito já detectado no processo
-                const ehPerito = peritosConhecidos.some(p =>
-                    normalizarNomeParaComparacao(p).includes(normalizarNomeParaComparacao(peritoNome)) ||
-                    normalizarNomeParaComparacao(peritoNome).includes(normalizarNomeParaComparacao(p))
-                );
+                if (peritoNome && peritoValor) {
+                    const peritosConhecidos = window.hcalcPeritosDetectados || [];
 
-                if (ehPerito) {
-                    // Nome bate com perito detectado → honorário pericial
-                    console.log(`hcalc: "${peritoNome}" confirmado como PERITO (match detectado)`);
-                    // Mantém peritoNome e peritoValor
-                } else {
-                    // DEFAULT (legado): tratar como honorário do advogado autor salvo se já extraído
-                    console.log(`hcalc: "${peritoNome}" → DEFAULT: honorário advogado autor (legado)`);
-                    if (!honAutor) {
-                        honAutor = peritoValor;
+                    const ehPerito = peritosConhecidos.some(p =>
+                        normalizarNomeParaComparacao(p).includes(normalizarNomeParaComparacao(peritoNome)) ||
+                        normalizarNomeParaComparacao(peritoNome).includes(normalizarNomeParaComparacao(p))
+                    );
+
+                    if (ehPerito) {
+                        console.log(`hcalc: "${peritoNome}" confirmado como PERITO (match detectado)`);
                     } else {
-                        console.log('hcalc: honAutor já definido; não sobrescrevendo com peritoValor (legado)');
+                        console.log(`hcalc: "${peritoNome}" → DEFAULT: honorário advogado autor (legado)`);
+                        if (!honAutor) {
+                            honAutor = peritoValor;
+                        } else {
+                            console.log('hcalc: honAutor já definido; não sobrescrevendo com peritoValor (legado)');
+                        }
+                        peritoNome = "";
+                        peritoValor = "";
                     }
-                    peritoNome = "";
-                    peritoValor = "";
                 }
             }
 
@@ -576,20 +580,28 @@
 
                             // Extrai nome + valor e replica a disambiguação do caminho direto:
                             // default = advogado autor; perito somente se o nome bater com perito detectado.
-                            const matchPerito2 = textoCompletoOCR.match(rxOcrHonPerito);
-                            let peritoNome2 = matchPerito2 ? matchPerito2[1].trim() : "";
-                            let peritoValor2 = matchPerito2 ? limpaOcrNum(matchPerito2[2]) : "";
-                            if (peritoNome2 && peritoValor2) {
-                                const peritosConhecidos = window.hcalcPeritosDetectados || [];
-                                const ehPerito = peritosConhecidos.some(p =>
-                                    normalizarNomeParaComparacao(p).includes(normalizarNomeParaComparacao(peritoNome2)) ||
-                                    normalizarNomeParaComparacao(peritoNome2).includes(normalizarNomeParaComparacao(p))
-                                );
-                                if (!ehPerito) {
-                                    console.log(`hcalc(OCR): "${peritoNome2}" → DEFAULT: honorário advogado autor (legado)`);
-                                    if (!honAutor2) honAutor2 = peritoValor2;
-                                    peritoNome2 = "";
-                                    peritoValor2 = "";
+                            // Perito explícito na planilha (independe do processo)
+                            const rxOcrHonPeritoExplicito = /HONOR[AÁ]RIOS\s+PERICIAIS[^|]{0,40}?\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i;
+                            const matchPeritoExp2 = textoCompletoOCR.match(rxOcrHonPeritoExplicito);
+                            let peritoNome2 = matchPeritoExp2 ? "Perito" : "";
+                            let peritoValor2 = matchPeritoExp2 ? limpaOcrNum(matchPeritoExp2[1]) : "";
+
+                            if (!peritoNome2 && !peritoValor2) {
+                                const matchPerito2 = textoCompletoOCR.match(rxOcrHonPerito);
+                                peritoNome2 = matchPerito2 ? matchPerito2[1].trim() : "";
+                                peritoValor2 = matchPerito2 ? limpaOcrNum(matchPerito2[2]) : "";
+                                if (peritoNome2 && peritoValor2) {
+                                    const peritosConhecidos = window.hcalcPeritosDetectados || [];
+                                    const ehPerito = peritosConhecidos.some(p =>
+                                        normalizarNomeParaComparacao(p).includes(normalizarNomeParaComparacao(peritoNome2)) ||
+                                        normalizarNomeParaComparacao(peritoNome2).includes(normalizarNomeParaComparacao(p))
+                                    );
+                                    if (!ehPerito) {
+                                        console.log(`hcalc(OCR): "${peritoNome2}" → DEFAULT: honorário advogado autor (legado)`);
+                                        if (!honAutor2) honAutor2 = peritoValor2;
+                                        peritoNome2 = "";
+                                        peritoValor2 = "";
+                                    }
                                 }
                             }
 

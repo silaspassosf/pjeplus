@@ -1706,6 +1706,21 @@
                     if (dados.dataAtualizacao && $('val-data')) $('val-data').value = dados.dataAtualizacao;
                     if (dados.honAutor && $('val-hon-autor')) $('val-hon-autor').value = dados.honAutor;
 
+                    // Perito: preencher nome + valor quando detectados na planilha
+                    if (dados.peritoValor && $('val-perito-valor')) $('val-perito-valor').value = 'R$' + dados.peritoValor;
+                    if (dados.peritoNome && $('val-perito-nome')) $('val-perito-nome').value = dados.peritoNome;
+                    if (dados.peritoNome || dados.peritoValor) {
+                        const chkPeritoConh = $('chk-perito-conh');
+                        if (chkPeritoConh && !chkPeritoConh.checked) {
+                            chkPeritoConh.checked = true;
+                            chkPeritoConh.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        const peritoConhCampos = $('perito-conh-campos');
+                        if (peritoConhCampos) peritoConhCampos.classList.remove('hidden');
+                        const fieldsetPericiaConh = $('fieldset-pericia-conh');
+                        if (fieldsetPericiaConh) fieldsetPericiaConh.classList.remove('hidden');
+                    }
+
                     // Honorários da reclamada: preencher valor + marcar checkbox automaticamente
                     if (dados.honReu && $('val-hon-reu')) {
                         $('val-hon-reu').value = dados.honReu;

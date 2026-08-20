@@ -260,16 +260,30 @@
             const baseHeaders = { 'Accept': 'application/json', 'X-Grau-Instancia': '1' };
             if (xsrf) baseHeaders['X-XSRF-TOKEN'] = xsrf;
 
-            // 1. Resolver idUnicoDocumento → id numérico
-            const docUrl = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos?` +
-                new URLSearchParams({ idUnicoDocumento: uid });
+            // 1. Resolver uid -> id numérico via timeline
+            const docUrl = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/timeline?` +
+                new URLSearchParams({ somenteDocumentosAssinados: 'false', buscarMovimentos: 'false', buscarDocumentos: 'true' });
             const docResp = await fetch(docUrl, { method: 'GET', credentials: 'include', headers: baseHeaders });
-            if (!docResp.ok) throw new Error(`HTTP ${docResp.status} ao resolver uid=${uid}`);
-            const docData = await docResp.json();
-            // resposta pode ser array ou objeto único
-            const docItem = Array.isArray(docData) ? docData[0] : docData;
-            const idDoc = docItem && docItem.id;
-            if (!idDoc) throw new Error(`idUnicoDocumento "${uid}" não encontrado`);
+            if (!docResp.ok) throw new Error(`HTTP ${docResp.status} ao buscar timeline para uid=${uid}`);
+            const timelineData = await docResp.json();
+            
+            let allDocs = [];
+            if (Array.isArray(timelineData)) {
+                timelineData.forEach(item => {
+                    if (item) {
+                        allDocs.push(item);
+                        if (Array.isArray(item.anexos)) allDocs.push(...item.anexos);
+                    }
+                });
+            }
+            const docItem = allDocs.find(d => 
+                (d.idUnicoDocumento && String(d.idUnicoDocumento).includes(uid)) ||
+                (d.numeroDocumento && String(d.numeroDocumento).includes(uid)) ||
+                (d.id && String(d.id) === String(uid)) ||
+                (d.idDocumento && String(d.idDocumento) === String(uid))
+            );
+            const idDoc = docItem ? (docItem.id || docItem.idDocumento) : null;
+            if (!idDoc) throw new Error(`Documento "${uid}" não encontrado na timeline`);
 
             // 2. Buscar conteúdo pelo id numérico
             const pdfHeaders = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };

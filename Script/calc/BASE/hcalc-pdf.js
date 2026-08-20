@@ -359,13 +359,10 @@
                 console.log('[HCalc] Qualidade insuficiente (' + qualidade.percentual + '%) — iniciando fallback OCR. Faltando:', qualidade.faltando.join(', '));
                 try {
                     if (window.Tesseract) {
-                        // Limite de páginas: planilha tem dados nas primeiras páginas
-                        // Varrer até 10 páginas ou o total do PDF, o que for menor
-                        const MAX_OCR_PAGES = Math.min(pdf.numPages, 10);
-                        console.log('[HCalc] OCR iniciando. Total páginas no PDF:', pdf.numPages, '| Varrer até:', MAX_OCR_PAGES);
+                        // Mesmo limite da extração direta: para no marcador ou máximo 3 páginas
+                        const MAX_OCR_PAGES = Math.min(pdf.numPages, 3);
+                        console.log('[HCalc] OCR iniciando. PDF tem', pdf.numPages, 'pág. | Varrer até:', MAX_OCR_PAGES);
 
-                        // Criar worker único reutilizável (mais eficiente)
-                        // Não definir workerBlobURL — Tesseract v5 usa blob: por padrão (contorna CSP)
                         let ocrWorker;
                         try {
                             ocrWorker = await window.Tesseract.createWorker('por', 1, {
@@ -399,7 +396,13 @@
                                     const res = await ocrWorker.recognize(dataUrl);
                                     const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
                                     if (txt) ocrPages.push(txt);
-                                    console.log('[HCalc] OCR pág', p2, 'concluído:', txt.length, 'chars extraídos');
+                                    console.log('[HCalc] OCR pág', p2, 'concluído:', txt.length, 'chars');
+
+                                    // Parar assim que encontrar o marcador de fim (igual à extração direta)
+                                    if (txt && LIMITE_MARCADOR.test(txt)) {
+                                        console.log('[HCalc] OCR: marcador encontrado na pág', p2, '— parando scan');
+                                        break;
+                                    }
                                 } catch (e) {
                                     console.warn('[HCalc] OCR página ' + p2 + ' falhou:', e && (e.message || String(e)));
                                 }

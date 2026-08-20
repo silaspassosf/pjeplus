@@ -1733,8 +1733,14 @@
                         }
                     }
 
-                    // IRPF: padrão é sempre 'isento'. Usuário marca manualmente se houver tributação.
-                    // (Não aplicar automaticamente mesmo que dados.irpfIsento === false)
+                    // Aplicar IRPF se tributável
+                    if (dados.irpfIsento === false) {
+                        const irpfTipoEl = document.getElementById('irpf-tipo');
+                        if (irpfTipoEl && irpfTipoEl.options.length > 1) {
+                            irpfTipoEl.value = irpfTipoEl.options[1].value; // primeiro != 'isento'
+                            irpfTipoEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
 
                     // Auto-selecionar origem como PJeCalc
                     if ($('calc-origem')) $('calc-origem').value = 'pjecalc';

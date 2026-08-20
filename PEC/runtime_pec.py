@@ -507,7 +507,7 @@ class PECOrquestrador:
         self.driver = driver
         self.api = PECAPIClient()
 
-    def executar(self, dry_run: bool = False, filtro_d1: bool = False,
+    def executar(self, dry_run: bool = False, filtro_d1: bool = True,
                  data_minima: Optional[str] = None) -> Dict[str, int]:
         atividades = self.api.fetch_atividades_vencidas(self.driver)
 
@@ -571,7 +571,10 @@ class PECOrquestrador:
         def should_skip(item):
             atv, _ = item
             # progresso é mutado in-place por persist_result — não precisa recarregar do disco
-            return processo_ja_executado_pec(atv.numero_processo, progresso)
+            ja_executado = processo_ja_executado_pec(atv.numero_processo, progresso)
+            if ja_executado:
+                logger.info(f'[PEC] Skip já executado: {atv.numero_processo}')
+            return ja_executado
 
         def open_item(item):
             atv, _ = item
@@ -670,7 +673,7 @@ class PECOrquestrador:
                     logger.info(f"    - {atv.numero_processo}: {atv.observacao[:50]} -> {acao_nome}")
 
 
-def executar_fluxo_novo_simplificado(driver, filtro_d1: bool = False,
+def executar_fluxo_novo_simplificado(driver, filtro_d1: bool = True,
                                      data_minima: Optional[str] = None) -> dict:
     try:
         orq = PECOrquestrador(driver)

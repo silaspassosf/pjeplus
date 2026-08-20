@@ -342,6 +342,8 @@ def ato_judicial(
                 logger.error(f'[ATO][COLETA]  Erro na coleta de conteúdo: {e}')
                 return False, False
 
+        sigilo_ativado = False
+
         # 1. MODELO: Executar fluxo_cls sempre (navega para conclusao/minutar)
         logger.info(f'[ATO][CLS] Iniciando fluxo CLS: conclusao_tipo={conclusao_tipo}')
         timing_fluxo_cls_inicio = time.time()
@@ -473,11 +475,20 @@ def ato_judicial(
                     btn_inserir.send_keys(Keys.SPACE)
                     logger.info('[ATO][MODELO] Modelo inserido (2a tentativa)')
 
-                # Aguarda snackbar aparecer = confirmação que inserção concluiu (prosseguir IMEDIATAMENTE)
+                # Aguarda confirmação da inserção do modelo (snackbar específica) e o
+                # fechamento do dialog de visualização. Ambos event-driven (sem sleep
+                # fixo): o seletor genérico de 2s permitia seguir ao Salvar antes do
+                # conteúdo entrar no editor em máquinas lentas.
                 try:
-                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=2)
-                except Exception:
-                    logger.warning('[ATO][MODELO] Snackbar não detectado, prosseguindo mesmo assim...')
+                    if espera.ate_texto(driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=4):
+                        logger.info('[ATO][MODELO] Snackbar de inserção confirmada')
+                    else:
+                        logger.warning('[ATO][MODELO] Snackbar de inserção não detectada, prosseguindo...')
+                except Exception as _e:
+                    logger.warning(f'[ATO][MODELO] Exceção ao verificar snackbar: {_e}')
+
+                # Aguarda o dialog de visualização fechar (sinal de inserção concluída)
+                aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=3)
 
             except Exception as e:
                 logger.error(f'[ATO][MODELO] Erro ao inserir modelo: {e}')

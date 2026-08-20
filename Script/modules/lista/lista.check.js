@@ -30,7 +30,7 @@ window.norm = _norm;
 function _pjeTlClassApi(item) {
     const raw = (item.titulo || '') + ' ' + (item.nomeDocumento || '') + ' ' + (item.descricao || '');
     const low = _norm(raw);
-    if (low.includes('devolucao de ordem')) return 'Certidão devolução pesquisa';
+    if (low.includes('devolucao de ordem') || low.includes('ordem de pesquisa patrimonial')) return 'Certidão devolução pesquisa';
     if (low.includes('certidao de oficial') || low.includes('oficial de justica')) return 'Certidão de oficial de justiça';
     if (low.includes('mandado de pagamento') && low.includes('alvara')) return 'Alvarás';
     if (low.includes('alvara') || low.includes('juntada de alvara')) return 'Alvarás';

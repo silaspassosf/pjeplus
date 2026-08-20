@@ -397,6 +397,13 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         # REGRA DE INSTAURAÇÃO
         (['defiro a instauração'], ('criar_gigs[1//xs pec dec]', 'criar_gigs[10//xs mdd edital pgto]', ato_idpj)),
 
+        # REGRA DE INCIDENTE IDPJ — decisão que defere a desconsideração em face de
+        # sócio(s). Deve vir ANTES de "tendo em vista que" para não cair no inicar_exec.
+        (['Incidente de Desconsideração da Personalidade Jurídica instaurado em face'], (ato_meios,)),
+
+        # REGRA DE INSTAURADO EM FACE
+        (['instaurado em face'], (idpj,)),
+
         # REGRA DE SUSEP — garantia/securitária, acima de tendo em vista
         (['Tendo em vista que a SUSEP'], (ato_meios,)),
 
@@ -411,12 +418,6 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
 
         # REGRA DE AGRAVO EXEQUENTE E INTERLOCUTÓRIA (regex exato — não é trecho literal)
         ([re.compile(r'(?=[\s\S]*interlocutoria)(?=[\s\S]*interposto[\s\n\r]*agravo[\s\n\r]*de[\s\n\r]*peticao[\s\n\r]*pela[\s\n\r]*parte[\s\n\r]*exequente)', re.IGNORECASE)], (ato_meios,)),
-
-        # REGRA DE INCIDENTE IDPJ
-        (['Incidente de Desconsideração da Personalidade Jurídica instaurado em face'], (ato_meios,)),
-
-        # REGRA DE INSTAURADO EM FACE
-        (['instaurado em face'], (idpj,)),
 
         # REGRA ESPECIAL: pagamento da próxima parcela -> criar gigs saldo
         (['pagamento da próxima parcela'], ("criar_gigs[5//xs saldo]",)),

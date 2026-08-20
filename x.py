@@ -368,10 +368,10 @@ def executar_prazo(driver) -> Dict[str, Any]:
     return _executar_fluxo("Prazo", _fluxo, driver, normalizar=False)
 
 
-def executar_pec(driver, data_minima: Optional[str] = None) -> Dict[str, Any]:
+def executar_pec(driver, filtro_d1: bool = True, data_minima: Optional[str] = None) -> Dict[str, Any]:
     """PEC Isolado — API modular (sem navegação DOM inicial)"""
     def _fluxo(d):
-        resultado = pec_fluxo_api(d, data_minima=data_minima)
+        resultado = pec_fluxo_api(d, filtro_d1=filtro_d1, data_minima=data_minima)
         total = resultado.get('total', 0)
         erros = resultado.get('erro', 0)
         sucessos = resultado.get('sucesso_count', total - erros)

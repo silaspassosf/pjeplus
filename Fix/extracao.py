@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 from pathlib import Path
 from Fix.log import logger
 from Fix.core import safe_click_no_scroll
-from .core import aguardar_e_clicar, safe_click, wait
+from .core import aguardar_e_clicar, safe_click, wait, esperar_elemento, preencher_campo
 from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
 from .utils import normalizar_cpf_cnpj, formatar_moeda_brasileira, formatar_data_brasileira
 from Fix import espera
@@ -876,7 +876,11 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
             except Exception:
                 continue
 
-        espera.assentar(driver, 0.8)
+        # Aguarda o diálogo do lembrete fechar por completo (salvamento concluído)
+        # antes de devolver o controle. Evita que o próximo fluxo (ex.: pec_idpj
+        # com GIGS xs carta) sobreponha o modal ainda aberto e trave a execução.
+        if not espera.ate_sumir(driver, '#tituloPostit', teto=4):
+            espera.assentar(driver, 0.8, motivo='[LEMBRETE][POSIT] dialogo ainda aberto apos salvar')
         if debug:
             logger.debug('[LEMBRETE][POSIT] "%s" criado', titulo)
         return True
@@ -1194,12 +1198,8 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
     erro_classe = False
 
     try:
-        # Etapa 1: Abrir menu e ícone (BNDT abre em nova aba própria — não
-        # depende da URL de partida, dispensando validação de localização)
-        _bndt_abrir_menu(driver)
-        _bndt_clicar_icone(driver)
-
-        # Etapa 2: Abrir nova aba
+        # Etapa 1: Abrir nova aba BNDT diretamente via URL /pjekz/processo/{idProcesso}/bndt (padrão gigs-plugin.js)
+        # com fallback automático via menu
         main_window, nova_aba = _bndt_abrir_nova_aba(driver)
 
         # PROCESSAR APENAS POLO PASSIVO
@@ -1215,24 +1215,36 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         # 1. Clicar no botão do polo Passivo (único polo processado)
         logger.info(f'Procurando botão de polo {polo}...')
         try:
-            seletor_polo = [
-                (By.CSS_SELECTOR, '#selecao-polo input[value="Passivo"]'),
-                (By.XPATH, "//input[@value='Passivo']/ancestor::mat-radio-button | //mat-radio-button[@value='Passivo']"),
-            ]
+            # Tentar via JS primeiro (como no maispje)
+            clicado = driver.execute_script("""
+                var radio = document.querySelector('#selecao-polo input[value="Passivo"]');
+                if (radio) {
+                    var matRadio = radio.closest('mat-radio-button') || radio;
+                    matRadio.click();
+                    return true;
+                }
+                return false;
+            """)
+            if not clicado:
+                seletor_polo = [
+                    (By.CSS_SELECTOR, '#selecao-polo input[value="Passivo"]'),
+                    (By.XPATH, "//input[@value='Passivo']/ancestor::mat-radio-button | //mat-radio-button[@value='Passivo']"),
+                ]
 
-            btn_polo = None
-            for by, selector in seletor_polo:
-                btn_polo = espera.elemento(driver, selector, teto=3, visivel=False)
-                if btn_polo:
-                    break
+                btn_polo = None
+                for by, selector in seletor_polo:
+                    btn_polo = espera.elemento(driver, selector, teto=5, visivel=False)
+                    if btn_polo:
+                        break
 
-            if not btn_polo:
-                raise Exception('Botao de polo Passivo nao encontrado')
+                if not btn_polo:
+                    raise Exception('Botao de polo Passivo nao encontrado')
 
-            try:
-                safe_click_no_scroll(driver, btn_polo)
-            except Exception:
-                btn_polo.click()
+                try:
+                    safe_click_no_scroll(driver, btn_polo)
+                except Exception:
+                    btn_polo.click()
+
             logger.info(f'Polo {polo} selecionado')
             espera.assentar(driver, 0.5)
         except Exception as e:
@@ -1362,23 +1374,52 @@ def _bndt_clicar_icone(driver: WebDriver) -> bool:
 def _bndt_abrir_nova_aba(driver):
     """Abre nova aba BNDT e retorna seu handle."""
     main_window = driver.current_window_handle
+
+    # Extrair id_processo da URL atual (ex: /processo/5793261/detalhe -> 5793261)
+    current_url = driver.current_url or ''
+    match = re.search(r'/processo/(\d+)', current_url)
+    id_processo = match.group(1) if match else None
+
+    # Tentar abrir diretamente a URL /pjekz/processo/{idProcesso}/bndt (padrão maisPJe / gigs-plugin.js)
+    if id_processo:
+        url_bndt = f"/pjekz/processo/{id_processo}/bndt"
+        handles_antes = list(driver.window_handles)
+        driver.execute_script("window.open(arguments[0], '_blank');", url_bndt)
+        try:
+            WebDriverWait(driver, 10).until(lambda d: len(d.window_handles) > len(handles_antes))
+            novos_handles = [w for w in driver.window_handles if w not in handles_antes]
+            if novos_handles:
+                nova_aba = novos_handles[-1]
+                driver.switch_to.window(nova_aba)
+                WebDriverWait(driver, 15).until(EC.url_contains('/bndt'))
+                espera.assentar(driver, 0.5)
+                if espera.ate_aparecer(driver, 'mat-card, mat-radio-group, button, #selecao-polo', teto=10):
+                    logger.info('Elementos da página BNDT detectados')
+                logger.info(f'Nova aba BNDT aberta diretamente via URL: {driver.current_url}')
+                return main_window, nova_aba
+        except Exception as e_direct:
+            logger.warning(f'Falha ao abrir BNDT diretamente via URL ({e_direct}), tentando via menu...')
+
+    # Fallback: abrir via menu se a navegação direta falhar
+    _bndt_abrir_menu(driver)
+    _bndt_clicar_icone(driver)
+
     WebDriverWait(driver, 15).until(lambda d: len(d.window_handles) > 1)
-    
     all_windows = driver.window_handles
     nova_aba = [w for w in all_windows if w != main_window]
     if not nova_aba:
         raise Exception('Nova aba BNDT não foi criada')
-    
+
     nova_aba = nova_aba[-1]
     driver.switch_to.window(nova_aba)
-    espera.ate_url(driver, '/bndt', teto=15)
+    WebDriverWait(driver, 15).until(EC.url_contains('/bndt'))
 
     espera.assentar(driver, 0.5)
-    if espera.ate_aparecer(driver, 'mat-card, mat-radio-group, button', teto=10):
+    if espera.ate_aparecer(driver, 'mat-card, mat-radio-group, button, #selecao-polo', teto=10):
         logger.info('Elementos da página BNDT detectados')
     else:
         logger.warning('AVISO: Elementos podem não ter carregado')
-    
+
     logger.info(f'Nova aba BNDT aberta: {driver.current_url}')
     return main_window, nova_aba
 
@@ -1473,6 +1514,24 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
     # Garantir foco na janela (equivalente ao window.focus() do maispje)
     try:
         driver.execute_script('window.focus();')
+    except Exception:
+        pass
+
+    # Tentar via JS primeiro (rápido e robusto como no maispje)
+    try:
+        clicado = driver.execute_script("""
+            var radio = document.querySelector('#selecao-tipo-determinacao input[value="' + arguments[0] + '"]');
+            if (radio) {
+                var matRadio = radio.closest('mat-radio-button') || radio;
+                matRadio.click();
+                return true;
+            }
+            return false;
+        """, tipo_operacao)
+        if clicado:
+            logger.info(f'Operação {operacao} selecionada para polo {polo} via JS')
+            espera.assentar(driver, 0.5)
+            return True
     except Exception:
         pass
 

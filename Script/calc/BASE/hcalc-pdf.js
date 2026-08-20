@@ -361,8 +361,8 @@
                     if (window.Tesseract) {
                         dbg('[HCalc] Iniciando Tesseract Worker (via CDN permitida)...');
                         const worker = await window.Tesseract.createWorker({
-                            workerPath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/worker.min.js',
-                            corePath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js-core/4.0.3/tesseract-core.wasm.js',
+                            workerPath: 'https://unpkg.com/tesseract.js@4.1.1/dist/worker.min.js',
+                            corePath: 'https://unpkg.com/tesseract.js-core@4.0.3/tesseract-core.wasm.js',
                             langPath: 'https://raw.githubusercontent.com/naptha/tessdata/gh-pages/4.0.0',
                             logger: function (m) { if (m.status === 'recognizing text' && HCALC_DEBUG) console.log(m); }
                         });

@@ -499,7 +499,7 @@
                                 try {
                                     console.log('[HCalc] OCR página', p2, 'de', MAX_OCR_PAGES);
                                     const page2 = await pdf.getPage(p2);
-                                    const viewport = page2.getViewport({ scale: 5.0 });
+                                    const viewport = page2.getViewport({ scale: 4.0 });
                                     const canvas = document.createElement('canvas');
                                     canvas.width = Math.floor(viewport.width);
                                     canvas.height = Math.floor(viewport.height);
@@ -509,9 +509,21 @@
                                     await page2.render({ canvasContext: ctx, viewport: viewport }).promise;
 
                                     processarImagemOtsu(canvas);
+                                    console.log('[HCalc] OCR pág', p2, '— Otsu aplicado, imagem', canvas.width, 'x', canvas.height);
 
                                     const dataUrl = canvas.toDataURL('image/png');
-                                    const res = await ocrWorker.recognize(dataUrl);
+                                    // Guarda de timeout: nunca travar o fluxo se o worker do Tesseract demorar demais
+                                    let res;
+                                    try {
+                                        res = await Promise.race([
+                                            ocrWorker.recognize(dataUrl),
+                                            new Promise((_, rej) => setTimeout(() => rej(new Error('OCR timeout (60s)')), 60000))
+                                        ]);
+                                    } catch (e) {
+                                        console.warn('[HCalc] OCR página', p2, 'falhou/timeout:', e && e.message);
+                                        try { await ocrWorker.terminate(); } catch (e2) { }
+                                        throw e; // encerra o fallback OCR com degradação limpa
+                                    }
                                     const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
                                     if (txt) ocrPages.push(txt);
                                     console.log('[HCalc] OCR pág', p2, 'concluído:', txt.length, 'chars');

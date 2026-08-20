@@ -187,8 +187,8 @@
             const regexVerbas = /VERBAS\s+([\d.,]+)/i;
             const regexFGTS = /VERBAS\s+[\d.,]+\s+FGTS\s+([\d.,]+)/i;
             const regexDepositoFGTS = /DEP[OÓ]SITO FGTS\s*[\.,]?\s*([\d\.,]+)/i;
-            const regexINSSTotal = /CONTRIBUI[CG][AÃ]O SOCIAL SOBRE SAL[AÁ]RIOS DEVIDOS\s+([\d.,]+)/i;
-            const regexINSSAutor = /DEDU[CG][AÃ]O DE CONTRIBUI[CG][AÃ]O SOCIAL\s+(?:\(?\s*)([\d.,]+)(?:\s*\))?/i;
+            const regexINSSTotal = /CONTRIBUIÇÃO SOCIAL SOBRE SALÁRIOS DEVIDOS\s+([\d.,]+)/i;
+            const regexINSSAutor = /DEDUÇÃO DE CONTRIBUIÇÃO SOCIAL\s+(?:\(\s*)?([\d.,]+)(?:\s*\))?/i;
             const regexCustas = /CUSTAS JUDICIAIS DEVIDAS PELO RECLAMADO\s+([\d.,]+)/i;
             // Data: aceitar em dash (—), en dash (–) e hifem entre o label e o valor
             const regexData = /Data\s+Liquida[\u00e7c][\u00e3a]o\s*[:\-\u2014\u2013]?\s*[\u2014\u2013\-]?\s*(\d{2}\/\d{2}\/\d{4})/i;

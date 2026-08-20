@@ -222,6 +222,7 @@
                             }
                             box.dataset.idPlanilha = planilhaId;
                             box.dataset.periodoCalculo = dados.periodoCalculo || '';
+                            box._planilhaDados = dados;
                             const resumo = document.getElementById(`resp-extra-resumo-${idx}`);
                             if (resumo) {
                                 resumo.innerHTML = `<strong>ID:</strong> ${planilhaId} &nbsp; <strong>Período:</strong> ${dados.periodoCalculo || '—'}`;
@@ -306,6 +307,7 @@
                         }
                         box.dataset.idPlanilha = planilhaId;
                         box.dataset.periodoCalculo = dados.periodoCalculo || '';
+                        box._planilhaDados = dados;
                         const resumo = document.getElementById(`resp-extra-resumo-${idx}`);
                         if (resumo) {
                             resumo.innerHTML = `<strong>ID:</strong> ${planilhaId} &nbsp; <strong>Período:</strong> ${dados.periodoCalculo || '—'} (API)`;
@@ -432,7 +434,7 @@
                         const idPlanilha = box.dataset.idPlanilha || `SemID-extra-${idx}`;
                         const periodoTexto = box.dataset.periodoCalculo || '';
                         if (!subsidiariasComPeriodo.some(s => s.nome === nome)) {
-                            subsidiariasComPeriodo.push({ nome, periodo: periodoTexto, idPlanilha, usarMesmaPlanilha: false });
+                            subsidiariasComPeriodo.push({ nome, periodo: periodoTexto, idPlanilha, usarMesmaPlanilha: false, dados: box._planilhaDados || null });
                         }
                     } else {
                         if (!extraSubsIntegrais.includes(nome)) extraSubsIntegrais.push(nome);

@@ -671,7 +671,7 @@
                         subsDiv.forEach((sub, idx) => {
                             const chave = sub.idPlanilha || `noid_${idx}`;
                             if (!grupos[chave]) {
-                                grupos[chave] = { idPlanilha: sub.idPlanilha, usarMesmaPlanilha: false, nomes: [], periodo: sub.periodo || '' };
+                                grupos[chave] = { idPlanilha: sub.idPlanilha, usarMesmaPlanilha: false, nomes: [], periodo: sub.periodo || '', dados: sub.dados || null };
                             }
                             grupos[chave].nomes.push(sub.nome);
                         });
@@ -682,7 +682,9 @@
                             const planilhasAll = window.hcalcState.planilhasDisponiveis || [];
                             const entradaSub = planilhasAll.find(p => p.id === grupo.idPlanilha)
                                 || planilhasAll.find(p => p.dados && p.dados.idPlanilha === grupo.idPlanilha);
-                            let pData = entradaSub?.dados || null;
+                            // Prefere os dados vinculados diretamente ao box da subsidiária
+                            // (robusto a falhas de casamento por idPlanilha no planilhasDisponiveis).
+                            let pData = grupo.dados || entradaSub?.dados || null;
                             
                             // Correção Crítica: parseMoney antes do formatMoney impede o crash TypeError
                             const vCred = formatMoney(parseMoney(pData ? pData.verbas : '0'));

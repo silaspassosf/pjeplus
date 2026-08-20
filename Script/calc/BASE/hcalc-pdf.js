@@ -149,6 +149,7 @@
             // Varre todas as páginas (ou até encontrar o marcador) - alguns PDFs têm a seção padrão em páginas posteriores
             const paginasTextos = [];
             let marcadorEncontrado = false;
+            let paginaMarcador = 0;
             for (let p = 1; p <= pdf.numPages; p++) {
                 try {
                     page = await pdf.getPage(p);
@@ -166,6 +167,7 @@
                         const prefixo = textoPagina.substring(0, pos);
                         textoCompleto = paginasTextos.slice(0, -1).join(' ') + ' ' + prefixo;
                         marcadorEncontrado = true;
+                        paginaMarcador = p;
                         dbg('[HCalc] Marcador encontrado na página', p);
                         break;
                     }
@@ -185,11 +187,14 @@
             const regexVerbas = /VERBAS\s+([\d.,]+)/i;
             const regexFGTS = /VERBAS\s+[\d.,]+\s+FGTS\s+([\d.,]+)/i;
             const regexDepositoFGTS = /DEP[OÓ]SITO FGTS\s*[\.,]?\s*([\d\.,]+)/i;
-            const regexINSSTotal = /CONTRIBUIÇÃO SOCIAL SOBRE SALÁRIOS DEVIDOS\s+([\d.,]+)/i;
-            const regexINSSAutor = /DEDUÇÃO DE CONTRIBUIÇÃO SOCIAL\s+(?:\(\s*)?([\d.,]+)(?:\s*\))?/i;
+            const regexINSSTotal = /CONTRIBUI[CG][AÃ]O SOCIAL SOBRE SAL[AÁ]RIOS DEVIDOS\s+([\d.,]+)/i;
+            const regexINSSAutor = /DEDU[CG][AÃ]O DE CONTRIBUI[CG][AÃ]O SOCIAL\s+(?:\(?\s*)([\d.,]+)(?:\s*\))?/i;
             const regexCustas = /CUSTAS JUDICIAIS DEVIDAS PELO RECLAMADO\s+([\d.,]+)/i;
-            const regexData = /(?:Data\s+Liquida[çc][ãa]o\s*[:\-]?\s*(\d{2}\/\d{2}\/\d{4}))|(?:(\d{2}\/\d{2}\/\d{4})\s*Data\s+Liquida[çc][ãa]o)/i;
-            const regexDataFallback = /([0-3][0-9]\/[0-1][0-9]\/20[2-9][0-9])\s+[A-ZÀ-Ÿ\s]+Data\s+Liquida[çc][ãa]o/i;
+            // Data: aceitar em dash (—), en dash (–) e hifem entre o label e o valor
+            const regexData = /Data\s+Liquida[\u00e7c][\u00e3a]o\s*[:\-\u2014\u2013]?\s*[\u2014\u2013\-]?\s*(\d{2}\/\d{2}\/\d{4})/i;
+            // Fallback: data no rodapé "Cálculo liquidado ... em DD/MM/YYYY"
+            const regexDataEm = /\bem\s+(\d{2}\/\d{2}\/\d{4})/i;
+            const regexDataFallback = /([0-3][0-9]\/[0-1][0-9]\/20[2-9][0-9])\s+[A-ZÀ-Ÿ\s]+Data\s+Liquida[\u00e7c][\u00e3a]o/i;
             const regexIdAssinatura = /Documento assinado eletronicamente[\s\S]*?-\s*([a-zA-Z0-9]+)(?:\s|$)/i;
             // Honorários: tentar extrair preferencialmente da seção entre os marcadores
             const markerStarts = [
@@ -312,6 +317,11 @@
                 const fallback = textoCompleto.match(regexDataFallback);
                 if (fallback) dataAtualizacao = fallback[1];
             }
+            // Fallback 2: "em DD/MM/YYYY" no rodapé ("Cálculo liquidado por offline na versão X em DD/MM/YYYY")
+            if (!dataAtualizacao) {
+                const fallbackEm = textoCompleto.match(regexDataEm);
+                if (fallbackEm) dataAtualizacao = fallbackEm[1];
+            }
 
             const idPlanilha = idNomeArquivo || (textoCompleto.match(regexIdAssinatura) || [])[1] || "";
 
@@ -358,15 +368,113 @@
             if (qualidade.faltando && qualidade.faltando.length > 0) {
                 console.log('[HCalc] Qualidade insuficiente (' + qualidade.percentual + '%) — iniciando fallback OCR. Faltando:', qualidade.faltando.join(', '));
                 try {
+                    // ---- helpers OCR (portados do test_ocr.html) ----
+                    function calcularOtsu(data) {
+                        const histogram = new Array(256).fill(0);
+                        for (let i = 0; i < data.length; i += 4) {
+                            const luma = Math.round((data[i] + data[i+1] + data[i+2]) / 3);
+                            histogram[luma]++;
+                        }
+                        const total = data.length / 4;
+                        let sum = 0;
+                        for (let t = 0; t < 256; t++) sum += t * histogram[t];
+                        let sumB = 0, wB = 0, wF = 0, varMax = 0, threshold = 0;
+                        for (let t = 0; t < 256; t++) {
+                            wB += histogram[t];
+                            if (wB === 0) continue;
+                            wF = total - wB;
+                            if (wF === 0) break;
+                            sumB += t * histogram[t];
+                            const mB = sumB / wB;
+                            const mF = (sum - sumB) / wF;
+                            const varBetween = wB * wF * (mB - mF) * (mB - mF);
+                            if (varBetween > varMax) { varMax = varBetween; threshold = t; }
+                        }
+                        return threshold;
+                    }
+
+                    function processarImagemOtsu(canvas) {
+                        const ctx = canvas.getContext('2d');
+                        const width = canvas.width, height = canvas.height;
+                        const imgData = ctx.getImageData(0, 0, width, height);
+                        const data = imgData.data;
+                        let min = 255, max = 0;
+                        for (let i = 0; i < data.length; i += 4) {
+                            const v = (data[i] + data[i+1] + data[i+2]) / 3;
+                            if (v < 255) { if (v < min) min = v; if (v > max) max = v; }
+                        }
+                        for (let i = 0; i < data.length; i += 4) {
+                            const v = (data[i] + data[i+1] + data[i+2]) / 3;
+                            if (v < 255) {
+                                const stretched = (v - min) * 255 / (max - min);
+                                data[i] = stretched; data[i+1] = stretched; data[i+2] = stretched;
+                            }
+                        }
+                        const otsuThresh = calcularOtsu(data);
+                        for (let i = 0; i < data.length; i += 4) {
+                            const luma = (data[i] + data[i+1] + data[i+2]) / 3;
+                            if (luma > otsuThresh) { data[i] = 255; data[i+1] = 255; data[i+2] = 255; }
+                            else { data[i] = 0; data[i+1] = 0; data[i+2] = 0; }
+                        }
+                        const minLineX = Math.floor(width * 0.25);
+                        for (let y = 0; y < height; y++) {
+                            let runStart = -1;
+                            for (let x = 0; x < width; x++) {
+                                const i = (y * width + x) * 4;
+                                if (data[i] === 0) { if (runStart === -1) runStart = x; }
+                                else if (runStart !== -1) {
+                                    if (x - runStart > minLineX) {
+                                        for (let k = runStart; k < x; k++) {
+                                            const idx = (y * width + k) * 4;
+                                            data[idx] = 255; data[idx+1] = 255; data[idx+2] = 255;
+                                        }
+                                    }
+                                    runStart = -1;
+                                }
+                            }
+                            if (runStart !== -1 && width - runStart > minLineX) {
+                                for (let k = runStart; k < width; k++) {
+                                    const idx = (y * width + k) * 4;
+                                    data[idx] = 255; data[idx+1] = 255; data[idx+2] = 255;
+                                }
+                            }
+                        }
+                        ctx.putImageData(imgData, 0, 0);
+                    }
+
+                    function parseBRL(raw) {
+                        if (!raw) return null;
+                        let s = String(raw).trim();
+                        s = s.replace(/[R$§\s]/g, '');
+                        s = s.replace(/[Oo]/g, '0');
+                        s = s.replace(/[Il|]/g, '1');
+                        s = s.replace(/[,.;:](?=\d{3}\b)/g, '');
+                        if (/^\d+[.,]\d{2}$/.test(s)) {
+                            s = s.replace('.', '').replace(',', '.');
+                            return Number(s);
+                        }
+                        if (/^\d+$/.test(s)) {
+                            if (s.length >= 3) return Number(s.slice(0, -2) + '.' + s.slice(-2));
+                            return Number('0.' + s.padStart(2, '0'));
+                        }
+                        s = s.replace(/\./g, '').replace(',', '.');
+                        const n = Number(s);
+                        return Number.isFinite(n) ? n : null;
+                    }
+
+                    function formatBRL(value) {
+                        if (value == null || Number.isNaN(value)) return '';
+                        return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+
                     if (window.Tesseract) {
-                        // Mesmo limite da extração direta: para no marcador ou máximo 3 páginas
-                        const MAX_OCR_PAGES = Math.min(pdf.numPages, 3);
+                        // Só as páginas pertinentes: até a página do marcador (já localizada) ou cap 4
+                        const MAX_OCR_PAGES = paginaMarcador > 0 ? Math.min(paginaMarcador, 4) : Math.min(pdf.numPages, 3);
                         console.log('[HCalc] OCR iniciando. PDF tem', pdf.numPages, 'pág. | Varrer até:', MAX_OCR_PAGES);
 
                         let ocrWorker;
                         try {
                             ocrWorker = await window.Tesseract.createWorker('por', 1, {
-                                langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@4/tessdata',
                                 logger: function (m) {
                                     if (m.status === 'recognizing text') {
                                         console.log('[Tesseract] reconhecendo', Math.round((m.progress || 0) * 100) + '%');
@@ -374,6 +482,11 @@
                                         console.log('[Tesseract]', m.status);
                                     }
                                 }
+                            });
+                            await ocrWorker.setParameters({
+                                tessedit_pageseg_mode: 6,
+                                preserve_interword_spaces: '0',
+                                tessedit_char_whitelist: ' 0123456789.,()|-/%ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÃÁÀÂÇÉÊÍÓÔÕÚÜãáàâçéêíóôõúü'
                             });
                             console.log('[HCalc] Worker OCR criado com sucesso!');
                         } catch (workerErr) {
@@ -386,12 +499,17 @@
                                 try {
                                     console.log('[HCalc] OCR página', p2, 'de', MAX_OCR_PAGES);
                                     const page2 = await pdf.getPage(p2);
-                                    const viewport = page2.getViewport({ scale: 1.5 });
+                                    const viewport = page2.getViewport({ scale: 5.0 });
                                     const canvas = document.createElement('canvas');
                                     canvas.width = Math.floor(viewport.width);
                                     canvas.height = Math.floor(viewport.height);
                                     const ctx = canvas.getContext('2d');
+                                    ctx.fillStyle = "white";
+                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
                                     await page2.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                                    processarImagemOtsu(canvas);
+
                                     const dataUrl = canvas.toDataURL('image/png');
                                     const res = await ocrWorker.recognize(dataUrl);
                                     const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
@@ -399,7 +517,8 @@
                                     console.log('[HCalc] OCR pág', p2, 'concluído:', txt.length, 'chars');
 
                                     // Parar assim que encontrar o marcador de fim (igual à extração direta)
-                                    if (txt && LIMITE_MARCADOR.test(txt)) {
+                                    // Com OCR o texto pode ter barras verticais e espaços extras
+                                    if (txt && /Crit[ée]rio\s*de\s*C[aá]lculo/i.test(txt.replace(/\s+/g, ' '))) {
                                         console.log('[HCalc] OCR: marcador encontrado na pág', p2, '— parando scan');
                                         break;
                                     }
@@ -414,17 +533,59 @@
                         if (ocrTexto && ocrTexto.length > 50) {
                             // Re-executar extrações a partir do texto OCR
                             const textoCompletoOCR = ocrTexto;
-                            const verbas2 = (textoCompletoOCR.match(regexVerbas) || [])[1] || "";
-                            const fgts2 = (textoCompletoOCR.match(regexFGTS) || [])[1] || "";
-                            const inssTotal2 = (textoCompletoOCR.match(regexINSSTotal) || [])[1] || "";
-                            const inssAutor2 = (textoCompletoOCR.match(regexINSSAutor) || [])[1] || "";
-                            const custas2 = (textoCompletoOCR.match(regexCustas) || [])[1] || "";
-                            let honAutor2 = findFirstMatch(textoCompletoOCR, regexHonAutor_variants) || "";
-                            let honReu2 = findFirstMatch(textoCompletoOCR, regexHonReu_variants) || "";
-                            const matchPerito2 = textoCompletoOCR.match(regexHonPerito);
+
+                            const rxOcrVerbas = /VERBAS\s*\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i;
+                            const rxOcrFgts = /FGTS\s*\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i;
+                            const rxOcrInssTotal = /SAL[AÁ]RIOS\s*DEVIDOS\s*\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i;
+                            const rxOcrInssAutor = /DEDU[CÇ][AÃ]O[\s\S]{1,50}?\|\s*[\(\[]?\s*([\d.,]+|[a-z\d.,]+)[\s\)\]]*\s*\|/i;
+                            const rxOcrCustas = /CUSTAS[\s\S]{1,40}?\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i;
+                            // Honorários: mesma regra do caminho direto (não misturar advogado com perito)
+                            const rxOcrHonPerito = /HONOR[AÁ]RIOS\s+L[IÍ]QUIDOS\s+PARA\s+(?!PATRONO)([^|]{2,60}?)\s*\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i;
+                            const rxOcrHonAutor = /HONOR[AÁ]RIOS[\s\S]{1,60}?PATRONO[\s\S]{1,40}?\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i;
+                            
+                            function limpaOcrNum(str) {
+                                if(!str) return "";
+                                // correções de letra OCR mantidas + parseBRL robusto (portado do test_ocr.html)
+                                let val = String(str).trim()
+                                    .replace(/enag/gi, '1,47').replace(/ena/gi, '1,47')
+                                    .replace(/g/gi, '9').replace(/s/gi, '5').replace(/o/gi, '0')
+                                    .replace(/[^0-9.,]/g, '');
+                                const n = parseBRL(val);
+                                return n !== null ? formatBRL(n) : '';
+                            }
+
+                            const verbas2 = limpaOcrNum((textoCompletoOCR.match(rxOcrVerbas) || [])[1]);
+                            const fgts2 = limpaOcrNum((textoCompletoOCR.match(rxOcrFgts) || [])[1]);
+                            const inssTotal2 = limpaOcrNum((textoCompletoOCR.match(rxOcrInssTotal) || [])[1]);
+                            const inssAutor2 = limpaOcrNum((textoCompletoOCR.match(rxOcrInssAutor) || [])[1]);
+                            const custas2 = limpaOcrNum((textoCompletoOCR.match(rxOcrCustas) || [])[1]);
+                            let honAutor2 = limpaOcrNum((textoCompletoOCR.match(rxOcrHonAutor) || [])[1]);
+                            let honReu2 = "";
+
+                            // Extrai nome + valor e replica a disambiguação do caminho direto:
+                            // default = advogado autor; perito somente se o nome bater com perito detectado.
+                            const matchPerito2 = textoCompletoOCR.match(rxOcrHonPerito);
                             let peritoNome2 = matchPerito2 ? matchPerito2[1].trim() : "";
-                            let peritoValor2 = matchPerito2 ? matchPerito2[2] : "";
+                            let peritoValor2 = matchPerito2 ? limpaOcrNum(matchPerito2[2]) : "";
+                            if (peritoNome2 && peritoValor2) {
+                                const peritosConhecidos = window.hcalcPeritosDetectados || [];
+                                const ehPerito = peritosConhecidos.some(p =>
+                                    normalizarNomeParaComparacao(p).includes(normalizarNomeParaComparacao(peritoNome2)) ||
+                                    normalizarNomeParaComparacao(peritoNome2).includes(normalizarNomeParaComparacao(p))
+                                );
+                                if (!ehPerito) {
+                                    console.log(`hcalc(OCR): "${peritoNome2}" → DEFAULT: honorário advogado autor (legado)`);
+                                    if (!honAutor2) honAutor2 = peritoValor2;
+                                    peritoNome2 = "";
+                                    peritoValor2 = "";
+                                }
+                            }
+
                             let dataAtualizacao2 = (textoCompletoOCR.match(regexData) || [])[1] || (textoCompletoOCR.match(regexData) || [])[2] || '';
+                            if (!dataAtualizacao2) {
+                                const fallbackEm = textoCompletoOCR.match(regexDataEm);
+                                if (fallbackEm) dataAtualizacao2 = fallbackEm[1];
+                            }
                             if (!dataAtualizacao2) {
                                 const fallback2 = textoCompletoOCR.match(regexDataFallback);
                                 if (fallback2) dataAtualizacao2 = fallback2[1];
@@ -448,6 +609,19 @@
                                 irpfIsento,
                                 sucesso: true
                             };
+
+                            // Regra de domínio PJe-Calc: FGTS (crédito) == DEPÓSITO FGTS (débito).
+                            // OCR costuma perder dígito na célula de crédito (68617 → 686,17); o débito vem íntegro.
+                            const mDepFgts = textoCompletoOCR.match(/DEP[OÓ]SITO\s+FGTS\s*\|\s*[\(\[]?\s*([\d.,]+|[a-z\d.,]+)/i);
+                            if (mDepFgts && mDepFgts[1]) {
+                                const depFgts = limpaOcrNum(mDepFgts[1]);
+                                const numDe = (v) => parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+                                if (validarValor(depFgts) &&
+                                    (!validarValor(dadosBrutosOCR.fgts) || Math.abs(numDe(dadosBrutosOCR.fgts) - numDe(depFgts)) > 0.005)) {
+                                    console.log('[HCalc] FGTS ajustado via DEPÓSITO FGTS:', depFgts);
+                                    dadosBrutosOCR.fgts = depFgts;
+                                }
+                            }
 
                             const dadosValidadosOCR = validarDadosExtraidos(dadosBrutosOCR);
                             const qualidadeOCR = calcularQualidadeExtracao(dadosValidadosOCR);

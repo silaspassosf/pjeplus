@@ -356,24 +356,26 @@
 
             // Se campos obrigatórios faltando, tentar fallback OCR (renderizar páginas + Tesseract.js)
             if (qualidade.faltando && qualidade.faltando.length > 0) {
-                dbg('[HCalc] Qualidade insuficiente — tentando fallback OCR');
+                console.log('[HCalc] Qualidade insuficiente (' + qualidade.percentual + '%) — iniciando fallback OCR. Faltando:', qualidade.faltando.join(', '));
                 try {
                     if (window.Tesseract) {
-                        dbg('[HCalc] Iniciando Tesseract Worker (via CDN permitida)...');
+                        console.log('[HCalc] Tesseract disponível. Criando worker OCR...');
 
-                        // Timeout de 30s para evitar trava no download do modelo
+                        // Timeout de 45s para evitar trava no download do modelo
                         let worker;
                         const workerPromise = window.Tesseract.createWorker('por', 1, {
                             workerPath: 'https://unpkg.com/tesseract.js@4.1.1/dist/worker.min.js',
                             corePath: 'https://unpkg.com/tesseract.js-core@4.0.3/tesseract-core.wasm.js',
                             langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@4/tessdata',
-                            logger: function (m) { if (HCALC_DEBUG) console.log('[Tesseract]', m.status, m.progress); }
+                            logger: function (m) { console.log('[Tesseract]', m.status, Math.round((m.progress || 0) * 100) + '%'); }
                         });
                         const timeoutPromise = new Promise((_, reject) =>
-                            setTimeout(() => reject(new Error('Tesseract timeout: download do modelo excedeu 30s')), 30000)
+                            setTimeout(() => reject(new Error('Tesseract timeout: download do modelo excedeu 45s')), 45000)
                         );
                         try {
+                            console.log('[HCalc] Aguardando download do modelo OCR (por.traineddata)...');
                             worker = await Promise.race([workerPromise, timeoutPromise]);
+                            console.log('[HCalc] Worker OCR pronto!');
                         } catch (initErr) {
                             throw initErr;
                         }

@@ -359,43 +359,53 @@
                 console.log('[HCalc] Qualidade insuficiente (' + qualidade.percentual + '%) — iniciando fallback OCR. Faltando:', qualidade.faltando.join(', '));
                 try {
                     if (window.Tesseract) {
-                        console.log('[HCalc] Tesseract v5 disponível. Iniciando OCR página a página...');
-                        const ocrPages = [];
+                        // Limite de páginas: planilha tem dados nas primeiras páginas
+                        // Varrer até 10 páginas ou o total do PDF, o que for menor
+                        const MAX_OCR_PAGES = Math.min(pdf.numPages, 10);
+                        console.log('[HCalc] OCR iniciando. Total páginas no PDF:', pdf.numPages, '| Varrer até:', MAX_OCR_PAGES);
 
-                        for (let p2 = 1; p2 <= pdf.numPages; p2++) {
-                            try {
-                                console.log('[HCalc] OCR página', p2, 'de', pdf.numPages);
-                                const page2 = await pdf.getPage(p2);
-                                const viewport = page2.getViewport({ scale: 1.5 });
-                                const canvas = document.createElement('canvas');
-                                canvas.width = Math.floor(viewport.width);
-                                canvas.height = Math.floor(viewport.height);
-                                const ctx = canvas.getContext('2d');
-                                await page2.render({ canvasContext: ctx, viewport: viewport }).promise;
-                                const dataUrl = canvas.toDataURL('image/png');
-
-                                // Tesseract.js v5: API simples sem gerenciar worker manualmente
-                                const recPromise = window.Tesseract.recognize(dataUrl, 'por', {
-                                    langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@4/tessdata',
-                                    workerBlobURL: false,
-                                    logger: function (m) {
-                                        if (m.status === 'recognizing text') {
-                                            console.log('[Tesseract] pág', p2, Math.round((m.progress || 0) * 100) + '%');
-                                        } else {
-                                            console.log('[Tesseract]', m.status);
-                                        }
+                        // Criar worker único reutilizável (mais eficiente)
+                        // Não definir workerBlobURL — Tesseract v5 usa blob: por padrão (contorna CSP)
+                        let ocrWorker;
+                        try {
+                            ocrWorker = await window.Tesseract.createWorker('por', 1, {
+                                langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@4/tessdata',
+                                logger: function (m) {
+                                    if (m.status === 'recognizing text') {
+                                        console.log('[Tesseract] reconhecendo', Math.round((m.progress || 0) * 100) + '%');
+                                    } else if (m.status && m.status !== 'initialized api') {
+                                        console.log('[Tesseract]', m.status);
                                     }
-                                });
-                                const timeoutPromise = new Promise((_, reject) =>
-                                    setTimeout(() => reject(new Error('timeout OCR pág ' + p2)), 60000)
-                                );
-                                const res = await Promise.race([recPromise, timeoutPromise]);
-                                const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
-                                if (txt) ocrPages.push(txt);
-                                console.log('[HCalc] OCR pág', p2, 'concluído:', txt.length, 'chars');
-                            } catch (e) {
-                                console.warn('[HCalc] OCR página ' + p2 + ' falhou:', e && e.message);
+                                }
+                            });
+                            console.log('[HCalc] Worker OCR criado com sucesso!');
+                        } catch (workerErr) {
+                            throw new Error('Falha ao criar worker OCR: ' + (workerErr && workerErr.message));
+                        }
+
+                        const ocrPages = [];
+                        try {
+                            for (let p2 = 1; p2 <= MAX_OCR_PAGES; p2++) {
+                                try {
+                                    console.log('[HCalc] OCR página', p2, 'de', MAX_OCR_PAGES);
+                                    const page2 = await pdf.getPage(p2);
+                                    const viewport = page2.getViewport({ scale: 1.5 });
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = Math.floor(viewport.width);
+                                    canvas.height = Math.floor(viewport.height);
+                                    const ctx = canvas.getContext('2d');
+                                    await page2.render({ canvasContext: ctx, viewport: viewport }).promise;
+                                    const dataUrl = canvas.toDataURL('image/png');
+                                    const res = await ocrWorker.recognize(dataUrl);
+                                    const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
+                                    if (txt) ocrPages.push(txt);
+                                    console.log('[HCalc] OCR pág', p2, 'concluído:', txt.length, 'chars extraídos');
+                                } catch (e) {
+                                    console.warn('[HCalc] OCR página ' + p2 + ' falhou:', e && (e.message || String(e)));
+                                }
                             }
+                        } finally {
+                            try { await ocrWorker.terminate(); } catch (e) { }
                         }
                         const ocrTexto = ocrPages.join(' ');
                         if (ocrTexto && ocrTexto.length > 50) {

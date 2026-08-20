@@ -430,6 +430,35 @@ def verificar_acesso_negado_unificado(driver, tipo_execucao: str) -> bool:
 # VERIFICAÇÃO E MARCAÇÃO DE PROCESSOS
 # ===============================================
 
+def _somente_digitos(numero) -> str:
+    """Extrai apenas os dígitos de um número de processo (forma canônica de comparação)."""
+    if not isinstance(numero, str):
+        return ''
+    return re.sub(r'\D', '', numero)
+
+
+def _formatar_numero_cnj(numero: str) -> Optional[str]:
+    """Formata um número de processo (com máscara ou só dígitos) para a máscara CNJ.
+
+    Retorna None se a entrada não tiver exatamente 20 dígitos.
+    """
+    digitos = _somente_digitos(numero)
+    if len(digitos) != 20:
+        return None
+    return (f"{digitos[:7]}-{digitos[7:9]}.{digitos[9:13]}."
+            f"{digitos[13:14]}.{digitos[14:16]}.{digitos[16:]}")
+
+
+def _numero_em_lista(numero_canonico: str, lista) -> bool:
+    """Verifica se o número canônico (só dígitos) está na lista, normalizando cada item."""
+    if not numero_canonico:
+        return False
+    for item in lista or []:
+        if isinstance(item, str) and _somente_digitos(item) == numero_canonico:
+            return True
+    return False
+
+
 def processo_ja_executado_unificado(numero_processo: str, progresso: Dict[str, Any]) -> bool:
     """
     Verifica se o processo já foi executado com sucesso.
@@ -445,7 +474,7 @@ def processo_ja_executado_unificado(numero_processo: str, progresso: Dict[str, A
         return False
 
     executados = progresso.get("processos_executados", [])
-    return numero_processo in executados
+    return _numero_em_lista(_somente_digitos(numero_processo), executados)
 
 def processo_tem_erro_unificado(numero_processo: str, progresso: Dict[str, Any]) -> bool:
     """
@@ -462,7 +491,7 @@ def processo_tem_erro_unificado(numero_processo: str, progresso: Dict[str, Any])
         return False
 
     com_erro = progresso.get("processos_com_erro", [])
-    return numero_processo in com_erro
+    return _numero_em_lista(_somente_digitos(numero_processo), com_erro)
 
 def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str,
                                        progresso: Dict[str, Any], sucesso: bool = True,
@@ -486,10 +515,12 @@ def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str
         _log_progresso(tipo_execucao, "⚠️ Número do processo vazio, ignorando marcação")
         return
 
-    # Validar formato básico do número do processo
-    if not re.match(r'^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$', numero_processo):
+    # Normalizar para a máscara CNJ — aceita entrada com máscara ou só dígitos.
+    numero_canonico = _formatar_numero_cnj(numero_processo)
+    if not numero_canonico:
         _log_progresso(tipo_execucao, f"⚠️ Formato de número do processo inválido: {numero_processo}")
         return
+    numero_processo = numero_canonico
 
     modificado = False
 

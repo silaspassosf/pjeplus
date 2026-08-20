@@ -138,16 +138,15 @@ def login_manual_sisbajud(driver, aguardar_url_final=True):
         else:
             logger.info('[SISBAJUD][LOGIN_MANUAL] Ja esta na pagina de autenticacao, aguardando conclusao...')
 
-        target_indicator = 'sisbajud.cnj.jus.br'
         timeout = 300
         if not aguardar_url_final:
             return False
         try:
             WebDriverWait(driver, timeout).until(
-                lambda d: target_indicator in (d.current_url or '').lower()
-                and not any(ind in (d.current_url or '').lower() for ind in ['login', 'auth', 'realms'])
+                lambda d: any(h in (d.current_url or '').lower() for h in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br', 'sisbajud'])
+                and not any(ind in (d.current_url or '').lower() for ind in ['login', 'auth', 'realms', 'sso.cloud'])
             )
-            logger.info('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou).')
+            logger.info('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou: %s).', driver.current_url)
             try:
                 from driver_config import salvar_cookies_sessao, salvar_cookies_sisbajud, SALVAR_COOKIES_AUTOMATICO
                 if SALVAR_COOKIES_AUTOMATICO:

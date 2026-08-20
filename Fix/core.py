@@ -3105,8 +3105,8 @@ def buscar_documentos_sequenciais(driver, log=True):
 
 _CP_ANCORA = 'certidao de distribuicao'
 _CP_DESPACHO = re.compile(r'\bdespacho\b')
-_CP_MANDADO = '(mandado)'
-_CP_CERTIDAO_OJ = '(certidao de oficial de justica)'
+_CP_MANDADO = 'mandado'
+_CP_CERTIDAO_OJ = 'certidao de oficial de justica'
 
 
 def _obter_timeline_via_api(driver, log=True):
@@ -3305,22 +3305,42 @@ def _cp_texto_documento(elem, debug=False):
 
 
 def _cp_marcar_checkbox(driver, elem, timeout):
-    """Marca o checkbox mat-checkbox de um item da timeline (idempotente)."""
+    """Marca o checkbox mat-checkbox de um item da timeline (idempotente).
+
+    Localiza o checkbox DENTRO do elemento da timeline (padrão do fluxo Argos —
+    Mandado/anexos_argos.py) e clica direto no span.mat-checkbox-inner-container,
+    sem depender do id do <li> (que pode não existir no DOM atual do PJe).
+    """
     from Fix.browser_suporte import click_headless_safe
 
     try:
-        li_id = elem.get_attribute('id')
-        if not li_id:
-            return False
+        # Já marcado? (idempotência)
         try:
             input_cb = elem.find_element(By.CSS_SELECTOR, 'input.mat-checkbox-input')
             if input_cb.get_attribute('aria-checked') == 'true':
                 return True
         except NoSuchElementException:
             pass
+
+        # Padrão Argos: achar o container do checkbox dentro do item e clicar direto
+        try:
+            chk = elem.find_element(By.CSS_SELECTOR, 'span.mat-checkbox-inner-container')
+            if safe_click_no_scroll(driver, chk):
+                return True
+        except NoSuchElementException:
+            pass
+
+        # Fallback: usar o id do li (caso exista) + click_headless_safe
+        try:
+            li_id = elem.get_attribute('id')
+        except StaleElementReferenceException:
+            return False
+        if li_id:
+            return click_headless_safe(driver, f'#{li_id} span.mat-checkbox-inner-container', timeout=timeout)
+
+        return False
     except StaleElementReferenceException:
         return False
-    return click_headless_safe(driver, f'#{li_id} span.mat-checkbox-inner-container', timeout=timeout)
 
 
 def contar_mandados_e_certidoes_oficial(driver, log=True):

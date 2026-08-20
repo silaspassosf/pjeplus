@@ -402,7 +402,6 @@ def login_manual_sisbajud(driver, aguardar_url_final=True):
             logger.info('[SISBAJUD][LOGIN_MANUAL] Já está na página de autenticação, aguardando conclusão...')
         
         # Aguarda o usuário completar o login
-        target_indicator = 'sisbajud.cnj.jus.br'
         import time
         timeout = 300  # ⏰ 5 minutos para login manual (tempo suficiente para código de verificação)
         inicio = time.time()
@@ -410,8 +409,8 @@ def login_manual_sisbajud(driver, aguardar_url_final=True):
             try:
                 current = driver.current_url.lower()
                 # Verificar se está em SISBAJUD E não está em página de autenticação
-                if target_indicator in current and not any(ind in current for ind in ['login', 'auth', 'realms']):
-                    logger.info('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou).')
+                if any(host in current for host in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br', 'sisbajud']) and not any(ind in current for ind in ['login', 'auth', 'realms', 'sso.cloud']):
+                    logger.info('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou: %s).', driver.current_url)
                     
                     # Tentar salvar cookies via driver_config helper para persistência
                     try:
@@ -433,7 +432,7 @@ def login_manual_sisbajud(driver, aguardar_url_final=True):
             if time.time() - inicio > timeout:
                 logger.info('[SISBAJUD][LOGIN_MANUAL] Timeout aguardando login manual.')
                 return False
-            time.sleep(0.5)  #  REDUZIDO: 1s → 0.5s (resposta mais rápida ao timeout)
+            time.sleep(0.5)  # 0.5s resposta rápida ao login manual
     except Exception as e:
         logger.info(f'[SISBAJUD][LOGIN_MANUAL] Erro durante login manual: {e}')
         return False
@@ -626,29 +625,11 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
                 _ = e
             return None
 
-        # Se chegou aqui, o login foi bem-sucedido — agora AGUARDAR explicitamente pela URL /minuta
-        # (time.sleep polling loop substituído por WebDriverWait com EC.url_contains)
-        url_ready = False
+        # Aguardar carregamento da página do SISBAJUD após login
         try:
-            WebDriverWait(driver, 120).until(
-                EC.url_contains('sisbajud.cnj.jus.br/minuta')
-            )
-            logger.info('[SISBAJUD]  URL /minuta detectada')
-            url_ready = True
-        except TimeoutException:
-            logger.info('[SISBAJUD]  Timeout aguardando a URL /minuta')
-        except Exception:
-            pass
-
-        if not url_ready:
-            logger.info('[SISBAJUD]  Timeout aguardando a URL https://sisbajud.cnj.jus.br/minuta após login')
-            return None
-
-        # Após detectar a URL específica, aguardar 2 segundos
-        logger.info('[SISBAJUD]  URL /minuta confirmada, aguardando renderização...')
-        try:
-            WebDriverWait(driver, 5).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
+            WebDriverWait(driver, 15).until(
+                lambda d: any(h in (d.current_url or '').lower() for h in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br'])
+                and not any(ind in (d.current_url or '').lower() for ind in ['login', 'auth', 'realms', 'sso.cloud'])
             )
         except Exception:
             pass
@@ -660,7 +641,15 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
         except Exception as e:
             logger.info(f'[SISBAJUD]  Não foi possível maximizar a janela: {e}')
 
-        logger.info('[SISBAJUD]  Sessão SISBAJUD inicializada com sucesso - login realizado, aguardando próxima ação')
+        # Detectar e dispensar dialog de ordens pendentes clicando em "Não"
+        logger.info('[SISBAJUD] Verificando e dispensando dialog inicial (ordens pendentes)...')
+        try:
+            from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
+            dispensar_dialog_ordem_pendente(driver, log=True, timeout=8.0)
+        except Exception as e_dlg:
+            logger.debug(f'[SISBAJUD] Erro ao verificar dialog: {e_dlg}')
+
+        logger.info('[SISBAJUD]  Sessão SISBAJUD inicializada com sucesso - login realizado e pronto para execução')
         return driver
 # exceção externa para toda inicialização
     except Exception as e:
@@ -770,6 +759,12 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
             logger.info(f'[SISBAJUD]  Valor encontrado: {valor} - prosseguindo com minuta')
 
         # 1. Clicar em "Nova Minuta" para iniciar criação de minuta
+        try:
+            from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
+            dispensar_dialog_ordem_pendente(driver, log=log, timeout=1.0)
+        except Exception:
+            pass
+
         logger.info('[SISBAJUD] Clicando em "Nova Minuta" para iniciar criação...')
         script_nova_minuta = """
         var botaoNova = document.querySelector('button.mat-fab.mat-primary .fa-plus');
@@ -1909,6 +1904,12 @@ def _clicar_nova_minuta(driver, log=True):
     """
     Helper interno: clica no botão 'Nova Minuta' e aguarda o formulário carregar.
     """
+    try:
+        from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
+        dispensar_dialog_ordem_pendente(driver, log=log, timeout=1.0)
+    except Exception:
+        pass
+
     script_nova_minuta = """
     var botaoNova = document.querySelector('button.mat-fab.mat-primary .fa-plus');
     if (!botaoNova) {

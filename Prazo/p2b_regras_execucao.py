@@ -387,13 +387,14 @@ def gerar_regex_geral(termo: str) -> re.Pattern:
     termo_norm = normalizar_texto(termo)
     palavras = termo_norm.split()
 
-    # Monta regex permitindo pontuação entre palavras
+    # Monta regex permitindo pontuação/espaços entre palavras
+    # (sem \w: impedir que o trecho case com palavras interpostas no texto)
     partes = [re.escape(p) for p in palavras]
     regex = r''
     for i, parte in enumerate(partes):
         regex += parte
         if i < len(partes) - 1:
-            regex += r'[\s\w\.,;:!\-–—()$]*'
+            regex += r'[\s\.,;:!\-–—()$]*'
 
     # Permite o trecho em qualquer lugar do texto
     return re.compile(rf"{regex}", re.IGNORECASE)

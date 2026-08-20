@@ -3,6 +3,7 @@ from selenium.webdriver.common.by import By
 from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
 from Fix.selenium_base.click_operations import aguardar_e_clicar
 from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
+from Fix.browser_suporte import click_headless_safe
 from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
 from Fix.log import log_start, log_fim
 
@@ -457,18 +458,12 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
     # --- 1. Salvar — seletor canônico do gigs-plugin.js ---
     # JS: await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]')
     # Botão só existe no DOM quando a tabela está pronta (destinatários já confirmados) — teto curto.
-    btn_salvar = esperar_elemento(driver, 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]', timeout=6, by=By.CSS_SELECTOR)
-    if not btn_salvar:
-        log('[COMUNICACAO][ERRO] Botão Salvar não encontrado!')
+    _SEL_SALVAR = 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]'
+    if not click_headless_safe(driver, _SEL_SALVAR, timeout=8):
+        log('[COMUNICACAO][ERRO] Botão Salvar não encontrado/habilitado!')
         log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'btn_salvar_nao_encontrado'})
         return False
-
-    try:
-        safe_click_no_scroll(driver, btn_salvar)
-        log('[COMUNICACAO] Clique no botão Salvar realizado.')
-    except Exception as e:
-        log(f'[COMUNICACAO][ERRO] Não foi possível clicar no botão Salvar: {e}')
-        raise NavegacaoError(f'clicar_botao_salvar: {e}')
+    log('[COMUNICACAO] Clique no botão Salvar realizado.')
 
     # --- 2. Checar snackbar de endereço inválido (único erro relevante pós-salvar) ---
     try:
@@ -487,9 +482,8 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         'pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],'
         'pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]'
     )
-    # Idem: botão Assinar só existe após o backend confeccionar o(s) ato(s) — teto reduzido.
-    btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=12, by=By.CSS_SELECTOR)
-    if not btn_finalizar:
+    # Botão Assinar só fica habilitado após o backend confeccionar o(s) ato(s) — aguardar habilitado (não só presente).
+    if not aguardar_renderizacao_nativa(driver, _SEL_ASSINAR, modo='habilitado', timeout=12):
         log('[COMUNICACAO][ERRO] Botão Assinar não habilitou em 12s.')
         log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'assinar_nao_habilitou_12s'})
         return False
@@ -519,13 +513,9 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         except Exception:
             log('[COMUNICACAO][DEBUG] reinjetar_antes_assinatura não disponível (1a assinatura)')
 
-        if not btn_finalizar:
-            log('[COMUNICACAO][ERRO] Botão Assinar não encontrado — não é possível assinar.')
-            log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'btn_finalizar_none_antes_assinar'})
-            raise NavegacaoError('assinar_atos: btn_finalizar é None')
         try:
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_finalizar)
-            safe_click_no_scroll(driver, btn_finalizar)
+            if not click_headless_safe(driver, _SEL_ASSINAR, timeout=8):
+                raise Exception('clique em Assinar ato(s) não efetivado')
             log('[COMUNICACAO] Botão Assinar ato(s) clicado.')
         except Exception as e:
             log(f'[COMUNICACAO][ERRO] Falha ao clicar em Assinar ato(s): {e}')

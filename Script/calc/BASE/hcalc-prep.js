@@ -340,12 +340,10 @@
             lib = window.pdfjsLib;
         }
         if (!lib) throw new Error('pdf.js nao disponivel');
-        try {
-            lib.GlobalWorkerOptions.workerSrc = location.origin + '/pjekz/assets/pdf/build/pdf.worker.js';
-        } catch (_) {
-            lib.GlobalWorkerOptions.workerSrc =
-                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-        }
+        // Worker sempre na MESMA versão da API (2.16.105). O worker do PJe
+        // (/pjekz/assets/pdf/build/pdf.worker.js) é 2.9.359 → mismatch de versão.
+        lib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
         const pages = [];
         for (let p = 1; p <= pdf.numPages; p++) {

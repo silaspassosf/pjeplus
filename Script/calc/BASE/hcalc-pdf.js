@@ -359,33 +359,13 @@
                 console.log('[HCalc] Qualidade insuficiente (' + qualidade.percentual + '%) — iniciando fallback OCR. Faltando:', qualidade.faltando.join(', '));
                 try {
                     if (window.Tesseract) {
-                        console.log('[HCalc] Tesseract disponível. Criando worker OCR...');
-
-                        // Timeout de 45s para evitar trava no download do modelo
-                        let worker;
-                        const workerPromise = window.Tesseract.createWorker('por', 1, {
-                            workerPath: 'https://unpkg.com/tesseract.js@4.1.1/dist/worker.min.js',
-                            corePath: 'https://unpkg.com/tesseract.js-core@4.0.3/tesseract-core.wasm.js',
-                            langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@4/tessdata',
-                            logger: function (m) { console.log('[Tesseract]', m.status, Math.round((m.progress || 0) * 100) + '%'); }
-                        });
-                        const timeoutPromise = new Promise((_, reject) =>
-                            setTimeout(() => reject(new Error('Tesseract timeout: download do modelo excedeu 45s')), 45000)
-                        );
-                        try {
-                            console.log('[HCalc] Aguardando download do modelo OCR (por.traineddata)...');
-                            worker = await Promise.race([workerPromise, timeoutPromise]);
-                            console.log('[HCalc] Worker OCR pronto!');
-                        } catch (initErr) {
-                            throw initErr;
-                        }
-
+                        console.log('[HCalc] Tesseract v5 disponível. Iniciando OCR página a página...');
                         const ocrPages = [];
-                        // Renderizar e fazer OCR iterando paginas
+
                         for (let p2 = 1; p2 <= pdf.numPages; p2++) {
                             try {
+                                console.log('[HCalc] OCR página', p2, 'de', pdf.numPages);
                                 const page2 = await pdf.getPage(p2);
-                                // Scale 1.5 é o sweet spot entre qualidade e performance de memória p/ OCR em navegador
                                 const viewport = page2.getViewport({ scale: 1.5 });
                                 const canvas = document.createElement('canvas');
                                 canvas.width = Math.floor(viewport.width);
@@ -393,14 +373,30 @@
                                 const ctx = canvas.getContext('2d');
                                 await page2.render({ canvasContext: ctx, viewport: viewport }).promise;
                                 const dataUrl = canvas.toDataURL('image/png');
-                                const res = await worker.recognize(dataUrl);
+
+                                // Tesseract.js v5: API simples sem gerenciar worker manualmente
+                                const recPromise = window.Tesseract.recognize(dataUrl, 'por', {
+                                    langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@4/tessdata',
+                                    workerBlobURL: false,
+                                    logger: function (m) {
+                                        if (m.status === 'recognizing text') {
+                                            console.log('[Tesseract] pág', p2, Math.round((m.progress || 0) * 100) + '%');
+                                        } else {
+                                            console.log('[Tesseract]', m.status);
+                                        }
+                                    }
+                                });
+                                const timeoutPromise = new Promise((_, reject) =>
+                                    setTimeout(() => reject(new Error('timeout OCR pág ' + p2)), 60000)
+                                );
+                                const res = await Promise.race([recPromise, timeoutPromise]);
                                 const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
                                 if (txt) ocrPages.push(txt);
+                                console.log('[HCalc] OCR pág', p2, 'concluído:', txt.length, 'chars');
                             } catch (e) {
                                 console.warn('[HCalc] OCR página ' + p2 + ' falhou:', e && e.message);
                             }
                         }
-                        await worker.terminate();
                         const ocrTexto = ocrPages.join(' ');
                         if (ocrTexto && ocrTexto.length > 50) {
                             // Re-executar extrações a partir do texto OCR

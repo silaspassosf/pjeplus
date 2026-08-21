@@ -187,9 +187,9 @@
             const regexVerbas = /VERBAS\s+([\d.,]+)/i;
             const regexFGTS = /VERBAS\s+[\d.,]+\s+FGTS\s+([\d.,]+)/i;
             const regexDepositoFGTS = /DEP[OÓ]SITO FGTS\s*[\.,]?\s*([\d\.,]+)/i;
-            const regexINSSTotal = /CONTRIBUIÇÃO SOCIAL SOBRE SALÁRIOS DEVIDOS\s+([\d.,]+)/i;
-            const regexINSSAutor = /DEDUÇÃO DE CONTRIBUIÇÃO SOCIAL\s+(?:\(\s*)?([\d.,]+)(?:\s*\))?/i;
-            const regexCustas = /CUSTAS JUDICIAIS DEVIDAS PELO RECLAMADO\s+([\d.,]+)/i;
+            const regexINSSTotal = /SAL[AÁ]RIOS\s+DEVIDOS[\s|]*([\d.,]+)/i;
+            const regexINSSAutor = /DEDU[ÇC][ÃA]O[\s\S]{0,50}?[\s|]*(?:\(\s*)?([\d.,]+)(?:\s*\))?/i;
+            const regexCustas = /CUSTAS[\s\S]{0,40}?[\s|]*([\d.,]+)/i;
             // Data: aceitar em dash (—), en dash (–) e hifem entre o label e o valor
             const regexData = /Data\s+Liquida[\u00e7c][\u00e3a]o\s*[:\-\u2014\u2013]?\s*[\u2014\u2013\-]?\s*(\d{2}\/\d{2}\/\d{4})/i;
             // Fallback: data no rodapé "Cálculo liquidado ... em DD/MM/YYYY"
@@ -262,7 +262,7 @@
                 return '';
             }
             const regexPeriodo = /(\d{2}[\/]?\d{2}[\/]?\d{4})\s+a\s+(\d{2}[\/]?\d{2}[\/]?\d{4})/;
-            const regexIRPF = /IRPF\s+DEVIDO\s+PELO\s+RECLAMANTE\s+([\d.,]+)/i;
+            const regexIRPF = /IRPF[\s\S]{0,60}?[\s|]*([\d.,]+)/i;
 
             // Extração
             const verbas = (textoCompleto.match(regexVerbas) || [])[1] || "";

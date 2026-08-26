@@ -541,48 +541,64 @@ async function onCheckRowClick(doc) {
 }
 
 // Abre o painel nativo de seleção de documentos e marca CNIB + Serasa de pesquisas
+// (restaurado da v0.1.68: re-resolve o DOM pós-render pelo UID estável no href
+//  dos links de anexo e re-lê a timeline para capturar os nós já re-renderizados)
 window.autoSelecionarPesquisaCheck = async function (docs) {
-    if (!docs || !docs.length) return;
+    // 0) Se os docs vieram frios (antes do re-render), re-lê a timeline para
+    //    capturar os elementos DOM já existentes no modo de seleção.
+    let lista = docs;
+    if (!lista || !lista.length) {
+        try { lista = await lerTimelineCompleta(); } catch (e) { lista = []; }
+    }
+    if (!lista || !lista.length) return;
 
     // 1) Identificar pares pelas APIs (não DOM)
     const pares = [];
-    const pais = docs.filter(d => !d.isAnexo && /pesquisa|certid[aã]o|oficial de justi[cç]a/i.test(d.tipo || d.texto || ''));
+    const pais = lista.filter(d => !d.isAnexo && /pesquisa|certid[aã]o|oficial de justi[cç]a/i.test(d.tipo || d.texto || ''));
     for (const pai of pais) {
-        const anexos = docs.filter(d => d.isAnexo && d.parentId === pai.id);
+        const anexos = lista.filter(d => d.isAnexo && d.parentId === pai.id);
         const temCnib = anexos.some(a => a.tipo === 'CNIB');
         const temSerasa = anexos.some(a => a.tipo === 'Serasa');
         if (temCnib && temSerasa) {
             pares.push({ pai, anexos: anexos.filter(a => a.tipo === 'CNIB' || a.tipo === 'Serasa') });
         }
     }
-    
-    if (!pares.length) return; // Se não tem par, não entra na seleção nativa
+
+    if (!pares.length) {
+        showToast('Nenhuma pesquisa com par CNIB + Serasa encontrada', '#6c757d', 3000);
+        return;
+    }
 
     // 2) Entrar no modo de seleção múltipla da SPA
     const icone = document.querySelector('i.icone-sozinho.fa-check-square, i.far.fa-check-square, .fa-check-square');
-    if (!icone) return;
+    if (!icone) {
+        showToast('Ícone de check-square não encontrado', '#dc3545', 3000);
+        return;
+    }
     const btnCheck = icone.closest('button') || icone;
     btnCheck.click();
     console.log('[AutoCheck] Entrou no modo seleção múltipla. Aguardando SPA...');
-    
+
     // Aguardar checkboxes aparecerem (indicador de que o Angular recriou a lista)
-    await sleep(2000); 
+    await sleep(2000);
 
     // Helper text-match para encontrar itens na nova view
     const nTexto = t => window.norm(t);
 
-    // 3) Expandir e marcar trabalhando no DOM re-renderizado
+    // 3) Expandir e marcar trabalhando no DOM re-renderizado.
+    //    Resolve o anexo primeiro pelo UID estável no href do link (o mesmo
+    //    critério da versão que funcionava) e só então pelo tipo/texto.
     let marcados = 0;
     for (const { pai, anexos } of pares) {
         // Encontrar container do Pai pelo uid ou titulo
         const elemUID = encontrarElementoPorUid(pai.id);
         const alvoBusca = pai.texto || '';
-        
+
         let containerPai = elemUID;
         if (!containerPai) {
-            // Tentar localizar pelo titulo
-            const listItems = Array.from(document.querySelectorAll('li.tl-item-container, .documento-item'));
-            containerPai = listItems.find(el => nTexto(el.textContent).includes(nTexto(alvoBusca).substring(0,25)));
+            // Tentar localizar pelo titulo (fallback texto, evita usar UID de outro re-render)
+            const listItems = Array.from(document.querySelectorAll('li.tl-item-container, .documento-item, pje-timeline-item, .tl-item'));
+            containerPai = listItems.find(el => nTexto(el.textContent).includes(nTexto(alvoBusca).substring(0, 25)));
         }
 
         if (!containerPai) {
@@ -591,41 +607,52 @@ window.autoSelecionarPesquisaCheck = async function (docs) {
         }
 
         // Expandir anexos clicando no botão toggle no novo DOM
-        const toggle = containerPai.querySelector('button.botao-anexos, mat-icon[svgicon*="expand"]');
-        if (toggle && !containerPai.querySelector('.tl-item-anexo')) {
+        const toggle = containerPai.querySelector('button.botao-anexos, mat-icon[svgicon*="expand"], div[name="mostrarOuOcultarAnexos"]');
+        if (toggle && !containerPai.querySelector('.tl-item-anexo, .anexo, a.tl-documento[id^="anexo_"]')) {
             toggle.click();
             await sleep(800);
         }
 
-        // Selecionar os Checkboxes dos anexos
-        const labelsAnexos = Array.from(containerPai.querySelectorAll('.tl-item-anexo, .anexo, a.tl-documento[id^="anexo_"]'));
-        
+        // Selecionar os Checkboxes dos anexos — priorizar resolução por UID no href
         for (const anexo of anexos) {
+            const uidLower = String(anexo.id || '').toLowerCase();
             const ehCnib = anexo.tipo === 'CNIB';
-            const matcher = ehCnib ? /cnib|indisp/ : /serasa/;
-            
-            // Encontrar elemento do anexo
-            const anexoEl = labelsAnexos.find(el => {
+            const matcherTipo = ehCnib ? /cnib|indisp/ : /serasa/;
+
+            // Busca robusta: por UID no href/texto do link de anexo, senão por tipo
+            const anexoEls = Array.from(containerPai.querySelectorAll('.tl-item-anexo, .anexo, a.tl-documento[id^="anexo_"], li, tr'));
+            let anexoEl = uidLower
+                ? anexoEls.find(el => {
+                    const h = (el.getAttribute && (el.getAttribute('href') || '')) || '';
+                    const t = nTexto(el.textContent);
+                    return h.toLowerCase().includes(uidLower) || t.includes(uidLower);
+                  })
+                : null;
+            anexoEl = anexoEl || anexoEls.find(el => {
                 const t = nTexto(el.textContent);
-                return matcher.test(t);
+                return matcherTipo.test(t) &&
+                    (el.matches('a.tl-documento, .tl-item-anexo, .anexo') || el.querySelector && el.querySelector('a.tl-documento[id^="anexo_"]'));
             });
-            
-            if (anexoEl) {
-                const row = anexoEl.closest('li, tr, div') || anexoEl.parentElement;
-                // No modo seleção do PJe, os inputs as vezes re-utilizam tag, garantir o da row corrente
-                const cb = row.querySelector('input[type="checkbox"]');
-                if (cb && !cb.checked) {
-                    cb.scrollIntoView({ behavior: "smooth", block: "center" });
-                    cb.click();
-                    marcados++;
-                }
+
+            if (!anexoEl) {
+                console.warn('[AutoCheck] Link do anexo não encontrado:', anexo.id);
+                continue;
+            }
+
+            const row = anexoEl.closest('li, tr, div, .tl-item-anexo') || anexoEl.parentElement;
+            // No modo seleção do PJe, os inputs as vezes re-utilizam tag, garantir o da row corrente
+            const cb = row.querySelector('input[type="checkbox"]');
+            if (cb && !cb.checked) {
+                cb.scrollIntoView({ block: 'nearest' });
+                cb.click();
+                marcados++;
+            } else if (!cb) {
+                console.warn('[AutoCheck] Checkbox não encontrado para:', anexo.id);
             }
         }
     }
-    
-    if (marcados > 0) {
-        showToast(`AutoCheck: ${marcados} documento(s) marcado(s)`, '#28a745', 3000);
-    }
+
+    showToast(`AutoCheck: ${marcados} documento(s) marcado(s)`, marcados ? '#28a745' : '#dc3545', 3000);
 };
 
 window.executarCheck = async function () {

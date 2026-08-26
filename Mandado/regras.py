@@ -80,7 +80,7 @@ from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_
 from Fix.selenium_base import preencher_campo
 from Fix.extracao import salvar_destinatarios_cache
 from Fix.abas import validar_conexao_driver
-from Fix.extracao import criar_lembrete_posit
+from Fix.extracao import criar_gigs, criar_lembrete_posit
 from Prazo.p2b_core import checar_prox
 from .apoio_fluxos import (
     ato_judicial,
@@ -303,6 +303,19 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
 
         _persistir_destinatarios_idpj()
 
+        # Ordem obrigatória no fluxo IDPJ (GIGS xs carta atropelava a criação do
+        # lembrete de bloqueio quando executados juntos). Sequência fixa:
+        #   1) GIGS xs carta até o fim — criar_gigs aguarda "Atividade salva com sucesso"
+        #   2) lembrete de bloqueio até o fim — criar_lembrete_posit aguarda o diálogo fechar
+        #   3) só depois pec_idpj — com gigs_extra=False para NÃO recriar o GIGS
+        try:
+            if debug:
+                logger.info('[ARGOS][IDPJ] Passo 1/3: criando GIGS xs carta (aguarda salvar)')
+            criar_gigs(driver, 7, '', 'xs carta')
+        except Exception as e:
+            if debug:
+                logger.warning(f'[ARGOS][REGRAS][WARN] Falha ao criar GIGS xs carta: {e}')
+
         if resultado_sisbajud == 'positivo':
             if debug:
                 logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio')
@@ -318,8 +331,8 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
 
         try:
             if debug:
-                logger.info('[ARGOS][IDPJ] Executando pec_idpj (inclui GIGS xs carta via wrapper)')
-            pec_idpj(driver, debug=debug)
+                logger.info('[ARGOS][IDPJ] Passo 3/3: executando pec_idpj (GIGS xs carta já criado no passo 1)')
+            pec_idpj(driver, debug=debug, gigs_extra=False)
         except Exception as e:
             if debug:
                 logger.error(f'[ARGOS][REGRAS][ERRO] Falha ao executar pec_idpj: {e}')

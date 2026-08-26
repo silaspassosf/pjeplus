@@ -34,7 +34,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    from Fix.core import esperar_elemento, safe_click
+    from Fix.core import esperar_elemento, safe_click, preencher_campo
     
     def log_msg(msg):
         if debug:
@@ -255,12 +255,18 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             return False
 
         # ===== ETAPA 4: PREENCHER PRAZO EM MESES =====
+        # Usar Fix.core.preencher_campo: no motor Playwright resolve para a
+        # versão nativa (loc.fill() atômico + blur), que atualiza o
+        # FormControl do Angular e habilita o salvamento de forma
+        # determinística. O clear+send_keys crus não commitava o model.
         try:
             campo_prazo = WebDriverWait(driver, timeout).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "input[formcontrolname='mesesPrazoControl']"))
             )
-            campo_prazo.clear()
-            campo_prazo.send_keys(prazo_meses)
+            ok_prazo = preencher_campo(driver, "input[formcontrolname='mesesPrazoControl']", prazo_meses)
+            if ok_prazo is not None and not ok_prazo:
+                log_msg(' Falha ao preencher prazo via preencher_campo')
+                return False
             log_msg(f" Prazo {prazo_meses} meses preenchido no campo")
             espera.assentar(driver, 0.5)
         except Exception as e:

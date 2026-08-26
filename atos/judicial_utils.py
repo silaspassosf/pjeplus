@@ -33,14 +33,32 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
         # Se apenas_primeiro, clicar no botão "Selecionar polo ativo"
         if apenas_primeiro:
             try:
-                if not espera.ate_habilitar(driver, '#selecionar-polo-ativo', teto=10):
-                    raise Exception('#selecionar-polo-ativo não habilitou')
+                if not espera.ate_habilitar(driver, '#selecionar-polo-ativo', teto=15):
+                    logger.error('[PRAZOS] #selecionar-polo-ativo não habilitou — aborta antes de salvar')
+                    return False
                 btn_polo_ativo = driver.find_element(By.ID, 'selecionar-polo-ativo')
-                safe_click_no_scroll(driver, btn_polo_ativo, log=False)
+                # SEMPRE clicar em "polo ativo" quando apenas_primeiro: o botão seleciona
+                # SOMENTE o primeiro destinatário. Não há guarda de idempotência aqui —
+                # se a tabela abriu com destinatários já marcados, pular o clique
+                # deixaria todos selecionados (prazo aplicado a todos, não ao primeiro).
+                # Clique REAL (WebDriver/Playwright), não o dispatchEvent sintético
+                # do safe_click_no_scroll — o sintético não efetiva no mat-icon-button.
+                btn_polo_ativo.click()
+                espera.assentar(driver, 0.5)
+                # Confirma o efeito antes de seguir — garantia pré-salvamento.
+                marcado = espera.ate_js(
+                    driver,
+                    "__pjeEls('table.t-class tbody tr.ng-star-inserted input[type=checkbox]').some(el => el.checked)",
+                    teto=5,
+                )
+                if not marcado:
+                    logger.error('[PRAZOS] Polo ativo NÃO confirmado após o clique — aborta antes de salvar')
+                    return False
                 logger.info('[PRAZOS] Polo ativo selecionado - apenas primeiro destinatário marcado')
                 espera.assentar(driver, 0.5)
             except Exception as e:
-                logger.warning(f'[PRAZOS] Não foi possível clicar em polo ativo: {e}')
+                logger.error(f'[PRAZOS] Não foi possível clicar em polo ativo: {e}')
+                return False
         else:
             # Selecionar todos e filtrar apenas "Diário" (excluir "Domicílio Eletrônico")
             try:
@@ -80,16 +98,34 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             except Exception as e:
                 logger.warning(f'[PRAZOS] Erro ao filtrar destinatários: {e}')
 
-        # Preenche todos os campos de prazo visíveis nas linhas selecionadas
+        # Preenche os campos de prazo APENAS nas linhas selecionadas (checkbox marcado)
         try:
-            inputs_prazo = driver.find_elements(By.CSS_SELECTOR, 'mat-form-field.prazo input[type="text"].mat-input-element')
-            
+            linhas = driver.find_elements(By.CSS_SELECTOR, 'table.t-class tbody tr.ng-star-inserted')
+            inputs_prazo = []
+            for tr in linhas:
+                try:
+                    checkbox = tr.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Intimar parte"]')
+                    marcado_linha = (
+                        checkbox.get_attribute('aria-checked') == 'true'
+                        or checkbox.is_selected()
+                    )
+                    if not marcado_linha:
+                        continue
+                    input_prazo = tr.find_element(
+                        By.CSS_SELECTOR,
+                        'mat-form-field.prazo input[type="text"].mat-input-element',
+                    )
+                    inputs_prazo.append(input_prazo)
+                except Exception:
+                    # Linha sem checkbox de intimar ou sem campo de prazo — não selecionável
+                    continue
+
             if not inputs_prazo:
-                logger.warning('[PRAZOS] Nenhum campo de prazo encontrado')
+                logger.warning('[PRAZOS] Nenhum campo de prazo na linha selecionada')
                 return False
-            
+
             logger.info(f'[PRAZOS] Encontrados {len(inputs_prazo)} campos de prazo')
-            
+
             for i, input_elem in enumerate(inputs_prazo):
                 try:
                     input_elem.clear()
@@ -98,9 +134,9 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
                 except Exception as e:
                     logger.warning(f'[PRAZOS] Erro ao preencher campo {i+1}: {e}')
                     continue
-            
+
             espera.assentar(driver, 0.3)
-            
+
         except Exception as e:
             logger.warning(f'[PRAZOS] Erro ao preencher campos de prazo: {e}')
             return False

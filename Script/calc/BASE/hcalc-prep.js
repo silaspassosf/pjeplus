@@ -667,6 +667,46 @@
     }
 
     // ==========================================
+    // EXTRACAO DE PERITO CONTABIL POR PLANILHA JUNTADA
+    // ==========================================
+
+    const _PERITO_CONTABIL_NOME = 'ROGERIO APARECIDO ROSA';
+
+    async function _detectarPeritoContabilPlanilha(items) {
+        // O perito contábil nem sempre aparece na busca de partes. Detecção extra:
+        // a planilha juntada é assinada eletronicamente pelo perito — se o texto do
+        // documento contém "eletronicamente por ROGERIO APARECIDO ROSA", trata-se do
+        // perito contábil (mesmo efeito de perito detectado no prep).
+        const candidatos = [];
+        for (const item of items || []) {
+            if (/planilha|calculo/.test(_normalize(item.titulo || '')) && item.idDoc) {
+                candidatos.push({ idDoc: item.idDoc, titulo: item.titulo });
+            }
+            for (const anexo of (item.anexos || [])) {
+                if (/planilha|calculo/.test(_normalize(anexo.titulo || '')) && anexo.idDoc) {
+                    candidatos.push({ idDoc: anexo.idDoc, titulo: anexo.titulo });
+                }
+            }
+        }
+        for (const cand of candidatos) {
+            try {
+                const r = await _fetchDocHtml(cand.idDoc);
+                if (!r.texto) continue;
+                const textoNorm = _normalize(r.texto);
+                const assinadoRogerio =
+                    textoNorm.includes('eletronicamente por rogerio aparecido rosa') ||
+                    textoNorm.includes('rogerio aparecido rosa');
+                if (assinadoRogerio) {
+                    return { nome: _PERITO_CONTABIL_NOME, idDoc: cand.idDoc };
+                }
+            } catch (e) {
+                warn('[prep] Planilha idDoc=' + cand.idDoc + ' falhou:', e.message);
+            }
+        }
+        return null;
+    }
+
+    // ==========================================
     // DETECCAO DE PARTES EM EDITAL
     // ==========================================
 
@@ -1038,6 +1078,40 @@
             let peritosComAjJt = [];
             if (Array.isArray(peritosConhecimento) && peritosConhecimento.length > 0) {
                 peritosComAjJt = await _lerPeritosAjJt(honAjJt, peritosConhecimento);
+            }
+
+            // 5.1 Perito contábil por PLANILHA JUNTADA (detecção extra quando o perito
+            // não aparece na busca de partes): se a planilha foi assinada eletronicamente
+            // por ROGERIO APARECIDO ROSA, trata-se do perito contábil — mesmo efeito de
+            // perito detectado no prep (peritosComAjJt + hcalcPeritosDetectados).
+            try {
+                const peritoContabil = await _detectarPeritoContabilPlanilha(items);
+                if (peritoContabil) {
+                    const jaPresente = peritosComAjJt.some(function(p) { return p.nome === peritoContabil.nome; });
+                    if (!jaPresente) {
+                        peritosComAjJt.push({
+                            nome: peritoContabil.nome,
+                            trt: true,
+                            idAjJt: peritoContabil.idDoc,
+                            origem: 'planilha_juntada',
+                        });
+                    }
+                    // Garante o efeito de perito contábil no overlay (isNomeRogerio)
+                    const detectados = Array.isArray(window.hcalcPeritosDetectados)
+                        ? window.hcalcPeritosDetectados.slice()
+                        : [];
+                    if (!detectados.some(function(n) { return /rogerio/i.test(n || ''); })) {
+                        detectados.unshift(peritoContabil.nome);
+                        window.hcalcPeritosDetectados = detectados;
+                    }
+                    if (typeof window.hcalcAplicarRegrasPeritosDetectados === 'function') {
+                        try { window.hcalcAplicarRegrasPeritosDetectados(window.hcalcPeritosDetectados); }
+                        catch (e2) { warn('[prep] reaplicar regras peritos falhou:', e2.message); }
+                    }
+                    dbg('[prep] Perito contábil detectado via planilha juntada:', peritoContabil.nome);
+                }
+            } catch (e) {
+                warn('[prep] Falha na detecção de perito contábil por planilha:', e.message);
             }
 
             // 6. Depositos - resolver parte via pipeline advogado, filtrar polo passivo com anexos

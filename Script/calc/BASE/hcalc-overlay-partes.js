@@ -84,6 +84,10 @@
             }
         }
 
+        // Expor globalmente para que o prep (hcalc-prep.js) possa reaplicar as regras
+        // de peritos quando detectar o perito contábil via planilha juntada.
+        window.hcalcAplicarRegrasPeritosDetectados = aplicarRegrasPeritosDetectados;
+
         function construirSecaoIntimacoes() {
             const container = $('lista-intimacoes-container');
             if (!container) return;

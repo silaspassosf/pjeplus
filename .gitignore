@@ -65,11 +65,9 @@ PEC/clipboard.txt
 context_dump.md
 .gist_id
 setup_credenciais.py
-.aider*
 
 # Arquivos com credenciais locais
 00modelos.ps1
 .claude/Modelos.ps1
 cache/assinatura_cookies.json
-aider-env/
 Aud1/

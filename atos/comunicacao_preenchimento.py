@@ -199,18 +199,41 @@ def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
 
 def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
     """Aguarda confirmação pós-'Finalizar minuta'.
-    Snackbar 'Ato elaborado com sucesso' = confirmação definitiva → return True imediato.
-    Sem snackbar: fallback para dialog sumir / ícone verde.
+
+    Barreira de sincronização (restaurada do legado): a snackbar "Ato elaborado
+    com sucesso" pode aparecer ANTES de o backend terminar de montar/popular a
+    tabela de destinatários do ato agrupado. Por isso, mesmo com a snackbar,
+    aguarda-se em ordem:
+    1. Dialog 'Elaboração do ato de comunicação' (pje-pec-dialogo-ato) SUMIR.
+    2. Ícone verde 'Ato confeccionado' (i.pec-icone-verde-ato-agrupado) APARECER.
+
+    Esse ícone é a única confirmação real de que o ato agrupado foi totalmente
+    processado e a tabela de destinatários está populada. Retorna True só quando
+    ele aparece; False em timeout.
     """
     if log is None:
         def log(_msg): return None
 
-    # Snackbar já presente ou aparece em até 5s (teto do WebDriverWait original)
+    # Snackbar rápida pode aparecer primeiro — apenas sinaliza, não é o ponto final.
     snackbar_ok = espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=5)
-
     if snackbar_ok:
-        log('[MINUTA] Snackbar "Ato elaborado com sucesso" detectada — prosseguindo imediatamente')
-        return True  # Snackbar = confirmação. Ponto final.
+        log('[MINUTA] Snackbar "Ato elaborado com sucesso" detectada — aguardando barreira de renderização')
+
+    # 1. Aguardar dialog de elaboração sumir (enquanto presente nada pode interagir).
+    ok_fechar = aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', 'sumir', timeout_fechar)
+    if ok_fechar:
+        log('[MINUTA] Dialog elaboracao fechado (observer)')
+    else:
+        log('[MINUTA][WARN] Timeout aguardando dialog fechar — prosseguindo mesmo assim')
+
+    # 2. Aguardar ícone verde de ato agrupado — confirmação real de tabela populada.
+    ok_icone = aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', timeout_icone)
+    if ok_icone:
+        log('[MINUTA] Icone verde de ato confeccionado detectado')
+    else:
+        log('[MINUTA][WARN] Icone verde nao detectado dentro do timeout')
+
+    return ok_icone
 
 
 def finalizar_minuta(driver: WebDriver, log=None) -> bool:

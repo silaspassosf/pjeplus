@@ -430,6 +430,19 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
             for ch in str(cpf):
                 username_field.send_keys(ch)
                 time.sleep(0.07)
+            # Validar que o formulario registrou o texto (React/Keycloak).
+            # Se o campo subir vazio, o submit nao autentica e o login estoura timeout.
+            try:
+                _valor_cpf = (username_field.get_attribute('value') or '')
+                _dig_campo = ''.join(c for c in _valor_cpf if c.isdigit())
+                _dig_alvo = ''.join(c for c in str(cpf) if c.isdigit())
+                if _dig_campo != _dig_alvo:
+                    logger.warning('[LOGIN_CPF] CPF nao registrado (valor=%r). Redigitando de uma vez...', _valor_cpf[:5])
+                    username_field.click()
+                    username_field.clear()
+                    username_field.send_keys(str(cpf))
+            except Exception:
+                pass
             logger.debug('[LOGIN_CPF] CPF digitado')
         except Exception as e:
             logger.error("ERRO em login_cpf: Nao foi possivel preencher CPF: %s", e)
@@ -442,6 +455,16 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
             for ch in str(senha):
                 password_field.send_keys(ch)
                 time.sleep(0.07)
+            # Validar que a senha foi registrada (mesmo caso do CPF).
+            try:
+                _valor_senha = (password_field.get_attribute('value') or '')
+                if _valor_senha != str(senha):
+                    logger.warning('[LOGIN_CPF] Senha nao registrada (len=%d). Redigitando de uma vez...', len(_valor_senha))
+                    password_field.click()
+                    password_field.clear()
+                    password_field.send_keys(str(senha))
+            except Exception:
+                pass
             logger.debug('[LOGIN_CPF] Senha digitada')
         except Exception as e:
             logger.error("ERRO em login_cpf: Nao foi possivel preencher senha: %s", e)
@@ -461,10 +484,14 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
             timeout = 120  # MFA manual pode levar mais tempo
             inicio = time.time()
             _nova_tela_validar_clicada = False
+            _ultimo_log_url = inicio
+            cur = ''
             while time.time() - inicio < timeout:
                 try:
                     cur = driver.current_url.lower()
-                    if 'pjekz' in cur or 'sisbajud' in cur or not any(k in cur for k in ['login', 'auth', 'realms']):
+                    if ('pjekz' in cur or 'sisbajud' in cur
+                            or not any(k in cur for k in ['login', 'auth', 'realms'])
+                            or ('pje.trt2.jus.br' in cur and 'login.seam' not in cur and 'acesso-negado' not in cur)):
                         logger.debug('[LOGIN_CPF] Login detectado por mudanca de URL')
                         try:
                             if SALVAR_COOKIES_AUTOMATICO:
@@ -522,8 +549,24 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                             pass
                 except Exception:
                     pass
+                agora = time.time()
+                if agora - _ultimo_log_url >= 5:
+                    _ultimo_log_url = agora
+                    logger.info('[LOGIN_CPF] Aguardando redirect... URL atual: %s (%.0fs)', cur, agora - inicio)
                 espera.assentar(driver, 0.5)
-            logger.warning('[LOGIN_CPF] Timeout aguardando redirecionamento pos-login')
+            try:
+                _url_final = driver.current_url
+            except Exception:
+                _url_final = '<erro ao ler URL>'
+            logger.warning('[LOGIN_CPF] Timeout aguardando redirecionamento pos-login. URL final: %s', _url_final)
+            try:
+                from datetime import datetime as _dt
+                _cam = os.path.join(os.getcwd(), 'login_timeout_%s.png' % _dt.now().strftime('%Y%m%d_%H%M%S'))
+                with open(_cam, 'wb') as _f:
+                    _f.write(driver.get_screenshot_as_png())
+                logger.info('[LOGIN_CPF] Screenshot do timeout salvo em: %s', _cam)
+            except Exception:
+                pass
             return False
 
         # Se nao aguardamos, consideramos sucesso imediato

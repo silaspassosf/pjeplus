@@ -130,22 +130,25 @@ def make_comunicacao_wrapper(
             overrides.get('destinatarios') if 'destinatarios' in overrides else destinatarios
         )
 
-        # Se o wrapper foi configurado com gigs_extra, executá-lo ANTES do início do fluxo
-        if gigs_extra:
+        # Se o wrapper foi configurado com gigs_extra, executá-lo ANTES do início do fluxo.
+        # Override por chamada (gigs_extra=False) permite desativar a criação embutida —
+        # usado quando o chamador já criou o GIGS antes (ex.: fluxo IDPJ), evitando duplicar.
+        gigs_extra_efetivo = overrides.get('gigs_extra', gigs_extra)
+        if gigs_extra_efetivo:
             try:
-                if gigs_extra is True:
+                if gigs_extra_efetivo is True:
                     criar_gigs(driver, prazo, '', nome_comunicacao)
-                elif isinstance(gigs_extra, (tuple, list)):
-                    if len(gigs_extra) >= 3:
-                        dias_uteis, responsavel, observacao_gigs = gigs_extra[:3]
+                elif isinstance(gigs_extra_efetivo, (tuple, list)):
+                    if len(gigs_extra_efetivo) >= 3:
+                        dias_uteis, responsavel, observacao_gigs = gigs_extra_efetivo[:3]
                         criar_gigs(driver, dias_uteis, responsavel, observacao_gigs)
-                    elif len(gigs_extra) == 2:
-                        dias_uteis, observacao_gigs = gigs_extra
+                    elif len(gigs_extra_efetivo) == 2:
+                        dias_uteis, observacao_gigs = gigs_extra_efetivo
                         criar_gigs(driver, dias_uteis, '', observacao_gigs)
                     else:
-                        criar_gigs(driver, gigs_extra)
+                        criar_gigs(driver, gigs_extra_efetivo)
                 else:
-                    criar_gigs(driver, gigs_extra)
+                    criar_gigs(driver, gigs_extra_efetivo)
             except Exception as e:
                 try:
                     logger.info(f'[GIGS_WRAPPER][ERRO] Falha ao executar criar_gigs antes do fluxo: {e}')

@@ -38,17 +38,8 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 
 # Imports do projeto
-try:
-    from driver_config import criar_driver_sisb
-except Exception:
-    try:
-        from Fix.core import criar_driver_sisb_pc as criar_driver_sisb
-    except Exception:
-        criar_driver_sisb = None
-try:
-    from Fix.core import criar_driver_sisb_vt
-except Exception:
-    criar_driver_sisb_vt = None
+from Fix.driver_factory import criar_driver_sisb_pc as criar_driver_sisb  # referência canônica
+from Fix.driver_factory import criar_driver_sisb_vt  # referência canônica
 from . import helpers
 # Importar função diretamente do módulo de campos para evitar depender
 # do namespace `processamento` em tempo de execução.
@@ -291,8 +282,13 @@ def login_automatico_sisbajud(driver):
             username_field = driver.find_element(By.ID, "username")
             simular_movimento_humano(driver, username_field)
             username_field.click()
-            time.sleep(random.uniform(0.3, 0.7))
-            cpf = os.environ.get('BP_SISB', '')
+            from Fix.utils import obter_credencial
+            cpf = obter_credencial('SISB_CPF', aliases=('BP_SISB', 'PJE_USER', 'PJE_CPF'))
+            if not cpf:
+                raise RuntimeError(
+                    'Credencial SISB_CPF nao definida. '
+                    'Defina a variavel de ambiente SISB_CPF ou adicione no Gerenciador de Credenciais do Windows (keyring - servico "sisbajud" ou "pjeplus").'
+                )
             for i, char in enumerate(cpf):
                 # Simular erro de digitação (5% chance)
                 if random.random() < 0.05:
@@ -315,7 +311,13 @@ def login_automatico_sisbajud(driver):
             simular_movimento_humano(driver, password_field)
             password_field.click()
             time.sleep(random.uniform(0.3, 0.7))
-            senha = os.environ.get('BP_PASS', '')
+            from Fix.utils import obter_credencial
+            senha = obter_credencial('SISB_SENHA', aliases=('BP_PASS', 'PJE_SENHA', 'PJE_PASSWORD'))
+            if not senha:
+                raise RuntimeError(
+                    'Credencial SISB_SENHA nao definida. '
+                    'Defina a variavel de ambiente SISB_SENHA ou adicione no Gerenciador de Credenciais do Windows (keyring - servico "sisbajud" ou "pjeplus").'
+                )
             for i, char in enumerate(senha):
                 # Simular erro de digitação (5% chance)
                 if random.random() < 0.05:

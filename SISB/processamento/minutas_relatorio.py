@@ -107,11 +107,12 @@ def _protocolar_minuta(driver, log=True):
         campo_senha.click()
         espera.assentar(driver, 0.2)
 
-        senha = os.environ.get('SISB_SENHA')
+        from Fix.utils import obter_credencial
+        senha = obter_credencial('SISB_SENHA', aliases=('BP_PASS', 'PJE_SENHA', 'PJE_PASSWORD'))
         if not senha:
             raise RuntimeError(
                 'Credencial SISB_SENHA nao definida. '
-                'Defina a variavel de ambiente SISB_SENHA com a senha de acesso ao SISBAJUD.'
+                'Defina a variavel de ambiente SISB_SENHA ou adicione no Gerenciador de Credenciais do Windows (keyring - servico "sisbajud" ou "pjeplus").'
             )
         for char in senha:
             if random.random() < 0.05:

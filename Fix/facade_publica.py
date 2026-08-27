@@ -122,6 +122,7 @@ from .utils import (
     driver_pc,
     navegar_para_tela,
     normalizar_texto,
+    obter_credencial,
 )
 
 # =============================================================================

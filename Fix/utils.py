@@ -38,6 +38,57 @@ def normalizar_texto(txt: str) -> str:
     return remover_acentos(txt.lower())
 
 
+def obter_credencial(
+    nome: str,
+    servicos: tuple = ('pjeplus', 'sisbajud', 'SISB'),
+    aliases: tuple = ()
+) -> Optional[str]:
+    """
+    Obtém credencial com prioridade:
+    1. Variável de ambiente (ex: SISB_CPF, SISB_SENHA, etc.)
+    2. Gerenciador de Credenciais do Windows (via keyring):
+       - keyring.get_password(servico, nome) para cada servico ('pjeplus', 'sisbajud', 'SISB')
+       - keyring.get_password(nome, nome)
+       - keyring.get_password(nome, '')
+       - keyring.get_password(nome, os.environ.get('USERNAME', ''))
+    Retorna o valor como string ou None se não encontrado.
+    """
+    if not nome:
+        return None
+    nomes = (nome,) + tuple(aliases)
+
+    # 1. Variáveis de ambiente
+    for n in nomes:
+        for chave in (n, n.upper(), n.lower()):
+            val = os.environ.get(chave)
+            if val:
+                return str(val).strip()
+
+    # 2. Windows Credential Manager via keyring
+    try:
+        import keyring
+        for s in servicos:
+            for n in nomes:
+                for chave in (n, n.upper(), n.lower()):
+                    val = keyring.get_password(s, chave)
+                    if val:
+                        return str(val).strip()
+
+        for n in nomes:
+            for chave in (n, n.upper(), n.lower()):
+                for usuario in (chave, '', os.environ.get('USERNAME', '')):
+                    try:
+                        val = keyring.get_password(chave, usuario)
+                        if val:
+                            return str(val).strip()
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    return None
+
+
 def sleep_fixed(segundos=1):
     """Compatibilidade para pausas fixas ainda usadas por wrappers legados."""
     time.sleep(float(segundos))
@@ -378,23 +429,11 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
         import time
 
         if cpf is None:
-            cpf = os.environ.get('PJE_USER')
-            if not cpf:
-                try:
-                    import keyring
-                    cpf = keyring.get_password('pjeplus', 'PJE_USER')
-                except Exception:
-                    pass
+            cpf = obter_credencial('PJE_USER', aliases=('PJE_CPF', 'PJE_LOGIN', 'SISB_CPF', 'BP_SISB'))
         if senha is None:
-            senha = os.environ.get('PJE_SENHA')
-            if not senha:
-                try:
-                    import keyring
-                    senha = keyring.get_password('pjeplus', 'PJE_SENHA')
-                except Exception:
-                    pass
+            senha = obter_credencial('PJE_SENHA', aliases=('PJE_PASSWORD', 'PJE_PASS', 'SISB_SENHA', 'BP_PASS'))
         if not cpf or not senha:
-            logger.error('ERRO em login_cpf: Credenciais ausentes. Defina PJE_USER/PJE_SENHA como variavel de ambiente ou no keyring (servico "pjeplus").')
+            logger.error('ERRO em login_cpf: Credenciais ausentes. Defina PJE_USER/PJE_SENHA como variavel de ambiente ou no Gerenciador de Credenciais do Windows (keyring).')
             return False
 
         if not url_login:

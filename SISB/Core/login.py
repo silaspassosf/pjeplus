@@ -51,11 +51,12 @@ def login_automatico_sisbajud(driver):
             simular_movimento_humano(driver, username_field)
             username_field.click()
             time.sleep(random.uniform(0.3, 0.7))  # rate-limit: simulacao humana
-            cpf = os.environ.get('SISB_CPF')
+            from Fix.utils import obter_credencial
+            cpf = obter_credencial('SISB_CPF', aliases=('BP_SISB', 'PJE_USER', 'PJE_CPF'))
             if not cpf:
                 raise RuntimeError(
                     'Credencial SISB_CPF nao definida. '
-                    'Defina a variavel de ambiente SISB_CPF com o CPF de acesso ao SISBAJUD.'
+                    'Defina a variavel de ambiente SISB_CPF ou adicione no Gerenciador de Credenciais do Windows (keyring - servico "sisbajud" ou "pjeplus").'
                 )
             for char in cpf:
                 if random.random() < 0.05:
@@ -76,11 +77,11 @@ def login_automatico_sisbajud(driver):
             simular_movimento_humano(driver, password_field)
             password_field.click()
             time.sleep(random.uniform(0.3, 0.7))  # rate-limit: simulacao humana
-            senha = os.environ.get('SISB_SENHA')
+            senha = obter_credencial('SISB_SENHA', aliases=('BP_PASS', 'PJE_SENHA', 'PJE_PASSWORD'))
             if not senha:
                 raise RuntimeError(
                     'Credencial SISB_SENHA nao definida. '
-                    'Defina a variavel de ambiente SISB_SENHA com a senha de acesso ao SISBAJUD.'
+                    'Defina a variavel de ambiente SISB_SENHA ou adicione no Gerenciador de Credenciais do Windows (keyring - servico "sisbajud" ou "pjeplus").'
                 )
             for char in senha:
                 if random.random() < 0.05:

@@ -7,40 +7,40 @@
         [
             'Empresa: BANCO SANTANDER (BRASIL) S.A.',
             'Endereço: AVENIDA PRES JUSCELINO KUBITSCHEK , 2041 04543011',
-            'Sócio desta empresa: REGINALDO ANTONIO RIBEIRO (091.440.778-31)',
+            'Sócio desta empresa: REGINALDO ANTONIO RIBEIRO (000.000.001-00)',
             'Endereço: R TUIM 230 APTO 151 VILA UBERABINHA 04514100',
         ].join('\n'),
         [
             'Empresa: PETROBRAS DISTRIBUIDORA S.A.',
             'Endereço: RUA GENERAL CANABARRO 500 MARACANA 20270021',
-            'Sócio desta empresa: ANA PAULA FERREIRA SOUZA (234.567.890-12)',
+            'Sócio desta empresa: ANA PAULA FERREIRA SOUZA (000.000.002-00)',
             'Endereço: AV ATLANTICA 1800 APTO 304 COPACABANA 22021001',
         ].join('\n'),
         [
             'Empresa: MAGAZINE LUIZA S.A.',
             'Endereço: RUA VOLUNTARIOS DA PATRIA 1200 SANTANA 02402000',
-            'Sócio desta empresa: FREDERICO TRAJANO INÁCIO RODRIGUES (345.678.901-23)',
+            'Sócio desta empresa: FREDERICO TRAJANO INÁCIO RODRIGUES (000.000.003-00)',
             'Endereço: AL SANTOS 1234 CONJ 81 CERQUEIRA CESAR 01419100',
         ].join('\n'),
         [
             'Empresa: ITAU UNIBANCO S.A.',
             'Endereço: PRACA ALFREDO EGYDIO DE SOUZA ARANHA 100 JABAQUARA 04344902',
-            'Sócio desta empresa: CANDIDO BRACHER NETO (456.789.012-34)',
+            'Sócio desta empresa: CANDIDO BRACHER NETO (000.000.004-00)',
             'Endereço: R IGUATEMI 151 SALA 2801 ITAIM BIBI 01451011',
         ].join('\n'),
         [
             'Nome: MARCUS LORENTE',
-            'CPF: 184.839.448-98',
+            'CPF: 000.000.005-00',
             'Endereço: R FIACAO DA SAUDE 00104 AP1408 VILA DA SAUDE 04144020',
         ].join('\n'),
         [
             'Nome: FERNANDA CRISTINA OLIVEIRA',
-            'CPF: 567.890.123-45',
+            'CPF: 000.000.006-00',
             'Endereço: R BELA CINTRA 877 APTO 52 CONSOLACAO 01415001',
         ].join('\n'),
         [
             'Nome: ROBERTO CARLOS NEVES',
-            'CPF: 678.901.234-56',
+            'CPF: 000.000.007-00',
             'Endereço: AV BRIGADEIRO LUIZ ANTONIO 3142 AP 71 JARDIM PAULISTA 01402002',
         ].join('\n'),
     ];

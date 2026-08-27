@@ -52,6 +52,10 @@ log.py
 dadosatuais.json
 destinatarios_argos.json
 PEC/clipboard.txt
+# Artefatos SISBAJUD com dados de partes processuais (CPF/nomes de executados)
+**/sisbajud_conciso_ultimo.txt
+**/sisbajud_conciso*.txt
+
 
 # Large binaries
 *.exe

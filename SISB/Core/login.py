@@ -1,3 +1,4 @@
+import os
 import random
 import time
 import traceback
@@ -50,7 +51,12 @@ def login_automatico_sisbajud(driver):
             simular_movimento_humano(driver, username_field)
             username_field.click()
             time.sleep(random.uniform(0.3, 0.7))  # rate-limit: simulacao humana
-            cpf = "30069277885"
+            cpf = os.environ.get('SISB_CPF')
+            if not cpf:
+                raise RuntimeError(
+                    'Credencial SISB_CPF nao definida. '
+                    'Defina a variavel de ambiente SISB_CPF com o CPF de acesso ao SISBAJUD.'
+                )
             for char in cpf:
                 if random.random() < 0.05:
                     erro_char = str(random.randint(0, 9))
@@ -70,7 +76,12 @@ def login_automatico_sisbajud(driver):
             simular_movimento_humano(driver, password_field)
             password_field.click()
             time.sleep(random.uniform(0.3, 0.7))  # rate-limit: simulacao humana
-            senha = "Fl@quinho182"
+            senha = os.environ.get('SISB_SENHA')
+            if not senha:
+                raise RuntimeError(
+                    'Credencial SISB_SENHA nao definida. '
+                    'Defina a variavel de ambiente SISB_SENHA com a senha de acesso ao SISBAJUD.'
+                )
             for char in senha:
                 if random.random() < 0.05:
                     erro_char = chr(random.randint(33, 126))

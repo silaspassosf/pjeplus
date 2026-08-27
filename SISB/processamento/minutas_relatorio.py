@@ -1,4 +1,5 @@
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,12 @@ def _protocolar_minuta(driver, log=True):
         campo_senha.click()
         espera.assentar(driver, 0.2)
 
-        senha = "Fl@quinho182"
+        senha = os.environ.get('SISB_SENHA')
+        if not senha:
+            raise RuntimeError(
+                'Credencial SISB_SENHA nao definida. '
+                'Defina a variavel de ambiente SISB_SENHA com a senha de acesso ao SISBAJUD.'
+            )
         for char in senha:
             if random.random() < 0.05:
                 campo_senha.send_keys(chr(random.randint(33, 126)))

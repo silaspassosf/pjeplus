@@ -9,6 +9,7 @@
 (function () {
     const KEY = 'pjetools_argos_dados';
     const FLAG_CPF_KEY = 'pjetools_argos_tem_cpf';
+    const FINALIZAR_KEY = 'pjetools_argos_finalizar';
 
     // ── Primitivas (fallback caso core/utils.js não tenha carregado) ──────
     const sleep = window.sleep || (ms => new Promise(r => setTimeout(r, ms)));
@@ -354,34 +355,42 @@
         showToast('Argos: ' + marcados + ' executado(s) selecionado(s)', marcados ? '#28a745' : '#dc3545', 4000);
     }
 
-    // Marca um convênio na dialog "Convênios" localizando o mat-checkbox pelo
-    // texto do label (SISBAJUD, RENAJUD, CNIB, SERASAJUD, ARISP, INFOJUD e as
-    // sub-opções do INFOJUD: DIRPF, DECRED, DOI, DIMOB). Ordem importa: o
-    // INFOJUD deve ser marcado por último, pois revela as sub-opções.
-    async function _marcarConvenio(nome, timeout) {
+    // Marca um mat-checkbox por texto do label dentro de um escopo (seletor CSS).
+    // Usado nos convênios, na dialog de finalização e na dialog de visibilidade/sigilo.
+    async function _marcarCheckboxPorLabel(scopeSel, nome, timeout) {
         timeout = timeout || 10000;
         const alvo = normalize(nome);
         const inicio = Date.now();
         while (Date.now() - inicio < timeout) {
-            const cb = Array.from(document.querySelectorAll('app-escolher-convenios mat-checkbox, .convenios mat-checkbox'))
-                .find(function (el) {
-                    const lbl = el.querySelector('.mat-checkbox-label');
-                    const txt = normalize(lbl ? lbl.textContent : '');
-                    return txt.includes(alvo);
-                });
-            if (cb) {
-                const input = cb.querySelector('input[type="checkbox"]');
-                if (input) {
-                    if (input.checked) return true;
-                    try { input.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
-                    input.click();
-                    await sleep(250);
-                    return !!input.checked;
+            const escopo = document.querySelector(scopeSel);
+            if (escopo) {
+                const cb = Array.from(escopo.querySelectorAll('mat-checkbox'))
+                    .find(function (el) {
+                        const lbl = el.querySelector('.mat-checkbox-label');
+                        const txt = normalize(lbl ? lbl.textContent : '');
+                        return txt.includes(alvo);
+                    });
+                if (cb) {
+                    const input = cb.querySelector('input[type="checkbox"]');
+                    if (input) {
+                        if (input.checked) return true;
+                        try { input.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+                        input.click();
+                        await sleep(250);
+                        return !!input.checked;
+                    }
                 }
             }
             await sleep(150);
         }
         return false;
+    }
+
+    // Marca um convênio na dialog "Convênios" (SISBAJUD, RENAJUD, CNIB, SERASAJUD,
+    // ARISP, INFOJUD e sub-opções DIRPF, DECRED, DOI, DIMOB). Ordem importa: o
+    // INFOJUD deve ser marcado por último, pois revela as sub-opções.
+    async function _marcarConvenio(nome, timeout) {
+        return _marcarCheckboxPorLabel('app-escolher-convenios, .convenios', nome, timeout);
     }
 
     async function executarFluxoArgos(dados) {
@@ -513,6 +522,46 @@
         }
         showToast('Argos: ' + marcados + ' convênio(s) marcado(s)', marcados ? '#28a745' : '#dc3545', 4000);
         console.log('[Argos] fluxo de convênios concluído');
+
+        // 9. Aguardar clique manual em "Encaminhar ordem de pesquisa" e a dialog
+        //    "Finalizar expedição de ordem de pesquisa(s)"
+        console.log('[Argos] aguardando clique manual em "Encaminhar ordem de pesquisa"...');
+        showToast('Argos: clique em "Encaminhar ordem de pesquisa" para continuar', '#6f42c1', 6000);
+        const confirma = await waitElementVisible('app-confirmacao-criacao-ordem, .paragrafo-detalhamento', 60000);
+        if (!confirma) {
+            console.warn('[Argos] dialog de confirmação da ordem não abriu');
+            showToast('Argos: dialog de confirmação da ordem não abriu', '#dc3545', 5000);
+            return;
+        }
+        console.log('[Argos] dialog "Finalizar expedição de ordem de pesquisa(s)" aberta');
+        await sleep(500);
+
+        // 9.1 Marcar "Atribuir sigilo aos documentos juntados" (mat-checkbox-27 no probe)
+        const sigiloOk = await _marcarCheckboxPorLabel('app-confirmacao-criacao-ordem', 'Atribuir sigilo aos documentos juntados', 8000);
+        console.log('[Argos] "Atribuir sigilo aos documentos juntados" marcado?', sigiloOk);
+
+        // 9.2 Confirmar
+        if (!(await _clicarTexto('button', 'confirmar', 10000))) {
+            console.warn('[Argos] botão "Confirmar" não encontrado');
+            showToast('Argos: botão "Confirmar" não encontrado', '#dc3545', 5000);
+            return;
+        }
+        console.log('[Argos] "Confirmar" clicado');
+
+        // 9.3 Aguardar snackbar de sucesso e fechar
+        const snack = await _aguardarElementoPorTexto('simple-snack-bar', 'ordem de pesquisa(s) criada com sucesso', 20000);
+        if (snack) {
+            const fechar = snack.querySelector('.mat-simple-snackbar-action button, button');
+            if (fechar) fechar.click();
+            console.log('[Argos] snackbar de sucesso reconhecida — fechando');
+            await sleep(600);
+        } else {
+            console.warn('[Argos] snackbar de sucesso não apareceu');
+        }
+
+        // 9.4 Fechar a aba ARGOS (a finalização no /detalhe segue via window.closed)
+        console.log('[Argos] fluxo concluído — fechando aba ARGOS');
+        try { window.close(); } catch (e) { console.warn('[Argos] falha ao fechar aba:', e.message); }
     }
 
     // Prompt nativo para o usuário informar o valor da execução quando a API
@@ -529,6 +578,150 @@
             console.warn('[Argos] prompt indisponível:', e);
         }
         return null;
+    }
+
+    // Aguarda (sem clicar) um elemento cujo texto normalizado contém textoNorm
+    async function _aguardarElementoPorTexto(tag, textoNorm, timeout) {
+        timeout = timeout || 10000;
+        const alvo = normalize(textoNorm);
+        const inicio = Date.now();
+        while (Date.now() - inicio < timeout) {
+            const els = Array.from(document.querySelectorAll(tag));
+            const el = els.find(e => normalize(e.textContent).includes(alvo));
+            if (el) return el;
+            await sleep(150);
+        }
+        return null;
+    }
+
+    // Aguarda a aba ARGOS (aberta via window.open) ser fechada pelo fluxo
+    async function _aguardarAbaFechar(win, timeout) {
+        timeout = timeout || 15 * 60 * 1000;
+        const inicio = Date.now();
+        while (Date.now() - inicio < timeout) {
+            try {
+                if (!win || win.closed) return true;
+            } catch (e) { return true; }
+            await sleep(1000);
+        }
+        return false;
+    }
+
+    // Abre a dialog "Visibilidade de Sigilo de Documento" do documento mais recente
+    // (primeiro item da timeline, que é DESC) e retorna true se a dialog abriu
+    async function _abrirSigiloDocumentoMaisRecente(timeout) {
+        timeout = timeout || 20000;
+        const inicio = Date.now();
+        while (Date.now() - inicio < timeout) {
+            const primeiroItem = document.querySelector('li.tl-item-container');
+            const base = primeiroItem || document;
+            const alvo = base.querySelector('[id^="doc_"], [mattooltip*="Visibilidade"], [title*="Visibilidade"], i.fa-eye, .icone-visibilidade');
+            if (alvo) {
+                try { alvo.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+                const elem = alvo.closest('button') || alvo;
+                try { elem.click(); } catch (e) { /* ignore */ }
+                const dialog = await waitElementVisible('pje-doc-visibilidade-sigilo', 6000);
+                if (dialog) return true;
+            }
+            await sleep(200);
+        }
+        return false;
+    }
+
+    // Finalização no /detalhe após o fluxo ARGOS (roda no boot, após o F5):
+    // 1) estabiliza, 2) "+ mais recente", 3) visibilidade/sigilo do doc mais
+    // recente marcando o polo ativo e salvando, 4) limpa GIGS ARGOS/convênios.
+    async function _fluxoFinalizacaoDetalhe(dados) {
+        console.log('[Argos] finalização no /detalhe iniciada');
+        showToast('Argos: finalização no processo — aguarde', '#6f42c1', 5000);
+
+        // 1. estabilizar a página após o F5
+        const timeline = await waitElementVisible('li.tl-item-container, [id^="doc_"]', 30000);
+        if (!timeline) {
+            console.warn('[Argos] timeline do processo não carregou');
+            showToast('Argos: timeline do processo não carregou', '#dc3545', 5000);
+            return;
+        }
+        await sleep(1000);
+        // "+ mais recente" (toggle/filtro) se existir
+        await _clicarTexto('button, a, mat-button-toggle, .mat-button-toggle', 'mais recente', 5000);
+
+        // 2. abrir visibilidade/sigilo do documento mais recente
+        const dialogOk = await _abrirSigiloDocumentoMaisRecente(20000);
+        if (!dialogOk) {
+            console.warn('[Argos] dialog de visibilidade não abriu');
+            showToast('Argos: dialog de visibilidade/sigilo não abriu', '#ff9800', 5000);
+            return;
+        }
+        await sleep(600);
+
+        // 3. marcar o polo ativo na dialog e salvar
+        const ativoNome = dados && dados.ativo && dados.ativo[0] ? dados.ativo[0].nome : null;
+        if (ativoNome) {
+            const marcado = await _marcarCheckboxPorLabel('pje-doc-visibilidade-sigilo', ativoNome, 10000);
+            console.log('[Argos] polo ativo marcado na dialog de visibilidade?', marcado);
+        } else {
+            console.warn('[Argos] polo ativo não disponível para marcar na dialog');
+        }
+        if (await _clicarTexto('button', 'salvar', 10000)) {
+            console.log('[Argos] "Salvar" clicado na dialog de visibilidade');
+        }
+        await sleep(800);
+
+        // 4. limpeza GIGS (ARGOS/convênios) se a página tiver atividades GIGS
+        if (document.querySelector('pje-gigs-atividades')) {
+            await _limparGigsArgos();
+        } else {
+            console.log('[Argos] sem pje-gigs-atividades nesta página — rode window.limparGigsArgos() na página do GIGS');
+        }
+
+        // limpa o flag de finalização
+        try { sessionStorage.removeItem(FINALIZAR_KEY); } catch (e) { /* ignore */ }
+        console.log('[Argos] finalização no /detalhe concluída');
+        showToast('Argos: finalização concluída', '#28a745', 4000);
+    }
+
+    // Limpa atividades GIGS cuja descrição contenha ARGOS ou convênio(s),
+    // vencidas ou não — seguindo o padrão do bookmarklet GIGS_CLEANUP.
+    // Usar na página de atividades do GIGS (onde existe pje-gigs-atividades).
+    async function _limparGigsArgos() {
+        let removidas = 0;
+        const clicarSim = async function () {
+            await sleep(800);
+            for (const b of document.querySelectorAll('button[color="primary"]')) {
+                const s = b.querySelector('span.mat-button-wrapper');
+                if (s && s.textContent.trim() === 'Sim') { b.click(); await sleep(1000); return true; }
+            }
+            return false;
+        };
+        let temMais = true;
+        while (temMais) {
+            temMais = false;
+            const rows = Array.from(document.querySelectorAll('pje-gigs-atividades table tbody tr'));
+            for (const row of rows) {
+                try {
+                    if (row.style.display === 'none') continue;
+                    const descEl = row.querySelector('td .descricao');
+                    if (!descEl) continue;
+                    const desc = descEl.textContent.trim().toLowerCase();
+                    const ehAlvo = desc.includes('argos') || desc.includes('convênio') || desc.includes('convenio');
+                    if (!ehAlvo) continue;
+                    const btnEx = row.querySelector('button[mattooltip="Excluir Atividade"]');
+                    if (!btnEx) continue;
+                    btnEx.click();
+                    if (await clicarSim()) {
+                        removidas++;
+                        temMais = true;
+                        break;
+                    }
+                } catch (e) {
+                    console.warn('[Argos] GIGS limpeza erro:', e.message);
+                }
+            }
+        }
+        console.log('[Argos] GIGS limpeza concluída — removidas:', removidas);
+        showToast('Argos: ' + removidas + ' atividade(s) GIGS removida(s)', removidas ? '#28a745' : '#dc3545', 4000);
+        return removidas;
     }
 
     // ── Botão (na página /detalhe) ─────────────────────────────────────────
@@ -562,12 +755,35 @@
             try { sessionStorage.setItem(KEY, JSON.stringify(dados)); } catch (e) { console.warn('[Argos] sessionStorage indisponível:', e); }
             const url = window.location.origin + '/argos/home-servidor/processos/' + numero;
             console.log('[Argos] abrindo:', url);
-            window.open(url, '_blank');
+            const win = window.open(url, '_blank');
+            if (!win) {
+                console.warn('[Argos] popup bloqueado?');
+                showToast('Argos: popup bloqueado — permita popups para pje.trt2.jus.br', '#dc3545', 5000);
+                return;
+            }
+
+            // Aguarda a aba ARGOS concluir o fluxo (inclui os cliques manuais em
+            // "Prosseguir" e "Encaminhar ordem de pesquisa") e fechar; então
+            // finaliza no /detalhe.
+            await _aguardarAbaFechar(win, 15 * 60 * 1000);
+            console.log('[Argos] aba ARGOS fechada — iniciando finalização no /detalhe');
+            try {
+                sessionStorage.setItem(FINALIZAR_KEY, JSON.stringify({
+                    numero: numero,
+                    ativo: partes.ativo,
+                    passivo: partes.passivo,
+                    valor: valorFinal
+                }));
+            } catch (e) { console.warn('[Argos] sessionStorage indisponível p/ finalização:', e); }
+            // F5 para a página ver o documento juntado (a finalização roda no boot)
+            window.location.reload();
         } catch (e) {
             console.error('[Argos] erro ao obter dados:', e);
             showToast('Argos: erro ao obter dados — ' + e.message, '#dc3545', 5000);
         }
     };
+
+    window.limparGigsArgos = _limparGigsArgos;
 
     // API pública do módulo
     window.PjeArgos = {
@@ -577,10 +793,23 @@
         temCpfSelecionado: function () {
             try { return sessionStorage.getItem(FLAG_CPF_KEY) === '1'; } catch (e) { return false; }
         },
+        limparGigs: _limparGigsArgos,
     };
 
-    // ── Boot: na página /argos, executa o fluxo se houver dados pendentes ──
+    // ── Boot: na página /argos, executa o fluxo se houver dados pendentes;
+    //    no /detalhe, roda a finalização se o fluxo Argos a deixou pendente ──
     async function _boot() {
+        // Finalização no /detalhe após fluxo ARGOS (flag persiste pelo F5)
+        if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
+            let finalRaw = null;
+            try { finalRaw = sessionStorage.getItem(FINALIZAR_KEY); } catch (e) { /* ignore */ }
+            if (finalRaw) {
+                let finalDados;
+                try { finalDados = JSON.parse(finalRaw); } catch (e) { /* ignore */ }
+                await _fluxoFinalizacaoDetalhe(finalDados || {});
+            }
+            return;
+        }
         if (!/\/argos\//.test(window.location.href)) return;
         let raw = null;
         try { raw = sessionStorage.getItem(KEY); } catch (e) { /* ignore */ }

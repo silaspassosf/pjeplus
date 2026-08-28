@@ -351,6 +351,36 @@
         showToast('Argos: ' + marcados + ' executado(s) selecionado(s)', marcados ? '#28a745' : '#dc3545', 4000);
     }
 
+    // Marca um convênio na dialog "Convênios" localizando o mat-checkbox pelo
+    // texto do label (SISBAJUD, RENAJUD, CNIB, SERASAJUD, ARISP, INFOJUD e as
+    // sub-opções do INFOJUD: DIRPF, DECRED, DOI, DIMOB). Ordem importa: o
+    // INFOJUD deve ser marcado por último, pois revela as sub-opções.
+    async function _marcarConvenio(nome, timeout) {
+        timeout = timeout || 10000;
+        const alvo = normalize(nome);
+        const inicio = Date.now();
+        while (Date.now() - inicio < timeout) {
+            const cb = Array.from(document.querySelectorAll('app-escolher-convenios mat-checkbox, .convenios mat-checkbox'))
+                .find(function (el) {
+                    const lbl = el.querySelector('.mat-checkbox-label');
+                    const txt = normalize(lbl ? lbl.textContent : '');
+                    return txt.includes(alvo);
+                });
+            if (cb) {
+                const input = cb.querySelector('input[type="checkbox"]');
+                if (input) {
+                    if (input.checked) return true;
+                    try { input.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+                    input.click();
+                    await sleep(250);
+                    return !!input.checked;
+                }
+            }
+            await sleep(150);
+        }
+        return false;
+    }
+
     async function executarFluxoArgos(dados) {
         console.log('[Argos] fluxo iniciado — dados:', JSON.stringify(dados));
         showToast('Argos: iniciando fluxo de "Nova Pesquisa"...', '#6f42c1', 3000);
@@ -445,6 +475,41 @@
         } else {
             console.warn('[Argos] executados NÃO selecionados (polo ativo não confirmado)');
         }
+
+        // 7. Aguardar o clique manual em "Prosseguir" e o carregar da dialog de
+        //    convênios (mat-stepper passo 1 -> app-escolher-convenios)
+        console.log('[Argos] aguardando clique manual em "Prosseguir"...');
+        showToast('Argos: clique em "Prosseguir" para continuar', '#6f42c1', 6000);
+        const convenios = await waitElementVisible('app-escolher-convenios, .convenios', 60000);
+        if (!convenios) {
+            console.warn('[Argos] dialog de convênios não carregou');
+            showToast('Argos: dialog de convênios não carregou', '#dc3545', 5000);
+            return;
+        }
+        console.log('[Argos] dialog de convênios carregada');
+        await sleep(500);
+
+        // 8. Marcar convênios conforme a regra (flag cpf):
+        //    cpf=true  -> SISBAJUD, RENAJUD, CNIB, SERASAJUD, ARISP, INFOJUD, DIRPF, DECRED, DOI, DIMOB
+        //    cpf=false -> igual, MENOS o DIRPF
+        const temCpf = window.PjeArgos && window.PjeArgos.temCpfSelecionado
+            ? window.PjeArgos.temCpfSelecionado()
+            : false;
+        const ordem = temCpf
+            ? ['SISBAJUD', 'RENAJUD', 'CNIB', 'SERASAJUD', 'ARISP', 'INFOJUD', 'DIRPF', 'DECRED', 'DOI', 'DIMOB']
+            : ['SISBAJUD', 'RENAJUD', 'CNIB', 'SERASAJUD', 'ARISP', 'INFOJUD', 'DECRED', 'DOI', 'DIMOB'];
+        console.log('[Argos] marcando convênios (flag cpf=' + temCpf + '):', ordem.join(', '));
+        let marcados = 0;
+        for (const nome of ordem) {
+            if (await _marcarConvenio(nome, 10000)) {
+                marcados++;
+                await sleep(250);
+            } else {
+                console.warn('[Argos] convênio não marcado:', nome);
+            }
+        }
+        showToast('Argos: ' + marcados + ' convênio(s) marcado(s)', marcados ? '#28a745' : '#dc3545', 4000);
+        console.log('[Argos] fluxo de convênios concluído');
     }
 
     // ── Botão (na página /detalhe) ─────────────────────────────────────────

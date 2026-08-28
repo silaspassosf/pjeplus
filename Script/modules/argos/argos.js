@@ -635,16 +635,19 @@
         console.log('[Argos] finalização no /detalhe iniciada');
         showToast('Argos: finalização no processo — aguarde', '#6f42c1', 5000);
 
-        // 1. estabilizar a página após o F5
-        const timeline = await waitElementVisible('li.tl-item-container, [id^="doc_"]', 30000);
+        // 1. estabilizar a página após o F5 (timeline ou documento visível)
+        const alvoSel = 'li.tl-item-container, [id^="doc_"], app-processo-detalhe, pje-timeline, #documento';
+        const timeline = await waitElementVisible(alvoSel, 30000);
         if (!timeline) {
             console.warn('[Argos] timeline do processo não carregou');
             showToast('Argos: timeline do processo não carregou', '#dc3545', 5000);
             return;
         }
-        await sleep(1000);
+        console.log('[Argos] página do processo estável (timeline presente)');
+        await sleep(1500);
         // "+ mais recente" (toggle/filtro) se existir
         await _clicarTexto('button, a, mat-button-toggle, .mat-button-toggle', 'mais recente', 5000);
+        await sleep(500);
 
         // 2. abrir visibilidade/sigilo do documento mais recente
         const dialogOk = await _abrirSigiloDocumentoMaisRecente(20000);
@@ -679,6 +682,42 @@
         try { sessionStorage.removeItem(FINALIZAR_KEY); } catch (e) { /* ignore */ }
         console.log('[Argos] finalização no /detalhe concluída');
         showToast('Argos: finalização concluída', '#28a745', 4000);
+    }
+
+    // Worker de finalização no /detalhe: disparado após o F5 (o reload recria a
+    // página). Aguarda readyState=complete + render do Angular + timeline estável
+    // e então executa o fluxo de visibilidade/sigilo.
+    async function _iniciarWorkerFinalizacao(dados) {
+        console.log('[Argos] worker de finalização disparado após o F5');
+        try {
+            // 1. aguardar a página terminar de carregar
+            let tent = 0;
+            while (document.readyState !== 'complete' && tent < 200) {
+                await sleep(250);
+                tent++;
+            }
+            await sleep(1500); // deixa o Angular renderizar o detalhe
+
+            // 2. aguardar a timeline/processo aparecer (estabilização)
+            const alvoSel = 'li.tl-item-container, [id^="doc_"], app-processo-detalhe, pje-timeline, #documento';
+            const inicio = Date.now();
+            let pronto = null;
+            while (Date.now() - inicio < 60000) {
+                pronto = document.querySelector(alvoSel);
+                if (pronto) break;
+                await sleep(400);
+            }
+            if (!pronto) {
+                console.warn('[Argos] worker: página do processo não estabilizou em 60s');
+                showToast('Argos: página não estabilizou — finalização não executada', '#dc3545', 5000);
+                return;
+            }
+            console.log('[Argos] worker: página estabilizada — executando finalização');
+            await _fluxoFinalizacaoDetalhe(dados);
+        } catch (e) {
+            console.error('[Argos] worker de finalização erro:', e);
+            showToast('Argos: erro na finalização — ' + e.message, '#dc3545', 5000);
+        }
     }
 
     // Limpa atividades GIGS cuja descrição contenha ARGOS ou convênio(s),
@@ -806,7 +845,9 @@
             if (finalRaw) {
                 let finalDados;
                 try { finalDados = JSON.parse(finalRaw); } catch (e) { /* ignore */ }
-                await _fluxoFinalizacaoDetalhe(finalDados || {});
+                // Dispara o worker pós-F5 (fire-and-forget) — ele aguarda a
+                // página estabilizar antes de prosseguir com a visibilidade.
+                _iniciarWorkerFinalizacao(finalDados || {});
             }
             return;
         }

@@ -93,10 +93,10 @@
         return parseMoney(s);
     }
 
-    // Fetch com os MESMOS headers do /partes (que funciona) + log da resposta crua.
+    // Fetch igual ao ApiWrapper do maispje (APIS/): SÓ Content-Type, sem X-XSRF-TOKEN/X-Grau-Instancia.
     async function _getValorDetalhado(url) {
         try {
-            const r = await fetch(url, { method: 'GET', credentials: 'include', headers: _headers() });
+            const r = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
             const txt = await r.text();
             console.log('[Argos] API status', r.status, url, '→', (txt || '').slice(0, 500));
             if (!r.ok) return null;
@@ -118,8 +118,16 @@
         const nGigs = _valorParaNumero(vGigs);
         if (nGigs > 0) return nGigs;
 
-        // 2) PJeCalc — último cálculo do processo (o que o maispje usa p/ a dívida)
-        const calc = await _getValorDetalhado(window.location.origin + '/pje-comum-api/api/calculos/processo?idProcesso=' + id);
+        // 2) PJeCalc — últimos cálculos (MESMOS params do ApiWrapper calculosProcesso do APIS/)
+        const qs = new URLSearchParams({
+            idProcesso: id,
+            pagina: '1',
+            tamanhoPagina: '10',
+            ordenacaoCrescente: 'true',
+            mostrarCalculosHomologados: 'true',
+            incluirCalculosHomologados: 'true'
+        });
+        const calc = await _getValorDetalhado(window.location.origin + '/pje-comum-api/api/calculos/processo?' + qs.toString());
         const resultado = calc && Array.isArray(calc.resultado) ? calc.resultado : [];
         if (resultado.length) {
             let ultimo = resultado[0];
@@ -214,13 +222,21 @@
     // Clique robusto numa mat-option (Angular Material registra mousedown/click)
     function _clicarOpcao(opt) {
         try { opt.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+        // NÃO usar `view: window`: no sandbox do Tampermonkey isso lança
+        // "MouseEvent constructor: 'view' member ... does not implement interface Window",
+        // abortando o try antes de chegar no opt.click().
+        const evOpts = { bubbles: true, cancelable: true };
         try {
-            opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-            opt.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-            opt.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+            opt.dispatchEvent(new MouseEvent('mousedown', evOpts));
+            opt.dispatchEvent(new MouseEvent('mouseup', evOpts));
+            opt.dispatchEvent(new MouseEvent('click', evOpts));
+        } catch (e) {
+            console.warn('[Argos] falha ao disparar MouseEvent:', e.message);
+        }
+        try {
             if (typeof opt.click === 'function') opt.click();
         } catch (e) {
-            console.warn('[Argos] falha ao clicar na opção:', e.message);
+            console.warn('[Argos] falha no opt.click():', e.message);
         }
     }
 

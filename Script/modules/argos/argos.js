@@ -93,36 +93,50 @@
         return parseMoney(s);
     }
 
+    // Fetch mínimo (igual ao ApiWrapper do maispje) p/ os endpoints de valor —
+    // sem X-XSRF-TOKEN/X-Grau-Instancia que podem rejeitar a chamada.
+    async function _getValorJson(url) {
+        try {
+            const r = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+            if (!r.ok) { console.warn('[Argos] HTTP', r.status, 'em', url); return null; }
+            const txt = await r.text();
+            try { return JSON.parse(txt); } catch (e) { return null; }
+        } catch (e) {
+            console.warn('[Argos] fetch falhou:', e.message, 'em', url);
+            return null;
+        }
+    }
+
     async function _obterValorExecucao() {
         const id = _idProcesso();
         if (!id) return null;
-        // Fonte correta do valor da execução: GIGS
-        try {
-            const dados = await _getJson(window.location.origin + '/pje-gigs-api/api/execucao/processo/' + id);
-            const v = dados && dados.valor;
-            console.log('[Argos] valor da execução (GIGS):', v, '| data:', dados && dados.data);
+
+        // 1) GIGS — valor da execução (mesmo endpoint do maispje)
+        const dados = await _getValorJson(window.location.origin + '/pje-gigs-api/api/execucao/processo/' + id);
+        console.log('[Argos] GIGS execução response:', JSON.stringify(dados));
+        const vGigs = dados && (dados.valor ?? dados.valorExecucao ?? dados.total);
+        console.log('[Argos] valor da execução (GIGS):', vGigs, '| data:', dados && dados.data);
+        const nGigs = _valorParaNumero(vGigs);
+        if (nGigs > 0) return nGigs;
+
+        // 2) PJeCalc — último cálculo do processo (o que o maispje usa p/ a dívida)
+        const calc = await _getValorJson(window.location.origin + '/pje-comum-api/api/calculos/processo?idProcesso=' + id);
+        console.log('[Argos] PJeCalc response:', JSON.stringify(calc).slice(0, 600));
+        const resultado = calc && Array.isArray(calc.resultado) ? calc.resultado : [];
+        if (resultado.length) {
+            let ultimo = resultado[0];
+            let maior = new Date(1900, 1, 1).getTime();
+            for (const c of resultado) {
+                const dt = new Date(c.dataHoraImportacao).getTime();
+                if (Number.isFinite(dt) && dt > maior) { maior = dt; ultimo = c; }
+            }
+            const v = ultimo && (ultimo.total ?? ultimo.valor ?? ultimo.valorExecucao);
+            console.log('[Argos] valor (fallback PJeCalc):', v);
             const n = _valorParaNumero(v);
             if (n > 0) return n;
-        } catch (e) {
-            console.warn('[Argos] API GIGS execução falhou:', e.message);
+        } else {
+            console.warn('[Argos] PJeCalc sem resultado (resultado vazio)');
         }
-        // fallback PJeCalc — último cálculo do processo (mesmo do gigs-plugin SISBAJUD)
-        try {
-            const calc = await _getJson(window.location.origin + '/pje-comum-api/api/calculos/processo?idProcesso=' + id);
-            const resultado = calc && Array.isArray(calc.resultado) ? calc.resultado : [];
-            if (resultado.length) {
-                let ultimo = resultado[0];
-                let maior = new Date(1900, 1, 1).getTime();
-                for (const c of resultado) {
-                    const dt = new Date(c.dataHoraImportacao).getTime();
-                    if (Number.isFinite(dt) && dt > maior) { maior = dt; ultimo = c; }
-                }
-                const v = ultimo && ultimo.total;
-                console.log('[Argos] valor (fallback PJeCalc):', v);
-                const n = _valorParaNumero(v);
-                if (n > 0) return n;
-            }
-        } catch (e) { /* fallback indisponível */ }
         return null;
     }
 
@@ -193,6 +207,9 @@
             }
             await sleep(150);
         }
+        console.warn('[Argos] opção do polo ativo não encontrada. mat-options no DOM:', Array.from(document.querySelectorAll('mat-option')).map(function (o) {
+            return normalize(o.textContent).slice(0, 60);
+        }));
         return null;
     }
 

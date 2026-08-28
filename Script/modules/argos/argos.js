@@ -252,23 +252,34 @@
 
     // Seleção de executados: aplica _decidirSelecaoExecutados e marca os checkboxes
     async function _selecionarExecutados(timeout) {
-        timeout = timeout || 10000;
-        const tab = await waitElementVisible('.executados app-tabela-executados table', timeout);
+        timeout = timeout || 12000;
+        const tab = await waitElementVisible(
+            '.executados app-tabela-executados table, mat-dialog-container table',
+            timeout
+        );
         if (!tab) {
             showToast('Argos: tabela de executados não encontrada', '#dc3545', 5000);
             return;
         }
-        const linhas = Array.from(tab.querySelectorAll('tr[data-cy^="executado-"]')).map(function (row) {
+        // Linhas: data-cy^="executado-" (padrão) ou cdk-row com coluna Polo
+        const rows = Array.from(tab.querySelectorAll('tr[data-cy^="executado-"], tr.cdk-row')).filter(function (row) {
+            const poloEl = row.querySelector('td.mat-column-polo label') || row.querySelectorAll('td')[3];
+            return !!poloEl;
+        });
+        const linhas = rows.map(function (row) {
             const docEl = row.querySelector('td.mat-column-documento label') || row.querySelectorAll('td')[1];
             const nomeEl = row.querySelector('td.mat-column-nome label') || row.querySelectorAll('td')[2];
             const poloEl = row.querySelector('td.mat-column-polo label') || row.querySelectorAll('td')[3];
+            const cbInput = row.querySelector('input[type="checkbox"]');
             return {
                 row,
+                cbInput,
                 doc: docEl ? docEl.textContent.trim() : '',
                 nome: nomeEl ? nomeEl.textContent.trim() : '',
                 polo: normalize(poloEl ? poloEl.textContent : ''),
             };
         });
+        console.log('[Argos] linhas de executados lidas:', linhas.length);
 
         const selecionados = _decidirSelecaoExecutados(linhas);
         if (!selecionados.length) {
@@ -277,6 +288,17 @@
         }
         let marcados = 0;
         for (const l of selecionados) {
+            // Clique no input nativo (#checkbox-N-input, confirmado por probe)
+            const cb = l.cbInput;
+            if (cb) {
+                if (cb.checked) continue;
+                try { cb.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+                cb.click();
+                marcados++;
+                await sleep(120);
+                continue;
+            }
+            // fallback: clicar no mat-checkbox
             const mcb = l.row.querySelector('mat-checkbox');
             if (!mcb) continue;
             const inp = mcb.querySelector('input[type="checkbox"]');
@@ -320,8 +342,11 @@
         console.log('[Argos] botão "Nova ordem" clicado');
         await sleep(900); // deixa o diálogo abrir
 
-        // 3. Diálogo "Nova Pesquisa"
-        const h = await waitElementVisible('h1.titulo-nova-ordem', 10000);
+        // 3. Diálogo "Nova Pesquisa" (mat-dialog-container confirmado por probe)
+        const h = await waitElementVisible(
+            'mat-dialog-container[role="dialog"], h1.titulo-nova-ordem',
+            12000
+        );
         if (!h) {
             console.warn('[Argos] diálogo "Nova Pesquisa" não abriu');
             showToast('Argos: diálogo "Nova Pesquisa" não abriu', '#dc3545', 5000);

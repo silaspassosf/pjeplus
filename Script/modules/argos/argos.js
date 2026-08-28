@@ -512,6 +512,22 @@
         console.log('[Argos] fluxo de convênios concluído');
     }
 
+    // Prompt nativo para o usuário informar o valor da execução quando a API
+    // não detectar. Funciona no sandbox do Tampermonkey (window.prompt).
+    function _promptValor() {
+        try {
+            if (typeof window.prompt === 'function') {
+                return window.prompt('Informar valor sem virgula ou ponto', '');
+            }
+            if (typeof unsafeWindow !== 'undefined' && unsafeWindow.prompt) {
+                return unsafeWindow.prompt('Informar valor sem virgula ou ponto', '');
+            }
+        } catch (e) {
+            console.warn('[Argos] prompt indisponível:', e);
+        }
+        return null;
+    }
+
     // ── Botão (na página /detalhe) ─────────────────────────────────────────
     window.executarArgos = async function () {
         try {
@@ -527,7 +543,19 @@
             console.log('[Argos] partes via API:', JSON.stringify(partes));
             const valor = await _obterValorExecucao();
             console.log('[Argos] valor da execução final:', valor);
-            const dados = { numero, valor, ativo: partes.ativo, passivo: partes.passivo };
+            // Se o valor não foi detectado, pede para o usuário informar antes de abrir o ARGOS
+            let valorFinal = (valor && valor > 0) ? valor : null;
+            if (!valorFinal) {
+                const entrada = _promptValor();
+                if (entrada !== null && String(entrada).trim() !== '') {
+                    valorFinal = _valorParaNumero(entrada);
+                    console.log('[Argos] valor informado manualmente:', entrada, '→', valorFinal);
+                    showToast('Argos: valor informado manualmente', '#6f42c1', 3000);
+                } else {
+                    console.warn('[Argos] valor não informado manualmente — segue sem valor');
+                }
+            }
+            const dados = { numero, valor: valorFinal, ativo: partes.ativo, passivo: partes.passivo };
             try { sessionStorage.setItem(KEY, JSON.stringify(dados)); } catch (e) { console.warn('[Argos] sessionStorage indisponível:', e); }
             const url = window.location.origin + '/argos/home-servidor/processos/' + numero;
             console.log('[Argos] abrindo:', url);

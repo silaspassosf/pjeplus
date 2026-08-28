@@ -107,22 +107,37 @@
         }
         return null;
     }
+    function _valorParaNumero(v) {
+        if (v === null || v === undefined) return 0;
+        if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+        const s = String(v).trim().replace(/R\$\s*/g, '');
+        if (!s) return 0;
+        // ponto como decimal (ex.: "241561.65") sem vírgula -> número direto
+        if (!s.includes(',') && /^\d+(\.\d+)?$/.test(s)) return parseFloat(s) || 0;
+        // senão, formatação pt-BR (ex.: "241.561,65")
+        return parseMoney(s);
+    }
+
     async function _obterValorExecucao() {
         const id = _idProcesso();
-        if (id) {
-            try {
-                const data = await _getJson(window.location.origin + '/pje-comum-api/api/processos/id/' + id);
-                const v = _procurarValor(data, 0);
-                if (v) return v;
-            } catch (e) {
-                console.warn('[Argos] API do processo sem valor:', e.message);
-            }
-        }
+        if (!id) return null;
+        // Fonte correta do valor da execução: GIGS
         try {
-            const corpo = document.body ? document.body.innerText : '';
-            const m = corpo.match(/Valor da\s*(?:causa|execu[cç][aã]o)\s*:?\s*R\$\s*([\d.,]+)/i);
-            if (m) return parseMoney(m[1]);
-        } catch (e) { /* DOM indisponível */ }
+            const dados = await _getJson(window.location.origin + '/pje-gigs-api/api/execucao/processo/' + id);
+            const v = dados && dados.valor;
+            console.log('[Argos] valor da execução (GIGS):', v, '| data:', dados && dados.data);
+            const n = _valorParaNumero(v);
+            if (n > 0) return n;
+        } catch (e) {
+            console.warn('[Argos] API GIGS execução falhou:', e.message);
+        }
+        // fallback conservador: processo (valorCausa/valorDaCausa/valor)
+        try {
+            const data = await _getJson(window.location.origin + '/pje-comum-api/api/processos/id/' + id);
+            const v = _procurarValor(data, 0);
+            console.log('[Argos] valor (fallback processo):', v);
+            if (v) return v;
+        } catch (e) { /* fallback indisponível */ }
         return null;
     }
 
@@ -194,6 +209,37 @@
             await sleep(150);
         }
         return null;
+    }
+
+    // Clique robusto numa mat-option (Angular Material registra mousedown/click)
+    function _clicarOpcao(opt) {
+        try { opt.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+        try {
+            opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+            opt.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+            opt.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+            if (typeof opt.click === 'function') opt.click();
+        } catch (e) {
+            console.warn('[Argos] falha ao clicar na opção:', e.message);
+        }
+    }
+
+    // Confirma que o campo foi preenchido com o polo ativo após o clique
+    async function _confirmarPoloAtivoPreenchido(input, ativo, timeout) {
+        timeout = timeout || 6000;
+        const alvoNome = normalize(ativo.nome);
+        const alvoDoc = String(ativo.documento || '').replace(/\D/g, '');
+        const inicio = Date.now();
+        while (Date.now() - inicio < timeout) {
+            const valor = normalize(input.value || '');
+            if (valor && ((alvoDoc && valor.includes(alvoDoc)) || (alvoNome && valor.includes(alvoNome)))) {
+                console.log('[Argos] campo polo ativo preenchido:', input.value);
+                return true;
+            }
+            await sleep(150);
+        }
+        console.warn('[Argos] polo ativo NÃO confirmado no campo. Valor atual:', input.value);
+        return false;
     }
 
     // Decisão pura de seleção de executados (testável):
@@ -303,26 +349,36 @@
             showToast('Argos: valor da execução não detectado — preencher manualmente', '#ff9800', 4000);
         }
 
-        // 5. Selecionar o POLO ATIVO: basta clicar no campo — o dropdown com as
-        //    partes (Polo ATIVO/PASSIVO) surge sem digitar; clicar na linha do ATIVO
+        // 5. Selecionar o POLO ATIVO: clicar no campo abre o dropdown (sem digitar);
+        //    clicar na linha (Polo ATIVO) e CONFIRMAR que o campo foi preenchido
+        let poloAtivoOk = false;
         const ativo = dados.ativo && dados.ativo[0];
         if (ativo) {
             const inDoc = await waitElementVisible('input[aria-label="Digite o documento ou o nome"], input[data-placeholder="Digite o documento ou o nome"]', 6000);
             if (inDoc) {
-                inDoc.click();
-                const opt = await _aguardarOpcaoAtivo(ativo, 8000);
-                if (opt) {
-                    opt.click();
-                } else {
-                    showToast('Argos: opção do polo ativo não encontrada no dropdown', '#ff9800', 4000);
+                for (let tentativa = 0; tentativa < 2 && !poloAtivoOk; tentativa++) {
+                    inDoc.click();
+                    const opt = await _aguardarOpcaoAtivo(ativo, 8000);
+                    if (opt) {
+                        _clicarOpcao(opt);
+                        poloAtivoOk = await _confirmarPoloAtivoPreenchido(inDoc, ativo, 6000);
+                    } else {
+                        showToast('Argos: opção do polo ativo não encontrada no dropdown', '#ff9800', 4000);
+                        break;
+                    }
+                }
+                if (!poloAtivoOk) {
+                    showToast('Argos: não foi possível confirmar o polo ativo no campo', '#dc3545', 5000);
                 }
             }
         } else {
             showToast('Argos: polo ativo não identificado', '#ff9800', 4000);
         }
 
-        // 6. Selecionar executados (lógica de grupo líder por tipo de documento)
-        await _selecionarExecutados(10000);
+        // 6. Selecionar executados — só após confirmar o polo ativo preenchido
+        if (poloAtivoOk) {
+            await _selecionarExecutados(10000);
+        }
     }
 
     // ── Botão (na página /detalhe) ─────────────────────────────────────────

@@ -82,31 +82,6 @@
         return { ativo: shape(raw.ATIVO), passivo: shape(raw.PASSIVO), outros: shape(raw.TERCEIROS) };
     }
 
-    // Valor da execução — best-effort: API do processo → DOM ("Valor da causa/execução")
-    function _procurarValor(obj, depth) {
-        if (!obj || typeof obj !== 'object' || depth > 3) return null;
-        const chaves = ['valorExecucao', 'valorDaCausa', 'valorCausa', 'valorExecucao'];
-        for (const k of chaves) {
-            const v = obj[k];
-            if (v !== undefined && v !== null && typeof v !== 'object') {
-                const n = parseMoney(String(v));
-                if (n > 0) return n;
-            }
-        }
-        if (Array.isArray(obj)) {
-            for (const it of obj) {
-                const r = _procurarValor(it, depth + 1);
-                if (r) return r;
-            }
-        } else {
-            const keys = Object.keys(obj);
-            for (let i = 0; i < keys.length && i < 60; i++) {
-                const r = _procurarValor(obj[keys[i]], depth + 1);
-                if (r) return r;
-            }
-        }
-        return null;
-    }
     function _valorParaNumero(v) {
         if (v === null || v === undefined) return 0;
         if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
@@ -131,12 +106,22 @@
         } catch (e) {
             console.warn('[Argos] API GIGS execução falhou:', e.message);
         }
-        // fallback conservador: processo (valorCausa/valorDaCausa/valor)
+        // fallback PJeCalc — último cálculo do processo (mesmo do gigs-plugin SISBAJUD)
         try {
-            const data = await _getJson(window.location.origin + '/pje-comum-api/api/processos/id/' + id);
-            const v = _procurarValor(data, 0);
-            console.log('[Argos] valor (fallback processo):', v);
-            if (v) return v;
+            const calc = await _getJson(window.location.origin + '/pje-comum-api/api/calculos/processo?idProcesso=' + id);
+            const resultado = calc && Array.isArray(calc.resultado) ? calc.resultado : [];
+            if (resultado.length) {
+                let ultimo = resultado[0];
+                let maior = new Date(1900, 1, 1).getTime();
+                for (const c of resultado) {
+                    const dt = new Date(c.dataHoraImportacao).getTime();
+                    if (Number.isFinite(dt) && dt > maior) { maior = dt; ultimo = c; }
+                }
+                const v = ultimo && ultimo.total;
+                console.log('[Argos] valor (fallback PJeCalc):', v);
+                const n = _valorParaNumero(v);
+                if (n > 0) return n;
+            }
         } catch (e) { /* fallback indisponível */ }
         return null;
     }

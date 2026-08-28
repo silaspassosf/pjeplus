@@ -93,16 +93,16 @@
         return parseMoney(s);
     }
 
-    // Fetch mínimo (igual ao ApiWrapper do maispje) p/ os endpoints de valor —
-    // sem X-XSRF-TOKEN/X-Grau-Instancia que podem rejeitar a chamada.
-    async function _getValorJson(url) {
+    // Fetch com os MESMOS headers do /partes (que funciona) + log da resposta crua.
+    async function _getValorDetalhado(url) {
         try {
-            const r = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
-            if (!r.ok) { console.warn('[Argos] HTTP', r.status, 'em', url); return null; }
+            const r = await fetch(url, { method: 'GET', credentials: 'include', headers: _headers() });
             const txt = await r.text();
-            try { return JSON.parse(txt); } catch (e) { return null; }
+            console.log('[Argos] API status', r.status, url, '→', (txt || '').slice(0, 500));
+            if (!r.ok) return null;
+            try { return JSON.parse(txt); } catch (e) { console.warn('[Argos] resposta não-JSON:', (txt || '').slice(0, 200)); return null; }
         } catch (e) {
-            console.warn('[Argos] fetch falhou:', e.message, 'em', url);
+            console.warn('[Argos] fetch exceção:', e.message, url);
             return null;
         }
     }
@@ -112,16 +112,14 @@
         if (!id) return null;
 
         // 1) GIGS — valor da execução (mesmo endpoint do maispje)
-        const dados = await _getValorJson(window.location.origin + '/pje-gigs-api/api/execucao/processo/' + id);
-        console.log('[Argos] GIGS execução response:', JSON.stringify(dados));
+        const dados = await _getValorDetalhado(window.location.origin + '/pje-gigs-api/api/execucao/processo/' + id);
         const vGigs = dados && (dados.valor ?? dados.valorExecucao ?? dados.total);
         console.log('[Argos] valor da execução (GIGS):', vGigs, '| data:', dados && dados.data);
         const nGigs = _valorParaNumero(vGigs);
         if (nGigs > 0) return nGigs;
 
         // 2) PJeCalc — último cálculo do processo (o que o maispje usa p/ a dívida)
-        const calc = await _getValorJson(window.location.origin + '/pje-comum-api/api/calculos/processo?idProcesso=' + id);
-        console.log('[Argos] PJeCalc response:', JSON.stringify(calc).slice(0, 600));
+        const calc = await _getValorDetalhado(window.location.origin + '/pje-comum-api/api/calculos/processo?idProcesso=' + id);
         const resultado = calc && Array.isArray(calc.resultado) ? calc.resultado : [];
         if (resultado.length) {
             let ultimo = resultado[0];
@@ -196,11 +194,11 @@
         while (Date.now() - inicio < timeout) {
             const opts = Array.from(document.querySelectorAll('mat-option'));
             let opt = opts.find(function (o) {
-                const t = normalize(o.textContent);
-                if (!t.includes('polo ativo')) return false;
+                const t = normalize(o.textContent); // normalizeText devolve MAIÚSCULAS
+                if (!t.includes('POLO ATIVO')) return false;
                 return (alvoDoc && t.includes(alvoDoc)) || (alvoNome && t.includes(alvoNome));
             });
-            if (!opt) opt = opts.find(o => normalize(o.textContent).includes('polo ativo'));
+            if (!opt) opt = opts.find(o => normalize(o.textContent).includes('POLO ATIVO'));
             if (opt) {
                 try { opt.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
                 return opt;

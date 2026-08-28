@@ -259,15 +259,18 @@
     }
 
     // Decisão pura de seleção de executados (testável):
-    //  - ignora linhas do polo ATIVO;
-    //  - entre as demais, marca o grupo líder do MESMO tipo de documento
+    //  - considera APENAS linhas do polo PASSIVO (ATIVO e TERCEIROS são
+    //    sempre ignorados — nunca marcados e fora da regra CPF/CNPJ);
+    //  - entre as PASSIVO, marca o grupo líder do MESMO tipo de documento
     //    (CNPJ/CPF) — cobre os 3 casos pedidos:
     //      * só CNPJ           -> marca todos;
     //      * começa com CPF    -> marca só os CPF (líder);
     //      * CNPJ, CPF, CNPJ   -> marca só os primeiros CNPJ.
     // Retorna as linhas que devem ser marcadas.
     function _decidirSelecaoExecutados(linhas) {
-        const executados = (linhas || []).filter(l => !normalize(l.polo).includes('ATIVO'));
+        const executados = (linhas || []).filter(function (l) {
+            return normalize(l.polo).includes('PASSIVO');
+        });
         const tipados = executados.map(function (l) {
             return { l, tipo: _tipoDoc(l.doc) };
         }).filter(x => x.tipo);

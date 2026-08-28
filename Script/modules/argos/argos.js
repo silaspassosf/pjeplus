@@ -299,38 +299,53 @@
     }
 
     async function executarFluxoArgos(dados) {
+        console.log('[Argos] fluxo iniciado — dados:', JSON.stringify(dados));
         showToast('Argos: iniciando fluxo de "Nova Pesquisa"...', '#6f42c1', 3000);
 
         // 1. "Ordens em cumprimento"
-        if (!(await _clicarTexto('mat-panel-title', 'ordens em cumprimento'))) {
+        if (!(await _clicarTexto('mat-panel-title', 'ordens em cumprimento', 20000))) {
+            console.warn('[Argos] painel "Ordens em cumprimento" não encontrado');
             showToast('Argos: painel "Ordens em cumprimento" não encontrado', '#dc3545', 5000);
             return;
         }
+        console.log('[Argos] painel "Ordens em cumprimento" clicado');
+        await sleep(700); // deixa o painel expandir
 
         // 2. "Nova ordem"
-        if (!(await _clicarTexto('button', 'nova ordem'))) {
+        if (!(await _clicarTexto('button', 'nova ordem', 15000))) {
+            console.warn('[Argos] botão "Nova ordem" não encontrado');
             showToast('Argos: botão "Nova ordem" não encontrado', '#dc3545', 5000);
             return;
         }
+        console.log('[Argos] botão "Nova ordem" clicado');
+        await sleep(900); // deixa o diálogo abrir
 
         // 3. Diálogo "Nova Pesquisa"
-        const h = await waitElementVisible('h1.titulo-nova-ordem', 8000);
+        const h = await waitElementVisible('h1.titulo-nova-ordem', 10000);
         if (!h) {
+            console.warn('[Argos] diálogo "Nova Pesquisa" não abriu');
             showToast('Argos: diálogo "Nova Pesquisa" não abriu', '#dc3545', 5000);
             return;
         }
+        console.log('[Argos] diálogo "Nova Pesquisa" aberto');
+        await sleep(500);
 
         // 4. Valor da execução (apenas números, digitado)
         if (dados.valor && dados.valor > 0) {
             const inValor = await waitElementVisible(
                 'input[data-cy="input-valor-execucao"], input[aria-label="Digite o valor da execução"]',
-                6000
+                8000
             );
             if (inValor) {
                 const centavos = String(Math.round(dados.valor * 100));
+                console.log('[Argos] digitando valor da execução:', dados.valor, '→ dígitos:', centavos);
                 await _digitarMoeda(inValor, centavos);
+                console.log('[Argos] valor digitado — campo agora:', JSON.stringify(inValor.value));
+            } else {
+                console.warn('[Argos] input de valor da execução não encontrado');
             }
         } else {
+            console.warn('[Argos] valor da execução não detectado (dados.valor =', dados.valor, ')');
             showToast('Argos: valor da execução não detectado — preencher manualmente', '#ff9800', 4000);
         }
 
@@ -339,15 +354,19 @@
         let poloAtivoOk = false;
         const ativo = dados.ativo && dados.ativo[0];
         if (ativo) {
-            const inDoc = await waitElementVisible('input[aria-label="Digite o documento ou o nome"], input[data-placeholder="Digite o documento ou o nome"]', 6000);
+            const inDoc = await waitElementVisible('input[aria-label="Digite o documento ou o nome"], input[data-placeholder="Digite o documento ou o nome"]', 8000);
             if (inDoc) {
                 for (let tentativa = 0; tentativa < 2 && !poloAtivoOk; tentativa++) {
                     inDoc.click();
+                    console.log('[Argos] campo "documento ou nome" clicado (tentativa ' + (tentativa + 1) + ')');
                     const opt = await _aguardarOpcaoAtivo(ativo, 8000);
                     if (opt) {
+                        console.log('[Argos] opção do polo ativo encontrada:', opt.textContent.trim().slice(0, 80));
                         _clicarOpcao(opt);
                         poloAtivoOk = await _confirmarPoloAtivoPreenchido(inDoc, ativo, 6000);
+                        console.log('[Argos] polo ativo confirmado?', poloAtivoOk);
                     } else {
+                        console.warn('[Argos] opção do polo ativo não encontrada no dropdown (tentativa ' + (tentativa + 1) + ')');
                         showToast('Argos: opção do polo ativo não encontrada no dropdown', '#ff9800', 4000);
                         break;
                     }
@@ -355,14 +374,20 @@
                 if (!poloAtivoOk) {
                     showToast('Argos: não foi possível confirmar o polo ativo no campo', '#dc3545', 5000);
                 }
+            } else {
+                console.warn('[Argos] campo "documento ou nome" não encontrado');
             }
         } else {
+            console.warn('[Argos] polo ativo não identificado (dados.ativo =', JSON.stringify(dados.ativo), ')');
             showToast('Argos: polo ativo não identificado', '#ff9800', 4000);
         }
 
         // 6. Selecionar executados — só após confirmar o polo ativo preenchido
         if (poloAtivoOk) {
-            await _selecionarExecutados(10000);
+            console.log('[Argos] iniciando seleção de executados');
+            await _selecionarExecutados(12000);
+        } else {
+            console.warn('[Argos] executados NÃO selecionados (polo ativo não confirmado)');
         }
     }
 
@@ -376,12 +401,15 @@
                 showToast('Argos: número do processo não encontrado nesta página', '#dc3545', 4000);
                 return;
             }
+            console.log('[Argos] processo:', numero);
             const partes = await _fetchPartes();
+            console.log('[Argos] partes via API:', JSON.stringify(partes));
             const valor = await _obterValorExecucao();
+            console.log('[Argos] valor da execução final:', valor);
             const dados = { numero, valor, ativo: partes.ativo, passivo: partes.passivo };
             try { sessionStorage.setItem(KEY, JSON.stringify(dados)); } catch (e) { console.warn('[Argos] sessionStorage indisponível:', e); }
             const url = window.location.origin + '/argos/home-servidor/processos/' + numero;
-            console.log('[Argos] abrindo:', url, dados);
+            console.log('[Argos] abrindo:', url);
             window.open(url, '_blank');
         } catch (e) {
             console.error('[Argos] erro ao obter dados:', e);
@@ -404,11 +432,12 @@
         if (!/\/argos\//.test(window.location.href)) return;
         let raw = null;
         try { raw = sessionStorage.getItem(KEY); } catch (e) { /* ignore */ }
-        if (!raw) return;
+        if (!raw) { console.log('[Argos] página /argos sem dados pendentes'); return; }
         try { sessionStorage.removeItem(KEY); } catch (e) { /* ignore */ }
         let dados;
-        try { dados = JSON.parse(raw); } catch (e) { return; }
-        await waitElementVisible('mat-panel-title, .mat-expansion-panel', 15000);
+        try { dados = JSON.parse(raw); } catch (e) { console.error('[Argos] dados inválidos no sessionStorage'); return; }
+        console.log('[Argos] dados recebidos na página /argos:', dados);
+        await waitElementVisible('mat-panel-title, .mat-expansion-panel', 20000);
         await executarFluxoArgos(dados);
     }
 

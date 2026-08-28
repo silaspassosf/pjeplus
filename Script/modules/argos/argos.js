@@ -8,6 +8,7 @@
 
 (function () {
     const KEY = 'pjetools_argos_dados';
+    const FLAG_CPF_KEY = 'pjetools_argos_tem_cpf';
 
     // ── Primitivas (fallback caso core/utils.js não tenha carregado) ──────
     const sleep = window.sleep || (ms => new Promise(r => setTimeout(r, ms)));
@@ -254,6 +255,15 @@
             marcados++;
             await sleep(120);
         }
+
+        // Flag p/ a próxima página: ao menos um CPF entre os executados selecionados
+        const temCpf = selecionados.some(function (l) { return _tipoDoc(l.doc) === 'CPF'; });
+        try { sessionStorage.setItem(FLAG_CPF_KEY, temCpf ? '1' : '0'); } catch (e) { /* ignore */ }
+        if (window.PjeArgos) window.PjeArgos.temCpf = temCpf;
+        console.log('[Argos] selecionouCpf =', temCpf, '| selecionados:', selecionados.map(function (l) {
+            return l.nome + ' (' + (_tipoDoc(l.doc) || '?') + ')';
+        }));
+
         showToast('Argos: ' + marcados + ' executado(s) selecionado(s)', marcados ? '#28a745' : '#dc3545', 4000);
     }
 
@@ -318,6 +328,8 @@
     // ── Botão (na página /detalhe) ─────────────────────────────────────────
     window.executarArgos = async function () {
         try {
+            // reseta flag de execução anterior (a próxima página re-definirá)
+            try { sessionStorage.removeItem(FLAG_CPF_KEY); } catch (e) { /* ignore */ }
             const numero = _numeroProcesso();
             if (!numero) {
                 showToast('Argos: número do processo não encontrado nesta página', '#dc3545', 4000);
@@ -341,6 +353,9 @@
         executar: window.executarArgos,
         fluxo: executarFluxoArgos,
         _decidirSelecao: _decidirSelecaoExecutados, // helper de teste/debug
+        temCpfSelecionado: function () {
+            try { return sessionStorage.getItem(FLAG_CPF_KEY) === '1'; } catch (e) { return false; }
+        },
     };
 
     // ── Boot: na página /argos, executa o fluxo se houver dados pendentes ──

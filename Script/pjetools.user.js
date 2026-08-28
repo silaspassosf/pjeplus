@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.1.70
+// @version      2.1.71
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -40,11 +40,12 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.1.71
 // ==/UserScript==
 
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.1.70 loaded');
+    console.log('[Loader] PJe Tools Pro v2.1.71 loaded');
 
     async function loadLocalScript(url) {
         const source = await new Promise((resolve, reject) => {

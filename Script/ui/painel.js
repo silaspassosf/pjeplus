@@ -105,7 +105,14 @@
                     } else {
                         showToast('Módulo Débito não carregado', '#dc3545', 3000);
                     }
-                }, titulo: 'Registrar débito' }
+                }, titulo: 'Registrar débito' },
+            { id: 'btnArgos', texto: '⚖️ Argos', bg: '#6f42c1', fn: function () {
+                    if (typeof window.executarArgos === 'function') {
+                        window.executarArgos();
+                    } else {
+                        showToast('Módulo Argos não carregado', '#dc3545', 3000);
+                    }
+                }, titulo: 'Abrir Nova Pesquisa no ARGOS' }
         ]);
     };
 })();

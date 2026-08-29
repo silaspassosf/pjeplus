@@ -394,25 +394,40 @@
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Considerando o notório estado de insolvência da devedora principal, direciono a execução neste ato.</p>`;
                 }
 
-                if ($('chk-cumprimento')?.checked && $('chk-cumprimento-depositos-transferidos')?.checked) {
-                    const idsTransferencia = ($('cumprimento-id-transferencia')?.value || '[ID]')
-                        .split(/[,;\n]+/)
-                        .map((id) => id.trim())
-                        .filter(Boolean);
-                    const idsTexto = idsTransferencia.length === 1
-                        ? `id ${bold(idsTransferencia[0])}`
-                        : `ids ${formatarLista(idsTransferencia.map((id) => bold(id)))}`;
-                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Depósitos recursais do feito principal já transferidos: ${idsTexto}.</p>`;
-
-                    const tipoLiberacaoTransferencia = document.querySelector('input[name="cumprimento-tipo-liberacao"]:checked')?.value || 'direta';
-                    if (tipoLiberacaoTransferencia === 'direta') {
-                        houveDepositoDireto = true;
-                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Libere-se o depósito recursal em favor do reclamante. Após, apure-se o remanescente devido.</p>`;
-                    } else {
-                        houveLibecaoDetalhada = true;
-                        gerarLiberacaoDetalhada({
-                            depositoInfo: `${idsTransferencia.length > 1 ? 'os depósitos recursais' : 'o depósito recursal'} transferidos (${idsTransferencia.map((id) => bold(id)).join(', ')})`
+                if ($('chk-cumprimento')?.checked) {
+                    const transferidos = Array.from(document.querySelectorAll('[id^="chk-cumprimento-depositos-transferidos-"]'))
+                        .filter((checkbox) => checkbox.checked)
+                        .map((checkbox) => {
+                            const idx = checkbox.id.split('-').pop();
+                            const ids = ($(`cumprimento-id-transferencia-${idx}`)?.value || '[ID]')
+                                .split(/[,;\n]+/)
+                                .map((id) => id.trim())
+                                .filter(Boolean);
+                            const liberacao = document.querySelector(`input[name="cumprimento-tipo-liberacao-${idx}"]:checked`)?.value || 'direta';
+                            return { ids, liberacao };
                         });
+
+                    const idsTransferencia = transferidos.flatMap((item) => item.ids);
+                    if (idsTransferencia.length > 0) {
+                        const idsTexto = idsTransferencia.length === 1
+                            ? `id ${bold(idsTransferencia[0])}`
+                            : `ids ${formatarLista(idsTransferencia.map((id) => bold(id)))}`;
+                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Depósitos recursais do feito principal já transferidos: ${idsTexto}.</p>`;
+
+                        const transferidosDiretos = transferidos.filter((item) => item.liberacao === 'direta');
+                        if (transferidosDiretos.length > 0) {
+                            houveDepositoDireto = true;
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Libere-se o depósito recursal em favor do reclamante. Após, apure-se o remanescente devido.</p>`;
+                        }
+
+                        const transferidosDetalhados = transferidos.filter((item) => item.liberacao === 'detalhada');
+                        if (transferidosDetalhados.length > 0) {
+                            houveLibecaoDetalhada = true;
+                            const idsDetalhados = transferidosDetalhados.flatMap((item) => item.ids);
+                            gerarLiberacaoDetalhada({
+                                depositoInfo: `${idsDetalhados.length > 1 ? 'os depósitos recursais' : 'o depósito recursal'} transferidos (${idsDetalhados.map((id) => bold(id)).join(', ')})`
+                            });
+                        }
                     }
                 }
 

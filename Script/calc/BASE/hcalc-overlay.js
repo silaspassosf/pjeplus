@@ -2047,14 +2047,22 @@
             return depositosController.adicionarDepositoRecursal({ modoCumprimento: true });
         }
         $('btn-add-deposito-cumprimento').onclick = adicionarDepositoCumprimento;
-        $('chk-cumprimento').onchange = (e) => {
-            $('cumprimento-campos').classList.toggle('hidden', !e.target.checked);
-            if (e.target.checked && $('chk-cumprimento-depositos').checked && $('cumprimento-depositos-container').children.length === 0) {
+        const chkCumprimento = $('chk-cumprimento');
+        const camposCumprimento = $('cumprimento-campos');
+        const chkCumprimentoDepositos = $('chk-cumprimento-depositos');
+        const containerCumprimentoDepositos = $('cumprimento-depositos-container');
+        const atualizarCumprimento = (event) => {
+            const marcado = event.currentTarget.checked;
+            camposCumprimento.classList.toggle('hidden', !marcado);
+            dbg('[hcalc] Cumprimento de sentença alterado:', marcado);
+            if (marcado && chkCumprimentoDepositos.checked && containerCumprimentoDepositos.children.length === 0) {
                 adicionarDepositoCumprimento();
             }
         };
-        $('chk-cumprimento-depositos').onchange = (e) => {
-            if (e.target.checked && $('cumprimento-depositos-container').children.length === 0) {
+        chkCumprimento.addEventListener('change', atualizarCumprimento);
+        chkCumprimento.addEventListener('click', atualizarCumprimento);
+        chkCumprimentoDepositos.onchange = (e) => {
+            if (e.target.checked && containerCumprimentoDepositos.children.length === 0) {
                 adicionarDepositoCumprimento();
             }
         };

@@ -394,6 +394,28 @@
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Considerando o notório estado de insolvência da devedora principal, direciono a execução neste ato.</p>`;
                 }
 
+                if ($('chk-cumprimento')?.checked && $('chk-cumprimento-depositos-transferidos')?.checked) {
+                    const idsTransferencia = ($('cumprimento-id-transferencia')?.value || '[ID]')
+                        .split(/[,;\n]+/)
+                        .map((id) => id.trim())
+                        .filter(Boolean);
+                    const idsTexto = idsTransferencia.length === 1
+                        ? `id ${bold(idsTransferencia[0])}`
+                        : `ids ${formatarLista(idsTransferencia.map((id) => bold(id)))}`;
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Depósitos recursais do feito principal já transferidos: ${idsTexto}.</p>`;
+
+                    const tipoLiberacaoTransferencia = document.querySelector('input[name="cumprimento-tipo-liberacao"]:checked')?.value || 'direta';
+                    if (tipoLiberacaoTransferencia === 'direta') {
+                        houveDepositoDireto = true;
+                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Libere-se o depósito recursal em favor do reclamante. Após, apure-se o remanescente devido.</p>`;
+                    } else {
+                        houveLibecaoDetalhada = true;
+                        gerarLiberacaoDetalhada({
+                            depositoInfo: `${idsTransferencia.length > 1 ? 'os depósitos recursais' : 'o depósito recursal'} transferidos (${idsTransferencia.map((id) => bold(id)).join(', ')})`
+                        });
+                    }
+                }
+
                 if ($('chk-deposito').checked) {
                     const passivoDetectado = (window.hcalcPartesData?.passivo || []).map((parte) => parte?.nome).filter(Boolean);
                     const primeiraReclamada = passivoDetectado[0] || '';

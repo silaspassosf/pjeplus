@@ -191,6 +191,47 @@
         return false;
     }
 
+    // Espera robusta por elemento via MutationObserver (evento, sem polling fixo):
+    // resolve no instante em que o seletor aparece (mesmo padrão do esperarElemento
+    // do maispje). Retorna o elemento ou null no timeout.
+    async function _esperarElemento(seletor, timeout) {
+        timeout = timeout || 20000;
+        const existe = document.querySelector(seletor);
+        if (existe) return existe;
+        return new Promise(function (resolve) {
+            let obs = null;
+            const raiz = document.body || document.documentElement;
+            function ver() {
+                const e = document.querySelector(seletor);
+                if (e) { if (obs) obs.disconnect(); resolve(e); return true; }
+                return false;
+            }
+            if (ver()) return;
+            obs = new MutationObserver(function () { ver(); });
+            obs.observe(raiz, { childList: true, subtree: true });
+            setTimeout(function () { if (obs) obs.disconnect(); resolve(null); }, timeout);
+        });
+    }
+
+    // Versão rápida do _clicarTexto para elementos OPCIONAIS (ex.: "+ mais
+    // recente"): tenta poucas vezes e retorna logo se não existir, sem esperar
+    // o timeout todo.
+    async function _clicarTextoRapido(tag, textoNorm, tentativas) {
+        tentativas = tentativas || 4;
+        const alvo = normalize(textoNorm);
+        for (let i = 0; i < tentativas; i++) {
+            const els = Array.from(document.querySelectorAll(tag));
+            const el = els.find(e => normalize(e.textContent).includes(alvo));
+            if (el) {
+                try { el.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+                el.click();
+                return true;
+            }
+            await sleep(120);
+        }
+        return false;
+    }
+
     // Digita dígito por dígito (máscara de moeda processa) — "digitado, não colado"
     async function _digitarMoeda(input, digitos) {
         const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
@@ -691,7 +732,7 @@
                 // espera curta p/ garantir o handler Angular pronto (clique único)
                 await sleep(150);
                 try { elem.click(); } catch (e) { console.warn('[Argos] falha no click do sigilo:', e.message); }
-                const dialog = await waitElementVisible('pje-doc-visibilidade-sigilo', 8000);
+                const dialog = await _esperarElemento('pje-doc-visibilidade-sigilo', 8000);
                 if (dialog) return true;
             }
             await sleep(300);
@@ -708,17 +749,15 @@
 
         // 1. estabilizar a página após o F5 (timeline ou documento visível)
         const alvoSel = 'li.tl-item-container, [id^="doc_"], app-processo-detalhe, pje-timeline, #documento';
-        const timeline = await waitElementVisible(alvoSel, 30000);
+        const timeline = await _esperarElemento(alvoSel, 30000);
         if (!timeline) {
             console.warn('[Argos] timeline do processo não carregou');
             showToast('Argos: timeline do processo não carregou', '#dc3545', 5000);
             return;
         }
         console.log('[Argos] página do processo estável (timeline presente)');
-        await sleep(800);
-        // "+ mais recente" (toggle/filtro) se existir
-        await _clicarTexto('button, a, mat-button-toggle, .mat-button-toggle', 'mais recente', 2500);
-        await sleep(300);
+        // "+ mais recente" é OPCIONAL — tenta rápido e segue sem esperar timeout
+        await _clicarTextoRapido('button, a, mat-button-toggle, .mat-button-toggle', 'mais recente', 4);
 
         // 2. abrir visibilidade/sigilo do documento mais recente
         const dialogOk = await _abrirSigiloDocumentoMaisRecente(20000);
@@ -728,8 +767,8 @@
             return;
         }
         // aguarda a tabela da dialog renderizar antes de marcar
-        await waitElementVisible('pje-doc-visibilidade-sigilo-table, table.t-class', 8000);
-        await sleep(800);
+        await _esperarElemento('pje-doc-visibilidade-sigilo-table, table.t-class', 8000);
+        await sleep(400);
 
         // 3. marcar o polo ativo na dialog e salvar
         const ativoNome = dados && dados.ativo && dados.ativo[0] ? dados.ativo[0].nome : null;
@@ -769,23 +808,10 @@
     async function _iniciarWorkerFinalizacao(dados) {
         console.log('[Argos] worker de finalização disparado após o F5');
         try {
-            // 1. aguardar a página terminar de carregar
-            let tent = 0;
-            while (document.readyState !== 'complete' && tent < 200) {
-                await sleep(250);
-                tent++;
-            }
-            await sleep(800); // deixa o Angular renderizar o detalhe
-
-            // 2. aguardar a timeline/processo aparecer (estabilização)
+            // Aguarda a timeline/processo aparecer via MutationObserver (evento,
+            // sem sleep/polling fixo) — resolve no instante em que a página render.
             const alvoSel = 'li.tl-item-container, [id^="doc_"], app-processo-detalhe, pje-timeline, #documento';
-            const inicio = Date.now();
-            let pronto = null;
-            while (Date.now() - inicio < 60000) {
-                pronto = document.querySelector(alvoSel);
-                if (pronto) break;
-                await sleep(400);
-            }
+            const pronto = await _esperarElemento(alvoSel, 60000);
             if (!pronto) {
                 console.warn('[Argos] worker: página do processo não estabilizou em 60s');
                 showToast('Argos: página não estabilizou — finalização não executada', '#dc3545', 5000);

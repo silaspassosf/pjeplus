@@ -758,6 +758,9 @@
                             </select>
                         </div>
                     </div>
+                    <div id="custas-principal-pagas-opcao" class="hidden" style="margin-top: 6px;">
+                        <label style="font-size: 12px;"><input type="checkbox" id="chk-custas-principal-pagas" checked> Custas pagas no feito principal, em razão de recurso.</label>
+                    </div>
                     <div class="row" style="margin-bottom: 0;">
                         <div class="col" id="custas-data-col" style="flex: 1;">
                             <label>Data Custas <small style="color: #666;">(vazio = mesma planilha)</small></label>
@@ -2082,6 +2085,7 @@
             const marcado = event.currentTarget.checked;
             if (marcado) fieldsetDeposito.classList.remove('hidden');
             camposCumprimento.classList.toggle('hidden', !marcado);
+            $('custas-principal-pagas-opcao').classList.toggle('hidden', !marcado);
             dbg('[hcalc] Cumprimento de sentença alterado:', marcado);
             if (marcado && chkCumprimentoDepositos.checked && containerCumprimentoDepositos.children.length === 0) {
                 adicionarDepositoCumprimento();

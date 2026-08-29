@@ -2043,8 +2043,34 @@
         };
 
         // Cumprimento de sentença: processo principal + depósitos simplificados (só Tipo e Partes)
+        let proximoDepositoCumprimento = 0;
         function adicionarDepositoCumprimento() {
-            return depositosController.adicionarDepositoRecursal({ modoCumprimento: true });
+            const idx = proximoDepositoCumprimento++;
+            const container = $('cumprimento-depositos-container');
+            const reclamadas = window.hcalcPartesData?.passivo?.map(parte => parte.nome) || [];
+            if (!container) return;
+
+            const optionsHtml = ['<option value="">-- Selecione Reclamada --</option>']
+                .concat(reclamadas.map(nome => `<option value="${nome}">${nome}</option>`))
+                .join('');
+            const deposito = document.createElement('div');
+            deposito.id = `cumprimento-deposito-${idx}`;
+            deposito.style.cssText = 'border:1px solid #ddd;padding:8px;margin-bottom:8px;border-radius:4px;background:#f9f9f9;';
+            deposito.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <strong style="font-size:11px;color:#92400e;">Depósito do Principal #${idx + 1}</strong>
+                    <button type="button" class="btn-remover-cumprimento" style="padding:2px 8px;font-size:10px;color:#dc2626;background:#fee;border:1px solid #fca;border-radius:3px;cursor:pointer;">X Remover</button>
+                </div>
+                <div class="row">
+                    <select id="cumprimento-deposito-tipo-${idx}">
+                        <option value="bb" selected>Banco do Brasil</option>
+                        <option value="sif">CEF (SIF)</option>
+                        <option value="garantia">Seguro Garantia</option>
+                    </select>
+                    <select id="cumprimento-deposito-parte-${idx}">${optionsHtml}</select>
+                </div>`;
+            deposito.querySelector('.btn-remover-cumprimento').onclick = () => deposito.remove();
+            container.appendChild(deposito);
         }
         $('btn-add-deposito-cumprimento').onclick = adicionarDepositoCumprimento;
         const chkCumprimento = $('chk-cumprimento');

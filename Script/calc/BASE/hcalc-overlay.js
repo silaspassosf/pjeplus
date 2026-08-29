@@ -561,6 +561,11 @@
             <!-- SEÇÃO 1 e 2: BASE E PARTE -->
             <fieldset>
                 <legend>Cálculo Base e Autoria</legend>
+                <div class="row" style="margin-bottom: 8px;">
+                    <div class="col">
+                        <label><input type="checkbox" id="chk-cumprimento"> Cumprimento de sentença?</label>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col">
                         <label>Origem do Cálculo</label>
@@ -844,6 +849,20 @@
                     <label style="margin-left: 20px;"><input type="checkbox" id="chk-pag-antecipado"> Pagamento Antecipado</label>
                 </div>
 
+                <!-- CUMPRIMENTO DE SENTENÇA: processo principal + depósitos simplificados -->
+                <div id="cumprimento-campos" class="hidden" style="margin-top: 8px; padding: 8px; border: 1px dashed #f59e0b; border-radius: 4px; background: #fffbeb;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="font-weight: bold; color: #92400e; font-size: 12px; white-space: nowrap;">Processo principal:</label>
+                        <input type="text" id="cumprimento-processo-principal" placeholder="Cole o número do processo"
+                            style="flex: 1; padding: 6px; border: 1px solid #aaa; border-radius: 3px; font-size: 13px; box-sizing: border-box;">
+                    </div>
+                    <div style="margin-top: 6px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <label style="font-size: 12px;"><input type="checkbox" id="chk-cumprimento-depositos" checked> Informar depósitos do principal</label>
+                        <button type="button" id="btn-add-deposito-cumprimento" class="btn-action" style="padding: 4px 12px; font-size: 11px;">+ Adicionar Depósito do Principal</button>
+                    </div>
+                    <div id="cumprimento-depositos-container" style="margin-top: 6px;"></div>
+                </div>
+
                 <!-- CONTAINER DE DEPÓSITOS RECURSAIS (dinâmico) -->
                 <div id="deposito-campos" class="hidden">
                     <div id="depositos-container"></div>
@@ -1062,6 +1081,53 @@
                 responsabilidadesController.atualizarDropdownsPlanilhas();
             }
         };
+        // Máscara de valor NNN.NNN.NNN,CC para campos monetários
+        const maskValorHandlers = new WeakMap();
+        const aplicarMascaraValor = (input) => {
+            if (maskValorHandlers.has(input)) return;
+            const handler = (e) => {
+                const el = e.target;
+                let digitos = el.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+                if (digitos.length === 0) { el.value = ''; return; }
+                digitos = digitos.padStart(3, '0'); // Trata como centavos (últimos 2 dígitos)
+                let inteiros = digitos.slice(0, -2).replace(/^0+(?=\d)/, '') || '0';
+                const centavos = digitos.slice(-2);
+                el.value = inteiros.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + centavos;
+            };
+            maskValorHandlers.set(input, handler);
+            input.addEventListener('input', handler);
+        };
+        const removerMascaraValor = (input) => {
+            const handler = maskValorHandlers.get(input);
+            if (handler) {
+                input.removeEventListener('input', handler);
+                maskValorHandlers.delete(input);
+            }
+        };
+
+        // Aplicar máscara de valor aos campos monetários
+        ['val-credito', 'val-fgts', 'val-juros', 'val-inss-rec', 'val-inss-total',
+         'val-irpf-base', 'val-hon-autor', 'val-hon-reu', 'val-custas',
+         'val-perito-contabil-valor'].forEach(id => {
+            const campo = $(id);
+            if (campo) aplicarMascaraValor(campo);
+        });
+
+        // val-perito-valor: máscara só quando "Pago pela Reclamada (Valor)" estiver selecionado
+        const peritoTipoPagEl = $('perito-tipo-pag');
+        const peritoValorEl = $('val-perito-valor');
+        if (peritoTipoPagEl && peritoValorEl) {
+            const atualizarMascaraPeritoValor = () => {
+                if (peritoTipoPagEl.value === 'reclamada') {
+                    aplicarMascaraValor(peritoValorEl);
+                } else {
+                    removerMascaraValor(peritoValorEl);
+                }
+            };
+            peritoTipoPagEl.addEventListener('change', atualizarMascaraPeritoValor);
+            atualizarMascaraPeritoValor();
+        }
+
         const draftController = overlayDraftApi.createController({
             $, modalEl, warn, atualizarResumoPlanilha, adicionarLinhaPeridoDiverso,
             adicionarDepositoRecursal, adicionarPagamentoAntecipado,
@@ -1071,7 +1137,7 @@
         const queueOverlayDraftSave = draftController.queueSave;
         const restoreOverlayDraft = draftController.restore;
         const depositosController = window.hcalcOverlayDepositos.createController({
-            $, queueOverlayDraftSave
+            $, queueOverlayDraftSave, aplicarMascaraValor
         });
         const responsabilidadesController = window.hcalcOverlayResponsabilidades.createController({
             $,
@@ -1973,6 +2039,23 @@
             // Preencher automaticamente se marcado (safe: tem guard para jaTemCampos)
             if (e.target.checked) {
                 preencherDepositosAutomaticos();
+            }
+        };
+
+        // Cumprimento de sentença: processo principal + depósitos simplificados (só Tipo e Partes)
+        function adicionarDepositoCumprimento() {
+            return depositosController.adicionarDepositoRecursal({ modoCumprimento: true });
+        }
+        $('btn-add-deposito-cumprimento').onclick = adicionarDepositoCumprimento;
+        $('chk-cumprimento').onchange = (e) => {
+            $('cumprimento-campos').classList.toggle('hidden', !e.target.checked);
+            if (e.target.checked && $('chk-cumprimento-depositos').checked && $('cumprimento-depositos-container').children.length === 0) {
+                adicionarDepositoCumprimento();
+            }
+        };
+        $('chk-cumprimento-depositos').onchange = (e) => {
+            if (e.target.checked && $('cumprimento-depositos-container').children.length === 0) {
+                adicionarDepositoCumprimento();
             }
         };
 

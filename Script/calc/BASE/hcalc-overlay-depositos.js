@@ -2,7 +2,7 @@
     'use strict';
 
     function createController(deps) {
-        const { $, queueOverlayDraftSave } = deps;
+        const { $, queueOverlayDraftSave, aplicarMascaraValor } = deps;
 
         function preencherDepositosAutomaticos() {
             const prep = window.hcalcLastPrepResult;
@@ -91,9 +91,12 @@
             }
         }
 
-        function adicionarDepositoRecursal() {
+        function adicionarDepositoRecursal(opts = {}) {
             const idx = window.hcalcState.nextDepositoIdx++;
-            const container = $('depositos-container');
+            const modoCumprimento = !!opts.modoCumprimento;
+            const container = modoCumprimento
+                ? (opts.container || $('cumprimento-depositos-container'))
+                : $('depositos-container');
             const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
 
             console.log('[AUTO-DEPOSITOS] adicionarDepositoRecursal called, idx will be', idx, 'reclamadas:', reclamadas);
@@ -106,6 +109,33 @@
             let optionsHtml = '<option value="">-- Selecione Reclamada --</option>';
             for (const nome of reclamadas) {
                 optionsHtml += `<option value="${nome}">${nome}</option>`;
+            }
+
+            // Modo cumprimento de sentença: apenas Tipo de depósito e Partes (sem liberação/principal)
+            if (modoCumprimento) {
+                depositoDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong style="font-size: 11px; color: #92400e;">Depósito do Principal #${idx + 1}</strong>
+                        <button type="button" id="btn-remover-dep-${idx}" style="padding: 2px 8px; font-size: 10px; color: #dc2626; background: #fee; border: 1px solid #fca; border-radius: 3px; cursor: pointer;">✕ Remover</button>
+                    </div>
+                    <div class="row">
+                        <select id="dep-tipo-${idx}" data-dep-idx="${idx}">
+                            <option value="bb" selected>Banco do Brasil</option>
+                            <option value="sif">CEF (SIF)</option>
+                            <option value="garantia">Seguro Garantia</option>
+                        </select>
+                        <select id="dep-depositante-${idx}" data-dep-idx="${idx}">
+                            ${optionsHtml}
+                        </select>
+                    </div>
+                `;
+                container.appendChild(depositoDiv);
+
+                const btnRemoverDep = depositoDiv.querySelector(`#btn-remover-dep-${idx}`);
+                if (btnRemoverDep) {
+                    btnRemoverDep.addEventListener('click', () => depositoDiv.remove());
+                }
+                return idx;
             }
 
             depositoDiv.innerHTML = `
@@ -239,6 +269,12 @@
             `;
 
             container.appendChild(pagamentoDiv);
+
+            // Máscara de valor nos campos monetários do pagamento antecipado
+            const inpRemValor = $(`lib-rem-valor-${idx}`);
+            const inpDevValor = $(`lib-dev-valor-${idx}`);
+            if (inpRemValor && aplicarMascaraValor) aplicarMascaraValor(inpRemValor);
+            if (inpDevValor && aplicarMascaraValor) aplicarMascaraValor(inpDevValor);
 
             document.querySelectorAll(`input[name="lib-tipo-${idx}"]`).forEach(radio => {
                 radio.addEventListener('change', (e) => {

@@ -96,7 +96,7 @@
             $, modalEl, warn, atualizarResumoPlanilha, adicionarLinhaPeridoDiverso,
             adicionarDepositoRecursal, adicionarPagamentoAntecipado,
             aplicarEstiloRecuperacaoJudicial, atualizarDropdownsPlanilhas,
-            updateHighlight
+            updateHighlight, adicionarDepositoCumprimento
         } = deps;
 
         let saveDraftTimer = null;
@@ -188,6 +188,17 @@
                     devValor: $(`lib-dev-valor-${pag.idx}`)?.value || ''
                 }));
 
+            const cumprimentoDepositos = Array.from(document.querySelectorAll('.cumprimento-deposito-item')).map((item) => {
+                const idx = item.id.replace('cumprimento-deposito-', '');
+                return {
+                    tipo: $(`cumprimento-deposito-tipo-${idx}`)?.value || 'bb',
+                    parte: $(`cumprimento-deposito-parte-${idx}`)?.value || '',
+                    transferido: !!$(`chk-cumprimento-depositos-transferidos-${idx}`)?.checked,
+                    idTransferencia: $(`cumprimento-id-transferencia-${idx}`)?.value || '',
+                    liberacao: document.querySelector(`input[name="cumprimento-tipo-liberacao-${idx}"]:checked`)?.value || 'direta'
+                };
+            });
+
             const intimacoes = Array.from(document.querySelectorAll('.intimacao-row')).map((row) => ({
                 nome: row.querySelector('.chk-parte-principal')?.dataset?.nome || '',
                 principal: !!row.querySelector('.chk-parte-principal')?.checked,
@@ -215,6 +226,10 @@
                 pagamentosEnabled: !!$('chk-pag-antecipado')?.checked,
                 pagamentos,
                 intimacoes
+                ,cumprimentoEnabled: !!$('chk-cumprimento')?.checked
+                ,cumprimentoProcessoPrincipal: $('cumprimento-processo-principal')?.value || ''
+                ,cumprimentoDepositosEnabled: !!$('chk-cumprimento-depositos')?.checked
+                ,cumprimentoDepositos
             }, warn);
         }
 
@@ -248,7 +263,8 @@
                  // Dispara os Pais por último para garantir que a ocultação global seja respeitada
                  'resp-subsidiarias', 'resp-solidarias', 
                  'chk-nao-ha-subs-int', 'chk-nao-ha-sol-int', 'resp-rec-judicial-unica',
-                 'calc-fgts', 'ignorar-inss', 'irpf-tipo', 'chk-hon-reu', 'chk-perito-conh', 'custas-origem'
+                 'calc-fgts', 'ignorar-inss', 'irpf-tipo', 'chk-hon-reu', 'chk-perito-conh', 'custas-origem',
+                 'chk-cumprimento'
                 ].forEach((id) => {
                     const el = $(id);
                     if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -257,6 +273,37 @@
                 if ($('resp-diversos')) {
                     $('resp-diversos').checked = !!draft.periodosEnabled;
                     $('resp-diversos').dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                if ($('chk-cumprimento')) {
+                    $('chk-cumprimento').checked = !!draft.cumprimentoEnabled;
+                    $('chk-cumprimento').dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                if ($('cumprimento-processo-principal')) {
+                    $('cumprimento-processo-principal').value = draft.cumprimentoProcessoPrincipal || '';
+                }
+                if ($('chk-cumprimento-depositos')) {
+                    $('chk-cumprimento-depositos').checked = draft.cumprimentoDepositosEnabled !== false;
+                }
+                if (draft.cumprimentoEnabled && Array.isArray(draft.cumprimentoDepositos) && adicionarDepositoCumprimento) {
+                    const containerCumprimento = $('cumprimento-depositos-container');
+                    if (containerCumprimento) containerCumprimento.innerHTML = '';
+                    draft.cumprimentoDepositos.forEach((dep) => {
+                        adicionarDepositoCumprimento();
+                        const ultimoDeposito = containerCumprimento?.lastElementChild;
+                        const idx = ultimoDeposito?.id.replace('cumprimento-deposito-', '');
+                        if (idx === undefined) return;
+                        if ($(`cumprimento-deposito-tipo-${idx}`)) $(`cumprimento-deposito-tipo-${idx}`).value = dep.tipo || 'bb';
+                        if ($(`cumprimento-deposito-parte-${idx}`)) $(`cumprimento-deposito-parte-${idx}`).value = dep.parte || '';
+                        const chk = $(`chk-cumprimento-depositos-transferidos-${idx}`);
+                        if (chk) {
+                            chk.checked = !!dep.transferido;
+                            chk.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if ($(`cumprimento-id-transferencia-${idx}`)) $(`cumprimento-id-transferencia-${idx}`).value = dep.idTransferencia || '';
+                        const radio = document.querySelector(`input[name="cumprimento-tipo-liberacao-${idx}"][value="${dep.liberacao || 'direta'}"]`);
+                        if (radio) radio.checked = true;
+                    });
                 }
 
                 if (draft.principais && draft.principais.length > 0 && respApi && respApi.addPrincipal) {

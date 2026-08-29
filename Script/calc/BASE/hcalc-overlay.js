@@ -1133,7 +1133,7 @@
             $, modalEl, warn, atualizarResumoPlanilha, adicionarLinhaPeridoDiverso,
             adicionarDepositoRecursal, adicionarPagamentoAntecipado,
             aplicarEstiloRecuperacaoJudicial, atualizarDropdownsPlanilhas,
-            updateHighlight
+            updateHighlight, adicionarDepositoCumprimento
         });
         const queueOverlayDraftSave = draftController.queueSave;
         const restoreOverlayDraft = draftController.restore;
@@ -2062,6 +2062,7 @@
                 .join('');
             const deposito = document.createElement('div');
             deposito.id = `cumprimento-deposito-${idx}`;
+            deposito.className = 'cumprimento-deposito-item';
             deposito.style.cssText = 'border:1px solid #ddd;padding:8px;margin-bottom:8px;border-radius:4px;background:#f9f9f9;';
             deposito.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">

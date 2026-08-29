@@ -2048,11 +2048,13 @@
         }
         $('btn-add-deposito-cumprimento').onclick = adicionarDepositoCumprimento;
         const chkCumprimento = $('chk-cumprimento');
+        const fieldsetDeposito = $('fieldset-deposito');
         const camposCumprimento = $('cumprimento-campos');
         const chkCumprimentoDepositos = $('chk-cumprimento-depositos');
         const containerCumprimentoDepositos = $('cumprimento-depositos-container');
         const atualizarCumprimento = (event) => {
             const marcado = event.currentTarget.checked;
+            if (marcado) fieldsetDeposito.classList.remove('hidden');
             camposCumprimento.classList.toggle('hidden', !marcado);
             dbg('[hcalc] Cumprimento de sentença alterado:', marcado);
             if (marcado && chkCumprimentoDepositos.checked && containerCumprimentoDepositos.children.length === 0) {

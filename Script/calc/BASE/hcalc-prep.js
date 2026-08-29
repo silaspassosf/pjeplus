@@ -229,6 +229,52 @@
         return null;
     }
 
+    function _encontrarParteNoTexto(texto, passivo) {
+        const textoNorm = _normalize(texto);
+        if (!textoNorm) return null;
+
+        let melhor = null;
+        for (const parte of (passivo || [])) {
+            const nomeNorm = _normalize(parte.nome);
+            const tokens = nomeNorm.split(/\s+/).filter(function(token) {
+                return token.length > 2 && !['da', 'das', 'de', 'do', 'dos', 'e'].includes(token);
+            });
+            if (!nomeNorm || tokens.length === 0) continue;
+
+            if (textoNorm.includes(nomeNorm)) {
+                return { partes: [{ nomeParte: parte.nome, polo: 'PASSIVO' }], metodo: 'conteudo-primeira-pagina', score: 1 };
+            }
+
+            const encontrados = tokens.filter(function(token) { return textoNorm.includes(token); });
+            const score = encontrados.length / tokens.length;
+            if (encontrados.length >= 2 && score >= 0.6 && (!melhor || score > melhor.score)) {
+                melhor = {
+                    partes: [{ nomeParte: parte.nome, polo: 'PASSIVO' }],
+                    metodo: 'conteudo-primeira-pagina-similaridade',
+                    score,
+                };
+            }
+        }
+        return melhor;
+    }
+
+    async function _resolverPartePorConteudoRecurso(rec, passivo) {
+        if (!rec || !rec.idDoc || !passivo || passivo.length === 0) return null;
+        try {
+            const r = await _fetchDocPrimeiraPagina(rec.idDoc);
+            const resolucao = _encontrarParteNoTexto(r.texto, passivo);
+            if (resolucao) {
+                dbg('[prep] Parte do recurso localizada na primeira página:', rec.idDoc, resolucao);
+            } else {
+                dbg('[prep] Nenhuma parte passiva localizada na primeira página:', rec.idDoc);
+            }
+            return resolucao;
+        } catch (e) {
+            warn('[prep] Falha ao ler primeira página do recurso idDoc=' + rec.idDoc + ':', e.message);
+            return null;
+        }
+    }
+
     // ==========================================
     // E2 - TIMELINE
     // ==========================================
@@ -317,7 +363,7 @@
         throw lastErr || new Error('Nenhum endpoint retornou conteudo para idDoc=' + idDoc);
     }
 
-    async function _pdfToText(arrayBuffer) {
+    async function _pdfToText(arrayBuffer, primeiraPagina) {
         let lib = window.pdfjsLib;
         if (!lib) {
             try {
@@ -346,7 +392,9 @@
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
         const pages = [];
-        for (let p = 1; p <= pdf.numPages; p++) {
+        const paginaInicial = primeiraPagina ? 1 : 1;
+        const paginaFinal = primeiraPagina ? 1 : pdf.numPages;
+        for (let p = paginaInicial; p <= paginaFinal; p++) {
             const content = await (await pdf.getPage(p)).getTextContent();
             const linesMap = {};
             content.items.filter(function(it) { return it.str && it.str.trim(); }).forEach(function(it) {
@@ -371,6 +419,17 @@
             return { tipo: 'pdf-extraido', texto, chars: texto.length, idDoc };
         }
         return r;
+    }
+
+    async function _fetchDocPrimeiraPagina(idDoc) {
+        const r = await _fetchDocConteudo(idDoc);
+        if (r.tipo === 'pdf' && r.buffer) {
+            const texto = await _pdfToText(r.buffer, true);
+            return { tipo: 'pdf-extraido-primeira-pagina', texto, chars: texto.length, idDoc };
+        }
+        const texto = String(r.texto || '');
+        const primeiraPagina = texto.split(/---\s*P[ÁA]GINA\s*---|page-break-before|page-break-after/i)[0].trim();
+        return { ...r, texto: primeiraPagina, chars: primeiraPagina.length, idDoc };
     }
 
     function _escapeRegExp(str) {
@@ -1125,16 +1184,17 @@
                 const recItemIdx = items.indexOf(rec);
                 const ocorreuDepoisDoAcordao = oldestAcordaoItemIdx !== -1 && recItemIdx < oldestAcordaoItemIdx;
 
-                // Pipeline: resolver parte peticionante via advogado
-                const resolucao = await _resolverPartePeticionante(rec, advMap, passivo);
-                const nomesPartes = resolucao
-                    ? resolucao.partes.map(function(p) { return p.nomeParte; }).join(' + ')
-                    : rec.nomeParte || '';
-                const polo = resolucao
-                    ? (resolucao.partes[0] ? resolucao.partes[0].polo : null)
-                    : _detectarPoloPassivo(rec._raw, passivo);  // fallback antigo
+                // A parte do recurso deve ser identificada no conteúdo da primeira página.
+                // Se não for localizada entre as partes do prep, não preencher o depositante.
+                const resolucaoConteudo = await _resolverPartePorConteudoRecurso(rec, passivo);
+                const nomesPartes = resolucaoConteudo
+                    ? resolucaoConteudo.partes.map(function(p) { return p.nomeParte; }).join(' + ')
+                    : '';
+                const polo = resolucaoConteudo
+                    ? 'PASSIVO'
+                    : _detectarPoloPassivo(rec._raw, passivo);
 
-                dbg('[prep] Recurso', rec.categoria, '→ parte:', nomesPartes, '(' + polo + ') via', resolucao ? resolucao.metodo : 'fallback');
+                dbg('[prep] Recurso', rec.categoria, '→ parte:', nomesPartes, '(' + polo + ') via', resolucaoConteudo ? resolucaoConteudo.metodo : 'não localizada no conteúdo');
 
                 // Filtro: apenas polo passivo (ou pós-acórdão) COM anexos
                 if (!ocorreuDepoisDoAcordao && polo !== 'PASSIVO') continue;

@@ -624,7 +624,8 @@
                         const verboComAdv = grpDiario.length > 1 ? 'Intimem-se as reclamadas' : 'Intime-se a reclamada';
                         const patronoTxt = grpDiario.length > 1 ? 'seus patronos' : 'seu patrono';
                         const tipoValores = houveDepositoDireto ? 'valores remanescentes' : 'valores acima indicados';
-                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${houveDepositoDireto ? 'Após referida atualização, ' : ''}${verboComAdv} ${bold(alvoComAdv)}, na pessoa de ${patronoTxt}, para que pague(m) os ${tipoValores} em 15 dias, na forma do art. 523, caput, do CPC, sob pena de penhora.</p>`;
+                        const verboPagamento = $('chk-cumprimento')?.checked ? 'para GARANTIR(em) os' : 'para que pague(m) os';
+                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${houveDepositoDireto ? 'Após referida atualização, ' : ''}${verboComAdv} ${bold(alvoComAdv)}, na pessoa de ${patronoTxt}, ${verboPagamento} ${tipoValores} em 15 dias, na forma do art. 523, caput, do CPC, sob pena de penhora.</p>`;
                     }
 
                     if (grpMandado.length > 0) {

@@ -631,6 +631,47 @@
         return false;
     }
 
+    // Marca o polo ativo na dialog "Visibilidade de Sigilo de Documento".
+    // O checkbox tem aria-label="Selecionar {NOME}" (o label visual fica vazio);
+    // fallback: linha da tabela cuja coluna Nome (3ª td) contém o nome.
+    async function _marcarPoloAtivoDialog(ativoNome, timeout) {
+        timeout = timeout || 10000;
+        const alvo = normalize(ativoNome);
+        const inicio = Date.now();
+        while (Date.now() - inicio < timeout) {
+            const escopo = document.querySelector('pje-doc-visibilidade-sigilo');
+            if (escopo) {
+                let cb = Array.from(escopo.querySelectorAll('mat-checkbox[aria-label^="Selecionar"]'))
+                    .find(function (el) {
+                        return normalize(el.getAttribute('aria-label')).includes(alvo);
+                    });
+                if (!cb) {
+                    const rows = escopo.querySelectorAll('table.t-class tbody tr, pje-doc-visibilidade-sigilo-table tbody tr');
+                    for (const row of Array.from(rows)) {
+                        const nomeEl = row.querySelectorAll('td')[2];
+                        if (nomeEl && normalize(nomeEl.textContent).includes(alvo)) {
+                            cb = row.querySelector('mat-checkbox');
+                            if (cb) break;
+                        }
+                    }
+                }
+                if (cb) {
+                    const input = cb.querySelector('input[type="checkbox"]');
+                    if (input) {
+                        if (input.checked) return true;
+                        try { input.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+                        input.click();
+                        await sleep(300);
+                        return !!input.checked;
+                    }
+                }
+            }
+            await sleep(150);
+        }
+        console.warn('[Argos] checkbox do polo ativo não encontrado na dialog de visibilidade');
+        return false;
+    }
+
     // Abre a dialog "Visibilidade de Sigilo de Documento" do documento mais recente
     // (primeiro item da timeline, que é DESC) e retorna true se a dialog abriu.
     // O clique correto é no botão button[name="Visibilidade para Sigilo"] (ícone
@@ -647,11 +688,13 @@
             if (alvo) {
                 const elem = alvo.closest('button') || alvo;
                 try { elem.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+                // espera curta p/ garantir o handler Angular pronto (clique único)
+                await sleep(150);
                 try { elem.click(); } catch (e) { console.warn('[Argos] falha no click do sigilo:', e.message); }
-                const dialog = await waitElementVisible('pje-doc-visibilidade-sigilo', 6000);
+                const dialog = await waitElementVisible('pje-doc-visibilidade-sigilo', 8000);
                 if (dialog) return true;
             }
-            await sleep(200);
+            await sleep(300);
         }
         return false;
     }
@@ -672,10 +715,10 @@
             return;
         }
         console.log('[Argos] página do processo estável (timeline presente)');
-        await sleep(1500);
+        await sleep(800);
         // "+ mais recente" (toggle/filtro) se existir
-        await _clicarTexto('button, a, mat-button-toggle, .mat-button-toggle', 'mais recente', 5000);
-        await sleep(500);
+        await _clicarTexto('button, a, mat-button-toggle, .mat-button-toggle', 'mais recente', 2500);
+        await sleep(300);
 
         // 2. abrir visibilidade/sigilo do documento mais recente
         const dialogOk = await _abrirSigiloDocumentoMaisRecente(20000);
@@ -684,18 +727,26 @@
             showToast('Argos: dialog de visibilidade/sigilo não abriu', '#ff9800', 5000);
             return;
         }
-        await sleep(600);
+        // aguarda a tabela da dialog renderizar antes de marcar
+        await waitElementVisible('pje-doc-visibilidade-sigilo-table, table.t-class', 8000);
+        await sleep(800);
 
         // 3. marcar o polo ativo na dialog e salvar
         const ativoNome = dados && dados.ativo && dados.ativo[0] ? dados.ativo[0].nome : null;
+        let marcado = false;
         if (ativoNome) {
-            const marcado = await _marcarCheckboxPorLabel('pje-doc-visibilidade-sigilo', ativoNome, 10000);
+            marcado = await _marcarPoloAtivoDialog(ativoNome, 10000);
             console.log('[Argos] polo ativo marcado na dialog de visibilidade?', marcado);
         } else {
             console.warn('[Argos] polo ativo não disponível para marcar na dialog');
         }
-        if (await _clicarTexto('button', 'salvar', 10000)) {
-            console.log('[Argos] "Salvar" clicado na dialog de visibilidade');
+        if (marcado) {
+            await sleep(400);
+            if (await _clicarTexto('button', 'salvar', 10000)) {
+                console.log('[Argos] "Salvar" clicado na dialog de visibilidade');
+            }
+        } else {
+            console.warn('[Argos] polo ativo NÃO marcado — não clicou em Salvar');
         }
         await sleep(800);
 
@@ -724,7 +775,7 @@
                 await sleep(250);
                 tent++;
             }
-            await sleep(1500); // deixa o Angular renderizar o detalhe
+            await sleep(800); // deixa o Angular renderizar o detalhe
 
             // 2. aguardar a timeline/processo aparecer (estabilização)
             const alvoSel = 'li.tl-item-container, [id^="doc_"], app-processo-detalhe, pje-timeline, #documento';

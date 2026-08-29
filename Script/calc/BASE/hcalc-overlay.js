@@ -747,6 +747,7 @@
                             <select id="custas-status">
                                 <option value="devidas" selected>Devidas</option>
                                 <option value="pagas">Já Pagas</option>
+                                <option value="recurso" class="hidden">Pagas em razão de recurso</option>
                             </select>
                         </div>
                         <div class="col" style="flex: 0 0 140px;">
@@ -757,9 +758,6 @@
                                 <option value="acordao">Acórdão</option>
                             </select>
                         </div>
-                    </div>
-                    <div id="custas-principal-pagas-opcao" class="hidden" style="margin-top: 6px;">
-                        <label style="font-size: 12px;"><input type="checkbox" id="chk-custas-principal-pagas" checked> Custas pagas no feito principal, em razão de recurso.</label>
                     </div>
                     <div class="row" style="margin-bottom: 0;">
                         <div class="col" id="custas-data-col" style="flex: 1;">
@@ -1685,7 +1683,13 @@
                     }
                     // Sempre usa sentença como padrão, salvo se houver recurso da reclamada
                         if (custasStatusEl) {
-                            if ((prep.recursosPassivo && prep.recursosPassivo.length > 0) || (prep.depositos && prep.depositos.length > 0)) {
+                            const temCustasPlanilha = !!window.hcalcState.planilhaExtracaoData?.custas;
+                            const temRecurso = (prep.recursosPassivo && prep.recursosPassivo.length > 0) || (prep.depositos && prep.depositos.length > 0);
+                            if (window.hcalcState.cumprimentoSentenca && temCustasPlanilha) {
+                                custasStatusEl.value = 'devidas';
+                            } else if (window.hcalcState.cumprimentoSentenca && temRecurso) {
+                                custasStatusEl.value = 'recurso';
+                            } else if (temRecurso) {
                                 custasStatusEl.value = 'pagas';
                             } else {
                                 custasStatusEl.value = 'devidas';
@@ -2083,9 +2087,18 @@
         const containerCumprimentoDepositos = $('cumprimento-depositos-container');
         const atualizarCumprimento = (event) => {
             const marcado = event.currentTarget.checked;
+            window.hcalcState.cumprimentoSentenca = marcado;
             if (marcado) fieldsetDeposito.classList.remove('hidden');
             camposCumprimento.classList.toggle('hidden', !marcado);
-            $('custas-principal-pagas-opcao').classList.toggle('hidden', !marcado);
+            const recursoOption = $('custas-status').querySelector('option[value="recurso"]');
+            recursoOption.classList.toggle('hidden', !marcado);
+            if (marcado) {
+                const temCustasPlanilha = !!window.hcalcState.planilhaExtracaoData?.custas;
+                $('custas-status').value = temCustasPlanilha ? 'devidas' : 'recurso';
+                if (temCustasPlanilha) $('custas-origem').value = 'planilha';
+            } else if ($('custas-status').value === 'recurso') {
+                $('custas-status').value = 'devidas';
+            }
             dbg('[hcalc] Cumprimento de sentença alterado:', marcado);
             if (marcado && chkCumprimentoDepositos.checked && containerCumprimentoDepositos.children.length === 0) {
                 adicionarDepositoCumprimento();

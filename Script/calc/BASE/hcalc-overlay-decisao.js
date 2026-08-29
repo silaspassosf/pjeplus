@@ -331,7 +331,7 @@
                     });
                 }
 
-                if ($('chk-cumprimento')?.checked && $('chk-custas-principal-pagas')?.checked) {
+                if ($('custas-status').value === 'recurso') {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Custas pagas no feito principal, em razão de recurso.</p>`;
                 } else if ($('custas-status').value === 'pagas') {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Custas pagas em razão de recurso.</p>`;

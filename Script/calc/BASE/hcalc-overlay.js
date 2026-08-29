@@ -852,11 +852,6 @@
 
                 <!-- CUMPRIMENTO DE SENTENÇA: processo principal + depósitos simplificados -->
                 <div id="cumprimento-campos" class="hidden" style="margin-top: 8px; padding: 8px; border: 1px dashed #f59e0b; border-radius: 4px; background: #fffbeb;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label style="font-weight: bold; color: #92400e; font-size: 12px; white-space: nowrap;">Processo principal:</label>
-                        <input type="text" id="cumprimento-processo-principal" placeholder="Cole o número do processo"
-                            style="flex: 1; padding: 6px; border: 1px solid #aaa; border-radius: 3px; font-size: 13px; box-sizing: border-box;">
-                    </div>
                     <div style="margin-top: 6px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                         <label style="font-size: 12px;"><input type="checkbox" id="chk-cumprimento-depositos" checked> Informar depósitos do principal</label>
                         <button type="button" id="btn-add-deposito-cumprimento" class="btn-action" style="padding: 4px 12px; font-size: 11px;">+ Adicionar Depósito do Principal</button>
@@ -2076,8 +2071,7 @@
                         <option value="garantia">Seguro Garantia</option>
                     </select>
                     <select id="cumprimento-deposito-parte-${idx}">${optionsHtml}</select>
-                </div>`;
-            deposito.insertAdjacentHTML('beforeend', `
+                </div>
                 <div style="margin-top: 8px;">
                     <label style="font-size: 12px;"><input type="checkbox" id="chk-cumprimento-depositos-transferidos-${idx}"> Depósitos já transferidos</label>
                     <div id="cumprimento-transferidos-campos-${idx}" class="hidden" style="margin-top: 6px;">
@@ -2089,12 +2083,12 @@
                             <label style="font-size: 11px; margin-left: 12px;"><input type="radio" name="cumprimento-tipo-liberacao-${idx}" value="detalhada"> Liberação detalhada</label>
                         </div>
                     </div>
-                </div>`);
+                </div>`;
+            container.appendChild(deposito);
             deposito.querySelector(`#chk-cumprimento-depositos-transferidos-${idx}`).onchange = (event) => {
                 deposito.querySelector(`#cumprimento-transferidos-campos-${idx}`).classList.toggle('hidden', !event.target.checked);
             };
             deposito.querySelector('.btn-remover-cumprimento').onclick = () => deposito.remove();
-            container.appendChild(deposito);
         }
         $('btn-add-deposito-cumprimento').onclick = adicionarDepositoCumprimento;
         const chkCumprimento = $('chk-cumprimento');

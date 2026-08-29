@@ -19,13 +19,15 @@
             const campos = [];
             const rowPeritoContabil = $('row-perito-contabil');
             const valorPeritoContabil = $('val-perito-contabil-valor');
-            if (rowPeritoContabil && !rowPeritoContabil.classList.contains('hidden') && valorPeritoContabil) {
+            const rogerioDetectado = (window.hcalcPeritosDetectados || []).some((nome) => isNomeRogerio(nome));
+            if (valorPeritoContabil && (rogerioDetectado || (rowPeritoContabil && !rowPeritoContabil.classList.contains('hidden')))) {
                 campos.push(valorPeritoContabil);
             }
 
             const chkPeritoConh = $('chk-perito-conh');
             const peritoConhCampos = $('perito-conh-campos');
-            if (chkPeritoConh?.checked && peritoConhCampos && !peritoConhCampos.classList.contains('hidden')) {
+            const conhecimentoDetectado = (window.hcalcPeritosConhecimentoDetectados || []).length > 0;
+            if ((chkPeritoConh?.checked || conhecimentoDetectado) && peritoConhCampos && !peritoConhCampos.classList.contains('hidden')) {
                 ['val-perito-nome', 'val-perito-valor', 'val-perito-data'].forEach((id) => {
                     const campo = $(id);
                     if (campo) campos.push(campo);

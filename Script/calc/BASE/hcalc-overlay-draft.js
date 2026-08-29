@@ -227,7 +227,6 @@
                 pagamentos,
                 intimacoes
                 ,cumprimentoEnabled: !!$('chk-cumprimento')?.checked
-                ,cumprimentoProcessoPrincipal: $('cumprimento-processo-principal')?.value || ''
                 ,cumprimentoDepositosEnabled: !!$('chk-cumprimento-depositos')?.checked
                 ,cumprimentoDepositos
             }, warn);
@@ -278,9 +277,6 @@
                 if ($('chk-cumprimento')) {
                     $('chk-cumprimento').checked = !!draft.cumprimentoEnabled;
                     $('chk-cumprimento').dispatchEvent(new Event('change', { bubbles: true }));
-                }
-                if ($('cumprimento-processo-principal')) {
-                    $('cumprimento-processo-principal').value = draft.cumprimentoProcessoPrincipal || '';
                 }
                 if ($('chk-cumprimento-depositos')) {
                     $('chk-cumprimento-depositos').checked = draft.cumprimentoDepositosEnabled !== false;

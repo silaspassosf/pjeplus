@@ -15,8 +15,41 @@
             responsabilidadesTextoApi
         } = deps;
 
+        function validarCamposPerito() {
+            const campos = [];
+            const rowPeritoContabil = $('row-perito-contabil');
+            const valorPeritoContabil = $('val-perito-contabil-valor');
+            if (rowPeritoContabil && !rowPeritoContabil.classList.contains('hidden') && valorPeritoContabil) {
+                campos.push(valorPeritoContabil);
+            }
+
+            const chkPeritoConh = $('chk-perito-conh');
+            const peritoConhCampos = $('perito-conh-campos');
+            if (chkPeritoConh?.checked && peritoConhCampos && !peritoConhCampos.classList.contains('hidden')) {
+                ['val-perito-nome', 'val-perito-valor', 'val-perito-data'].forEach((id) => {
+                    const campo = $(id);
+                    if (campo) campos.push(campo);
+                });
+            }
+
+            document.querySelectorAll('.hcalc-perito-aviso').forEach((aviso) => aviso.remove());
+            for (const campo of campos) {
+                campo.classList.add('highlight');
+                if (campo.value.trim()) continue;
+                const aviso = document.createElement('span');
+                aviso.className = 'hcalc-perito-aviso';
+                aviso.textContent = 'Preencha aqui antes de gravar';
+                aviso.style.cssText = 'color:#b91c1c;font-size:11px;font-weight:bold;margin-left:6px;white-space:nowrap;';
+                campo.insertAdjacentElement('afterend', aviso);
+                campo.focus();
+                return false;
+            }
+            return true;
+        }
+
         function handleGravar() {
             dbg('Clique em Gravar Decisao detectado.');
+            if (!validarCamposPerito()) return;
             
             // Centralizando a função de formatação para evitar qualquer erro de escopo (ReferenceError)
             const formatarLista = (itens) => {

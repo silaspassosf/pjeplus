@@ -9,7 +9,7 @@
 (function () {
     const KEY = 'pjetools_argos_dados';
     const FLAG_CPF_KEY = 'pjetools_argos_tem_cpf';
-    const FINALIZAR_KEY = 'pjetools_argos_finalizar';
+    const FLUXO_KEY = 'pjetools_argos_fluxo';
 
     // ── Primitivas (fallback caso core/utils.js não tenha carregado) ──────
     const sleep = window.sleep || (ms => new Promise(r => setTimeout(r, ms)));
@@ -34,6 +34,30 @@
         const n = parseFloat(String(s).replace(/R\$\s*/g, '').replace(/\./g, '').replace(',', '.').trim());
         return Number.isFinite(n) ? n : 0;
     };
+
+    // ── Persistência entre reloads (checkpoint) ────────────────────────────
+    // O F5 derruba a instância do userscript; o estado precisa ser salvo ANTES
+    // do reload e retomado na próxima execução. Usa GM (Tampermonkey) com
+    // fallback em sessionStorage.
+    function _gmSet(key, val) {
+        const s = (typeof val === 'string') ? val : JSON.stringify(val);
+        try { if (typeof GM_setValue === 'function') { GM_setValue(key, s); return; } } catch (e) { /* ignore */ }
+        try { sessionStorage.setItem(key, s); } catch (e2) { /* ignore */ }
+    }
+    function _gmGet(key) {
+        let raw = null;
+        try { if (typeof GM_getValue === 'function') raw = GM_getValue(key, null); } catch (e) { /* ignore */ }
+        if (raw === null || raw === undefined) {
+            try { raw = sessionStorage.getItem(key); } catch (e2) { /* ignore */ }
+        }
+        if (raw === null || raw === undefined) return null;
+        if (typeof raw === 'object') return raw;
+        try { return JSON.parse(raw); } catch (e) { return raw; }
+    }
+    function _gmDel(key) {
+        try { if (typeof GM_deleteValue === 'function') { GM_deleteValue(key); return; } } catch (e) { /* ignore */ }
+        try { sessionStorage.removeItem(key); } catch (e2) { /* ignore */ }
+    }
 
     // ── API helpers (mesmo padrão do hcalc-prep) ───────────────────────────
     function _xsrf() {
@@ -678,8 +702,8 @@
             console.log('[Argos] sem pje-gigs-atividades nesta página — rode window.limparGigsArgos() na página do GIGS');
         }
 
-        // limpa o flag de finalização
-        try { sessionStorage.removeItem(FINALIZAR_KEY); } catch (e) { /* ignore */ }
+        // limpa o checkpoint de finalização (sucesso)
+        _gmDel(FLUXO_KEY);
         console.log('[Argos] finalização no /detalhe concluída');
         showToast('Argos: finalização concluída', '#28a745', 4000);
     }
@@ -805,16 +829,16 @@
             // "Prosseguir" e "Encaminhar ordem de pesquisa") e fechar; então
             // finaliza no /detalhe.
             await _aguardarAbaFechar(win, 15 * 60 * 1000);
-            console.log('[Argos] aba ARGOS fechada — iniciando finalização no /detalhe');
-            try {
-                sessionStorage.setItem(FINALIZAR_KEY, JSON.stringify({
-                    numero: numero,
-                    ativo: partes.ativo,
-                    passivo: partes.passivo,
-                    valor: valorFinal
-                }));
-            } catch (e) { console.warn('[Argos] sessionStorage indisponível p/ finalização:', e); }
-            // F5 para a página ver o documento juntado (a finalização roda no boot)
+            console.log('[Argos] aba ARGOS fechada — gravando checkpoint e recarregando');
+            // Checkpoint persistente (GM): sobrevive ao reload. A próxima execução
+            // lê e retoma a finalização (etapa 'finalizar').
+            _gmSet(FLUXO_KEY, {
+                etapa: 'finalizar',
+                dados: { numero: numero, ativo: partes.ativo, passivo: partes.passivo, valor: valorFinal },
+                path: window.location.pathname,
+                ts: Date.now()
+            });
+            // F5: a página recarrega e o script reinicia, retomando do checkpoint
             window.location.reload();
         } catch (e) {
             console.error('[Argos] erro ao obter dados:', e);
@@ -840,14 +864,17 @@
     async function _boot() {
         // Finalização no /detalhe após fluxo ARGOS (flag persiste pelo F5)
         if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
-            let finalRaw = null;
-            try { finalRaw = sessionStorage.getItem(FINALIZAR_KEY); } catch (e) { /* ignore */ }
-            if (finalRaw) {
-                let finalDados;
-                try { finalDados = JSON.parse(finalRaw); } catch (e) { /* ignore */ }
+            const fluxo = _gmGet(FLUXO_KEY);
+            if (fluxo && fluxo.etapa === 'finalizar' &&
+                Date.now() - (fluxo.ts || 0) < 30 * 60 * 1000 &&
+                (!fluxo.path || fluxo.path === window.location.pathname)) {
+                console.log('[Argos] checkpoint de finalização encontrado — retomando após o reload');
                 // Dispara o worker pós-F5 (fire-and-forget) — ele aguarda a
                 // página estabilizar antes de prosseguir com a visibilidade.
-                _iniciarWorkerFinalizacao(finalDados || {});
+                _iniciarWorkerFinalizacao(fluxo.dados || {});
+            } else if (fluxo) {
+                // estado ausente, velho ou de outro processo — limpa
+                _gmDel(FLUXO_KEY);
             }
             return;
         }

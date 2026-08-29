@@ -632,18 +632,22 @@
     }
 
     // Abre a dialog "Visibilidade de Sigilo de Documento" do documento mais recente
-    // (primeiro item da timeline, que é DESC) e retorna true se a dialog abriu
+    // (primeiro item da timeline, que é DESC) e retorna true se a dialog abriu.
+    // O clique correto é no botão button[name="Visibilidade para Sigilo"] (ícone
+    // fa-plus); o [id^="doc_"] é o mat-card do título e NÃO abre a dialog.
     async function _abrirSigiloDocumentoMaisRecente(timeout) {
         timeout = timeout || 20000;
+        const SEL = 'button[name="Visibilidade para Sigilo"], button[aria-label^="Visibilidade para Sigilo"], button[mattooltip^="Visibilidade para Sigilo"]';
         const inicio = Date.now();
         while (Date.now() - inicio < timeout) {
+            let alvo = null;
             const primeiroItem = document.querySelector('li.tl-item-container');
-            const base = primeiroItem || document;
-            const alvo = base.querySelector('[id^="doc_"], [mattooltip*="Visibilidade"], [title*="Visibilidade"], i.fa-eye, .icone-visibilidade');
+            if (primeiroItem) alvo = primeiroItem.querySelector(SEL);
+            if (!alvo) alvo = document.querySelector(SEL);
             if (alvo) {
-                try { alvo.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
                 const elem = alvo.closest('button') || alvo;
-                try { elem.click(); } catch (e) { /* ignore */ }
+                try { elem.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+                try { elem.click(); } catch (e) { console.warn('[Argos] falha no click do sigilo:', e.message); }
                 const dialog = await waitElementVisible('pje-doc-visibilidade-sigilo', 6000);
                 if (dialog) return true;
             }

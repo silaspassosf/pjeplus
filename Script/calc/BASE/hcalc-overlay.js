@@ -857,6 +857,18 @@
                         <input type="text" id="cumprimento-processo-principal" placeholder="Cole o número do processo"
                             style="flex: 1; padding: 6px; border: 1px solid #aaa; border-radius: 3px; font-size: 13px; box-sizing: border-box;">
                     </div>
+                    <div style="margin-top: 8px;">
+                        <label style="font-size: 12px;"><input type="checkbox" id="chk-cumprimento-depositos-transferidos"> Depósitos já transferidos</label>
+                        <div id="cumprimento-transferidos-campos" class="hidden" style="margin-top: 6px;">
+                            <div class="row">
+                                <input type="text" id="cumprimento-id-transferencia" placeholder="Id da Transferência">
+                            </div>
+                            <div class="row" style="margin-top: 5px;">
+                                <label style="font-size: 11px;"><input type="radio" name="cumprimento-tipo-liberacao" value="direta" checked> Liberação direta</label>
+                                <label style="font-size: 11px; margin-left: 12px;"><input type="radio" name="cumprimento-tipo-liberacao" value="detalhada"> Liberação detalhada</label>
+                            </div>
+                        </div>
+                    </div>
                     <div style="margin-top: 6px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                         <label style="font-size: 12px;"><input type="checkbox" id="chk-cumprimento-depositos" checked> Informar depósitos do principal</label>
                         <button type="button" id="btn-add-deposito-cumprimento" class="btn-action" style="padding: 4px 12px; font-size: 11px;">+ Adicionar Depósito do Principal</button>
@@ -2106,6 +2118,9 @@
         };
         chkCumprimento.addEventListener('change', atualizarCumprimento);
         chkCumprimento.addEventListener('click', atualizarCumprimento);
+        $('chk-cumprimento-depositos-transferidos').onchange = (event) => {
+            $('cumprimento-transferidos-campos').classList.toggle('hidden', !event.target.checked);
+        };
         chkCumprimentoDepositos.onchange = (e) => {
             if (e.target.checked && containerCumprimentoDepositos.children.length === 0) {
                 adicionarDepositoCumprimento();

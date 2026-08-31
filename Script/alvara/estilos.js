@@ -11,7 +11,8 @@
                     position: fixed;
                     top: 0;
                     right: 0;
-                    height: 100vh;
+                    height: auto;
+                    max-height: 100vh;
                     width: min(560px, 96vw);
                     z-index: 2147483647;
                     background: #f8fafc;
@@ -33,7 +34,7 @@
                 }
 
                 .pje-alvara-header {
-                    padding: 7px 12px;
+                    padding: 4px 10px;
                     background: #172554;
                     color: #fff;
                     display: flex;
@@ -65,7 +66,7 @@
                 .pje-alvara-content {
                     flex: 1;
                     min-height: 0;
-                    padding: 8px 10px;
+                    padding: 6px 8px;
                     overflow-y: auto;
                 }
 
@@ -81,8 +82,8 @@
                 }
 
                 .pje-alvara-pendente {
-                    margin: 4px 0 6px;
-                    padding: 5px 8px;
+                    margin: 3px 0 4px;
+                    padding: 3px 6px;
                     border: 1px solid #f59e0b;
                     border-radius: 5px;
                     background: #fffbeb;
@@ -103,8 +104,8 @@
                 }
 
                 .pje-alvara-card {
-                    margin-bottom: 8px;
-                    padding: 7px 9px;
+                    margin-bottom: 6px;
+                    padding: 5px 7px;
                     border: 1px solid #cbd5e1;
                     border-radius: 7px;
                     background: #fff;
@@ -141,7 +142,7 @@
 
                 .pje-alvara-card label {
                     display: block;
-                    margin: 3px 0;
+                    margin: 2px 0;
                     color: #334155;
                     font-size: 11px;
                     font-weight: bold;
@@ -161,8 +162,8 @@
                 }
 
                 .pje-alvara-dados {
-                    margin-top: 5px;
-                    padding: 6px 8px;
+                    margin-top: 4px;
+                    padding: 4px 6px;
                     border-radius: 5px;
                     background: #f1f5f9;
                 }
@@ -181,8 +182,8 @@
                 }
 
                 .pje-alvara-info {
-                    padding: 4px 6px;
-                    margin-top: 4px;
+                    padding: 3px 5px;
+                    margin-top: 3px;
                     border-radius: 4px;
                     background: #e2e8f0;
                     color: #475569;
@@ -191,8 +192,8 @@
                 }
 
                 .pje-alvara-secondary {
-                    margin-top: 5px;
-                    padding: 4px 10px;
+                    margin-top: 4px;
+                    padding: 3px 9px;
                     border: 1px solid #64748b;
                     border-radius: 5px;
                     background: #fff;
@@ -202,7 +203,7 @@
                 }
 
                 .pje-alvara-consulta {
-                    margin-top: 5px;
+                    margin-top: 3px;
                     font-size: 11px;
                     line-height: 1.3;
                 }
@@ -236,8 +237,8 @@
                     display: flex;
                     flex-direction: column;
                     align-items: stretch;
-                    gap: 5px;
-                    padding: 7px 10px;
+                    gap: 4px;
+                    padding: 5px 8px;
                     border-top: 1px solid #cbd5e1;
                     background: #f1f5f9;
                 }

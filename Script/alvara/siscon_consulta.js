@@ -397,6 +397,16 @@
 
         try {
             const resultado = await _consultarPorModo(modo, norm);
+
+            // Encontrou registro → busca a página de detalhe e extrai
+            // nome/documento/banco/agência/conta/tipo para o autopreenchimento.
+            if (resultado.status === 'found') {
+                resultado.data = await fetchDetail(
+                    resultado.detailUrl,
+                    resultado.kind
+                );
+            }
+
             _memo.set(chave, resultado);
             _aplicarResultado(card, resultado);
             return resultado;

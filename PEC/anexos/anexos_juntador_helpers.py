@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 import os
 import re
-import time
 import types
 from typing import Optional, Dict, Any, Callable, Union, List
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -31,7 +30,7 @@ from Fix.core import (
     wait_for_visible,
     esperar_url_conter,
 )
-from Fix.browser_suporte import aguardar_nova_aba  # unused now, kept for compat
+from Fix.browser_suporte import aguardar_nova_aba
 from Fix.utils import (
     inserir_html_no_editor_apos_marcador,
     obter_ultimo_conteudo_clipboard,
@@ -45,35 +44,80 @@ from Fix import espera
 
 
 def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
-    """Abre a interface de anexação de documentos."""
+    """Abre a interface de anexação de documentos.
+
+    Sem corrida de aba: após clicar em "Anexar Documentos", faz poll pela nova
+    aba (aguardar_nova_aba) em vez de ler window_handles uma única vez depois
+    de um sleep fixo — era isso que causava "Nova aba não detectada" e o retry
+    lento com refresh em executar_juntada. Também reconhece quando a página
+    /anexar já está aberta (na aba atual ou em outra aba) e não reabre.
+    """
     driver = self.driver
     print('[JUNTADA][DEBUG] Abrindo interface de anexação...')
+
+    # 0. Já estamos na página de anexação? Não reabre (evita retry desnecessário).
+    try:
+        if '/anexar' in driver.current_url:
+            print('[JUNTADA][DEBUG] Já na página /anexar, prosseguindo...')
+            return True
+    except Exception:
+        pass
 
     # 1. Clique no menu (ícone hambúrguer)
     print('[JUNTADA][DEBUG] Clicando no menu hambúrguer...')
     if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
         return False
-    time.sleep(1)
 
     # 2. Clique em "Anexar Documentos"
     print('[JUNTADA][DEBUG] Clicando em "Anexar documentos"...')
     handle_original = driver.current_window_handle
     if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
         return False
-    time.sleep(2)
 
-    # 3. Aguarda nova aba/janela e muda para ela
+    # 3. Aguarda a nova aba/janela (poll, sem corrida) e muda para ela
     print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
-    all_windows = driver.window_handles
-    if len(all_windows) > 1:
-        driver.switch_to.window(all_windows[-1])
-        from Fix.core import esperar_url_conter
-        if not esperar_url_conter(driver, '/anexar', timeout=10):
-            print('[JUNTADA][AVISO] URL não contém /anexar, mas prosseguindo...')
-    else:
-        print('[JUNTADA][DEBUG] Nova aba não detectada, prosseguindo na mesma aba...')
+    nova_aba = None
+    try:
+        nova_aba = aguardar_nova_aba(driver, handle_original, timeout=6)
+    except Exception:
+        nova_aba = None
 
-    time.sleep(1)
+    if nova_aba:
+        driver.switch_to.window(nova_aba)
+
+    # Confirma que estamos numa aba /anexar; senão, procura entre as demais.
+    try:
+        em_anexar = '/anexar' in driver.current_url
+    except Exception:
+        em_anexar = False
+
+    if not em_anexar:
+        for handle in driver.window_handles:
+            if handle == driver.current_window_handle:
+                continue
+            try:
+                driver.switch_to.window(handle)
+                if '/anexar' in driver.current_url:
+                    em_anexar = True
+                    break
+            except Exception:
+                continue
+        if not em_anexar:
+            driver.switch_to.window(handle_original)
+            print('[JUNTADA][DEBUG] Aba /anexar não encontrada, prosseguindo na aba atual...')
+
+    # 4. Aguarda a interface de anexação renderizada (evita o retry lento)
+    try:
+        aguardar_renderizacao_nativa(driver, 'input[aria-label="Tipo de Documento"]', 'aparecer', 5)
+    except Exception:
+        pass
+    # Presença ≠ prontidão: a aba /anexar recém-aberta renderiza o input antes
+    # de o Angular habilitar o formulário — a 1ª tentativa falhava em preencher
+    # todos os campos e só a 2ª (pós refresh) funcionava.
+    try:
+        espera.ate_habilitar(driver, 'input[aria-label="Tipo de Documento"]', teto=8)
+    except Exception:
+        pass
     return True
 
 

@@ -46,8 +46,15 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
     try:
         driver = self.driver
 
-        # 1. Encontra o campo
-        campo = driver.find_element(By.CSS_SELECTOR, seletor)
+        # 1. Encontra o campo (com espera — a aba /anexar recém-aberta é
+        #    detectada pelo executar_juntada enquanto o Angular ainda não
+        #    habilitou o formulário, e o find_element seco estourava na
+        #    1ª tentativa, forçando o reload/retry)
+        elementos_campo = espera.elementos(driver, seletor, teto=8)
+        if not elementos_campo:
+            print(f'[JUNTADA][ERRO] Campo {nome_campo} não apareceu a tempo')
+            return False
+        campo = elementos_campo[0]
 
         # 2. Clica no elemento pai para abrir dropdown (padrão GIGS)
         parent_element = campo.find_element(By.XPATH, '../..')
@@ -76,8 +83,13 @@ def _preencher_input_gigs(self, seletor: str, valor: str, nome_campo: str) -> bo
     try:
         driver = self.driver
 
-        # Encontra o elemento
-        campo = driver.find_element(By.CSS_SELECTOR, seletor)
+        # Encontra o elemento (com espera — mesma corrida de render da
+        # 1ª abertura da aba /anexar que afetava _escolher_opcao_gigs)
+        elementos_campo = espera.elementos(driver, seletor, teto=8)
+        if not elementos_campo:
+            logger.error(f'[JUNTADA][ERRO] Campo {nome_campo} não apareceu a tempo')
+            return False
+        campo = elementos_campo[0]
 
         # Implementa exatamente como no gigs-plugin.js usando JavaScript
         resultado = driver.execute_script("""
@@ -237,9 +249,27 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         # 4) Inserir com tecla ESPAÇO (padrão MaisPje)
         btn_inserir.send_keys(Keys.SPACE)
 
-        # 5) O diálogo de preview fecha quando o modelo entra no editor.
-        espera.ate_sumir(driver, 'pje-dialogo-visualizar-modelo', teto=2)
-        return True
+        # 5) O diálogo de preview fecha ANTES de o Angular/CKEditor carregar o
+        #    conteúdo no editor — esperar só o sumiço deixava a juntada seguir
+        #    com editor vazio e a substituição do marcador falhava depois
+        #    ("Nenhum método funcionou"). Poll pelo conteúdo, com 1 reenvio de
+        #    ESPAÇO como rede de segurança (o legado usava time.sleep(2) fixo).
+        seletor_editor = '.ck-editor__editable[contenteditable="true"]'
+        editor_com_conteudo = (
+            "__pjeEls(%r).some(el => (el.textContent || '').trim().length > 0)"
+            % seletor_editor
+        )
+        for _tentativa in range(2):
+            if espera.ate_js(driver, editor_com_conteudo, teto=10):
+                return True
+            try:
+                btn = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
+                if btn.is_displayed():
+                    btn.send_keys(Keys.SPACE)
+            except Exception:
+                pass
+        logger.error('[JUNTADA][ERRO] Modelo não chegou ao editor após ESPAÇO (editor vazio)')
+        return False
     except Exception as e:
         logger.error(f'[JUNTADA][ERRO] Falha ao selecionar/inserir modelo (modo atos.py): {e}')
         return False

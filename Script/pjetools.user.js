@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.12
+// @version      2.3.13
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -172,6 +172,8 @@
 
         function bootDetalhe() {
             if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) {
+                return;
+            }
             // FIX: módulos registrados via @require expõem suas funções no sandbox `window`,
             // portanto chamamos `window.*` aqui em vez de `W` (unsafeWindow).
             if (!window.PJeState) {

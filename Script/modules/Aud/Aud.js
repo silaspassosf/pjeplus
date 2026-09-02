@@ -172,59 +172,46 @@
                 S1.forEach(function (b) { r1.appendChild(BF(b)); });
                 P.appendChild(r1);
 
-                var ricep = E('div', 'display:flex;gap:4px;margin-top:6px;');
-                var bInfo = E('button', 'flex:1;padding:5px 3px;background:#e8f5e9;border:1px solid #80c080;border-radius:5px;cursor:pointer;font-size:11px;text-align:center;', 'INFOJUD CPF');
-                var bCep2 = E('button', 'flex:1;padding:5px 3px;background:#e3f2fd;border:1px solid #90caf9;border-radius:5px;cursor:pointer;font-size:11px;text-align:center;', 'CEP endereço');
-                ricep.appendChild(bInfo);
-                ricep.appendChild(bCep2);
-                P.appendChild(ricep);
+                var dConsultas = ST('Consultas');
+                var consultas = E('div', 'display:flex;flex-direction:column;gap:5px;');
 
-                var xp = E('div', 'display:none;margin-top:4px;padding:6px;background:#f8f8ff;border:1px solid #dde;border-radius:5px;');
-                P.appendChild(xp);
+                function linhaConsulta(rotulo, placeholder, cor) {
+                    var linha = E('div', 'display:flex;align-items:center;gap:4px;');
+                    var label = E('label', 'flex:0 0 76px;margin:0;font-size:11px;font-weight:bold;', rotulo);
+                    var input = E('input', 'flex:1;min-width:0;box-sizing:border-box;padding:5px;font-size:12px;border:1px solid #ccc;border-radius:3px;');
+                    input.type = 'text';
+                    input.placeholder = placeholder;
+                    input.inputMode = 'numeric';
+                    var buscar = E('button', 'flex:0 0 62px;padding:5px 3px;background:' + cor + ';color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;', 'Buscar');
+                    linha.appendChild(label);
+                    linha.appendChild(input);
+                    linha.appendChild(buscar);
+                    consultas.appendChild(linha);
+                    return { input: input, buscar: buscar };
+                }
 
-                var fInfo = E('div', '');
-                var cpfIn = E('input', null);
-                cpfIn.type = 'text';
-                cpfIn.placeholder = 'Digite o CPF';
-                cpfIn.style.cssText = 'width:100%;box-sizing:border-box;margin-bottom:4px;padding:4px;font-size:12px;border:1px solid #ccc;border-radius:3px;';
-                fInfo.appendChild(cpfIn);
-                var bPcpf = E('button', 'display:block;width:100%;padding:5px;background:#2196f3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;', 'Pesquisar e colar');
-                bPcpf.onclick = function () {
-                    var c = cpfIn.value.replace(/\D/g, '');
-                    if (c.length !== 11) { alert('Digite um CPF válido com 11 números.'); return; }
+                var fInfo = linhaConsulta('Infojud', 'CPF ou CNPJ', '#43a047');
+                fInfo.buscar.onclick = function () {
+                    var c = fInfo.input.value.replace(/\D/g, '');
+                    fInfo.input.value = c;
+                    if (c.length !== 11 && c.length !== 14) { alert('Digite um CPF ou CNPJ válido.'); return; }
                     alert('Consulta INFOJUD será implementada na próxima etapa.');
                 };
-                fInfo.appendChild(bPcpf);
 
-                var fCep = E('div', '');
-                var cepIn = E('input', null);
-                cepIn.type = 'text';
-                cepIn.placeholder = 'Digite o CEP';
-                cepIn.style.cssText = 'width:100%;box-sizing:border-box;margin-bottom:4px;padding:4px;font-size:12px;border:1px solid #ccc;border-radius:3px;';
-                fCep.appendChild(cepIn);
-                var bPcep = E('button', 'display:block;width:100%;padding:5px;background:#2196f3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;', 'Pesquisar e colar');
-                bPcep.onclick = function () {
-                    var c = cepIn.value.replace(/\D/g, '');
+                var fCep = linhaConsulta('CEP', 'Digite o CEP', '#1e88e5');
+                fCep.buscar.onclick = function () {
+                    var c = fCep.input.value.replace(/\D/g, '');
+                    fCep.input.value = c;
                     if (c.length !== 8) { alert('Digite um CEP válido com 8 números.'); return; }
                     alert('Consulta de CEP será implementada na próxima etapa.');
                 };
-                fCep.appendChild(bPcep);
 
-                bInfo.onclick = function () {
-                    var open = xp.style.display !== 'none' && xp.dataset.active === 'info';
-                    xp.style.display = open ? 'none' : 'block';
-                    xp.dataset.active = 'info';
-                    while (xp.firstChild) xp.removeChild(xp.firstChild);
-                    if (!open) xp.appendChild(fInfo);
+                var fSiscon = linhaConsulta('SisconDJ', 'Dados da consulta', '#8e44ad');
+                fSiscon.buscar.onclick = function () {
+                    fSiscon.input.value = fSiscon.input.value.replace(/\D/g, '');
+                    alert('Consulta SisconDJ será implementada na próxima etapa.');
                 };
-
-                bCep2.onclick = function () {
-                    var open = xp.style.display !== 'none' && xp.dataset.active === 'cep';
-                    xp.style.display = open ? 'none' : 'block';
-                    xp.dataset.active = 'cep';
-                    while (xp.firstChild) xp.removeChild(xp.firstChild);
-                    if (!open) xp.appendChild(fCep);
-                };
+                dConsultas.appendChild(consultas);
 
                 if (S2.length > 0) {
                     var d2 = ST('Perícias');

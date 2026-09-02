@@ -183,23 +183,50 @@
                     input.placeholder = placeholder;
                     input.inputMode = 'numeric';
                     var buscar = E('button', 'flex:0 0 62px;padding:5px 3px;background:' + cor + ';color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;', 'Buscar');
+                    var status = E('span', 'display:none;color:#188038;font-size:10px;font-weight:bold;white-space:nowrap;', 'Dados copiados');
                     linha.appendChild(label);
                     linha.appendChild(input);
                     linha.appendChild(buscar);
+                    linha.appendChild(status);
                     consultas.appendChild(linha);
-                    return { input: input, buscar: buscar };
+                    return { input: input, buscar: buscar, status: status };
+                }
+
+                async function copiarTexto(texto) {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(String(texto));
+                        return;
+                    }
+                    var area = document.createElement('textarea');
+                    area.value = String(texto);
+                    area.style.cssText = 'position:fixed;left:-9999px;top:0;';
+                    document.body.appendChild(area);
+                    area.select();
+                    if (!document.execCommand('copy')) throw new Error('Não foi possível copiar os dados.');
+                    area.remove();
                 }
 
                 var fInfo = linhaConsulta('Infojud', 'CPF ou CNPJ', '#43a047');
-                fInfo.buscar.onclick = function () {
+                fInfo.buscar.onclick = async function () {
                     var c = fInfo.input.value.replace(/\D/g, '');
                     fInfo.input.value = c;
                     if (c.length !== 11 && c.length !== 14) { alert('Digite um CPF ou CNPJ válido.'); return; }
+                    fInfo.buscar.disabled = true;
+                    fInfo.buscar.textContent = 'Buscando...';
                     try {
-                        if (typeof window.consultarInfojud !== 'function') throw new Error('Módulo Infojud não disponível.');
-                        window.consultarInfojud(c);
+                        var consultarInfojud = window.consultarInfojudComRetorno;
+                        if (typeof consultarInfojud !== 'function' && typeof unsafeWindow !== 'undefined') {
+                            consultarInfojud = unsafeWindow.consultarInfojudComRetorno;
+                        }
+                        if (typeof consultarInfojud !== 'function') throw new Error('Módulo Infojud não disponível.');
+                        var resultado = await consultarInfojud(c);
+                        await copiarTexto(resultado.texto);
+                        fInfo.status.style.display = 'inline';
                     } catch (e) {
                         alert(e.message || 'Não foi possível abrir a consulta Infojud.');
+                    } finally {
+                        fInfo.buscar.disabled = false;
+                        fInfo.buscar.textContent = 'Buscar';
                     }
                 };
 
@@ -234,7 +261,8 @@
                     fCep.buscar.textContent = 'Buscando...';
                     try {
                         var endereco = await buscarEnderecoPorCEP(c);
-                        ins(endereco);
+                        await copiarTexto(endereco);
+                        fCep.status.style.display = 'inline';
                     } catch (e) {
                         alert(e.message || 'Não foi possível consultar o CEP.');
                     } finally {

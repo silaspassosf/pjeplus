@@ -38,6 +38,41 @@
         return url;
     };
 
+    _win.consultarInfojudComRetorno = function (numero) {
+        const documento = apenasNumeros(numero);
+        if (documento.length !== 11 && documento.length !== 14) {
+            return Promise.reject(new Error('Informe um CPF com 11 números ou CNPJ com 14 números.'));
+        }
+        const chave = 'GOD_AUD_' + Date.now();
+        _gmSet('GOD_STATUS', 'STANDBY');
+        _gmSet('GOD_DADOS_CAPTURA', '');
+        _gmSet('GOD_TIPO_ORIGEM', documento.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
+        const url = (documento.length === 11 ? URL_BASE_CPF : URL_BASE_CNPJ) + encodeURIComponent(documento);
+        const aba = _gmOpenTab(url, { active: true, insert: true });
+        return new Promise((resolve, reject) => {
+            const inicio = Date.now();
+            const timer = setInterval(() => {
+                const status = _gmGet('GOD_STATUS', '') || '';
+                if (status.startsWith('DADOS_PRONTOS_')) {
+                    clearInterval(timer);
+                    try {
+                        const dados = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}') || '{}');
+                        resolve({ texto: montarRelatorio(dados), dados: dados, chave: chave });
+                    } catch (e) { reject(new Error('Dados Infojud inválidos: ' + e.message)); }
+                    try { if (aba && typeof aba.close === 'function') aba.close(); } catch (e) {}
+                } else if (status.startsWith('PULAR_')) {
+                    clearInterval(timer);
+                    reject(new Error('A Receita não retornou dados para o documento.'));
+                    try { if (aba && typeof aba.close === 'function') aba.close(); } catch (e) {}
+                } else if (Date.now() - inicio > 60000) {
+                    clearInterval(timer);
+                    reject(new Error('Tempo esgotado aguardando a consulta Infojud.'));
+                    try { if (aba && typeof aba.close === 'function') aba.close(); } catch (e) {}
+                }
+            }, 400);
+        });
+    };
+
     const wait = (ms) => new Promise(r => setTimeout(r, ms));
     const normalizar = (txt) => (txt || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, ' ').trim();
     const apenasNumeros = (txt) => (txt || '').replace(/\D/g, '');
@@ -804,6 +839,7 @@
                     _gmSet('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
                     mostrarNotificacao('DADOS OK! Retornando ao PJe...', '#28a745', true);
                     _devolverFocoPJe();
+                    setTimeout(() => { try { window.close(); } catch (e) {} }, 300);
                 } else {
                     throw new Error('Dados incompletos');
                 }
@@ -812,6 +848,7 @@
                 _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
                 mostrarNotificacao('Erro na Leitura da Receita. Pulando no PJe.', '#dc3545', true);
                 _devolverFocoPJe();
+                setTimeout(() => { try { window.close(); } catch (e2) {} }, 300);
             }
         }, 1000);
     }

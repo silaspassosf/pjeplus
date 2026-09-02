@@ -50,14 +50,17 @@ class AtividadePEC:
 
 
 class PECAPIClient:
-    def fetch_atividades_vencidas(self, driver: WebDriver, tamanho_pagina: int = 100) -> List[AtividadePEC]:
+    def fetch_atividades_vencidas(self, driver: WebDriver, tamanho_pagina: int = 100) -> Optional[List[AtividadePEC]]:
+        """Retorna a lista de atividades; None quando a API falha (403/401/
+        sessao morta) — para que o orquestrador reporte FALHA e o main()
+        acione o retry com novo login (mesmo contrato de mandado/p2b)."""
         logger.info("[PECAPIClient] Iniciando fetch_atividades_vencidas (API Gateway)...")
         try:
             sess, trt_host = session_from_driver(driver)
             client = PjeApiClient(sess, trt_host)
         except Exception as exc:
             logger.error(f"[PECAPIClient] Erro ao preparar sessao autenticada: {exc}")
-            return []
+            return None
 
         resultado = buscar_todas_paginas(
             client,
@@ -80,7 +83,7 @@ class PECAPIClient:
             erro = resultado.get('error') or {}
             logger.error(f"[PECAPIClient] Erro ao buscar atividades: {erro.get('type', 'sem_resposta')}")
             logger.error(f"[PECAPIClient] HTTP erro: status={resultado.get('status', '?')} detalhe={erro.get('message', '?')}")
-            return []
+            return None
 
         dados = resultado.get('data') or []
         total = len(dados)
@@ -237,6 +240,12 @@ def marcar_processo_executado_pec(
     if progresso is None:
         progresso = carregar_progresso_pec()
     sucesso = True if (status or "").upper() == "SUCESSO" else False
+    # Sucesso vence erro: processo já executado com sucesso nunca é re-marcado
+    # como erro — evita duplicação de estado (processo em executados E em erros)
+    # que causava re-execução indevida. O skip se apoia só em processos_executados.
+    if not sucesso and processo_ja_executado_pec(numero_processo, progresso):
+        logger.info(f'[PROGRESSO_PEC] Já executado com sucesso — ignorando erro: {numero_processo}')
+        return progresso
     marcar_processo_executado_unificado('pec', numero_processo, progresso, sucesso=sucesso, motivo=detalhes)
     return progresso
 
@@ -510,6 +519,11 @@ class PECOrquestrador:
     def executar(self, dry_run: bool = False, filtro_d1: bool = True,
                  data_minima: Optional[str] = None) -> Dict[str, int]:
         atividades = self.api.fetch_atividades_vencidas(self.driver)
+        if atividades is None:
+            # API falhou (ex: 403 ARQ-516, sessao morta). Nao e "zero
+            # atividades" — sinaliza falha para o retry com novo login.
+            logger.error('[PEC] Falha ao buscar atividades (API) — reportando falha para retry.')
+            return {'total': 0, 'sucesso': 0, 'erro': 1}
 
         if data_minima:
             antes = len(atividades)

@@ -34,25 +34,43 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
         if apenas_primeiro:
             try:
                 if not espera.ate_habilitar(driver, '#selecionar-polo-ativo', teto=15):
-                    logger.error('[PRAZOS] #selecionar-polo-ativo não habilitou — aborta antes de salvar')
+                    logger.error('[PRAZOS] #selecionar-polo-ativo não habilitou — aborta')
                     return False
-                btn_polo_ativo = driver.find_element(By.ID, 'selecionar-polo-ativo')
+                btn_polo_alvo = driver.find_element(By.ID, 'selecionar-polo-ativo')
                 # SEMPRE clicar em "polo ativo" quando apenas_primeiro: o botão seleciona
                 # SOMENTE o primeiro destinatário. Não há guarda de idempotência aqui —
                 # se a tabela abriu com destinatários já marcados, pular o clique
                 # deixaria todos selecionados (prazo aplicado a todos, não ao primeiro).
                 # Clique REAL (WebDriver/Playwright), não o dispatchEvent sintético
                 # do safe_click_no_scroll — o sintético não efetiva no mat-icon-button.
-                btn_polo_ativo.click()
+                # Antes, limpa overlays residuais: o backdrop do Angular intercepta
+                # o clique real e o faz travar 30s em actionability.
+                try:
+                    driver.execute_script("""
+                        document.querySelectorAll('.cdk-overlay-backdrop, .cdk-overlay-pane, snack-bar-container, simple-snack-bar').forEach(function(el){
+                            if (el.style) el.style.display = 'none';
+                        });
+                    """)
+                except Exception:
+                    pass
+                try:
+                    btn_polo_alvo.click()
+                except Exception as e:
+                    # Fallback: clique sintético (dispatchEvent) não exige
+                    # actionability e atravessa sobreposição remanescente.
+                    logger.warning(f'[PRAZOS] Clique real falhou ({type(e).__name__}); tentando clique sintético')
+                    if not safe_click_no_scroll(driver, btn_polo_alvo, log=False):
+                        logger.error('[PRAZOS] Nem clique real nem sintético funcionaram — aborta')
+                        return False
                 espera.assentar(driver, 0.5)
-                # Confirma o efeito antes de seguir — garantia pré-salvamento.
+                # Confirma o efeito antes de seguir.
                 marcado = espera.ate_js(
                     driver,
                     "__pjeEls('table.t-class tbody tr.ng-star-inserted input[type=checkbox]').some(el => el.checked)",
                     teto=5,
                 )
                 if not marcado:
-                    logger.error('[PRAZOS] Polo ativo NÃO confirmado após o clique — aborta antes de salvar')
+                    logger.error('[PRAZOS] Polo ativo NÃO confirmado após o clique — aborta')
                     return False
                 logger.info('[PRAZOS] Polo ativo selecionado - apenas primeiro destinatário marcado')
                 espera.assentar(driver, 0.5)
@@ -140,44 +158,6 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
         except Exception as e:
             logger.warning(f'[PRAZOS] Erro ao preencher campos de prazo: {e}')
             return False
-
-        # Clicar em "Gravar" (padrão leg — overlay clearing + XPATH seguro)
-        try:
-            logger.info('[PRAZOS] Tentando gravar prazos...')
-
-            # Limpar overlays antes de clicar (leg pattern)
-            driver.execute_script("""
-                const overlays = document.querySelectorAll('.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane');
-                overlays.forEach(overlay => {
-                    if (overlay.style) overlay.style.display = 'none';
-                });
-                const snackbars = document.querySelectorAll('snack-bar-container, simple-snack-bar');
-                snackbars.forEach(snack => {
-                    if (snack.style) snack.style.display = 'none';
-                });
-                document.body.style.overflow = 'visible';
-            """)
-
-            # XPATH com exclusão de botão movimento (leg pattern: not(contains(@aria-label, 'movimentos')))
-            xpath_gravar = "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]"
-            btn_gravar_prazo = None
-            if espera.ate_habilitar(driver, xpath_gravar, teto=10):
-                btn_gravar_prazo = driver.find_element(By.XPATH, xpath_gravar)
-
-            if btn_gravar_prazo and btn_gravar_prazo.is_displayed() and btn_gravar_prazo.is_enabled():
-                if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
-                    logger.info('[PRAZOS] ✅ Prazos gravados via safe_click_no_scroll')
-                else:
-                    logger.warning('[PRAZOS] Falha em safe_click_no_scroll, tentando .click()')
-                    btn_gravar_prazo.click()
-                    logger.info('[PRAZOS] ✅ Prazos gravados via Selenium')
-                espera.assentar(driver, 1)
-                logger.info('[PRAZOS] ✅ Gravação de prazos concluída')
-            else:
-                logger.warning('[PRAZOS] Botão Gravar não está disponível')
-
-        except Exception as e:
-            logger.warning(f'[PRAZOS] Não foi possível gravar prazos: {e}')
 
         logger.info('[PRAZOS] Preenchimento de prazos concluído')
         return True

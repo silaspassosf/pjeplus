@@ -348,7 +348,11 @@ def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
         for c in cookies:
             sess.cookies.set(c['name'], c['value'])
         parsed = urlparse(driver.current_url)
-        trt_host = parsed.netloc
+        trt_host = parsed.netloc or 'pje.trt2.jus.br'
+        # Se o browser estiver fora do PJe (tela de SSO/login em outro host),
+        # o netloc da URL nao serve de base para a API — volta ao padrao.
+        if 'trt2.jus.br' not in trt_host:
+            trt_host = 'pje.trt2.jus.br'
     except Exception:
         raise
     sess.headers.update({

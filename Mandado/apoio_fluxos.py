@@ -24,7 +24,13 @@ from selenium.webdriver.common.by import By
 
 from Fix.abas import validar_conexao_driver
 from Fix.browser_suporte import forcar_fechamento_abas_extras
-from Fix.core import aguardar_renderizacao_nativa, baixarCP, contar_mandados_e_certidoes_oficial, safe_click_no_scroll
+from Fix.core import (
+    aguardar_renderizacao_nativa,
+    baixarCP,
+    contar_mandados_e_certidoes_oficial,
+    preencher_campo,
+    safe_click_no_scroll,
+)
 from Fix.facade_publica import ElementoNaoEncontradoError
 from Fix.extracao import extrair_direto, extrair_documento, criar_lembrete_posit
 from Fix.log import logger
@@ -1091,6 +1097,10 @@ PADRAO_POSITIVO = (
     "procedi a entrega do mandado",
     "procedi a penhora",
     "penhorei",
+    "citacao positiva",
+    "intimacao positiva",
+    "dei o destinatario por",
+    "dei a destinaria por",
 )
 
 # Hipótese negativa de penhora: certidão relata ausência de bens penhoráveis.
@@ -1381,36 +1391,29 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> Optional[str]:
     return regra
 
 
-def arquivar_mandado_outros_reconhecido(
+def _criar_gigs_xs1_uma_vez(driver: WebDriver, numero_processo: str, log: bool = True) -> None:
+    """Cria a GIGS sem prazo (xs1) na aba /detalhe, uma única vez por processo."""
+    from Fix.extracao import criar_gigs
+
+    if numero_processo in _GIGS_CRIADO_PARA_PROCESSO:
+        if log:
+            logger.info(f'[MANDADOS][OUTROS] GIGS já criado para #{numero_processo}. Pulando criação.')
+        return
+    try:
+        criar_gigs(driver, dias_uteis="1", responsavel="", observacao="xs1", log=log)
+        _GIGS_CRIADO_PARA_PROCESSO.add(numero_processo)
+    except Exception as e:
+        if log:
+            logger.error(f'[MANDADOS][OUTROS] Falha ao criar GIGS xs1 para #{numero_processo}: {e}')
+
+
+def _apagar_mandado_do_escaninho(
     driver: WebDriver,
     numero_processo: str,
     escaninho_handle: str,
     log: bool = True,
 ) -> bool:
-    """Ação padrão para QUALQUER regra reconhecida no fluxo Outros (cancelamento,
-    positivo ou negativo).
-
-    A aba 0 (escaninho de mandados devolvidos) é aberta uma única vez no início
-    da execução e NUNCA é fechada — por isso não há fallback de navegação aqui,
-    apenas o fluxo fixo:
-    a) cria GIGS sem prazo (xs1) na aba /detalhe ATUAL, logo após as ações da
-       regra (chamado antes de qualquer troca de aba, para não perder o contexto).
-       A criação ocorre UMA VEZ por processo; chamadas subsequentes para o mesmo
-       processo pulam a criação.
-    b) troca para a aba do escaninho (escaninho_handle) e remove o item da lista.
-    """
-    from Fix.extracao import criar_gigs
-
-    if numero_processo not in _GIGS_CRIADO_PARA_PROCESSO:
-        try:
-            criar_gigs(driver, dias_uteis="1", responsavel="", observacao="xs1", log=log)
-            _GIGS_CRIADO_PARA_PROCESSO.add(numero_processo)
-        except Exception as e:
-            if log:
-                logger.error(f'[MANDADOS][OUTROS] Falha ao criar GIGS xs1 para #{numero_processo}: {e}')
-    elif log:
-        logger.info(f'[MANDADOS][OUTROS] GIGS já criado para #{numero_processo}. Pulando criação.')
-
+    """Fecha a aba /detalhe e remove o mandado da lista do escaninho."""
     try:
         driver.close()
     except Exception:
@@ -1448,6 +1451,220 @@ def arquivar_mandado_outros_reconhecido(
         if log:
             logger.error(f'[MANDADOS][OUTROS] Falha ao apagar #{numero_processo} do escaninho: {e}')
         return False
+
+
+def arquivar_mandado_outros_reconhecido(
+    driver: WebDriver,
+    numero_processo: str,
+    escaninho_handle: str,
+    log: bool = True,
+) -> bool:
+    """Ação padrão para QUALQUER regra reconhecida no fluxo Outros (cancelamento,
+    positivo ou negativo).
+
+    A aba 0 (escaninho de mandados devolvidos) é aberta uma única vez no início
+    da execução e NUNCA é fechada — por isso não há fallback de navegação aqui,
+    apenas o fluxo fixo:
+    a) cria GIGS sem prazo (xs1) na aba /detalhe ATUAL, logo após as ações da
+       regra (chamado antes de qualquer troca de aba, para não perder o contexto).
+       A criação ocorre UMA VEZ por processo; chamadas subsequentes para o mesmo
+       processo pulam a criação.
+    b) troca para a aba do escaninho (escaninho_handle) e remove o item da lista.
+    """
+    _criar_gigs_xs1_uma_vez(driver, numero_processo, log)
+    return _apagar_mandado_do_escaninho(driver, numero_processo, escaninho_handle, log)
+
+
+def arquivar_mandado_positivo_reconhecido(
+    driver: WebDriver,
+    numero_processo: str,
+    escaninho_handle: str,
+    log: bool = True,
+) -> bool:
+    """Ação do fluxo POSITIVO (Outros): GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.
+
+    Mantém a ordem pedida: cria a GIGS xs1 na aba /detalhe, extrai o destinatário da
+    própria certidão (padrão 'DESTINATÁRIO: NOME' / 'DESTINATÁRIO NOME'), cria o lembrete
+    (título 'mdd positivo', conteúdo '<nome> - já alterado endereço na autuação.') e só
+    então apaga o mandado do escaninho — tudo ainda na aba /detalhe até o passo final.
+    """
+    _criar_gigs_xs1_uma_vez(driver, numero_processo, log)
+
+    nome = None
+    try:
+        texto = _extrair_texto_certidao_oficial_via_api(driver, log=log)
+        nome = _extrair_nome_destinatario_certidao(texto) if texto else None
+    except Exception as e:
+        if log:
+            logger.error(f'[MANDADOS][OUTROS][POSITIVO] Falha ao extrair destinatário da certidão de #{numero_processo}: {e}')
+
+    if nome:
+        if log:
+            logger.info(f'[MANDADOS][OUTROS][POSITIVO] Destinatário identificado: {nome}')
+        try:
+            painel = _localizar_lembrete_mdd(driver, log=log)
+            if painel is not None:
+                # Já existe "mdd positivo": editar adicionando o destinatário (nova linha, vírgula)
+                try:
+                    conteudo_atual = painel.find_element(By.CSS_SELECTOR, '.post-it-conteudo').text.strip()
+                except Exception:
+                    conteudo_atual = ''
+                novo_conteudo = _montar_conteudo_lembrete_mdd(conteudo_atual, nome)
+                if log:
+                    logger.info(f'[MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" existe — editando para: {novo_conteudo}')
+                _editar_lembrete_conteudo(driver, painel, novo_conteudo, log=log)
+            else:
+                if log:
+                    logger.info('[MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" não existe — criando novo.')
+                criar_lembrete_posit(
+                    driver,
+                    'mdd positivo',
+                    f'{nome} - já alterado endereço na autuação.',
+                    debug=log,
+                )
+        except Exception as e:
+            if log:
+                logger.error(f'[MANDADOS][OUTROS][POSITIVO] Falha ao criar/editar lembrete para #{numero_processo}: {e}')
+    else:
+        if log:
+            logger.warning(f'[MANDADOS][OUTROS][POSITIVO] Destinatário não identificado na certidão de #{numero_processo} — lembrete não criado.')
+
+    return _apagar_mandado_do_escaninho(driver, numero_processo, escaninho_handle, log)
+
+
+def _extrair_nome_destinatario_certidao(texto: Optional[str]) -> Optional[str]:
+    """Extrai o nome do destinatário da certidão de Oficial de Justiça.
+
+    A certidão positiva usa o rótulo fixo 'DESTINATÁRIO' (com ou sem dois-pontos)
+    seguido do nome até o fim da linha. Exemplos:
+        DESTINATÁRIO: JOÃO DA SILVA
+        DESTINATÁRIO JOÃO DA SILVA
+    """
+    if not texto:
+        return None
+    m = re.search(r'DESTINAT[ÁA]RIO\s*:?\s*([^\n]+)', texto, re.IGNORECASE)
+    if not m:
+        return None
+    nome = m.group(1).strip().strip(':').strip()
+    nome = nome.rstrip('.,;')
+    return nome.strip() or None
+
+
+def _montar_conteudo_lembrete_mdd(existente: Optional[str], novo_nome: str) -> str:
+    """Monta o conteúdo do lembrete 'mdd positivo'.
+
+    Formato alvo: '<destinatários separados por vírgula> - já alterado endereço na autuação.'
+    Se já existir conteúdo, acrescenta o novo destinatário sem duplicar.
+    """
+    sufixo = ' - já alterado endereço na autuação.'
+    nome = (novo_nome or '').strip()
+    if not nome:
+        return sufixo.lstrip()
+
+    atual = (existente or '').strip()
+    if not atual:
+        return f'{nome}{sufixo}'
+
+    padrao_sufixo = re.compile(
+        r'\s*-\s*j[aá] alterado endere[cç]o na autua[cç][aã]o\.?\s*$',
+        re.IGNORECASE,
+    )
+    corpo = padrao_sufixo.sub('', atual).strip(' ,-')
+    partes = [
+        p.strip()
+        for p in corpo.split(',')
+        if p.strip() and re.search(r'[A-Za-zÀ-ÿ]', p)
+    ]
+
+    chave_novo = _normalizar_certidao(nome)
+    if not any(_normalizar_certidao(p) == chave_novo for p in partes):
+        partes.append(nome)
+
+    if not partes:
+        return f'{nome}{sufixo}'
+    return ', '.join(partes) + sufixo
+
+
+def _localizar_lembrete_mdd(driver: WebDriver, log: bool = True) -> Optional[Any]:
+    """Localiza o painel do lembrete 'mdd positivo' no pje-visualizador-post-its.
+
+    Retorna o mat-expansion-panel correspondente, ou None se não existir.
+    """
+    try:
+        espera.ate_aparecer(driver, 'pje-visualizador-post-its .post-it-set', teto=3)
+    except Exception:
+        pass
+
+    try:
+        paineis = driver.find_elements(
+            By.CSS_SELECTOR,
+            'pje-visualizador-post-its .post-it-set mat-expansion-panel, .post-it-set mat-expansion-panel',
+        )
+    except Exception as e:
+        if log:
+            logger.warning(f'[LEMBRETE][MDD] Falha ao listar lembretes: {e}')
+        return None
+
+    alvo = _normalizar_certidao('mdd positivo')
+    for painel in paineis:
+        try:
+            titulo_el = painel.find_element(By.CSS_SELECTOR, '.post-it-titulo')
+            if _normalizar_certidao(titulo_el.text.strip()) == alvo:
+                return painel
+        except Exception:
+            continue
+    return None
+
+
+def _editar_lembrete_conteudo(driver: WebDriver, painel: Any, novo_conteudo: str, log: bool = True) -> bool:
+    """Edita o conteúdo de um lembrete existente (mesmo modal do criar)."""
+    try:
+        btn_editar = None
+        try:
+            btn_editar = painel.find_element(By.CSS_SELECTOR, 'button[aria-label="Editar Lembrete"]')
+        except Exception:
+            pass
+        if not btn_editar:
+            # painel recolhido: expandir o cabeçalho antes de achar o botão
+            try:
+                cabecalho = painel.find_element(By.CSS_SELECTOR, 'mat-expansion-panel-header')
+                safe_click_no_scroll(driver, cabecalho)
+                espera.assentar(driver, 0.5)
+                btn_editar = painel.find_element(By.CSS_SELECTOR, 'button[aria-label="Editar Lembrete"]')
+            except Exception:
+                if log:
+                    logger.warning('[LEMBRETE][MDD] Botão "Editar Lembrete" não encontrado no painel.')
+                return False
+        safe_click_no_scroll(driver, btn_editar)
+    except Exception as e:
+        if log:
+            logger.warning(f'[LEMBRETE][MDD] Não foi possível abrir a edição do lembrete: {e}')
+        return False
+
+    try:
+        espera.ate_aparecer(driver, '#conteudoPostit', teto=5)
+        preencher_campo(driver, '#conteudoPostit', novo_conteudo, log=log)
+    except Exception as e:
+        if log:
+            logger.warning(f'[LEMBRETE][MDD] Falha ao preencher o conteúdo do lembrete: {e}')
+        return False
+
+    seletores_salvar = [
+        'button[color="primary"]',
+        '.mat-raised-button:not([disabled])',
+        'button[type="submit"]',
+    ]
+    for seletor in seletores_salvar:
+        try:
+            if aguardar_e_clicar(driver, seletor, timeout=3, log=False):
+                break
+        except Exception:
+            continue
+    if not espera.ate_sumir(driver, '#conteudoPostit', teto=4):
+        espera.assentar(driver, 0.8, motivo='[LEMBRETE][MDD] dialogo ainda aberto apos salvar')
+    if log:
+        logger.info(f'[LEMBRETE][MDD] Lembrete "mdd positivo" atualizado: {novo_conteudo}')
+    return True
 
 
 # ════════════════════════════════════════

@@ -63,6 +63,9 @@ def iniciar(raiz_projeto=None, nativo=True, silencioso=False):
 
     instalar(silencioso=silencioso)
 
+    from .api_resiliencia import instalar as instalar_resiliencia
+    instalar_resiliencia()
+
     import importlib
     for modulo in ("Fix.core", "Fix.browser_suporte", "Fix.utils"):
         try:

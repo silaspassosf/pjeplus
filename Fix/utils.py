@@ -44,27 +44,19 @@ def obter_credencial(
     aliases: tuple = ()
 ) -> Optional[str]:
     """
-    Obtém credencial com prioridade:
-    1. Variável de ambiente (ex: SISB_CPF, SISB_SENHA, etc.)
-    2. Gerenciador de Credenciais do Windows (via keyring):
-       - keyring.get_password(servico, nome) para cada servico ('pjeplus', 'sisbajud', 'SISB')
-       - keyring.get_password(nome, nome)
-       - keyring.get_password(nome, '')
-       - keyring.get_password(nome, os.environ.get('USERNAME', ''))
+    Obtém credencial SOMENTE do Gerenciador de Credenciais do Windows (keyring):
+      - keyring.get_password(servico, nome) para cada servico ('pjeplus', 'sisbajud', 'SISB')
+      - keyring.get_password(nome, nome)
+      - keyring.get_password(nome, '')
+      - keyring.get_password(nome, os.environ.get('USERNAME', ''))
+    Variáveis de ambiente NÃO são mais usadas (evita dado errado vencer o keyring).
     Retorna o valor como string ou None se não encontrado.
     """
     if not nome:
         return None
     nomes = (nome,) + tuple(aliases)
 
-    # 1. Variáveis de ambiente
-    for n in nomes:
-        for chave in (n, n.upper(), n.lower()):
-            val = os.environ.get(chave)
-            if val:
-                return str(val).strip()
-
-    # 2. Windows Credential Manager via keyring
+    # Windows Credential Manager via keyring (única fonte)
     try:
         import keyring
         for s in servicos:
@@ -413,203 +405,97 @@ def login_automatico_direto(driver):
         return False
 
 
-def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True):
-    """Login automático por CPF/senha - OTIMIZADO: usa preencher_multiplos_campos()"""
-    try:
-        # tentar aplicar cookies previamente salvos
-        if verificar_e_aplicar_cookies(driver):
-            if SALVAR_COOKIES_AUTOMATICO:
-                try:
-                    salvar_cookies_sessao(driver, info_extra='cookies_reutilizados_login_cpf')
-                except Exception:
-                    pass
-            return True
+def sessao_oauth_completa(driver) -> bool:
+    """Sessão REALMENTE completa = cookies OAuth do gateway presentes.
 
-        from selenium.webdriver.common.by import By
+    URL "autenticada" sem access_token = handshake OAuth pela metade
+    (KC_RESTART pendente) — o gateway pje-comum-api responde 403 ARQ-516.
+    """
+    try:
+        nomes = {c.get('name') for c in driver.get_cookies()}
+    except Exception:
+        return False
+    return bool(nomes & {'access_token', 'sso_refresh_token'})
+
+
+def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True, forcar=False):
+    """Login MANUAL por CPF/senha - o usuário realiza o login no browser e confirma no terminal.
+
+    O login automático foi desativado. O browser é aberto na página de login
+    e o fluxo aguarda confirmação manual via input() no terminal.
+
+    forcar=True: apaga cookies antes de pedir login manual (sessão morta).
+    """
+    try:
         import time
 
-        if cpf is None:
-            cpf = obter_credencial('PJE_USER', aliases=('PJE_CPF', 'PJE_LOGIN', 'SISB_CPF', 'BP_SISB'))
-        if senha is None:
-            senha = obter_credencial('PJE_SENHA', aliases=('PJE_PASSWORD', 'PJE_PASS', 'SISB_SENHA', 'BP_PASS'))
-        if not cpf or not senha:
-            logger.error('ERRO em login_cpf: Credenciais ausentes. Defina PJE_USER/PJE_SENHA como variavel de ambiente ou no Gerenciador de Credenciais do Windows (keyring).')
-            return False
+        # Apagar cookies se sessao morta ou forcar reautenticacao
+        if forcar or not sessao_oauth_completa(driver):
+            try:
+                driver.delete_all_cookies()
+            except Exception:
+                pass
+        else:
+            # Verificar se ja esta logado via cookies salvos
+            if not forcar and verificar_e_aplicar_cookies(driver):
+                if SALVAR_COOKIES_AUTOMATICO:
+                    try:
+                        salvar_cookies_sessao(driver, info_extra='cookies_reutilizados_login_cpf')
+                    except Exception:
+                        pass
+                return True
 
         if not url_login:
             url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
 
-        logger.info("[LOGIN_CPF] Navegando para: %s", url_login)
+        logger.info("[LOGIN_PJE] Navegando para a pagina de login: %s", url_login)
         driver.get(url_login)
         espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
 
-        # Se ja estamos logados (URL nao contem 'login'/'auth'), retorna True
+        # Se ja estamos logados, retorna direto
         try:
             cur = driver.current_url.lower()
             if not any(k in cur for k in ['login', 'auth', 'realms']):
-                logger.debug('[LOGIN_CPF] Ja autenticado (URL indica sessao ativa)')
+                logger.info('[LOGIN_PJE] Ja autenticado (URL indica sessao ativa)')
                 return True
         except Exception:
             pass
 
-        # Clicar no botao SSO PDPJ antes de preencher credenciais
-        try:
-            btn_sso = driver.find_element(By.ID, 'btnSsoPdpj')
-            btn_sso.click()
-            logger.debug('[LOGIN_CPF] Botao SSO PDPJ clicado')
-            espera.ate_aparecer(driver, '#username', teto=1)
-        except Exception as e:
-            logger.error("ERRO em login_cpf: Falha ao clicar no botao SSO PDPJ: %s", e)
-            return False
+        # ----------------------------------------------------------------
+        # LOGIN MANUAL: solicitar ao usuario que faca login no browser
+        # ----------------------------------------------------------------
+        print('\n' + '=' * 60)
+        print('  LOGIN PJe MANUAL NECESSARIO')
+        print('=' * 60)
+        print('  O browser esta aberto na pagina de login do PJe.')
+        print('  Faca o login manualmente (CPF + senha + MFA se necessario).')
+        print('  Apos concluir o login no browser, volte aqui e')
+        print('  pressione ENTER para continuar o fluxo.')
+        print('=' * 60)
+        input('  [PJe] Login concluido? Pressione ENTER para continuar... ')
+        print()
 
-        # Digitar CPF no campo username
-        try:
-            username_field = driver.find_element(By.ID, 'username')
-            username_field.clear()
-            for ch in str(cpf):
-                username_field.send_keys(ch)
-                time.sleep(0.07)
-            # Validar que o formulario registrou o texto (React/Keycloak).
-            # Se o campo subir vazio, o submit nao autentica e o login estoura timeout.
+        # Verificar se o login foi de fato concluido
+        timeout = 30
+        inicio = time.time()
+        while time.time() - inicio < timeout:
             try:
-                _valor_cpf = (username_field.get_attribute('value') or '')
-                _dig_campo = ''.join(c for c in _valor_cpf if c.isdigit())
-                _dig_alvo = ''.join(c for c in str(cpf) if c.isdigit())
-                if _dig_campo != _dig_alvo:
-                    logger.warning('[LOGIN_CPF] CPF nao registrado (valor=%r). Redigitando de uma vez...', _valor_cpf[:5])
-                    username_field.click()
-                    username_field.clear()
-                    username_field.send_keys(str(cpf))
+                cur = driver.current_url.lower()
+                if not any(k in cur for k in ['login', 'auth', 'realms']):
+                    logger.info('[LOGIN_PJE] Login manual confirmado (URL: %s)', cur)
+                    try:
+                        if SALVAR_COOKIES_AUTOMATICO:
+                            salvar_cookies_sessao(driver, info_extra='login_manual_pje')
+                    except Exception:
+                        pass
+                    return True
             except Exception:
                 pass
-            logger.debug('[LOGIN_CPF] CPF digitado')
-        except Exception as e:
-            logger.error("ERRO em login_cpf: Nao foi possivel preencher CPF: %s", e)
-            return False
+            espera.assentar(driver, 1)
 
-        # Digitar senha no campo password
-        try:
-            password_field = driver.find_element(By.ID, 'password')
-            password_field.clear()
-            for ch in str(senha):
-                password_field.send_keys(ch)
-                time.sleep(0.07)
-            # Validar que a senha foi registrada (mesmo caso do CPF).
-            try:
-                _valor_senha = (password_field.get_attribute('value') or '')
-                if _valor_senha != str(senha):
-                    logger.warning('[LOGIN_CPF] Senha nao registrada (len=%d). Redigitando de uma vez...', len(_valor_senha))
-                    password_field.click()
-                    password_field.clear()
-                    password_field.send_keys(str(senha))
-            except Exception:
-                pass
-            logger.debug('[LOGIN_CPF] Senha digitada')
-        except Exception as e:
-            logger.error("ERRO em login_cpf: Nao foi possivel preencher senha: %s", e)
-            return False
-
-        # Clicar no botao de login (id comum do Keycloak)
-        try:
-            btn = driver.find_element(By.ID, 'kc-login')
-            btn.click()
-            logger.debug('[LOGIN_CPF] Botao de login clicado')
-        except Exception as e:
-            logger.error("ERRO em login_cpf: Falha ao clicar no botao de login: %s", e)
-            return False
-
-        # Aguardar redirecionamento/URL final
-        if aguardar_url_final:
-            timeout = 120  # MFA manual pode levar mais tempo
-            inicio = time.time()
-            _nova_tela_validar_clicada = False
-            _ultimo_log_url = inicio
-            cur = ''
-            while time.time() - inicio < timeout:
-                try:
-                    cur = driver.current_url.lower()
-                    if ('pjekz' in cur or 'sisbajud' in cur
-                            or not any(k in cur for k in ['login', 'auth', 'realms'])
-                            or ('pje.trt2.jus.br' in cur and 'login.seam' not in cur and 'acesso-negado' not in cur)):
-                        logger.debug('[LOGIN_CPF] Login detectado por mudanca de URL')
-                        try:
-                            if SALVAR_COOKIES_AUTOMATICO:
-                                salvar_cookies_sessao(driver, info_extra='login_cpf')
-                        except Exception:
-                            pass
-                        return True
-
-                    # Nova tela de autenticacao Keycloak (botao "Validar") = MFA/OTP
-                    # Pede o código via terminal para suportar o modo headless
-                    if not _nova_tela_validar_clicada:
-                        try:
-                            btn_validar = driver.find_element(By.CSS_SELECTOR, 'input#kc-login[value="Validar"]')
-                            if btn_validar.is_displayed():
-                                logger.warning('[LOGIN_CPF] Tela MFA detectada.')
-                                
-                                # Detectar se o modo é headless
-                                from Fix.headless_helpers import is_headless_mode
-                                is_headless = False
-                                try:
-                                    is_headless = is_headless_mode(driver)
-                                except Exception:
-                                    pass
-                                
-                                if is_headless:
-                                    print('\n*** MFA DETECTADO (Autenticador) ***\n')
-                                    
-                                    # Solicita o código no terminal (funciona no PC e Headless)
-                                    codigo_mfa = input('Digite o código do autenticador e pressione ENTER (ou deixe vazio para manual): ').strip()
-                                    
-                                    if codigo_mfa:
-                                        try:
-                                            campo_otp = driver.find_element(By.ID, 'otp')
-                                        except Exception:
-                                            try:
-                                                campo_otp = driver.find_element(By.NAME, 'otp')
-                                            except Exception:
-                                                campo_otp = None
-                                                
-                                        if campo_otp:
-                                            campo_otp.clear()
-                                            campo_otp.send_keys(codigo_mfa)
-                                            espera.assentar(driver, 0.5)
-                                            btn_validar.click()
-                                            logger.info('[LOGIN_CPF] Código MFA enviado. Aguardando login...')
-                                        else:
-                                            logger.error('[LOGIN_CPF] Campo OTP não encontrado. Faça a validação manual.')
-                                    else:
-                                        logger.warning('[LOGIN_CPF] Código não fornecido no terminal. Aguardando validação manual no browser...')
-                                else:
-                                    logger.info('[LOGIN_CPF] Execução visual (headful) detectada. Aguardando o usuário confirmar no DOM/browser...')
-                                
-                                _nova_tela_validar_clicada = True  # marcar para nao repetir o aviso
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
-                agora = time.time()
-                if agora - _ultimo_log_url >= 5:
-                    _ultimo_log_url = agora
-                    logger.info('[LOGIN_CPF] Aguardando redirect... URL atual: %s (%.0fs)', cur, agora - inicio)
-                espera.assentar(driver, 0.5)
-            try:
-                _url_final = driver.current_url
-            except Exception:
-                _url_final = '<erro ao ler URL>'
-            logger.warning('[LOGIN_CPF] Timeout aguardando redirecionamento pos-login. URL final: %s', _url_final)
-            try:
-                from datetime import datetime as _dt
-                _cam = os.path.join(os.getcwd(), 'login_timeout_%s.png' % _dt.now().strftime('%Y%m%d_%H%M%S'))
-                with open(_cam, 'wb') as _f:
-                    _f.write(driver.get_screenshot_as_png())
-                logger.info('[LOGIN_CPF] Screenshot do timeout salvo em: %s', _cam)
-            except Exception:
-                pass
-            return False
-
-        # Se nao aguardamos, consideramos sucesso imediato
-        return True
+        logger.warning('[LOGIN_PJE] Login nao detectado apos confirmacao manual. URL: %s',
+                       getattr(driver, 'current_url', '<indisponivel>'))
+        return False
 
     except Exception as e:
         logger.error("ERRO em login_cpf: %s: %s", type(e).__name__, e)
@@ -2105,9 +1991,17 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
         if 'login' in driver.current_url.lower():
             logger.warning('[COOKIES] Cookies invalidos - ainda redirecionando para login')
             return False
-        else:
-            logger.debug('[COOKIES] Cookies validos! Login automatico realizado')
-            return True
+
+        if not sessao_oauth_completa(driver):
+            logger.warning('[COOKIES] URL ok mas access_token ausente (handshake OAuth incompleto) - cookies invalidos')
+            try:
+                driver.delete_all_cookies()
+            except Exception:
+                pass
+            return False
+
+        logger.debug('[COOKIES] Cookies validos! Login automatico realizado')
+        return True
 
     except Exception as e:
         logger.error("ERRO em carregar_cookies_sessao: %s: %s", type(e).__name__, e)
@@ -2138,8 +2032,10 @@ def verificar_e_aplicar_cookies(driver):
                 espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
 
                 try:
-                    cpf = os.environ.get('PJE_USER')
-                    senha = os.environ.get('PJE_SENHA')
+                    cpf = obter_credencial('PJE_SILAS', servicos=('pjeplus',),
+                                           aliases=('PJE_USER', 'PJE_CPF', 'PJE_LOGIN'))
+                    senha = obter_credencial('PJE_SENHA', servicos=('pjeplus',),
+                                             aliases=('PJE_PASSWORD', 'PJE_PASS'))
                     if not cpf or not senha:
                         logger.error('ERRO em verificar_e_aplicar_cookies: Credenciais ausentes para login forcado')
                         return False

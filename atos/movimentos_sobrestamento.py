@@ -47,8 +47,8 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
     log_msg(f"Observação: {observacao}")
     
     try:
-        # Extrai o número da observação (formatos: "sob 6", "xs 6", "xs sob 6")
-        # Prioridade: "xs sob N" > "sob N" > "xs N" (todos extraem o mesmo número)
+        # Extrai o número da observação. Padrão: "xs sob N" (meses); pode aparecer
+        # por engano sem o "xs" ("sob N"). A mesma regex cobre os dois casos.
         obs_lower = observacao.lower()
         numero_match = re.search(r'\bsob\s+(\d+)', obs_lower)
         if not numero_match:
@@ -192,9 +192,23 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
         # de sobrestamento em estado 'aguardandofinal'. Caso contrário, tornar
         # o movimento um no-op e retornar True para não bloquear fluxos que
         # dependem de mov_sob quando este não é aplicável.
+        # O Angular roteia a nova aba para /sobrestamento/aguardandofinal de forma
+        # ASSÍNCRONA: checar a URL uma única vez (comportamento anterior) fazia o
+        # mov_sob virar no-op intermitente quando a checagem corria antes do roteamento
+        # — causa principal da execução inconsistente. Agora fazemos polling curto.
         try:
-            current = (driver.current_url or '')
-            if '/sobrestamento/aguardandofinal' not in current:
+            url_ok = False
+            current = ''
+            for _ in range(24):  # ~7s no máximo (24 x 0.3s)
+                try:
+                    current = (driver.current_url or '')
+                except Exception:
+                    current = ''
+                if '/sobrestamento/aguardandofinal' in current:
+                    url_ok = True
+                    break
+                espera.assentar(driver, 0.3)
+            if not url_ok:
                 log_msg(f" URL atual '{current}' não é sobrestamento/aguardandofinal; pulando mov_sob (no-op)")
                 return True
         except Exception:

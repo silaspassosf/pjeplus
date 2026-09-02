@@ -428,67 +428,105 @@ def ato_judicial(
                 logger.error(f'[ATO][MODELO] Erro ao preencher filtro do modelo: {e}')
                 return False, False
 
-            # Inserir modelo específico - versão baseada no jud.py (simplificada)
+            # Inserir modelo específico — sequência DETERMINÍSTICA do legado
+            # (jud.py + aaDespacho/inserirModeloNoDocumento do gigs-plugin.js),
+            # SEM retry: a corrida era clicar "Inserir" antes do preview/teor do
+            # modelo carregar dentro do dialog. O aaDespacho resolve isso com
+            # sleep(500ms) DEPOIS de o dialog entrar no DOM e clicando pelo
+            # aria-label estável do botão.
             try:
-                # O filtro já foi aplicado, nodo-filtrado já está ativo
-                # Basta clicar no nodo-filtrado e inserir (como no jud.py)
-
                 # Seleciona o modelo filtrado destacado (fundo amarelo) - como no jud.py
                 seletor_item_filtrado = '.nodo-filtrado'
+
+                # Botão pelo aria-label estável (padrão aaDespacho); fallback no
+                # caminho estrutural (âncora do jud.py)
+                seletor_btn_inserir_aria = (
+                    'button[aria-label="Inserir modelo de documento"]')
+                seletor_btn_inserir_css = (
+                    'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes'
+                    ' > div.div-botao-inserir > button')
+
+                # Verificação REAL de conteúdo no editor (referência:
+                # verificarSeExisteTextoNoEditor): a snackbar "Modelo de documento
+                # inserido com sucesso" também aparece salvando com o editor VAZIO
+                # — não é prova. Prova é a área contenteditable ter texto (ou
+                # figure, p/ conteúdo com imagem). null = editor ainda não renderizou.
+                js_editor_tem_conteudo = """
+                    var area = document.querySelector(
+                        'div[class*="area-conteudo"][contenteditable="true"]');
+                    if (!area) return null;
+                    var texto = (area.innerText || '').replace(/\\s/g, '');
+                    return texto.length > 1 || area.querySelector('figure') !== null;
+                """
+
                 nodo = aguardar_e_clicar(driver, seletor_item_filtrado, timeout=15)
                 if not nodo:
                     logger.error('[ATO][MODELO] Nodo do modelo não encontrado!')
                     return False, False
                 logger.info('[ATO][MODELO] Clique em nodo-filtrado realizado!')
 
-                # Aguarda modal de visualização abrir (observer, sem polling)
-                try:
-                    modal_aberto = aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=5)
-                except Exception:
-                    modal_aberto = False
-                if not modal_aberto:
-                    logger.warning('[ATO][MODELO] Modal não abriu, tentando inserir mesmo assim...')
+                # O dialog DEVE entrar no DOM antes de qualquer coisa (mesmo
+                # gatilho do observer do aaDespacho sobre PJE-DIALOGO-VISUALIZAR-MODELO)
+                aguardar_renderizacao_nativa(
+                    driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=8)
 
-                # Localiza botão inserir - buscar elemento FRESCO para evitar stale element
-                # Usa retry loop para lidar com StaleElementReferenceException
-                seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
+                # GUARDA ANTI-CORRIDA do aaDespacho: 500ms após o dialog entrar
+                # no DOM, para o preview/teor do modelo carregar e o botão
+                # Inserir ser ligado. Clicar antes disso insere editor vazio.
+                time.sleep(0.5)
 
-                btn_inserir = driver.execute_script("""
-                    return document.querySelector('pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button');
-                """)
+                btn_inserir = wait_for_clickable(
+                    driver, seletor_btn_inserir_aria, timeout=8, by=By.CSS_SELECTOR)
                 if not btn_inserir:
-                    # Espera que o modal renderize com observer
-                    aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=5)
-                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=3, by=By.CSS_SELECTOR)
+                    btn_inserir = wait_for_clickable(
+                        driver, seletor_btn_inserir_css, timeout=3, by=By.CSS_SELECTOR)
                 if not btn_inserir:
                     logger.error('[ATO][MODELO] Botão inserir não encontrado!')
                     return False, False
 
-                # Insere modelo com SPACE (como no legado)
-                try:
-                    btn_inserir.send_keys(Keys.SPACE)
-                    logger.info('[ATO][MODELO] Modelo inserido')
-                except StaleElementReferenceException:
-                    # Se ficou stale entre encontrar e clicar, tentar uma última vez
-                    logger.warning('[ATO][MODELO] Elemento ficou stale, tentando novamente...')
-                    btn_inserir = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
-                    btn_inserir.send_keys(Keys.SPACE)
-                    logger.info('[ATO][MODELO] Modelo inserido (2a tentativa)')
+                # Clique via JS (mesmo padrão execute_script click do legado)
+                driver.execute_script('arguments[0].click();', btn_inserir)
+                logger.info('[ATO][MODELO] Clique em inserir realizado')
 
-                # Aguarda confirmação da inserção do modelo (snackbar específica) e o
-                # fechamento do dialog de visualização. Ambos event-driven (sem sleep
-                # fixo): o seletor genérico de 2s permitia seguir ao Salvar antes do
-                # conteúdo entrar no editor em máquinas lentas.
+                # Snackbar "Modelo de documento inserido com sucesso" = SINAL DE
+                # PROSSEGUIR com as ações (padrão aaDespacho). O PJe pode não
+                # exibi-la se o foco sair da tela — nesse caso seguimos mesmo
+                # assim: a GARANTIA de que o modelo foi de fato inserido fica
+                # na verificação de conteúdo do editor, logo abaixo, que é o
+                # gate real antes do Salvar.
                 try:
-                    if espera.ate_texto(driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=4):
-                        logger.info('[ATO][MODELO] Snackbar de inserção confirmada')
+                    if espera.ate_texto(driver, 'simple-snack-bar',
+                                        'Modelo de documento inserido com sucesso', teto=4):
+                        logger.info('[ATO][MODELO] Snackbar de inserção detectada '
+                                    '— sinal para prosseguir')
                     else:
-                        logger.warning('[ATO][MODELO] Snackbar de inserção não detectada, prosseguindo...')
-                except Exception as _e:
-                    logger.warning(f'[ATO][MODELO] Exceção ao verificar snackbar: {_e}')
+                        logger.warning('[ATO][MODELO] Snackbar não detectada '
+                                       '(foco pode ter saído da tela); seguindo '
+                                       'para verificação de conteúdo')
+                except Exception:
+                    pass
+                aguardar_renderizacao_nativa(
+                    driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=4)
 
-                # Aguarda o dialog de visualização fechar (sinal de inserção concluída)
-                aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=3)
+                # Prova real: conteúdo no editor. Espera de carga assíncrona do
+                # editor (até ~10s) — não é retry de inserção: o clique já foi
+                # dado uma única vez, na sequência correta.
+                modelo_no_editor = False
+                for _ in range(10):
+                    try:
+                        estado_editor = driver.execute_script(js_editor_tem_conteudo)
+                    except Exception:
+                        estado_editor = None
+                    if estado_editor is True:
+                        modelo_no_editor = True
+                        break
+                    time.sleep(1)
+
+                if not modelo_no_editor:
+                    logger.error('[ATO][MODELO] Conteúdo do modelo NÃO presente no '
+                                 'editor após inserção — abortando antes do Salvar')
+                    return False, False
+                logger.info('[ATO][MODELO] Modelo inserido (conteúdo confirmado no editor)')
 
             except Exception as e:
                 logger.error(f'[ATO][MODELO] Erro ao inserir modelo: {e}')
@@ -709,90 +747,81 @@ def ato_judicial(
                 except Exception as e:
                     logger.debug('[ATO][MOVIMENTO] Nao foi possivel clicar na aba Movimentos: %s', e)
 
-                # Movimento multi-estágio (combobox) vs simples (checkbox)
-                if '/' in movimento or '-' in movimento:
-                    try:
-                        driver.execute_script("""
-                            var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
-                            var abaMov = abas.find(function(a) {
-                                return a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos');
-                            });
-                            if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') { abaMov.click(); }
-                        """)
-                        aguardar_renderizacao_nativa(driver, '.mat-tab-label[aria-selected="true"]', modo='aparecer', timeout=3)
-                    except Exception:
-                        pass
-                    if not selecionar_movimento_auto(driver, movimento):
-                        logger.error(f'[ATO][MOVIMENTO]  Movimento não encontrado: {movimento}')
-                        return False, False
-                    logger.info('[ATO][MOVIMENTO]  Movimento selecionado via combobox')
-                else:
-                    driver.execute_script(
-                        'window.selecionadoMovimento = undefined; '
-                        'window.labelSelecionadoMovimento = undefined;'
-                    )
-                    js_mov = f'''
-                    (function() {{
-                        var textoMov = '{movimento}'.trim().toLowerCase().replace(/\\s+/g, ' ');
-                            var checkboxes = Array.from(document.querySelectorAll('mat-checkbox.mat-checkbox.movimento'));
-                            var selecionado = false;
+                raiz_movimento = movimento.split('/')[0].split('-')[0].strip() if ('/' in movimento or '-' in movimento) else movimento
 
-                            function normalizarTexto(texto) {{
-                                return texto.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
-                            }}
+                driver.execute_script(
+                    'window.selecionadoMovimento = undefined; '
+                    'window.labelSelecionadoMovimento = undefined;'
+                )
+                js_mov = f'''
+                (function() {{
+                    var textoMov = '{raiz_movimento}'.trim().toLowerCase().replace(/\\s+/g, ' ');
+                    var checkboxes = Array.from(document.querySelectorAll('mat-checkbox.mat-checkbox.movimento'));
+                    var selecionado = false;
 
-                            var termoPesquisa = normalizarTexto(textoMov);
+                    function normalizarTexto(texto) {{
+                        return texto.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+                    }}
 
-                            for (var cb of checkboxes) {{
-                                try {{
-                                    var label = cb.querySelector('label.mat-checkbox-layout .mat-checkbox-label');
-                                    var labelText = label && label.textContent ? label.textContent : '';
-                                    var labelNorm = labelText.trim().toLowerCase().replace(/\\s+/g, ' ');
-                                    var labelSemAcento = normalizarTexto(labelText);
+                    var termoPesquisa = normalizarTexto(textoMov);
 
-                                    var encontrado = labelNorm.includes(textoMov) ||
-                                                    labelSemAcento.includes(termoPesquisa) ||
-                                                    (textoMov === 'frustrada' && (labelSemAcento.includes('execucao frustrada') || labelSemAcento.includes('276'))) ||
-                                                    (textoMov.match(/^\\d+$/) && labelText.includes('(' + textoMov + ')'));
+                    for (var cb of checkboxes) {{
+                        try {{
+                            var label = cb.querySelector('label.mat-checkbox-layout .mat-checkbox-label');
+                            var labelText = label && label.textContent ? label.textContent : '';
+                            var labelNorm = labelText.trim().toLowerCase().replace(/\\s+/g, ' ');
+                            var labelSemAcento = normalizarTexto(labelText);
 
-                                    if (encontrado) {{
-                                        var input = cb.querySelector('input[type="checkbox"]');
-                                        if (input && !input.checked) {{
-                                            var inner = cb.querySelector('.mat-checkbox-inner-container');
-                                            if(inner) {{
-                                                inner.click();
-                                            }} else {{
-                                                input.click();
-                                            }}
-                                        }}
-                                        window.selecionadoMovimento = true;
-                                        window.labelSelecionadoMovimento = labelText;
-                                        selecionado = true;
-                                        break;
+                            var encontrado = labelNorm.includes(textoMov) ||
+                                            labelSemAcento.includes(termoPesquisa) ||
+                                            (textoMov === 'frustrada' && (labelSemAcento.includes('execucao frustrada') || labelSemAcento.includes('276'))) ||
+                                            (textoMov.match(/^\\d+$/) && labelText.includes('(' + textoMov + ')'));
+
+                            if (encontrado) {{
+                                var input = cb.querySelector('input[type="checkbox"]');
+                                if (input && !input.checked) {{
+                                    var inner = cb.querySelector('.mat-checkbox-inner-container');
+                                    if(inner) {{
+                                        inner.click();
+                                    }} else {{
+                                        input.click();
                                     }}
-                                }} catch (e) {{
-                                    console.warn('[ATO][MOVIMENTO] Erro ao processar checkbox:', e);
                                 }}
+                                window.selecionadoMovimento = true;
+                                window.labelSelecionadoMovimento = labelText;
+                                selecionado = true;
+                                break;
                             }}
+                        }} catch (e) {{
+                            console.warn('[ATO][MOVIMENTO] Erro ao processar checkbox:', e);
+                        }}
+                    }}
 
-                            if (!selecionado) {{
-                                console.warn('[ATO][MOVIMENTO] Movimento não encontrado');
-                                window.selecionadoMovimento = false;
-                            }} else {{
-                                console.log('[ATO][MOVIMENTO] Movimento marcado');
-                            }}
-                    }})();
-                    '''
-                    driver.execute_script(js_mov)
+                    if (!selecionado) {{
+                        console.warn('[ATO][MOVIMENTO] Movimento não encontrado');
+                        window.selecionadoMovimento = false;
+                    }} else {{
+                        console.log('[ATO][MOVIMENTO] Movimento marcado');
+                    }}
+                }})();
+                '''
+                driver.execute_script(js_mov)
 
-                    selecionado = driver.execute_script("return window.selecionadoMovimento;")
-                    label_mov = driver.execute_script("return window.labelSelecionadoMovimento;")
-                    driver.execute_script("window.selecionadoMovimento = undefined; window.labelSelecionadoMovimento = undefined;")
+                selecionado = driver.execute_script("return window.selecionadoMovimento;")
+                label_mov = driver.execute_script("return window.labelSelecionadoMovimento;")
+                driver.execute_script("window.selecionadoMovimento = undefined; window.labelSelecionadoMovimento = undefined;")
 
-                    if not selecionado:
-                        logger.error(f'[ATO][MOVIMENTO]  Movimento não encontrado: {movimento}')
+                if not selecionado:
+                    logger.error(f'[ATO][MOVIMENTO]  Movimento raiz não encontrado: {raiz_movimento}')
+                    return False, False
+                logger.info(f'[ATO][MOVIMENTO]  Checkbox marcado: {label_mov}')
+
+                # Movimento multi-estágio (combobox)
+                if '/' in movimento or '-' in movimento:
+                    if not selecionar_movimento_auto(driver, movimento):
+                        logger.error(f'[ATO][MOVIMENTO]  Complementos do movimento não encontrados: {movimento}')
                         return False, False
-                    logger.info(f'[ATO][MOVIMENTO]  Checkbox marcado: {label_mov}')
+                    logger.info('[ATO][MOVIMENTO]  Complementos selecionados via combobox')
 
                 # Gravar movimento
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
@@ -804,15 +833,21 @@ def ato_judicial(
                 if btn_gravar_mov:
                     safe_click_no_scroll(driver, btn_gravar_mov)
 
-                # Confirmar com Sim (dentro do próprio diálogo de confirmação — o backdrop aqui
-                # é esperado; o clique via safe_click_no_scroll dispensa sobreposição física)
-                logger.info('[ATO][MOVIMENTO] Confirmando...')
-                btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=10, by=By.XPATH)
-                if btn_sim:
-                    safe_click_no_scroll(driver, btn_sim)
-                    logger.info('[ATO][MOVIMENTO] Movimento gravado e confirmado')
+                # Confirmar a gravação
+                logger.info('[ATO][MOVIMENTO] Confirmando gravação...')
+                # PJe atual: NÃO existe mais diálogo "Sim" ao gravar movimento.
+                # O gravar exibe snack-bar "Movimentos gravados com sucesso" (com botão X).
+                snack = wait_for_clickable(driver, 'snack-bar-container simple-snack-bar', timeout=4, by=By.CSS_SELECTOR)
+                if snack and 'movimentos gravados' in (snack.text or '').lower():
+                    # Dispensar o snackbar (X) para não sobrepor cliques seguintes.
+                    try:
+                        btn_x = driver.find_element(By.CSS_SELECTOR, 'simple-snack-bar button')
+                        safe_click_no_scroll(driver, btn_x)
+                    except Exception:
+                        pass
+                    logger.info('[ATO][MOVIMENTO] Movimento gravado (snackbar de sucesso)')
                 else:
-                    logger.warning('[ATO][MOVIMENTO] Botão Sim não encontrado')
+                    logger.warning('[ATO][MOVIMENTO] Sem confirmação de gravação do movimento (snackbar ausente), assumindo sucesso')
 
             except Exception as e:
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')

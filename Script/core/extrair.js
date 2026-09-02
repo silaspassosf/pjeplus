@@ -35,18 +35,18 @@
   function formatarPdf(texto) {
     return texto.split("--- PÁGINA ---").map(function (pag, numPag) {
       var colWidths = [];
-      var emTabela  = false;
-      var linhas    = pag.trim().split("\n").reduce(function (acc, linha) {
-        var celulas     = linha.split(" | ");
-        var ehTabelar   = celulas.length >= 3;
+      var emTabela = false;
+      var linhas = pag.trim().split("\n").reduce(function (acc, linha) {
+        var celulas = linha.split(" | ");
+        var ehTabelar = celulas.length >= 3;
 
         if (ehTabelar) {
           celulas.forEach(function (c, i) {
             colWidths[i] = Math.max(colWidths[i] || 0, c.trim().length);
           });
           if (!emTabela) { acc.push("\n=== TABELA ==="); emTabela = true; }
-          var pad    = celulas.map(function (c, i) { return c.trim().padEnd(colWidths[i] || 0); }).join(" | ");
-          var total  = /total|subtotal|líquido|bruto|devido/i.test(linha);
+          var pad = celulas.map(function (c, i) { return c.trim().padEnd(colWidths[i] || 0); }).join(" | ");
+          var total = /total|subtotal|líquido|bruto|devido/i.test(linha);
           acc.push(total ? "** " + pad + " **" : pad);
         } else {
           if (emTabela) { acc.push(""); emTabela = false; }
@@ -79,49 +79,49 @@
   async function extrair(opts = {}) {
     var rootDoc = (opts.containerDocument && opts.containerDocument.nodeType === 9) ? opts.containerDocument : document;
 
-  // ── NOVO: Editor HTML direto (documento não assinado) ───────────────
-  // Ativo quando não há <object class="conteudo-pdf"> no DOM
-  // e o conteúdo está em mat-card.container-html no próprio documento
-  var _candidatos = [
-    ...rootDoc.querySelectorAll('div#documento pje-historico-scroll-documento mat-card.container-html mat-card-content.conteudo-html')
-  ];
-
-  if (!_candidatos.length) {
-    _candidatos = [
-      ...rootDoc.querySelectorAll('mat-card.container-html mat-card-content.conteudo-html')
+    // ── NOVO: Editor HTML direto (documento não assinado) ───────────────
+    // Ativo quando não há <object class="conteudo-pdf"> no DOM
+    // e o conteúdo está em mat-card.container-html no próprio documento
+    var _candidatos = [
+      ...rootDoc.querySelectorAll('div#documento pje-historico-scroll-documento mat-card.container-html mat-card-content.conteudo-html')
     ];
-  }
 
-  if (!_candidatos.length) {
-    _candidatos = [
-      ...rootDoc.querySelectorAll('mat-card.container-html')
-    ];
-  }
+    if (!_candidatos.length) {
+      _candidatos = [
+        ...rootDoc.querySelectorAll('mat-card.container-html mat-card-content.conteudo-html')
+      ];
+    }
 
-  var editorHtml = _candidatos.reduce(function (best, el) {
-    if (!el) return best;
-    if (!best) return el;
-    return (el.innerText || el.textContent || '').length > (best.innerText || best.textContent || '').length ? el : best;
-  }, null);
+    if (!_candidatos.length) {
+      _candidatos = [
+        ...rootDoc.querySelectorAll('mat-card.container-html')
+      ];
+    }
 
-  if (editorHtml && !opts.forcePdf) {
-    var bruto   = (editorHtml.innerText || editorHtml.textContent || '').trim();
-    var idx     = bruto.search(/CONCLUS[AÃ]O/i);
-    var fatiado = idx !== -1 ? bruto.slice(idx) : bruto;
+    var editorHtml = _candidatos.reduce(function (best, el) {
+      if (!el) return best;
+      if (!best) return el;
+      return (el.innerText || el.textContent || '').length > (best.innerText || best.textContent || '').length ? el : best;
+    }, null);
 
-    if (fatiado.length < 50)
-      return { sucesso: false, tipo: 'html-editor', erro: 'conteúdo vazio ou muito curto' };
+    if (editorHtml && !opts.forcePdf) {
+      var bruto = (editorHtml.innerText || editorHtml.textContent || '').trim();
+      var idx = bruto.search(/CONCLUS[AÃ]O/i);
+      var fatiado = idx !== -1 ? bruto.slice(idx) : bruto;
 
-    var conteudo = formatar(fatiado, 'html');
-    return {
-      sucesso:        true,
-      tipo:           'html-editor',
-      conteudo:       conteudo,
-      conteudo_bruto: fatiado,
-      chars:          conteudo.length
-    };
-  }
-  // ── fim bloco editor html direto ────────────────────────────────────
+      if (fatiado.length < 50)
+        return { sucesso: false, tipo: 'html-editor', erro: 'conteúdo vazio ou muito curto' };
+
+      var conteudo = formatar(fatiado, 'html');
+      return {
+        sucesso: true,
+        tipo: 'html-editor',
+        conteudo: conteudo,
+        conteudo_bruto: fatiado,
+        chars: conteudo.length
+      };
+    }
+    // ── fim bloco editor html direto ────────────────────────────────────
 
     // ✅ Define o elemento de visualização do PDF/HTML
     var el = rootDoc.querySelector('object.conteudo-pdf, iframe.conteudo-pdf');
@@ -147,7 +147,7 @@
     if (typeof view.pdfjsLib !== 'undefined') {
       try {
         var pdfjsLib = view.pdfjsLib;
-        var blobUrl  = new view.URLSearchParams(view.location.search).get("file");
+        var blobUrl = new view.URLSearchParams(view.location.search).get("file");
         if (!blobUrl) return { sucesso: false, tipo: "pdf", erro: "blob URL não encontrada" };
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = "/pjekz/assets/pdf/build/pdf.worker.js";
@@ -156,7 +156,7 @@
         var paginas = [];
         for (var i = 1; i <= pdf.numPages; i++) {
           var content = await (await pdf.getPage(i)).getTextContent();
-          var linhas  = {};
+          var linhas = {};
           content.items
             .filter(function (it) { return it.str.trim(); })
             .forEach(function (it) {
@@ -176,19 +176,19 @@
           );
         }
 
-        var bruto      = paginas.join("\n\n--- PÁGINA ---\n\n");
-        var conteudo   = formatar(bruto, "pdf");
+        var bruto = paginas.join("\n\n--- PÁGINA ---\n\n");
+        var conteudo = formatar(bruto, "pdf");
         return { sucesso: true, tipo: "pdf", conteudo: conteudo, conteudo_bruto: bruto, chars: conteudo.length };
 
       } catch (e) {
         return { sucesso: false, tipo: "pdf", erro: e.message };
       }
 
-    // ── HTML ───────────────────────────────────────────────
+      // ── HTML ───────────────────────────────────────────────
     } else {
       var viewer = inner.querySelector("#viewer");
       if (!viewer) return { sucesso: false, tipo: "html", erro: "#viewer não encontrado" };
-      var bruto    = (viewer.innerText || viewer.textContent || "").trim();
+      var bruto = (viewer.innerText || viewer.textContent || "").trim();
       if (bruto.length < 50) return { sucesso: false, tipo: "html", erro: "conteúdo vazio" };
       var conteudo = formatar(bruto, "html");
       return { sucesso: true, tipo: "html", conteudo: conteudo, conteudo_bruto: bruto, chars: conteudo.length };
@@ -203,7 +203,7 @@
     var res = await extrair(opts);
     // Persiste no window para Selenium ler via execute_script
     window._pjeResultado = res;
-    window._pjePronto    = !!res.sucesso;
+    window._pjePronto = !!res.sucesso;
     return res;
   };
 
@@ -285,7 +285,7 @@
           return { tipo: 'json-raw', conteudo: text };
         }
         return { tipo: 'html', conteudo: text };
-      } catch (_) {}
+      } catch (_) { }
     }
     throw new Error('Nenhum endpoint retornou conteúdo para docId=' + idDoc);
   }
@@ -355,12 +355,16 @@
     if (conteudoResult.tipo === 'pdf-buffer') {
       var bruto;
       try { bruto = await _apiExtrairTextoPdf(conteudoResult.conteudo); } catch (e) {
-        return { sucesso: true, tipo: 'meta-sem-conteudo', meta: meta, conteudo: '', conteudo_bruto: '', chars: 0,
-          aviso: 'PDF obtido mas extração falhou: ' + e.message };
+        return {
+          sucesso: true, tipo: 'meta-sem-conteudo', meta: meta, conteudo: '', conteudo_bruto: '', chars: 0,
+          aviso: 'PDF obtido mas extração falhou: ' + e.message
+        };
       }
       if (!bruto || bruto.length < 10)
-        return { sucesso: true, tipo: 'meta-sem-conteudo', meta: meta, conteudo: '', conteudo_bruto: '', chars: 0,
-          aviso: 'PDF sem texto extraível (possivelmente escaneado/imagem)' };
+        return {
+          sucesso: true, tipo: 'meta-sem-conteudo', meta: meta, conteudo: '', conteudo_bruto: '', chars: 0,
+          aviso: 'PDF sem texto extraível (possivelmente escaneado/imagem)'
+        };
       var cpdf = formatar(bruto, 'pdf');
       return { sucesso: true, tipo: 'api-pdf', meta: meta, conteudo: cpdf, conteudo_bruto: bruto, chars: cpdf.length };
     }

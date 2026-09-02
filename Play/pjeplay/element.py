@@ -147,8 +147,20 @@ class PWElement:
     # -- acao -------------------------------------------------------------
 
     def click(self):
+        # JS-first: nao depende de actionability (visible/enabled/STABLE) do
+        # Playwright. O gate de estabilidade usa rAF e aba/janela inativa no
+        # Firefox nao dispara rAF — com a janela ao fundo o clique nativo
+        # travava 30s ("waiting for element to be stable"). O el.click() via
+        # evaluate dispara os handlers igual ao padrao Selenium
+        # (execute_script("arguments[0].click()")). Fallback nativo com
+        # force=True (pula actionability) se o evaluate falhar.
         try:
-            self._handle.click()
+            self._js("el => el.click()")
+            return
+        except Exception:
+            pass
+        try:
+            self._handle.click(force=True, timeout=10000)
         except Exception as e:
             raise traduzir(e) from e
 
@@ -162,7 +174,13 @@ class PWElement:
         texto = "".join(str(v) for v in valores)
         teclado = self.page.keyboard
         try:
-            self._handle.scroll_into_view_if_needed()
+            # Gate curto de estabilidade: elemento em modal Angular pode ficar
+            # instante por segundos (preview carregando) e o default de 30s do
+            # Playwright trava o fluxo. Fallback JS se nao estabilizar rapido.
+            try:
+                self._handle.scroll_into_view_if_needed(timeout=2000)
+            except Exception:
+                self._js("el => el.scrollIntoView({block: 'center'})")
             self._handle.focus()
             for tipo, dado in dividir_teclas(texto):
                 if tipo == "texto":

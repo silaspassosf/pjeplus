@@ -1029,7 +1029,7 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             raise TimeoutException("Botao 'Salvar' nao encontrado")
         btn_salvar.click()
 
-        # 7. Aguardar confirmação (não esperar sumir)
+        # 7. Aguardar confirmação e limpar o form (previne StaleElement em chamadas seguidas)
         espera.assentar(driver, 0.3)
         if espera.ate_aparecer(
             driver,
@@ -1041,6 +1041,21 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
         else:
             if log:
                 logger.warning('[GIGS] Confirmacao nao detectada, assumindo sucesso')
+        
+        # Dispensar o snackbar para nao sobrepor os botoes em execucoes rapidas
+        try:
+            btn_x = driver.find_element(By.CSS_SELECTOR, 'simple-snack-bar button')
+            btn_x.click()
+        except Exception:
+            pass
+
+        # Aguardar que o formulario da atividade seja destruído/fechado
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'textarea[formcontrolname="observacao"]', modo='sumir', timeout=4)
+        except Exception:
+            pass
+            
         return True
         
     except Exception as e:
@@ -1259,23 +1274,28 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
         # 3. Verificar se existe mensagem "Não existem partes a serem selecionadas"
         try:
-            no_reg_elems = driver.find_elements(By.CSS_SELECTOR, '#tabela-registros-bndt div[class*="mensagem"], pje-bndt-partes-sem-registro .mensagem, mat-card .mensagem, div.mensagem.ng-star-inserted')
-            for elem in no_reg_elems:
-                texto_no_reg = (elem.text or '').strip().lower()
-                if ('não há registros' in texto_no_reg or
-                    'não há registros disponíveis' in texto_no_reg or
-                    'não existem partes a serem selecionadas' in texto_no_reg):
-                    logger.info(f'Polo {polo}: "{elem.text}" — nada a fazer')
-                    driver.close()
-                    driver.switch_to.window(main_window)
-                    return True
+            texto_no_reg = driver.execute_script("""
+                var els = document.querySelectorAll('#tabela-registros-bndt div[class*="mensagem"], pje-bndt-partes-sem-registro .mensagem, mat-card .mensagem, div.mensagem.ng-star-inserted');
+                for (var i = 0; i < els.length; i++) {
+                    var txt = (els[i].textContent || '').trim().toLowerCase();
+                    if (txt.includes('não há registros') || txt.includes('não existem partes')) return txt;
+                }
+                return '';
+            """)
+            if texto_no_reg:
+                logger.info(f'Polo {polo}: "{texto_no_reg}" — nada a fazer')
+                driver.close()
+                driver.switch_to.window(main_window)
+                return True
         except Exception:
             pass
 
         # 4. Verificar se há mensagem de classe não permitida
         try:
-            msg_classe_elems = driver.find_elements(By.XPATH, "//*[contains(text(),'A classe judicial do processo não pode acessar')]")
-            if msg_classe_elems:
+            msg_classe = driver.execute_script("""
+                return document.evaluate("//*[contains(text(),'A classe judicial do processo não pode acessar')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue != null;
+            """)
+            if msg_classe:
                 logger.warning(f'Polo {polo}: Classe judicial do processo não permite cadastro no BNDT')
                 erro_classe = True
                 driver.close()

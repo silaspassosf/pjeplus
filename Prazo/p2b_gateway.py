@@ -70,19 +70,27 @@ def extrair_documento_relevante(driver: WebDriver) -> Dict[str, Any]:
     sess, host = session_from_driver(driver)
     base = f'https://{host}'
 
-    # 2) timeline via API
+    # 2) timeline via API (retry curto para 5xx transitórios do PJe)
     url_timeline = (
         f'{base}/pje-comum-api/api/processos/id/{id_processo}/timeline'
         '?buscarDocumentos=true&buscarMovimentos=false&somenteDocumentosAssinados=false'
     )
-    try:
-        r = sess.get(url_timeline, timeout=30)
-        if r.status_code == 401:
-            return _falha('sessao_expirada_401', sessao_expirada=True)
-        r.raise_for_status()
-        timeline = r.json()
-    except Exception as e:
-        return _falha(f'timeline HTTP error: {e}')
+    timeline = None
+    ultimo_erro = None
+    for tentativa in range(3):
+        try:
+            r = sess.get(url_timeline, timeout=30)
+            if r.status_code == 401:
+                return _falha('sessao_expirada_401', sessao_expirada=True)
+            r.raise_for_status()
+            timeline = r.json()
+            break
+        except Exception as e:
+            ultimo_erro = e
+            if tentativa < 2:
+                time.sleep(3)
+    if timeline is None:
+        return _falha(f'timeline HTTP error: {ultimo_erro}')
 
     doc = next((i for i in timeline if _TIPOS_RELEVANTES.match((i.get('tipo') or '').strip())), None)
     if not doc:
@@ -701,11 +709,17 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             return resultado_falha(str(e))
 
     def persist_result(item, result):
+        chave = item.get('chave') or item.get('numero') or str(item.get('id', ''))
         if result.get('ok'):
-            chave = item.get('chave') or item.get('numero') or str(item.get('id', ''))
             if chave:
                 marcar_processo_executado_p2b(chave, progresso)
                 logger.info(f'[PRAZO_API] Processo {item.get("numero")} processado com sucesso (fluxo_pz)')
+        else:
+            # Nao marca como executado (sera retentado), mas deixa rastro no log.
+            logger.warning(
+                f'[PRAZO_API] Processo {item.get("numero")} NAO concluido '
+                f'({result.get("erro") or "motivo desconhecido"}) — nao marcado; '
+                f'sera retentado na proxima execucao')
 
     stats = run_batch(
         items=itens,

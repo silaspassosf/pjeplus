@@ -6,9 +6,10 @@ from Fix.abas import fechar_abas_extras as _fechar_abas_tabs
 from selenium.webdriver.common.by import By
 from .comunicacao_navigation import abrir_minutas
 from .comunicacao_coleta import executar_coleta_conteudo
-from .comunicacao_preenchimento import executar_preenchimento_minuta, aguardar_ato_confeccionado
+from .comunicacao_preenchimento import executar_preenchimento_minuta, aguardar_ato_confeccionado, aguardar_estabilizacao_para_destinatarios
 from .comunicacao_destinatarios import selecionar_destinatarios
 from .comunicacao_finalizacao import alterar_meio_expedicao, salvar_minuta_final
+from Fix.core import aguardar_renderizacao_nativa
 from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from typing import Optional, Any, Callable, Union, List, Dict, Tuple
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -245,6 +246,12 @@ def make_comunicacao_wrapper(
                     else:
                         log_fn(f'[COMUNICACAO][GIGS] Usando observação fornecida: "{observacao}"')
 
+            # 2.8. Barreira geral: dialog de modelo fechado + UI estável
+            #      antes de escolher destinatários (evita corrida de cliques).
+            if destinatarios_param is not None:
+                if not aguardar_estabilizacao_para_destinatarios(driver, log=log_fn):
+                    raise Exception('Painel de destinatários não ficou pronto (barreira) — seleção abortada')
+
             # 3. Selecionar destinatários
             log_fn("[COMUNICACAO][ORQUESTRA] Selecionando destinatários")
             resultado_selecao = selecionar_destinatarios(
@@ -285,6 +292,34 @@ def make_comunicacao_wrapper(
                     log_fn("[COMUNICACAO][ORQUESTRA] Status: Nenhum destinatário validado. Fallback acionado internamente.")
                 else:
                     log_fn(f"[COMUNICACAO][ORQUESTRA] Status: {status} selection route concluded.")
+
+                # Validação pós-seleção: rotas 'geral' (polo passivo/ativo) não retornam
+                # count. Confirmar linhas reais na tabela antes de salvar — clique
+                # perdido com o painel ainda montando deixava o ato sem destinatários.
+                if status in ('ok', 'fallback', 'geral') or count > 0:
+                    linhas_ok = aguardar_renderizacao_nativa(
+                        driver, 'tbody.cdk-drop-list tr.cdk-drag', 'aparecer', 15
+                    )
+                    if not linhas_ok:
+                        log_fn('[COMUNICACAO][ORQUESTRA][WARN] Tabela sem destinatários — reenviando clique (1x)')
+                        selecionar_destinatarios(
+                            driver=driver,
+                            destinatarios=destinatarios_param,
+                            cliques_polo_passivo=1,
+                            cliques_informado=cliques_informado,
+                            debug=debug,
+                            log=log_fn,
+                            observacao=observacao,
+                            numero_processo=numero_processo,
+                            terceiro=call_kwargs.get('terceiro', False),
+                            dados_processo=dados_processo_wrapper
+                        )
+                        linhas_ok = aguardar_renderizacao_nativa(
+                            driver, 'tbody.cdk-drop-list tr.cdk-drag', 'aparecer', 15
+                        )
+                        if not linhas_ok:
+                            raise Exception('Destinatários não adicionados ao ato (tabela vazia pós-seleção)')
+                    log_fn('[COMUNICACAO][ORQUESTRA] Destinatários confirmados na tabela')
 
                 # Aguarda o ícone verde individual — sinal real de que o Salvar está ativo
                 if status in ('ok', 'fallback', 'geral') or count > 0:

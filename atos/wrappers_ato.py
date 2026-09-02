@@ -152,8 +152,7 @@ ato_bloq = make_ato_wrapper(
     marcar_pec=True,
     movimento=None,
     gigs=None,
-    marcar_primeiro_destinatario=False,
-    inserir_conteudo=_inserir_relatorio_conciso_sisbajud
+    marcar_primeiro_destinatario=False
 )
 
 ato_idpj = make_ato_wrapper(
@@ -161,7 +160,7 @@ ato_idpj = make_ato_wrapper(
     modelo_nome='pjsem',
     prazo=8,
     marcar_pec=True,
-    movimento=None,
+    movimento='219 / incidente de desco / polo ativo',
     gigs=None,
     marcar_primeiro_destinatario=False
 )

@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Ponto de entrada do PJePlus, nos dois motores, com medição comparável.
+"""Ponto de entrada do PJePlus, nos dois motores, com medicao comparavel.
 
-Mesmo `x.py`, mesmos fluxos, mesma instrumentação — só o motor muda. É isso que
-permite comparar sem viés: qualquer diferença no relatório vem do backend, não
+Mesmo `x.py`, mesmos fluxos, mesma instrumentacao - so o motor muda. E isso que
+permite comparar sem vies: qualquer diferenca no relatorio vem do backend, nao
 de o teste ser diferente.
 
     py pw.py                     # Playwright (nativo ligado)
     py pw.py --selenium          # Selenium, para o baseline
-    py pw.py --trace             # + trace.zip navegável do Playwright
-    py pw.py --sem-nativo        # só compatibilidade, sem helpers nativos
+    py pw.py --trace             # + trace.zip navegavel do Playwright
+    py pw.py --sem-nativo        # so compatibilidade, sem helpers nativos
     py pw.py --comparar a.json b.json
 
-Cada execução grava um relatório em play/medicoes/. Rodando o mesmo lote de
+Cada execucao grava um relatorio em play/medicoes/. Rodando o mesmo lote de
 processos nos dois motores, `--comparar` separa o ganho do motor do ganho da
 reescrita.
 """
@@ -20,9 +20,10 @@ import sys
 from datetime import datetime
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-RAIZ = AQUI  # pw.py está na raiz do projeto
+RAIZ = AQUI  # pw.py esta na raiz do projeto
 PLAY = os.path.join(AQUI, "play")  # motor pjeplay/ vive dentro de Play/
 MEDICOES = os.path.join(PLAY, "medicoes")
+CODIGO_SAIR = 88  # pw.bat encerra o laco automatico quando pw.py sai com este codigo
 for caminho in (AQUI, PLAY):
     if caminho not in sys.path:
         sys.path.insert(0, caminho)
@@ -48,7 +49,20 @@ def main():
         import pjeplay
         pjeplay.iniciar(raiz_projeto=RAIZ, nativo="--sem-nativo" not in sys.argv)
 
-    os.chdir(RAIZ)  # x.py resolve caminhos relativos à raiz
+    # Purga de progresso: remove de todos os fluxos os processos executados
+    # ou com erro ha mais de 2 dias (ou sem data registrada). Nao bloqueia.
+    # APOS pjeplay.iniciar(): nenhum import de Fix/* pode preceder o shim.
+    try:
+        from Fix.monitoramento_progresso_unificado import limpar_progresso_antigos
+        resumo = limpar_progresso_antigos(dias=2)
+        if resumo:
+            total = sum(resumo.values())
+            print(f"[progresso] purga: {total} entrada(s) antigas(s) removida(s) "
+                  f"({', '.join(f'{k}={v}' for k, v in sorted(resumo.items()))})")
+    except Exception as e:
+        print(f"[progresso] aviso: purga falhou ({e})")
+
+    os.chdir(RAIZ)  # x.py resolve caminhos relativos a raiz
 
     from pjeplay import medicao
 
@@ -60,8 +74,8 @@ def main():
 
     driver_visto = []
     if trace and not selenium:
-        import Fix.core as core
-        criar_original = core.criar_driver_PC
+        import Fix.driver_factory as factory
+        criar_original = factory.criar_driver_PC
 
         def criar_com_trace(*a, **kw):
             driver = criar_original(*a, **kw)
@@ -70,14 +84,15 @@ def main():
                 driver_visto.append(driver)
             return driver
 
-        core.criar_driver_PC = criar_com_trace
+        factory.criar_driver_PC = criar_com_trace
 
+    cancelado = False
     with medicao.sessao(rotulo, backend=backend) as m:
         with m.etapa("execucao completa"):
             try:
-                x.main()
+                cancelado = x.main() == "cancelado"
             except KeyboardInterrupt:
-                print("\ninterrompido — o relatório parcial ainda vale")
+                print("\ninterrompido - o relatorio parcial ainda vale")
 
     if trace and driver_visto:
         medicao.finalizar_trace(
@@ -85,9 +100,9 @@ def main():
 
     m.imprimir()
     destino = m.salvar(os.path.join(MEDICOES, f"{rotulo}.json"))
-    print(f"\nrelatório: {destino}")
+    print(f"\nrelatorio: {destino}")
     print(f"comparar:  py pw.py --comparar <baseline.json> {destino}")
-    return 0
+    return CODIGO_SAIR if cancelado else 0
 
 
 if __name__ == "__main__":

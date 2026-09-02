@@ -221,7 +221,10 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
     intimacoes_info = []
     data_referencia = ''
     limite = limite_intimacoes if limite_intimacoes is not None else float('inf')
+    max_busca = 3  # limita a busca por correio a 3 documentos de intimação
     count_intimacoes = 0
+    tentativas_busca = 0
+    primeiro_ja_processado = False
     intimacao_encontrada = False
 
     itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
@@ -231,6 +234,8 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
             link_primeiro = primeiro_item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
             texto_link = link_primeiro.text.strip()
             if texto_link.startswith('Intimação('):
+                primeiro_ja_processado = True
+                tentativas_busca += 1
                 resultado = _processar_item(driver, primeiro_item, 'primeiro item', log)
                 if resultado:
                     id_curto, tem_desconsideracao, data_intimacao = resultado
@@ -250,7 +255,25 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
         for idx, item in enumerate(itens):
             if count_intimacoes >= limite:
                 break
+            if tentativas_busca >= max_busca:
+                if log:
+                    logger.warning(
+                        f'[CARTA] Busca por correio limitada a {max_busca} '
+                        'documentos de intimação — encerrando a procura.'
+                    )
+                break
+            if idx == 0 and primeiro_ja_processado:
+                continue
+            # Só conta como tentativa um documento do tipo "Intimação("
+            try:
+                link_item = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                eh_intimacao = link_item.text.strip().startswith('Intimação(')
+            except Exception:
+                eh_intimacao = False
+            if not eh_intimacao:
+                continue
 
+            tentativas_busca += 1
             resultado = _processar_item(driver, item, f'item {idx + 1}', log)
             if resultado:
                 id_curto, tem_desconsideracao, data_intimacao = resultado

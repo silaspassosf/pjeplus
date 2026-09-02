@@ -127,6 +127,27 @@ def _validar_e_limpar_progresso(progresso: Dict[str, Any]) -> Dict[str, Any]:
                 if isinstance(item, str) and item.strip()
             ))
 
+    # Validar datas de execução por processo (mapa numero -> "YYYY-MM-DD")
+    datas = progresso_limpo.get("datas_execucao")
+    if not isinstance(datas, dict):
+        datas = {}
+    # Manter apenas entradas com data em formato válido cujo número
+    # ainda consta em uma das listas (sem órfãos).
+    numeros_validos = set(progresso_limpo.get("processos_executados", [])) | set(
+        progresso_limpo.get("processos_com_erro", []))
+    datas_limpas = {}
+    for numero, data in datas.items():
+        if not isinstance(numero, str) or not isinstance(data, str):
+            continue
+        if numero not in numeros_validos:
+            continue
+        try:
+            datetime.strptime(data, "%Y-%m-%d")
+        except ValueError:
+            continue
+        datas_limpas[numero] = data
+    progresso_limpo["datas_execucao"] = datas_limpas
+
     # Validar campos booleanos
     for campo in ["session_active"]:
         if campo not in progresso_limpo:
@@ -279,6 +300,100 @@ def salvar_progresso_unificado(tipo_execucao: str, progresso: Dict[str, Any]):
     except Exception as e:
         _log_progresso(tipo_execucao, f"[ERRO] Falha ao salvar progresso: {e}")
         # Não relançar erro para não quebrar o fluxo principal
+
+
+def limpar_progresso_antigos(dias: int = 2) -> Dict[str, int]:
+    """
+    Remove de TODAS as seções do progresso.json os processos executados ou
+    com erro há mais de `dias` dias (ou sem data registrada — legado).
+
+    A data de referência vem de `datas_execucao[numero]` ("YYYY-MM-DD"),
+    gravada por marcar_processo_executado_unificado. Processos sem data
+    registrada são considerados antigos e removidos, pois o arquivo legado
+    não tinha controle de data.
+
+    Args:
+        dias: Idade máxima (em dias) para manter a entrada. Padrão: 2.
+
+    Returns:
+        Dict com total removido por seção, ex.: {'pec': 40, 'p2b': 3}.
+        Seções sem remoção não aparecem no retorno.
+    """
+    resumo: Dict[str, int] = {}
+    try:
+        if not os.path.exists(ARQUIVO_PROGRESSO_UNIFICADO):
+            return resumo
+
+        with open(ARQUIVO_PROGRESSO_UNIFICADO, "r", encoding="utf-8") as f:
+            dados_completos = json.load(f)
+
+        if not isinstance(dados_completos, dict):
+            return resumo
+
+        hoje = datetime.now().date()
+        limite = hoje.toordinal() - max(0, int(dias))
+
+        def _antigo(data_str: Optional[str]) -> bool:
+            """True se a data é anterior ao limite (ou inválida/ausente)."""
+            if not isinstance(data_str, str):
+                return True
+            try:
+                return datetime.strptime(data_str, "%Y-%m-%d").date().toordinal() <= limite
+            except ValueError:
+                return True
+
+        arquivo_modificado = False
+        for tipo, secao in dados_completos.items():
+            if not isinstance(secao, dict):
+                continue
+            datas = secao.get("datas_execucao")
+            datas = datas if isinstance(datas, dict) else {}
+
+            removidos = 0
+            for campo in ["processos_executados", "processos_com_erro"]:
+                lista = secao.get(campo)
+                if not isinstance(lista, list):
+                    continue
+                nova_lista = []
+                for numero in lista:
+                    if not isinstance(numero, str):
+                        removidos += 1
+                        arquivo_modificado = True
+                        continue
+                    if _antigo(datas.get(numero)):
+                        removidos += 1
+                        arquivo_modificado = True
+                    else:
+                        nova_lista.append(numero)
+                secao[campo] = nova_lista
+
+            # Limpar datas órfãs (número que saiu das listas)
+            if isinstance(datas, dict) and datas:
+                numeros_restantes = set(secao.get("processos_executados", [])) | set(
+                    secao.get("processos_com_erro", []))
+                datas_filtradas = {
+                    numero: data for numero, data in datas.items()
+                    if numero in numeros_restantes
+                }
+                if len(datas_filtradas) != len(datas):
+                    arquivo_modificado = True
+                secao["datas_execucao"] = datas_filtradas
+
+            if removidos:
+                resumo[tipo] = removidos
+                logger.info("[PROGRESSO] %s: %d entrada(s) antigas(s) removida(s) (>%d dias)",
+                            tipo, removidos, dias)
+
+        if arquivo_modificado:
+            with open(ARQUIVO_PROGRESSO_UNIFICADO, "w", encoding="utf-8") as f:
+                json.dump(dados_completos, f, ensure_ascii=False, indent=2)
+            _log_progresso("pec", f"🧹 Purga de progresso antigo (>{dias} dias) aplicada")
+
+        return resumo
+
+    except Exception as e:
+        logger.warning("[PROGRESSO] limpar_progresso_antigos falhou: %s", e)
+        return resumo
 
 def limpar_progresso_corrompido(tipo_execucao: str) -> bool:
     """
@@ -523,6 +638,7 @@ def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str
     numero_processo = numero_canonico
 
     modificado = False
+    hoje = datetime.now().strftime("%Y-%m-%d")
 
     if sucesso:
         # Marcar como executado - remover de erros se estava lá
@@ -535,6 +651,10 @@ def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str
             progresso["processos_com_erro"].remove(numero_processo)
             modificado = True
 
+        # Data da execução (sempre atualiza para hoje)
+        progresso.setdefault("datas_execucao", {})[numero_processo] = hoje
+        modificado = True
+
         _log_progresso(tipo_execucao, "✅ Processo marcado como executado", numero_processo)
 
     else:
@@ -542,6 +662,10 @@ def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str
         if numero_processo not in progresso.get("processos_com_erro", []):
             progresso.setdefault("processos_com_erro", []).append(numero_processo)
             modificado = True
+
+        # Data da tentativa com erro (sempre atualiza para hoje)
+        progresso.setdefault("datas_execucao", {})[numero_processo] = hoje
+        modificado = True
 
         _detalhe = f': {motivo}' if motivo else ''
         _log_progresso(tipo_execucao, f"❌ Erro{_detalhe}", numero_processo)

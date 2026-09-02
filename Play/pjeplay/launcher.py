@@ -1,4 +1,12 @@
-"""Fabricas de driver Playwright equivalentes as de `Fix/core.py`.
+"""Fabricas de driver Playwright — IMPLEMENTAÇÃO INTERNA DO SHIM.
+
+Este módulo é a implementação real do backend Playwright quando pw.py está
+ativo. Ele NÃO deve ser importado diretamente de fora do pacote pjeplay.
+
+Com o shim ativo (pjeplay.iniciar()), qualquer chamada a
+`Fix.core.criar_driver_PC` já retorna um PWDriver transparentemente.
+Portanto, código de negócio deve sempre importar de Fix.core ou
+Fix.driver_factory — nunca daqui.
 
 As preferencias replicam `_montar_options_pc`, `criar_driver_sisb_pc` e
 `criar_driver_sisb_vt` do projeto Selenium. Nao ha geckodriver: o Playwright
@@ -146,13 +154,15 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
     driver = PWDriver(pw, browser, context, pagina, headless=headless,
                       espera_navegacao=espera_navegacao)
     driver.implicitly_wait(implicito)
+    from .api_resiliencia import registrar_driver
+    registrar_driver(driver)
     context.add_init_script(
         "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     )
     return driver
 
 
-# -- fabricas com os nomes usados pelo projeto ------------------------------
+# -- fabricas com os nomes usados pelo shim (NAO importar de fora de pjeplay) --
 
 def criar_driver_PC(headless=False, **kwargs):
     driver = criar_driver(headless=headless, **kwargs)

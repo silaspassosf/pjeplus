@@ -590,7 +590,7 @@ def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
         return False
 
 
-def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15) -> bool:
+def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15, profundidade: int = 0, pular_abertura_api: bool = False) -> bool:
     from selenium.webdriver.common.by import By
 
     def log(msg):
@@ -599,9 +599,17 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
         except Exception:
             pass
 
+    if profundidade >= 3:
+        logger.error(f'[MOV_INT] Limite de {profundidade} navegacoes atingido sem conseguir "{destino}" — abortando (tarefa possivelmente sem o botao de destino)')
+        return False
+
     try:
         # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API (padrao gigs-plugin L4491-4516) =====
-        api_ok = abrir_tarefa_por_api(driver, timeout=timeout)
+        # Em chamadas recursivas (apos navegar para 'análise') NAO reabrir a
+        # tarefa via API — isso desfaz a navegacao e causa loop infinito.
+        api_ok = False
+        if not pular_abertura_api:
+            api_ok = abrir_tarefa_por_api(driver, timeout=timeout)
 
         tarefa_text = None
         if api_ok:
@@ -698,7 +706,7 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
                 tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True) or tarefa_text
                 tarefa_norm = _remover_acentos((tarefa_text or '').lower())
                 if 'analise' in tarefa_norm:
-                    return movimentar_inteligente(driver, destino, ultimo_lance=ultimo_lance, chip=chip, responsavel=responsavel, timeout=timeout)
+                    return movimentar_inteligente(driver, destino, ultimo_lance=ultimo_lance, chip=chip, responsavel=responsavel, timeout=timeout, profundidade=profundidade + 1, pular_abertura_api=True)
         except Exception:
             pass
 
@@ -707,7 +715,7 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
             if btn_analise:
                 safe_click_no_scroll(driver, btn_analise)
                 aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao', modo='aparecer', timeout=6)
-                return movimentar_inteligente(driver, destino, ultimo_lance=ultimo_lance, chip=chip, responsavel=responsavel, timeout=timeout)
+                return movimentar_inteligente(driver, destino, ultimo_lance=ultimo_lance, chip=chip, responsavel=responsavel, timeout=timeout, profundidade=profundidade + 1, pular_abertura_api=True)
         except Exception:
             pass
 

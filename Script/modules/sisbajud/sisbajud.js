@@ -684,27 +684,42 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         }
     }
 
-    // ── Injetar UI (apenas teimosinha/*/detalhes) ────────────────────
+    // ── Injetar UI ───────────────────────────────────────────────────
     function injetarUI() {
-        var isTeimosinhaDetalhes = window.location.href.indexOf('/teimosinha/') > -1 && window.location.href.indexOf('/detalhes') > -1;
+        var href = window.location.href;
+        var isTeimosinhaDetalhes = href.indexOf('/teimosinha/') > -1 && href.indexOf('/detalhes') > -1;
+        var isOrdemDesdobrar = href.indexOf('/ordem-judicial/') > -1 && href.indexOf('/desdobrar') > -1;
+
         var containerAtivo = document.getElementById('pjetools-sisb-container');
+        var containerDesdobrar = document.getElementById('pjetools-sisb-desdobrar-container');
 
-        if (!isTeimosinhaDetalhes) {
-            if (containerAtivo) containerAtivo.style.display = 'none';
-            return;
-        }
-
-        if (containerAtivo) {
-            containerAtivo.style.display = 'flex';
-            if (!document.getElementById('btn-sisb-transferir')) {
-                containerAtivo.innerHTML = '';
-                _injetarBotoes(containerAtivo);
+        // Lidar com Teimosinha
+        if (isTeimosinhaDetalhes) {
+            if (containerDesdobrar) containerDesdobrar.style.display = 'none';
+            if (containerAtivo) {
+                containerAtivo.style.display = 'flex';
+                if (!document.getElementById('btn-sisb-transferir')) {
+                    containerAtivo.innerHTML = '';
+                    _injetarBotoes(containerAtivo);
+                }
+            } else {
+                var container = criarContainer();
+                _injetarBotoes(container);
             }
-            return;
+        } else {
+            if (containerAtivo) containerAtivo.style.display = 'none';
         }
 
-        var container = criarContainer();
-        _injetarBotoes(container);
+        // Lidar com Desdobrar
+        if (isOrdemDesdobrar) {
+            if (containerDesdobrar) {
+                containerDesdobrar.style.display = 'flex';
+            } else {
+                injetarBotoesDesdobrar();
+            }
+        } else {
+            if (containerDesdobrar) containerDesdobrar.style.display = 'none';
+        }
     }
 
     function _injetarBotoes(container) {
@@ -723,6 +738,169 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
 
         atualizarBadge();
         console.log('[SISB] Botoes injetados: Transferir + Desbloquear');
+    }
+
+    // ── Extração Desdobrar (HTML) ────────────────────────────────────
+    window._sisbajudDesdobrarState = window._sisbajudDesdobrarState || {
+        qtdExtraida: 0,
+        protocolos: new Set(),
+        bloqueios: {}
+    };
+
+    function extrairDesdobrarHtml() {
+        var protocolo = '';
+        var labels = document.querySelectorAll('.sisbajud-label');
+        for (var i = 0; i < labels.length; i++) {
+            if (labels[i].textContent.indexOf('Número do Protocolo') > -1) {
+                var valSpan = labels[i].nextElementSibling;
+                if (valSpan && valSpan.classList.contains('sisbajud-label-valor')) {
+                    protocolo = valSpan.textContent.trim();
+                    break;
+                }
+            }
+        }
+        
+        var panels = document.querySelectorAll('mat-expansion-panel');
+        var foundAny = false;
+        panels.forEach(function(panel) {
+            var colReu = panel.querySelector('.col-reu-dados-nome-pessoa');
+            var desc = panel.querySelector('.div-description-reu');
+            // Verificar se é painel de réu (tem .col-reu)
+            if (colReu && desc && panel.querySelector('.col-reu')) {
+                var nome = colReu.textContent.trim();
+                var textDesc = desc.textContent || '';
+                var match = textDesc.match(/R\$\s*([\d\.,]+)/);
+                if (match) {
+                    var valorStr = match[1];
+                    if (valorStr !== '0,00' && valorStr !== '0.00' && valorStr !== '0') {
+                        var valorNum = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
+                        if (!isNaN(valorNum)) {
+                            window._sisbajudDesdobrarState.bloqueios[nome] = (window._sisbajudDesdobrarState.bloqueios[nome] || 0) + valorNum;
+                        }
+                    }
+                }
+                foundAny = true;
+            }
+        });
+        
+        if (protocolo) window._sisbajudDesdobrarState.protocolos.add(protocolo);
+        if (foundAny || protocolo) {
+            window._sisbajudDesdobrarState.qtdExtraida++;
+            return true;
+        }
+        return false;
+    }
+
+    function copyToClipboardHtml(content) {
+        var container = document.createElement('div');
+        container.innerHTML = content;
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        document.body.appendChild(container);
+        
+        var range = document.createRange();
+        range.selectNodeContents(container);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        try {
+            var success = document.execCommand('copy');
+            document.body.removeChild(container);
+            selection.removeAllRanges();
+            return success;
+        } catch (err) {
+            if (document.body.contains(container)) document.body.removeChild(container);
+            return false;
+        }
+    }
+
+    function injetarBotoesDesdobrar() {
+        var container = document.createElement('div');
+        container.id = 'pjetools-sisb-desdobrar-container';
+        container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;display:flex;flex-direction:column;gap:8px;';
+        document.body.appendChild(container);
+        
+        var btnExtrair = criarBotao('btn-sisb-desdobrar-extrair', '📄 Extrair dados', '#1e88e5', async function() {
+            btnExtrair.textContent = 'Extraindo...';
+            btnExtrair.style.background = '#f39c12';
+            
+            await sleep(300); // delay angular
+            
+            var ok = extrairDesdobrarHtml();
+            if (ok) {
+                btnExtrair.style.display = 'none';
+                
+                var btnProx = document.getElementById('btn-sisb-desdobrar-prox');
+                if (!btnProx) {
+                    btnProx = criarBotao('btn-sisb-desdobrar-prox', 'Extrair próxima', '#f39c12', async function() {
+                        btnProx.textContent = 'Extraindo...';
+                        await sleep(300);
+                        extrairDesdobrarHtml();
+                        btnProx.textContent = 'Extrair próxima';
+                        var btnFin = document.getElementById('btn-sisb-desdobrar-fin');
+                        if (btnFin) btnFin.textContent = '✅ Finalizar (' + window._sisbajudDesdobrarState.qtdExtraida + ')';
+                    });
+                    container.appendChild(btnProx);
+                } else {
+                    btnProx.style.display = 'block';
+                }
+                
+                var btnFin = document.getElementById('btn-sisb-desdobrar-fin');
+                if (!btnFin) {
+                    btnFin = criarBotao('btn-sisb-desdobrar-fin', '✅ Finalizar (' + window._sisbajudDesdobrarState.qtdExtraida + ')', '#27ae60', function() {
+                        var _st = window._sisbajudDesdobrarState;
+                        var protocolosStr = Array.from(_st.protocolos).join(', ');
+                        
+                        var pJustifyImp = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"';
+                        
+                        var saida = "";
+                        saida += "<p " + pJustifyImp + ">Ordens com bloqueio: <strong>" + (protocolosStr || "Nenhuma") + "</strong></p>";
+                        saida += "<p " + pJustifyImp + ">Discriminação de partes e respectivos valores totais<u> já transferidos à conta do juízo</u>:</p>";
+                        
+                        var somaTotal = 0;
+                        for (var nome in _st.bloqueios) {
+                            var num = _st.bloqueios[nome];
+                            somaTotal += num;
+                            var valFormatado = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            saida += "<p " + pJustifyImp + ">-" + nome + " - R$ " + valFormatado + "</p>";
+                        }
+                        
+                        var totalFormatado = somaTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        saida += "<p " + pJustifyImp + ">(total de bloqueios esperado na conta judicial, sem considerar atualizações = R$ <strong>" + totalFormatado + "</strong>)<br><br><br data-cke-filler=\"true\"></p>";
+                        
+                        var okCopy = copyToClipboardHtml(saida);
+                        if (okCopy) {
+                            btnFin.textContent = 'Copiado!';
+                            window._sisbajudDesdobrarState.qtdExtraida = 0;
+                            window._sisbajudDesdobrarState.protocolos = new Set();
+                            window._sisbajudDesdobrarState.bloqueios = {};
+                            setTimeout(function() {
+                                btnFin.style.display = 'none';
+                                btnProx.style.display = 'none';
+                                btnExtrair.textContent = '📄 Extrair dados';
+                                btnExtrair.style.background = '#1e88e5';
+                                btnExtrair.style.display = 'block';
+                            }, 2000);
+                        } else {
+                            alert('Falha ao copiar html.');
+                        }
+                    });
+                    container.appendChild(btnFin);
+                } else {
+                    btnFin.style.display = 'block';
+                    btnFin.textContent = '✅ Finalizar (' + window._sisbajudDesdobrarState.qtdExtraida + ')';
+                }
+            } else {
+                btnExtrair.textContent = 'Falhou (tente denovo)';
+                setTimeout(function(){ 
+                    btnExtrair.textContent = '📄 Extrair dados'; 
+                    btnExtrair.style.background = '#1e88e5'; 
+                }, 2000);
+            }
+        });
+        
+        container.appendChild(btnExtrair);
     }
 
     setInterval(injetarUI, 1500);

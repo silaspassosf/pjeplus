@@ -534,93 +534,64 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
             logger.info('[SISBAJUD]  Falha ao criar driver')
             return None
 
-        # Realizar login: priorizar cookies SISBAJUD, depois tentar login automático SISBAJUD
+        # Realizar login: login MANUAL (login automatico desativado)
+        # O usuario deve fazer login manualmente no browser e confirmar no terminal.
         try:
-            from driver_config import criar_driver_sisb, criar_driver_sisb_notebook, salvar_cookies_sessao, salvar_cookies_sisbajud, SALVAR_COOKIES_AUTOMATICO
+            from driver_config import salvar_cookies_sisbajud, SALVAR_COOKIES_AUTOMATICO
         except Exception:
-            criar_driver_sisb = None
-            criar_driver_sisb_notebook = None
-            salvar_cookies_sessao = None
+            salvar_cookies_sisbajud = None
             SALVAR_COOKIES_AUTOMATICO = False
-
-        try:
-            from bacen import carregar_cookies_sisbajud
-        except Exception:
-            carregar_cookies_sisbajud = None
-
-        # Se os cookies SISBAJUD foram restaurados anteriormente, já temos sessão válida
         login_ok = False
-        if cookie_restored:
-            login_ok = True
 
-        # Tentar carregar cookies específicos do SISBAJUD (formato do módulo bacen)
-        if not login_ok and carregar_cookies_sisbajud:
-            try:
-                if carregar_cookies_sisbajud(driver):
-                    logger.info('[SISBAJUD]  Cookies SISBAJUD (bacen) carregados com sucesso; pulando etapa de login.')
+        # Verificar se ja esta logado (token valido no localStorage)
+        try:
+            result_token = carregar_tokens_sisbajud()
+            if result_token.get('sucesso'):
+                at = result_token['access_token']
+                rt = result_token.get('refresh_token')
+                if injetar_tokens_sisbajud(driver, at, rt):
+                    logger.info('[SISBAJUD]  Tokens salvos injetados com sucesso; pulando login.')
                     login_ok = True
-            except Exception as e:
-                _ = e
-
-        # Se ainda não temos sessão, tentar login automático SISBAJUD (função local)
-        if not login_ok:
-            try:
-                logger.info('[SISBAJUD] Tentando login automático SISBAJUD (função interna)...')
-                resultado_login = login_automatico_sisbajud(driver)
-                logger.info(f'[SISBAJUD][DEBUG] Resultado do login_automatico_sisbajud: {resultado_login}')
-                
-                if resultado_login == True:
-                    login_ok = True
-                    logger.info('[SISBAJUD]  Login automático bem-sucedido')
-                    # Salvar cookies gerados pelo login automático, se configurado
-                    try:
-                        if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sisbajud:
-                            salvar_cookies_sisbajud(driver, info_extra='login_automatico_sisbajud')
-                    except Exception as e:
-                        _ = e
-                elif resultado_login == 'manual_needed':
-                    logger.info('[SISBAJUD]  Login automático requer intervenção manual (código de verificação)')
-                    logger.info('[SISBAJUD]  Por favor, complete o login manualmente (insira código de verificação se necessário)...')
-                    # Aguardar conclusão manual sem timeout curto
-                    if login_manual_sisbajud(driver, aguardar_url_final=True):
-                        login_ok = True
-                        logger.info('[SISBAJUD]  Login completado manualmente com sucesso')
-                        # Salvar cookies após conclusão manual
-                        try:
-                            if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sisbajud:
-                                salvar_cookies_sisbajud(driver, info_extra='login_manual_pos_automatico')
-                        except Exception as e:
-                            _ = e
-                    else:
-                        logger.info('[SISBAJUD]  Login manual não foi concluído')
-                else:
-                    logger.info(f'[SISBAJUD]  Login automático retornou: {resultado_login}')
-                    logger.info('[SISBAJUD] Login automático SISBAJUD falhou, seguindo para login manual...')
-            except Exception as e:
-                logger.info(f'[SISBAJUD]  Erro no login automático SISBAJUD: {e}')
-                import traceback
-                logger.exception("Erro detectado")
-
-        # Se ainda não logado, fallback para login manual SISBAJUD
-        if not login_ok:
-            try:
-                logger.info('[SISBAJUD] Aguardando login MANUAL SISBAJUD...')
-                if login_manual_sisbajud(driver):
-                    login_ok = True
-                    # Salvar cookies após login manual SISBAJUD (se permitido)
-                    try:
-                        if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sisbajud:
-                            salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
-                            logger.info('[SISBAJUD]  Cookies SISBAJUD salvos após login manual')
-                    except Exception as e:
-                        logger.info(f'[SISBAJUD]  Falha ao salvar cookies SISBAJUD: {e}')
-                else:
-                    logger.info('[SISBAJUD]  Login manual SISBAJUD falhou ou expirou')
-            except Exception as e:
-                logger.info(f'[SISBAJUD] Erro durante login manual SISBAJUD: {e}')
+        except Exception as e:
+            logger.debug('[SISBAJUD] Nao foi possivel reutilizar tokens: %s', e)
 
         if not login_ok:
-            logger.info('[SISBAJUD]  Não foi possível autenticar no SISBAJUD')
+            # Navegar para SISBAJUD e pedir login manual
+            try:
+                logger.info('[SISBAJUD] Navegando para SISBAJUD para login manual...')
+                driver.get('https://sisbajud.cnj.jus.br/')
+            except Exception as e:
+                logger.warning('[SISBAJUD] Erro ao navegar para SISBAJUD: %s', e)
+
+            print('\n' + '=' * 60)
+            print('  LOGIN SISBAJUD MANUAL NECESSARIO')
+            print('=' * 60)
+            print('  O browser esta aberto na pagina de login do SISBAJUD.')
+            print('  Faca o login manualmente (CPF + senha + MFA se necessario).')
+            print('  Apos concluir o login no browser, volte aqui e')
+            print('  pressione ENTER para continuar o fluxo.')
+            print('=' * 60)
+            input('  [SISBAJUD] Login concluido? Pressione ENTER para continuar... ')
+            print()
+
+            # Aguardar confirmacao de sessao ativa
+            if login_manual_sisbajud(driver, aguardar_url_final=True):
+                login_ok = True
+                logger.info('[SISBAJUD]  Login manual SISBAJUD concluido com sucesso')
+                try:
+                    salvar_tokens_sisbajud(driver)
+                except Exception:
+                    pass
+                try:
+                    if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sisbajud:
+                        salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
+                except Exception:
+                    pass
+            else:
+                logger.error('[SISBAJUD]  Login manual SISBAJUD nao foi confirmado')
+
+        if not login_ok:
+            logger.info('[SISBAJUD]  Nao foi possivel autenticar no SISBAJUD')
             try:
                 driver.quit()
             except Exception as e:

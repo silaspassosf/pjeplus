@@ -143,10 +143,20 @@ def esperar_url_conter(driver, substring, timeout=10):
 # -- cliques ----------------------------------------------------------------
 
 def _clicar(driver, alvo, timeout, log, rotulo):
-    """Clique com auto-wait; recai para clique via DOM se algo interceptar."""
+    """Clique JS-first: espera o elemento existir (attached) e clica via DOM.
+
+    Nao usa o clique nativo do Playwright como caminho principal porque o
+    gate de estabilidade dele depende de rAF — aba/janela inativa no Firefox
+    nao dispara rAF e o clique trava o timeout inteiro. O clique via DOM
+    dispara os handlers igual ao padrao Selenium (execute_script click).
+    """
     try:
-        driver._ctx.locator(alvo).first.click(timeout=_ms(timeout))
-        return True
+        handle = driver._ctx.wait_for_selector(
+            alvo, state="attached", timeout=_ms(timeout)
+        )
+        if handle:
+            handle.evaluate("el => el.click()")
+            return True
     except Exception as e:
         try:
             if driver._ctx.evaluate(_CLIQUE_JS, alvo):
@@ -158,6 +168,7 @@ def _clicar(driver, alvo, timeout, log, rotulo):
         if log:
             logger.error("clique falhou em '%s': %s", rotulo, e)
         return False
+    return False
 
 
 def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR,

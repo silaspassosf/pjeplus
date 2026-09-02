@@ -150,9 +150,13 @@ def _pz_idpj(driver, atv):
     """pz idpj: cria gigs xs mddid + ato IDPJ."""
     from Fix.extracao import criar_gigs
     from atos.judicial import ato_idpj
+    def _run_idpj():
+        r = ato_idpj(driver)
+        return r[0] if isinstance(r, tuple) else r
+        
     return _executar_passos(
         lambda: criar_gigs(driver, "1", "", "xs mddid"),
-        lambda: ato_idpj(driver),
+        _run_idpj
     )
 
 

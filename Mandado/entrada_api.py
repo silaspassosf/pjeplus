@@ -37,7 +37,12 @@ from Fix.selenium_base import aguardar_e_clicar, safe_click
 from Fix.core import aguardar_renderizacao_nativa
 from Fix.abas import fechar_abas_extras as _fechar_abas_extras, aguardar_nova_aba
 
-from Mandado.apoio_fluxos import fluxo_mandados_outros, fluxo_mandados_cp, arquivar_mandado_outros_reconhecido
+from Mandado.apoio_fluxos import (
+    fluxo_mandados_outros,
+    fluxo_mandados_cp,
+    arquivar_mandado_outros_reconhecido,
+    arquivar_mandado_positivo_reconhecido,
+)
 
 # ── Canonicos (apoio_fluxos consolida utils, sigilo, lembrete) ──
 from Mandado.apoio_fluxos import (
@@ -337,8 +342,12 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                 else:
                     regra = fluxo_mandados_outros(driver, log=True)
                     if regra:
-                        logger.info(f"[MANDADOS_API] #{num}: Regra '{regra}' reconhecida. Executando GIGS xs1 + apagar do escaninho.")
-                        arquivar_mandado_outros_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
+                        if regra == 'positivo':
+                            logger.info(f"[MANDADOS_API] #{num}: Regra 'positivo' reconhecida. Executando GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.")
+                            arquivar_mandado_positivo_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
+                        else:
+                            logger.info(f"[MANDADOS_API] #{num}: Regra '{regra}' reconhecida. Executando GIGS xs1 + apagar do escaninho.")
+                            arquivar_mandado_outros_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                         _marcar_concluido_mandado(str(num))
                     else:
                         logger.info(f"[MANDADOS_API] #{num}: Nenhuma regra reconhecida. Pulando.")
@@ -628,12 +637,20 @@ def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None, es
             logger.info(f"[MANDADOS_API] {id_processo or numero_processo} -> Outros (via timeline)")
             regra = fluxo_mandados_outros(driver, log=False)
             if regra:
-                arquivar_mandado_outros_reconhecido(
-                    driver,
-                    numero_processo=str(numero_processo or id_processo),
-                    escaninho_handle=escaninho_handle,
-                    log=False,
-                )
+                if regra == 'positivo':
+                    arquivar_mandado_positivo_reconhecido(
+                        driver,
+                        numero_processo=str(numero_processo or id_processo),
+                        escaninho_handle=escaninho_handle,
+                        log=False,
+                    )
+                else:
+                    arquivar_mandado_outros_reconhecido(
+                        driver,
+                        numero_processo=str(numero_processo or id_processo),
+                        escaninho_handle=escaninho_handle,
+                        log=False,
+                    )
             return True
 
         logger.info(f"[MANDADOS_API] Tipo nao mapeado para {id_processo or numero_processo} (nenhum doc relevante na timeline) — pulando")

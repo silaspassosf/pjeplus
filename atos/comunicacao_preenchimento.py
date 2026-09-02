@@ -236,6 +236,55 @@ def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, time
     return ok_icone
 
 
+def aguardar_estabilizacao_para_destinatarios(driver: WebDriver, log=None, timeout: int = 15) -> bool:
+    """Barreira geral pós-finalização: só escolher destinatários com a UI estável.
+
+    Em pw.py (Playwright) `aguardar_renderizacao_nativa` é auto-wait nativo
+    (wait_for_function) — sem polling. Em Selenium cai para o poll original.
+    Garante, em ordem:
+    1. Dialog de modelo (pje-dialogo-visualizar-modelo) fechado — era o elo
+       sem barreira que causava a corrida de cliques nos destinatários.
+    2. Dialog do ato (pje-pec-dialogo-ato) fechado.
+    3. Confirmação real (tick verde agrupado/individual) — backend terminou
+       de montar a tabela.
+    4. Tabela de destinatários pronta para interação.
+    """
+    if log is None:
+        def log(_msg):
+            return None
+
+    # 1. Dialog de modelo precisa sumir ANTES de qualquer clique em destinatário.
+    if not aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', timeout):
+        log(f'[BARREIRA][WARN] Dialog de modelo ainda visível após {timeout}s — risco de overlay nos destinatários')
+
+    # 2. Dialog do ato agrupado fechado.
+    if not aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', 'sumir', timeout):
+        log(f'[BARREIRA][WARN] Dialog do ato ainda visível após {timeout}s')
+
+    # 3. Sinal de confirmação (tick verde) — backend terminou de montar a tabela.
+    if aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', 5):
+        log('[BARREIRA] Confirmação detectada (tick verde agrupado)')
+    elif aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-individual-tabela-destinatarios', 'aparecer', 5):
+        log('[BARREIRA] Confirmação detectada (tick verde individual)')
+    else:
+        log('[BARREIRA][WARN] Nenhum tick verde detectado em 5s — prosseguindo')
+
+    # 4. Painel de destinatários montado.
+    #    O botão btnIntimarSomentePoloPassivo é estático e existe desde a abertura
+    #    da minuta — usá-lo como sinal de prontidão permitia clicar destinatários
+    #    com o painel ainda montando (ato salvo com lista vazia).
+    if not aguardar_renderizacao_nativa(
+        driver,
+        'tbody.cdk-drop-list',
+        'aparecer',
+        10,
+    ):
+        log('[BARREIRA][WARN] Tabela de destinatários não detectada em 10s')
+        return False
+    log('[BARREIRA] Tabela de destinatários pronta — liberado para seleção')
+    return True
+
+
 def finalizar_minuta(driver: WebDriver, log=None) -> bool:
     """Clica 'Finalizar minuta' e aguarda confirmacao do ato.
     Separada de executar_preenchimento_minuta para ser chamada
@@ -545,8 +594,16 @@ def executar_preenchimento_minuta(
                 except Exception as _e:
                     log(f'[MODELO][WARN] Exceção ao verificar snackbar: {_e}')
 
-                # 7. Aguardar dialog fechar (rápido: só confirma que sumiu)
-                aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 2)
+                # 7. Aguardar dialog fechar (10s: dialog pode fechar antes do
+                #    CKEditor terminar de receber o conteúdo do modelo)
+                aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 10)
+
+                # 8. Barreira da juntada: editor precisa conter o conteúdo do modelo
+                #    antes de finalizar a minuta (restaurado do legado)
+                if not _aguardar_ck_com_conteudo(driver, timeout=8):
+                    log('[MODELO][WARN] Conteudo do modelo nao confirmado no editor apos 8s')
+                else:
+                    log('[MODELO] Conteudo do modelo confirmado no editor')
 
             except Exception as e:
                 log(f'[ERRO] Falha ao inserir modelo: {e}')

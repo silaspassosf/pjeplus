@@ -551,8 +551,13 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
             # Se retorna tupla, é resultado de checar_prox — passa adiante
             if isinstance(res, tuple) and len(res) == 3:
                 return res
+            # Tupla de resultado de wrapper de ato (ex.: make_ato_wrapper ->
+            # (ok_fluxo, ok_final)): só é sucesso se TODOS os itens forem True
+            if isinstance(res, tuple):
+                if not all(res):
+                    resultado_acoes = False
             # Se retorna False, regra falhou
-            if res is False:
+            elif res is False:
                 resultado_acoes = False
         
         # Regra executada (resultou em True/False), não procura mais regras

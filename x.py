@@ -41,7 +41,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 # Imports dos módulos refatorados
 from Fix.core import finalizar_driver as finalizar_driver_fix, criar_driver_pc, criar_driver_vt
-from Fix.utils import login_cpf
+from Fix.utils import login_cpf, login_manual
 from Prazo import loop_prazo
 from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api
 from Mandado.entrada_api import processar_mandados_devolvidos_api
@@ -101,16 +101,78 @@ class TeeOutput:
 # CRIAR E LOGAR DRIVER
 # ============================================================================
 
-def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
-    """Cria driver apropriado e faz login"""
+def _aguardar_login_manual(driver, timeout: int = 900) -> bool:
+    """Mantem o browser ABERTO e aguarda o usuario concluir o login manualmente.
 
+    Usado quando o login automatico falha (ex: senha incorreta). O browser NAO
+    e fechado — o usuario se autentica na janela aberta e o fluxo continua.
+    Retorna True quando detecta sessao ativa; False em timeout/browser morto.
+    """
+    logger.warning(
+        "[LOGIN] Login automatico falhou. Browser mantido ABERTO — "
+        "conclua o login manualmente na janela do navegador."
+    )
+    inicio = time.time()
+    from Fix.utils import sessao_oauth_completa
+    while time.time() - inicio < timeout:
+        try:
+            cur = (driver.current_url or '').lower()
+        except Exception:
+            logger.error("[LOGIN] Browser indisponivel durante espera do login manual.")
+            return False
+        if sessao_oauth_completa(driver):
+            logger.info("[LOGIN] Login manual detectado (%.0fs). Continuando fluxo.",
+                        time.time() - inicio)
+            try:
+                from Fix.utils import SALVAR_COOKIES_AUTOMATICO, salvar_cookies_sessao
+                if SALVAR_COOKIES_AUTOMATICO:
+                    salvar_cookies_sessao(driver, info_extra='login_manual_pos_falha')
+            except Exception:
+                pass
+            return True
+        time.sleep(2)
+    logger.error("[LOGIN] Timeout (%ds) aguardando login manual.", timeout)
+    return False
+
+
+def _aguardar_sessao_ativa(driver, timeout: int = 60) -> bool:
+    """Espera (SEM navegar — não briga com os redirects do PJe/Keycloak) o
+    handshake OAuth gravar o access_token no browser após o login automático.
+    Se não concluir a tempo, quem chama cai na espera de login manual."""
+    from Fix.utils import sessao_oauth_completa
+    inicio = time.time()
+    while time.time() - inicio < timeout:
+        try:
+            if sessao_oauth_completa(driver):
+                logger.info("[LOGIN] Sessao OAuth completa confirmada (%.0fs).",
+                            time.time() - inicio)
+                return True
+        except Exception:
+            logger.error("[LOGIN] Browser indisponivel ao confirmar sessao.")
+            return False
+        time.sleep(2)
+    logger.error("[LOGIN] access_token nao apareceu em %ds — login automatico "
+                 "nao completou (verifique senha/MFA).", timeout)
+    return False
+
+
+def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
+    """Cria driver e aguarda login automaticamente.
+
+    Fluxo:
+      1. Tenta carregar cookies salvos (verificar_e_aplicar_cookies) — sem
+         interacao do usuario se houver sessao valida em cookies_sessoes/.
+      2. Se nao houver cookies validos, navega para login.seam e aguarda a
+         URL meu-painel aparecer (login manual no browser, sem ENTER).
+      3. Apos o login, salva os cookies (incluindo httpOnly) para reutilizar
+         na proxima execucao.
+    """
     headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
     vt_mode = driver_type in [DriverType.VT_VISIBLE, DriverType.VT_HEADLESS]
 
     logger.debug("criando driver: %s", driver_type.value)
 
     try:
-        # Criar driver
         if vt_mode:
             driver = criar_driver_vt(headless=headless)
         else:
@@ -120,14 +182,30 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
             logger.error("ERRO em criar_e_logar_driver: falha ao criar driver")
             return None
 
-        # Login
-        logger.debug("fazendo login...")
-        if not login_cpf(driver):
-            logger.error("ERRO em criar_e_logar_driver: falha no login")
-            finalizar_driver_fix(driver)
-            return None
+        # login_manual:
+        #   - tenta cookies salvos primeiro (sem interacao)
+        #   - se falhar, abre login.seam e aguarda URL meu-painel (sem ENTER)
+        #   - ao concluir, salva todos os cookies (incluindo httpOnly)
+        if not login_manual(driver):
+            logger.error("ERRO em criar_e_logar_driver: login nao concluido")
+            if headless:
+                finalizar_driver_fix(driver)
+                return None
+            # Fallback: aguarda login manual estendido (15min)
+            if not _aguardar_login_manual(driver):
+                finalizar_driver_fix(driver)
+                return None
 
-        # Driver criado e logado com sucesso (silencioso)
+        if not _aguardar_sessao_ativa(driver):
+            logger.error("ERRO em criar_e_logar_driver: sessao OAuth nao completou "
+                         "(access_token ausente apos o login)")
+            if headless:
+                finalizar_driver_fix(driver)
+                return None
+            if not _aguardar_login_manual(driver):
+                finalizar_driver_fix(driver)
+                return None
+
         return driver
 
     except Exception as e:
@@ -183,7 +261,8 @@ def _executar_fluxo(nome: str, fn: Callable[[Any], Any], driver: Any,
         return resultado
     except Exception as e:
         tempo = time.time() - start_time
-        # Erro ja foi logado pela funcao real (R5)
+        logger.error("[%s] ERRO_EXECUCAO (%.1fs): %s: %s",
+                     nome.upper(), tempo, type(e).__name__, e)
         return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": f"{type(e).__name__}: {e}", "tempo": tempo}
 
 
@@ -482,6 +561,11 @@ def executar_p2b(driver) -> Dict[str, Any]:
             resultado = processar_gigs_sem_prazo_p2b(d, tamanho_pagina=100, max_processos=0)
 
         logger.debug("[P2B] processamento individual concluido")
+        falhas = resultado.get('falhas') or []
+        if falhas:
+            logger.warning("[P2B] %d processo(s) NAO concluido(s) (serao retentados): %s",
+                           len(falhas),
+                           [(f.get('numero'), f.get('erro')) for f in falhas])
         sucesso = resultado.get('sucesso', False)
         return {
             'sucesso': sucesso,
@@ -498,49 +582,62 @@ def executar_p2b(driver) -> Dict[str, Any]:
 
 def menu_ambiente() -> Optional[Tuple[DriverType, bool]]:
     """Menu 1: Selecionar Ambiente (versão limpa)."""
-    print("\nAmbiente:")
-    print("A - PC Visível")
-    print("B - PC Headless")
-    print("C - VT Visível")
-    print("D - VT Headless")
-    print("X - Cancelar")
-    opcao = input("> ").strip().upper()
+    while True:
+        print("\nAmbiente:")
+        print("A - PC Visível")
+        print("B - PC Headless")
+        print("C - VT Visível")
+        print("D - VT Headless")
+        print("X - Cancelar")
+        try:
+            opcao = input("> ").strip().upper()
+        except EOFError:
+            return None
 
-    debug_mode = opcao.endswith('D') and len(opcao) > 1
-    if debug_mode:
-        opcao = opcao[0]
+        if not opcao:
+            continue  # Enter solto / resíduo de buffer: repete, não cancela
 
-    if opcao == "A":
-        return DriverType.PC_VISIBLE, debug_mode
-    elif opcao == "B":
-        return DriverType.PC_HEADLESS, debug_mode
-    elif opcao == "C":
-        return DriverType.VT_VISIBLE, debug_mode
-    elif opcao == "D":
-        return DriverType.VT_HEADLESS, debug_mode
-    elif opcao == "X":
-        return None
-    else:
-        return None
+        debug_mode = opcao.endswith('D') and len(opcao) > 1
+        if debug_mode:
+            opcao = opcao[0]
+
+        if opcao == "A":
+            return DriverType.PC_VISIBLE, debug_mode
+        elif opcao == "B":
+            return DriverType.PC_HEADLESS, debug_mode
+        elif opcao == "C":
+            return DriverType.VT_VISIBLE, debug_mode
+        elif opcao == "D":
+            return DriverType.VT_HEADLESS, debug_mode
+        elif opcao == "X":
+            return None
+        # opção inválida: repete o menu
 
 
 def menu_execucao() -> Optional[str]:
     """Menu 2: Selecionar Fluxo (versão limpa)."""
-    print("\nFluxo:")
-    print("A - Bloco Completo")
-    print("B - Mandado")
-    print("C - Prazo + P2B")
-    print("D - P2B")
-    print("E - PEC")
-    print("F - Triagem")
-    print("G - Petição")
-    print("H - Domicílio Eletrônico")
-    print("X - Cancelar")
-    opcao = input("> ").strip().upper()
+    while True:
+        print("\nFluxo:")
+        print("A - Bloco Completo")
+        print("B - Mandado")
+        print("C - Prazo + P2B")
+        print("D - P2B")
+        print("E - PEC")
+        print("F - Triagem")
+        print("G - Petição")
+        print("H - Domicílio Eletrônico")
+        print("X - Cancelar")
+        try:
+            opcao = input("> ").strip().upper()
+        except EOFError:
+            return None
 
-    if opcao in ["A","B","C","D","E","F","G","H","X"]:
-        return opcao if opcao != "X" else None
-    return None
+        if not opcao:
+            continue  # Enter solto / resíduo de buffer: repete, não cancela
+
+        if opcao in ["A","B","C","D","E","F","G","H","X"]:
+            return opcao if opcao != "X" else None
+        # opção inválida: repete o menu
 
 
 def selecionar_ambiente_e_fluxo() -> Optional[Tuple[DriverType, bool, str]]:
@@ -684,12 +781,97 @@ FLOW_HANDLERS = {
 }
 
 
-# ============================================================================
-# MAIN
-# ============================================================================
+PAINEL_URL = 'https://pje.trt2.jus.br/pjekz/gigs/meu-painel'
+
+
+def _menu_proximo_fluxo() -> Optional[str]:
+    """Após finalizar um fluxo, pergunta qual o próximo (sem recriar driver).
+
+    Retorna a letra do fluxo escolhido, ou None se o usuário quiser encerrar.
+    """
+    print()
+    print('─' * 50)
+    print('  FLUXO CONCLUÍDO — driver mantido aberto')
+    print('─' * 50)
+    print('  Próximo fluxo (ou X para fechar o browser):')
+    return menu_execucao()
+
+
+def _resetar_para_painel(driver) -> bool:
+    """Fecha abas extras e navega para meu-painel para a próxima execução."""
+    try:
+        _limpar_acesso_negado(driver)
+        abas = driver.window_handles
+        if len(abas) > 1:
+            for aba in abas[1:]:
+                try:
+                    driver.switch_to.window(aba)
+                    driver.close()
+                except Exception:
+                    pass
+            driver.switch_to.window(abas[0])
+        driver.execute_script("document.body.style.zoom='100%'")
+        driver.get(PAINEL_URL)
+        return True
+    except Exception as e:
+        logger.warning("[X] _resetar_para_painel: %s", e)
+        return False
+
+
+def _executar_um_fluxo(driver, fluxo: str, driver_type) -> dict:
+    """Executa um único fluxo e devolve o resultado.
+
+    Isolado aqui para que main() possa chamar em loop sem duplicar código.
+    """
+    handler = FLOW_HANDLERS.get(fluxo)
+    if not handler:
+        raise ValueError(f"Fluxo invalido: {fluxo}")
+
+    if fluxo == "A":
+        resultado = executar_bloco_completo(driver, driver_type=driver_type)
+        _driver_final = resultado.pop("_driver", None)
+        if _driver_final is not None and _driver_final is not driver:
+            try:
+                finalizar_driver_fix(_driver_final)
+            except Exception:
+                pass
+    else:
+        resultado = handler(driver)
+
+        # Falha imediata (<2s) = sessão de API morta — novo login, reexecuta uma vez
+        if (isinstance(resultado, dict)
+                and not resultado.get("sucesso", False)
+                and float(resultado.get("tempo", 99)) < 2):
+            logger.warning(
+                "[LOGIN] Fluxo falhou em %.2fs (sessao de API morta?) "
+                "— novo login completo (driver aberto) e reexecucao.",
+                float(resultado.get("tempo", 0)),
+            )
+            try:
+                try:
+                    driver.delete_all_cookies()
+                except Exception:
+                    pass
+                ok = login_cpf(driver, forcar=True) and _aguardar_sessao_ativa(driver)
+                if not ok:
+                    logger.warning(
+                        "[LOGIN] Conclua o login manualmente na janela "
+                        "aberta — o fluxo continua assim que a sessao "
+                        "completar (access_token)."
+                    )
+                    ok = _aguardar_login_manual(driver)
+                if ok:
+                    resultado = handler(driver)
+                else:
+                    logger.error("[LOGIN] Login nao concluido — mantendo o primeiro resultado.")
+            except Exception as e:
+                logger.error("[LOGIN] Erro no novo login: %s: %s", type(e).__name__, e)
+
+    return resultado
+
 
 def main():
-    """Funo principal"""
+    """Função principal — loop de sessão: um driver, múltiplos fluxos."""
     driver = None
     tee_output = None
     log_file = None
@@ -700,20 +882,19 @@ def main():
         except Exception:
             pass
 
+        # ── Seleção inicial: ambiente + primeiro fluxo ──────────────────────
         selecao = selecionar_ambiente_e_fluxo()
         if not selecao:
             logger.info("cancelado")
-            return
+            return "cancelado"
 
         driver_type, debug_mode, fluxo = selecao
 
-        # Configurar logging
         log_file, tee_output = configurar_logging(driver_type, debug=debug_mode)
 
         logger.info("ORQUESTRADOR UNIFICADO PJEPlus")
         logger.info("data/hora: %s", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
         logger.info("ambiente: %s", driver_type.value)
-        logger.info("fluxo: %s", fluxo)
         logger.info("log: %s", log_file)
 
         driver = criar_e_logar_driver(driver_type)
@@ -721,39 +902,47 @@ def main():
             logger.error("ERRO em main: falha ao inicializar driver/logar")
             return
 
-        inicio = datetime.now()
-        resultado = None
-        handler = FLOW_HANDLERS.get(fluxo)
-        if not handler:
-            raise ValueError(f"Fluxo invalido: {fluxo}")
+        # ── Loop de fluxos na mesma sessão ─────────────────────────────────
+        while fluxo:
+            inicio = datetime.now()
+            logger.info("── fluxo: %s ──", fluxo)
 
-        if fluxo == "A":
-            resultado = executar_bloco_completo(driver, driver_type=driver_type)
-            # Se driver foi recriado internamente, garantir que seja finalizado
-            _driver_final = resultado.pop("_driver", None)
-            if _driver_final is not None and _driver_final is not driver:
-                try:
-                    finalizar_driver_fix(_driver_final)
-                except Exception:
-                    pass
-        else:
-            resultado = handler(driver)
-        tempo_total = (datetime.now() - inicio).total_seconds()
+            resultado = _executar_um_fluxo(driver, fluxo, driver_type)
 
-        # Relatorio final
-        if resultado:
-            if 'sucesso_geral' in resultado:
-                logger.info("sucesso geral: %s", resultado['sucesso_geral'])
-            elif 'sucesso' in resultado:
-                logger.info("sucesso: %s", resultado['sucesso'])
-        logger.info("tempo total: %.2fs", tempo_total)
+            tempo_total = (datetime.now() - inicio).total_seconds()
+
+            # Relatório do fluxo concluído
+            if resultado:
+                if 'sucesso_geral' in resultado:
+                    logger.info("sucesso geral: %s", resultado['sucesso_geral'])
+                elif 'sucesso' in resultado:
+                    logger.info("sucesso: %s", resultado['sucesso'])
+            logger.info("tempo: %.2fs", tempo_total)
+
+            # Verifica se o driver ainda está vivo antes de oferecer o loop
+            try:
+                _ = driver.window_handles
+                driver_vivo = True
+            except Exception:
+                driver_vivo = False
+
+            if not driver_vivo:
+                logger.warning("[X] Driver fechou durante o fluxo — encerrando sessão.")
+                driver = None
+                break
+
+            # Reseta para meu-painel e pergunta próximo fluxo
+            _resetar_para_painel(driver)
+            fluxo = _menu_proximo_fluxo()
+
         logger.info("encerrando")
+        return "ok"
 
     except KeyboardInterrupt:
         logger.warning("interrompido pelo usuario — finalizando de forma cooperativa")
     except Exception as e:
         logger.error("ERRO em main: %s: %s", type(e).__name__, e)
-    
+
     finally:
         if driver:
             try:
@@ -765,8 +954,6 @@ def main():
                 tee_output.close()
             except Exception:
                 pass
-        
-        #  NOVO: Finalizar otimizaes
         try:
             from Fix.otimizacao_wrapper import finalizar_otimizacoes
             finalizar_otimizacoes()

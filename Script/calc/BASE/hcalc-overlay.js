@@ -243,23 +243,22 @@
         }
 
         // Handler do botão API ⇒ (registrado aqui para funcionar sem abrir o overlay)
-        // uid = idUnicoDocumento / numeroDocumento. Se omitido, detecta automaticamente
-        // a partir de um span "Número do documento: <num>" presente na página.
-        function detectarNumeroDocumentoSpan() {
-            const spans = document.querySelectorAll('span');
-            for (const sp of spans) {
-                const txt = (sp.innerText || sp.textContent || '');
-                if (txt.indexOf('Número do documento:') !== -1) {
-                    const m = txt.match(/Número do documento:\s*([A-Za-z0-9]+)/i);
-                    if (m) return m[1].trim();
-                }
+        // uid = idUnicoDocumento (id curto alfanumérico, ex.: 0015c20). Se omitido,
+        // detecta automaticamente a partir do título do documento ativo:
+        // <mat-card-title>Id 0015c20 - calculo ...</mat-card-title>
+        function detectarIdDocumentoTitulo() {
+            const titulos = document.querySelectorAll('mat-card-title, .mat-card-title');
+            for (const t of titulos) {
+                const txt = (t.textContent || '').trim();
+                const m = txt.match(/Id\s+([A-Za-z0-9]+)\s*[-–—]/i);
+                if (m) return m[1].trim();
             }
             return null;
         }
         async function carregarPlanilhaPorUidBotao(uid) {
             uid = (uid || '').trim();
-            if (!uid) uid = detectarNumeroDocumentoSpan();
-            if (!uid) throw new Error('UID vazio e nenhum "Número do documento:" encontrado na página');
+            if (!uid) uid = detectarIdDocumentoTitulo();
+            if (!uid) throw new Error('UID vazio e nenhum título "Id xxxxx - ..." encontrado na página');
             const m = location.pathname.match(/\/processo\/(\d+)/);
             if (!m) throw new Error('ID do processo não encontrado na URL');
             const idProcesso = m[1];
@@ -312,13 +311,14 @@
         }
         // Exposição pública para uso por outros módulos (ex.: sisbpje.js)
         window.carregarPlanilhaPorUidBotao = carregarPlanilhaPorUidBotao;
-        window.hcalcDetectarNumeroDocumento = detectarNumeroDocumentoSpan;
+        window.hcalcDetectarIdDocumento = detectarIdDocumentoTitulo;
         const btnUidEarly = document.getElementById('btn-planilha-uid');
         const inputUidEarly = document.getElementById('input-planilha-uid');
         if (btnUidEarly && inputUidEarly) {
             btnUidEarly.addEventListener('click', async () => {
-                const uid = inputUidEarly.value.trim();
-                if (!uid) { alert('Informe o UID da planilha.'); return; }
+                // Sem digitação: usa o campo se preenchido; senão auto-detecta pelo título ativo
+                const uid = inputUidEarly.value.trim() || detectarIdDocumentoTitulo();
+                if (!uid) { alert('Informe o UID da planilha ou abra o documento (título "Id xxxxx - ...") para auto-detecção.'); return; }
                 const btnMain = document.getElementById('btn-abrir-homologacao');
                 btnUidEarly.disabled = true;
                 btnUidEarly.textContent = '⏳';

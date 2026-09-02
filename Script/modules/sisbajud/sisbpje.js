@@ -19,20 +19,40 @@
         return null;
     }
 
+    // Mesma detecção do hcalc-overlay.js: o Id curto (alafanumérico, ex.: 0015c20)
+    // vem do título do documento ativo — <mat-card-title>Id 0015c20 - calculo ...</mat-card-title>.
+    function detectarIdDocumentoTituloSisbajud() {
+        var titulos = document.querySelectorAll('mat-card-title, .mat-card-title');
+        for (var i = 0; i < titulos.length; i++) {
+            var txt = (titulos[i].textContent || '').trim();
+            var m = txt.match(/Id\s+([A-Za-z0-9]+)\s*[-–—]/i);
+            if (m) return m[1].trim();
+        }
+        return null;
+    }
+
     // Usa carregarPlanilhaPorUidBotao (hcalc-overlay.js) por importação:
-    // extrai a planilha via API sem digitação — o número do documento é lido
-    // automaticamente do span "Número do documento: ..." presente na página.
+    // extrai a planilha via API sem digitação — o Id curto é lido automaticamente
+    // do mat-card-title "Id xxxxx - ..." do documento ativo.
     window.extrairPlanilhaPorSpanSisbajud = async function () {
         if (typeof window.carregarPlanilhaPorUidBotao !== 'function') {
             console.error('[sisbpje] window.carregarPlanilhaPorUidBotao indisponível — verifique se hcalc-overlay.js (hcalc.user.js) está carregado antes deste módulo.');
             return false;
         }
         try {
-            const dados = await window.carregarPlanilhaPorUidBotao(); // sem uid → lê o span automaticamente
-            console.log('[sisbpje] Planilha extraída via API (span):', dados);
+            var idDoc = (typeof window.hcalcDetectarIdDocumento === 'function')
+                ? window.hcalcDetectarIdDocumento()
+                : detectarIdDocumentoTituloSisbajud();
+            console.log('[sisbpje] Id do documento detectado no título:', idDoc);
+            if (!idDoc) {
+                console.error('[sisbpje] Nenhum mat-card-title "Id xxxxx - ..." encontrado na página.');
+                return false;
+            }
+            const dados = await window.carregarPlanilhaPorUidBotao(idDoc);
+            console.log('[sisbpje] Planilha extraída via API:', dados);
             return dados;
         } catch (e) {
-            console.error('[sisbpje] Falha ao extrair planilha via span:', e.message);
+            console.error('[sisbpje] Falha ao extrair planilha via API:', e.message);
             return false;
         }
     };

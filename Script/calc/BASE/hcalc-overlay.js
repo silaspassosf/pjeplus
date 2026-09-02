@@ -243,11 +243,23 @@
         }
 
         // Handler do botão API ⇒ (registrado aqui para funcionar sem abrir o overlay)
-        // uid = idUnicoDocumento (7-char hex). Resolve para id numérico via
-        // GET /documentos?idUnicoDocumento={uid} (retorna documento único com campo "id").
+        // uid = idUnicoDocumento / numeroDocumento. Se omitido, detecta automaticamente
+        // a partir de um span "Número do documento: <num>" presente na página.
+        function detectarNumeroDocumentoSpan() {
+            const spans = document.querySelectorAll('span');
+            for (const sp of spans) {
+                const txt = (sp.innerText || sp.textContent || '');
+                if (txt.indexOf('Número do documento:') !== -1) {
+                    const m = txt.match(/Número do documento:\s*([A-Za-z0-9]+)/i);
+                    if (m) return m[1].trim();
+                }
+            }
+            return null;
+        }
         async function carregarPlanilhaPorUidBotao(uid) {
             uid = (uid || '').trim();
-            if (!uid) throw new Error('UID vazio');
+            if (!uid) uid = detectarNumeroDocumentoSpan();
+            if (!uid) throw new Error('UID vazio e nenhum "Número do documento:" encontrado na página');
             const m = location.pathname.match(/\/processo\/(\d+)/);
             if (!m) throw new Error('ID do processo não encontrado na URL');
             const idProcesso = m[1];
@@ -298,6 +310,9 @@
             const fakeFile = new File([buffer], `Documento_${uid}.pdf`, { type: 'application/pdf' });
             return window.processarPlanilhaPDF(fakeFile);
         }
+        // Exposição pública para uso por outros módulos (ex.: sisbpje.js)
+        window.carregarPlanilhaPorUidBotao = carregarPlanilhaPorUidBotao;
+        window.hcalcDetectarNumeroDocumento = detectarNumeroDocumentoSpan;
         const btnUidEarly = document.getElementById('btn-planilha-uid');
         const inputUidEarly = document.getElementById('input-planilha-uid');
         if (btnUidEarly && inputUidEarly) {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.6
+// @version      2.3.7
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -42,6 +42,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.js?v=2.3.7
 // ==/UserScript==
 
 (async function () {
@@ -112,6 +113,7 @@
         const isMinutas  = url.includes('/comunicacoesprocessuais/minutas');
         const isDetalhe  = /\/processo\/\d+\/detalhe/.test(url);
         const isObrigacao = url.includes('/obrigacao-pagar/');
+        const isAud = url.includes('/aud/#/audiencia');
 
         if (isMinutas) {
             // FIX #3: usar flag em memória por sessão para evitar persistência entre navegações SPA
@@ -141,6 +143,14 @@
                     }
                 } catch (e) { console.error('[Loader] erro ao iniciar PjeRegistrarDebito:', e); }
             }, 1500);
+            return;
+        }
+
+        if (isAud) {
+            console.log('[Loader] Detectado ambiente AUD, inicializando...');
+            setTimeout(() => {
+                if (window.PJeAud) window.PJeAud.init();
+            }, 1000);
             return;
         }
 

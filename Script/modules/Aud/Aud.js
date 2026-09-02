@@ -85,9 +85,26 @@
                     }
                 }
 
+                // Hora de encerramento: hora atual + 12 minutos, formato HH:MM
+                function horaEncerramento() {
+                    var d = new Date(Date.now() + 12 * 60000);
+                    var hh = String(d.getHours()).padStart(2, '0');
+                    var mm = String(d.getMinutes()).padStart(2, '0');
+                    return hh + ':' + mm;
+                }
+
+                // Completa templates com "Audiência encerrada às ." / "às," incompletos
+                function completarEncerramento(html) {
+                    var h = horaEncerramento();
+                    return String(html || '')
+                        .replace(/Audiência encerrada às\s*\./gi, 'Audiência encerrada às ' + h + '.')
+                        .replace(/Audiência encerrada às\s*(?=<|$)/gi, 'Audiência encerrada às ' + h + '.');
+                }
+
                 function ins(h) {
                     var ed = getEditor();
                     if (!ed) return;
+                    h = completarEncerramento(h);
                     var ck = ed.ckeditorInstance;
                     var SR = getSelectionRange(ck);
                     if (!SR) {

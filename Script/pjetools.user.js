@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.10
+// @version      2.3.11
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -109,80 +109,69 @@
         if (isReceita) return;
         // Dynamic loader removed: all modules must be provided via @require in the userscript header.
 
-        // ── Roteamento (só roda DEPOIS de tudo carregado)
-        const isMinutas  = url.includes('/comunicacoesprocessuais/minutas');
-        const isDetalhe  = /\/processo\/\d+\/detalhe/.test(url);
-        const isObrigacao = url.includes('/obrigacao-pagar/');
-        const isAud = url.includes('/aud/#/audiencia');
-
-        if (isMinutas) {
-            // FIX #3: usar flag em memória por sessão para evitar persistência entre navegações SPA
-            if (window.__infojudWorkerRodando) return;
-            window.__infojudWorkerRodando = true;
-            console.log('[Loader] Iniciando Worker Infojud...');
-
-            setTimeout(() => {
-                if (W.runInfojudWorker) {
-                    W.runInfojudWorker();
-                } else {
-                    console.error('[Loader] runInfojudWorker não encontrado no window! Verifique o @require do infojud.js.');
-                }
-                // liberar para próximas navegações SPA
-                window.__infojudWorkerRodando = false;
-            }, 1500);
-            return;
-        }
-
-        if (isObrigacao) {
-            setTimeout(() => {
-                try {
-                    if (/\/obrigacao-pagar\/\d+\/cadastro/.test(url)) {
-                        window.PjeRegistrarDebito?.onCadastro();
-                    } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(url)) {
-                        window.PjeRegistrarDebito?.onInclusao();
-                    }
-                } catch (e) { console.error('[Loader] erro ao iniciar PjeRegistrarDebito:', e); }
-            }, 1500);
-            return;
-        }
-
-        if (isAud) {
-            console.log('[Loader] Detectado ambiente AUD, inicializando...');
-            setTimeout(() => {
-                if (window.PJeAud) window.PJeAud.init();
-            }, 1000);
-            return;
-        }
-
-        if (!isDetalhe) {
-            console.log('[Loader] URL não corresponde a página de detalhe, abortando roteamento. URL:', url);
-            return;
-        }
-
-        // ── Detalhe: registrar SPA monitor uma vez e inicializar
+        // ── Monitoramento SPA global
         if (!window.__pjeToolsLoaded) {
             window.__pjeToolsLoaded = true;
             console.log('[Loader] Registrando monitor de SPA...');
 
             window.monitorarSPA && window.monitorarSPA(() => {
-                console.log('[Loader] Navegação SPA detectada, dispose + reboot...');
-                window.PJeState && window.PJeState.dispose();
-                setTimeout(() => {
-                    if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
-                        bootDetalhe();
-                    }
-                }, 300);
+                console.log('[Loader] Navegação SPA detectada. Verificando rota...');
+                setTimeout(rotear, 300);
             });
         }
 
-        bootDetalhe();
+        rotear();
 
-        function bootDetalhe() {
-            console.log('[Loader] bootDetalhe() chamado. URL atual:', window.location.href);
-            if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) {
-                console.log('[Loader] bootDetalhe: URL não é de detalhe, abortando.');
+        function rotear() {
+            const currentUrl = window.location.href;
+            const routeMinutas = currentUrl.includes('/comunicacoesprocessuais/minutas');
+            const routeDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl);
+            const routeObrigacao = currentUrl.includes('/obrigacao-pagar/');
+            const routeAud = currentUrl.includes('/aud/#/audiencia');
+
+            if (routeMinutas) {
+                if (window.__infojudWorkerRodando) return;
+                window.__infojudWorkerRodando = true;
+                console.log('[Loader] Iniciando Worker Infojud...');
+                setTimeout(() => {
+                    if (W.runInfojudWorker) {
+                        W.runInfojudWorker();
+                    }
+                    window.__infojudWorkerRodando = false;
+                }, 1500);
                 return;
             }
+
+            if (routeObrigacao) {
+                setTimeout(() => {
+                    try {
+                        if (/\/obrigacao-pagar\/\d+\/cadastro/.test(currentUrl)) {
+                            window.PjeRegistrarDebito?.onCadastro();
+                        } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(currentUrl)) {
+                            window.PjeRegistrarDebito?.onInclusao();
+                        }
+                    } catch (e) {}
+                }, 1500);
+                return;
+            }
+
+            if (routeAud) {
+                console.log('[Loader] Detectado ambiente AUD, inicializando...');
+                setTimeout(() => {
+                    if (window.PJeAud) window.PJeAud.init();
+                }, 1500); // 1.5s pra dar tempo de renderizar a interface do SPA
+                return;
+            }
+
+            if (routeDetalhe) {
+                window.PJeState && window.PJeState.dispose && window.PJeState.dispose();
+                bootDetalhe();
+                return;
+            }
+        }
+
+        function bootDetalhe() {
+            if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) {
             // FIX: módulos registrados via @require expõem suas funções no sandbox `window`,
             // portanto chamamos `window.*` aqui em vez de `W` (unsafeWindow).
             if (!window.PJeState) {

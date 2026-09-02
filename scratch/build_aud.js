@@ -36,23 +36,23 @@ const audTemplate = `(function() {
             var perfis = {
                 otavio: {
                     title: "Otavio",
-                    S1: \${otavio_S1},
-                    S3: \${otavio_S3},
-                    S4: \${otavio_S4},
-                    S5: \${otavio_S5}
+                    S1: ${otavio_S1},
+                    S3: ${otavio_S3},
+                    S4: ${otavio_S4},
+                    S5: ${otavio_S5}
                 },
                 victor: {
                     title: "Victor",
-                    S1: \${victor_S1},
-                    S3: \${victor_S3},
-                    S4: \${victor_S4},
-                    S5: \${victor_S5}
+                    S1: ${victor_S1},
+                    S3: ${victor_S3},
+                    S4: ${victor_S4},
+                    S5: ${victor_S5}
                 }
             };
 
-            var S2 = \${shared_S2};
-            var PR = \${shared_PR};
-            var HH = \${shared_HH};
+            var S2 = ${shared_S2};
+            var PR = ${shared_PR};
+            var HH = ${shared_HH};
 
             var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 = Qui, 5 = Sex, 6 = Sáb
             var perfilAtual = "";

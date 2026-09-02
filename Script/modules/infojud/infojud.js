@@ -26,6 +26,18 @@
     const URL_BASE_CNPJ = 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp?NI=';
     const URL_BASE_CPF = 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp?NI=';
 
+    // API pública para outros módulos abrirem uma consulta Infojud.
+    _win.consultarInfojud = function (numero) {
+        const documento = apenasNumeros(numero);
+        if (documento.length !== 11 && documento.length !== 14) {
+            throw new Error('Informe um CPF com 11 números ou CNPJ com 14 números.');
+        }
+        const base = documento.length === 11 ? URL_BASE_CPF : URL_BASE_CNPJ;
+        const url = base + encodeURIComponent(documento);
+        _gmOpenTab(url, { active: true, insert: true });
+        return url;
+    };
+
     const wait = (ms) => new Promise(r => setTimeout(r, ms));
     const normalizar = (txt) => (txt || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, ' ').trim();
     const apenasNumeros = (txt) => (txt || '').replace(/\D/g, '');

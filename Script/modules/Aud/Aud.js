@@ -195,7 +195,12 @@
                     var c = fInfo.input.value.replace(/\D/g, '');
                     fInfo.input.value = c;
                     if (c.length !== 11 && c.length !== 14) { alert('Digite um CPF ou CNPJ válido.'); return; }
-                    alert('Consulta INFOJUD será implementada na próxima etapa.');
+                    try {
+                        if (typeof window.consultarInfojud !== 'function') throw new Error('Módulo Infojud não disponível.');
+                        window.consultarInfojud(c);
+                    } catch (e) {
+                        alert(e.message || 'Não foi possível abrir a consulta Infojud.');
+                    }
                 };
 
                 var fCep = linhaConsulta('CEP', 'Digite o CEP', '#1e88e5');

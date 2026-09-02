@@ -253,6 +253,36 @@
     return null;
   }
 
+  // Resolve id alfanumérico (idUnicoDocumento, ex.: 0015c20) → id numérico,
+  // do mesmo jeito que hcalc-overlay.carregarPlanilhaPorUidBotao: busca a
+  // timeline do processo e localiza o documento pelo uid.
+  async function _apiResolverIdNumerico(idProcesso, uid) {
+    if (/^\d+$/.test(String(uid))) return String(uid); // já é numérico
+    var url = location.origin + '/pje-comum-api/api/processos/id/' + idProcesso + '/timeline?' +
+      new URLSearchParams({ somenteDocumentosAssinados: 'false', buscarMovimentos: 'false', buscarDocumentos: 'true' });
+    var resp = await fetch(url, { method: 'GET', credentials: 'include', headers: _apiHeaders() });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ao buscar timeline para uid=' + uid);
+    var data = await resp.json();
+    var allDocs = [];
+    if (Array.isArray(data)) {
+      data.forEach(function (item) {
+        if (item) {
+          allDocs.push(item);
+          if (Array.isArray(item.anexos)) allDocs.push.apply(allDocs, item.anexos);
+        }
+      });
+    }
+    var docItem = allDocs.find(function (d) {
+      return d && ((d.idUnicoDocumento && String(d.idUnicoDocumento).includes(uid)) ||
+        (d.numeroDocumento && String(d.numeroDocumento).includes(uid)) ||
+        (d.id && String(d.id) === String(uid)) ||
+        (d.idDocumento && String(d.idDocumento) === String(uid)));
+    });
+    var idDoc = docItem ? (docItem.id || docItem.idDocumento) : null;
+    if (!idDoc) throw new Error('Documento "' + uid + '" não encontrado na timeline');
+    return String(idDoc);
+  }
+
   async function _apiFetchMetadados(idProcesso, idDoc, opts) {
     opts = opts || {};
     var params = new URLSearchParams();
@@ -364,6 +394,11 @@
     if (!idProcesso) return { sucesso: false, erro: 'ID do processo não encontrado' };
     var idDoc = docId || _apiDetectarDocId();
     if (!idDoc) return { sucesso: false, erro: 'doc_id não fornecido e não detectado na tela' };
+
+    // Endpoints /documentos/id/{id} só aceitam id numérico: se veio o hash
+    // alfanumérico (mat-card-title "Id xxxxx - ..."), resolve antes.
+    try { idDoc = await _apiResolverIdNumerico(idProcesso, idDoc); }
+    catch (e) { return { sucesso: false, erro: e.message }; }
 
     var meta;
     try { meta = await _apiFetchMetadados(idProcesso, idDoc, opts); }

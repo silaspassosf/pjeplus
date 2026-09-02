@@ -23,17 +23,18 @@
         console.log('[extrairResumoSisbajud] Iniciando extração...');
 
         var res = null;
-        var docId = encontrarDocIdSisbajud();
+        var docId = encontrarDocIdSisbajud(); // Mantido apenas para validar se estamos no doc certo
 
         if (docId) {
-            console.log('[extrairResumoSisbajud] Número do documento detectado no span:', docId, '- Tentando via API...');
+            console.log('[extrairResumoSisbajud] Número do documento longo detectado no span:', docId, '- Tentando via API (auto-detect doc)...');
             if (window.pjeExtrairApi) {
-                res = await window.pjeExtrairApi(docId, opts);
+                res = await window.pjeExtrairApi(null, opts); // Passa null para forçar auto-detecção do ID correto (hash curto ou db id)
             }
         }
 
         // Fallback para DOM
         if (!res || !res.sucesso) {
+            console.log('[extrairResumoSisbajud] API Falhou! Motivo:', res ? res.erro || res.aviso : 'Sem resposta');
             console.log('[extrairResumoSisbajud] Fallback para extração por DOM...');
             if (window.pjeExtrair) {
                 res = await window.pjeExtrair(opts);
@@ -41,7 +42,7 @@
         }
 
         if (!res || !res.sucesso) {
-            console.error('[extrairResumoSisbajud] Falha na extração:', res);
+            console.error('[extrairResumoSisbajud] Falha na extração (DOM e API):', res);
             alert('Falha ao tentar ler o conteúdo do documento.');
             return false;
         }
@@ -50,11 +51,18 @@
 
         // Remove quebras de linha
         var textoFlat = textoDocumento.replace(/\n|\r/g, ' ').replace(/\s{2,}/g, ' ');
+        console.log('[extrairResumoSisbajud] Texto Extraído e Planificado:', textoFlat);
 
         var protocolo = '';
         var protocoloMatch = textoFlat.match(/protocolo[^\d]*(\d{13,16})/i) ||
             textoFlat.match(/(20\d{12,14})/);
-        if (protocoloMatch) protocolo = protocoloMatch[1] || protocoloMatch[0];
+        
+        if (protocoloMatch) {
+            protocolo = protocoloMatch[1] || protocoloMatch[0];
+            console.log('[extrairResumoSisbajud] Protocolo Extraído:', protocolo);
+        } else {
+            console.log('[extrairResumoSisbajud] AVISO: Nenhum protocolo extraído! Verifique a formatação do texto.');
+        }
 
         // Regex flexível para extração (suporta HTML e PDFs processados pela API com pipes ou colons)
         var blockRegex = /(?:\d{2,3}[\.\-]?\d{3}[\.\-]?\d{3}\/?\d{0,4}-?\d{2}|\d{11}|\d{14})[\s:\|]*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;

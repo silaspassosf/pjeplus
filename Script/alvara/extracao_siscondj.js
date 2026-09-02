@@ -108,5 +108,14 @@
         };
     }
 
-    Alv.siscondj = { extrairDadosSiscondj: extrairDadosSiscondj };
+    // API pública usada pelo painel de AUD; a busca efetiva fica centralizada
+    // em siscon_consulta.js, que já conhece os endpoints e o parser do SISCON.
+    async function consultarDocumento(documento) {
+        if (!Alv.siscon || typeof Alv.siscon.consultarDocumento !== 'function') {
+            throw new Error('Módulo de consulta SISCON não disponível.');
+        }
+        return Alv.siscon.consultarDocumento(documento);
+    }
+
+    Alv.siscondj = { extrairDadosSiscondj, consultarDocumento };
 })();

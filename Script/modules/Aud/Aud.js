@@ -272,11 +272,41 @@
                 };
 
                 var fSiscon = linhaConsulta('SisconDJ', 'Dados da consulta', '#8e44ad');
-                fSiscon.buscar.onclick = function () {
-                    fSiscon.input.value = fSiscon.input.value.replace(/\D/g, '');
-                    alert('Consulta SisconDJ será implementada na próxima etapa.');
-                };
                 dConsultas.appendChild(consultas);
+                var sisconCard = E('div', 'display:none;margin-top:6px;padding:7px;background:#faf5ff;border:1px solid #c084fc;border-radius:5px;font-size:11px;');
+                dConsultas.appendChild(sisconCard);
+                function exibirDadosSiscon(resultado) {
+                    var dados = resultado.data || {};
+                    sisconCard.innerHTML = '<strong>Dados:</strong> ' + (dados.conta || '') +
+                        ', agência ' + (dados.agencia || '') +
+                        ', do Banco ' + (dados.banco || '') +
+                        (resultado.detailUrl ? ' <a href="' + resultado.detailUrl + '" target="_blank" rel="noopener">confirmar</a>' : '');
+                    sisconCard.style.display = 'block';
+                }
+                fSiscon.buscar.onclick = async function () {
+                    var c = fSiscon.input.value.replace(/\D/g, '');
+                    fSiscon.input.value = c;
+                    if (c.length !== 11 && c.length !== 14) { alert('Digite um CPF ou CNPJ válido.'); return; }
+                    fSiscon.buscar.disabled = true;
+                    fSiscon.buscar.textContent = 'Buscando...';
+                    try {
+                        var api = window.Alv && window.Alv.siscondj;
+                        if (!api || typeof api.consultarDocumento !== 'function') throw new Error('Módulo SISCONDJ não disponível.');
+                        var resultado = await api.consultarDocumento(c);
+                        if (resultado.status === 'empty') {
+                            sisconCard.innerHTML = 'Nenhum dado bancário encontrado. ' + (resultado.searchLink ? '<a href="' + resultado.searchLink + '" target="_blank" rel="noopener">abrir busca</a>' : '');
+                            sisconCard.style.display = 'block';
+                            return;
+                        }
+                        exibirDadosSiscon(resultado);
+                    } catch (e) {
+                        sisconCard.style.display = 'none';
+                        alert(e.message || 'Não foi possível consultar o SISCONDJ.');
+                    } finally {
+                        fSiscon.buscar.disabled = false;
+                        fSiscon.buscar.textContent = 'Buscar';
+                    }
+                };
 
                 if (S2.length > 0) {
                     var d2 = ST('Perícias');

@@ -502,12 +502,30 @@
         return consultarCard(card, { forcar: forcar === true });
     }
 
+    // Consulta unitária para consumidores externos, como o painel de AUD.
+    // Reutiliza a mesma busca do overlay de alvará e devolve o detalhe bancário.
+    async function consultarDocumento(documento) {
+        const norm = normalizeDoc(documento);
+        if (norm.kind === 'invalid') {
+            throw new Error('Informe um CPF com 11 números ou CNPJ com 14 números.');
+        }
+
+        const resultado = await _consultarPorModo('parte', norm);
+        if (resultado.status === 'empty') {
+            return resultado;
+        }
+
+        resultado.data = await fetchDetail(resultado.detailUrl, resultado.kind);
+        return resultado;
+    }
+
     Alv.siscon = {
         BASE,
         consultarCard,
         consultarNoCard,
         inicializar,
         buildSearchLink,
-        normalizeDoc
+        normalizeDoc,
+        consultarDocumento
     };
 })();

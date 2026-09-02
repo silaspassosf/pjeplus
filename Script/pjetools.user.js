@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.25
+// @version      2.3.26
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -23,6 +23,7 @@
 // @grant        window.close
 // @grant        unsafeWindow
 // @connect      raw.githubusercontent.com
+// @connect      consultadecep.com
 // @run-at       document-idle
 // ── pdf.js no sandbox do userscript (mesma técnica do hcalc.user.js:
 // a injeção dinâmica via <script> é bloqueada pelo CSP da página)
@@ -45,7 +46,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.js?v=2.3.12
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.js?v=2.3.13
 // ==/UserScript==
 
 (async function () {

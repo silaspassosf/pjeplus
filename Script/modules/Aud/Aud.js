@@ -199,11 +199,43 @@
                 };
 
                 var fCep = linhaConsulta('CEP', 'Digite o CEP', '#1e88e5');
-                fCep.buscar.onclick = function () {
+                async function buscarEnderecoPorCEP(cep) {
+                    var cepNumerico = String(cep).replace(/\D/g, '');
+                    if (cepNumerico.length !== 8) {
+                        throw new Error('Digite um CEP válido com 8 números.');
+                    }
+                    var resposta = await fetch('https://consultadecep.com/ws/' + cepNumerico + '/json/', {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (!resposta.ok) throw new Error('Erro HTTP ' + resposta.status + ' ao consultar o CEP.');
+                    var dados = await resposta.json();
+                    if (dados.erro || dados.error || dados.status === false || dados.message) {
+                        throw new Error(dados.message || dados.erro || 'CEP não encontrado.');
+                    }
+                    var logradouro = dados.logradouro || dados.endereco || '';
+                    var cidade = dados.localidade || dados.cidade || '';
+                    var uf = dados.uf || dados.estado || '';
+                    var complemento = dados.complemento || '';
+                    var cepFormatado = dados.cep || cepNumerico.substring(0, 5) + '-' + cepNumerico.substring(5);
+                    return logradouro + (complemento ? ' - ' + complemento : '') +
+                        ' - CEP - (' + cepFormatado + ') - ' + cidade + '/' + uf;
+                }
+                fCep.buscar.onclick = async function () {
                     var c = fCep.input.value.replace(/\D/g, '');
                     fCep.input.value = c;
                     if (c.length !== 8) { alert('Digite um CEP válido com 8 números.'); return; }
-                    alert('Consulta de CEP será implementada na próxima etapa.');
+                    fCep.buscar.disabled = true;
+                    fCep.buscar.textContent = 'Buscando...';
+                    try {
+                        var endereco = await buscarEnderecoPorCEP(c);
+                        ins(endereco);
+                    } catch (e) {
+                        alert(e.message || 'Não foi possível consultar o CEP.');
+                    } finally {
+                        fCep.buscar.disabled = false;
+                        fCep.buscar.textContent = 'Buscar';
+                    }
                 };
 
                 var fSiscon = linhaConsulta('SisconDJ', 'Dados da consulta', '#8e44ad');

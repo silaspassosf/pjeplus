@@ -240,7 +240,17 @@
       if (link) { var m = link.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/); if (m) return m[1]; }
     }
     var params = new URLSearchParams(window.location.search);
-    return params.get('documentoId') || params.get('docId') || null;
+    var porUrl = params.get('documentoId') || params.get('docId');
+    if (porUrl) return porUrl;
+    // Documento ativo: <mat-card-title>Id 0015c20 - calculo ...</mat-card-title>
+    // (padrão para qualquer documento aberto; Id curto vem antes do traço)
+    var titulos = document.querySelectorAll('mat-card-title, .mat-card-title');
+    for (var i = 0; i < titulos.length; i++) {
+      var t = (titulos[i].textContent || '').trim();
+      var mt = t.match(/Id\s+([A-Za-z0-9]+)\s*[-–—]/i);
+      if (mt) return mt[1].trim();
+    }
+    return null;
   }
 
   async function _apiFetchMetadados(idProcesso, idDoc, opts) {
@@ -397,12 +407,10 @@
   window.pjeExtrairApi = async function (docId, opts) {
     opts = opts || {};
     // Mantém exatamente o identificador fornecido pelo chamador.
-    // Não converte, não tenta substituir e não força detecção automática.
+    // Sem docId (vazio/null), cai na auto-detecção de _extrairApi → _apiDetectarDocId
+    // (item destacado na timeline → URL → mat-card-title "Id xxxxx - ...").
     if (docId !== undefined && docId !== null) {
       docId = String(docId).trim();
-    }
-    if (!docId) {
-      return { sucesso: false, erro: 'docId vazio' };
     }
     try {
       const resultado = await _extrairApi(docId, opts);

@@ -60,12 +60,15 @@
     window.extrairResumoSisbajud = async function (opts) {
         console.log('[extrairResumoSisbajud] Iniciando extração...');
         opts = opts || {};
-        const docId = encontrarDocIdSisbajud();
+        // Preferência: Id curto alfanumérico do documento ativo (mat-card-title "Id xxxxx - ..."),
+        // mesmo padrão aceito por pjeExtrairApi/carregarPlanilhaPorUidBotao.
+        const idCurto = detectarIdDocumentoTituloSisbajud();
+        const docId = idCurto || encontrarDocIdSisbajud();
         if (!docId) {
-            console.error('[extrairResumoSisbajud] Número do documento não encontrado.');
+            console.error('[extrairResumoSisbajud] Id do documento não detectado (mat-card-title ou span).');
             return false;
         }
-        console.log('[extrairResumoSisbajud] ID numérico detectado:', docId);
+        console.log('[extrairResumoSisbajud] Id do documento detectado:', docId, idCurto ? '(curto, via mat-card-title)' : '(longo, via span)');
         let res;
         try {
             if (typeof window.pjeExtrairApi !== 'function') {

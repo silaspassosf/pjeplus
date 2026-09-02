@@ -1,7 +1,6 @@
 (function() {
-    window.PJeAud = {
-        init: function() {
-            if (window.location.href.indexOf('/aud/') === -1) return;
+    function init() {
+        if (window.location.href.indexOf('/aud/') === -1) return;
             if (document.getElementById('pjetools-aud-container')) return;
 
             var perfis = {
@@ -303,5 +302,7 @@
 
             renderizarPainel(perfilAtual);
         }
-    };
+
+    window.PJeAud = window.PJeAud || {};
+    window.PJeAud.init = init;
 })();

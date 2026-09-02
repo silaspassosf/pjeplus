@@ -257,35 +257,49 @@
   }
 
   async function _apiFetchConteudo(idProcesso, idDoc) {
-    var endpoints = [
+    const endpoints = [
       '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDoc + '/conteudo',
-      '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDoc + '/html',
+      '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDoc + '/html'
     ];
-    for (var i = 0; i < endpoints.length; i++) {
-      var url = location.origin + endpoints[i];
+    for (const endpoint of endpoints) {
+      const url = location.origin + endpoint;
       try {
-        var resp = await fetch(url, { method: 'GET', credentials: 'include', headers: _apiHeaders() });
-        if (!resp.ok) continue;
-        var contentType = resp.headers.get('content-type') || '';
-        if (contentType.includes('application/pdf'))
-          return { tipo: 'pdf-buffer', conteudo: await resp.arrayBuffer() };
-        var text = await resp.text();
-        if (!text || text.trim().length < 10) continue;
-        if (text.trimStart().startsWith('%PDF')) {
-          var r2 = await fetch(url, { method: 'GET', credentials: 'include', headers: _apiHeaders() });
-          if (r2.ok) return { tipo: 'pdf-buffer', conteudo: await r2.arrayBuffer() };
+        const resp = await fetch(url, { method: 'GET', credentials: 'include', headers: _apiHeaders() });
+        if (!resp.ok) {
+          console.warn('[pjeExtrairApi] Endpoint ignorado:', resp.status, url);
           continue;
         }
-        if (contentType.includes('application/json')) {
-          var data; try { data = JSON.parse(text); } catch (_) { data = null; }
-          if (data) {
-            var c = data.conteudo || data.conteudoHtml || data.html || data.texto || null;
-            if (c) return { tipo: 'json', conteudo: String(c) };
-          }
-          return { tipo: 'json-raw', conteudo: text };
+        const contentType = (resp.headers.get('content-type') || '').toLowerCase();
+        // Lê uma vez como ArrayBuffer para não consumir o body duas vezes
+        const buffer = await resp.arrayBuffer();
+        const primeirosBytes = new Uint8Array(buffer.slice(0, 5));
+        const assinaturaPdf = primeirosBytes[0] === 0x25 && primeirosBytes[1] === 0x50 && primeirosBytes[2] === 0x44 && primeirosBytes[3] === 0x46;
+        if (contentType.includes('application/pdf') || assinaturaPdf) {
+          return { tipo: 'pdf-buffer', conteudo: buffer };
         }
-        return { tipo: 'html', conteudo: text };
-      } catch (_) { }
+        const texto = new TextDecoder('utf-8').decode(buffer);
+        if (!texto || texto.trim().length < 10) { continue; }
+        if (contentType.includes('application/json')) {
+          let dados = null;
+          try { dados = JSON.parse(texto); } catch (_) { dados = null; }
+          if (dados) {
+            const conteudo = dados.conteudo ?? dados.conteudoHtml ?? dados.html ?? dados.texto ?? dados.conteudoTexto ?? dados.documento ?? null;
+            if (conteudo !== null && conteudo !== undefined) {
+              return { tipo: 'json', conteudo: String(conteudo) };
+            }
+            // Mantém o JSON inteiro para o parser posterior
+            return { tipo: 'json-raw', conteudo: texto };
+          }
+        }
+        // Alguns retornos vêm como HTML mesmo com content-type genérico
+        if (/<(?:html|body|div|p|table)[\s>]/i.test(texto)) {
+          return { tipo: 'html', conteudo: texto };
+        }
+        // Caso o endpoint retorne texto puro
+        return { tipo: 'text', conteudo: texto };
+      } catch (e) {
+        console.warn('[pjeExtrairApi] Erro no endpoint:', url, e);
+      }
     }
     throw new Error('Nenhum endpoint retornou conteúdo para docId=' + idDoc);
   }
@@ -381,10 +395,27 @@
    * opts: { idProcesso, incluirAnexos, incluirAssinatura, somenteMetadados }
    */
   window.pjeExtrairApi = async function (docId, opts) {
-    var res = await _extrairApi(docId || null, opts || {});
-    window._pjeResultado = res;
-    window._pjePronto = !!res.sucesso;
-    return res;
+    opts = opts || {};
+    // Mantém exatamente o identificador fornecido pelo chamador.
+    // Não converte, não tenta substituir e não força detecção automática.
+    if (docId !== undefined && docId !== null) {
+      docId = String(docId).trim();
+    }
+    if (!docId) {
+      return { sucesso: false, erro: 'docId vazio' };
+    }
+    try {
+      const resultado = await _extrairApi(docId, opts);
+      // Preserva o mesmo formato usado pelo standalone
+      window._pjeResultado = resultado;
+      window._pjePronto = !!resultado?.sucesso;
+      return resultado;
+    } catch (e) {
+      const resultado = { sucesso: false, erro: e?.message || String(e) };
+      window._pjeResultado = resultado;
+      window._pjePronto = false;
+      return resultado;
+    }
   };
 
   window.PjeExtrairApi = window.pjeExtrairApi;

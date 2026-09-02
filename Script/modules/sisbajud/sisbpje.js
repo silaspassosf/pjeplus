@@ -19,71 +19,94 @@
         return null;
     }
 
-    window.extrairResumoSisbajud = async function (opts) {
-        console.log('[extrairResumoSisbajud] Iniciando extração...');
-
-        var res = null;
-        var docId = encontrarDocIdSisbajud(); // Mantido apenas para validar se estamos no doc certo
-
-        if (docId) {
-            console.log('[extrairResumoSisbajud] Número do documento longo detectado no span:', docId, '- Tentando via API (auto-detect doc)...');
-            if (window.pjeExtrairApi) {
-                res = await window.pjeExtrairApi(null, opts); // Passa null para forçar auto-detecção do ID correto (hash curto ou db id)
-            }
-        }
-
-        // Fallback para DOM
-        if (!res || !res.sucesso) {
-            console.log('[extrairResumoSisbajud] API Falhou! Motivo:', res ? res.erro || res.aviso : 'Sem resposta');
-            console.log('[extrairResumoSisbajud] Fallback para extração por DOM...');
-            if (window.pjeExtrair) {
-                res = await window.pjeExtrair(opts);
-            }
-        }
-
-        if (!res || !res.sucesso) {
-            console.error('[extrairResumoSisbajud] Falha na extração (DOM e API):', res);
-            alert('Falha ao tentar ler o conteúdo do documento.');
+    // Usa carregarPlanilhaPorUidBotao (hcalc-overlay.js) por importação:
+    // extrai a planilha via API sem digitação — o número do documento é lido
+    // automaticamente do span "Número do documento: ..." presente na página.
+    window.extrairPlanilhaPorSpanSisbajud = async function () {
+        if (typeof window.carregarPlanilhaPorUidBotao !== 'function') {
+            console.error('[sisbpje] window.carregarPlanilhaPorUidBotao indisponível — verifique se hcalc-overlay.js (hcalc.user.js) está carregado antes deste módulo.');
             return false;
         }
+        try {
+            const dados = await window.carregarPlanilhaPorUidBotao(); // sem uid → lê o span automaticamente
+            console.log('[sisbpje] Planilha extraída via API (span):', dados);
+            return dados;
+        } catch (e) {
+            console.error('[sisbpje] Falha ao extrair planilha via span:', e.message);
+            return false;
+        }
+    };
 
-        var textoDocumento = res.conteudo || res.conteudo_bruto;
-
-        // Remove quebras de linha
-        var textoFlat = textoDocumento.replace(/\n|\r/g, ' ').replace(/\s{2,}/g, ' ');
-        console.log('[extrairResumoSisbajud] Texto Extraído e Planificado:', textoFlat);
-
-        var protocolo = '';
-        var protocoloMatch = textoFlat.match(/protocolo[^\d]*(\d{13,16})/i) ||
-            textoFlat.match(/(20\d{12,14})/);
-        
+    window.extrairResumoSisbajud = async function (opts) {
+        console.log('[extrairResumoSisbajud] Iniciando extração...');
+        opts = opts || {};
+        const docId = encontrarDocIdSisbajud();
+        if (!docId) {
+            console.error('[extrairResumoSisbajud] Número do documento não encontrado.');
+            return false;
+        }
+        console.log('[extrairResumoSisbajud] ID numérico detectado:', docId);
+        let res;
+        try {
+            if (typeof window.pjeExtrairApi !== 'function') {
+                throw new Error('window.pjeExtrairApi não está disponível');
+            }
+            // A chamada permanece igual à funcional:
+            // o número extraído do span é passado diretamente.
+            res = await window.pjeExtrairApi(docId, opts);
+            console.log('[extrairResumoSisbajud] Resultado bruto da API:', res);
+        } catch (e) {
+            console.error('[extrairResumoSisbajud] Erro na chamada da API:', e);
+            return false;
+        }
+        if (!res || !res.sucesso) {
+            console.error('[extrairResumoSisbajud] API retornou falha:', res);
+            return false;
+        }
+        const textoDocumento = String(res.conteudo_bruto || res.conteudo || '').trim();
+        if (!textoDocumento) {
+            console.error('[extrairResumoSisbajud] API retornou sucesso, mas sem texto.', res);
+            return false;
+        }
+        console.log('[extrairResumoSisbajud] Texto bruto recebido:', textoDocumento);
+        const textoFlat = textoDocumento
+            .replace(/\r\n|\r|\n/g, ' ')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+        console.log('[extrairResumoSisbajud] Texto planificado:', textoFlat);
+        let protocolo = '';
+        const protocoloMatch = textoFlat.match(/Número do protocolo\s*:\s*(\d+)/i) ||
+            textoFlat.match(/protocolo\s*[:#]?\s*(\d{10,20})/i) ||
+            textoFlat.match(/\b(\d{14,16})\b/);
         if (protocoloMatch) {
             protocolo = protocoloMatch[1] || protocoloMatch[0];
-            console.log('[extrairResumoSisbajud] Protocolo Extraído:', protocolo);
-        } else {
-            console.log('[extrairResumoSisbajud] AVISO: Nenhum protocolo extraído! Verifique a formatação do texto.');
+            window._sisbajudState.protocolos.add(protocolo);
         }
-
-        // Regex flexível para extração (suporta HTML e PDFs processados pela API com pipes ou colons)
-        var blockRegex = /(?:\d{2,3}[\.\-]?\d{3}[\.\-]?\d{3}\/?\d{0,4}-?\d{2}|\d{11}|\d{14})[\s:\|]*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;
-        var match;
-
+        // Regex do standalone, preservada
+        const blockRegex = /(?:\d{11}|\d{14}):\s*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;
+        let match;
+        let encontrouBloco = false;
         while ((match = blockRegex.exec(textoFlat)) !== null) {
-            var nome = match[1].trim();
-            var valorStr = match[2].trim();
-
-            if (valorStr !== '0,00' && valorStr !== '0.00' && valorStr !== '0') {
-                var valorNum = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
-                if (!isNaN(valorNum)) {
-                    window._sisbajudState.bloqueios[nome] = (window._sisbajudState.bloqueios[nome] || 0) + valorNum;
-                }
+            encontrouBloco = true;
+            const nome = match[1]
+                .trim()
+                .replace(/\s+/g, ' ');
+            const valorStr = match[2].trim();
+            if (valorStr === '0' || valorStr === '0,00' || valorStr === '0.00') {
+                continue;
+            }
+            const valorNum = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
+            if (!Number.isNaN(valorNum)) {
+                window._sisbajudState.bloqueios[nome] = (window._sisbajudState.bloqueios[nome] || 0) + valorNum;
             }
         }
-
-        if (protocolo) window._sisbajudState.protocolos.add(protocolo);
+        if (!encontrouBloco) {
+            console.warn('[extrairResumoSisbajud] Nenhum bloco de valor reconhecido.');
+            console.warn('[extrairResumoSisbajud] Regex utilizada:', blockRegex);
+            console.warn('[extrairResumoSisbajud] Texto analisado:', textoFlat);
+        }
         window._sisbajudState.qtdExtraida++;
-
-        console.log('[extrairResumoSisbajud] Ordem ' + protocolo + ' processada e valores acumulados.');
+        console.log('[extrairResumoSisbajud] Ordem processada:', protocolo, window._sisbajudState);
         return true;
     };
 

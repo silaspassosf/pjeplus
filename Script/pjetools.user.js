@@ -1,16 +1,15 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.13
+// @version      2.3.16
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
+// @match        https://pje.trt2.jus.br/aud/*
 // @match        https://pje.trt2.jus.br/*
-// @match        https://pje1g.trt2.jus.br/*
-// @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*
-// ── Externos (domínios distintos mantidos individuais)
-// @match        https://sisbajud.cnj.jus.br/*
-// @match        https://sisbajud.pdpj.jus.br/*
+// @match        https://pje.trt2.jus.br/pjekz/*
+// @match        https://pje.trt2.jus.br/primeirograu/*
+// @match        https://pje.trt2.jus.br/segundograu/*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*
 // @match        https://simba-novo.redejt/*
 // @match        https://www3.bcb.gov.br/saj/requisicao-extratos-cadastro*
@@ -27,7 +26,7 @@
 // @run-at       document-idle
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=2.1.70
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js?v=2.1.71
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js?v=2.3.15
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=2.3.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js?v=2.1.70
@@ -38,7 +37,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.1.78
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.3.8
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.3.16
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
@@ -49,13 +48,15 @@
     'use strict';
     console.log('[Loader] PJe Tools Pro v2.2.0 loaded');
 
+    const url = window.location.href;
+    const isAud = url.includes('/aud/');
+    
     // Módulos SISB carregados via @require (git), como os demais módulos.
-    if (window.self !== window.top) return;
+    // Permite execução em iframes APENAS se for ambiente AUD
+    if (window.self !== window.top && !isAud) return;
 
     // W = window real da página (unsafeWindow quando disponível)
     const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
-
-    const url = window.location.href;
 
     const isReceita  = url.includes('cav.receita.fazenda.gov.br');
     const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');
@@ -127,7 +128,7 @@
             const routeMinutas = currentUrl.includes('/comunicacoesprocessuais/minutas');
             const routeDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl);
             const routeObrigacao = currentUrl.includes('/obrigacao-pagar/');
-            const routeAud = currentUrl.includes('/aud/#/audiencia');
+            const routeAud = window.location.pathname.startsWith('/aud/') && window.location.hash.startsWith('#/audiencia');
 
             if (routeMinutas) {
                 if (window.__infojudWorkerRodando) return;
@@ -156,10 +157,29 @@
             }
 
             if (routeAud) {
-                console.log('[Loader] Detectado ambiente AUD, inicializando...');
+                console.log('[Loader] Detectado ambiente AUD:', window.location.href);
+
                 setTimeout(() => {
-                    if (window.PJeAud) window.PJeAud.init();
-                }, 1500); // 1.5s pra dar tempo de renderizar a interface do SPA
+                    const audApi = window.PJeAud || W.PJeAud;
+
+                    if (typeof audApi?.init !== 'function') {
+                        console.error('[Loader] PJeAud.init não encontrado.', {
+                            windowPJeAud: window.PJeAud,
+                            unsafeWindowPJeAud: W.PJeAud
+                        });
+                        return;
+                    }
+
+                    if (window.__pjeAudInicializado) {
+                        console.log('[Loader] AUD já inicializado.');
+                        return;
+                    }
+
+                    window.__pjeAudInicializado = true;
+                    audApi.init();
+                    console.log('[Loader] PJeAud inicializado com sucesso.');
+                }, 1500);
+                
                 return;
             }
 

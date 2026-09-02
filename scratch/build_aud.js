@@ -28,8 +28,7 @@ const shared_PR = extractVar(victorSrc, 'PR');
 const shared_HH = extractVar(victorSrc, 'HH');
 
 const audTemplate = `(function() {
-    window.PJeAud = {
-        init: function() {
+    function init() {
             if (window.location.href.indexOf('/aud/') === -1) return;
             if (document.getElementById('pjetools-aud-container')) return;
 
@@ -332,9 +331,11 @@ const audTemplate = `(function() {
 
             renderizarPainel(perfilAtual);
         }
-    };
+
+    window.PJeAud = window.PJeAud || {};
+    window.PJeAud.init = init;
 })();
-`;
+" ;
 
 fs.writeFileSync('Script/modules/Aud/Aud.js', audTemplate);
 console.log('Aud.js generated successfully!');

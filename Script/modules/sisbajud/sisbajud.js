@@ -14,10 +14,13 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
     var _sisbOrdensProcessadas = 0;
     var _sisbTotalOrdens = 0;
 
-    // ── UI ───────────────────────────────────────────────────────────
     var containerBotoes = null;
     var badgeEl = null;
     var toastTimer = null;
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
     function atualizarBadge() {
         var numExec = Object.keys(window.SisbCore.acumulador.executados).length;

@@ -189,7 +189,7 @@
                 } else {
                     // Já existe
                     var btnFin = document.getElementById('btnSisbajudFinalizar');
-                    if (btnFin) btnFin.innerText = '✅ Finalizar (' + st.qtdExtraida + ')';
+                    if (btnFin) btnFin.innerText = '✅ Finalizar (' + window._sisbajudState.qtdExtraida + ')';
                 }
             } else {
                 if (btnAcaoOficial) {

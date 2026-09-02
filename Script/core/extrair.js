@@ -379,7 +379,72 @@
           }).join('\n')
       );
     }
-    return paginas.join('\n\n--- PÁGINA ---\n\n').trim();
+    var texto = paginas.join('\n\n--- PÁGINA ---\n\n').trim();
+    // Fallback OCR: PDFs escaneados (só o carimbo de assinatura tem texto).
+    // Mesma técnica do hcalc-pdf.js: renderiza páginas e roda Tesseract 'por'.
+    var charsPorPagina = texto.length / pdf.numPages;
+    if (texto.length < 300 || charsPorPagina < 200) {
+      console.log('[pjeExtrairApi] Pouco texto (' + texto.length + ' chars em ' + pdf.numPages + ' pág.) — iniciando OCR...');
+      try {
+        var ocrTexto = await _apiOcrPdf(pdf);
+        if (ocrTexto && ocrTexto.length > texto.length) {
+          console.log('[pjeExtrairApi] OCR produziu', ocrTexto.length, 'chars — substituindo texto extraído.');
+          texto = ocrTexto;
+        }
+      } catch (e) {
+        console.warn('[pjeExtrairApi] OCR falhou:', e.message);
+      }
+    }
+    return texto;
+  }
+
+  async function _apiOcrPdf(pdf) {
+    if (!window.Tesseract) {
+      await new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    if (!window.Tesseract || !window.Tesseract.createWorker) throw new Error('tesseract.js não disponível');
+    var worker = await window.Tesseract.createWorker('por', 1, { logger: function () {} });
+    try {
+      var out = [];
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      var maxPag = Math.min(pdf.numPages, 8);
+      for (var p = 1; p <= maxPag; p++) {
+        try {
+          var page = await pdf.getPage(p);
+          var vp1 = page.getViewport({ scale: 1 });
+          var scale = Math.min(2.5, 2200 / vp1.width);
+          var viewport = page.getViewport({ scale: scale });
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+          var dataUrl = canvas.toDataURL('image/png');
+          var txt = '';
+          try {
+            var res = await Promise.race([
+              worker.recognize(dataUrl),
+              new Promise(function (_, rej) { setTimeout(function () { rej(new Error('OCR timeout (90s)')); }, 90000); })
+            ]);
+            txt = (res && res.data && res.data.text) || '';
+          } catch (e2) {
+            console.warn('[pjeExtrairApi] OCR página ' + p + ' falhou/timeout:', e2.message);
+            continue;
+          }
+          if (txt && txt.trim()) out.push(txt.trim());
+          console.log('[pjeExtrairApi] OCR pág', p, 'concluído:', (txt || '').length, 'chars');
+        } catch (e3) {
+          console.warn('[pjeExtrairApi] Render página ' + p + ' falhou:', e3.message);
+        }
+      }
+      return out.join('\n\n--- PÁGINA ---\n\n').trim();
+    } finally {
+      try { await worker.terminate(); } catch (e) { /* ignore */ }
+    }
   }
 
   function _apiStripHtml(html) {

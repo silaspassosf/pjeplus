@@ -236,22 +236,61 @@
                     if (cepNumerico.length !== 8) {
                         throw new Error('Digite um CEP válido com 8 números.');
                     }
-                    var resposta = await fetch('https://consultadecep.com/ws/' + cepNumerico + '/json/', {
-                        method: 'GET',
-                        headers: { 'Accept': 'application/json' }
-                    });
-                    if (!resposta.ok) throw new Error('Erro HTTP ' + resposta.status + ' ao consultar o CEP.');
-                    var dados = await resposta.json();
-                    if (dados.erro || dados.error || dados.status === false || dados.message) {
-                        throw new Error(dados.message || dados.erro || 'CEP não encontrado.');
+                    var fontes = [
+                        {
+                            nome: 'ViaCEP',
+                            url: 'https://viacep.com.br/ws/' + cepNumerico + '/json/',
+                            parse: function (d) { return d.erro ? null : {
+                                logradouro: d.logradouro, bairro: d.bairro, complemento: d.complemento,
+                                cidade: d.localidade, uf: d.uf, cep: d.cep
+                            }; }
+                        },
+                        {
+                            nome: 'BrasilAPI',
+                            url: 'https://brasilapi.com.br/api/cep/v2/' + cepNumerico,
+                            parse: function (d) { return d.errors ? null : {
+                                logradouro: d.street, bairro: d.neighborhood, complemento: '',
+                                cidade: d.city, uf: d.state, cep: d.cep
+                            }; }
+                        },
+                        {
+                            nome: 'BrasilCEP',
+                            url: 'https://brasilcep.dev/v1/' + cepNumerico + '.json',
+                            parse: function (d) { return d.erro ? null : {
+                                logradouro: d.logradouro, bairro: d.bairro, complemento: d.complemento,
+                                cidade: d.localidade, uf: d.uf, cep: d.cep
+                            }; }
+                        }
+                    ];
+                    var resultados = [];
+                    for (var i = 0; i < fontes.length; i++) {
+                        var fonte = fontes[i];
+                        try {
+                            var resposta = await fetch(fonte.url, { headers: { Accept: 'application/json' } });
+                            if (!resposta.ok) continue;
+                            var parsed = fonte.parse(await resposta.json());
+                            if (parsed && parsed.logradouro) resultados.push(parsed);
+                        } catch (e) {
+                            console.warn('[CEP] Falha em ' + fonte.nome + ':', e.message);
+                        }
                     }
-                    var logradouro = dados.logradouro || dados.endereco || '';
-                    var cidade = dados.localidade || dados.cidade || '';
-                    var uf = dados.uf || dados.estado || '';
-                    var complemento = dados.complemento || '';
-                    var cepFormatado = dados.cep || cepNumerico.substring(0, 5) + '-' + cepNumerico.substring(5);
-                    return logradouro + (complemento ? ' - ' + complemento : '') +
-                        ' - CEP - (' + cepFormatado + ') - ' + cidade + '/' + uf;
+                    if (!resultados.length) throw new Error('Não foi possível localizar o CEP em nenhuma API.');
+                    var combinado = resultados.reduce(function (acc, atual) {
+                        return {
+                            logradouro: acc.logradouro || atual.logradouro || '',
+                            bairro: acc.bairro || atual.bairro || '',
+                            complemento: acc.complemento || atual.complemento || '',
+                            cidade: acc.cidade || atual.cidade || '',
+                            uf: acc.uf || atual.uf || '',
+                            cep: acc.cep || atual.cep || cepNumerico
+                        };
+                    }, {});
+                    var cepLimpo = String(combinado.cep).replace(/\D/g, '') || cepNumerico;
+                    var cepFormatado = cepLimpo.length === 8 ? cepLimpo.substring(0, 5) + '-' + cepLimpo.substring(5) : cepLimpo;
+                    var texto = [combinado.logradouro, combinado.bairro, combinado.complemento,
+                        'CEP - (' + cepFormatado + ')', combinado.cidade + '/' + combinado.uf]
+                        .filter(Boolean).join(' - ');
+                    return texto;
                 }
                 fCep.buscar.onclick = async function () {
                     var c = fCep.input.value.replace(/\D/g, '');

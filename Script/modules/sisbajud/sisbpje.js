@@ -52,12 +52,12 @@
         var textoFlat = textoDocumento.replace(/\n|\r/g, ' ').replace(/\s{2,}/g, ' ');
 
         var protocolo = '';
-        var protocoloMatch = textoFlat.match(/Número do protocolo:\s*(\d+)/i) ||
-            textoFlat.match(/(\d{14,16})/);
+        var protocoloMatch = textoFlat.match(/protocolo[^\d]*(\d{13,16})/i) ||
+            textoFlat.match(/(20\d{12,14})/);
         if (protocoloMatch) protocolo = protocoloMatch[1] || protocoloMatch[0];
 
-        // Regex
-        var blockRegex = /(?:\d{11}|\d{14}):\s*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;
+        // Regex flexível para extração (suporta HTML e PDFs processados pela API com pipes ou colons)
+        var blockRegex = /(?:\d{2,3}[\.\-]?\d{3}[\.\-]?\d{3}\/?\d{0,4}-?\d{2}|\d{11}|\d{14})[\s:\|]*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;
         var match;
 
         while ((match = blockRegex.exec(textoFlat)) !== null) {

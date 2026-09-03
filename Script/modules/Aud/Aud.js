@@ -189,7 +189,17 @@
                     linha.appendChild(buscar);
                     linha.appendChild(status);
                     consultas.appendChild(linha);
-                    return { input: input, buscar: buscar, status: status };
+                    return { input: input, buscar: buscar, status: status, cor: cor };
+                }
+
+                // O próprio botão vira confirmação (DADOS OK / FALHA) e volta a Buscar depois.
+                function feedbackBuscar(linha, ok) {
+                    linha.buscar.textContent = ok ? 'DADOS OK' : 'FALHA';
+                    linha.buscar.style.background = ok ? '#188038' : '#c5221f';
+                    setTimeout(function () {
+                        linha.buscar.textContent = 'Buscar';
+                        linha.buscar.style.background = linha.cor;
+                    }, 3000);
                 }
 
                 async function copiarTexto(texto) {
@@ -211,9 +221,7 @@
                     var c = fInfo.input.value.replace(/\D/g, '');
                     fInfo.input.value = c;
                     if (c.length !== 11 && c.length !== 14) {
-                        fInfo.status.textContent = 'CPF/CNPJ inválido';
-                        fInfo.status.style.color = '#c5221f';
-                        fInfo.status.style.display = 'inline';
+                        feedbackBuscar(fInfo, false);
                         return;
                     }
                     fInfo.buscar.disabled = true;
@@ -226,13 +234,9 @@
                         if (typeof consultarInfojud !== 'function') throw new Error('Módulo Infojud não disponível.');
                         var resultado = await consultarInfojud(c);
                         await copiarTexto(resultado.texto);
-                        fInfo.status.textContent = 'Dados copiados';
-                        fInfo.status.style.color = '#188038';
-                        fInfo.status.style.display = 'inline';
+                        feedbackBuscar(fInfo, true);
                     } catch (e) {
-                        fInfo.status.textContent = 'Falha';
-                        fInfo.status.style.color = '#c5221f';
-                        fInfo.status.style.display = 'inline';
+                        feedbackBuscar(fInfo, false);
                     } finally {
                         fInfo.buscar.disabled = false;
                         fInfo.buscar.textContent = 'Buscar';
@@ -310,9 +314,9 @@
                     try {
                         var endereco = await buscarEnderecoPorCEP(c);
                         await copiarTexto(endereco);
-                        fCep.status.style.display = 'inline';
+                        feedbackBuscar(fCep, true);
                     } catch (e) {
-                        alert(e.message || 'Não foi possível consultar o CEP.');
+                        feedbackBuscar(fCep, false);
                     } finally {
                         fCep.buscar.disabled = false;
                         fCep.buscar.textContent = 'Buscar';
@@ -346,14 +350,16 @@
                         if (!api || typeof api.consultarDocumento !== 'function') throw new Error('Módulo SISCONDJ não disponível.');
                         var resultado = await api.consultarDocumento(c);
                         if (resultado.status === 'empty') {
+                            feedbackBuscar(fSiscon, false);
                             sisconCard.innerHTML = 'Nenhum dado bancário encontrado. ' + (resultado.searchLink ? '<a href="' + resultado.searchLink + '" target="_blank" rel="noopener">abrir busca</a>' : '');
                             sisconCard.style.display = 'block';
                             return;
                         }
                         exibirDadosSiscon(resultado);
+                        feedbackBuscar(fSiscon, true);
                     } catch (e) {
+                        feedbackBuscar(fSiscon, false);
                         sisconCard.style.display = 'none';
-                        alert(e.message || 'Não foi possível consultar o SISCONDJ.');
                     } finally {
                         fSiscon.buscar.disabled = false;
                         fSiscon.buscar.textContent = 'Buscar';

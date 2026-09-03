@@ -38,8 +38,20 @@
         return url;
     };
 
-    _win.consultarInfojudComRetorno = function (numero) {
-        const documento = apenasNumeros(numero);
+    // Saída em formato de minuta para o painel AUD:
+    // NOME, CPF nº 353.052.038-13, residente no endereço: AV X 72 BAIRRO, CEP 11688628 - UBATUBA/SP.
+    function textoMinutaAud(d) {
+        if (d.empresaNome) return montarRelatorio(d);
+        const endereco = [d.rua, d.numero, d.complemento].filter(Boolean).join(' ').trim();
+        const local = [d.municipio, d.uf].filter(Boolean).join('/');
+        const partes = [d.nome, 'CPF nº ' + formatarDocumento(d.cpf), 'residente no endereço: ' + endereco];
+        let texto = partes.filter(Boolean).join(', ');
+        if (d.cep) texto += ', CEP ' + d.cep;
+        if (local) texto += ' - ' + local;
+        return texto + '.';
+    }
+
+    _win.consultarInfojudComRetorno = function (numero) {        const documento = apenasNumeros(numero);
         if (documento.length !== 11 && documento.length !== 14) {
             return Promise.reject(new Error('Informe um CPF com 11 números ou CNPJ com 14 números.'));
         }
@@ -62,7 +74,7 @@
                     try {
                         const dados = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}') || '{}');
                         console.log('[Infojud AUD] Dados recebidos da Receita:', dados);
-                        resolve({ texto: montarRelatorio(dados), dados: dados, chave: chave });
+                        resolve({ texto: textoMinutaAud(dados), dados: dados, chave: chave });
                     } catch (e) { reject(new Error('Dados Infojud inválidos: ' + e.message)); }
                     fecharAba();
                 } else if (status.startsWith('PULAR_')) {

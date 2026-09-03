@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.31
+// @version      2.3.32
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -27,6 +27,7 @@
 // @connect      viacep.com.br
 // @connect      brasilapi.com.br
 // @connect      brasilcep.dev
+// @connect      aplicacoes1.trt2.jus.br
 // @run-at       document-idle
 // ── pdf.js no sandbox do userscript (mesma técnica do hcalc.user.js:
 // a injeção dinâmica via <script> é bloqueada pelo CSP da página)

@@ -324,7 +324,7 @@
                 var sisconCard = E('div', 'display:none;margin-top:6px;padding:7px;background:#faf5ff;border:1px solid #c084fc;border-radius:5px;font-size:11px;');
                 dConsultas.appendChild(sisconCard);
                 function exibirDadosSiscon(resultado) {
-                    var dados = resultado.data || {};
+                    var dados = (resultado.data && resultado.data.primeiro) || resultado.data || {};
                     sisconCard.innerHTML = '<strong>Dados:</strong> ' + (dados.conta || '') +
                         ', agência ' + (dados.agencia || '') +
                         ', do Banco ' + (dados.banco || '') +

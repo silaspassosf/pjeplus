@@ -245,24 +245,45 @@
                     const label = nodes.flatMap(node => getRowsByLabel(node, text))[0];
                     return label?.parentElement?.querySelector('span.readonly')?.textContent.trim() || '';
                 };
-                return { getValue, juridica: getValue('Conta Jurídica').toLowerCase() === 'sim' };
+                return {
+                    titulo: (title.textContent || '').trim(),
+                    getValue,
+                    juridica: getValue('Conta Jurídica').toLowerCase() === 'sim'
+                };
             });
-        const bankBlock = bankBlocks.find(block => block.juridica) || bankBlocks[0] || { getValue: () => '' };
-        const getBankValue = text => {
-            const label = bankBlock.getValue(text);
-            return label;
+        const blocosComDados = bankBlocks.map(block => ({
+            titulo: block.titulo,
+            contaJuridica: block.juridica,
+            razaoSocial: block.getValue('Razão Social:'),
+            cnpj: block.getValue('CNPJ:'),
+            codigoBanco: block.getValue('Código Banco:'),
+            banco: block.getValue('Banco:'),
+            agencia: block.getValue('Agência:'),
+            conta: block.getValue('Conta:'),
+            tipo: block.getValue('Tipo:')
+        })).filter(block => block.banco || block.agencia || block.conta || block.contaJuridica);
+        const bancoBrasilIndex = blocosComDados.findIndex(block => /Banco do Brasil/i.test(block.titulo));
+        const bankIndex = bancoBrasilIndex >= 0 ? bancoBrasilIndex : 0;
+        const bankBlock = blocosComDados[bankIndex] || {
+            titulo: '', contaJuridica: false, razaoSocial: '', cnpj: '', codigoBanco: '',
+            banco: '', agencia: '', conta: '', tipo: ''
         };
-        const contaJuridica = bankBlock.juridica === true;
+        const contaJuridica = bankBlock.contaJuridica === true;
         const contaJuridicaDados = {
             contaJuridica,
-            razaoSocial: getBankValue('Razão Social:'),
-            cnpj: getBankValue('CNPJ:'),
-            codigoBanco: getBankValue('Código Banco:'),
-            banco: getBankValue('Banco:'),
-            agencia: getBankValue('Agência:'),
-            conta: getBankValue('Conta:'),
-            tipo: getBankValue('Tipo:')
+            primeiro: blocosComDados[0] || null,
+            razaoSocial: bankBlock.razaoSocial,
+            cnpj: bankBlock.cnpj,
+            codigoBanco: bankBlock.codigoBanco,
+            banco: bankBlock.banco,
+            agencia: bankBlock.agencia,
+            conta: bankBlock.conta,
+            tipo: bankBlock.tipo
         };
+        contaJuridicaDados.alternativas = blocosComDados
+            .filter((_, index) => index !== bankIndex)
+            .map(block => ({ ...block, detailUrl: detailUrl }))
+            .filter(block => block.banco || block.agencia || block.conta);
 
         if (kind === 'cnpj') {
             return {
@@ -381,7 +402,9 @@
         row.setAttribute('data-consulta', 'true');
         row.innerHTML = `
             <span data-consulta-status class="muted">Dados bancários: aguardando consulta…</span>
-            <a data-consulta-link href="#" target="_blank" rel="noopener" style="display:none">link dos dados</a>
+            <span data-consulta-links>
+                <a data-consulta-link href="#" target="_blank" rel="noopener" style="display:none">link dos dados</a>
+            </span>
         `;
 
         const dados = card.querySelector('.pje-alvara-dados');
@@ -414,6 +437,23 @@
         } else {
             a.style.display = 'none';
         }
+    }
+
+    function _linksAlternativos(card, alternativas) {
+        const row = _garantirLinha(card);
+        const container = row.querySelector('[data-consulta-links]');
+        if (!container) return;
+        row.querySelectorAll('[data-link-alternativo]').forEach(link => link.remove());
+        (alternativas || []).forEach((item, index) => {
+            const link = document.createElement('a');
+            link.href = item.detailUrl;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.setAttribute('data-link-alternativo', 'true');
+            link.textContent = item.titulo || 'outros dados bancários ' + (index + 1);
+            link.style.cssText = 'display:inline;margin-left:6px;';
+            container.appendChild(link);
+        });
     }
 
     function _preencherCampos(card, data) {
@@ -509,6 +549,9 @@
         if (data.contaJuridica) item.dados.contaJuridica = true;
         if (data.razaoSocial && !item.dados.razaoSocial) item.dados.razaoSocial = data.razaoSocial;
         if (data.cnpj && !item.dados.cnpj) item.dados.cnpj = data.cnpj;
+        if (Array.isArray(data.alternativas) && data.alternativas.length) {
+            item.dados.alternativas = data.alternativas;
+        }
         if (!item.destinatarioNome && data.nome) item.destinatarioNome = data.nome;
         if (!item.destinatarioDocumento && data.documento) {
             item.destinatarioDocumento = data.documento;
@@ -528,6 +571,7 @@
                 'ok'
             );
             _link(card, resultado.detailUrl, 'link dos dados');
+            _linksAlternativos(card, resultado.data?.alternativas);
             return;
         }
 

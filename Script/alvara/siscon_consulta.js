@@ -510,7 +510,9 @@
             throw new Error('Informe um CPF com 11 números ou CNPJ com 14 números.');
         }
 
-        const resultado = await _consultarPorModo('parte', norm);
+        // CPF: primeiro procura como advogado em /index; se não encontrar,
+        // cai para pessoa física em /consulta-pf. CNPJ segue /consulta-pj.
+        const resultado = await _consultarPorModo(norm.kind === 'cpf' ? 'advogado' : 'parte', norm);
         if (resultado.status === 'empty') {
             return resultado;
         }

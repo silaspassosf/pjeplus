@@ -265,7 +265,9 @@
             return { status: 'found', origem: 'CNPJ (/consulta-pj)', detailUrl: r.detailUrl, kind: r.kind };
         }
 
-        if (modo === 'advogado' && norm.kind === 'cpf') {
+        // Todo CPF segue a mesma ordem de endpoints, independentemente de ser
+        // parte, advogado ou procurador no card.
+        if (norm.kind === 'cpf') {
             const adv = await searchCpfAsAdvogado(norm.raw);
 
             if (adv.status === 'found') {

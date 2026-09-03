@@ -50,7 +50,7 @@
 
                 var P = document.createElement('div');
                 P.id = 'pjetools-aud-container';
-                P.style.cssText = 'position:fixed;top:50%;transform:translateY(-50%);right:8px;width:295px;max-height:90vh;overflow-y:auto;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:13px;';
+                P.style.cssText = 'position:fixed;top:50%;transform:translateY(-50%);right:8px;width:413px;max-width:calc(100vw - 16px);max-height:90vh;overflow-y:auto;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:13px;';
 
                 function E(t, c, x) {
                     var e = document.createElement(t);
@@ -183,7 +183,7 @@
                     input.placeholder = placeholder;
                     input.inputMode = 'numeric';
                     var buscar = E('button', 'flex:0 0 62px;padding:5px 3px;background:' + cor + ';color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;', 'Buscar');
-                    var status = E('span', 'display:none;color:#188038;font-size:10px;font-weight:bold;white-space:nowrap;', 'Dados copiados');
+                    var status = E('span', 'display:none;flex:0 0 38px;color:#188038;font-size:10px;font-weight:bold;white-space:nowrap;overflow:hidden;', 'Dados copiados');
                     linha.appendChild(label);
                     linha.appendChild(input);
                     linha.appendChild(buscar);
@@ -230,7 +230,7 @@
                         fInfo.status.style.color = '#188038';
                         fInfo.status.style.display = 'inline';
                     } catch (e) {
-                        fInfo.status.textContent = e.message || 'Falha na consulta Infojud';
+                        fInfo.status.textContent = 'Falha';
                         fInfo.status.style.color = '#c5221f';
                         fInfo.status.style.display = 'inline';
                     } finally {

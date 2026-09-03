@@ -233,36 +233,41 @@
 
         const getRowsByLabel = (root, text) => [...root.querySelectorAll('label')]
             .filter(label => (label.textContent || '').trim() === text);
-        const bbTitle = [...doc.querySelectorAll('h4')].find(h =>
-            /Dados Bancários\s*-\s*Alvarás Banco do Brasil/i.test(h.textContent || '')
-        );
-        const bbNodes = [];
-        if (bbTitle?.parentElement) {
-            for (let node = bbTitle.parentElement.nextElementSibling; node; node = node.nextElementSibling) {
-                if (node.querySelector('h4')) break;
-                bbNodes.push(node);
-            }
-        }
-        const getBbValue = (text) => {
-            const label = bbNodes.flatMap(node => getRowsByLabel(node, text))[0];
-            return label?.parentElement?.querySelector('span.readonly')?.textContent.trim() || '';
+        const bankBlocks = [...doc.querySelectorAll('h4')]
+            .filter(h => /Dados Bancários/i.test(h.textContent || ''))
+            .map(title => {
+                const nodes = [];
+                for (let node = title.parentElement?.nextElementSibling; node; node = node.nextElementSibling) {
+                    if (node.querySelector('h4')) break;
+                    nodes.push(node);
+                }
+                const getValue = text => {
+                    const label = nodes.flatMap(node => getRowsByLabel(node, text))[0];
+                    return label?.parentElement?.querySelector('span.readonly')?.textContent.trim() || '';
+                };
+                return { getValue, juridica: getValue('Conta Jurídica').toLowerCase() === 'sim' };
+            });
+        const bankBlock = bankBlocks.find(block => block.juridica) || bankBlocks[0] || { getValue: () => '' };
+        const getBankValue = text => {
+            const label = bankBlock.getValue(text);
+            return label;
         };
-        const contaJuridica = getBbValue('Conta Jurídica').toLowerCase() === 'sim';
+        const contaJuridica = bankBlock.juridica === true;
         const contaJuridicaDados = {
             contaJuridica,
-            razaoSocial: getBbValue('Razão Social:'),
-            cnpj: getBbValue('CNPJ:'),
-            codigoBanco: getBbValue('Código Banco:'),
-            banco: getBbValue('Banco:'),
-            agencia: getBbValue('Agência:'),
-            conta: getBbValue('Conta:'),
-            tipo: getBbValue('Tipo:')
+            razaoSocial: getBankValue('Razão Social:'),
+            cnpj: getBankValue('CNPJ:'),
+            codigoBanco: getBankValue('Código Banco:'),
+            banco: getBankValue('Banco:'),
+            agencia: getBankValue('Agência:'),
+            conta: getBankValue('Conta:'),
+            tipo: getBankValue('Tipo:')
         };
 
         if (kind === 'cnpj') {
             return {
                 ...contaJuridicaDados,
-                nome: getByLabel('Razão Social'),
+                nome: contaJuridicaDados.razaoSocial || getByLabel('Razão Social'),
                 documento: getByLabel('CNPJ:'),
                 banco: contaJuridicaDados.banco,
                 tipo: contaJuridicaDados.tipo,

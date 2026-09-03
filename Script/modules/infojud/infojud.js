@@ -53,7 +53,7 @@
         return new Promise((resolve, reject) => {
             const inicio = Date.now();
             const fecharAba = () => {
-                try { if (aba && typeof aba.close === 'function') aba.close(); } catch (e) {}
+                    // Durante a depuração, manter a aba aberta para preservar os logs da Receita.
             };
             const timer = setInterval(() => {
                 const status = _gmGet('GOD_STATUS', '') || '';
@@ -847,7 +847,6 @@
                     console.log('[Infojud Receita] Dados extraídos e enviados ao AUD:', merged);
                     mostrarNotificacao('DADOS OK! Retornando ao PJe...', '#28a745', true);
                     _devolverFocoPJe();
-                    setTimeout(() => { try { window.close(); } catch (e) {} }, 300);
                 } else {
                     throw new Error('Dados incompletos');
                 }
@@ -856,7 +855,6 @@
                 _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
                 mostrarNotificacao('Erro na Leitura da Receita. Pulando no PJe.', '#dc3545', true);
                 _devolverFocoPJe();
-                setTimeout(() => { try { window.close(); } catch (e2) {} }, 300);
             }
         }, 1000);
     }

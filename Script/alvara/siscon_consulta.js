@@ -231,8 +231,25 @@
             return (span ? span.textContent : '').trim();
         };
 
+        const getRowsByLabel = (text) => [...doc.querySelectorAll('label')]
+            .filter(label => (label.textContent || '').trim() === text);
+        const getValueAt = (label, index) => {
+            const row = getRowsByLabel(label)[index];
+            return row?.parentElement?.querySelector('span.readonly')?.textContent.trim() || '';
+        };
+        const contaJuridica = getRowsByLabel('Conta Jurídica').some(label =>
+            (label.parentElement?.querySelector('span.readonly')?.textContent || '').trim().toLowerCase() === 'sim'
+        );
+        const contaJuridicaDados = {
+            contaJuridica,
+            razaoSocial: getByLabel('Razão Social:'),
+            cnpj: getByLabel('CNPJ:'),
+            codigoBanco: getByLabel('Código Banco:')
+        };
+
         if (kind === 'cnpj') {
             return {
+                ...contaJuridicaDados,
                 nome: getByLabel('Razão Social'),
                 documento: getByLabel('CNPJ:'),
                 banco: getByLabel('Banco:'),
@@ -243,6 +260,7 @@
         }
 
         return {
+            ...contaJuridicaDados,
             nome: getByLabel('Nome:'),
             documento: getByLabel('CPF:'),
             banco: getByLabel('Banco:'),
@@ -396,6 +414,14 @@
         set('[data-field="agencia"]', data.agencia);
         set('[data-field="conta"]', data.conta);
         set('[data-field="tipoConta"]', data.tipo);
+        if (data.contaJuridica) {
+            const marker = card.querySelector('[data-conta-juridica]');
+            if (marker) {
+                marker.textContent = 'CONTA JURÍDICA - ' + (data.razaoSocial || '') +
+                    (data.cnpj ? ' - ' + data.cnpj : '');
+                marker.hidden = false;
+            }
+        }
     }
 
     async function consultarCard(card, opts) {
@@ -463,6 +489,9 @@
         if (data.agencia && !item.dados.agencia) item.dados.agencia = data.agencia;
         if (data.conta && !item.dados.conta) item.dados.conta = data.conta;
         if (data.tipo && !item.dados.tipoConta) item.dados.tipoConta = data.tipo;
+        if (data.contaJuridica) item.dados.contaJuridica = true;
+        if (data.razaoSocial && !item.dados.razaoSocial) item.dados.razaoSocial = data.razaoSocial;
+        if (data.cnpj && !item.dados.cnpj) item.dados.cnpj = data.cnpj;
         if (!item.destinatarioNome && data.nome) item.destinatarioNome = data.nome;
         if (!item.destinatarioDocumento && data.documento) {
             item.destinatarioDocumento = data.documento;

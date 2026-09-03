@@ -137,6 +137,9 @@
         // Sequência visual do preenchimento: Nome e documento → Agência →
         // Conta → Banco. ID de depósito não é exibido (irrelevante no overlay).
         return `
+            <div data-conta-juridica style="display:${item.dados?.contaJuridica ? 'block' : 'none'};font-weight:700;color:#7c2d12;background:#ffedd5;border:1px solid #fdba74;padding:6px 8px;margin-bottom:8px;border-radius:4px;">
+                CONTA JURÍDICA - ${utils.escapeHtml(item.dados?.razaoSocial || '')}${item.dados?.cnpj ? ` - ${utils.escapeHtml(item.dados.cnpj)}` : ''}
+            </div>
             <div class="pje-alvara-dados-grid">
                 <label>
                     Nome do destinatário

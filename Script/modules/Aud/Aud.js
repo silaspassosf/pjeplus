@@ -328,6 +328,8 @@
                     sisconCard.innerHTML = '<strong>Dados:</strong> ' + (dados.conta || '') +
                         ', agência ' + (dados.agencia || '') +
                         ', do Banco ' + (dados.banco || '') +
+                        (dados.contaJuridica ? ' (Conta PJ em nome de ' + (dados.razaoSocial || '') +
+                            (dados.cnpj ? ' - ' + dados.cnpj : '') + ')' : '') +
                         (resultado.detailUrl ? ' <a href="' + resultado.detailUrl + '" target="_blank" rel="noopener">confirmar</a>' : '');
                     sisconCard.style.display = 'block';
                 }

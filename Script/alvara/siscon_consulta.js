@@ -153,8 +153,8 @@
         return { status: 'found', detailUrl: `${BASE}/pessoa-fisica?id=${m[1]}`, kind: 'cpf-pf' };
     }
 
-    async function searchCnpj(docDigits) {
-        const url = `${BASE}/consulta-pj`;
+    async function searchCnpjEndpoint(docDigits, endpoint) {
+        const url = `${BASE}/${endpoint}`;
         const vs = await fetchViewState(url);
 
         const body = new URLSearchParams({
@@ -184,9 +184,22 @@
         const txt = r.responseText || '';
         if (isEmptyCnpj(txt)) return { status: 'empty' };
 
-        const m = txt.match(/\/adv-dados-bancarios-consulta\/pessoa-juridica\?id=(\d+)/);
+        const m = txt.match(/\/adv-dados-bancarios-consulta\/(?:pessoa-juridica|associacao)[^"']*\?id=(\d+)/);
         if (!m) throw new Error('Resposta de CNPJ recebida, mas nenhum ID foi encontrado.');
-        return { status: 'found', detailUrl: `${BASE}/pessoa-juridica?id=${m[1]}`, kind: 'cnpj' };
+        const detailPath = m[0].split('?')[0].replace('/adv-dados-bancarios-consulta', '');
+        return { status: 'found', detailUrl: `${BASE}${detailPath}?id=${m[1]}`, kind: 'cnpj' };
+    }
+
+    async function searchCnpj(docDigits) {
+        try {
+            const associacao = await searchCnpjEndpoint(docDigits, 'consulta-associacao');
+            return { ...associacao, origem: 'CNPJ (/consulta-associacao)' };
+        } catch (error) {
+            console.warn('[SISCON] Associação CNPJ falhou; tentando /consulta-pj:', error.message);
+        }
+
+        const pessoaJuridica = await searchCnpjEndpoint(docDigits, 'consulta-pj');
+        return { ...pessoaJuridica, origem: 'CNPJ (/consulta-pj)' };
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -260,9 +273,9 @@
         if (norm.kind === 'cnpj') {
             const r = await searchCnpj(norm.raw);
             if (r.status === 'empty') {
-                return { status: 'empty', origem: 'CNPJ (/consulta-pj)', searchLink: buildSearchLink('cnpj', norm.raw) };
+                return { status: 'empty', origem: r.origem || 'CNPJ (/consulta-associacao) e (/consulta-pj)', searchLink: buildSearchLink('cnpj', norm.raw) };
             }
-            return { status: 'found', origem: 'CNPJ (/consulta-pj)', detailUrl: r.detailUrl, kind: r.kind };
+            return { status: 'found', origem: r.origem, detailUrl: r.detailUrl, kind: r.kind };
         }
 
         // Todo CPF segue a mesma ordem de endpoints, independentemente de ser

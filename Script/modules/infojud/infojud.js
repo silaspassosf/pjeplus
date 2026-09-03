@@ -45,7 +45,7 @@
         }
         const chave = 'GOD_AUD_' + Date.now();
         _gmSet('GOD_STATUS', 'STANDBY');
-        _gmSet('GOD_DADOS_CAPTURA', '');
+        _gmSet('GOD_DADOS_CAPTURA', '{}');
         _gmSet('GOD_TIPO_ORIGEM', documento.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
         const url = (documento.length === 11 ? URL_BASE_CPF : URL_BASE_CNPJ) + encodeURIComponent(documento);
         console.log('[Infojud AUD] Abrindo consulta em segundo plano:', url);
@@ -835,7 +835,8 @@
     else if (URL_ATUAL.includes('detalheNICPF.asp')) {
         setTimeout(() => {
             try {
-                const base = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}')) || {};
+                const rawCaptura = _gmGet('GOD_DADOS_CAPTURA', '{}') || '{}';
+                const base = JSON.parse(rawCaptura.trim() || '{}') || {};
                 const cpfDados = extrairDadosCPFPage();
                 const merged = Object.assign({}, base, cpfDados, {
                     tipoOrigem: _gmGet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL')

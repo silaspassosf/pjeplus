@@ -51,6 +51,9 @@
         const aba = _gmOpenTab(url, { active: true, insert: true });
         return new Promise((resolve, reject) => {
             const inicio = Date.now();
+            const fecharAba = () => {
+                try { if (aba && typeof aba.close === 'function') aba.close(); } catch (e) {}
+            };
             const timer = setInterval(() => {
                 const status = _gmGet('GOD_STATUS', '') || '';
                 if (status.startsWith('DADOS_PRONTOS_')) {
@@ -59,15 +62,15 @@
                         const dados = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}') || '{}');
                         resolve({ texto: montarRelatorio(dados), dados: dados, chave: chave });
                     } catch (e) { reject(new Error('Dados Infojud inválidos: ' + e.message)); }
-                    try { if (aba && typeof aba.close === 'function') aba.close(); } catch (e) {}
+                    fecharAba();
                 } else if (status.startsWith('PULAR_')) {
                     clearInterval(timer);
                     reject(new Error('A Receita não retornou dados para o documento.'));
-                    try { if (aba && typeof aba.close === 'function') aba.close(); } catch (e) {}
+                    fecharAba();
                 } else if (Date.now() - inicio > 60000) {
                     clearInterval(timer);
                     reject(new Error('Tempo esgotado aguardando a consulta Infojud.'));
-                    try { if (aba && typeof aba.close === 'function') aba.close(); } catch (e) {}
+                    fecharAba();
                 }
             }, 400);
         });

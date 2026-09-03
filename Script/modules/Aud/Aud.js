@@ -210,7 +210,12 @@
                 fInfo.buscar.onclick = async function () {
                     var c = fInfo.input.value.replace(/\D/g, '');
                     fInfo.input.value = c;
-                    if (c.length !== 11 && c.length !== 14) { alert('Digite um CPF ou CNPJ válido.'); return; }
+                    if (c.length !== 11 && c.length !== 14) {
+                        fInfo.status.textContent = 'CPF/CNPJ inválido';
+                        fInfo.status.style.color = '#c5221f';
+                        fInfo.status.style.display = 'inline';
+                        return;
+                    }
                     fInfo.buscar.disabled = true;
                     fInfo.buscar.textContent = 'Buscando...';
                     try {
@@ -221,9 +226,13 @@
                         if (typeof consultarInfojud !== 'function') throw new Error('Módulo Infojud não disponível.');
                         var resultado = await consultarInfojud(c);
                         await copiarTexto(resultado.texto);
+                        fInfo.status.textContent = 'Dados copiados';
+                        fInfo.status.style.color = '#188038';
                         fInfo.status.style.display = 'inline';
                     } catch (e) {
-                        alert(e.message || 'Não foi possível abrir a consulta Infojud.');
+                        fInfo.status.textContent = e.message || 'Falha na consulta Infojud';
+                        fInfo.status.style.color = '#c5221f';
+                        fInfo.status.style.display = 'inline';
                     } finally {
                         fInfo.buscar.disabled = false;
                         fInfo.buscar.textContent = 'Buscar';

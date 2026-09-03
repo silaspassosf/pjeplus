@@ -48,7 +48,8 @@
         _gmSet('GOD_DADOS_CAPTURA', '');
         _gmSet('GOD_TIPO_ORIGEM', documento.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
         const url = (documento.length === 11 ? URL_BASE_CPF : URL_BASE_CNPJ) + encodeURIComponent(documento);
-        const aba = _gmOpenTab(url, { active: true, insert: true });
+        console.log('[Infojud AUD] Abrindo consulta em segundo plano:', url);
+        const aba = _gmOpenTab(url, { active: false, insert: true });
         return new Promise((resolve, reject) => {
             const inicio = Date.now();
             const fecharAba = () => {
@@ -60,15 +61,18 @@
                     clearInterval(timer);
                     try {
                         const dados = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}') || '{}');
+                        console.log('[Infojud AUD] Dados recebidos da Receita:', dados);
                         resolve({ texto: montarRelatorio(dados), dados: dados, chave: chave });
                     } catch (e) { reject(new Error('Dados Infojud inválidos: ' + e.message)); }
                     fecharAba();
                 } else if (status.startsWith('PULAR_')) {
                     clearInterval(timer);
+                    console.warn('[Infojud AUD] Receita sinalizou falha:', status);
                     reject(new Error('A Receita não retornou dados para o documento.'));
                     fecharAba();
                 } else if (Date.now() - inicio > 60000) {
                     clearInterval(timer);
+                    console.warn('[Infojud AUD] Timeout aguardando retorno:', status || 'sem status');
                     reject(new Error('Tempo esgotado aguardando a consulta Infojud.'));
                     fecharAba();
                 }
@@ -840,6 +844,7 @@
                 if (merged.cep) {
                     _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(merged));
                     _gmSet('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
+                    console.log('[Infojud Receita] Dados extraídos e enviados ao AUD:', merged);
                     mostrarNotificacao('DADOS OK! Retornando ao PJe...', '#28a745', true);
                     _devolverFocoPJe();
                     setTimeout(() => { try { window.close(); } catch (e) {} }, 300);

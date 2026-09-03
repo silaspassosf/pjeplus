@@ -77,6 +77,18 @@
         return /Nenhuma pessoa jurídica encontrada\./i.test(html);
     }
 
+    function extrairRegistroAdvogado(html, id) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const link = [...doc.querySelectorAll('a[href*="/adv-dados-bancarios-consulta/advogado?id="]')]
+            .find(a => new URL(a.getAttribute('href'), BASE).searchParams.get('id') === String(id));
+        const cells = link?.closest('tr')?.querySelectorAll('td') || [];
+        return {
+            oab: cells[2]?.textContent.trim() || '',
+            estadoOab: cells[3]?.textContent.trim() || '',
+            tipoRegistro: cells[4]?.textContent.trim() || ''
+        };
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // Buscas (porta literal do sis.js)
     // ─────────────────────────────────────────────────────────────────
@@ -114,7 +126,8 @@
 
         const m = txt.match(/\/adv-dados-bancarios-consulta\/advogado\?id=(\d+)/);
         if (!m) throw new Error('Resposta de advogado recebida, mas nenhum ID foi encontrado.');
-        return { status: 'found', detailUrl: `${BASE}/advogado?id=${m[1]}`, kind: 'cpf-adv' };
+        const registro = extrairRegistroAdvogado(txt, m[1]);
+        return { status: 'found', detailUrl: `${BASE}/advogado?id=${m[1]}`, kind: 'cpf-adv', registro };
     }
 
     async function searchCpfAsPessoaFisica(docDigits) {
@@ -284,7 +297,7 @@
             const adv = await searchCpfAsAdvogado(norm.raw);
 
             if (adv.status === 'found') {
-                return { status: 'found', origem: 'Advogado (/index)', detailUrl: adv.detailUrl, kind: adv.kind };
+                return { status: 'found', origem: 'Advogado (/index)', detailUrl: adv.detailUrl, kind: adv.kind, registro: adv.registro };
             }
 
             // Não achou no /index → cai para /pf e INFORMA.
@@ -532,7 +545,7 @@
             return resultado;
         }
 
-        resultado.data = await fetchDetail(resultado.detailUrl, resultado.kind);
+            resultado.data = { ...(resultado.registro || {}), ...await fetchDetail(resultado.detailUrl, resultado.kind) };
         return resultado;
     }
 

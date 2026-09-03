@@ -50,7 +50,7 @@
 
                 var P = document.createElement('div');
                 P.id = 'pjetools-aud-container';
-                P.style.cssText = 'position:fixed;top:50%;transform:translateY(-50%);right:8px;width:413px;max-width:calc(100vw - 16px);max-height:90vh;overflow-y:auto;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:13px;';
+                P.style.cssText = 'position:fixed;top:50%;transform:translateY(-50%);right:8px;width:413px;max-width:calc(100vw - 16px);max-height:90vh;overflow-y:auto;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:17px;';
 
                 function E(t, c, x) {
                     var e = document.createElement(t);
@@ -61,7 +61,7 @@
 
                 function ST(t) {
                     var d = E('div', 'margin-top:10px;border-top:1px solid #eef;padding-top:6px;');
-                    d.appendChild(E('div', 'font-weight:bold;font-size:10px;color:#8899cc;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;', t));
+                    d.appendChild(E('div', 'font-weight:bold;font-size:13px;color:#8899cc;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;', t));
                     P.appendChild(d);
                     return d;
                 }
@@ -124,7 +124,7 @@
                 }
 
                 function BF(b) {
-                    var btn = E('button', 'flex:1 1 auto;min-width:70px;padding:7px 4px;background:#e8f0fe;border:1px solid #b0c4f8;border-radius:6px;cursor:pointer;font-size:11px;text-align:center;line-height:1.3;');
+                    var btn = E('button', 'flex:1 1 auto;min-width:70px;padding:7px 4px;background:#e8f0fe;border:1px solid #b0c4f8;border-radius:6px;cursor:pointer;font-size:14px;text-align:center;line-height:1.3;');
                     btn.textContent = b.t;
                     btn.onclick = function () { ins(b.h); };
                     btn.onmouseover = function () { this.style.background = '#c5d8ff'; };
@@ -133,7 +133,7 @@
                 }
 
                 function BC(b, bg) {
-                    var btn = E('button', 'display:block;width:100%;padding:7px 8px;margin:3px 0;background:' + (bg || '#f5f8ff') + ';border:1px solid #c8d4f0;border-radius:6px;cursor:pointer;font-size:12px;text-align:left;');
+                    var btn = E('button', 'display:block;width:100%;padding:7px 8px;margin:3px 0;background:' + (bg || '#f5f8ff') + ';border:1px solid #c8d4f0;border-radius:6px;cursor:pointer;font-size:16px;text-align:left;');
                     btn.textContent = b.t;
                     btn.onclick = function () { ins(b.h); };
                     btn.onmouseover = function () { this.style.background = '#d8e4ff'; };
@@ -142,7 +142,7 @@
                 }
 
                 function BP(b) {
-                    var btn = E('button', 'padding:6px 4px;background:#f5f8ff;border:1px solid #c8d4f0;border-radius:5px;cursor:pointer;font-size:11px;text-align:center;width:100%;');
+                    var btn = E('button', 'padding:6px 4px;background:#f5f8ff;border:1px solid #c8d4f0;border-radius:5px;cursor:pointer;font-size:14px;text-align:center;width:100%;');
                     btn.textContent = b.t;
                     btn.onclick = function () { ins(b.h); };
                     btn.onmouseover = function () { this.style.background = '#d8e4ff'; };
@@ -152,7 +152,7 @@
 
                 var hdr = E('div', 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #e8edff;');
                 
-                var selPerfil = E('select', 'font-size:14px;color:#223;font-weight:bold;border:1px solid #ccc;border-radius:4px;padding:2px;');
+                var selPerfil = E('select', 'font-size:18px;color:#223;font-weight:bold;border:1px solid #ccc;border-radius:4px;padding:2px;');
                 var opO = E('option', null, 'Otavio'); opO.value = 'otavio';
                 var opV = E('option', null, 'Victor'); opV.value = 'victor';
                 selPerfil.appendChild(opO);
@@ -163,7 +163,7 @@
                 };
                 hdr.appendChild(selPerfil);
 
-                var fc = E('button', 'border:none;background:none;cursor:pointer;font-size:18px;color:#aab;padding:0 2px;', '✕');
+                var fc = E('button', 'border:none;background:none;cursor:pointer;font-size:23px;color:#aab;padding:0 2px;', '✕');
                 fc.onclick = function () { P.remove(); };
                 hdr.appendChild(fc);
                 P.appendChild(hdr);
@@ -177,13 +177,13 @@
 
                 function linhaConsulta(rotulo, placeholder, cor) {
                     var linha = E('div', 'display:flex;align-items:center;gap:4px;');
-                    var label = E('label', 'flex:0 0 76px;margin:0;font-size:11px;font-weight:bold;', rotulo);
-                    var input = E('input', 'flex:1;min-width:0;box-sizing:border-box;padding:5px;font-size:12px;border:1px solid #ccc;border-radius:3px;');
+                    var label = E('label', 'flex:0 0 76px;margin:0;font-size:14px;font-weight:bold;', rotulo);
+                    var input = E('input', 'flex:1;min-width:0;box-sizing:border-box;padding:5px;font-size:16px;border:1px solid #ccc;border-radius:3px;');
                     input.type = 'text';
                     input.placeholder = placeholder;
                     input.inputMode = 'numeric';
-                    var buscar = E('button', 'flex:0 0 62px;padding:5px 3px;background:' + cor + ';color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;', 'Buscar');
-                    var status = E('span', 'display:none;flex:0 0 38px;color:#188038;font-size:10px;font-weight:bold;white-space:nowrap;overflow:hidden;', 'Dados copiados');
+                    var buscar = E('button', 'flex:0 0 62px;padding:5px 3px;background:' + cor + ';color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;', 'Buscar');
+                    var status = E('span', 'display:none;flex:0 0 38px;color:#188038;font-size:13px;font-weight:bold;white-space:nowrap;overflow:hidden;', 'Dados copiados');
                     linha.appendChild(label);
                     linha.appendChild(input);
                     linha.appendChild(buscar);
@@ -321,7 +321,7 @@
 
                 var fSiscon = linhaConsulta('SisconDJ', 'Dados da consulta', '#8e44ad');
                 dConsultas.appendChild(consultas);
-                var sisconCard = E('div', 'display:none;margin-top:6px;padding:7px;background:#faf5ff;border:1px solid #c084fc;border-radius:5px;font-size:11px;');
+                var sisconCard = E('div', 'display:none;margin-top:6px;padding:7px;background:#faf5ff;border:1px solid #c084fc;border-radius:5px;font-size:14px;');
                 dConsultas.appendChild(sisconCard);
                 function exibirDadosSiscon(resultado) {
                     var dados = (resultado.data && resultado.data.primeiro) || resultado.data || {};
@@ -375,9 +375,9 @@
                 var d4 = ST('Acordo');
                 S4.forEach(function (b) { d4.appendChild(BC(b)); });
 
-                var honBtn = E('button', 'display:block;width:100%;padding:7px 8px;margin:3px 0;background:#fff8e1;border:1px solid #f0c060;border-radius:6px;cursor:pointer;font-size:12px;text-align:left;', 'Honorários periciais - acordo pós perícia');
+                var honBtn = E('button', 'display:block;width:100%;padding:7px 8px;margin:3px 0;background:#fff8e1;border:1px solid #f0c060;border-radius:6px;cursor:pointer;font-size:16px;text-align:left;', 'Honorários periciais - acordo pós perícia');
                 var honEx = E('div', 'display:none;margin-top:4px;padding:6px;background:#fffdf0;border:1px solid #f0d080;border-radius:5px;');
-                var selP = E('select', 'width:100%;margin-bottom:4px;padding:4px;font-size:12px;border:1px solid #ccc;border-radius:3px;');
+                var selP = E('select', 'width:100%;margin-bottom:4px;padding:4px;font-size:16px;border:1px solid #ccc;border-radius:3px;');
                 var op0 = E('option', null, 'Selecione o perito aqui');
                 op0.value = '';
                 selP.appendChild(op0);
@@ -388,7 +388,7 @@
                 });
                 honEx.appendChild(selP);
 
-                var bColar = E('button', 'display:block;width:100%;padding:5px;background:#4caf50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;', 'Colar dados');
+                var bColar = E('button', 'display:block;width:100%;padding:5px;background:#4caf50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:16px;', 'Colar dados');
                 bColar.onclick = function () {
                     var n = selP.value;
                     if (!n) { selP.style.borderColor = 'red'; return; }
@@ -432,7 +432,7 @@
                 
                 var btnO = document.createElement('button');
                 btnO.textContent = 'Otavio';
-                btnO.style.cssText = 'padding:10px 20px;font-size:14px;cursor:pointer;background:#2196f3;color:#fff;border:none;border-radius:4px;';
+                btnO.style.cssText = 'padding:10px 20px;font-size:18px;cursor:pointer;background:#2196f3;color:#fff;border:none;border-radius:4px;';
                 btnO.onclick = function() {
                     overlay.remove();
                     renderizarPainel('otavio');
@@ -440,7 +440,7 @@
                 
                 var btnV = document.createElement('button');
                 btnV.textContent = 'Victor';
-                btnV.style.cssText = 'padding:10px 20px;font-size:14px;cursor:pointer;background:#4caf50;color:#fff;border:none;border-radius:4px;';
+                btnV.style.cssText = 'padding:10px 20px;font-size:18px;cursor:pointer;background:#4caf50;color:#fff;border:none;border-radius:4px;';
                 btnV.onclick = function() {
                     overlay.remove();
                     renderizarPainel('victor');

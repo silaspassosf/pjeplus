@@ -39,7 +39,7 @@
     };
 
     // Saída em formato de minuta para o painel AUD:
-    // NOME, CPF nº 353.052.038-13, residente no endereço: AV X 72 BAIRRO, CEP 11688628 - UBATUBA/SP.
+    // NOME, CPF nº XXX.XXX.XXX-XX, residente no endereço: AV X 72 BAIRRO, CEP XXXXXXXX - CIDADE/UF.
     function textoMinutaAud(d) {
         if (d.empresaNome) return montarRelatorio(d);
         const endereco = [d.rua, d.numero, d.complemento].filter(Boolean).join(' ').trim();

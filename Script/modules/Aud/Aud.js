@@ -325,6 +325,8 @@
                 dConsultas.appendChild(sisconCard);
                 function exibirDadosSiscon(resultado) {
                     var dados = (resultado.data && resultado.data.primeiro) || resultado.data || {};
+                    console.log('[AUD][SISCON] resultado recebido:', resultado);
+                    console.log('[AUD][SISCON] primeiro bloco usado:', dados);
                     sisconCard.innerHTML = '<strong>Dados:</strong> ' + (dados.conta || '') +
                         ', agência ' + (dados.agencia || '') +
                         ', do Banco ' + (dados.banco || '') +

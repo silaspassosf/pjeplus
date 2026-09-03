@@ -242,7 +242,9 @@
                     nodes.push(node);
                 }
                 const getValue = text => {
-                    const label = nodes.flatMap(node => getRowsByLabel(node, text))[0];
+                    const wanted = text.replace(/:$/, '').trim().toLowerCase();
+                    const label = nodes.flatMap(node => [...node.querySelectorAll('label')])
+                        .find(item => (item.textContent || '').replace(/:$/, '').trim().toLowerCase() === wanted);
                     return label?.parentElement?.querySelector('span.readonly')?.textContent.trim() || '';
                 };
                 return {
@@ -280,6 +282,15 @@
             conta: bankBlock.conta,
             tipo: bankBlock.tipo
         };
+        console.log('[SISCON] blocos bancários detectados:', blocosComDados.map(block => ({
+            titulo: block.titulo,
+            contaJuridica: block.contaJuridica,
+            razaoSocial: block.razaoSocial,
+            cnpj: block.cnpj,
+            banco: block.banco,
+            agencia: block.agencia,
+            conta: block.conta
+        })));
         contaJuridicaDados.alternativas = blocosComDados
             .filter((_, index) => index !== bankIndex)
             .map(block => ({ ...block, detailUrl: detailUrl }))

@@ -287,8 +287,8 @@
                     }, {});
                     var cepLimpo = String(combinado.cep).replace(/\D/g, '') || cepNumerico;
                     var cepFormatado = cepLimpo.length === 8 ? cepLimpo.substring(0, 5) + '-' + cepLimpo.substring(5) : cepLimpo;
-                    var texto = [combinado.logradouro, combinado.bairro, combinado.complemento,
-                        'CEP - (' + cepFormatado + ')', combinado.cidade + '/' + combinado.uf]
+                    var texto = [combinado.logradouro + ', número __', combinado.bairro, combinado.complemento,
+                        'CEP - ' + cepFormatado, combinado.cidade + '/' + combinado.uf]
                         .filter(Boolean).join(' - ');
                     return texto;
                 }

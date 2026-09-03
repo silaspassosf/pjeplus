@@ -231,20 +231,32 @@
             return (span ? span.textContent : '').trim();
         };
 
-        const getRowsByLabel = (text) => [...doc.querySelectorAll('label')]
+        const getRowsByLabel = (root, text) => [...root.querySelectorAll('label')]
             .filter(label => (label.textContent || '').trim() === text);
-        const getValueAt = (label, index) => {
-            const row = getRowsByLabel(label)[index];
-            return row?.parentElement?.querySelector('span.readonly')?.textContent.trim() || '';
-        };
-        const contaJuridica = getRowsByLabel('Conta Jurídica').some(label =>
-            (label.parentElement?.querySelector('span.readonly')?.textContent || '').trim().toLowerCase() === 'sim'
+        const bbTitle = [...doc.querySelectorAll('h4')].find(h =>
+            /Dados Bancários\s*-\s*Alvarás Banco do Brasil/i.test(h.textContent || '')
         );
+        const bbNodes = [];
+        if (bbTitle?.parentElement) {
+            for (let node = bbTitle.parentElement.nextElementSibling; node; node = node.nextElementSibling) {
+                if (node.querySelector('h4')) break;
+                bbNodes.push(node);
+            }
+        }
+        const getBbValue = (text) => {
+            const label = bbNodes.flatMap(node => getRowsByLabel(node, text))[0];
+            return label?.parentElement?.querySelector('span.readonly')?.textContent.trim() || '';
+        };
+        const contaJuridica = getBbValue('Conta Jurídica').toLowerCase() === 'sim';
         const contaJuridicaDados = {
             contaJuridica,
-            razaoSocial: getByLabel('Razão Social:'),
-            cnpj: getByLabel('CNPJ:'),
-            codigoBanco: getByLabel('Código Banco:')
+            razaoSocial: getBbValue('Razão Social:'),
+            cnpj: getBbValue('CNPJ:'),
+            codigoBanco: getBbValue('Código Banco:'),
+            banco: getBbValue('Banco:'),
+            agencia: getBbValue('Agência:'),
+            conta: getBbValue('Conta:'),
+            tipo: getBbValue('Tipo:')
         };
 
         if (kind === 'cnpj') {
@@ -252,10 +264,10 @@
                 ...contaJuridicaDados,
                 nome: getByLabel('Razão Social'),
                 documento: getByLabel('CNPJ:'),
-                banco: getByLabel('Banco:'),
-                tipo: getByLabel('Tipo:'),
-                agencia: getByLabel('Agência:'),
-                conta: getByLabel('Conta:')
+                banco: contaJuridicaDados.banco,
+                tipo: contaJuridicaDados.tipo,
+                agencia: contaJuridicaDados.agencia,
+                conta: contaJuridicaDados.conta
             };
         }
 
@@ -263,10 +275,10 @@
             ...contaJuridicaDados,
             nome: getByLabel('Nome:'),
             documento: getByLabel('CPF:'),
-            banco: getByLabel('Banco:'),
-            tipo: getByLabel('Tipo:'),
-            agencia: getByLabel('Agência:'),
-            conta: getByLabel('Conta:')
+            banco: contaJuridicaDados.banco,
+            tipo: contaJuridicaDados.tipo,
+            agencia: contaJuridicaDados.agencia,
+            conta: contaJuridicaDados.conta
         };
     }
 

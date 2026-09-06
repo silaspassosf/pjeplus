@@ -21,7 +21,7 @@
             `min-width:190px;user-select:none;`;
 
         const titulo = document.createElement('div');
-        titulo.textContent = 'PJeTools v1.1';
+        titulo.textContent = 'PJeTools v1.2';
         titulo.style.cssText = `font-weight:bold;margin-bottom:8px;color:#333;font-size:12px;` +
             `text-align:center;border-bottom:1px solid #ddd;padding-bottom:6px;`;
         painel.appendChild(titulo);
@@ -119,7 +119,14 @@
                     } else {
                         showToast('Módulo Argos não carregado', '#dc3545', 3000);
                     }
-                }, titulo: 'Abrir Nova Pesquisa no ARGOS' }
+                }, titulo: 'Abrir Nova Pesquisa no ARGOS' },
+            { id: 'btnAjustarPDF', texto: '📎 PDF', bg: '#e67e22', fn: function () {
+                    if (typeof window.executarAjustarPDF === 'function') {
+                        window.executarAjustarPDF();
+                    } else {
+                        showToast('Módulo PDF não carregado', '#dc3545', 3000);
+                    }
+                }, titulo: 'Comprimir/Dividir PDF para envio no PJe', full: true }
         ]);
     };
 })();

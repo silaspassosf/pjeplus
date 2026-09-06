@@ -1,11 +1,18 @@
-// pdf.compress.js — Módulo PJeTools: Ajustar PDF v2.0.0
+// pdf.compress.js — Módulo PJeTools: Ajustar PDF v2.1.0
 // Comprime PDF via rasterização canvas+JPEG (mesma técnica do ilovepdf)
 // e divide em partes de até 9,5 MB para envio no PJe
+// v2.1.0: parse único do doc-fonte, amostragem por nível (1 pass real),
+// encode async sem base64, cap de área de canvas e barra monotônica
 (function () {
     'use strict';
 
     const MOD_NAME  = 'AjustarPDF';
     const MAX_BYTES = 9.5 * 1024 * 1024;   // 9,5 MB por parte
+    // Cap de área de canvas (px²): o Firefox limita a área total de um canvas
+    // (~16,7 MP) e scans grandes estouram o limite — deixamos margem.
+    // 12_000_000 usa numeric separator (ES2021) — alvo é Firefox moderno;
+    // equivalente a 12000000 (12 milhões de pixels = 12 MP).
+    const MAX_CANVAS_AREA = 12_000_000;
 
     // Níveis de qualidade tentados em cascata (DPI × qualidade JPEG)
     // Mais alto = melhor qualidade, menos compressão
@@ -101,10 +108,10 @@
     }
 
     function _setStatus(msg, sub, pct) {
-        const el  = document.getElementById('pjepdf-status');
-        const sub2 = document.getElementById('pjepdf-substatus');
-        if (el)   el.textContent  = msg  ?? '';
-        if (sub2) sub2.textContent = sub ?? '';
+        const el    = document.getElementById('pjepdf-status');
+        const subEl = document.getElementById('pjepdf-substatus');
+        if (el)    el.textContent    = msg ?? '';
+        if (subEl) subEl.textContent = sub ?? '';
         if (pct !== undefined) {
             const bar = document.getElementById('pjepdf-progress-inner');
             if (bar) bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
@@ -133,14 +140,83 @@
     }
 
     // ──────────────────────────────────────────────
-    // Conversão dataURL → Uint8Array
+    // Encode JPEG async (sem round-trip base64)
     // ──────────────────────────────────────────────
-    function _dataUrlToBytes(dataUrl) {
-        const base64 = dataUrl.split(',')[1];
-        const binary = atob(base64);
-        const bytes  = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        return bytes;
+    // `convertToBlob` é o caminho rápido (OffscreenCanvas); fallback para o
+    // `toBlob` clássico de HTMLCanvasElement. Ambos async, sem base64.
+    function _canvasParaJpegBytes(canvas, quality) {
+        return new Promise((resolve, reject) => {
+            const toBlobFn = typeof canvas.convertToBlob === 'function'
+                ? opts => canvas.convertToBlob(opts)
+                : (typeof canvas.toBlob === 'function'
+                    ? opts => new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob retornou null')), opts.type, opts.quality))
+                    : null);
+            if (!toBlobFn) { reject(new Error('Canvas não suporta convertToBlob nem toBlob')); return; }
+            toBlobFn({ type: 'image/jpeg', quality })
+                .then(blob => blob.arrayBuffer())
+                .then(buf => resolve(new Uint8Array(buf)))
+                .catch(reject);
+        });
+    }
+
+    // Cede ciclo ao event loop para o modal repintar entre páginas
+    function _yieldUI() {
+        return new Promise(r => requestAnimationFrame(() => r()));
+    }
+
+    /**
+     * Pass completo de rasterização: renderiza TODAS as páginas do doc-fonte
+     * (pdf.js JÁ carregado por _comprimirPdf — NÃO re-parseia) em JPEG e
+     * monta o PDF final via pdf-lib.
+     * @param {Object} srcPdf     — doc pdf.js já carregado (getDocument feito em _comprimirPdf)
+     * @param {number} totalPages — nº de páginas do doc-fonte
+     * @param {number} dpi        — resolução de render (72 = 1:1)
+     * @param {number} quality    — qualidade JPEG (0.0–1.0)
+     * @param {number} pctStart   — início da banda de progresso (%)
+     * @param {number} pctEnd     — fim da banda de progresso (%)
+     * @param {Object} opts       — { levelLabel, estimativaMB, t0, paginasAmostradas }
+     * @returns {Promise<Uint8Array>} PDF montado (newDoc.save)
+     */
+    async function _rasterizar(srcPdf, totalPages, dpi, quality, pctStart, pctEnd, opts) {
+        const { levelLabel = '', estimativaMB = '', t0 = performance.now(), paginasAmostradas = 0 } = opts || {};
+
+        if (typeof PDFLib === 'undefined') throw new Error('pdf-lib não carregado (PDFLib indefinido)');
+        const { PDFDocument } = PDFLib;
+
+        const newDoc = await PDFDocument.create();
+        let concluidas = paginasAmostradas;   // amostragem já conta como trabalho feito
+        let lastPct    = pctStart;            // garante barra monotônica
+
+        for (let i = 1; i <= totalPages; i++) {
+            // ── Render da página (cap 12 MP + fundo branco + cleanup internos) ──
+            const { bytes, w, h } = await _renderPaginaJpeg(srcPdf, i, dpi, quality);
+
+            // ── Montagem do PDF final (padrão v2.0.0: página do tamanho do canvas) ──
+            const img  = await newDoc.embedJpg(bytes);
+            const page = newDoc.addPage([w, h]);
+            page.drawImage(img, { x: 0, y: 0, width: w, height: h });
+
+            // ── Telemetria (monotônica, banda pctStart→pctEnd) ──
+            concluidas++;
+            const elapsed   = (performance.now() - t0) / 1000;
+            const pps       = elapsed > 0 ? concluidas / elapsed : 0;
+            const restantes = totalPages - i;
+            const etaSeg    = pps > 0 ? Math.round(restantes / pps) : null;
+            const pct       = Math.max(lastPct, pctStart + ((i - 1) / totalPages) * (pctEnd - pctStart));
+            lastPct         = pct;
+
+            _setStatus(
+                `Comprimindo página ${i}/${totalPages}`,
+                `Nível ${levelLabel} · Estimativa ~${estimativaMB} MB · ` +
+                `${pps.toFixed(1)} págs/s · ETA ~${etaSeg === null ? '—' : etaSeg + 's'}`,
+                pct
+            );
+
+            // ── Cede o event loop para o modal repintar (Importante 1) ──
+            await _yieldUI();
+        }
+
+        return await newDoc.save({ useObjectStreams: true });
     }
 
     // ──────────────────────────────────────────────
@@ -148,94 +224,147 @@
     // ──────────────────────────────────────────────
 
     /**
-     * Rasteriza o PDF em um novo PDF com imagens JPEG comprimidas.
-     * @param {Uint8Array} pdfBytes  — bytes do PDF original
-     * @param {number}     dpi       — resolução de renderização (72 = 1:1)
-     * @param {number}     quality   — qualidade JPEG (0.0–1.0)
-     * @param {number}     pctStart  — % inicial da barra de progresso
-     * @param {number}     pctEnd    — % final da barra de progresso
-     * @returns {Promise<Uint8Array>}
+     * Renderiza UMA página do doc-fonte em JPEG (Uint8Array).
+     * Reutilizada pela amostragem e pelo pass completo.
+     * @param {Object} srcPdf   — doc pdf.js JÁ carregado
+     * @param {number} pageNum  — página 1-based
+     * @param {number} dpi      — resolução (72 = 1:1)
+     * @param {number} quality  — qualidade JPEG (0.0–1.0)
+     * @returns {Promise<{bytes: Uint8Array, w: number, h: number}>}
      */
-    async function _rasterizar(pdfBytes, dpi, quality, pctStart = 10, pctEnd = 90) {
+    async function _renderPaginaJpeg(srcPdf, pageNum, dpi, quality) {
+        const page = await srcPdf.getPage(pageNum);
+        const scale = dpi / 72;
+        let viewport = page.getViewport({ scale });
+
+        // Cap de área: o Firefox limita a área total de um canvas (~16,7 MP);
+        // scans grandes estouram o limite e falham — reduzimos a escala.
+        if (viewport.width * viewport.height > MAX_CANVAS_AREA) {
+            const areaOriginal = viewport.width * viewport.height;
+            const novoScale    = scale * Math.sqrt(MAX_CANVAS_AREA / areaOriginal);
+            viewport = page.getViewport({ scale: novoScale });
+            _log(`Pág. ${pageNum}: cap de canvas (${(areaOriginal / 1e6).toFixed(1)} MP → ${(MAX_CANVAS_AREA / 1e6).toFixed(1)} MP)`);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(viewport.width);
+        canvas.height = Math.round(viewport.height);
+
+        const ctx = canvas.getContext('2d');
+        // Fundo branco (PDFs transparentes ficam pretos sem isso)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const bytes = await _canvasParaJpegBytes(canvas, quality);
+
+        // Liberar memória
+        canvas.width = canvas.height = 0;
+        page.cleanup();
+
+        return { bytes, w: Math.round(viewport.width), h: Math.round(viewport.height) };
+    }
+
+    /**
+     * Comprime o PDF com parse ÚNICO do doc-fonte:
+     *  1) FASE AMOSTRAGEM (0–8%): até 2 páginas de amostra por nível → estimativa de tamanho
+     *  2) FASE COMPRESSÃO (8–88%): UM pass completo no nível escolhido
+     *  3) Caso raro (amostragem imprecisa): tenta nível pior SEM resetar a barra
+     * @param {Uint8Array} originalBytes — bytes do PDF original
+     * @returns {Promise<{bytes: Uint8Array, label: string}>}
+     */
+    async function _comprimirPdf(originalBytes) {
         if (typeof pdfjsLib === 'undefined') throw new Error('pdf.js não carregado (pdfjsLib indefinido)');
-        if (typeof PDFLib === 'undefined')   throw new Error('pdf-lib não carregado (PDFLib indefinido)');
 
         // Configura worker do pdf.js (CDN, mesma versão do @require)
         pdfjsLib.GlobalWorkerOptions.workerSrc =
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice() });
-        const srcPdf      = await loadingTask.promise;
-        const totalPages  = srcPdf.numPages;
+        // .slice() protege o buffer original de transferências do worker
+        const loadingTask = pdfjsLib.getDocument({ data: originalBytes.slice() });
+        let srcPdf = null;
 
-        const { PDFDocument } = PDFLib;
-        const newDoc = await PDFDocument.create();
-        const scale  = dpi / 72;
+        try {
+            srcPdf      = await loadingTask.promise;
+            const totalPages = srcPdf.numPages;
+            const t0         = performance.now();
 
-        for (let i = 1; i <= totalPages; i++) {
-            const pct = pctStart + ((i - 1) / totalPages) * (pctEnd - pctStart);
-            _setStatus(
-                `Comprimindo página ${i}/${totalPages}...`,
-                `DPI: ${dpi}  Qualidade JPEG: ${Math.round(quality * 100)}%`,
-                pct
-            );
+            // ── FASE 1: AMOSTRAGEM (barra 0–8%) ──────────────
+            // Até 2 páginas de amostra (1ª e a do meio) por nível para
+            // estimar o tamanho total sem renders completos.
+            const idxAmostras = totalPages === 1 ? [1] : [1, Math.max(2, Math.ceil(totalPages / 2))];
+            const estimativas = [];   // { bytesPorPag, estimativaMB }
 
-            const page     = await srcPdf.getPage(i);
-            const viewport = page.getViewport({ scale });
+            for (let i = 0; i < QUALITY_LEVELS.length; i++) {
+                const { dpi, quality, label } = QUALITY_LEVELS[i];
+                const pct = (i / QUALITY_LEVELS.length) * 8;
 
-            const canvas = document.createElement('canvas');
-            canvas.width  = Math.round(viewport.width);
-            canvas.height = Math.round(viewport.height);
+                _setStatus(
+                    `Analisando: ${label}`,
+                    `Amostragem ${i + 1}/${QUALITY_LEVELS.length} · ${idxAmostras.length} pág. de amostra`,
+                    pct
+                );
 
-            const ctx = canvas.getContext('2d');
-            // Fundo branco (PDFs transparentes ficam pretos sem isso)
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                let soma = 0;
+                for (const nPg of idxAmostras) {
+                    const { bytes } = await _renderPaginaJpeg(srcPdf, nPg, dpi, quality);
+                    soma += bytes.length;
+                }
+                const bytesPorPag  = soma / idxAmostras.length;
+                const estimativaMB = (bytesPorPag * totalPages) / 1024 / 1024;
+                estimativas.push({ bytesPorPag, estimativaMB });
+                _log(`${label}: amostra ${(bytesPorPag / 1024).toFixed(0)} KB/pág → estimativa total ~${estimativaMB.toFixed(2)} MB`);
+            }
 
-            await page.render({ canvasContext: ctx, viewport }).promise;
+            // Escolhe o primeiro nível (do mais alto ao mais baixo) que couber.
+            // Se nenhum couber, usa o último (mais comprimido) — o split resolve.
+            let nivelIdx = QUALITY_LEVELS.length - 1;
+            for (let i = 0; i < QUALITY_LEVELS.length; i++) {
+                if (estimativas[i].estimativaMB * 1024 * 1024 <= MAX_BYTES) { nivelIdx = i; break; }
+            }
 
-            const dataUrl   = canvas.toDataURL('image/jpeg', quality);
-            const jpegBytes = _dataUrlToBytes(dataUrl);
+            // ── FASE 2: COMPRESSÃO (barra 8–88%) — UM ÚNICO pass ──
+            // O pass escolhido preenche 8→88%. Retries (caso raro de
+            // amostragem imprecisa) avançam dentro da banda fina 88→89%,
+            // garantindo barra MONOTÔNICA sem invadir a faixa do split (89%+).
+            let melhorBytes = null;
+            let melhorLabel = '';
+            let pctAtual    = 8;
 
-            const img     = await newDoc.embedJpg(jpegBytes);
-            const pdfPage = newDoc.addPage([canvas.width, canvas.height]);
-            pdfPage.drawImage(img, { x: 0, y: 0, width: canvas.width, height: canvas.height });
+            while (nivelIdx < QUALITY_LEVELS.length) {
+                const { dpi, quality, label } = QUALITY_LEVELS[nivelIdx];
+                const estimativaMB = estimativas[nivelIdx].estimativaMB.toFixed(2);
 
-            // Liberar memória
-            canvas.width = canvas.height = 0;
-            page.cleanup();
+                const primeiroTry = (pctAtual === 8);
+                const pctFim      = primeiroTry ? 88 : pctAtual + (89 - pctAtual) / (QUALITY_LEVELS.length - nivelIdx);
+
+                _setStatus(`Comprimindo: ${label}`, `Estimativa ~${estimativaMB} MB`, pctAtual);
+
+                const result = await _rasterizar(
+                    srcPdf, totalPages, dpi, quality, pctAtual, pctFim,
+                    { levelLabel: label, estimativaMB, t0, paginasAmostradas: idxAmostras.length }
+                );
+                _log(`${label}: ${(result.length / 1024 / 1024).toFixed(2)} MB`);
+                pctAtual = pctFim;
+
+                melhorBytes = result;
+                melhorLabel = label;
+
+                // Amostragem imprecisa: ainda grande → tenta o próximo nível
+                // pior SEM resetar a barra (mantém monotonicidade).
+                if (result.length <= MAX_BYTES) break;
+                _log(`${label} excedeu MAX_BYTES (${(result.length / 1024 / 1024).toFixed(2)} MB) — tentando nível pior sem reiniciar`);
+                nivelIdx++;
+            }
+
+            return { bytes: melhorBytes, label: melhorLabel };
+
+        } finally {
+            // Libera o doc pdf.js (worker + memória) em qualquer saída do fluxo
+            try { if (srcPdf) await srcPdf.destroy(); } catch (_) { /* noop */ }
+            try { await loadingTask.destroy(); } catch (_) { /* noop */ }
         }
-
-        return await newDoc.save({ useObjectStreams: true });
-    }
-
-    /**
-     * Comprime o PDF tentando vários níveis de qualidade em cascata.
-     * Retorna o melhor resultado (menor tamanho que ainda ≤ MAX_BYTES,
-     * ou o menor possível se nenhum couber).
-     */
-    async function _comprimirPdf(originalBytes) {
-        let melhorBytes  = null;
-        let melhorLabel  = '';
-
-        for (let i = 0; i < QUALITY_LEVELS.length; i++) {
-            const { dpi, quality, label } = QUALITY_LEVELS[i];
-            const pctStart = 10 + i * 14;
-            const pctEnd   = pctStart + 13;
-
-            _setStatus(`Tentando: ${label}`, `Nível ${i + 1}/${QUALITY_LEVELS.length}`, pctStart);
-
-            const result = await _rasterizar(originalBytes, dpi, quality, pctStart, pctEnd);
-            _log(`${label}: ${(result.length / 1024 / 1024).toFixed(2)} MB`);
-
-            // Sempre guarda o mais recente (que é o menor, pois níveis pioram progressivamente)
-            melhorBytes = result;
-            melhorLabel = label;
-
-            if (result.length <= MAX_BYTES) break;  // já cabe — para aqui
-        }
-
-        return { bytes: melhorBytes, label: melhorLabel };
     }
 
     // ──────────────────────────────────────────────
@@ -248,7 +377,7 @@
         const partes     = [];
         let   pageIdx    = 0;
 
-        _setStatus(`Dividindo em partes (${totalPages} págs.)...`, '', 92);
+        _setStatus(`Dividindo em partes (${totalPages} págs.)...`, '', 89);
 
         while (pageIdx < totalPages) {
             let lo = 1, hi = totalPages - pageIdx;
@@ -285,7 +414,7 @@
             _setStatus(
                 `Parte ${partes.length}: ${(melhorBytes.length / 1024 / 1024).toFixed(2)} MB (${melhorCount} págs.)`,
                 '',
-                92 + Math.round(((pageIdx + melhorCount) / totalPages) * 7)
+                89 + Math.round(((pageIdx + melhorCount) / totalPages) * 6)   // faixa 89–95%
             );
             pageIdx += melhorCount;
         }
@@ -338,7 +467,7 @@
                 }
 
                 // ── 3. Ainda grande: dividir ───────────────
-                _setStatus(`Ainda ${compressedMB.toFixed(2)} MB após compressão. Dividindo...`, '', 91);
+                _setStatus(`Ainda ${compressedMB.toFixed(2)} MB após compressão. Dividindo...`, '', 88);
                 const partes = await _dividirPdf(compressedBytes, MAX_BYTES);
 
                 _setStatus(`✅ Dividido em ${partes.length} parte(s). Clique para baixar:`, '', 100);
@@ -358,5 +487,5 @@
     }
 
     window.executarAjustarPDF = executarAjustarPDF;
-    _log('Módulo carregado (v2.0.0) — compressão via canvas+JPEG.');
+    _log('Módulo carregado (v2.1.0) — compressão via canvas+JPEG (parse único + amostragem).');
 })();

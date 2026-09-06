@@ -636,7 +636,7 @@
                                     || (window.CKEDITOR?.instances ? Object.values(window.CKEDITOR.instances)[0] : null);
 
                                 html = ckInstance && typeof ckInstance.getData === 'function' ? ckInstance.getData() : (editor.innerHTML || '');
-                                if (html && (/endere[çc]o/i.test(html) || /\bcep\s*:?/i.test(html) || html.trim().length > 80)) {
+                                if (html && (/DESTINAT[ÁA]RIO/i.test(html) || /endere[çc]o/i.test(html) || /\bcep\s*:?/i.test(html) || html.trim().length > 80)) {
                                     break;
                                 }
                             }
@@ -650,38 +650,57 @@
 
                             const variavelPJe = '#{processo.comunicacaoProcessual.enderecoDestinatario}';
 
-                            // 1. Tentar primeiro por rótulo de ENDEREÇO
-                            const regexEndereco = /((?:<(?:strong|b)[^>]*>)?\s*ENDERE[ÇC]O(?:\s+DO\s+DESTINAT[ÁA]RIO)?(?:\s*<\/(?:strong|b)>)?\s*:\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
-
-                            // 2. Se não encontrar endereço, procurar a linha que inicia com CEP:
-                            const regexCepInicio = /((?:<p[^>]*>|<div[^>]*>|<br\s*\/?>|^)(?:\s|&nbsp;)*(?:<(?:strong|b)[^>]*>)?\s*CEP(?:\s*<\/(?:strong|b)>)?\s*:?\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
-
                             let novoHtml = null;
 
-                            if (regexEndereco.test(html)) {
-                                console.log('[Infojud] Rótulo ENDEREÇO: encontrado. Substituindo no editor...');
-                                novoHtml = html.replace(regexEndereco, (match, p1) => {
-                                    let prefixo = p1.trim();
-                                    if (/<strong\b/i.test(prefixo) && !/<\/strong\b/i.test(prefixo)) {
-                                        prefixo += '</strong>';
-                                    } else if (/<b\b(?!r)/i.test(prefixo) && !/<\/b\b/i.test(prefixo)) {
-                                        prefixo += '</b>';
+                            // 1. Estratégia Principal: Parágrafo imediatamente abaixo de DESTINATÁRIO
+                            const patDestNext = /((?:<p[^>]*>|<div[^>]*>)[\s\S]*?DESTINAT[ÁA]RIO[\s\S]*?(?:<\/p>|<\/div>)\s*(?:<p[^>]*>|<div[^>]*>))([\s\S]*?)(<\/p>|<\/div>)/i;
+
+                            if (patDestNext.test(html)) {
+                                console.log('[Infojud] Localizado parágrafo abaixo de DESTINATÁRIO. Substituindo pela variável...');
+                                novoHtml = html.replace(patDestNext, (match, prefix, pContent, closing) => {
+                                    const hasStrong = /<strong\b/i.test(pContent);
+                                    const hasB = /<b\b(?!r)/i.test(pContent);
+
+                                    let val = '';
+                                    if (/ENDERE[ÇC]O/i.test(pContent)) {
+                                        val = `ENDEREÇO: ${variavelPJe}`;
+                                    } else {
+                                        // Substitui toda a linha de CEP ou endereço antigo diretamente pela variável
+                                        val = variavelPJe;
                                     }
-                                    return `${prefixo} ${variavelPJe}`;
-                                });
-                            } else if (regexCepInicio.test(html)) {
-                                console.log('[Infojud] Rótulo ENDEREÇO: não encontrado. Linha com CEP: no início encontrada. Substituindo...');
-                                novoHtml = html.replace(regexCepInicio, (match, p1) => {
-                                    let prefixo = p1.trim();
-                                    if (/<strong\b/i.test(prefixo) && !/<\/strong\b/i.test(prefixo)) {
-                                        prefixo += '</strong>';
-                                    } else if (/<b\b(?!r)/i.test(prefixo) && !/<\/b\b/i.test(prefixo)) {
-                                        prefixo += '</b>';
+
+                                    let finalContent = val;
+                                    if (hasStrong) {
+                                        finalContent = `<strong>${val}</strong>`;
+                                    } else if (hasB) {
+                                        finalContent = `<b>${val}</b>`;
                                     }
-                                    return `${prefixo} ${variavelPJe}`;
+                                    return `${prefix}${finalContent}${closing}`;
                                 });
                             } else {
-                                console.warn('[Infojud] Nem ENDEREÇO: nem linha com CEP: no início foram localizados no texto do editor. Trecho:', html.substring(0, 300));
+                                // 2. Fallbacks caso não esteja em parágrafo isolado logo após DESTINATÁRIO
+                                const regexEndereco = /((?:<(?:strong|b)[^>]*>)?\s*ENDERE[ÇC]O(?:\s+DO\s+DESTINAT[ÁA]RIO)?(?:\s*<\/(?:strong|b)>)?\s*:\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
+                                const regexCepInicio = /((?:<p[^>]*>|<div[^>]*>|<br\s*\/?>|^)(?:\s|&nbsp;)*(?:<(?:strong|b)[^>]*>)?\s*CEP(?:\s*<\/(?:strong|b)>)?\s*:?\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
+
+                                if (regexEndereco.test(html)) {
+                                    console.log('[Infojud] Fallback: Rótulo ENDEREÇO: encontrado. Substituindo no editor...');
+                                    novoHtml = html.replace(regexEndereco, (match, p1) => {
+                                        let prefixo = p1.trim();
+                                        if (/<strong\b/i.test(prefixo) && !/<\/strong\b/i.test(prefixo)) prefixo += '</strong>';
+                                        else if (/<b\b(?!r)/i.test(prefixo) && !/<\/b\b/i.test(prefixo)) prefixo += '</b>';
+                                        return `${prefixo} ${variavelPJe}`;
+                                    });
+                                } else if (regexCepInicio.test(html)) {
+                                    console.log('[Infojud] Fallback: Linha com CEP: no início encontrada. Substituindo...');
+                                    novoHtml = html.replace(regexCepInicio, (match, p1) => {
+                                        let prefixo = p1.trim();
+                                        if (/<strong\b/i.test(prefixo) && !/<\/strong\b/i.test(prefixo)) prefixo += '</strong>';
+                                        else if (/<b\b(?!r)/i.test(prefixo) && !/<\/b\b/i.test(prefixo)) prefixo += '</b>';
+                                        return `${prefixo} ${variavelPJe}`;
+                                    });
+                                } else {
+                                    console.warn('[Infojud] Nem parágrafo de destinatário nem rótulos de endereço/CEP localizados. Trecho:', html.substring(0, 300));
+                                }
                             }
 
                             if (novoHtml) {

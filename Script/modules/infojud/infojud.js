@@ -636,7 +636,7 @@
                                     || (window.CKEDITOR?.instances ? Object.values(window.CKEDITOR.instances)[0] : null);
 
                                 html = ckInstance && typeof ckInstance.getData === 'function' ? ckInstance.getData() : (editor.innerHTML || '');
-                                if (html && (/endere[çc]o/i.test(html) || html.trim().length > 80)) {
+                                if (html && (/endere[çc]o/i.test(html) || /\bcep\s*:?/i.test(html) || html.trim().length > 80)) {
                                     break;
                                 }
                             }
@@ -650,21 +650,41 @@
 
                             const variavelPJe = '#{processo.comunicacaoProcessual.enderecoDestinatario}';
 
-                            // Regex robusta para capturar rótulo de ENDEREÇO (com ou sem tags strong/b, acento, dois pontos)
-                            // e substituir todo o conteúdo antigo de endereço até quebra de linha ou fim do parágrafo/bloco
+                            // 1. Tentar primeiro por rótulo de ENDEREÇO
                             const regexEndereco = /((?:<(?:strong|b)[^>]*>)?\s*ENDERE[ÇC]O(?:\s+DO\s+DESTINAT[ÁA]RIO)?(?:\s*<\/(?:strong|b)>)?\s*:\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
 
+                            // 2. Se não encontrar endereço, procurar a linha que inicia com CEP:
+                            const regexCepInicio = /((?:<p[^>]*>|<div[^>]*>|<br\s*\/?>|^)(?:\s|&nbsp;)*(?:<(?:strong|b)[^>]*>)?\s*CEP(?:\s*<\/(?:strong|b)>)?\s*:?\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
+
+                            let novoHtml = null;
+
                             if (regexEndereco.test(html)) {
-                                const novoHtml = html.replace(regexEndereco, (match, p1) => {
+                                console.log('[Infojud] Rótulo ENDEREÇO: encontrado. Substituindo no editor...');
+                                novoHtml = html.replace(regexEndereco, (match, p1) => {
                                     let prefixo = p1.trim();
-                                    if (/<strong/i.test(prefixo) && !/<\/strong/i.test(prefixo)) {
+                                    if (/<strong\b/i.test(prefixo) && !/<\/strong\b/i.test(prefixo)) {
                                         prefixo += '</strong>';
-                                    } else if (/<b/i.test(prefixo) && !/<\/b/i.test(prefixo)) {
+                                    } else if (/<b\b(?!r)/i.test(prefixo) && !/<\/b\b/i.test(prefixo)) {
                                         prefixo += '</b>';
                                     }
                                     return `${prefixo} ${variavelPJe}`;
                                 });
+                            } else if (regexCepInicio.test(html)) {
+                                console.log('[Infojud] Rótulo ENDEREÇO: não encontrado. Linha com CEP: no início encontrada. Substituindo...');
+                                novoHtml = html.replace(regexCepInicio, (match, p1) => {
+                                    let prefixo = p1.trim();
+                                    if (/<strong\b/i.test(prefixo) && !/<\/strong\b/i.test(prefixo)) {
+                                        prefixo += '</strong>';
+                                    } else if (/<b\b(?!r)/i.test(prefixo) && !/<\/b\b/i.test(prefixo)) {
+                                        prefixo += '</b>';
+                                    }
+                                    return `${prefixo} ${variavelPJe}`;
+                                });
+                            } else {
+                                console.warn('[Infojud] Nem ENDEREÇO: nem linha com CEP: no início foram localizados no texto do editor. Trecho:', html.substring(0, 300));
+                            }
 
+                            if (novoHtml) {
                                 console.log('[Infojud] Inserindo variável de endereço no editor...');
                                 if (ckInstance && typeof ckInstance.setData === 'function') {
                                     ckInstance.setData(novoHtml);
@@ -675,8 +695,6 @@
                                     editor.dispatchEvent(new Event('change', { bubbles: true }));
                                 }
                                 await wait(600);
-                            } else {
-                                console.warn('[Infojud] Rótulo de endereço não localizado no texto do editor. Trecho:', html.substring(0, 300));
                             }
 
                             // Finalizar minuta (pena)

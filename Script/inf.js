@@ -364,31 +364,80 @@
                     const btnConfec = document.querySelector('button[aria-label="Confeccionar ato"]');
                     if (btnConfec) {
                         btnConfec.click();
-                       
-                        let editorCarregou = false;
-                        for(let i=0; i<50; i++) {
-                            if(document.querySelector('.ck-editor__editable')) { editorCarregou = true; break; }
+
+                        let editor = null;
+                        let ckInstance = null;
+                        let html = '';
+
+                        // Polling defensivo aguardando editor estar presente E com o template/conteúdo carregado
+                        for (let i = 0; i < 50; i++) {
                             await wait(200);
+                            editor = document.querySelector('.ck-editor__editable[contenteditable="true"], .ck-editor__editable, [contenteditable="true"]');
+                            if (editor) {
+                                ckInstance = editor.ckeditorInstance 
+                                    || editor.closest('.ck-editor')?.ckeditorInstance 
+                                    || Array.from(document.querySelectorAll('.ck-editor__editable, [contenteditable="true"]')).find(x => x.ckeditorInstance)?.ckeditorInstance
+                                    || (window.CKEDITOR?.instances ? Object.values(window.CKEDITOR.instances)[0] : null);
+
+                                html = ckInstance && typeof ckInstance.getData === 'function' ? ckInstance.getData() : (editor.innerHTML || '');
+                                if (html && (/endere[çc]o/i.test(html) || html.trim().length > 80)) {
+                                    break;
+                                }
+                            }
                         }
 
-                        if(editorCarregou) {
-                            await wait(500);
-                            const editor = document.querySelector('.ck-editor__editable');
-                            let ckInstance = editor.ckeditorInstance || (editor.closest('.ck-editor') ? editor.closest('.ck-editor').ckeditorInstance : null);
-                            const variavelPJe = '#{processo.comunicacaoProcessual.enderecoDestinatario}';
-                            let html = ckInstance ? ckInstance.getData() : editor.innerHTML;
-                           
-                            const regex = /(<strong>\s*ENDEREÇO:\s*)([\s\S]*?)(<\/strong>)/gi;
-                            if (regex.test(html)) {
-                                const novoHtml = html.replace(regex, `$1${variavelPJe}$3`);
-                                if (ckInstance) ckInstance.setData(novoHtml);
-                                else { editor.innerHTML = novoHtml; editor.dispatchEvent(new InputEvent('input', { bubbles: true })); }
+                        if (editor) {
+                            await wait(300);
+                            if (!html) {
+                                html = ckInstance && typeof ckInstance.getData === 'function' ? ckInstance.getData() : (editor.innerHTML || '');
                             }
-                            await wait(500);
 
+                            const variavelPJe = '#{processo.comunicacaoProcessual.enderecoDestinatario}';
+
+                            // Regex robusta para capturar rótulo de ENDEREÇO (com ou sem tags strong/b, acento, dois pontos)
+                            // e substituir todo o conteúdo antigo de endereço até quebra de linha ou fim do parágrafo/bloco
+                            const regexEndereco = /((?:<(?:strong|b)[^>]*>)?\s*ENDERE[ÇC]O(?:\s+DO\s+DESTINAT[ÁA]RIO)?(?:\s*<\/(?:strong|b)>)?\s*:\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
+
+                            if (regexEndereco.test(html)) {
+                                const novoHtml = html.replace(regexEndereco, (match, p1) => {
+                                    let prefixo = p1.trim();
+                                    if (/<strong/i.test(prefixo) && !/<\/strong/i.test(prefixo)) {
+                                        prefixo += '</strong>';
+                                    } else if (/<b/i.test(prefixo) && !/<\/b/i.test(prefixo)) {
+                                        prefixo += '</b>';
+                                    }
+                                    return `${prefixo} ${variavelPJe}`;
+                                });
+
+                                console.log('[GOD] Inserindo variável de endereço no editor...');
+                                if (ckInstance && typeof ckInstance.setData === 'function') {
+                                    ckInstance.setData(novoHtml);
+                                } else {
+                                    editor.focus();
+                                    editor.innerHTML = novoHtml;
+                                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                                    editor.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                                await wait(600);
+                            } else {
+                                console.warn('[GOD] Rótulo de endereço não localizado no texto do editor. Trecho:', html.substring(0, 300));
+                            }
+
+                            // Finalizar minuta (pena)
                             const btnPena = document.querySelector('button[aria-label="Finalizar minuta"]') || document.querySelector('.fa-pen-nib')?.closest('button');
-                            if (btnPena) btnPena.click();
-                            await wait(1000);
+                            if (btnPena) {
+                                console.log('[GOD] Finalizando minuta...');
+                                btnPena.click();
+                                for (let j = 0; j < 30; j++) {
+                                    await wait(200);
+                                    if (!document.querySelector('.ck-editor__editable') && !document.querySelector('button[aria-label="Finalizar minuta"]')) {
+                                        break;
+                                    }
+                                }
+                            }
+                            await wait(600);
+                        } else {
+                            console.warn('[GOD] Editor não foi detectado após clicar em Confeccionar ato.');
                         }
                     }
                 } else {

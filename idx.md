@@ -1,8 +1,129 @@
 # PJePlus — Índice de Navegação Precisa (IDX)
 
-Atualizado: 2026-07-24 (removido registro de bugs — idx.md cobre apenas arquitetura e referência de funções)
+Atualizado: 2026-09-06 (seção 0.5 pw.py/scripts/ adicionada; refatoração de agentes)
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
+
+---
+
+## 0.1 Quick Reference Card — Acesso Direto (Sem Busca)
+
+> **GARANTIA DE NO-SEARCH:** Se a tarefa corresponde a uma linha desta tabela, vá diretamente ao arquivo/função indicados. **Proibido usar grep/search antes de consultar esta tabela.**
+
+### Executor & Motor
+
+| Tarefa | Arquivo | Função/Símbolo |
+|---|---|---|
+| Rodar o projeto | `pw.py` | `main()` — `py pw.py` |
+| Orquestrador de fluxos | `x.py` | `main()`, `executar_*()` |
+| Purgar progresso antigo | `Fix/monitoramento_progresso_unificado.py` | `limpar_progresso_antigos` |
+| Backend Playwright | `play/pjeplay/` | `pjeplay.iniciar()` |
+
+### Driver & Sessão
+
+| Tarefa | Arquivo | Função/Símbolo |
+|---|---|---|
+| Criar driver (PC/VT/headless) | `Fix/core.py` | `criar_driver_PC`, `criar_driver_VT`, `criar_driver_notebook` |
+| Login (CPF/auto/manual) | `Fix/utils.py` | `login_cpf`, `login_automatico`, `login_manual` |
+| Finalizar driver | `Fix/core.py` | `finalizar_driver` |
+| Cookies sessão | `Fix/core.py` | `salvar_cookies_sessao`, `carregar_cookies_sessao` |
+| Validar conexão | `Fix/browser_suporte.py` | `validar_conexao_driver` |
+| Trocar/fechar abas | `Fix/browser_suporte.py` | `trocar_para_nova_aba`, `forcar_fechamento_abas_extras` |
+| Resetar driver | `x.py` | `resetar_driver()` |
+
+### Interação com DOM
+
+| Tarefa | Arquivo | Função/Símbolo |
+|---|---|---|
+| **Clicar (caso geral)** | `Fix/browser_suporte.py` | `click_headless_safe(driver, seletor)` |
+| Clicar em elemento já encontrado | `Fix/core.py` | `safe_click_no_scroll(driver, el)` |
+| Clicar com retry | `Fix/core.py` | `safe_click(driver, seletor)` |
+| Esperar presença de elemento | `Fix/core.py` | `esperar_elemento(driver, seletor)` |
+| **Aguardar Angular renderizar** | `Fix/core.py` | `aguardar_renderizacao_nativa(driver, sel)` |
+| Preencher campo Angular Material | `Fix/core.py` | `preencher_campo(driver, sel, valor)` |
+| Selecionar opção (mat-select) | `Fix/core.py` | `selecionar_opcao(driver, sel, valor)` |
+| Scroll seguro (headless) | `Fix/browser_suporte.py` | `scroll_to_element_safe` |
+| Retry genérico | `Fix/core.py` | `com_retry(fn, log=True)` |
+| Busca inteligente de seletor | `Fix/core.py` | `buscar_seletor_robusto`, `encontrar_elemento_inteligente` |
+
+### API REST PJe
+
+| Tarefa | Arquivo | Função/Símbolo |
+|---|---|---|
+| Cliente API principal | `Fix/variaveis.py` | `PjeApiClient` |
+| Ponte Selenium→requests | `Fix/variaveis.py` | `session_from_driver` |
+| GIGS com fase | `Fix/variaveis.py` | `obter_gigs_com_fase` |
+| Texto de documento | `Fix/variaveis.py` | `obter_texto_documento` |
+| Domicílio eletrônico | `Fix/variaveis.py` | `obter_domicilio_eletronico_parte`, `verificar_domicilio_eletronico_partes` |
+| BNDT (API) | `Fix/variaveis.py` | `verificar_bndt` |
+| Timeline/documentos | `Fix/variaveis.py` | `PjeApiClient` (métodos) |
+
+### Extração & Dados
+
+| Tarefa | Arquivo | Função/Símbolo |
+|---|---|---|
+| Extrair PDF | `Fix/extracao.py` | `extrair_pdf` |
+| Extrair documento HTML/PDF | `Fix/extracao.py` | `extrair_documento`, `extrair_direto` |
+| Extrair dados do processo | `Fix/extracao.py` | `extrair_dados_processo` |
+| Criar GIGS/comentário | `Fix/extracao.py` | `criar_gigs`, `criar_comentario` |
+| BNDT (DOM) | `Fix/extracao.py` | `bndt` |
+| Indexar processos | `Fix/extracao.py` | `indexar_processos`, `indexar_e_processar_lista` |
+
+### CKEditor & Clipboard
+
+| Tarefa | Arquivo | Função/Símbolo |
+|---|---|---|
+| Inserir HTML no editor | `Fix/utils.py` | `inserir_html_editor` |
+| Coletar conteúdo formatado | `Fix/utils.py` | `coletar_conteudo_formatado_documento` |
+| Clipboard interno | `Fix/utils.py` | `obter_ultimo_conteudo_clipboard`, `salvar_conteudo_clipboard` |
+
+### Logging & Diagnóstico
+
+| Tarefa | Arquivo | Função/Símbolo |
+|---|---|---|
+| Logger estruturado | `Fix/diagnostico_runtime.py` | `PJELogger`, `log_start`, `log_sucesso`, `log_erro` |
+| Debug interativo | `Fix/diagnostico_runtime.py` | `DebugInterativo`, `get_debug_interativo` |
+| Medir tempo (decorator) | `Fix/core.py` | `medir_tempo` — ativar com `PJEPLUS_TIME=1` |
+
+### Entry Points de Negócio (chamados por `x.py`)
+
+| Fluxo | Arquivo | Função |
+|---|---|---|
+| Mandado | `Mandado/entrada_api.py` | `processar_mandados_devolvidos_api` |
+| Prazo | `Prazo/loop_orquestrador.py` | `loop_prazo` |
+| P2B (GIGS sem prazo) | `Prazo/p2b_gateway.py` | `processar_gigs_sem_prazo_p2b` |
+| PEC | `PEC/runtime_pec.py` | `executar_fluxo_novo_simplificado` |
+| Triagem | `bianca/triagem_engine.py` | `run_triagem` |
+| Petição | `Peticao/runtime_pet.py` | `run_pet` |
+| SISBAJUD | `SISB/core.py` | `iniciar_sisbajud` |
+| DOM | `bianca/dom_engine.py` | `run_dom` |
+
+### Atos Judiciais & Comunicação
+
+| Tarefa | Arquivo | Função/Símbolo |
+|---|---|---|
+| Ato judicial (motor) | `atos/judicial_fluxo.py` | `fluxo_cls`, `ato_judicial`, `make_ato_wrapper` |
+| 45+ atos prontos | `atos/wrappers_ato.py` | `ato_bloq`, `ato_pesqliq`, `ato_prev`, `ato_ccs`… |
+| Comunicação judicial | `atos/comunicacao.py` | `comunicacao_judicial`, `make_comunicacao_wrapper` |
+| 19+ wrappers PEC | `atos/wrappers_pec.py` | `pec_ord`, `pec_sum`, `pec_bloqueio`… |
+| Movimentar processo | `atos/movimentos_fluxo.py` | `mov`, `mov_simples`, `movimentar_inteligente` |
+| Navegar entre tarefas | `atos/movimentos_navegacao.py` | `navegar_para_tarefa` |
+
+### Scripts JS & PJeTools (pastas `scripts/` e `Script/`)
+
+| Tarefa | Arquivo |
+|---|---|
+| Cliente API REST PJe (JS) | `scripts/pjeapi.js` |
+| Auditor de triagem | `scripts/aud_triagem_buckets_iife.js` |
+| Probe de painel/API | `scripts/probe_painel_api_iife.js` |
+| Gerar bookmarklets | `scripts/gerar_bookmarklets.py` |
+| **PJeTools Orquestrador TM** | `Script/pjetools.user.js` |
+| **Motor de Ações Automatizadas (AutoActions)** | `Script/autoactions/autoactions.js` (`window.PjeAutoActions`) |
+| ↳ Submotor GIGS (criar/concluir atividade) | `Script/autoactions/gigs_engine.js` |
+| ↳ Submotor Despacho (conclusão/minuta/modelo) | `Script/autoactions/despacho_engine.js` |
+| ↳ Submotor Anexar (certidão/editor/assinatura) | `Script/autoactions/anexar_engine.js` |
+| **Elaboração de Alvará (Orquestrador TM)** | `alv.user.js` / `alv.js` |
+| ↳ Módulos de Alvará (extração, estado, minuta) | `Script/alvara/` (`minuta.js`, `overlay.js`, `extracao.js`) |
 
 ---
 
@@ -73,6 +194,51 @@ Q13: X envolve anexos/juntada de documentos?
   → SIM: PEC/anexos/anexos_juntador_base.py, PEC/anexos/anexos_wrappers.py
   → NÃO: buscar termo específico na Seção 5 (Índice de Palavras-Chave)
 ```
+
+---
+
+## 0.5 Fluxo Prioritário — `pw.py` + `scripts/`
+
+> **Prioridade máxima para agentes IA:** Qualquer tarefa que envolva o executor ou scripts JS auxiliares deve começar aqui antes de qualquer outro módulo.
+
+### Executor Principal (`pw.py`)
+
+`pw.py` é o **ponto de entrada real** do PJePlus — não `x.py` diretamente.
+
+```
+pw.py
+  → inicializa pjeplay (backend Playwright) ou Selenium baseline
+  → Fix/monitoramento_progresso_unificado.py: limpar_progresso_antigos()
+  → x.py: main()  ← orquestrador de fluxos de negócio
+  → play/medicao: gravar relatório em play/medicoes/
+```
+
+| Flag | Comportamento |
+|---|---|
+| `py pw.py` | Playwright nativo ligado (padrão) |
+| `py pw.py --selenium` | Baseline Selenium para comparação |
+| `py pw.py --trace` | Gera `play/medicoes/<rotulo>.zip` com trace navegável |
+| `py pw.py --sem-nativo` | Playwright sem helpers nativos |
+| `py pw.py --comparar a.json b.json` | Compara dois relatórios de medição |
+
+**Regra P9 (crítica para PW):** imports de funções de interação DEVEM vir de `Fix.core`, nunca de `Fix.selenium_base` — `pjeplay.nativo.aplicar()` substitui as funções em `Fix.core` via `setattr`; a cópia em `Fix.selenium_base` permanece congelada.
+
+**Backend Playwright:** `play/pjeplay/` — implementa superfície WebDriver sobre Playwright, registrado em `sys.modules` no lugar do `selenium`. Entrada: `py pw.py`. Verificação: `py play/smoke.py --projeto`.
+
+### Pasta `scripts/` — Scripts Auxiliares
+
+| Arquivo | Tipo | Papel |
+|---|---|---|
+| `pjeapi.js` | JS (30 KB) | Cliente da API REST PJe — endpoints, fetch, autenticação |
+| `aud_triagem_buckets_iife.js` | JS IIFE | Auditor de triagem — classifica processos em buckets |
+| `probe_painel_api_iife.js` | JS IIFE | Probe do painel API — mapeia seletores e endpoints durante navegação |
+| `gerar_bookmarklets.py` | Python | Gerador de bookmarklets — lê fontes JS e compila `.txt` minificados |
+| `pjeplus_profile_functions.ps1` | PowerShell | Funções de perfil — helpers de sessão/driver para scripts PS |
+| `migrate_selectores_frios.py` | Python | Migrador de seletores frios — move entradas de `seletores_frios.json` |
+| `check_try.py` | Python | Checker de try/except — detecta padrões `return False` silenciosos |
+| `bookmarklet_dom_filtros.txt` | Bookmarklet | Filtros DOM — aplica filtros no painel do PJe |
+
+**Regra para scripts JS:** scripts IIFE em `scripts/` são executados no DevTools ou via `driver.execute_script()`. Nunca embutir seu conteúdo em f-string Python — usar `carregar_js()` de `Fix/scripts/__init__.py`.
 
 ---
 
@@ -546,17 +712,18 @@ git show 2ab0fca:<caminho/do/arquivo.py>
 
 ## 11. Ferramentas e Suporte
 
-| Diretório | Descrição |
+| Diretório/Arquivo | Descrição |
 |---|---|
+| `pw.py` | **Executor principal** — ponto de entrada real do PJePlus (ver Seção 0.5) |
+| `x.py` | Orquestrador de fluxos de negócio — chamado por `pw.py` |
+| `scripts/` | Scripts auxiliares JS/Python (ver Seção 0.5 para catálogo completo) |
+| `play/pjeplay/` | Backend Playwright — superfície WebDriver nativa. Entrada: `py pw.py` |
 | `Agente/` | Extensão VSCode para PJePlus (TypeScript) |
 | `AHK/` | Scripts AutoHotKey (UX Windows) |
-| `scripts/` | Scripts auxiliares |
-| `tools/` | Ferramentas de diagnóstico e análise — inclui `tools/pje_probe.user.js` (userscript "PJe Probe": grava seletores clicados + endpoints fetch/XHR durante navegação manual, para mapear fluxos antes de automatizar) |
-| `docs/` | Documentação complementar |
-| `play/` | Backend **Playwright** (`play/pjeplay/`) — implementa a superfície WebDriver sobre Playwright e se registra em `sys.modules` no lugar do `selenium`. Não é cópia do projeto: `Fix/`, `atos/`, `PEC/` etc. rodam sem alteração. Entrada: `py pw.py` (executor na raiz); verificação: `py play/smoke.py --projeto`. Detalhes em `play/README.md`. ⚠️ **Regra P9 é crítica para PW:** imports de funções de interação devem vir de `Fix.core`, nunca de `Fix.selenium_base` (cópia congelada pré-`nativo.aplicar()`). |
+| `tools/` | Ferramentas de diagnóstico — `tools/pje_probe.user.js` grava seletores/endpoints durante navegação |
 | `xcode/` | Plano de simplificação (9 docs + README) |
 | `_archive/` | Código removido/legado organizado por data |
-| `ref/` | Referência externa e manifests de arquitetura |
+| `ref/` | Referência externa e manifests de arquitetura (não editar) |
 | `cache/tessdata/` | Dados Tesseract OCR |
 | `logs_execucao/` | Logs de execução |
 | `cookies_sessoes/` | Cookies de sessão persistentes |

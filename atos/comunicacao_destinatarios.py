@@ -1,14 +1,10 @@
-from Fix.selenium_base.click_operations import safe_click_no_scroll
-from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable
-from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
+from Fix.core import safe_click_no_scroll, esperar_elemento, wait_for_clickable
+from Fix.core import aguardar_renderizacao_nativa
 from Fix.browser_suporte import click_headless_safe
 from Fix.utils import normalizar_texto as normalizar_string
 import re
 import json
-import time
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from Fix.log import log_seletor_multiplo, logger
 from Fix import espera
 
@@ -35,6 +31,122 @@ def _carregar_dadosatuais_local(caminho='dadosatuais.json'):
             return json.load(f)
     except Exception:
         return {}
+
+
+def _extrair_nomes_por_separador(observacao):
+    """Extrai lista de nomes após o delimitador '>' na observação do GIGS.
+
+    Formato esperado: '<prefixo> >nome1, nome2, ...'
+    Ex.: 'xs mddid >murillo, silas' → ['murillo', 'silas']
+
+    Retorna lista vazia se não houver '>' ou nenhum token válido após ele.
+    """
+    if not observacao or '>' not in observacao:
+        return []
+    _, _, parte_nomes = observacao.partition('>')
+    nomes = [n.strip() for n in parte_nomes.split(',') if n.strip()]
+    return [n for n in nomes if len(n) >= 2]
+
+
+def _resolver_candidatos_via_api(driver, nomes_alvo, numero_processo=None, debug=False, log=None):
+    """Confirma destinatários fazendo GET /pje-comum-api/api/processos/id/{id}/partes.
+
+    Recebe nomes_alvo (lista de strings, ex: ['murillo', 'silas']) e retorna
+    apenas as partes cujos nomes dão match com ao menos um token de nomes_alvo.
+    Não usa DOM nem JSON local — apenas a API.
+
+    Retorna lista de dicts no formato esperado por selecionar_destinatario_por_documento.
+    """
+    if log is None:
+        def log(_msg): return None
+
+    if not nomes_alvo:
+        return []
+
+    tokens_alvo = [
+        _normalizar_nome_para_match(n)
+        for n in nomes_alvo
+        if n and len(n.strip()) >= 2
+    ]
+    if not tokens_alvo:
+        return []
+
+    try:
+        from Fix.variaveis import PjeApiClient, session_from_driver
+        sess = session_from_driver(driver)
+        client = PjeApiClient(sess)
+
+        # Resolver ID do processo a partir do número CNJ se necessário
+        id_processo = None
+        if numero_processo:
+            try:
+                id_processo = client.id_processo_por_numero(str(numero_processo))
+            except Exception as e:
+                log(f'[DESTINATARIOS][WARN] Falha ao resolver id_processo via API: {e}')
+
+        if not id_processo:
+            log('[DESTINATARIOS][WARN] id_processo não disponível — match via API ignorado')
+            return []
+
+        partes_raw = client.partes(str(id_processo))
+        if not partes_raw:
+            log('[DESTINATARIOS][WARN] API /partes retornou vazio')
+            return []
+
+        if debug:
+            log(f'[DESTINATARIOS][DEBUG] API retornou {len(partes_raw)} parte(s); tokens alvo: {tokens_alvo}')
+
+        candidatos = []
+        vistos = set()
+        for parte in partes_raw:
+            nome = (parte.get('nome') or parte.get('nomeParte') or '').strip()
+            doc = (
+                parte.get('cpfCnpj') or parte.get('cpfcnpj')
+                or parte.get('documento') or ''
+            ).strip()
+            polo = (parte.get('polo') or parte.get('tipoPolo') or '').lower()
+
+            if not nome:
+                continue
+
+            nome_norm = _normalizar_nome_para_match(nome)
+            tokens_nome = set(re.findall(r'[a-z0-9]+', nome_norm))
+
+            # Match: ao menos um token do nome_alvo presente nos tokens do nome da parte
+            matched_alvo = None
+            for token_alvo in tokens_alvo:
+                tokens_do_alvo = set(re.findall(r'[a-z0-9]+', token_alvo))
+                if tokens_do_alvo & tokens_nome:  # interseção não vazia
+                    matched_alvo = token_alvo
+                    break
+
+            if matched_alvo is None:
+                if debug:
+                    log(f'[DESTINATARIOS][DEBUG] Sem match: parte="{nome}" tokens={list(tokens_nome)}')
+                continue
+
+            chave = (nome_norm, re.sub(r'\D', '', doc))
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+
+            log(f'[DESTINATARIOS] Match confirmado via API: "{nome}" (polo={polo or "?"})')
+            candidatos.append({
+                'nome_oficial': nome,
+                'nome_identificado': matched_alvo,
+                'documento': doc,
+                'documento_normalizado': re.sub(r'\D', '', doc),
+                'polo': polo,
+            })
+
+        if not candidatos:
+            log(f'[DESTINATARIOS][WARN] Nomes {nomes_alvo} não encontrados nas partes via API — não é destinatário')
+
+        return candidatos
+
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Falha em _resolver_candidatos_via_api: {e}')
+        return []
 
 
 def _montar_destinatarios_por_observacao(observacao, dados_processo, debug=False):
@@ -159,6 +271,56 @@ def _clicar_botao_polo_passivo(driver, log, qtd_cliques=1):
         log(f'[DESTINATARIOS][ERRO] Falha ao clicar no botão polo passivo (fallback): {e}')
 
 
+
+# Seletores do botão "acrescentar parte" — ordenados por especificidade (Probe: button.icone-clicavel)
+# O Probe confirmou: class="...icone-clicavel mat-icon-button mat-button-base..."
+# button[mat-icon-button] fica por último: pega edit/delete também se mal-escoped
+_SELETORES_BTN_ACRESCENTAR = [
+    'button.icone-clicavel[mattooltip*="acrescentar"]',          # mais específico: classe + tooltip
+    'button.icone-clicavel[aria-label*="acrescentar"]',          # classe + aria-label
+    'button[mattooltip*="acrescentar"]',                          # só tooltip
+    'button[aria-label*="acrescentar"]',                          # só aria-label
+    'button[aria-label="Clique para acrescentar esta parte à lista de destinatários de expedientes e comunicações."]',
+    'button.icone-clicavel',                                      # fallback por classe
+]
+
+
+def _clicar_btn_acrescentar(driver, linha, qtd_cliques, debug=False):
+    """Localiza e clica no botão 'acrescentar' dentro de uma linha/row do painel de partes.
+
+    Retorna True se clicou, False se não encontrou o botão.
+    """
+    btn_seta = None
+    for seletor in _SELETORES_BTN_ACRESCENTAR:
+        log_seletor_multiplo('[DESTINATARIOS]', seletor, 'TENTATIVA')
+        try:
+            btn_seta = linha.find_element(By.CSS_SELECTOR, seletor)
+            log_seletor_multiplo('[DESTINATARIOS]', seletor, 'SUCESSO')
+            break
+        except Exception as e:
+            log_seletor_multiplo('[DESTINATARIOS]', seletor, 'FALHA', str(e))
+            continue
+
+    if not btn_seta:
+        return False
+
+    try:
+        clickable = driver.execute_script(
+            "return (arguments[0].closest && arguments[0].closest('button')) || arguments[0];",
+            btn_seta
+        )
+        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
+        for _ in range(qtd_cliques):
+            safe_click_no_scroll(driver, clickable, log=False)
+    except Exception:
+        try:
+            for _ in range(qtd_cliques):
+                btn_seta.click()
+        except Exception:
+            return False
+    return True
+
+
 def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False, timeout=10, qtd_cliques=1):
     qtd_cliques = 2 if str(qtd_cliques).strip().lower() in ('2', '2x') else 1
     try:
@@ -177,152 +339,71 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
         doc_digits = re.sub(r'\D', '', doc_normalizado or documento_alvo or '')
 
         try:
-            # Prefer observer to wait rows (fast)
             try:
                 ok = aguardar_renderizacao_nativa(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', modo='aparecer', timeout=timeout)
             except Exception:
                 ok = False
-            if ok:
-                linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
+            linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
             if not linhas:
                 esperar_elemento(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', timeout=timeout, by=By.CSS_SELECTOR)
                 linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
         except Exception:
             linhas = driver.find_elements(By.CSS_SELECTOR, 'mat-row, .pec-partes-polo li, ul.sem-padding li')
 
-        candidatos = []
-        for linha in linhas:
-            try:
-                texto_linha = linha.text or ''
-                texto_normalizado = re.sub(r'\D', '', texto_linha)
-                if doc_digits and doc_digits in texto_normalizado:
-                    candidatos.append((linha, texto_linha))
-            except Exception:
-                continue
-
-        # tentativa por documento primeiro
-        if candidatos:
-            nome_alvo_norm = normalizar_string(nome_alvo) if nome_alvo else ''
-            best = None
-            best_score = -1
-            for linha, texto_linha in candidatos:
+        # --- tentativa por documento ---
+        if doc_digits:
+            candidatos = []
+            for linha in linhas:
                 try:
-                    score = 20
-                    nome_span = None
-                    try:
-                        nome_span = linha.find_element(By.CSS_SELECTOR, '.nome-parte, .nome-tipo-parte, .pec-formatacao-padrao-dados-parte.nome-parte')
-                    except Exception:
-                        nome_span = None
-
-                    if nome_span:
-                        nome_linha = normalizar_string(nome_span.text or '')
-                        if nome_alvo_norm and nome_linha == nome_alvo_norm:
-                            score += 40
-                        elif nome_alvo_norm and nome_alvo_norm in nome_linha:
-                            score += 15
-                    else:
-                        if nome_alvo_norm and nome_alvo_norm in normalizar_string(texto_linha):
-                            score += 10
-
-                    try:
-                        texto_norm = normalizar_string(texto_linha)
-                        doc_pos = texto_norm.find(re.sub(r'\D', '', doc_digits)) if doc_digits else -1
-                    except Exception:
-                        doc_pos = -1
-                    try:
-                        nome_pos = texto_norm.find(nome_alvo_norm) if nome_alvo_norm else -1
-                    except Exception:
-                        nome_pos = -1
-                    if doc_pos >= 0 and nome_pos >= 0 and abs(doc_pos - nome_pos) < 80:
-                        score += 5
-
-                    if 'advogado' in texto_linha.lower() and nome_alvo_norm and len(nome_alvo_norm.split()) >= 2:
-                        score -= 2
-
-                    if score > best_score:
-                        best_score = score
-                        best = linha
+                    texto_linha = linha.text or ''
+                    if doc_digits in re.sub(r'\D', '', texto_linha):
+                        candidatos.append((linha, texto_linha))
                 except Exception:
                     continue
 
-            if best is not None:
-                # buscar botão de acrescentar dentro do row
-                seletores_seta = [
-                    'button[mattooltip*="acrescentar"]',
-                    'button[aria-label*="acrescentar"]',
-                    'button .fa-arrow-circle-down',
-                    'button[mat-icon-button]',
-                ]
-                btn_seta = None
-                for seletor in seletores_seta:
-                    log_seletor_multiplo('[DESTINATARIOS]', seletor, 'TENTATIVA')
+            if candidatos:
+                nome_alvo_norm = normalizar_string(nome_alvo) if nome_alvo else ''
+                best = None
+                best_score = -1
+                for linha, texto_linha in candidatos:
                     try:
-                        btn_seta = best.find_element(By.CSS_SELECTOR, seletor)
-                        log_seletor_multiplo('[DESTINATARIOS]', seletor, 'SUCESSO')
-                        break
-                    except Exception as e:
-                        log_seletor_multiplo('[DESTINATARIOS]', seletor, 'FALHA', str(e))
-                        continue
-                if btn_seta:
-                    try:
-                        clickable = driver.execute_script("return (arguments[0].closest && arguments[0].closest('button')) || arguments[0];", btn_seta)
-                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
-                        for _ in range(qtd_cliques):
-                            safe_click_no_scroll(driver, clickable, log=False)
-                    except Exception:
+                        score = 20
                         try:
-                            for _ in range(qtd_cliques):
-                                btn_seta.click()
+                            nome_span = linha.find_element(By.CSS_SELECTOR, '.nome-parte, .nome-tipo-parte, .pec-formatacao-padrao-dados-parte.nome-parte')
+                            nome_linha = normalizar_string(nome_span.text or '')
+                            if nome_alvo_norm and nome_linha == nome_alvo_norm:
+                                score += 40
+                            elif nome_alvo_norm and nome_alvo_norm in nome_linha:
+                                score += 15
                         except Exception:
-                            pass
-                    if debug:
-                        logger.info(f"[DESTINATARIOS]  Parte selecionada via documento (melhor candidato): {documento_alvo}")
-                    return {'status': 'ok', 'count': 1}
+                            if nome_alvo_norm and nome_alvo_norm in normalizar_string(texto_linha):
+                                score += 10
 
-        # tentativa por nome
+                        if 'advogado' in texto_linha.lower() and nome_alvo_norm and len(nome_alvo_norm.split()) >= 2:
+                            score -= 2
+
+                        if score > best_score:
+                            best_score = score
+                            best = linha
+                    except Exception:
+                        continue
+
+                if best is not None:
+                    if _clicar_btn_acrescentar(driver, best, qtd_cliques, debug=debug):
+                        if debug:
+                            logger.info(f"[DESTINATARIOS] Parte selecionada via documento: {documento_alvo}")
+                        return {'status': 'ok', 'count': 1}
+
+        # --- tentativa por nome ---
         if nome_alvo:
             nome_alvo_norm = normalizar_string(nome_alvo)
             for linha in linhas:
                 try:
-                    texto_linha = linha.text or ''
-                    texto_norm = normalizar_string(texto_linha)
+                    texto_norm = normalizar_string(linha.text or '')
                     if nome_alvo_norm and (nome_alvo_norm in texto_norm or _partial_name_match(nome_alvo_norm, texto_norm)):
-                        seletores_seta = [
-                            'button[mattooltip*="acrescentar"]',
-                            'button[aria-label*="acrescentar"]',
-                            'button .fa-arrow-circle-down',
-                            'button[mat-icon-button]'
-                        ]
-                        btn_seta = None
-                        for seletor in seletores_seta:
-                            log_seletor_multiplo('[DESTINATARIOS]', seletor, 'TENTATIVA')
-                            try:
-                                btn_seta = linha.find_element(By.CSS_SELECTOR, seletor)
-                                log_seletor_multiplo('[DESTINATARIOS]', seletor, 'SUCESSO')
-                                break
-                            except Exception as e:
-                                log_seletor_multiplo('[DESTINATARIOS]', seletor, 'FALHA', str(e))
-                                continue
-                        if btn_seta:
-                            try:
-                                clickable = driver.execute_script(
-                                    "return (arguments[0].closest && arguments[0].closest('button')) || arguments[0];",
-                                    btn_seta
-                                )
-                                driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
-                                for _ in range(qtd_cliques):
-                                    safe_click_no_scroll(driver, clickable, log=False)
-                            except Exception:
-                                try:
-                                    for _ in range(qtd_cliques):
-                                        btn_seta.click()
-                                except Exception:
-                                    pass
+                        if _clicar_btn_acrescentar(driver, linha, qtd_cliques, debug=debug):
                             if debug:
-                                try:
-                                    logger.info(f"[DESTINATARIOS]  Parte selecionada via nome: {nome_alvo}")
-                                except Exception:
-                                    pass
+                                logger.info(f"[DESTINATARIOS] Parte selecionada via nome: {nome_alvo}")
                             return {'status': 'ok', 'count': 1}
                 except Exception:
                     continue
@@ -480,6 +561,11 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     qtd_informado = 2 if str(cliques_informado).strip().lower() in ('2', '2x') else 1
     qtd_cliques_fallback = 2 if str(cliques_polo_passivo).strip().lower() in ('2', '2x') else 1
 
+    # Variante 'informado_2' ou 'informado 2' → 2 cliques; normaliza para 'informado'
+    if isinstance(destinatarios, str) and re.match(r'^informado[\s_]2$', destinatarios.strip(), re.I):
+        destinatarios = 'informado'
+        qtd_informado = 2
+
     # Roteamento principal
     if destinatarios is None:
         log('[DESTINATARIOS] Parâmetro None - pulando seleção')
@@ -501,17 +587,38 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
     if destinatarios == 'informado':
-        log('[DESTINATARIOS] OPÇÃO INFORMADO: cruzando observação com dados do processo')
+        log('[DESTINATARIOS] OPÇÃO INFORMADO: extraindo nomes via separador ">" e confirmando via API')
         try:
-            if not dados_processo:
-                try:
-                    from Fix.extracao_processo import extrair_dados_processo
-                    dados_processo = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
-                except Exception:
-                    dados_processo = _carregar_dadosatuais_local('dadosatuais.json')
+            # 1. Tentar extração precisa pelo separador '>'
+            nomes_separador = _extrair_nomes_por_separador(observacao or '')
 
-            candidatos = _montar_destinatarios_por_observacao(observacao, dados_processo, debug=debug)
-            return _selecionar_por_lista(driver, candidatos, 'observação', log, fallback_polo_passivo=True, qtd_seta_override=qtd_informado, debug=debug, qtd_cliques_fallback=qtd_cliques_fallback)
+            if nomes_separador:
+                log(f'[DESTINATARIOS] Nomes extraídos via ">": {nomes_separador}')
+                candidatos = _resolver_candidatos_via_api(
+                    driver,
+                    nomes_separador,
+                    numero_processo=numero_processo,
+                    debug=debug,
+                    log=log,
+                )
+            else:
+                # 2. Fallback: modo tokens livres (comportamento legado) sobre dados_processo
+                log('[DESTINATARIOS] Sem separador ">" — modo tokens livres (legado)')
+                if not dados_processo:
+                    try:
+                        from Fix.extracao_processo import extrair_dados_processo
+                        dados_processo = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
+                    except Exception:
+                        dados_processo = _carregar_dadosatuais_local('dadosatuais.json')
+                candidatos = _montar_destinatarios_por_observacao(observacao, dados_processo, debug=debug)
+
+            return _selecionar_por_lista(
+                driver, candidatos, 'informado/api', log,
+                fallback_polo_passivo=True,
+                qtd_seta_override=qtd_informado,
+                debug=debug,
+                qtd_cliques_fallback=qtd_cliques_fallback,
+            )
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha no modo informado: {e}')
             return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})

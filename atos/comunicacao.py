@@ -160,15 +160,9 @@ def make_comunicacao_wrapper(
         # Se o modo for 'informado' — primeiro garantir que os dados do processo
         # estejam disponíveis (populando dadosatuais.json).
         # A observação será extraída APÓS a minuta ser confeccionada.
-        dados_processo_wrapper = None
-        if destinatarios_param == 'informado':
-            try:
-                from Fix.extracao_processo import extrair_dados_processo
-                logger.info('[COMUNICACAO][ORQUESTRA] Extraindo dados do processo (informado)')
-                dados_processo_wrapper = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
-                logger.info(f"[COMUNICACAO][ORQUESTRA] extrair_dados_processo retornou tipo={type(dados_processo_wrapper)}; reu_count={len(dados_processo_wrapper.get('reu', [])) if isinstance(dados_processo_wrapper, dict) else 'N/A'}")
-            except Exception as e:
-                logger.info(f"[COMUNICACAO][ORQUESTRA][WARN] Falha ao extrair dados: {e}")
+        # Modo 'informado': a observacao vem do wrapper via parâmetro.
+        # A resolução de partes é feita via API em comunicacao_destinatarios._resolver_candidatos_via_api.
+        # Nenhuma extração de DOM/JSON é necessária aqui.
 
         call_kwargs = {
             'driver': driver,
@@ -233,18 +227,11 @@ def make_comunicacao_wrapper(
                 log=log_fn
             )
 
-            # 2.5. APÓS minuta confeccionada — extrair observação para modo 'informado'
-            if destinatarios_param == 'informado':
-                observacao_gigs = _extrair_observacao_gigs_vencida_xs_pec(driver, debug=debug)
-                if observacao_gigs:
-                    log_fn(f"[COMUNICACAO][GIGS] Observação extraída após minuta: '{observacao_gigs}'")
-                    observacao = observacao_gigs
-                else:
-                    if not observacao or not (isinstance(observacao, str) and observacao.strip()):
-                        log_fn('[COMUNICACAO][GIGS][WARN] Observação não localizada para informado - fallback polo passivo 2x')
-                        destinatarios_param = 'polo_passivo_2x'
-                    else:
-                        log_fn(f'[COMUNICACAO][GIGS] Usando observação fornecida: "{observacao}"')
+            # 2.5. Modo 'informado': observacao já vem do wrapper (parâmetro).
+            # A resolução dos destinatários via API ocorre em selecionar_destinatarios.
+            if destinatarios_param == 'informado' and not (observacao and isinstance(observacao, str) and observacao.strip()):
+                log_fn('[COMUNICACAO][GIGS][WARN] Modo informado sem observacao — fallback polo passivo 2x')
+                destinatarios_param = 'polo_passivo_2x'
 
             # 2.8. Barreira geral: dialog de modelo fechado + UI estável
             #      antes de escolher destinatários (evita corrida de cliques).
@@ -264,7 +251,6 @@ def make_comunicacao_wrapper(
                 observacao=observacao,
                 numero_processo=numero_processo,
                 terceiro=call_kwargs.get('terceiro', False),
-                dados_processo=dados_processo_wrapper
             )
 
             # 3.5. Validar seleção e aguardar renderização da tabela
@@ -312,7 +298,6 @@ def make_comunicacao_wrapper(
                             observacao=observacao,
                             numero_processo=numero_processo,
                             terceiro=call_kwargs.get('terceiro', False),
-                            dados_processo=dados_processo_wrapper
                         )
                         linhas_ok = aguardar_renderizacao_nativa(
                             driver, 'tbody.cdk-drop-list tr.cdk-drag', 'aparecer', 15

@@ -1,4 +1,4 @@
-// pdf.compress.js — Módulo PJeTools: Ajustar PDF v1.0.0
+// pdf.compress.js — Módulo PJeTools: Ajustar PDF v1.0.1
 // Comprime PDF e divide em partes de até 9,5 MB para envio no PJe
 (function () {
     'use strict';
@@ -156,6 +156,7 @@
     /**
      * Divide um PDF em partes de até maxBytes bytes, agrupando páginas.
      * Retorna array de Uint8Array (uma por parte).
+     * API correta pdf-lib: destDoc.copyPages(srcDoc, [indices])
      */
     async function _dividirPdf(sourceBytes, maxBytes) {
         const { PDFDocument } = PDFLib;
@@ -167,41 +168,44 @@
         _setStatus(`Dividindo em partes (${totalPages} págs.)...`, 50);
 
         while (pageIdx < totalPages) {
-            // Estratégia: binária — tenta adicionar o máximo de páginas possível
-            let lo = 1, hi = totalPages - pageIdx, melhores = null;
+            // Busca binária: máximo de páginas que cabe em maxBytes
+            let lo = 1, hi = totalPages - pageIdx;
+            let melhoreBytes = null, melhorCount = 0;
 
             while (lo <= hi) {
-                const mid   = Math.floor((lo + hi) / 2);
-                const chunk = await PDFDocument.create();
-                const cpIdx = Array.from({ length: mid }, (_, i) => pageIdx + i);
-                const pages = await chunk.copyPagesFrom(sourceDoc, cpIdx);
+                const mid    = Math.floor((lo + hi) / 2);
+                const cpIdx  = Array.from({ length: mid }, (_, i) => pageIdx + i);
+                const chunk  = await PDFDocument.create();
+                // ✅ API correta: copyPages(sourceDoc, indices) retorna array de páginas
+                const pages  = await chunk.copyPages(sourceDoc, cpIdx);
                 pages.forEach(p => chunk.addPage(p));
-                const bytes = await chunk.save({ useObjectStreams: true });
+                const bytes  = await chunk.save({ useObjectStreams: true });
 
                 if (bytes.length <= maxBytes) {
-                    melhores = bytes;
+                    melhoreBytes = bytes;
+                    melhorCount  = mid;
                     lo = mid + 1;
                 } else {
                     hi = mid - 1;
                 }
             }
 
-            // Fallback: se nem 1 página cabe, inclui assim mesmo
-            if (!melhores) {
+            // Fallback: se nem 1 página cabe, inclui ela sozinha mesmo assim
+            if (!melhoreBytes) {
                 const chunk = await PDFDocument.create();
-                const [p]   = await chunk.copyPagesFrom(sourceDoc, [pageIdx]);
+                const [p]   = await chunk.copyPages(sourceDoc, [pageIdx]);
                 chunk.addPage(p);
-                melhores = await chunk.save({ useObjectStreams: true });
-                _log(`Aviso: página ${pageIdx + 1} sozinha excede o limite (${(melhores.length / 1024 / 1024).toFixed(2)} MB)`);
+                melhoreBytes = await chunk.save({ useObjectStreams: true });
+                melhorCount  = 1;
+                _log(`Aviso: pág. ${pageIdx + 1} sozinha → ${(melhoreBytes.length / 1024 / 1024).toFixed(2)} MB`);
             }
 
-            const pagesInChunk = await PDFDocument.load(melhores).then(d => d.getPageCount());
-            partes.push(melhores);
+            partes.push(melhoreBytes);
             _setStatus(
-                `Parte ${partes.length}: ${(melhores.length / 1024 / 1024).toFixed(2)} MB (${pagesInChunk} págs.)`,
-                50 + Math.round((pageIdx / totalPages) * 45)
+                `Parte ${partes.length}: ${(melhoreBytes.length / 1024 / 1024).toFixed(2)} MB (${melhorCount} págs.)`,
+                50 + Math.round(((pageIdx + melhorCount) / totalPages) * 45)
             );
-            pageIdx += pagesInChunk;
+            pageIdx += melhorCount;
         }
 
         return partes;
@@ -275,5 +279,5 @@
 
     // Expor globalmente para ser chamado pelo painel
     window.executarAjustarPDF = executarAjustarPDF;
-    _log('Módulo carregado (v1.0.0).');
+    _log('Módulo carregado (v1.0.1).');
 })();

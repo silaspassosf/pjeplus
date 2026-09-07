@@ -436,7 +436,9 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     # Estrategia 3: JavaScript click (fallback final)
     try:
         element = driver.find_element(by, selector)
-        safe_click_no_scroll(driver, element)
+        driver.execute_script("arguments[0].scrollIntoView({block:'center', inline:'center'});", element)
+        if not safe_click_no_scroll(driver, element):
+            element.click()
         espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos click JS
         return True
     except Exception as e:
@@ -514,10 +516,14 @@ def finalizar_otimizacoes():
 def safe_click_no_scroll(driver, element, log=False):
     """Click without scroll"""
     try:
-        driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true}))", element)
+        driver.execute_script("arguments[0].click();", element)
         return True
     except Exception:
-        return False
+        try:
+            driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true}))", element)
+            return True
+        except Exception:
+            return False
 
 
 # ============================================================

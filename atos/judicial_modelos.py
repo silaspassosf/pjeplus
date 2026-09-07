@@ -10,7 +10,7 @@ from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_
 from Fix.selenium_base.element_interaction import safe_click
 from Fix.selenium_base.wait_operations import esperar_url_conter
 from Fix.log import logger
-from Fix.core import safe_click_no_scroll
+from Fix.utils import remover_acentos
 from Fix import espera
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -49,10 +49,12 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
     """
     Escolhe o tipo de conclusão na tela de conclusão do processo.
     
-    ESTRATÉGIA SIMPLES (legacy approach):
-    - Procura botão com 3 estratégias
-    - Um ÚNICO clique com scrollIntoView + JS click
-    - Deixa que a página navegue naturalmente sem retry
+    ESTRATÉGIA (alinhada ao gigs-plugin.js aaDespacho):
+    - Estratégia 0: Container pje-concluso-tarefa-botao com remoção de acentos
+    - Estratégia 1: Botões internos em pje-concluso-tarefa-botao
+    - Estratégia 2: Procurar por texto visível (normalizado)
+    - Estratégia 3: Procurar por aria-label
+    - Um ÚNICO clique com scrollIntoView + safe_click_no_scroll
 
     Args:
         driver: WebDriver instance
@@ -62,7 +64,9 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
         bool: True se conseguiu escolher o tipo
     """
     try:
-        logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
+        conclusao_tipo = (conclusao_tipo or 'Despacho').strip()
+        tipo_norm = remover_acentos(conclusao_tipo).lower()
+        logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo} (norm: {tipo_norm})')
 
         # Aguardar presença dos botões de conclusão
         if not espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=10):
@@ -70,31 +74,54 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
 
         btn_tipo_conclusao = None
 
-        # Estratégia 1: Procurar em botões estruturados (pje-concluso-tarefa-botao)
+        # Estratégia 0 (Padrão gigs-plugin.js): Container pje-concluso-tarefa-botao comparando texto normalizado
         try:
-            candidatos = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button')
-            for btn in candidatos:
+            ancoras = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao')
+            for ancora in ancoras:
                 try:
-                    txt = (btn.text or '').strip()
-                    if txt and conclusao_tipo.lower() in txt.lower() and btn.is_displayed() and btn.is_enabled():
-                        btn_tipo_conclusao = btn
-                        break
+                    txt_ancora = remover_acentos(ancora.text or '').strip().lower()
+                    if tipo_norm in txt_ancora:
+                        btn_filho = ancora.find_elements(By.CSS_SELECTOR, 'button')
+                        if btn_filho and btn_filho[0].is_displayed() and btn_filho[0].is_enabled():
+                            btn_tipo_conclusao = btn_filho[0]
+                        elif ancora.is_displayed():
+                            btn_tipo_conclusao = ancora
+                        if btn_tipo_conclusao:
+                            logger.info(f'[CONCLUSÃO] Botão encontrado via container pje-concluso-tarefa-botao (Estratégia 0)')
+                            break
                 except Exception:
                     continue
         except Exception:
             pass
 
+        # Estratégia 1: Procurar em botões estruturados (pje-concluso-tarefa-botao button)
+        if not btn_tipo_conclusao:
+            try:
+                candidatos = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button')
+                for btn in candidatos:
+                    try:
+                        txt = remover_acentos(btn.text or '').strip().lower()
+                        if txt and tipo_norm in txt and btn.is_displayed() and btn.is_enabled():
+                            btn_tipo_conclusao = btn
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
         # Estratégia 2: Procurar por texto visível
         if not btn_tipo_conclusao:
             try:
-                xpath = f"//button[contains(normalize-space(text()), '{conclusao_tipo}')]"
-                btns = driver.find_elements(By.XPATH, xpath)
+                btns = driver.find_elements(By.CSS_SELECTOR, 'button')
                 for btn in btns:
                     try:
                         if btn.is_displayed() and btn.is_enabled():
-                            aria = (btn.get_attribute('aria-label') or '').lower()
+                            txt = remover_acentos(btn.text or '').strip().lower()
+                            aria = remover_acentos(btn.get_attribute('aria-label') or '').lower()
                             # Evitar botões de remoção/chips
-                            if 'remover' not in aria and 'fechar' not in aria and 'excluir' not in aria:
+                            if 'remover' in aria or 'fechar' in aria or 'excluir' in aria:
+                                continue
+                            if tipo_norm in txt or tipo_norm in aria:
                                 btn_tipo_conclusao = btn
                                 break
                     except Exception:
@@ -108,8 +135,8 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
                 btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
                 for btn in btns:
                     try:
-                        aria = (btn.get_attribute('aria-label') or '').lower()
-                        if conclusao_tipo.lower() in aria:
+                        aria = remover_acentos(btn.get_attribute('aria-label') or '').lower()
+                        if tipo_norm in aria:
                             if 'remover' not in aria and 'fechar' not in aria:
                                 if btn.is_displayed() and btn.is_enabled():
                                     btn_tipo_conclusao = btn
@@ -124,7 +151,6 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
             return False
 
         # ===== CLIQUE ÚNICO + SIMPLES (legacy approach) =====
-        # ScrollIntoView + JavaScript click direto, sem retry logic que interfere com page navigation
         logger.info(f'[CONCLUSÃO] Clicando em tipo de conclusão...')
         try:
             driver.execute_script('arguments[0].scrollIntoView({block: "center", behavior: "instant"});', btn_tipo_conclusao)

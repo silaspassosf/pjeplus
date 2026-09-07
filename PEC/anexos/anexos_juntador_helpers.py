@@ -55,10 +55,10 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
     driver = self.driver
     print('[JUNTADA][DEBUG] Abrindo interface de anexação...')
 
-    # 0. Já estamos na página de anexação? Não reabre (evita retry desnecessário).
+    # 0. Já estamos na página de anexação ou o campo já está visível? Prossegue direto.
     try:
-        if '/anexar' in driver.current_url:
-            print('[JUNTADA][DEBUG] Já na página /anexar, prosseguindo...')
+        if '/anexar' in driver.current_url or driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'):
+            print('[JUNTADA][DEBUG] Já na interface de anexação, prosseguindo...')
             return True
     except Exception:
         pass
@@ -74,11 +74,11 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
     if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
         return False
 
-    # 3. Aguarda a nova aba/janela (poll, sem corrida) e muda para ela
+    # 3. Aguarda a nova aba/janela e muda para ela
     print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
     nova_aba = None
     try:
-        nova_aba = aguardar_nova_aba(driver, handle_original, timeout=6)
+        nova_aba = aguardar_nova_aba(driver, handle_original, timeout=3)
     except Exception:
         nova_aba = None
 
@@ -106,18 +106,8 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
             driver.switch_to.window(handle_original)
             print('[JUNTADA][DEBUG] Aba /anexar não encontrada, prosseguindo na aba atual...')
 
-    # 4. Aguarda a interface de anexação renderizada (evita o retry lento)
-    try:
-        aguardar_renderizacao_nativa(driver, 'input[aria-label="Tipo de Documento"]', 'aparecer', 5)
-    except Exception:
-        pass
-    # Presença ≠ prontidão: a aba /anexar recém-aberta renderiza o input antes
-    # de o Angular habilitar o formulário — a 1ª tentativa falhava em preencher
-    # todos os campos e só a 2ª (pós refresh) funcionava.
-    try:
-        espera.ate_habilitar(driver, 'input[aria-label="Tipo de Documento"]', teto=8)
-    except Exception:
-        pass
+    # 4. Aguarda prontidão do formulário
+    espera.ate_habilitar(driver, 'input[aria-label="Tipo de Documento"]', teto=4)
     return True
 
 

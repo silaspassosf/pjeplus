@@ -60,6 +60,7 @@ def comunicacao_judicial(
     sigilo: str,
     modelo_nome: str,
     trocar_modelo: bool = False,
+    assinar: bool = False,
     **kwargs
 ) -> bool:
     """Função direta (não-wrapper) para manter compatibilidade com código existente."""
@@ -80,7 +81,8 @@ def comunicacao_judicial(
         mudar_expediente=kwargs.get('mudar_expediente'),
         checar_sp=kwargs.get('checar_sp'),
         endereco_tipo=kwargs.get('endereco_tipo'),
-        trocar_modelo=trocar_modelo
+        trocar_modelo=trocar_modelo,
+        assinar=kwargs.get('assinar', assinar)
     )
     debug_value = kwargs.pop('debug', False)
     terceiro_value = kwargs.pop('terceiro', False)
@@ -362,8 +364,11 @@ def make_comunicacao_wrapper(
 
             # 5. Salvar minuta final
             log_fn("[COMUNICACAO][ORQUESTRA] Salvando minuta final")
-            _assinar_efetivo = overrides.get('assinar', assinar)
-            salvar_minuta_final(driver, sigilo, debug=debug, log=log_fn, executar_visibilidade=False, assinar=_assinar_efetivo)
+            _assinar_efetivo = bool(overrides.get('assinar', assinar))
+            salvou_ok = salvar_minuta_final(driver, sigilo, debug=debug, log=log_fn, executar_visibilidade=False, assinar=_assinar_efetivo)
+            if not salvou_ok:
+                log_fn("[COMUNICACAO][ORQUESTRA][ERRO] Falha ao salvar/assinar minuta final.")
+                return False
 
             # Fechar a aba de minutas imediatamente após salvar/assinar
             try:

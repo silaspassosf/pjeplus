@@ -180,17 +180,18 @@ def fluxo_cls(
             logger.info('[CLS] Passo 3: Navegando para conclusão...')
             timing_nav_inicio = time.time()
             try:
-                # Tentar navegação com até 2 tentativas (fallback: refresh entre tentativas)
                 nav_ok = navegar_para_conclusao(driver)
                 if not nav_ok:
-                    logger.info('[CLS] Tentando refresh e nova navegação...')
-                    try:
-                        driver.refresh()
-                    except:
-                        pass
-                    nav_ok = navegar_para_conclusao(driver)
+                    # Espera assentamento sem dar F5 (F5 em /tarefa/ quebra o estado da SPA e invalida a rota)
+                    espera.assentar(driver, 2.0, motivo='recuperação conclusão')
+                    current_url = (driver.current_url or '').lower()
+                    if '/conclusao' in current_url or '/minutar' in current_url or espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=2.0):
+                        nav_ok = True
+                    else:
+                        nav_ok = navegar_para_conclusao(driver)
+
                 if not nav_ok:
-                    logger.error('[CLS] Falha ao navegar para conclusão após 2 tentativas')
+                    logger.error('[CLS] Falha ao navegar para conclusão')
                     timing_total = time.time() - timing_inicio
                     logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao navegar conclusão')
                     return False, False

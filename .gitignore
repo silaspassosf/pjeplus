@@ -75,3 +75,4 @@ setup_credenciais.py
 .claude/Modelos.ps1
 cache/assinatura_cookies.json
 Aud1/
+hermes/

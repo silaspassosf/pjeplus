@@ -28,7 +28,9 @@ from Fix import espera
 GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'geckodriver.exe')
 
 if not os.path.exists(GECKODRIVER_PATH):
-    logger.warning(f'AVISO: Geckodriver não encontrado em {GECKODRIVER_PATH}')
+    import sys
+    if getattr(webdriver, '__version__', None) != 'pjeplay' and 'pjeplay' not in sys.modules:
+        logger.warning(f'AVISO: Geckodriver não encontrado em {GECKODRIVER_PATH}')
 else:
     logger.info(f'Geckodriver encontrado: {GECKODRIVER_PATH}')
 
@@ -77,7 +79,7 @@ def _criar_driver_firefox(options, headless=False):
         )
         return None
     
-    service = Service(executable_path=GECKODRIVER_PATH)
+    service = Service(executable_path=GECKODRIVER_PATH) if os.path.exists(GECKODRIVER_PATH) else Service()
     driver = webdriver.Firefox(options=options, service=service)
     _configurar_driver_pos_criacao(driver, headless=headless)
     return driver
@@ -324,6 +326,10 @@ def criar_driver_PC(headless=False):
     Cria driver Firefox para PC (padrao).
     Firefox Developer Edition com configuracoes otimizadas.
     """
+    if getattr(webdriver, '__version__', None) == 'pjeplay':
+        from pjeplay.launcher import criar_driver_PC as pw_criar_driver_PC
+        return pw_criar_driver_PC(headless=headless)
+
     try:
         options = _montar_options_pc(headless=headless)
         # WebDriverException "Process unexpectedly closed with status 0" e
@@ -348,14 +354,17 @@ def criar_driver_VT(headless=False):
     Cria driver Firefox para VT (maquina especifica).
     Usa perfis e configuracoes VT com otimizacoes de startup.
     """
+    if getattr(webdriver, '__version__', None) == 'pjeplay':
+        from pjeplay.launcher import criar_driver_VT as pw_criar_driver_VT
+        return pw_criar_driver_VT(headless=headless)
+
     FIREFOX_BINARY = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
     FIREFOX_BINARY_ALT = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
     VT_PROFILE_PJE = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\13zemix3.default-release-1623328432485'
     VT_PROFILE_PJE_ALT = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
 
     if not os.path.exists(GECKODRIVER_PATH):
-        logger.error("ERRO em criar_driver_VT: geckodriver nao encontrado em %s", GECKODRIVER_PATH)
-        return None
+        logger.info("criar_driver_VT: geckodriver local nao encontrado em %s, recorrendo ao Selenium Manager", GECKODRIVER_PATH)
 
     firefox_bin = None
     for bin_path in [FIREFOX_BINARY, FIREFOX_BINARY_ALT]:
@@ -363,10 +372,9 @@ def criar_driver_VT(headless=False):
             firefox_bin = bin_path
             break
     if not firefox_bin:
-        logger.error("ERRO em criar_driver_VT: nenhum binario Firefox encontrado")
-        return None
-
-    logger.info("criar_driver_VT: usando binario: %s", firefox_bin)
+        logger.warning("criar_driver_VT: binario Firefox Developer Edition nao encontrado nos caminhos conhecidos, usando padrao")
+    else:
+        logger.info("criar_driver_VT: usando binario: %s", firefox_bin)
 
     try:
         USAR_PERFIL_VT = False
@@ -419,6 +427,10 @@ criar_driver_vt = criar_driver_VT
 
 def criar_driver_notebook(headless=False):
     """Driver Notebook - Firefox Developer Edition"""
+    if getattr(webdriver, '__version__', None) == 'pjeplay':
+        from pjeplay.launcher import criar_driver_notebook as pw_criar_driver_notebook
+        return pw_criar_driver_notebook(headless=headless)
+
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
 
@@ -436,7 +448,7 @@ def criar_driver_notebook(headless=False):
     options.set_preference("dom.timeout.throttling_delay", 0)
     options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
 
-    service = Service(executable_path=GECKODRIVER_PATH)
+    service = Service(executable_path=GECKODRIVER_PATH) if os.path.exists(GECKODRIVER_PATH) else Service()
     driver = webdriver.Firefox(options=options, service=service)
     driver.implicitly_wait(10)
     logger.info("driver criado: NOTEBOOK")
@@ -445,6 +457,10 @@ def criar_driver_notebook(headless=False):
 
 def criar_driver_sisb_pc(headless=False):
     """Driver SISBAJUD - PC (Firefox Developer Edition com configurações robustas)"""
+    if getattr(webdriver, '__version__', None) == 'pjeplay':
+        from pjeplay.launcher import criar_driver_sisb_pc as pw_criar_driver_sisb_pc
+        return pw_criar_driver_sisb_pc(headless=headless)
+
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
     from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
@@ -516,6 +532,10 @@ def criar_driver_sisb_vt(headless=False):
     Segue a logica do criar_driver_PC: auto-detecta o binario Firefox
     entre os caminhos conhecidos e nao exige perfil especifico da maquina.
     """
+    if getattr(webdriver, '__version__', None) == 'pjeplay':
+        from pjeplay.launcher import criar_driver_sisb_vt as pw_criar_driver_sisb_vt
+        return pw_criar_driver_sisb_vt(headless=headless)
+
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
 

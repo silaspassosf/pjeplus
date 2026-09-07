@@ -716,6 +716,31 @@ def _extrair_via_pdf_viewer(driver, timeout, debug=False):
         resultado_js = driver.execute_script(js_script)
         if resultado_js and resultado_js.strip():
             return resultado_js.strip()
+
+        # Fallback para Playwright / Chromium onde contentDocument é inacessível via JS pai:
+        # Recupera URL do atributo data/src e extrai o texto do PDF diretamente via sessão
+        try:
+            pdf_url = driver.execute_script("""
+                var el = document.querySelector('object.conteudo-pdf, object[type="application/pdf"], embed[type="application/pdf"]');
+                return el ? (el.getAttribute('data') || el.getAttribute('src') || el.data || el.src) : null;
+            """)
+            if pdf_url:
+                if pdf_url.startswith('/'):
+                    from urllib.parse import urljoin
+                    pdf_url = urljoin(driver.current_url, pdf_url)
+                import requests
+                sess = requests.Session()
+                for c in driver.get_cookies():
+                    sess.cookies.set(c['name'], c['value'])
+                resp = sess.get(pdf_url, timeout=timeout)
+                if resp.status_code == 200 and resp.content and resp.content.startswith(b'%PDF'):
+                    from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
+                    t = _extrair_texto_pdf_bytes(resp.content, log=debug)
+                    if t and len(t.strip()) > 100:
+                        return t.strip()
+        except Exception as e_url:
+            if debug:
+                logger.debug('[EXTRAIR_DIRETO] Fallback via URL do PDF viewer: %s', e_url)
     
     except Exception as e:
         if debug:
@@ -765,11 +790,16 @@ def _extrair_via_elemento_dom(driver, timeout, debug=False):
             "div[id*='documento']"
         ]
         
+        # Se há um visualizador PDF na tela, o texto em article/main/div#documento
+        # é apenas o cabeçalho/metadados da página (~260 chars) e NÃO o documento real.
+        tem_pdf = bool(driver.find_elements(By.CSS_SELECTOR, "object.conteudo-pdf, object[type='application/pdf'], embed[type='application/pdf']"))
+
         for seletor in seletores:
             try:
                 elemento = driver.find_element(By.CSS_SELECTOR, seletor)
                 texto = elemento.text
-                if texto and len(texto.strip()) > 100:
+                min_len = 500 if (tem_pdf and seletor in ("article", "main", "div[id*='documento']")) else 100
+                if texto and len(texto.strip()) > min_len:
                     return texto.strip()
             except:
                 pass

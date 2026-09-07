@@ -50,7 +50,7 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         #    detectada pelo executar_juntada enquanto o Angular ainda não
         #    habilitou o formulário, e o find_element seco estourava na
         #    1ª tentativa, forçando o reload/retry)
-        elementos_campo = espera.elementos(driver, seletor, teto=8)
+        elementos_campo = espera.elementos(driver, seletor, teto=4)
         if not elementos_campo:
             print(f'[JUNTADA][ERRO] Campo {nome_campo} não apareceu a tempo')
             return False
@@ -59,10 +59,10 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         # 2. Clica no elemento pai para abrir dropdown (padrão GIGS)
         parent_element = campo.find_element(By.XPATH, '../..')
         safe_click_no_scroll(driver, parent_element)
-        espera.assentar(self.driver, 1)
 
         # 3. Aguarda opções aparecerem e clica na desejada
-        opcoes = espera.elementos(driver, "mat-option[role='option']", teto=10)
+        espera.ate_aparecer(driver, "mat-option[role='option']", teto=3)
+        opcoes = driver.find_elements(By.CSS_SELECTOR, "mat-option[role='option']")
 
         for opcao in opcoes:
             if valor.lower() in opcao.text.lower():
@@ -180,12 +180,11 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                 if elemento:
                     print(f'[JUNTADA][DEBUG] Elemento encontrado com seletor {i + 1}: {sel}')
 
-                    # Múltiplas tentativas de clique
-                    for tentativa in range(3):
+                    # Tentativas de clique
+                    for tentativa in range(2):
                         try:
                             # Scroll para o elemento
-                            driver.execute_script("arguments[0].scrollIntoView(true);", elemento)
-                            time.sleep(0.5)
+                            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", elemento)
 
                             # Verifica se elemento é clicável
                             if elemento.is_enabled() and elemento.is_displayed():
@@ -195,13 +194,14 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                                 return True
                             else:
                                 print(f'[JUNTADA][DEBUG] Elemento não clicável (enabled: {elemento.is_enabled()}, visible: {elemento.is_displayed()})')
+                                espera.assentar(driver, 0.2)
 
                         except Exception as e:
-                            if tentativa < 2:  # Não é a última tentativa
+                            if tentativa < 1:
                                 print(f'[JUNTADA][DEBUG] Tentativa {tentativa + 1} falhou para {nome_elemento}: {e}')
-                                time.sleep(1)
+                                espera.assentar(driver, 0.3)
                             else:
-                                print(f'[JUNTADA][AVISO] Todas as tentativas falharam para {nome_elemento} com seletor {sel}: {e}')
+                                print(f'[JUNTADA][AVISO] Tentativas falharam para {nome_elemento} com seletor {sel}: {e}')
                 else:
                     print(f'[JUNTADA][DEBUG] Elemento não encontrado com seletor {i + 1}: {sel}')
 
@@ -242,25 +242,20 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
 
         # 3) Aguarda preview e localiza botão Inserir (seletor de atos.py)
         seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
-        espera.ate_habilitar(driver, seletor_btn_inserir, teto=15)
+        espera.ate_habilitar(driver, seletor_btn_inserir, teto=10)
         btn_inserir = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
-        espera.pausa(driver, 0.6, 'assentamento do preview do modelo')
 
         # 4) Inserir com tecla ESPAÇO (padrão MaisPje)
         btn_inserir.send_keys(Keys.SPACE)
 
-        # 5) O diálogo de preview fecha ANTES de o Angular/CKEditor carregar o
-        #    conteúdo no editor — esperar só o sumiço deixava a juntada seguir
-        #    com editor vazio e a substituição do marcador falhava depois
-        #    ("Nenhum método funcionou"). Poll pelo conteúdo, com 1 reenvio de
-        #    ESPAÇO como rede de segurança (o legado usava time.sleep(2) fixo).
+        # 5) Aguarda o conteúdo chegar ao editor
         seletor_editor = '.ck-editor__editable[contenteditable="true"]'
         editor_com_conteudo = (
             "__pjeEls(%r).some(el => (el.textContent || '').trim().length > 0)"
             % seletor_editor
         )
         for _tentativa in range(2):
-            if espera.ate_js(driver, editor_com_conteudo, teto=10):
+            if espera.ate_js(driver, editor_com_conteudo, teto=5):
                 return True
             try:
                 btn = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
@@ -396,25 +391,25 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
 
 
 def _salvar_documento(self) -> bool:
-    """Salva documento com retry."""
+    """Salva documento com retry rápido."""
     print('[JUNTADA] Salvando documento final...')
     if not self._clicar_elemento_gigs('button[aria-label="Salvar"]', 'Salvar documento'):
         print('[JUNTADA][ERRO] Falha no salvamento principal!')
         return False
 
-    # O Salvar desabilita enquanto a requisição corre — é o fim do processamento.
+    # O Salvar desabilita ou um snackbar de sucesso aparece
     print('[JUNTADA] Aguardando processamento do salvamento...')
-    espera.ate_desabilitar(self.driver, 'button[aria-label="Salvar"]', teto=2)
-
-    # Verificar se salvamento foi efetivo
-    try:
-        salvar_btn = self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
-        if salvar_btn.is_enabled():
-            print('[JUNTADA][WARN] Documento ainda não salvo, tentando novamente...')
-            safe_click_no_scroll(self.driver, salvar_btn)
-            espera.ate_desabilitar(self.driver, 'button[aria-label="Salvar"]', teto=2)
-    except:
-        print('[JUNTADA][INFO] Botão Salvar não disponível - documento já salvo')
+    salvo = espera.ate_desabilitar(self.driver, 'button[aria-label="Salvar"]', teto=1.5)
+    if not salvo:
+        # Se botão não desabilitou em 1.5s, verifica se o botão ainda existe / está habilitado
+        try:
+            salvar_btns = self.driver.find_elements(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
+            if salvar_btns and salvar_btns[0].is_enabled():
+                print('[JUNTADA][WARN] Botão Salvar ainda habilitado, re-clicando...')
+                safe_click_no_scroll(self.driver, salvar_btns[0])
+                espera.ate_desabilitar(self.driver, 'button[aria-label="Salvar"]', teto=1.5)
+        except Exception:
+            pass
 
     return True
 

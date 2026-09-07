@@ -324,15 +324,19 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
 def safe_click_no_scroll(driver, element, log=False):
     """Compatibilidade: dispara o click direto sem scroll prévio."""
     try:
-        driver.execute_script(
-            "arguments[0].dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true}))",
-            element,
-        )
+        driver.execute_script("arguments[0].click();", element)
         return True
-    except Exception as e:
-        if log:
-            logger.error("[CLICK] safe_click_no_scroll falhou: %s", e)
-        return False
+    except Exception:
+        try:
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true}))",
+                element,
+            )
+            return True
+        except Exception as e:
+            if log:
+                logger.error("[CLICK] safe_click_no_scroll falhou: %s", e)
+            return False
 
 
 def buscar_seletor_robusto(driver, textos, contexto=None, timeout=5, log=False):
@@ -1290,7 +1294,9 @@ from Fix.driver_factory import (  # noqa: E402, F401
 )
 
 if not os.path.exists(GECKODRIVER_PATH):
-    logger.warning(f'AVISO: Geckodriver não encontrado em {GECKODRIVER_PATH}')
+    import sys
+    if getattr(webdriver, '__version__', None) != 'pjeplay' and 'pjeplay' not in sys.modules:
+        logger.warning(f'AVISO: Geckodriver não encontrado em {GECKODRIVER_PATH}')
 else:
     logger.info(f'Geckodriver encontrado: {GECKODRIVER_PATH}')
 
@@ -3303,13 +3309,23 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
         # Fallback para import via package
         from Fix.extracao import extrair_direto, extrair_documento
     
-    # ✅ REGRAS ARGOS que o documento deve conter
+    # ✅ REGRAS ARGOS que o documento deve conter (alinhado com Mandado/regras.py)
     REGRAS_ARGOS = [
         'defiro a instauração',
-        'defiro a instauracao',  # Normalizado (sem acento)
+        'defiro a instauracao',
         'argos',
         'realize-se a pesquisa infojud',
-        'realize se a pesquisa infojud',  # Sem acento
+        'realize se a pesquisa infojud',
+        'tendo em vista que',
+        'tendo em vista',
+        'pesquisas para execução',
+        'pesquisas para execucao',
+        'desconsideração',
+        'desconsideracao',
+        '855-a',
+        'idpj',
+        'inclua-se no polo passivo',
+        'certex',
     ]
     
     try:

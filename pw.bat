@@ -2,7 +2,7 @@
 chcp 65001 >nul
 title PJe Plus - pw.py
 
-set "RAIZ=D:\PjePlus"
+set "RAIZ=C:\Users\s164283\Desktop\Pje2"
 set "PY=%RAIZ%\.venv\Scripts\python.exe"
 
 cd /d "%RAIZ%"

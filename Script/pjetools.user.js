@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.62
+// @version      2.3.63
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/pjetools.user.js
@@ -55,7 +55,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.28
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.29
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 
@@ -64,7 +64,7 @@
     console.log('[Loader] PJe Tools Pro v2.2.0 loaded');
 
     const url = window.location.href;
-    const isAud = url.includes('/aud/');
+    const isAud = url.includes('/aud') || (function() { try { return window.top && window.top.location.href.includes('/aud'); } catch(e) { return false; } })();
     
     // Módulos SISB carregados via @require (git), como os demais módulos.
     // Permite execução em iframes APENAS se for ambiente AUD

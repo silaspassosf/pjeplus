@@ -32,13 +32,17 @@
                 perfilAtual = "otavio";
             }
 
-            function renderizarPainel(perfilId) {
+            function renderizarPainel(perfilId, estaRetraido) {
                 var ex = document.getElementById('pjetools-aud-container');
                 if (ex) ex.remove();
 
                 if (!perfilId) {
                     criarSeletor();
                     return;
+                }
+
+                if (typeof estaRetraido === 'undefined') {
+                    estaRetraido = true;
                 }
 
                 var perfil = perfis[perfilId];
@@ -50,7 +54,7 @@
 
                 var P = document.createElement('div');
                 P.id = 'pjetools-aud-container';
-                P.style.cssText = 'position:fixed;top:50%;transform:translateY(-50%);right:8px;width:413px;max-width:calc(100vw - 16px);max-height:90vh;overflow-y:auto;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:17px;';
+                P.style.cssText = 'position:fixed;top:100px;right:15px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:17px;user-select:none;';
 
                 function E(t, c, x) {
                     var e = document.createElement(t);
@@ -59,10 +63,12 @@
                     return e;
                 }
 
+                var bodyDiv = E('div', 'display:block;user-select:text;');
+
                 function ST(t) {
                     var d = E('div', 'margin-top:10px;border-top:1px solid #eef;padding-top:6px;');
                     d.appendChild(E('div', 'font-weight:bold;font-size:13px;color:#8899cc;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;', t));
-                    P.appendChild(d);
+                    bodyDiv.appendChild(d);
                     return d;
                 }
 
@@ -150,27 +156,97 @@
                     return btn;
                 }
 
-                var hdr = E('div', 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #e8edff;');
+                var hdr = E('div', 'display:flex;justify-content:space-between;align-items:center;gap:6px;cursor:grab;margin:-8px -12px 8px -12px;padding:8px 12px;background:#f4f6fc;border-top-left-radius:9px;border-top-right-radius:9px;border-bottom:1px solid #e8edff;');
                 
-                var selPerfil = E('select', 'font-size:18px;color:#223;font-weight:bold;border:1px solid #ccc;border-radius:4px;padding:2px;');
+                var titleBox = E('div', 'display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;min-width:0;');
+                var titleLabel = E('span', 'font-weight:bold;font-size:15px;color:#1e293b;white-space:nowrap;', '📌 Painel AUD');
+                titleBox.appendChild(titleLabel);
+
+                var selPerfil = E('select', 'font-size:14px;color:#223;font-weight:bold;border:1px solid #ccc;border-radius:4px;padding:2px 4px;background:#fff;cursor:pointer;');
                 var opO = E('option', null, 'Otavio'); opO.value = 'otavio';
                 var opV = E('option', null, 'Victor'); opV.value = 'victor';
                 selPerfil.appendChild(opO);
                 selPerfil.appendChild(opV);
                 selPerfil.value = perfilId;
-                selPerfil.onchange = function() {
-                    renderizarPainel(this.value);
+                selPerfil.onchange = function(e) {
+                    e.stopPropagation();
+                    renderizarPainel(this.value, false);
                 };
-                hdr.appendChild(selPerfil);
+                titleBox.appendChild(selPerfil);
 
-                var fc = E('button', 'border:none;background:none;cursor:pointer;font-size:23px;color:#aab;padding:0 2px;', '✕');
-                fc.onclick = function () { P.remove(); };
-                hdr.appendChild(fc);
+                var rightControls = E('div', 'display:flex;align-items:center;gap:4px;');
+                var toggleBtn = E('button', 'border:none;background:none;cursor:pointer;font-size:16px;color:#475569;padding:2px 4px;font-weight:bold;', estaRetraido ? '➕' : '➖');
+                var fc = E('button', 'border:none;background:none;cursor:pointer;font-size:20px;color:#94a3b8;padding:0 2px;', '✕');
+                fc.onclick = function (e) { e.stopPropagation(); P.remove(); };
+
+                rightControls.appendChild(toggleBtn);
+                rightControls.appendChild(fc);
+
+                hdr.appendChild(titleBox);
+                hdr.appendChild(rightControls);
                 P.appendChild(hdr);
+                P.appendChild(bodyDiv);
+
+                function aplicarRetracao(retraido) {
+                    estaRetraido = retraido;
+                    if (estaRetraido) {
+                        bodyDiv.style.display = 'none';
+                        P.style.width = 'auto';
+                        P.style.maxHeight = 'none';
+                        P.style.overflowY = 'visible';
+                        hdr.style.marginBottom = '0';
+                        hdr.style.borderBottom = 'none';
+                        toggleBtn.textContent = '➕';
+                        toggleBtn.title = 'Expandir Painel AUD';
+                    } else {
+                        bodyDiv.style.display = 'block';
+                        P.style.width = '413px';
+                        P.style.maxWidth = 'calc(100vw - 16px)';
+                        P.style.maxHeight = '90vh';
+                        P.style.overflowY = 'auto';
+                        hdr.style.marginBottom = '8px';
+                        hdr.style.borderBottom = '1px solid #e8edff';
+                        toggleBtn.textContent = '➖';
+                        toggleBtn.title = 'Retrair Painel AUD';
+                    }
+                }
+
+                function alternarRetracao(e) {
+                    if (e && e.target && (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION')) return;
+                    aplicarRetracao(!estaRetraido);
+                }
+
+                titleBox.onclick = alternarRetracao;
+                toggleBtn.onclick = alternarRetracao;
+
+                (function tornarArrastavel(el, handle) {
+                    let ox = 0, oy = 0, drag = false;
+                    handle.addEventListener('mousedown', function(e) {
+                        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.tagName === 'INPUT') return;
+                        drag = true;
+                        var rect = el.getBoundingClientRect();
+                        ox = e.clientX - rect.left;
+                        oy = e.clientY - rect.top;
+                        e.preventDefault();
+                    });
+                    document.addEventListener('mousemove', function(e) {
+                        if (!drag) return;
+                        el.style.left = (e.clientX - ox) + 'px';
+                        el.style.top = (e.clientY - oy) + 'px';
+                        el.style.right = 'auto';
+                        el.style.bottom = 'auto';
+                        el.style.transform = 'none';
+                    });
+                    document.addEventListener('mouseup', function() {
+                        drag = false;
+                    });
+                })(P, hdr);
+
+                aplicarRetracao(estaRetraido);
 
                 var r1 = E('div', 'display:flex;flex-wrap:wrap;gap:4px;');
                 S1.forEach(function (b) { r1.appendChild(BF(b)); });
-                P.appendChild(r1);
+                bodyDiv.appendChild(r1);
 
                 var dConsultas = ST('Consultas');
                 var consultas = E('div', 'display:flex;flex-direction:column;gap:5px;');

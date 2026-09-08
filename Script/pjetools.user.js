@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.61
+// @version      2.3.62
 // @description  Suite de ferramentas para PJe
 // @author       Silas
+// @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/pjetools.user.js
+// @downloadURL  https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/pjetools.user.js
 // ── PJe (cobre todas as rotas com um único match)
 // @match        https://pje.trt2.jus.br/aud/*
 // @match        https://pje.trt2.jus.br/*

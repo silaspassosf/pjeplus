@@ -408,17 +408,43 @@
                 dConsultas.appendChild(consultas);
                 var sisconCard = E('div', 'display:none;margin-top:6px;padding:7px;background:#faf5ff;border:1px solid #c084fc;border-radius:5px;font-size:14px;');
                 dConsultas.appendChild(sisconCard);
-                function exibirDadosSiscon(resultado) {
+                function safeTxt(t) {
+                    return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                }
+
+                function formatarDoc(d) {
+                    var digits = String(d || '').replace(/\D/g, '');
+                    if (digits.length === 11) return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+                    if (digits.length === 14) return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+                    return d || '';
+                }
+
+                function exibirDadosSiscon(resultado, docBusca) {
                     var dados = (resultado.data && resultado.data.primeiro) || resultado.data || {};
                     console.log('[AUD][SISCON] resultado recebido:', resultado);
                     console.log('[AUD][SISCON] primeiro bloco usado:', dados);
-                    sisconCard.innerHTML = '<strong>Dados:</strong> ' + (dados.conta || '') +
+
+                    var nome = (resultado.data && resultado.data.nome) || dados.nome || dados.razaoSocial || '';
+                    var docBruto = (resultado.data && resultado.data.documento) || dados.documento || dados.cnpj || docBusca || '';
+                    var docFormatado = formatarDoc(docBruto);
+
+                    var textoDados = (dados.conta || '') +
                         ', agência ' + (dados.agencia || '') +
                         ', do Banco ' + (dados.banco || '') +
                         (dados.contaJuridica ? ' (Conta PJ em nome de ' + (dados.razaoSocial || '') +
-                            (dados.cnpj ? ' - ' + dados.cnpj : '') + ')' : '') +
+                            (dados.cnpj ? ' - ' + dados.cnpj : '') + ')' : '');
+
+                    var textoCopiado = 'Nome: ' + nome + '  CPF/CNPJ: ' + docFormatado + '\n' +
+                        'Dados: ' + textoDados + '\n' +
+                        'Chave Pix: ';
+
+                    sisconCard.innerHTML = '<strong>Nome:</strong> ' + safeTxt(nome) + ' &nbsp;<strong>CPF/CNPJ:</strong> ' + safeTxt(docFormatado) + '<br>' +
+                        '<strong>Dados:</strong> ' + safeTxt(textoDados) + '<br>' +
+                        '<strong>Chave Pix:</strong> ' +
                         (resultado.detailUrl ? ' <a href="' + resultado.detailUrl + '" target="_blank" rel="noopener">confirmar</a>' : '');
                     sisconCard.style.display = 'block';
+
+                    return textoCopiado;
                 }
                 fSiscon.buscar.onclick = async function () {
                     var c = fSiscon.input.value.replace(/\D/g, '');
@@ -436,7 +462,8 @@
                             sisconCard.style.display = 'block';
                             return;
                         }
-                        exibirDadosSiscon(resultado);
+                        var textoParaCopiar = exibirDadosSiscon(resultado, c);
+                        await copiarTexto(textoParaCopiar);
                         feedbackBuscar(fSiscon, true);
                     } catch (e) {
                         feedbackBuscar(fSiscon, false);

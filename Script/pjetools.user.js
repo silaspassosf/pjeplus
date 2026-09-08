@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.60
+// @version      2.3.61
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -53,7 +53,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.27
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.28
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 
@@ -141,7 +141,7 @@
             const routeMinutas = currentUrl.includes('/comunicacoesprocessuais/minutas');
             const routeDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl);
             const routeObrigacao = currentUrl.includes('/obrigacao-pagar/');
-            const routeAud = window.location.pathname.startsWith('/aud/') && window.location.hash.startsWith('#/audiencia');
+            const routeAud = currentUrl.includes('/aud');
 
             if (routeMinutas) {
                 if (window.__infojudWorkerRodando) return;
@@ -171,28 +171,18 @@
 
             if (routeAud) {
                 console.log('[Loader] Detectado ambiente AUD:', window.location.href);
+                window.__pjeAudFechadoManualmente = false;
 
-                setTimeout(() => {
+                const tentarInitAud = () => {
                     const audApi = window.PJeAud || W.PJeAud;
-
-                    if (typeof audApi?.init !== 'function') {
-                        console.error('[Loader] PJeAud.init não encontrado.', {
-                            windowPJeAud: window.PJeAud,
-                            unsafeWindowPJeAud: W.PJeAud
-                        });
-                        return;
+                    if (typeof audApi?.init === 'function') {
+                        audApi.init();
                     }
+                };
 
-                    if (window.__pjeAudInicializado) {
-                        console.log('[Loader] AUD já inicializado.');
-                        return;
-                    }
-
-                    window.__pjeAudInicializado = true;
-                    audApi.init();
-                    console.log('[Loader] PJeAud inicializado com sucesso.');
-                }, 1500);
-                
+                tentarInitAud();
+                setTimeout(tentarInitAud, 500);
+                setTimeout(tentarInitAud, 1500);
                 return;
             }
 

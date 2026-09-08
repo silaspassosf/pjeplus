@@ -1,7 +1,12 @@
 (function() {
     function init() {
-        if (window.location.href.indexOf('/aud/') === -1) return;
-            if (document.getElementById('pjetools-aud-container')) return;
+        if (window.location.href.indexOf('/aud') === -1) return;
+        if (!document.body) {
+            setTimeout(init, 300);
+            return;
+        }
+        if (document.getElementById('pjetools-aud-container')) return;
+        window.__pjeAudFechadoManualmente = false;
 
             var perfis = {
                 otavio: {
@@ -182,7 +187,7 @@
                 var rightControls = E('div', 'display:flex;align-items:center;gap:4px;');
                 var toggleBtn = E('button', 'border:none;background:none;cursor:pointer;font-size:16px;color:#475569;padding:2px 4px;font-weight:bold;', estaRetraido ? '➕' : '➖');
                 var fc = E('button', 'border:none;background:none;cursor:pointer;font-size:20px;color:#94a3b8;padding:0 2px;', '✕');
-                fc.onclick = function (e) { e.stopPropagation(); P.remove(); };
+                fc.onclick = function (e) { e.stopPropagation(); window.__pjeAudFechadoManualmente = true; P.remove(); };
 
                 rightControls.appendChild(toggleBtn);
                 rightControls.appendChild(fc);
@@ -572,4 +577,14 @@
 
     window.PJeAud = window.PJeAud || {};
     window.PJeAud.init = init;
+
+    if (typeof window.__pjeAudInterval === 'undefined') {
+        window.__pjeAudInterval = setInterval(function() {
+            if (window.location.href.indexOf('/aud') !== -1) {
+                if (!document.getElementById('pjetools-aud-container') && document.body && !window.__pjeAudFechadoManualmente) {
+                    init();
+                }
+            }
+        }, 1000);
+    }
 })();

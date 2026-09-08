@@ -5,9 +5,12 @@
             setTimeout(init, 300);
             return;
         }
-        if (document.getElementById('pjetools-aud-container')) return;
+        var topDoc = document;
+        try {
+            if (window.top && window.top.document) topDoc = window.top.document;
+        } catch(e) {}
+        if (document.getElementById('pjetools-aud-container') || (topDoc && topDoc.getElementById('pjetools-aud-container'))) return;
         window.__pjeAudFechadoManualmente = false;
-            if (document.getElementById('pjetools-aud-container')) return;
 
             var perfis = {
                 otavio: {
@@ -87,7 +90,26 @@
                 }
 
                 function getEditor() {
-                    var ed = [...document.querySelectorAll('.ck-editor__editable[contenteditable="true"],.ck-editor__editable_inline[contenteditable="true"],[contenteditable="true"]')].find(function (x) { return x.ckeditorInstance; });
+                    function findInDoc(d) {
+                        if (!d) return null;
+                        try {
+                            return [...d.querySelectorAll('.ck-editor__editable[contenteditable="true"],.ck-editor__editable_inline[contenteditable="true"],[contenteditable="true"]')].find(function (x) { return x && x.ckeditorInstance; });
+                        } catch(e) { return null; }
+                    }
+                    var ed = findInDoc(document);
+                    if (!ed && typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.document) {
+                        ed = findInDoc(unsafeWindow.document);
+                    }
+                    if (!ed) {
+                        var iframes = document.querySelectorAll('iframe');
+                        for (var i = 0; i < iframes.length; i++) {
+                            try {
+                                var idoc = iframes[i].contentDocument || (iframes[i].contentWindow && iframes[i].contentWindow.document);
+                                ed = findInDoc(idoc);
+                                if (ed) break;
+                            } catch(e) {}
+                        }
+                    }
                     if (!ed) {
                         alert('Editor CKEditor 5 não encontrado na tela. Abra a ata primeiro.');
                         return null;
@@ -293,9 +315,15 @@
                 }
 
                 async function copiarTexto(texto) {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(String(texto));
+                    if (typeof GM_setClipboard === 'function') {
+                        GM_setClipboard(String(texto));
                         return;
+                    }
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        try {
+                            await navigator.clipboard.writeText(String(texto));
+                            return;
+                        } catch(e) {}
                     }
                     var area = document.createElement('textarea');
                     area.value = String(texto);
@@ -462,7 +490,7 @@
                     fSiscon.buscar.disabled = true;
                     fSiscon.buscar.textContent = 'Buscando...';
                     try {
-                        var api = window.Alv && window.Alv.siscondj;
+                        var api = (window.Alv && window.Alv.siscondj) || (typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.Alv && unsafeWindow.Alv.siscondj);
                         if (!api || typeof api.consultarDocumento !== 'function') throw new Error('Módulo SISCONDJ não disponível.');
                         var resultado = await api.consultarDocumento(c);
                         if (resultado.status === 'empty') {
@@ -579,7 +607,10 @@
             renderizarPainel(perfilAtual);
         }
 
-    window.PJeAud = window.PJeAud || {};
+    var _targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    _targetWin.PJeAud = _targetWin.PJeAud || {};
+    _targetWin.PJeAud.init = init;
+    window.PJeAud = window.PJeAud || _targetWin.PJeAud;
     window.PJeAud.init = init;
 
     if (typeof window.__pjeAudInterval === 'undefined') {

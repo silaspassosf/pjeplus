@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.65
+// @version      2.3.66
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/pjetools.user.js
@@ -24,6 +24,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        window.close
 // @grant        unsafeWindow
+// @grant        GM_setClipboard
 // @connect      raw.githubusercontent.com
 // @connect      consultadecep.com
 // @connect      viacep.com.br
@@ -55,7 +56,6 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.31
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 
@@ -72,6 +72,633 @@
 
     // W = window real da página (unsafeWindow quando disponível)
     const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+
+    // ── Módulo AUD (embutido por completo para evitar falhas de rede / cache @require) ──
+    (function() {
+        function init() {
+            if (window.location.href.indexOf('/aud') === -1) return;
+            if (!document.body) {
+                setTimeout(init, 300);
+                return;
+            }
+            var topDoc = document;
+            try {
+                if (window.top && window.top.document) topDoc = window.top.document;
+            } catch(e) {}
+            if (document.getElementById('pjetools-aud-container') || (topDoc && topDoc.getElementById('pjetools-aud-container'))) return;
+            window.__pjeAudFechadoManualmente = false;
+    
+                var perfis = {
+                    otavio: {
+                        title: "Otavio",
+                        S1: [{"t": "Instrução", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Prazo de 05 dias para regularização processual.</p><p style=\"text-align:justify;text-indent:3cm;\"><u>CONCILIAÇÃO REJEITADA</u></p><p style=\"text-align:justify;text-indent:3cm;\">Defesa com documentos.</p><p style=\"text-align:justify;text-indent:3cm;\">Concede-se o prazo de 05 dias para o reclamante se manifestar sobre a(s) defesa(s) e documento(s), apontando, inclusive, eventuais diferenças que entende devidas, ainda que por amostragem, sob pena de preclusão, observando os termos do artigo 372 do CPC.</p><p style=\"text-align:justify;text-indent:3cm;\">O Ato Normativo 003626-80.2025.2.00.0000 do CNJ, de setembro de 2025, estipula a obrigatoriedade do registro audiovisual de todas as audiências (arts. 1º e 3º). Nesse sentido, esclareço que a audiência será gravada, com disponibilização de link no acervo eletrônico dos autos, exceto na fase de tratativas de conciliação, ao início e ao final da audiência (CLT, arts. 846 e 850), haja vista a confidencialidade garantida pelo art. 30 da Lei 13.140/15, como aliás já decidiu o TED da OAB/SP (Processo: E-6.115/2023).</p><p style=\"text-align:justify;text-indent:3cm;\">Portanto, os depoimentos prestados na presente audiência serão integralmente gravados, razão pela qual não haverá pelo(a) magistrado (a), a transcrição exata das declarações dos depoentes.</p><p style=\"text-align:justify;text-indent:3cm;\">Havendo interesse de se valer, em razões finais ou para fins recursais, de trechos específicos dos depoimentos, deverão as partes indicar com precisão o nome do arquivo, o minuto e o segundo em que o trecho degravado está registrado. A parte adversa, caso discorde da degravação, deverá apresentar impugnação especificada.</p><p style=\"text-align:justify;text-indent:3cm;\">Oportuno destacar que a gravação da audiência pelas partes e por seus advogados é lícita, independentemente da gravação feita pelo juízo (CPC, art. 367, §§ 5º e 6º), mas deve ser precedida de comunicação e identificação prévia dos envolvidos (Art. 5º, § 1º ato normativo), sendo limitada ao uso processual, sendo EXPRESSAMENTE VEDADA a sua utilização para outras finalidades, notadamente publicações em redes sociais, monetização, transmissões on-line, páginas de internet ou compartilhamentos por meio de aplicativos de mensagens (art. 5º, § 4º, II, B, do referido ato).</p><p style=\"text-align:justify;text-indent:3cm;\">Assim, e considerando ainda que a imagem e a voz humanas são protegidas legal e constitucionalmente contra reproduções não autorizadas pelo titular do direito de personalidade respectivo, ficam as partes advertidas de que o Juízo não autoriza o uso ou a reprodução da imagem e ou da voz de qualquer um dos sujeitos processuais por qualquer meio externo ao processo, físico ou eletrônico, sob pena de responsabilidade civil e criminal dos envolvidos.</p><p style=\"text-align:justify;text-indent:3cm;\">Neste momento, inicia-se a gravação da audiência.<br>&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Depoimento pessoal do(a) reclamante:\"Que<br>&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Depoimento pessoal do(a) preposto(a) da &nbsp;1ª reclamada: \"Que</p><p style=\"text-align:justify;text-indent:3cm;\">Testemunha do(a) reclamante, CPF, residente e domiciliada, São Paulo/SP. Advertida e compromissada. Depoimento: \"</p><p style=\"text-align:justify;text-indent:3cm;\">As partes não pretendem outras provas.</p><p style=\"text-align:justify;text-indent:3cm;\">Após o prazo de réplica, estará encerrada a instrução processual.</p><p style=\"text-align:justify;text-indent:3cm;\">Razões finais em 05 dias.</p><p style=\"text-align:justify;text-indent:3cm;\">Conciliação final rejeitada.</p><p style=\"text-align:justify;text-indent:3cm;\">Designo julgamento para o dia 11/09/26, às 13h__, sendo que as partes serão intimadas da decisão.</p><p style=\"text-align:justify;text-indent:3cm;\">Lida e conferida a ata pelos presentes é dispensada a assinatura das partes e dos respectivos patronos.</p><p style=\"text-align:justify;text-indent:3cm;\">Registra-se que magistrado, partes e advogados estão no fórum, presencialmente.</p><p style=\"text-align:justify;text-indent:3cm;\">Audiência encerrada às %HEC%.</p><p style=\"text-align:justify;text-indent:3cm;\">Nada mais.</p>"}, {"t": "revelia", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Diante da ausência injustificada da reclamada, aplico-lhe a pena de revelia e confissão.</p>"}],
+                        S3: [{"t": "provimento", "h": "<p style=\"text-align:justify;text-indent:3cm;\">O(a) advogado(a) do(a) * requer o adiamento da presente audiência, tendo em vista que a(s) testemunha(s) *, embora convidada(s), não compareceu(ram).&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">O advogado requer que a intimação seja feita na forma do Provimento.</p><p style=\"text-align:justify;text-indent:3cm;\">Deferido.</p><p style=\"text-align:justify;text-indent:3cm;\"><u>Designa-se nova audiência UNA para o dia /11/26, às * horas, mantendo-se as cominações anteriores.&nbsp;</u></p><p style=\"text-align:justify;text-indent:3cm;\">Servirá o presente como MANDADO DE INTIMAÇÃO DE TESTEMUNHA, comprometendo-se o(a) * a entregar à testemunha acima indicada.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">A ausência ensejará multa e condução coercitiva. Local: Av. Guido Caloi, 1000, Santo Amaro, São Paulo/SP, CEP 05802-140.</p><p style=\"text-align:justify;text-indent:3cm;\">Saem cientes &nbsp;da nova designação as seguintes testemunhas:</p><p style=\"text-align:justify;text-indent:3cm;\">-Do reclamante -&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">-Da reclamada -&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">As demais testemunhas virão independentemente de notificação, sob pena de preclusão.</p><p style=\"text-align:justify;text-indent:3cm;\">Lida e conferida a ata pelos presentes é dispensada a assinatura das partes e dos respectivos patronos.</p><p style=\"text-align:justify;text-indent:3cm;\">Registra-se que magistrado, partes e advogados estão no fórum, presencialmente.</p><p style=\"text-align:justify;text-indent:3cm;\">Audiência encerrada às .</p><p style=\"text-align:justify;text-indent:3cm;\">Nada mais.</p>"}, {"t": "Testemunha - independente", "h": "<p style=\"text-align:justify;text-indent:3cm;\">&nbsp;INCONCILIADOS.</p><p style=\"text-align:justify;text-indent:3cm;\">O(a) advogado(a) do(a) * requer o adiamento da presente audiência, tendo em vista que a(s) testemunha(s) *, embora convidada(s), não compareceu(ram), comprometendo-se a trazê-la(s) na próxima sessão independentemente de intimação, sob pena de preclusão.</p><p style=\"text-align:justify;text-indent:3cm;\">Defiro.</p><p style=\"text-align:justify;text-indent:3cm;\"><u>Designa-se nova audiência UNA para o dia /11/26, às * horas, mantendo-se as cominações anteriores.&nbsp;</u></p><p style=\"text-align:justify;text-indent:3cm;\">Saem cientes da nova designação as seguintes testemunhas:</p><p style=\"text-align:justify;text-indent:3cm;\">-Do reclamante -&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">-Da reclamada -&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">As demais testemunhas virão independentemente de notificação, sob pena de preclusão.</p><p style=\"text-align:justify;text-indent:3cm;\">Lida e conferida a ata pelos presentes é dispensada a assinatura das partes e dos respectivos patronos.</p><p style=\"text-align:justify;text-indent:3cm;\">Registra-se que magistrado, partes e advogados estão no fórum, presencialmente.</p><p style=\"text-align:justify;text-indent:3cm;\">Audiência encerrada às %HEC%.</p><p style=\"text-align:justify;text-indent:3cm;\">Nada mais.</p>"}],
+                        S4: [{"t": "Alvará", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">A presente ata tem força de ALVARÁ perante a CEF para liberação do FGTS, assim como suprimindo a inexistência do Termo de Rescisão do Contrato de Trabalho/CD, dos recolhimentos rescisórios do FGTS e do carimbo de baixa da CTPS, fornecendo-se, inclusive, os seguintes elementos relativos ao contrato de trabalho: PIS nº: *, data de admissão: * e demissão: *, CNPJ: *. CTPS * Série *-SP tipo de rescisão do contrato de trabalho::<u>****</u></p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">A presente ata possui força de ALVARÁ perante a CEF, SINE e demais órgãos competentes para requerimento do seguro-desemprego, suprindo, inclusive, a inexistência do TRCT, das guias SD/CD e do carimbo de baixa da CTPS, caso os prazos de carência e eventuais solicitações anteriores forem atendidas. PIS nº: * , data de admissão: * e demissão: *, CNPJ: * CTPS * Série *-SP&nbsp; tipo de rescisão do contrato de trabalho:<u>****</u></p>"}, {"t": "Suspender subsidiária", "h": "<p style=\"text-align:justify;text-indent:3cm;\">A segunda reclamada não concorda em permanecer no polo responsável pelo acordo e o reclamante não concorda com sua exclusão nesse momento. Assim, o processo ficará suspenso até o cumprimento total do acordo quando a quitação também se dará em relação à segunda reclamada. Uma vez não cumprido o acordo, o processo voltará ao estado em que se encontra com apresentação de defesas e produção de provas. Ficará estipulada multa de 20% sobre o valor do acordo em caso de descumprimento para que não seja utilizado como medida protelatória do feito.</p>"}, {"t": "Acordo - Suspensão +Retorno ao estado anterior", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">As partes, neste ato, ajustam a suspensão do processo <strong>até o dia ******</strong>, data do pagamento da última parcela do acordo.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">O(a) reclamante terá o prazo de 15 dias, contado do termo final da suspensão, para noticiar eventual inadimplemento por parte da reclamada, ficando ciente desde já que no seu silêncio considerar-se-ão adimplidas todas as parcelas.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Nessa hipótese, os autos virão conclusos para homologação do acordo e exclusão das demais reclamadas.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Em caso de descumprimento do acordo, o processo retornará ao estado em que se encontrava, isto é, será designada nova audiência ***<strong>UNA / UNA/RS</strong> para recebimento das defesas e instrução do processo, de sorte que eventual valor parcial do acordo quitado será deduzido de futura execução.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Com o pagamento integral do acordo, o(a) reclamante dará geral e plena quitação pelo objeto da inicial e extinto contrato de trabalho.</p>"}, {"t": "acordo subsidiária", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Fica ajustada, ainda, a responsabilidade subsidiária da segunda reclamada, pelo valor integral do acordo na hipótese de inadimplemento por parte da primeira reclamada. Desta feita, caso descumprido o acordo pela primeira reclamada, a segunda reclamada deverá ser intimada para proceder ao pagamento do quanto inadimplido no prazo de 15 dias, observado o valor das parcelas e a sua periodicidade, sendo certo que na hipótese de pagamento tempestivo pela responsável subsidiária não lhe será cobrada multa acima estipulada, sendo que nesse caso a multa será devida exclusivamente pela primeira reclamada</p>"}, {"t": "diverso entre as partes", "h": "<p style=\"text-align:justify;text-indent:3cm;\">As partes ajustam, outrossim, que as primeira/segunda e segunda/terceira reclamadas responderão exclusivamente pelos valores que se comprometeram a pagar, conforme discriminação supra.</p><p style=\"text-align:justify;text-indent:3cm;\">Dessa forma, em caso de inadimplemento, apenas da empresa que der causa ao descumprimento do acordo será cobrada a multa acima prevista, bem como será iniciada a respectiva execução do valor inadimplido.</p>"}],
+                        S5: []
+                    },
+                    victor: {
+                        title: "Victor",
+                        S2: [
+                            {"t": "pericia - allan", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">O Juízo observa que o reclamante postula o reconhecimento de doença ocupacional, com requerimento de realização de perícia. A fim de imprimir celeridade e efetividade ao feito, proceder-se-á à produção integral da prova oral nesta audiência, inclusive quanto ao objeto da perícia a ser realizada, com a designação de perícia após o encerramento da produção de prova oral.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Tendo em vista o pedido de adicional de PERICULOSIDADE, determina-se a realização da perícia técnica. Fica nomeado o Sr. Perito Eng. ALLAN STRUCK PINHEIRO - Cel: (11) 94264-5345 - e-mail: peritoallan.pinheiro@gmail.com, devendo apresentar seu laudo no prazo de 30 dias, acompanhado da proposta de honorários, ficando advertido de que eventuais atrasos serão levados em consideração na fixação do valor. Intime-se.&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">No mesmo prazo da réplica acima deferido, as partes poderão apresentar quesitos e indicar assistentes técnicos, sendo que nesta oportunidade o(a) reclamante poderá descrever suas atividades, local e o setor de trabalho, sob pena de preclusão e de serem consideradas as atividades e informações descritas no laudo pericial.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Atente-se o Expert para esta determinação. Fica autorizado o acompanhamento da diligência pelo(a) reclamante e assistentes técnicos das partes, devendo entrar em contato diretamente com o Sr. Perito, sob pena de preclusão.&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">As partes serão intimadas da data da perícia, a qual se realizará no seguinte endereço: *&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Designa-se audiência de instrução para o dia /11/26 às _h. </p>"},
+                            {"t": "pericia - regiane", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">O Juízo observa que o reclamante postula o reconhecimento de doença ocupacional, com requerimento de realização de perícia. A fim de imprimir celeridade e efetividade ao feito, proceder-se-á à produção integral da prova oral nesta audiência, inclusive quanto ao objeto da perícia a ser realizada, com a designação de perícia após o encerramento da produção de prova oral.</p><p style=\"text-align:justify;text-indent:3cm;\">Tendo &nbsp;em &nbsp;vista &nbsp;o &nbsp;pedido &nbsp;de &nbsp;adicional &nbsp;de INSALUBRIDADE, &nbsp;determina-se &nbsp;a &nbsp;realização &nbsp;da perícia técnica. Fica nomeado o Sra. Perita &nbsp;REGIANE SOUZA ROCHA SILVA - e-mail: peritaregianesilva@gmail.com, &nbsp;devendo &nbsp;apresentar &nbsp;seu &nbsp;laudo &nbsp;no &nbsp;prazo &nbsp;de &nbsp;30 &nbsp;dias, &nbsp;acompanhado &nbsp;da proposta &nbsp;de &nbsp;honorários, &nbsp;ficando &nbsp;advertido &nbsp;de &nbsp;que &nbsp;eventuais &nbsp;atrasos &nbsp;serão &nbsp;levados &nbsp;em &nbsp;consideração &nbsp;na fixação do valor. Intime-se.</p><p style=\"text-align:justify;text-indent:3cm;\">No &nbsp;mesmo &nbsp;prazo &nbsp;da &nbsp;réplica &nbsp;acima &nbsp;deferido, &nbsp;as &nbsp;partes &nbsp;poderão &nbsp;apresentar &nbsp;quesitos &nbsp;e &nbsp;indicar assistentes &nbsp;técnicos, &nbsp;sendo &nbsp;que &nbsp;nesta &nbsp;oportunidade &nbsp;o(a) &nbsp;reclamante &nbsp;poderá &nbsp;descrever &nbsp;suas &nbsp;atividades, local &nbsp;e &nbsp;o &nbsp;setor &nbsp;de &nbsp;trabalho, &nbsp;sob &nbsp;pena &nbsp;de &nbsp;preclusão &nbsp;e &nbsp;de &nbsp;serem &nbsp;consideradas &nbsp;as &nbsp;atividades &nbsp;e &nbsp;informações descritas no laudo pericial. Atente-se o Expert para esta determinação. Fica &nbsp;autorizado &nbsp;o &nbsp;acompanhamento &nbsp;da &nbsp;diligência &nbsp;pelo(a) &nbsp;reclamante &nbsp;e &nbsp;assistentes técnicos &nbsp;das &nbsp;partes, &nbsp;devendo &nbsp;entrar &nbsp;em &nbsp;contato &nbsp;diretamente &nbsp;com &nbsp;o &nbsp;Sr. &nbsp;Perito, &nbsp;sob &nbsp;pena &nbsp;de preclusão.As &nbsp;partes &nbsp;serão &nbsp;intimadas &nbsp;da &nbsp;data &nbsp;da &nbsp;perícia, &nbsp;a &nbsp;qual &nbsp;se &nbsp;realizará &nbsp;no &nbsp;endereço: Rua&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Designa-se audiência de instrução PRESENCIAL para o dia /11/26 às _h &nbsp;</p>"},
+                            {"t": "Pericia - cirino", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">O Juízo observa que o reclamante postula o reconhecimento de doença ocupacional, com requerimento de realização de perícia. A fim de imprimir celeridade e efetividade ao feito, proceder-se-á à produção integral da prova oral nesta audiência, inclusive quanto ao objeto da perícia a ser realizada, com a designação de perícia após o encerramento da produção de prova oral.</p><p style=\"text-align:justify;text-indent:3cm;\">Tendo em vista o pedido de PERÍCIA MÉDICA, determina-se a realização da perícia técnica. Fica nomeado o Sr. Perito Médico ALEXANDRE CIRINO, que deverá apresentar seu laudo no prazo de 20 dias após a realização da perícia médica, que ocorrerá na data de 06/10/26 às 14h30min na 3ª Vara do Trabalho do Fórum da Zona Sul: Av. Guido Caloi, 1000, 2º andar, São Paulo/SP - Cel (11) 97160-1309 - e-mail: alecirino@terra.com.br, acompanhado da proposta de honorários, ficando advertido de que eventuais atrasos serão levados em consideração na fixação do valor.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">O reclamante deverá portar todas as suas CTPS no dia da perícia. Intime-se.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">No mesmo prazo da réplica acima deferido, as partes poderão apresentar quesitos e indicar assistentes técnicos, sendo que nesta oportunidade o(a) reclamante poderá descrever suas atividades, local e o setor de trabalho, sob pena de preclusão e de serem consideradas as atividades e informações descritas no laudo pericial.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Atente-se o Expert para esta determinação.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Fica autorizado o acompanhamento da diligência pelo(a) reclamante assistentes técnicos das partes. As partes já estão cientes da data da perícia médica.</p><p style=\"text-align:justify;text-indent:3cm;\">A ausência da parte reclamante acarretará a preclusão da prova pericial e aplicação de multa por litigância de má fé, se não comprovadamente justificada NOS AUTOS em até 48 horas após a data do exame, independentemente de intimação específica para tanto.</p><p style=\"text-align:justify;text-indent:3cm;\">Designa-se audiência de instrução PRESENCIAL para o dia /11/26 às _h.</p>"},
+                            {"t": "Pericia Vladia", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">O Juízo observa que o reclamante postula o reconhecimento de doença ocupacional, com requerimento de realização de perícia. A fim de imprimir celeridade e efetividade ao feito, proceder-se-á à produção integral da prova oral nesta audiência, inclusive quanto ao objeto da perícia a ser realizada, com a designação de perícia após o encerramento da produção de prova oral.</p><p style=\"text-align:justify;text-indent:3cm;\">Tendo em vista o pedido de PERÍCIA MÉDICA, determina-se a realização da perícia técnica.<br>Fica nomeado o Sr. Perito Médico VLADIA JUOZEPAVICIUS GONÇALVES (email vladia2112@yahoo.com.br e telefone: 11 4992-9209), que deverá apresentar seu laudo no prazo de 30 dias após a realização da perícia médica, que ocorrerá em data e local a serem informados pela expert &nbsp;acompanhado da proposta de honorários, ficando advertido de que eventuais atrasos serão levados em consideration na fixação do valor.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">O reclamante deverá portar todas as suas CTPS no dia da perícia. Intime-se.</p><p style=\"text-align:justify;text-indent:3cm;\">No prazo de 05 dias, as partes poderão apresentar quesitos e indicar assistentes técnicos, sendo que nesta oportunidade o(a) reclamante poderá descrever suas atividades, local e o setor de trabalho, sob pena de preclusão e de serem consideradas as atividades e informações descritas no laudo pericial.</p><p style=\"text-align:justify;text-indent:3cm;\">Atente-se o Expert para esta determinação.</p><p style=\"text-align:justify;text-indent:3cm;\">Fica autorizado o acompanhamento da diligência pelo(a) reclamante assistentes técnicos das partes.</p><p style=\"text-align:justify;text-indent:3cm;\">Designa-se audiência de instrução PRESENCIAL para o dia /11/26 às _h </p>"},
+                            {"t": "pericia (sem instrução)", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">O Juízo observa que o reclamante postula o reconhecimento de doença ocupacional / adicional de insalubridade / periculosidade, com requerimento de realização de perícia.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">As partes dispensam os depoimentos pessoais reciprocamente.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">As partes não têm testemunhas.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Fica preclusa a produção de prova oral.</p><p style=\"text-align:justify;text-indent:3cm;\">Determina-se a realização da perícia técnica. Fica nomeado o Sr. Perito, devendo apresentar seu laudo no prazo de 30 dias, acompanhado da proposta de honorários. Intime-se.&nbsp;</p>"}
+                        ],
+                        S1: [{"t": "Dispensa depoimento parte", "h": "<p style=\"text-align:justify;text-indent:3cm;\">As partes pleiteiam a oitiva do depoimento pessoal da parte adversa, a despeito de ter trazido consigo testemunhas para serem ouvidas.</p><p style=\"text-align:justify;text-indent:3cm;\">Considerando o disposto no artigo 848 da CLT, a oitiva das partes constitui faculdade do magistrado, e não direito subjetivo das partes, razão pela qual é inaplicável, ao processo do trabalho, a regra prevista no artigo 385 do CPC de 2015, diante da existência de disciplina específica na legislação consolidada.</p><p style=\"text-align:justify;text-indent:3cm;\">Outrossim, o artigo 765 da CLT confere ao juiz amplos poderes na direção do processo, autorizando-o a indeferir provas que reputar desnecessárias à formação do seu convencimento. No caso, este magistrado entende prescindível a colheita dos depoimentos pessoais, notadamente porque as partes conduziram ao átrio da sala de audiências pessoas para serem ouvidas na condição de testemunhas. Isto é, a prova a ser produzida é apta a esclarecer, com qualidade, os fatos trazidos à discussão.</p><p style=\"text-align:justify;text-indent:3cm;\">A jurisprudência da Subseção I Especializada em Dissídios Individuais do Tribunal Superior do Trabalho, cf. TST - E-RRAg: 00017111520175060014, Relator.: Breno Medeiros, Data de Julgamento: 16/05/2024, Subseção I Especializada em Dissídios Individuais, Data de Publicação: 08/11/2024, consolidou entendimento no sentido de que o interrogatório das partes é prerrogativa do magistrado, à luz dos artigos 848 e 765 da CLT, sendo igualmente afastada a aplicação subsidiária do artigo 385 do CPC, ante a inexistência de lacuna normativa.</p><p style=\"text-align:justify;text-indent:3cm;\">No julgamento levado a efeito pela Subseção I Especializada em Dissídios Individuais do Tribunal Superior do Trabalho, a ratio decidendi foi construída a partir do contexto fático em que a parte reclamada alegava cerceamento do direito de defesa em razão do indeferimento, pelo juízo de origem, tanto do pedido de adiamento da audiência para a oitiva de testemunha quanto da colheita dos depoimentos pessoais, sendo certo que, naquela assentada, nenhuma das partes dispunha de testemunhas a serem ouvidas.</p><p style=\"text-align:justify;text-indent:3cm;\">Constatou-se que o adiamento fora indeferido por ausência de comprovação tempestiva do convite à testemunha, nos termos do artigo 455, § 1º, do CPC de 2015, e que, quanto aos depoimentos pessoais, o Tribunal Regional do Trabalho da 6ª Região reconhecera tratar-se de ato inserido no poder discricionário do magistrado, à luz do artigo 848 da CLT.</p><p style=\"text-align:justify;text-indent:3cm;\">A SDI-I, ao manter tal compreensão, firmou o entendimento de que a inexistência de prova oral a produzir, por si só, não impõe a realização do interrogatório das partes, porquanto a oitiva pessoal não constitui direito das partes, mas faculdade do juiz.</p><p style=\"text-align:justify;text-indent:3cm;\">A fortiori, em casos como o em comento, em que há testemunhas a serem ouvidas, também se mostra dispensável a oitiva das partes.</p><p style=\"text-align:justify;text-indent:3cm;\">Dessa forma, a decisão acerca da realização, ou não, dos depoimentos pessoais insere-se no âmbito do poder de condução do processo atribuído ao magistrado, não se tratando de prerrogativa das partes.</p><p style=\"text-align:justify;text-indent:3cm;\">Indefiro, portanto, o pleito de oitiva das partes.</p><p style=\"text-align:justify;text-indent:3cm;\">Protestos das partes.</p>"}, {"t": "Instrução", "h": "<p style=\"text-align:justify;text-indent:3cm;\">INCONCILIADOS.<br>&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">A(s) defesa(s) está(ão) nos autos.</p><p style=\"text-align:justify;text-indent:3cm;\">O Ato Normativo 003626-80.2025.2.00.0000 do CNJ, de setembro de 2025, estipula a obrigatoriedade do registro audiovisual de todas as audiências (arts. 1º e 3º). Nesse sentido, esclareço que a audiência será gravada, com disponibilização de link no acervo eletrônico dos autos, exceto na fase de tratativas de conciliação, ao início e ao final da audiência (CLT, arts. 846 e 850), haja vista a confidencialidade garantida pelo art. 30 da Lei 13.140/15, como aliás já decidiu o TED da OAB/SP (Processo: E-6.115/2023).</p><p style=\"text-align:justify;text-indent:3cm;\">Portanto, os depoimentos prestados na presente audiência serão integralmente gravados, razão pela qual não haverá pelo(a) magistrado (a), a transcrição exata das declarações dos depoentes.</p><p style=\"text-align:justify;text-indent:3cm;\">Todavia, visando apenas a facilitação de suas manifestações sobre o conteúdo da prova, será elaborado por ferramenta de Inteligência Artificial (Google) um breve resumo das informações úteis ao julgamento da causa (art. 851 e 852-F da CLT), ficando expressamente destacado que esse breve resumo não substitui, para fins probatórios, a íntegra dos depoimentos - que estarão documentados em meio audiovisual - e nem implica aquiescência das partes quanto ao conteúdo do resumo, servindo apenas e tão somente para auxílio na análise das provas. Portanto, prevalece em caso de divergências a versão original do vídeo disponibilizada no sistema PJe.</p><p style=\"text-align:justify;text-indent:3cm;\">Havendo interesse de se valer, em razões finais ou para fins recursais, de trechos específicos dos depoimentos, deverão as partes indicar com precisão o nome do arquivo, o minuto e o segundo em que o trecho degravado está registrado. A parte adversa, caso discorde da degravação, deverá apresentar impugnação especificada.</p><p style=\"text-align:justify;text-indent:3cm;\">Oportuno destacar que a gravação da audiência pelas partes e por seus advogados é lícita, independentemente da gravação feita pelo juízo (CPC, art. 367, §§ 5º e 6º), mas deve ser precedida de comunicação e identificação prévia dos envolvidos (Art. 5º, § 1º ato normativo), sendo limitada ao uso processual, sendo EXPRESSAMENTE VEDADA a sua utilização para outras finalidades, notadamente publicações em redes sociais, monetização, transmissões on-line, páginas de internet ou compartilhamentos por meio de aplicativos de mensagens (art. 5º, § 4º, II, B, do referido ato).</p><p style=\"text-align:justify;text-indent:3cm;\">Assim, e considerando ainda que a imagem e a voz humanas são protegidas legal e constitucionalmente contra reproduções não autorizadas pelo titular do direito de personalidade respectivo, ficam as partes advertidas de que o Juízo não autoriza o uso ou a reprodução da imagem e ou da voz de qualquer um dos sujeitos processuais por qualquer meio externo ao processo, físico ou eletrônico, sob pena de responsabilidade civil e criminal dos envolvidos.</p><p style=\"text-align:justify;text-indent:3cm;\">Neste momento, inicia-se a gravação da audiência.<br>&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Depoimento pessoal do(a) reclamante: Gravado em áudio e vídeo.<br>&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Depoimento pessoal do(a) preposto(a) da 1ª reclamada: Gravado em áudio e vídeo.</p><p style=\"text-align:justify;text-indent:3cm;\">1ª testemunha do(a) <u>reclamante</u>: *, CPF nº *, residente no endereço *.&nbsp;<br>&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">1ª testemunha do(a) <u>reclamado(a)</u>: *, CPF nº *, residente no endereço *.<br>&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">As partes não têm outras provas a produzir.</p><p style=\"text-align:justify;text-indent:3cm;\">Encerrada a instrução processual.</p><p style=\"text-align:justify;text-indent:3cm;\">Frustrada a última tentativa conciliatória.</p><p style=\"text-align:justify;text-indent:3cm;\">Razões finais facultadas no prazo comum de 02 dias, devendo o(a) reclamante manifestar-se acerca da defesa e documentos no mesmo prazo.</p><p style=\"text-align:justify;text-indent:3cm;\">Designa-se para julgamento a data de 09/09/2026 às 16:__ horas, sendo que as partes serão intimadas da sentença via Diário Oficial.</p><p style=\"text-align:justify;text-indent:3cm;\">Audiência encerrada às %HEC%.</p><p style=\"text-align:justify;text-indent:3cm;\">Registra-se que magistrado, partes e advogados estão no fórum, presencialmente.</p><p style=\"text-align:justify;text-indent:3cm;\">Nada mais.</p>"}, {"t": "Victor - Instrução com peritos", "h": "<p style=\"text-align:justify;text-indent:3cm;\"><strong>Prejudicada a conciliação.&nbsp;</strong></p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Recebida a(s) defesa(a) e documentos juntados via sistema.&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Prazo de 5 dias para réplica, sob pena de preclusão.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">O Juízo observa que o reclamante postula o pagamento de adicional de <strong>***periculosidade e ***insalubridade, c</strong>om requerimento de realização de perícia. A fim de imprimir celeridade e efetividade ao feito, proceder-se-á à produção integral da prova oral nesta audiência, inclusive quanto ao objeto da perícia a ser realizada, com a designação de perícia após o encerramento da produção de prova oral.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">A Recomendação CNJ n. 94 de 2021 recomenda aos tribunais brasileiros a gravação de atos processuais, sejam presenciais ou virtuais e a gravação dos depoimentos encontra-se autorizada pelas Resoluções 105/2010 do CNJ, 185/2017 do CSJT e 313/2021 do CSJT. Portanto, os depoimentos prestados na presente audiência serão integralmente gravados, razão pela qual não haverá pelo(a) magistrado (a), a transcrição exata das declarações dos depoentes.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Todavia, visando apenas a facilitação de suas manifestações sobre o conteúdo da prova, será elaborado por ferramenta de Inteligência Artificial (Google) um breve resumo das informações úteis ao julgamento da causa (art. 851 e 852-F da CLT), ficando expressamente destacado que esse breve resumo não substitui, para fins probatórios, a íntegra dos depoimentos - que estarão documentados em meio audiovisual - e nem implica aquiescência das partes quanto ao conteúdo do resumo, servindo apenas e tão somente para auxílio na análise das provas. Portanto, prevalece em caso de divergências a versão original do vídeo disponibilizada no sistema PJe.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Havendo interesse de se valer, em razões finais ou para fins recursais, de trechos específicos dos depoimentos, deverão as partes indicar com precisão o nome do arquivo, o minuto e o segundo em que o trecho degravado está registrado. A parte adversa, caso discorde da degravação, deverá apresentar impugnação especificada.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">A gravação audiovisual de audiências, a despeito de se tratar de faculdade conferida às partes pelo artigo 367, § 6.º, do CPC, destina-se exclusivamente a finalidades endoprocessuais, nos autos da reclamatória trabalhista em que realizada. Assim, e considerando ainda que a imagem e a voz humanas são protegidas legal e constitucionalmente contra reproduções não autorizadas pelo titular do direito de personalidade respectivo, ficam as partes advertidas de que o Juízo não autoriza o uso ou a reprodução da imagem e/ou da voz de qualquer um dos sujeitos processuais por qualquer meio externo ao processo, físico ou eletrônico, sob pena de responsabilidade civil e criminal dos envolvidos.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\"><strong><u>Neste momento, inicia-se a gravação da audiência.</u></strong></p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Depoimento pessoal do(a) reclamante: Gravado em áudio e vídeo.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Depoimento pessoal do(a) preposto(a) da * reclamada: Gravado em áudio e vídeo.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">1ª testemunha do(a) <u>reclamante</u>: *, CPF nº *, residente no endereço *.&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\"><strong>Gravado em áudio e vídeo.</strong></p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">1ª testemunha do(a)&nbsp;<u>reclamando(a)</u>: *, CPF nº *, residente no endereço *.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\"><strong>Gravado em áudio e vídeo.</strong></p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Fica preclusa a produção de prova oral.</p><p style=\"text-align:justify;text-indent:3cm;\">Tendo em vista o pedido de adicional de <strong>INSALUBRIDADE</strong>, determina-se a &nbsp;realização da perícia técnica. Fica nomeado o Sra. Perita <u>REGIANE SOUZA ROCHA SILVA </u>- e-mail: peritaregianesilva@gmail.com, devendo apresentar seu laudo no prazo de &nbsp;30 &nbsp;dias, acompanhado da proposta de honorários, ficando advertido de que eventuais atrasos serão levados em consideração na fixação do valor. Intime-se.</p><p style=\"text-align:justify;text-indent:3cm;\">Tendo em vista o pedido de adicional de <strong>PERICULOSIDADE</strong>, determina-se a realização da perícia técnica. Fica nomeado o Sr. Perito Eng. <u>ALLAN STRUCK PINHEIRO</u> - Cel: (11) 94264-5345 - e-mail: peritoallan.pinheiro@gmail.com, devendo apresentar seu laudo no prazo de 30 dias, acompanhado da proposta de honorários, ficando advertido de que eventuais atrasos serão levados em consideração na fixação do valor. Intime-se.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">No mesmo prazo da réplica acima deferido, as partes poderão apresentar quesitos e indicar assistentes técnicos, sendo que nesta oportunidade o(a) reclamante poderá descrever suas atividades, local e o setor de trabalho, sob pena de preclusão e de serem consideradas as atividades e informações descritas no laudo pericial. Atente-se o Expert para esta determinação. Fica autorizado o acompanhamento da diligência pelo(a) reclamante e assistentes técnicos das partes, devendo entrar em contato diretamente com o Sr.&nbsp; Perito, sob pena de preclusão. As partes serão intimadas da data da perícia, a qual se realizará no endereço: Rua&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Defere-se o acompanhamento do(a) reclamante às diligências, devendo o perito informar aos patronos das partes, por email, a data e o horário da realização da perícia, conforme art. 474, do CPC.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Após a apresentação do laudo pericial, as partes serão intimadas para manifestação no prazo comum de 05 (cinco) dias. Após o término dos trabalhos periciais, venham os autos conclusos para prolação de sentença, ocasião em que as partes serão intimadas para apresentação de razões finais.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Em&nbsp;observância&nbsp;ao&nbsp;disposto&nbsp;no&nbsp; art.&nbsp; 34&nbsp;da&nbsp;Consolidação&nbsp;das Normas da Corregedoria desse Regional, designa-se audiência de <strong>Encerramento da Instrução para o dia 09/09/2026 às 16:__ horas</strong>, dispensado o comparecimento das partes e procuradores.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Audiência encerrada às 15:22.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Registra-se que magistrado, partes e advogados estão no fórum, presencialmente.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Nada mais.</p>"}, {"t": "revelia", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Diante da ausência injustificada da reclamada, aplico-lhe a pena de revelia e confissão.</p>"}],
+                        S3: [{"t": "provimento", "h": "<p style=\"text-align:justify;text-indent:3cm;\">O(a) advogado(a) do(a) * requer o adiamento da presente audiência, tendo em vista que a(s) testemunha(s) *, embora convidada(s), não compareceu(ram).&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">O advogado requer que a intimação seja feita na forma do Provimento.</p><p style=\"text-align:justify;text-indent:3cm;\">Deferido.</p><p style=\"text-align:justify;text-indent:3cm;\"><u>Designa-se nova audiência UNA para o dia /11/26, às * horas, mantendo-se as cominações anteriores.&nbsp;</u></p><p style=\"text-align:justify;text-indent:3cm;\">Servirá o presente como MANDADO DE INTIMAÇÃO DE TESTEMUNHA, comprometendo-se o(a) * a entregar à testemunha acima indicada.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">A ausência ensejará multa e condução coercitiva. Local: Av. Guido Caloi, 1000, Santo Amaro, São Paulo/SP, CEP 05802-140.</p><p style=\"text-align:justify;text-indent:3cm;\">Saem cientes &nbsp;da nova designação as seguintes testemunhas:</p><p style=\"text-align:justify;text-indent:3cm;\">-Do reclamante -&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">-Da reclamada -&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">As demais testemunhas virão independentemente de notificação, sob pena de preclusão.</p><p style=\"text-align:justify;text-indent:3cm;\">Lida e conferida a ata pelos presentes é dispensada a assinatura das partes e dos respectivos patronos.</p><p style=\"text-align:justify;text-indent:3cm;\">Registra-se que magistrado, partes e advogados estão no fórum, presencialmente.</p><p style=\"text-align:justify;text-indent:3cm;\">Audiência encerrada às .</p><p style=\"text-align:justify;text-indent:3cm;\">Nada mais.</p>"}, {"t": "Testemunha - independente", "h": "<p style=\"text-align:justify;text-indent:3cm;\">&nbsp;INCONCILIADOS.</p><p style=\"text-align:justify;text-indent:3cm;\">O(a) advogado(a) do(a) * requer o adiamento da presente audiência, tendo em vista que a(s) testemunha(s) *, embora convidada(s), não compareceu(ram), comprometendo-se a trazê-la(s) na próxima sessão independentemente de intimação, sob pena de preclusão.</p><p style=\"text-align:justify;text-indent:3cm;\">Defiro.</p><p style=\"text-align:justify;text-indent:3cm;\"><u>Designa-se nova audiência UNA para o dia /11/26, às * horas, mantendo-se as cominações anteriores.&nbsp;</u></p><p style=\"text-align:justify;text-indent:3cm;\">Saem cientes da nova designação as seguintes testemunhas:</p><p style=\"text-align:justify;text-indent:3cm;\">-Do reclamante -&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">-Da reclamada -&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">As demais testemunhas virão independentemente de notificação, sob pena de preclusão.</p><p style=\"text-align:justify;text-indent:3cm;\">Lida e conferida a ata pelos presentes é dispensada a assinatura das partes e dos respectivos patronos.</p><p style=\"text-align:justify;text-indent:3cm;\">Registra-se que magistrado, partes e advogados estão no fórum, presencialmente.</p><p style=\"text-align:justify;text-indent:3cm;\">Audiência encerrada às %HEC%.</p><p style=\"text-align:justify;text-indent:3cm;\">Nada mais.</p>"}, {"t": "Citar por mandado e Edital", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Considerando que não há comprovante de recebimento da notificação por parte da&nbsp;<strong>***reclamada</strong>, (aviso de recebimento), determino a renovação da citação da ré por&nbsp;<strong>Oficial de Justiça</strong>, a fim de evitar futura alegação de cerceio de defesa, fato que vem ocorrendo com certa frequência nessas situações.</p><p style=\"text-align:justify;text-indent:3cm;\">Vale dizer, as notificações postais não são entregues pessoalmente a prepostos das reclamadas ou pessoalmente aos reclamantes, mas sim deixadas em \"caixas de correio\" como uma correspondência comum, o que certamente não se pode aceitar em relação a intimações judiciais.</p><p style=\"text-align:justify;text-indent:3cm;\">Cite-se a reclamada por&nbsp;<strong>edital, concomitantemente.</strong></p>"}],
+                        S4: [{"t": "Alvará", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">A presente ata tem força de ALVARÁ perante a CEF para liberação do FGTS, assim como suprimindo a inexistência do Termo de Rescisão do Contrato de Trabalho/CD, dos recolhimentos rescisórios do FGTS e do carimbo de baixa da CTPS, fornecendo-se, inclusive, os seguintes elementos relativos ao contrato de trabalho: PIS nº: *, data de admissão: * e demissão: *, CNPJ: *. CTPS * Série *-SP tipo de rescisão do contrato de trabalho::<u>****</u></p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">A presente ata possui força de ALVARÁ perante a CEF, SINE e demais órgãos competentes para requerimento do seguro-desemprego, suprindo, inclusive, a inexistência do TRCT, das guias SD/CD e do carimbo de baixa da CTPS, caso os prazos de carência e eventuais solicitações anteriores forem atendidas. PIS nº: * , data de admissão: * e demissão: *, CNPJ: * CTPS * Série *-SP&nbsp; tipo de rescisão do contrato de trabalho:<u>****</u></p>"}, {"t": "Acordo - Suspensão +Retorno ao estado anterior", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">As partes, neste ato, ajustam a suspensão do processo <strong>até o dia ******</strong>, data do pagamento da última parcela do acordo.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">O(a) reclamante terá o prazo de 15 dias, contado do termo final da suspensão, para noticiar eventual inadimplemento por parte da reclamada, ficando ciente desde já que no seu silêncio considerar-se-ão adimplidas todas as parcelas.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Nessa hipótese, os autos virão conclusos para homologação do acordo e exclusão das demais reclamadas.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Em caso de descumprimento do acordo, o processo retornará ao estado em que se encontrava, isto é, será designada nova audiência ***<strong>UNA / UNA/RS</strong> para recebimento das defesas e instrução do processo, de sorte que eventual valor parcial do acordo quitado será deduzido de futura execução.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Com o pagamento integral do acordo, o(a) reclamante dará geral e plena quitação pelo objeto da inicial e extinto contrato de trabalho.</p>"}, {"t": "acordo subsidiária", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Fica ajustada, ainda, a responsabilidade subsidiária da segunda reclamada, pelo valor integral do acordo na hipótese de inadimplemento por parte da primeira reclamada. Desta feita, caso descumprido o acordo pela primeira reclamada, a segunda reclamada deverá ser intimada para proceder ao pagamento do quanto inadimplido no prazo de 15 dias, observado o valor das parcelas e a sua periodicidade, sendo certo que na hipótese de pagamento tempestivo pela responsável subsidiária não lhe será cobrada multa acima estipulada, sendo que nesse caso a multa será devida exclusivamente pela primeira reclamada</p>"}],
+                        S5: [{"t": "Município revel", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">A fazenda pública não está dispensada do comparecimento à audiência, razão pela qual a sua ausência acarreta a revelia e consequente confissão (OJ 152 da SDI-I do C. TST), sendo certo que seu preposto poderia ser ouvido em audiência.</p>"}, {"t": "Tele - Atraso da reclamada", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Neste ato, o Juízo aguardou o ingresso da reclamada por 10 minutos e, além disso, o próprio magistrado procedeu ao ingresso nessa sala utilizando as informações constantes no despacho de fls 115, razão pela qual, não há falar sobre qualquer hipótese de irregularidade por inconsistência técnica no acesso à audiência telepresencial.</p>"}]
+                    }
+                };
+    
+                var S2 = [{"t": "pericia - allan", "h": "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Tendo em vista o pedido de adicional de PERICULOSIDADE, determina-se a realização da perícia técnica. Fica nomeado o Sr. Perito Eng. ALLAN STRUCK PINHEIRO - Cel: (11) 94264-5345 - e-mail: peritoallan.pinheiro@gmail.com, devendo apresentar seu laudo no prazo de 30 dias, acompanhado da proposta de honorários, ficando advertido de que eventuais atrasos serão levados em consideração na fixação do valor. Intime-se.&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">No mesmo prazo da réplica acima deferido, as partes poderão apresentar quesitos e indicar assistentes técnicos, sendo que nesta oportunidade o(a) reclamante poderá descrever suas atividades, local e o setor de trabalho, sob pena de preclusão e de serem consideradas as atividades e informações descritas no laudo pericial.</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Atente-se o Expert para esta determinação. Fica autorizado o acompanhamento da diligência pelo(a) reclamante e assistentes técnicos das partes, devendo entrar em contato diretamente com o Sr. Perito, sob pena de preclusão.&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">As partes serão intimadas da data da perícia, a qual se realizará no seguinte endereço: *&nbsp;</p><p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">Designa-se audiência de instrução para o dia /11/26 às _h. </p>"}, {"t": "pericia - regiane", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Tendo &nbsp;em &nbsp;vista &nbsp;o &nbsp;pedido &nbsp;de &nbsp;adicional &nbsp;de INSALUBRIDADE, &nbsp;determina-se &nbsp;a &nbsp;realização &nbsp;da perícia técnica. Fica nomeado o Sra. Perita &nbsp;REGIANE SOUZA ROCHA SILVA - e-mail: peritaregianesilva@gmail.com, &nbsp;devendo &nbsp;apresentar &nbsp;seu &nbsp;laudo &nbsp;no &nbsp;prazo &nbsp;de &nbsp;30 &nbsp;dias, &nbsp;acompanhado &nbsp;da proposta &nbsp;de &nbsp;honorários, &nbsp;ficando &nbsp;advertido &nbsp;de &nbsp;que &nbsp;eventuais &nbsp;atrasos &nbsp;serão &nbsp;levados &nbsp;em &nbsp;consideração &nbsp;na fixação do valor. Intime-se.</p><p style=\"text-align:justify;text-indent:3cm;\">No &nbsp;mesmo &nbsp;prazo &nbsp;da &nbsp;réplica &nbsp;acima &nbsp;deferido, &nbsp;as &nbsp;partes &nbsp;poderão &nbsp;apresentar &nbsp;quesitos &nbsp;e &nbsp;indicar assistentes &nbsp;técnicos, &nbsp;sendo &nbsp;que &nbsp;nesta &nbsp;oportunidade &nbsp;o(a) &nbsp;reclamante &nbsp;poderá &nbsp;descrever &nbsp;suas &nbsp;atividades, local &nbsp;e &nbsp;o &nbsp;setor &nbsp;de &nbsp;trabalho, &nbsp;sob &nbsp;pena &nbsp;de &nbsp;preclusão &nbsp;e &nbsp;de &nbsp;serem &nbsp;consideradas &nbsp;as &nbsp;atividades &nbsp;e &nbsp;informações descritas no laudo pericial. Atente-se o Expert para esta determinação. Fica &nbsp;autorizado &nbsp;o &nbsp;acompanhamento &nbsp;da &nbsp;diligência &nbsp;pelo(a) &nbsp;reclamante &nbsp;e &nbsp;assistentes técnicos &nbsp;das &nbsp;partes, &nbsp;devendo &nbsp;entrar &nbsp;em &nbsp;contato &nbsp;diretamente &nbsp;com &nbsp;o &nbsp;Sr. &nbsp;Perito, &nbsp;sob &nbsp;pena &nbsp;de preclusão.As &nbsp;partes &nbsp;serão &nbsp;intimadas &nbsp;da &nbsp;data &nbsp;da &nbsp;perícia, &nbsp;a &nbsp;qual &nbsp;se &nbsp;realizará &nbsp;no &nbsp;endereço: Rua&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Designa-se audiência de instrução PRESENCIAL para o dia /11/26 às _h &nbsp;</p>"}, {"t": "Pericia - cirino", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Tendo em vista o pedido de PERÍCIA MÉDICA, determina-se a realização da perícia técnica. Fica nomeado o Sr. Perito Médico ALEXANDRE CIRINO, que deverá apresentar seu laudo no prazo de 20 dias após a realização da perícia médica, que ocorrerá na data de 06/10/26 às 14h30min na 3ª Vara do Trabalho do Fórum da Zona Sul: Av. Guido Caloi, 1000, 2º andar, São Paulo/SP - Cel (11) 97160-1309 - e-mail: alecirino@terra.com.br, acompanhado da proposta de honorários, ficando advertido de que eventuais atrasos serão levados em consideração na fixação do valor.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">O reclamante deverá portar todas as suas CTPS no dia da perícia. Intime-se.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">No mesmo prazo da réplica acima deferido, as partes poderão apresentar quesitos e indicar assistentes técnicos, sendo que nesta oportunidade o(a) reclamante poderá descrever suas atividades, local e o setor de trabalho, sob pena de preclusão e de serem consideradas as atividades e informações descritas no laudo pericial.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Atente-se o Expert para esta determinação.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">Fica autorizado o acompanhamento da diligência pelo(a) reclamante assistentes técnicos das partes. As partes já estão cientes da data da perícia médica.</p><p style=\"text-align:justify;text-indent:3cm;\">A ausência da parte reclamante acarretará a preclusão da prova pericial e aplicação de multa por litigância de má fé, se não comprovadamente justificada NOS AUTOS em até 48 horas após a data do exame, independentemente de intimação específica para tanto.</p><p style=\"text-align:justify;text-indent:3cm;\">Designa-se audiência de instrução PRESENCIAL para o dia /11/26 às _h.</p>"}, {"t": "Pericia Vladia", "h": "<p style=\"text-align:justify;text-indent:3cm;\">Tendo em vista o pedido de PERÍCIA MÉDICA, determina-se a realização da perícia técnica.<br>Fica nomeado o Sr. Perito Médico VLADIA JUOZEPAVICIUS GONÇALVES (email vladia2112@yahoo.com.br e telefone: 11 4992-9209), que deverá apresentar seu laudo no prazo de 30 dias após a realização da perícia médica, que ocorrerá em data e local a serem informados pela expert &nbsp;acompanhado da proposta de honorários, ficando advertido de que eventuais atrasos serão levados em consideração na fixação do valor.&nbsp;</p><p style=\"text-align:justify;text-indent:3cm;\">O reclamante deverá portar todas as suas CTPS no dia da perícia. Intime-se.</p><p style=\"text-align:justify;text-indent:3cm;\">No prazo de 05 dias, as partes poderão apresentar quesitos e indicar assistentes técnicos, sendo que nesta oportunidade o(a) reclamante poderá descrever suas atividades, local e o setor de trabalho, sob pena de preclusão e de serem consideradas as atividades e informações descritas no laudo pericial.</p><p style=\"text-align:justify;text-indent:3cm;\">Atente-se o Expert para esta determinação.</p><p style=\"text-align:justify;text-indent:3cm;\">Fica autorizado o acompanhamento da diligência pelo(a) reclamante assistentes técnicos das partes.</p><p style=\"text-align:justify;text-indent:3cm;\">Designa-se audiência de instrução PRESENCIAL para o dia /11/26 às _h </p>"}];
+                var PR = {"ROGERIO APARECIDO ROSA": {"banco": "001 — Banco do Brasil", "agencia": "1832", "conta": "160235-7"}, "REGIANE SOUZA ROCHA SILVA": {"banco": "001 — Banco do Brasil", "agencia": "0717", "conta": "127844-4"}, "CARLOS IRAYBA CREMONINI": {"banco": "341 — Itáu Unibanco", "agencia": "8215", "conta": "13827-5"}, "ALEXANDRE MARCOS INACO CIRINO": {"banco": "237 — Banco Bradesco", "agencia": "2677", "conta": "0049115-2"}, "ALLAN STRUCK PINHEIRO": {"banco": "001 — Banco do Brasil", "agencia": "1563", "conta": "30305-4"}, "MARIANA ACCARDO DE MORAES FONTES": {"banco": "341 — Itáu Unibanco", "agencia": "3768", "conta": "39697-4"}, "VLADIA JUOZEPAVICIUS GONÇALVES": {"banco": "", "agencia": "", "conta": ""}};
+                var HH = "<p style=\"margin-left:0cm;text-align:justify;text-indent:3cm;\">A reclamada depositará os honorários periciais no valor de R$*, no prazo de 30 dias, após o pagamento do acordo, na conta do perito * cujos dados bancários seguem: Banco *, agência *, conta corrente *.</p>";
+    
+                var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 = Qui, 5 = Sex, 6 = Sáb
+                var perfilAtual = "";
+                if (diaDaSemana === 1 || diaDaSemana === 2) {
+                    perfilAtual = "victor";
+                } else if (diaDaSemana === 3 || diaDaSemana === 4) {
+                    perfilAtual = "otavio";
+                }
+    
+                function renderizarPainel(perfilId, estaRetraido) {
+                    var ex = document.getElementById('pjetools-aud-container');
+                    if (ex) ex.remove();
+    
+                    if (!perfilId) {
+                        criarSeletor();
+                        return;
+                    }
+    
+                    if (typeof estaRetraido === 'undefined') {
+                        estaRetraido = true;
+                    }
+    
+                    var perfil = perfis[perfilId];
+                    var T = perfil.title;
+                    var S1 = perfil.S1;
+                    var S2_list = perfil.S2 || S2;
+                    var S3 = perfil.S3;
+                    var S4 = perfil.S4;
+                    var S5 = perfil.S5;
+    
+                    var P = document.createElement('div');
+                    P.id = 'pjetools-aud-container';
+                    P.style.cssText = 'position:fixed;top:100px;right:15px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:17px;user-select:none;';
+    
+                    function E(t, c, x) {
+                        var e = document.createElement(t);
+                        if (c) e.style.cssText = c;
+                        if (x != null) e.textContent = x;
+                        return e;
+                    }
+    
+                    var bodyDiv = E('div', 'display:block;user-select:text;');
+    
+                    function ST(t) {
+                        var d = E('div', 'margin-top:10px;border-top:1px solid #eef;padding-top:6px;');
+                        d.appendChild(E('div', 'font-weight:bold;font-size:13px;color:#8899cc;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;', t));
+                        bodyDiv.appendChild(d);
+                        return d;
+                    }
+    
+                    function getEditor() {
+                        function findInDoc(d) {
+                            if (!d) return null;
+                            try {
+                                return [...d.querySelectorAll('.ck-editor__editable[contenteditable="true"],.ck-editor__editable_inline[contenteditable="true"],[contenteditable="true"]')].find(function (x) { return x && x.ckeditorInstance; });
+                            } catch(e) { return null; }
+                        }
+                        var ed = findInDoc(document);
+                        if (!ed && typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.document) {
+                            ed = findInDoc(unsafeWindow.document);
+                        }
+                        if (!ed) {
+                            var iframes = document.querySelectorAll('iframe');
+                            for (var i = 0; i < iframes.length; i++) {
+                                try {
+                                    var idoc = iframes[i].contentDocument || (iframes[i].contentWindow && iframes[i].contentWindow.document);
+                                    ed = findInDoc(idoc);
+                                    if (ed) break;
+                                } catch(e) {}
+                            }
+                        }
+                        if (!ed) {
+                            alert('Editor CKEditor 5 não encontrado na tela. Abra a ata primeiro.');
+                            return null;
+                        }
+                        return ed;
+                    }
+    
+                    function getSelectionRange(ck) {
+                        try {
+                            var s = ck.model.document.selection;
+                            var r = [...s.getRanges()];
+                            return r.length > 0 ? r[0] : null;
+                        } catch (e) {
+                            return null;
+                        }
+                    }
+    
+                    // Hora de encerramento: hora atual + 12 minutos, formato HH:MM
+                    function horaEncerramento() {
+                        var d = new Date(Date.now() + 12 * 60000);
+                        var hh = String(d.getHours()).padStart(2, '0');
+                        var mm = String(d.getMinutes()).padStart(2, '0');
+                        return hh + ':' + mm;
+                    }
+    
+                    // Os templates contêm o marcador %HEC% em "Audiência encerrada às %HEC%."
+                    // (marcado direto na ocorrência); aqui é expandido no momento do clique.
+                    function completarEncerramento(html) {
+                        var texto = String(html || '');
+                        var hora = horaEncerramento();
+                        return texto.split('%HEC%').join(hora)
+                            .replace(/Audiência encerrada às\s*\./gi, 'Audiência encerrada às ' + hora + '.')
+                            .replace(/Audiência encerrada às\s*(?=<|$)/gi, 'Audiência encerrada às ' + hora + '.');
+                    }
+    
+                    function ins(h) {
+                        var ed = getEditor();
+                        if (!ed) return;
+                        h = completarEncerramento(h);
+                        var ck = ed.ckeditorInstance;
+                        var SR = getSelectionRange(ck);
+                        if (!SR) {
+                            alert('Posicione o cursor no editor antes de usar o botão.');
+                            return;
+                        }
+                        try {
+                            var v = ck.data.processor.toView(h);
+                            var m = ck.data.toModel(v);
+                            ck.model.change(function () { ck.model.insertContent(m, SR); });
+                            ed.focus();
+                        } catch (e) {
+                            alert('Erro: ' + e.message);
+                        }
+                    }
+    
+                    function BF(b) {
+                        var btn = E('button', 'flex:1 1 auto;min-width:70px;padding:7px 4px;background:#e8f0fe;border:1px solid #b0c4f8;border-radius:6px;cursor:pointer;font-size:14px;text-align:center;line-height:1.3;');
+                        btn.textContent = b.t;
+                        btn.onclick = function () { ins(b.h); };
+                        btn.onmouseover = function () { this.style.background = '#c5d8ff'; };
+                        btn.onmouseout = function () { this.style.background = '#e8f0fe'; };
+                        return btn;
+                    }
+    
+                    function BC(b, bg) {
+                        var btn = E('button', 'display:block;width:100%;padding:7px 8px;margin:3px 0;background:' + (bg || '#f5f8ff') + ';border:1px solid #c8d4f0;border-radius:6px;cursor:pointer;font-size:16px;text-align:left;');
+                        btn.textContent = b.t;
+                        btn.onclick = function () { ins(b.h); };
+                        btn.onmouseover = function () { this.style.background = '#d8e4ff'; };
+                        btn.onmouseout = function () { this.style.background = (bg || '#f5f8ff'); };
+                        return btn;
+                    }
+    
+                    function BP(b) {
+                        var btn = E('button', 'padding:6px 4px;background:#f5f8ff;border:1px solid #c8d4f0;border-radius:5px;cursor:pointer;font-size:14px;text-align:center;width:100%;');
+                        btn.textContent = b.t;
+                        btn.onclick = function () { ins(b.h); };
+                        btn.onmouseover = function () { this.style.background = '#d8e4ff'; };
+                        btn.onmouseout = function () { this.style.background = '#f5f8ff'; };
+                        return btn;
+                    }
+    
+                    var hdr = E('div', 'display:flex;justify-content:space-between;align-items:center;gap:6px;cursor:grab;margin:-8px -12px 8px -12px;padding:8px 12px;background:#f4f6fc;border-top-left-radius:9px;border-top-right-radius:9px;border-bottom:1px solid #e8edff;');
+                    
+                    var titleBox = E('div', 'display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;min-width:0;');
+                    var titleLabel = E('span', 'font-weight:bold;font-size:15px;color:#1e293b;white-space:nowrap;', '📌 Painel AUD');
+                    titleBox.appendChild(titleLabel);
+    
+                    var selPerfil = E('select', 'font-size:14px;color:#223;font-weight:bold;border:1px solid #ccc;border-radius:4px;padding:2px 4px;background:#fff;cursor:pointer;');
+                    var opO = E('option', null, 'Otavio'); opO.value = 'otavio';
+                    var opV = E('option', null, 'Victor'); opV.value = 'victor';
+                    selPerfil.appendChild(opO);
+                    selPerfil.appendChild(opV);
+                    selPerfil.value = perfilId;
+                    selPerfil.onchange = function(e) {
+                        e.stopPropagation();
+                        renderizarPainel(this.value, false);
+                    };
+                    titleBox.appendChild(selPerfil);
+    
+                    var rightControls = E('div', 'display:flex;align-items:center;gap:4px;');
+                    var toggleBtn = E('button', 'border:none;background:none;cursor:pointer;font-size:16px;color:#475569;padding:2px 4px;font-weight:bold;', estaRetraido ? '➕' : '➖');
+                    var fc = E('button', 'border:none;background:none;cursor:pointer;font-size:20px;color:#94a3b8;padding:0 2px;', '✕');
+                    fc.onclick = function (e) { e.stopPropagation(); window.__pjeAudFechadoManualmente = true; P.remove(); };
+    
+                    rightControls.appendChild(toggleBtn);
+                    rightControls.appendChild(fc);
+    
+                    hdr.appendChild(titleBox);
+                    hdr.appendChild(rightControls);
+                    P.appendChild(hdr);
+                    P.appendChild(bodyDiv);
+    
+                    function aplicarRetracao(retraido) {
+                        estaRetraido = retraido;
+                        if (estaRetraido) {
+                            bodyDiv.style.display = 'none';
+                            P.style.width = 'auto';
+                            P.style.maxHeight = 'none';
+                            P.style.overflowY = 'visible';
+                            hdr.style.marginBottom = '0';
+                            hdr.style.borderBottom = 'none';
+                            toggleBtn.textContent = '➕';
+                            toggleBtn.title = 'Expandir Painel AUD';
+                        } else {
+                            bodyDiv.style.display = 'block';
+                            P.style.width = '413px';
+                            P.style.maxWidth = 'calc(100vw - 16px)';
+                            P.style.maxHeight = '90vh';
+                            P.style.overflowY = 'auto';
+                            hdr.style.marginBottom = '8px';
+                            hdr.style.borderBottom = '1px solid #e8edff';
+                            toggleBtn.textContent = '➖';
+                            toggleBtn.title = 'Retrair Painel AUD';
+                        }
+                    }
+    
+                    function alternarRetracao(e) {
+                        if (e && e.target && (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION')) return;
+                        aplicarRetracao(!estaRetraido);
+                    }
+    
+                    titleBox.onclick = alternarRetracao;
+                    toggleBtn.onclick = alternarRetracao;
+    
+                    (function tornarArrastavel(el, handle) {
+                        let ox = 0, oy = 0, drag = false;
+                        handle.addEventListener('mousedown', function(e) {
+                            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.tagName === 'INPUT') return;
+                            drag = true;
+                            var rect = el.getBoundingClientRect();
+                            ox = e.clientX - rect.left;
+                            oy = e.clientY - rect.top;
+                            e.preventDefault();
+                        });
+                        document.addEventListener('mousemove', function(e) {
+                            if (!drag) return;
+                            el.style.left = (e.clientX - ox) + 'px';
+                            el.style.top = (e.clientY - oy) + 'px';
+                            el.style.right = 'auto';
+                            el.style.bottom = 'auto';
+                            el.style.transform = 'none';
+                        });
+                        document.addEventListener('mouseup', function() {
+                            drag = false;
+                        });
+                    })(P, hdr);
+    
+                    aplicarRetracao(estaRetraido);
+    
+                    var r1 = E('div', 'display:flex;flex-wrap:wrap;gap:4px;');
+                    S1.forEach(function (b) { r1.appendChild(BF(b)); });
+                    bodyDiv.appendChild(r1);
+    
+                    var dConsultas = ST('Consultas');
+                    var consultas = E('div', 'display:flex;flex-direction:column;gap:5px;');
+    
+                    function linhaConsulta(rotulo, placeholder, cor) {
+                        var linha = E('div', 'display:flex;align-items:center;gap:4px;');
+                        var label = E('label', 'flex:0 0 76px;margin:0;font-size:14px;font-weight:bold;', rotulo);
+                        var input = E('input', 'flex:1;min-width:0;box-sizing:border-box;padding:5px;font-size:16px;border:1px solid #ccc;border-radius:3px;');
+                        input.type = 'text';
+                        input.placeholder = placeholder;
+                        input.inputMode = 'numeric';
+                        var buscar = E('button', 'flex:0 0 62px;padding:5px 3px;background:' + cor + ';color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;', 'Buscar');
+                        var status = E('span', 'display:none;flex:0 0 38px;color:#188038;font-size:13px;font-weight:bold;white-space:nowrap;overflow:hidden;', 'Dados copiados');
+                        linha.appendChild(label);
+                        linha.appendChild(input);
+                        linha.appendChild(buscar);
+                        linha.appendChild(status);
+                        consultas.appendChild(linha);
+                        return { input: input, buscar: buscar, status: status, cor: cor };
+                    }
+    
+                    // O próprio botão vira confirmação (DADOS OK / FALHA) e volta a Buscar depois.
+                    function feedbackBuscar(linha, ok) {
+                        linha.buscar.textContent = ok ? 'DADOS OK' : 'FALHA';
+                        linha.buscar.style.background = ok ? '#188038' : '#c5221f';
+                        setTimeout(function () {
+                            linha.buscar.textContent = 'Buscar';
+                            linha.buscar.style.background = linha.cor;
+                        }, 3000);
+                    }
+    
+                    async function copiarTexto(texto) {
+                        if (typeof GM_setClipboard === 'function') {
+                            GM_setClipboard(String(texto));
+                            return;
+                        }
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            try {
+                                await navigator.clipboard.writeText(String(texto));
+                                return;
+                            } catch(e) {}
+                        }
+                        var area = document.createElement('textarea');
+                        area.value = String(texto);
+                        area.style.cssText = 'position:fixed;left:-9999px;top:0;';
+                        document.body.appendChild(area);
+                        area.select();
+                        if (!document.execCommand('copy')) throw new Error('Não foi possível copiar os dados.');
+                        area.remove();
+                    }
+    
+                    var fInfo = linhaConsulta('Infojud', 'CPF ou CNPJ', '#43a047');
+                    fInfo.buscar.onclick = async function () {
+                        var c = fInfo.input.value.replace(/\D/g, '');
+                        fInfo.input.value = c;
+                        if (c.length !== 11 && c.length !== 14) {
+                            feedbackBuscar(fInfo, false);
+                            return;
+                        }
+                        fInfo.buscar.disabled = true;
+                        fInfo.buscar.textContent = 'Buscando...';
+                        try {
+                            var consultarInfojud = window.consultarInfojudComRetorno;
+                            if (typeof consultarInfojud !== 'function' && typeof unsafeWindow !== 'undefined') {
+                                consultarInfojud = unsafeWindow.consultarInfojudComRetorno;
+                            }
+                            if (typeof consultarInfojud !== 'function') throw new Error('Módulo Infojud não disponível.');
+                            var resultado = await consultarInfojud(c);
+                            await copiarTexto(resultado.texto);
+                            feedbackBuscar(fInfo, true);
+                        } catch (e) {
+                            feedbackBuscar(fInfo, false);
+                        } finally {
+                            fInfo.buscar.disabled = false;
+                            fInfo.buscar.textContent = 'Buscar';
+                        }
+                    };
+    
+                    var fCep = linhaConsulta('CEP', 'Digite o CEP', '#1e88e5');
+                    async function buscarEnderecoPorCEP(cep) {
+                        var cepNumerico = String(cep).replace(/\D/g, '');
+                        if (cepNumerico.length !== 8) {
+                            throw new Error('Digite um CEP válido com 8 números.');
+                        }
+                        var fontes = [
+                            {
+                                nome: 'ViaCEP',
+                                url: 'https://viacep.com.br/ws/' + cepNumerico + '/json/',
+                                parse: function (d) { return d.erro ? null : {
+                                    logradouro: d.logradouro, bairro: d.bairro, complemento: d.complemento,
+                                    cidade: d.localidade, uf: d.uf, cep: d.cep
+                                }; }
+                            },
+                            {
+                                nome: 'BrasilAPI',
+                                url: 'https://brasilapi.com.br/api/cep/v2/' + cepNumerico,
+                                parse: function (d) { return d.errors ? null : {
+                                    logradouro: d.street, bairro: d.neighborhood, complemento: '',
+                                    cidade: d.city, uf: d.state, cep: d.cep
+                                }; }
+                            },
+                            {
+                                nome: 'BrasilCEP',
+                                url: 'https://brasilcep.dev/v1/' + cepNumerico + '.json',
+                                parse: function (d) { return d.erro ? null : {
+                                    logradouro: d.logradouro, bairro: d.bairro, complemento: d.complemento,
+                                    cidade: d.localidade, uf: d.uf, cep: d.cep
+                                }; }
+                            }
+                        ];
+                        var resultados = [];
+                        for (var i = 0; i < fontes.length; i++) {
+                            var fonte = fontes[i];
+                            try {
+                                var resposta = await fetch(fonte.url, { headers: { Accept: 'application/json' } });
+                                if (!resposta.ok) continue;
+                                var parsed = fonte.parse(await resposta.json());
+                                if (parsed && parsed.logradouro) resultados.push(parsed);
+                            } catch (e) {
+                                console.warn('[CEP] Falha em ' + fonte.nome + ':', e.message);
+                            }
+                        }
+                        if (!resultados.length) throw new Error('Não foi possível localizar o CEP em nenhuma API.');
+                        var combinado = resultados.reduce(function (acc, atual) {
+                            return {
+                                logradouro: acc.logradouro || atual.logradouro || '',
+                                bairro: acc.bairro || atual.bairro || '',
+                                complemento: acc.complemento || atual.complemento || '',
+                                cidade: acc.cidade || atual.cidade || '',
+                                uf: acc.uf || atual.uf || '',
+                                cep: acc.cep || atual.cep || cepNumerico
+                            };
+                        }, {});
+                        var cepLimpo = String(combinado.cep).replace(/\D/g, '') || cepNumerico;
+                        var cepFormatado = cepLimpo.length === 8 ? cepLimpo.substring(0, 5) + '-' + cepLimpo.substring(5) : cepLimpo;
+                        var texto = [combinado.logradouro + ', número __', combinado.bairro, combinado.complemento,
+                            'CEP - ' + cepFormatado, combinado.cidade + '/' + combinado.uf]
+                            .filter(Boolean).join(' - ');
+                        return texto;
+                    }
+                    fCep.buscar.onclick = async function () {
+                        var c = fCep.input.value.replace(/\D/g, '');
+                        fCep.input.value = c;
+                        if (c.length !== 8) { alert('Digite um CEP válido com 8 números.'); return; }
+                        fCep.buscar.disabled = true;
+                        fCep.buscar.textContent = 'Buscando...';
+                        try {
+                            var endereco = await buscarEnderecoPorCEP(c);
+                            await copiarTexto(endereco);
+                            feedbackBuscar(fCep, true);
+                        } catch (e) {
+                            feedbackBuscar(fCep, false);
+                        } finally {
+                            fCep.buscar.disabled = false;
+                            fCep.buscar.textContent = 'Buscar';
+                        }
+                    };
+    
+                    var fSiscon = linhaConsulta('SisconDJ', 'Dados da consulta', '#8e44ad');
+                    dConsultas.appendChild(consultas);
+                    var sisconCard = E('div', 'display:none;margin-top:6px;padding:7px;background:#faf5ff;border:1px solid #c084fc;border-radius:5px;font-size:14px;');
+                    dConsultas.appendChild(sisconCard);
+                    function safeTxt(t) {
+                        return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+    
+                    function formatarDoc(d) {
+                        var digits = String(d || '').replace(/\D/g, '');
+                        if (digits.length === 11) return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+                        if (digits.length === 14) return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+                        return d || '';
+                    }
+    
+                    function exibirDadosSiscon(resultado, docBusca) {
+                        var dados = (resultado.data && resultado.data.primeiro) || resultado.data || {};
+                        console.log('[AUD][SISCON] resultado recebido:', resultado);
+                        console.log('[AUD][SISCON] primeiro bloco usado:', dados);
+    
+                        var nome = (resultado.data && resultado.data.nome) || dados.nome || dados.razaoSocial || '';
+                        var docBruto = (resultado.data && resultado.data.documento) || dados.documento || dados.cnpj || docBusca || '';
+                        var docFormatado = formatarDoc(docBruto);
+    
+                        var textoDados = (dados.conta || '') +
+                            ', agência ' + (dados.agencia || '') +
+                            ', do Banco ' + (dados.banco || '') +
+                            (dados.contaJuridica ? ' (Conta PJ em nome de ' + (dados.razaoSocial || '') +
+                                (dados.cnpj ? ' - ' + dados.cnpj : '') + ')' : '');
+    
+                        var textoCopiado = 'Nome: ' + nome + '  CPF/CNPJ: ' + docFormatado + '\n' +
+                            'Dados: ' + textoDados + '\n' +
+                            'Chave Pix: ';
+    
+                        sisconCard.innerHTML = '<strong>Nome:</strong> ' + safeTxt(nome) + ' &nbsp;<strong>CPF/CNPJ:</strong> ' + safeTxt(docFormatado) + '<br>' +
+                            '<strong>Dados:</strong> ' + safeTxt(textoDados) + '<br>' +
+                            '<strong>Chave Pix:</strong> ' +
+                            (resultado.detailUrl ? ' <a href="' + resultado.detailUrl + '" target="_blank" rel="noopener">confirmar</a>' : '');
+                        sisconCard.style.display = 'block';
+    
+                        return textoCopiado;
+                    }
+                    fSiscon.buscar.onclick = async function () {
+                        var c = fSiscon.input.value.replace(/\D/g, '');
+                        fSiscon.input.value = c;
+                        if (c.length !== 11 && c.length !== 14) { alert('Digite um CPF ou CNPJ válido.'); return; }
+                        fSiscon.buscar.disabled = true;
+                        fSiscon.buscar.textContent = 'Buscando...';
+                        try {
+                            var api = (window.Alv && window.Alv.siscondj) || (typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.Alv && unsafeWindow.Alv.siscondj);
+                            if (!api || typeof api.consultarDocumento !== 'function') throw new Error('Módulo SISCONDJ não disponível.');
+                            var resultado = await api.consultarDocumento(c);
+                            if (resultado.status === 'empty') {
+                                feedbackBuscar(fSiscon, false);
+                                sisconCard.innerHTML = 'Nenhum dado bancário encontrado. ' + (resultado.searchLink ? '<a href="' + resultado.searchLink + '" target="_blank" rel="noopener">abrir busca</a>' : '');
+                                sisconCard.style.display = 'block';
+                                return;
+                            }
+                            var textoParaCopiar = exibirDadosSiscon(resultado, c);
+                            await copiarTexto(textoParaCopiar);
+                            feedbackBuscar(fSiscon, true);
+                        } catch (e) {
+                            feedbackBuscar(fSiscon, false);
+                            sisconCard.style.display = 'none';
+                        } finally {
+                            fSiscon.buscar.disabled = false;
+                            fSiscon.buscar.textContent = 'Buscar';
+                        }
+                    };
+    
+                    if (S2_list.length > 0) {
+                        var d2 = ST('Perícias');
+                        var g2 = E('div', 'display:grid;grid-template-columns:1fr 1fr;gap:4px;');
+                        S2_list.forEach(function (b) { g2.appendChild(BP(b)); });
+                        d2.appendChild(g2);
+                    }
+    
+                    if (S3.length > 0) {
+                        var d3 = ST('Adiamento - Testemunhas');
+                        S3.forEach(function (b) { d3.appendChild(BC(b)); });
+                    }
+    
+                    var d4 = ST('Acordo');
+                    S4.forEach(function (b) { d4.appendChild(BC(b)); });
+    
+                    var honBtn = E('button', 'display:block;width:100%;padding:7px 8px;margin:3px 0;background:#fff8e1;border:1px solid #f0c060;border-radius:6px;cursor:pointer;font-size:16px;text-align:left;', 'Honorários periciais - acordo pós perícia');
+                    var honEx = E('div', 'display:none;margin-top:4px;padding:6px;background:#fffdf0;border:1px solid #f0d080;border-radius:5px;');
+                    var selP = E('select', 'width:100%;margin-bottom:4px;padding:4px;font-size:16px;border:1px solid #ccc;border-radius:3px;');
+                    var op0 = E('option', null, 'Selecione o perito aqui');
+                    op0.value = '';
+                    selP.appendChild(op0);
+                    Object.keys(PR).forEach(function (n) {
+                        var o = E('option', null, n);
+                        o.value = n;
+                        selP.appendChild(o);
+                    });
+                    honEx.appendChild(selP);
+    
+                    var bColar = E('button', 'display:block;width:100%;padding:5px;background:#4caf50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:16px;', 'Colar dados');
+                    bColar.onclick = function () {
+                        var n = selP.value;
+                        if (!n) { selP.style.borderColor = 'red'; return; }
+                        selP.style.borderColor = '#ccc';
+                        var pp = PR[n];
+                        var hf = HH.replace('perito *', n).replace('Banco *', pp.banco || '(banco não informado)').replace('agência *', pp.agencia || '(agência não informada)').replace('conta corrente *', pp.conta || '(conta não informada)');
+                        ins(hf);
+                    };
+                    honEx.appendChild(bColar);
+    
+                    honBtn.onclick = function () {
+                        honEx.style.display = honEx.style.display === 'none' ? 'block' : 'none';
+                    };
+    
+                    d4.appendChild(honBtn);
+                    d4.appendChild(honEx);
+    
+                    if (S5.length > 0) {
+                        var d5 = ST('Extras');
+                        S5.forEach(function (b) { d5.appendChild(BC(b, '#fdf5ff')); });
+                    }
+    
+                    document.body.appendChild(P);
+                }
+    
+                function criarSeletor() {
+                    var overlay = document.createElement('div');
+                    overlay.id = 'pjetools-aud-container'; // same ID so it doesn't duplicate
+                    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:9999999;';
+                    
+                    var modal = document.createElement('div');
+                    modal.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);text-align:center;font-family:Arial,sans-serif;';
+                    
+                    var titulo = document.createElement('h3');
+                    titulo.textContent = 'Qual o juiz da pauta de hoje?';
+                    titulo.style.marginTop = '0';
+                    modal.appendChild(titulo);
+                    
+                    var btns = document.createElement('div');
+                    btns.style.cssText = 'display:flex;gap:10px;justify-content:center;margin-top:20px;';
+                    
+                    var btnO = document.createElement('button');
+                    btnO.textContent = 'Otavio';
+                    btnO.style.cssText = 'padding:10px 20px;font-size:18px;cursor:pointer;background:#2196f3;color:#fff;border:none;border-radius:4px;';
+                    btnO.onclick = function() {
+                        overlay.remove();
+                        renderizarPainel('otavio');
+                    };
+                    
+                    var btnV = document.createElement('button');
+                    btnV.textContent = 'Victor';
+                    btnV.style.cssText = 'padding:10px 20px;font-size:18px;cursor:pointer;background:#4caf50;color:#fff;border:none;border-radius:4px;';
+                    btnV.onclick = function() {
+                        overlay.remove();
+                        renderizarPainel('victor');
+                    };
+                    
+                    btns.appendChild(btnO);
+                    btns.appendChild(btnV);
+                    modal.appendChild(btns);
+                    overlay.appendChild(modal);
+                    document.body.appendChild(overlay);
+                }
+    
+                renderizarPainel(perfilAtual);
+            }
+    
+        var _targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+        _targetWin.PJeAud = _targetWin.PJeAud || {};
+        _targetWin.PJeAud.init = init;
+        window.PJeAud = window.PJeAud || _targetWin.PJeAud;
+        window.PJeAud.init = init;
+    
+        if (typeof window.__pjeAudInterval === 'undefined') {
+            window.__pjeAudInterval = setInterval(function() {
+                if (window.location.href.indexOf('/aud') !== -1) {
+                    if (!document.getElementById('pjetools-aud-container') && document.body && !window.__pjeAudFechadoManualmente) {
+                        init();
+                    }
+                }
+            }, 1000);
+        }
+    })();
 
     const isReceita  = url.includes('cav.receita.fazenda.gov.br');
     const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');

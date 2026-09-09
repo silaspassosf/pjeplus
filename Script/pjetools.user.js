@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.65
+// @version      2.3.67
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/pjetools.user.js
@@ -24,6 +24,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        window.close
 // @grant        unsafeWindow
+// @grant        GM_setClipboard
 // @connect      raw.githubusercontent.com
 // @connect      consultadecep.com
 // @connect      viacep.com.br
@@ -55,7 +56,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.31
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.67
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 
@@ -64,8 +65,8 @@
     console.log('[Loader] PJe Tools Pro v2.2.0 loaded');
 
     const url = window.location.href;
-    const isAud = url.includes('/aud') || (function() { try { return window.top && window.top.location.href.includes('/aud'); } catch(e) { return false; } })();
-    
+    const isAud = url.includes('/aud') || (function () { try { return window.top && window.top.location.href.includes('/aud'); } catch (e) { return false; } })();
+
     // Módulos SISB carregados via @require (git), como os demais módulos.
     // Permite execução em iframes APENAS se for ambiente AUD
     if (window.self !== window.top && !isAud) return;
@@ -73,7 +74,13 @@
     // W = window real da página (unsafeWindow quando disponível)
     const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
 
-    const isReceita  = url.includes('cav.receita.fazenda.gov.br');
+    // ── Módulo AUD (carregado via @require de Script/modules/Aud/Aud.js) ──
+    if (isAud) {
+        if (window.PJeAud && typeof window.PJeAud.init === 'function') {
+            window.PJeAud.init();
+        }
+    }
+    const isReceita = url.includes('cav.receita.fazenda.gov.br');
     const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');
     const isPjeDomain = url.includes('pje.trt2.jus.br') || url.includes('pje1g.trt2.jus.br');
     const isBcb = url.includes('bcb.gov.br/saj/requisicao-extratos-cadastro');
@@ -94,7 +101,7 @@
                     padding:10px 15px;background-color:#ff6600;color:white;border:none;
                     border-radius:4px;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);
                     font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,0.3);`;
-                
+
                 btn.onclick = async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -109,7 +116,7 @@
                     btn.textContent = '🦁 Preencher BCB';
                     btn.disabled = false;
                 };
-                
+
                 document.body.appendChild(btn);
                 console.log('[Loader] Botão BCB criado com sucesso');
             }
@@ -166,7 +173,7 @@
                         } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(currentUrl)) {
                             window.PjeRegistrarDebito?.onInclusao();
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }, 1500);
                 return;
             }

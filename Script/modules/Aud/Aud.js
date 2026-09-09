@@ -66,9 +66,31 @@
                 var S4 = perfil.S4;
                 var S5 = perfil.S5;
 
+                function calcularTopMinimo() {
+                    var btnEnviar = document.getElementById('enviarInformacoesParaPje');
+                    if (btnEnviar) {
+                        var rect = btnEnviar.getBoundingClientRect();
+                        return Math.max(65, Math.ceil(rect.bottom + 8));
+                    }
+                    var cabecalho = document.querySelector('app-ata-cabecalho, .header, mat-toolbar, .toolbar');
+                    if (cabecalho) {
+                        var rectC = cabecalho.getBoundingClientRect();
+                        return Math.max(65, Math.ceil(rectC.bottom + 8));
+                    }
+                    return 75;
+                }
+
+                var topMinimo = calcularTopMinimo();
+
                 var P = document.createElement('div');
                 P.id = 'pjetools-aud-container';
-                P.style.cssText = 'position:fixed;top:100px;right:15px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:17px;user-select:none;';
+                P.style.cssText = 'position:fixed;top:' + topMinimo + 'px;right:10px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:15px;box-sizing:border-box;user-select:none;';
+
+                function atualizarMaxHeight() {
+                    var currentTop = P.getBoundingClientRect().top;
+                    var safeTop = Math.max(topMinimo, currentTop);
+                    P.style.maxHeight = 'calc(100vh - ' + (safeTop + 15) + 'px)';
+                }
 
                 function E(t, c, x) {
                     var e = document.createElement(t);
@@ -203,25 +225,54 @@
 
                 function aplicarRetracao(retraido) {
                     estaRetraido = retraido;
+                    var minTop = calcularTopMinimo();
+                    P.style.top = Math.max(minTop, P.getBoundingClientRect().top || minTop) + 'px';
+
                     if (estaRetraido) {
                         bodyDiv.style.display = 'none';
                         P.style.width = 'auto';
+                        P.style.maxWidth = 'none';
                         P.style.maxHeight = 'none';
                         P.style.overflowY = 'visible';
+                        P.style.padding = '4px 10px';
+                        P.style.background = '#1e293b';
+                        P.style.color = '#ffffff';
+                        P.style.borderRadius = '20px';
+                        P.style.boxShadow = '0 4px 14px rgba(0,0,0,0.3)';
+                        P.title = 'Dois cliques em qualquer lugar para expandir';
+
                         hdr.style.marginBottom = '0';
                         hdr.style.borderBottom = 'none';
+                        hdr.style.background = 'transparent';
+
+                        titleLabel.style.color = '#f8fafc';
+                        titleLabel.textContent = '📌 AUD (' + (perfilId === 'otavio' ? 'Otávio' : 'Victor') + ')';
                         toggleBtn.textContent = '➕';
-                        toggleBtn.title = 'Expandir Painel AUD';
+                        toggleBtn.style.color = '#cbd5e1';
+                        toggleBtn.title = 'Expandir Painel AUD (ou clique duplo)';
                     } else {
                         bodyDiv.style.display = 'block';
-                        P.style.width = '413px';
-                        P.style.maxWidth = 'calc(100vw - 16px)';
-                        P.style.maxHeight = '90vh';
-                        P.style.overflowY = 'auto';
+                        P.style.width = '380px';
+                        P.style.maxWidth = 'min(380px, calc(100vw - 20px))';
+                        P.style.padding = '8px 12px';
+                        P.style.background = '#ffffff';
+                        P.style.color = '#0f172a';
+                        P.style.borderRadius = '10px';
+                        P.style.boxShadow = '0 6px 24px rgba(30,50,130,.2)';
+                        P.title = 'Dois cliques em qualquer lugar para retrair';
+
                         hdr.style.marginBottom = '8px';
                         hdr.style.borderBottom = '1px solid #e8edff';
+                        hdr.style.background = '#f4f6fc';
+
+                        titleLabel.style.color = '#1e293b';
+                        titleLabel.textContent = '📌 Painel AUD';
                         toggleBtn.textContent = '➖';
-                        toggleBtn.title = 'Retrair Painel AUD';
+                        toggleBtn.style.color = '#475569';
+                        toggleBtn.title = 'Retrair Painel AUD (ou clique duplo)';
+
+                        P.style.overflowY = 'auto';
+                        atualizarMaxHeight();
                     }
                 }
 
@@ -233,9 +284,17 @@
                 titleBox.onclick = alternarRetracao;
                 toggleBtn.onclick = alternarRetracao;
 
+                P.addEventListener('dblclick', function (e) {
+                    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.tagName === 'TEXTAREA')) {
+                        return;
+                    }
+                    e.stopPropagation();
+                    aplicarRetracao(!estaRetraido);
+                });
+
                 (function tornarArrastavel(el, handle) {
                     let ox = 0, oy = 0, drag = false;
-                    handle.addEventListener('mousedown', function(e) {
+                    handle.addEventListener('mousedown', function (e) {
                         if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.tagName === 'INPUT') return;
                         drag = true;
                         var rect = el.getBoundingClientRect();
@@ -243,18 +302,32 @@
                         oy = e.clientY - rect.top;
                         e.preventDefault();
                     });
-                    document.addEventListener('mousemove', function(e) {
+                    document.addEventListener('mousemove', function (e) {
                         if (!drag) return;
-                        el.style.left = (e.clientX - ox) + 'px';
-                        el.style.top = (e.clientY - oy) + 'px';
+                        var minTop = calcularTopMinimo();
+                        var targetTop = Math.max(minTop, e.clientY - oy);
+                        var targetLeft = Math.max(10, Math.min(window.innerWidth - el.offsetWidth - 10, e.clientX - ox));
+                        el.style.left = targetLeft + 'px';
+                        el.style.top = targetTop + 'px';
                         el.style.right = 'auto';
                         el.style.bottom = 'auto';
                         el.style.transform = 'none';
+                        atualizarMaxHeight();
                     });
-                    document.addEventListener('mouseup', function() {
+                    document.addEventListener('mouseup', function () {
                         drag = false;
                     });
                 })(P, hdr);
+
+                window.addEventListener('resize', function () {
+                    if (!P || !document.body.contains(P)) return;
+                    var minTop = calcularTopMinimo();
+                    var rect = P.getBoundingClientRect();
+                    if (rect.top < minTop) {
+                        P.style.top = minTop + 'px';
+                    }
+                    atualizarMaxHeight();
+                });
 
                 aplicarRetracao(estaRetraido);
 

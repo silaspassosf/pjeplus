@@ -67,12 +67,17 @@
                 var S5 = perfil.S5;
 
                 function calcularTopMinimo() {
+                    var toolbar = document.querySelector('mat-toolbar.barra-ata, mat-toolbar, .barra-ata');
+                    if (toolbar) {
+                        var rectT = toolbar.getBoundingClientRect();
+                        return Math.max(65, Math.ceil(rectT.bottom + 8));
+                    }
                     var btnEnviar = document.getElementById('enviarInformacoesParaPje');
                     if (btnEnviar) {
-                        var rect = btnEnviar.getBoundingClientRect();
-                        return Math.max(65, Math.ceil(rect.bottom + 8));
+                        var rectB = btnEnviar.getBoundingClientRect();
+                        return Math.max(65, Math.ceil(rectB.bottom + 8));
                     }
-                    var cabecalho = document.querySelector('app-ata-cabecalho, .header, mat-toolbar, .toolbar');
+                    var cabecalho = document.querySelector('app-ata-cabecalho, .header, .toolbar');
                     if (cabecalho) {
                         var rectC = cabecalho.getBoundingClientRect();
                         return Math.max(65, Math.ceil(rectC.bottom + 8));
@@ -84,7 +89,7 @@
 
                 var P = document.createElement('div');
                 P.id = 'pjetools-aud-container';
-                P.style.cssText = 'position:fixed;top:' + topMinimo + 'px;right:10px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:15px;box-sizing:border-box;user-select:none;';
+                P.style.cssText = 'position:fixed;top:' + topMinimo + 'px;right:10px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:14px;box-sizing:border-box;user-select:none;';
 
                 function atualizarMaxHeight() {
                     var currentTop = P.getBoundingClientRect().top;
@@ -362,7 +367,12 @@
                 }
 
                 window.addEventListener('resize', ajustarAoZoomEScroll);
-                window.addEventListener('scroll', ajustarAoZoomEScroll);
+                window.addEventListener('scroll', ajustarAoZoomEScroll, { passive: true });
+
+                try {
+                    var domObs = new MutationObserver(ajustarAoZoomEScroll);
+                    domObs.observe(document.body, { childList: true, subtree: true });
+                } catch (e) { }
 
                 aplicarRetracao(estaRetraido);
 

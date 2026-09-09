@@ -226,7 +226,15 @@
                 function aplicarRetracao(retraido) {
                     estaRetraido = retraido;
                     var minTop = calcularTopMinimo();
-                    P.style.top = Math.max(minTop, P.getBoundingClientRect().top || minTop) + 'px';
+
+                    // Snap back to right margin unless user explicitly dragged panel left
+                    if (!P.dataset.dragged) {
+                        P.style.left = 'auto';
+                        P.style.right = '10px';
+                        P.style.top = minTop + 'px';
+                    } else {
+                        P.style.top = Math.max(minTop, P.getBoundingClientRect().top || minTop) + 'px';
+                    }
 
                     if (estaRetraido) {
                         bodyDiv.style.display = 'none';
@@ -284,12 +292,29 @@
                 titleBox.onclick = alternarRetracao;
                 toggleBtn.onclick = alternarRetracao;
 
+                // Evento dblclick padrão
                 P.addEventListener('dblclick', function (e) {
                     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.tagName === 'TEXTAREA')) {
                         return;
                     }
                     e.stopPropagation();
                     aplicarRetracao(!estaRetraido);
+                });
+
+                // Detector de duplo clique por intervalo (resiliente a sombras/Angular)
+                var lastClickTime = 0;
+                P.addEventListener('click', function (e) {
+                    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'A')) {
+                        return;
+                    }
+                    var now = Date.now();
+                    if (now - lastClickTime < 350) {
+                        e.stopPropagation();
+                        aplicarRetracao(!estaRetraido);
+                        lastClickTime = 0;
+                    } else {
+                        lastClickTime = now;
+                    }
                 });
 
                 (function tornarArrastavel(el, handle) {
@@ -304,6 +329,7 @@
                     });
                     document.addEventListener('mousemove', function (e) {
                         if (!drag) return;
+                        el.dataset.dragged = 'true';
                         var minTop = calcularTopMinimo();
                         var targetTop = Math.max(minTop, e.clientY - oy);
                         var targetLeft = Math.max(10, Math.min(window.innerWidth - el.offsetWidth - 10, e.clientX - ox));
@@ -319,15 +345,24 @@
                     });
                 })(P, hdr);
 
-                window.addEventListener('resize', function () {
+                function ajustarAoZoomEScroll() {
                     if (!P || !document.body.contains(P)) return;
                     var minTop = calcularTopMinimo();
-                    var rect = P.getBoundingClientRect();
-                    if (rect.top < minTop) {
+                    if (!P.dataset.dragged) {
                         P.style.top = minTop + 'px';
+                        P.style.right = '10px';
+                        P.style.left = 'auto';
+                    } else {
+                        var rect = P.getBoundingClientRect();
+                        if (rect.top < minTop) {
+                            P.style.top = minTop + 'px';
+                        }
                     }
                     atualizarMaxHeight();
-                });
+                }
+
+                window.addEventListener('resize', ajustarAoZoomEScroll);
+                window.addEventListener('scroll', ajustarAoZoomEScroll);
 
                 aplicarRetracao(estaRetraido);
 

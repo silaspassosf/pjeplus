@@ -6,11 +6,13 @@ Funções para abertura de tarefas, navegação entre estados do PJE,
 limpeza de overlays e transição entre URLs.
 """
 
-from Fix.selenium_base import aguardar_e_clicar, safe_click_no_scroll, safe_click
+from Fix.selenium_base import aguardar_e_clicar, safe_click
+from Fix.selenium_base.wait_operations import esperar_url_conter
 from Fix.abas import aguardar_nova_aba
-from Fix.core import wait_for_page_load, aguardar_renderizacao_nativa, encontrar_elemento_inteligente
+from Fix.core import wait_for_page_load, aguardar_renderizacao_nativa, encontrar_elemento_inteligente, safe_click_no_scroll
 from Fix.log import logger
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
+from Fix.utils import remover_acentos
 from Fix import espera
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -52,7 +54,6 @@ def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
                 pass
 
         if tarefa_do_botao:
-            driver.pje_tarefa_atual = tarefa_do_botao
             tarefa_lower = tarefa_do_botao.lower()
             if 'assinar' in tarefa_lower or 'minutar' in tarefa_lower:
                 logger.info(f'[NAVEGAÇÃO] ⏭ Tarefa "{tarefa_do_botao}" em minutar/assinar — ato pronto, sem ação')
@@ -83,8 +84,7 @@ def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
         # Verificar estado final após abertura
         current_url = (driver.current_url or '').lower()
         ja_em_estado_final = ('/assinar' in current_url or
-                            '/minutar' in current_url or
-                            '/conclusao' in current_url)
+                            '/minutar' in current_url)
 
         if ja_em_estado_final:
             logger.info(f'[NAVEGAÇÃO] Após abertura: já em estado final ({current_url})')
@@ -139,36 +139,16 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
         bool: True se conseguiu navegar para conclusão
     """
     try:
-        # 0. Verificação prévia: Já estamos em conclusão ou minutar?
+        # 0. Verificação prévia estritamente via URL (conforme especificação e legado)
         current_url = (driver.current_url or '').lower()
         if '/minutar' in current_url:
             logger.info('[NAVEGAÇÃO] Já em /minutar — destino alcançado')
             return True
-        if '/conclusao' in current_url or espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=1.0):
-            logger.info('[NAVEGAÇÃO] Já em Conclusão ao Magistrado — destino alcançado')
+        if '/conclusao' in current_url:
+            logger.info('[NAVEGAÇÃO] Já em /conclusao — tela de conclusão alcançada')
             return True
 
         logger.info('[NAVEGAÇÃO] Navegando para Conclusão ao Magistrado...')
-
-        # Obter nome da tarefa se disponível (do DOM ou do driver salvo anteriormente)
-        nome_tarefa = getattr(driver, 'pje_tarefa_atual', '').lower()
-        if not nome_tarefa:
-            try:
-                driver.implicitly_wait(0)
-                h1 = driver.find_elements(By.CSS_SELECTOR, "pje-cabecalho-tarefa h1.titulo-tarefa, span.texto-tarefa-processo")
-                if h1:
-                    nome_tarefa = h1[0].text.strip().lower()
-            except Exception:
-                pass
-            finally:
-                driver.implicitly_wait(10)
-
-        logger.info(f'[NAVEGAÇÃO] Nome da Tarefa Detectado: "{nome_tarefa}"')
-
-        # Se a tarefa atual já é conclusão, destino alcançado
-        if 'conclusao' in nome_tarefa:
-            logger.info('[NAVEGAÇÃO] Tarefa atual já é Conclusão ao magistrado')
-            return True
 
         # Garantir que os botões de navegação/transição terminaram de renderizar (estilo gigs-plugin)
         seletor_botoes = (
@@ -177,9 +157,8 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
             "pje-botoes-transicao button"
         )
         if not espera.ate_aparecer(driver, seletor_botoes, teto=10):
-            # Se não achou botões de transição, checa se já estamos na conclusão
-            if espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=2.0) or '/conclusao' in (driver.current_url or '').lower():
-                logger.info('[NAVEGAÇÃO] pje-concluso-tarefa-botao já visível — transição concluída')
+            if '/conclusao' in (driver.current_url or '').lower():
+                logger.info('[NAVEGAÇÃO] URL já está em /conclusao — assumindo transição concluída')
                 return True
             logger.error('[NAVEGAÇÃO] Botões de navegação não apareceram no DOM')
             return False
@@ -239,29 +218,32 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
             if btn_conclusao and safe_click_no_scroll(driver, btn_conclusao):
                 logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise')
             else:
-                # Checa se a transição já ocorreu
-                if espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=2.0) or '/conclusao' in (driver.current_url or '').lower():
+                if espera.ate_url(driver, '/conclusao', teto=2):
                     logger.info('[NAVEGAÇÃO] Processo já transicionou para Conclusão')
                 else:
                     logger.warning('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não encontrado após aguardar renderização')
 
-        # Confirmar chegada com tolerância: /minutar, /conclusao ou pje-concluso-tarefa-botao
-        espera.assentar(driver, 1.5, motivo='espera chegada Conclusão')
+        # Confirmar chegada: /minutar (pulou direto) ou /conclusao na URL (conforme legado)
         current_after = (driver.current_url or '').lower()
         if '/minutar' in current_after:
             logger.info('[NAVEGAÇÃO] Processo foi direto para /minutar')
             return True
 
-        if espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=12) or espera.ate_url(driver, '/conclusao', teto=5):
-            logger.info('[NAVEGAÇÃO] Navegação para conclusão concluída com sucesso')
+        if espera.ate_url(driver, '/conclusao', teto=15):
+            logger.info('[NAVEGAÇÃO] URL confirma transição para /conclusao')
             return True
 
-        # Fallback de checagem direta dos botões
+        # Fallback: aguardar botões de conclusão renderizarem
         if aguardar_renderizacao_nativa(driver, 'pje-concluso-tarefa-botao button', 'aparecer', timeout=5):
             logger.info('[NAVEGAÇÃO] Navegação para conclusão concluída com sucesso (botões visíveis)')
             return True
 
-        logger.error(f'[NAVEGAÇÃO] Botões de conclusão não apareceram. URL atual: {driver.current_url}')
+        botoes = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button')
+        if botoes and any(b.is_displayed() for b in botoes):
+            logger.info('[NAVEGAÇÃO] Navegação para conclusão concluída com sucesso (botões encontrados via fallback)')
+            return True
+
+        logger.error(f'[NAVEGAÇÃO] URL não mudou para /conclusao. URL atual: {driver.current_url}')
         return False
 
     except Exception as e:
@@ -299,3 +281,218 @@ def preparar_campo_minutar(driver: WebDriver) -> bool:
     except Exception as e:
         logger.error(f'[NAVEGAÇÃO] Falha ao preparar campo de filtro: {e}')
         return False
+
+
+def verificar_estado_atual(driver: WebDriver) -> str:
+    """
+    Verifica o estado atual do processo baseado na URL.
+
+    Returns:
+        str: Estado atual ('assinar', 'minutar', 'conclusao', 'detalhe', 'outro')
+    """
+    current_url = (driver.current_url or '').lower()
+
+    if '/assinar' in current_url:
+        return 'assinar'
+    elif '/minutar' in current_url:
+        return 'minutar'
+    elif '/conclusao' in current_url:
+        return 'conclusao'
+    elif '/detalhe' in current_url:
+        return 'detalhe'
+    else:
+        return 'outro'
+
+
+def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
+    """
+    Escolhe o tipo de conclusão na tela de conclusão do processo (/conclusao).
+    Clica no botão correspondente (ex: Despacho, Decisão) em pje-concluso-tarefa-botao.
+    """
+    try:
+        conclusao_tipo = (conclusao_tipo or 'Despacho').strip()
+        tipo_norm = remover_acentos(conclusao_tipo).lower()
+        logger.info(f'[NAVEGAÇÃO][CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo} (norm: {tipo_norm})')
+
+        # Aguardar presença real dos botões de conclusão (não apenas o container vazio)
+        if not aguardar_renderizacao_nativa(driver, 'pje-concluso-tarefa-botao button', 'aparecer', timeout=10):
+            logger.warning('[NAVEGAÇÃO][CONCLUSÃO] Botões de conclusão não carregaram via observer, tentando busca direta')
+
+        btn_tipo_conclusao = None
+
+        # Estratégia 1: Procurar em botões estruturados (pje-concluso-tarefa-botao button)
+        try:
+            candidatos = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button')
+            for btn in candidatos:
+                try:
+                    txt = remover_acentos(btn.text or btn.get_attribute('innerText') or '').strip().lower()
+                    if txt and tipo_norm in txt and btn.is_displayed() and btn.is_enabled():
+                        btn_tipo_conclusao = btn
+                        logger.info(f'[NAVEGAÇÃO][CONCLUSÃO] Botão encontrado via pje-concluso-tarefa-botao button (Estratégia 1)')
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # Estratégia 2: Procurar por texto visível via XPath (idêntico ao legado)
+        if not btn_tipo_conclusao:
+            try:
+                xpath = f"//button[contains(normalize-space(text()), '{conclusao_tipo}')]"
+                btns = driver.find_elements(By.XPATH, xpath)
+                for btn in btns:
+                    try:
+                        if btn.is_displayed() and btn.is_enabled():
+                            aria = (btn.get_attribute('aria-label') or '').lower()
+                            if 'remover' not in aria and 'fechar' not in aria and 'excluir' not in aria:
+                                btn_tipo_conclusao = btn
+                                logger.info(f'[NAVEGAÇÃO][CONCLUSÃO] Botão encontrado via XPath texto (Estratégia 2)')
+                                break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        # Estratégia 3: Container pje-concluso-tarefa-botao pegando button filho
+        if not btn_tipo_conclusao:
+            try:
+                ancoras = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao')
+                for ancora in ancoras:
+                    try:
+                        txt_ancora = remover_acentos(ancora.text or ancora.get_attribute('innerText') or '').strip().lower()
+                        if tipo_norm in txt_ancora:
+                            btn_filho = ancora.find_elements(By.CSS_SELECTOR, 'button')
+                            if btn_filho and btn_filho[0].is_displayed() and btn_filho[0].is_enabled():
+                                btn_tipo_conclusao = btn_filho[0]
+                                logger.info(f'[NAVEGAÇÃO][CONCLUSÃO] Botão encontrado via container pje-concluso-tarefa-botao (Estratégia 3)')
+                                break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        # Estratégia 4: Procurar por aria-label
+        if not btn_tipo_conclusao:
+            try:
+                btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
+                for btn in btns:
+                    try:
+                        aria = remover_acentos(btn.get_attribute('aria-label') or '').lower()
+                        if tipo_norm in aria:
+                            if 'remover' not in aria and 'fechar' not in aria and 'excluir' not in aria:
+                                if btn.is_displayed() and btn.is_enabled():
+                                    btn_tipo_conclusao = btn
+                                    logger.info(f'[NAVEGAÇÃO][CONCLUSÃO] Botão encontrado via aria-label (Estratégia 4)')
+                                    break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        if not btn_tipo_conclusao:
+            logger.error(f'[NAVEGAÇÃO][CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado')
+            return False
+
+        # Clique no botão de conclusão: scrollIntoView + tentativa Selenium com fallback JS
+        logger.info(f'[NAVEGAÇÃO][CONCLUSÃO] Clicando em tipo de conclusão "{conclusao_tipo}"...')
+        driver.execute_script('arguments[0].scrollIntoView({block: "center", behavior: "instant"});', btn_tipo_conclusao)
+        espera.assentar(driver, 0.3)
+        clicado = False
+        try:
+            btn_tipo_conclusao.click()
+            clicado = True
+        except Exception:
+            pass
+
+        if not clicado:
+            try:
+                driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
+                clicado = True
+            except Exception:
+                safe_click_no_scroll(driver, btn_tipo_conclusao)
+
+        logger.info(f'[NAVEGAÇÃO][CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado')
+        espera.assentar(driver, 0.5)
+        return True
+
+    except Exception as e:
+        logger.error(f'[NAVEGAÇÃO][CONCLUSÃO] Erro ao escolher tipo de conclusão: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+
+
+def aguardar_transicao_minutar(driver: WebDriver) -> bool:
+    """
+    Aguarda a transição da tela de conclusão para a tela de minutar.
+    Verifica estritamente se a URL mudou para /minutar (conforme legado).
+
+    Returns:
+        bool: True se conseguiu fazer a transição
+    """
+    try:
+        logger.info('[NAVEGAÇÃO] Aguardando transição para tela de minutar...')
+
+        # Aguardar estritamente a URL /minutar (idêntico ao legado)
+        if not esperar_url_conter(driver, '/minutar', timeout=20):
+            logger.error(f'[NAVEGAÇÃO] URL não mudou para /minutar: {driver.current_url}')
+            return False
+
+        logger.info('[NAVEGAÇÃO] Transição para minutar concluída (URL /minutar)')
+        return True
+
+    except Exception as e:
+        logger.error(f'[NAVEGAÇÃO] Erro na transição para minutar: {e}')
+        return False
+
+
+def focar_campo_minutar_se_necessario(driver: WebDriver) -> bool:
+    """
+    Foca no campo de filtro de modelos se estiver na tela de minutar.
+
+    Returns:
+        bool: True se conseguiu focar ou se não era necessário
+    """
+    try:
+        if verificar_estado_atual(driver) == 'minutar':
+            logger.info('[NAVEGAÇÃO] Já em minutar - focando no campo de filtro')
+            campo_filtro_modelo = espera.elemento(driver, 'input#inputFiltro', teto=10)
+            if not campo_filtro_modelo:
+                raise Exception('input#inputFiltro não apareceu')
+            driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+            logger.info('[NAVEGAÇÃO] Foco no campo #inputFiltro realizado')
+        return True
+    except Exception as e:
+        logger.warning(f'[NAVEGAÇÃO] Erro ao focar campo minutar: {e}')
+        return False
+
+
+def navegar_para_minutar(driver: WebDriver, conclusao_tipo: str) -> bool:
+    """
+    Navega até a tela de minutar (/minutar) de forma coesa e unificada.
+    1. Se já em /minutar: retorna True.
+    2. Se em /conclusao: escolhe o tipo de conclusão e aguarda /minutar.
+    3. Se não em /conclusao: navega para Conclusão ao magistrado, escolhe o tipo e aguarda /minutar.
+    """
+    current_url = (driver.current_url or '').lower()
+    if '/minutar' in current_url:
+        logger.info('[NAVEGAÇÃO] Já em /minutar — destino alcançado')
+        return True
+
+    if '/conclusao' not in current_url:
+        logger.info('[NAVEGAÇÃO] Navegando para Conclusão ao Magistrado...')
+        if not navegar_para_conclusao(driver):
+            logger.error('[NAVEGAÇÃO] Falha ao navegar para conclusão')
+            return False
+
+    logger.info(f'[NAVEGAÇÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
+    if not escolher_tipo_conclusao(driver, conclusao_tipo):
+        logger.error(f'[NAVEGAÇÃO] Falha ao escolher tipo de conclusão: {conclusao_tipo}')
+        return False
+
+    logger.info('[NAVEGAÇÃO] Aguardando transição para /minutar...')
+    if not aguardar_transicao_minutar(driver):
+        logger.error('[NAVEGAÇÃO] Falha na transição para /minutar')
+        return False
+
+    return True

@@ -302,10 +302,10 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
     """
     Escolhe o tipo de conclusão na tela de conclusão do processo.
     
-    ESTRATÉGIA SIMPLES (legacy approach):
-    - Procura botão com 3 estratégias
-    - Um ÚNICO clique com scrollIntoView + JS click
-    - Deixa que a página navegue naturalmente sem retry
+    ESTRATÉGIA ROBUSTA:
+    - Faz polling contínuo (retry loop) por até 15s procurando o botão
+    - Resolve o problema do DOM "piscar" ou Angular demorar para vincular os textos
+    - Mesma lógica de seleção do gigs-plugin e autoactions
 
     Args:
         driver: WebDriver instance
@@ -314,70 +314,47 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
     Returns:
         bool: True se conseguiu escolher o tipo
     """
+    import time
+    from selenium.webdriver.common.by import By
+    from Fix.selenium_base import safe_click_no_scroll
+    
     try:
         logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
 
-        # Aguardar presença dos botões de conclusão
-        if not espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=10):
-            logger.warning('[CONCLUSÃO] Botões de conclusão não carregaram')
-
+        start_time = time.time()
         btn_tipo_conclusao = None
-
-        # Estratégia 1: Procurar em botões estruturados (pje-concluso-tarefa-botao)
-        try:
-            candidatos = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button')
-            for btn in candidatos:
-                try:
-                    txt = (btn.text or '').strip()
-                    if txt and conclusao_tipo.lower() in txt.lower() and btn.is_displayed() and btn.is_enabled():
-                        btn_tipo_conclusao = btn
-                        break
-                except Exception:
-                    continue
-        except Exception:
-            pass
-
-        # Estratégia 2: Procurar por texto visível
-        if not btn_tipo_conclusao:
+        
+        while time.time() - start_time < 15:
             try:
-                xpath = f"//button[contains(normalize-space(text()), '{conclusao_tipo}')]"
-                btns = driver.find_elements(By.XPATH, xpath)
-                for btn in btns:
+                # Estratégia de query ampla igual ao autoactions
+                candidatos = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button, pje-conclusao-dependencia button, button.mat-raised-button')
+                for btn in candidatos:
                     try:
-                        if btn.is_displayed() and btn.is_enabled():
-                            aria = (btn.get_attribute('aria-label') or '').lower()
+                        txt = (btn.text or '').strip().lower()
+                        aria = (btn.get_attribute('aria-label') or '').lower()
+                        
+                        match_txt = txt and conclusao_tipo.lower() in txt
+                        match_aria = aria and conclusao_tipo.lower() in aria
+                        
+                        if (match_txt or match_aria) and btn.is_displayed() and btn.is_enabled():
                             # Evitar botões de remoção/chips
                             if 'remover' not in aria and 'fechar' not in aria and 'excluir' not in aria:
                                 btn_tipo_conclusao = btn
                                 break
                     except Exception:
                         continue
+                if btn_tipo_conclusao:
+                    break
             except Exception:
                 pass
-
-        # Estratégia 3: Procurar por aria-label
-        if not btn_tipo_conclusao:
-            try:
-                btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
-                for btn in btns:
-                    try:
-                        aria = (btn.get_attribute('aria-label') or '').lower()
-                        if conclusao_tipo.lower() in aria:
-                            if 'remover' not in aria and 'fechar' not in aria:
-                                if btn.is_displayed() and btn.is_enabled():
-                                    btn_tipo_conclusao = btn
-                                    break
-                    except Exception:
-                        continue
-            except Exception:
-                pass
+                
+            time.sleep(0.5)
 
         if not btn_tipo_conclusao:
-            logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado')
+            logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado após 15s de espera')
             return False
 
-        # ===== CLIQUE ÚNICO + SIMPLES (legacy approach) =====
-        # ScrollIntoView + JavaScript click direto, sem retry logic que interfere com page navigation
+        # ===== CLIQUE =====
         logger.info(f'[CONCLUSÃO] Clicando em tipo de conclusão...')
         try:
             driver.execute_script('arguments[0].scrollIntoView({block: "center", behavior: "instant"});', btn_tipo_conclusao)
@@ -388,7 +365,12 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
             return False
 
         # Aguardar navegação pós-clique (observer para readyState complete)
-        espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
+        try:
+            from Fix import espera
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
+        except Exception:
+            pass
+            
         return True
 
     except Exception as e:

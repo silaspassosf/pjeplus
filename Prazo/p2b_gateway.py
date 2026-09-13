@@ -671,6 +671,11 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
         """Navega para o detalhe do processo na mesma aba, fechando abas extras."""
         try:
             handles = driver.window_handles
+            if not handles:
+                logger.warning('[PRAZO_API] Nenhuma aba detectada! PJe fechou o browser via JS. Criando nova aba...')
+                driver.switch_to.new_window('tab')
+                handles = driver.window_handles
+                
             if len(handles) > 1:
                 primeira = handles[0]
                 for h in handles[1:]:
@@ -684,8 +689,15 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
                     driver.switch_to.window(primeira)
                 elif handles_restantes:
                     driver.switch_to.window(handles_restantes[0])
-        except Exception:
-            pass
+            elif handles:
+                driver.switch_to.window(handles[0])
+        except Exception as e:
+            logger.warning(f'[PRAZO_API] Falha ao gerenciar abas residuais: {e}')
+            try:
+                if not driver.window_handles:
+                    driver.switch_to.new_window('tab')
+            except Exception:
+                pass
 
         id_processo = item['id']
         detalhe_url = url_processo_detalhe(id_processo)

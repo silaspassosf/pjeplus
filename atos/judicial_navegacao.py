@@ -290,6 +290,8 @@ def verificar_estado_atual(driver: WebDriver) -> str:
             return 'minutar'
         if '/conclusao' in url:
             return 'conclusao'
+        if '/detalhe' in url:
+            return 'detalhe'
         return 'desconhecido'
     except Exception:
         return 'desconhecido'

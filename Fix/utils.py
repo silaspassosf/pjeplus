@@ -306,9 +306,16 @@ def login_manual(driver, aguardar_url_painel=True):
                     if SALVAR_COOKIES_AUTOMATICO:
                         salvar_cookies_sessao(driver, info_extra='login_manual')
                     break
-            except Exception:
-                pass
-            espera.assentar(driver, 1)
+            except Exception as e:
+                # Se a janela foi fechada manualmente, driver.current_url levanta exceção
+                logger.error('[LOGIN_MANUAL] Erro ao verificar URL (janela fechada?): %s', e)
+                return False
+                
+            try:
+                espera.assentar(driver, 1)
+            except Exception as e:
+                logger.error('[LOGIN_MANUAL] Erro durante espera (janela fechada?): %s', e)
+                return False
     return True
 
 

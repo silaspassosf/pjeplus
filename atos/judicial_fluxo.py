@@ -40,7 +40,6 @@ from .judicial_navegacao import (
     preparar_campo_minutar,
     verificar_estado_atual,
     focar_campo_minutar_se_necessario,
-    navegar_para_minutar,
 )
 from .judicial_modelos import (
     esperar_insercao_modelo,

@@ -18,7 +18,6 @@ from .judicial_navegacao import (
     escolher_tipo_conclusao,
     aguardar_transicao_minutar,
     focar_campo_minutar_se_necessario,
-    navegar_para_minutar,
 )
 
 

@@ -275,3 +275,140 @@ def preparar_campo_minutar(driver: WebDriver) -> bool:
     except Exception as e:
         logger.error(f'[NAVEGAÇÃO] Falha ao preparar campo de filtro: {e}')
         return False
+
+
+def verificar_estado_atual(driver: WebDriver) -> str:
+    """Verifica em qual tela o PJE está no momento (assinar, minutar, conclusao).
+    Returns:
+        str: 'assinar', 'minutar', 'conclusao' ou 'desconhecido'
+    """
+    try:
+        url = (driver.current_url or "").lower()
+        if '/assinar' in url:
+            return 'assinar'
+        if '/minutar' in url:
+            return 'minutar'
+        if '/conclusao' in url:
+            return 'conclusao'
+        return 'desconhecido'
+    except Exception:
+        return 'desconhecido'
+
+
+def escolher_tipo_conclusao(
+    driver: WebDriver, conclusao_tipo: str
+) -> bool:
+    """Escolhe o tipo de conclusao na tela de conclusao do processo.
+    Padrao gigs-plugin L11626-11653: busca normalizada unica, JS click
+    no firstElementChild, aguarda PJE-ARVORE-MODELO-DOCUMENTO.
+
+    Returns:
+        bool: True se conseguiu escolher o tipo.
+    """
+    try:
+        logger.info("[CONCLUSO] Escolhendo tipo: %s (padrao gigs)", conclusao_tipo)
+
+        aguardar_renderizacao_nativa(
+            driver, 'pje-concluso-tarefa-botao', modo='aparecer', timeout=8
+        )
+
+        clicou = driver.execute_script("""
+            var tipo = arguments[0].toLowerCase();
+            function normalizar(s) {
+                return s.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+            }
+            var containers = document.querySelectorAll('pje-concluso-tarefa-botao');
+            for (var i = 0; i < containers.length; i++) {
+                var txt = normalizar(containers[i].textContent || '');
+                if (txt.indexOf(normalizar(tipo)) !== -1) {
+                    var btn = containers[i].querySelector('button');
+                    if (btn && !btn.disabled) {
+                        btn.click();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        """, conclusao_tipo)
+
+        if not clicou:
+            logger.error("[CONCLUSO] Botao de conclusao '%s' nao encontrado", conclusao_tipo)
+            return False
+
+        logger.info("[CONCLUSO] Tipo '%s' clicado (JS nativo)", conclusao_tipo)
+        aguardar_renderizacao_nativa(
+            driver, 'pje-arvore-modelo-documento', modo='aparecer', timeout=10
+        )
+        return True
+
+    except Exception as e:
+        logger.error("[CONCLUSO] Erro ao escolher tipo: %s", e)
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+
+
+def aguardar_transicao_minutar(driver: WebDriver) -> bool:
+    """Aguarda a transicao da tela de conclusao para minutar.
+    Padrao gigs-plugin L11655: observer em PJE-ARVORE-MODELO-DOCUMENTO
+    em vez de polling de URL.
+
+    Returns:
+        bool: True se conseguiu fazer a transicao.
+    """
+    try:
+        logger.info("[CONCLUSO] Aguardando transicao para minutar (observer)...")
+
+        # Caminho 1: observer no elemento DOM (gigs L11655)
+        if aguardar_renderizacao_nativa(
+            driver, 'pje-arvore-modelo-documento', modo='aparecer', timeout=10
+        ):
+            logger.info("[CONCLUSO] Transicao para minutar detectada (observer)")
+            return True
+
+        # Caminho 2: fallback — verificar URL
+        current_url = (driver.current_url or "").lower()
+        if "/minutar" in current_url:
+            logger.info("[CONCLUSO] URL /minutar detectada (fallback)")
+            return True
+
+        # Caminho 3: esperar URL como ultima alternativa
+        from Fix.utils import esperar_url_conter
+        if esperar_url_conter(driver, "/minutar", timeout=8):
+            logger.info("[CONCLUSO] Transicao para minutar concluida (URL)")
+            return True
+
+        logger.error(
+            "[CONCLUSO] URL nao mudou para /minutar: %s", driver.current_url[:120]
+        )
+        return False
+
+    except Exception as e:
+        logger.error("[CONCLUSO] Erro na transicao para minutar: %s", e)
+        return False
+
+
+def focar_campo_minutar_se_necessario(driver: WebDriver) -> bool:
+    """Foca no campo de filtro de modelos se estiver na tela de minutar.
+
+    Returns:
+        bool: True se conseguiu focar ou se nao era necessario.
+    """
+    try:
+        if verificar_estado_atual(driver) == "minutar":
+            logger.info("[CONCLUSO] Ja em minutar - focando no campo de filtro")
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            campo_filtro_modelo = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located(
+                    (By.CSS_SELECTOR, "input#inputFiltro")
+                )
+            )
+            driver.execute_script(
+                "arguments[0].focus();", campo_filtro_modelo
+            )
+            logger.info("[CONCLUSO] Foco no campo #inputFiltro realizado")
+        return True
+    except Exception as e:
+        logger.warning("[CONCLUSO] Erro ao focar campo minutar: %s", e)
+        return False

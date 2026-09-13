@@ -302,69 +302,64 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
     """
     Escolhe o tipo de conclusão na tela de conclusão do processo.
     
-    ESTRATÉGIA ROBUSTA:
-    - Faz polling contínuo (retry loop) por até 15s procurando o botão
-    - Resolve o problema do DOM "piscar" ou Angular demorar para vincular os textos
-    - Mesma lógica de seleção do gigs-plugin e autoactions
-
-    Args:
-        driver: WebDriver instance
-        conclusao_tipo: Tipo de conclusão desejado (ex: "Despacho", "Decisão", etc.)
-
-    Returns:
-        bool: True se conseguiu escolher o tipo
+    ESTRATÉGIA ROBUSTA (GIGS aadespacho / despacho_engine):
+    - Normaliza acentos (Suspensão == Suspensao)
+    - Faz polling ativo injetando JS para clicar
     """
     import time
-    from selenium.webdriver.common.by import By
-    from Fix.selenium_base import safe_click_no_scroll
     
     try:
         logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
 
+        # JS robusto inspirado no aadespacho / despacho_engine.js
+        script = """
+        var tipo_buscado = arguments[0];
+        
+        function normalizar(s) {
+            return (s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+        }
+        
+        var tipo_norm = normalizar(tipo_buscado);
+        
+        var candidatos = document.querySelectorAll('pje-concluso-tarefa-botao button, pje-conclusao-dependencia button, button.mat-raised-button');
+        
+        for (var i = 0; i < candidatos.length; i++) {
+            var btn = candidatos[i];
+            var txt = normalizar(btn.textContent);
+            var aria = normalizar(btn.getAttribute('aria-label'));
+            
+            if (txt.indexOf(tipo_norm) !== -1 || aria.indexOf(tipo_norm) !== -1) {
+                if (aria.indexOf('remover') === -1 && aria.indexOf('fechar') === -1 && aria.indexOf('excluir') === -1) {
+                    if (!btn.disabled && btn.offsetWidth > 0 && btn.offsetHeight > 0) {
+                        btn.scrollIntoView({block: 'center', behavior: 'instant'});
+                        btn.click();
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+        """
+
         start_time = time.time()
-        btn_tipo_conclusao = None
+        clicou = False
         
         while time.time() - start_time < 15:
             try:
-                # Estratégia de query ampla igual ao autoactions
-                candidatos = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button, pje-conclusao-dependencia button, button.mat-raised-button')
-                for btn in candidatos:
-                    try:
-                        txt = (btn.text or '').strip().lower()
-                        aria = (btn.get_attribute('aria-label') or '').lower()
-                        
-                        match_txt = txt and conclusao_tipo.lower() in txt
-                        match_aria = aria and conclusao_tipo.lower() in aria
-                        
-                        if (match_txt or match_aria) and btn.is_displayed() and btn.is_enabled():
-                            # Evitar botões de remoção/chips
-                            if 'remover' not in aria and 'fechar' not in aria and 'excluir' not in aria:
-                                btn_tipo_conclusao = btn
-                                break
-                    except Exception:
-                        continue
-                if btn_tipo_conclusao:
+                if driver.execute_script(script, conclusao_tipo):
+                    clicou = True
                     break
             except Exception:
                 pass
-                
             time.sleep(0.5)
 
-        if not btn_tipo_conclusao:
+        if not clicou:
             logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado após 15s de espera')
             return False
 
-        # ===== CLIQUE =====
-        logger.info(f'[CONCLUSÃO] Clicando em tipo de conclusão...')
-        try:
-            driver.execute_script('arguments[0].scrollIntoView({block: "center", behavior: "instant"});', btn_tipo_conclusao)
-            safe_click_no_scroll(driver, btn_tipo_conclusao)
-            logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado')
-        except Exception as click_err:
-            logger.error(f'[CONCLUSÃO] ❌ Erro ao clicar: {click_err}')
-            return False
+        logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado com sucesso')
 
-        # Aguardar navegação pós-clique (observer para readyState complete)
+        # Aguardar navegação pós-clique
         try:
             from Fix import espera
             espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
@@ -375,8 +370,6 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
 
     except Exception as e:
         logger.error(f'[CONCLUSÃO] Erro ao escolher tipo de conclusão: {e}')
-        import traceback
-        logger.error(traceback.format_exc())
         return False
 
 

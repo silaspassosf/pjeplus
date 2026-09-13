@@ -383,24 +383,36 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
 def aguardar_transicao_minutar(driver: WebDriver) -> bool:
     """
     Aguarda a transição da tela de conclusão para a tela de minutar.
+    Usando a lógica do gigs-plugin: observa o DOM (pje-arvore-modelo-documento)
+    que é muito mais rápido e confiável que o polling de URL no Angular.
 
     Returns:
         bool: True se conseguiu fazer a transição
     """
     try:
-        logger.info('[CONCLUSÃO] Aguardando transição para tela de minutar...')
-        from Fix.utils import esperar_url_conter
+        logger.info('[CONCLUSÃO] Aguardando transição para tela de minutar (DOM Observer)...')
+        from Fix.core import esperar_url_conter
+        from Fix.selenium_base.wait_operations import aguardar_renderizacao_nativa
 
-        # Aguardar URL /minutar
-        if not esperar_url_conter(driver, '/minutar', timeout=20):
-            logger.error(f'[CONCLUSÃO] URL não mudou para /minutar: {driver.current_url}')
+        # 1. Estratégia Principal: Esperar a árvore de modelos (rápido, DOM native)
+        try:
+            if aguardar_renderizacao_nativa(driver, 'pje-arvore-modelo-documento', modo='aparecer', timeout=10):
+                logger.info('[CONCLUSÃO] Transição detectada via renderização do DOM (pje-arvore-modelo-documento)')
+                return True
+        except Exception as e:
+            logger.warning(f'[CONCLUSÃO] Fallback: Falha no observer do DOM: {e}')
+
+        # 2. Estratégia Fallback: Esperar URL /minutar (lento)
+        logger.info('[CONCLUSÃO] Verificando URL /minutar como fallback...')
+        if not esperar_url_conter(driver, '/minutar', timeout=10):
+            logger.error(f'[CONCLUSÃO] Falha na transição para minutar: DOM não renderizou e URL não mudou: {driver.current_url}')
             return False
 
-        logger.info('[CONCLUSÃO] Transição para minutar concluída')
+        logger.info('[CONCLUSÃO] Transição para minutar concluída via URL fallback')
         return True
 
     except Exception as e:
-        logger.error(f'[CONCLUSÃO] Erro na transição para minutar: {e}')
+        logger.error(f'[CONCLUSÃO] Erro inesperado na transição para minutar: {e}')
         return False
 
 

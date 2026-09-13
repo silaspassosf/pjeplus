@@ -1,6 +1,6 @@
 # PJePlus — Índice de Navegação Precisa (IDX)
 
-Atualizado: 2026-09-06 (seção 0.5 pw.py/scripts/ adicionada; refatoração de agentes)
+Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless, FLOW_HANDLERS, env vars, pjeplay)
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 
@@ -15,7 +15,17 @@ Atualizado: 2026-09-06 (seção 0.5 pw.py/scripts/ adicionada; refatoração de 
 | Tarefa | Arquivo | Função/Símbolo |
 |---|---|---|
 | Rodar o projeto | `pw.py` | `main()` — `py pw.py` |
-| Orquestrador de fluxos | `x.py` | `main()`, `executar_*()` |
+| Orquestrador de sessão | `x.py` | `main()` — loop driver + fluxos |
+| Criar e logar driver | `x.py` | `criar_e_logar_driver(driver_type)` |
+| Driver headless (login via janela visível) | `x.py` | `_criar_driver_headless_com_login_visivel()` |
+| Selecionar ambiente + fluxo (menus / env) | `x.py` | `selecionar_ambiente_e_fluxo()` |
+| Executar fluxo único com retry de API | `x.py` | `_executar_um_fluxo(driver, fluxo, driver_type)` |
+| Wrapper de fluxo com log+tempo | `x.py` | `_executar_fluxo(nome, fn, driver)` |
+| Normalizar resultado de fluxo | `x.py` | `normalizar_resultado(resultado)` |
+| Mapa fluxo → handler | `x.py` | `FLOW_HANDLERS` (dict A–H, L772) |
+| Tipo de driver (enum) | `x.py` | `DriverType` — PC_VISIBLE, PC_HEADLESS, VT_VISIBLE, VT_HEADLESS |
+| Captura stdout → arquivo + console | `x.py` | `TeeOutput` |
+| Logging por sessão (arquivo + erro.md) | `x.py` | `configurar_logging(driver_type, debug)` |
 | Purgar progresso antigo | `Fix/monitoramento_progresso_unificado.py` | `limpar_progresso_antigos` |
 | Backend Playwright | `play/pjeplay/` | `pjeplay.iniciar()` |
 
@@ -92,11 +102,11 @@ Atualizado: 2026-09-06 (seção 0.5 pw.py/scripts/ adicionada; refatoração de 
 | Mandado | `Mandado/entrada_api.py` | `processar_mandados_devolvidos_api` |
 | Prazo | `Prazo/loop_orquestrador.py` | `loop_prazo` |
 | P2B (GIGS sem prazo) | `Prazo/p2b_gateway.py` | `processar_gigs_sem_prazo_p2b` |
-| PEC | `PEC/runtime_pec.py` | `executar_fluxo_novo_simplificado` |
+| PEC | `PEC/orquestrador.py` | `executar_fluxo_novo_simplificado` |
 | Triagem | `bianca/triagem_engine.py` | `run_triagem` |
 | Petição | `Peticao/runtime_pet.py` | `run_pet` |
 | SISBAJUD | `SISB/core.py` | `iniciar_sisbajud` |
-| DOM | `bianca/dom_engine.py` | `run_dom` |
+| DOM (Domicílio Eletrônico) | `bianca/dom_engine.py` | `run_dom_api` ← entry point real (não `run_dom`) |
 
 ### Atos Judiciais & Comunicação
 
@@ -239,6 +249,59 @@ pw.py
 | `bookmarklet_dom_filtros.txt` | Bookmarklet | Filtros DOM — aplica filtros no painel do PJe |
 
 **Regra para scripts JS:** scripts IIFE em `scripts/` são executados no DevTools ou via `driver.execute_script()`. Nunca embutir seu conteúdo em f-string Python — usar `carregar_js()` de `Fix/scripts/__init__.py`.
+
+### Orquestrador de Sessão (`x.py`) — Internals
+
+```
+x.py: main()
+  → selecionar_ambiente_e_fluxo()        ← menus ou PJEPLUS_DRIVER/PJEPLUS_FLUXO (env)
+  → configurar_logging(driver_type, debug)
+  → criar_e_logar_driver(driver_type)
+      → [headless] _criar_driver_headless_com_login_visivel()
+          → Tentativa 1: cookies existentes → headless direto
+          → Tentativa 2: janela VISÍVEL aberta → login manual (meu-painel | quadro-avisos)
+                       → salva cookies → fecha janela → cria driver headless
+      → [visível] criar_driver_pc/vt + login_manual
+  → loop while fluxo:
+      → _executar_um_fluxo(driver, fluxo, driver_type)
+          → FLOW_HANDLERS[fluxo](driver)      ← handler específico abaixo
+          → retry automático se tempo < 2s (sessão API morta)
+      → _resetar_para_painel(driver)
+      → _menu_proximo_fluxo()               ← None automático em CI (env var | !stdin.isatty)
+```
+
+**FLOW_HANDLERS (`x.py` L772):**
+
+| Letra | Função em `x.py` | Entry point real |
+|---|---|---|
+| A | `executar_bloco_completo` | Mandado + Prazo + P2B + PEC em sequência |
+| B | `executar_mandado` | `Mandado/entrada_api.py::processar_mandados_devolvidos_api` |
+| C | `executar_prazo` | `Prazo/loop_orquestrador.py::loop_prazo` + P2B |
+| D | `executar_p2b` | `Prazo/p2b_gateway.py::processar_gigs_sem_prazo_p2b` |
+| E | `executar_pec` | `PEC/orquestrador.py::executar_fluxo_novo_simplificado` |
+| F | `executar_triagem` | `bianca/triagem_engine.py::run_triagem` |
+| G | `executar_pet` | `Peticao/runtime_pet.py::run_pet` |
+| H | `executar_domicilio_eletronico` | `bianca/dom_engine.py::run_dom_api` |
+
+**Modo não-interativo (CI/headless automático):**
+```
+PJEPLUS_DRIVER=PC_HEADLESS PJEPLUS_FLUXO=A py pw.py
+```
+Valores válidos para `PJEPLUS_DRIVER`: `PC_VISIBLE`, `PC_HEADLESS`, `VT_VISIBLE`, `VT_HEADLESS`
+Valores válidos para `PJEPLUS_FLUXO`: `A` a `H` (ver tabela acima)
+
+**Backend Playwright (`play/pjeplay/`):**
+
+| Arquivo | Papel |
+|---|---|
+| `__init__.py` | `iniciar()` — troca selenium + aplica helpers nativos via `setattr` |
+| `compat.py` | `instalar()` — substitui `sys.modules['selenium']` |
+| `launcher.py` | `criar_driver_PC/VT/notebook/sisb` — instancia `PWDriver` |
+| `driver.py` | `PWDriver` — superfície WebDriver sobre Playwright |
+| `nativo.py` | `aplicar()` — substitui helpers `Fix/` por versões Playwright nativas |
+| `waits.py` | `WebDriverWait` compatível com `PWDriver` |
+| `api_resiliencia.py` | `instalar_resiliencia()` — retry automático em falhas de rede |
+| `medicao.py` | `sessao()`, `etapa()`, `salvar()` — relatório de tempo por backend |
 
 ---
 
@@ -407,6 +470,20 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `chip`, `def_chip`, `remover etiqueta` | `atos/movimentos_chips.py` |
 | `despacho_generico` | `atos/movimentos_despacho.py` |
 | `peticao`, `run_pet`, `escaninho` | `Peticao/runtime_pet.py` |
+| `FLOW_HANDLERS` | `x.py` L772 — mapa letra → função executora |
+| `DriverType`, `PC_HEADLESS`, `VT_HEADLESS` | `x.py` L68 — enum de tipos de driver |
+| `criar_e_logar_driver` | `x.py` L159 — login completo com fallback headless via janela visível |
+| `_criar_driver_headless_com_login_visivel` | `x.py` — abre janela visível, aguarda URL, salva cookies, inicia headless |
+| `_executar_fluxo`, `normalizar_resultado` | `x.py` L233, L222 |
+| `executar_bloco_completo`, `_recriar` | `x.py` L308 — bloco completo com recriação de driver após crash |
+| `TeeOutput` | `x.py` L80 — captura stdout para arquivo e console |
+| `configurar_logging` | `x.py` L682 — logging por sessão + erro.md |
+| `_aguardar_login_manual`, `_aguardar_sessao_ativa` | `x.py` L104, L138 |
+| `menu_ambiente`, `menu_execucao` | `x.py` L583, L617 — menus interativos |
+| `PJEPLUS_DRIVER`, `PJEPLUS_FLUXO` | env vars em `x.py::selecionar_ambiente_e_fluxo` — modo não-interativo |
+| `run_dom_api` | `bianca/dom_engine.py` — entry point real de DOM (não `run_dom`) |
+| `pjeplay.iniciar`, `pjeplay.nativo.aplicar` | `play/pjeplay/__init__.py` L53, `play/pjeplay/nativo.py` |
+| `quadro-avisos/visualizar`, `meu-painel` | `Fix/utils.py::login_manual` — URLs válidas de pós-login |
 
 ---
 

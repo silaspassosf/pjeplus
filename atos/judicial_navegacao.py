@@ -278,139 +278,166 @@ def preparar_campo_minutar(driver: WebDriver) -> bool:
 
 
 def verificar_estado_atual(driver: WebDriver) -> str:
-    """Verifica em qual tela o PJE está no momento (assinar, minutar, conclusao).
-    Returns:
-        str: 'assinar', 'minutar', 'conclusao' ou 'desconhecido'
     """
-    try:
-        url = (driver.current_url or "").lower()
-        if '/assinar' in url:
-            return 'assinar'
-        if '/minutar' in url:
-            return 'minutar'
-        if '/conclusao' in url:
-            return 'conclusao'
-        if '/detalhe' in url:
-            return 'detalhe'
-        return 'desconhecido'
-    except Exception:
-        return 'desconhecido'
-
-
-def escolher_tipo_conclusao(
-    driver: WebDriver, conclusao_tipo: str
-) -> bool:
-    """Escolhe o tipo de conclusao na tela de conclusao do processo.
-    Padrao gigs-plugin L11626-11653: busca normalizada unica, JS click
-    no firstElementChild, aguarda PJE-ARVORE-MODELO-DOCUMENTO.
+    Verifica o estado atual do processo baseado na URL.
 
     Returns:
-        bool: True se conseguiu escolher o tipo.
+        str: Estado atual ('assinar', 'minutar', 'conclusao', 'detalhe', 'outro')
+    """
+    current_url = (driver.current_url or '').lower()
+
+    if '/assinar' in current_url:
+        return 'assinar'
+    elif '/minutar' in current_url:
+        return 'minutar'
+    elif '/conclusao' in current_url:
+        return 'conclusao'
+    elif '/detalhe' in current_url:
+        return 'detalhe'
+    else:
+        return 'outro'
+
+
+def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
+    """
+    Escolhe o tipo de conclusão na tela de conclusão do processo.
+    
+    ESTRATÉGIA SIMPLES (legacy approach):
+    - Procura botão com 3 estratégias
+    - Um ÚNICO clique com scrollIntoView + JS click
+    - Deixa que a página navegue naturalmente sem retry
+
+    Args:
+        driver: WebDriver instance
+        conclusao_tipo: Tipo de conclusão desejado (ex: "Despacho", "Decisão", etc.)
+
+    Returns:
+        bool: True se conseguiu escolher o tipo
     """
     try:
-        logger.info("[CONCLUSO] Escolhendo tipo: %s (padrao gigs)", conclusao_tipo)
+        logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
 
-        aguardar_renderizacao_nativa(
-            driver, 'pje-concluso-tarefa-botao', modo='aparecer', timeout=8
-        )
+        # Aguardar presença dos botões de conclusão
+        if not espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=10):
+            logger.warning('[CONCLUSÃO] Botões de conclusão não carregaram')
 
-        clicou = driver.execute_script("""
-            var tipo = arguments[0].toLowerCase();
-            function normalizar(s) {
-                return s.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
-            }
-            var containers = document.querySelectorAll('pje-concluso-tarefa-botao');
-            for (var i = 0; i < containers.length; i++) {
-                var txt = normalizar(containers[i].textContent || '');
-                if (txt.indexOf(normalizar(tipo)) !== -1) {
-                    var btn = containers[i].querySelector('button');
-                    if (btn && !btn.disabled) {
-                        btn.click();
-                        return true;
-                    }
-                }
-            }
-            return false;
-        """, conclusao_tipo)
+        btn_tipo_conclusao = None
 
-        if not clicou:
-            logger.error("[CONCLUSO] Botao de conclusao '%s' nao encontrado", conclusao_tipo)
+        # Estratégia 1: Procurar em botões estruturados (pje-concluso-tarefa-botao)
+        try:
+            candidatos = driver.find_elements(By.CSS_SELECTOR, 'pje-concluso-tarefa-botao button')
+            for btn in candidatos:
+                try:
+                    txt = (btn.text or '').strip()
+                    if txt and conclusao_tipo.lower() in txt.lower() and btn.is_displayed() and btn.is_enabled():
+                        btn_tipo_conclusao = btn
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # Estratégia 2: Procurar por texto visível
+        if not btn_tipo_conclusao:
+            try:
+                xpath = f"//button[contains(normalize-space(text()), '{conclusao_tipo}')]"
+                btns = driver.find_elements(By.XPATH, xpath)
+                for btn in btns:
+                    try:
+                        if btn.is_displayed() and btn.is_enabled():
+                            aria = (btn.get_attribute('aria-label') or '').lower()
+                            # Evitar botões de remoção/chips
+                            if 'remover' not in aria and 'fechar' not in aria and 'excluir' not in aria:
+                                btn_tipo_conclusao = btn
+                                break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        # Estratégia 3: Procurar por aria-label
+        if not btn_tipo_conclusao:
+            try:
+                btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
+                for btn in btns:
+                    try:
+                        aria = (btn.get_attribute('aria-label') or '').lower()
+                        if conclusao_tipo.lower() in aria:
+                            if 'remover' not in aria and 'fechar' not in aria:
+                                if btn.is_displayed() and btn.is_enabled():
+                                    btn_tipo_conclusao = btn
+                                    break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        if not btn_tipo_conclusao:
+            logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado')
             return False
 
-        logger.info("[CONCLUSO] Tipo '%s' clicado (JS nativo)", conclusao_tipo)
-        aguardar_renderizacao_nativa(
-            driver, 'pje-arvore-modelo-documento', modo='aparecer', timeout=10
-        )
+        # ===== CLIQUE ÚNICO + SIMPLES (legacy approach) =====
+        # ScrollIntoView + JavaScript click direto, sem retry logic que interfere com page navigation
+        logger.info(f'[CONCLUSÃO] Clicando em tipo de conclusão...')
+        try:
+            driver.execute_script('arguments[0].scrollIntoView({block: "center", behavior: "instant"});', btn_tipo_conclusao)
+            safe_click_no_scroll(driver, btn_tipo_conclusao)
+            logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado')
+        except Exception as click_err:
+            logger.error(f'[CONCLUSÃO] ❌ Erro ao clicar: {click_err}')
+            return False
+
+        # Aguardar navegação pós-clique (observer para readyState complete)
+        espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
         return True
 
     except Exception as e:
-        logger.error("[CONCLUSO] Erro ao escolher tipo: %s", e)
+        logger.error(f'[CONCLUSÃO] Erro ao escolher tipo de conclusão: {e}')
         import traceback
         logger.error(traceback.format_exc())
         return False
 
 
 def aguardar_transicao_minutar(driver: WebDriver) -> bool:
-    """Aguarda a transicao da tela de conclusao para minutar.
-    Padrao gigs-plugin L11655: observer em PJE-ARVORE-MODELO-DOCUMENTO
-    em vez de polling de URL.
+    """
+    Aguarda a transição da tela de conclusão para a tela de minutar.
 
     Returns:
-        bool: True se conseguiu fazer a transicao.
+        bool: True se conseguiu fazer a transição
     """
     try:
-        logger.info("[CONCLUSO] Aguardando transicao para minutar (observer)...")
-
-        # Caminho 1: observer no elemento DOM (gigs L11655)
-        if aguardar_renderizacao_nativa(
-            driver, 'pje-arvore-modelo-documento', modo='aparecer', timeout=10
-        ):
-            logger.info("[CONCLUSO] Transicao para minutar detectada (observer)")
-            return True
-
-        # Caminho 2: fallback — verificar URL
-        current_url = (driver.current_url or "").lower()
-        if "/minutar" in current_url:
-            logger.info("[CONCLUSO] URL /minutar detectada (fallback)")
-            return True
-
-        # Caminho 3: esperar URL como ultima alternativa
+        logger.info('[CONCLUSÃO] Aguardando transição para tela de minutar...')
         from Fix.utils import esperar_url_conter
-        if esperar_url_conter(driver, "/minutar", timeout=8):
-            logger.info("[CONCLUSO] Transicao para minutar concluida (URL)")
-            return True
 
-        logger.error(
-            "[CONCLUSO] URL nao mudou para /minutar: %s", driver.current_url[:120]
-        )
-        return False
+        # Aguardar URL /minutar
+        if not esperar_url_conter(driver, '/minutar', timeout=20):
+            logger.error(f'[CONCLUSÃO] URL não mudou para /minutar: {driver.current_url}')
+            return False
+
+        logger.info('[CONCLUSÃO] Transição para minutar concluída')
+        return True
 
     except Exception as e:
-        logger.error("[CONCLUSO] Erro na transicao para minutar: %s", e)
+        logger.error(f'[CONCLUSÃO] Erro na transição para minutar: {e}')
         return False
 
 
 def focar_campo_minutar_se_necessario(driver: WebDriver) -> bool:
-    """Foca no campo de filtro de modelos se estiver na tela de minutar.
+    """
+    Foca no campo de filtro de modelos se estiver na tela de minutar.
 
     Returns:
-        bool: True se conseguiu focar ou se nao era necessario.
+        bool: True se conseguiu focar ou se não era necessário
     """
     try:
-        if verificar_estado_atual(driver) == "minutar":
-            logger.info("[CONCLUSO] Ja em minutar - focando no campo de filtro")
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            campo_filtro_modelo = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located(
-                    (By.CSS_SELECTOR, "input#inputFiltro")
-                )
-            )
-            driver.execute_script(
-                "arguments[0].focus();", campo_filtro_modelo
-            )
-            logger.info("[CONCLUSO] Foco no campo #inputFiltro realizado")
+        if verificar_estado_atual(driver) == 'minutar':
+            logger.info('[CONCLUSÃO] Já em minutar - focando no campo de filtro')
+            campo_filtro_modelo = espera.elemento(driver, 'input#inputFiltro', teto=10)
+            if not campo_filtro_modelo:
+                raise Exception('input#inputFiltro não apareceu')
+            driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+            logger.info('[CONCLUSÃO] Foco no campo #inputFiltro realizado')
         return True
     except Exception as e:
-        logger.warning("[CONCLUSO] Erro ao focar campo minutar: %s", e)
+        logger.warning(f'[CONCLUSÃO] Erro ao focar campo minutar: {e}')
         return False

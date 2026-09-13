@@ -1,0 +1,1 @@
+﻿javascript:(function(){var s=document.createElement('script');s.src='https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.min.js?v='+Date.now();document.head.appendChild(s);})();

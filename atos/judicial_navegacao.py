@@ -392,7 +392,7 @@ def aguardar_transicao_minutar(driver: WebDriver) -> bool:
     try:
         logger.info('[CONCLUSÃO] Aguardando transição para tela de minutar (DOM Observer)...')
         from Fix.core import esperar_url_conter
-        from Fix.selenium_base.wait_operations import aguardar_renderizacao_nativa
+        from Fix.core import aguardar_renderizacao_nativa
 
         # 1. Estratégia Principal: Esperar a árvore de modelos (rápido, DOM native)
         try:

@@ -441,7 +441,7 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                     }
 
                     var idPjeLink = null;
-                    if (idPje && /^\d{10,}$/.test(idPje)) {
+                    if (idPje && /^\\d{10,}$/.test(idPje)) {
                         idPjeLink = criarUrlDocumento(idPje);
                     }
 
@@ -459,7 +459,7 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                                     objetoLink = linkElement.href;
                                 }
                             } else {
-                                if (/^[A-Z]{2}\d{9}BR$/.test(codigoRastreamento)) {
+                                if (/^[A-Z]{2}\\d{9}BR$/.test(codigoRastreamento)) {
                                     objetoLink = 'https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=' + codigoRastreamento;
                                 }
                             }

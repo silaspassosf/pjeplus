@@ -232,25 +232,29 @@ def _extrair_com_extrair_documento(driver: WebDriver) -> Optional[str]:
 
 def _fechar_aba_processo(driver: WebDriver) -> None:
     """
-    Helper: Fecha aba do processo e volta para lista.
+    Helper: Fecha aba do processo e volta para lista de forma segura.
     """
-    all_windows = driver.window_handles
-    main_window = all_windows[0]
-    current_window = driver.current_window_handle
-
-    if current_window != main_window and len(all_windows) > 1:
-        driver.close()
+    try:
+        all_windows = driver.window_handles
+        if not all_windows:
+            return
+        main_window = all_windows[0]
         try:
-            if main_window in driver.window_handles:
-                driver.switch_to.window(main_window)
-            elif driver.window_handles:
-                driver.switch_to.window(driver.window_handles[0])
-        except Exception as e:
-            logger.error(f"[LIMPEZA][ERRO] Falha ao alternar para aba válida: {e}")
-            try:
-                driver.current_url  # Testa se aba está acessível
-            except Exception:
-                logger.error("[LIMPEZA][ERRO] Tentou acessar aba já fechada.")
+            current_window = driver.current_window_handle
+        except Exception:
+            current_window = None
+
+        if current_window and current_window != main_window and len(all_windows) > 1:
+            driver.close()
+
+        # Garante foco em uma janela viva
+        handles_restantes = driver.window_handles
+        if main_window in handles_restantes:
+            driver.switch_to.window(main_window)
+        elif handles_restantes:
+            driver.switch_to.window(handles_restantes[0])
+    except Exception as e:
+        logger.warning(f"[LIMPEZA] Falha segura ao alternar abas: {e}")
 
 
 # ═══════════════════════════════════════════
@@ -552,9 +556,9 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
             if isinstance(res, tuple) and len(res) == 3:
                 return res
             # Tupla de resultado de wrapper de ato (ex.: make_ato_wrapper ->
-            # (ok_fluxo, ok_final)): só é sucesso se TODOS os itens forem True
+            # (sucesso, sigilo_ativado)): só é sucesso se o primeiro elemento (sucesso) for True
             if isinstance(res, tuple):
-                if not all(res):
+                if len(res) >= 1 and not res[0]:
                     resultado_acoes = False
             # Se retorna False, regra falhou
             elif res is False:

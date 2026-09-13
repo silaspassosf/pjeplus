@@ -553,17 +553,20 @@ def ato_judicial(
             logger.info('[ATO][SALVAR] Clique no botao Salvar realizado')
 
             # Aguarda controles da aba destinatários (OR de seletores como no leg)
-            # Toggle OU botão gravar OU PEC — qualquer um indica que a aba renderizou
+            # Toggle OU botão gravar OU PEC OU tabela de partes — qualquer um indica que a aba renderizou
             if not aguardar_renderizacao_nativa(
                 driver,
                 'button[aria-label="Gravar a intimação/notificação"], '
                 'pje-intimacao-automatica label.mat-slide-toggle-label, '
                 'mat-checkbox[aria-label="Enviar para PEC"], '
-                'div.checkbox-pec mat-checkbox',
+                'div.checkbox-pec mat-checkbox, '
+                'table.t-class tr.ng-star-inserted, '
+                'button#selecionar-polo-ativo',
                 modo='aparecer',
                 timeout=15,
             ):
                 logger.warning('[ATO][SALVAR] Timeout aguardando controles de destinatários, prosseguindo...')
+
 
             # Compatibilidade com transição Angular (como no leg)
             espera.assentar(driver, 1.5)

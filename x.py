@@ -801,16 +801,24 @@ def _resetar_para_painel(driver) -> bool:
     """Fecha abas extras e navega para meu-painel para a próxima execução."""
     try:
         _limpar_acesso_negado(driver)
-        abas = driver.window_handles
-        if len(abas) > 1:
-            for aba in abas[1:]:
+        handles = driver.window_handles
+        if len(handles) > 1:
+            primeira = handles[0]
+            for h in handles[1:]:
                 try:
-                    driver.switch_to.window(aba)
+                    driver.switch_to.window(h)
                     driver.close()
                 except Exception:
                     pass
-            driver.switch_to.window(abas[0])
-        driver.execute_script("document.body.style.zoom='100%'")
+            handles_restantes = driver.window_handles
+            if primeira in handles_restantes:
+                driver.switch_to.window(primeira)
+            elif handles_restantes:
+                driver.switch_to.window(handles_restantes[0])
+        try:
+            driver.execute_script("document.body.style.zoom='100%'")
+        except Exception:
+            pass
         driver.get(PAINEL_URL)
         return True
     except Exception as e:

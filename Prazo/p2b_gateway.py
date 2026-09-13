@@ -670,16 +670,20 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
     def open_item(item):
         """Navega para o detalhe do processo na mesma aba, fechando abas extras."""
         try:
-            abas = driver.window_handles
-            if len(abas) > 1:
-                aba_principal = abas[0]
-                for aba in abas[1:]:
+            handles = driver.window_handles
+            if len(handles) > 1:
+                primeira = handles[0]
+                for h in handles[1:]:
                     try:
-                        driver.switch_to.window(aba)
+                        driver.switch_to.window(h)
                         driver.close()
                     except Exception:
                         pass
-                driver.switch_to.window(aba_principal)
+                handles_restantes = driver.window_handles
+                if primeira in handles_restantes:
+                    driver.switch_to.window(primeira)
+                elif handles_restantes:
+                    driver.switch_to.window(handles_restantes[0])
         except Exception:
             pass
 

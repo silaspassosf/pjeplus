@@ -139,15 +139,6 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
         bool: True se conseguiu navegar para conclusão
     """
     try:
-        # 0. Verificação prévia: Já estamos em conclusão ou minutar?
-        current_url = (driver.current_url or '').lower()
-        if '/minutar' in current_url:
-            logger.info('[NAVEGAÇÃO] Já em /minutar — destino alcançado')
-            return True
-        if '/conclusao' in current_url or espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=1.0):
-            logger.info('[NAVEGAÇÃO] Já em Conclusão ao Magistrado — destino alcançado')
-            return True
-
         logger.info('[NAVEGAÇÃO] Navegando para Conclusão ao Magistrado...')
 
         # Obter nome da tarefa se disponível (do DOM ou do driver salvo anteriormente)
@@ -165,31 +156,27 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
 
         logger.info(f'[NAVEGAÇÃO] Nome da Tarefa Detectado: "{nome_tarefa}"')
 
-        # Se a tarefa atual já é conclusão, destino alcançado
-        if 'conclusao' in nome_tarefa:
-            logger.info('[NAVEGAÇÃO] Tarefa atual já é Conclusão ao magistrado')
-            return True
-
-        # Garantir que os botões de navegação/transição terminaram de renderizar (estilo gigs-plugin)
-        seletor_botoes = (
-            "button[aria-label='Análise'], button[aria-label*='Análise'], "
-            "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado'], "
-            "pje-botoes-transicao button"
-        )
-        if not espera.ate_aparecer(driver, seletor_botoes, teto=10):
-            # Se não achou botões de transição, checa se já estamos na conclusão
-            if espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=2.0) or '/conclusao' in (driver.current_url or '').lower():
-                logger.info('[NAVEGAÇÃO] pje-concluso-tarefa-botao já visível — transição concluída')
-                return True
+        # Garantir que a página Angular terminou de renderizar os botões de navegação
+        # antes de desligar o wait implícito. No Playwright, a navegação é mais rápida
+        # que no Selenium, e o Angular pode ainda não ter renderizado os botões quando
+        # esta função é chamada. Sem esta espera, find_element com implicitly_wait=0
+        # faz query_selector() imediato que retorna None.
+        # Usa espera.elemento (wait_for_selector nativo no PW) em vez de aguardar_
+        # renderizacao_nativa: o _ALGUM_VISIVEL JS pode achar "Conclusão" visível e
+        # retornar antes do "Análise" entrar no DOM, gerando falso positivo.
+        if not (
+            espera.elemento(driver, "button[aria-label='Análise'], button[aria-label*='Análise']", teto=5)
+            or espera.elemento(driver, "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado']", teto=5)
+        ):
             logger.error('[NAVEGAÇÃO] Botões de navegação não apareceram no DOM')
             return False
 
-        # Desabilitar implicit_wait temporariamente para checagem rápida
+        # Desabilitar implicit_wait temporariamente para evitar delays de 10s ao buscar elementos que não existem
         driver.implicitly_wait(0)
         try:
             btn_conclusao_encontrado = False
 
-            # Tentar clique direto em "Conclusão ao magistrado"
+            # Tentar clique direto em "Conclusão ao magistrado" independente do tipo de tarefa.
             btn_conclusao_direto = encontrar_elemento_inteligente(
                 driver, 'Conclusão ao magistrado',
                 estrategias_custom=_estrategias_botao_navegacao('Conclusão ao magistrado')
@@ -208,9 +195,8 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
                 )
                 if btn_analise and safe_click_no_scroll(driver, btn_analise):
                     logger.info('[NAVEGAÇÃO] Clique em "Análise" realizado')
-                    espera.assentar(driver, 1.0, motivo='pós-clique Análise')
                 else:
-                    logger.warning('[NAVEGAÇÃO] Botão "Análise" não encontrado diretamente')
+                    logger.error('[NAVEGAÇÃO] Falha ao clicar em "Análise": botão não encontrado no DOM')
 
         finally:
             driver.implicitly_wait(10)
@@ -231,38 +217,28 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
         # Clicar na conclusão após Análise se necessário
         if not btn_conclusao_encontrado:
             seletor_conclusao = "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado']"
-            espera.ate_aparecer(driver, seletor_conclusao, teto=8)
+            aguardar_renderizacao_nativa(driver, seletor_conclusao, 'aparecer', timeout=8)
             btn_conclusao = encontrar_elemento_inteligente(
                 driver, 'Conclusão ao magistrado',
                 estrategias_custom=_estrategias_botao_navegacao('Conclusão ao magistrado')
             )
-            if btn_conclusao and safe_click_no_scroll(driver, btn_conclusao):
-                logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise')
-            else:
-                # Checa se a transição já ocorreu
-                if espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=2.0) or '/conclusao' in (driver.current_url or '').lower():
-                    logger.info('[NAVEGAÇÃO] Processo já transicionou para Conclusão')
-                else:
-                    logger.warning('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não encontrado após aguardar renderização')
+            if not btn_conclusao or not safe_click_no_scroll(driver, btn_conclusao):
+                logger.error('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não encontrado após aguardar renderização')
+                return False
+            logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise')
 
-        # Confirmar chegada com tolerância: /minutar, /conclusao ou pje-concluso-tarefa-botao
-        espera.assentar(driver, 1.5, motivo='espera chegada Conclusão')
+        # Confirmar chegada: /minutar (pulou direto) ou botões de tipo de conclusão renderizados.
         current_after = (driver.current_url or '').lower()
         if '/minutar' in current_after:
             logger.info('[NAVEGAÇÃO] Processo foi direto para /minutar')
             return True
 
-        if espera.ate_aparecer(driver, 'pje-concluso-tarefa-botao', teto=12) or espera.ate_url(driver, '/conclusao', teto=5):
-            logger.info('[NAVEGAÇÃO] Navegação para conclusão concluída com sucesso')
-            return True
+        if not aguardar_renderizacao_nativa(driver, 'pje-concluso-tarefa-botao button', 'aparecer', timeout=10):
+            logger.error(f'[NAVEGAÇÃO] Botões de conclusão não apareceram. URL atual: {driver.current_url}')
+            return False
 
-        # Fallback de checagem direta dos botões
-        if aguardar_renderizacao_nativa(driver, 'pje-concluso-tarefa-botao button', 'aparecer', timeout=5):
-            logger.info('[NAVEGAÇÃO] Navegação para conclusão concluída com sucesso (botões visíveis)')
-            return True
-
-        logger.error(f'[NAVEGAÇÃO] Botões de conclusão não apareceram. URL atual: {driver.current_url}')
-        return False
+        logger.info('[NAVEGAÇÃO] Navegação para conclusão concluída com sucesso')
+        return True
 
     except Exception as e:
         logger.error(f'[NAVEGAÇÃO] Erro na navegação para conclusão: {e}')

@@ -1,7 +1,7 @@
 # PJePlus — Regras para Antigravity (Google)
 
 **Orquestrador:** Claude Sonnet 4.6 (você) — nunca Opus  
-**Subagentes (skills):** Gemini Flash mais recente disponível  
+**Skills/subagentes:** Gemini Flash mais recente disponível  
 **Projeto:** `github.com/silaspassosf/pjeplus` — automação Python+Playwright/Selenium para PJe  
 
 ---
@@ -11,11 +11,16 @@
 Você é o orquestrador. Para qualquer tarefa não-trivial, siga este fluxo:
 
 ```
-1. Ler idx.md seção 0.1 (Quick Reference Card) → acesso direto sem busca
-2. Ler idx.md seção 0 (Árvore de Decisão) → se não encontrado na QRC
-3. Classificar: backend Python | webext JS | diagnóstico bug | gate qualidade
-4. Ativar a skill correspondente e seguir suas instruções
-5. Validar resultado antes de entregar ao usuário
+1. Ler idx.md seção 0.1 (QRC) → localização direta por token
+   Se não encontrado na QRC: seção 0 (Árvore de Decisão)
+   PARE assim que tiver arquivo + função. Não ler outras seções.
+
+2. Classificar e ativar a skill com contexto pré-digerido:
+   - arquivo + linha estimada + âncora (trecho literal 1-2 linhas)
+   - API obrigatória a usar + o que não tocar
+
+3. Entregar resultado ao usuário em ≤3 linhas.
+   QA apenas sob pedido explícito.
 ```
 
 **Classificação → Skill:**
@@ -26,19 +31,18 @@ Você é o orquestrador. Para qualquer tarefa não-trivial, siga este fluxo:
 | Bug pontual com arquivo já identificado | `backend` ou `webext` |
 | Feature/refatoração em Python (Fix/, atos/, PEC/, Prazo/, Mandado/, SISB/) | `backend` |
 | Feature/script JS (Script/, AVJT/, maispje/, scripts/) | `webext` |
-| Revisão de entrega ou varredura de saúde | `qa` |
+| Revisão de entrega ou varredura de saúde (pedido explícito) | `qa` |
 
 ---
 
 ## Fonte de Verdade
 
-`idx.md` na raiz do projeto é o índice arquitetural inegociável:
-- **Seção 0.1:** Quick Reference Card — acesso direto a arquivo/função (consultar PRIMEIRO)
-- **Seção 0:** Árvore de Decisão — para casos não cobertos pela QRC
-- **Seção 0.5:** Fluxo `pw.py` + pasta `scripts/` — ponto de entrada real do projeto
-- **Seção 2:** Índice de palavras-chave — busca por conceito
-- **Seção 4:** SHIMs e LEGADO — nunca editar esses arquivos
-- **Seções 7-8:** API de interação obrigatória + diretrizes P1-P9
+`idx.md` na raiz do projeto é o índice arquitetural inegociável.
+
+**Ordem de leitura (mínimo necessário — orquestrador):**
+1. **Seção 0.1** — Quick Reference Card ← **começar aqui sempre**
+2. **Seção 0** — Árvore de Decisão: somente se não encontrado na 0.1
+3. Demais seções (0.5, 2, 4, 7-8): não ler no orquestrador — são para as skills
 
 **NUNCA:** buscar arquivos genericamente sem consultar `idx.md` primeiro.
 
@@ -64,9 +68,9 @@ Você é o orquestrador. Para qualquer tarefa não-trivial, siga este fluxo:
 
 ## Formato de Patch
 
-Toda entrega de código deve usar:
 ```
 <!-- pjeplus:apply -->
 ## Objetivo / Arquivo(s) Alvo / Trecho Original / Alteração Proposta / Justificativa
 ```
-Ver `copilot-instructions.md` seção 6 para formato completo.
+
+Trecho original: sempre lido com `view_file`, nunca reconstruído de memória.

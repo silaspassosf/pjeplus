@@ -33,50 +33,34 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
         # Se apenas_primeiro, clicar no botão "Selecionar polo ativo"
         if apenas_primeiro:
             try:
-                if not espera.ate_habilitar(driver, '#selecionar-polo-ativo', teto=15):
-                    logger.error('[PRAZOS] #selecionar-polo-ativo não habilitou — aborta')
-                    return False
-                btn_polo_alvo = driver.find_element(By.ID, 'selecionar-polo-ativo')
-                # SEMPRE clicar em "polo ativo" quando apenas_primeiro: o botão seleciona
-                # SOMENTE o primeiro destinatário. Não há guarda de idempotência aqui —
-                # se a tabela abriu com destinatários já marcados, pular o clique
-                # deixaria todos selecionados (prazo aplicado a todos, não ao primeiro).
-                # Clique REAL (WebDriver/Playwright), não o dispatchEvent sintético
-                # do safe_click_no_scroll — o sintético não efetiva no mat-icon-button.
-                # Antes, limpa overlays residuais: o backdrop do Angular intercepta
-                # o clique real e o faz travar 30s em actionability.
+                logger.info('[PRAZOS] Clicando no botão #selecionar-polo-ativo...')
+                espera.ate_aparecer(driver, '#selecionar-polo-ativo, button[aria-label="Selecionar polo ativo"]', teto=10)
+
+                # Clique direto no elemento nativo pelo ID
+                clicado = driver.execute_script("""
+                    const btn = document.getElementById('selecionar-polo-ativo')
+                             || document.querySelector('#selecionar-polo-ativo')
+                             || document.querySelector('button[aria-label="Selecionar polo ativo"]');
+                    if (btn) {
+                        btn.click();
+                        return true;
+                    }
+                    return false;
+                """)
+
+                if not clicado:
+                    btn_polo_alvo = driver.find_element(By.CSS_SELECTOR, '#selecionar-polo-ativo, button[aria-label="Selecionar polo ativo"]')
+                    btn_polo_alvo.click()
+
+                espera.assentar(driver, 0.5)
+                logger.info('[PRAZOS] Botão #selecionar-polo-ativo clicado com sucesso')
+            except Exception as e:
+                logger.warning(f'[PRAZOS] Erro ao clicar no botão selecionar-polo-ativo: {e}')
                 try:
-                    driver.execute_script("""
-                        document.querySelectorAll('.cdk-overlay-backdrop, .cdk-overlay-pane, snack-bar-container, simple-snack-bar').forEach(function(el){
-                            if (el.style) el.style.display = 'none';
-                        });
-                    """)
+                    driver.execute_script("const b = document.getElementById('selecionar-polo-ativo'); if (b) b.click();")
+                    espera.assentar(driver, 0.5)
                 except Exception:
                     pass
-                try:
-                    btn_polo_alvo.click()
-                except Exception as e:
-                    # Fallback: clique sintético (dispatchEvent) não exige
-                    # actionability e atravessa sobreposição remanescente.
-                    logger.warning(f'[PRAZOS] Clique real falhou ({type(e).__name__}); tentando clique sintético')
-                    if not safe_click_no_scroll(driver, btn_polo_alvo, log=False):
-                        logger.error('[PRAZOS] Nem clique real nem sintético funcionaram — aborta')
-                        return False
-                espera.assentar(driver, 0.5)
-                # Confirma o efeito antes de seguir.
-                marcado = espera.ate_js(
-                    driver,
-                    "__pjeEls('table.t-class tbody tr.ng-star-inserted input[type=checkbox]').some(el => el.checked)",
-                    teto=5,
-                )
-                if not marcado:
-                    logger.error('[PRAZOS] Polo ativo NÃO confirmado após o clique — aborta')
-                    return False
-                logger.info('[PRAZOS] Polo ativo selecionado - apenas primeiro destinatário marcado')
-                espera.assentar(driver, 0.5)
-            except Exception as e:
-                logger.error(f'[PRAZOS] Não foi possível clicar em polo ativo: {e}')
-                return False
         else:
             # Selecionar todos e filtrar apenas "Diário" (excluir "Domicílio Eletrônico")
             try:
@@ -122,24 +106,48 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             inputs_prazo = []
             for tr in linhas:
                 try:
-                    checkbox = tr.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Intimar parte"]')
-                    marcado_linha = (
-                        checkbox.get_attribute('aria-checked') == 'true'
-                        or checkbox.is_selected()
-                    )
+                    marcado_linha = False
+                    mat_chks = tr.find_elements(By.CSS_SELECTOR, 'mat-checkbox')
+                    if mat_chks:
+                        cls = mat_chks[0].get_attribute('class') or ''
+                        if 'mat-checkbox-checked' in cls:
+                            marcado_linha = True
+
+                    if not marcado_linha:
+                        chks = tr.find_elements(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                        if chks and (chks[0].is_selected() or chks[0].get_attribute('aria-checked') == 'true'):
+                            marcado_linha = True
+
                     if not marcado_linha:
                         continue
-                    input_prazo = tr.find_element(
+
+                    inputs_tr = tr.find_elements(
+                        By.CSS_SELECTOR,
+                        'mat-form-field.prazo input[type="text"].mat-input-element, input[aria-label="Prazo"]',
+                    )
+                    if inputs_tr:
+                        inputs_prazo.extend(inputs_tr)
+                except Exception:
+                    continue
+
+            # Fallback se a verificação estrita não encontrar
+            if not inputs_prazo:
+                if apenas_primeiro and linhas:
+                    inputs_primeira = linhas[0].find_elements(
+                        By.CSS_SELECTOR,
+                        'mat-form-field.prazo input[type="text"].mat-input-element, input[aria-label="Prazo"]',
+                    )
+                    if inputs_primeira:
+                        inputs_prazo = inputs_primeira
+
+                if not inputs_prazo:
+                    inputs_prazo = driver.find_elements(
                         By.CSS_SELECTOR,
                         'mat-form-field.prazo input[type="text"].mat-input-element',
                     )
-                    inputs_prazo.append(input_prazo)
-                except Exception:
-                    # Linha sem checkbox de intimar ou sem campo de prazo — não selecionável
-                    continue
 
             if not inputs_prazo:
-                logger.warning('[PRAZOS] Nenhum campo de prazo na linha selecionada')
+                logger.warning('[PRAZOS] Nenhum campo de prazo encontrado')
                 return False
 
             logger.info(f'[PRAZOS] Encontrados {len(inputs_prazo)} campos de prazo')

@@ -129,19 +129,15 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
     """
     Navega da tarefa atual para "Conclusão ao Magistrado".
 
-    Estratégia:
-    1. Tenta clicar diretamente em "Conclusão ao Magistrado"
-    2. Se não disponível, clica em "Análise" primeiro, remove overlays, depois clica em "Conclusão ao Magistrado"
-    3. Aguarda o elemento da próxima tela (botões de tipo de conclusão) — não a URL,
-       que não é um sinal confiável dessa transição (mesmo padrão do gigs-plugin.js)
-
-    Returns:
-        bool: True se conseguiu navegar para conclusão
+    Estratégia Robusta (inspirada no gigs-plugin.js / aadespacho):
+    1. Injeta script JS que normaliza acentos e busca botões por texto/aria-label
+    2. Tenta clicar diretamente em "Conclusão ao Magistrado"
+    3. Se não encontrar, tenta clicar em "Análise" e depois em "Conclusão"
     """
+    import time
     try:
         logger.info('[NAVEGAÇÃO] Navegando para Conclusão ao Magistrado...')
 
-        # Obter nome da tarefa se disponível (do DOM ou do driver salvo anteriormente)
         nome_tarefa = getattr(driver, 'pje_tarefa_atual', '').lower()
         if not nome_tarefa:
             try:
@@ -156,76 +152,100 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
 
         logger.info(f'[NAVEGAÇÃO] Nome da Tarefa Detectado: "{nome_tarefa}"')
 
-        # Garantir que a página Angular terminou de renderizar os botões de navegação
-        # antes de desligar o wait implícito. No Playwright, a navegação é mais rápida
-        # que no Selenium, e o Angular pode ainda não ter renderizado os botões quando
-        # esta função é chamada. Sem esta espera, find_element com implicitly_wait=0
-        # faz query_selector() imediato que retorna None.
-        # Usa espera.elemento (wait_for_selector nativo no PW) em vez de aguardar_
-        # renderizacao_nativa: o _ALGUM_VISIVEL JS pode achar "Conclusão" visível e
-        # retornar antes do "Análise" entrar no DOM, gerando falso positivo.
-        if not (
-            espera.elemento(driver, "button[aria-label='Análise'], button[aria-label*='Análise']", teto=5)
-            or espera.elemento(driver, "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado']", teto=5)
-        ):
-            logger.error('[NAVEGAÇÃO] Botões de navegação não apareceram no DOM')
-            return False
+        # Script JS robusto para clicar em botões de navegação
+        script_click_nav = """
+        var buscados = arguments[0]; // array de strings
+        
+        function normalizar(s) {
+            return (s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+        }
+        
+        var candidatos = document.querySelectorAll('pje-acoes-tarefa button, pje-transicao-tarefa button, button[aria-label]');
+        
+        for (var k = 0; k < buscados.length; k++) {
+            var termo = normalizar(buscados[k]);
+            
+            for (var i = 0; i < candidatos.length; i++) {
+                var btn = candidatos[i];
+                var txt = normalizar(btn.textContent);
+                var aria = normalizar(btn.getAttribute('aria-label'));
+                var tooltip = normalizar(btn.getAttribute('mattooltip'));
+                
+                if (txt.indexOf(termo) !== -1 || aria.indexOf(termo) !== -1 || tooltip.indexOf(termo) !== -1) {
+                    if (aria.indexOf('cancelar') === -1 && txt.indexOf('cancelar') === -1) {
+                        if (!btn.disabled && btn.offsetWidth > 0 && btn.offsetHeight > 0) {
+                            btn.scrollIntoView({block: 'center', behavior: 'instant'});
+                            btn.click();
+                            return termo;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+        """
 
-        # Desabilitar implicit_wait temporariamente para evitar delays de 10s ao buscar elementos que não existem
-        driver.implicitly_wait(0)
-        try:
-            btn_conclusao_encontrado = False
+        # Tentar clicar direto em Conclusão ao Magistrado (polling por 8s)
+        logger.info('[NAVEGAÇÃO] Buscando botão "Conclusão ao magistrado"...')
+        start_time = time.time()
+        clicou_conclusao = False
+        
+        while time.time() - start_time < 8:
+            try:
+                ret = driver.execute_script(script_click_nav, ['conclusao ao magistrado'])
+                if ret:
+                    logger.info('[NAVEGAÇÃO] Clique direto em "Conclusão ao magistrado" realizado via JS')
+                    clicou_conclusao = True
+                    break
+            except Exception:
+                pass
+            time.sleep(0.5)
 
-            # Tentar clique direto em "Conclusão ao magistrado" independente do tipo de tarefa.
-            btn_conclusao_direto = encontrar_elemento_inteligente(
-                driver, 'Conclusão ao magistrado',
-                estrategias_custom=_estrategias_botao_navegacao('Conclusão ao magistrado')
-            )
-            if btn_conclusao_direto and btn_conclusao_direto.is_displayed() and safe_click_no_scroll(driver, btn_conclusao_direto):
-                btn_conclusao_encontrado = True
-                logger.info('[NAVEGAÇÃO] Clique direto em "Conclusão ao magistrado" realizado')
-            else:
-                logger.info('[NAVEGAÇÃO] Conclusão não disponível diretamente, tentando via "Análise"...')
+        if not clicou_conclusao:
+            logger.info('[NAVEGAÇÃO] Conclusão não encontrada diretamente, tentando via "Análise"...')
+            start_time = time.time()
+            clicou_analise = False
+            while time.time() - start_time < 8:
+                try:
+                    ret = driver.execute_script(script_click_nav, ['analise'])
+                    if ret:
+                        logger.info('[NAVEGAÇÃO] Clique em "Análise" realizado via JS')
+                        clicou_analise = True
+                        break
+                except Exception:
+                    pass
+                time.sleep(0.5)
+                
+            if not clicou_analise:
+                logger.error('[NAVEGAÇÃO] Falha ao clicar em "Análise": botão não encontrado pelo script JS')
 
-            # Se não encontrou, usar estratégia via "Análise"
-            if not btn_conclusao_encontrado:
-                logger.info('[NAVEGAÇÃO] Tentando via "Análise"...')
-                btn_analise = encontrar_elemento_inteligente(
-                    driver, 'Análise', estrategias_custom=_estrategias_botao_navegacao('Análise')
-                )
-                if btn_analise and safe_click_no_scroll(driver, btn_analise):
-                    logger.info('[NAVEGAÇÃO] Clique em "Análise" realizado')
-                else:
-                    logger.error('[NAVEGAÇÃO] Falha ao clicar em "Análise": botão não encontrado no DOM')
+            # Remover overlays após Análise se houver
+            logger.info('[NAVEGAÇÃO] Verificando overlays...')
+            try:
+                overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop-showing')
+                if overlays:
+                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                    aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=2)
+            except Exception:
+                pass
 
-        finally:
-            driver.implicitly_wait(10)
-
-        # Remover overlays após Análise se houver
-        logger.info('[NAVEGAÇÃO] Verificando overlays...')
-        driver.implicitly_wait(0)
-        try:
-            overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop-showing')
-            if overlays:
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=2)
-        except Exception:
-            pass
-        finally:
-            driver.implicitly_wait(10)
-
-        # Clicar na conclusão após Análise se necessário
-        if not btn_conclusao_encontrado:
-            seletor_conclusao = "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado']"
-            aguardar_renderizacao_nativa(driver, seletor_conclusao, 'aparecer', timeout=8)
-            btn_conclusao = encontrar_elemento_inteligente(
-                driver, 'Conclusão ao magistrado',
-                estrategias_custom=_estrategias_botao_navegacao('Conclusão ao magistrado')
-            )
-            if not btn_conclusao or not safe_click_no_scroll(driver, btn_conclusao):
+            # Clicar na conclusão após Análise
+            logger.info('[NAVEGAÇÃO] Buscando botão "Conclusão ao magistrado" após Análise...')
+            start_time = time.time()
+            while time.time() - start_time < 8:
+                try:
+                    ret = driver.execute_script(script_click_nav, ['conclusao ao magistrado'])
+                    if ret:
+                        logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise via JS')
+                        clicou_conclusao = True
+                        break
+                except Exception:
+                    pass
+                time.sleep(0.5)
+                
+            if not clicou_conclusao:
                 logger.error('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não encontrado após aguardar renderização')
                 return False
-            logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise')
 
         # Confirmar chegada: /minutar (pulou direto) ou botões de tipo de conclusão renderizados.
         current_after = (driver.current_url or '').lower()

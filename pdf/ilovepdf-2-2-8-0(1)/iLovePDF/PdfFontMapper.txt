@@ -1,0 +1,13 @@
+[FontMapping]
+Univers-CondensedBold=Univers Condensed
+Univers-CondensedLight=Univers Condensed
+SymbolMT=Symbol
+Wingdings-Regular=Wingdings
+
+HYGoThic-Medium=Adobe Myungjo Std Acro M
+HYSMyeongJo-Medium=Adobe Myungjo Std Acro M
+HeiseiKakuGo-W5=Adobe Myungjo Std Acro M
+HeiseiKakuGo-W5,Italic=Adobe Myungjo Std Acro M
+HeiseiMin-W3=Adobe Myungjo Std Acro M
+HeiseiMin-W3,Bold=Adobe Myungjo Std Acro M
+HeiseiMin-W3,BoldItalic=Adobe Myungjo Std Acro M

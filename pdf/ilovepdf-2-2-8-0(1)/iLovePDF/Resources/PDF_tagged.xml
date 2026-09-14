@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- PDF tags creation  -->
+<Document>
+<!-- Common validators/fixers -->
+    <DummyFixer name = "DummyFixer"></DummyFixer>
+    <RemoveFixer name = "RemoveFixer"></RemoveFixer>
+    <RemoveFixer name = "RemoveParentFixer1" level = "1"></RemoveFixer>
+    <RemoveFixer name = "RemoveParentFixer2" level = "2"></RemoveFixer>
+    <SetFixer name = "SetFixer"></SetFixer>
+
+	<!-- Temporary cheker of existance tagged structure -->
+	<DummyFixer name = "V_TaggedStructureExists" msg_category = "PDFA_LOG_MSG_CAT_logical_structure"  link = "6.8.3.3" standard = "pdfa" ></DummyFixer>
+	<DummyFixer name = "RemoveTaggedStructure" msg_category = "PDFA_LOG_MSG_CAT_logical_structure"  link = "6.8.3.3" standard = "pdfa" ></DummyFixer>
+
+	<ParentChecker name = "V_ParentObject"/>
+	<DummyFixer name = "V_MCID"></DummyFixer>
+	<StructElementTypeChecker name = "V_StructElementName"/>
+	<RoleMapSet name = "V_RoleMap"/>
+	<DummyFixer name = "V_ClassMap"></DummyFixer>
+
+     <type_validator name = "VTypeDictionary" usage = "required">
+        <value>dictionary</value>
+        <child_validator name = "RemoveFixer"/>
+    </type_validator>
+
+  <!--The Root  node  for validation - Catalog -->
+    <dictionary_validator name = "V_Catalog" entry = "1" msg_category = "PDFA_LOG_MSG_CAT_catalog">
+        <key name = "StructTreeRoot" usage = "required" link = "6.8.3.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+			<child_validator name = "V_TaggedStructure"/>
+		</key>
+        <key name = "MarkInfo" standard = "pdf" link = "3.6.1" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+			<child_validator name = "VTypeDictionary"/>
+		</key>
+        <key name = "MarkInfo" usage = "required" link = "6.8.2.2" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+			<child_validator name = "V_MarkedInfo"/>
+		</key>
+    </dictionary_validator>
+
+
+<!-- Logical structure validation -->
+     <dictionary_validator name = "V_MarkedInfo" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <key name = "Marked"  usage = "required" link = "6.8.2.2" standard = "pdfa">
+            <child_validator name = "VBool_True_Fix"/>
+        </key>
+    </dictionary_validator>
+    <named_validator name = "V_PageTypeCheck" usage = "required">
+        <value>Page</value>
+         <child_validator name = "RemoveTaggedStructure"/>
+   </named_validator>
+     <dictionary_validator name = "V_Page_Check">
+        <key name = "Type" usage = "required" link = "3.6.2" standard = "pdf">
+            <child_validator name = "V_PageTypeCheck"/>
+		</key>
+    </dictionary_validator>
+       <dictionary_validator name = "V_TaggedStructure" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <key name = "Type" usage = "required" link = "9.6.1" standard = "pdf">>
+            <child_validator name = "V_StructTreeRootTypeFix"/>
+        </key>
+          <key name = "RoleMap">
+            <child_validator name = "V_RoleMap"/>
+        </key>
+        <key name = "ClassMap">
+            <child_validator name = "V_ClassMap"/> 
+        </key>
+       <key name = "K">
+            <child_validator name = "V_StructTree"/>
+        </key>
+<!--       <key name = "ParentTree" usage = "required" link = "9.6.1" standard = "pdf">>      Acrobat does not check it! -->
+       <key name = "ParentTree" link = "9.6.1" standard = "pdf">>
+            <child_validator name = "V_StructParentTree"/>
+        </key>
+    </dictionary_validator>
+    <alternate_validator name = "V_StructTree" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <switch name = "object_type">
+            <case name = "array">
+                <child_validator name = "V_StructArray"/>
+            </case>
+             <case name = "dictionary">
+                <child_validator name = "V_StructVariant"/>
+            </case>
+        </switch>
+    </alternate_validator>
+    <array_validator name = "V_StructArray">
+        <array_item>
+            <child_validator name = "V_StructElementRef"/>
+        </array_item>
+   </array_validator>
+    <dictionary_validator name = "V_StructElement" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <key name = "S"  usage = "required" link = "6.8.3.4" standard = "pdfa">
+            <child_validator name = "V_StructElementName"/>
+        </key>
+        <key name = "P"  usage = "required" link = "9.6.1" standard = "pdf">
+            <child_validator name = "V_ParentObject"/>
+        </key>
+        <key name = "K">
+            <child_validator name = "V_StructElementRef"/>
+        </key>
+    </dictionary_validator>
+      <alternate_validator name = "V_StructElementRef" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <switch name = "object_type">
+            <case name = "array">
+                <child_validator name = "V_StructArray"/>
+            </case>
+             <case name = "dictionary">
+                <child_validator name = "V_StructVariant"/>
+            </case>
+            <case name = "numeric">
+                <child_validator name = "V_MCID"/>
+            </case>
+        </switch>
+    </alternate_validator>
+    <dictionary_validator  name = "V_StructVariant" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <switch name = "Type"  default = "StructElem">
+            <case name = "MCR">
+        		<key name = "MCID"  usage = "required" link = "9.6.3" standard = "pdf">
+            		<child_validator name = "V_MCID"/>
+        		</key>
+        		<key name = "Pg"  link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+            		<child_validator name = "V_Page_Check"/>
+        		</key>
+         		<key name = "Stm"  link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+        		</key>
+         		<key name = "StmOwn"  link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+        		</key>
+              </case>
+            <case name = "OBJR">
+        		<key name = "Obj"  usage = "required" link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+        		</key>
+        		<key name = "Pg"  link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+            		<child_validator name = "V_Page_Check"/>
+        		</key>
+             </case>
+            <case name = "StructElem">
+       			<key name = "S"  usage = "required" link = "6.8.3.4" standard = "pdfa">
+            		<child_validator name = "V_StructElementName"/>
+        		</key>
+        		<key name = "P"  usage = "required" link = "9.6.1" standard = "pdf">
+            		<child_validator name = "V_ParentObject"/>
+        		</key>
+        		<key name = "K">
+            		<child_validator name = "V_StructElementRef"/>
+        		</key>
+             </case>
+        </switch>
+  	</dictionary_validator>
+    <dictionary_validator name = "V_StructParentTree">
+       <key name = "Nums">
+            <child_validator name = "V_ElementArray"/>
+        </key>
+        <key name = "Kids" >
+            <child_validator name = "V_NumsArray"/>
+        </key>
+    </dictionary_validator>
+    <array_validator name = "V_NumsArray">
+        <array_item>
+            <child_validator name = "V_StructParentTree"/>
+        </array_item>
+   </array_validator>
+    <array_validator name = "V_ElementArray">
+        <array_item index = "even" >
+            <child_validator name = "DummyFixer"/>
+        </array_item>
+          <array_item index = "odd" >
+            <child_validator name = "V_StructTree"/>
+        </array_item>
+   </array_validator>
+    <named_validator name = "V_StructTreeRootTypeFix" usage = "required">
+        <value>StructTreeRoot</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+
+   <type_validator name = "VTypeReference" usage = "required">
+        <value>reference</value>
+    </type_validator>
+     <boolean_validator name = "VBool_False" usage = "required">
+        <value>false</value>
+    </boolean_validator>
+    <boolean_validator name = "VBool_False_Fix" usage = "required">
+        <value>false</value>
+        <child_validator name = "SetFixer"/>
+    </boolean_validator>
+    <boolean_validator name = "VBool_True_Fix" usage = "required">
+        <value>true</value>
+        <child_validator name = "SetFixer"/>
+    </boolean_validator>
+
+    <named_validator name = "V_StandardTagTypes">
+		<!-- Grouping Elements -->
+        <value>Document</value>
+        <value>Part</value>
+        <value>Art</value>
+        <value>Sect</value>
+        <value>Div</value>
+        <value>BlockQuote</value>
+        <value>Caption</value>
+        <value>TOC</value>
+       <value>TOCI</value>
+       <value>Index</value>
+       <value>NonStruct</value>
+       <value>Private</value>
+
+		<!-- Block-Level Structure Elements -->
+        <value>P</value>
+        <value>H</value>
+        <value>H1</value>
+        <value>H2</value>
+        <value>H3</value>
+        <value>H4</value>
+        <value>H5</value>
+        <value>H6</value>
+
+        <value>L</value>
+        <value>LI</value>
+        <value>Lbl</value>
+        <value>LBody</value>
+
+        <value>Table</value>
+        <value>TR</value>
+        <value>TH</value>
+        <value>TD</value>
+
+		<!-- Inline-Level Structure Elements -->
+        <value>Span</value>
+        <value>Quote</value>
+        <value>Note</value>
+        <value>Reference</value>
+        <value>BibEntry</value>
+        <value>Code</value>
+        <value>Link</value>
+
+		<!-- Illustration Elements -->
+        <value>Figure</value>
+        <value>Formula</value>
+        <value>Form</value>
+
+        <!--Other values are prohibited!-->
+		<child_validator name = "V_AdditionalTag"/>
+    </named_validator>
+
+<!-- Here is a special validator to fix non-standard tag usage with adding new tags to RoleMap -->
+	<rolemap_extention name = "V_AdditionalTag">
+        <value replace="Div">TBody</value>
+        <value replace="Lbody">LBody</value>
+        <value replace="TH">THead</value>
+	</rolemap_extention>
+
+</Document>

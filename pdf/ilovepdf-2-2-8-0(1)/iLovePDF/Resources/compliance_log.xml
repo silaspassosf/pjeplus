@@ -1,0 +1,8 @@
+<!-- Compliance Log Template -->
+
+<compliance name="log" operation="validation" target="PDF/A-1b">
+	<version>8.0</version>
+	<tool name="%ToolName" build="%BuildNumber"/>
+	<copyright>Copyright 2009-2014 Solid Documents. All rights reserved.</copyright>
+	<date>%TimeStamp</date>
+</compliance>

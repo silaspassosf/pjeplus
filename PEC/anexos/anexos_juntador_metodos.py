@@ -221,32 +221,33 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
 
 
 def _selecionar_modelo_gigs(self, modelo: str) -> bool:
-    """Seleciona e insere o modelo exatamente como em comunicacao_judicial (atos.py)."""
+    """Seleciona e insere o modelo sem roubar foco do SO (background-friendly)."""
     try:
         driver = self.driver
 
-        # 1) Preenche filtro como em atos.py (focus + value + eventos + ENTER)
-        campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
-        driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
-        driver.execute_script('arguments[0].value = arguments[1];', campo_filtro_modelo, modelo)
-        for ev in ['input', 'change', 'keyup']:
-            driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
-        campo_filtro_modelo.send_keys(Keys.ENTER)
+        # 1) Preenche filtro via JS puro (sem .focus() ou .send_keys() para não roubar foco)
+        campo_filtro_modelo = espera.elemento(driver, '#inputFiltro', teto=10)
+        if not campo_filtro_modelo:
+            logger.error('[JUNTADA][ERRO] Campo de filtro não encontrado')
+            return False
 
-        # 2) Clica no item destacado .nodo-filtrado (sem fallback para evitar modelo errado)
+        driver.execute_script('arguments[0].value = arguments[1];', campo_filtro_modelo, modelo)
+        for ev in ['input', 'change', 'keyup', 'keydown']:
+            driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
+
+        # 2) Clica no item destacado .nodo-filtrado via JS
         seletor_item_filtrado = '.nodo-filtrado'
         espera.ate_habilitar(driver, seletor_item_filtrado, teto=15)
         nodo = driver.find_element(By.CSS_SELECTOR, seletor_item_filtrado)
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', nodo)
-        safe_click_no_scroll(driver, nodo)
+        driver.execute_script('arguments[0].scrollIntoView({block:"center"}); arguments[0].click();', nodo)
 
-        # 3) Aguarda preview e localiza botão Inserir (seletor de atos.py)
-        seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
+        # 3) Aguarda preview e localiza botão Inserir
+        seletor_btn_inserir = 'button[aria-label="Inserir modelo de documento"]'
         espera.ate_habilitar(driver, seletor_btn_inserir, teto=10)
         btn_inserir = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
 
-        # 4) Inserir com tecla ESPAÇO (padrão MaisPje)
-        btn_inserir.send_keys(Keys.SPACE)
+        # 4) Inserir clicando via JS (evita o Keys.SPACE que rouba foco/precisa estar ativo)
+        driver.execute_script('arguments[0].click();', btn_inserir)
 
         # 5) Aguarda o conteúdo chegar ao editor
         seletor_editor = '.ck-editor__editable[contenteditable="true"]'
@@ -254,19 +255,22 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             "__pjeEls(%r).some(el => (el.textContent || '').trim().length > 0)"
             % seletor_editor
         )
-        for _tentativa in range(2):
+        for _tentativa in range(3):
             if espera.ate_js(driver, editor_com_conteudo, teto=5):
+                logger.info('[JUNTADA][DEBUG] Modelo inserido com sucesso (texto detectado no editor)')
                 return True
             try:
-                btn = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
-                if btn.is_displayed():
-                    btn.send_keys(Keys.SPACE)
+                # Tenta clicar de novo caso a tela estivesse processando
+                btn = driver.find_elements(By.CSS_SELECTOR, seletor_btn_inserir)
+                if btn and btn[0].is_displayed():
+                    driver.execute_script('arguments[0].click();', btn[0])
             except Exception:
                 pass
-        logger.error('[JUNTADA][ERRO] Modelo não chegou ao editor após ESPAÇO (editor vazio)')
+                
+        logger.error('[JUNTADA][ERRO] Modelo não chegou ao editor após tentativas (editor vazio)')
         return False
     except Exception as e:
-        logger.error(f'[JUNTADA][ERRO] Falha ao selecionar/inserir modelo (modo atos.py): {e}')
+        logger.error(f'[JUNTADA][ERRO] Falha ao selecionar/inserir modelo (modo background-friendly): {e}')
         return False
 
 

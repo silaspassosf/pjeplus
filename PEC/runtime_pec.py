@@ -687,7 +687,7 @@ class PECOrquestrador:
                     logger.info(f"    - {atv.numero_processo}: {atv.observacao[:50]} -> {acao_nome}")
 
 
-def executar_fluxo_novo_simplificado(driver, filtro_d1: bool = True,
+def executar_fluxo_novo_simplificado(driver, filtro_d1: bool = False,
                                      data_minima: Optional[str] = None) -> dict:
     try:
         orq = PECOrquestrador(driver)

@@ -1,0 +1,1351 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- PDF/A-1b restriction rules -->
+<Document>
+<!-- PDF Limits -->
+   <number_validator name = "V_Num_IntegerLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure">>
+        <min>-2147483648</min>
+         <max>2147483647</max>
+   </number_validator>
+    <number_validator name = "V_Num_RealLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure">
+        <min>-32767.</min>
+         <max>32767.</max>
+   </number_validator>
+    <number_validator name = "V_Num_StringLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure">
+         <max>65535</max>
+   </number_validator>
+    <number_validator name = "V_Num_NameLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure">
+         <max>127</max>
+   </number_validator>
+    <number_validator name = "V_Num_ArrayLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure" suggest = "2">
+         <max>8191</max>
+   </number_validator>
+    <number_validator name = "V_Num_DictionaryLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure" suggest = "2">
+         <max>4095</max>
+    </number_validator>
+  <!-- Maximum depth of graphics state nesting by q and Q operators.-->
+   <number_validator name = "V_Num_StackLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_graphic_state">
+         <max>28</max>
+   </number_validator>
+   <number_validator name = "V_Num_DeviceNComponentsLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_colorspace">
+         <max>8</max>
+   </number_validator>
+   <number_validator name = "V_Num_CIDLimits" link = "6.1.12" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure">
+         <max>65535</max>
+   </number_validator>
+<!-- Document  syntax limitations -->
+    <DummyFixer name = "V_CheckPdfStructure" link = "3.4" standard = "pdf" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+    <DummyFixer name = "V_CheckPdfHeader" link = "6.1.2" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+    <DummyFixer name = "V_CheckPdfTrailer" link = "6.1.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+    <DummyFixer name = "V_CheckPdfLinearizedTrailer" link = "6.1.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+    <DummyFixer name = "V_CheckPdfXref" link = "6.1.4" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+    <DummyFixer name = "V_CheckHexString" link = "6.1.6" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+    <DummyFixer name = "V_CheckStream" link = "6.1.7" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+    <DummyFixer name = "V_CheckIndirectObject" link = "6.1.8" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+    <DummyFixer name = "V_CheckCommonSyntax" link = "6.1" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_doc_structure"></DummyFixer>
+<!-- Common validators/fixers -->
+    <DummyFixer name = "DummyFixer"></DummyFixer>
+    <RemoveFixer name = "RemoveFixer"></RemoveFixer>
+    <RemoveFixer name = "RemoveParentFixer1" level = "1"></RemoveFixer>
+    <RemoveFixer name = "RemoveParentFixer2" level = "2"></RemoveFixer>
+    <ToUnicodeFixer name = "ToUnicodeFixer" link = "6.3.8" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></ToUnicodeFixer>
+    <SetFixer name = "SetFixer"></SetFixer>
+    <OCFixer name = "OCFixer"></OCFixer>
+    <PageChecker name = "PageChecker"></PageChecker>
+    <ColorSpaceFixer name = "ColorSpaceFixer"></ColorSpaceFixer>
+    <FilterFixer name = "FilterFixer"></FilterFixer>
+    <MetadataFixer name = "MetadataFixer"></MetadataFixer>
+    <OutputIntentFixer name = "OutputIntentFixer"></OutputIntentFixer>
+    <OutputIntentFixer name = "OutputIntentFixer_RGB" color = "RGB"></OutputIntentFixer>
+    <FontFixer name = "V_FontFixer"></FontFixer>
+	<OutlinesChecker name = "V_Outlines"></OutlinesChecker>
+
+	<!-- Temporary cheker of existance tagged structure -->
+	<DummyFixer name = "V_TaggedStructureExists" msg_category = "PDFA_LOG_MSG_CAT_logical_structure"  link = "6.8.3.3" standard = "pdfa" ></DummyFixer>
+	<DummyFixer name = "RemoveTaggedStructure" msg_category = "PDFA_LOG_MSG_CAT_logical_structure"  link = "6.8.3.3" standard = "pdfa" ></DummyFixer>
+	<DummyFixer name = "ReplaceTransparentXObject"></DummyFixer>
+
+	<ParentChecker name = "V_ParentObject"/>
+	<DummyFixer name = "V_MCID"></DummyFixer>
+	<StructElementTypeChecker name = "V_StructElementName"/>
+	<RoleMapSet name = "V_RoleMap"/>
+	<DummyFixer name = "V_ClassMap"></DummyFixer>
+	<DestNameChecker name = "V_DestNameCheck" link = "8.2.1" standard = "pdf"></DestNameChecker>
+
+    <dictionary_validator name = "V_FontNames" msg_category = "PDFA_LOG_MSG_CAT_fonts">
+        <key name = "">
+            <child_validator name = "V_Font"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_Properties">
+        <key name = "">
+            <child_validator name = "V_MC_Metadata"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_MC_Metadata">
+        <key name = "Metadata" object="Content">
+            <child_validator name = "MetadataFixer"/>
+        </key>
+    </dictionary_validator>
+    <named_validator name = "V_NamedPageLayout" link = "3.6.1" standard = "pdf">
+        <value>SinglePage</value>
+        <value>OneColumn</value>
+        <value>TwoColumnLeft</value>
+        <value>TwoColumnRight</value>
+        <!--Other values are prohibited!-->
+        <!--<child_validator name = "RemoveFixer"/>-->
+        <child_validator name = "RemoveParentFixer1"/>
+    </named_validator>
+    <named_validator name = "V_NamedPageMode" link = "3.6.1" standard = "pdf">
+        <value>UseNone</value>
+        <value>UseOutlines</value>
+        <value>UseThumbs</value>
+        <value>FullScreen</value>
+        <!--Other values are prohibited!-->
+        <!--<child_validator name = "RemoveFixer"/>-->
+        <child_validator name = "RemoveParentFixer1"/>
+    </named_validator>
+   <type_validator name = "VTypeDictionary" usage = "required">
+        <value>dictionary</value>
+        <child_validator name = "RemoveFixer"/>
+    </type_validator>
+    <!--The Root  node  for validation - Catalog -->
+    <dictionary_validator name = "V_Catalog" entry = "1" msg_category = "PDFA_LOG_MSG_CAT_catalog">
+        <key name = "Type" usage = "required" link = "3.6.1" standard = "pdf">
+            <child_validator name = "V_CatalogTypeFix"/>
+        </key>
+        <key name = "OutputIntents" link = "6.2.2" standard = "pdfa">
+            <child_validator name = "OutputIntentFixer"/>
+        </key>
+        <key name = "Annots">
+            <child_validator name = "V_AnnotArray"/>
+        </key>
+        <key name = "Resources">
+            <child_validator name = "V_Resources"/>
+        </key>
+        <key name = "Pages" usage = "required" link = "3.6.1" standard = "pdf">
+            <child_validator name = "VTypeReference"/>
+            <child_validator name = "V_RootPages"/>
+        </key>
+        <key name = "AA" usage = "disabled" link = "6.6.2" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "OCProperties" usage = "disabled" link = "6.1.13" standard = "pdfa">
+            <child_validator name = "OCFixer"/>
+        </key>
+        <key name = "Names">
+            <child_validator name = "V_Names"/>
+        </key>
+        <key name = "AcroForm">
+            <child_validator name = "V_AcroForm"/>
+        </key>
+        <key name = "Outlines">
+            <child_validator name = "VTypeReference"/>
+  <!--          <child_validator name = "V_Bookmarks"/>   -->
+             <child_validator name = "V_Outlines"/>
+       </key>
+        <!--OpenAction can be both dictionary and array! -->
+        <key name = "OpenAction">
+            <child_validator name = "V_Actions"/>
+        </key>
+        <!--Checking if no the key but it's necessary beacause of using non-calibrated color -->
+        <key name = "OutputIntents" usage = "required" link = "6.2.3" standard = "pdfa">
+            <child_validator name = "OutputIntentFixer"/>
+        </key>
+        <!--The optional keys of PDF 1.4 -->
+        <key name = "Version"/>
+        <key name = "PageLabels"/>
+        <key name = "Dests">
+            <child_validator name = "VTypeReference"/>
+        </key>
+        <key name = "ViewerPreferences"/>
+        <key name = "PageLayout">
+            <child_validator name = "V_NamedPageLayout"/>
+        </key>
+        <key name = "PageMode">
+            <child_validator name = "V_NamedPageMode"/>
+        </key>
+        <key name = "Threads">
+            <child_validator name = "VTypeReference"/>
+        </key>
+        <key name = "URI"/>
+        <key name = "StructTreeRoot" usage = "required" link = "6.8.3.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+			<child_validator name = "V_TaggedStructure"/>
+		</key>
+        <key name = "MarkInfo" standard = "pdf" link = "3.6.1" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+			<child_validator name = "VTypeDictionary"/>
+		</key>
+        <key name = "MarkInfo" usage = "required" link = "6.8.2.2" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+			<child_validator name = "V_MarkedInfo"/>
+		</key>
+        <key name = "Lang"/>
+        <key name = "SpiderInfo"/>
+        <key name = "PieceInfo"/>
+          <!--The Metadata shall be checked after all contents have been verified - it set or remove(when a fatal problem found) the PDF/A mark -->
+        <key
+ 			object="Catalog"
+           name = "Metadata"
+            usage = "required"
+            msg_category = "PDFA_LOG_MSG_CAT_metadata"
+            link = "6.7.2"
+            standard = "pdfa">
+            <child_validator name = "MetadataFixer"/>
+        </key>
+
+      <!--other keys prohibited! -->
+        <key name = "" usage = "disabled" link = "3.6.1" standard = "pdf" severity="warning">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+
+    </dictionary_validator>
+
+<!-- Logical structure validation -->
+     <named_validator name = "V_PageTypeCheck" usage = "required">
+        <value>Page</value>
+         <child_validator name = "RemoveTaggedStructure"/>
+   </named_validator>
+     <dictionary_validator name = "V_Page_Check">
+        <key name = "Type" usage = "required" link = "3.6.2" standard = "pdf">
+            <child_validator name = "V_PageTypeCheck"/>
+		</key>
+    </dictionary_validator>
+       <dictionary_validator name = "V_TaggedStructure" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <key name = "Type" usage = "required" link = "9.6.1" standard = "pdf">>
+            <child_validator name = "V_StructTreeRootTypeFix"/>
+        </key>
+          <key name = "RoleMap">
+            <child_validator name = "V_RoleMap"/>
+        </key>
+        <key name = "ClassMap">
+            <child_validator name = "V_ClassMap"/> 
+        </key>
+       <key name = "K">
+            <child_validator name = "V_StructTree"/>
+        </key>
+<!--       <key name = "ParentTree" usage = "required" link = "9.6.1" standard = "pdf">>      Acrobat does not check it! -->
+       <key name = "ParentTree" link = "9.6.1" standard = "pdf">>
+            <child_validator name = "V_StructParentTree"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_MarkedInfo" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <key name = "Marked"  usage = "required" link = "6.8.2.2" standard = "pdfa">
+            <child_validator name = "VBool_True_Fix"/>
+        </key>
+    </dictionary_validator>
+      <alternate_validator name = "V_StructTree" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <switch name = "object_type">
+            <case name = "array">
+                <child_validator name = "V_StructArray"/>
+            </case>
+             <case name = "dictionary">
+                <child_validator name = "V_StructVariant"/>
+            </case>
+        </switch>
+    </alternate_validator>
+    <array_validator name = "V_StructArray">
+        <array_item>
+            <child_validator name = "V_StructElementRef"/>
+        </array_item>
+   </array_validator>
+    <dictionary_validator name = "V_StructElement" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <key name = "S"  usage = "required" link = "6.8.3.4" standard = "pdfa">
+            <child_validator name = "V_StructElementName"/>
+        </key>
+        <key name = "P"  usage = "required" link = "9.6.1" standard = "pdf">
+            <child_validator name = "V_ParentObject"/>
+        </key>
+        <key name = "K">
+            <child_validator name = "V_StructElementRef"/>
+        </key>
+    </dictionary_validator>
+      <alternate_validator name = "V_StructElementRef" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <switch name = "object_type">
+            <case name = "array">
+                <child_validator name = "V_StructArray"/>
+            </case>
+             <case name = "dictionary">
+                <child_validator name = "V_StructVariant"/>
+            </case>
+            <case name = "numeric">
+                <child_validator name = "V_MCID"/>
+            </case>
+        </switch>
+    </alternate_validator>
+    <dictionary_validator  name = "V_StructVariant" msg_category = "PDFA_LOG_MSG_CAT_logical_structure">
+        <switch name = "Type"  default = "StructElem">
+            <case name = "MCR">
+        		<key name = "MCID"  usage = "required" link = "9.6.3" standard = "pdf">
+            		<child_validator name = "V_MCID"/>
+        		</key>
+        		<key name = "Pg"  link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+            		<child_validator name = "V_Page_Check"/>
+        		</key>
+         		<key name = "Stm"  link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+        		</key>
+         		<key name = "StmOwn"  link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+        		</key>
+              </case>
+            <case name = "OBJR">
+        		<key name = "Obj"  usage = "required" link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+        		</key>
+        		<key name = "Pg"  link = "9.6.3" standard = "pdf">
+            		<child_validator name = "VTypeReference"/>
+            		<child_validator name = "V_Page_Check"/>
+        		</key>
+             </case>
+            <case name = "StructElem">
+       			<key name = "S"  usage = "required" link = "6.8.3.4" standard = "pdfa">
+            		<child_validator name = "V_StructElementName"/>
+        		</key>
+        		<key name = "P"  usage = "required" link = "9.6.1" standard = "pdf">
+            		<child_validator name = "V_ParentObject"/>
+        		</key>
+        		<key name = "K">
+            		<child_validator name = "V_StructElementRef"/>
+        		</key>
+             </case>
+        </switch>
+  	</dictionary_validator>
+    <dictionary_validator name = "V_StructParentTree">
+       <key name = "Nums">
+            <child_validator name = "V_ElementArray"/>
+        </key>
+        <key name = "Kids" >
+            <child_validator name = "V_NumsArray"/>
+        </key>
+    </dictionary_validator>
+    <array_validator name = "V_NumsArray">
+        <array_item>
+            <child_validator name = "V_StructParentTree"/>
+        </array_item>
+   </array_validator>
+    <array_validator name = "V_ElementArray">
+        <array_item index = "even" >
+            <child_validator name = "DummyFixer"/>
+        </array_item>
+          <array_item index = "odd" >
+            <child_validator name = "V_StructTree"/>
+        </array_item>
+   </array_validator>
+    <named_validator name = "V_StructTreeRootTypeFix" usage = "required">
+        <value>StructTreeRoot</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+ 
+    <alternate_validator name = "V_Actions">
+        <switch name = "object_type">
+            <case name = "array">
+                <child_validator name = "V_ActionArray"/>
+            </case>
+            <case name = "dictionary">
+                <child_validator name = "V_Action"/>
+            </case>
+        </switch>
+    </alternate_validator>
+	<array_validator name = "V_ActionArray">
+		<child_validator name = "V_Action"/>
+	</array_validator>
+    <dictionary_validator name = "V_Names" entry = "1" msg_category = "PDFA_LOG_MSG_CAT_catalog">
+        <key name = "Pages">
+            <child_validator name = "V_NamedPages"/>
+        </key>
+        <key name = "Templates">
+            <child_validator name = "V_NamedPages"/>
+        </key>
+        <key name = "EmbeddedFiles" usage = "disabled" link = "6.1.11" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "JavaScript" usage = "disabled" link = "6.6.1" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "Dests"/>
+        <key name = "AP"/>
+        <key name = "IDS"/>
+        <key name = "URLS"/>
+        <key name = "AlternatePresentations"/>
+        <!--other keys prohibited! -->
+        <key name = "" usage = "disabled" link = "3.6.3" standard = "pdf" severity="warning">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_Resources" msg_category = "PDFA_LOG_MSG_CAT_resources">
+        <key name = "XObject">
+            <child_validator name = "V_XObjectNames"/>
+        </key>
+        <key name = "ExtGState">
+            <child_validator name = "V_ExtGStateNames"/>
+        </key>
+        <key name = "ColorSpace">
+            <child_validator name = "V_ColorSpaceNames"/>
+        </key>
+        <key name = "Font">
+            <child_validator name = "V_FontNames"/>
+            <child_validator name = "V_FontFixer"/>
+        </key>
+        <key name = "Pattern">
+            <!--Need to rewind and check! -->
+        </key>
+        <key name = "Shading">
+            <!--Need to rewind and check! -->
+        </key>
+        <key name = "ProcSet">
+            <!--Need to rewind and check! -->
+        </key>
+        <key name = "Properties">
+            <!--Need to rewind and check! -->
+            <child_validator name = "V_Properties"/>
+        </key>
+        <!--other keys prohibited! -->
+        <key name = "" usage = "disabled" link = "3.7.2" standard = "pdf" severity="warning">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_ExtGStateNames">
+        <key name = "">
+            <child_validator name = "V_ExtGState"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_XObjectNames" msg_category = "PDFA_LOG_MSG_CAT_xobjects">
+        <key name = "">
+            <child_validator name = "V_XObject"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_ColorSpaceNames" msg_category = "PDFA_LOG_MSG_CAT_colorspace">
+        <key name = "" msg_category = "PDFA_LOG_MSG_CAT_colorspace">
+            <child_validator name = "ColorSpaceFixer"/>
+        </key>
+    </dictionary_validator>
+    <named_validator name = "VNamed_BM" usage = "required" suggest="2">
+        <value>Normal</value>
+        <value>Compatible</value>
+    </named_validator>
+    <named_validator name = "VNamed_None" usage = "required" suggest="2">
+        <value>None</value>
+    </named_validator>
+    <boolean_validator name = "VBool_False" usage = "required">
+        <value>false</value>
+    </boolean_validator>
+    <boolean_validator name = "VBool_False_Fix" usage = "required">
+        <value>false</value>
+        <child_validator name = "SetFixer"/>
+    </boolean_validator>
+    <boolean_validator name = "VBool_True_Fix" usage = "required">
+        <value>true</value>
+        <child_validator name = "SetFixer"/>
+    </boolean_validator>
+    <named_validator name = "VNamed_PS" usage = "disabled" link = "6.2.7" standard = "pdfa">
+        <value>PS</value>
+        <!--<child_validator name = "RemoveParentFixer2"/> It is not so simple as it can be in Resource dictionary. Need to cleaning the Content too -->
+    </named_validator>
+    <named_validator name = "VNamed_Image" usage = "required" link = "4.8.4" standard = "pdf">
+        <value>Image</value>
+    </named_validator>
+    <named_validator name = "VNamed_Default" usage = "required">
+        <value>Default</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+    <named_validator name = "V_CatalogTypeFix" usage = "required">
+        <value>Catalog</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+    <named_validator name = "V_FontTypeFix" usage = "required">
+        <value>Font</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+    <named_validator name = "V_FontDescriptorTypeFix" usage = "required">
+        <value>FontDescriptor</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+     <named_validator name = "V_PagesTypeFix" usage = "required">
+        <value>Pages</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+    <named_validator name = "V_PageTypeFix" usage = "required">
+        <value>Page</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+  <named_validator name = "V_ImageTypeFix" usage = "required" link = "4.8.4" standard = "pdf">
+        <value>Image</value>
+        <value>Form</value>
+        <value>PS</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+  <named_validator name = "V_FormTypeFix" usage = "required">
+        <value>Form</value>
+        <child_validator name = "SetFixer"/>
+    </named_validator>
+    <number_validator name = "VNum_CA" usage = "required">
+        <value>1</value>
+        <child_validator name = "SetFixer"/>
+    </number_validator>
+    <stream_validator name = "VStream_Simple">
+         <child_validator name = "V_Stream_Simple_Dict"/>
+    </stream_validator>
+     <dictionary_validator name = "V_Stream_Simple_Dict">
+         <key name = "Filter" link = "6.1.10" standard = "pdfa">
+            <child_validator name = "FilterFixer"/>
+        </key>
+    </dictionary_validator>
+   <stream_validator name = "VStream_XObject">
+        <child_validator name = "V_XObject"/>
+        <child_validator name = "PdfAContentValidator"/>
+    </stream_validator>
+      <type_validator name = "VTypeArray1" usage = "required">
+        <value>array</value>
+		<child_validator name = "RemoveParentFixer1"/>
+   </type_validator>
+   <type_validator name = "VTypeStream" usage = "required">
+        <value>stream</value>
+        <child_validator name = "RemoveParentFixer1"/>
+    </type_validator>
+     <type_validator name = "VTypeStream2" usage = "required">
+        <value>stream</value>
+        <child_validator name = "RemoveParentFixer2"/>
+    </type_validator>
+   <type_validator name = "VTypeReference" usage = "required" link = "3.6.1" standard = "pdf">
+        <value>reference</value>
+    </type_validator>
+    <dictionary_validator name = "V_Bookmarks">
+        <key name = "First">
+            <child_validator name = "V_Bookmark_Node"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_Bookmark_Node">
+        <key name = "A">
+            <child_validator name = "V_Action"/>
+        </key>
+        <key name = "First">
+            <child_validator name = "V_Bookmark_Node"/>
+        </key>
+        <key name = "Next">
+            <child_validator name = "V_Bookmark_Node"/>
+        </key>
+    </dictionary_validator>
+    <stream_validator name = "V_FontProgram">
+        <child_validator name = "V_FontProgram_Dict"/>
+    </stream_validator>
+    <dictionary_validator name = "V_FontProgram_Dict">
+         <key name = "Filter" link = "6.1.10" standard = "pdfa">
+            <child_validator name = "FilterFixer"/>
+        </key>
+       <key name = "Metadata" object="Font">
+            <child_validator name = "MetadataFixer"/>
+        </key>
+    </dictionary_validator>
+    <stream_validator name = "V_XObject">
+        <child_validator name = "V_XObject_Dict"/>
+    </stream_validator>
+    <dictionary_validator name = "V_XObject_Dict" msg_category = "PDFA_LOG_MSG_CAT_xobjects">
+        <switch name = "Subtype" default = "Image">
+            <case name = "Form">
+                <key name = "Ref" usage = "disabled" link = "6.2.6" standard = "pdfa"/>
+                <key name = "OPI" usage = "disabled" link = "6.2.5" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+                <key name = "Subtype2">
+                    <child_validator name = "VNamed_PS"/>
+                </key>
+                <key name = "PS" usage = "disabled" link = "6.2.7" standard = "pdfa"/>
+                <key name = "Resources">
+                    <child_validator name = "V_Resources"/>
+                </key>
+                <key name = "Group" usage = "disabled" link = "6.4" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+                <key name = "OC" usage = "disabled" link = "6.1.13" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+            </case>
+            <case name = "Image">
+                <key name = "Alternates" usage = "disabled" link = "6.2.4" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+                <key name = "OPI" usage = "disabled" link = "6.2.4" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+                <key name = "Interpolate" link = "6.2.4" standard = "pdfa">
+                    <child_validator name = "VBool_False_Fix"/>
+                </key>
+                <key name = "Intent" link = "6.2.9" standard = "pdfa">
+                    <child_validator name = "V_NamedIntents"/>
+                </key>
+                <key name = "ColorSpace" link = "6.2.3" standard = "pdfa">
+                    <child_validator name = "ColorSpaceFixer"/>
+                </key>
+                <key name = "Width" usage = "required" link = "4.8.4" standard = "pdf"></key>
+                <key name = "Height" usage = "required" link = "4.8.4" standard = "pdf"></key>
+				<key name = "Mask">
+					<child_validator name ="V_CheckMask"/>
+				</key>
+            </case>
+            <!--<case name = "PS" enabled = "0"/>-->
+        </switch>
+        <key name = "Length" usage = "required" link = "3.2.7" standard = "pdf">
+            <child_validator name = "SetFixer"/>
+        </key>
+        <key name = "Subtype" usage = "required" link = "4.8.4" standard = "pdf">
+            <child_validator name = "V_ImageTypeFix"/>
+            <child_validator name = "VNamed_PS"/>
+        </key>
+            <!--New change of Internal corrigendum: An XObject dictionary shall not contain the SMask key.-->
+       <key name = "SMask" usage = "disabled" link = "6.4" standard = "pdfa">
+            <child_validator name = "ReplaceTransparentXObject"/>
+         </key>
+        <key name = "F" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "FFilter" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "FDecodeParms" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "Filter" link = "6.1.10" standard = "pdfa">
+            <child_validator name = "FilterFixer"/>
+        </key>
+        <key name = "Metadata" object="XObject">
+            <child_validator name = "MetadataFixer"/>
+        </key>
+        <key name = ""></key>
+    </dictionary_validator>
+    <stream_validator name = "V_FormXObject">
+        <child_validator name = "V_FormXObject_Dict"/>
+    </stream_validator>
+     <dictionary_validator name = "V_FormXObject_Dict">
+        <key  name = "Subtype"  usage = "required" link = "4.9.1" standard = "pdf">
+            <child_validator name = "V_FormTypeFix"/>
+		</key>
+                <key name = "Ref" usage = "disabled" link = "6.2.6" standard = "pdfa"/>
+                <key name = "OPI" usage = "disabled" link = "6.2.5" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+                <key name = "Subtype2">
+                    <child_validator name = "VNamed_PS"/>
+                </key>
+                <key name = "PS" usage = "disabled" link = "6.2.7" standard = "pdfa"/>
+                <key name = "Resources">
+                    <child_validator name = "V_Resources"/>
+                </key>
+                <key name = "Group" usage = "disabled" link = "6.4" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+                <key name = "OC" usage = "disabled" link = "6.1.13" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+        <key name = "Length" usage = "required" link = "3.2.7" standard = "pdf">
+            <child_validator name = "SetFixer"/>
+        </key>
+        <key name = "F" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "FFilter" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "FDecodeParms" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "Filter" link = "6.1.10" standard = "pdfa">
+            <child_validator name = "FilterFixer"/>
+        </key>
+        <key name = "Metadata" object="XObject">
+            <child_validator name = "MetadataFixer"/>
+        </key>
+        <key name = ""></key>
+    </dictionary_validator>
+
+  <!-- TODO: Make a special stream validator for Image oblject,(cannot use Thubnail as it' a special one) -->
+   <alternate_validator name = "V_CheckMask">
+        <switch name = "object_type">
+            <case name = "stream">
+                <child_validator name = "V_XObject"/>
+            </case>
+        </switch>
+    </alternate_validator>
+
+    <!--Special validator for Thumbnail images-->
+    <stream_validator name = "V_Image">
+        <child_validator name = "V_Image_Dict"/>
+    </stream_validator>
+    <dictionary_validator name = "V_Image_Dict" msg_category = "PDFA_LOG_MSG_CAT_xobjects">
+        <key name = "Subtype">
+            <child_validator name = "VNamed_Image"/>
+        </key>
+        <key name = "Length" usage = "required" link = "3.2.7" standard = "pdf"></key>
+        <key name = "Width" usage = "required" link = "4.8.4" standard = "pdf"></key>
+        <key name = "Height" usage = "required" link = "4.8.4" standard = "pdf"></key>
+        <key name = "ColorSpace" usage = "required" link = "6.2.3" standard = "pdfa">
+            <child_validator name = "ColorSpaceFixer"/>
+        </key>
+        <key name = "BitsPerComponent" usage = "required" link = "4.8.4" standard = "pdf"></key>
+        <key name = "F" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "FFilter" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "FDecodeParms" usage = "disabled" link = "6.1.7" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "Filter" link = "6.1.10" standard = "pdfa">
+            <child_validator name = "FilterFixer"/>
+        </key>
+        <key name = "Alternates" usage = "disabled" link = "6.2.4" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "Metadata" object="Thumbnail">
+            <child_validator name = "MetadataFixer"/>
+        </key>
+        <key name = ""></key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_ExtGState" msg_category = "PDFA_LOG_MSG_CAT_graphic_state">
+        <key name = "TR" usage = "disabled" link = "6.2.8" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "BM" link = "6.4" standard = "pdfa">
+            <child_validator name = "VNamed_BM"/>
+        </key>
+        <key name = "CA" link = "6.4" standard = "pdfa">
+            <child_validator name = "VNum_CA"/>
+        </key>
+        <key name = "ca" link = "6.4" standard = "pdfa">
+            <child_validator name = "VNum_CA"/>
+        </key>
+        <key name = "SMask" link = "6.4" standard = "pdfa" suggest="2">
+            <child_validator name = "VNamed_None"/>
+        </key>
+        <!--Abobe  Acrobat 8.1 doesn't like it...     -->
+        <key name = "TR2" link = "6.2.8" standard = "pdfa">
+            <child_validator name = "VNamed_Default"/>
+        </key>
+        <!--<key name = "TR2" enabled = "0"  link="6.2.8" standard="pdfa">
+        <child_validator name="RemoveFixer"/>
+        </key>
+        -->
+        <key name = ""></key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_Font" msg_category = "PDFA_LOG_MSG_CAT_fonts">
+        <key name = "FontDescriptor">
+            <child_validator name = "V_FontDescriptor"/>
+        </key>
+        <key name = "ToUnicode" link = "6.3.8" standard = "pdfa">
+            <child_validator name="ToUnicodeFixer"/>
+            <child_validator name = "VStream_Simple"/>
+ 		</key> 
+        <key name = "Type" usage = "required" standard = "pdf" link = "5.5">
+            <child_validator name = "V_FontTypeFix"/>
+        </key>
+        <!--TODO:  make validation depending on FontType - different entries required! -->
+        <!--<key name = "SubType" usage="required" standard="pdf" link="5.5"></key>  -->
+        <!--<key name = "BaseFont" usage="required" standard="pdf" link="5.5"></key>  -->
+    </dictionary_validator>
+    <dictionary_validator name = "V_FontDescriptor" msg_category = "PDFA_LOG_MSG_CAT_fonts">
+        <key name = "Type" usage = "required" standard = "pdf" link = "5.7">
+            <child_validator name = "V_FontDescriptorTypeFix"/>
+        </key>
+        <key name = "FontName" usage = "required" standard = "pdf" link = "5.7"></key>
+        <key name = "Flags" usage = "required" standard = "pdf" link = "5.7"></key>
+        <key name = "FontBBox" usage = "required" standard = "pdf" link = "5.7"></key>
+        <key name = "ItalicAngle" usage = "required" standard = "pdf" link = "5.7"></key>
+        <key name = "Ascent" usage = "required" standard = "pdf" link = "5.7"></key>
+        <key name = "Descent" usage = "required" standard = "pdf" link = "5.7"></key>
+        <key name = "FontFile1">
+            <child_validator name = "V_FontProgram"/>
+        </key>
+        <key name = "FontFile2">
+            <child_validator name = "V_FontProgram"/>
+        </key>
+        <key name = "FontFile3">
+            <child_validator name = "V_FontProgram"/>
+        </key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_RootPages" msg_category = "PDFA_LOG_MSG_CAT_pages">
+        <key name = "Resources">
+            <child_validator name = "V_Resources"/>
+        </key>
+        <key name = "Kids" usage = "required" link = "3.6.2" standard = "pdf">
+            <child_validator name = "V_PageArray"/>
+        </key>
+        <key name = "Type" usage = "required" link = "3.6.2" standard = "pdf">
+            <child_validator name = "V_PagesTypeFix"/>
+		</key>
+        <key name = "Count" usage = "required" link = "3.6.2" standard = "pdf"></key>
+        <key name = ""></key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_Pages" msg_category = "PDFA_LOG_MSG_CAT_pages">
+        <key name = "Parent" usage = "required" link = "3.6.2" standard = "pdf"></key>
+        <key name = "Resources">
+            <child_validator name = "V_Resources"/>
+        </key>
+        <key name = "Kids" usage = "required" link = "3.6.2" standard = "pdf">
+            <child_validator name = "V_PageArray"/>
+        </key>
+        <key name = "Type" usage = "required" link = "3.6.2" standard = "pdf">
+            <child_validator name = "V_PagesTypeFix"/>
+		</key>
+        <key name = "Count" usage = "required" link = "3.6.2" standard = "pdf"></key>
+        <key name = ""></key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_Page" msg_category = "PDFA_LOG_MSG_CAT_pages">
+        <key name = "Type" usage = "required" link = "3.6.2" standard = "pdf">
+            <child_validator name = "V_PageTypeFix"/>
+		</key>
+        <key name = "AA" usage = "disabled" link = "6.6.2" standard = "pdfa">
+           <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "Annots">
+            <child_validator name = "V_AnnotArray"/>
+        </key>
+        <key name = "Parent" usage = "required" link = "3.6.2" standard = "pdf"></key>
+        <key name = "Resources">
+            <child_validator name = "V_Resources"/>
+        </key>
+        <key name = "Contents">
+            <!--<child_validator name = "V_ContentArray"/>-->
+            <child_validator name = "V_ContentChecker"/>
+        </key>
+        <key name = "Thumb">
+            <child_validator name = "V_Image"/>
+        </key>
+        <key name = "Group" usage = "disabled" link = "6.4" standard = "pdfa">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+        <key name = "Metadata" object="Page">
+            <child_validator name = "MetadataFixer"/>
+        </key>
+        <key name = ""></key>
+    </dictionary_validator>
+    <dictionary_validator name = "V_PageAddActions">
+        <key name = "O">
+            <child_validator name = "V_Action"/>
+        </key>
+        <key name = "C">
+            <child_validator name = "V_Action"/>
+        </key>
+        <!--other keys prohibited! -->
+        <key name = "" usage = "disabled" link = "6.6.2" standard = "pdfa">
+            <!--<child_validator name = "RemoveFixer"/> -->
+        </key>
+    </dictionary_validator>
+      <alternate_validator name = "V_Contents" msg_category = "PDFA_LOG_MSG_CAT_contents">>
+        <switch name = "object_type">
+            <case name = "array">
+                <child_validator name = "V_ContentArray"/>
+            </case>
+             <case name = "stream">
+                <child_validator name = "VStream_Simple"/>
+            </case>
+        </switch>
+    </alternate_validator>
+    <array_validator name = "V_ContentArray" >
+        <array_item>
+            <child_validator name = "V_Contents"/>
+        </array_item>
+   </array_validator>
+
+    <!--<dictionary_validator name = "V_Content" fixer = "ContentFixer"  msg_category="PDFA_LOG_MSG_CAT_contents"> -->
+    <content_validator name = "V_ContentChecker" msg_category = "PDFA_LOG_MSG_CAT_contents">
+        <child_validator name = "V_Contents"/> 
+    </content_validator>
+    <array_validator name = "V_PageArray">
+        <array_item alternate = "Pages">
+            <child_validator name = "V_Pages"/>
+        </array_item>
+        <array_item alternate = "Page">
+            <child_validator name = "V_Page"/>
+        </array_item>
+    </array_validator>
+    <array_validator name = "V_AnnotArray" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <array_item alternate = "Annot">
+            <child_validator name = "V_Annot"/>
+        </array_item>
+        <!--/Type can be omitted to check the case use alternate with empty name-->
+        <array_item alternate = "">
+            <child_validator name = "V_Annot"/>
+        </array_item>
+    </array_validator>
+    <dictionary_validator name = "V_Annot" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <key name = "Subtype" usage = "required" link = "6.5.2" standard = "pdfa">
+            <child_validator name = "V_AnnotTypes"/>
+        </key>
+        <key name = "C" link = "6.5.3" standard = "pdfa">
+            <child_validator name = "OutputIntentFixer_RGB"/>
+        </key>
+        <key name = "IC" link = "6.5.3" standard = "pdfa">
+            <child_validator name = "OutputIntentFixer_RGB"/>
+        </key>
+        <key name = "A" link = "6.6.1" standard = "pdfa">
+            <child_validator name = "V_Action"/>
+        </key>
+        <key name = "AP" link = "6.5.3" standard = "pdfa">
+            <child_validator name = "V_Appearence"/>
+        </key>
+        <key
+            name = "F"
+            usage = "required"
+            all = "1"
+            link = "6.5.3"
+            standard = "pdfa">
+            <child_validator name = "V_AnnotFlagPrint"/>
+             <child_validator name = "V_AnnotFlagInvisible"/>
+            <child_validator name = "V_AnnotFlagHidden"/>
+            <child_validator name = "V_AnnotFlagNoView"/>
+       </key>
+        <key name = "CA" link = "6.4" standard = "pdfa">
+            <child_validator name = "VNum_CA"/>
+        </key>
+        <key name = "ca" link = "6.4" standard = "pdfa">
+            <child_validator name = "VNum_CA"/>
+        </key>
+	   <!-- Found in isartor test:  isartor-6-5-3-t04-fail-d.pdf = Acrobat checking this -->
+<!--
+        <key name = "RO"  link = "6.4" standard = "pdfa">
+            <child_validator name = "VTypeStream"/>
+            <child_validator name = "V_XObject"/>
+            <child_validator name = "V_Content"/>
+        </key>
+-->
+        <switch name = "Subtype">
+            <case name = "Text">
+                <key
+                    name = "F"
+                    usage = "required"
+                    all = "1"
+                    link = "6.5.3"
+                    standard = "pdfa">
+                    <child_validator name = "V_AnnotFlagNoZoom"/>
+                    <child_validator name = "V_AnnotFlagNoRotate"/>
+                </key>
+            </case>
+            <case name = "Widget">
+                <key name = "AP" usage = "required" link = "6.5.3" standard = "pdfa">
+                    <child_validator name = "V_Appearence"/>
+                </key>
+                <key name = "A" usage = "disabled" link = "6.6.2, 6.9" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+                <key name = "AA" usage = "disabled" link = "6.6.2,  6.9" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+            </case>
+        </switch>
+    </dictionary_validator>
+    <dictionary_validator name = "V_Appearence">
+        <key name = "N" usage = "required" all = "1" link = "6.5.3" standard = "pdfa">
+            <child_validator name = "VTypeStream2"/>
+            <child_validator name = "V_FormXObject"/>
+            <child_validator name = "V_ContentChecker"/>
+        </key>
+        <!--other keys prohibited! -->
+        <key name = "" usage = "disabled" link = "6.5.3" standard = "pdfa">
+      		 <child_validator name = "RemoveFixer"/>
+        </key>
+    </dictionary_validator>
+    <named_validator name = "V_AnnotTypes" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <value>Text</value>
+        <value>Link</value>
+        <value>FreeText</value>
+        <value>Line</value>
+        <value>Square</value>
+        <value>Circle</value>
+        <value>Highlight</value>
+        <value>Underline</value>
+        <value>Squiggly</value>
+        <value>StrikeOut</value>
+        <value>Stamp</value>
+        <value>Ink</value>
+        <value>Popup</value>
+        <value>Widget</value>
+        <value>PrinterMark</value>
+        <value>TrapNet</value>
+        <!--Other values are prohibited!-->
+        <!--<child_validator name = "RemoveFixer"/>-->
+        <child_validator name = "RemoveParentFixer1"/>
+    </named_validator>
+     <number_validator name = "V_AnnotFlagPrint" usage = "required" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <mask name = "Print">4</mask>
+        <child_validator name = "SetFixer"/>
+    </number_validator>
+    <number_validator name = "V_AnnotFlagNoZoom" usage = "required" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <mask name = "NoZoom">8</mask>
+        <child_validator name = "SetFixer"/>
+    </number_validator>
+     <number_validator name = "V_AnnotFlagNoRotate" usage = "required" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <mask name = "NoRotate">16</mask>
+        <child_validator name = "SetFixer"/>
+    </number_validator>
+  <number_validator name = "V_AnnotFlagInvisible" usage = "disabled" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <mask name = "Invisible">1</mask>
+        <child_validator name = "SetFixer"/>
+    </number_validator>
+    <number_validator name = "V_AnnotFlagHidden" usage = "disabled" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <mask name = "Hidden">2</mask>
+        <child_validator name = "SetFixer"/>
+    </number_validator>
+    <number_validator name = "V_AnnotFlagNoView" usage = "disabled" msg_category = "PDFA_LOG_MSG_CAT_annotations">
+        <mask name = "NoView">32</mask>
+        <child_validator name = "SetFixer"/>
+    </number_validator>
+    <dictionary_validator name = "V_Action" msg_category = "PDFA_LOG_MSG_CAT_actions">
+        <switch name = "S">
+            <case name = "Named">
+                <key name = "N" usage = "required" link = "6.6.1" standard = "pdfa">
+                    <child_validator name = "V_NamedActionTypes"/>
+                </key>
+            </case>
+             <case name = "GoTo">
+                <key name = "D" usage = "required" link = "8.5.3" standard = "pdf">
+                    <child_validator name = "V_Destination"/>
+                </key>
+            </case>
+       </switch>
+        <key name = "S" usage = "required" link = "6.6.1" standard = "pdfa">
+            <child_validator name = "V_ActionTypes"/>
+        </key>
+        <key name = "Next">
+            <child_validator name = "V_Actions"/>
+        </key>
+        <key name = "D">
+            <child_validator name = "V_Destination"/>
+        </key>
+    </dictionary_validator>
+    <named_validator name = "V_ActionTypes" msg_category = "PDFA_LOG_MSG_CAT_actions">
+        <!--Only These values are permitted!-->
+        <value>GoTo</value>
+        <value>GoToR</value>
+        <value>Thread</value>
+        <value>URI</value>
+        <value>Hide</value>
+        <value>Named</value>
+        <value>SubmitForm</value>
+        <!--Other values are prohibited!-->
+        <child_validator name = "RemoveParentFixer1"/>
+    </named_validator>
+    <named_validator name = "V_NamedActionTypes">
+        <value>NextPage</value>
+        <value>PrevPage</value>
+        <value>FirstPage</value>
+        <value>LastPage</value>
+        <!--Other values are prohibited!-->
+        <!--<child_validator name = "RemoveFixer"/>-->
+        <child_validator name = "RemoveParentFixer1"/>
+    </named_validator>
+      <alternate_validator name = "V_Destination">
+        <switch name = "object_type">
+            <case name = "array">
+                <child_validator name = "V_PageCheck"/>
+            </case>
+              <case name = "string">
+                <child_validator name = "V_DestNameCheck"/>
+            </case>
+       </switch>
+    </alternate_validator>
+    <array_validator name = "V_PageCheck">
+        <array_item index = "0" link = "8.5.3" standard = "pdf">>
+            <child_validator name = "PageChecker"/>
+        </array_item>
+     </array_validator>
+  <dictionary_validator name = "V_AcroForm" msg_category = "PDFA_LOG_MSG_CAT_acroform">
+        <key name = "DR">
+            <child_validator name = "V_AF_Resources"/>
+        </key>
+        <key name = "Fields">
+            <child_validator name = "V_Fields"/>
+        </key>
+         <key name = "Fields" usage = "required" link = "8.6.1" standard = "pdf">
+        	<child_validator name = "VTypeArray1"/>
+        </key>
+        <key name = "NeedAppearances" link = "6.9" standard = "pdfa">
+            <child_validator name = "VBool_False_Fix"/>
+        </key>
+    </dictionary_validator>
+    <array_validator name = "V_Fields">
+        <array_item alternate = "Annot">
+            <child_validator name = "V_Annot_Acro"/>
+        </array_item>
+        <array_item alternate = "">
+            <child_validator name = "V_Annot_Acro"/>
+        </array_item>
+    </array_validator>
+    <!--AcroForm resources can have additional key /Encoding (see 8.6.1 PDF Reference) -->
+    <dictionary_validator name = "V_AF_Resources" msg_category = "PDFA_LOG_MSG_CAT_resources">
+        <key name = "XObject">
+            <child_validator name = "V_XObjectNames"/>
+        </key>
+        <key name = "ExtGState">
+            <child_validator name = "V_ExtGStateNames"/>
+        </key>
+        <key name = "ColorSpace">
+            <child_validator name = "V_ColorSpaceNames"/>
+        </key>
+        <key name = "Font">
+            <child_validator name = "V_FontNames"/>
+            <child_validator name = "V_FontFixer"/>
+        </key>
+        <key name = "Pattern">
+            <!--Need to rewind and check! -->
+        </key>
+        <key name = "Shading">
+            <!--Need to rewind and check! -->
+        </key>
+        <key name = "ProcSet">
+            <!--Need to rewind and check! -->
+        </key>
+        <key name = "Properties">
+            <!--Need to rewind and check! -->
+        </key>
+        <key name = "Encoding"/>
+        <!--other keys prohibited! -->
+        <key name = "" usage = "disabled" link = "3.7.2" standard = "pdf" severity="warning">
+            <child_validator name = "RemoveFixer"/>
+        </key>
+    </dictionary_validator>
+    <named_validator name = "V_NamedIntents" link = "6.2.9" standard = "pdfa" >
+        <value>RelativeColorimetric</value>
+        <value>AbsoluteColorimetric</value>
+        <value>Perceptual</value>
+        <value>Saturation</value>
+        <!--Other values are prohibited!-->
+        <child_validator name = "RemoveFixer"/>
+    </named_validator>
+    <!--Check content of Appearence here, othe validations were done in the main branch-->
+    <dictionary_validator name = "V_Annot_Acro" msg_category = "PDFA_LOG_MSG_CAT_acroform">
+        <switch name = "Subtype">
+            <case name = "Widget">
+                <key name = "AP" usage = "required" link = "6.5.3" standard = "pdfa">
+                    <child_validator name = "V_Appearence_Acro"/>
+                </key>
+                <key name = "A" usage = "disabled" link = "6.9" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+                <key name = "AA" usage = "disabled" link = "6.9" standard = "pdfa">
+                    <child_validator name = "RemoveFixer"/>
+                </key>
+            </case>
+        </switch>
+    </dictionary_validator>
+    <dictionary_validator name = "V_Appearence_Acro">
+        <key name = "N" link = "6.5.3" standard = "pdfa">
+            <child_validator name = "VTypeStream2"/>
+            <child_validator name = "V_XObject"/>
+            <child_validator name = "V_ContentChecker"/>
+        </key>
+    </dictionary_validator>
+
+<!--  validation of operators -->
+    <string_validator name = "V_Operators" msg_category = "PDFA_LOG_MSG_CAT_contents" link = "6.2.10" standard = "pdfa">
+        <value>BT</value>
+        <value>h</value>
+        <value>m</value>
+        <value>l</value>
+        <value>c</value>
+        <value>v</value>
+        <value>y</value>
+        <value>re</value>
+        <value>W</value>
+        <value>W*</value>
+        <value>S</value>
+        <value>s</value>
+        <value>f</value>
+        <value>F</value>
+        <value>f*</value>
+        <value>B</value>
+        <value>B*</value>
+        <value>b</value>
+        <value>b*</value>
+        <value>n</value>
+        <value>ET</value>
+        <value>cm</value>
+        <value>w</value>
+        <value>J</value>
+        <value>j</value>
+        <value>M</value>
+        <value>d</value>
+        <value>ri</value>
+        <value>i</value>
+        <value>gs</value>
+        <value>q</value>
+        <value>Q</value>
+        <value>CS</value>
+        <value>cs</value>
+        <value>SC</value>
+        <value>SCN</value>
+        <value>sc</value>
+        <value>scn</value>
+        <value>sh</value>
+       <value>G</value>
+        <value>g</value>
+        <value>RG</value>
+        <value>rg</value>
+        <value>K</value>
+        <value>k</value>
+        <value>Tf</value>
+        <value>Tc</value>
+        <value>Tw</value>
+        <value>Tz</value>
+        <value>TL</value>
+        <value>Tr</value>
+        <value>Ts</value>
+        <value>Tj</value>
+        <value>TJ</value>
+        <value>'</value>
+        <value>"</value>
+        <value>T*</value>
+        <value>TD</value>
+        <value>Td</value>
+        <value>Tm</value>
+        <value>Do</value>
+        <value>BI</value>
+        <value>ID</value>
+        <value>EI</value>
+        <value>BX</value>
+        <value>EX</value>
+        <value>MP</value>
+        <value>DP</value>
+        <value>BMC</value>
+        <value>BDC</value>
+        <value>EMC</value>
+        <value>d0</value>
+        <value>d1</value>
+        <!--Other values are prohibited!-->
+        <child_validator name = "DummyFixer"/>
+    </string_validator>
+<!-- Filter list -->
+    <named_validator name = "V_NamedFilters" link = "6.1.10" standard = "pdfa">
+        <value>ASCIIHexDecode</value>
+        <value>ASCII85Decode</value>
+        <value>RunLengthDecode</value>
+        <value>FlateDecode</value>
+       <value>CCITTFaxDecode</value>
+       <value>DCTDecode</value>
+       <value>JBIG2Decode</value>
+        <!-- The following must be replaced -->
+        <value replace="FlateDecode">LZWDecode</value>
+        <value replace="DCTDecode">JPXDecode</value>
+ 		<!-- Abbreviation is possible only for inline images => replace them on full names -->
+        <value replace="ASCIIHexDecode">AHx</value>
+        <value replace="ASCII85Decode">A85</value>
+        <value replace="RunLengthDecode">RL</value>
+        <value replace="FlateDecode">Fl</value>
+       <value replace="CCITTFaxDecode">CCF</value>
+       <value replace="DCTDecode">DCT</value>
+        <!--Other values are prohibited!-->
+    </named_validator>
+    <named_validator name = "V_NamedFilters_Inline" link = "6.1.10" standard = "pdfa">
+        <value>ASCIIHexDecode</value>
+        <value>AHx</value>
+        <value>ASCII85Decode</value>
+        <value>A85</value>
+        <value>RunLengthDecode</value>
+        <value>RL</value>
+        <value>FlateDecode</value>
+        <value>Fl</value>
+       <value>CCITTFaxDecode</value>
+       <value>CCF</value>
+       <value>DCTDecode</value>
+       <value>DCT</value>
+        <!-- The following must be replaced -->
+        <value replace="FlateDecode">LZWDecode</value>
+         <value replace="Fl">LZW</value>
+        <!--Other values are prohibited!-->
+    </named_validator>
+
+    <named_validator name = "V_StandardTagTypes">
+		<!-- Grouping Elements -->
+        <value>Document</value>
+        <value>Part</value>
+        <value>Art</value>
+        <value>Sect</value>
+        <value>Div</value>
+        <value>BlockQuote</value>
+        <value>Caption</value>
+        <value>TOC</value>
+       <value>TOCI</value>
+       <value>Index</value>
+       <value>NonStruct</value>
+       <value>Private</value>
+
+		<!-- Block-Level Structure Elements -->
+        <value>P</value>
+        <value>H</value>
+        <value>H1</value>
+        <value>H2</value>
+        <value>H3</value>
+        <value>H4</value>
+        <value>H5</value>
+        <value>H6</value>
+
+        <value>L</value>
+        <value>LI</value>
+        <value>Lbl</value>
+        <value>LBody</value>
+
+        <value>Table</value>
+        <value>TR</value>
+        <value>TH</value>
+        <value>TD</value>
+
+		<!-- Inline-Level Structure Elements -->
+        <value>Span</value>
+        <value>Quote</value>
+        <value>Note</value>
+        <value>Reference</value>
+        <value>BibEntry</value>
+        <value>Code</value>
+        <value>Link</value>
+
+		<!-- Illustration Elements -->
+        <value>Figure</value>
+        <value>Formula</value>
+        <value>Form</value>
+
+        <!--Other values are prohibited!-->
+		<child_validator name = "V_AdditionalTag"/>
+    </named_validator>
+
+<!-- Here is a special validator to fix non-standard tag usage with adding new tags to RoleMap -->
+	<rolemap_extention name = "V_AdditionalTag">
+        <value replace="Div">TBody</value>
+        <value replace="Lbody">LBody</value>
+        <value replace="TH">THead</value>
+	</rolemap_extention>
+
+<!-- Color Space checkers -->
+    <DummyFixer name = "V_CheckColorSpace" link = "6.2.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_colorspace"></DummyFixer>
+
+<!-- Font checkers -->
+   <DummyFixer name = "V_FontUnembeddedMadeEmbedded" link = "6.3.4" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontUnembeddedCannotEmbed" link = "6.3.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontInvalidEmbeddedFontProgram" link = "6.3.4" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontInvalidEmbeddedFontProgramFixed" link = "6.3.4" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontNoToUnicodeTranslation" link = "6.3.8" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontMissingGlyph" link = "6.3.5" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontTTNonSymbolicFontEncodingIllegal" link = "6.3.7" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontTTNonSymbolicFontDifferencesIllegal" link = "6.3.7" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontTTSymbolicFontNotSingleCMap" link = "6.3.3.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontTTSymbolicFontEncodingRemoved" link = "6.3.7" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontType0CMapEmbedding" link = "6.3.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer> 
+   <DummyFixer name = "V_FontType2CIDtoGIDAbsent" link = "6.3.3.2" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontType0CIDSetAbsent" link = "6.3.5" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontType0CIDSetInconsistent" link = "6.3.5" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontWidthInconsistent" link = "6.3.6" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontType1CharsetMissing" link = "6.3.5" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontEmbeddedCannotEmbed" link = "6.3.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+   <DummyFixer name = "V_FontOTypeEmbeddedCannotEmbed" link = "6.3.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_fonts"></DummyFixer>
+
+<!-- Metadata checkers -->
+   <DummyFixer name = "V_MetaDocInfoSync" link = "6.7.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaObjectCorrect" link = "6.7.2" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaXMLCorrect" link = "6.7.9" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaXMPPacketStructure" link = "p32" standard = "xmp" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaXMPPacketAttributes" link = "6.7.5" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaXMPStructure" link = "6.7" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaXMPNamespaces" link = "6.7.8, TN0001" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaXMPValueCheck" link = " TN0008" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaXMPDuplicatedSchema" link = " TN0009" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaRDFQualifiedAttribute" link = " TN0009.3.3" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+   <DummyFixer name = "V_MetaSchemaEmbedding" link = " TN0003" standard = "pdfa" msg_category = "PDFA_LOG_MSG_CAT_metadata"></DummyFixer>
+
+</Document>

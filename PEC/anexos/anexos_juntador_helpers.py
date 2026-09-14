@@ -63,16 +63,32 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
     except Exception:
         pass
 
-    # 1. Clique no menu (ícone hambúrguer)
-    print('[JUNTADA][DEBUG] Clicando no menu hambúrguer...')
-    if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
-        return False
-
-    # 2. Clique em "Anexar Documentos"
-    print('[JUNTADA][DEBUG] Clicando em "Anexar documentos"...')
+    # 1. Obter handle original para a transição
     handle_original = driver.current_window_handle
-    if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
-        return False
+
+    # 2. Estratégia Rápida: Abrir via URL ou clique JS injetado (ignora timeouts do DOM)
+    try:
+        url_atual = driver.current_url or ''
+        import re
+        match = re.search(r'/processo/(\d+)', url_atual)
+        if match:
+            id_processo = match.group(1)
+            url_anexar = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/anexar"
+            print(f'[JUNTADA][DEBUG] ID do processo detectado ({id_processo}). Abrindo /anexar diretamente via JS...')
+            driver.execute_script(f"window.open('{url_anexar}', '_blank');")
+        else:
+            print('[JUNTADA][DEBUG] ID não encontrado na URL. Clicando no menu via JS...')
+            driver.execute_script("document.querySelector('i.fa-bars.icone-botao-menu')?.click();")
+            import time
+            time.sleep(0.3)
+            driver.execute_script("document.querySelector('button[aria-label=\"Anexar Documentos\"]')?.click();")
+    except Exception as e:
+        print(f'[JUNTADA][DEBUG] Falha na abertura rápida, fallback ativado: {e}')
+        # Fallback de segurança caso o JS falhe completamente
+        if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
+            pass
+        if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
+            pass
 
     # 3. Aguarda a nova aba/janela e muda para ela
     print('[JUNTADA][DEBUG] Mudando para aba de anexação...')

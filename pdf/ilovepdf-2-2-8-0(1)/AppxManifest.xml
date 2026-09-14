@@ -1,0 +1,128 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5" xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4" xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5" xmlns:build="http://schemas.microsoft.com/developer/appx/2015/build" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" xmlns:rescap3="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities/3" xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10" IgnorableNamespaces="uap rescap rescap3 com uap5 desktop4 desktop5 build">
+  <Resources>
+    <Resource Language="ES-ES" />
+    <Resource uap:Scale="200" />
+  </Resources>
+  <Identity Name="ILOVEPDFS.L.iLovePDF-PDFReaderandEditor" Publisher="CN=FE9FC025-5A16-4D44-A9B7-2ADBA72C2477" Version="2.2.8.0" ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>iLovePDF - PDF Reader and Editor</DisplayName>
+    <PublisherDisplayName>ILOVEPDF S.L.</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+    <PackageDependency Name="Microsoft.VCLibs.140.00.UWPDesktop" MinVersion="14.0.33728.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+  </Dependencies>
+  <Applications>
+    <Application Id="App" Executable="iLovePDF\iLovePDF.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="iLovePDF" Description="iLovePDF_Msix_Installer" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square71x71Logo="Assets\SmallTile.png" Square310x310Logo="Assets\LargeTile.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="ilovepdf.pdf">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.pdf</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>iLovePDF</uap:DisplayName>
+            <uap:Logo>Assets\FileExtension.png</uap:Logo>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+        <rescap3:Extension Category="windows.desktopAppMigration" EntryPoint="Windows.FullTrustApplication" Executable="iLovePDF\iLovePDF.exe">
+          <rescap3:DesktopAppMigration>
+            <rescap3:DesktopApp ShortcutPath="%USERPROFILE%\Desktop\iLovePDF.lnk" />
+            <rescap3:DesktopApp ShortcutPath="%APPDATA%\Microsoft\Windows\Start Menu\iLovePDF.lnk" />
+            <rescap3:DesktopApp ShortcutPath="%PROGRAMDATA%\Microsoft\Windows\Start Menu\iLovePDF.lnk" />
+            <rescap3:DesktopApp ShortcutPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\Vinculo a iLovePDF.lnk" />
+            <rescap3:DesktopApp ShortcutPath="%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs\Vinculo a iLovePDF.lnk" />
+            <rescap3:DesktopApp ShortcutPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\iLovePDF.lnk" />
+            <rescap3:DesktopApp ShortcutPath="%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs\iLovePDF.lnk" />
+            <rescap3:DesktopApp ShortcutPath="%USERPROFILE%\Desktop\Vinculo a iLovePDF.lnk" />
+          </rescap3:DesktopAppMigration>
+        </rescap3:Extension>
+        <desktop4:Extension Category="windows.fileExplorerContextMenus">
+          <desktop4:FileExplorerContextMenus>
+            <desktop5:ItemType Type=".pdf">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".doc">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".docx">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".xls">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".xlsx">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".ppt">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".pptx">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".bmp">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jpg">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jpeg">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jpe">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jfif">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jfi">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".jif">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".gif">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".png">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".tiff">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type=".tif">
+              <desktop5:Verb Id="iLovePDF" Clsid="CC19E147-7757-483C-B27F-3D81BCEB38FE" />
+            </desktop5:ItemType>
+          </desktop4:FileExplorerContextMenus>
+        </desktop4:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:SurrogateServer DisplayName="Context menu verb handler">
+              <com:Class Id="CC19E147-7757-483C-B27F-3D81BCEB38FE" Path="iLovePDF\iLovePdfContextMenu.dll" ThreadingModel="STA" />
+            </com:SurrogateServer>
+          </com:ComServer>
+        </com:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <build:Metadata>
+    <build:Item Name="Microsoft.Build.DesktopBridge.Tasks.dll" Version="17.11.40146.31104" />
+    <build:Item Name="TargetFrameworkMoniker" Value=".NETFramework,Version=v4.5.1" />
+    <build:Item Name="VisualStudio" Version="17.0" />
+    <build:Item Name="VisualStudioEdition" Value="Microsoft Visual Studio Community 2022" />
+    <build:Item Name="OperatingSystem" Version="10.0.22621.4455 (WinBuild.160101.0800)" />
+    <build:Item Name="Microsoft.Build.AppxPackage.dll" Version="17.11.40353.1868" />
+    <build:Item Name="ProjectGUID" Value="55b8bbdb-519d-40ab-a9c2-42eb305df462" />
+    <build:Item Name="makepri.exe" Version="10.0.22621.3233 (WinBuild.160101.0800)" />
+  </build:Metadata>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+  <mp:PhoneIdentity PhoneProductId="a247bc83-ec59-49ec-b33c-85fd26636640" PhonePublisherId="30c5e28f-ea37-46b9-8da0-9815cc11b332" />
+</Package>

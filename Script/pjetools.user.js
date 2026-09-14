@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.71
+// @version      2.3.73
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/pjetools.user.js
@@ -57,6 +57,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.70
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/marcar.js?v=1.0.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 
@@ -151,6 +152,22 @@
             const routeDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl);
             const routeObrigacao = currentUrl.includes('/obrigacao-pagar/');
             const routeAud = currentUrl.includes('/aud');
+            const routeRetificar = /\/processo\/\d+\/retificar/.test(currentUrl);
+            const routePauta = currentUrl.includes('/pauta-audiencias');
+
+            if (routeRetificar) {
+                if (window.PjeMarcarAud && window.PjeMarcarAud.initRetificar) {
+                    window.PjeMarcarAud.initRetificar();
+                }
+                return;
+            }
+
+            if (routePauta) {
+                if (window.PjeMarcarAud && window.PjeMarcarAud.initPauta) {
+                    window.PjeMarcarAud.initPauta();
+                }
+                return;
+            }
 
             if (routeMinutas) {
                 if (window.__infojudWorkerRodando) return;
@@ -196,6 +213,9 @@
             }
 
             if (routeDetalhe) {
+                if (window.PjeMarcarAud && window.PjeMarcarAud.checarConfirmacao) {
+                    window.PjeMarcarAud.checarConfirmacao();
+                }
                 window.PJeState && window.PJeState.dispose && window.PJeState.dispose();
                 bootDetalhe();
                 return;

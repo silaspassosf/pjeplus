@@ -805,6 +805,12 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         container.innerHTML = content;
         container.style.position = 'absolute';
         container.style.left = '-9999px';
+        
+        // Stop propagation to prevent Angular global listeners from catching it before they are ready
+        container.addEventListener('copy', function(e) {
+            e.stopPropagation();
+        });
+        
         document.body.appendChild(container);
         
         var range = document.createRange();
@@ -844,8 +850,33 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
     function extrairOrdemDetalharAuto() {
         const numeroProcesso = getValueByLabel('Número do Processo:');
         const numeroProtocolo = getValueByLabel('Número do Protocolo:');
+        const repeticaoProgramada = getValueByLabel('Repetição programada?');
         
-        if (!numeroProcesso || !numeroProtocolo) return;
+        // Wait until essential elements are loaded in the DOM
+        if (!numeroProcesso || !numeroProtocolo || repeticaoProgramada === null) return;
+
+        // Limpa as flags se o protocolo mudou (navegação SPA)
+        if (window._sisbUltimoProtocolo !== numeroProtocolo) {
+            window._sisbDetalharSnackbarVisto = false;
+            window._sisbDetalharPronto = 0;
+            window._sisbUltimoProtocolo = numeroProtocolo;
+        }
+        
+        // Aguarda o snackbar de "com sucesso" aparecer na tela
+        if (!window._sisbDetalharSnackbarVisto) {
+            const pageText = document.body.innerText.toLowerCase();
+            if (!pageText.includes('com sucesso')) return;
+            window._sisbDetalharSnackbarVisto = true;
+        }
+        
+        // Add a small delay to ensure Angular has fully initialized its internal state (ordemJudicial)
+        if (!window._sisbDetalharPronto) {
+            window._sisbDetalharPronto = Date.now();
+            return;
+        }
+        if (Date.now() - window._sisbDetalharPronto < 1500) {
+            return; // Espera 1.5s após a renderização dos campos e snackbar
+        }
         
         let state = null;
         try {

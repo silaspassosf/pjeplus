@@ -126,7 +126,43 @@
                     } else {
                         showToast('Módulo PDF não carregado', '#dc3545', 3000);
                     }
-                }, titulo: 'Comprimir/Dividir PDF para envio no PJe', full: true }
+                }, titulo: 'Comprimir/Dividir PDF para envio no PJe' },
+            { id: 'btnAud', texto: '📅 Aud', bg: '#1565c0', fn: function (e) {
+                    const btn = e.target.closest('button');
+                    if (btn.dataset.expanded === "true") return;
+                    btn.dataset.expanded = "true";
+                    btn.innerHTML = '';
+                    btn.style.display = 'flex';
+                    btn.style.gap = '4px';
+                    btn.style.padding = '4px';
+                    
+                    const b1 = document.createElement('button');
+                    b1.textContent = 'Nova';
+                    b1.style.cssText = 'flex:1;background:#fff;color:#1565c0;border:none;border-radius:2px;font-size:10px;font-weight:bold;cursor:pointer;';
+                    b1.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (window.PjeMarcarAud && typeof window.PjeMarcarAud.executarNova === 'function') {
+                            window.PjeMarcarAud.executarNova();
+                        } else {
+                            showToast('Módulo Aud não carregado', '#dc3545', 3000);
+                        }
+                    };
+                    
+                    const b2 = document.createElement('button');
+                    b2.textContent = 'Ata';
+                    b2.style.cssText = 'flex:1;background:#fff;color:#1565c0;border:none;border-radius:2px;font-size:10px;font-weight:bold;cursor:pointer;';
+                    b2.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (window.PjeMarcarAud && typeof window.PjeMarcarAud.executarAta === 'function') {
+                            window.PjeMarcarAud.executarAta();
+                        } else {
+                            showToast('Módulo Aud não carregado', '#dc3545', 3000);
+                        }
+                    };
+                    
+                    btn.appendChild(b1);
+                    btn.appendChild(b2);
+                }, titulo: 'Agendar Audiência', full: true }
         ]);
     };
 })();

@@ -224,15 +224,16 @@
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
         const getByLabel = (text) => {
+            const wanted = (text || '').replace(/:$/, '').trim().toLowerCase();
             const labels = [...doc.querySelectorAll('label')];
-            const label = labels.find(el => (el.textContent || '').trim() === text);
+            const label = labels.find(el => (el.textContent || '').replace(/:$/, '').trim().toLowerCase() === wanted);
             if (!label) return '';
             const span = label.parentElement ? label.parentElement.querySelector('span.readonly') : null;
             return (span ? span.textContent : '').trim();
         };
 
         const getRowsByLabel = (root, text) => [...root.querySelectorAll('label')]
-            .filter(label => (label.textContent || '').trim() === text);
+            .filter(label => (label.textContent || '').replace(/:$/, '').trim().toLowerCase() === (text || '').replace(/:$/, '').trim().toLowerCase());
         const bankBlocks = [...doc.querySelectorAll('h4')]
             .filter(h => /Dados Bancários/i.test(h.textContent || ''))
             .map(title => {
@@ -264,8 +265,9 @@
             conta: block.getValue('Conta:'),
             tipo: block.getValue('Tipo:')
         })).filter(block => block.banco || block.agencia || block.conta || block.contaJuridica);
+        const cjIndex = blocosComDados.findIndex(block => block.contaJuridica);
         const bancoBrasilIndex = blocosComDados.findIndex(block => /Banco do Brasil/i.test(block.titulo));
-        const bankIndex = bancoBrasilIndex >= 0 ? bancoBrasilIndex : 0;
+        const bankIndex = cjIndex >= 0 ? cjIndex : (bancoBrasilIndex >= 0 ? bancoBrasilIndex : 0);
         const bankBlock = blocosComDados[bankIndex] || {
             titulo: '', contaJuridica: false, razaoSocial: '', cnpj: '', codigoBanco: '',
             banco: '', agencia: '', conta: '', tipo: ''
@@ -296,11 +298,14 @@
             .map(block => ({ ...block, detailUrl: detailUrl }))
             .filter(block => block.banco || block.agencia || block.conta);
 
+        const nome = getByLabel('Nome') || getByLabel('Razão Social') || contaJuridicaDados.razaoSocial || '';
+        const documento = getByLabel('CPF') || getByLabel('CNPJ') || contaJuridicaDados.cnpj || '';
+
         if (kind === 'cnpj') {
             return {
                 ...contaJuridicaDados,
-                nome: contaJuridicaDados.razaoSocial || getByLabel('Razão Social'),
-                documento: getByLabel('CNPJ:'),
+                nome: contaJuridicaDados.razaoSocial || getByLabel('Razão Social') || nome,
+                documento: getByLabel('CNPJ') || documento,
                 banco: contaJuridicaDados.banco,
                 tipo: contaJuridicaDados.tipo,
                 agencia: contaJuridicaDados.agencia,
@@ -310,8 +315,8 @@
 
         return {
             ...contaJuridicaDados,
-            nome: getByLabel('Nome:'),
-            documento: getByLabel('CPF:'),
+            nome: nome,
+            documento: documento,
             banco: contaJuridicaDados.banco,
             tipo: contaJuridicaDados.tipo,
             agencia: contaJuridicaDados.agencia,

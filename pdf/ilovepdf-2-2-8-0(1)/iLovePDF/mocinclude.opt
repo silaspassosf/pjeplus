@@ -1,0 +1,58 @@
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/mkspecs/win32-msvc
+-ID:/a/desktop2/desktop2
+-ID:/a/desktop2/desktop2/lib/include/desktop-lib
+-ID:/a/desktop2/desktop2/lib/include/pdftools
+-ID:/a/desktop2/desktop2/lib/include/sentry
+-ID:/a/desktop2/desktop2/lib/include/soliddocuments
+-ID:/a/desktop2/desktop2/lib/include/pdftron
+-ID:/a/desktop2/desktop2/lib/include/tesseract
+-ID:/a/desktop2/desktop2/lib/include/openssl
+-ID:/a/desktop2/desktop2/src
+-ID:/a/desktop2/desktop2/src/tools
+-ID:/a/desktop2/desktop2/lib/include/ImageMagickWindows
+-ID:/a/desktop2/desktop2/src/qt-breakpad
+-ID:/a/desktop2/desktop2/src/qt-breakpad/vendor/breakpad/src
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtPrintSupport
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQuickWidgets
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtWidgets
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQuickControls2
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQuick/6.8.3
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQuick/6.8.3/QtQuick
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQuick
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtOpenGL
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtSvg
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtGui/6.8.3
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtGui/6.8.3/QtGui
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtGui
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtConcurrent
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlMeta/6.8.3
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlMeta/6.8.3/QtQmlMeta
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlMeta
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlModels/6.8.3
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlModels/6.8.3/QtQmlModels
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlModels
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlWorkerScript/6.8.3
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlWorkerScript/6.8.3/QtQmlWorkerScript
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlWorkerScript
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQml/6.8.3
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQml/6.8.3/QtQml
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQml
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtWebSockets
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtNetwork
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtQmlIntegration
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtSql
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtXml
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtCore/6.8.3
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtCore/6.8.3/QtCore
+-ID:/a/_temp/Qt/6.8.3/msvc2022_64/include/QtCore
+-I.
+-IC:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.44.35207\include
+-IC:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.44.35207\ATLMFC\include
+-IC:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\VS\include
+-IC:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\ucrt
+-IC:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um
+-IC:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\shared
+-IC:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\winrt
+-IC:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\cppwinrt
+-IC:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um

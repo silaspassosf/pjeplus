@@ -293,20 +293,31 @@ def login_manual(driver, aguardar_url_painel=True):
     logger.info('[LOGIN_MANUAL] Navegando para tela de login: %s', url_login)
     driver.get(url_login)
     painel_url = 'https://pje.trt2.jus.br/pjekz/gigs/meu-painel'
+    _urls_validas = (painel_url, 'pjekz/quadro-avisos/visualizar')
     logger.info('[LOGIN_MANUAL] Aguarde o login manual ate: %s', painel_url)
 
     if aguardar_url_painel:
         while True:
             try:
-                if driver.current_url.startswith(painel_url):
+                cur = driver.current_url
+                if any(cur.startswith(u) if u.startswith('http') else u in cur
+                       for u in _urls_validas):
                     logger.debug('[LOGIN_MANUAL] Painel detectado, login realizado')
                     if SALVAR_COOKIES_AUTOMATICO:
                         salvar_cookies_sessao(driver, info_extra='login_manual')
                     break
-            except Exception:
-                pass
-            espera.assentar(driver, 1)
+            except Exception as e:
+                # Se a janela foi fechada manualmente, driver.current_url levanta exceção
+                logger.error('[LOGIN_MANUAL] Erro ao verificar URL (janela fechada?): %s', e)
+                return False
+                
+            try:
+                espera.assentar(driver, 1)
+            except Exception as e:
+                logger.error('[LOGIN_MANUAL] Erro durante espera (janela fechada?): %s', e)
+                return False
     return True
+
 
 # --- FUNÇÃO AUXILIAR PARA LOGIN AUTOHOTKEY ---
 

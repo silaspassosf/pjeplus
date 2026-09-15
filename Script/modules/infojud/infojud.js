@@ -618,31 +618,119 @@
                 if (MODO_EXECUCAO === 'COMPLETO') {
                     const btnConfec = document.querySelector('button[aria-label="Confeccionar ato"]');
                     if (btnConfec) {
+                        console.log('[Infojud] Abrindo minuta (Confeccionar ato)...');
                         btnConfec.click();
-                        let editorCarregou = false;
-                        for(let i=0; i<50; i++) {
-                            if(document.querySelector('.ck-editor__editable')) { editorCarregou = true; break; }
+
+                        let editor = null;
+                        let ckInstance = null;
+                        let html = '';
+
+                        // Polling defensivo aguardando editor estar presente E com o template/conteúdo carregado
+                        for (let i = 0; i < 50; i++) {
                             await wait(200);
+                            editor = document.querySelector('.ck-editor__editable[contenteditable="true"], .ck-editor__editable, [contenteditable="true"]');
+                            if (editor) {
+                                ckInstance = editor.ckeditorInstance 
+                                    || editor.closest('.ck-editor')?.ckeditorInstance 
+                                    || Array.from(document.querySelectorAll('.ck-editor__editable, [contenteditable="true"]')).find(x => x.ckeditorInstance)?.ckeditorInstance
+                                    || (window.CKEDITOR?.instances ? Object.values(window.CKEDITOR.instances)[0] : null);
+
+                                html = ckInstance && typeof ckInstance.getData === 'function' ? ckInstance.getData() : (editor.innerHTML || '');
+                                if (html && (/DESTINAT[ÁA]RIO/i.test(html) || /endere[çc]o/i.test(html) || /\bcep\s*:?/i.test(html) || html.trim().length > 80)) {
+                                    break;
+                                }
+                            }
                         }
 
-                        if(editorCarregou) {
-                            await wait(500);
-                            const editor = document.querySelector('.ck-editor__editable');
-                            let ckInstance = editor.ckeditorInstance || (editor.closest('.ck-editor') ? editor.closest('.ck-editor').ckeditorInstance : null);
-                            const variavelPJe = '#{processo.comunicacaoProcessual.enderecoDestinatario}';
-                            let html = ckInstance ? ckInstance.getData() : editor.innerHTML;
-                           
-                            const regex = /(<strong>\s*ENDEREÇO:\s*)([\s\S]*?)(<\/strong>)/gi;
-                            if (regex.test(html)) {
-                                const novoHtml = html.replace(regex, `$1${variavelPJe}$3`);
-                                if (ckInstance) ckInstance.setData(novoHtml);
-                                else { editor.innerHTML = novoHtml; editor.dispatchEvent(new InputEvent('input', { bubbles: true })); }
+                        if (editor) {
+                            await wait(300);
+                            if (!html) {
+                                html = ckInstance && typeof ckInstance.getData === 'function' ? ckInstance.getData() : (editor.innerHTML || '');
                             }
-                            await wait(500);
 
+                            const variavelPJe = '#{processo.comunicacaoProcessual.enderecoDestinatario}';
+
+                            let novoHtml = null;
+
+                            // 1. Estratégia Principal: Parágrafo imediatamente abaixo de DESTINATÁRIO
+                            const patDestNext = /((?:<p[^>]*>|<div[^>]*>)[\s\S]*?DESTINAT[ÁA]RIO[\s\S]*?(?:<\/p>|<\/div>)\s*(?:<p[^>]*>|<div[^>]*>))([\s\S]*?)(<\/p>|<\/div>)/i;
+
+                            if (patDestNext.test(html)) {
+                                console.log('[Infojud] Localizado parágrafo abaixo de DESTINATÁRIO. Substituindo pela variável...');
+                                novoHtml = html.replace(patDestNext, (match, prefix, pContent, closing) => {
+                                    const hasStrong = /<strong\b/i.test(pContent);
+                                    const hasB = /<b\b(?!r)/i.test(pContent);
+
+                                    let val = '';
+                                    if (/ENDERE[ÇC]O/i.test(pContent)) {
+                                        val = `ENDEREÇO: ${variavelPJe}`;
+                                    } else {
+                                        // Substitui toda a linha de CEP ou endereço antigo diretamente pela variável
+                                        val = variavelPJe;
+                                    }
+
+                                    let finalContent = val;
+                                    if (hasStrong) {
+                                        finalContent = `<strong>${val}</strong>`;
+                                    } else if (hasB) {
+                                        finalContent = `<b>${val}</b>`;
+                                    }
+                                    return `${prefix}${finalContent}${closing}`;
+                                });
+                            } else {
+                                // 2. Fallbacks caso não esteja em parágrafo isolado logo após DESTINATÁRIO
+                                const regexEndereco = /((?:<(?:strong|b)[^>]*>)?\s*ENDERE[ÇC]O(?:\s+DO\s+DESTINAT[ÁA]RIO)?(?:\s*<\/(?:strong|b)>)?\s*:\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
+                                const regexCepInicio = /((?:<p[^>]*>|<div[^>]*>|<br\s*\/?>|^)(?:\s|&nbsp;)*(?:<(?:strong|b)[^>]*>)?\s*CEP(?:\s*<\/(?:strong|b)>)?\s*:?\s*(?:<\/(?:strong|b)>)?)(?:\s|&nbsp;|<br\s*\/?>)*(?:(?!<\/(?:p|div|td|li)>|<br\s*\/?>)[\s\S])*?(?=(?:<\/(?:strong|b)>)?\s*(?:<\/(?:p|div|td|li)>|<br\s*\/?>|$))/gi;
+
+                                if (regexEndereco.test(html)) {
+                                    console.log('[Infojud] Fallback: Rótulo ENDEREÇO: encontrado. Substituindo no editor...');
+                                    novoHtml = html.replace(regexEndereco, (match, p1) => {
+                                        let prefixo = p1.trim();
+                                        if (/<strong\b/i.test(prefixo) && !/<\/strong\b/i.test(prefixo)) prefixo += '</strong>';
+                                        else if (/<b\b(?!r)/i.test(prefixo) && !/<\/b\b/i.test(prefixo)) prefixo += '</b>';
+                                        return `${prefixo} ${variavelPJe}`;
+                                    });
+                                } else if (regexCepInicio.test(html)) {
+                                    console.log('[Infojud] Fallback: Linha com CEP: no início encontrada. Substituindo...');
+                                    novoHtml = html.replace(regexCepInicio, (match, p1) => {
+                                        let prefixo = p1.trim();
+                                        if (/<strong\b/i.test(prefixo) && !/<\/strong\b/i.test(prefixo)) prefixo += '</strong>';
+                                        else if (/<b\b(?!r)/i.test(prefixo) && !/<\/b\b/i.test(prefixo)) prefixo += '</b>';
+                                        return `${prefixo} ${variavelPJe}`;
+                                    });
+                                } else {
+                                    console.warn('[Infojud] Nem parágrafo de destinatário nem rótulos de endereço/CEP localizados. Trecho:', html.substring(0, 300));
+                                }
+                            }
+
+                            if (novoHtml) {
+                                console.log('[Infojud] Inserindo variável de endereço no editor...');
+                                if (ckInstance && typeof ckInstance.setData === 'function') {
+                                    ckInstance.setData(novoHtml);
+                                } else {
+                                    editor.focus();
+                                    editor.innerHTML = novoHtml;
+                                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                                    editor.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                                await wait(600);
+                            }
+
+                            // Finalizar minuta (pena)
                             const btnPena = document.querySelector('button[aria-label="Finalizar minuta"]') || document.querySelector('.fa-pen-nib')?.closest('button');
-                            if (btnPena) btnPena.click();
-                            await wait(1000);
+                            if (btnPena) {
+                                console.log('[Infojud] Finalizando minuta...');
+                                btnPena.click();
+                                for (let j = 0; j < 30; j++) {
+                                    await wait(200);
+                                    if (!document.querySelector('.ck-editor__editable') && !document.querySelector('button[aria-label="Finalizar minuta"]')) {
+                                        break;
+                                    }
+                                }
+                            }
+                            await wait(600);
+                        } else {
+                            console.warn('[Infojud] Editor não foi detectado após clicar em Confeccionar ato.');
                         }
                     }
                 }

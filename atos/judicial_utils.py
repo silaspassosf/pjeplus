@@ -100,11 +100,8 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
 
                 # Limpa overlays residuais antes do clique
                 try:
-                    driver.execute_script("""
-                        document.querySelectorAll('.cdk-overlay-backdrop, .cdk-overlay-pane, snack-bar-container, simple-snack-bar').forEach(function(el){
-                            if (el.style) el.style.display = 'none';
-                        });
-                    """)
+                    driver.execute_script("const b = document.getElementById('selecionar-polo-ativo'); if (b) b.click();")
+                    espera.assentar(driver, 0.5)
                 except Exception:
                     pass
 

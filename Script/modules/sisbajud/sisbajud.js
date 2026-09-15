@@ -692,6 +692,7 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         var href = window.location.href;
         var isTeimosinhaDetalhes = href.indexOf('/teimosinha/') > -1 && href.indexOf('/detalhes') > -1;
         var isOrdemDesdobrar = href.indexOf('/ordem-judicial/') > -1 && href.indexOf('/desdobrar') > -1;
+        var isOrdemDetalhar = href.indexOf('/ordem-judicial/') > -1 && href.indexOf('/detalhar') > -1;
 
         var containerAtivo = document.getElementById('pjetools-sisb-container');
         var containerDesdobrar = document.getElementById('pjetools-sisb-desdobrar-container');
@@ -722,6 +723,11 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
             }
         } else {
             if (containerDesdobrar) containerDesdobrar.style.display = 'none';
+        }
+        
+        // Lidar com Detalhar (Auto)
+        if (isOrdemDetalhar) {
+            extrairOrdemDetalharAuto();
         }
     }
 
@@ -799,6 +805,12 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         container.innerHTML = content;
         container.style.position = 'absolute';
         container.style.left = '-9999px';
+        
+        // Stop propagation to prevent Angular global listeners from catching it before they are ready
+        container.addEventListener('copy', function(e) {
+            e.stopPropagation();
+        });
+        
         document.body.appendChild(container);
         
         var range = document.createRange();
@@ -815,6 +827,123 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         } catch (err) {
             if (document.body.contains(container)) document.body.removeChild(container);
             return false;
+        }
+    }
+
+    // ── Extração Detalhar (Auto) ──────────────────────────────────────
+    function getCleanText(selector) {
+        const element = document.querySelector(selector);
+        if (element) { return element.textContent.trim(); }
+        return null;
+    }
+
+    function getValueByLabel(labelText) {
+        const labels = Array.from(document.querySelectorAll('.sisbajud-label'));
+        const targetLabel = labels.find(label => label.textContent.trim().includes(labelText));
+        if (targetLabel) {
+            const valueElement = targetLabel.parentElement.querySelector('.sisbajud-label-valor');
+            if (valueElement) { return valueElement.textContent.trim(); }
+        }
+        return null;
+    }
+
+    function extrairOrdemDetalharAuto() {
+        const numeroProcesso = getValueByLabel('Número do Processo:');
+        const numeroProtocolo = getValueByLabel('Número do Protocolo:');
+        const repeticaoProgramada = getValueByLabel('Repetição programada?');
+        
+        // Wait until essential elements are loaded in the DOM
+        if (!numeroProcesso || !numeroProtocolo || repeticaoProgramada === null) return;
+
+        // Limpa as flags se o protocolo mudou (navegação SPA)
+        if (window._sisbUltimoProtocolo !== numeroProtocolo) {
+            window._sisbDetalharSnackbarVisto = false;
+            window._sisbDetalharPronto = 0;
+            window._sisbUltimoProtocolo = numeroProtocolo;
+        }
+        
+        // Aguarda o snackbar de "com sucesso" aparecer na tela
+        if (!window._sisbDetalharSnackbarVisto) {
+            const pageText = document.body.innerText.toLowerCase();
+            if (!pageText.includes('com sucesso')) return;
+            window._sisbDetalharSnackbarVisto = true;
+        }
+        
+        // Add a small delay to ensure Angular has fully initialized its internal state (ordemJudicial)
+        if (!window._sisbDetalharPronto) {
+            window._sisbDetalharPronto = Date.now();
+            return;
+        }
+        if (Date.now() - window._sisbDetalharPronto < 1500) {
+            return; // Espera 1.5s após a renderização dos campos e snackbar
+        }
+        
+        let state = null;
+        try {
+            state = JSON.parse(localStorage.getItem('sisb_detalhar_state'));
+        } catch(e) {}
+        
+        if (!state || state.processo !== numeroProcesso) {
+            // Primeira vez para este processo
+            const repeticaoProgramada = getValueByLabel('Repetição programada?');
+            const limiteRepeticao = getValueByLabel('Data limite da repetição:');
+            const valorBloqueio = getCleanText('td[data-label="valorBloquear:"]');
+            
+            const executados = [];
+            const rowsExecutados = document.querySelectorAll('tr.element-row');
+            rowsExecutados.forEach(row => {
+                const nomeElement = row.querySelector('.col-reu-dados-nome-pessoa');
+                const documentoElement = row.querySelector('.col-reu-dados a');
+                if (nomeElement && documentoElement) {
+                    const nome = nomeElement.textContent.trim();
+                    const documento = documentoElement.textContent.trim();
+                    executados.push(`${nome} - [${documento}]`);
+                }
+            });
+            
+            const pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"';
+            let resultado = `<p ${pStyle}><strong>Dados da Teimosinha protocolada:</strong></p>`;
+            resultado += `<p ${pStyle}>Número do processo: <strong>${numeroProcesso || 'Não encontrado'}</strong></p>`;
+            resultado += `<p ${pStyle}>Número do protocolo: <strong>${numeroProtocolo || 'Não encontrado'}</strong></p>`;
+            resultado += `<p ${pStyle}>Repetição programada? <strong>${repeticaoProgramada || 'Não encontrado'}</strong></p>`;
+            resultado += `<p ${pStyle}>Limite da repetição: <strong>${limiteRepeticao || 'Não encontrado'}</strong></p>`;
+            resultado += `<p ${pStyle}>Valor do bloqueio: <strong>${valorBloqueio ? valorBloqueio.split('\n')[0] : 'Não encontrado'}</strong></p>`;
+            resultado += `<p ${pStyle}><strong>Partes alvo do bloqueio:</strong></p>`;
+            
+            if (executados.length > 0) {
+                executados.forEach(executado => {
+                    resultado += `<p ${pStyle}><strong>${executado}</strong></p>`;
+                });
+            } else {
+                resultado += `<p ${pStyle}><strong>Nenhum executado encontrado</strong></p>`;
+            }
+            
+            resultado += `<p ${pStyle}>Notas:</p>`;
+            resultado += `<p ${pStyle}>-Por padrão é consultado CNPJ raiz.</p>`;
+            resultado += `<p ${pStyle}>-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>`;
+            
+            if (copyToClipboardHtml(resultado)) {
+                mostrarToast('Ordem copiada', 'ok');
+                localStorage.setItem('sisb_detalhar_state', JSON.stringify({
+                    processo: numeroProcesso,
+                    protocolos: [numeroProtocolo]
+                }));
+            }
+        } else {
+            // Mesmo processo
+            if (!state.protocolos.includes(numeroProtocolo)) {
+                // Segunda vez (mesmo processo, protocolo diferente)
+                if (copyToClipboardHtml(numeroProtocolo)) {
+                    mostrarToast('Ordem repetida copiada', 'ok');
+                    state.protocolos.push(numeroProtocolo);
+                    
+                    if (state.protocolos.length >= 2) {
+                        localStorage.removeItem('sisb_detalhar_state');
+                    } else {
+                        localStorage.setItem('sisb_detalhar_state', JSON.stringify(state));
+                    }
+                }
+            }
         }
     }
 

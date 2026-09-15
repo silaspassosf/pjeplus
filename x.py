@@ -37,8 +37,7 @@ from pprint import pformat
 from typing import Dict, Any, Optional, Tuple, Callable
 from Fix.tipos import ResultadoFluxo
 from enum import Enum
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+# WebDriverWait importado lazily em resetar_driver() para garantir shim pjeplay correto
 # Imports dos módulos refatorados
 from Fix.core import finalizar_driver as finalizar_driver_fix, criar_driver_pc, criar_driver_vt
 from Fix.utils import login_cpf, login_manual
@@ -156,42 +155,111 @@ def _aguardar_sessao_ativa(driver, timeout: int = 60) -> bool:
     return False
 
 
-def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
-    """Cria driver e aguarda login automaticamente.
+def _criar_driver_headless_com_login_visivel(driver_type: DriverType, vt_mode: bool) -> Optional[Any]:
+    """Headless login: tenta cookies existentes; se inválidos, abre janela visível
+    para o usuário fazer login manual, salva cookies e inicia o driver headless.
 
     Fluxo:
-      1. Tenta carregar cookies salvos (verificar_e_aplicar_cookies) — sem
-         interacao do usuario se houver sessao valida em cookies_sessoes/.
-      2. Se nao houver cookies validos, navega para login.seam e aguarda a
-         URL meu-painel aparecer (login manual no browser, sem ENTER).
-      3. Apos o login, salva os cookies (incluindo httpOnly) para reutilizar
-         na proxima execucao.
+      1. Cria driver headless e tenta restaurar sessão via cookies salvos.
+      2. Se OK → retorna driver headless diretamente.
+      3. Se não → abre driver VISÍVEL, aguarda URL de painel/avisos (login manual).
+      4. Salva cookies → fecha janela visível.
+      5. Cria novo driver headless, aplica cookies → retorna.
+    """
+    from Fix.utils import verificar_e_aplicar_cookies, salvar_cookies_sessao
+
+    # ── Tentativa 1: headless com cookies existentes ──────────────────────────
+    driver_hl = None
+    try:
+        driver_hl = criar_driver_vt(headless=True) if vt_mode else criar_driver_pc(headless=True)
+        if driver_hl and verificar_e_aplicar_cookies(driver_hl):
+            if _aguardar_sessao_ativa(driver_hl, timeout=10):
+                logger.info("[HEADLESS] Sessao restaurada via cookies — sem login manual necessario.")
+                return driver_hl
+        if driver_hl:
+            try:
+                finalizar_driver_fix(driver_hl)
+            except Exception:
+                pass
+            driver_hl = None
+    except Exception as e:
+        logger.warning("[HEADLESS] Falha ao tentar cookies: %s", e)
+        if driver_hl:
+            try:
+                finalizar_driver_fix(driver_hl)
+            except Exception:
+                pass
+
+    # ── Tentativa 2: janela visível → login manual → cookies → headless ───────
+    logger.info("[HEADLESS] Cookies invalidos/expirados — abrindo janela visivel para login manual.")
+    logger.info("[HEADLESS] Faca o login na janela que sera aberta. "
+                "O headless iniciara automaticamente apos a deteccao da URL de painel.")
+    driver_vis = None
+    try:
+        driver_vis = criar_driver_vt(headless=False) if vt_mode else criar_driver_pc(headless=False)
+        if not driver_vis:
+            logger.error("[HEADLESS] Nao foi possivel abrir janela visivel para login.")
+            return None
+
+        login_manual(driver_vis)  # aguarda meu-painel OU quadro-avisos/visualizar
+
+        if not _aguardar_sessao_ativa(driver_vis, timeout=30):
+            logger.error("[HEADLESS] Sessao OAuth nao completou apos login manual.")
+            finalizar_driver_fix(driver_vis)
+            return None
+
+        salvar_cookies_sessao(driver_vis, info_extra='login_manual_para_headless')
+        logger.info("[HEADLESS] Login concluido — fechando janela visivel e iniciando modo headless.")
+        finalizar_driver_fix(driver_vis)
+        driver_vis = None
+    except Exception as e:
+        logger.error("[HEADLESS] Erro no login via janela visivel: %s: %s", type(e).__name__, e)
+        if driver_vis:
+            try:
+                finalizar_driver_fix(driver_vis)
+            except Exception:
+                pass
+        return None
+
+    # ── Criar driver headless final com cookies recém-salvos ──────────────────
+    try:
+        driver_hl = criar_driver_vt(headless=True) if vt_mode else criar_driver_pc(headless=True)
+        if not driver_hl:
+            logger.error("[HEADLESS] Falha ao criar driver headless apos login.")
+            return None
+        verificar_e_aplicar_cookies(driver_hl)
+        logger.info("[HEADLESS] Driver headless pronto com sessao autenticada.")
+        return driver_hl
+    except Exception as e:
+        logger.error("[HEADLESS] Erro ao criar driver headless final: %s: %s", type(e).__name__, e)
+        return None
+
+
+def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
+    """Cria driver e faz login.
+
+    Para modo headless: tenta cookies existentes; se inválidos, abre janela
+    visível para login manual, salva cookies e inicia o headless com a sessão.
+    Para modo visível: fluxo original (cookies → login manual no browser).
     """
     headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
     vt_mode = driver_type in [DriverType.VT_VISIBLE, DriverType.VT_HEADLESS]
 
     logger.debug("criando driver: %s", driver_type.value)
 
+    if headless:
+        return _criar_driver_headless_com_login_visivel(driver_type, vt_mode)
+
+    # ── Modo visível: fluxo original ─────────────────────────────────────────
     try:
-        if vt_mode:
-            driver = criar_driver_vt(headless=headless)
-        else:
-            driver = criar_driver_pc(headless=headless)
+        driver = criar_driver_vt(headless=False) if vt_mode else criar_driver_pc(headless=False)
 
         if not driver:
             logger.error("ERRO em criar_e_logar_driver: falha ao criar driver")
             return None
 
-        # login_manual:
-        #   - tenta cookies salvos primeiro (sem interacao)
-        #   - se falhar, abre login.seam e aguarda URL meu-painel (sem ENTER)
-        #   - ao concluir, salva todos os cookies (incluindo httpOnly)
         if not login_manual(driver):
             logger.error("ERRO em criar_e_logar_driver: login nao concluido")
-            if headless:
-                finalizar_driver_fix(driver)
-                return None
-            # Fallback: aguarda login manual estendido (15min)
             if not _aguardar_login_manual(driver):
                 finalizar_driver_fix(driver)
                 return None
@@ -199,9 +267,6 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
         if not _aguardar_sessao_ativa(driver):
             logger.error("ERRO em criar_e_logar_driver: sessao OAuth nao completou "
                          "(access_token ausente apos o login)")
-            if headless:
-                finalizar_driver_fix(driver)
-                return None
             if not _aguardar_login_manual(driver):
                 finalizar_driver_fix(driver)
                 return None
@@ -293,7 +358,9 @@ def resetar_driver(driver) -> bool:
         # Navegar para página inicial
         driver.get("https://pje.trt2.jus.br/pjekz/")
         try:
-            WebDriverWait(driver, 5).until(EC.url_contains("pjekz"))
+            from selenium.webdriver.support.ui import WebDriverWait as _WDW
+            from selenium.webdriver.support import expected_conditions as _EC
+            _WDW(driver, 5).until(_EC.url_contains("pjekz"))
         except Exception:
             pass
 
@@ -447,7 +514,7 @@ def executar_prazo(driver) -> Dict[str, Any]:
     return _executar_fluxo("Prazo", _fluxo, driver, normalizar=False)
 
 
-def executar_pec(driver, filtro_d1: bool = True, data_minima: Optional[str] = None) -> Dict[str, Any]:
+def executar_pec(driver, filtro_d1: bool = False, data_minima: Optional[str] = None) -> Dict[str, Any]:
     """PEC Isolado — API modular (sem navegação DOM inicial)"""
     def _fluxo(d):
         resultado = pec_fluxo_api(d, filtro_d1=filtro_d1, data_minima=data_minima)
@@ -793,7 +860,23 @@ def menu_execucao() -> Optional[str]:
 
 
 def selecionar_ambiente_e_fluxo() -> Optional[Tuple[DriverType, bool, str]]:
-    """Seleciona ambiente e fluxo, repetindo apenas quando o fluxo e cancelado."""
+    """Seleciona ambiente e fluxo, repetindo apenas quando o fluxo e cancelado.
+
+    Modo nao-interativo (CI/agendamento): definir PJEPLUS_DRIVER e PJEPLUS_FLUXO.
+    Ex: PJEPLUS_DRIVER=PC_HEADLESS PJEPLUS_FLUXO=A py pw.py
+    """
+    _env_driver = os.environ.get("PJEPLUS_DRIVER")
+    _env_fluxo = os.environ.get("PJEPLUS_FLUXO")
+    if _env_driver and _env_fluxo:
+        try:
+            dt = DriverType[_env_driver]
+            if _env_fluxo in FLOW_HANDLERS:
+                logger.info("[ENV] PJEPLUS_DRIVER=%s PJEPLUS_FLUXO=%s — pulando menus.",
+                            _env_driver, _env_fluxo)
+                return dt, False, _env_fluxo
+        except KeyError:
+            logger.warning("[ENV] PJEPLUS_DRIVER='%s' invalido — usando menus interativos.", _env_driver)
+
     while True:
         resultado_menu = menu_ambiente()
         if not resultado_menu:
@@ -940,8 +1023,11 @@ PAINEL_URL = 'https://pje.trt2.jus.br/pjekz/gigs/meu-painel'
 def _menu_proximo_fluxo() -> Optional[str]:
     """Após finalizar um fluxo, pergunta qual o próximo (sem recriar driver).
 
-    Retorna a letra do fluxo escolhido, ou None se o usuário quiser encerrar.
+    Retorna None automaticamente em modo nao-interativo (CI/env var/headless sem tty).
     """
+    if os.environ.get("PJEPLUS_FLUXO") or not sys.stdin.isatty():
+        return None  # modo CI: encerrar apos o fluxo
+
     print()
     print('─' * 50)
     print('  FLUXO CONCLUÍDO — driver mantido aberto')
@@ -954,16 +1040,24 @@ def _resetar_para_painel(driver) -> bool:
     """Fecha abas extras e navega para meu-painel para a próxima execução."""
     try:
         _limpar_acesso_negado(driver)
-        abas = driver.window_handles
-        if len(abas) > 1:
-            for aba in abas[1:]:
+        handles = driver.window_handles
+        if len(handles) > 1:
+            primeira = handles[0]
+            for h in handles[1:]:
                 try:
-                    driver.switch_to.window(aba)
+                    driver.switch_to.window(h)
                     driver.close()
                 except Exception:
                     pass
-            driver.switch_to.window(abas[0])
-        driver.execute_script("document.body.style.zoom='100%'")
+            handles_restantes = driver.window_handles
+            if primeira in handles_restantes:
+                driver.switch_to.window(primeira)
+            elif handles_restantes:
+                driver.switch_to.window(handles_restantes[0])
+        try:
+            driver.execute_script("document.body.style.zoom='100%'")
+        except Exception:
+            pass
         driver.get(PAINEL_URL)
         return True
     except Exception as e:

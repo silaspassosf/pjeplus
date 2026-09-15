@@ -232,25 +232,29 @@ def _extrair_com_extrair_documento(driver: WebDriver) -> Optional[str]:
 
 def _fechar_aba_processo(driver: WebDriver) -> None:
     """
-    Helper: Fecha aba do processo e volta para lista.
+    Helper: Fecha aba do processo e volta para lista de forma segura.
     """
-    all_windows = driver.window_handles
-    main_window = all_windows[0]
-    current_window = driver.current_window_handle
-
-    if current_window != main_window and len(all_windows) > 1:
-        driver.close()
+    try:
+        all_windows = driver.window_handles
+        if not all_windows:
+            return
+        main_window = all_windows[0]
         try:
-            if main_window in driver.window_handles:
-                driver.switch_to.window(main_window)
-            elif driver.window_handles:
-                driver.switch_to.window(driver.window_handles[0])
-        except Exception as e:
-            logger.error(f"[LIMPEZA][ERRO] Falha ao alternar para aba válida: {e}")
-            try:
-                driver.current_url  # Testa se aba está acessível
-            except Exception:
-                logger.error("[LIMPEZA][ERRO] Tentou acessar aba já fechada.")
+            current_window = driver.current_window_handle
+        except Exception:
+            current_window = None
+
+        if current_window and current_window != main_window and len(all_windows) > 1:
+            driver.close()
+
+        # Garante foco em uma janela viva
+        handles_restantes = driver.window_handles
+        if main_window in handles_restantes:
+            driver.switch_to.window(main_window)
+        elif handles_restantes:
+            driver.switch_to.window(handles_restantes[0])
+    except Exception as e:
+        logger.warning(f"[LIMPEZA] Falha segura ao alternar abas: {e}")
 
 
 # ═══════════════════════════════════════════
@@ -398,17 +402,17 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         (['defiro a instauração'], ('criar_gigs[1//xs pec dec]', 'criar_gigs[10//xs mdd edital pgto]', ato_idpj)),
 
         # REGRA DE INCIDENTE IDPJ — decisão que defere a desconsideração em face de
-        # sócio(s). Deve vir ANTES de "tendo em vista que" para não cair no inicar_exec.
+        # sócio(s).
         (['Incidente de Desconsideração da Personalidade Jurídica instaurado em face'], (ato_meios,)),
 
         # REGRA DE INSTAURADO EM FACE
         (['instaurado em face'], (idpj,)),
 
-        # REGRA DE SUSEP — garantia/securitária, acima de tendo em vista
+        # REGRA DE SUSEP — garantia/securitária
         (['Tendo em vista que a SUSEP'], (ato_meios,)),
 
-        # REGRA DE TENDO EM VISTA
-        (['tendo em vista que', 'pagamento da parcela pendente', 'sob pena de sequestro'], (_inicar_exec,)),
+        # REGRA DE INICIAR EXECUÇÃO / PARCELA PENDENTE
+        (['pagamento da parcela pendente', 'sob pena de sequestro'], (_inicar_exec,)),
 
         # REGRA DE NÃO AMPARADA
         (['não está amparada'], (ato_meios,)),

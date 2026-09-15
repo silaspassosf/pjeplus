@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.50
+// @version      2.3.85
 // @description  Suite de ferramentas para PJe
 // @author       Silas
+// @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
+// @downloadURL  https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
 // ── PJe (cobre todas as rotas com um único match)
 // @match        https://pje.trt2.jus.br/aud/*
 // @match        https://pje.trt2.jus.br/*
@@ -22,6 +24,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        window.close
 // @grant        unsafeWindow
+// @grant        GM_setClipboard
 // @connect      raw.githubusercontent.com
 // @connect      consultadecep.com
 // @connect      viacep.com.br
@@ -32,6 +35,7 @@
 // ── pdf.js no sandbox do userscript (mesma técnica do hcalc.user.js:
 // a injeção dinâmica via <script> é bloqueada pelo CSP da página)
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js
+// @require      https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js
 // @require      https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=2.1.70
@@ -41,18 +45,20 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=2.1.70
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.3.50
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=2.1.77
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.3.85
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=2.1.80
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=2.1.70
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.1.78
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.1.79
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.3.19
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.1.2
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.11
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.js?v=2.3.23
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.js?v=2.3.83
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/marcar.js?v=1.3.2
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 
 (async function () {
@@ -60,8 +66,8 @@
     console.log('[Loader] PJe Tools Pro v2.2.0 loaded');
 
     const url = window.location.href;
-    const isAud = url.includes('/aud/');
-    
+    const isAud = url.includes('/aud') || (function () { try { return window.top && window.top.location.href.includes('/aud'); } catch (e) { return false; } })();
+
     // Módulos SISB carregados via @require (git), como os demais módulos.
     // Permite execução em iframes APENAS se for ambiente AUD
     if (window.self !== window.top && !isAud) return;
@@ -69,7 +75,13 @@
     // W = window real da página (unsafeWindow quando disponível)
     const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
 
-    const isReceita  = url.includes('cav.receita.fazenda.gov.br');
+    // ── Módulo AUD (carregado via @require de Script/modules/Aud/Aud.js) ──
+    if (isAud) {
+        if (window.PJeAud && typeof window.PJeAud.init === 'function') {
+            window.PJeAud.init();
+        }
+    }
+    const isReceita = url.includes('cav.receita.fazenda.gov.br');
     const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');
     const isPjeDomain = url.includes('pje.trt2.jus.br') || url.includes('pje1g.trt2.jus.br');
     const isBcb = url.includes('bcb.gov.br/saj/requisicao-extratos-cadastro');
@@ -90,7 +102,7 @@
                     padding:10px 15px;background-color:#ff6600;color:white;border:none;
                     border-radius:4px;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);
                     font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,0.3);`;
-                
+
                 btn.onclick = async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -105,7 +117,7 @@
                     btn.textContent = '🦁 Preencher BCB';
                     btn.disabled = false;
                 };
-                
+
                 document.body.appendChild(btn);
                 console.log('[Loader] Botão BCB criado com sucesso');
             }
@@ -139,7 +151,23 @@
             const routeMinutas = currentUrl.includes('/comunicacoesprocessuais/minutas');
             const routeDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl);
             const routeObrigacao = currentUrl.includes('/obrigacao-pagar/');
-            const routeAud = window.location.pathname.startsWith('/aud/') && window.location.hash.startsWith('#/audiencia');
+            const routeAud = currentUrl.includes('/aud');
+            const routeRetificar = /\/processo\/\d+\/retificar/.test(currentUrl);
+            const routePauta = currentUrl.includes('/pauta-audiencias');
+
+            if (routeRetificar) {
+                if (window.PjeMarcarAud && window.PjeMarcarAud.initRetificar) {
+                    window.PjeMarcarAud.initRetificar();
+                }
+                return;
+            }
+
+            if (routePauta) {
+                if (window.PjeMarcarAud && window.PjeMarcarAud.initPauta) {
+                    window.PjeMarcarAud.initPauta();
+                }
+                return;
+            }
 
             if (routeMinutas) {
                 if (window.__infojudWorkerRodando) return;
@@ -162,39 +190,32 @@
                         } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(currentUrl)) {
                             window.PjeRegistrarDebito?.onInclusao();
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }, 1500);
                 return;
             }
 
             if (routeAud) {
                 console.log('[Loader] Detectado ambiente AUD:', window.location.href);
+                window.__pjeAudFechadoManualmente = false;
 
-                setTimeout(() => {
+                const tentarInitAud = () => {
                     const audApi = window.PJeAud || W.PJeAud;
-
-                    if (typeof audApi?.init !== 'function') {
-                        console.error('[Loader] PJeAud.init não encontrado.', {
-                            windowPJeAud: window.PJeAud,
-                            unsafeWindowPJeAud: W.PJeAud
-                        });
-                        return;
+                    if (typeof audApi?.init === 'function') {
+                        audApi.init();
                     }
+                };
 
-                    if (window.__pjeAudInicializado) {
-                        console.log('[Loader] AUD já inicializado.');
-                        return;
-                    }
-
-                    window.__pjeAudInicializado = true;
-                    audApi.init();
-                    console.log('[Loader] PJeAud inicializado com sucesso.');
-                }, 1500);
-                
+                tentarInitAud();
+                setTimeout(tentarInitAud, 500);
+                setTimeout(tentarInitAud, 1500);
                 return;
             }
 
             if (routeDetalhe) {
+                if (window.PjeMarcarAud && window.PjeMarcarAud.checarConfirmacao) {
+                    window.PjeMarcarAud.checarConfirmacao();
+                }
                 window.PJeState && window.PJeState.dispose && window.PJeState.dispose();
                 bootDetalhe();
                 return;
@@ -219,6 +240,11 @@
             console.log('[Loader] Inicializando painel e atalhos. inicializarPainel existe?', typeof window.inicializarPainel, '| initAtalhos existe?', typeof window.initAtalhos);
             window.inicializarPainel && window.inicializarPainel();
             window.initAtalhos && window.initAtalhos();
+            window.__pjeAudFechadoManualmente = false;
+            const audApi = window.PJeAud || W.PJeAud;
+            if (typeof audApi?.init === 'function') {
+                audApi.init();
+            }
         }
     }
 })();

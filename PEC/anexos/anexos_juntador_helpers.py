@@ -55,30 +55,46 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
     driver = self.driver
     print('[JUNTADA][DEBUG] Abrindo interface de anexação...')
 
-    # 0. Já estamos na página de anexação? Não reabre (evita retry desnecessário).
+    # 0. Já estamos na página de anexação ou o campo já está visível? Prossegue direto.
     try:
-        if '/anexar' in driver.current_url:
-            print('[JUNTADA][DEBUG] Já na página /anexar, prosseguindo...')
+        if '/anexar' in driver.current_url or driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'):
+            print('[JUNTADA][DEBUG] Já na interface de anexação, prosseguindo...')
             return True
     except Exception:
         pass
 
-    # 1. Clique no menu (ícone hambúrguer)
-    print('[JUNTADA][DEBUG] Clicando no menu hambúrguer...')
-    if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
-        return False
-
-    # 2. Clique em "Anexar Documentos"
-    print('[JUNTADA][DEBUG] Clicando em "Anexar documentos"...')
+    # 1. Obter handle original para a transição
     handle_original = driver.current_window_handle
-    if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
-        return False
 
-    # 3. Aguarda a nova aba/janela (poll, sem corrida) e muda para ela
+    # 2. Estratégia Rápida: Abrir via URL ou clique JS injetado (ignora timeouts do DOM)
+    try:
+        url_atual = driver.current_url or ''
+        import re
+        match = re.search(r'/processo/(\d+)', url_atual)
+        if match:
+            id_processo = match.group(1)
+            url_anexar = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/anexar"
+            print(f'[JUNTADA][DEBUG] ID do processo detectado ({id_processo}). Abrindo /anexar diretamente via JS...')
+            driver.execute_script(f"window.open('{url_anexar}', '_blank');")
+        else:
+            print('[JUNTADA][DEBUG] ID não encontrado na URL. Clicando no menu via JS...')
+            driver.execute_script("document.querySelector('i.fa-bars.icone-botao-menu')?.click();")
+            import time
+            time.sleep(0.3)
+            driver.execute_script("document.querySelector('button[aria-label=\"Anexar Documentos\"]')?.click();")
+    except Exception as e:
+        print(f'[JUNTADA][DEBUG] Falha na abertura rápida, fallback ativado: {e}')
+        # Fallback de segurança caso o JS falhe completamente
+        if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
+            pass
+        if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
+            pass
+
+    # 3. Aguarda a nova aba/janela e muda para ela
     print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
     nova_aba = None
     try:
-        nova_aba = aguardar_nova_aba(driver, handle_original, timeout=6)
+        nova_aba = aguardar_nova_aba(driver, handle_original, timeout=3)
     except Exception:
         nova_aba = None
 
@@ -106,18 +122,8 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
             driver.switch_to.window(handle_original)
             print('[JUNTADA][DEBUG] Aba /anexar não encontrada, prosseguindo na aba atual...')
 
-    # 4. Aguarda a interface de anexação renderizada (evita o retry lento)
-    try:
-        aguardar_renderizacao_nativa(driver, 'input[aria-label="Tipo de Documento"]', 'aparecer', 5)
-    except Exception:
-        pass
-    # Presença ≠ prontidão: a aba /anexar recém-aberta renderiza o input antes
-    # de o Angular habilitar o formulário — a 1ª tentativa falhava em preencher
-    # todos os campos e só a 2ª (pós refresh) funcionava.
-    try:
-        espera.ate_habilitar(driver, 'input[aria-label="Tipo de Documento"]', teto=8)
-    except Exception:
-        pass
+    # 4. Aguarda prontidão do formulário
+    espera.ate_habilitar(driver, 'input[aria-label="Tipo de Documento"]', teto=4)
     return True
 
 

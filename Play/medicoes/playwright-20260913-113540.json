@@ -1,0 +1,50 @@
+{
+  "nome": "playwright-20260913-113540",
+  "backend": "playwright",
+  "total": 2869.303,
+  "tempo_morto": 0.0,
+  "qtd_sleeps": 0,
+  "tempo_helper": 18.201,
+  "chamadas_helper": 85,
+  "tempo_espera": 5.897,
+  "chamadas_espera": 63,
+  "etapas": [
+    {
+      "nome": "execucao completa",
+      "segundos": 2869.303,
+      "erro": null
+    }
+  ],
+  "por_helper": {
+    "Fix.core.wait_for_page_load": {
+      "n": 17,
+      "segundos": 12.057,
+      "falhas": 0
+    },
+    "Fix.espera.ate_js": {
+      "n": 21,
+      "segundos": 2.442,
+      "falhas": 0
+    },
+    "Fix.espera.ate_aparecer": {
+      "n": 19,
+      "segundos": 2.201,
+      "falhas": 0
+    },
+    "Fix.espera.assentar": {
+      "n": 21,
+      "segundos": 1.012,
+      "falhas": 0
+    },
+    "Fix.core.aguardar_renderizacao_nativa": {
+      "n": 5,
+      "segundos": 0.247,
+      "falhas": 0
+    },
+    "Fix.espera.ate_sumir": {
+      "n": 2,
+      "segundos": 0.242,
+      "falhas": 0
+    }
+  }
+}

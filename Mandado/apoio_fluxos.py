@@ -225,15 +225,67 @@ def _criar_api_client_local(driver: WebDriver):
         return None
 
 
+def _extrair_texto_pdf_bytes(pdf_bytes: bytes, log: bool = False) -> str:
+    """Extrai texto completo de bytes de PDF com cascata de engines:
+    1. pdfplumber (padrão PJePlus)
+    2. pymupdf (fitz - alta velocidade)
+    3. pypdfium2 (renderizador Chromium/PDFium)
+    """
+    if not pdf_bytes or not pdf_bytes.startswith(b'%PDF'):
+        return ""
+
+    import io
+
+    # 1. Tentar pdfplumber
+    try:
+        import pdfplumber
+        textos = []
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            for pag in pdf.pages:
+                t = pag.extract_text()
+                if t:
+                    textos.append(t)
+        res = '\n'.join(textos).strip()
+        if res:
+            return res
+    except Exception as e:
+        if log:
+            logger.debug('[PDF_EXTRACT] pdfplumber falhou/ausente: %s', e)
+
+    # 2. Fallback: pymupdf (fitz)
+    try:
+        import pymupdf
+        doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+        textos = [page.get_text() or '' for page in doc]
+        res = '\n'.join(textos).strip()
+        if res:
+            return res
+    except Exception as e:
+        if log:
+            logger.debug('[PDF_EXTRACT] pymupdf falhou/ausente: %s', e)
+
+    # 3. Fallback: pypdfium2
+    try:
+        import pypdfium2
+        pdf = pypdfium2.PdfDocument(pdf_bytes)
+        textos = [page.get_textpage().get_text_range() or '' for page in pdf]
+        res = '\n'.join(textos).strip()
+        if res:
+            return res
+    except Exception as e:
+        if log:
+            logger.debug('[PDF_EXTRACT] pypdfium2 falhou/ausente: %s', e)
+
+    return ""
+
+
 def _extrair_texto_certidao_via_api(driver: WebDriver, log: bool = True) -> Optional[str]:
     """Extrai o texto COMPLETO da certidão de devolução via API (todas as páginas).
 
-    Baixa o PDF binário pelo endpoint /conteudo e extrai com pdfplumber,
+    Baixa o PDF binário pelo endpoint /conteudo e extrai com cascata de PDF,
     mesmo approach usado em bianca/triagem/coleta.py. Não depende do PDF
     viewer do PJe (que só renderiza uma página por vez).
     """
-    import io as _io
-
     id_processo = _extrair_id_processo_da_url(driver)
     if not id_processo:
         if log:
@@ -294,31 +346,21 @@ def _extrair_texto_certidao_via_api(driver: WebDriver, log: bool = True) -> Opti
                 logger.warning('[CERTIDAO_API] Resposta não é PDF (magic=%r)', magic)
             return None
 
-        try:
-            import pdfplumber
-        except ImportError:
+        texto_total = _extrair_texto_pdf_bytes(resp.content, log=log)
+        if texto_total:
             if log:
-                logger.warning('[CERTIDAO_API] pdfplumber não instalado')
+                logger.info('[CERTIDAO_API] Texto extraído: %d chars', len(texto_total))
+            return texto_total
+        else:
+            if log:
+                logger.warning('[CERTIDAO_API] Não foi possível extrair texto do PDF')
             return None
-
-        textos = []
-        with pdfplumber.open(_io.BytesIO(resp.content)) as pdf:
-            for i, pag in enumerate(pdf.pages):
-                t = pag.extract_text()
-                if t:
-                    textos.append(t)
-                if log:
-                    logger.debug('[CERTIDAO_API] Pág %d: %d chars', i + 1, len(t or ''))
-
-        texto_total = '\n'.join(textos).strip()
-        if log:
-            logger.info('[CERTIDAO_API] Texto extraído: %d chars, %d páginas', len(texto_total), len(pdf.pages))
-        return texto_total if texto_total else None
 
     except Exception as e:
         if log:
             logger.error('[CERTIDAO_API] Erro: %s', e)
         return None
+
 
 
 
@@ -389,24 +431,15 @@ def _extrair_texto_documento_timeline_api(driver: WebDriver, match_fn, log: bool
                 logger.warning(f'[MANDADOS][OUTROS][API]{contexto} Resposta não é PDF (magic=%r)', magic)
             return None
 
-        try:
-            import pdfplumber
-        except ImportError:
+        texto_total = _extrair_texto_pdf_bytes(resp.content, log=log)
+        if texto_total:
             if log:
-                logger.warning(f'[MANDADOS][OUTROS][API]{contexto} pdfplumber não instalado')
+                logger.info(f'[MANDADOS][OUTROS][API]{contexto} Texto extraído: %d chars', len(texto_total))
+            return texto_total
+        else:
+            if log:
+                logger.warning(f'[MANDADOS][OUTROS][API]{contexto} Falha ao extrair texto do PDF')
             return None
-
-        textos = []
-        with pdfplumber.open(_io.BytesIO(resp.content)) as pdf:
-            for pag in pdf.pages:
-                t = pag.extract_text()
-                if t:
-                    textos.append(t)
-
-        texto_total = '\n'.join(textos).strip()
-        if log:
-            logger.info(f'[MANDADOS][OUTROS][API]{contexto} Texto extraído: %d chars', len(texto_total))
-        return texto_total if texto_total else None
 
     except Exception as e:
         if log:
@@ -525,30 +558,18 @@ def _extrair_documentos_decisao_despacho_api(driver: WebDriver, log: bool = True
 						logger.warning('[ARGOS_API] Doc %s não é PDF (magic=%r)', id_doc, (pdf_bytes or b'')[:5])
 					continue
 
-				try:
-					import pdfplumber
-				except ImportError:
-					if log:
-						logger.warning('[ARGOS_API] pdfplumber não instalado')
-					return resultados  # retorna o que já conseguiu
-
-				textos = []
-				with pdfplumber.open(_io.BytesIO(pdf_bytes)) as pdf:
-					for pag in pdf.pages:
-						t = pag.extract_text()
-						if t:
-							textos.append(t)
-
-				texto_total = '\n'.join(textos).strip()
+				texto_total = _extrair_texto_pdf_bytes(pdf_bytes, log=log)
 				if texto_total:
 					if log:
 						logger.info(
-							'[ARGOS_API] Documento tipo=%s extraído: %d chars, %d páginas',
+							'[ARGOS_API] Documento tipo=%s extraído: %d chars',
 							tipo_doc,
 							len(texto_total),
-							len(pdf.pages),
 						)
 					resultados.append((texto_total, tipo_doc, idx_original))
+				else:
+					if log:
+						logger.warning('[ARGOS_API] Não foi possível extrair texto do doc %s', id_doc)
 
 			except Exception as e:
 				if log:

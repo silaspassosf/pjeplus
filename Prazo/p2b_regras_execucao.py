@@ -365,7 +365,7 @@ REGEX_PATTERNS = {
     'calculos': re.compile(r'RECLAMANTE para apresentar cálculos de liquidação', re.IGNORECASE),
     'tentativas': re.compile(r'deverá realizar tentativas', re.IGNORECASE),
     'instauracao': re.compile(r'defiro a instauração', re.IGNORECASE),
-    'tendo_em_vista': re.compile(r'tendo em vista que|pagamento da parcela pendente|sob pena de sequestro', re.IGNORECASE),
+    'iniciar_exec_outros': re.compile(r'pagamento da parcela pendente|sob pena de sequestro', re.IGNORECASE),
     'nao_amparada': re.compile(r'não está amparada', re.IGNORECASE),
     'instaurado_face': re.compile(r'instaurado em face', re.IGNORECASE)
 }

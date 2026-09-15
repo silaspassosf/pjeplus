@@ -6,6 +6,7 @@ permite comparar sem vies: qualquer diferenca no relatorio vem do backend, nao
 de o teste ser diferente.
 
     py pw.py                     # Playwright (nativo ligado)
+    py pw.py --seletores         # + monitor de assertividade de seletores e fallbacks
     py pw.py --selenium          # Selenium, para o baseline
     py pw.py --trace             # + trace.zip navegavel do Playwright
     py pw.py --sem-nativo        # so compatibilidade, sem helpers nativos
@@ -86,13 +87,24 @@ def main():
 
         factory.criar_driver_PC = criar_com_trace
 
+    seletores = "--seletores" in sys.argv or "--monitor" in sys.argv
+    monitor_sel = None
+    if seletores:
+        from pjeplay.monitor_seletores import MonitorSeletores
+        monitor_sel = MonitorSeletores(raiz_projeto=RAIZ, verbose=True)
+        monitor_sel.ativar()
+
     cancelado = False
-    with medicao.sessao(rotulo, backend=backend) as m:
-        with m.etapa("execucao completa"):
-            try:
-                cancelado = x.main() == "cancelado"
-            except KeyboardInterrupt:
-                print("\ninterrompido - o relatorio parcial ainda vale")
+    try:
+        with medicao.sessao(rotulo, backend=backend) as m:
+            with m.etapa("execucao completa"):
+                try:
+                    cancelado = x.main() == "cancelado"
+                except KeyboardInterrupt:
+                    print("\ninterrompido - o relatorio parcial ainda vale")
+    finally:
+        if monitor_sel:
+            monitor_sel.desativar()
 
     if trace and driver_visto:
         medicao.finalizar_trace(
@@ -101,6 +113,10 @@ def main():
     m.imprimir()
     destino = m.salvar(os.path.join(MEDICOES, f"{rotulo}.json"))
     print(f"\nrelatorio: {destino}")
+    if monitor_sel:
+        monitor_sel.imprimir_resumo()
+        destino_sel = monitor_sel.salvar(os.path.join(MEDICOES, f"seletores-{rotulo}.json"))
+        print(f"relatorio seletores: {destino_sel}")
     print(f"comparar:  py pw.py --comparar <baseline.json> {destino}")
     return CODIGO_SAIR if cancelado else 0
 

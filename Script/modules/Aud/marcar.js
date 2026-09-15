@@ -176,8 +176,83 @@
 
         overlay(`Navegando para ${dataStr} às ${horaStr}…`, '#1565c0');
         await navegarCalendario(dataStr);
+
+        // Julgamento (e Encerramento de instrução via ata): o modal "Novo Horário -
+        // Designação de Audiência" é aberto pelo botão global Designar (cabeçalho),
+        // sem procurar horário na lista — o slot de julgamento não existe na pauta.
+        if (tipo === 'Julgamento' || tipo === 'Instrução') {
+            await abrirModalNovoHorario();
+            await preencherModalNovoHorario(task.numero, dataStr, horaStr, tipo);
+            return;
+        }
+
         await clicarSlotHora(horaStr, tipo);
         await preencherModal(task.numero);
+    }
+
+    // ── Modal "Novo Horário" (julgamento/encerramento de instrução) ────────────
+    // Botão global "Designar Audiência" no cabeçalho da pauta do dia.
+    async function abrirModalNovoHorario() {
+        const btn = await waitXPath(
+            "//button[@mattooltip='Designar Audiência' or @aria-label='Designar Audiência']" +
+            "[.//i[contains(@class,'fa-plus-circle')]]",
+            15000
+        );
+        if (!btn) throw new Error('Botão global Designar Audiência não encontrado');
+        btn.click();
+        await sleep(800);
+    }
+
+    // Preenche o modal "Novo Horário - Designação de Audiência":
+    // nº do processo e data já vêm preenchidos pela navegação; informa hora e tipo.
+    async function preencherModalNovoHorario(numero, dataStr, horaStr, tipo) {
+        const modal = await waitEl('mat-dialog-container', 15000);
+        if (!modal) throw new Error('Modal Novo Horário não abriu');
+
+        // Mapeia tipo do dialog → texto da opção do dropdown
+        const mapaTipo = {
+            'Julgamento': 'Encerramento de instrução por videoconferência',
+            'Instrução': 'Instrução por videoconferência'
+        };
+        const textoOpcao = mapaTipo[tipo] || 'Una por videoconferência';
+
+        // 1) Hora (pje-horario > input#horario)
+        const inpHora = modal.querySelector('pje-horario input#horario')
+                     || modal.querySelector('input#horario');
+        if (!inpHora) throw new Error('Campo Horário de Início não encontrado no modal');
+        setAngularInput(inpHora, horaStr);
+        await sleep(400);
+
+        // 2) Tipo da audiência (mat-select → dropdown)
+        const selTipo = modal.querySelector('mat-select');
+        if (!selTipo) throw new Error('Select Tipo da audiência não encontrado no modal');
+        selTipo.click();
+        const painel = await waitEl('.mat-select-panel', 10000);
+        if (!painel) throw new Error('Dropdown de Tipo da audiência não abriu');
+        const opcao = [...painel.querySelectorAll('mat-option')]
+            .find(o => (o.textContent || '').trim().toLowerCase().includes(textoOpcao.toLowerCase()));
+        if (!opcao) throw new Error(`Opção "${textoOpcao}" não encontrada no dropdown`);
+        console.log('[MarcarAud][Pauta] tipo selecionado no modal:', opcao.textContent.trim());
+        opcao.click();
+        await sleep(600);
+
+        // 3) Confirmar
+        const btnOk = await waitXPath(
+            "//mat-dialog-container//button[.//span[normalize-space(.)='Confirmar']]", 10000
+        );
+        if (!btnOk) throw new Error('Botão Confirmar não encontrado');
+        btnOk.click();
+        await sleep(1000);
+
+        if (!await waitXPath(
+            "//mat-dialog-container//*[contains(normalize-space(.),'Designa') and contains(normalize-space(.),'Confirmad')]",
+            10000
+        )) throw new Error('Confirmação de designação não apareceu no modal');
+
+        const fechar = await waitXPath(
+            "//mat-dialog-container//button[.//span[normalize-space(.)='Fechar']]", 10000
+        );
+        if (fechar) { fechar.click(); await sleep(500); }
     }
 
     // ── Normalização de data (dd/mm/aa ou dd/mm/aaaa → dd/mm/aaaa) ────────────
@@ -375,13 +450,19 @@
         // Input Hora
         const lblHora = document.createElement('label');
         lblHora.textContent = 'Hora (HH:MM):';
-        lblHora.style.cssText = `font-size:12px;color:#555;font-weight:bold;`;
-        const inpHora = document.createElement('input');
+        lblHora.style.cssText = `font-size:12px;color:#555;font-weight:bold;`;        const inpHora = document.createElement('input');
         inpHora.type = 'text';
         inpHora.placeholder = 'HH:MM';
         inpHora.style.cssText = `padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;`;
         form.appendChild(lblHora);
         form.appendChild(inpHora);
+
+        // Máscara HH:MM: somente dígitos, separador automático após o 2º dígito.
+        inpHora.addEventListener('input', () => {
+            let v = inpHora.value.replace(/\D/g, '').slice(0, 4);
+            if (v.length > 2) v = v.slice(0, 2) + ':' + v.slice(2);
+            inpHora.value = v;
+        });
         
         // Select Tipo
         const lblTipo = document.createElement('label');

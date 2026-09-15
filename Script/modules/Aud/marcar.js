@@ -209,6 +209,9 @@
         const modal = await waitEl('mat-dialog-container', 15000);
         if (!modal) throw new Error('Modal Novo Horário não abriu');
 
+        // Aguarda o auto-preenchimento do nº do processo antes dos outros campos
+        await aguardarNumeroProcesso(modal, numero);
+
         // Mapeia tipo do dialog → texto da opção do dropdown
         const mapaTipo = {
             'Julgamento': 'Encerramento de instrução por videoconferência',
@@ -316,15 +319,35 @@
         await sleep(500);
     }
 
+    // Aguarda o PJe preencher automaticamente o nº do processo no modal
+    // (Angular preenche de forma assíncrona após abrir o dialog). Só preenche
+    // manualmente se o auto-preenchimento não ocorrer dentro do prazo.
+    async function aguardarNumeroProcesso(modal, numero, ms = 8000) {
+        const input = modal.querySelector('input#inputNumeroProcesso');
+        if (!input) throw new Error('Campo Número do Processo não encontrado no modal');
+
+        const t0 = Date.now();
+        while (Date.now() - t0 < ms) {
+            const valor = (input.value || '').trim();
+            if (valor) {
+                console.log('[MarcarAud][Pauta] nº do processo pré-preenchido:', valor);
+                return valor;
+            }
+            await sleep(150);
+        }
+
+        console.warn('[MarcarAud][Pauta] auto-preenchimento do nº do processo não ocorreu; preenchendo manualmente:', numero);
+        setAngularInput(input, numero);
+        await sleep(600);
+        return (input.value || '').trim();
+    }
+
     async function preencherModal(numero) {
         const modal = await waitEl('mat-dialog-container', 10000);
         if (!modal) throw new Error('Modal de audiência não abriu');
 
-        const input = modal.querySelector('input#inputNumeroProcesso');
-        if (input && !(input.value || '').trim()) {
-            setAngularInput(input, numero);
-            await sleep(800);
-        }
+        // Aguarda o auto-preenchimento do nº do processo antes dos outros campos
+        await aguardarNumeroProcesso(modal, numero);
 
         const btnOk = await waitXPath(
             "//mat-dialog-container//button[.//span[normalize-space(.)='Confirmar']]", 10000

@@ -77,6 +77,8 @@
         "modules/hcalc/BASE/hcalc-overlay-partes.js",
         "modules/hcalc/BASE/hcalc-overlay-decisao.js",
         "modules/hcalc/BASE/hcalc-overlay.js",
+        "modules/aud/marcar.js",
+        "modules/pdf/pdf.compress.js",
         "content/loader.js"
       ],
       "run_at": "document_idle",

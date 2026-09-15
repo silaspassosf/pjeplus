@@ -35,7 +35,7 @@
                 `min-width:190px;user-select:none;transition:box-shadow .2s;`;
 
             const titulo = document.createElement('div');
-            titulo.textContent = 'PJeT Pro v1.0';
+            titulo.textContent = 'PJeT Pro v1.1';
             titulo.style.cssText = `font-weight:bold;margin-bottom:8px;color:#333;font-size:12px;` +
                 `text-align:center;border-bottom:1px solid #ddd;padding-bottom:6px;cursor:move;`;
             titulo.title = 'Arraste para mover o painel';
@@ -221,6 +221,64 @@
                     }
                 },
                 titulo: 'Abrir Nova Pesquisa no ARGOS'
+            },
+            {
+                key: 'pdf',
+                id: 'btnAjustarPDF',
+                texto: '📎 PDF',
+                bg: '#e67e22',
+                fn: async () => {
+                    if (typeof window.executarAjustarPDF === 'function') {
+                        await window.executarAjustarPDF();
+                    } else {
+                        showToast('Módulo PDF não carregado', '#dc3545', 3000);
+                    }
+                },
+                titulo: 'Comprimir/Dividir PDF para envio no PJe'
+            },
+            {
+                key: 'aud',
+                id: 'btnAud',
+                texto: '📅 Aud',
+                bg: '#1565c0',
+                fn: async (e) => {
+                    const btn = (e?.target?.closest?.('button')) || document.getElementById('btnAud');
+                    if (!btn || btn.dataset.expanded === 'true') return;
+                    btn.dataset.expanded = 'true';
+                    btn.innerHTML = '';
+                    btn.style.display = 'flex';
+                    btn.style.gap = '4px';
+                    btn.style.padding = '4px';
+
+                    const b1 = document.createElement('button');
+                    b1.textContent = 'Nova';
+                    b1.style.cssText = 'flex:1;background:#fff;color:#1565c0;border:none;border-radius:2px;font-size:10px;font-weight:bold;cursor:pointer;';
+                    b1.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (window.PjeMarcarAud && typeof window.PjeMarcarAud.executarNova === 'function') {
+                            window.PjeMarcarAud.executarNova();
+                        } else {
+                            showToast('Módulo Aud não carregado', '#dc3545', 3000);
+                        }
+                    };
+
+                    const b2 = document.createElement('button');
+                    b2.textContent = 'Ata';
+                    b2.style.cssText = 'flex:1;background:#fff;color:#1565c0;border:none;border-radius:2px;font-size:10px;font-weight:bold;cursor:pointer;';
+                    b2.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (window.PjeMarcarAud && typeof window.PjeMarcarAud.executarAta === 'function') {
+                            window.PjeMarcarAud.executarAta();
+                        } else {
+                            showToast('Módulo Aud não carregado', '#dc3545', 3000);
+                        }
+                    };
+
+                    btn.appendChild(b1);
+                    btn.appendChild(b2);
+                },
+                titulo: 'Agendar Audiência',
+                full: true
             }
         ];
 

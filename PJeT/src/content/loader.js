@@ -4,6 +4,17 @@
 // Orquestrador principal da extensão.
 // Lê preferências do storage, detecta contexto SPA e inicializa
 // os módulos ativos com logging estruturado e rastreamento de erros.
+//
+// FLUXO DE AÇÕES (roteamento por URL):
+//   Externos (Receita/SIMBA/BCB)        → log/botão dedicado
+//   /comunicacoesprocessuais/minutas    → infojud.js (runInfojudWorker)
+//   /obrigacao-pagar/:id/cadastro|inclusao → registrar_debito.js
+//   /processo/:id/retificar             → aud/marcar.js (initRetificar)
+//   /pauta-audiencias                   → aud/marcar.js (initPauta)
+//   /aud/#/audiencia                    → aud/Aud.js (PJeAud.init)
+//   /processo/:id/detalhe               → painel.js (botões) +
+//                                         aud/marcar.js (checarConfirmacao) +
+//                                         atalhos + hcalc (bootDetalhe)
 // ─────────────────────────────────────────────────────────────────
 
 const _browser = typeof browser !== 'undefined' ? browser : (typeof chrome !== 'undefined' ? chrome : null);
@@ -164,6 +175,37 @@ function rotear(prefs) {
     const rotaObrigacao = cur.includes('/obrigacao-pagar/');
     const rotaAud       = window.location.pathname.startsWith('/aud/') &&
                           window.location.hash.startsWith('#/audiencia');
+    // Aud marcar — rotas auxiliares do fluxo de agendamento de audiência
+    const rotaRetificar = /\/processo\/\d+\/retificar/.test(cur);
+    const rotaPauta     = cur.includes('/pauta-audiencias');
+
+    // ── /processo/:id/retificar — Aud marcar: desmarcar 100% digital ─
+    if (rotaRetificar) {
+      log.router('Rota ativa: Retificar (/processo/:id/retificar)');
+      try {
+        if (window.PjeMarcarAud?.initRetificar) {
+          log.loader('Disparando PjeMarcarAud.initRetificar()');
+          window.PjeMarcarAud.initRetificar();
+        }
+      } catch (err) {
+        log.error('AUD-MARCAR', 'Erro em initRetificar', err);
+      }
+      return;
+    }
+
+    // ── /pauta-audiencias — Aud marcar: agendar na pauta ─────────────
+    if (rotaPauta) {
+      log.router('Rota ativa: Pauta de Audiências (/pauta-audiencias)');
+      try {
+        if (window.PjeMarcarAud?.initPauta) {
+          log.loader('Disparando PjeMarcarAud.initPauta()');
+          window.PjeMarcarAud.initPauta();
+        }
+      } catch (err) {
+        log.error('AUD-MARCAR', 'Erro em initPauta', err);
+      }
+      return;
+    }
 
     // ── /minutas — InfoJud worker ────────────────────────────────────
     if (rotaMinutas) {
@@ -238,6 +280,14 @@ function rotear(prefs) {
     // ── /detalhe — módulos principais ───────────────────────────────
     if (rotaDetalhe) {
       log.router('Rota ativa: Detalhe do Processo (/processo/:id/detalhe)');
+      // Aud marcar: retorno pós-marcação → exibir confirmação (antes do dispose)
+      try {
+        if (window.PjeMarcarAud?.checarConfirmacao) {
+          window.PjeMarcarAud.checarConfirmacao();
+        }
+      } catch (err) {
+        log.error('AUD-MARCAR', 'Erro em checarConfirmacao', err);
+      }
       window.PJeState?.dispose?.();
       bootDetalhe(prefs);
       return;

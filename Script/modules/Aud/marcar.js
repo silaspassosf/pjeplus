@@ -369,7 +369,8 @@
         }
 
         const regexData = /\b(\d{2})\/(\d{2})\/(\d{2}|\d{4})\b/;
-        const regexHora = /\b(\d{1,2}:\d{2})\b/;
+        // Hora aceita "17:10" e "17h10" (padrão comum nas atas: "às 17h10" / "às 17h10min").
+        const regexHora = /\b(\d{1,2})\s*(?::|h)\s*(\d{2})?\b/i;
         const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
         // Varre cada segmento-alvo junto com o seguinte (cobre frases cuja
@@ -380,18 +381,20 @@
             const mD = bloco.match(regexData);
             const mH = bloco.match(regexHora);
             if (!mD) { console.log(`[MarcarAud][Ata] alvo [${i}] sem data no bloco`); continue; }
-            if (!mH) { console.log(`[MarcarAud][Ata] alvo [${i}] sem hora no bloco`); continue; }
+            if (!mH || !mH[2]) { console.log(`[MarcarAud][Ata] alvo [${i}] sem hora no bloco`); continue; }
             const yyyy = mD[3].length === 2 ? '20' + mD[3] : mD[3];
             const data = `${mD[1]}/${mD[2]}/${yyyy}`;
             const dt = new Date(+yyyy, +mD[2] - 1, +mD[1]);
+            const hora = `${mH[1].padStart(2, '0')}:${mH[2]}`;
             const posterior = dt >= hoje; // hoje ou futuro é marcável (delta >= 0)
-            console.log(`[MarcarAud][Ata] candidato [${i}] → ${data} ${mH[1]} | hoje ou futuro? ${posterior}`);
-            candidatos.push({ data, hora: mH[1].padStart(5, '0'), dt, posterior, seg: segmentos[i] });
+            console.log(`[MarcarAud][Ata] candidato [${i}] → ${data} ${hora} | hoje ou futuro? ${posterior}`);
+            candidatos.push({ data, hora, dt, posterior, seg: segmentos[i] });
         }
         if (!candidatos.length) { console.log('[MarcarAud][Ata] nenhum candidato data+hora nos alvos'); return null; }
 
-        // Preferência: data posterior a hoje; fallback: primeira candidata
-        const escolhido = candidatos.find(c => c.posterior) || candidatos[0];
+        // Preferência: a designação fica sempre no FIM da ata (nunca é a data do
+        // cabeçalho) — pega a última candidata hoje/futura; fallback: última de todas.
+        const escolhido = [...candidatos].reverse().find(c => c.posterior) || candidatos[candidatos.length - 1];
         if (!escolhido.posterior) console.warn('[MarcarAud][Ata] nenhuma data hoje/futura — usando a primeira:', escolhido.data);
 
         // Tipo pelo segmento escolhido

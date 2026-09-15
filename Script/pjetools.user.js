@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.83
+// @version      2.3.84
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/pjetools.user.js
@@ -57,7 +57,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/Aud.js?v=2.3.83
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/marcar.js?v=1.3.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/Aud/marcar.js?v=1.3.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/notebook/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 

@@ -4,17 +4,21 @@
         return href.indexOf('/detalhe') !== -1 || /\/processo\/\d+\/detalhe/.test(href);
     }
 
-    function init() {
-        if (!isRouteDetalhe()) return;
+    function init(force) {
+        if (!force && !isRouteDetalhe()) return;
         if (!document.body) {
-            setTimeout(init, 300);
+            setTimeout(function() { init(force); }, 300);
             return;
         }
         var topDoc = document;
         try {
             if (window.top && window.top.document) topDoc = window.top.document;
         } catch(e) {}
-        if (document.getElementById('pjetools-aud-container') || (topDoc && topDoc.getElementById('pjetools-aud-container'))) return;
+        var existing = document.getElementById('pjetools-aud-container') || (topDoc && topDoc.getElementById('pjetools-aud-container'));
+        if (existing) {
+            window.__pjeAudFechadoManualmente = false;
+            return;
+        }
         window.__pjeAudFechadoManualmente = false;
 
         function renderizarPainel(estaRetraido) {
@@ -311,10 +315,15 @@
                     if (typeof consultarInfojud !== 'function' && typeof unsafeWindow !== 'undefined') {
                         consultarInfojud = unsafeWindow.consultarInfojudComRetorno;
                     }
-                    if (typeof consultarInfojud !== 'function') throw new Error('Módulo Infojud não disponível.');
-                    var resultado = await consultarInfojud(c);
-                    await copiarTexto(resultado.texto);
-                    feedbackBuscar(fInfo, true);
+                    if (typeof consultarInfojud === 'function') {
+                        var resultado = await consultarInfojud(c);
+                        await copiarTexto(resultado.texto);
+                        feedbackBuscar(fInfo, true);
+                    } else {
+                        var urlDecjuiz = (c.length === 11 ? 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp?NI=' : 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp?NI=') + encodeURIComponent(c);
+                        window.open(urlDecjuiz, '_blank');
+                        feedbackBuscar(fInfo, true);
+                    }
                 } catch (e) {
                     feedbackBuscar(fInfo, false);
                 } finally {
@@ -452,18 +461,23 @@
                 fSiscon.buscar.disabled = true;
                 fSiscon.buscar.textContent = 'Buscando...';
                 try {
-                    var api = (window.Alv && window.Alv.siscondj) || (typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.Alv && unsafeWindow.Alv.siscondj);
-                    if (!api || typeof api.consultarDocumento !== 'function') throw new Error('Módulo SISCONDJ não disponível.');
-                    var resultado = await api.consultarDocumento(c);
-                    if (resultado.status === 'empty') {
-                        feedbackBuscar(fSiscon, false);
-                        sisconCard.innerHTML = 'Nenhum dado bancário encontrado. ' + (resultado.searchLink ? '<a href="' + resultado.searchLink + '" target="_blank" rel="noopener">abrir busca</a>' : '');
-                        sisconCard.style.display = 'block';
-                        return;
+                    var api = (window.Alv && (window.Alv.siscondj || window.Alv.siscon)) || (typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.Alv && (unsafeWindow.Alv.siscondj || unsafeWindow.Alv.siscon));
+                    if (api && typeof api.consultarDocumento === 'function') {
+                        var resultado = await api.consultarDocumento(c);
+                        if (resultado.status === 'empty') {
+                            feedbackBuscar(fSiscon, false);
+                            sisconCard.innerHTML = 'Nenhum dado bancário encontrado. ' + (resultado.searchLink ? '<a href="' + resultado.searchLink + '" target="_blank" rel="noopener">abrir busca</a>' : '');
+                            sisconCard.style.display = 'block';
+                            return;
+                        }
+                        var textoParaCopiar = exibirDadosSiscon(resultado, c);
+                        await copiarTexto(textoParaCopiar);
+                        feedbackBuscar(fSiscon, true);
+                    } else {
+                        var urlBusca = 'https://aplicacoes1.trt2.jus.br/adv-dados-bancarios-consulta/' + (c.length === 11 ? 'consulta-pf?cpf=' : 'consulta-pj?cnpj=') + c;
+                        window.open(urlBusca, '_blank');
+                        feedbackBuscar(fSiscon, true);
                     }
-                    var textoParaCopiar = exibirDadosSiscon(resultado, c);
-                    await copiarTexto(textoParaCopiar);
-                    feedbackBuscar(fSiscon, true);
                 } catch (e) {
                     feedbackBuscar(fSiscon, false);
                     sisconCard.style.display = 'none';

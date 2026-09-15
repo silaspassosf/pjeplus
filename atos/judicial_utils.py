@@ -75,111 +75,29 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
         # Se apenas_primeiro, clicar no botão "Selecionar polo ativo"
         if apenas_primeiro:
             try:
-                # Seletores para botão polo ativo (padrão PJe 2.18+ e legado)
-                btn_polo_alvo = None
-                for sel in ['#selecionar-polo-ativo', 'button[aria-label*="polo ativo" i]', 'button[name="btnIntimarSomentePoloAtivo"]']:
-                    if espera.ate_habilitar(driver, sel, teto=10):
-                        try:
-                            btn_polo_alvo = driver.find_element(By.CSS_SELECTOR, sel)
-                            break
-                        except Exception:
-                            continue
+                logger.info('[PRAZOS] Clicando no botão #selecionar-polo-ativo...')
+                espera.ate_aparecer(driver, '#selecionar-polo-ativo, button[aria-label="Selecionar polo ativo"]', teto=10)
 
-                if not btn_polo_alvo:
-                    logger.error('[PRAZOS] Botão #selecionar-polo-ativo não habilitou — aborta')
-                    return False
+                # Clique direto no elemento nativo pelo ID
+                clicado = driver.execute_script("""
+                    const btn = document.getElementById('selecionar-polo-ativo')
+                             || document.querySelector('#selecionar-polo-ativo')
+                             || document.querySelector('button[aria-label="Selecionar polo ativo"]');
+                    if (btn) {
+                        btn.click();
+                        return true;
+                    }
+                    return false;
+                """)
 
-                # Scroll antes do click: garante que o botão está no viewport
-                try:
-                    driver.execute_script(
-                        "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
-                        btn_polo_alvo,
-                    )
-                except Exception:
-                    pass
-
-                # Limpa overlays residuais antes do clique
-                try:
-                    driver.execute_script("const b = document.getElementById('selecionar-polo-ativo'); if (b) b.click();")
-                    espera.assentar(driver, 0.5)
-                except Exception:
-                    pass
-
-                # Clique real com fallback sintético
-                try:
+                if not clicado:
+                    btn_polo_alvo = driver.find_element(By.CSS_SELECTOR, '#selecionar-polo-ativo, button[aria-label="Selecionar polo ativo"]')
                     btn_polo_alvo.click()
-                except Exception as e:
-                    logger.warning(f'[PRAZOS] Clique real falhou ({type(e).__name__}); tentando clique sintético')
-                    if not safe_click_no_scroll(driver, btn_polo_alvo, log=False):
-                        driver.execute_script("arguments[0].click();", btn_polo_alvo)
 
                 espera.assentar(driver, 0.5)
-
-                # Confirmação do efeito nos checkboxes de destinatários:
-                # O botão nativo do PJe marca o polo ativo e desmarca os demais polos.
-                js_checa_destinatarios = (
-                    "var linhas = Array.from(document.querySelectorAll('table.t-class tbody tr.ng-star-inserted'));"
-                    "var total = linhas.length;"
-                    "var marcados = 0;"
-                    "linhas.forEach(function(tr){"
-                    "  var cb = tr.querySelector('input[type=checkbox]');"
-                    "  if (cb && (cb.checked || cb.getAttribute('aria-checked') === 'true')) marcados++;"
-                    "});"
-                    "return {total: total, marcados: marcados};"
-                )
-
-                confirmado = False
-                for tentativa in range(1, 4):
-                    try:
-                        res = driver.execute_script(js_checa_destinatarios) or {}
-                        total_linhas = int(res.get('total', 0))
-                        marcados = int(res.get('marcados', 0))
-                    except Exception:
-                        total_linhas, marcados = 0, 0
-
-                    if total_linhas <= 1 and marcados == 1:
-                        confirmado = True
-                        break
-                    elif total_linhas > 1 and 0 < marcados < total_linhas:
-                        confirmado = True
-                        break
-
-                    logger.warning(f'[PRAZOS] Polo ativo ainda não confirmado (marcados={marcados}/{total_linhas}) — tentativa {tentativa}/3')
-                    espera.assentar(driver, 0.8)
-                    try:
-                        driver.execute_script("arguments[0].click();", btn_polo_alvo)
-                    except Exception:
-                        pass
-                    espera.assentar(driver, 0.5)
-
-                # Se após 3 tentativas ainda estiver com todas marcadas (caso raro de falha no listener Angular),
-                # desmarca manualmente as linhas subsequentes mantendo apenas a primeira (polo ativo).
-                if not confirmado and total_linhas > 1 and marcados >= total_linhas:
-                    logger.warning(f'[PRAZOS] Botão polo ativo não desmarcou outras partes automaticamente ({marcados}/{total_linhas}); aplicando desmarcação manual')
-                    driver.execute_script("""
-                        var linhas = Array.from(document.querySelectorAll('table.t-class tbody tr.ng-star-inserted'));
-                        linhas.forEach(function(tr, idx){
-                            if (idx > 0) {
-                                var cb = tr.querySelector('input[type=checkbox]');
-                                if (cb && (cb.checked || cb.getAttribute('aria-checked') === 'true')) {
-                                    var alvo = tr.querySelector('mat-checkbox label') || cb;
-                                    alvo.click();
-                                }
-                            }
-                        });
-                    """)
-                    espera.assentar(driver, 0.5)
-                    confirmado = True
-
-                if not confirmado and marcados == 0:
-                    logger.error(f'[PRAZOS] Nenhuma parte marcada após seleção de polo ativo — aborta')
-                    return False
-
-                logger.info(f'[PRAZOS] Polo ativo selecionado com sucesso ({marcados if confirmado else 1}/{total_linhas} partes)')
-                espera.assentar(driver, 0.5)
+                logger.info('[PRAZOS] Botão #selecionar-polo-ativo clicado com sucesso')
             except Exception as e:
-                logger.error(f'[PRAZOS] Erro ao selecionar polo ativo: {e}')
-                return False
+                logger.warning(f'[PRAZOS] Erro ao clicar no botão selecionar-polo-ativo: {e}')
         else:
             # Selecionar todos e filtrar apenas "Diário" (excluir "Domicílio Eletrônico")
             try:

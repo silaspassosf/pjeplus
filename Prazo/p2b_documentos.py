@@ -402,17 +402,17 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         (['defiro a instauração'], ('criar_gigs[1//xs pec dec]', 'criar_gigs[10//xs mdd edital pgto]', ato_idpj)),
 
         # REGRA DE INCIDENTE IDPJ — decisão que defere a desconsideração em face de
-        # sócio(s). Deve vir ANTES de "tendo em vista que" para não cair no inicar_exec.
+        # sócio(s).
         (['Incidente de Desconsideração da Personalidade Jurídica instaurado em face'], (ato_meios,)),
 
         # REGRA DE INSTAURADO EM FACE
         (['instaurado em face'], (idpj,)),
 
-        # REGRA DE SUSEP — garantia/securitária, acima de tendo em vista
+        # REGRA DE SUSEP — garantia/securitária
         (['Tendo em vista que a SUSEP'], (ato_meios,)),
 
-        # REGRA DE TENDO EM VISTA
-        (['tendo em vista que', 'pagamento da parcela pendente', 'sob pena de sequestro'], (_inicar_exec,)),
+        # REGRA DE INICIAR EXECUÇÃO / PARCELA PENDENTE
+        (['pagamento da parcela pendente', 'sob pena de sequestro'], (_inicar_exec,)),
 
         # REGRA DE NÃO AMPARADA
         (['não está amparada'], (ato_meios,)),

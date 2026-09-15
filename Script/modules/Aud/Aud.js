@@ -54,10 +54,24 @@
             P.id = 'pjetools-aud-container';
             P.style.cssText = 'position:fixed;top:' + topMinimo + 'px;right:10px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:14px;box-sizing:border-box;user-select:none;';
 
-            function atualizarMaxHeight() {
-                var currentTop = P.getBoundingClientRect().top;
-                var safeTop = Math.max(topMinimo, currentTop);
-                P.style.maxHeight = 'calc(100vh - ' + (safeTop + 15) + 'px)';
+            // Compensa o zoom do navegador (Ctrl +/-) para o painel manter o
+            // tamanho fixo em tela, independente do zoom aplicado na página.
+            function aplicarZoomComp() {
+                try {
+                    if (!window.__pjeAudBaseDPR) window.__pjeAudBaseDPR = window.devicePixelRatio || 1;
+                    var zc = window.__pjeAudBaseDPR / (window.devicePixelRatio || 1);
+                    if (!isFinite(zc) || zc <= 0 || Math.abs(zc - 1) < 0.02) zc = 1;
+                    P.style.zoom = (zc === 1) ? '' : String(zc);
+                    P.dataset.zoomComp = String(zc);
+                } catch (e) {
+                    P.style.zoom = '';
+                    P.dataset.zoomComp = '1';
+                }
+            }
+
+            function zoomComp() {
+                var z = parseFloat(P.dataset.zoomComp || '1');
+                return (isFinite(z) && z > 0) ? z : 1;
             }
 
             function E(t, c, x) {
@@ -67,13 +81,37 @@
                 return e;
             }
 
-            var bodyDiv = E('div', 'display:block;user-select:text;');
+            var bodyDiv = E('div', 'display:block;user-select:text;overflow-y:auto;overflow-x:hidden;height:360px;box-sizing:border-box;padding-right:4px;');
 
-            function ST(t) {
-                var d = E('div', 'margin-top:6px;border-top:1px solid #eef;padding-top:6px;');
-                d.appendChild(E('div', 'font-weight:bold;font-size:13px;color:#8899cc;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;', t));
+            // Altura fixa do corpo: o painel não estica com a página nem com o
+            // conteúdo — tudo que exceder fica disponível pela barra de rolagem.
+            // O header (hdr) fica sempre visível no topo, pois só o bodyDiv rola.
+            var ALTURA_CORPO = 360;
+
+            // ST agora cria um grupo colapsável de botões: o título funciona
+            // como toggle. `aberto` define o estado inicial (apenas o primeiro
+            // grupo é criado expandido; os demais nascem retraídos).
+            function ST(t, aberto) {
+                var expandido = !!aberto;
+                var d = E('div', 'margin-top:6px;border-top:1px solid #eef;');
+                var titulo = E('div', 'display:flex;align-items:center;gap:5px;cursor:pointer;padding:6px 0 5px 0;user-select:none;');
+                var chevron = E('span', 'font-size:11px;color:#8899cc;width:12px;display:inline-block;text-align:center;flex:0 0 12px;', expandido ? '▾' : '▸');
+                var rotulo = E('span', 'font-weight:bold;font-size:13px;color:#8899cc;text-transform:uppercase;letter-spacing:.7px;', t);
+                var conteudo = E('div', expandido ? 'padding:0 0 5px 0;' : 'display:none;padding:0 0 5px 0;');
+                titulo.appendChild(chevron);
+                titulo.appendChild(rotulo);
+                d.appendChild(titulo);
+                d.appendChild(conteudo);
+                function toggleGrupo(e) {
+                    if (e) { e.preventDefault(); e.stopPropagation(); }
+                    expandido = !expandido;
+                    conteudo.style.display = expandido ? 'block' : 'none';
+                    chevron.textContent = expandido ? '▾' : '▸';
+                }
+                titulo.onclick = toggleGrupo;
                 bodyDiv.appendChild(d);
-                return d;
+                d._conteudo = conteudo;
+                return conteudo;
             }
 
             var hdr = E('div', 'display:flex;justify-content:space-between;align-items:center;gap:6px;cursor:grab;margin:-8px -12px 8px -12px;padding:8px 12px;background:#f4f6fc;border-top-left-radius:9px;border-top-right-radius:9px;border-bottom:1px solid #e8edff;');
@@ -130,7 +168,12 @@
                     toggleBtn.style.color = '#cbd5e1';
                     toggleBtn.title = 'Expandir Painel de Consultas (ou clique duplo)';
                 } else {
+                    // Painel expandido: tamanho fixo — largura 380px e corpo com
+                    // altura fixa (ALTURA_CORPO). O conteúdo que exceder fica
+                    // disponível pela barra de rolagem interna do bodyDiv;
+                    // o header (hdr) permanece sempre visível no topo.
                     bodyDiv.style.display = 'block';
+                    bodyDiv.style.height = ALTURA_CORPO + 'px';
                     P.style.width = '380px';
                     P.style.maxWidth = 'min(380px, calc(100vw - 20px))';
                     P.style.padding = '8px 12px';
@@ -150,8 +193,10 @@
                     toggleBtn.style.color = '#475569';
                     toggleBtn.title = 'Retrair Painel de Consultas (ou clique duplo)';
 
-                    P.style.overflowY = 'auto';
-                    atualizarMaxHeight();
+                    // Sem altura dinâmica: o painel não se adapta à página —
+                    // a rolagem interna do corpo resolve o excedente.
+                    P.style.overflowY = 'visible';
+                    P.style.maxHeight = 'none';
                 }
             }
 
@@ -209,7 +254,6 @@
                     el.style.right = 'auto';
                     el.style.bottom = 'auto';
                     el.style.transform = 'none';
-                    atualizarMaxHeight();
                 });
                 document.addEventListener('mouseup', function () {
                     drag = false;
@@ -218,18 +262,18 @@
 
             function ajustarAoZoomEScroll() {
                 if (!P || !document.body.contains(P)) return;
-                var minTop = calcularTopMinimo();
+                aplicarZoomComp();
                 if (!P.dataset.dragged) {
-                    P.style.top = minTop + 'px';
+                    P.style.top = calcularTopMinimo() + 'px';
                     P.style.right = '10px';
                     P.style.left = 'auto';
                 } else {
+                    var minTop = calcularTopMinimo();
                     var rect = P.getBoundingClientRect();
                     if (rect.top < minTop) {
                         P.style.top = minTop + 'px';
                     }
                 }
-                atualizarMaxHeight();
             }
 
             window.addEventListener('resize', ajustarAoZoomEScroll);
@@ -240,9 +284,11 @@
                 domObs.observe(document.body, { childList: true, subtree: true });
             } catch (e) { }
 
+            aplicarZoomComp();
             aplicarRetracao(estaRetraido);
 
-            var dConsultas = ST('Consultas');
+            // Único grupo: "Consultas" (Infojud / CEP / SisconDJ) — aberto por padrão.
+            var dConsultas = ST('Consultas', true);
             var consultas = E('div', 'display:flex;flex-direction:column;gap:5px;');
 
             function linhaConsulta(rotulo, placeholder, cor) {
@@ -497,7 +543,9 @@
             }
         }
 
-        renderizarPainel(false);
+        // DESATIVADO: painel de consultas não deve aparecer em /detalhe por
+        // enquanto — init() sem force renderiza justamente apenas em /detalhe.
+        // renderizarPainel(false);
     }
 
     var _targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
@@ -506,16 +554,19 @@
     window.PJeAud = window.PJeAud || _targetWin.PJeAud;
     window.PJeAud.init = init;
 
-    if (typeof window.__pjeAudInterval === 'undefined') {
-        window.__pjeAudInterval = setInterval(function() {
-            if (isRouteDetalhe()) {
-                if (!document.getElementById('pjetools-aud-container') && document.body && !window.__pjeAudFechadoManualmente) {
-                    init();
-                }
-            } else {
-                var el = document.getElementById('pjetools-aud-container');
-                if (el) el.remove();
-            }
-        }, 1000);
-    }
+    // DESATIVADO: re-injeção automática do painel de consultas em /detalhe
+    // (enquanto o painel estiver desativado nessa rota, este intervalo é
+    // desnecessário — reativar junto com renderizarPainel(false) acima).
+    // if (typeof window.__pjeAudInterval === 'undefined') {
+    //     window.__pjeAudInterval = setInterval(function() {
+    //         if (isRouteDetalhe()) {
+    //             if (!document.getElementById('pjetools-aud-container') && document.body && !window.__pjeAudFechadoManualmente) {
+    //                 init();
+    //             }
+    //         } else {
+    //             var el = document.getElementById('pjetools-aud-container');
+    //             if (el) el.remove();
+    //         }
+    //     }, 1000);
+    // }
 })();

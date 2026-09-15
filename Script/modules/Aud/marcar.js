@@ -155,7 +155,8 @@
 
         if (task.ata_data && task.ata_hora) {
             // Se já tem data/hora fixa da Ata, usar diretamente
-            dataStr = task.ata_data;
+            // Normaliza ano curto (26 → 2026) para garantir navegação correta no calendário
+            dataStr = normalizarData(task.ata_data);
             horaStr = task.ata_hora;
         } else {
             // Logica original: buscar o primeiro horário vago
@@ -179,11 +180,28 @@
         await preencherModal(task.numero);
     }
 
+    // ── Normalização de data (dd/mm/aa ou dd/mm/aaaa → dd/mm/aaaa) ────────────
+    // Ano com 2 dígitos recebe prefixo "20" (ex: 16/11/26 → 16/11/2026).
+    // Sem isso, new Date(26, ...) vira ano 26 d.C. e o delta de meses fica
+    // negativo → o calendário sequer navega para o mês correto.
+    function normalizarData(dataStr) {
+        const m = String(dataStr || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+        if (!m) return dataStr;
+        const [, d, mo, y] = m;
+        const yyyy = y.length === 2 ? '20' + y : y;
+        return `${d.padStart(2, '0')}/${mo.padStart(2, '0')}/${yyyy}`;
+    }
+
     async function navegarCalendario(dataStr) {
+        dataStr = normalizarData(dataStr); // tolerância: garante ano de 4 dígitos
         const [dd, mm, yyyy] = dataStr.split('/').map(Number);
         const alvo  = new Date(yyyy, mm - 1, dd);
         const hoje  = new Date();
         const delta = (alvo.getFullYear() - hoje.getFullYear()) * 12 + (alvo.getMonth() - hoje.getMonth());
+
+        console.log('[MarcarAud][Pauta] navegarCalendario → alvo:', dataStr,
+            '| hoje:', hoje.toLocaleDateString('pt-BR'), '| delta meses:', delta);
+        if (delta < 0) console.warn('[MarcarAud][Pauta] data alvo no passado — delta negativo:', delta);
 
         for (let i = 0; i < delta; i++) {
             const btn = await waitEl('#next', 10000);
@@ -254,25 +272,32 @@
     // ── Extração de Ata ────────────────────────────────────────────────────────
     
     function extrairDadosAta(textoRaw) {
-        if (!textoRaw) return null;
-        
+        if (!textoRaw) { console.log('[MarcarAud][Ata] documento vazio (textoRaw nulo)'); return null; }
+
         // Separa o texto em partes pela palavra "presentes"
         const partes = textoRaw.split(/presente[s]?/i);
-        if (partes.length < 2) return null;
-        
+        if (partes.length < 2) {
+            console.log('[MarcarAud][Ata] marcador "presentes" não encontrado no documento — tamanho do texto:', textoRaw.length);
+            return null;
+        }
+
         // Pega a última parte para garantir que está no final
         const textoFim = partes[partes.length - 1];
-        
+
+        // LOG DE DIAGNÓSTICO: trecho final lido da ata (final do documento)
+        console.log('[MarcarAud][Ata] texto final lido (última parte após "presentes"):\n' + textoFim.slice(-1200));
+
         const res = {};
-        
+
         // Data e Hora
         const regexData = /(\d{2}\/\d{2}\/\d{4})/i;
         const regexHora = /(\d{2}:\d{2})/i;
-        
+
         const mData = textoFim.match(regexData);
-        if (mData) res.data = mData[1];
-        
         const mHora = textoFim.match(regexHora);
+        console.log('[MarcarAud][Ata] match data:', mData ? mData[1] : null, '| match hora:', mHora ? mHora[1] : null);
+        if (mData) res.data = mData[1];
+
         if (mHora) res.hora = mHora[1];
         
         // Tipo
@@ -309,14 +334,27 @@
         
         // Input Data
         const lblData = document.createElement('label');
-        lblData.textContent = 'Data (DD/MM/YYYY):';
+        lblData.textContent = 'Data (DD/MM/AAAA):';
         lblData.style.cssText = `font-size:12px;color:#555;font-weight:bold;`;
         const inpData = document.createElement('input');
         inpData.type = 'text';
-        inpData.placeholder = 'DD/MM/YYYY';
+        inpData.placeholder = 'DD/MM/AAAA (ex: 16/11/26 → 2026)';
         inpData.style.cssText = `padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;`;
         form.appendChild(lblData);
         form.appendChild(inpData);
+
+        // Máscara dd/mm/aaaa: dígito + separador automático; ano com 2 dígitos
+        // recebe prefixo "20" automaticamente ao sair do campo (ex: 26 → 2026).
+        inpData.addEventListener('input', () => {
+            let v = inpData.value.replace(/\D/g, '').slice(0, 8);
+            if (v.length > 4) v = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+            else if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+            inpData.value = v;
+        });
+        inpData.addEventListener('blur', () => {
+            const m = inpData.value.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+            if (m) inpData.value = `${m[1]}/${m[2]}/20${m[3]}`;
+        });
         
         // Input Hora
         const lblHora = document.createElement('label');
@@ -356,12 +394,16 @@
         btnConfirm.textContent = 'Agendar';
         btnConfirm.style.cssText = `padding:8px 12px;background:#1565c0;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:bold;`;
         btnConfirm.onclick = () => {
-            const dt = inpData.value.trim();
+            let dt = inpData.value.trim();
             const hr = inpHora.value.trim();
-            if (!dt || !hr) {
-                alert('Preencha data e hora!');
+            // Aceita ano com 2 dígitos e acrescenta "20" (ex: 16/11/26 → 16/11/2026)
+            const mDt = dt.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+            if (mDt) dt = `${mDt[1]}/${mDt[2]}/20${mDt[3]}`;
+            if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dt) || !/^\d{2}:\d{2}$/.test(hr)) {
+                alert('Preencha data e hora válidas!\nData: DD/MM/AAAA (ano curto aceito, ex: 16/11/26)\nHora: HH:MM');
                 return;
             }
+            console.log('[MarcarAud][Ata] dados informados pelo usuário → data:', dt, '| hora:', hr, '| tipo:', selTipo.value);
             overlayBg.remove();
             callback(dt, hr, selTipo.value);
         };
@@ -533,7 +575,9 @@
             }
             
             var textoRaw = res.conteudo_bruto || res.conteudo || '';
+            console.log('[MarcarAud][Ata] extração OK — tamanho do texto bruto:', textoRaw.length);
             var dadosAta = extrairDadosAta(textoRaw);
+            console.log('[MarcarAud][Ata] dadosAta resultante:', dadosAta);
             
             if (dadosAta) {
                 console.log('Dados extraídos da Ata:', dadosAta);

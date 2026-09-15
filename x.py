@@ -32,7 +32,7 @@ import time
 import logging
 import os
 import shutil
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pprint import pformat
 from typing import Dict, Any, Optional, Tuple, Callable
 from Fix.tipos import ResultadoFluxo
@@ -542,6 +542,157 @@ def executar_domicilio_eletronico(driver) -> Dict[str, Any]:
                           on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_dom_api retornou None"})
 
 
+# ── Fluxo Citação ─────────────────────────────────────────────────────────────
+
+_PAUTA_ENDPOINT = "/audapi/rest/pje/audpje/pautas"
+_ORGAO_JULGADOR_PAUTA = 187  # orgao do bookmarklet de referencia da pauta
+_URL_PROCESSO_DETALHE = "https://pje.trt2.jus.br/pjekz/processo/{}/detalhe"
+_PAUTA_MAX_DIAS = 30  # teto de dias avancados ao procurar pauta com audiencias
+
+
+def _proximo_dia_util(a_partir_de) -> "date":
+    """Proximo dia util: sexta-feira -> segunda (pula sabado/domingo)."""
+    dia = a_partir_de + timedelta(days=1)
+    while dia.weekday() >= 5:  # 5=sabado, 6=domingo
+        dia += timedelta(days=1)
+    return dia
+
+
+def _audiencia_cogida(tipo: str) -> bool:
+    """Mesmo filtro do bookmarklet de pauta: exclui audiencias de
+    julgamento e de encerramento de instrucao (substring, como la)."""
+    t = (tipo or "").lower()
+    return "julgamento" not in t and "encerramento" not in t
+
+
+def _pauta_dia_seguinte(client) -> list:
+    """Busca a pauta a partir do proximo dia util a execucao.
+
+    Se o dia nao tiver audiencias (apos o filtro do bookmarklet), avanca
+    dia a dia ate encontrar uma pauta com audiencias (teto _PAUTA_MAX_DIAS).
+    """
+    dia = _proximo_dia_util(datetime.now().date())
+    for _ in range(_PAUTA_MAX_DIAS):
+        dia_iso = dia.strftime("%Y-%m-%d")
+        params = {
+            "dataInicio": dia_iso,
+            "dataFim": dia_iso,
+            "orgaoJulgador": _ORGAO_JULGADOR_PAUTA,
+        }
+        logger.info("[CITACAO] >>> GET %s params=%s", _PAUTA_ENDPOINT, params)
+        resp = client.gateway_get(_PAUTA_ENDPOINT, params=params)
+        if not resp.get("ok"):
+            logger.error("[CITACAO] <<< falha na pauta: %s", resp.get("error"))
+            return []
+        dados = resp.get("data") or []
+        lista = dados if isinstance(dados, list) else (
+            dados.get("content") or dados.get("resultado") or dados.get("pautas") or [])
+        filtradas = [p for p in lista
+                     if _audiencia_cogida(p.get("tipoAudiencia"))]
+        logger.info("[CITACAO] <<< pauta %s: %d audiencia(s) brutas, %d apos filtro",
+                    dia_iso, len(lista), len(filtradas))
+        if filtradas:
+            return filtradas
+        logger.info("[CITACAO] pauta %s vazia (ou so julgamento/encerramento) "
+                    "— avancando para o proximo dia util", dia_iso)
+        dia = _proximo_dia_util(dia)
+    logger.warning("[CITACAO] nenhuma pauta com audiencias em %d dias", _PAUTA_MAX_DIAS)
+    return []
+
+
+def _reclamada_sem_advogado(partes) -> Optional[dict]:
+    """Primeira parte do polo PASSIVO sem representantes (advogado), se houver."""
+    for pt in (partes or {}).get("PASSIVO") or []:
+        if not (pt.get("representantes") or []):
+            return pt
+    return None
+
+
+def executar_citacao(driver) -> Dict[str, Any]:
+    """Citacao — pauta do proximo dia util -> reclamada sem advogado -> carta (PEC).
+
+    Para cada processo da pauta (dia seguinte; sexta pula para segunda; se a
+    pauta vier vazia, avanca ate achar dia com audiencias): consulta as partes
+    via API e, nos que tiverem reclamada sem advogado, abre o processo e
+    executa a funcao carta de PEC.carta_execucao.
+    """
+    def _fluxo(d):
+        from api import PjeApiClient, session_from_driver
+        from Fix.abas import fechar_abas_extras
+
+        sess, trt_host = session_from_driver(d)
+        client = PjeApiClient(sess, trt_host)
+
+        # 1) pauta do dia seguinte
+        pauta = _pauta_dia_seguinte(client)
+        numeros_por_id = {}
+        for p in pauta:
+            if p.get("idProcesso"):
+                numeros_por_id.setdefault(p["idProcesso"], p.get("numeroProcesso") or "")
+        ids = list(numeros_por_id.keys())
+        logger.info("[CITACAO] processos unicos na pauta: %d -> %s", len(ids), ids)
+
+        # 2) partes por processo (acumulado) — filtro: reclamada sem advogado
+        alvos = []
+        for pid in ids:
+            endpoint = f"/pje-comum-api/api/processos/id/{pid}/partes"
+            logger.info("[CITACAO] >>> GET %s", endpoint)
+            resp = client.gateway_get(endpoint)
+            if not resp.get("ok"):
+                logger.error("[CITACAO] <<< falha (%s) — processo pulado", resp.get("error"))
+                continue
+            partes = resp.get("data") or {}
+            ativos = [pt.get("nome") for pt in (partes.get("ATIVO") or [])]
+            passivos = [(pt.get("nome"), bool(pt.get("representantes")))
+                        for pt in (partes.get("PASSIVO") or [])]
+            logger.info("[CITACAO] <<< ATIVO=%s | PASSIVO(nome, tem_adv)=%s", ativos, passivos)
+            sem_adv = _reclamada_sem_advogado(partes)
+            if sem_adv:
+                logger.info("[CITACAO] *** RECLAMADA SEM ADVOGADO: %s (doc=%s) ***",
+                            sem_adv.get("nome"), sem_adv.get("documento"))
+                alvos.append((pid, numeros_por_id.get(pid) or "", sem_adv.get("nome")))
+            else:
+                logger.info("[CITACAO] todas as reclamadas com advogado — pulando")
+
+        logger.info("[CITACAO] %d de %d processos com reclamada sem advogado",
+                    len(alvos), len(ids))
+
+        # 3) abrir processo e executar carta (identica PEC)
+        sucessos = erros = 0
+        for pid, numero, reclamada in alvos:
+            try:
+                numero_limpo = "".join(filter(str.isdigit, str(numero)))
+                chave = numero_limpo if len(numero_limpo) == 20 else pid
+                url = _URL_PROCESSO_DETALHE.format(chave)
+                d.get(url)
+                WebDriverWait(d, 15).until(
+                    lambda drv: drv.execute_script("return document.readyState") == "complete"
+                )
+                if "acesso-negado" in (d.current_url or "").lower():
+                    raise RuntimeError(f"acesso negado — {reclamada} ({numero or pid})")
+                logger.info("[CITACAO] processo aberto: %s (reclamada: %s)", url, reclamada)
+                from PEC.carta_execucao import carta
+                carta(d)
+                sucessos += 1
+            except Exception as exc:
+                erros += 1
+                logger.error("[CITACAO] erro em %s (%s): %s: %s",
+                             reclamada, numero or pid, type(exc).__name__, exc)
+            finally:
+                try:
+                    fechar_abas_extras(d)
+                except Exception:
+                    pass
+
+        logger.info("[CITACAO] total=%d sucesso=%d erro=%d", len(alvos), sucessos, erros)
+        return {"sucesso": erros == 0, "status": "OK" if erros == 0 else "PARCIAL",
+                "total": len(alvos), "sucesso_count": sucessos, "erro": erros}
+
+    return _executar_fluxo("Citação", _fluxo, driver,
+                          on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO",
+                                         "erro": "fluxo citacao retornou None"})
+
+
 def executar_p2b(driver) -> Dict[str, Any]:
     """P2B Isolado (API GIGS sem prazo XS + processamento por processo)"""
     def _fluxo(d):
@@ -626,6 +777,7 @@ def menu_execucao() -> Optional[str]:
         print("F - Triagem")
         print("G - Petição")
         print("H - Domicílio Eletrônico")
+        print("I - Citação")
         print("X - Cancelar")
         try:
             opcao = input("> ").strip().upper()
@@ -635,7 +787,7 @@ def menu_execucao() -> Optional[str]:
         if not opcao:
             continue  # Enter solto / resíduo de buffer: repete, não cancela
 
-        if opcao in ["A","B","C","D","E","F","G","H","X"]:
+        if opcao in ["A","B","C","D","E","F","G","H","I","X"]:
             return opcao if opcao != "X" else None
         # opção inválida: repete o menu
 
@@ -778,6 +930,7 @@ FLOW_HANDLERS = {
     "F": executar_triagem,
     "G": executar_pet,
     "H": executar_domicilio_eletronico,
+    "I": executar_citacao,
 }
 
 

@@ -377,8 +377,39 @@ def gerar_html_carta_para_juntada(dados):
         )
         html_bloco += '&nbsp; &nbsp; '
         id_pje = item.get('ID_PJE', '')
+        id_pje_link = item.get('ID_PJE_LINK', '')
         if id_pje:
-            html_bloco += f'IID: {id_pje}<br>'
+            if id_pje_link:
+                html_bloco += f'ID: <a href="{id_pje_link}" target="_blank">{id_pje}</a><br>'
+            else:
+                html_bloco += f'ID: {id_pje}<br>'
+
+        destinatario = item.get('DESTINATARIO', '')
+        if destinatario:
+            html_bloco += f'DESTINATÁRIO: {destinatario}<br>'
+
+        data_envio = item.get('DATA_ENVIO', '')
+        if data_envio:
+            html_bloco += f'DATA DO ENVIO: {data_envio}<br>'
+
+        status = item.get('STATUS', '')
+        falso_positivo = bool(item.get('FALSO_POSITIVO'))
+        is_devolvido = bool(re.search(r'devolvid[oa]', status, re.IGNORECASE) or falso_positivo)
+
+        data_entrega = item.get('DATA_ENTREGA', '')
+        if not is_devolvido and data_entrega:
+            html_bloco += f'DATA DE ENTREGA: {data_entrega}<br>'
+
+        if status:
+            html_bloco += f'RESULTADO: {status}'
+            if falso_positivo:
+                html_bloco += ' ⚠️ FALSO POSITIVO CORRIGIDO (era "Entregue", mas houve devolução)'
+            html_bloco += '<br>'
+
+        evidencia = item.get('EVIDENCIA', '')
+        if evidencia:
+            html_bloco += f'└ Evidência: {evidencia}<br>'
+
         rastreamento = item.get('RASTREAMENTO', '')
         if rastreamento:
             if rastreamento.startswith('http'):
@@ -388,20 +419,7 @@ def gerar_html_carta_para_juntada(dados):
                 html_bloco += f'OBJETO: <a target="_blank" rel="noopener noreferrer" href="{rastreamento_limpo}">{codigo_display}</a><br>'
             else:
                 html_bloco += f'OBJETO: {rastreamento}<br>'
-        destinatario = item.get('DESTINATARIO', '')
-        if destinatario:
-            html_bloco += f'DESTINATARIO: {destinatario}<br>'
-        data_envio = item.get('DATA_ENVIO', '')
-        if data_envio:
-            html_bloco += f'DATA DO ENVIO: {data_envio}<br>'
-        data_entrega = item.get('DATA_ENTREGA', '')
-        if data_entrega:
-            html_bloco += f'DATA DE ENTREGA: {data_entrega}<br>'
-        status = item.get('STATUS', '')
-        if status:
-            html_bloco += f'RESULTADO: {status}<br>'
-        if 'entregue' in status.lower():
-            html_bloco += 'DEVOLVIDA? ( ) - Desmarcado significa ENTREGA CONFIRMADA.'
+
         html_bloco += '</p>'
         blocos_html.append(html_bloco)
     return '\n'.join(blocos_html)
@@ -425,7 +443,10 @@ def formatar_dados_ecarta(dados_mais_recentes, intimacoes_info, log=True):
             if data_base_prazo:
                 break
     if data_base_prazo:
-        tem_devolvido = any(re.search(r'devolvid[oa]', item.get('STATUS', ''), re.IGNORECASE) for item in dados_mais_recentes)
+        tem_devolvido = any(
+            re.search(r'devolvid[oa]', item.get('STATUS', ''), re.IGNORECASE) or item.get('FALSO_POSITIVO')
+            for item in dados_mais_recentes
+        )
         if tem_devolvido:
             prazo_texto = ""
         else:
@@ -471,14 +492,23 @@ def formatar_dados_ecarta(dados_mais_recentes, intimacoes_info, log=True):
             bloco.append("    Rastreamento: Indisponivel")
         bloco.append(f"    Destinatario: {item.get('DESTINATARIO', '')}")
         bloco.append(f"    Data do envio: {item.get('DATA_ENVIO', '') if item.get('DATA_ENVIO') else 'Indisponivel'}")
-        bloco.append(f"    Data da entrega: {item.get('DATA_ENTREGA', '') if item.get('DATA_ENTREGA') else 'Indisponivel'}")
-        bloco.append(f"    Status: {item.get('STATUS', '')}")
+
+        status = item.get('STATUS', '')
+        falso_positivo = bool(item.get('FALSO_POSITIVO'))
+        is_devolvido = bool(re.search(r'devolvid[oa]', status, re.IGNORECASE) or falso_positivo)
+
+        if not is_devolvido and item.get('DATA_ENTREGA'):
+            bloco.append(f"    Data da entrega: {item.get('DATA_ENTREGA')}")
+
+        status_mostrar = status
+        if falso_positivo:
+            status_mostrar += " ⚠️ FALSO POSITIVO CORRIGIDO"
+        bloco.append(f"    Status: {status_mostrar}")
         if item.get('EVIDENCIA'):
             bloco.append(f"    └ Evidência: {item.get('EVIDENCIA')}")
         
         # Calcular prazos individuais para entregas confirmadas
-        status = item.get('STATUS', '')
-        if not re.search(r'devolvid[oa]', status, re.IGNORECASE):
+        if not is_devolvido:
             data_entrega = _parse_data_ecarta(item.get('DATA_ENTREGA', ''))
             if data_entrega:
                 prazo_8 = _somar_dias_uteis(data_entrega, 8)

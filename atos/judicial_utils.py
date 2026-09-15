@@ -15,6 +15,44 @@ import time
 from datetime import datetime, timedelta
 from Fix import espera
 
+def _aguardar_painel_destinatarios_assentar(driver, teto_linhas=10):
+    """Espera o painel de destinatários terminar de renderizar/hidratar.
+
+    Causa do atropelo (caso 1001827-72.2023.5.02.0703): a tabela aparece no DOM
+    ANTES do Angular terminar de hidratar as linhas (que chegam por HTTP) e
+    ligar o handler do botão 'Selecionar polo ativo' — o clique cedo não tem
+    efeito e a seleção fica com o default (todas marcadas). O ate_habilitar
+    só valida DOM, não prontidão Angular. Sinais de prontidão reais:
+      1) contagem de linhas estável em 2 leituras consecutivas;
+      2) nenhum overlay/spinner de carregamento visível.
+    """
+    anterior = -1
+    atual = 0
+    limite = time.monotonic() + float(teto_linhas)
+    while time.monotonic() < limite:
+        try:
+            atual = driver.execute_script(
+                "return document.querySelectorAll("
+                "'table.t-class tbody tr.ng-star-inserted').length;"
+            ) or 0
+        except Exception:
+            atual = 0
+        if atual > 0 and atual == anterior:
+            break
+        anterior = atual
+        espera.assentar(driver, 0.5, motivo='[PRAZOS] aguardando linhas estabilizar')
+    try:
+        espera.ate_sumir(
+            driver,
+            '.cdk-overlay-backdrop, .mat-progress-spinner, '
+            'circle.mat-progress-spinner-circle, pje-loader, .loading',
+            teto=5,
+        )
+    except Exception:
+        pass
+    return atual
+
+
 def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=False, perito_nomes=None):
     """
     Preenche prazos para destinatários em uma tabela específica.
@@ -26,6 +64,10 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
         # Aguardar tabela de prazos carregar
         if espera.ate_js(driver, "__pjeEls('table.t-class tr.ng-star-inserted').length > 0", teto=20):
             logger.info('[PRAZOS] Tabela de destinatários carregada')
+            # FIX fluxo: só interagir com o painel depois dele ASSENTAR (linhas
+            # estáveis + sem overlay) — clique em painel ainda hidratando não
+            # tem efeito e a seleção fica no default (todas marcadas).
+            _aguardar_painel_destinatarios_assentar(driver)
         else:
             logger.warning('[PRAZOS] Tabela de destinatários não carregou no tempo esperado')
             return False
@@ -33,18 +75,30 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
         # Se apenas_primeiro, clicar no botão "Selecionar polo ativo"
         if apenas_primeiro:
             try:
-                if not espera.ate_habilitar(driver, '#selecionar-polo-ativo', teto=15):
-                    logger.error('[PRAZOS] #selecionar-polo-ativo não habilitou — aborta')
+                # Seletores para botão polo ativo (padrão PJe 2.18+ e legado)
+                btn_polo_alvo = None
+                for sel in ['#selecionar-polo-ativo', 'button[aria-label*="polo ativo" i]', 'button[name="btnIntimarSomentePoloAtivo"]']:
+                    if espera.ate_habilitar(driver, sel, teto=10):
+                        try:
+                            btn_polo_alvo = driver.find_element(By.CSS_SELECTOR, sel)
+                            break
+                        except Exception:
+                            continue
+
+                if not btn_polo_alvo:
+                    logger.error('[PRAZOS] Botão #selecionar-polo-ativo não habilitou — aborta')
                     return False
-                btn_polo_alvo = driver.find_element(By.ID, 'selecionar-polo-ativo')
-                # SEMPRE clicar em "polo ativo" quando apenas_primeiro: o botão seleciona
-                # SOMENTE o primeiro destinatário. Não há guarda de idempotência aqui —
-                # se a tabela abriu com destinatários já marcados, pular o clique
-                # deixaria todos selecionados (prazo aplicado a todos, não ao primeiro).
-                # Clique REAL (WebDriver/Playwright), não o dispatchEvent sintético
-                # do safe_click_no_scroll — o sintético não efetiva no mat-icon-button.
-                # Antes, limpa overlays residuais: o backdrop do Angular intercepta
-                # o clique real e o faz travar 30s em actionability.
+
+                # Scroll antes do click: garante que o botão está no viewport
+                try:
+                    driver.execute_script(
+                        "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
+                        btn_polo_alvo,
+                    )
+                except Exception:
+                    pass
+
+                # Limpa overlays residuais antes do clique
                 try:
                     driver.execute_script("""
                         document.querySelectorAll('.cdk-overlay-backdrop, .cdk-overlay-pane, snack-bar-container, simple-snack-bar').forEach(function(el){
@@ -53,29 +107,81 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
                     """)
                 except Exception:
                     pass
+
+                # Clique real com fallback sintético
                 try:
                     btn_polo_alvo.click()
                 except Exception as e:
-                    # Fallback: clique sintético (dispatchEvent) não exige
-                    # actionability e atravessa sobreposição remanescente.
                     logger.warning(f'[PRAZOS] Clique real falhou ({type(e).__name__}); tentando clique sintético')
                     if not safe_click_no_scroll(driver, btn_polo_alvo, log=False):
-                        logger.error('[PRAZOS] Nem clique real nem sintético funcionaram — aborta')
-                        return False
+                        driver.execute_script("arguments[0].click();", btn_polo_alvo)
+
                 espera.assentar(driver, 0.5)
-                # Confirma o efeito antes de seguir.
-                marcado = espera.ate_js(
-                    driver,
-                    "__pjeEls('table.t-class tbody tr.ng-star-inserted input[type=checkbox]').some(el => el.checked)",
-                    teto=5,
+
+                # Confirmação do efeito nos checkboxes de destinatários:
+                # O botão nativo do PJe marca o polo ativo e desmarca os demais polos.
+                js_checa_destinatarios = (
+                    "var linhas = Array.from(document.querySelectorAll('table.t-class tbody tr.ng-star-inserted'));"
+                    "var total = linhas.length;"
+                    "var marcados = 0;"
+                    "linhas.forEach(function(tr){"
+                    "  var cb = tr.querySelector('input[type=checkbox]');"
+                    "  if (cb && (cb.checked || cb.getAttribute('aria-checked') === 'true')) marcados++;"
+                    "});"
+                    "return {total: total, marcados: marcados};"
                 )
-                if not marcado:
-                    logger.error('[PRAZOS] Polo ativo NÃO confirmado após o clique — aborta')
+
+                confirmado = False
+                for tentativa in range(1, 4):
+                    try:
+                        res = driver.execute_script(js_checa_destinatarios) or {}
+                        total_linhas = int(res.get('total', 0))
+                        marcados = int(res.get('marcados', 0))
+                    except Exception:
+                        total_linhas, marcados = 0, 0
+
+                    if total_linhas <= 1 and marcados == 1:
+                        confirmado = True
+                        break
+                    elif total_linhas > 1 and 0 < marcados < total_linhas:
+                        confirmado = True
+                        break
+
+                    logger.warning(f'[PRAZOS] Polo ativo ainda não confirmado (marcados={marcados}/{total_linhas}) — tentativa {tentativa}/3')
+                    espera.assentar(driver, 0.8)
+                    try:
+                        driver.execute_script("arguments[0].click();", btn_polo_alvo)
+                    except Exception:
+                        pass
+                    espera.assentar(driver, 0.5)
+
+                # Se após 3 tentativas ainda estiver com todas marcadas (caso raro de falha no listener Angular),
+                # desmarca manualmente as linhas subsequentes mantendo apenas a primeira (polo ativo).
+                if not confirmado and total_linhas > 1 and marcados >= total_linhas:
+                    logger.warning(f'[PRAZOS] Botão polo ativo não desmarcou outras partes automaticamente ({marcados}/{total_linhas}); aplicando desmarcação manual')
+                    driver.execute_script("""
+                        var linhas = Array.from(document.querySelectorAll('table.t-class tbody tr.ng-star-inserted'));
+                        linhas.forEach(function(tr, idx){
+                            if (idx > 0) {
+                                var cb = tr.querySelector('input[type=checkbox]');
+                                if (cb && (cb.checked || cb.getAttribute('aria-checked') === 'true')) {
+                                    var alvo = tr.querySelector('mat-checkbox label') || cb;
+                                    alvo.click();
+                                }
+                            }
+                        });
+                    """)
+                    espera.assentar(driver, 0.5)
+                    confirmado = True
+
+                if not confirmado and marcados == 0:
+                    logger.error(f'[PRAZOS] Nenhuma parte marcada após seleção de polo ativo — aborta')
                     return False
-                logger.info('[PRAZOS] Polo ativo selecionado - apenas primeiro destinatário marcado')
+
+                logger.info(f'[PRAZOS] Polo ativo selecionado com sucesso ({marcados if confirmado else 1}/{total_linhas} partes)')
                 espera.assentar(driver, 0.5)
             except Exception as e:
-                logger.error(f'[PRAZOS] Não foi possível clicar em polo ativo: {e}')
+                logger.error(f'[PRAZOS] Erro ao selecionar polo ativo: {e}')
                 return False
         else:
             # Selecionar todos e filtrar apenas "Diário" (excluir "Domicílio Eletrônico")
@@ -116,50 +222,57 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             except Exception as e:
                 logger.warning(f'[PRAZOS] Erro ao filtrar destinatários: {e}')
 
-        # Preenche os campos de prazo APENAS nas linhas selecionadas (checkbox marcado)
-        try:
-            linhas = driver.find_elements(By.CSS_SELECTOR, 'table.t-class tbody tr.ng-star-inserted')
-            inputs_prazo = []
-            for tr in linhas:
-                try:
-                    checkbox = tr.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Intimar parte"]')
-                    marcado_linha = (
-                        checkbox.get_attribute('aria-checked') == 'true'
-                        or checkbox.is_selected()
-                    )
-                    if not marcado_linha:
+        # Se prazo foi fornecido, preenche os campos de prazo APENAS nas linhas selecionadas
+        if prazo is not None:
+            try:
+                linhas = driver.find_elements(By.CSS_SELECTOR, 'table.t-class tbody tr.ng-star-inserted')
+                inputs_prazo = []
+                for tr in linhas:
+                    try:
+                        checkbox = tr.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Intimar parte"]')
+                        marcado_linha = (
+                            checkbox.get_attribute('aria-checked') == 'true'
+                            or checkbox.is_selected()
+                        )
+                        if not marcado_linha:
+                            continue
+                        input_prazo = tr.find_element(
+                            By.CSS_SELECTOR,
+                            'mat-form-field.prazo input[type="text"].mat-input-element, mat-form-field.prazo input',
+                        )
+                        inputs_prazo.append(input_prazo)
+                    except Exception:
+                        # Linha sem checkbox de intimar ou sem campo de prazo — não selecionável
                         continue
-                    input_prazo = tr.find_element(
-                        By.CSS_SELECTOR,
-                        'mat-form-field.prazo input[type="text"].mat-input-element',
-                    )
-                    inputs_prazo.append(input_prazo)
-                except Exception:
-                    # Linha sem checkbox de intimar ou sem campo de prazo — não selecionável
-                    continue
 
-            if not inputs_prazo:
-                logger.warning('[PRAZOS] Nenhum campo de prazo na linha selecionada')
+                if not inputs_prazo:
+                    logger.warning('[PRAZOS] Nenhum campo de prazo na linha selecionada')
+                    return False
+
+                logger.info(f'[PRAZOS] Encontrados {len(inputs_prazo)} campos de prazo')
+
+                for i, input_elem in enumerate(inputs_prazo):
+                    try:
+                        input_elem.clear()
+                        input_elem.send_keys(str(prazo))
+                        driver.execute_script("""
+                            arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
+                            arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                        """, input_elem)
+                        logger.info(f'[PRAZOS] Campo {i+1} preenchido com prazo: {prazo}')
+                    except Exception as e:
+                        logger.warning(f'[PRAZOS] Erro ao preencher campo {i+1}: {e}')
+                        continue
+
+                espera.assentar(driver, 0.3)
+
+            except Exception as e:
+                logger.warning(f'[PRAZOS] Erro ao preencher campos de prazo: {e}')
                 return False
+        else:
+            logger.info('[PRAZOS] Sem prazo numérico definido; destinatários mantidos conforme seleção')
 
-            logger.info(f'[PRAZOS] Encontrados {len(inputs_prazo)} campos de prazo')
-
-            for i, input_elem in enumerate(inputs_prazo):
-                try:
-                    input_elem.clear()
-                    input_elem.send_keys(str(prazo))
-                    logger.info(f'[PRAZOS] Campo {i+1} preenchido com prazo: {prazo}')
-                except Exception as e:
-                    logger.warning(f'[PRAZOS] Erro ao preencher campo {i+1}: {e}')
-                    continue
-
-            espera.assentar(driver, 0.3)
-
-        except Exception as e:
-            logger.warning(f'[PRAZOS] Erro ao preencher campos de prazo: {e}')
-            return False
-
-        logger.info('[PRAZOS] Preenchimento de prazos concluído')
+        logger.info('[PRAZOS] Preenchimento de destinatários e prazos concluído')
         return True
 
     except Exception as e:

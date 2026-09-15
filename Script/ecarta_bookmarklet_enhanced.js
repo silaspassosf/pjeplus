@@ -194,36 +194,39 @@
 
     linhas.forEach(function(d, idx){
       var statusMostrar = d.statusCorrigido || d.status;
+      var isDevolvido = Boolean(
+        d.falsoPositivo
+        || RE_DEVOLVIDO.test(statusMostrar)
+        || RE_DEVOLVIDO.test(d.status)
+      );
 
       conteudoHtml += 'ID: ' + (d.idPjeLink
         ? '<a href="' + d.idPjeLink + '" target="_blank">' + d.idPje + '</a>'
         : d.idPje)
         + '<br>DESTINAT\u00C1RIO: ' + d.destinatario
         + '<br>DATA DO ENVIO: ' + d.dataEnvio
-        + '<br>DATA DE ENTREGA: ' + d.dataEntrega
+        + (!isDevolvido && d.dataEntrega ? '<br>DATA DE ENTREGA: ' + d.dataEntrega : '')
         + '<br>RESULTADO: ' + statusMostrar
         + (d.falsoPositivo ? ' \u26A0\uFE0F FALSO POSITIVO CORRIGIDO (era "Entregue", mas houve devolu\u00E7\u00E3o)' : '')
-        + '<br>OBJETO: ' + (d.objetoLink
-          ? '<a href="' + d.objetoLink + '" target="_blank">' + d.objeto + '</a>'
-          : d.objeto)
-        + '<br>DEVOLVIDA? ( ) - Desmarcado significa ENTREGA CONFIRMADA.'
         + (d.evidencias && d.evidencias.length
           ? '<br>\u2514 Evid\u00EAncia: ' + d.evidencias[0]
-          : '');
+          : '')
+        + '<br>OBJETO: ' + (d.objetoLink
+          ? '<a href="' + d.objetoLink + '" target="_blank">' + d.objeto + '</a>'
+          : d.objeto);
 
       conteudoTexto += 'ID: ' + d.idPje
         + (d.idPjeLink ? '\n\uD83D\uDD17 Link do documento: ' + d.idPjeLink : '')
         + '\nDESTINAT\u00C1RIO: ' + d.destinatario
         + '\nDATA DO ENVIO: ' + d.dataEnvio
-        + '\nDATA DE ENTREGA: ' + d.dataEntrega
+        + (!isDevolvido && d.dataEntrega ? '\nDATA DE ENTREGA: ' + d.dataEntrega : '')
         + '\nRESULTADO: ' + statusMostrar
         + (d.falsoPositivo ? ' \u26A0\uFE0F FALSO POSITIVO CORRIGIDO' : '')
-        + '\nOBJETO: ' + d.objeto
-        + (d.objetoLink ? '\n\uD83D\uDD17 Link: ' + d.objetoLink : '')
-        + '\nDEVOLVIDA? ( ) - Desmarcado significa ENTREGA CONFIRMADA.'
         + (d.evidencias && d.evidencias.length
           ? '\n\u2514 Evid\u00EAncia: ' + d.evidencias[0]
-          : '');
+          : '')
+        + '\nOBJETO: ' + d.objeto
+        + (d.objetoLink ? '\n\uD83D\uDD17 Link: ' + d.objetoLink : '');
 
       if (idx < linhas.length - 1) {
         conteudoHtml += '<br><br>_____________________________________________________________<br><br>';
@@ -249,6 +252,9 @@
           d.falsoPositivo = true;
           d.statusCorrigido = 'DEVOLVIDO (corrigido de: ' + d.status + ')';
           d.evidencias = resultado.evidencias;
+          d.dataEntrega = '';
+        } else if (RE_DEVOLVIDO.test(d.status)) {
+          d.dataEntrega = '';
         }
       } catch(e) {
         // ignora erros de auditoria individual

@@ -272,10 +272,16 @@ def _parse_tabela_processo(html: str) -> list[dict]:
                 rastreio = m.group(1)
                 rastreio_link = f'{BASE}consultarObjeto.xhtml?codigo={rastreio}'
 
+        id_pje = get_text(3)
+        id_pje_link = ''
+        if id_pje and re.match(r'^\d{10,}$', id_pje):
+            id_pje_link = f'https://pje.trt2.jus.br/pjekz/processo/documento/{id_pje}/conteudo'
+
         rows.append({
             'dataEnvio': get_text(0),
             'dataEntrega': get_text(1),
-            'idPje': get_text(3),
+            'idPje': id_pje,
+            'idPjeLink': id_pje_link,
             'objeto': rastreio or get_text(4),
             'objetoLink': rastreio_link,
             'status': get_text(5),
@@ -291,26 +297,40 @@ def _extrair_viewstate(html: str) -> str:
     return m.group(1) if m else ''
 
 
-def _fetch_detalhes_rastreio(session: requests.Session, codigo_rastreio: str) -> list[dict]:
+def _fetch_detalhes_rastreio(session: requests.Session, target: str) -> tuple[list[dict], list[str]]:
     """
     GET consultarObjeto → POST JSF → parse eventos.
-    Retorna lista de {dataEvento, descricao, cidadeUf}.
+    target pode ser URL completa ou código de rastreamento (ex: 'JH123456789BR').
+    Retorna (todos_eventos, evidencias_devolucao).
     """
-    # Etapa 1: GET
-    url = f'{BASE}consultarObjeto.xhtml?codigo={codigo_rastreio}'
-    resp = session.get(url, timeout=30)
-    html = resp.text
+    target = (target or '').strip()
+    if not target:
+        return [], []
+
+    if target.startswith('http'):
+        url = target
+    else:
+        url = f'{BASE}consultarObjeto.xhtml?codigo={target}'
+
+    try:
+        resp = session.get(url, timeout=30)
+        html = resp.text
+    except Exception as e:
+        logger.warning('[CARTA-API] Erro no GET de rastreio %s: %s', target, e)
+        return [], []
 
     viewstate = _extrair_viewstate(html)
     if not viewstate:
-        return []
+        return [], []
 
     indices = [int(m.group(1)) for m in re.finditer(r'id="main:tabDoc:(\d+):rastreamento"', html)]
     if not indices:
-        return []
+        return [], []
 
-    # Etapa 2: POST JSF
+    # Etapa 2: POST JSF para cada índice
     todos_eventos = []
+    evidencias_devolucao = []
+
     for idx in indices:
         source = f'main:tabDoc:{idx}:rastreamento'
         body = {
@@ -323,99 +343,141 @@ def _fetch_detalhes_rastreio(session: requests.Session, codigo_rastreio: str) ->
             'javax.faces.ViewState': viewstate,
         }
 
-        post_resp = session.post(
-            f'{BASE}consultarObjeto.xhtml',
-            data=body,
-            headers={
-                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                'Faces-Request': 'partial/ajax',
-            },
-            timeout=30,
-        )
+        try:
+            post_resp = session.post(
+                f'{BASE}consultarObjeto.xhtml',
+                data=body,
+                headers={
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'Faces-Request': 'partial/ajax',
+                },
+                timeout=30,
+            )
+            eventos, evid = _parse_partial_response(post_resp.text)
+            if eventos:
+                todos_eventos.extend(eventos)
+            if evid:
+                evidencias_devolucao.extend(evid)
+        except Exception as e:
+            logger.warning('[CARTA-API] Erro no POST JSF index %s: %s', idx, e)
 
-        eventos = _parse_partial_response(post_resp.text)
-        if eventos:
-            todos_eventos.extend(eventos)
+        time.sleep(0.1)
 
-        time.sleep(0.15)
-
-    return todos_eventos
+    return todos_eventos, evidencias_devolucao
 
 
-def _parse_partial_response(xml_text: str) -> list[dict]:
-    """Extrai eventos do <partial-response> JSF."""
+def _parse_partial_response(xml_text: str) -> tuple[list[dict], list[str]]:
+    """Extrai eventos do <partial-response> JSF e detecta evidências de devolução."""
+    if not xml_text:
+        return [], []
+
+    updates_html = []
     try:
         root = ET.fromstring(xml_text)
-    except ET.ParseError:
-        return []
+        for el in root.iter():
+            tag_name = el.tag.split('}')[-1]
+            if tag_name == 'update' and el.get('id') == 'detalhesObjeto':
+                if el.text:
+                    updates_html.append(el.text)
+    except Exception:
+        pass
 
-    for update in root.findall('.//update') or root.findall('update'):
-        if update.get('id') != 'detalhesObjeto':
-            continue
-        inner_html = update.text or ''
-        if not inner_html:
-            continue
+    if not updates_html:
+        # Fallback regex para capturar CDATA da tag update
+        m = re.findall(
+            r'<update[^>]*id="detalhesObjeto"[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</update>',
+            xml_text,
+            re.DOTALL,
+        )
+        if m:
+            updates_html.extend(m)
 
-        from bs4 import BeautifulSoup
+    if not updates_html:
+        return [], []
+
+    from bs4 import BeautifulSoup
+    eventos = []
+    evidencias = []
+
+    for inner_html in updates_html:
         soup = BeautifulSoup(inner_html, 'html.parser')
         tbody = (
             soup.select_one('#tabDetalhesObjeto_data')
             or soup.select_one('tbody[id$="tabDetalhesObjeto_data"]')
+            or soup.select_one('tbody[id*="tabDetalhesObjeto"]')
         )
         if not tbody:
             continue
 
-        eventos = []
         for tr in tbody.find_all('tr', recursive=False):
             tds = tr.find_all('td')
             if len(tds) < 2:
                 continue
-            if 'Nenhum resultado' in tds[0].get_text(strip=True):
+            data_evento = tds[0].get_text(strip=True)
+            if 'Nenhum resultado' in data_evento:
                 continue
 
             desc_parts = []
             for node in tds[1].children:
-                if hasattr(node, 'get_text'):
-                    desc_parts.append(node.get_text(strip=True))
+                if getattr(node, 'name', None) == 'br':
+                    desc_parts.append(' | ')
+                elif hasattr(node, 'get_text'):
+                    t = node.get_text(strip=True)
+                    if t:
+                        desc_parts.append(t)
                 elif isinstance(node, str):
-                    desc_parts.append(node.strip())
-            descricao = ' | '.join(p for p in desc_parts if p) or tds[1].get_text(' | ', strip=True)
+                    t = node.strip()
+                    if t:
+                        desc_parts.append(t)
+            descricao = ' '.join(desc_parts)
+            descricao = re.sub(r'\s+\|\s+', ' | ', descricao)
+            descricao = re.sub(r'\s+', ' ', descricao).strip()
+            if not descricao:
+                descricao = tds[1].get_text(' | ', strip=True)
 
+            cidade_uf = tds[2].get_text(strip=True) if len(tds) > 2 else ''
             eventos.append({
-                'dataEvento': tds[0].get_text(strip=True),
+                'dataEvento': data_evento,
                 'descricao': descricao,
-                'cidadeUf': tds[2].get_text(strip=True) if len(tds) > 2 else '',
+                'cidadeUf': cidade_uf,
             })
-        return eventos
 
-    return []
+            if RE_DEVOLUCAO.search(descricao):
+                evidencias.append(f"{data_evento} — {descricao}")
+
+    return eventos, evidencias
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Classificação de falso positivo
 # ═══════════════════════════════════════════════════════════════════
 
-def _classificar_status(status_original: str, eventos: list[dict]) -> tuple[str, Optional[str]]:
-    """Determina o status real considerando o histórico de eventos.
+def _classificar_status(
+    status_original: str,
+    eventos: list[dict],
+    evidencias: list[str],
+) -> tuple[str, Optional[str], bool]:
+    """Determina o status real considerando o histórico de eventos e evidências de devolução.
     
     Returns:
-        (status, evidencia) onde evidencia é None ou "data — descrição" do evento de devolução
+        (status_real, evidencia, falso_positivo)
     """
-    if RE_STATUS_DEVOLVIDO.search(status_original):
-        return 'DEVOLVIDO', None
+    status_orig = status_original or ''
+    eh_devolvido_orig = bool(RE_STATUS_DEVOLVIDO.search(status_orig))
 
-    if not eventos:
-        return status_original or 'SEM_EVENTOS', None
+    if evidencias:
+        evidencia = evidencias[0]
+        # É falso positivo se a tabela original não dizia devolução
+        falso_positivo = not eh_devolvido_orig
+        return 'DEVOLVIDO', evidencia, falso_positivo
 
-    for ev in eventos:
-        if RE_DEVOLUCAO.search(ev.get('descricao', '')):
-            evidencia = f"{ev.get('dataEvento', '')} — {ev.get('descricao', '')}"
-            return 'DEVOLVIDO', evidencia
+    if eh_devolvido_orig:
+        return 'DEVOLVIDO', None, False
 
-    if RE_STATUS_ENTREGUE.search(status_original):
-        return 'ENTREGUE', None
+    if RE_STATUS_ENTREGUE.search(status_orig):
+        return 'ENTREGUE', None, False
 
-    return status_original or 'INDETERMINADO', None
+    return status_orig or 'INDETERMINADO', None, False
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -584,64 +646,81 @@ def coletar_tabela_ecarta_api(
     table_data = []
 
     if log:
-        com_rastreio = sum(1 for r in linhas_para_auditar if re.match(r'^[A-Z]{2}\d{9}BR$', r.get('objeto', '')))
+        com_rastreio = sum(
+            1 for r in linhas_para_auditar
+            if r.get('objetoLink')
+            or re.match(r'^[A-Z]{2}\d{9}BR$', (r.get('objeto') or '').strip(), re.IGNORECASE)
+            or (len((r.get('objeto') or '').strip()) >= 8 and not (r.get('objeto') or '').strip().isnumeric())
+        )
         logger.info(
             f'[CARTA-API] {len(linhas_para_auditar)} linhas na(s) data(s) alvo, '
             f'{com_rastreio} com rastreio para auditar'
         )
 
     for row in linhas_para_auditar:
-        rastreio = row.get('objeto', '')
-        status_original = row.get('status', '')
+        rastreio = (row.get('objeto') or '').strip()
+        link = (row.get('objetoLink') or '').strip()
+        status_original = (row.get('status') or '').strip()
+        target = link or rastreio
         status_final = status_original
+        falso_positivo = False
         evidencia_devolucao = None
 
-        # Auditar apenas se tem código de rastreio e status sugere "entregue"
-        if re.match(r'^[A-Z]{2}\d{9}BR$', rastreio):
+        deve_auditar = bool(
+            link
+            or re.match(r'^[A-Z]{2}\d{9}BR$', rastreio, re.IGNORECASE)
+            or (len(rastreio) >= 8 and not rastreio.isnumeric())
+        )
+
+        if deve_auditar and target:
             try:
-                eventos = _fetch_detalhes_rastreio(session, rastreio)
+                eventos, evidencias = _fetch_detalhes_rastreio(session, target)
             except Exception as e:
                 if log:
-                    logger.warning(f'[CARTA-API] Erro ao auditar {rastreio}: {e}')
-                eventos = []
+                    logger.warning(f'[CARTA-API] Erro ao auditar {target}: {e}')
+                eventos, evidencias = [], []
 
-            if eventos:
-                status_final, evidencia_devolucao = _classificar_status(status_original, eventos)
+            status_real, evidencia_devolucao, falso_positivo = _classificar_status(
+                status_original, eventos, evidencias
+            )
+
+            if falso_positivo:
+                status_final = f"DEVOLVIDO (corrigido de: {status_original})"
                 if log:
-                    falso = (
-                        RE_STATUS_ENTREGUE.search(status_original)
-                        and status_final == 'DEVOLVIDO'
+                    logger.warning(
+                        f'[CARTA-API] ⚠️ FALSO POSITIVO: {rastreio or target} — '
+                        f'tabela dizia "{status_original}", mas histórico comprova devolução ({evidencia_devolucao})'
                     )
-                    if falso:
-                        logger.info(
-                            f'[CARTA-API] ⚠️ FALSO POSITIVO: {rastreio} — '
-                            f'tabela dizia "entregue" mas histórico mostra devolução'
-                        )
+            elif status_real == 'DEVOLVIDO':
+                status_final = status_original if RE_STATUS_DEVOLVIDO.search(status_original) else 'DEVOLVIDO'
 
-        rastreamento_final = row.get('objetoLink', '') or rastreio
+        # Determinar se a intimação é devolvida (original ou falso positivo corrigido)
+        is_devolvido = bool(
+            falso_positivo
+            or RE_STATUS_DEVOLVIDO.search(status_final)
+            or RE_STATUS_DEVOLVIDO.search(status_original)
+        )
+
+        # Regra: no caso de notificação devolvida, nunca constar data de entrega!
+        data_entrega = '' if is_devolvido else row.get('dataEntrega', '')
+
+        rastreamento_final = link or rastreio
         table_data.append({
             'ID_PJE': row.get('idPje', ''),
+            'ID_PJE_LINK': row.get('idPjeLink', ''),
             'RASTREAMENTO': rastreamento_final,
             'DESTINATARIO': row.get('destinatario', ''),
             'DATA_ENVIO': row.get('dataEnvio', ''),
-            'DATA_ENTREGA': row.get('dataEntrega', ''),
+            'DATA_ENTREGA': data_entrega,
             'STATUS': status_final,
+            'STATUS_ORIGINAL': status_original,
+            'FALSO_POSITIVO': falso_positivo,
             'EVIDENCIA': evidencia_devolucao,
         })
 
     dur_total = time.time() - t_start
     if log:
-        falsos = sum(
-            1 for r in table_data
-            if RE_STATUS_DEVOLVIDO.search(r.get('STATUS', ''))
-            and not RE_STATUS_DEVOLVIDO.search(
-                next(
-                    (orig.get('status', '') for orig in todas_rows
-                     if orig.get('idPje') == r.get('ID_PJE')),
-                    '',
-                )
-            )
-        )
+        falsos = sum(1 for r in table_data if r.get('FALSO_POSITIVO'))
         logger.info(
             f'[CARTA-API] DONE — {len(table_data)} registros, '
             f'{falsos} falso(s) positivo(s) corrigido(s) '

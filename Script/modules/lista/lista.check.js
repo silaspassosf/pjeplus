@@ -541,113 +541,65 @@ async function onCheckRowClick(doc) {
 }
 
 // Abre o painel nativo de seleção de documentos e marca CNIB + Serasa de pesquisas
-// (restaurado da v0.1.68: re-resolve o DOM pós-render pelo UID estável no href
-//  dos links de anexo e re-lê a timeline para capturar os nós já re-renderizados)
-window.autoSelecionarPesquisaCheck = async function (docs) {
-    // 0) Se os docs vieram frios (antes do re-render), re-lê a timeline para
-    //    capturar os elementos DOM já existentes no modo de seleção.
-    let lista = docs;
-    if (!lista || !lista.length) {
-        try { lista = await lerTimelineCompleta(); } catch (e) { lista = []; }
+window.autoSelecionarPesquisaCheck = async function () {
+    // 1) Clicar no ícone de check-square nativo do PJe
+    const icone = document.querySelector('i.icone-sozinho.fa-check-square, i.far.fa-check-square, .fa-check-square');
+    if (!icone) {
+        showToast('Ícone de check-square não encontrado', '#dc3545', 3000);
+        return;
     }
-    if (!lista || !lista.length) return;
+    (icone.closest('button') || icone).click();
+    await sleep(600);
 
-    // 1) Identificar pares pelas APIs (não DOM)
+    // 2) Usar a timeline já lida para saber exatamente quais pesquisas têm CNIB+Serasa
+    const docs = await lerTimelineCompleta();
     const pares = [];
-    const pais = lista.filter(d => !d.isAnexo && /pesquisa|certid[aã]o|oficial de justi[cç]a/i.test(d.tipo || d.texto || ''));
+    const pais = docs.filter(d => !d.isAnexo && /pesquisa/i.test(d.tipo || d.texto || ''));
     for (const pai of pais) {
-        const anexos = lista.filter(d => d.isAnexo && d.parentId === pai.id);
+        const anexos = docs.filter(d => d.isAnexo && d.parentId === pai.id);
         const temCnib = anexos.some(a => a.tipo === 'CNIB');
         const temSerasa = anexos.some(a => a.tipo === 'Serasa');
         if (temCnib && temSerasa) {
             pares.push({ pai, anexos: anexos.filter(a => a.tipo === 'CNIB' || a.tipo === 'Serasa') });
         }
     }
-
     if (!pares.length) {
         showToast('Nenhuma pesquisa com par CNIB + Serasa encontrada', '#6c757d', 3000);
         return;
     }
 
-    // 2) Entrar no modo de seleção múltipla da SPA
-    const icone = document.querySelector('i.icone-sozinho.fa-check-square, i.far.fa-check-square, .fa-check-square');
-    if (!icone) {
-        showToast('Ícone de check-square não encontrado', '#dc3545', 3000);
-        return;
-    }
-    const btnCheck = icone.closest('button') || icone;
-    btnCheck.click();
-    console.log('[AutoCheck] Entrou no modo seleção múltipla. Aguardando SPA...');
-
-    // Aguardar checkboxes aparecerem (indicador de que o Angular recriou a lista)
-    await sleep(2000);
-
-    // Helper text-match para encontrar itens na nova view
-    const nTexto = t => window.norm(t);
-
-    // 3) Expandir e marcar trabalhando no DOM re-renderizado.
-    //    Resolve o anexo primeiro pelo UID estável no href do link (o mesmo
-    //    critério da versão que funcionava) e só então pelo tipo/texto.
     let marcados = 0;
     for (const { pai, anexos } of pares) {
-        // Encontrar container do Pai pelo uid ou titulo
-        const elemUID = encontrarElementoPorUid(pai.id);
-        const alvoBusca = pai.texto || '';
-
-        let containerPai = elemUID;
-        if (!containerPai) {
-            // Tentar localizar pelo titulo (fallback texto, evita usar UID de outro re-render)
-            const listItems = Array.from(document.querySelectorAll('li.tl-item-container, .documento-item, pje-timeline-item, .tl-item'));
-            containerPai = listItems.find(el => nTexto(el.textContent).includes(nTexto(alvoBusca).substring(0, 25)));
-        }
-
-        if (!containerPai) {
-            console.warn('[AutoCheck] Não achei a pesquisa no DOM pós-render:', pai.id);
+        const paiEl = encontrarElementoPorUid(pai.id);
+        if (!paiEl) {
+            console.warn('[autoSelecionarPesquisaCheck] Pai não encontrado no DOM:', pai.id);
             continue;
         }
+        await expandirAnexos(paiEl);
+        await sleep(400);
 
-        // Expandir anexos clicando no botão toggle no novo DOM
-        const toggle = containerPai.querySelector('button.botao-anexos, mat-icon[svgicon*="expand"], div[name="mostrarOuOcultarAnexos"]');
-        if (toggle && !containerPai.querySelector('.tl-item-anexo, .anexo, a.tl-documento[id^="anexo_"]')) {
-            toggle.click();
-            await sleep(800);
-        }
-
-        // Selecionar os Checkboxes dos anexos — priorizar resolução por UID no href
+        const anexoLinks = Array.from(paiEl.querySelectorAll('a.tl-documento[id^="anexo_"]'));
         for (const anexo of anexos) {
             const uidLower = String(anexo.id || '').toLowerCase();
-            const ehCnib = anexo.tipo === 'CNIB';
-            const matcherTipo = ehCnib ? /cnib|indisp/ : /serasa/;
-
-            // Busca robusta: por UID no href/texto do link de anexo, senão por tipo
-            const anexoEls = Array.from(containerPai.querySelectorAll('.tl-item-anexo, .anexo, a.tl-documento[id^="anexo_"], li, tr'));
-            let anexoEl = uidLower
-                ? anexoEls.find(el => {
-                    const h = (el.getAttribute && (el.getAttribute('href') || '')) || '';
-                    const t = nTexto(el.textContent);
-                    return h.toLowerCase().includes(uidLower) || t.includes(uidLower);
-                  })
-                : null;
-            anexoEl = anexoEl || anexoEls.find(el => {
-                const t = nTexto(el.textContent);
-                return matcherTipo.test(t) &&
-                    (el.matches('a.tl-documento, .tl-item-anexo, .anexo') || el.querySelector && el.querySelector('a.tl-documento[id^="anexo_"]'));
+            const link = anexoLinks.find(l =>
+                (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
+                (l.textContent || '').toLowerCase().includes(uidLower)
+            ) || anexoLinks.find(l => {
+                const t = (l.textContent || '').toLowerCase();
+                return anexo.tipo === 'CNIB' ? /cnib|indisp/.test(t) : /serasa/.test(t);
             });
-
-            if (!anexoEl) {
-                console.warn('[AutoCheck] Link do anexo não encontrado:', anexo.id);
+            if (!link) {
+                console.warn('[autoSelecionarPesquisaCheck] Link do anexo não encontrado:', anexo.id);
                 continue;
             }
-
-            const row = anexoEl.closest('li, tr, div, .tl-item-anexo') || anexoEl.parentElement;
-            // No modo seleção do PJe, os inputs as vezes re-utilizam tag, garantir o da row corrente
+            const row = link.closest('li, tr, div, .tl-item-anexo') || link.parentElement;
             const cb = row.querySelector('input[type="checkbox"]');
             if (cb && !cb.checked) {
                 cb.scrollIntoView({ block: 'nearest' });
                 cb.click();
                 marcados++;
             } else if (!cb) {
-                console.warn('[AutoCheck] Checkbox não encontrado para:', anexo.id);
+                console.warn('[autoSelecionarPesquisaCheck] Checkbox não encontrado para:', anexo.id);
             }
         }
     }
@@ -661,10 +613,10 @@ window.executarCheck = async function () {
     const saida = construirOrdem(filtrados);
     renderTabela('listaDocsExecucaoSimples', '📋 Relatório de Medidas', '#007bff',
         saida, onCheckRowClick);
-    
-    // Execução automática do Auto-check sem botão
+
+    // Execução automática após gerar a tabela
     setTimeout(() => {
-        window.autoSelecionarPesquisaCheck(docs).catch(e => console.error('[CHECK] Erro autocheck', e));
+        window.autoSelecionarPesquisaCheck().catch(e => console.error('[CHECK] Erro autocheck', e));
     }, 500);
 
     // Adicionar botões no topo (header) da lista gerada pelo check
@@ -673,6 +625,24 @@ window.executarCheck = async function () {
         const hdr = panel.querySelector('div'); // header criado por renderTabela
         if (hdr) {
             const closeBtn = hdr.querySelector('button');
+
+            // Botão Auto-check CNIB/Serasa
+            const existingAuto = panel.querySelector('#maisPje_btn_autocheck');
+            if (existingAuto) existingAuto.remove();
+            const btnAuto = document.createElement('button');
+            btnAuto.id = 'maisPje_btn_autocheck';
+            btnAuto.textContent = '☑️ CNIB+Serasa';
+            btnAuto.title = 'Selecionar automaticamente CNIB + Serasa de pesquisas';
+            btnAuto.style.cssText = 'margin-left:8px;padding:6px 10px;background:#17a2b8;color:#fff;border:none;cursor:pointer;' +
+                'border-radius:4px;font-size:12px;pointer-events:auto;z-index:999999999;';
+            btnAuto.onclick = async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                try { await window.autoSelecionarPesquisaCheck(); }
+                catch (err) { console.error('[CHECK] Erro no auto-check:', err); }
+            };
+            if (closeBtn) hdr.insertBefore(btnAuto, closeBtn);
+            else hdr.appendChild(btnAuto);
 
             // Botão Conferir alvarás
             const existing = panel.querySelector('#maisPje_btn_conferir_alvaras');

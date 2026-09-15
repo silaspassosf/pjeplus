@@ -90,7 +90,13 @@
         }
         console.log('[Painel] Criando painel...');
         criarPainel([
-            { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
+            { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: function() {
+                    if (typeof window.executarCheck === 'function') {
+                        window.executarCheck();
+                    } else {
+                        showToast('Módulo Check não carregado', '#dc3545', 3000);
+                    }
+                }, titulo: 'Relatório de Medidas' },
             { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },
             { id: 'btnSimba', texto: '⚖️ Simba', bg: '#ff9800', fn: function() {
                     if (typeof window.executarSimba === 'function') {

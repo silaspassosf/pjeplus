@@ -118,17 +118,26 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
         _pw_instancia = sync_playwright().start()
     pw = _pw_instancia
     largura, altura = viewport
+    # Headed: a viewport segue a janela real (o usuario pode maximizar no
+    # monitor que quiser sem o motor re-redimensionar). Headless: viewport
+    # fixa 1920x1080 para determinismo entre execucoes.
+    viewport_ctx = {"width": largura, "height": altura} if headless else None
 
     try:
         if perfil:
-            context = pw.firefox.launch_persistent_context(
-                perfil,
+            context_kw = dict(
                 headless=headless,
                 firefox_user_prefs=prefs,
                 downloads_path=DOWNLOADS,
                 accept_downloads=True,
-                viewport={"width": largura, "height": altura},
                 user_agent=UA_PJE,
+            )
+            if viewport_ctx is not None:
+                context_kw["viewport"] = viewport_ctx
+            else:
+                context_kw["no_viewport"] = True
+            context = pw.firefox.launch_persistent_context(
+                perfil, **context_kw
             )
             browser = context.browser
             pagina = context.pages[0] if context.pages else context.new_page()
@@ -138,11 +147,15 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
                 firefox_user_prefs=prefs,
                 downloads_path=DOWNLOADS,
             )
-            context = browser.new_context(
-                viewport={"width": largura, "height": altura},
+            context_kw = dict(
                 user_agent=UA_PJE,
                 accept_downloads=True,
             )
+            if viewport_ctx is not None:
+                context_kw["viewport"] = viewport_ctx
+            else:
+                context_kw["no_viewport"] = True
+            context = browser.new_context(**context_kw)
             pagina = context.new_page()
     except Exception as e:
         logger.error("criar_driver: falha ao iniciar Firefox Playwright: %s", e)

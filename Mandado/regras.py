@@ -80,6 +80,7 @@ from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_
 from Fix.selenium_base import preencher_campo
 from Fix.extracao import salvar_destinatarios_cache
 from Fix.abas import validar_conexao_driver
+from Fix import espera
 from Fix.extracao import criar_gigs, criar_lembrete_posit
 from Prazo.p2b_core import checar_prox
 from .apoio_fluxos import (
@@ -95,7 +96,8 @@ from .apoio_fluxos import (
     ato_edital,
     pec_idpj,
     mov_arquivar,
-    ato_meiosub
+    ato_meiosub,
+    lembrete_bloq
 )
 
 with open("log.py", "w", encoding="utf-8") as f:
@@ -303,35 +305,45 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
 
         _persistir_destinatarios_idpj()
 
-        # Ordem obrigatória no fluxo IDPJ (GIGS xs carta atropelava a criação do
-        # lembrete de bloqueio quando executados juntos). Sequência fixa:
-        #   1) GIGS xs carta até o fim — criar_gigs aguarda "Atividade salva com sucesso"
-        #   2) lembrete de bloqueio até o fim — criar_lembrete_posit aguarda o diálogo fechar
-        #   3) só depois pec_idpj — com gigs_extra=False para NÃO recriar o GIGS
-        try:
-            if debug:
-                logger.info('[ARGOS][IDPJ] Passo 1/3: criando GIGS xs carta (aguarda salvar)')
-            criar_gigs(driver, 7, '', 'xs carta')
-        except Exception as e:
-            if debug:
-                logger.warning(f'[ARGOS][REGRAS][WARN] Falha ao criar GIGS xs carta: {e}')
-
+        # Sequência obrigatória no fluxo IDPJ:
+        #   1) lembrete de bloqueio (se SISBAJUD positivo) — browser está limpo em /detalhe;
+        #      criar_lembrete_posit retorna False silenciosamente se o DOM estiver sujo
+        #      (ex: formulário GIGS residual), por isso o lembrete DEVE vir antes do GIGS.
+        #   2) GIGS xs carta — criar_gigs aguarda "Atividade salva com sucesso"
+        #   3) pec_idpj — com gigs_extra=False para NÃO recriar o GIGS
         if resultado_sisbajud == 'positivo':
-            if debug:
-                logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio')
-            try:
-                titulo_lembrete = 'IDPJcomBloq'
-                conteudo_lembrete = 'Processar bloqueios após intimar para pagamento depois do transito do IDPJ.'
-                criar_lembrete_posit(driver, titulo_lembrete, conteudo_lembrete, debug=debug)
-            except Exception as e:
-                if debug:
-                    logger.warning(f'[ARGOS][REGRAS][WARN] Falha ao criar lembrete: {e}')
+            logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio')
+            # CRÍTICO: o lembrete DEVE ser criado e finalizado antes de prosseguir.
+            # criar_lembrete_posit pode falhar silenciosamente (retorna False em ~1s se
+            # o menu/diálogo não abrir) — por isso checamos o retorno e tentamos de novo.
+            titulo_lembrete = 'IDPJcomBloq'
+            conteudo_lembrete = 'Processar bloqueios após intimar para pagamento depois do transito do IDPJ.'
+            lembrete_ok = False
+            for tentativa in range(1, 4):
+                try:
+                    lembrete_ok = bool(criar_lembrete_posit(driver, titulo_lembrete, conteudo_lembrete, debug=debug))
+                except Exception as e:
+                    logger.warning(f'[ARGOS][REGRAS][WARN] lembrete tentativa {tentativa}/3 falhou: {type(e).__name__}: {e}')
+                if lembrete_ok:
+                    break
+                logger.warning(f'[ARGOS][REGRAS][WARN] lembrete nao confirmado (tentativa {tentativa}/3) — reassentando e tentando de novo')
+                espera.assentar(driver, 1.5, motivo='[LEMBRETE] retry apos falha')
+            if not lembrete_ok:
+                logger.error('[ARGOS][REGRAS][ERRO] Lembrete de bloqueio nao criado apos 3 tentativas — prosseguindo com pec_idpj mesmo assim')
         elif debug:
             logger.info('[ARGOS][REGRAS] SISBAJUD não positivo: sem lembrete, seguindo com pec_idpj')
 
         try:
             if debug:
-                logger.info('[ARGOS][IDPJ] Passo 3/3: executando pec_idpj (GIGS xs carta já criado no passo 1)')
+                logger.info('[ARGOS][IDPJ] Passo 2/3: criando GIGS xs carta (aguarda salvar)')
+            criar_gigs(driver, 7, '', 'xs carta')
+        except Exception as e:
+            if debug:
+                logger.warning(f'[ARGOS][REGRAS][WARN] Falha ao criar GIGS xs carta: {e}')
+
+        try:
+            if debug:
+                logger.info('[ARGOS][IDPJ] Passo 3/3: executando pec_idpj (GIGS xs carta já criado no passo 2)')
             pec_idpj(driver, debug=debug, gigs_extra=False)
         except Exception as e:
             if debug:
@@ -472,7 +484,7 @@ def estrategia_decisao_manifestar(driver, resultado_sisbajud, sigilo_anexos, tip
         return False
 
     # Triggers que, segundo m1.py, devem acionar checar_prox para avançar ao próximo documento
-    trechos_checar_prox = ['devendo se manifestar', 'nada a deferir', 'comunique-se por edital']
+    trechos_checar_prox = ['devendo se manifestar', 'nada a deferir', 'comunique-se por edital', 'mantenho o despacho']
     for trecho in trechos_checar_prox:
         if texto_documento and trecho in texto_documento.lower():
             if debug:
@@ -547,6 +559,19 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
             else:
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_bloq (1 reclamada, SISBAJUD positivo/indefinido)')
+                # Lembrete de bloqueio DEVE ser criado e FINALIZADO antes de prosseguir
+                # (criar_lembrete_posit aguarda o diálogo fechar — evita atropelo)
+                if resultado_sisbajud == 'positivo':
+                    if debug:
+                        logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio (aguarda finalizar)')
+                    inicio_lembrete = time.time()
+                    try:
+                        lembrete_bloq(driver, debug=debug)
+                    except Exception as e:
+                        if debug:
+                            logger.error(f'[ARGOS][REGRAS][ERRO] lembrete_bloq falhou: {e}')
+                    if debug:
+                        logger.info(f'[ARGOS][REGRAS] lembrete_bloq finalizado em {time.time() - inicio_lembrete:.2f}s')
                 inicio_ato = time.time()
                 try:
                     ato_bloq(driver, debug=debug)
@@ -571,6 +596,19 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
             else:
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_bloq (multiplas reclamadas, SISBAJUD positivo/indefinido)')
+                # Lembrete de bloqueio DEVE ser criado e FINALIZADO antes de prosseguir
+                # (criar_lembrete_posit aguarda o diálogo fechar — evita atropelo)
+                if resultado_sisbajud == 'positivo':
+                    if debug:
+                        logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio (aguarda finalizar)')
+                    inicio_lembrete = time.time()
+                    try:
+                        lembrete_bloq(driver, debug=debug)
+                    except Exception as e:
+                        if debug:
+                            logger.error(f'[ARGOS][REGRAS][ERRO] lembrete_bloq falhou: {e}')
+                    if debug:
+                        logger.info(f'[ARGOS][REGRAS] lembrete_bloq finalizado em {time.time() - inicio_lembrete:.2f}s')
                 inicio_ato = time.time()
                 try:
                     ato_bloq(driver, debug=debug)

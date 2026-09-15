@@ -541,14 +541,17 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                         if item_data_envio not in datas_correlacionadas:
                             continue
 
+                        status_item = item.get('status', '')
+                        eh_devolvido = bool(re.search(r'devolvid[oa]', status_item, re.IGNORECASE))
                         rastreamento_final = item.get('objetoLink', '') or item.get('objeto', '')
                         table_data.append({
                             "ID_PJE": item.get('idPje', ''),
+                            "ID_PJE_LINK": item.get('idPjeLink', ''),
                             "RASTREAMENTO": rastreamento_final,
                             "DESTINATARIO": item.get('destinatario', ''),
                             "DATA_ENVIO": item_data_envio,
-                            "DATA_ENTREGA": item.get('dataEntrega', ''),
-                            "STATUS": item.get('status', ''),
+                            "DATA_ENTREGA": '' if eh_devolvido else item.get('dataEntrega', ''),
+                            "STATUS": status_item,
                         })
 
                     correlacao_encontrada = True

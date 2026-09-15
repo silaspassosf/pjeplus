@@ -433,6 +433,15 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
             'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão',
             'sob pena de preclusão', 'embargos de declaração', 'Registre-se o movimento processual adequado',
         ], (checar_prox,)),
+
+        # REGRA DE DADOS BANCÁRIOS / ENDEREÇO (fuzzy, mesma linha — aceita termos interpostos)
+        # 1º token "in<...>r" cobre indicar/incluir/inserir/incar; [^\n]*? entre
+        # tokens impede cruzamento de linha.
+        ([
+            re.compile(r'\bin\w*r\b[^\n]*?\bseus\b[^\n]*?\bdados\b[^\n]*?\bbancari\w*\b', re.IGNORECASE),
+            re.compile(r'\bindicac\w*\b[^\n]*?\bdados\b[^\n]*?\bbancari\w*\b', re.IGNORECASE),
+            re.compile(r'\bindic\w*\b[^\n]*?\bendereco\b[^\n]*?\bcomplet\w*\b', re.IGNORECASE),
+        ], (checar_prox,)),
     ]
 
 
@@ -552,9 +561,11 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
             if isinstance(res, tuple) and len(res) == 3:
                 return res
             # Tupla de resultado de wrapper de ato (ex.: make_ato_wrapper ->
-            # (ok_fluxo, ok_final)): só é sucesso se TODOS os itens forem True
+            # (ok_fluxo, ok_final)): sucesso se o PRIMEIRO item é True. O segundo
+            # item é flag auxiliar (ex.: sigilo ativado) — atos sem sigilo retornam
+            # (True, False) e NÃO devem ser tratados como falha.
             if isinstance(res, tuple):
-                if not all(res):
+                if not res or not res[0]:
                     resultado_acoes = False
             # Se retorna False, regra falhou
             elif res is False:

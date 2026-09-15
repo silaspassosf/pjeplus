@@ -849,7 +849,7 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
                 logger.warning('[LEMBRETE][POSIT] Botão de lembrete não encontrado no menu')
             return False
 
-        espera.ate_aparecer(driver, '.mat-dialog-content', teto=0.8)
+        espera.ate_aparecer(driver, '.mat-dialog-content', teto=5)
 
         aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
         espera.assentar(driver, 0.5)

@@ -377,16 +377,27 @@ class PWDriver:
     # -- janela -----------------------------------------------------------
 
     def maximize_window(self):
+        # Headed: a janela pertence ao usuario (posicao/maximizacao no monitor
+        # que ele escolher) e NAO deve ser re-redimensionada. No Firefox o
+        # Playwright implementa viewport redimensionando a janela do SO, o que
+        # arrastaria a janela de monitor. Headless: mantem 1920x1080.
+        if not self.headless:
+            return None
         self.set_window_size(1920, 1080)
 
     def minimize_window(self):
         return None
 
     def fullscreen_window(self):
+        if not self.headless:
+            return None
         self.set_window_size(1920, 1080)
 
     def set_window_size(self, largura, altura, windowHandle="current"):
+        if not self.headless:
+            return {"width": int(largura), "height": int(altura)}
         self.page.set_viewport_size({"width": int(largura), "height": int(altura)})
+        return {"width": int(largura), "height": int(altura)}
 
     def get_window_size(self, windowHandle="current"):
         vp = self.page.viewport_size or {"width": 1920, "height": 1080}

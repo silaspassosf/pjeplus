@@ -1,0 +1,166 @@
+{
+  "manifest_version": 3,
+  "name": "PJeT — PJe Tools Pro",
+  "version": "1.0.0",
+  "description": "Suite modular de ferramentas para o PJe TRT2: lista, atalhos, InfoJud, SISBAJUD, SIMBA, Argos, HCalc e mais.",
+  "author": "Silas",
+  "homepage_url": "https://github.com/silaspassosf/pjeplus",
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "pjet@trt2.local",
+      "strict_min_version": "109.0"
+    }
+  },
+
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "notifications"
+  ],
+
+  "host_permissions": [
+    "https://pje.trt2.jus.br/*",
+    "https://pje1g.trt2.jus.br/*",
+    "https://cav.receita.fazenda.gov.br/*",
+    "https://simba-novo.redejt/*",
+    "https://www3.bcb.gov.br/*",
+    "https://consultadecep.com/*",
+    "https://viacep.com.br/*",
+    "https://brasilapi.com.br/*",
+    "https://brasilcep.dev/*",
+    "https://aplicacoes1.trt2.jus.br/*"
+  ],
+
+  "background": {
+    "scripts": ["background/background.js"]
+  },
+
+  "content_scripts": [
+    {
+      "comment": "PJe principal — core sempre injetado; loader decide o que ativar",
+      "matches": [
+        "https://pje.trt2.jus.br/*",
+        "https://pje1g.trt2.jus.br/*"
+      ],
+      "js": [
+        "core/logger.js",
+        "vendor/pdfjs/pdf.min.js",
+        "vendor/tesseract/tesseract.min.js",
+        "core/utils.js",
+        "core/state.js",
+        "core/extrair.js",
+        "ui/painel.js",
+        "modules/lista/lista.check.js",
+        "modules/lista/lista.edital.js",
+        "modules/lista/lista.pgto.js",
+        "modules/atalhos/atalhos.js",
+        "modules/atalhos/atalhos.worker.js",
+        "modules/infojud/infojud.js",
+        "modules/sisbajud/core.js",
+        "modules/sisbajud/relatorios.js",
+        "modules/sisbajud/sisbajud.js",
+        "modules/sisbajud/sisbpje.js",
+        "modules/simba/simba.js",
+        "modules/debito/registrar_debito.js",
+        "modules/argos/argos.js",
+        "modules/alvara/extracao_siscondj.js",
+        "modules/alvara/siscon_consulta.js",
+        "modules/hcalc/hcalc-core.js",
+        "modules/hcalc/hcalc-pdf.js",
+        "modules/hcalc/hcalc-prep.js",
+        "modules/hcalc/BASE/hcalc-overlay-draft.js",
+        "modules/hcalc/BASE/hcalc-overlay-depositos.js",
+        "modules/hcalc/BASE/hcalc-overlay-responsabilidades.js",
+        "modules/hcalc/BASE/hcalc-overlay-partes.js",
+        "modules/hcalc/BASE/hcalc-overlay-decisao.js",
+        "modules/hcalc/BASE/hcalc-overlay.js",
+        "content/loader.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "comment": "Audiência — iframes permitidos",
+      "matches": ["https://pje.trt2.jus.br/aud/*"],
+      "js": [
+        "core/logger.js",
+        "core/utils.js",
+        "core/state.js",
+        "modules/aud/Aud.js",
+        "content/loader.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "comment": "InfoJud — e-CAC Receita (externo)",
+      "matches": ["https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*"],
+      "js": [
+        "core/logger.js",
+        "core/utils.js",
+        "modules/infojud/infojud.js",
+        "content/loader.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "comment": "SIMBA — portal externo",
+      "matches": ["https://simba-novo.redejt/*"],
+      "js": [
+        "core/logger.js",
+        "core/utils.js",
+        "modules/simba/simba.js",
+        "content/loader.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "comment": "SIMBA BCB — formulário de extratos",
+      "matches": ["https://www3.bcb.gov.br/saj/requisicao-extratos-cadastro*"],
+      "js": [
+        "core/logger.js",
+        "core/utils.js",
+        "modules/simba/simba.js",
+        "content/loader.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "PJeT — Gerenciar Módulos"
+  },
+
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "vendor/pdfjs/pdf.worker.min.js",
+        "vendor/tesseract/*"
+      ],
+      "matches": [
+        "https://pje.trt2.jus.br/*",
+        "https://pje1g.trt2.jus.br/*"
+      ]
+    }
+  ]
+}

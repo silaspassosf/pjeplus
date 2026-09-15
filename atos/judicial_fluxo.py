@@ -635,90 +635,158 @@ def ato_judicial(
             except Exception as e:
                 logger.debug(f'[ATO][SIGILO] Erro ao aplicar sigilo: {e}')
 
-        # ----- 2. TOGGLE INTIMAR (desativar se intimar=False) -----
-        if not intimar_ativado:
+        # ----- 2. TOGGLE INTIMAR (ativar ou desativar conforme intimar_ativado) -----
+        if intimar_ativado:
+            try:
+                # Garante que a guia Intimações (posinset="1") está ativa (padrão gigs-plugin.js)
+                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=5, by=By.CSS_SELECTOR)
+                if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
+                    guia_intimacoes.click()
+                    espera.assentar(driver, 0.5)
+
+                # Se toggle "Intimar?" estiver desativado, ativa (padrão gigs-plugin.js)
+                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=5, by=By.CSS_SELECTOR)
+                if toggle_intimar:
+                    parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
+                    if 'mat-checked' not in (parent_toggle.get_attribute('class') or ''):
+                        toggle_intimar.click()
+                        espera.assentar(driver, 0.5)
+                        logger.info('[ATO][INTIMAR] Toggle "Intimar?" ativado')
+            except Exception as e:
+                logger.debug(f'[ATO][INTIMAR] Erro ao assegurar guia/toggle de intimações: {e}')
+        else:
             logger.info('[ATO][INTIMAR] Desativando intimações automáticas...')
             try:
                 guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10, by=By.CSS_SELECTOR)
                 if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
                     guia_intimacoes.click()
+                    espera.assentar(driver, 0.5)
 
                 toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10, by=By.CSS_SELECTOR)
                 if toggle_intimar:
                     parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
-                    if 'mat-checked' in parent_toggle.get_attribute('class'):
+                    if 'mat-checked' in (parent_toggle.get_attribute('class') or ''):
                         toggle_intimar.click()
+                        espera.assentar(driver, 0.5)
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" desativado.')
                 else:
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" já estava desativado.')
             except Exception as e:
                 logger.error(f'[ATO][INTIMAR] Erro ao desativar intimações: {e}')
 
-        # ----- 3. PRAZO (apenas quando intimar=True — sem prazo quando intimar=False) -----
-        if prazo is not None and intimar_ativado:
-            logger.info(f'[ATO][PRAZO] Preenchendo prazos: {prazo} (apenas_primeiro={marcar_primeiro_destinatario})')
+        # ----- 3. DESTINATÁRIOS E PRAZO (quando intimar=True) -----
+        if intimar_ativado and (prazo is not None or marcar_primeiro_destinatario):
+            logger.info(f'[ATO][PRAZO] Configurando destinatários/prazos: prazo={prazo} (apenas_primeiro={marcar_primeiro_destinatario})')
             try:
                 if not preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario, perito=perito):
-                    logger.error('[ATO][PRAZO]  Falha ao preencher prazos')
+                    logger.error('[ATO][PRAZO] Falha ao preencher destinatários/prazos')
                     return False, False
-                logger.info('[ATO][PRAZO]  Prazos concluídos')
+                logger.info('[ATO][PRAZO] Destinatários e prazos concluídos com sucesso')
             except Exception as e:
-                logger.error(f'[ATO][PRAZO]  Erro ao preencher prazos: {e}')
+                logger.error(f'[ATO][PRAZO] Erro ao preencher prazos: {e}')
                 return False, False
 
-        # ----- 4. PEC -----
+        # ----- 4. PEC (conforme padrão aadespacho de gigs-plugin.js) -----
         if marcar_pec is not None:
             marcar_pec_bool = str(marcar_pec).lower() in ("sim", "true", "1", "yes")
-            logger.info(f'[ATO][PEC] Parâmetro: marcar_pec={marcar_pec!r}')
+            logger.info(f'[ATO][PEC] Parâmetro marcar_pec={marcar_pec!r} (desejado: {"marcar" if marcar_pec_bool else "desmarcar"})')
             try:
-                pec_label = None
-                pec_input = None
+                # Script JS para inspecionar e comutar PEC de forma idêntica ao gigs-plugin.js
+                js_tratar_pec = """
+                var marcar = arguments[0];
+                var el = document.querySelector(
+                    'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], ' +
+                    'mat-checkbox[aria-label="Enviar para PEC"], ' +
+                    'pje-intimacao-automatica .checkbox-pec mat-checkbox, ' +
+                    '.checkbox-pec mat-checkbox, ' +
+                    'pje-intimacao-automatica label[class*="enviarPec"], ' +
+                    'label.enviarPec'
+                );
+                if (!el) {
+                    var inp = document.querySelector('input[aria-label="Enviar para PEC"], input[name="enviarPec"]');
+                    if (inp) el = inp.closest('mat-checkbox') || inp.closest('label') || inp;
+                }
+                if (!el) return { sucesso: false, erro: 'Elemento PEC não encontrado' };
 
-                pec_label = esperar_elemento(driver, 'label.enviarPec', timeout=10, by=By.CSS_SELECTOR)
-                if pec_label:
-                    pec_input = pec_label.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                var matCheckbox = el.matches('mat-checkbox') ? el : el.closest('mat-checkbox');
+                var input = el.matches('input') ? el : (el.querySelector('input[type="checkbox"]') || (matCheckbox ? matCheckbox.querySelector('input[type="checkbox"]') : null));
+                
+                var isChecked = false;
+                if (matCheckbox) {
+                    var cls = matCheckbox.getAttribute('class') || '';
+                    isChecked = cls.indexOf('mat-checkbox-checked') !== -1 || cls.indexOf('mat-mdc-checkbox-checked') !== -1;
+                }
+                if (!isChecked && input) {
+                    isChecked = !!(input.checked || input.getAttribute('aria-checked') === 'true');
+                }
+
+                var estadoInicial = isChecked;
+                if (isChecked !== marcar) {
+                    var clickTarget = (matCheckbox && (matCheckbox.querySelector('label') || matCheckbox.querySelector('.mat-checkbox-inner-container'))) || el;
+                    clickTarget.click();
+                    return { sucesso: true, alterado: true, estadoInicial: estadoInicial };
+                }
+                return { sucesso: true, alterado: false, estadoInicial: estadoInicial };
+                """
+
+                res_pec = driver.execute_script(js_tratar_pec, marcar_pec_bool) or {}
+                if not res_pec.get('sucesso'):
+                    logger.warning(f'[ATO][PEC] {res_pec.get("erro", "Elemento PEC não encontrado")}')
                 else:
-                    pec_checkbox = esperar_elemento(driver, 'mat-checkbox[aria-label="Enviar para PEC"]', timeout=5, by=By.CSS_SELECTOR)
-                    if pec_checkbox:
-                        pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                    estado_ini = "marcado" if res_pec.get('estadoInicial') else "desmarcado"
+                    alterado = res_pec.get('alterado')
+                    if alterado:
+                        espera.assentar(driver, 0.5)
+                        # Re-checar estado após o clique
+                        js_recheca_pec = """
+                        var el = document.querySelector('pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], mat-checkbox[aria-label="Enviar para PEC"]');
+                        if (!el) return null;
+                        var cls = el.getAttribute('class') || '';
+                        return cls.indexOf('mat-checkbox-checked') !== -1 || cls.indexOf('mat-mdc-checkbox-checked') !== -1;
+                        """
+                        novo_estado = driver.execute_script(js_recheca_pec)
+                        novo_estado_str = "marcado" if novo_estado else "desmarcado"
+                        logger.info(f'[ATO][PEC] Estado inicial: {estado_ini} → alterado para: {novo_estado_str}')
                     else:
-                        pec_input = esperar_elemento(driver, 'input[type="checkbox"][aria-label="Enviar para PEC"]', timeout=5, by=By.CSS_SELECTOR)
-                        if pec_input:
-                            pec_label = pec_input.find_element(By.XPATH, './ancestor::label[contains(@class, "enviarPec")][1]')
-                        else:
-                            raise Exception("Checkbox PEC não encontrado")
-
-                if not pec_input:
-                    raise Exception("Checkbox PEC input não encontrado")
-
-                is_checked = pec_input.is_selected()
-                logger.info(f'[ATO][PEC] Estado: {"marcado" if is_checked else "desmarcado"} → esperado: {"marcar" if marcar_pec_bool else "desmarcar"}')
-
-                if marcar_pec_bool != is_checked:
-                    if pec_label:
-                        safe_click_no_scroll(driver, pec_label, log=False)
-                    else:
-                        safe_click_no_scroll(driver, pec_input)
-                    logger.info(f'[ATO][PEC] {"Marcado" if marcar_pec_bool else "Desmarcado"}')
-                else:
-                    logger.info('[ATO][PEC] Ja esta conforme esperado')
+                        logger.info(f'[ATO][PEC] Já está conforme esperado: {estado_ini}')
             except Exception as e:
-                logger.error(f'[ATO][PEC] {e}')
-                # Não interrompe o fluxo
+                logger.error(f'[ATO][PEC] Erro ao tratar PEC: {e}')
 
-        # ----- 5. GRAVAR INTIMAÇÕES (sempre — salva o estado do toggle, inclusive False) -----
+        # ----- 5. GRAVAR INTIMAÇÕES (padrão gigs-plugin.js e leg) -----
         logger.info('[ATO][GRAVAR] Gravando intimações...')
         try:
-            btn_gravar_intim = wait_for_clickable(driver, 'button[aria-label="Gravar a intimação/notificação"]', timeout=10, by=By.CSS_SELECTOR)
+            # Limpa overlays residuais antes de buscar o botão gravar
+            try:
+                driver.execute_script("""
+                    document.querySelectorAll('.cdk-overlay-backdrop, snack-bar-container, simple-snack-bar').forEach(function(el){
+                        if (el.style) el.style.display = 'none';
+                    });
+                """)
+            except Exception:
+                pass
+
+            btn_gravar_intim = None
+            for sel in [
+                'pje-intimacao-automatica button[aria-label*="Gravar"]',
+                'button[aria-label="Gravar a intimação/notificação"]',
+                'button[aria-label*="Gravar a intima"]',
+                'pje-intimacao-automatica button.mat-raised-button.mat-primary'
+            ]:
+                btn_gravar_intim = wait_for_clickable(driver, sel, timeout=6, by=By.CSS_SELECTOR)
+                if btn_gravar_intim:
+                    break
+
             if btn_gravar_intim:
-                safe_click_no_scroll(driver, btn_gravar_intim, log=False)
+                if not safe_click_no_scroll(driver, btn_gravar_intim, log=False):
+                    driver.execute_script("arguments[0].click();", btn_gravar_intim)
                 logger.info('[ATO][GRAVAR] Intimações gravadas')
                 try:
                     aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
                 except Exception:
                     pass
+                espera.assentar(driver, 0.8)
             else:
-                logger.debug('[ATO][GRAVAR] Botão Gravar não encontrado (sem alterações?)')
+                logger.debug('[ATO][GRAVAR] Botão Gravar não encontrado (sem alterações ou já gravado)')
         except Exception as e:
             logger.debug(f'[ATO][GRAVAR] {e}')
 

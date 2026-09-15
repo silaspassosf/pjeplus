@@ -221,8 +221,13 @@
                         }
                         
                         var totalFormatado = somaTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        saida += "<p " + pJustifyImp + ">(total de bloqueios esperado na conta judicial, sem considerar atualizações = R$ <strong>" + totalFormatado + "</strong>)<br><br><br data-cke-filler=\"true\"></p>";
-                        
+                        saida += "<p " + pJustifyImp + ">(total de bloqueios esperado na conta judicial, sem considerar atualizações = R$ <strong>" + totalFormatado + "</strong>)</p>";
+
+                        // Limpa linhas vazias antes e depois do texto
+                        saida = saida
+                            .replace(/^(\s|<br\s*\/?>|&nbsp;|<p[^>]*>\s*<\/p>)+/i, '')
+                            .replace(/(\s|<br\s*\/?>|&nbsp;|<p[^>]*>\s*<\/p>)+$/i, '');
+
                         var okCopy = copyToClipboardHtml(saida);
                         if (okCopy) {
                             btnFinalizar.innerText = 'Copiado!';

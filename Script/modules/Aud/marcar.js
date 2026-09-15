@@ -273,45 +273,61 @@
     
     function extrairDadosAta(textoRaw) {
         if (!textoRaw) { console.log('[MarcarAud][Ata] documento vazio (textoRaw nulo)'); return null; }
+        const texto = String(textoRaw);
+        console.log('[MarcarAud][Ata] tamanho do documento:', texto.length);
 
-        // Separa o texto em partes pela palavra "presentes"
-        const partes = textoRaw.split(/presente[s]?/i);
-        if (partes.length < 2) {
-            console.log('[MarcarAud][Ata] marcador "presentes" não encontrado no documento — tamanho do texto:', textoRaw.length);
+        // Quebra em segmentos (frases) por ponto/vírgula ou quebra de linha.
+        const segmentos = texto.split(/[.;]\s*|\r?\n+/).map(s => s.trim()).filter(Boolean);
+
+        // Alvos: segmentos com designação, julgamento ou encerramento de instrução
+        const padraoAlvo = /designa|julgamento|encerramento\s+da\s+instru/i;
+        const alvos = [];
+        segmentos.forEach((s, i) => {
+            if (padraoAlvo.test(s)) {
+                alvos.push(i);
+                console.log(`[MarcarAud][Ata] segmento-alvo [${i}]:`, s.slice(0, 200));
+            }
+        });
+        if (!alvos.length) {
+            console.log('[MarcarAud][Ata] nenhum segmento com designa/julgamento/encerramento de instrução');
             return null;
         }
 
-        // Pega a última parte para garantir que está no final
-        const textoFim = partes[partes.length - 1];
+        const regexData = /\b(\d{2})\/(\d{2})\/(\d{2}|\d{4})\b/;
+        const regexHora = /\b(\d{1,2}:\d{2})\b/;
+        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
-        // LOG DE DIAGNÓSTICO: trecho final lido da ata (final do documento)
-        console.log('[MarcarAud][Ata] texto final lido (última parte após "presentes"):\n' + textoFim.slice(-1200));
-
-        const res = {};
-
-        // Data e Hora
-        const regexData = /(\d{2}\/\d{2}\/\d{4})/i;
-        const regexHora = /(\d{2}:\d{2})/i;
-
-        const mData = textoFim.match(regexData);
-        const mHora = textoFim.match(regexHora);
-        console.log('[MarcarAud][Ata] match data:', mData ? mData[1] : null, '| match hora:', mHora ? mHora[1] : null);
-        if (mData) res.data = mData[1];
-
-        if (mHora) res.hora = mHora[1];
-        
-        // Tipo
-        const textoFimLower = textoFim.toLowerCase();
-        if (textoFimLower.includes('encerramento da instrução') || textoFimLower.includes('julgamento')) {
-            res.tipo = 'Julgamento';
-        } else if (textoFimLower.includes('instrução')) {
-            res.tipo = 'Instrução';
-        } else if (textoFimLower.includes('una')) {
-            res.tipo = 'Una';
+        // Varre cada segmento-alvo junto com o seguinte (cobre frases cuja
+        // data e hora caem em frases separadas pelo corte do ponto).
+        const candidatos = [];
+        for (const i of alvos) {
+            const bloco = segmentos[i] + ' ' + (segmentos[i + 1] || '');
+            const mD = bloco.match(regexData);
+            const mH = bloco.match(regexHora);
+            if (!mD) { console.log(`[MarcarAud][Ata] alvo [${i}] sem data no bloco`); continue; }
+            if (!mH) { console.log(`[MarcarAud][Ata] alvo [${i}] sem hora no bloco`); continue; }
+            const yyyy = mD[3].length === 2 ? '20' + mD[3] : mD[3];
+            const data = `${mD[1]}/${mD[2]}/${yyyy}`;
+            const dt = new Date(+yyyy, +mD[2] - 1, +mD[1]);
+            const posterior = dt >= hoje; // hoje ou futuro é marcável (delta >= 0)
+            console.log(`[MarcarAud][Ata] candidato [${i}] → ${data} ${mH[1]} | hoje ou futuro? ${posterior}`);
+            candidatos.push({ data, hora: mH[1].padStart(5, '0'), dt, posterior, seg: segmentos[i] });
         }
-        
-        if (res.data && res.hora && res.tipo) return res;
-        return null;
+        if (!candidatos.length) { console.log('[MarcarAud][Ata] nenhum candidato data+hora nos alvos'); return null; }
+
+        // Preferência: data posterior a hoje; fallback: primeira candidata
+        const escolhido = candidatos.find(c => c.posterior) || candidatos[0];
+        if (!escolhido.posterior) console.warn('[MarcarAud][Ata] nenhuma data hoje/futura — usando a primeira:', escolhido.data);
+
+        // Tipo pelo segmento escolhido
+        const segLower = escolhido.seg.toLowerCase();
+        let tipo = 'Una';
+        if (segLower.includes('julgamento')) tipo = 'Julgamento';
+        else if (segLower.includes('instru')) tipo = 'Instrução';
+
+        const res = { data: escolhido.data, hora: escolhido.hora, tipo };
+        console.log('[MarcarAud][Ata] resultado final:', res);
+        return res;
     }
 
     function mostrarDialogAta(callback) {

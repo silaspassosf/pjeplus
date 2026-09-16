@@ -383,8 +383,15 @@
     // Fallback OCR: PDFs escaneados (só o carimbo de assinatura tem texto).
     // Mesma técnica do hcalc-pdf.js: renderiza páginas e roda Tesseract 'por'.
     var charsPorPagina = texto.length / pdf.numPages;
+    // Páginas praticamente sem texto (PDF misto: 1ª página com camada de texto,
+    // demais escaneadas) também precisam de OCR — se não, bloqueios de páginas
+    // posteriores são perdidos mesmo com o documento "tendo texto".
+    var fracas = [];
+    for (var f = 0; f < paginas.length; f++) {
+      if ((paginas[f] || '').trim().length < 100) fracas.push(f + 1);
+    }
     if (texto.length < 300 || charsPorPagina < 200) {
-      console.log('[pjeExtrairApi] Pouco texto (' + texto.length + ' chars em ' + pdf.numPages + ' pág.) — iniciando OCR...');
+      console.log('[pjeExtrairApi] Pouco texto (' + texto.length + ' chars em ' + pdf.numPages + ' pág.) — iniciando OCR completo (' + pdf.numPages + ' páginas)...');
       try {
         var ocrTexto = await _apiOcrPdf(pdf);
         if (ocrTexto && ocrTexto.length > texto.length) {
@@ -394,11 +401,26 @@
       } catch (e) {
         console.warn('[pjeExtrairApi] OCR falhou:', e.message);
       }
+    } else if (fracas.length > 0) {
+      console.log('[pjeExtrairApi] Páginas quase sem texto (' + fracas.join(', ') + ') — OCR apenas nelas...');
+      try {
+        var mapa = await _apiOcrPdf(pdf, fracas);
+        for (var m = 0; m < fracas.length; m++) {
+          var tOcr = mapa[fracas[m]];
+          if (tOcr && tOcr.trim().length > (paginas[fracas[m] - 1] || '').trim().length) {
+            paginas[fracas[m] - 1] = tOcr;
+          }
+        }
+        texto = paginas.join('\n\n--- PÁGINA ---\n\n').trim();
+        console.log('[pjeExtrairApi] OCR parcial aplicado — texto agora com', texto.length, 'chars.');
+      } catch (e) {
+        console.warn('[pjeExtrairApi] OCR parcial falhou:', e.message);
+      }
     }
     return texto;
   }
 
-  async function _apiOcrPdf(pdf) {
+  async function _apiOcrPdf(pdf, paginasAlvo) {
     if (!window.Tesseract) {
       await new Promise(function (resolve, reject) {
         var s = document.createElement('script');
@@ -413,8 +435,15 @@
       var out = [];
       var canvas = document.createElement('canvas');
       var ctx = canvas.getContext('2d');
-      var maxPag = Math.min(pdf.numPages, 8);
-      for (var p = 1; p <= maxPag; p++) {
+      // OCR em TODAS as páginas solicitadas. Sem lista, percorre o documento
+      // inteiro — limitar a 8 páginas fazia bloqueios de ordens longas serem
+      // perdidos (bug do SISBAJUD: dados faltando nas páginas 9+).
+      var lista = (Array.isArray(paginasAlvo) && paginasAlvo.length > 0)
+        ? paginasAlvo
+        : (function () { var l = []; for (var p = 1; p <= pdf.numPages; p++) l.push(p); return l; })();
+      var mapa = {};
+      for (var i = 0; i < lista.length; i++) {
+        var p = lista[i];
         try {
           var page = await pdf.getPage(p);
           var vp1 = page.getViewport({ scale: 1 });
@@ -435,12 +464,16 @@
             console.warn('[pjeExtrairApi] OCR página ' + p + ' falhou/timeout:', e2.message);
             continue;
           }
-          if (txt && txt.trim()) out.push(txt.trim());
+          if (txt && txt.trim()) mapa[p] = txt.trim();
           console.log('[pjeExtrairApi] OCR pág', p, 'concluído:', (txt || '').length, 'chars');
         } catch (e3) {
           console.warn('[pjeExtrairApi] Render página ' + p + ' falhou:', e3.message);
         }
       }
+      // OCR parcial: devolve mapa {página: texto} para encaixe nas páginas fracas
+      if (paginasAlvo) return mapa;
+      // OCR completo: mantém retorno em texto corrido (compatibilidade)
+      for (var q = 1; q <= pdf.numPages; q++) out.push(mapa[q] || '');
       return out.join('\n\n--- PÁGINA ---\n\n').trim();
     } finally {
       try { await worker.terminate(); } catch (e) { /* ignore */ }

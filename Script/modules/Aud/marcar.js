@@ -209,6 +209,12 @@
         const modal = await waitEl('mat-dialog-container', 15000);
         if (!modal) throw new Error('Modal Novo Horário não abriu');
 
+        // O PJe deixa o campo nº do processo com o texto selecionado/focado ao
+        // abrir o modal; enquanto a seleção persiste, o auto-preenchimento não
+        // roda. Clica no corpo do modal e limpa seleção/foco antes de esperar.
+        tirarSelecaoNumeroProcesso(modal);
+        await sleep(300);
+
         // Aguarda o auto-preenchimento do nº do processo antes dos outros campos
         await aguardarNumeroProcesso(modal, numero);
 
@@ -232,8 +238,9 @@
         selTipo.click();
         const painel = await waitEl('.mat-select-panel', 10000);
         if (!painel) throw new Error('Dropdown de Tipo da audiência não abriu');
+        const alvo = textoOpcao.trim().toLowerCase();
         const opcao = [...painel.querySelectorAll('mat-option')]
-            .find(o => (o.textContent || '').trim().toLowerCase().includes(textoOpcao.toLowerCase()));
+            .find(o => (o.textContent || '').trim().toLowerCase() === alvo);
         if (!opcao) throw new Error(`Opção "${textoOpcao}" não encontrada no dropdown`);
         console.log('[MarcarAud][Pauta] tipo selecionado no modal:', opcao.textContent.trim());
         opcao.click();
@@ -317,6 +324,24 @@
         if (!btn) throw new Error('Botão Designar Audiência não encontrado na linha');
         btn.click();
         await sleep(500);
+    }
+
+    // Remove a seleção/foco do campo nº do processo: clica no corpo do modal
+    // (título) para tirar o highlight do input e limpa qualquer seleção de texto.
+    function tirarSelecaoNumeroProcesso(modal) {
+        try {
+            const alvo = modal.querySelector('.mat-dialog-title')
+                      || modal.querySelector('.mat-dialog-content')
+                      || modal;
+            alvo.click();
+        } catch (e) { /* best effort */ }
+        try {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+            const sel = window.getSelection();
+            if (sel && typeof sel.removeAllRanges === 'function') sel.removeAllRanges();
+        } catch (e) { /* best effort */ }
     }
 
     // Aguarda o PJe preencher automaticamente o nº do processo no modal

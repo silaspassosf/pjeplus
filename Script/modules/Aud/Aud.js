@@ -128,6 +128,33 @@
                 return (isFinite(z) && z > 0) ? z : 1;
             }
 
+            // Posiciona o painel no espaço vazio à direita do editor (nunca
+            // invadindo o editor). Se não houver espaço (zoom alto), encosta
+            // na borda direita da viewport como fallback. Trabalha em px
+            // VISUAIS: o CSS zoom do painel multiplica left por zoomComp(),
+            // então dividimos antes de aplicar.
+            function posicionarAoLadoDoEditor() {
+                var zc = zoomComp();
+                var larguraVisual = P.offsetWidth * zc;
+                var margem = 12;
+                var maxLeft = window.innerWidth - larguraVisual - 10;
+                var alvo = null;
+                var ed = acharEditor();
+                if (ed) {
+                    try {
+                        var r = ed.getBoundingClientRect();
+                        var candidato = Math.ceil(r.right + margem);
+                        if (candidato + larguraVisual <= window.innerWidth - 10) {
+                            alvo = candidato;
+                        }
+                    } catch (e) { }
+                }
+                if (alvo === null) alvo = maxLeft;
+                alvo = Math.max(10, Math.min(maxLeft, alvo));
+                P.style.left = (alvo / zc) + 'px';
+                P.style.right = 'auto';
+            }
+
             function E(t, c, x) {
                 var e = document.createElement(t);
                 if (c) e.style.cssText = c;
@@ -168,7 +195,9 @@
                 return conteudo;
             }
 
-            function getEditor() {
+            // Localiza o editor CKEditor 5 (ou contenteditable) sem alertar.
+            // Usado tanto pelo getEditor() quanto pelo posicionamento do painel.
+            function acharEditor() {
                 function findInDoc(d) {
                     if (!d) return null;
                     try {
@@ -189,6 +218,11 @@
                         } catch(e) {}
                     }
                 }
+                return ed;
+            }
+
+            function getEditor() {
+                var ed = acharEditor();
                 if (!ed) {
                     alert('Editor CKEditor 5 não encontrado na tela. Abra a ata primeiro.');
                     return null;
@@ -307,9 +341,8 @@
                 var minTop = calcularTopMinimo();
 
                 if (!P.dataset.dragged) {
-                    P.style.left = 'auto';
-                    P.style.right = '10px';
                     P.style.top = minTop + 'px';
+                    posicionarAoLadoDoEditor();
                 } else {
                     P.style.top = Math.max(minTop, P.getBoundingClientRect().top || minTop) + 'px';
                 }
@@ -416,9 +449,11 @@
                     if (!drag) return;
                     el.dataset.dragged = 'true';
                     var minTop = calcularTopMinimo();
+                    var zc = zoomComp();
+                    var larguraVisual = el.offsetWidth * zc;
                     var targetTop = Math.max(minTop, e.clientY - oy);
-                    var targetLeft = Math.max(10, Math.min(window.innerWidth - el.offsetWidth - 10, e.clientX - ox));
-                    el.style.left = targetLeft + 'px';
+                    var targetLeft = Math.max(10, Math.min(window.innerWidth - larguraVisual - 10, e.clientX - ox));
+                    el.style.left = (targetLeft / zc) + 'px';
                     el.style.top = targetTop + 'px';
                     el.style.right = 'auto';
                     el.style.bottom = 'auto';
@@ -434,8 +469,7 @@
                 aplicarZoomComp();
                 if (!P.dataset.dragged) {
                     P.style.top = calcularTopMinimo() + 'px';
-                    P.style.right = '10px';
-                    P.style.left = 'auto';
+                    posicionarAoLadoDoEditor();
                 } else {
                     var minTop = calcularTopMinimo();
                     var rect = P.getBoundingClientRect();
@@ -455,6 +489,8 @@
 
             aplicarZoomComp();
             aplicarRetracao(estaRetraido);
+            // Posiciona após aplicar zoom/retração (largura final conhecida).
+            posicionarAoLadoDoEditor();
 
             // Grupo Base (S1): primeiro grupo do painel — único que começa expandido.
             var dBase = ST('Base', true);

@@ -283,3 +283,154 @@ def preparar_campo_minutar(driver: WebDriver) -> bool:
     except Exception as e:
         logger.error(f'[NAVEGAÇÃO] Falha ao preparar campo de filtro: {e}')
         return False
+
+
+def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
+    """
+    Escolhe o tipo de conclusão na tela de conclusão do processo.
+
+    ESTRATÉGIA ROBUSTA (GIGS aadespacho / despacho_engine):
+    - Normaliza acentos (Suspensão == Suspensao)
+    - Faz polling ativo injetando JS para clicar
+    """
+    import time
+
+    try:
+        logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
+
+        # JS robusto inspirado no aadespacho / despacho_engine.js
+        script = """
+        var tipo_buscado = arguments[0];
+
+        function normalizar(s) {
+            return (s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+        }
+
+        var tipo_norm = normalizar(tipo_buscado);
+
+        var candidatos = document.querySelectorAll('pje-concluso-tarefa-botao button, pje-conclusao-dependencia button, button.mat-raised-button');
+
+        for (var i = 0; i < candidatos.length; i++) {
+            var btn = candidatos[i];
+            var txt = normalizar(btn.textContent);
+            var aria = normalizar(btn.getAttribute('aria-label'));
+
+            if (txt.indexOf(tipo_norm) !== -1 || aria.indexOf(tipo_norm) !== -1) {
+                if (aria.indexOf('remover') === -1 && aria.indexOf('fechar') === -1 && aria.indexOf('excluir') === -1) {
+                    if (!btn.disabled && btn.offsetWidth > 0 && btn.offsetHeight > 0) {
+                        btn.scrollIntoView({block: 'center', behavior: 'instant'});
+                        btn.click();
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+        """
+
+        start_time = time.time()
+        clicou = False
+
+        while time.time() - start_time < 15:
+            try:
+                if driver.execute_script(script, conclusao_tipo):
+                    clicou = True
+                    break
+            except Exception:
+                pass
+            time.sleep(0.5)
+
+        if not clicou:
+            logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado após 15s de espera')
+            return False
+
+        logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado com sucesso')
+
+        # Aguardar navegação pós-clique
+        try:
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
+        except Exception:
+            pass
+
+        return True
+
+    except Exception as e:
+        logger.error(f'[CONCLUSÃO] Erro ao escolher tipo de conclusão: {e}')
+        return False
+
+
+def aguardar_transicao_minutar(driver: WebDriver) -> bool:
+    """
+    Aguarda a transição da tela de conclusão para a tela de minutar.
+    Usando a lógica do gigs-plugin: observa o DOM (pje-arvore-modelo-documento)
+    que é muito mais rápido e confiável que o polling de URL no Angular.
+
+    Returns:
+        bool: True se conseguiu fazer a transição
+    """
+    try:
+        logger.info('[CONCLUSÃO] Aguardando transição para tela de minutar (DOM Observer)...')
+        from Fix.core import esperar_url_conter
+
+        # 1. Estratégia Principal: Esperar a árvore de modelos (rápido, DOM native)
+        try:
+            if aguardar_renderizacao_nativa(driver, 'pje-arvore-modelo-documento', modo='aparecer', timeout=10):
+                logger.info('[CONCLUSÃO] Transição detectada via renderização do DOM (pje-arvore-modelo-documento)')
+                return True
+        except Exception as e:
+            logger.warning(f'[CONCLUSÃO] Fallback: Falha no observer do DOM: {e}')
+
+        # 2. Estratégia Fallback: Esperar URL /minutar (lento)
+        logger.info('[CONCLUSÃO] Verificando URL /minutar como fallback...')
+        if not esperar_url_conter(driver, '/minutar', timeout=10):
+            logger.error(f'[CONCLUSÃO] Falha na transição para minutar: DOM não renderizou e URL não mudou: {driver.current_url}')
+            return False
+
+        logger.info('[CONCLUSÃO] Transição para minutar concluída via URL fallback')
+        return True
+
+    except Exception as e:
+        logger.error(f'[CONCLUSÃO] Erro inesperado na transição para minutar: {e}')
+        return False
+
+
+def verificar_estado_atual(driver: WebDriver) -> str:
+    """
+    Verifica o estado atual do processo baseado na URL.
+
+    Returns:
+        str: Estado atual ('assinar', 'minutar', 'conclusao', 'detalhe', 'outro')
+    """
+    current_url = (driver.current_url or '').lower()
+
+    if '/assinar' in current_url:
+        return 'assinar'
+    elif '/minutar' in current_url:
+        return 'minutar'
+    elif '/conclusao' in current_url:
+        return 'conclusao'
+    elif '/detalhe' in current_url:
+        return 'detalhe'
+    else:
+        return 'outro'
+
+
+def focar_campo_minutar_se_necessario(driver: WebDriver) -> bool:
+    """
+    Foca no campo de filtro de modelos se estiver na tela de minutar.
+
+    Returns:
+        bool: True se conseguiu focar ou se não era necessário
+    """
+    try:
+        if verificar_estado_atual(driver) == 'minutar':
+            logger.info('[CONCLUSÃO] Já em minutar - focando no campo de filtro')
+            campo_filtro_modelo = espera.elemento(driver, 'input#inputFiltro', teto=10)
+            if not campo_filtro_modelo:
+                raise Exception('input#inputFiltro não apareceu')
+            driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+            logger.info('[CONCLUSÃO] Foco no campo #inputFiltro realizado')
+        return True
+    except Exception as e:
+        logger.warning(f'[CONCLUSÃO] Erro ao focar campo minutar: {e}')
+        return False

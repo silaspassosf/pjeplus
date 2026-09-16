@@ -590,6 +590,51 @@ def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
         return False
 
 
+def _tarefa_atual_via_api(driver: WebDriver) -> Optional[str]:
+    """Nome da tarefa mais recente do processo via API, SEM navegar o browser.
+
+    Consulta o mesmo endpoint de abrir_tarefa_por_api
+    (/tarefas?maisRecente=true) e extrai o nome da tarefa do payload.
+    Usado para evitar abrir a tarefa no browser quando ela já está no
+    estado de destino (fluxo p2b: 'Aguardando Prazo' — abria e fechava
+    em sequência, sem ação visível).
+    Retorna None se não conseguir determinar (chamador segue o fluxo normal).
+    """
+    import re as _re
+    from Fix.variaveis import session_from_driver
+
+    try:
+        url_atual = driver.current_url or ''
+        if '/tarefa' in url_atual or '/processo/' not in url_atual:
+            return None
+        m = _re.search(r'/processo/(\d+)', url_atual)
+        if not m:
+            return None
+        id_processo = m.group(1)
+
+        sess, host = session_from_driver(driver)
+        endpoint = f"https://{host}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
+        r = sess.get(endpoint, timeout=10)
+        r.raise_for_status()
+        dados = r.json()
+
+        registro = None
+        if isinstance(dados, list) and dados:
+            registro = dados[0]
+        elif isinstance(dados, dict):
+            registro = dados
+        if not isinstance(registro, dict):
+            return None
+
+        for campo in ('nomeTarefa', 'nome', 'tarefa', 'descricao', 'titulo'):
+            valor = registro.get(campo)
+            if isinstance(valor, str) and valor.strip():
+                return valor.strip()
+        return None
+    except Exception:
+        return None
+
+
 def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15, profundidade: int = 0, pular_abertura_api: bool = False) -> bool:
     from selenium.webdriver.common.by import By
 
@@ -604,6 +649,18 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
         return False
 
     try:
+        # ===== ETAPA -1: JÁ ESTÁ NO DESTINO? (verificação via API, sem abrir a tarefa) =====
+        # Antes de navegar, consulta via API se a tarefa já está no estado de
+        # destino — evita o padrão "abre a tarefa e fecha em seguida" sem ação
+        # visível (comum no p2b, onde a tarefa já está em 'Aguardando Prazo').
+        if '?' not in (destino or ''):
+            tarefa_api = _tarefa_atual_via_api(driver)
+            if tarefa_api:
+                destino_pre = _remover_acentos((destino or '').lower())
+                if destino_pre and destino_pre in _remover_acentos(tarefa_api.lower()):
+                    log(f"[MOV_INT] tarefa já está em '{tarefa_api}' (via API) — nada a fazer")
+                    return True
+
         # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API (padrao gigs-plugin L4491-4516) =====
         # Em chamadas recursivas (apos navegar para 'análise') NAO reabrir a
         # tarefa via API — isso desfaz a navegacao e causa loop infinito.

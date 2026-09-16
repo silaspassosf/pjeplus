@@ -182,8 +182,8 @@
         // sem procurar horário na lista — o slot de julgamento não existe na pauta.
         if (tipo === 'Julgamento' || tipo === 'Instrução') {
             await abrirModalNovoHorario();
-            await preencherModalNovoHorario(task.numero, dataStr, horaStr, tipo);
-            return;
+            await preencherModalNovoHorario(task.numero, dataStr, horaStr, tipo, task.rito);
+            return true; // preenchimento manual: usuário confirma no modal
         }
 
         await clicarSlotHora(horaStr, tipo);
@@ -205,25 +205,31 @@
 
     // Preenche o modal "Novo Horário - Designação de Audiência":
     // nº do processo e data já vêm preenchidos pela navegação; informa hora e tipo.
-    async function preencherModalNovoHorario(numero, dataStr, horaStr, tipo) {
+    async function preencherModalNovoHorario(numero, dataStr, horaStr, tipo, rito) {
         const modal = await waitEl('mat-dialog-container', 15000);
         if (!modal) throw new Error('Modal Novo Horário não abriu');
 
-        // O PJe deixa o campo nº do processo com o texto selecionado/focado ao
-        // abrir o modal; enquanto a seleção persiste, o auto-preenchimento não
-        // roda. Clica no corpo do modal e limpa seleção/foco antes de esperar.
-        tirarSelecaoNumeroProcesso(modal);
-        await sleep(300);
-
-        // Aguarda o auto-preenchimento do nº do processo antes dos outros campos
+        // Espera o PJe povoar o campo nº do processo; só então preenche os
+        // demais campos. Nenhuma interação com o campo de processo.
         await aguardarNumeroProcesso(modal, numero);
 
-        // Mapeia tipo do dialog → texto da opção do dropdown
+        // Mapeia tipo do dialog → texto(s) EXATOS da opção do dropdown.
+        // O painel tem tanto "Instrução" quanto "Instrução por videoconferência"
+        // (e "Encerramento de instrução" / "... por videoconferência") — por isso
+        // a busca abaixo é por igualdade exata, não includes.
+        // Para cada tipo, tenta os candidatos NA ORDEM: usa o primeiro que
+        // existir no painel (Julgamento prefere "Julgamento"; o encerramento
+        // é só fallback quando a opção "Julgamento" não existir).
         const mapaTipo = {
-            'Julgamento': 'Encerramento de instrução por videoconferência',
-            'Instrução': 'Instrução por videoconferência'
+            'Julgamento': ['Julgamento', 'Encerramento de instrução por videoconferência'],
+            'Instrução': ['Instrução']
         };
-        const textoOpcao = mapaTipo[tipo] || 'Una por videoconferência';
+        const candidatos = (mapaTipo[tipo] || (
+            // Padrão: Una (ou Una rito sumaríssimo, conforme o rito do processo)
+            rito === 'ATSUM'
+                ? ['Una (rito sumaríssimo)', 'Una']
+                : ['Una', 'Una (rito sumaríssimo)']
+        )).map(s => s.trim().toLowerCase());
 
         // 1) Hora (pje-horario > input#horario)
         const inpHora = modal.querySelector('pje-horario input#horario')
@@ -238,31 +244,19 @@
         selTipo.click();
         const painel = await waitEl('.mat-select-panel', 10000);
         if (!painel) throw new Error('Dropdown de Tipo da audiência não abriu');
-        const alvo = textoOpcao.trim().toLowerCase();
-        const opcao = [...painel.querySelectorAll('mat-option')]
-            .find(o => (o.textContent || '').trim().toLowerCase() === alvo);
-        if (!opcao) throw new Error(`Opção "${textoOpcao}" não encontrada no dropdown`);
+        const opcoes = [...painel.querySelectorAll('mat-option')];
+        let opcao = null;
+        for (const cand of candidatos) {
+            opcao = opcoes.find(o => (o.textContent || '').trim().toLowerCase() === cand);
+            if (opcao) break;
+        }
+        if (!opcao) throw new Error(`Nenhuma opção ${JSON.stringify(mapaTipo[tipo] || ['Una', 'Una (rito sumaríssimo)'])} encontrada no dropdown`);
         console.log('[MarcarAud][Pauta] tipo selecionado no modal:', opcao.textContent.trim());
         opcao.click();
         await sleep(600);
 
-        // 3) Confirmar
-        const btnOk = await waitXPath(
-            "//mat-dialog-container//button[.//span[normalize-space(.)='Confirmar']]", 10000
-        );
-        if (!btnOk) throw new Error('Botão Confirmar não encontrado');
-        btnOk.click();
-        await sleep(1000);
-
-        if (!await waitXPath(
-            "//mat-dialog-container//*[contains(normalize-space(.),'Designa') and contains(normalize-space(.),'Confirmad')]",
-            10000
-        )) throw new Error('Confirmação de designação não apareceu no modal');
-
-        const fechar = await waitXPath(
-            "//mat-dialog-container//button[.//span[normalize-space(.)='Fechar']]", 10000
-        );
-        if (fechar) { fechar.click(); await sleep(500); }
+        // NÃO confirma: o usuário confere os dados e clica em Confirmar ele mesmo.
+        console.log('[MarcarAud][Pauta] modal preenchido (hora + tipo) — aguardando confirmação manual');
     }
 
     // ── Normalização de data (dd/mm/aa ou dd/mm/aaaa → dd/mm/aaaa) ────────────
@@ -326,28 +320,11 @@
         await sleep(500);
     }
 
-    // Remove a seleção/foco do campo nº do processo: clica no corpo do modal
-    // (título) para tirar o highlight do input e limpa qualquer seleção de texto.
-    function tirarSelecaoNumeroProcesso(modal) {
-        try {
-            const alvo = modal.querySelector('.mat-dialog-title')
-                      || modal.querySelector('.mat-dialog-content')
-                      || modal;
-            alvo.click();
-        } catch (e) { /* best effort */ }
-        try {
-            if (document.activeElement && typeof document.activeElement.blur === 'function') {
-                document.activeElement.blur();
-            }
-            const sel = window.getSelection();
-            if (sel && typeof sel.removeAllRanges === 'function') sel.removeAllRanges();
-        } catch (e) { /* best effort */ }
-    }
-
-    // Aguarda o PJe preencher automaticamente o nº do processo no modal
-    // (Angular preenche de forma assíncrona após abrir o dialog). Só preenche
-    // manualmente se o auto-preenchimento não ocorrer dentro do prazo.
-    async function aguardarNumeroProcesso(modal, numero, ms = 8000) {
+    // Espera o PJe povoar automaticamente o nº do processo no modal
+    // (Angular preenche de forma assíncrona após abrir o dialog). Não interage
+    // com o campo — nenhum clique/blur/preenchimento manual: só aguarda o
+    // valor aparecer; os demais campos só são preenchidos depois disso.
+    async function aguardarNumeroProcesso(modal, numero, ms = 15000) {
         const input = modal.querySelector('input#inputNumeroProcesso');
         if (!input) throw new Error('Campo Número do Processo não encontrado no modal');
 
@@ -360,11 +337,7 @@
             }
             await sleep(150);
         }
-
-        console.warn('[MarcarAud][Pauta] auto-preenchimento do nº do processo não ocorreu; preenchendo manualmente:', numero);
-        setAngularInput(input, numero);
-        await sleep(600);
-        return (input.value || '').trim();
+        throw new Error('Auto-preenchimento do nº do processo não ocorreu no modal');
     }
 
     async function preencherModal(numero) {
@@ -670,7 +643,16 @@
         const bc = new BroadcastChannel(BC);
 
         try {
-            await marcarPauta(task);
+            const manual = await marcarPauta(task);
+            if (manual) {
+                // Modal preenchido mas NÃO confirmado: mantém a aba aberta para
+                // o usuário conferir e clicar em Confirmar. Sinaliza as outras
+                // abas (ex.: remarcar 100% digital) sem fechar esta.
+                overlay('⚠️ Confira os dados e clique em Confirmar no modal…', '#e65100', 0);
+                bc.postMessage(task.precisaDesmarcar100 ? { type: 'PAUTA_DONE' } : { type: 'DONE' });
+                bc.close();
+                return;
+            }
             overlay('✅ Marcado!', '#2e7d32', 2000);
             bc.postMessage(task.precisaDesmarcar100 ? { type: 'PAUTA_DONE' } : { type: 'DONE' });
             bc.close();

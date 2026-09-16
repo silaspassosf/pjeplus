@@ -667,15 +667,27 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             return True
         return False
 
+    # ── Interrupção manual do usuário ──
+    # Se as abas sumirem DE NOVO depois da 1ª recriação, o browser foi fechado
+    # manualmente — abortar o batch (critical) em vez de forçar a abertura de
+    # novas abas para prosseguir indevidamente.
+    recriacoes_aba = 0
+
     def open_item(item):
         """Navega para o detalhe do processo na mesma aba, fechando abas extras."""
+        nonlocal recriacoes_aba
         try:
             handles = driver.window_handles
             if not handles:
-                logger.warning('[PRAZO_API] Nenhuma aba detectada! PJe fechou o browser via JS. Criando nova aba...')
+                if recriacoes_aba >= 1:
+                    logger.warning('[PRAZO_API] Abas sumiram novamente — browser fechado manualmente. Interrompendo execucao.')
+                    return resultado_falha('browser_fechado_manualmente', critical=True)
+                logger.warning('[PRAZO_API] Nenhuma aba detectada! PJe fechou a aba via JS. Recriando aba (tentativa unica)...')
+                recriacoes_aba += 1
                 driver.switch_to.new_window('tab')
                 handles = driver.window_handles
-                
+                if not handles:
+                    return resultado_falha('browser_fechado_manualmente', critical=True)
             if len(handles) > 1:
                 primeira = handles[0]
                 for h in handles[1:]:
@@ -695,9 +707,9 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             logger.warning(f'[PRAZO_API] Falha ao gerenciar abas residuais: {e}')
             try:
                 if not driver.window_handles:
-                    driver.switch_to.new_window('tab')
+                    return resultado_falha('browser_fechado_manualmente', critical=True)
             except Exception:
-                pass
+                return resultado_falha('browser_fechado_manualmente', critical=True)
 
         id_processo = item['id']
         detalhe_url = url_processo_detalhe(id_processo)
@@ -721,6 +733,12 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             logger.warning(f'[PRAZO_API] Sessao expirada (401) no processo {item.get("numero")}: {e}')
             return resultado_falha("sessao_expirada_401", critical=True)
         except Exception as e:
+            msg = str(e)
+            # Erro de nível browser/context (aba morta em toda a chain) — não é
+            # falha do processo: parar o batch imediatamente.
+            if 'has been closed' in msg:
+                logger.warning(f'[PRAZO_API] Browser fechado durante execucao do processo {item.get("numero")} — interrompendo batch: {msg}')
+                return resultado_falha('browser_fechado_manualmente', critical=True)
             logger.error(f'[PRAZO_API] Erro ao executar fluxo_pz para processo {item.get("numero")}: {e}')
             return resultado_falha(str(e))
 

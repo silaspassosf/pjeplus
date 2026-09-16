@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.92
+// @version      2.3.94
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -15,6 +15,8 @@
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*
 // @match        https://simba-novo.redejt/*
 // @match        https://www3.bcb.gov.br/saj/requisicao-extratos-cadastro*
+// ── Alvará Eletrônico (módulo saldo_extracao)
+// @match        https://alvaraeletronico.trt2.jus.br/*
 // ── Único require: o loader (bumpar só ele ao adicionar módulos)
 // (loader injetado inline — remove dependência externa)
 // @grant        GM_setValue
@@ -53,6 +55,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.3.19
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.1.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/saldo_extracao.js?v=2.1.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
@@ -89,9 +92,28 @@
     // (No match da Receita, content scripts já estão via @require em header)
     if (isSisbajud) return;
 
+    // ── Alvará Eletrônico (injeção do botão "Extrair saldo") ──
+    // O módulo também se auto-injeta no @require; esta rota é rede de segurança
+    // e fonte de diagnóstico no console (loga se o módulo carregou ou não).
+    const isAlvaraEletronico = url.includes('alvaraeletronico.trt2.jus.br');
+    if (isAlvaraEletronico) {
+        console.log('[Loader] Alvará Eletrônico detectado:', url, '| PjeAlvaraSaldo:', typeof window.PjeAlvaraSaldo);
+        const tentarAlv = function (restantes) {
+            if (window.PjeAlvaraSaldo && typeof window.PjeAlvaraSaldo.injetarBotao === 'function') {
+                window.PjeAlvaraSaldo.injetarBotao('loader');
+            } else if (restantes > 0) {
+                console.warn('[Loader] PjeAlvaraSaldo ainda indisponível — tentativas restantes:', restantes);
+                setTimeout(function () { tentarAlv(restantes - 1); }, 1000);
+            } else {
+                console.error('[Loader] PjeAlvaraSaldo NÃO carregou — verifique o @require saldo_extracao.js no header do userscript');
+            }
+        };
+        tentarAlv(5);
+        return;
+    }
+
     // ── Lógica BCB (terceira execução Simba) ──
-    if (isBcb) {
-        console.log('[Loader] Detectada URL do BCB, carregando Simba BCB...');
+    if (isBcb) {        console.log('[Loader] Detectada URL do BCB, carregando Simba BCB...');
         setTimeout(() => {
             if (!document.getElementById('btnSimbaBcbExtratos')) {
                 const btn = document.createElement('button');

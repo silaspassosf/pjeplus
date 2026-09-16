@@ -141,16 +141,45 @@
                 var fator = fatorVisual();
                 var larguraVisual = P.getBoundingClientRect().width || (P.offsetWidth * fator);
                 var margem = 8;
-                var maxLeft = window.innerWidth - larguraVisual - 4;
+                var margemDir = 4;
+                var maxLeft = window.innerWidth - larguraVisual - margemDir;
                 var alvo = null;
+                var edRight = null;
                 var ed = acharEditor();
                 if (ed) {
                     try {
-                        var r = ed.getBoundingClientRect();
-                        alvo = Math.ceil(r.right + margem);
+                        edRight = Math.ceil(ed.getBoundingClientRect().right);
+                        alvo = edRight + margem;
                     } catch (e) { }
                 }
                 if (alvo === null) alvo = maxLeft;
+
+                // Painel expandido: se o espaço vazio entre o editor e a borda
+                // da tela for menor que o painel (zoom alto), REDUZ a largura
+                // para caber — nunca invadindo o editor. Piso de 260px visuais;
+                // abaixo disso, mantém o tamanho e apenas clampa. Restaura os
+                // 380px quando o espaço voltar (zoom out).
+                if (edRight !== null && !estaRetraido) {
+                    var disponivel = window.innerWidth - edRight - margem - margemDir;
+                    var nominalVisual = 380 * fator;
+                    var PISO = 260;
+                    if (disponivel >= PISO) {
+                        var alvoVisual;
+                        if (disponivel < larguraVisual) {
+                            alvoVisual = disponivel;
+                        } else if (larguraVisual < nominalVisual - 2 && disponivel >= nominalVisual) {
+                            alvoVisual = nominalVisual;
+                        } else {
+                            alvoVisual = null;
+                        }
+                        if (alvoVisual !== null) {
+                            P.style.width = Math.floor(alvoVisual / fator) + 'px';
+                            larguraVisual = alvoVisual;
+                        }
+                    }
+                    maxLeft = window.innerWidth - larguraVisual - margemDir;
+                }
+
                 alvo = Math.max(10, Math.min(maxLeft, alvo));
                 P.style.left = (alvo / fator) + 'px';
                 P.style.right = 'auto';

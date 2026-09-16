@@ -123,35 +123,36 @@
                 }
             }
 
-            function zoomComp() {
-                var z = parseFloat(P.dataset.zoomComp || '1');
-                return (isFinite(z) && z > 0) ? z : 1;
+            // Posiciona o painel no espaço vazio à direita do editor.
+            // O fator de escala é MEDIDO (rect/offsetWidth), não deduzido do
+            // devicePixelRatio — imune a baseDPR defasado. Sempre ancora em
+            // editor.right + margem; o clamp é só para o painel não vazar da
+            // tela. Não há fallback para a borda direita: se não couber todo,
+            // fica o mais à direita possível sem sair da viewport.
+            function fatorVisual() {
+                try {
+                    var r = P.getBoundingClientRect();
+                    var f = r.width / (P.offsetWidth || r.width || 1);
+                    return (isFinite(f) && f > 0) ? f : 1;
+                } catch (e) { return 1; }
             }
 
-            // Posiciona o painel no espaço vazio à direita do editor (nunca
-            // invadindo o editor). Se não houver espaço (zoom alto), encosta
-            // na borda direita da viewport como fallback. Trabalha em px
-            // VISUAIS: o CSS zoom do painel multiplica left por zoomComp(),
-            // então dividimos antes de aplicar.
             function posicionarAoLadoDoEditor() {
-                var zc = zoomComp();
-                var larguraVisual = P.offsetWidth * zc;
-                var margem = 12;
-                var maxLeft = window.innerWidth - larguraVisual - 10;
+                var fator = fatorVisual();
+                var larguraVisual = P.getBoundingClientRect().width || (P.offsetWidth * fator);
+                var margem = 8;
+                var maxLeft = window.innerWidth - larguraVisual - 4;
                 var alvo = null;
                 var ed = acharEditor();
                 if (ed) {
                     try {
                         var r = ed.getBoundingClientRect();
-                        var candidato = Math.ceil(r.right + margem);
-                        if (candidato + larguraVisual <= window.innerWidth - 10) {
-                            alvo = candidato;
-                        }
+                        alvo = Math.ceil(r.right + margem);
                     } catch (e) { }
                 }
                 if (alvo === null) alvo = maxLeft;
                 alvo = Math.max(10, Math.min(maxLeft, alvo));
-                P.style.left = (alvo / zc) + 'px';
+                P.style.left = (alvo / fator) + 'px';
                 P.style.right = 'auto';
             }
 
@@ -449,11 +450,11 @@
                     if (!drag) return;
                     el.dataset.dragged = 'true';
                     var minTop = calcularTopMinimo();
-                    var zc = zoomComp();
-                    var larguraVisual = el.offsetWidth * zc;
+                    var fator = fatorVisual();
+                    var larguraVisual = el.getBoundingClientRect().width;
                     var targetTop = Math.max(minTop, e.clientY - oy);
-                    var targetLeft = Math.max(10, Math.min(window.innerWidth - larguraVisual - 10, e.clientX - ox));
-                    el.style.left = (targetLeft / zc) + 'px';
+                    var targetLeft = Math.max(10, Math.min(window.innerWidth - larguraVisual - 4, e.clientX - ox));
+                    el.style.left = (targetLeft / fator) + 'px';
                     el.style.top = targetTop + 'px';
                     el.style.right = 'auto';
                     el.style.bottom = 'auto';

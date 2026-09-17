@@ -1,12 +1,18 @@
 (function() {
+    console.log('[Aud.core.js] Script iniciado.');
     // Espera por window.AUD_DATA (Aud.data.js) — segurança para instalação
     // standalone; no pjetools a ordem dos @require já garante os dados.
     function aguardarDados(cb) {
-        if (window.AUD_DATA) return cb();
+        if (window.AUD_DATA) {
+            console.log('[Aud.core.js] AUD_DATA encontrado, invocando callback.');
+            return cb();
+        }
+        console.log('[Aud.core.js] Aguardando window.AUD_DATA...');
         setTimeout(function () { aguardarDados(cb); }, 50);
     }
 
     aguardarDados(function () {
+        console.log('[Aud.core.js] Callback de aguardarDados disparado.');
 
         function isRouteAud() {
         return window.location.href.indexOf('/aud') !== -1;
@@ -18,8 +24,13 @@
     }
 
     function init(force) {
-        if (!force && !isRouteAud()) return;
+        console.log('[Aud.core.js] init() chamado. force:', force, '| Rota /aud:', isRouteAud());
+        if (!force && !isRouteAud()) {
+            console.log('[Aud.core.js] init() abortado: não forçado e fora da rota /aud');
+            return;
+        }
         if (!document.body) {
+            console.log('[Aud.core.js] init() aguardando document.body...');
             setTimeout(function() { init(force); }, 300);
             return;
         }
@@ -29,9 +40,11 @@
         } catch(e) {}
         var existing = document.getElementById('pjetools-aud-container') || (topDoc && topDoc.getElementById('pjetools-aud-container'));
         if (existing) {
+            console.log('[Aud.core.js] init() abortado: painel (pjetools-aud-container) já existe no DOM.');
             window.__pjeAudFechadoManualmente = false;
             return;
         }
+        console.log('[Aud.core.js] Criando painel. Coletando dados de AUD_DATA...');
         window.__pjeAudFechadoManualmente = false;
 
                 var perfis = window.AUD_DATA.perfis;
@@ -48,17 +61,23 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
         }
 
         function renderizarPainel(perfilId, estaRetraido) {
+            console.log('[Aud.core.js] renderizarPainel() chamado. perfilId:', perfilId);
             var ex = document.getElementById('pjetools-aud-container');
-            if (ex) ex.remove();
+            if (ex) {
+                console.log('[Aud.core.js] Removendo container existente antes de renderizar novo');
+                ex.remove();
+            }
 
             if (typeof estaRetraido === 'undefined') {
                 estaRetraido = false;
             }
 
             if (!perfilId) {
+                console.log('[Aud.core.js] Sem perfilId. Chamando criarSeletor()');
                 criarSeletor();
                 return;
             }
+            console.log('[Aud.core.js] Construindo painel para o perfil:', perfilId);
 
             var perfil = perfis[perfilId];
             var T = perfil.title;
@@ -812,6 +831,7 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
             }
 
             document.body.appendChild(P);
+            console.log('[Aud.core.js] Painel anexado ao document.body com sucesso!');
 
             if (window.PJeState && window.PJeState.registry) {
                 window.PJeState.registry.add(function () {
@@ -858,11 +878,16 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
             modal.appendChild(btns);
             overlay.appendChild(modal);
             document.body.appendChild(overlay);
+        console.log('[Aud.core.js] Chamando renderizarPainel() ao final de init()');
         renderizarPainel(perfilAtual, false);
     }
 
+    console.log('[Aud.core.js] Verificando se devemos disparar init na carga do script...');
     if (isRouteAud()) {
+        console.log('[Aud.core.js] Estamos em /aud, disparando init(true)');
         init(true);
+    } else {
+        console.log('[Aud.core.js] Não estamos em /aud, ignorando init inicial');
     }
 
     var _targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
@@ -873,6 +898,7 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
 
     // Re-injeção automática do painel no ambiente /aud (remoção fora dele).
     if (typeof window.__pjeAudInterval === 'undefined') {
+        console.log('[Aud.core.js] Registrando interval de monitoramento (__pjeAudInterval).');
         window.__pjeAudInterval = setInterval(function() {
             if (isRouteAud()) {
                 if (!document.getElementById('pjetools-aud-container') && document.body && !window.__pjeAudFechadoManualmente) {

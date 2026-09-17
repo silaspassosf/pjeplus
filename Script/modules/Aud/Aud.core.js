@@ -61,6 +61,10 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
         }
 
         function renderizarPainel(perfilId, estaRetraido) {
+            if (window.__pjeAudDomObs) {
+                try { window.__pjeAudDomObs.disconnect(); } catch (e) {}
+                window.__pjeAudDomObs = null;
+            }
             console.log('[Aud.core.js] renderizarPainel() chamado. perfilId:', perfilId);
             var ex = document.getElementById('pjetools-aud-container');
             if (ex) {
@@ -110,35 +114,45 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
 
             var P = document.createElement('div');
             P.id = 'pjetools-aud-container';
-            P.style.cssText = 'position:fixed;top:' + topMinimo + 'px;right:10px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:14px;box-sizing:border-box;user-select:none;';
+            P.style.cssText = 'position:fixed;top:' + topMinimo + 'px;right:10px;background:#fff;border:1px solid #c8d0ea;border-radius:10px;padding:8px 12px;z-index:2147483647;box-shadow:0 6px 24px rgba(30,50,130,.2);font-family:Arial,sans-serif;font-size:14px;box-sizing:border-box;user-select:none;transform-origin:top right;';
 
-            // Compensa o zoom do navegador (Ctrl +/-) para o painel manter o
-            // tamanho fixo em tela, independente do zoom aplicado na página.
+            // Mede o zoom REAL do navegador comparando o tamanho de um elemento
+            // de referência em unidades físicas (1cm) com seu tamanho renderizado
+            // em pixels CSS. Isso é imune a devicePixelRatio (não confunde DPI de
+            // monitor com zoom do Ctrl +/-) e funciona igual em todos os navegadores.
+            function medirZoomNavegador() {
+                var ref = document.getElementById('__pjeAudZoomRef');
+                if (!ref) {
+                    ref = document.createElement('div');
+                    ref.id = '__pjeAudZoomRef';
+                    ref.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;width:1cm;height:1cm;top:-9999px;left:-9999px;';
+                    document.body.appendChild(ref);
+                }
+                var pxPorCm = ref.getBoundingClientRect().width;
+                // 1cm = 37.7952755906px em 96dpi sem zoom algum (referência CSS padrão).
+                var zoom = pxPorCm / 37.7952755906;
+                return (isFinite(zoom) && zoom > 0) ? zoom : 1;
+            }
+
+            // Aplica contra-escala: o painel sempre ocupa o mesmo tamanho FÍSICO em
+            // tela (medido em cm/polegadas reais do monitor), independente do
+            // zoom da página. transform-origin no canto ancorado evita que a
+            // contra-escala desloque o elemento da posição calculada.
             function aplicarZoomComp() {
                 try {
-                    if (!window.__pjeAudBaseDPR) window.__pjeAudBaseDPR = window.devicePixelRatio || 1;
-                    var zc = window.__pjeAudBaseDPR / (window.devicePixelRatio || 1);
-                    if (!isFinite(zc) || zc <= 0 || Math.abs(zc - 1) < 0.02) zc = 1;
-                    P.style.zoom = (zc === 1) ? '' : String(zc);
-                    P.dataset.zoomComp = String(zc);
+                    var zoom = medirZoomNavegador();
+                    window.__pjeAudZoomAtual = zoom;
+                    var contraEscala = 1 / zoom;
+                    P.style.transform = (Math.abs(zoom - 1) < 0.02) ? 'none' : 'scale(' + contraEscala + ')';
+                    P.dataset.zoomComp = String(contraEscala);
                 } catch (e) {
-                    P.style.zoom = '';
+                    P.style.transform = 'none';
                     P.dataset.zoomComp = '1';
                 }
             }
 
-            // Posiciona o painel no espaço vazio à direita do editor.
-            // O fator de escala é MEDIDO (rect/offsetWidth), não deduzido do
-            // devicePixelRatio — imune a baseDPR defasado. Sempre ancora em
-            // editor.right + margem; o clamp é só para o painel não vazar da
-            // tela. Não há fallback para a borda direita: se não couber todo,
-            // fica o mais à direita possível sem sair da viewport.
             function fatorVisual() {
-                try {
-                    var r = P.getBoundingClientRect();
-                    var f = r.width / (P.offsetWidth || r.width || 1);
-                    return (isFinite(f) && f > 0) ? f : 1;
-                } catch (e) { return 1; }
+                return window.__pjeAudZoomAtual || medirZoomNavegador();
             }
 
             function posicionarAoLadoDoEditor() {
@@ -177,15 +191,26 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
                             alvoVisual = null;
                         }
                         if (alvoVisual !== null) {
-                            P.style.width = Math.floor(alvoVisual / fator) + 'px';
+                            // Com transform:scale(1/fator) aplicado ao painel, width em CSS já
+                            // é multiplicado pela contra-escala visualmente. Para o resultado
+                            // físico em tela ser exatamente "alvoVisual" pixels, a largura CSS
+                            // deve ser alvoVisual * fator (compensando a contra-escala).
+                            P.style.width = Math.floor(alvoVisual * fator) + 'px';
                             larguraVisual = alvoVisual;
                         }
+                    } else if (!estaRetraido && !P.dataset.dragged) {
+                        // Espaço insuficiente até para o piso mínimo: retrai automaticamente
+                        // para o ícone flutuante, evitando qualquer sobreposição do editor.
+                        setTimeout(function () { aplicarRetracao(true); }, 0);
                     }
                     maxLeft = window.innerWidth - larguraVisual - margemDir;
                 }
 
                 alvo = Math.max(10, Math.min(maxLeft, alvo));
-                P.style.left = (alvo / fator) + 'px';
+                // Mesma lógica do width: left em CSS precisa ser multiplicado pelo
+                // fator para compensar a contra-escala do transform e cair exatamente
+                // na posição física "alvo" calculada em pixels de tela.
+                P.style.left = (alvo * fator) + 'px';
                 P.style.right = 'auto';
             }
 
@@ -360,7 +385,12 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
             var rightControls = E('div', 'display:flex;align-items:center;gap:4px;');
             var toggleBtn = E('button', 'border:none;background:none;cursor:pointer;font-size:16px;color:#475569;padding:2px 4px;font-weight:bold;', estaRetraido ? '➕' : '➖');
             var fc = E('button', 'border:none;background:none;cursor:pointer;font-size:20px;color:#94a3b8;padding:0 2px;', '✕');
-            fc.onclick = function (e) { e.stopPropagation(); window.__pjeAudFechadoManualmente = true; P.remove(); };
+            fc.onclick = function (e) {
+                e.stopPropagation();
+                window.__pjeAudFechadoManualmente = true;
+                if (window.__pjeAudDomObs) { try { window.__pjeAudDomObs.disconnect(); } catch (err) {} window.__pjeAudDomObs = null; }
+                P.remove();
+            };
 
             rightControls.appendChild(toggleBtn);
             rightControls.appendChild(fc);
@@ -517,8 +547,20 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
             window.addEventListener('scroll', ajustarAoZoomEScroll, { passive: true });
 
             try {
-                var domObs = new MutationObserver(ajustarAoZoomEScroll);
-                domObs.observe(document.body, { childList: true, subtree: true });
+                var domObs = new MutationObserver(function (mutations) {
+                    // Ignora mutações originadas pelo próprio painel P (evita
+                    // o ciclo escrita-de-estilo -> mutação -> callback -> escrita).
+                    for (var i = 0; i < mutations.length; i++) {
+                        if (P.contains(mutations[i].target) || mutations[i].target === P) return;
+                    }
+                    ajustarAoZoomEScroll();
+                });
+                // Observa só a área do editor (ou um ancestral pequeno e estável),
+                // nunca document.body inteiro. Isso elimina o feedback loop com o
+                // change detection do Angular da página.
+                var alvoObservado = (acharEditor() && acharEditor().closest('mat-toolbar, .barra-ata, app-ata-cabecalho, .header')) || document.body;
+                domObs.observe(alvoObservado, { childList: true, subtree: false });
+                window.__pjeAudDomObs = domObs;
             } catch (e) { }
 
             aplicarZoomComp();
@@ -835,6 +877,7 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
 
             if (window.PJeState && window.PJeState.registry) {
                 window.PJeState.registry.add(function () {
+                    if (window.__pjeAudDomObs) { try { window.__pjeAudDomObs.disconnect(); } catch (err) {} window.__pjeAudDomObs = null; }
                     var el = document.getElementById('pjetools-aud-container');
                     if (el) el.remove();
                 });
@@ -878,6 +921,8 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
             modal.appendChild(btns);
             overlay.appendChild(modal);
             document.body.appendChild(overlay);
+        }
+
         console.log('[Aud.core.js] Chamando renderizarPainel() ao final de init()');
         renderizarPainel(perfilAtual, false);
     }

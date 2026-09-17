@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.3.94
+// @version      2.3.97
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -17,6 +17,8 @@
 // @match        https://www3.bcb.gov.br/saj/requisicao-extratos-cadastro*
 // ── Alvará Eletrônico (módulo saldo_extracao)
 // @match        https://alvaraeletronico.trt2.jus.br/*
+// ── eCarta (módulo carta — botões Últimas/Antigas com auditoria de falsos positivos)
+// @match        https://aplicacoes1.trt2.jus.br/eCarta-web/*
 // ── Único require: o loader (bumpar só ele ao adicionar módulos)
 // (loader injetado inline — remove dependência externa)
 // @grant        GM_setValue
@@ -56,10 +58,14 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.1.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/saldo_extracao.js?v=2.1.1
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/carta/carta.js?v=2.1.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.js?v=2.3.88
+// ── AUD modularizado: DADOS (textos jurídicos) carregados ANTES da LÓGICA;
+// Aud.js original permanece no repo como fallback, mas não é mais carregado.
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.data.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.core.js?v=2.3.89
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/marcar.js?v=1.3.4
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==

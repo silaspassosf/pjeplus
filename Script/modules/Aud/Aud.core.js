@@ -858,11 +858,11 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
             modal.appendChild(btns);
             overlay.appendChild(modal);
             document.body.appendChild(overlay);
-        }
+        renderizarPainel(perfilAtual, false);
+    }
 
-        if (isRouteAud()) {
-            init(true);
-        }
+    if (isRouteAud()) {
+        init(true);
     }
 
     var _targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;

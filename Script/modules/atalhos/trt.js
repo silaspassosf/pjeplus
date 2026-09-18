@@ -47,10 +47,9 @@
     }
 
     async function executarFluxoTribunal(modal) {
-        // 1. Procura na tabela atual
-        if (await selecionarTribunalNaTabela(modal)) return;
+        // A checagem inicial foi removida a pedido (pula direto pro filtro TRI)
 
-        // 2. Não achou, filtra por TRI
+        // 1. Filtra por TRI
         let inputLogradouro = modal.querySelector('input#logradouro');
         if (inputLogradouro) {
             await digitarLentamente(inputLogradouro, 'TRI');
@@ -59,7 +58,9 @@
             if (btnFiltrar) {
                 btnFiltrar.click();
                 await sleep(2000); // Aguarda a busca
-                if (await selecionarTribunalNaTabela(modal)) return;
+                await selecionarTribunalNaTabela(modal);
+                console.log('[TRT] Pausa para teste aplicada após o filtro TRI.');
+                return; // PAUSA PARA TESTE: Não prossegue para a função de CEP
             }
         }
 
@@ -86,19 +87,7 @@
                 await sleep(1500); // Aguarda salvar o endereço no backend
                 
                 // Tenta selecionar após salvar
-                let selecionou = await selecionarTribunalNaTabela(modal);
-                if (!selecionou) {
-                    // Se não apareceu de primeira, limpa o filtro e clica em filtrar para recarregar a tabela
-                    let inputLogradouro2 = modal.querySelector('input#logradouro');
-                    if (inputLogradouro2) {
-                        await digitarLentamente(inputLogradouro2, '');
-                        await sleep(200);
-                        let btnFiltrar2 = modal.querySelector('button[mattooltip="Filtrar"], button.botao-filtro');
-                        if (btnFiltrar2) btnFiltrar2.click();
-                        await sleep(1500);
-                        await selecionarTribunalNaTabela(modal);
-                    }
-                }
+                await selecionarTribunalNaTabela(modal);
             } else {
                 console.error('[TRT] Botão salvar não habilitou. Verifique se o CEP foi preenchido corretamente.');
             }

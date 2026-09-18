@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.5.2
+// @version      2.5.3
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -19,6 +19,9 @@
 // @match        https://alvaraeletronico.trt2.jus.br/*
 // ── eCarta (módulo carta — botões Últimas/Antigas com auditoria de falsos positivos)
 // @match        https://aplicacoes1.trt2.jus.br/eCarta-web/*
+// ── Sisbajud
+// @match        https://sisbajud.cnj.jus.br/*
+// @match        https://sisbajud.pdpj.jus.br/*
 // ── Único require: o loader (bumpar só ele ao adicionar módulos)
 // (loader injetado inline — remove dependência externa)
 // @grant        GM_setValue
@@ -97,7 +100,6 @@
     const isBcb = url.includes('bcb.gov.br/saj/requisicao-extratos-cadastro');
 
     // (No match da Receita, content scripts já estão via @require em header)
-    if (isSisbajud) return;
 
     // ── Alvará Eletrônico (injeção do botão "Extrair saldo") ──
     // O módulo também se auto-injeta no @require; esta rota é rede de segurança

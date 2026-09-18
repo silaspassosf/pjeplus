@@ -1186,29 +1186,37 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
     // AUTOMAÇÃO SISBAJUD: Recebendo comando do PJeTools
     // =====================================================================
     async function autoRunSisbajud() {
+        console.log('[SisbAuto Worker] Iniciando verificação de fila...');
         let acao = _sisbGet('sisbajud_acao');
-        if (!acao) return;
+        if (!acao) {
+            console.log('[SisbAuto Worker] Nenhuma ação pendente na fila.');
+            return;
+        }
         
         let dados = _sisbGet('sisbajud_dados_basicos');
         if (!dados) {
-            console.warn('[SisbAuto] Ação recebida mas sem dados básicos.');
+            console.warn('[SisbAuto Worker] Ação recebida mas sem dados básicos.');
             return;
         }
 
-        console.log('[SisbAuto] Executando ação automática:', acao);
+        console.log('[SisbAuto Worker] Executando ação automática:', acao, 'Dados:', dados);
         _sisbSet('sisbajud_acao', null);
 
         // 1. Navegar para Minuta -> Nova
+        console.log('[SisbAuto Worker] Navegando para o menu de Minuta...');
         await _sisbClick('button[aria-label*="menu de navegação"]', 10000);
         await _sisbClick('a[aria-label*="Ir para Minuta"], a[href="/minuta"]', 5000);
+        console.log('[SisbAuto Worker] Clicando em Nova Minuta...');
         await _sisbClick('button:contains("Nova")', 5000) || await _sisbClick('button.mat-raised-button.mat-primary', 5000);
         
         // Aguarda a tela de formulário carregar
+        console.log('[SisbAuto Worker] Aguardando tela do formulário...');
         await _sisbWait('input[placeholder="Número do Processo"]', 10000);
         await sleep(1000);
+        console.log('[SisbAuto Worker] Formulário carregado, iniciando preenchimento...');
 
         if (acao === 'endereco') {
-            console.log('[SisbAuto] Endereço - Selecionando Requisição de Informações');
+            console.log('[SisbAuto Worker] Endereço - Selecionando Requisição de Informações...');
             await _sisbClick('label:contains("Requisição de informações")', 5000) || await _sisbClick('mat-radio-button[value="REQUISICAO_INFORMACAO"]', 5000);
             await sleep(1000);
         }

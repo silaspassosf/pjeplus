@@ -353,7 +353,7 @@ window.PjeSisbajudAuto = {
     _abrirAbaSisbajud() {
         // Redireciona sempre para a home do sisbajud primeiro
         let baseUrl = window.location.href.includes('cnj.jus.br') ? 'https://sisbajud.cnj.jus.br' : 'https://sisbajud.pdpj.jus.br';
-        let url = baseUrl + '/minuta';
+        let url = baseUrl + '/';
         setTimeout(() => {
             if (typeof GM_openInTab !== 'undefined') {
                 GM_openInTab(url, { active: true });

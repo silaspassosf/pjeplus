@@ -1202,6 +1202,20 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         console.log('[SisbAuto Worker] Executando ação automática:', acao, 'Dados:', dados);
         _sisbSet('sisbajud_acao', null);
 
+        // Tratamento de Popups/Overlays Iniciais (Avisos do CNJ)
+        console.log('[SisbAuto Worker] Checando existencia de overlays...');
+        for (let i = 0; i < 2; i++) {
+            await sleep(2000); // aguarda possível animação do overlay
+            let overlay = document.querySelector('div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing');
+            if (overlay) {
+                console.log('[SisbAuto Worker] Overlay detectado, disparando ESC...');
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+                await sleep(1000);
+            } else {
+                break;
+            }
+        }
+
         // 1. Navegar para Minuta -> Nova
         console.log('[SisbAuto Worker] Navegando para o menu de Minuta...');
         await _sisbClick('button[aria-label*="menu de navegação"]', 10000);

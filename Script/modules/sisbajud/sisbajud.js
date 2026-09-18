@@ -1207,7 +1207,7 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         await _sisbClick('button[aria-label*="menu de navegação"]', 10000);
         await _sisbClick('a[aria-label*="Ir para Minuta"], a[href="/minuta"]', 5000);
         console.log('[SisbAuto Worker] Clicando em Nova Minuta...');
-        await _sisbClick('button:contains("Nova")', 5000) || await _sisbClick('button.mat-raised-button.mat-primary', 5000);
+        await _sisbClick(() => Array.from(document.querySelectorAll('button.mat-fab')).find(e => e.textContent.includes('Nova')), 5000) || await _sisbClick('button.mat-fab.mat-primary', 5000);
         
         // Aguarda a tela de formulário carregar
         console.log('[SisbAuto Worker] Aguardando tela do formulário...');
@@ -1217,7 +1217,7 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
 
         if (acao === 'endereco') {
             console.log('[SisbAuto Worker] Endereço - Selecionando Requisição de Informações...');
-            await _sisbClick('label:contains("Requisição de informações")', 5000) || await _sisbClick('mat-radio-button[value="REQUISICAO_INFORMACAO"]', 5000);
+            await _sisbClick(() => Array.from(document.querySelectorAll('mat-radio-button')).find(e => e.textContent.includes('Requisição de informações')), 5000) || await _sisbClick('mat-radio-button[value="REQUISICAO_INFORMACAO"]', 5000);
             await sleep(1000);
         }
 
@@ -1294,7 +1294,7 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
 
         // Tipo de Ação
         await _sisbClick('mat-select[name*="acao"]', 2000);
-        await _sisbClick('mat-option:contains("Ação Trabalhista")', 2000);
+        await _sisbClick(() => Array.from(document.querySelectorAll('mat-option')).find(e => e.textContent.includes('Ação Trabalhista')), 2000);
         await sleep(500);
 
         // Autor (Se existir, pois na Ordem 2 pode não vir)

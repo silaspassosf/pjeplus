@@ -316,38 +316,21 @@ if (window.PJeState && window.PJeState.registry) {
 // AUTOMAÇÃO SISBAJUD (PJeTools Nativo)
 // =====================================================================
 window.PjeSisbajudAuto = {
-    async iniciarTeimosinha() {
-        console.log('[SisbajudAuto] Iniciando Teimosinha...');
+    async iniciarMinuta() {
+        console.log('[SisbajudAuto] Iniciando Minuta...');
         let btnGuardar = document.querySelector('#maisPJe_bt_detalhes_guardarDados');
         if (btnGuardar) btnGuardar.click();
         
         let dados = await this.extrairDadosEssenciaisDet();
         _sisbSet('sisbajud_dados_basicos', dados);
-        _sisbSet('sisbajud_acao', 'teimosinha');
+        _sisbSet('sisbajud_acao', 'aguardando_escolha');
         
-        this._abrirAbaSisbajud();
-    },
-
-    async iniciarEndereco() {
-        console.log('[SisbajudAuto] Iniciando Endereço...');
-        let dados = await this.extrairDadosEssenciaisDet();
-        let polos = dados.partesPassivas || [];
-        if (!polos || polos.length === 0) {
-            alert('Não foi possível encontrar partes no polo passivo nesta tela.');
-            return;
+        console.log('[SisbajudAuto] Dados da minuta salvos:', dados);
+        if (typeof showToast === 'function') {
+            showToast('Dados extraídos! Abra o Sisbajud para continuar.', '#28a745', 5000);
+        } else {
+            alert('Dados extraídos com sucesso! Abra a tela do Sisbajud manualmente.');
         }
-
-        this.mostrarDialogoExecutados(polos, (partesFiltradas) => {
-            let btnGuardar = document.querySelector('#maisPJe_bt_detalhes_guardarDados');
-            if (btnGuardar) btnGuardar.click();
-            
-            dados.partesPassivas = partesFiltradas;
-            
-            _sisbSet('sisbajud_dados_basicos', dados);
-            _sisbSet('sisbajud_acao', 'endereco');
-            
-            this._abrirAbaSisbajud();
-        });
     },
 
     _abrirAbaSisbajud() {

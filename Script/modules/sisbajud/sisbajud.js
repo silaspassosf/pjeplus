@@ -1182,6 +1182,37 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
     setInterval(injetarUI, 1500);
     setInterval(injetarBotaoOrdem2, 1500);
 
+    function injetarBotoesMinuta(dados) {
+        if (document.getElementById('pje-botoes-minuta-container')) return;
+        let container = document.createElement('div');
+        container.id = 'pje-botoes-minuta-container';
+        container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;display:flex;flex-direction:column;gap:8px;';
+        
+        let btnEnd = criarBotao('btn-minuta-endereco', 'Endereço', '#17a2b8', () => {
+            if (window.PjeSisbajudAuto && typeof window.PjeSisbajudAuto.mostrarDialogoExecutados === 'function') {
+                window.PjeSisbajudAuto.mostrarDialogoExecutados(dados.partesPassivas || [], (partesFiltradas) => {
+                    dados.partesPassivas = partesFiltradas;
+                    _sisbSet('sisbajud_dados_basicos', dados);
+                    _sisbSet('sisbajud_acao', 'endereco');
+                    container.remove();
+                    autoRunSisbajud();
+                });
+            } else {
+                console.error('[SisbAuto Worker] PjeSisbajudAuto.mostrarDialogoExecutados não encontrado.');
+            }
+        });
+
+        let btnTeim = criarBotao('btn-minuta-teimosinha', 'Teimosinha', '#28a745', () => {
+            _sisbSet('sisbajud_acao', 'teimosinha');
+            container.remove();
+            autoRunSisbajud();
+        });
+
+        container.appendChild(btnEnd);
+        container.appendChild(btnTeim);
+        document.body.appendChild(container);
+    }
+
     // =====================================================================
     // AUTOMAÇÃO SISBAJUD: Recebendo comando do PJeTools
     // =====================================================================
@@ -1200,40 +1231,61 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         }
 
         console.log('[SisbAuto Worker] Executando ação automática:', acao, 'Dados:', dados);
-        _sisbSet('sisbajud_acao', null);
 
-        // Tratamento de Popups/Overlays Iniciais (Avisos do CNJ)
-        console.log('[SisbAuto Worker] Checando existencia de overlays...');
-        for (let i = 0; i < 2; i++) {
-            await sleep(2000); // aguarda possível animação do overlay
-            let overlay = document.querySelector('div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing');
-            if (overlay) {
-                console.log('[SisbAuto Worker] Overlay detectado, disparando ESC...');
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
-                await sleep(1000);
-            } else {
-                break;
+        if (acao === 'aguardando_escolha') {
+            // Tratamento de Popups/Overlays Iniciais (Avisos do CNJ)
+            console.log('[SisbAuto Worker] Checando existencia de overlays...');
+            for (let i = 0; i < 2; i++) {
+                await sleep(2000); // aguarda possível animação do overlay
+                let overlay = document.querySelector('div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing');
+                if (overlay) {
+                    console.log('[SisbAuto Worker] Overlay detectado, disparando ESC...');
+                    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+                    await sleep(1000);
+                } else {
+                    break;
+                }
             }
+
+            // 1. Navegar para Minuta
+            console.log('[SisbAuto Worker] Navegando para o menu de Minuta...');
+            await _sisbClick('button[aria-label*="menu de navegação"]', 10000);
+            await _sisbClick('a[aria-label*="Ir para Minuta"], a[href="/minuta"]', 5000);
+            
+            console.log('[SisbAuto Worker] Aguardando tela de minuta...');
+            await _sisbWait(() => window.location.href.includes('/minuta'), 10000);
+            await sleep(1500);
+
+            console.log('[SisbAuto Worker] Injetando botões de ação na Minuta...');
+            injetarBotoesMinuta(dados);
+            return; // Espera ação do usuário nos botões
         }
 
-        // 1. Navegar para Minuta -> Nova
-        console.log('[SisbAuto Worker] Navegando para o menu de Minuta...');
-        await _sisbClick('button[aria-label*="menu de navegação"]', 10000);
-        await _sisbClick('a[aria-label*="Ir para Minuta"], a[href="/minuta"]', 5000);
-        console.log('[SisbAuto Worker] Clicando em Nova Minuta...');
-        await _sisbClick(() => Array.from(document.querySelectorAll('button.mat-fab')).find(e => e.textContent.includes('Nova')), 5000) || await _sisbClick('button.mat-fab.mat-primary', 5000);
-        
-        // Aguarda a tela de formulário carregar
-        console.log('[SisbAuto Worker] Aguardando tela do formulário...');
-        await _sisbWait('input[placeholder="Número do Processo"]', 10000);
-        await sleep(1000);
-        console.log('[SisbAuto Worker] Formulário carregado, iniciando preenchimento...');
+        if (acao === 'endereco' || acao === 'teimosinha' || acao === 'ordem2') {
+            _sisbSet('sisbajud_acao', null);
 
-        if (acao === 'endereco') {
-            console.log('[SisbAuto Worker] Endereço - Selecionando Requisição de Informações...');
-            await _sisbClick(() => Array.from(document.querySelectorAll('mat-radio-button')).find(e => e.textContent.includes('Requisição de informações')), 5000) || await _sisbClick('mat-radio-button[value="REQUISICAO_INFORMACAO"]', 5000);
+            // A navegação de Ordem 2 pode começar sem estar em /minuta ainda
+            if (acao === 'ordem2' && !window.location.href.includes('/minuta')) {
+                await _sisbClick('button[aria-label*="menu de navegação"]', 10000);
+                await _sisbClick('a[aria-label*="Ir para Minuta"], a[href="/minuta"]', 5000);
+                await _sisbWait(() => window.location.href.includes('/minuta'), 10000);
+                await sleep(1500);
+            }
+
+            console.log('[SisbAuto Worker] Clicando em Nova Minuta...');
+            await _sisbClick(() => Array.from(document.querySelectorAll('button.mat-fab')).find(e => e.textContent.includes('Nova')), 5000) || await _sisbClick('button.mat-fab.mat-primary', 5000);
+            
+            // Aguarda a tela de formulário carregar
+            console.log('[SisbAuto Worker] Aguardando tela do formulário...');
+            await _sisbWait('input[placeholder="Número do Processo"]', 10000);
             await sleep(1000);
-        }
+            console.log('[SisbAuto Worker] Formulário carregado, iniciando preenchimento...');
+
+            if (acao === 'endereco') {
+                console.log('[SisbAuto Worker] Endereço - Selecionando Requisição de Informações...');
+                await _sisbClick(() => Array.from(document.querySelectorAll('mat-radio-button')).find(e => e.textContent.includes('Requisição de informações')), 5000) || await _sisbClick('mat-radio-button[value="REQUISICAO_INFORMACAO"]', 5000);
+                await sleep(1000);
+            }
 
         // --- PREENCHIMENTO DOS CAMPOS ---
         

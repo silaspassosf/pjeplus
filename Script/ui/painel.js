@@ -129,24 +129,12 @@
                     };
                     
                     const b2 = document.createElement('button');
-                    b2.textContent = 'Endereço';
+                    b2.textContent = 'Minuta';
                     b2.style.cssText = btnStyle;
                     b2.onclick = (ev) => {
                         ev.stopPropagation();
-                        if (window.PjeSisbajudAuto && typeof window.PjeSisbajudAuto.iniciarEndereco === 'function') {
-                            window.PjeSisbajudAuto.iniciarEndereco();
-                        } else {
-                            showToast('Módulo Sisbajud não carregado', '#dc3545', 3000);
-                        }
-                    };
-                    
-                    const b3 = document.createElement('button');
-                    b3.textContent = 'Teimosinha';
-                    b3.style.cssText = btnStyle;
-                    b3.onclick = (ev) => {
-                        ev.stopPropagation();
-                        if (window.PjeSisbajudAuto && typeof window.PjeSisbajudAuto.iniciarTeimosinha === 'function') {
-                            window.PjeSisbajudAuto.iniciarTeimosinha();
+                        if (window.PjeSisbajudAuto && typeof window.PjeSisbajudAuto.iniciarMinuta === 'function') {
+                            window.PjeSisbajudAuto.iniciarMinuta();
                         } else {
                             showToast('Módulo Sisbajud não carregado', '#dc3545', 3000);
                         }
@@ -154,7 +142,6 @@
                     
                     btn.appendChild(b1);
                     btn.appendChild(b2);
-                    btn.appendChild(b3);
                 }, titulo: 'Sisbajud', full: true },
             { id: 'btnDebito', texto: '💰 Débito', bg: '#17a2b8', fn: function () {
                     if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.executar === 'function') {

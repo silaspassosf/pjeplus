@@ -1457,6 +1457,8 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
             }
         }
 
+        }
+        
         console.log('[SisbAuto] Preenchimento concluído para ' + acao);
     }
 

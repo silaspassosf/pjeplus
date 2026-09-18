@@ -227,6 +227,34 @@
     return h;
   }
 
+  // Retry com backoff para erros transitórios do servidor (HTTP 5xx).
+  // Lotes longos (SISBAJUD 10+ documentos seguidos) tropeçavam em um 500
+  // aleatório e abortavam o documento — o PJe responde na próxima tentativa.
+  async function _apiFetchComRetry(url, opcoes, tentativas) {
+    tentativas = tentativas || 3;
+    var ultimoErro = null;
+    for (var i = 0; i < tentativas; i++) {
+      if (i > 0) {
+        var pausaMs = 1000 * i; // 1s, 2s...
+        console.warn('[pjeExtrairApi] Tentativa ' + (i + 1) + '/' + tentativas + ' em ' + pausaMs + 'ms (erro anterior: ' + ((ultimoErro && ultimoErro.message) || '?') + ')');
+        await new Promise(function (r) { setTimeout(r, pausaMs); });
+      }
+      try {
+        var resp = await fetch(url, opcoes);
+        if (resp.status >= 500 && resp.status <= 599 && i < tentativas - 1) {
+          ultimoErro = new Error('HTTP ' + resp.status + ' (transitório)');
+          continue;
+        }
+        return resp;
+      } catch (e) {
+        ultimoErro = e;
+        if (i >= tentativas - 1) throw e;
+      }
+    }
+    if (ultimoErro) throw ultimoErro;
+    throw new Error('fetch falhou sem resposta');
+  }
+
   function _apiIdProcesso() {
     var m = window.location.pathname.match(/\/processo\/(\d+)/);
     return m ? m[1] : null;
@@ -260,7 +288,7 @@
     if (/^\d+$/.test(String(uid))) return String(uid); // já é numérico
     var url = location.origin + '/pje-comum-api/api/processos/id/' + idProcesso + '/timeline?' +
       new URLSearchParams({ somenteDocumentosAssinados: 'false', buscarMovimentos: 'false', buscarDocumentos: 'true' });
-    var resp = await fetch(url, { method: 'GET', credentials: 'include', headers: _apiHeaders() });
+    var resp = await _apiFetchComRetry(url, { method: 'GET', credentials: 'include', headers: _apiHeaders() });
     if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ao buscar timeline para uid=' + uid);
     var data = await resp.json();
     var allDocs = [];
@@ -290,7 +318,7 @@
     if (opts.incluirAssinatura) params.append('incluirAssinatura', 'true');
     var qs = params.toString() ? '?' + params.toString() : '';
     var url = location.origin + '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDoc + qs;
-    var resp = await fetch(url, { method: 'GET', credentials: 'include', headers: _apiHeaders() });
+    var resp = await _apiFetchComRetry(url, { method: 'GET', credentials: 'include', headers: _apiHeaders() });
     if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ao buscar metadados de ' + idDoc);
     var txt = await resp.text();
     try { return JSON.parse(txt); } catch (_) { throw new Error('Metadados: não é JSON — ' + txt.slice(0, 100)); }

@@ -1215,7 +1215,7 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
 
         // --- PREENCHIMENTO DOS CAMPOS ---
         
-        // Agendamento (Ordem 2)
+        // Agendamento (Ordem 2 e Teimosinha Fim de Semana)
         if (acao === 'ordem2' && dados.dataProtocolo) {
             console.log('[SisbAuto] Preenchendo Data Protocolo (Ordem 2):', dados.dataProtocolo);
             let checkAgendar = document.querySelector('mat-checkbox[formcontrolname="agendarProtocolo"] input');
@@ -1244,6 +1244,33 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
                     elDias.value = dados.diasTeimosinha;
                     elDias.dispatchEvent(new Event('input', { bubbles: true }));
                     elDias.blur();
+                }
+            }
+        } else if (acao === 'teimosinha') {
+            // Agendamento para Segunda-feira se executado no Fim de Semana
+            let agora = new Date();
+            let diaSemana = agora.getDay();
+            if (diaSemana === 0 || diaSemana === 6) {
+                let proximaSeg = new Date(agora);
+                proximaSeg.setDate(agora.getDate() + (diaSemana === 6 ? 2 : 1));
+                let d = String(proximaSeg.getDate()).padStart(2, '0');
+                let m = String(proximaSeg.getMonth() + 1).padStart(2, '0');
+                let a = proximaSeg.getFullYear();
+                let dataSegunda = d + '/' + m + '/' + a;
+                
+                console.log('[SisbAuto] Final de semana detectado, agendando Teimosinha para:', dataSegunda);
+                let checkAgendar = document.querySelector('mat-checkbox[formcontrolname="agendarProtocolo"] input');
+                if (checkAgendar && !checkAgendar.checked) {
+                    checkAgendar.click();
+                    await sleep(500);
+                }
+                let elDataAgend = document.querySelector('input[placeholder="DD/MM/AAAA"]');
+                if (elDataAgend) {
+                    elDataAgend.focus();
+                    elDataAgend.value = dataSegunda;
+                    elDataAgend.dispatchEvent(new Event('input', { bubbles: true }));
+                    elDataAgend.blur();
+                    await sleep(500);
                 }
             }
         }

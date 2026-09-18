@@ -316,27 +316,22 @@ if (window.PJeState && window.PJeState.registry) {
 // AUTOMAÇÃO SISBAJUD (PJeTools Nativo)
 // =====================================================================
 window.PjeSisbajudAuto = {
-    iniciarTeimosinha() {
+    async iniciarTeimosinha() {
         console.log('[SisbajudAuto] Iniciando Teimosinha...');
         let btnGuardar = document.querySelector('#maisPJe_bt_detalhes_guardarDados');
         if (btnGuardar) btnGuardar.click();
         
-        let dados = this.extrairDadosEssenciaisDet();
+        let dados = await this.extrairDadosEssenciaisDet();
         _sisbSet('sisbajud_dados_basicos', dados);
         _sisbSet('sisbajud_acao', 'teimosinha');
         
-        setTimeout(() => {
-            if (typeof GM_openInTab !== 'undefined') {
-                GM_openInTab('https://sisbajud.pdpj.jus.br/minuta/cadastrar', { active: true });
-            } else {
-                window.open('https://sisbajud.pdpj.jus.br/minuta/cadastrar', '_blank');
-            }
-        }, 800);
+        this._abrirAbaSisbajud();
     },
 
-    iniciarEndereco() {
+    async iniciarEndereco() {
         console.log('[SisbajudAuto] Iniciando Endereço...');
-        let polos = this.extrairPolosPassivosDet();
+        let dados = await this.extrairDadosEssenciaisDet();
+        let polos = dados.partesPassivas || [];
         if (!polos || polos.length === 0) {
             alert('Não foi possível encontrar partes no polo passivo nesta tela.');
             return;
@@ -346,27 +341,82 @@ window.PjeSisbajudAuto = {
             let btnGuardar = document.querySelector('#maisPJe_bt_detalhes_guardarDados');
             if (btnGuardar) btnGuardar.click();
             
-            let dados = this.extrairDadosEssenciaisDet();
-            dados.partes = partesFiltradas;
+            dados.partesPassivas = partesFiltradas;
             
             _sisbSet('sisbajud_dados_basicos', dados);
             _sisbSet('sisbajud_acao', 'endereco');
             
-            setTimeout(() => {
-                if (typeof GM_openInTab !== 'undefined') {
-                    GM_openInTab('https://sisbajud.pdpj.jus.br/minuta/cadastrar', { active: true });
-                } else {
-                    window.open('https://sisbajud.pdpj.jus.br/minuta/cadastrar', '_blank');
-                }
-            }, 800);
+            this._abrirAbaSisbajud();
         });
     },
 
-    extrairDadosEssenciaisDet() {
-        let dados = { numero: '', partes: [] };
+    _abrirAbaSisbajud() {
+        // Redireciona sempre para a home do sisbajud primeiro
+        let baseUrl = window.location.href.includes('cnj.jus.br') ? 'https://sisbajud.cnj.jus.br' : 'https://sisbajud.pdpj.jus.br';
+        let url = baseUrl + '/minuta';
+        setTimeout(() => {
+            if (typeof GM_openInTab !== 'undefined') {
+                GM_openInTab(url, { active: true });
+            } else {
+                window.open(url, '_blank');
+            }
+        }, 800);
+    },
+
+    async extrairDadosEssenciaisDet() {
+        let dados = { numero: '', partesPassivas: [], partesAtivas: [], valorExecucao: 0 };
+        
         let procEl = document.querySelector('.title-case-number');
         if (procEl) dados.numero = procEl.textContent.replace(/[^0-9.-]/g, '');
-        dados.partes = this.extrairPolosPassivosDet();
+
+        // Pegar ID do processo da URL
+        const matchId = window.location.href.match(/\/processo\/([0-9]+)\/detalhe/);
+        const idProcesso = matchId ? matchId[1] : null;
+
+        if (idProcesso) {
+            try {
+                // Buscar Partes
+                let urlPartes = location.origin + '/pje-comum-api/api/processos/id/' + idProcesso + '/partes';
+                let respPartes = await fetch(urlPartes, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                if (respPartes.ok) {
+                    let json = await respPartes.json();
+                    let shape = (lista) => (lista || []).map(p => ({ nome: (p.nome || '').trim(), cpfcnpj: (p.documento || '').replace(/[^0-9]/g, '') }));
+                    dados.partesAtivas = shape(json.ATIVO);
+                    dados.partesPassivas = shape(json.PASSIVO);
+                }
+
+                // Buscar Valor da Execução via GIGS
+                let urlGigs = location.origin + '/pje-gigs-api/api/execucao/processo/' + idProcesso;
+                let respGigs = await fetch(urlGigs, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                if (respGigs.ok) {
+                    let json = await respGigs.json();
+                    dados.valorExecucao = json.valor ?? json.valorExecucao ?? json.total ?? 0;
+                }
+                
+                // Fallback de valor via Calculos API
+                if (!dados.valorExecucao || dados.valorExecucao <= 0) {
+                    const qs = new URLSearchParams({ idProcesso: idProcesso, pagina: '1', tamanhoPagina: '10', ordenacaoCrescente: 'true', mostrarCalculosHomologados: 'true', incluirCalculosHomologados: 'true' });
+                    let urlCalc = location.origin + '/pje-comum-api/api/calculos/processo?' + qs.toString();
+                    let respCalc = await fetch(urlCalc, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                    if (respCalc.ok) {
+                        let json = await respCalc.json();
+                        let resultado = json.resultado || [];
+                        if (resultado.length > 0) {
+                            let ultimo = resultado.reduce((prev, curr) => (new Date(prev.dataHoraImportacao) > new Date(curr.dataHoraImportacao) ? prev : curr));
+                            dados.valorExecucao = ultimo.total ?? ultimo.valor ?? ultimo.valorExecucao ?? 0;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('[SisbAuto] Erro ao buscar dados da API:', e);
+            }
+        }
+
+        // Fallback visual se API falhou para o passivo
+        if (dados.partesPassivas.length === 0) {
+            dados.partesPassivas = this.extrairPolosPassivosDet();
+        }
+
         return dados;
     },
 

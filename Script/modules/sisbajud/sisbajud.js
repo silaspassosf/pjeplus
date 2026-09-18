@@ -1051,63 +1051,102 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         }
 
         console.log('[SisbAuto] Executando ação automática:', acao);
-        
-        // Limpar a ação para não rodar novamente em reloads
         _sisbSet('sisbajud_acao', null);
 
         // 1. Navegar para Minuta -> Nova
         await _sisbClick('button[aria-label*="menu de navegação"]', 10000);
         await _sisbClick('a[aria-label*="Ir para Minuta"], a[href="/minuta"]', 5000);
-        await _sisbClick('button:contains("Nova")', 5000) || await _sisbClick('button.mat-raised-button.mat-primary', 5000); // Tentar botão de nova minuta
+        await _sisbClick('button:contains("Nova")', 5000) || await _sisbClick('button.mat-raised-button.mat-primary', 5000);
+        
+        // Aguarda a tela de formulário carregar
+        await _sisbWait('input[placeholder="Número do Processo"]', 10000);
+        await sleep(1000);
 
-        if (acao === 'teimosinha') {
-            console.log('[SisbAuto] Teimosinha - Iniciada a nova minuta.');
-            // Deixa por conta do usuário preencher a Teimosinha se houver opções específicas, 
-            // ou pode simular o preenchimento se houver a regra no futuro.
-            // Por enquanto, apenas navegar já resolve a abertura.
-        } 
-        else if (acao === 'endereco') {
+        if (acao === 'endereco') {
             console.log('[SisbAuto] Endereço - Selecionando Requisição de Informações');
             await _sisbClick('label:contains("Requisição de informações")', 5000) || await _sisbClick('mat-radio-button[value="REQUISICAO_INFORMACAO"]', 5000);
-            
-            // Simular preenchimento
             await sleep(1000);
-            
-            // Número do Processo
-            let elProc = document.querySelector('input[placeholder="Número do Processo"]');
-            if (elProc && dados.numero) {
-                elProc.focus();
-                elProc.value = dados.numero;
-                elProc.dispatchEvent(new Event('input', { bubbles: true }));
-                elProc.blur();
+        }
+
+        // --- PREENCHIMENTO DOS CAMPOS ---
+        
+        // Número do Processo
+        let elProc = document.querySelector('input[placeholder="Número do Processo"]');
+        if (elProc && dados.numero) {
+            elProc.focus();
+            elProc.value = dados.numero;
+            elProc.dispatchEvent(new Event('input', { bubbles: true }));
+            elProc.blur();
+        }
+
+        // Tipo de Ação
+        await _sisbClick('mat-select[name*="acao"]', 2000);
+        await _sisbClick('mat-option:contains("Ação Trabalhista")', 2000);
+        await sleep(500);
+
+        // Autor
+        if (dados.partesAtivas && dados.partesAtivas.length > 0) {
+            let elAutorDoc = document.querySelector('input[placeholder*="CPF/CNPJ do autor"]');
+            if (!elAutorDoc) {
+                // Tenta achar o primeiro input de CPF genérico
+                let cpfs = document.querySelectorAll('input[placeholder*="CPF"]');
+                if (cpfs.length > 0) elAutorDoc = cpfs[0];
             }
+            if (elAutorDoc) {
+                elAutorDoc.focus();
+                elAutorDoc.value = dados.partesAtivas[0].cpfcnpj;
+                elAutorDoc.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
+            let elAutorNome = document.querySelector('input[placeholder*="Nome do autor"]');
+            if (elAutorNome) {
+                elAutorNome.focus();
+                elAutorNome.value = dados.partesAtivas[0].nome;
+                elAutorNome.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
 
-            // Tipo de Ação
-            await _sisbClick('mat-select[name*="acao"]', 2000);
-            await _sisbClick('mat-option:contains("Ação Trabalhista")', 2000);
+        // Teimosinha (Valor)
+        if (acao === 'teimosinha') {
+            console.log('[SisbAuto] Preenchendo Valor da Execução');
+            let elValor = document.querySelector('input[placeholder*="Valor a bloquear"]');
+            if (elValor && dados.valorExecucao && dados.valorExecucao > 0) {
+                elValor.focus();
+                elValor.value = dados.valorExecucao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                elValor.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
 
-            // CPF/CNPJ (Partes)
-            if (dados.partes && dados.partes.length > 0) {
-                let elDoc = await _sisbWait('input[placeholder*="CPF"]', 5000);
-                if (elDoc) {
-                    for (let p of dados.partes) {
-                        elDoc.focus();
-                        elDoc.value = p.cpfcnpj;
-                        elDoc.dispatchEvent(new Event('input', { bubbles: true }));
-                        
-                        let btnAdd = document.querySelector('button[mattooltip="Adicionar Réu/Executado"]');
-                        if (btnAdd) {
-                            btnAdd.click();
-                            await sleep(1500); // Aguarda validação
-                        }
+        // Réus (Iterativo)
+        if (dados.partesPassivas && dados.partesPassivas.length > 0) {
+            console.log('[SisbAuto] Adicionando ' + dados.partesPassivas.length + ' réus...');
+            for (let p of dados.partesPassivas) {
+                // Campo de CPF do Réu normalmente é o último de CPF ou tem texto específico
+                let elReuDoc = document.querySelector('input[placeholder*="CPF/CNPJ do réu"]') || 
+                               document.querySelector('input[placeholder*="Adicionar Réu/Executado CPF/CNPJ"]');
+                if (!elReuDoc) {
+                    let cpfs = document.querySelectorAll('input[placeholder*="CPF"]');
+                    if (cpfs.length > 1) elReuDoc = cpfs[cpfs.length - 1]; // O último
+                    else if (cpfs.length === 1) elReuDoc = cpfs[0];
+                }
+                
+                if (elReuDoc) {
+                    elReuDoc.focus();
+                    elReuDoc.value = p.cpfcnpj;
+                    elReuDoc.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    let btnAdd = document.querySelector('button[mattooltip="Adicionar Réu/Executado"]');
+                    if (btnAdd) {
+                        btnAdd.click();
+                        await sleep(1500); // Aguarda a validação na Receita
                     }
                 }
             }
-            console.log('[SisbAuto] Preenchimento de Endereço concluído.');
         }
+
+        console.log('[SisbAuto] Preenchimento concluído para ' + acao);
     }
 
-    // Tentar executar a automação
     setTimeout(autoRunSisbajud, 2000);
 
 })();

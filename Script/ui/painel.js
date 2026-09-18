@@ -105,13 +105,57 @@
                         showToast('Módulo Simba não carregado', '#dc3545', 3000);
                     }
                 }, titulo: 'Salvar dados e pesquisar Iniciada execução' },
-            { id: 'btnSisbajud', texto: '💸 Sisbajud', bg: '#1e88e5', fn: function () {
-                    if (typeof window.executarSisbajudPJe === 'function') {
-                        window.executarSisbajudPJe();
-                    } else {
-                        showToast('Módulo Sisbajud não carregado', '#dc3545', 3000);
-                    }
-                }, titulo: 'Extrair Sisbajud' },
+            { id: 'btnSisbajud', texto: '💸 Sisbajud', bg: '#1e88e5', fn: function (e) {
+                    const btn = e.target.closest('button');
+                    if (btn.dataset.expanded === "true") return;
+                    btn.dataset.expanded = "true";
+                    btn.innerHTML = '';
+                    btn.style.display = 'flex';
+                    btn.style.gap = '2px';
+                    btn.style.padding = '4px';
+                    
+                    const btnStyle = 'flex:1;background:#fff;color:#1e88e5;border:none;border-radius:2px;font-size:9px;font-weight:bold;cursor:pointer;padding:2px 0;';
+                    
+                    const b1 = document.createElement('button');
+                    b1.textContent = 'Extrair';
+                    b1.style.cssText = btnStyle;
+                    b1.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (typeof window.executarSisbajudPJe === 'function') {
+                            window.executarSisbajudPJe();
+                        } else {
+                            showToast('Módulo Sisbajud não carregado', '#dc3545', 3000);
+                        }
+                    };
+                    
+                    const b2 = document.createElement('button');
+                    b2.textContent = 'Endereço';
+                    b2.style.cssText = btnStyle;
+                    b2.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (window.PjeSisbajudAuto && typeof window.PjeSisbajudAuto.iniciarEndereco === 'function') {
+                            window.PjeSisbajudAuto.iniciarEndereco();
+                        } else {
+                            showToast('Módulo Sisbajud não carregado', '#dc3545', 3000);
+                        }
+                    };
+                    
+                    const b3 = document.createElement('button');
+                    b3.textContent = 'Teimosinha';
+                    b3.style.cssText = btnStyle;
+                    b3.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (window.PjeSisbajudAuto && typeof window.PjeSisbajudAuto.iniciarTeimosinha === 'function') {
+                            window.PjeSisbajudAuto.iniciarTeimosinha();
+                        } else {
+                            showToast('Módulo Sisbajud não carregado', '#dc3545', 3000);
+                        }
+                    };
+                    
+                    btn.appendChild(b1);
+                    btn.appendChild(b2);
+                    btn.appendChild(b3);
+                }, titulo: 'Sisbajud', full: true },
             { id: 'btnDebito', texto: '💰 Débito', bg: '#17a2b8', fn: function () {
                     if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.executar === 'function') {
                         window.PjeRegistrarDebito.executar();

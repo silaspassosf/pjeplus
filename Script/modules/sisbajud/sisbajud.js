@@ -1037,4 +1037,77 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
 
     setInterval(injetarUI, 1500);
 
+    // =====================================================================
+    // AUTOMAÇÃO SISBAJUD: Recebendo comando do PJeTools
+    // =====================================================================
+    async function autoRunSisbajud() {
+        let acao = _sisbGet('sisbajud_acao');
+        if (!acao) return;
+        
+        let dados = _sisbGet('sisbajud_dados_basicos');
+        if (!dados) {
+            console.warn('[SisbAuto] Ação recebida mas sem dados básicos.');
+            return;
+        }
+
+        console.log('[SisbAuto] Executando ação automática:', acao);
+        
+        // Limpar a ação para não rodar novamente em reloads
+        _sisbSet('sisbajud_acao', null);
+
+        // 1. Navegar para Minuta -> Nova
+        await _sisbClick('button[aria-label*="menu de navegação"]', 10000);
+        await _sisbClick('a[aria-label*="Ir para Minuta"], a[href="/minuta"]', 5000);
+        await _sisbClick('button:contains("Nova")', 5000) || await _sisbClick('button.mat-raised-button.mat-primary', 5000); // Tentar botão de nova minuta
+
+        if (acao === 'teimosinha') {
+            console.log('[SisbAuto] Teimosinha - Iniciada a nova minuta.');
+            // Deixa por conta do usuário preencher a Teimosinha se houver opções específicas, 
+            // ou pode simular o preenchimento se houver a regra no futuro.
+            // Por enquanto, apenas navegar já resolve a abertura.
+        } 
+        else if (acao === 'endereco') {
+            console.log('[SisbAuto] Endereço - Selecionando Requisição de Informações');
+            await _sisbClick('label:contains("Requisição de informações")', 5000) || await _sisbClick('mat-radio-button[value="REQUISICAO_INFORMACAO"]', 5000);
+            
+            // Simular preenchimento
+            await sleep(1000);
+            
+            // Número do Processo
+            let elProc = document.querySelector('input[placeholder="Número do Processo"]');
+            if (elProc && dados.numero) {
+                elProc.focus();
+                elProc.value = dados.numero;
+                elProc.dispatchEvent(new Event('input', { bubbles: true }));
+                elProc.blur();
+            }
+
+            // Tipo de Ação
+            await _sisbClick('mat-select[name*="acao"]', 2000);
+            await _sisbClick('mat-option:contains("Ação Trabalhista")', 2000);
+
+            // CPF/CNPJ (Partes)
+            if (dados.partes && dados.partes.length > 0) {
+                let elDoc = await _sisbWait('input[placeholder*="CPF"]', 5000);
+                if (elDoc) {
+                    for (let p of dados.partes) {
+                        elDoc.focus();
+                        elDoc.value = p.cpfcnpj;
+                        elDoc.dispatchEvent(new Event('input', { bubbles: true }));
+                        
+                        let btnAdd = document.querySelector('button[mattooltip="Adicionar Réu/Executado"]');
+                        if (btnAdd) {
+                            btnAdd.click();
+                            await sleep(1500); // Aguarda validação
+                        }
+                    }
+                }
+            }
+            console.log('[SisbAuto] Preenchimento de Endereço concluído.');
+        }
+    }
+
+    // Tentar executar a automação
+    setTimeout(autoRunSisbajud, 2000);
+
 })();

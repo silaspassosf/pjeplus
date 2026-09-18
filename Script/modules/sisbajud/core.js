@@ -311,3 +311,130 @@ if (window.PJeState && window.PJeState.registry) {
         // Não resetar automaticamente para preservar dados acumulados até finalização pelo usuário
     });
 }
+
+// =====================================================================
+// AUTOMAÇÃO SISBAJUD (PJeTools Nativo)
+// =====================================================================
+window.PjeSisbajudAuto = {
+    iniciarTeimosinha() {
+        console.log('[SisbajudAuto] Iniciando Teimosinha...');
+        let btnGuardar = document.querySelector('#maisPJe_bt_detalhes_guardarDados');
+        if (btnGuardar) btnGuardar.click();
+        
+        let dados = this.extrairDadosEssenciaisDet();
+        _sisbSet('sisbajud_dados_basicos', dados);
+        _sisbSet('sisbajud_acao', 'teimosinha');
+        
+        setTimeout(() => {
+            if (typeof GM_openInTab !== 'undefined') {
+                GM_openInTab('https://sisbajud.pdpj.jus.br/minuta/cadastrar', { active: true });
+            } else {
+                window.open('https://sisbajud.pdpj.jus.br/minuta/cadastrar', '_blank');
+            }
+        }, 800);
+    },
+
+    iniciarEndereco() {
+        console.log('[SisbajudAuto] Iniciando Endereço...');
+        let polos = this.extrairPolosPassivosDet();
+        if (!polos || polos.length === 0) {
+            alert('Não foi possível encontrar partes no polo passivo nesta tela.');
+            return;
+        }
+
+        this.mostrarDialogoExecutados(polos, (partesFiltradas) => {
+            let btnGuardar = document.querySelector('#maisPJe_bt_detalhes_guardarDados');
+            if (btnGuardar) btnGuardar.click();
+            
+            let dados = this.extrairDadosEssenciaisDet();
+            dados.partes = partesFiltradas;
+            
+            _sisbSet('sisbajud_dados_basicos', dados);
+            _sisbSet('sisbajud_acao', 'endereco');
+            
+            setTimeout(() => {
+                if (typeof GM_openInTab !== 'undefined') {
+                    GM_openInTab('https://sisbajud.pdpj.jus.br/minuta/cadastrar', { active: true });
+                } else {
+                    window.open('https://sisbajud.pdpj.jus.br/minuta/cadastrar', '_blank');
+                }
+            }, 800);
+        });
+    },
+
+    extrairDadosEssenciaisDet() {
+        let dados = { numero: '', partes: [] };
+        let procEl = document.querySelector('.title-case-number');
+        if (procEl) dados.numero = procEl.textContent.replace(/[^0-9.-]/g, '');
+        dados.partes = this.extrairPolosPassivosDet();
+        return dados;
+    },
+
+    extrairPolosPassivosDet() {
+        if (window.PjeLibParser && typeof window.PjeLibParser.extrairPolos === 'function') {
+            try {
+                let p = window.PjeLibParser.extrairPolos();
+                let passivo = p.passivo || p.reu || p.executado;
+                if (passivo && passivo.length > 0) {
+                    return passivo.map(x => ({
+                        nome: x.nome, 
+                        cpfcnpj: (x.cpfcnpj || x.documento || '').replace(/[^0-9]/g, '')
+                    })).filter(x => x.cpfcnpj);
+                }
+            } catch(e) {}
+        }
+        
+        let partes = [];
+        let pText = document.body.innerText; 
+        // Fallback básico, pois o PJeLibParser é esperado estar presente
+        return partes;
+    },
+
+    mostrarDialogoExecutados(partes, onContinuar) {
+        let overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999999;display:flex;align-items:center;justify-content:center;';
+        
+        let container = document.createElement('div');
+        container.style.cssText = 'text-align: inherit; font-weight: inherit; height: auto; min-width: 35vw; max-height: 80vh; display: inline-grid; background-color: white; padding: 15px; border-radius: 4px; box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px; overflow-y: auto;';
+        
+        let title = document.createElement('span');
+        title.style.cssText = 'color: grey; border-bottom: 1px solid lightgrey; margin-bottom:10px; font-weight:bold; padding-bottom:5px;';
+        title.textContent = 'Lista de Executados - clique para EXCLUIR';
+        container.appendChild(title);
+
+        let partesAtivas = [...partes];
+
+        function renderizarLista() {
+            let spans = container.querySelectorAll('.sisb-parte-item');
+            spans.forEach(s => s.remove());
+            partesAtivas.forEach((p, idx) => {
+                let pSpan = document.createElement('span');
+                pSpan.className = 'sisb-parte-item';
+                pSpan.style.cssText = 'cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-color: white; color: rgb(81, 81, 81); border-radius:3px; transition: background 0.2s;';
+                pSpan.textContent = `${p.nome} (${p.cpfcnpj})`;
+                pSpan.onmouseover = () => pSpan.style.backgroundColor = '#ffebee';
+                pSpan.onmouseout = () => pSpan.style.backgroundColor = 'white';
+                pSpan.onclick = () => { partesAtivas.splice(idx, 1); renderizarLista(); };
+                container.insertBefore(pSpan, btnContinuar);
+            });
+        }
+
+        let btnContinuar = document.createElement('button');
+        btnContinuar.className = 'botaoContinuar';
+        btnContinuar.textContent = 'Continuar';
+        btnContinuar.style.cssText = 'margin-top:20px; padding:10px; background:#1976d2; color:white; border:none; border-radius:4px; font-size:16px; cursor:pointer; font-weight:bold;';
+        btnContinuar.onclick = () => { overlay.remove(); onContinuar(partesAtivas); };
+
+        let btnCancelar = document.createElement('button');
+        btnCancelar.textContent = 'Cancelar';
+        btnCancelar.style.cssText = 'margin-top:10px; padding:10px; background:#f5f5f5; color:#333; border:1px solid #ccc; border-radius:4px; font-size:14px; cursor:pointer;';
+        btnCancelar.onclick = () => overlay.remove();
+
+        container.appendChild(btnContinuar);
+        container.appendChild(btnCancelar);
+        overlay.appendChild(container);
+        document.body.appendChild(overlay);
+
+        renderizarLista();
+    }
+};

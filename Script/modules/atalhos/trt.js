@@ -54,7 +54,7 @@
         let inputLogradouro = modal.querySelector('input#logradouro');
         if (inputLogradouro) {
             preencherValor(inputLogradouro, 'TRI');
-            let btnFiltrar = modal.querySelector('button[name="btnFiltrarEnderecos"]');
+            let btnFiltrar = modal.querySelector('button[mattooltip="Filtrar"], button.botao-filtro');
             if (btnFiltrar) {
                 btnFiltrar.click();
                 await sleep(1500); // Aguarda a busca
@@ -65,18 +65,21 @@
         // 3. Não achou, inclui via CEP 01302906
         let inputCep = modal.querySelector('input#inputCep');
         if (inputCep) {
-            // Limpa qualquer valor anterior
-            preencherValor(inputCep, '');
+            inputCep.focus();
+            inputCep.value = '';
+            inputCep.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
             await sleep(200);
             
-            // PJe preenche mascarado ou pega digito a digito
-            inputCep.focus();
             let cep_str = '01302906';
             for (let char of cep_str) {
+                inputCep.dispatchEvent(new KeyboardEvent('keydown',  { key: char, bubbles: true, cancelable: true }));
+                inputCep.dispatchEvent(new KeyboardEvent('keypress', { key: char, bubbles: true, cancelable: true, charCode: char.charCodeAt(0) }));
                 inputCep.value += char;
-                inputCep.dispatchEvent(new Event('input', { bubbles: true }));
-                await sleep(100);
+                inputCep.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: char }));
+                inputCep.dispatchEvent(new KeyboardEvent('keyup', { key: char, bubbles: true }));
+                await sleep(50);
             }
+            inputCep.dispatchEvent(new Event('change', { bubbles: true }));
             inputCep.dispatchEvent(new Event('blur', { bubbles: true }));
             
             await sleep(2000); // Aguarda o PJe consultar os correios e preencher estado/cidade/rua
@@ -93,7 +96,7 @@
                     let inputLogradouro2 = modal.querySelector('input#logradouro');
                     if (inputLogradouro2) {
                         preencherValor(inputLogradouro2, '');
-                        let btnFiltrar2 = modal.querySelector('button[name="btnFiltrarEnderecos"]');
+                        let btnFiltrar2 = modal.querySelector('button[mattooltip="Filtrar"], button.botao-filtro');
                         if (btnFiltrar2) btnFiltrar2.click();
                         await sleep(1500);
                         await selecionarTribunalNaTabela(modal);

@@ -948,10 +948,13 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
     }
 
     function injetarBotoesDesdobrar() {
-        var container = document.createElement('div');
-        container.id = 'pjetools-sisb-desdobrar-container';
-        container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;display:flex;flex-direction:column;gap:8px;';
-        document.body.appendChild(container);
+        var container = document.getElementById('pjetools-sisb-desdobrar-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'pjetools-sisb-desdobrar-container';
+            container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;display:flex;flex-direction:column;gap:8px;';
+            document.body.appendChild(container);
+        }
         
         var btnExtrair = criarBotao('btn-sisb-desdobrar-extrair', '📄 Extrair dados', '#1e88e5', async function() {
             btnExtrair.textContent = 'Extraindo...';
@@ -1035,7 +1038,149 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         container.appendChild(btnExtrair);
     }
 
+    // ── Lógica Ordem 2 ───────────────────────────────────────────────
+    function calcularProximoDiaUtilProtocolo() {
+        var agora = new Date();
+        var diaSemana = agora.getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 = Qui, 5 = Sex, 6 = Sáb
+        var hora = agora.getHours();
+        
+        var proximaData = new Date(agora);
+        
+        if (diaSemana >= 1 && diaSemana <= 4) { // Seg a Qui
+            if (hora < 19) {
+                // ANTES das 19h: Próximo dia útil
+                proximaData.setDate(agora.getDate() + 1);
+            } else {
+                // APÓS as 19h: 2 dias úteis
+                // Se for Qui após as 19h, vai para Segunda (+4 dias, pois Qui+2=Sáb -> Seg)
+                if (diaSemana === 4) proximaData.setDate(agora.getDate() + 4);
+                else proximaData.setDate(agora.getDate() + 2);
+            }
+        } else if (diaSemana === 5) { // Sexta
+            if (hora < 19) {
+                // Sexta antes das 19h -> Segunda (+3 dias)
+                proximaData.setDate(agora.getDate() + 3);
+            } else {
+                // Sexta após as 19h -> Terça (+4 dias)
+                proximaData.setDate(agora.getDate() + 4);
+            }
+        } else if (diaSemana === 6) { // Sábado -> Terça (+3 dias)
+            proximaData.setDate(agora.getDate() + 3);
+        } else if (diaSemana === 0) { // Domingo -> Terça (+2 dias)
+            proximaData.setDate(agora.getDate() + 2);
+        }
+
+        // Formata dd/mm/aaaa
+        var d = String(proximaData.getDate()).padStart(2, '0');
+        var m = String(proximaData.getMonth() + 1).padStart(2, '0');
+        var a = proximaData.getFullYear();
+        return d + '/' + m + '/' + a;
+    }
+
+    function injetarBotaoOrdem2() {
+        var isDetalhes = window.location.href.includes('/detalhe');
+        if (!isDetalhes) return;
+
+        var container = document.getElementById('pjetools-sisb-desdobrar-container');
+        if (!container) return; // injetarBotoesDesdobrar cria o container
+        
+        if (document.getElementById('btn-sisb-ordem2')) return;
+        
+        var btnOrdem2 = criarBotao('btn-sisb-ordem2', 'Ordem 2 (+1)', '#8e44ad', function() {
+            console.log('Iniciando extração SISBAJUD (Ordem 2)...');
+            try {
+                const numeroProcesso = getValueByLabel('Número do Processo:');
+                const numeroProtocolo = getValueByLabel('Número do Protocolo:');
+                const repeticaoProgramada = getValueByLabel('Repetição programada?'); // "SIM (30)" ou "SIM (60)"
+                const limiteRepeticao = getValueByLabel('Data limite da repetição:');
+                const valorBloqueio = getCleanText('td[data-label="valorBloquear:"]');
+                const executados = [];
+                const partesPassivasObj = [];
+                
+                const rowsExecutados = document.querySelectorAll('tr.element-row');
+                rowsExecutados.forEach(row => {
+                    const nomeElement = row.querySelector('.col-reu-dados-nome-pessoa');
+                    const documentoElement = row.querySelector('.col-reu-dados a');
+                    if (nomeElement && documentoElement) {
+                        const nome = nomeElement.textContent.trim();
+                        const documento = documentoElement.textContent.trim();
+                        executados.push(`${nome} - [${documento}]`);
+                        partesPassivasObj.push({ nome: nome, cpfcnpj: documento.replace(/[^0-9]/g, '') });
+                    }
+                });
+                
+                const pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"';
+                let resultado = `<p ${pStyle}><strong>Dados da Teimosinha protocolada (Ordem 2):</strong></p>`;
+                resultado += `<p ${pStyle}>Número do processo: <strong>${numeroProcesso || 'Não encontrado'}</strong></p>`;
+                resultado += `<p ${pStyle}>Número do protocolo: <strong>${numeroProtocolo || 'Não encontrado'}</strong></p>`;
+                resultado += `<p ${pStyle}>Repetição programada? <strong>${repeticaoProgramada || 'Não encontrado'}</strong></p>`;
+                resultado += `<p ${pStyle}>Limite da repetição: <strong>${limiteRepeticao || 'Não encontrado'}</strong></p>`;
+                resultado += `<p ${pStyle}>Valor do bloqueio: <strong>${valorBloqueio ? valorBloqueio.split('\n')[0] : 'Não encontrado'}</strong></p>`;
+                resultado += `<p ${pStyle}><strong>Partes alvo do bloqueio:</strong></p>`;
+                
+                if (executados.length > 0) {
+                    executados.forEach(executado => { resultado += `<p ${pStyle}><strong>${executado}</strong></p>`; });
+                } else {
+                    resultado += `<p ${pStyle}><strong>Nenhum executado encontrado</strong></p>`;
+                }
+                
+                resultado += `<p ${pStyle}>Notas:</p>`;
+                resultado += `<p ${pStyle}>-Por padrão é consultado CNPJ raiz.</p>`;
+                resultado += `<p ${pStyle}>-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>`;
+                
+                const success = copyToClipboardHtml(resultado);
+                if (success) {
+                    mostrarToast('Dados extraídos para Ordem 2!', 'ok');
+                    
+                    // Extrair dados base para autoRun
+                    let diasRepeticao = 30; // default
+                    if (repeticaoProgramada && repeticaoProgramada.includes('60')) diasRepeticao = 60;
+                    
+                    let vlrNum = 0;
+                    if (valorBloqueio) {
+                        let vb = valorBloqueio.split('\n')[0].replace('R$', '').trim().replace(/\./g, '').replace(',', '.');
+                        vlrNum = parseFloat(vb);
+                    }
+                    
+                    let dataProtocolo = calcularProximoDiaUtilProtocolo();
+                    
+                    let dadosOrdem2 = {
+                        numero: numeroProcesso ? numeroProcesso.replace(/[^0-9.-]/g, '') : '',
+                        partesPassivas: partesPassivasObj,
+                        valorExecucao: vlrNum,
+                        diasTeimosinha: diasRepeticao,
+                        dataProtocolo: dataProtocolo,
+                        partesAtivas: [] // Não temos acesso fácil ao ativo no detalhe, será necessário digitar se obrigatório? (Teimosinha geralmente exige)
+                    };
+                    
+                    _sisbSet('sisbajud_dados_basicos', dadosOrdem2);
+                    _sisbSet('sisbajud_acao', 'ordem2');
+                    
+                    // Navega para nova minuta
+                    let baseUrl = window.location.href.includes('cnj.jus.br') ? 'https://sisbajud.cnj.jus.br' : 'https://sisbajud.pdpj.jus.br';
+                    let url = baseUrl + '/minuta';
+                    setTimeout(() => {
+                        if (typeof GM_openInTab !== 'undefined') {
+                            GM_openInTab(url, { active: true });
+                        } else {
+                            window.open(url, '_blank');
+                        }
+                    }, 500);
+
+                } else {
+                    alert('Erro ao copiar dados para Ordem 2.');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro na extração. Verifique o console.');
+            }
+        });
+        
+        container.appendChild(btnOrdem2);
+    }
+
     setInterval(injetarUI, 1500);
+    setInterval(injetarBotaoOrdem2, 1500);
 
     // =====================================================================
     // AUTOMAÇÃO SISBAJUD: Recebendo comando do PJeTools
@@ -1070,6 +1215,39 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
 
         // --- PREENCHIMENTO DOS CAMPOS ---
         
+        // Agendamento (Ordem 2)
+        if (acao === 'ordem2' && dados.dataProtocolo) {
+            console.log('[SisbAuto] Preenchendo Data Protocolo (Ordem 2):', dados.dataProtocolo);
+            let checkAgendar = document.querySelector('mat-checkbox[formcontrolname="agendarProtocolo"] input');
+            if (checkAgendar && !checkAgendar.checked) {
+                checkAgendar.click(); // Marca o checkbox
+                await sleep(500);
+            }
+            let elDataAgend = document.querySelector('input[placeholder="DD/MM/AAAA"]'); // Campo de data que abre
+            if (elDataAgend) {
+                elDataAgend.focus();
+                elDataAgend.value = dados.dataProtocolo;
+                elDataAgend.dispatchEvent(new Event('input', { bubbles: true }));
+                elDataAgend.blur();
+                await sleep(500);
+            }
+            
+            // Marca a Teimosinha (Repetição)
+            let checkRepetir = Array.from(document.querySelectorAll('mat-radio-button')).find(el => el.textContent.includes('Repetir a ordem'));
+            if (checkRepetir) {
+                checkRepetir.querySelector('label').click();
+                await sleep(500);
+                // Preencher quantidade de dias
+                let elDias = document.querySelector('input[formcontrolname="qtdeDiasRepeticao"]');
+                if (elDias && dados.diasTeimosinha) {
+                    elDias.focus();
+                    elDias.value = dados.diasTeimosinha;
+                    elDias.dispatchEvent(new Event('input', { bubbles: true }));
+                    elDias.blur();
+                }
+            }
+        }
+
         // Número do Processo
         let elProc = document.querySelector('input[placeholder="Número do Processo"]');
         if (elProc && dados.numero) {
@@ -1084,7 +1262,7 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         await _sisbClick('mat-option:contains("Ação Trabalhista")', 2000);
         await sleep(500);
 
-        // Autor
+        // Autor (Se existir, pois na Ordem 2 pode não vir)
         if (dados.partesAtivas && dados.partesAtivas.length > 0) {
             let elAutorDoc = document.querySelector('input[placeholder*="CPF/CNPJ do autor"]');
             if (!elAutorDoc) {
@@ -1106,8 +1284,8 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
             }
         }
 
-        // Teimosinha (Valor)
-        if (acao === 'teimosinha') {
+        // Teimosinha/Ordem 2 (Valor)
+        if (acao === 'teimosinha' || acao === 'ordem2') {
             console.log('[SisbAuto] Preenchendo Valor da Execução');
             let elValor = document.querySelector('input[placeholder*="Valor a bloquear"]');
             if (elValor && dados.valorExecucao && dados.valorExecucao > 0) {
@@ -1139,8 +1317,8 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
                         btnAdd.click();
                         await sleep(1500); // Aguarda a validação na Receita
 
-                        // Verifica se é Teimosinha para apagar réus sem contas ou em recuperação judicial
-                        if (acao === 'teimosinha') {
+                        // Verifica se é Teimosinha ou Ordem 2 para apagar réus sem contas ou em recuperação judicial
+                        if (acao === 'teimosinha' || acao === 'ordem2') {
                             let tbody = document.querySelector('tbody');
                             if (tbody && tbody.lastElementChild) {
                                 let ultimaLinha = tbody.lastElementChild;

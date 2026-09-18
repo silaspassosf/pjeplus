@@ -1121,12 +1121,11 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
         if (dados.partesPassivas && dados.partesPassivas.length > 0) {
             console.log('[SisbAuto] Adicionando ' + dados.partesPassivas.length + ' réus...');
             for (let p of dados.partesPassivas) {
-                // Campo de CPF do Réu normalmente é o último de CPF ou tem texto específico
                 let elReuDoc = document.querySelector('input[placeholder*="CPF/CNPJ do réu"]') || 
                                document.querySelector('input[placeholder*="Adicionar Réu/Executado CPF/CNPJ"]');
                 if (!elReuDoc) {
                     let cpfs = document.querySelectorAll('input[placeholder*="CPF"]');
-                    if (cpfs.length > 1) elReuDoc = cpfs[cpfs.length - 1]; // O último
+                    if (cpfs.length > 1) elReuDoc = cpfs[cpfs.length - 1];
                     else if (cpfs.length === 1) elReuDoc = cpfs[0];
                 }
                 
@@ -1139,6 +1138,41 @@ if (window.location.href.indexOf('sisbajud.cnj.jus.br') === -1 && window.locatio
                     if (btnAdd) {
                         btnAdd.click();
                         await sleep(1500); // Aguarda a validação na Receita
+
+                        // Verifica se é Teimosinha para apagar réus sem contas ou em recuperação judicial
+                        if (acao === 'teimosinha') {
+                            let tbody = document.querySelector('tbody');
+                            if (tbody && tbody.lastElementChild) {
+                                let ultimaLinha = tbody.lastElementChild;
+                                let celulaRelac = ultimaLinha.querySelector('td.mat-column-qtdeRelacionamentos');
+                                let celulaIdent = ultimaLinha.querySelector('td.mat-column-identificacao');
+                                
+                                let nomeNaTabela = celulaIdent ? celulaIdent.textContent.toUpperCase() : '';
+                                let emRecuperacao = nomeNaTabela.includes('RECUPERAÇÃO JUDICIAL') || 
+                                                    nomeNaTabela.includes('RECUPERACAO JUDICIAL') || 
+                                                    nomeNaTabela.includes('RECUPERCAO JUDICIAL');
+                                
+                                if (celulaRelac) {
+                                    let btnRelac = celulaRelac.querySelector('button .mat-button-wrapper');
+                                    if (btnRelac || emRecuperacao) {
+                                        let qtde = btnRelac ? btnRelac.textContent.trim() : '0';
+                                        if (qtde === '0' || emRecuperacao) {
+                                            console.log('[SisbAuto] Removendo réu:', emRecuperacao ? 'Recuperação Judicial' : '0 contas');
+                                            let btnMenu = ultimaLinha.querySelector('button.mat-menu-trigger');
+                                            if (btnMenu) {
+                                                btnMenu.click();
+                                                await sleep(500);
+                                                let btnExcluir = document.querySelector('button.mat-menu-item mat-icon.fa-trash-alt');
+                                                if (btnExcluir) {
+                                                    btnExcluir.closest('button').click();
+                                                    await sleep(800);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.4.9
+// @version      2.5.0
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js

@@ -1,0 +1,96 @@
+@import url("/css/animacoes.css");
+@import url("/css/cores.css");
+@import url("/css/informacoes.css");
+@import url("/css/icones.css");
+@import url("/css/pje.css");
+
+body{
+	font-size:16px;
+	font-family:sans-serif;
+	width:100% !important;
+}
+
+.aparecer{
+	opacity:0;
+	animation:aparecer 1s ease-out 0s 1 both;
+}
+
+br{
+	display:none;
+}
+
+h1,
+h2
+{
+	font-weight:normal;
+	text-align:center;
+}
+
+h1{
+	font-family:serif;
+	font-size:1.5rem;
+	font-variant:small-caps;
+}
+
+.header h1,
+.header h2
+{
+	padding:0;
+	margin:0.2rem 0;
+}
+
+h2{
+	font-family:sans-serif;
+	font-size:1.5rem;
+	font-variant:normal;
+}
+
+h1+h2{
+	color:#F00;
+	border-bottom:#333 solid 1px;
+}
+
+body > h1{
+	color:#00F;
+	font-size:2rem !important;
+	margin:0.5rem 0;
+	padding:0;
+}
+
+body > h2{
+	font-size:1.25rem;
+	margin:0.5rem 0;
+	padding:0;
+}
+
+body > span{
+	padding:0.5rem 0;
+	font-size:0.8rem;
+}
+
+table{
+	margin:1rem auto;
+}
+
+thead{
+	background:rgba(var(--extensao-cor-preto),0.75);
+	color:rgba(var(--extensao-cor-branco),1);
+}
+
+thead th{
+	font-weight:bold !important;
+	padding:0.3rem 0;
+}
+
+tr:nth-child(even) {
+  background:rgba(var(--extensao-cor-preto),0.1);
+}
+
+tbody td{
+	padding:0.2rem 0 !important;
+}
+
+td label{
+	clear:both;
+	display:block;
+}

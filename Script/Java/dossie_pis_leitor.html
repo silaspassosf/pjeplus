@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Leitor Dossiê Previdenciário</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 24px; color: #222; }
+  h1 { font-size: 18px; margin-bottom: 20px; color: #1a1a2e; }
+
+  #btnCarregar {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; background: #1565c0; color: #fff;
+    border: none; border-radius: 6px; cursor: pointer;
+    font-size: 14px; font-weight: 600; transition: background .2s;
+  }
+  #btnCarregar:hover { background: #0d47a1; }
+
+  #resultado { display: none; margin-top: 24px; }
+
+  .card {
+    background: #fff; border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    padding: 20px; margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: #1565c0; margin-bottom: 14px;
+    padding-bottom: 8px; border-bottom: 2px solid #e3eafc;
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+  .field label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .04em; }
+  .field span  { display: block; font-size: 14px; font-weight: 600; color: #111; margin-top: 2px; }
+
+  /* tabela extrato */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    background: #1565c0; color: #fff; padding: 6px 8px;
+    text-align: center; font-weight: 600;
+  }
+  th:first-child { text-align: left; }
+  td { padding: 5px 8px; border-bottom: 1px solid #eee; text-align: right; }
+  td:first-child { text-align: left; font-weight: 600; }
+  tr:nth-child(even) td { background: #f7f9ff; }
+  .total-row td { font-weight: 700; background: #e3eafc !important; color: #1565c0; }
+
+  #btnCopiar {
+    margin-top: 16px; padding: 8px 16px;
+    background: #388e3c; color: #fff; border: none;
+    border-radius: 5px; cursor: pointer; font-size: 13px;
+  }
+  #btnCopiar:hover { background: #2e7d32; }
+</style>
+</head>
+<body>
+
+<h1>📂 Dossiê Previdenciário — Leitor de PIS/NIT</h1>
+
+<button id="btnCarregar">📂 Carregar JSON Dossiê PIS</button>
+<input type="file" id="inputArquivo" accept=".json" style="display:none">
+
+<div id="resultado">
+  <div class="card" id="cardPessoal">
+    <h2>Dados Pessoais</h2>
+    <div class="grid2" id="gridPessoal"></div>
+  </div>
+
+  <div class="card" id="cardExtrato">
+    <h2>Extrato de Remunerações por Ano</h2>
+    <div id="tabelaExtrato"></div>
+  </div>
+
+  <button id="btnCopiar">📋 Copiar resumo</button>
+</div>
+
+<script>
+'use strict';
+
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function fmtCPF(v) {
+  const s = String(v).padStart(11, '0');
+  return `${s.slice(0,3)}.${s.slice(3,6)}.${s.slice(6,9)}-${s.slice(9)}`;
+}
+
+function fmtPIS(v) {
+  const s = String(v).padStart(11, '0');
+  return `${s.slice(0,3)}.${s.slice(3,8)}.${s.slice(8,10)}-${s.slice(10)}`;
+}
+
+function fmtData(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  } catch { return iso; }
+}
+
+function campo(label, valor) {
+  const div = document.createElement('div');
+  div.className = 'field';
+  div.innerHTML = `<label>${label}</label><span>${valor || '—'}</span>`;
+  return div;
+}
+
+function processar(json) {
+  let data;
+  try { data = JSON.parse(json); } catch (e) { alert('JSON inválido: ' + e.message); return; }
+
+  // ── Dados pessoais ───────────────────────────────────────────
+  const filiado = data?.dossiePrevidenciario?.consultaFiliadoTO?.filiadoTO || {};
+  const cab     = data?.cabecalho || {};
+
+  const cpfRaw  = filiado.cpf  || cab.parametro || '';
+  const pisRaw  = filiado.nit  || '';
+  const nome    = filiado.nome || '—';
+
+  const grid = document.getElementById('gridPessoal');
+  grid.innerHTML = '';
+  [
+    ['Nome',          nome],
+    ['CPF',           cpfRaw  ? fmtCPF(cpfRaw)  : '—'],
+    ['PIS / NIT',     pisRaw  ? fmtPIS(pisRaw)  : '—'],
+    ['NIT (numérico)',pisRaw  ? String(pisRaw)   : '—'],
+    ['Data Nascimento', fmtData(filiado.dataNascimento)],
+    ['Sexo',          filiado.sexo || '—'],
+    ['Estado Civil',  filiado.estadoCivil || '—'],
+    ['Nome da Mãe',   filiado.nomeMae || '—'],
+    ['Nome do Pai',   filiado.nomePai || '—'],
+    ['Fonte Cadastro',filiado.fonteCadastramento || '—'],
+    ['Fonte Origem',  filiado.fonteOrigem || '—'],
+    ['Última Atualização', fmtData(filiado.dataUltimaAtualizacao)],
+  ].forEach(([lbl, val]) => grid.appendChild(campo(lbl, val)));
+
+  // ── Extrato por ano ──────────────────────────────────────────
+  const extrato = data?.dossiePrevidenciario
+    ?.extratoContribuicoes
+    ?.listaExtratoAnoCivilImpressaoTO || [];
+
+  const div = document.getElementById('tabelaExtrato');
+  if (!extrato.length) {
+    div.innerHTML = '<p style="color:#888;font-size:13px">Nenhum extrato encontrado.</p>';
+  } else {
+    const tbl = document.createElement('table');
+    const mesesCols = MESES.map((m, i) => `<th>${m}</th>`).join('');
+    tbl.innerHTML = `<thead><tr><th>Ano</th>${mesesCols}<th>Total</th></tr></thead><tbody></tbody>`;
+    const tbody = tbl.querySelector('tbody');
+
+    const props = [
+      'valorImpressaoJan','valorImpressaoFev','valorImpressaoMar','valorImpressaoAbr',
+      'valorImpressaoMai','valorImpressaoJun','valorImpressaoJul','valorImpressaoAgo',
+      'valorImpressaoSet','valorImpressaoOut','valorImpressaoNov','valorImpressaoDez'
+    ];
+
+    extrato.forEach(linha => {
+      const tr = document.createElement('tr');
+      const celMeses = props.map(p => `<td>${linha[p] ?? '—'}</td>`).join('');
+      tr.innerHTML = `<td>${linha.anoCivil}</td>${celMeses}<td>${linha.valorTotalAno || '—'}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    div.appendChild(tbl);
+  }
+
+  // ── Resumo para copiar ───────────────────────────────────────
+  window.__resumoDossie = [
+    `Nome:     ${nome}`,
+    `CPF:      ${cpfRaw  ? fmtCPF(cpfRaw)  : '—'}`,
+    `PIS/NIT:  ${pisRaw  ? fmtPIS(pisRaw)  : '—'}`,
+    `NIT num:  ${pisRaw}`,
+    `Nasc.:    ${fmtData(filiado.dataNascimento)}`,
+    `Mãe:      ${filiado.nomeMae || '—'}`,
+    '',
+    ...extrato.map(l => `${l.anoCivil}: ${l.valorTotalAno || '0,00'}`)
+  ].join('\n');
+
+  document.getElementById('resultado').style.display = 'block';
+}
+
+// ── Eventos ──────────────────────────────────────────────────
+document.getElementById('btnCarregar').addEventListener('click', () => {
+  document.getElementById('inputArquivo').click();
+});
+
+document.getElementById('inputArquivo').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => processar(e.target.result);
+  reader.readAsText(file, 'utf-8');
+  this.value = ''; // reset para permitir recarregar o mesmo arquivo
+});
+
+document.getElementById('btnCopiar').addEventListener('click', () => {
+  if (!window.__resumoDossie) return;
+  navigator.clipboard.writeText(window.__resumoDossie)
+    .then(() => { document.getElementById('btnCopiar').textContent = '✅ Copiado!'; setTimeout(() => { document.getElementById('btnCopiar').textContent = '📋 Copiar resumo'; }, 2000); })
+    .catch(() => prompt('Copie manualmente:', window.__resumoDossie));
+});
+</script>
+</body>
+</html>

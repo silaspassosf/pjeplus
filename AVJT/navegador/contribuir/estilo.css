@@ -1,0 +1,220 @@
+@import url("/css/navegador.css");
+
+main{
+	color:rgba(var(--extensao-cor-branco),1);
+	height:calc(100vh - 70px);
+	margin:40px 0 30px 0;
+	padding:1rem;
+}
+
+main section{
+	animation:crescer 1s ease-out 0s 1 both;
+	background:rgba(var(--extensao-cor-preto),0.4);
+	border-radius:0.5rem 0.5rem 1rem 1rem;
+	display:block;
+	height:auto;
+	margin:0 auto;
+	overflow-y:auto;
+	padding:0 0 2rem 0;
+	width:100%;
+}
+
+main button,
+main h2,
+main h3,
+main li,
+main p
+{
+	animation:aparecer 1s ease-out 1s 1 both;
+}
+
+main h2{
+	background:
+		var(--extensao-gradiente-branco-preto),
+		linear-gradient(
+			rgba(var(--extensao-cor-preto),0.8)   0%,
+			rgba(var(--extensao-cor-preto),0.8) 100%
+		),
+		rgba(var(--extensao-cor-primaria),1)
+	;
+	box-shadow:0px 3px 3px 2px rgba(var(--extensao-cor-preto), 0.5);
+	padding:0.5rem 0;
+	margin:0 0 0.5rem 0;
+}
+
+main h3{
+	padding:1.5rem 0 0.5rem 0;
+	margin:0 0 0.5rem 0;
+}
+
+main li,
+main p
+{
+	font-family:Helvetica,Arial,sans-serif;
+	font-size:1.2rem;
+	font-weight:500;
+	line-height:1.5rem;
+	text-align:left;
+	padding:1rem 2rem 0 2rem;
+	width:100%;
+}
+
+main ul{
+	width:80%;
+	margin:0 auto;
+}
+
+main li{
+	margin:0;
+	position:relative;
+}
+
+li:before{
+	content:"";
+	display:block;
+	height:100%;
+	margin:0 0 0 -40px;
+	opacity:0.8;
+	width:30px;
+	position:absolute;
+
+}
+
+li.codigo:before{
+	background:var(--extensao-icone-codigo) top no-repeat;
+}
+
+li.mao:before{
+	background:var(--extensao-icone-headset) top no-repeat;
+}
+
+li.presente:before{
+	background:var(--extensao-icone-presente) top no-repeat;
+}
+
+li.youtube:before{
+	background:var(--extensao-icone-youtube) top no-repeat;
+}
+
+em{
+	color:rgba(var(--extensao-cor-amarelo),0.9);
+}
+
+strong{
+	color:rgba(var(--extensao-cor-verde),0.9);
+}
+
+#configuracoes,
+#contribuir
+{
+	display:none;
+}
+
+
+main botoes{
+	width:90%;
+	margin:o auto;
+}
+
+botoes a{
+	border-radius:10px;
+	box-shadow:0px 2px 4px 2px rgba(var(--extensao-cor-preto), 0.5);
+	color:rgba(var(--extensao-cor-branco),1);
+	cursor:pointer;
+	display:block;
+	margin:0.5rem auto;
+	opacity:0.9;
+	padding:40px 10px 15px 10px;
+	text-align:center;
+	width:250px;
+}
+
+botoes a:hover{
+	color:rgba(var(--extensao-cor-branco),1);
+	opacity:1;
+}
+
+botoes a:active{
+	color:rgba(var(--extensao-cor-branco),1);
+	opacity:0.7;
+}
+
+botoes a,
+botoes a:active,
+botoes a:hover,
+botoes a:link,
+botoes a:visited
+{
+	color:rgba(var(--extensao-cor-branco),1);
+}
+
+#pessoal{
+	background:
+		var(--extensao-icone-apoio) no-repeat center 10px / 30px 30px,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-vermelho),1)
+	;
+}
+
+#cafe{
+	background:
+		var(--extensao-icone-cafe) no-repeat center 10px / 30px 30px,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-laranja),1)
+	;
+}
+
+#chope{
+	background:
+		var(--extensao-icone-chope) no-repeat center 10px / 30px 30px,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-amarelo),1)
+	;
+}
+#almoco{
+	background:
+		var(--extensao-icone-hamburguer) no-repeat center 10px / 30px 30px,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-verde),1)
+	;
+}
+#jantar{
+	background:
+		var(--extensao-icone-pizza) no-repeat center 10px / 30px 30px,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-azul),1)
+	;
+}
+#presente{
+	background:
+		var(--extensao-icone-presente) no-repeat center 10px / 30px 30px,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-indigo),1)
+	;
+}
+#mensalidade{
+	background:
+		var(--extensao-icone-coracao) no-repeat center 10px / 30px 30px,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-violeta),1)
+	;
+}

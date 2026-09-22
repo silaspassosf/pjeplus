@@ -1,0 +1,24 @@
+botao#planilha-consultar-processo{
+	background:rgba(var(--extensao-cor-preto),1);
+	border-radius:0 0 5px 5px;
+	color:rgba(var(--extensao-cor-branco),1);
+	font-size:9px;
+	font-weight:600;
+	cursor:pointer;
+	display:block;
+	left:0;
+	opacity:0.8;
+	padding:1px 5px;
+	position:fixed;
+	top:0;
+	z-index:9999;
+}
+botao#planilha-consultar-processo:hover{
+	opacity:1;
+}
+botao#planilha-consultar-processo:active{
+	opacity:0.7;
+}
+botao#planilha-consultar-processo:hover::before{
+	animation:aparecer 0.5s ease-out 0.25s 1 both;
+}

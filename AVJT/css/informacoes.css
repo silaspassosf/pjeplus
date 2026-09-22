@@ -1,0 +1,73 @@
+botao.informacoes:hover::before{
+	animation:aparecer 0.3s ease-out 0s 1 both;
+	background:
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-icone-branco) no-repeat 5px center / 25px,
+		rgba(var(--extensao-cor-primaria),0.95)
+	;
+	border:rgba(var(--extensao-cor-preto),0.3) solid 3px;
+	border-radius:0 15px 15px 15px;
+	color:rgba(var(--extensao-cor-branco),1);
+	content:attr(aria-label);
+	display:block;
+	font-size:14px;
+	font-weight:600;
+	left:50%;
+	line-height:18px;
+	position:absolute;
+	padding:10px 10px 10px 35px;
+	text-align:center;
+	top:100%;
+	white-space:pre-line;
+	width:200px;
+	z-index:99;
+}
+
+botao.avjt-informacoes-superior.avjt-informacoes:hover::before{
+	bottom:calc(100% + 5px);
+}
+botao.avjt-informacoes-inferior.avjt-informacoes:hover::before{
+	top:calc(100% + 5px);
+}
+botao.avjt-informacoes-esquerda.avjt-informacoes:hover::before{
+	right:calc(50%);
+}
+botao.avjt-informacoes-direita.avjt-informacoes:hover::before{
+	left:calc(50%);
+}
+botao.avjt-informacoes.avjt-informacoes-superior:hover::before{
+	bottom:calc(100% + 5px);
+}
+botao.avjt-informacoes-inferior.avjt-informacoes:hover::before{
+	border-radius:0 0 15px 15px;
+}
+botao.avjt-informacoes-superior.avjt-informacoes:hover::before{
+	border-radius:15px 15px 0 0;
+}
+
+botao.botao-do-processo.informacoes:hover::before
+{
+	animation:aparecer 0.3s ease-out 0s 1 both;
+	background:
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-icone-branco) no-repeat 5px center / 25px,
+		rgba(var(--extensao-cor-preto),0.7)
+	;
+	border:rgba(var(--extensao-cor-preto),0.3) solid 3px;
+	border-radius:10px;
+	color:rgba(var(--extensao-cor-branco),1);
+	font-size:10px;
+	font-weight:600;
+	left:-48px;
+	line-height:14px;
+	padding:4px 4px 4px 35px;
+	top:110%;
+	width:100px;
+}
+
+
+menu-do-processo-expandido botao.informacoes:hover::before{
+	border-radius:15px 0 15px 15px;
+	left:unset;
+	right:50%;
+}

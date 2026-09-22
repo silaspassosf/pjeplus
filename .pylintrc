@@ -1,0 +1,11 @@
+[MASTER]
+max-line-length=100
+disable=
+    missing-docstring,
+    too-many-arguments,
+    too-many-locals,
+    duplicate-code,
+    line-too-long
+
+[FORMAT]
+indent-string='    '

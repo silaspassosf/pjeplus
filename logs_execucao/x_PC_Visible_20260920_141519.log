@@ -1,0 +1,1514 @@
+[14:15:23] [pjeplus] [INFO] ORQUESTRADOR UNIFICADO PJEPlus
+[pjeplus] ORQUESTRADOR UNIFICADO PJEPlus
+[14:15:23] [pjeplus] [INFO] data/hora: 20/09/2026 14:15:23
+[pjeplus] data/hora: 20/09/2026 14:15:23
+[14:15:23] [pjeplus] [INFO] ambiente: pc_visible
+[pjeplus] ambiente: pc_visible
+[14:15:23] [pjeplus] [INFO] log: logs_execucao\x_PC_Visible_20260920_141519.log
+[pjeplus] log: logs_execucao\x_PC_Visible_20260920_141519.log
+[14:15:27] [pjeplay] [INFO] driver criado: PC (playwright)
+[pjeplay] driver criado: PC (playwright)
+[14:15:27] [pjeplus] [INFO] [COOKIES] Tentando login automatico via cookies salvos...
+[pjeplus] [COOKIES] Tentando login automatico via cookies salvos...
+[14:15:27] [pjeplus] [WARNING] [COOKIES] Cookies invalidos ou inexistentes. Login manual necessario.
+[pjeplus] [COOKIES] Cookies invalidos ou inexistentes. Login manual necessario.
+[14:15:27] [pjeplus] [INFO] [LOGIN_MANUAL] Navegando para tela de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[pjeplus] [LOGIN_MANUAL] Navegando para tela de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[14:15:28] [pjeplus] [INFO] [LOGIN_MANUAL] Aguarde o login manual ate: https://pje.trt2.jus.br/pjekz/gigs/meu-painel
+[pjeplus] [LOGIN_MANUAL] Aguarde o login manual ate: https://pje.trt2.jus.br/pjekz/gigs/meu-painel
+[14:15:44] [pjeplus] [INFO] [LOGIN] Sessao OAuth completa confirmada (0s).
+[pjeplus] [LOGIN] Sessao OAuth completa confirmada (0s).
+[14:15:44] [pjeplus] [INFO] ── fluxo: B ──
+[pjeplus] ── fluxo: B ──
+[14:15:45] [pjeplus] [INFO] [MANDADOS_UI] Verificando/ativando filtro de mandados devolvidos...
+[pjeplus] [MANDADOS_UI] Verificando/ativando filtro de mandados devolvidos...
+[14:15:46] [pjeplus] [INFO] [MANDADOS_UI] Clicando para ativar filtro...
+[pjeplus] [MANDADOS_UI] Clicando para ativar filtro...
+[14:15:53] [pjeplus] [INFO] [MANDADOS_API] 0 Argos/Sigilo, 9 Certidoes de Oficial, 0 outros na fila
+[pjeplus] [MANDADOS_API] 0 Argos/Sigilo, 9 Certidoes de Oficial, 0 outros na fila
+[14:15:53] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 0 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 0 executados, 0 com erro
+[14:15:53] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1000436-77.2026.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1000436-77.2026.5.02.0703
+[14:15:55] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - eaeb4d0'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - eaeb4d0'
+[14:15:56] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488435865 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488435865 tipo=Certidão
+[14:15:56] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 344 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 344 chars
+[14:15:56] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto atribuído len=344
+[pjeplus] [MANDADOS][OUTROS] Texto atribuído len=344
+[14:15:56] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): Processo Judicial Eletrônico Poder Judiciário - Justiça do Trabalho Certidão de Disponibilização e Publicação - DJEN Número do Processo: 1000436-77.2026.5.02.0703 Órgão Julgador: 3ª Vara do Trabalho d
+[pjeplus] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): Processo Judicial Eletrônico Poder Judiciário - Justiça do Trabalho Certidão de Disponibilização e Publicação - DJEN Número do Processo: 1000436-77.2026.5.02.0703 Órgão Julgador: 3ª Vara do Trabalho d
+[14:15:56] [pjeplus] [INFO] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[pjeplus] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[14:15:56] [pjeplus] [INFO] [MANDADOS_API] #1000436-77.2026.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[pjeplus] [MANDADOS_API] #1000436-77.2026.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[14:15:56] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 0 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 0 executados, 0 com erro
+[14:15:56] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1001123-54.2026.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1001123-54.2026.5.02.0703
+[14:15:58] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - f5ebb1d'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - f5ebb1d'
+[14:15:59] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488463687 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488463687 tipo=Certidão
+[14:15:59] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 867 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 867 chars
+[14:15:59] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto atribuído len=867
+[pjeplus] [MANDADOS][OUTROS] Texto atribuído len=867
+[14:15:59] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1001123-54.2026.5.02.0703 RECLAMANTE: VALQUIRIA PINTO DE SOUZA RECLAMADO: GOLD STAR ALIMENTACAO LTDA E OUTROS (2) 
+[pjeplus] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1001123-54.2026.5.02.0703 RECLAMANTE: VALQUIRIA PINTO DE SOUZA RECLAMADO: GOLD STAR ALIMENTACAO LTDA E OUTROS (2) 
+[14:15:59] [pjeplus] [INFO] [MANDADOS][OUTROS] Regra reconhecida: positivo
+[pjeplus] [MANDADOS][OUTROS] Regra reconhecida: positivo
+[14:15:59] [pjeplus] [INFO] [MANDADOS_API] #1001123-54.2026.5.02.0703: Regra 'positivo' reconhecida. Executando GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.
+[pjeplus] [MANDADOS_API] #1001123-54.2026.5.02.0703: Regra 'positivo' reconhecida. Executando GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.
+[14:16:00] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488463687 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488463687 tipo=Certidão
+[14:16:00] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 867 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 867 chars
+[14:16:00] [pjeplus] [INFO] [MANDADOS][OUTROS][POSITIVO] Destinatário identificado: GOLD STAR ALIMENTACAO LTDA
+[pjeplus] [MANDADOS][OUTROS][POSITIVO] Destinatário identificado: GOLD STAR ALIMENTACAO LTDA
+[14:16:00] [pjeplus] [INFO] [MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" não existe — criando novo.
+[pjeplus] [MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" não existe — criando novo.
+[14:16:01] [pjeplus] [INFO] [MANDADOS][OUTROS] Lixeira clicada para #1001123-54.2026.5.02.0703
+[pjeplus] [MANDADOS][OUTROS] Lixeira clicada para #1001123-54.2026.5.02.0703
+[14:16:01] [pjeplus] [INFO] [MANDADOS][OUTROS] Remoção confirmada para #1001123-54.2026.5.02.0703
+[pjeplus] [MANDADOS][OUTROS] Remoção confirmada para #1001123-54.2026.5.02.0703
+[14:16:01] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 0 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 0 executados, 0 com erro
+[14:16:01] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO][1001123-54.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO][1001123-54.2026.5.02.0703] ✅ Processo marcado como executado
+[14:16:01] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO]  Progresso salvo com segurança
+[14:16:01] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 1 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 1 executados, 0 com erro
+[14:16:01] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1001320-19.2020.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1001320-19.2020.5.02.0703
+[14:16:05] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - 110f724'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - 110f724'
+[14:16:06] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488442521 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488442521 tipo=Certidão
+[14:16:06] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 689 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 689 chars
+[14:16:06] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto atribuído len=689
+[pjeplus] [MANDADOS][OUTROS] Texto atribuído len=689
+[14:16:06] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1001320-19.2020.5.02.0703 RECLAMANTE: SUZY DE CASSIA MOREIRA PRUDENCIO RECLAMADO: ASSOCIACAO NOSSO CAMINHO E OUTRO
+[pjeplus] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1001320-19.2020.5.02.0703 RECLAMANTE: SUZY DE CASSIA MOREIRA PRUDENCIO RECLAMADO: ASSOCIACAO NOSSO CAMINHO E OUTRO
+[14:16:06] [pjeplus] [INFO] [MANDADOS][OUTROS] Regra reconhecida: positivo
+[pjeplus] [MANDADOS][OUTROS] Regra reconhecida: positivo
+[14:16:06] [pjeplus] [INFO] [MANDADOS_API] #1001320-19.2020.5.02.0703: Regra 'positivo' reconhecida. Executando GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.
+[pjeplus] [MANDADOS_API] #1001320-19.2020.5.02.0703: Regra 'positivo' reconhecida. Executando GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.
+[14:16:08] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488442521 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488442521 tipo=Certidão
+[14:16:08] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 689 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 689 chars
+[14:16:08] [pjeplus] [INFO] [MANDADOS][OUTROS][POSITIVO] Destinatário identificado: BRUNCH AGENCIA DE PUBLICIDADE LTDA
+[pjeplus] [MANDADOS][OUTROS][POSITIVO] Destinatário identificado: BRUNCH AGENCIA DE PUBLICIDADE LTDA
+[14:16:08] [pjeplus] [INFO] [MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" não existe — criando novo.
+[pjeplus] [MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" não existe — criando novo.
+[14:16:09] [pjeplus] [INFO] [MANDADOS][OUTROS] Lixeira clicada para #1001320-19.2020.5.02.0703
+[pjeplus] [MANDADOS][OUTROS] Lixeira clicada para #1001320-19.2020.5.02.0703
+[14:16:10] [pjeplus] [INFO] [MANDADOS][OUTROS] Remoção confirmada para #1001320-19.2020.5.02.0703
+[pjeplus] [MANDADOS][OUTROS] Remoção confirmada para #1001320-19.2020.5.02.0703
+[14:16:10] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 1 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 1 executados, 0 com erro
+[14:16:10] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO][1001320-19.2020.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO][1001320-19.2020.5.02.0703] ✅ Processo marcado como executado
+[14:16:10] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO]  Progresso salvo com segurança
+[14:16:10] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[14:16:10] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1000759-87.2023.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1000759-87.2023.5.02.0703
+[14:16:12] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - dab1014'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - dab1014'
+[14:16:12] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488370988 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488370988 tipo=Certidão
+[14:16:12] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 608 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 608 chars
+[14:16:12] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto atribuído len=608
+[pjeplus] [MANDADOS][OUTROS] Texto atribuído len=608
+[14:16:12] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1000759-87.2023.5.02.0703 RECLAMANTE: GLEICE GONCALVES DA SILVA RECLAMADO: PETROLEO BRASILEIRO S A PETROBRAS E OUT
+[pjeplus] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1000759-87.2023.5.02.0703 RECLAMANTE: GLEICE GONCALVES DA SILVA RECLAMADO: PETROLEO BRASILEIRO S A PETROBRAS E OUT
+[14:16:12] [pjeplus] [INFO] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[pjeplus] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[14:16:12] [pjeplus] [INFO] [MANDADOS_API] #1000759-87.2023.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[pjeplus] [MANDADOS_API] #1000759-87.2023.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[14:16:12] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[14:16:12] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1000759-87.2023.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1000759-87.2023.5.02.0703
+[14:16:14] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - dab1014'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - dab1014'
+[14:16:15] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488370988 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488370988 tipo=Certidão
+[14:16:15] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 608 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 608 chars
+[14:16:15] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto atribuído len=608
+[pjeplus] [MANDADOS][OUTROS] Texto atribuído len=608
+[14:16:15] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1000759-87.2023.5.02.0703 RECLAMANTE: GLEICE GONCALVES DA SILVA RECLAMADO: PETROLEO BRASILEIRO S A PETROBRAS E OUT
+[pjeplus] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1000759-87.2023.5.02.0703 RECLAMANTE: GLEICE GONCALVES DA SILVA RECLAMADO: PETROLEO BRASILEIRO S A PETROBRAS E OUT
+[14:16:15] [pjeplus] [INFO] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[pjeplus] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[14:16:15] [pjeplus] [INFO] [MANDADOS_API] #1000759-87.2023.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[pjeplus] [MANDADOS_API] #1000759-87.2023.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[14:16:15] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[14:16:15] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1000555-72.2025.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1000555-72.2025.5.02.0703
+[14:16:16] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - e732247'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - e732247'
+[14:16:16] [pjeplus] [INFO] [MANDADOS][CP] === INICIO Fluxo CP === processo=#1000555-72.2025.5.02.0703
+[pjeplus] [MANDADOS][CP] === INICIO Fluxo CP === processo=#1000555-72.2025.5.02.0703
+[14:16:17] [pjeplus] [INFO] [MANDADOS][OUTROS][API][MANDADO_ANTERIOR] Documento localizado: id=484493258 tipo=Mandado
+[pjeplus] [MANDADOS][OUTROS][API][MANDADO_ANTERIOR] Documento localizado: id=484493258 tipo=Mandado
+[14:16:17] [pjeplus] [INFO] [MANDADOS][OUTROS][API][MANDADO_ANTERIOR] Texto extraído: 5258 chars
+[pjeplus] [MANDADOS][OUTROS][API][MANDADO_ANTERIOR] Texto extraído: 5258 chars
+[14:16:17] [pjeplus] [INFO] [MANDADOS][CP] #1000555-72.2025.5.02.0703: ementa contem "penhora"=False
+[pjeplus] [MANDADOS][CP] #1000555-72.2025.5.02.0703: ementa contem "penhora"=False
+[14:16:17] [pjeplus] [INFO] [CONTAR_CP] Tentando obter timeline via API /timeline...
+[pjeplus] [CONTAR_CP] Tentando obter timeline via API /timeline...
+[14:16:17] [pjeplus] [ERROR] [TIMELINE_API] Erro ao chamar /timeline: cannot import name 'obter_sessao_do_driver' from 'Fix.variaveis' (D:\PjePlus\Fix\variaveis.py)
+
+============================================================
+[pjeplus] [TIMELINE_API] Erro ao chamar /timeline: cannot import name 'obter_sessao_do_driver' from 'Fix.variaveis' (D:\PjePlus\Fix\variaveis.py)
+============================================================
+[14:16:17] [pjeplus] [WARNING] [CONTAR_CP] ⚠️ Falha na API; usando fallback DOM parsing...
+[pjeplus] [CONTAR_CP] ⚠️ Falha na API; usando fallback DOM parsing...
+[14:16:17] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK-DOM] Lendo 30 elementos da timeline...
+[pjeplus] [CONTAR_CP] [FALLBACK-DOM] Lendo 30 elementos da timeline...
+[14:16:17] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 0: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 0: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:17] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 1: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 1: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:17] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 2: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 2: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:17] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 3: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 3: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 4: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 4: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 5: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 5: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 6: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 6: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 7: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 7: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 8: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 8: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 9: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 9: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 10: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 10: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 11: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 11: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:18] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 12: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 12: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 13: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 13: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 14: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 14: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 15: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 15: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 16: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 16: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 17: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 17: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 18: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 18: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 19: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 19: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 20: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 20: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 21: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 21: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 22: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 22: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 23: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 23: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 24: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 24: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 25: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 25: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 26: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 26: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 27: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 27: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 28: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 28: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 29: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 29: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK-DOM] Totais: mandados=0 certidoes_oficial=0
+[pjeplus] [CONTAR_CP] [FALLBACK-DOM] Totais: mandados=0 certidoes_oficial=0
+[14:16:19] [pjeplus] [INFO] [MANDADOS][CP] #1000555-72.2025.5.02.0703: mandados=0 certidoes_oficial=0
+[pjeplus] [MANDADOS][CP] #1000555-72.2025.5.02.0703: mandados=0 certidoes_oficial=0
+[14:16:19] [pjeplus] [INFO] [MANDADOS][CP] #1000555-72.2025.5.02.0703: fluxo completo — baixarCP + juntada devcp + mov arquivar
+[pjeplus] [MANDADOS][CP] #1000555-72.2025.5.02.0703: fluxo completo — baixarCP + juntada devcp + mov arquivar
+[14:16:19] [pjeplus] [INFO] [BAIXAR_CP] Iniciando selecao de Certidao de Distribuicao + anexos
+[pjeplus] [BAIXAR_CP] Iniciando selecao de Certidao de Distribuicao + anexos
+[14:16:19] [pjeplus] [INFO] [BAIXAR_CP] Lendo 30 elementos da timeline para localizar âncora...
+[pjeplus] [BAIXAR_CP] Lendo 30 elementos da timeline para localizar âncora...
+[14:16:19] [pjeplus] [INFO] [BAIXAR_CP] BUSCANDO ÂNCORA — Estratégia: 1º CDist, 2º Despacho
+[pjeplus] [BAIXAR_CP] BUSCANDO ÂNCORA — Estratégia: 1º CDist, 2º Despacho
+[14:16:19] [pjeplus] [INFO] [BAIXAR_CP] Item 0: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 0: VAZIO | "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [BAIXAR_CP] Item 1: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 1: VAZIO | "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [BAIXAR_CP] Item 2: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 2: VAZIO | "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [BAIXAR_CP] Item 3: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 3: VAZIO | "(sem conteúdo)"
+[14:16:19] [pjeplus] [INFO] [BAIXAR_CP] Item 4: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 4: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 5: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 5: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 6: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 6: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 7: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 7: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 8: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 8: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 9: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 9: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 10: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 10: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 11: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 11: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 12: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 12: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 13: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 13: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 14: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 14: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 15: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 15: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 16: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 16: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 17: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 17: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 18: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 18: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 19: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 19: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 20: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 20: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 21: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 21: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 22: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 22: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 23: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 23: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 24: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 24: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 25: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 25: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 26: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 26: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 27: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 27: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 28: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 28: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 29: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 29: VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] 🔄 CDist não encontrada; procurando DESPACHO como fallback...
+[pjeplus] [BAIXAR_CP] 🔄 CDist não encontrada; procurando DESPACHO como fallback...
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 29 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 29 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 28 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 28 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 27 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 27 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 26 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 26 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 25 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 25 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 24 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 24 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 23 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 23 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 22 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 22 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 21 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 21 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 20 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 20 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 19 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 19 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 18 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 18 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 17 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 17 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 16 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 16 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 15 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 15 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 14 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 14 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 13 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 13 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 12 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 12 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 11 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 11 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 10 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 10 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 9 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 9 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 8 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 8 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 7 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 7 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 6 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 6 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 5 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 5 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 4 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 4 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:20] [pjeplus] [INFO] [BAIXAR_CP] Item 3 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 3 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:21] [pjeplus] [INFO] [BAIXAR_CP] Item 2 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 2 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:21] [pjeplus] [INFO] [BAIXAR_CP] Item 1 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 1 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:21] [pjeplus] [INFO] [BAIXAR_CP] Item 0 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 0 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:21] [pjeplus] [ERROR] [BAIXAR_CP] ❌ FALHA: Nem CDist nem Despacho encontrados na timeline (DOM).
+
+============================================================
+[pjeplus] [BAIXAR_CP] ❌ FALHA: Nem CDist nem Despacho encontrados na timeline (DOM).
+============================================================
+[14:16:21] [pjeplus] [ERROR] [BAIXAR_CP] Documentos lidos do DOM:
+
+============================================================
+[pjeplus] [BAIXAR_CP] Documentos lidos do DOM:
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 0] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 0] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 1] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 1] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 2] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 2] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 3] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 3] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 4] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 4] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 5] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 5] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 6] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 6] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 7] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 7] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 8] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 8] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 9] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 9] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 10] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 10] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 11] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 11] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 12] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 12] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 13] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 13] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 14] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 14] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 15] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 15] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 16] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 16] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 17] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 17] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 18] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 18] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 19] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 19] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 20] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 20] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 21] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 21] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 22] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 22] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 23] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 23] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 24] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 24] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 25] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 25] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 26] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 26] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 27] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 27] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 28] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 28] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR]   [Item 29] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 29] "(sem conteúdo)"
+============================================================
+[14:16:21] [pjeplus] [ERROR] [MANDADOS][CP] #1000555-72.2025.5.02.0703: baixarCP() falhou: [BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados
+
+============================================================
+[pjeplus] [MANDADOS][CP] #1000555-72.2025.5.02.0703: baixarCP() falhou: [BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados
+============================================================
+[14:16:21] [pjeplus] [WARNING] [MANDADOS_API] #1000555-72.2025.5.02.0703: Fluxo CP falhou.
+[pjeplus] [MANDADOS_API] #1000555-72.2025.5.02.0703: Fluxo CP falhou.
+[14:16:21] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[14:16:21] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1000761-52.2026.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1000761-52.2026.5.02.0703
+[14:16:22] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - b2d0a7c'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - b2d0a7c'
+[14:16:23] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488365861 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488365861 tipo=Certidão
+[14:16:23] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 1465 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 1465 chars
+[14:16:23] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto atribuído len=1465
+[pjeplus] [MANDADOS][OUTROS] Texto atribuído len=1465
+[14:16:23] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1000761-52.2026.5.02.0703 RECLAMANTE: JOAO NILSON MOREIRA DE FREITAS RECLAMADO: NOVO TEMPO PRESTADORA DE SERVICOS 
+[pjeplus] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1000761-52.2026.5.02.0703 RECLAMANTE: JOAO NILSON MOREIRA DE FREITAS RECLAMADO: NOVO TEMPO PRESTADORA DE SERVICOS 
+[14:16:23] [pjeplus] [INFO] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[pjeplus] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[14:16:23] [pjeplus] [INFO] [MANDADOS_API] #1000761-52.2026.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[pjeplus] [MANDADOS_API] #1000761-52.2026.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[14:16:23] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[14:16:23] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1001178-05.2026.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1001178-05.2026.5.02.0703
+[14:16:25] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - 8f39619'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - 8f39619'
+[14:16:25] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488448894 tipo=Certidão
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Documento localizado: id=488448894 tipo=Certidão
+[14:16:25] [pjeplus] [INFO] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 512 chars
+[pjeplus] [MANDADOS][OUTROS][API][CERTIDAO] Texto extraído: 512 chars
+[14:16:25] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto atribuído len=512
+[pjeplus] [MANDADOS][OUTROS] Texto atribuído len=512
+[14:16:25] [pjeplus] [INFO] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1001178-05.2026.5.02.0703 RECLAMANTE: CLAYTON ARAUJO RENNO RECLAMADO: VIACAO CAMPO BELO LTDA CERTIDÃO DE DEVOLUÇÃO
+[pjeplus] [MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): PODER JUDICIÁRIO JUSTIÇA DO TRABALHO TRIBUNAL REGIONAL DO TRABALHO DA 2ª REGIÃO ATOrd 1001178-05.2026.5.02.0703 RECLAMANTE: CLAYTON ARAUJO RENNO RECLAMADO: VIACAO CAMPO BELO LTDA CERTIDÃO DE DEVOLUÇÃO
+[14:16:25] [pjeplus] [INFO] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[pjeplus] [MANDADOS][OUTROS] Regra reconhecida: nenhuma
+[14:16:25] [pjeplus] [INFO] [MANDADOS_API] #1001178-05.2026.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[pjeplus] [MANDADOS_API] #1001178-05.2026.5.02.0703: Nenhuma regra reconhecida. Pulando.
+[14:16:25] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[14:16:25] [pjeplus] [INFO] [MANDADOS_API] Processando Certidao: #1001742-81.2026.5.02.0703
+[pjeplus] [MANDADOS_API] Processando Certidao: #1001742-81.2026.5.02.0703
+[14:16:27] [pjeplus] [INFO] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - 4774fce'
+[pjeplus] [MANDADOS_API] Timeline: primeiro doc relevante tipo=outros — 'Certidão(Certidão de Oficial de Justiça) - 4774fce'
+[14:16:27] [pjeplus] [INFO] [MANDADOS][CP] === INICIO Fluxo CP === processo=#1001742-81.2026.5.02.0703
+[pjeplus] [MANDADOS][CP] === INICIO Fluxo CP === processo=#1001742-81.2026.5.02.0703
+[14:16:27] [pjeplus] [INFO] [MANDADOS][OUTROS][API][MANDADO_ANTERIOR] Documento localizado: id=485321623 tipo=Mandado
+[pjeplus] [MANDADOS][OUTROS][API][MANDADO_ANTERIOR] Documento localizado: id=485321623 tipo=Mandado
+[14:16:27] [pjeplus] [INFO] [MANDADOS][OUTROS][API][MANDADO_ANTERIOR] Texto extraído: 2883 chars
+[pjeplus] [MANDADOS][OUTROS][API][MANDADO_ANTERIOR] Texto extraído: 2883 chars
+[14:16:27] [pjeplus] [INFO] [MANDADOS][CP] #1001742-81.2026.5.02.0703: ementa contem "penhora"=False
+[pjeplus] [MANDADOS][CP] #1001742-81.2026.5.02.0703: ementa contem "penhora"=False
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] Tentando obter timeline via API /timeline...
+[pjeplus] [CONTAR_CP] Tentando obter timeline via API /timeline...
+[14:16:27] [pjeplus] [ERROR] [TIMELINE_API] Erro ao chamar /timeline: cannot import name 'obter_sessao_do_driver' from 'Fix.variaveis' (D:\PjePlus\Fix\variaveis.py)
+
+============================================================
+[pjeplus] [TIMELINE_API] Erro ao chamar /timeline: cannot import name 'obter_sessao_do_driver' from 'Fix.variaveis' (D:\PjePlus\Fix\variaveis.py)
+============================================================
+[14:16:27] [pjeplus] [WARNING] [CONTAR_CP] ⚠️ Falha na API; usando fallback DOM parsing...
+[pjeplus] [CONTAR_CP] ⚠️ Falha na API; usando fallback DOM parsing...
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK-DOM] Lendo 8 elementos da timeline...
+[pjeplus] [CONTAR_CP] [FALLBACK-DOM] Lendo 8 elementos da timeline...
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 0: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 0: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 1: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 1: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 2: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 2: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 3: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 3: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 4: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 4: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 5: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 5: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 6: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 6: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK] Item 7: VAZIO/FALHA => "(sem conteúdo)"
+[pjeplus] [CONTAR_CP] [FALLBACK] Item 7: VAZIO/FALHA => "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [CONTAR_CP] [FALLBACK-DOM] Totais: mandados=0 certidoes_oficial=0
+[pjeplus] [CONTAR_CP] [FALLBACK-DOM] Totais: mandados=0 certidoes_oficial=0
+[14:16:27] [pjeplus] [INFO] [MANDADOS][CP] #1001742-81.2026.5.02.0703: mandados=0 certidoes_oficial=0
+[pjeplus] [MANDADOS][CP] #1001742-81.2026.5.02.0703: mandados=0 certidoes_oficial=0
+[14:16:27] [pjeplus] [INFO] [MANDADOS][CP] #1001742-81.2026.5.02.0703: fluxo completo — baixarCP + juntada devcp + mov arquivar
+[pjeplus] [MANDADOS][CP] #1001742-81.2026.5.02.0703: fluxo completo — baixarCP + juntada devcp + mov arquivar
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] Iniciando selecao de Certidao de Distribuicao + anexos
+[pjeplus] [BAIXAR_CP] Iniciando selecao de Certidao de Distribuicao + anexos
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] Lendo 8 elementos da timeline para localizar âncora...
+[pjeplus] [BAIXAR_CP] Lendo 8 elementos da timeline para localizar âncora...
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] BUSCANDO ÂNCORA — Estratégia: 1º CDist, 2º Despacho
+[pjeplus] [BAIXAR_CP] BUSCANDO ÂNCORA — Estratégia: 1º CDist, 2º Despacho
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] Item 0: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 0: VAZIO | "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] Item 1: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 1: VAZIO | "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] Item 2: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 2: VAZIO | "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] Item 3: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 3: VAZIO | "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] Item 4: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 4: VAZIO | "(sem conteúdo)"
+[14:16:27] [pjeplus] [INFO] [BAIXAR_CP] Item 5: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 5: VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 6: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 6: VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 7: VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 7: VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] 🔄 CDist não encontrada; procurando DESPACHO como fallback...
+[pjeplus] [BAIXAR_CP] 🔄 CDist não encontrada; procurando DESPACHO como fallback...
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 7 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 7 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 6 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 6 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 5 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 5 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 4 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 4 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 3 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 3 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 2 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 2 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 1 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 1 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [INFO] [BAIXAR_CP] Item 0 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[pjeplus] [BAIXAR_CP] Item 0 (fallback Despacho): VAZIO | "(sem conteúdo)"
+[14:16:28] [pjeplus] [ERROR] [BAIXAR_CP] ❌ FALHA: Nem CDist nem Despacho encontrados na timeline (DOM).
+
+============================================================
+[pjeplus] [BAIXAR_CP] ❌ FALHA: Nem CDist nem Despacho encontrados na timeline (DOM).
+============================================================
+[14:16:28] [pjeplus] [ERROR] [BAIXAR_CP] Documentos lidos do DOM:
+
+============================================================
+[pjeplus] [BAIXAR_CP] Documentos lidos do DOM:
+============================================================
+[14:16:28] [pjeplus] [ERROR]   [Item 0] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 0] "(sem conteúdo)"
+============================================================
+[14:16:28] [pjeplus] [ERROR]   [Item 1] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 1] "(sem conteúdo)"
+============================================================
+[14:16:28] [pjeplus] [ERROR]   [Item 2] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 2] "(sem conteúdo)"
+============================================================
+[14:16:28] [pjeplus] [ERROR]   [Item 3] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 3] "(sem conteúdo)"
+============================================================
+[14:16:28] [pjeplus] [ERROR]   [Item 4] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 4] "(sem conteúdo)"
+============================================================
+[14:16:28] [pjeplus] [ERROR]   [Item 5] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 5] "(sem conteúdo)"
+============================================================
+[14:16:28] [pjeplus] [ERROR]   [Item 6] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 6] "(sem conteúdo)"
+============================================================
+[14:16:28] [pjeplus] [ERROR]   [Item 7] "(sem conteúdo)"
+
+============================================================
+[pjeplus]   [Item 7] "(sem conteúdo)"
+============================================================
+[14:16:28] [pjeplus] [ERROR] [MANDADOS][CP] #1001742-81.2026.5.02.0703: baixarCP() falhou: [BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados
+
+============================================================
+[pjeplus] [MANDADOS][CP] #1001742-81.2026.5.02.0703: baixarCP() falhou: [BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados
+============================================================
+[14:16:28] [pjeplus] [WARNING] [MANDADOS_API] #1001742-81.2026.5.02.0703: Fluxo CP falhou.
+[pjeplus] [MANDADOS_API] #1001742-81.2026.5.02.0703: Fluxo CP falhou.
+[14:16:28] [pjeplus] [INFO] [MANDADOS_API] Iniciando processamento do resto (0 itens)...
+[pjeplus] [MANDADOS_API] Iniciando processamento do resto (0 itens)...
+[14:16:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[14:16:28] [pjeplus] [INFO] [MANDADOS_API] 2 processo(s) ja concluidos em execucao anterior — serao ignorados
+[pjeplus] [MANDADOS_API] 2 processo(s) ja concluidos em execucao anterior — serao ignorados
+[14:16:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_MANDADO] ✅ Progresso carregado: 2 executados, 0 com erro
+[14:16:28] [pjeplus] [INFO] [MANDADOS_API] Concluido — total=0 sucesso=0 pulados=0 falha=0
+[pjeplus] [MANDADOS_API] Concluido — total=0 sucesso=0 pulados=0 falha=0
+[14:16:28] [pjeplus] [INFO] [MANDADO] OK (43.3s)
+[pjeplus] [MANDADO] OK (43.3s)
+[14:16:28] [pjeplus] [INFO] sucesso: True
+[pjeplus] sucesso: True
+[14:16:28] [pjeplus] [INFO] tempo: 43.33s
+[pjeplus] tempo: 43.33s
+
+──────────────────────────────────────────────────
+  FLUXO CONCLUÍDO — driver mantido aberto
+──────────────────────────────────────────────────
+  Próximo fluxo (ou X para fechar o browser):
+
+Fluxo:
+A - Bloco Completo
+B - Mandado
+C - Prazo + P2B
+D - P2B
+E - PEC
+F - Triagem
+G - Petição
+H - Domicílio Eletrônico
+I - Citação
+X - Cancelar
+> [14:17:35] [pjeplus] [INFO] ── fluxo: D ──
+[pjeplus] ── fluxo: D ──
+[14:17:37] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B] ✅ Progresso carregado: 0 executados, 0 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B] ✅ Progresso carregado: 0 executados, 0 com erro
+[14:17:38] [Prazo.p2b_gateway] [INFO] [PRAZO_API] GIGS XS1 encontrados: 33
+[Prazo.p2b_gateway] [PRAZO_API] GIGS XS1 encontrados: 33
+[14:17:38] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processos a serem executados: ['1001013-31.2021.5.02.0703', '1001610-58.2025.5.02.0703', '1001743-03.2025.5.02.0703', '1000462-51.2021.5.02.0703', '1000420-65.2022.5.02.0703', '1000685-09.2018.5.02.0703', '1000899-19.2026.5.02.0703', '1002208-12.2025.5.02.0703', '1000637-69.2026.5.02.0703', '1001645-33.2016.5.02.0703', '1000076-89.2019.5.02.0703', '1000370-34.2021.5.02.0716', '1001474-61.2025.5.02.0703', '1000489-92.2025.5.02.0703', '1000582-94.2021.5.02.0703', '1000231-82.2025.5.02.0703', '1001699-18.2024.5.02.0703', '1000220-35.2024.5.02.0009', '1000525-03.2026.5.02.0703', '1000834-24.2026.5.02.0703', '1001704-69.2026.5.02.0703', '1000396-95.2026.5.02.0703', '1000541-54.2026.5.02.0703', '1000956-76.2022.5.02.0703', '1000539-26.2022.5.02.0703', '1000584-05.2019.5.02.0713', '1000987-28.2024.5.02.0703', '1001220-88.2025.5.02.0703', '1001801-69.2026.5.02.0703', '1001449-19.2023.5.02.0703', '1001108-85.2026.5.02.0703', '1001123-54.2026.5.02.0703', '1001320-19.2020.5.02.0703']
+[Prazo.p2b_gateway] [PRAZO_API] Processos a serem executados: ['1001013-31.2021.5.02.0703', '1001610-58.2025.5.02.0703', '1001743-03.2025.5.02.0703', '1000462-51.2021.5.02.0703', '1000420-65.2022.5.02.0703', '1000685-09.2018.5.02.0703', '1000899-19.2026.5.02.0703', '1002208-12.2025.5.02.0703', '1000637-69.2026.5.02.0703', '1001645-33.2016.5.02.0703', '1000076-89.2019.5.02.0703', '1000370-34.2021.5.02.0716', '1001474-61.2025.5.02.0703', '1000489-92.2025.5.02.0703', '1000582-94.2021.5.02.0703', '1000231-82.2025.5.02.0703', '1001699-18.2024.5.02.0703', '1000220-35.2024.5.02.0009', '1000525-03.2026.5.02.0703', '1000834-24.2026.5.02.0703', '1001704-69.2026.5.02.0703', '1000396-95.2026.5.02.0703', '1000541-54.2026.5.02.0703', '1000956-76.2022.5.02.0703', '1000539-26.2022.5.02.0703', '1000584-05.2019.5.02.0713', '1000987-28.2024.5.02.0703', '1001220-88.2025.5.02.0703', '1001801-69.2026.5.02.0703', '1001449-19.2023.5.02.0703', '1001108-85.2026.5.02.0703', '1001123-54.2026.5.02.0703', '1001320-19.2020.5.02.0703']
+[14:17:38] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=4119921 numero=1001013-31.2021.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=4119921 numero=1001013-31.2021.5.02.0703
+[14:17:41] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-17T11:14:33.73828 -> 2026-09-17T11:14:33.738280+00:00 (Idade: 1 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-17T11:14:33.73828 -> 2026-09-17T11:14:33.738280+00:00 (Idade: 1 dias úteis)
+[14:17:41] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-17T11:14:33.73828), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-17T11:14:33.73828), pulando (<= 5 dias úteis).
+[14:17:41] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:17:41] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:17:42] [atos.core] [INFO] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[atos.core] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[14:17:42] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001013-31.2021.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001013-31.2021.5.02.0703] ✅ Processo marcado como executado
+[14:17:42] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:17:42] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001013-31.2021.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001013-31.2021.5.02.0703 processado com sucesso (fluxo_pz)
+[14:17:42] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=7733946 numero=1001610-58.2025.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=7733946 numero=1001610-58.2025.5.02.0703
+[14:17:44] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-16T09:18:42.099305 -> 2026-09-16T09:18:42.099305+00:00 (Idade: 2 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-16T09:18:42.099305 -> 2026-09-16T09:18:42.099305+00:00 (Idade: 2 dias úteis)
+[14:17:44] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-16T09:18:42.099305), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-16T09:18:42.099305), pulando (<= 5 dias úteis).
+[14:17:44] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:17:44] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:17:44] [atos.core] [INFO] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[atos.core] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[14:17:44] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001610-58.2025.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001610-58.2025.5.02.0703] ✅ Processo marcado como executado
+[14:17:44] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:17:44] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001610-58.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001610-58.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[14:17:44] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=7791407 numero=1001743-03.2025.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=7791407 numero=1001743-03.2025.5.02.0703
+[14:17:45] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-17T08:51:09.119729 -> 2026-09-17T08:51:09.119729+00:00 (Idade: 1 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-17T08:51:09.119729 -> 2026-09-17T08:51:09.119729+00:00 (Idade: 1 dias úteis)
+[14:17:45] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Decisão) tem data recente (2026-09-17T08:51:09.119729), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Decisão) tem data recente (2026-09-17T08:51:09.119729), pulando (<= 5 dias úteis).
+[14:17:45] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:17:45] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:17:46] [atos.core] [INFO] [API_TAREFA] Tarefa aberta via API com sucesso: processo=7791407 tarefa=333
+[atos.core] [API_TAREFA] Tarefa aberta via API com sucesso: processo=7791407 tarefa=333
+[14:17:47] [atos.core] [INFO] [MOV_INT] tarefa='Responsável do Processo
+Sem Responsável
+Tarefa:' destino='Aguardando Prazo'
+[atos.core] [MOV_INT] tarefa='Responsável do Processo
+Sem Responsável
+Tarefa:' destino='Aguardando Prazo'
+[14:17:58] [atos.core] [INFO] [NAVEGAR_TAREFA] Iniciando navegação para: análise
+[atos.core] [NAVEGAR_TAREFA] Iniciando navegação para: análise
+[14:17:58] [atos.core] [INFO] [NAVEGAR_TAREFA] Tarefa atual: "Responsável do Processo
+Sem Responsável
+Tarefa:" -> Destino: "análise"
+[atos.core] [NAVEGAR_TAREFA] Tarefa atual: "Responsável do Processo
+Sem Responsável
+Tarefa:" -> Destino: "análise"
+[14:18:08] [Prazo.p2b_gateway] [WARNING] [PRAZO_API] Processo 1001743-03.2025.5.02.0703 NAO concluido (fluxo_pz_nao_executou) — nao marcado; sera retentado na proxima execucao
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001743-03.2025.5.02.0703 NAO concluido (fluxo_pz_nao_executou) — nao marcado; sera retentado na proxima execucao
+[14:18:08] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=3943808 numero=1000462-51.2021.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=3943808 numero=1000462-51.2021.5.02.0703
+[14:18:10] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-17T08:51:09.119743 -> 2026-09-17T08:51:09.119743+00:00 (Idade: 1 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-17T08:51:09.119743 -> 2026-09-17T08:51:09.119743+00:00 (Idade: 1 dias úteis)
+[14:18:10] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-17T08:51:09.119743), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-17T08:51:09.119743), pulando (<= 5 dias úteis).
+[14:18:10] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:18:10] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:18:10] [atos.core] [INFO] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[atos.core] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[14:18:10] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000462-51.2021.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000462-51.2021.5.02.0703] ✅ Processo marcado como executado
+[14:18:10] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:10] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000462-51.2021.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000462-51.2021.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:10] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=4508758 numero=1000420-65.2022.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=4508758 numero=1000420-65.2022.5.02.0703
+[14:18:12] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-17T08:51:09.119743 -> 2026-09-17T08:51:09.119743+00:00 (Idade: 1 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-17T08:51:09.119743 -> 2026-09-17T08:51:09.119743+00:00 (Idade: 1 dias úteis)
+[14:18:12] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-17T08:51:09.119743), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-17T08:51:09.119743), pulando (<= 5 dias úteis).
+[14:18:12] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:18:12] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:18:12] [atos.core] [INFO] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[atos.core] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[14:18:12] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000420-65.2022.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000420-65.2022.5.02.0703] ✅ Processo marcado como executado
+[14:18:12] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:12] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000420-65.2022.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000420-65.2022.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:12] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=2212363 numero=1000685-09.2018.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=2212363 numero=1000685-09.2018.5.02.0703
+[14:18:18] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-17T08:51:09.119744 -> 2026-09-17T08:51:09.119744+00:00 (Idade: 1 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-17T08:51:09.119744 -> 2026-09-17T08:51:09.119744+00:00 (Idade: 1 dias úteis)
+[14:18:18] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-17T08:51:09.119744), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-17T08:51:09.119744), pulando (<= 5 dias úteis).
+[14:18:18] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:18:18] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:18:18] [atos.core] [INFO] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[atos.core] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[14:18:18] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000685-09.2018.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000685-09.2018.5.02.0703] ✅ Processo marcado como executado
+[14:18:18] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:18] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000685-09.2018.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000685-09.2018.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:18] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8619933 numero=1000899-19.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8619933 numero=1000899-19.2026.5.02.0703
+[14:18:21] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-08T09:00:42.094194 -> 2026-09-08T09:00:42.094194+00:00 (Idade: 8 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-08T09:00:42.094194 -> 2026-09-08T09:00:42.094194+00:00 (Idade: 8 dias úteis)
+[14:18:21] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485483711 data_extraida=2026-09-08T09:00:42.094194 idade_dias=8
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485483711 data_extraida=2026-09-08T09:00:42.094194 idade_dias=8
+[14:18:21] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 785 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 785 chars
+[14:18:21] [Prazo.p2b_documentos] [INFO] [FLUXO_PZ] Regra casou: pattern=comunique\-se[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*forma[\s\.,;:!\-–—()$]*concomitante tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=nte a informacao supra, por celeridade, comunique-se de forma concomitante, por edital, as partes indicadas. sao p
+[Prazo.p2b_documentos] [FLUXO_PZ] Regra casou: pattern=comunique\-se[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*forma[\s\.,;:!\-–—()$]*concomitante tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=nte a informacao supra, por celeridade, comunique-se de forma concomitante, por edital, as partes indicadas. sao p
+[14:18:21] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.586s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.586s
+[14:18:21] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000899-19.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000899-19.2026.5.02.0703] ✅ Processo marcado como executado
+[14:18:21] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:21] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000899-19.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000899-19.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:21] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8045838 numero=1002208-12.2025.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8045838 numero=1002208-12.2025.5.02.0703
+[14:18:22] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-04T10:19:58.002286 -> 2026-09-04T10:19:58.002286+00:00 (Idade: 9 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-04T10:19:58.002286 -> 2026-09-04T10:19:58.002286+00:00 (Idade: 9 dias úteis)
+[14:18:22] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=484920304 data_extraida=2026-09-04T10:19:58.002286 idade_dias=9
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=484920304 data_extraida=2026-09-04T10:19:58.002286 idade_dias=9
+[14:18:22] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 733 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 733 chars
+[14:18:22] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.009s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.009s
+[14:18:22] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1002208-12.2025.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1002208-12.2025.5.02.0703] ✅ Processo marcado como executado
+[14:18:22] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:22] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1002208-12.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1002208-12.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:22] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8484631 numero=1000637-69.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8484631 numero=1000637-69.2026.5.02.0703
+[14:18:25] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-18T11:15:01.231763 -> 2026-09-18T11:15:01.231763+00:00 (Idade: 0 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-18T11:15:01.231763 -> 2026-09-18T11:15:01.231763+00:00 (Idade: 0 dias úteis)
+[14:18:25] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Sentença) tem data recente (2026-09-18T11:15:01.231763), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Sentença) tem data recente (2026-09-18T11:15:01.231763), pulando (<= 5 dias úteis).
+[14:18:25] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:18:25] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:18:25] [atos.core] [INFO] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[atos.core] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[14:18:25] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000637-69.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000637-69.2026.5.02.0703] ✅ Processo marcado como executado
+[14:18:25] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:25] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000637-69.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000637-69.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:25] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=1204722 numero=1001645-33.2016.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=1204722 numero=1001645-33.2016.5.02.0703
+[14:18:29] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-17T07:38:03.476852 -> 2026-09-17T07:38:03.476852+00:00 (Idade: 1 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-17T07:38:03.476852 -> 2026-09-17T07:38:03.476852+00:00 (Idade: 1 dias úteis)
+[14:18:29] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Decisão) tem data recente (2026-09-17T07:38:03.476852), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Decisão) tem data recente (2026-09-17T07:38:03.476852), pulando (<= 5 dias úteis).
+[14:18:29] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:18:29] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:18:29] [atos.core] [INFO] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[atos.core] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[14:18:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001645-33.2016.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001645-33.2016.5.02.0703] ✅ Processo marcado como executado
+[14:18:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:29] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001645-33.2016.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001645-33.2016.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:29] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=2485752 numero=1000076-89.2019.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=2485752 numero=1000076-89.2019.5.02.0703
+[14:18:33] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-08-18T09:25:05.111614 -> 2026-08-18T09:25:05.111614+00:00 (Idade: 22 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-08-18T09:25:05.111614 -> 2026-08-18T09:25:05.111614+00:00 (Idade: 22 dias úteis)
+[14:18:33] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=480711701 data_extraida=2026-08-18T09:25:05.111614 idade_dias=22
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=480711701 data_extraida=2026-08-18T09:25:05.111614 idade_dias=22
+[14:18:33] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 758 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 758 chars
+[14:18:33] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.007s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.007s
+[14:18:33] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000076-89.2019.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000076-89.2019.5.02.0703] ✅ Processo marcado como executado
+[14:18:33] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:33] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000076-89.2019.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000076-89.2019.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:33] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=3914872 numero=1000370-34.2021.5.02.0716
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=3914872 numero=1000370-34.2021.5.02.0716
+[14:18:36] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-04T17:01:51.526256 -> 2026-09-04T17:01:51.526256+00:00 (Idade: 9 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-04T17:01:51.526256 -> 2026-09-04T17:01:51.526256+00:00 (Idade: 9 dias úteis)
+[14:18:36] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485390909 data_extraida=2026-09-04T17:01:51.526256 idade_dias=9
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485390909 data_extraida=2026-09-04T17:01:51.526256 idade_dias=9
+[14:18:36] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 809 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 809 chars
+[14:18:37] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.008s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.008s
+[14:18:37] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000370-34.2021.5.02.0716] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000370-34.2021.5.02.0716] ✅ Processo marcado como executado
+[14:18:37] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:37] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000370-34.2021.5.02.0716 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000370-34.2021.5.02.0716 processado com sucesso (fluxo_pz)
+[14:18:37] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=7655916 numero=1001474-61.2025.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=7655916 numero=1001474-61.2025.5.02.0703
+[14:18:38] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-07-23T08:16:54.395805 -> 2026-07-23T08:16:54.395805+00:00 (Idade: 39 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-07-23T08:16:54.395805 -> 2026-07-23T08:16:54.395805+00:00 (Idade: 39 dias úteis)
+[14:18:38] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=475824201 data_extraida=2026-07-23T08:16:54.395805 idade_dias=39
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=475824201 data_extraida=2026-07-23T08:16:54.395805 idade_dias=39
+[14:18:39] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 775 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 775 chars
+[14:18:39] [Prazo.p2b_documentos] [INFO] [FLUXO_PZ] Regra casou: pattern=comunique\-se[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*forma[\s\.,;:!\-–—()$]*concomitante tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=nte a informacao supra, por celeridade, comunique-se de forma concomitante, por edital, as partes indicadas. sao p
+[Prazo.p2b_documentos] [FLUXO_PZ] Regra casou: pattern=comunique\-se[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*forma[\s\.,;:!\-–—()$]*concomitante tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=nte a informacao supra, por celeridade, comunique-se de forma concomitante, por edital, as partes indicadas. sao p
+[14:18:41] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 2.718s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 2.718s
+[14:18:41] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001474-61.2025.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001474-61.2025.5.02.0703] ✅ Processo marcado como executado
+[14:18:41] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:41] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001474-61.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001474-61.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:41] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=7068406 numero=1000489-92.2025.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=7068406 numero=1000489-92.2025.5.02.0703
+[14:18:43] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-08-24T14:25:44.986948 -> 2026-08-24T14:25:44.986948+00:00 (Idade: 18 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-08-24T14:25:44.986948 -> 2026-08-24T14:25:44.986948+00:00 (Idade: 18 dias úteis)
+[14:18:43] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=482497143 data_extraida=2026-08-24T14:25:44.986948 idade_dias=18
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=482497143 data_extraida=2026-08-24T14:25:44.986948 idade_dias=18
+[14:18:43] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 840 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 840 chars
+[14:18:43] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.012s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.012s
+[14:18:43] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000489-92.2025.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000489-92.2025.5.02.0703] ✅ Processo marcado como executado
+[14:18:43] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:43] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000489-92.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000489-92.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:43] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=3980830 numero=1000582-94.2021.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=3980830 numero=1000582-94.2021.5.02.0703
+[14:18:44] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-07-24T17:40:50.313249 -> 2026-07-24T17:40:50.313249+00:00 (Idade: 38 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-07-24T17:40:50.313249 -> 2026-07-24T17:40:50.313249+00:00 (Idade: 38 dias úteis)
+[14:18:44] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=476185403 data_extraida=2026-07-24T17:40:50.313249 idade_dias=38
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=476185403 data_extraida=2026-07-24T17:40:50.313249 idade_dias=38
+[14:18:44] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 776 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 776 chars
+[14:18:44] [Prazo.p2b_documentos] [INFO] [FLUXO_PZ] Regra casou: pattern=comunique\-se[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*forma[\s\.,;:!\-–—()$]*concomitante tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=nte a informacao supra, por celeridade, comunique-se de forma concomitante, por edital, as partes indicadas. sao p
+[Prazo.p2b_documentos] [FLUXO_PZ] Regra casou: pattern=comunique\-se[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*forma[\s\.,;:!\-–—()$]*concomitante tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=nte a informacao supra, por celeridade, comunique-se de forma concomitante, por edital, as partes indicadas. sao p
+[14:18:46] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 2.094s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 2.094s
+[14:18:46] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000582-94.2021.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000582-94.2021.5.02.0703] ✅ Processo marcado como executado
+[14:18:46] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:46] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000582-94.2021.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000582-94.2021.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:46] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=6926543 numero=1000231-82.2025.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=6926543 numero=1000231-82.2025.5.02.0703
+[14:18:48] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-07-30T10:29:40.679606 -> 2026-07-30T10:29:40.679606+00:00 (Idade: 34 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-07-30T10:29:40.679606 -> 2026-07-30T10:29:40.679606+00:00 (Idade: 34 dias úteis)
+[14:18:48] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=477277880 data_extraida=2026-07-30T10:29:40.679606 idade_dias=34
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=477277880 data_extraida=2026-07-30T10:29:40.679606 idade_dias=34
+[14:18:48] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 1220 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 1220 chars
+[14:18:48] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.015s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.015s
+[14:18:48] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000231-82.2025.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000231-82.2025.5.02.0703] ✅ Processo marcado como executado
+[14:18:48] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:48] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000231-82.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000231-82.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:48] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=6574341 numero=1001699-18.2024.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=6574341 numero=1001699-18.2024.5.02.0703
+[14:18:50] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-01T08:23:18.591429 -> 2026-09-01T08:23:18.591429+00:00 (Idade: 12 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-01T08:23:18.591429 -> 2026-09-01T08:23:18.591429+00:00 (Idade: 12 dias úteis)
+[14:18:50] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=484168108 data_extraida=2026-09-01T08:23:18.591429 idade_dias=12
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=484168108 data_extraida=2026-09-01T08:23:18.591429 idade_dias=12
+[14:18:50] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 773 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 773 chars
+[14:18:50] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.008s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.008s
+[14:18:50] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001699-18.2024.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001699-18.2024.5.02.0703] ✅ Processo marcado como executado
+[14:18:50] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:50] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001699-18.2024.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001699-18.2024.5.02.0703 processado com sucesso (fluxo_pz)
+[14:18:50] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=5930822 numero=1000220-35.2024.5.02.0009
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=5930822 numero=1000220-35.2024.5.02.0009
+[14:18:58] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-08-06T08:16:24.701947 -> 2026-08-06T08:16:24.701947+00:00 (Idade: 29 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-08-06T08:16:24.701947 -> 2026-08-06T08:16:24.701947+00:00 (Idade: 29 dias úteis)
+[14:18:58] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=478464952 data_extraida=2026-08-06T08:16:24.701947 idade_dias=29
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=478464952 data_extraida=2026-08-06T08:16:24.701947 idade_dias=29
+[14:18:58] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 761 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 761 chars
+[14:18:58] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.010s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.010s
+[14:18:58] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000220-35.2024.5.02.0009] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000220-35.2024.5.02.0009] ✅ Processo marcado como executado
+[14:18:58] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:18:58] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000220-35.2024.5.02.0009 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000220-35.2024.5.02.0009 processado com sucesso (fluxo_pz)
+[14:18:58] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8431462 numero=1000525-03.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8431462 numero=1000525-03.2026.5.02.0703
+[14:19:00] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-04T10:30:36.830992 -> 2026-09-04T10:30:36.830992+00:00 (Idade: 9 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-04T10:30:36.830992 -> 2026-09-04T10:30:36.830992+00:00 (Idade: 9 dias úteis)
+[14:19:00] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485140833 data_extraida=2026-09-04T10:30:36.830992 idade_dias=9
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485140833 data_extraida=2026-09-04T10:30:36.830992 idade_dias=9
+[14:19:00] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 709 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 709 chars
+[14:19:00] [Prazo.p2b_documentos] [INFO] [FLUXO_PZ] Regra casou: pattern=sob[\s\.,;:!\-–—()$]*pena[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*preclusao tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=d, devendo se manifestar em cinco dias, sob pena de preclusao. sao paulo/sp, 04 de setembro de 2026. 
+[Prazo.p2b_documentos] [FLUXO_PZ] Regra casou: pattern=sob[\s\.,;:!\-–—()$]*pena[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*preclusao tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=d, devendo se manifestar em cinco dias, sob pena de preclusao. sao paulo/sp, 04 de setembro de 2026. 
+[14:19:08] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 8.156s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 8.156s
+[14:19:08] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000525-03.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000525-03.2026.5.02.0703] ✅ Processo marcado como executado
+[14:19:08] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:08] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000525-03.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000525-03.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:08] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8588516 numero=1000834-24.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8588516 numero=1000834-24.2026.5.02.0703
+[14:19:09] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-04T10:19:58.002288 -> 2026-09-04T10:19:58.002288+00:00 (Idade: 9 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-04T10:19:58.002288 -> 2026-09-04T10:19:58.002288+00:00 (Idade: 9 dias úteis)
+[14:19:09] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485022307 data_extraida=2026-09-04T10:19:58.002288 idade_dias=9
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485022307 data_extraida=2026-09-04T10:19:58.002288 idade_dias=9
+[14:19:09] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 944 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 944 chars
+[14:19:09] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.010s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.010s
+[14:19:09] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000834-24.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000834-24.2026.5.02.0703] ✅ Processo marcado como executado
+[14:19:09] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:09] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000834-24.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000834-24.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:09] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8915956 numero=1001704-69.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8915956 numero=1001704-69.2026.5.02.0703
+[14:19:10] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-01T08:17:23.826 -> 2026-09-01T08:17:23.826000+00:00 (Idade: 12 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-01T08:17:23.826 -> 2026-09-01T08:17:23.826000+00:00 (Idade: 12 dias úteis)
+[14:19:10] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Decisão id=484137223 data_extraida=2026-09-01T08:17:23.826 idade_dias=12
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Decisão id=484137223 data_extraida=2026-09-01T08:17:23.826 idade_dias=12
+[14:19:10] [Prazo.p2b_gateway] [WARNING] [p2b_api] /conteudo não é PDF. Content-Type=application/json primeiros bytes=b'{"conteudoBase64":"I'
+[Prazo.p2b_gateway] [p2b_api] /conteudo não é PDF. Content-Type=application/json primeiros bytes=b'{"conteudoBase64":"I'
+[14:19:10] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Nenhum documento relevante extraído: /conteudo não é PDF. Content-Type=application/json primeiros bytes=b'{"conteudoBase64":"I'
+[Prazo.p2b_gateway] [FLUXO_PZ] Nenhum documento relevante extraído: /conteudo não é PDF. Content-Type=application/json primeiros bytes=b'{"conteudoBase64":"I'
+[14:19:10] [Prazo.p2b_gateway] [WARNING] [PRAZO_API] Processo 1001704-69.2026.5.02.0703 NAO concluido (fluxo_pz_nao_executou) — nao marcado; sera retentado na proxima execucao
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001704-69.2026.5.02.0703 NAO concluido (fluxo_pz_nao_executou) — nao marcado; sera retentado na proxima execucao
+[14:19:10] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8365415 numero=1000396-95.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8365415 numero=1000396-95.2026.5.02.0703
+[14:19:11] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-04T10:24:28.043752 -> 2026-09-04T10:24:28.043752+00:00 (Idade: 9 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-04T10:24:28.043752 -> 2026-09-04T10:24:28.043752+00:00 (Idade: 9 dias úteis)
+[14:19:11] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485048239 data_extraida=2026-09-04T10:24:28.043752 idade_dias=9
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485048239 data_extraida=2026-09-04T10:24:28.043752 idade_dias=9
+[14:19:11] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 731 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 731 chars
+[14:19:11] [Prazo.p2b_documentos] [INFO] [FLUXO_PZ] Regra casou: pattern=sob[\s\.,;:!\-–—()$]*pena[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*preclusao tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=4, devendo se manifestar em cinco dias, sob pena de preclusao. sao paulo/sp, 04 de setembro de 2026. 
+[Prazo.p2b_documentos] [FLUXO_PZ] Regra casou: pattern=sob[\s\.,;:!\-–—()$]*pena[\s\.,;:!\-–—()$]*de[\s\.,;:!\-–—()$]*preclusao tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=4, devendo se manifestar em cinco dias, sob pena de preclusao. sao paulo/sp, 04 de setembro de 2026. 
+[14:19:11] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.632s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.632s
+[14:19:11] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000396-95.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000396-95.2026.5.02.0703] ✅ Processo marcado como executado
+[14:19:11] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:11] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000396-95.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000396-95.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:11] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8436437 numero=1000541-54.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8436437 numero=1000541-54.2026.5.02.0703
+[14:19:14] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-08-14T14:08:02.486781 -> 2026-08-14T14:08:02.486781+00:00 (Idade: 24 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-08-14T14:08:02.486781 -> 2026-08-14T14:08:02.486781+00:00 (Idade: 24 dias úteis)
+[14:19:14] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=480333668 data_extraida=2026-08-14T14:08:02.486781 idade_dias=24
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=480333668 data_extraida=2026-08-14T14:08:02.486781 idade_dias=24
+[14:19:14] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 920 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 920 chars
+[14:19:14] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.010s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.010s
+[14:19:14] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000541-54.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000541-54.2026.5.02.0703] ✅ Processo marcado como executado
+[14:19:14] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:14] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000541-54.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000541-54.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:14] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=4710688 numero=1000956-76.2022.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=4710688 numero=1000956-76.2022.5.02.0703
+[14:19:15] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-04T10:30:36.830994 -> 2026-09-04T10:30:36.830994+00:00 (Idade: 9 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-04T10:30:36.830994 -> 2026-09-04T10:30:36.830994+00:00 (Idade: 9 dias úteis)
+[14:19:15] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485161900 data_extraida=2026-09-04T10:30:36.830994 idade_dias=9
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485161900 data_extraida=2026-09-04T10:30:36.830994 idade_dias=9
+[14:19:15] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 728 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 728 chars
+[14:19:15] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.007s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.007s
+[14:19:15] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000956-76.2022.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000956-76.2022.5.02.0703] ✅ Processo marcado como executado
+[14:19:15] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:15] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000956-76.2022.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000956-76.2022.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:15] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=4555225 numero=1000539-26.2022.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=4555225 numero=1000539-26.2022.5.02.0703
+[14:19:18] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-04T17:12:00.821481 -> 2026-09-04T17:12:00.821481+00:00 (Idade: 9 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-04T17:12:00.821481 -> 2026-09-04T17:12:00.821481+00:00 (Idade: 9 dias úteis)
+[14:19:18] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485394483 data_extraida=2026-09-04T17:12:00.821481 idade_dias=9
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485394483 data_extraida=2026-09-04T17:12:00.821481 idade_dias=9
+[14:19:18] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 719 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 719 chars
+[14:19:18] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.006s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.006s
+[14:19:18] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000539-26.2022.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000539-26.2022.5.02.0703] ✅ Processo marcado como executado
+[14:19:18] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:18] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000539-26.2022.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000539-26.2022.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:18] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=2633602 numero=1000584-05.2019.5.02.0713
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=2633602 numero=1000584-05.2019.5.02.0713
+[14:19:20] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-02T11:35:04.155461 -> 2026-09-02T11:35:04.155461+00:00 (Idade: 11 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-02T11:35:04.155461 -> 2026-09-02T11:35:04.155461+00:00 (Idade: 11 dias úteis)
+[14:19:20] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Sentença id=484583243 data_extraida=2026-09-02T11:35:04.155461 idade_dias=11
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Sentença id=484583243 data_extraida=2026-09-02T11:35:04.155461 idade_dias=11
+[14:19:20] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 2529 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 2529 chars
+[14:19:20] [Prazo.p2b_documentos] [INFO] [FLUXO_PZ] Regra casou: pattern=a[\s\.,;:!\-–—()$]*pronuncia[\s\.,;:!\-–—()$]*da tipo_acao=(<function prescreve at 0x00000206FD3189A0>,) snippet=rt. 3o, recomendacao 03/2018, da cgjt). a pronuncia da prescricao intercorrente se trata de at
+[Prazo.p2b_documentos] [FLUXO_PZ] Regra casou: pattern=a[\s\.,;:!\-–—()$]*pronuncia[\s\.,;:!\-–—()$]*da tipo_acao=(<function prescreve at 0x00000206FD3189A0>,) snippet=rt. 3o, recomendacao 03/2018, da cgjt). a pronuncia da prescricao intercorrente se trata de at
+[14:19:21] [pjeplus] [INFO] BNDT: parâmetro inclusao recebido: False (tipo: <class 'bool'>)
+[pjeplus] BNDT: parâmetro inclusao recebido: False (tipo: <class 'bool'>)
+[14:19:21] [pjeplus] [INFO] Iniciando operação BNDT: Exclusão
+[pjeplus] Iniciando operação BNDT: Exclusão
+[14:19:23] [pjeplus] [INFO] Elementos da página BNDT detectados
+[pjeplus] Elementos da página BNDT detectados
+[14:19:23] [pjeplus] [INFO] Nova aba BNDT aberta diretamente via URL: https://pje.trt2.jus.br/pjekz/processo/2633602/bndt
+[pjeplus] Nova aba BNDT aberta diretamente via URL: https://pje.trt2.jus.br/pjekz/processo/2633602/bndt
+[14:19:23] [pjeplus] [INFO] ============ Processando Polo Passivo ============
+[pjeplus] ============ Processando Polo Passivo ============
+[14:19:23] [pjeplus] [INFO] Procurando botão de polo Passivo...
+[pjeplus] Procurando botão de polo Passivo...
+[14:19:24] [pjeplus] [INFO] Polo Passivo selecionado
+[pjeplus] Polo Passivo selecionado
+[14:19:24] [pjeplus] [INFO] Selecionando operação: Exclusão para polo Passivo
+[pjeplus] Selecionando operação: Exclusão para polo Passivo
+[14:19:24] [pjeplus] [INFO] Operação Exclusão selecionada para polo Passivo via JS
+[pjeplus] Operação Exclusão selecionada para polo Passivo via JS
+[14:19:24] [pjeplus] [INFO] Processando seleções para polo Passivo via JS...
+[pjeplus] Processando seleções para polo Passivo via JS...
+[14:19:24] [pjeplus] [WARNING] [BNDT] Nenhum checkbox encontrado para marcar no polo Passivo
+[pjeplus] [BNDT] Nenhum checkbox encontrado para marcar no polo Passivo
+[14:19:24] [pjeplus] [INFO] Gravando e confirmando BNDT para polo Passivo via JS...
+[pjeplus] Gravando e confirmando BNDT para polo Passivo via JS...
+[14:19:24] [pjeplus] [INFO] Botão Gravar clicado via JS
+[pjeplus] Botão Gravar clicado via JS
+[14:19:26] [pjeplus] [INFO] Aviso: Para realizar a inclusão selecione no mínimo um registro, informando a situação.
+X
+[pjeplus] Aviso: Para realizar a inclusão selecione no mínimo um registro, informando a situação.
+X
+[14:19:26] [pjeplus] [WARNING] Mensagem inesperada: Para realizar a inclusão selecione no mínimo um registro, informando a situação.
+X
+[pjeplus] Mensagem inesperada: Para realizar a inclusão selecione no mínimo um registro, informando a situação.
+X
+[14:19:26] [pjeplus] [INFO] ============ Finalizando operação Exclusão ============
+[pjeplus] ============ Finalizando operação Exclusão ============
+[14:19:26] [pjeplus] [INFO] Operação Exclusão concluída no polo Passivo
+[pjeplus] Operação Exclusão concluída no polo Passivo
+[14:19:26] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 5.333s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 5.333s
+[14:19:26] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000584-05.2019.5.02.0713] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000584-05.2019.5.02.0713] ✅ Processo marcado como executado
+[14:19:26] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:26] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000584-05.2019.5.02.0713 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000584-05.2019.5.02.0713 processado com sucesso (fluxo_pz)
+[14:19:26] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=6244947 numero=1000987-28.2024.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=6244947 numero=1000987-28.2024.5.02.0703
+[14:19:27] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-09T11:32:13.557433 -> 2026-09-09T11:32:13.557433+00:00 (Idade: 7 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-09T11:32:13.557433 -> 2026-09-09T11:32:13.557433+00:00 (Idade: 7 dias úteis)
+[14:19:27] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485722271 data_extraida=2026-09-09T11:32:13.557433 idade_dias=7
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485722271 data_extraida=2026-09-09T11:32:13.557433 idade_dias=7
+[14:19:27] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 658 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 658 chars
+[14:19:27] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.006s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.006s
+[14:19:27] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1000987-28.2024.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1000987-28.2024.5.02.0703] ✅ Processo marcado como executado
+[14:19:27] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:27] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1000987-28.2024.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1000987-28.2024.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:27] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=7504754 numero=1001220-88.2025.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=7504754 numero=1001220-88.2025.5.02.0703
+[14:19:28] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-10T07:58:06.251899 -> 2026-09-10T07:58:06.251899+00:00 (Idade: 6 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-10T07:58:06.251899 -> 2026-09-10T07:58:06.251899+00:00 (Idade: 6 dias úteis)
+[14:19:28] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=485752368 data_extraida=2026-09-10T07:58:06.251899 idade_dias=6
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=485752368 data_extraida=2026-09-10T07:58:06.251899 idade_dias=6
+[14:19:28] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 980 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 980 chars
+[14:19:28] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.011s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.011s
+[14:19:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001220-88.2025.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001220-88.2025.5.02.0703] ✅ Processo marcado como executado
+[14:19:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:28] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001220-88.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001220-88.2025.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:28] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8938538 numero=1001801-69.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8938538 numero=1001801-69.2026.5.02.0703
+[14:19:29] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-14T10:05:39.155232 -> 2026-09-14T10:05:39.155232+00:00 (Idade: 4 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-14T10:05:39.155232 -> 2026-09-14T10:05:39.155232+00:00 (Idade: 4 dias úteis)
+[14:19:29] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Decisão) tem data recente (2026-09-14T10:05:39.155232), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Decisão) tem data recente (2026-09-14T10:05:39.155232), pulando (<= 5 dias úteis).
+[14:19:29] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:19:29] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:19:30] [atos.core] [INFO] [API_TAREFA] Tarefa aberta via API com sucesso: processo=8938538 tarefa=492
+[atos.core] [API_TAREFA] Tarefa aberta via API com sucesso: processo=8938538 tarefa=492
+[14:19:32] [atos.core] [INFO] [MOV_INT] tarefa='Responsável do Processo
+Sem Responsável
+Tarefa:
+Preparar expedientes e comunicações' destino='Aguardando Prazo'
+[atos.core] [MOV_INT] tarefa='Responsável do Processo
+Sem Responsável
+Tarefa:
+Preparar expedientes e comunicações' destino='Aguardando Prazo'
+[14:19:34] [atos.core] [INFO] [NAVEGAR_TAREFA] Iniciando navegação para: análise
+[atos.core] [NAVEGAR_TAREFA] Iniciando navegação para: análise
+[14:19:34] [atos.core] [INFO] [NAVEGAR_TAREFA] Tarefa atual: "Responsável do Processo
+Sem Responsável
+Tarefa:
+Preparar expedientes e comunicações" -> Destino: "análise"
+[atos.core] [NAVEGAR_TAREFA] Tarefa atual: "Responsável do Processo
+Sem Responsável
+Tarefa:
+Preparar expedientes e comunicações" -> Destino: "análise"
+[14:19:36] [Prazo.p2b_gateway] [WARNING] [PRAZO_API] Processo 1001801-69.2026.5.02.0703 NAO concluido (fluxo_pz_nao_executou) — nao marcado; sera retentado na proxima execucao
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001801-69.2026.5.02.0703 NAO concluido (fluxo_pz_nao_executou) — nao marcado; sera retentado na proxima execucao
+[14:19:36] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=5602554 numero=1001449-19.2023.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=5602554 numero=1001449-19.2023.5.02.0703
+[14:19:37] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-08-25T08:44:27.973251 -> 2026-08-25T08:44:27.973251+00:00 (Idade: 17 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-08-25T08:44:27.973251 -> 2026-08-25T08:44:27.973251+00:00 (Idade: 17 dias úteis)
+[14:19:37] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Sentença id=482634857 data_extraida=2026-08-25T08:44:27.973251 idade_dias=17
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Sentença id=482634857 data_extraida=2026-08-25T08:44:27.973251 idade_dias=17
+[14:19:37] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 2418 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 2418 chars
+[14:19:37] [Prazo.p2b_documentos] [INFO] [FLUXO_PZ] Regra casou: pattern=a[\s\.,;:!\-–—()$]*pronuncia[\s\.,;:!\-–—()$]*da tipo_acao=(<function prescreve at 0x00000206FD3189A0>,) snippet=rt. 3o, recomendacao 03/2018, da cgjt). a pronuncia da prescricao intercorrente se trata de at
+[Prazo.p2b_documentos] [FLUXO_PZ] Regra casou: pattern=a[\s\.,;:!\-–—()$]*pronuncia[\s\.,;:!\-–—()$]*da tipo_acao=(<function prescreve at 0x00000206FD3189A0>,) snippet=rt. 3o, recomendacao 03/2018, da cgjt). a pronuncia da prescricao intercorrente se trata de at
+[14:19:37] [pjeplus] [INFO] BNDT: parâmetro inclusao recebido: False (tipo: <class 'bool'>)
+[pjeplus] BNDT: parâmetro inclusao recebido: False (tipo: <class 'bool'>)
+[14:19:37] [pjeplus] [INFO] Iniciando operação BNDT: Exclusão
+[pjeplus] Iniciando operação BNDT: Exclusão
+[14:19:38] [pjeplus] [INFO] Elementos da página BNDT detectados
+[pjeplus] Elementos da página BNDT detectados
+[14:19:38] [pjeplus] [INFO] Nova aba BNDT aberta diretamente via URL: https://pje.trt2.jus.br/pjekz/processo/5602554/bndt
+[pjeplus] Nova aba BNDT aberta diretamente via URL: https://pje.trt2.jus.br/pjekz/processo/5602554/bndt
+[14:19:38] [pjeplus] [INFO] ============ Processando Polo Passivo ============
+[pjeplus] ============ Processando Polo Passivo ============
+[14:19:38] [pjeplus] [INFO] Procurando botão de polo Passivo...
+[pjeplus] Procurando botão de polo Passivo...
+[14:19:38] [pjeplus] [INFO] Polo Passivo selecionado
+[pjeplus] Polo Passivo selecionado
+[14:19:38] [pjeplus] [INFO] Selecionando operação: Exclusão para polo Passivo
+[pjeplus] Selecionando operação: Exclusão para polo Passivo
+[14:19:38] [pjeplus] [INFO] Operação Exclusão selecionada para polo Passivo via JS
+[pjeplus] Operação Exclusão selecionada para polo Passivo via JS
+[14:19:38] [pjeplus] [INFO] Processando seleções para polo Passivo via JS...
+[pjeplus] Processando seleções para polo Passivo via JS...
+[14:19:38] [pjeplus] [WARNING] [BNDT] Nenhum checkbox encontrado para marcar no polo Passivo
+[pjeplus] [BNDT] Nenhum checkbox encontrado para marcar no polo Passivo
+[14:19:38] [pjeplus] [INFO] Gravando e confirmando BNDT para polo Passivo via JS...
+[pjeplus] Gravando e confirmando BNDT para polo Passivo via JS...
+[14:19:38] [pjeplus] [WARNING] Botão Gravar não encontrado via JS
+[pjeplus] Botão Gravar não encontrado via JS
+[14:19:41] [pjeplus] [WARNING] Nenhum aviso detectado
+[pjeplus] Nenhum aviso detectado
+[14:19:41] [pjeplus] [INFO] ============ Finalizando operação Exclusão ============
+[pjeplus] ============ Finalizando operação Exclusão ============
+[14:19:41] [pjeplus] [INFO] Operação Exclusão concluída no polo Passivo
+[pjeplus] Operação Exclusão concluída no polo Passivo
+[14:19:41] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 4.212s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 4.212s
+[14:19:41] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001449-19.2023.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001449-19.2023.5.02.0703] ✅ Processo marcado como executado
+[14:19:41] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:41] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001449-19.2023.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001449-19.2023.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:41] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8733254 numero=1001108-85.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8733254 numero=1001108-85.2026.5.02.0703
+[14:19:42] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-09T15:30:52.195306 -> 2026-09-09T15:30:52.195306+00:00 (Idade: 7 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-09T15:30:52.195306 -> 2026-09-09T15:30:52.195306+00:00 (Idade: 7 dias úteis)
+[14:19:42] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=486158197 data_extraida=2026-09-09T15:30:52.195306 idade_dias=7
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=486158197 data_extraida=2026-09-09T15:30:52.195306 idade_dias=7
+[14:19:42] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 997 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 997 chars
+[14:19:42] [Prazo.p2b_documentos] [INFO] [FLUXO_PZ] Regra casou: pattern=aguarde\-se tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=jecao, cancele a secretaria a remessa e aguarde-se a audiencia. sao paulo/sp, 09 de setemb
+[Prazo.p2b_documentos] [FLUXO_PZ] Regra casou: pattern=aguarde\-se tipo_acao=(<function checar_prox at 0x00000206FD1E62A0>,) snippet=jecao, cancele a secretaria a remessa e aguarde-se a audiencia. sao paulo/sp, 09 de setemb
+[14:19:43] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.655s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.655s
+[14:19:43] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001108-85.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001108-85.2026.5.02.0703] ✅ Processo marcado como executado
+[14:19:43] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:43] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001108-85.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001108-85.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:43] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=8707431 numero=1001123-54.2026.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=8707431 numero=1001123-54.2026.5.02.0703
+[14:19:44] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-06-12T18:02:51.291842 -> 2026-06-12T18:02:51.291842+00:00 (Idade: 66 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-06-12T18:02:51.291842 -> 2026-06-12T18:02:51.291842+00:00 (Idade: 66 dias úteis)
+[14:19:44] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante: tipo=Despacho id=467537723 data_extraida=2026-06-12T18:02:51.291842 idade_dias=66
+[Prazo.p2b_gateway] [p2b_api] doc relevante: tipo=Despacho id=467537723 data_extraida=2026-06-12T18:02:51.291842 idade_dias=66
+[14:19:44] [Prazo.p2b_gateway] [INFO] [p2b_api] texto extraído: 2297 chars
+[Prazo.p2b_gateway] [p2b_api] texto extraído: 2297 chars
+[14:19:44] [pjeplus] [INFO] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.058s
+[pjeplus] [TEMPO] _processar_regras_gerais._processar_regras_gerais: 0.058s
+[14:19:44] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001123-54.2026.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001123-54.2026.5.02.0703] ✅ Processo marcado como executado
+[14:19:44] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:44] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001123-54.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001123-54.2026.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:44] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Abrindo processo id=3765487 numero=1001320-19.2020.5.02.0703
+[Prazo.p2b_gateway] [PRAZO_API] Abrindo processo id=3765487 numero=1001320-19.2020.5.02.0703
+[14:19:45] [Prazo.p2b_gateway] [INFO] [p2b_api] Data documento: 2026-09-12T18:04:54.274834 -> 2026-09-12T18:04:54.274834+00:00 (Idade: 5 dias úteis)
+[Prazo.p2b_gateway] [p2b_api] Data documento: 2026-09-12T18:04:54.274834 -> 2026-09-12T18:04:54.274834+00:00 (Idade: 5 dias úteis)
+[14:19:45] [Prazo.p2b_gateway] [INFO] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-12T18:04:54.274834), pulando (<= 5 dias úteis).
+[Prazo.p2b_gateway] [p2b_api] doc relevante (Despacho) tem data recente (2026-09-12T18:04:54.274834), pulando (<= 5 dias úteis).
+[14:19:45] [Prazo.p2b_gateway] [WARNING] [p2b_api] decisao_recente_menos_5_dias
+[Prazo.p2b_gateway] [p2b_api] decisao_recente_menos_5_dias
+[14:19:45] [Prazo.p2b_gateway] [INFO] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[Prazo.p2b_gateway] [FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.
+[14:19:45] [atos.core] [INFO] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[atos.core] [MOV_INT] tarefa já está em 'Aguardando prazo' (via API) — nada a fazer
+[14:19:45] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B][1001320-19.2020.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B][1001320-19.2020.5.02.0703] ✅ Processo marcado como executado
+[14:19:45] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_P2B]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_P2B]  Progresso salvo com segurança
+[14:19:45] [Prazo.p2b_gateway] [INFO] [PRAZO_API] Processo 1001320-19.2020.5.02.0703 processado com sucesso (fluxo_pz)
+[Prazo.p2b_gateway] [PRAZO_API] Processo 1001320-19.2020.5.02.0703 processado com sucesso (fluxo_pz)
+[14:19:45] [pjeplus] [WARNING] [P2B] 3 processo(s) NAO concluido(s) (serao retentados): [('1001743-03.2025.5.02.0703', 'fluxo_pz_nao_executou'), ('1001704-69.2026.5.02.0703', 'fluxo_pz_nao_executou'), ('1001801-69.2026.5.02.0703', 'fluxo_pz_nao_executou')]
+[pjeplus] [P2B] 3 processo(s) NAO concluido(s) (serao retentados): [('1001743-03.2025.5.02.0703', 'fluxo_pz_nao_executou'), ('1001704-69.2026.5.02.0703', 'fluxo_pz_nao_executou'), ('1001801-69.2026.5.02.0703', 'fluxo_pz_nao_executou')]
+[14:19:45] [pjeplus] [INFO] [P2B] FALHA (130.5s)
+[pjeplus] [P2B] FALHA (130.5s)
+[14:19:45] [pjeplus] [INFO] sucesso: False
+[pjeplus] sucesso: False
+[14:19:45] [pjeplus] [INFO] tempo: 130.50s
+[pjeplus] tempo: 130.50s
+
+──────────────────────────────────────────────────
+  FLUXO CONCLUÍDO — driver mantido aberto
+──────────────────────────────────────────────────
+  Próximo fluxo (ou X para fechar o browser):
+
+Fluxo:
+A - Bloco Completo
+B - Mandado
+C - Prazo + P2B
+D - P2B
+E - PEC
+F - Triagem
+G - Petição
+H - Domicílio Eletrônico
+I - Citação
+X - Cancelar
+> [15:31:39] [pjeplus] [INFO] ── fluxo: E ──
+[pjeplus] ── fluxo: E ──
+[15:31:39] [PEC.runtime_pec] [INFO] [PECAPIClient] Iniciando fetch_atividades_vencidas (API Gateway)...
+[PEC.runtime_pec] [PECAPIClient] Iniciando fetch_atividades_vencidas (API Gateway)...
+[15:31:39] [PEC.runtime_pec] [ERROR] [PECAPIClient] Erro ao preparar sessao autenticada: Message: Nenhuma janela aberta
+
+
+============================================================
+[PEC.runtime_pec] [PECAPIClient] Erro ao preparar sessao autenticada: Message: Nenhuma janela aberta
+
+============================================================
+[15:31:39] [PEC.runtime_pec] [ERROR] [PEC] Falha ao buscar atividades (API) — reportando falha para retry.
+
+============================================================
+[PEC.runtime_pec] [PEC] Falha ao buscar atividades (API) — reportando falha para retry.
+============================================================
+[15:31:39] [pjeplus] [INFO] [PEC] total=0 sucesso=-1 erro=1
+[pjeplus] [PEC] total=0 sucesso=-1 erro=1
+[15:31:39] [pjeplus] [INFO] [PEC] FALHA (0.1s)
+[pjeplus] [PEC] FALHA (0.1s)
+[15:31:39] [pjeplus] [WARNING] [LOGIN] Fluxo falhou em 0.07s (sessao de API morta?) — novo login completo (driver aberto) e reexecucao.
+[pjeplus] [LOGIN] Fluxo falhou em 0.07s (sessao de API morta?) — novo login completo (driver aberto) e reexecucao.
+[15:31:39] [pjeplus] [INFO] [LOGIN_PJE] Navegando para a pagina de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[pjeplus] [LOGIN_PJE] Navegando para a pagina de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[15:31:39] [pjeplus] [ERROR] ERRO em login_cpf: NoSuchWindowException: Message: Nenhuma janela aberta
+
+
+============================================================
+[pjeplus] ERRO em login_cpf: NoSuchWindowException: Message: Nenhuma janela aberta
+
+============================================================
+[15:31:39] [pjeplus] [WARNING] [LOGIN] Conclua o login manualmente na janela aberta — o fluxo continua assim que a sessao completar (access_token).
+[pjeplus] [LOGIN] Conclua o login manualmente na janela aberta — o fluxo continua assim que a sessao completar (access_token).
+[15:31:39] [pjeplus] [WARNING] [LOGIN] Login automatico falhou. Browser mantido ABERTO — conclua o login manualmente na janela do navegador.
+[pjeplus] [LOGIN] Login automatico falhou. Browser mantido ABERTO — conclua o login manualmente na janela do navegador.
+[15:31:39] [pjeplus] [ERROR] [LOGIN] Browser indisponivel durante espera do login manual.
+
+============================================================
+[pjeplus] [LOGIN] Browser indisponivel durante espera do login manual.
+============================================================
+[15:31:39] [pjeplus] [ERROR] [LOGIN] Login nao concluido — mantendo o primeiro resultado.
+
+============================================================
+[pjeplus] [LOGIN] Login nao concluido — mantendo o primeiro resultado.
+============================================================
+[15:31:39] [pjeplus] [INFO] sucesso: False
+[pjeplus] sucesso: False
+[15:31:39] [pjeplus] [INFO] tempo: 0.09s
+[pjeplus] tempo: 0.09s
+[15:31:39] [pjeplus] [WARNING] [X] _resetar_para_painel: Message: Nenhuma janela aberta
+
+[pjeplus] [X] _resetar_para_painel: Message: Nenhuma janela aberta
+
+
+──────────────────────────────────────────────────
+  FLUXO CONCLUÍDO — driver mantido aberto
+──────────────────────────────────────────────────
+  Próximo fluxo (ou X para fechar o browser):
+
+Fluxo:
+A - Bloco Completo
+B - Mandado
+C - Prazo + P2B
+D - P2B
+E - PEC
+F - Triagem
+G - Petição
+H - Domicílio Eletrônico
+I - Citação
+X - Cancelar
+> [15:31:42] [pjeplus] [WARNING] interrompido pelo usuario — finalizando de forma cooperativa
+[pjeplus] interrompido pelo usuario — finalizando de forma cooperativa
+[15:31:42] [pjeplay] [INFO] driver finalizado
+[pjeplay] driver finalizado

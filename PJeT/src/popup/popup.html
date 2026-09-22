@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PJeT — Módulos</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="header">
+    <span class="logo">⚖</span>
+    <div class="header-text">
+      <span class="title">PJeT</span>
+      <span class="subtitle">Gerenciar Módulos</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">PJe</div>
+
+    <label class="item">
+      <input type="checkbox" id="mod-lista-check" />
+      <div class="item-info">
+        <span class="item-name">Lista Check Execução</span>
+        <span class="item-desc">Relatório de medidas por processo</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+
+    <label class="item">
+      <input type="checkbox" id="mod-lista-edital" />
+      <div class="item-info">
+        <span class="item-name">Lista de Editais</span>
+        <span class="item-desc">Relatório de editais publicados</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+
+    <label class="item">
+      <input type="checkbox" id="mod-sisbajud" />
+      <div class="item-info">
+        <span class="item-name">SISBAJUD</span>
+        <span class="item-desc">Integração e extração de bloqueios</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+
+    <label class="item">
+      <input type="checkbox" id="mod-argos" />
+      <div class="item-info">
+        <span class="item-name">Argos</span>
+        <span class="item-desc">Assistente de mandados devolvidos</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+
+    <label class="item">
+      <input type="checkbox" id="mod-hcalc" />
+      <div class="item-info">
+        <span class="item-name">Homologação de Cálculos</span>
+        <span class="item-desc">Overlay de análise de cálculos PJe-Calc</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+
+    <label class="item">
+      <input type="checkbox" id="mod-debito" />
+      <div class="item-info">
+        <span class="item-name">Registrar Obrigação de Pagar</span>
+        <span class="item-desc">Lançamento de débitos processuais</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+
+    <label class="item">
+      <input type="checkbox" id="mod-alvara" />
+      <div class="item-info">
+        <span class="item-name">Alvará</span>
+        <span class="item-desc">Consulta e extração de alvarás</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+
+    <label class="item">
+      <input type="checkbox" id="mod-audiencia" />
+      <div class="item-info">
+        <span class="item-name">Audiência</span>
+        <span class="item-desc">Assistente de pauta de audiências</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Externos</div>
+
+    <label class="item">
+      <input type="checkbox" id="mod-infojud" />
+      <div class="item-info">
+        <span class="item-name">InfoJud</span>
+        <span class="item-desc">Preenchimento automático no e-CAC</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+
+    <label class="item">
+      <input type="checkbox" id="mod-simba" />
+      <div class="item-info">
+        <span class="item-name">SIMBA</span>
+        <span class="item-desc">Preenchimento no SIMBA e BCB</span>
+      </div>
+      <div class="toggle"></div>
+    </label>
+  </div>
+
+  <div class="footer">
+    <div class="status" id="status"></div>
+    <button id="btn-salvar">Salvar</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

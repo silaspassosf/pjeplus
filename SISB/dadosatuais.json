@@ -1,0 +1,71 @@
+{
+  "numero": [
+    "1000235-44.2015.5.02.0712"
+  ],
+  "id": 396450,
+  "autor": [
+    {
+      "nome": "GERALDO SILVINO MOURA",
+      "cpfcnpj": "94169624815",
+      "advogado": {
+        "nome": "LUIZ ROBERTO DA SILVA",
+        "cpf": "05117282809",
+        "oab": "SP299467"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "CENTRO DE FORMACAO DE CONDUTORES INTER NOVA CONQUISTA LTDA",
+      "cpfcnpj": "08009015000122",
+      "advogado": {
+        "nome": "ELTON JOHN APARECIDO FERREIRA",
+        "cpf": "28381801850",
+        "oab": "SP367167"
+      }
+    },
+    {
+      "nome": "JOAL CAVALCANTE DUARTE",
+      "cpfcnpj": "11676796878",
+      "advogado": {
+        "nome": "ELTON JOHN APARECIDO FERREIRA",
+        "cpf": "28381801850",
+        "oab": "SP367167"
+      }
+    },
+    {
+      "nome": "SOLANGE GONCALVES SILVA DUARTE",
+      "cpfcnpj": "20520421809",
+      "advogado": {
+        "nome": "ELTON JOHN APARECIDO FERREIRA",
+        "cpf": "28381801850",
+        "oab": "SP367167"
+      }
+    }
+  ],
+  "terceiro": [],
+  "divida": {
+    "valor": "R$ 16.126,73",
+    "data": "22/01/2026"
+  },
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "13/02/2015",
+  "classeJudicial": {
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
+    "podeIncluirAutoridade": false,
+    "pisoValorCausa": 64840.01,
+    "ativo": true,
+    "idClasseJudicialPai": 323,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Execução",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
+}

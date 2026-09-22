@@ -1,0 +1,573 @@
+:root{
+	--extensao-icone-branco:									url(/imagens/icones/extensao/branco.svg);
+	--extensao-icone-azul:										url(/imagens/icones/extensao/azul.svg);
+	--extensao-icone-advogado:								url(/imagens/icones/advogado.svg);
+	--extensao-icone-agenda:									url(/imagens/icones/agenda.svg);
+	--extensao-icone-ajuda:										url(/imagens/icones/ajuda.svg);
+	--extensao-icone-alfinete:								url(/imagens/icones/alfinete.svg);
+	--extensao-icone-apoio:										url(/imagens/icones/apoio.svg);
+	--extensao-icone-arroba:									url(/imagens/icones/arroba.svg);
+	--extensao-icone-audiencia:								url(/imagens/icones/audiencia.svg);
+	--extensao-icone-bb:											url(/imagens/icones/bb.svg);
+	--extensao-icone-bndt:										url(/imagens/icones/bndt.svg);
+	--extensao-icone-bug:											url(/imagens/icones/bug.svg);
+	--extensao-icone-cafe:										url(/imagens/icones/cafe.svg);
+	--extensao-icone-calculadora:							url(/imagens/icones/calculadora.svg);
+	--extensao-icone-cef:											url(/imagens/icones/cef.svg);
+	--extensao-icone-chope:										url(/imagens/icones/chope.svg);
+	--extensao-icone-clipe:										url(/imagens/icones/clipe.svg);
+	--extensao-icone-clonar:									url(/imagens/icones/clonar.svg);
+	--extensao-icone-comunicacoes:						url(/imagens/icones/comunicacoes.svg);
+	--extensao-icone-cndt:										url(/imagens/icones/cndt.svg);
+	--extensao-icone-configuracoes:						url(/imagens/icones/configuracoes.svg);
+	--extensao-icone-codigo:									url(/imagens/icones/codigo.svg);
+	--extensao-icone-copiar:									url(/imagens/icones/copiar.svg);
+	--extensao-icone-copiado:									url(/imagens/icones/copiado.svg);
+	--extensao-icone-coracao:									url(/imagens/icones/coracao.svg);
+	--extensao-icone-correios:								url(/imagens/icones/correios.svg);
+	--extensao-icone-dimensoes:								url(/imagens/icones/dimensoes.svg);
+	--extensao-icone-documento:								url(/imagens/icones/documento.svg);
+	--extensao-icone-egestao:									url(/imagens/icones/egestao.svg);
+	--extensao-icone-engrenagem:							url(/imagens/icones/engrenagem.svg);
+	--extensao-icone-envelope:								url(/imagens/icones/envelope.svg);
+	--extensao-icone-envelope-aberto:					url(/imagens/icones/envelope-aberto.svg);
+	--extensao-icone-estrada:									url(/imagens/icones/estrada.svg);
+	--extensao-icone-exe15:										url(/imagens/icones/exe15.svg);
+	--extensao-icone-extenso-numero:					url(/imagens/icones/extenso-numero.svg);
+	--extensao-icone-extenso-valor:						url(/imagens/icones/extenso-valor.svg);
+	--extensao-icone-gigs:										url(/imagens/icones/gigs.svg);
+	--extensao-icone-github:									url(/imagens/icones/github.svg);
+	--extensao-icone-google:									url(/imagens/icones/google.svg);
+	--extensao-icone-google-agenda:						url(/imagens/icones/google-agenda.svg);
+	--extensao-icone-google-drive:						url(/imagens/icones/google-drive.svg);
+	--extensao-icone-google-meet:							url(/imagens/icones/google-meet.svg);
+	--extensao-icone-google-tradutor:					url(/imagens/icones/google-tradutor.svg);
+	--extensao-icone-hamburguer:							url(/imagens/icones/hamburguer.svg);
+	--extensao-icone-headset:									url(/imagens/icones/headset.svg);
+	--extensao-icone-historico:								url(/imagens/icones/historico.svg);
+	--extensao-icone-i:												url(/imagens/icones/i.svg);
+	--extensao-icone-infoseg:									url(/imagens/icones/infoseg.svg);
+	--extensao-icone-infojud:									url(/imagens/icones/receita-federal.svg);
+	--extensao-icone-intranet:								url(/imagens/icones/intranet.svg);
+	--extensao-icone-lista:										url(/imagens/icones/lista.svg);
+	--extensao-icone-lupa:										url(/imagens/icones/lupa.svg);
+	--extensao-icone-lupa-interrogacao:				url(/imagens/icones/lupa-interrogacao.svg);
+	--extensao-icone-malote:									url(/imagens/icones/malote.svg);
+	--extensao-icone-maiusculas:							url(/imagens/icones/maiusculas.svg);
+	--extensao-icone-mao:											url(/imagens/icones/mao.svg);
+	--extensao-icone-martelo:									url(/imagens/icones/martelo.svg);
+	--extensao-icone-minusculas:							url(/imagens/icones/minusculas.svg);
+	--extensao-icone-movimentos:							url(/imagens/icones/movimentos.svg);
+	--extensao-icone-nota:										url(/imagens/icones/nota.svg);
+	--extensao-icone-operador-adicao:					url(/imagens/icones/operador-adicao.svg);
+	--extensao-icone-operador-divisao:				url(/imagens/icones/operador-divisao.svg);
+	--extensao-icone-operador-multiplicacao:	url(/imagens/icones/operador-multiplicacao.svg);
+	--extensao-icone-operador-subtracao:			url(/imagens/icones/operador-subtracao.svg);
+	--extensao-icone-pagar:										url(/imagens/icones/pagar.svg);
+	--extensao-icone-painel:									url(/imagens/icones/painel.svg);
+	--extensao-icone-pauta:										url(/imagens/icones/pauta.svg);
+	--extensao-icone-pdf:											url(/imagens/icones/pdf.svg);
+	--extensao-icone-penhora:									url(/imagens/icones/penhora.svg);
+	--extensao-icone-pericias:								url(/imagens/icones/pericias.svg);
+	--extensao-icone-pessoa:									url(/imagens/icones/pessoa.svg);
+	--extensao-icone-picareta:								url(/imagens/icones/picareta.svg);
+	--extensao-icone-pix:											url(/imagens/icones/pix.svg);
+	--extensao-icone-pizza:										url(/imagens/icones/pizza.svg);
+	--extensao-icone-pje:											url(/imagens/icones/pje.svg);
+	--extensao-icone-prancheta:								url(/imagens/icones/prancheta.svg);
+	--extensao-icone-prancheta-data:					url(/imagens/icones/prancheta-data.svg);
+	--extensao-icone-prancheta-hora:					url(/imagens/icones/prancheta-hora.svg);
+	--extensao-icone-prancheta-documento:			url(/imagens/icones/prancheta-documento.svg);
+	--extensao-icone-prancheta-id:						url(/imagens/icones/prancheta-id.svg);
+	--extensao-icone-prancheta-link:					url(/imagens/icones/prancheta-link.svg);
+	--extensao-icone-prancheta-numero:				url(/imagens/icones/prancheta-numero.svg);
+	--extensao-icone-prancheta-tabela:				url(/imagens/icones/prancheta-tabela.svg);
+	--extensao-icone-presente:								url(/imagens/icones/presente.svg);
+	--extensao-icone-processo:								url(/imagens/icones/processo.svg);
+	--extensao-icone-processo-retificar:			url(/imagens/icones/processo-retificar.svg);
+	--extensao-icone-recarregar:							url(/imagens/icones/recarregar.svg);
+	--extensao-icone-receber:									url(/imagens/icones/receber.svg);
+	--extensao-icone-recurso:									url(/imagens/icones/recurso.svg);
+	--extensao-icone-remover-chips:						url(/imagens/icones/remover-chips.svg);
+	--extensao-icone-renajud:									url(/imagens/icones/renajud.svg);
+	--extensao-icone-reprocessar:							url(/imagens/icones/reprocessar.svg);
+	--extensao-icone-script:									url(/imagens/icones/script.svg);
+	--extensao-icone-sif:											url(/imagens/icones/sif.svg);
+	--extensao-icone-sigeo:										url(/imagens/icones/sigeo.svg);
+	--extensao-icone-simples:									url(/imagens/icones/simples.svg);
+	--extensao-icone-sinesp:									url(/imagens/icones/sinesp.svg);
+	--extensao-icone-sisbajud:								url(/imagens/icones/sisbajud.svg);
+	--extensao-icone-t:												url(/imagens/icones/t.svg);
+	--extensao-icone-tabela:									url(/imagens/icones/tabela.svg);
+	--extensao-icone-telegram:								url(/imagens/icones/telegram.svg);
+	--extensao-icone-termos:									url(/imagens/icones/termos.svg);
+	--extensao-icone-trt:											url(/imagens/icones/trt.svg);
+	--extensao-icone-tst:											url(/imagens/icones/tst.svg);
+	--extensao-icone-transparencia:						url(/imagens/icones/transparencia.svg);
+	--extensao-icone-whatsapp:								url(/imagens/icones/whatsapp.svg);
+	--extensao-icone-wikivt:									url(/imagens/icones/wikivt.svg);
+	--extensao-icone-youtube:									url(/imagens/icones/youtube.svg);
+	--extensao-icone-zoom:										url(/imagens/icones/zoom.svg);
+}
+
+botao.anexar{
+	background:
+		var(--extensao-icone-clipe) no-repeat
+	;
+}
+
+botao.audiencia{
+	background:
+		var(--extensao-icone-audiencia) no-repeat
+	;
+}
+
+botao.avjt-azul{
+	background:
+		var(--extensao-icone-branco) no-repeat 5px 50% / 20px 20px,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-azul),1)
+	;
+}
+
+botao.avjt-vermelho{
+	background:
+		var(--extensao-icone-branco) no-repeat 5px 50% / 20px 20px,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-vermelho),1)
+	;
+}
+
+botao.avjt-preto{
+	background:
+		var(--extensao-icone-branco) no-repeat 5px 50% / 20px 20px,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-preto),0.9)
+	;
+}
+
+botao.bb{
+	background:
+		var(--extensao-icone-bb) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-amarelo),1)
+	;
+}
+
+botao.bndt{
+	background:
+		var(--extensao-icone-bndt) no-repeat
+	;
+	border-radius:0;
+}
+
+botao.calculos{
+	background:
+		var(--extensao-icone-calculadora) no-repeat
+	;
+}
+
+botao.cefJudiciais{
+	background:
+		var(--extensao-icone-cef) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-azul),1)
+	;
+}
+
+botao.cefJudiciais2{
+	background:
+		var(--extensao-icone-cef) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-azul),1)
+	;
+}
+
+botao.clonar{
+	background:
+		var(--extensao-icone-clonar) no-repeat
+	;
+}
+
+botao.comunicacoes{
+	background:
+		var(--extensao-icone-comunicacoes) no-repeat
+	;
+}
+
+botao.cndt{
+	background:
+		var(--extensao-icone-cndt) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-laranja),1)
+	;
+}
+
+
+botao.configuracoes{
+	background:
+		var(--extensao-icone-azul) no-repeat
+	;
+}
+
+botao.cefRecursais{
+	background:
+		var(--extensao-icone-cef) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-verde),1)
+	;
+}
+
+botao.chamado{
+	background:
+		var(--extensao-icone-bug) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-laranja),1)
+	;
+}
+
+botao.correios,
+botao.eCarta
+{
+	background:
+		var(--extensao-icone-correios) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-azul),1)
+	;
+}
+
+botao.exe15-diligencia{
+	background:
+		var(--extensao-icone-exe15) no-repeat center center / 80% 80%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-preto),1)
+	;
+}
+
+botao.exe15-cadastro{
+	background:
+		var(--extensao-icone-exe15) no-repeat center center / 80% 80%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-clarear),
+		rgba(var(--extensao-cor-preto),1)
+	;
+}
+
+botao.expedientes{
+	background:
+		var(--extensao-icone-envelope-aberto) no-repeat
+	;
+}
+
+botao.gigs{
+	background:
+		var(--extensao-icone-gigs) no-repeat center / 75% 75%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-vermelho),1)
+	;
+}
+
+botao.lembrete{
+	background:
+		var(--extensao-icone-alfinete) no-repeat
+	;
+}
+
+botao.historico{
+	background:
+		var(--extensao-icone-historico) no-repeat
+	;
+}
+
+botao.movimentos{
+	background:
+		var(--extensao-icone-movimentos) no-repeat
+	;
+}
+
+botao.pagar{
+	background:
+		var(--extensao-icone-pagar) no-repeat
+	;
+}
+
+botao.pauta{
+	background:
+		var(--extensao-icone-pauta) no-repeat
+	;
+}
+
+botao.pdf{
+	background:
+		var(--extensao-icone-pdf) no-repeat
+	;
+}
+
+botao.pericias{
+	background:
+		var(--extensao-icone-pericias) no-repeat
+	;
+}
+
+botao.pje1{
+	background:
+		var(--extensao-icone-pje) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-clarear),
+		var(--extensao-cor-clarear),
+		var(--extensao-cor-clarear),
+		var(--extensao-cor-clarear),
+		var(--extensao-cor-clarear),
+		var(--extensao-cor-clarear),
+		var(--extensao-cor-clarear),
+		rgba(var(--extensao-cor-amarelo),1)
+	;
+}
+
+botao.pje-instancia-1{
+	background:
+		var(--extensao-icone-pje) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+    var(--extensao-cor-escurecer),
+    var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-branco),1)
+	;
+}
+
+botao.pje-instancia-2{
+	background:
+		var(--extensao-icone-pje) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+    var(--extensao-cor-clarear),
+		rgba(var(--extensao-cor-preto),1)
+	;
+}
+
+botao.pje-documento{
+	background:
+		var(--extensao-icone-pje) no-repeat center / 50% 50%,
+		var(--extensao-icone-documento) no-repeat center / 100% 100%
+	;
+}
+
+botao.pjeCalc{
+	background:
+		var(--extensao-icone-pje) no-repeat center / 50% 50%,
+		var(--extensao-icone-operador-adicao) no-repeat 5px 5px / 10px 10px,
+		var(--extensao-icone-operador-subtracao) no-repeat 5px 35px / 10px 10px,
+		var(--extensao-icone-operador-multiplicacao) no-repeat 35px 5px / 10px 10px,
+		var(--extensao-icone-operador-divisao) no-repeat 35px 35px / 10px 10px,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-violeta),1)
+	;
+}
+
+botao.pjeCalc.novo{
+	background:
+		var(--extensao-icone-operador-adicao) no-repeat 8px 50% / 15px 15px,
+		var(--extensao-icone-operador-subtracao) no-repeat 28px 14px / 15px 15px,
+		var(--extensao-icone-operador-subtracao) no-repeat 28px 22px / 15px 15px,
+		rgba(var(--extensao-cor-violeta),1)
+	;
+}
+
+botao.processo-retificar{
+	background:
+		var(--extensao-icone-processo-retificar) no-repeat
+	;
+}
+
+botao.retificar-autuacao{
+	background:
+		var(--extensao-icone-processo-retificar) no-repeat center / 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-branco),1)
+	;
+}
+
+botao.receber{
+	background:
+		var(--extensao-icone-receber) no-repeat
+	;
+}
+
+botao.recurso{
+	background:
+		var(--extensao-icone-recurso) no-repeat
+	;
+}
+
+botao.receita{
+	background:
+		var(--extensao-icone-infojud) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-azul),1)
+	;
+}
+
+botao.remover-chips{
+	background:
+		var(--extensao-icone-remover-chips) no-repeat
+	;
+	border-radius:0;
+}
+
+botao.sif{
+	background:
+		var(--extensao-icone-sif) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-azul),1)
+	;
+}
+
+botao.reprocessar{
+	background:
+		var(--extensao-icone-reprocessar) no-repeat
+	;
+}
+
+
+botao.sigeo{
+	background:
+		var(--extensao-icone-sigeo) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-violeta),1)
+	;
+}
+
+botao.sisbajud{
+	background:
+		var(--extensao-icone-sisbajud) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-preto),1)
+	;
+}
+
+botao.siscondj{
+	background:
+		var(--extensao-icone-bb) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-laranja),1)
+	;
+}
+
+botao.siscondj-alvaras{
+	background:
+		var(--extensao-icone-bb) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-clarear),
+		var(--extensao-cor-clarear),
+    var(--extensao-cor-clarear),
+		rgba(var(--extensao-cor-laranja),1)
+	;
+}
+
+botao.tst{
+	background:
+		var(--extensao-icone-tst) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-branco),1)
+	;
+}
+
+botao.transparencia{
+  background:
+    var(--extensao-icone-transparencia) no-repeat center / 70% 70%,
+    var(--extensao-gradiente-branco-preto),
+    var(--extensao-cor-escurecer),
+    var(--extensao-cor-escurecer),
+    var(--extensao-cor-escurecer),
+    rgba(var(--extensao-cor-verde),1)
+  ;
+}
+
+botao.trt{
+	background:
+		var(--extensao-icone-trt) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-branco),1)
+	;
+}
+
+botao.webmail{
+	background:
+		var(--extensao-icone-arroba) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-vermelho),1)
+	;
+}
+
+botao.webmail-audiencia{
+	background:
+		var(--extensao-icone-arroba) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-verde),1)
+	;
+}
+
+botao.webmail-citacao{
+	background:
+		var(--extensao-icone-arroba) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-amarelo),1)
+	;
+}
+
+botao.webmail-citacao-especial{
+	background:
+		var(--extensao-icone-arroba) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-preto),1)
+	;
+}
+
+botao.webmail-inicial{
+	background:
+		var(--extensao-icone-arroba) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		rgba(var(--extensao-cor-laranja),1)
+	;
+}
+
+botao.webmail-sentenca{
+	background:
+		var(--extensao-icone-arroba) no-repeat center / 70% 70%,
+		var(--extensao-gradiente-branco-preto),
+		var(--extensao-cor-escurecer),
+    var(--extensao-cor-escurecer),
+		rgba(var(--extensao-cor-azul),1)
+	;
+}
+
+
+botao.whatsapp{
+  background:
+    var(--extensao-icone-whatsapp) no-repeat center / 70% 70%,
+    var(--extensao-gradiente-branco-preto),
+    var(--extensao-cor-escurecer),
+    rgba(var(--extensao-cor-verde),1)
+  ;
+}

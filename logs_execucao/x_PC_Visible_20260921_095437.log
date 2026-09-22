@@ -1,0 +1,600 @@
+[09:54:41] [pjeplus] [INFO] ORQUESTRADOR UNIFICADO PJEPlus
+[pjeplus] ORQUESTRADOR UNIFICADO PJEPlus
+[09:54:41] [pjeplus] [INFO] data/hora: 21/09/2026 09:54:41
+[pjeplus] data/hora: 21/09/2026 09:54:41
+[09:54:41] [pjeplus] [INFO] ambiente: pc_visible
+[pjeplus] ambiente: pc_visible
+[09:54:41] [pjeplus] [INFO] log: logs_execucao\x_PC_Visible_20260921_095437.log
+[pjeplus] log: logs_execucao\x_PC_Visible_20260921_095437.log
+[09:54:44] [pjeplay] [INFO] driver criado: PC (playwright)
+[pjeplay] driver criado: PC (playwright)
+[09:54:44] [pjeplus] [INFO] [COOKIES] Tentando login automatico via cookies salvos...
+[pjeplus] [COOKIES] Tentando login automatico via cookies salvos...
+[09:54:45] [pjeplus] [WARNING] [COOKIES] URL de acesso negado detectada. Apagando cookies carregados.
+[pjeplus] [COOKIES] URL de acesso negado detectada. Apagando cookies carregados.
+[09:54:45] [pjeplus] [WARNING] [COOKIES] Cookies invalidos ou inexistentes. Login manual necessario.
+[pjeplus] [COOKIES] Cookies invalidos ou inexistentes. Login manual necessario.
+[09:54:45] [pjeplus] [INFO] [LOGIN_MANUAL] Navegando para tela de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[pjeplus] [LOGIN_MANUAL] Navegando para tela de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[09:54:45] [pjeplus] [INFO] [LOGIN_MANUAL] Aguarde o login manual ate: https://pje.trt2.jus.br/pjekz/gigs/meu-painel
+[pjeplus] [LOGIN_MANUAL] Aguarde o login manual ate: https://pje.trt2.jus.br/pjekz/gigs/meu-painel
+[09:55:04] [pjeplus] [INFO] [LOGIN] Sessao OAuth completa confirmada (0s).
+[pjeplus] [LOGIN] Sessao OAuth completa confirmada (0s).
+[09:55:04] [pjeplus] [INFO] ── fluxo: E ──
+[pjeplus] ── fluxo: E ──
+[09:55:04] [PEC.runtime_pec] [INFO] [PECAPIClient] Iniciando fetch_atividades_vencidas (API Gateway)...
+[PEC.runtime_pec] [PECAPIClient] Iniciando fetch_atividades_vencidas (API Gateway)...
+[09:55:05] [PEC.runtime_pec] [INFO] [PECAPIClient] OK 200/200 atividades carregadas
+[PEC.runtime_pec] [PECAPIClient] OK 200/200 atividades carregadas
+[09:55:05] [PEC.runtime_pec] [INFO] [PECAPIClient] Total de atividades parseadas: 200
+[PEC.runtime_pec] [PECAPIClient] Total de atividades parseadas: 200
+[09:55:05] [PEC.runtime_pec] [INFO] [PEC] Filtro D-1 OFF — processando todas: 200
+[PEC.runtime_pec] [PEC] Filtro D-1 OFF — processando todas: 200
+[09:55:05] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC] ✅ Progresso carregado: 0 executados, 75 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC] ✅ Progresso carregado: 0 executados, 75 com erro
+Iniciando movimento de sobrestamento para processo 1001053-76.2022.5.02.0703
+Observação: xs 24
+ Prazo extraído: 24 meses (formato: xs)
+1. Abrindo tarefa do processo (sempre primeiro)...
+ Tarefa identificada: 'Aguardando final do sobrestamento'
+[MOV_SOB] Botão "Abrir tarefa do processo" clicado
+ Foco trocado para nova aba da tarefa: https://pje.trt2.jus.br/pjekz/processo/4745018/tarefa/333/sobrestamento/aguardandofinal
+2. Localizando botão de calendário na aba da tarefa...
+ Botão de calendário encontrado
+ Clique direto no botão calendário executado
+Aguardando modal 'Prazo do sobrestamento' aparecer...
+ Modal "Prazo do sobrestamento" encontrado
+ Prazo 24 meses preenchido no campo
+ Botão "Prosseguir" clicado
+ Snackbar de sucesso detectado - sobrestamento processado!
+ Movimento de sobrestamento finalizado com sucesso!
+[09:55:19] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001053-76.2022.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001053-76.2022.5.02.0703] ✅ Processo marcado como executado
+[09:55:19] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+Iniciando movimento de sobrestamento para processo 1001292-46.2023.5.02.0703
+Observação: xs sob 6
+ Prazo extraído: 6 meses (formato: sob)
+1. Abrindo tarefa do processo (sempre primeiro)...
+ Tarefa identificada: 'Aguardando final do sobrestamento'
+[MOV_SOB] Botão "Abrir tarefa do processo" clicado
+ Foco trocado para nova aba da tarefa: https://pje.trt2.jus.br/pjekz/processo/5532241/tarefa/333/sobrestamento/aguardandofinal
+2. Localizando botão de calendário na aba da tarefa...
+ Botão de calendário encontrado
+ Clique direto no botão calendário executado
+Aguardando modal 'Prazo do sobrestamento' aparecer...
+ Modal "Prazo do sobrestamento" encontrado
+ Prazo 6 meses preenchido no campo
+ Botão "Prosseguir" clicado
+ Snackbar de sucesso detectado - sobrestamento processado!
+ Movimento de sobrestamento finalizado com sucesso!
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001292-46.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001292-46.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001134-30.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001134-30.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000755-55.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000755-55.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001654-82.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001654-82.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001530-36.2021.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001530-36.2021.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000012-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000012-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000268-12.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000268-12.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001330-87.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001330-87.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000151-84.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000151-84.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000815-52.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000815-52.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001480-39.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001480-39.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1002109-42.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1002109-42.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000166-53.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000166-53.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001949-17.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001949-17.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001214-57.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001214-57.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001088-94.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001088-94.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000634-27.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000634-27.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001262-40.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001262-40.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001539-56.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001539-56.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000604-16.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000604-16.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000604-16.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000604-16.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001901-58.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001901-58.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001168-92.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001168-92.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000787-84.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000787-84.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1002146-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1002146-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001912-87.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001912-87.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1002087-58.2017.5.02.0090] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1002087-58.2017.5.02.0090] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1002298-20.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1002298-20.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000265-04.2018.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000265-04.2018.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001076-22.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001076-22.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000217-64.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000217-64.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:28] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000731-03.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000731-03.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000201-13.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000201-13.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001188-24.2023.5.02.0713] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001188-24.2023.5.02.0713] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000940-20.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000940-20.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000422-93.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000422-93.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001214-47.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001214-47.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001146-97.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001146-97.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000903-66.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000903-66.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000598-48.2021.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000598-48.2021.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001765-32.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001765-32.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000801-78.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000801-78.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000784-37.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000784-37.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001314-70.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001314-70.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001489-98.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001489-98.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000208-73.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000208-73.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000004-68.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000004-68.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001812-69.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001812-69.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001265-29.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001265-29.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000187-34.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000187-34.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001052-23.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001052-23.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000750-62.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000750-62.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001762-09.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001762-09.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000318-38.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000318-38.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001680-21.2024.5.02.0603] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001680-21.2024.5.02.0603] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001064-47.2018.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001064-47.2018.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000982-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000982-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000202-71.2021.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000202-71.2021.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001343-23.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001343-23.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001852-17.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001852-17.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001723-12.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001723-12.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000150-12.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000150-12.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001691-17.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001691-17.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000468-19.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000468-19.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001610-58.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001610-58.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001277-19.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001277-19.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000577-48.2016.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000577-48.2016.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000257-90.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000257-90.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000951-49.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000951-49.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000148-71.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000148-71.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001374-19.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001374-19.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000292-06.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000292-06.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001292-27.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001292-27.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000720-27.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000720-27.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001060-39.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001060-39.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001473-47.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001473-47.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000808-60.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000808-60.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001868-05.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001868-05.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001644-38.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001644-38.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001985-11.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001985-11.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000354-80.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000354-80.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001368-02.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001368-02.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000403-97.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000403-97.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[09:55:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[09:55:29] [PEC.runtime_pec] [INFO] [RESUMO] Total: 200 | Sucesso: 1 | Erro: 83
+[PEC.runtime_pec] [RESUMO] Total: 200 | Sucesso: 1 | Erro: 83
+[09:55:29] [pjeplus] [INFO] [PEC] total=200 sucesso=117 erro=83
+[pjeplus] [PEC] total=200 sucesso=117 erro=83
+[09:55:29] [pjeplus] [INFO] [PEC] FALHA (24.5s)
+[pjeplus] [PEC] FALHA (24.5s)
+[09:55:29] [pjeplus] [INFO] sucesso: False
+[pjeplus] sucesso: False
+[09:55:29] [pjeplus] [INFO] tempo: 24.46s
+[pjeplus] tempo: 24.46s
+[09:55:29] [pjeplus] [WARNING] [X] _resetar_para_painel: Message: Nenhuma janela aberta
+
+[pjeplus] [X] _resetar_para_painel: Message: Nenhuma janela aberta
+
+
+──────────────────────────────────────────────────
+  FLUXO CONCLUÍDO — driver mantido aberto
+──────────────────────────────────────────────────
+  Próximo fluxo (ou X para fechar o browser):
+
+Fluxo:
+A - Bloco Completo
+B - Mandado
+C - Prazo + P2B
+D - P2B
+E - PEC
+F - Triagem
+G - Petição
+H - Domicílio Eletrônico
+I - Citação
+X - Cancelar
+> 

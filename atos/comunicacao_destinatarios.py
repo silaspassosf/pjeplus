@@ -1,0 +1,719 @@
+from Fix.core import safe_click_no_scroll, esperar_elemento, wait_for_clickable
+from Fix.core import aguardar_renderizacao_nativa
+from Fix.browser_suporte import click_headless_safe
+from Fix.utils import normalizar_texto as normalizar_string
+import re
+import json
+from selenium.webdriver.common.by import By
+from Fix.log import log_seletor_multiplo, logger
+from Fix import espera
+
+
+def _normalizar_nome_para_match(nome):
+    nome_norm = normalizar_string(nome)
+    return re.sub(r'\s+', ' ', nome_norm).strip()
+
+
+def _partial_name_match(nome_norm, texto_norm, min_tokens=2):
+    try:
+        tokens = [t for t in re.findall(r'[a-z0-9]+', nome_norm) if len(t) >= 3]
+        if len(tokens) < min_tokens:
+            return False
+        found = sum(1 for t in tokens if t in texto_norm)
+        return found >= min_tokens
+    except Exception:
+        return False
+
+
+def _carregar_dadosatuais_local(caminho='dadosatuais.json'):
+    try:
+        with open(caminho, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _extrair_nomes_por_separador(observacao):
+    """Extrai lista de nomes após o delimitador '>' na observação do GIGS.
+
+    Formato esperado: '<prefixo> >nome1, nome2, ...'
+    Ex.: 'xs mddid >murillo, silas' → ['murillo', 'silas']
+
+    Retorna lista vazia se não houver '>' ou nenhum token válido após ele.
+    """
+    if not observacao or '>' not in observacao:
+        return []
+    _, _, parte_nomes = observacao.partition('>')
+    nomes = [n.strip() for n in parte_nomes.split(',') if n.strip()]
+    return [n for n in nomes if len(n) >= 2]
+
+
+def _resolver_candidatos_via_api(driver, nomes_alvo, numero_processo=None, debug=False, log=None):
+    """Confirma destinatários fazendo GET /pje-comum-api/api/processos/id/{id}/partes.
+
+    Recebe nomes_alvo (lista de strings, ex: ['murillo', 'silas']) e retorna
+    apenas as partes cujos nomes dão match com ao menos um token de nomes_alvo.
+    Não usa DOM nem JSON local — apenas a API.
+
+    Retorna lista de dicts no formato esperado por selecionar_destinatario_por_documento.
+    """
+    if log is None:
+        def log(_msg): return None
+
+    if not nomes_alvo:
+        return []
+
+    tokens_alvo = [
+        _normalizar_nome_para_match(n)
+        for n in nomes_alvo
+        if n and len(n.strip()) >= 2
+    ]
+    if not tokens_alvo:
+        return []
+
+    try:
+        from Fix.variaveis import PjeApiClient, session_from_driver
+        sess = session_from_driver(driver)
+        client = PjeApiClient(sess)
+
+        # Resolver ID do processo a partir do número CNJ se necessário
+        id_processo = None
+        if numero_processo:
+            try:
+                id_processo = client.id_processo_por_numero(str(numero_processo))
+            except Exception as e:
+                log(f'[DESTINATARIOS][WARN] Falha ao resolver id_processo via API: {e}')
+
+        if not id_processo:
+            log('[DESTINATARIOS][WARN] id_processo não disponível — match via API ignorado')
+            return []
+
+        partes_raw = client.partes(str(id_processo))
+        if not partes_raw:
+            log('[DESTINATARIOS][WARN] API /partes retornou vazio')
+            return []
+
+        if debug:
+            log(f'[DESTINATARIOS][DEBUG] API retornou {len(partes_raw)} parte(s); tokens alvo: {tokens_alvo}')
+
+        candidatos = []
+        vistos = set()
+        for parte in partes_raw:
+            nome = (parte.get('nome') or parte.get('nomeParte') or '').strip()
+            doc = (
+                parte.get('cpfCnpj') or parte.get('cpfcnpj')
+                or parte.get('documento') or ''
+            ).strip()
+            polo = (parte.get('polo') or parte.get('tipoPolo') or '').lower()
+
+            if not nome:
+                continue
+
+            nome_norm = _normalizar_nome_para_match(nome)
+            tokens_nome = set(re.findall(r'[a-z0-9]+', nome_norm))
+
+            # Match: ao menos um token do nome_alvo presente nos tokens do nome da parte
+            matched_alvo = None
+            for token_alvo in tokens_alvo:
+                tokens_do_alvo = set(re.findall(r'[a-z0-9]+', token_alvo))
+                if tokens_do_alvo & tokens_nome:  # interseção não vazia
+                    matched_alvo = token_alvo
+                    break
+
+            if matched_alvo is None:
+                if debug:
+                    log(f'[DESTINATARIOS][DEBUG] Sem match: parte="{nome}" tokens={list(tokens_nome)}')
+                continue
+
+            chave = (nome_norm, re.sub(r'\D', '', doc))
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+
+            log(f'[DESTINATARIOS] Match confirmado via API: "{nome}" (polo={polo or "?"})')
+            candidatos.append({
+                'nome_oficial': nome,
+                'nome_identificado': matched_alvo,
+                'documento': doc,
+                'documento_normalizado': re.sub(r'\D', '', doc),
+                'polo': polo,
+            })
+
+        if not candidatos:
+            log(f'[DESTINATARIOS][WARN] Nomes {nomes_alvo} não encontrados nas partes via API — não é destinatário')
+
+        return candidatos
+
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Falha em _resolver_candidatos_via_api: {e}')
+        return []
+
+
+def _montar_destinatarios_por_observacao(observacao, dados_processo, debug=False):
+    if not observacao or not isinstance(dados_processo, dict):
+        return []
+
+    texto_obs = _normalizar_nome_para_match(observacao)
+    if not texto_obs:
+        return []
+
+    texto_limpo = re.sub(r'^\s*prazo\s*:\s*', '', texto_obs, flags=re.I).strip()
+    texto_limpo = re.sub(r'^\s*xs\s+pec\b', '', texto_limpo, flags=re.I).strip()
+
+    stopwords = {
+        'xs', 'pec', 'prazo', 'para', 'sobre', 'com', 'sem', 'de', 'da', 'do',
+        'dos', 'das', 'e', 'ou', 'manifestacao', 'manifestação', 'idpj'
+    }
+    tokens_alvo = [
+        t for t in re.findall(r'[a-z0-9]+', texto_limpo)
+        if len(t) >= 3 and t not in stopwords
+    ]
+
+    if debug:
+        try:
+            logger.info(f"[DESTINATARIOS][DEBUG] Tokens alvo extraídos da observação: {tokens_alvo}")
+        except Exception:
+            pass
+
+    if not tokens_alvo:
+        return []
+
+    destinatarios = []
+    vistos = set()
+    for parte in dados_processo.get('reu', []) or []:
+        nome = (parte.get('nome') or '').strip()
+        doc = (parte.get('cpfcnpj') or parte.get('cpfCnpj') or '').strip()
+        if not nome:
+            continue
+
+        nome_norm = _normalizar_nome_para_match(nome)
+        if not nome_norm:
+            continue
+
+        tokens_nome = set(re.findall(r'[a-z0-9]+', nome_norm))
+        match_found = any(token in tokens_nome for token in tokens_alvo)
+        if debug:
+            try:
+                logger.info(f"[DESTINATARIOS][DEBUG] Comparando parte='{nome}' tokens_nome={list(tokens_nome)} match={match_found}")
+            except Exception:
+                pass
+
+        if match_found:
+            chave = (nome_norm, re.sub(r'\D', '', doc or ''))
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            destinatarios.append({
+                'nome_oficial': nome,
+                'nome_identificado': nome,
+                'documento': doc,
+                'documento_normalizado': re.sub(r'\D', '', doc or ''),
+                'polo': 'reu'
+            })
+    return destinatarios
+
+
+def _clicar_polo_passivo(driver, log):
+    try:
+        header = esperar_elemento(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', timeout=10, by=By.XPATH)
+        if not header:
+            log('[DESTINATARIOS][ERRO] Header Polo Passivo não encontrado')
+            return
+
+        aria_expanded = (header.get_attribute('aria-expanded') or '').strip().lower()
+        if aria_expanded == 'true':
+            return
+
+        click_headless_safe(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', by=By.XPATH)
+
+        # aguardar conteúdo do painel (preferir observer nativo)
+        try:
+            aguardar_renderizacao_nativa(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', modo='aparecer', timeout=5)
+        except Exception:
+            esperar_elemento(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', timeout=5, by=By.CSS_SELECTOR)
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Falha ao expandir Polo Passivo: {e}')
+
+
+def _clicar_e_aguardar_spinner(driver, btn, timeout_s=15):
+    """Clica e aguarda loading do servidor (equivalente a clicarBotao(monitorar=true) do gigs-plugin).
+    
+    Fluxo puro (SEM sleeps fixos):
+    1. Execute script click
+    2. Aguarde spinner/dialog/modal sumir (observer nativo)
+    3. Retorna quando DOM estiver pronto
+    """
+    import time
+    safe_click_no_scroll(driver, btn)
+    
+    # Aguardar APENAS até spinner sumir — nenhum sleep fixo
+    seletores_loading = (
+        'mat-dialog-container, mat-progress-spinner, mat-progress-bar, '
+        '.loading-spinner, .cdk-overlay-backdrop, .modal-backdrop'
+    )
+    aguardar_renderizacao_nativa(
+        driver,
+        seletores_loading,
+        modo='sumir',
+        timeout=timeout_s
+    )
+
+
+def _clicar_botao_polo_passivo(driver, log, qtd_cliques=1):
+    try:
+        for _ in range(qtd_cliques):
+            btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=10, by=By.CSS_SELECTOR)
+            if not btn_polo_passivo:
+                log('[DESTINATARIOS][ERRO] Botão polo passivo não clicável')
+                return
+            _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Falha ao clicar no botão polo passivo (fallback): {e}')
+
+
+
+# Seletores do botão "acrescentar parte" — ordenados por especificidade (Probe: button.icone-clicavel)
+# O Probe confirmou: class="...icone-clicavel mat-icon-button mat-button-base..."
+# button[mat-icon-button] fica por último: pega edit/delete também se mal-escoped
+_SELETORES_BTN_ACRESCENTAR = [
+    'button.icone-clicavel[mattooltip*="acrescentar"]',          # mais específico: classe + tooltip
+    'button.icone-clicavel[aria-label*="acrescentar"]',          # classe + aria-label
+    'button[mattooltip*="acrescentar"]',                          # só tooltip
+    'button[aria-label*="acrescentar"]',                          # só aria-label
+    'button[aria-label="Clique para acrescentar esta parte à lista de destinatários de expedientes e comunicações."]',
+    'button.icone-clicavel',                                      # fallback por classe
+]
+
+
+def _clicar_btn_acrescentar(driver, linha, qtd_cliques, debug=False):
+    """Localiza e clica no botão 'acrescentar' dentro de uma linha/row do painel de partes.
+
+    Retorna True se clicou, False se não encontrou o botão.
+    """
+    btn_seta = None
+    for seletor in _SELETORES_BTN_ACRESCENTAR:
+        log_seletor_multiplo('[DESTINATARIOS]', seletor, 'TENTATIVA')
+        try:
+            btn_seta = linha.find_element(By.CSS_SELECTOR, seletor)
+            log_seletor_multiplo('[DESTINATARIOS]', seletor, 'SUCESSO')
+            break
+        except Exception as e:
+            log_seletor_multiplo('[DESTINATARIOS]', seletor, 'FALHA', str(e))
+            continue
+
+    if not btn_seta:
+        return False
+
+    try:
+        clickable = driver.execute_script(
+            "return (arguments[0].closest && arguments[0].closest('button')) || arguments[0];",
+            btn_seta
+        )
+        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
+        for _ in range(qtd_cliques):
+            safe_click_no_scroll(driver, clickable, log=False)
+    except Exception:
+        try:
+            for _ in range(qtd_cliques):
+                btn_seta.click()
+        except Exception:
+            return False
+    return True
+
+
+def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False, timeout=10, qtd_cliques=1):
+    qtd_cliques = 2 if str(qtd_cliques).strip().lower() in ('2', '2x') else 1
+    try:
+        documento_alvo = None
+        nome_alvo = None
+        doc_normalizado = None
+        if isinstance(destinatario_info, dict):
+            documento_alvo = destinatario_info.get('documento') or destinatario_info.get('cpfcnpj') or destinatario_info.get('cpfCnpj')
+            doc_normalizado = destinatario_info.get('documento_normalizado') or re.sub(r'\D', '', str(documento_alvo or ''))
+            nome_alvo = (
+                destinatario_info.get('nome_oficial')
+                or destinatario_info.get('nome_identificado')
+                or destinatario_info.get('nome')
+            )
+
+        doc_digits = re.sub(r'\D', '', doc_normalizado or documento_alvo or '')
+
+        try:
+            try:
+                ok = aguardar_renderizacao_nativa(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', modo='aparecer', timeout=timeout)
+            except Exception:
+                ok = False
+            linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
+            if not linhas:
+                esperar_elemento(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', timeout=timeout, by=By.CSS_SELECTOR)
+                linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
+        except Exception:
+            linhas = driver.find_elements(By.CSS_SELECTOR, 'mat-row, .pec-partes-polo li, ul.sem-padding li')
+
+        # --- tentativa por documento ---
+        if doc_digits:
+            candidatos = []
+            for linha in linhas:
+                try:
+                    texto_linha = linha.text or ''
+                    if doc_digits in re.sub(r'\D', '', texto_linha):
+                        candidatos.append((linha, texto_linha))
+                except Exception:
+                    continue
+
+            if candidatos:
+                nome_alvo_norm = normalizar_string(nome_alvo) if nome_alvo else ''
+                best = None
+                best_score = -1
+                for linha, texto_linha in candidatos:
+                    try:
+                        score = 20
+                        try:
+                            nome_span = linha.find_element(By.CSS_SELECTOR, '.nome-parte, .nome-tipo-parte, .pec-formatacao-padrao-dados-parte.nome-parte')
+                            nome_linha = normalizar_string(nome_span.text or '')
+                            if nome_alvo_norm and nome_linha == nome_alvo_norm:
+                                score += 40
+                            elif nome_alvo_norm and nome_alvo_norm in nome_linha:
+                                score += 15
+                        except Exception:
+                            if nome_alvo_norm and nome_alvo_norm in normalizar_string(texto_linha):
+                                score += 10
+
+                        if 'advogado' in texto_linha.lower() and nome_alvo_norm and len(nome_alvo_norm.split()) >= 2:
+                            score -= 2
+
+                        if score > best_score:
+                            best_score = score
+                            best = linha
+                    except Exception:
+                        continue
+
+                if best is not None:
+                    if _clicar_btn_acrescentar(driver, best, qtd_cliques, debug=debug):
+                        if debug:
+                            logger.info(f"[DESTINATARIOS] Parte selecionada via documento: {documento_alvo}")
+                        return {'status': 'ok', 'count': 1}
+
+        # --- tentativa por nome ---
+        if nome_alvo:
+            nome_alvo_norm = normalizar_string(nome_alvo)
+            for linha in linhas:
+                try:
+                    texto_norm = normalizar_string(linha.text or '')
+                    if nome_alvo_norm and (nome_alvo_norm in texto_norm or _partial_name_match(nome_alvo_norm, texto_norm)):
+                        if _clicar_btn_acrescentar(driver, linha, qtd_cliques, debug=debug):
+                            if debug:
+                                logger.info(f"[DESTINATARIOS] Parte selecionada via nome: {nome_alvo}")
+                            return {'status': 'ok', 'count': 1}
+                except Exception:
+                    continue
+
+        if debug:
+            logger.info(f"[DESTINATARIOS][WARN] Não foi possível incluir parte: {nome_alvo or documento_alvo}")
+        return {'status': 'empty', 'count': 0}
+    except Exception as e:
+        if debug:
+            logger.info(f"[DESTINATARIOS][ERRO] {e}")
+        return {'status': 'error', 'count': 0, 'details': str(e)}
+
+
+def _selecionar_por_lista(driver, lista_destinatarios, origem_log, log, fallback_polo_passivo=False, qtd_seta_override=None, debug=False, qtd_cliques_fallback=1):
+    selecionados = 0
+
+    qtd_cliques = qtd_seta_override if qtd_seta_override is not None else 1
+
+    if not lista_destinatarios:
+        log(f'[DESTINATARIOS][WARN] Lista de destinatários vazia ({origem_log})')
+        if fallback_polo_passivo:
+            log(f'[DESTINATARIOS] Acionando fallback polo passivo ({qtd_cliques_fallback}x)')
+            _clicar_botao_polo_passivo(driver, log, qtd_cliques_fallback)
+            log(f'[DESTINATARIOS] Fallback polo passivo aplicado ({qtd_cliques_fallback}x)')
+            return {'status': 'fallback', 'count': 0}
+        return {'status': 'empty', 'count': 0}
+
+    # APENAS abrir painel se houver items para selecionar
+    try:
+        _clicar_polo_passivo(driver, log)
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Falha ao expandir Polo Passivo: {e}')
+
+    for dest in lista_destinatarios:
+        info_padrao = dest
+        if isinstance(dest, dict):
+            nome = dest.get('nome') or dest.get('nome_oficial') or dest.get('nome_identificado')
+            doc = dest.get('cpfcnpj') or dest.get('cpfCnpj') or dest.get('documento')
+            info_padrao = {
+                'nome_alvo': nome,
+                'nome_oficial': nome,
+                'documento': doc,
+                'documento_normalizado': re.sub(r'\D', '', str(doc)) if doc else ''
+            }
+
+        try:
+            res = selecionar_destinatario_por_documento(driver, info_padrao, debug=debug, qtd_cliques=qtd_cliques)
+            if isinstance(res, dict) and res.get('status') == 'ok':
+                selecionados += int(res.get('count', 1) or 1)
+            elif res is True:
+                selecionados += 1
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Exceção ao tentar selecionar {info_padrao.get("nome_alvo")} : {e}')
+
+    if selecionados == 0:
+        log(f'[DESTINATARIOS][WARN] Nenhum destinatário selecionado ({origem_log})')
+        if fallback_polo_passivo:
+            _clicar_botao_polo_passivo(driver, log, qtd_cliques_fallback)
+            log(f'[DESTINATARIOS] Fallback polo passivo aplicado ({qtd_cliques_fallback}x) (botão geral)')
+            return {'status': 'fallback', 'count': 0}
+        return {'status': 'empty', 'count': 0}
+    else:
+        log(f'[DESTINATARIOS] {selecionados} destinatário(s) selecionado(s) via {origem_log}')
+        return {'status': 'ok', 'count': selecionados}
+
+
+def _incluir_tribunal_por_cep(driver, log, debug=False):
+    try:
+        campo_cep = wait_for_clickable(driver, 'input#inputCep', timeout=10, by=By.CSS_SELECTOR)
+        if not campo_cep:
+            raise RuntimeError('Campo CEP não encontrado')
+        campo_cep.clear()
+        for char in '01302906':
+            campo_cep.send_keys(char)
+            espera.assentar(driver, 0.1)
+        espera.assentar(driver, 1)
+
+        opcao_tribunal = wait_for_clickable(
+            driver,
+            "//span[@class='mat-option-text' and contains(text(), '01302-906')]",
+            timeout=10,
+            by=By.XPATH
+        )
+        if not opcao_tribunal:
+            raise RuntimeError('Opção tribunal não encontrada')
+        safe_click_no_scroll(driver, opcao_tribunal, log=False)
+
+        btn_salvar_alteracoes = wait_for_clickable(driver, 'button[aria-label="Salva as alterações"]', timeout=10, by=By.CSS_SELECTOR)
+        if btn_salvar_alteracoes:
+            safe_click_no_scroll(driver, btn_salvar_alteracoes, log=False)
+
+        btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10, by=By.CSS_SELECTOR)
+        if btn_fechar:
+            safe_click_no_scroll(driver, btn_fechar, log=False)
+        espera.assentar(driver, 0.5)
+        return True
+    except Exception as e:
+        if debug:
+            log(f'[DESTINATARIOS][WARN] Falha ao incluir tribunal via CEP: {e}')
+        return False
+
+
+def _selecionar_endereco_tribunal(driver, log, debug=False):
+    try:
+        if not esperar_elemento(driver, '.pec-consulta-enderecos', timeout=5, by=By.CSS_SELECTOR):
+            if debug:
+                log('[DESTINATARIOS] Endereço do tribunal não solicitado após seleção do destinatário')
+            return False
+    except Exception as e:
+        if debug:
+            log(f'[DESTINATARIOS][WARN] Falha ao detectar painel de endereços: {e}')
+        return False
+
+    try:
+        if esperar_elemento(driver, "//*[contains(text(), 'Nenhum resultado encontrado')]", timeout=3, by=By.XPATH):
+            log('[DESTINATARIOS] 3b. Nenhum resultado encontrado -> incluir tribunal via CEP')
+            return _incluir_tribunal_por_cep(driver, log, debug=debug)
+    except Exception:
+        pass
+
+    try:
+        linhas_tribunal = driver.find_elements(
+            By.XPATH,
+            "//td[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tribunal')]"
+        )
+        for linha in linhas_tribunal:
+            try:
+                linha_tr = linha.find_element(By.XPATH, './ancestor::tr')
+                seta = linha_tr.find_element(By.CSS_SELECTOR, 'button[aria-label="Selecionar endereço"]')
+                if seta:
+                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', seta)
+                    safe_click_no_scroll(driver, seta, log=False)
+                    log('[DESTINATARIOS] ✓ Endereço do tribunal selecionado')
+                    btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10, by=By.CSS_SELECTOR)
+                    if btn_fechar:
+                        safe_click_no_scroll(driver, btn_fechar, log=False)
+                    espera.assentar(driver, 0.5)
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    log('[DESTINATARIOS] 3c. Nenhum endereço do tribunal encontrado na tabela - incluindo tribunal via CEP')
+    return _incluir_tribunal_por_cep(driver, log, debug=debug)
+
+
+def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False, log=None, cliques_polo_passivo=1, cliques_informado=2, observacao=None, numero_processo=None, dados_processo=None):
+    from core.resultado_execucao import ResultadoExecucao
+    if log is None:
+        def log(_msg):
+            return None
+
+    qtd_seta = 2 if str(cliques_polo_passivo).strip().lower() in ('2', '2x') else 1
+    qtd_informado = 2 if str(cliques_informado).strip().lower() in ('2', '2x') else 1
+    qtd_cliques_fallback = 2 if str(cliques_polo_passivo).strip().lower() in ('2', '2x') else 1
+
+    # Variante 'informado_2' ou 'informado 2' → 2 cliques; normaliza para 'informado'
+    if isinstance(destinatarios, str) and re.match(r'^informado[\s_]2$', destinatarios.strip(), re.I):
+        destinatarios = 'informado'
+        qtd_informado = 2
+
+    # Roteamento principal
+    if destinatarios is None:
+        log('[DESTINATARIOS] Parâmetro None - pulando seleção')
+        return ResultadoExecucao(sucesso=False, status='skip', detalhes={'count': 0})
+
+    if isinstance(destinatarios, list):
+        log('[DESTINATARIOS] Lista explícita recebida via override')
+        return _selecionar_por_lista(driver, destinatarios, 'lista explícita', log, fallback_polo_passivo=True, qtd_seta_override=None, debug=debug, qtd_cliques_fallback=qtd_cliques_fallback)
+
+    if destinatarios == 'extraido':
+        log('[DESTINATARIOS] OPÇÃO EXTRAIDO: carregando destinatários em cache')
+        try:
+            from Fix.extracao_processo import carregar_destinatarios_cache
+            cache = carregar_destinatarios_cache() or {}
+            lista_destinatarios = cache.get('destinatarios', []) or []
+            return _selecionar_por_lista(driver, lista_destinatarios, 'cache', log, fallback_polo_passivo=True, qtd_seta_override=2, debug=debug, qtd_cliques_fallback=qtd_cliques_fallback)
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha no modo extraido: {e}')
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
+
+    if destinatarios == 'informado':
+        log('[DESTINATARIOS] OPÇÃO INFORMADO: extraindo nomes via separador ">" e confirmando via API')
+        try:
+            # 1. Tentar extração precisa pelo separador '>'
+            nomes_separador = _extrair_nomes_por_separador(observacao or '')
+
+            if nomes_separador:
+                log(f'[DESTINATARIOS] Nomes extraídos via ">": {nomes_separador}')
+                candidatos = _resolver_candidatos_via_api(
+                    driver,
+                    nomes_separador,
+                    numero_processo=numero_processo,
+                    debug=debug,
+                    log=log,
+                )
+            else:
+                # 2. Fallback: modo tokens livres (comportamento legado) sobre dados_processo
+                log('[DESTINATARIOS] Sem separador ">" — modo tokens livres (legado)')
+                if not dados_processo:
+                    try:
+                        from Fix.extracao_processo import extrair_dados_processo
+                        dados_processo = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
+                    except Exception:
+                        dados_processo = _carregar_dadosatuais_local('dadosatuais.json')
+                candidatos = _montar_destinatarios_por_observacao(observacao, dados_processo, debug=debug)
+
+            return _selecionar_por_lista(
+                driver, candidatos, 'informado/api', log,
+                fallback_polo_passivo=True,
+                qtd_seta_override=qtd_informado,
+                debug=debug,
+                qtd_cliques_fallback=qtd_cliques_fallback,
+            )
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha no modo informado: {e}')
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
+
+    if destinatarios == 'polo_ativo':
+        log('[DESTINATARIOS] OPÇÃO: Clicando no polo ativo')
+        try:
+            btn = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloAtivo"]', timeout=10, by=By.CSS_SELECTOR)
+            if not btn:
+                raise RuntimeError('Botão polo ativo não clicável')
+            _clicar_e_aguardar_spinner(driver, btn)
+            return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo ativo: {e}')
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
+
+    if destinatarios in ('polo_passivo', 'polo_passivo_2x'):
+        cliques = cliques_polo_passivo if destinatarios == 'polo_passivo' else 2
+        log(f'[DESTINATARIOS] Clicando no polo passivo ({cliques}x)')
+        try:
+            btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=5, by=By.CSS_SELECTOR)
+            if not btn_polo_passivo:
+                raise RuntimeError('Botão polo passivo não clicável')
+            for i in range(cliques):
+                _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
+                if i < cliques - 1:
+                    # Spinner já sumiu (garantido por _clicar_e_aguardar_spinner) — apenas
+                    # reobter a referência (Angular pode recriar o nó), sem novo timeout de espera.
+                    btn_polo_passivo = driver.find_element(By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]')
+            return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo: {e}')
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
+
+    if destinatarios == 'terceiros':
+        log('[DESTINATARIOS] OPÇÃO TERCEIROS: Clicando em terceiros interessados')
+        try:
+            if espera.ate_habilitar(driver, 'button[name="btnIntimarSomenteTerceirosInteressados"]', teto=5):
+                btn_terceiro = driver.find_element(By.CSS_SELECTOR, 'button[name="btnIntimarSomenteTerceirosInteressados"]')
+            else:
+                # <i> não tem estado disabled real: ate_aparecer, não ate_habilitar
+                espera.ate_aparecer(driver, 'i.fa.fa-user.pec-polo-outros-partes-processo', teto=5)
+                btn_terceiro = driver.find_element(By.CSS_SELECTOR, 'i.fa.fa-user.pec-polo-outros-partes-processo')
+            _clicar_e_aguardar_spinner(driver, btn_terceiro)
+            return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha ao selecionar terceiros: {e}')
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
+
+    if destinatarios == 'primeiro':
+        log('[DESTINATARIOS] OPCAO PRIMEIRO: primeiro do Polo Passivo (pec_excluiargos)')
+        try:
+            painel_header_xpath = (
+                '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo")'
+                ' and contains(normalize-space(.), "Polo Passivo")]]'
+            )
+            if not click_headless_safe(driver, painel_header_xpath, by=By.XPATH):
+                raise RuntimeError('Falha ao expandir painel Polo Passivo')
+
+            aguardar_renderizacao_nativa(
+                driver,
+                '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row',
+                modo='aparecer',
+                timeout=5,
+            )
+
+            seta_xpath = (
+                '//mat-expansion-panel[.//*[contains(text(), "Polo Passivo")]]'
+                '//button[@aria-label="Clique para acrescentar esta parte '
+                'à lista de destinatários de expedientes e comunicações."][1]'
+            )
+            if not click_headless_safe(driver, seta_xpath, by=By.XPATH):
+                raise RuntimeError('Falha ao clicar primeira seta do Polo Passivo')
+            log('[DESTINATARIOS] Primeira seta (primeiro destinatário) clicada')
+
+            endereco_ok = _selecionar_endereco_tribunal(driver, log, debug=debug)
+            if not endereco_ok:
+                log('[DESTINATARIOS][WARN] Endereço do tribunal não foi ajustado; a seleção do destinatário foi concluída')
+            return ResultadoExecucao(
+                sucesso=True,
+                status='ok' if endereco_ok else 'warning',
+                detalhes={'count': 1, 'endereco_tribunal': endereco_ok}
+            )
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha ao selecionar primeiro destinatário: {e}')
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
+
+    # opção padrão: clicar polo passivo 1x
+    log('[DESTINATARIOS] OPÇÃO PADRÃO: Clicando no polo passivo (1x)')
+    try:
+        btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=10, by=By.CSS_SELECTOR)
+        if not btn_polo_passivo:
+            raise RuntimeError('Botão polo passivo não clicável')
+        _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
+        return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo padrão: {e}')
+        return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})

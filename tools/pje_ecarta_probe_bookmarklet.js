@@ -1,0 +1,324 @@
+/**
+ * pje_ecarta_probe_bookmarklet.js
+ *
+ * Bookmarklet ESPECIFICO do eCarta: dispara fetch() direto contra os dois
+ * endpoints ja confirmados em PEC/carta_execucao.py --
+ *   consultarProcesso.xhtml?codigo=<numero_processo_CNJ>
+ *   consultarObjeto.xhtml?codigo=<codigo_rastreio_correios>
+ * usando a sessao ja autenticada da aba atual (cookies via credentials:'include').
+ *
+ * Ao receber a resposta (HTML puro, eCarta e JSF classico), tenta extrair a
+ * MESMA tabela que PEC/carta_execucao.py::coletar_tabela_ecarta ja sabe ler
+ * (seletores #main:tabDoc_data tr / table[id*="tabDoc"] tr, colunas
+ * dataEnvio/dataEntrega/idPje/objeto/status/destinatario/orgaoJulgador),
+ * so que via textContent (nao innerText — o documento vem de fetch(), nunca
+ * e renderizado, e innerText depende de layout/render, textContent nao).
+ *
+ * Se nao achar a tabela, mostra o HTML bruto pra inspecao manual.
+ * Se a resposta parecer tela de login, avisa (sessao pode ter expirado).
+ *
+ * Rode isso enquanto estiver numa aba de aplicacoes1.trt2.jus.br (mesma
+ * origem do eCarta) — fetch entre origens diferentes esbarra em CORS.
+ *
+ * Versao minificada em tools/pje_ecarta_probe_bookmarklet.min.txt.
+ */
+(function pjeEcartaProbe() {
+  'use strict';
+
+  if (window.__ecartaProbe) {
+    window.__ecartaProbe.toggle();
+    return;
+  }
+
+  var BASE = 'https://aplicacoes1.trt2.jus.br/eCarta-web/';
+  var BG = '#181825', SURFACE = '#11111b', TEXT = '#cdd6f4', BORDER = '#313244';
+  var ACCENT = '#89b4fa', OK = '#a6e3a1', ERR = '#f38ba8', MUTED = '#6c7086';
+
+  function extrairDaUrl() {
+    var m = location.search.match(/codigo=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  var atual = extrairDaUrl();
+  var processoDefault = /^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/.test(atual) ? atual : '';
+  var rastreioDefault = /^[A-Za-z]{2}\d{9}BR$/.test(atual) ? atual : '';
+
+  var panel = document.createElement('div');
+  panel.setAttribute('data-pje-probe-ui', '1');
+  panel.style.cssText = 'position:fixed;top:16px;right:16px;z-index:2147483647;width:460px;max-height:84vh;' +
+    'background:' + BG + ';color:' + TEXT + ';border:1px solid ' + BORDER + ';border-radius:10px;' +
+    'padding:14px;font:12px ui-monospace,Consolas,monospace;box-shadow:0 8px 30px rgba(0,0,0,.5);' +
+    'display:flex;flex-direction:column;gap:8px;overflow:hidden;';
+
+  panel.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+      '<b style="color:' + ACCENT + ';">📮 eCarta API Probe</b>' +
+      '<button id="__ecClose" style="background:' + ERR + ';color:' + SURFACE + ';border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-weight:700;">✕</button>' +
+    '</div>' +
+    '<div style="color:' + MUTED + ';font-size:11px;">base: ' + BASE + '</div>' +
+
+    '<label style="font-size:11px;color:' + MUTED + ';">consultarProcesso.xhtml?codigo=</label>' +
+    '<div style="display:flex;gap:6px;">' +
+      '<input id="__ecProcesso" value="' + processoDefault + '" placeholder="0000000-00.0000.0.00.0000" style="flex:1;padding:6px;background:' + SURFACE + ';color:' + TEXT + ';border:1px solid ' + BORDER + ';border-radius:4px;">' +
+      '<button id="__ecCallProcesso" style="padding:6px 10px;background:' + ACCENT + ';color:' + SURFACE + ';border:none;border-radius:4px;font-weight:700;cursor:pointer;">chamar</button>' +
+    '</div>' +
+
+    '<label style="font-size:11px;color:' + MUTED + ';">consultarObjeto.xhtml?codigo=</label>' +
+    '<div style="display:flex;gap:6px;">' +
+      '<input id="__ecObjeto" value="' + rastreioDefault + '" placeholder="AA000000000BR" style="flex:1;padding:6px;background:' + SURFACE + ';color:' + TEXT + ';border:1px solid ' + BORDER + ';border-radius:4px;">' +
+      '<button id="__ecCallObjeto" style="padding:6px 10px;background:' + ACCENT + ';color:' + SURFACE + ';border:none;border-radius:4px;font-weight:700;cursor:pointer;">chamar</button>' +
+    '</div>' +
+
+    '<button id="__ecExpandir" style="padding:7px;background:' + ACCENT + ';color:' + SURFACE + ';border:none;border-radius:4px;font-weight:700;cursor:pointer;">percorrer rastreamentos DESTA página (clica de verdade + lê o histórico)</button>' +
+
+    '<div id="__ecStatus" style="color:' + MUTED + ';"></div>' +
+    '<div style="display:flex;gap:6px;">' +
+      '<button id="__ecCopyRaw" style="flex:1;padding:6px;background:' + BORDER + ';color:' + TEXT + ';border:none;border-radius:4px;cursor:pointer;">copiar HTML bruto</button>' +
+      '<button id="__ecCopyTable" style="flex:1;padding:6px;background:' + BORDER + ';color:' + TEXT + ';border:none;border-radius:4px;cursor:pointer;">copiar dados extraídos</button>' +
+    '</div>' +
+    '<pre id="__ecResult" style="margin:0;background:' + SURFACE + ';border:1px solid ' + BORDER + ';border-radius:6px;padding:8px;overflow:auto;max-height:48vh;white-space:pre-wrap;word-break:break-all;"></pre>';
+
+  document.body.appendChild(panel);
+
+  var rawHtml = '';
+  var tableJson = '';
+
+  function copyText(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  // separa texto antes/depois de <br> com um delimitador visivel, em vez de
+  // deixar textContent colar tudo sem espaco (a descricao de tabDetalhesObjeto
+  // tem um <br> entre o status e uma nota promocional dos Correios)
+  function textoComSeparadorBr(el) {
+    var clone = el.cloneNode(true);
+    var brs = clone.querySelectorAll('br');
+    for (var i = 0; i < brs.length; i++) {
+      brs[i].replaceWith(' | ');
+    }
+    return clone.textContent.trim().replace(/\s+/g, ' ');
+  }
+
+  // mesma extracao de PEC/carta_execucao.py::coletar_tabela_ecarta (extrairDadosTabela),
+  // adaptada pra textContent — o HTML chega via fetch(), documento nunca e renderizado.
+  // Colunas reais confirmadas: 0 dataEnvio, 1 dataEntrega, 2 processo (nao capturado
+  // pelo original — ver nota), 3 idPje, 4 objeto, 5 status, 6 destinatario, 7 orgaoJulgador.
+  function extrairTabelaProcesso(html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var seletores = ['#main\\:tabDoc_data tr', '#main\\:tabDoc tbody tr', 'table[id*="tabDoc"] tr', '.ui-datatable tbody tr', 'tbody tr'];
+    var rows = null;
+    for (var i = 0; i < seletores.length; i++) {
+      var tmp = doc.querySelectorAll(seletores[i]);
+      if (tmp.length) { rows = tmp; break; }
+    }
+    if (!rows || !rows.length) return null;
+
+    var out = [];
+    rows.forEach(function (tr) {
+      var tds = tr.querySelectorAll('td');
+      if (tds.length < 4) return;
+      var get = function (i) { return tds[i] ? tds[i].textContent.trim() : ''; };
+      out.push({
+        dataEnvio: get(0),
+        dataEntrega: get(1),
+        processo: get(2),
+        idPje: get(3),
+        objeto: get(4),
+        status: get(5),
+        destinatario: get(6),
+        orgaoJulgador: get(7),
+      });
+    });
+    return out;
+  }
+
+  // tabela de historico de rastreamento (aparece ao clicar no codigo de rastreio
+  // estando em consultarObjeto.xhtml) — testa se ja vem no GET simples, sem clique
+  function extrairDetalhesObjeto(html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var seletores = ['#tabDetalhesObjeto_data tr', 'div[id*="tabDetalhesObjeto"] tbody tr'];
+    var rows = null;
+    for (var i = 0; i < seletores.length; i++) {
+      var tmp = doc.querySelectorAll(seletores[i]);
+      if (tmp.length) { rows = tmp; break; }
+    }
+    if (!rows || !rows.length) return null;
+
+    var out = [];
+    rows.forEach(function (tr) {
+      var tds = tr.querySelectorAll('td');
+      if (tds.length < 2) return;
+      out.push({
+        dataEvento: tds[0] ? tds[0].textContent.trim() : '',
+        descricao: tds[1] ? textoComSeparadorBr(tds[1]) : '',
+        cidadeUf: tds[2] ? tds[2].textContent.trim() : '',
+      });
+    });
+    return out;
+  }
+
+  function chamar(url) {
+    var statusEl = panel.querySelector('#__ecStatus');
+    var resultEl = panel.querySelector('#__ecResult');
+    statusEl.textContent = 'chamando ' + url + ' ...';
+    statusEl.style.color = MUTED;
+    resultEl.textContent = '';
+    rawHtml = '';
+    tableJson = '';
+
+    var t0 = Date.now();
+    fetch(url, { credentials: 'include' }).then(function (resp) {
+      return resp.text().then(function (text) {
+        var dur = Date.now() - t0;
+        rawHtml = text;
+        var tabelaProcesso = extrairTabelaProcesso(text);
+        var detalhesObjeto = extrairDetalhesObjeto(text);
+        var pareceLogin = /login-box|input_user/i.test(text);
+        var resumo = resp.status + ' — ' + dur + 'ms — ' + text.length + ' chars';
+        if (pareceLogin) resumo += ' — ATENÇÃO: parece tela de LOGIN (sessão pode ter expirado)';
+
+        var achados = [];
+        if (tabelaProcesso) achados.push('tabela de processo: ' + tabelaProcesso.length + ' linha(s)');
+        if (detalhesObjeto) achados.push('histórico de rastreio: ' + detalhesObjeto.length + ' evento(s) — JÁ VEIO NO GET, sem precisar clicar');
+
+        if (achados.length) {
+          resumo += ' — ' + achados.join(' | ');
+          var payload = {};
+          if (tabelaProcesso) payload.tabelaProcesso = tabelaProcesso;
+          if (detalhesObjeto) payload.historicoRastreio = detalhesObjeto;
+          tableJson = JSON.stringify(payload, null, 2);
+          resultEl.textContent = tableJson;
+        } else {
+          resumo += ' — nenhuma tabela reconhecida no HTML (veja bruto) — se você clicou no rastreamento pra abrir o histórico, ele pode só aparecer via um clique/AJAX específico, não neste GET simples';
+          resultEl.textContent = text.slice(0, 20000);
+        }
+
+        statusEl.textContent = resumo;
+        statusEl.style.color = resp.ok ? (achados.length ? OK : MUTED) : ERR;
+      });
+    }).catch(function (e) {
+      statusEl.textContent = 'erro de rede: ' + e.message;
+      statusEl.style.color = ERR;
+    });
+  }
+
+  // Espera o PROXIMO ajaxComplete global do jQuery ja carregado pela pagina do
+  // eCarta (PrimeFaces.ab() usa esse mesmo jQuery por baixo). Resolve com
+  // true se o evento disparou, false se estourou o timeout (nao trava o fluxo).
+  function aguardarProximoAjax(timeoutMs) {
+    return new Promise(function (resolve) {
+      var done = false;
+      var jq = window.jQuery || window.$;
+      function handler() {
+        if (done) return;
+        done = true;
+        if (jq) jq(document).off('ajaxComplete', handler);
+        resolve(true);
+      }
+      if (jq) {
+        jq(document).one('ajaxComplete', handler);
+      }
+      setTimeout(function () {
+        if (!done) { done = true; if (jq) jq(document).off('ajaxComplete', handler); resolve(false); }
+      }, timeoutMs || 6000);
+    });
+  }
+
+  function pausa(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  // Clica de verdade em cada link de rastreamento da pagina JA CARREGADA (nao
+  // um fetch offscreen) — dispara o mesmo PrimeFaces.ab() que o clique manual
+  // dispararia, espera o ajax real completar, e le o resultado direto do DOM
+  // ao vivo (que a essa altura ja foi atualizado pelo PrimeFaces).
+  async function expandirRastreamentos() {
+    var statusEl = panel.querySelector('#__ecStatus');
+    var resultEl = panel.querySelector('#__ecResult');
+    var links = Array.prototype.slice.call(document.querySelectorAll('a[id*=":rastreamento"]'));
+
+    if (!links.length) {
+      statusEl.textContent = 'nenhum link de rastreamento encontrado nesta página (isso só funciona na tela de resultado de consultarProcesso/consultarObjeto, com a tabela já visível).';
+      statusEl.style.color = ERR;
+      return;
+    }
+
+    var resultados = [];
+    for (var i = 0; i < links.length; i++) {
+      var link = links[i];
+      var codigo = (link.textContent || '').trim();
+      statusEl.textContent = 'clicando ' + (i + 1) + '/' + links.length + ': ' + codigo + ' ...';
+      statusEl.style.color = MUTED;
+
+      var espera = aguardarProximoAjax(6000);
+      link.click();
+      await espera;
+      await pausa(300);
+
+      var linhas = document.querySelectorAll('#tabDetalhesObjeto_data tr');
+      var historico = [];
+      linhas.forEach(function (tr) {
+        var tds = tr.querySelectorAll('td');
+        if (tds.length < 2) return;
+        historico.push({
+          dataEvento: tds[0] ? tds[0].textContent.trim() : '',
+          descricao: tds[1] ? textoComSeparadorBr(tds[1]) : '',
+          cidadeUf: tds[2] ? tds[2].textContent.trim() : '',
+        });
+      });
+      resultados.push({ codigo: codigo, historico: historico });
+
+      var fechar = document.querySelector('#detalhesObjeto .ui-dialog-titlebar-close');
+      if (fechar) { fechar.click(); await pausa(200); }
+    }
+
+    tableJson = JSON.stringify(resultados, null, 2);
+    resultEl.textContent = tableJson;
+    var totalEventos = resultados.reduce(function (acc, r) { return acc + r.historico.length; }, 0);
+    statusEl.textContent = links.length + ' rastreamento(s) percorrido(s), ' + totalEventos + ' evento(s) de histórico ao todo.';
+    statusEl.style.color = totalEventos ? OK : MUTED;
+  }
+
+  panel.querySelector('#__ecExpandir').addEventListener('click', function () {
+    expandirRastreamentos();
+  });
+
+  panel.querySelector('#__ecCallProcesso').addEventListener('click', function () {
+    var codigo = panel.querySelector('#__ecProcesso').value.trim();
+    if (!codigo) return;
+    chamar(BASE + 'consultarProcesso.xhtml?codigo=' + encodeURIComponent(codigo));
+  });
+
+  panel.querySelector('#__ecCallObjeto').addEventListener('click', function () {
+    var codigo = panel.querySelector('#__ecObjeto').value.trim();
+    if (!codigo) return;
+    chamar(BASE + 'consultarObjeto.xhtml?codigo=' + encodeURIComponent(codigo));
+  });
+
+  panel.querySelector('#__ecCopyRaw').addEventListener('click', function () {
+    copyText(rawHtml || '(nada ainda)');
+  });
+
+  panel.querySelector('#__ecCopyTable').addEventListener('click', function () {
+    copyText(tableJson || '(nenhum dado extraído ainda)');
+  });
+
+  panel.querySelector('#__ecClose').addEventListener('click', function () {
+    panel.remove();
+    window.__ecartaProbe = null;
+  });
+
+  window.__ecartaProbe = {
+    toggle: function () {
+      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+    },
+  };
+})();

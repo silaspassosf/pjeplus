@@ -1,0 +1,50 @@
+@keyframes aparecer{
+	0% {
+		opacity:0;
+	}
+	100% {
+		opacity:1;
+	}
+}
+
+@keyframes bater{
+  0% {
+    transform:scale(1);
+  }
+  4% {
+    transform:scale(1.2);
+  }
+  8% {
+    transform:scale(1);
+  }
+  11% {
+    transform:scale(1.4);
+  }
+}
+
+@keyframes crescer{
+	0% {
+		transform: scale(0);
+	}
+	50% {
+		transform: scale(1);
+	}
+}
+
+@keyframes encolher-crescer{
+	0% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(0);
+	}
+}
+
+@keyframes girar{
+	0%{
+		transform: rotate(0deg);
+	}
+	100%{
+		transform:rotate(1turn);
+	}
+}

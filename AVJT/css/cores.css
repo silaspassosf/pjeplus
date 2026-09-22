@@ -1,0 +1,57 @@
+:root {
+	--extensao-cor-primaria:	0,153,255;
+	--extensao-cor-branco:		255,255,255;
+	--extensao-cor-cinza:			128,128,128;
+	--extensao-cor-preto:			0,0,0;
+
+	--extensao-cor-amarelo:		255,204,0;
+	--extensao-cor-azul:			0,102,255;
+	--extensao-cor-indigo:		75,0,130;
+	--extensao-cor-laranja:		255,102,0;
+	--extensao-cor-verde:			0,255,0;
+	--extensao-cor-vermelho:	204,0,0;
+	--extensao-cor-violeta:		148,0,211;
+
+	--extensao-cor-gradacao:	0.1;
+
+	--extensao-cor-clarear:
+		linear-gradient(
+			rgba(var(--extensao-cor-branco),var(--extensao-cor-gradacao))   0%,
+			rgba(var(--extensao-cor-branco),var(--extensao-cor-gradacao)) 100%
+		);
+
+	--extensao-cor-escurecer:
+		linear-gradient(
+			rgba(var(--extensao-cor-preto),var(--extensao-cor-gradacao))   0%,
+			rgba(var(--extensao-cor-preto),var(--extensao-cor-gradacao)) 100%
+		);
+
+	--extensao-gradiente-branco:
+		linear-gradient(
+			rgba(var(--extensao-cor-branco),0.15)	0%,
+			rgba(var(--extensao-cor-branco),0.0)	50%,
+			rgba(var(--extensao-cor-branco),0.15) 100%
+		);
+
+	--extensao-gradiente-branco-preto:
+		linear-gradient(
+			rgba(var(--extensao-cor-branco),0.15) 0%,
+			rgba(var(--extensao-cor-branco),0.0)  50%,
+			rgba(var(--extensao-cor-preto), 0.15) 100%
+		);
+
+	--extensao-gradiente-preto:
+		linear-gradient(
+			rgba(var(--extensao-cor-preto),0.15) 0%,
+			rgba(var(--extensao-cor-preto),0.0)  50%,
+			rgba(var(--extensao-cor-preto),0.15) 100%
+		);
+
+	--extensao-gradiente-preto-branco:
+		linear-gradient(
+			rgba(var(--extensao-cor-preto), 0.15)  0%,
+			rgba(var(--extensao-cor-preto), 0.0)  50%,
+			rgba(var(--extensao-cor-branco),0.15) 100%
+		);
+
+}

@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Menu</title>
+		<link href="../../imagens/icones/extensao/azul.svg" property="stylesheet" rel="icon" type="image/svg+xml">
+		<link rel="stylesheet" href="estilo.css" />
+	</head>
+	<body>
+		<header>
+			<h1></h1>
+			<section>
+				<label id="extensao-ativador-rotulo" tabindex="0" class="ativador">
+				<input autofocus id="ativador" type="checkbox" />
+					<span
+						aria-live = "assertive"
+						data-ativado = "EXTENSÃO ATIVADA"
+						data-desativado = "EXTENSÃO DESATIVADA"
+					></span>
+				</label>
+			</section>
+		</header>
+		<main>
+			<section id="secao-links">
+				<h2>Links Úteis</h2>
+				<informacoes>
+					<i aria-label="Esta seção contém botões com atalhos para as páginas comumente acessadas pelos servidores da Justiça do Trabalho. É possível editar as configurações de alguns botões, tais como link, dimensão e posição da janela que eles abrem. Clique com o botão direito do mouse sobre qualquer um dos botões desta seção para acessar o respectivo menu de opções. Para saber mais, acesse a playlist de vídeos sobre esta seção clicando no botão localizado na parte direita deste título."></i>
+					<a href="https://www.youtube.com/playlist?list=PLg4_Psfl-Z3_8CuNyJiKYiKI6MnJ59urx"></a>
+				</informacoes>
+				<nav id="links-uteis"></nav>
+			</section>
+			<section>
+				<h2>Assistente de Seleção</h2>
+				<informacoes>
+					<i aria-label="O Assistente de Seleção, quando ativado, disponibiliza um menu com botões úteis sempre que um texto for selecionado."></i>
+				</informacoes>
+				<configuracoes class="assistenteDeSelecao">
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "ativado"
+						>
+						<span
+							data-ativado = "Assistente de Seleção Ativado"
+							data-desativado = "Assistente de Seleção Desativado"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "resolverCaptchas"
+						>
+						<span
+							data-ativado = "Tentar Resolver Captchas"
+							data-desativado = "Não Tentar Resolver Captchas"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "copiar"
+						>
+						<span
+							data-ativado = "Copiar Texto Selecionado"
+							data-desativado = "Não Copiar Texto Selecionado"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "copiarData"
+						>
+						<span
+							data-ativado = "Copiar Apenas Data no Texto Selecionado"
+							data-desativado = "Não Copiar Apenas Data no Texto Selecionado"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "copiarHora"
+						>
+						<span
+							data-ativado = "Copiar Apenas Horário no Texto Selecionado"
+							data-desativado = "Não Copiar Apenas Horário no Texto Selecionado"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "copiarDocumento"
+						>
+						<span
+							data-ativado = "Copiar Apenas CPF/CNPJ no Texto Selecionado"
+							data-desativado = "Não Copiar Apenas CPF/CNPJ no Texto Selecionado"
+						></span>
+					</label>
+				</configuracoes>
+			</section>
+			<section>
+				<h2>Ao Abrir Detalhes do Processo</h2>
+				<informacoes>
+					<i aria-label="Nesta seção, é possível definir ações a serem executadas sempre que uma janela de Detalhes do Processo for aberta. Utilize os alternadores como assistentes especializados para contextos gerais ou específicos."></i>
+					<a href="https://www.youtube.com/playlist?list=PLg4_Psfl-Z3-BHT9gtETVusgIbtyP5TOU"></a>
+				</informacoes>
+				<configuracoes class="pjeAoAbrirDetalhesDoProcesso">
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "expandirMenu"
+						>
+						<span
+							data-ativado = "Expandir Menu"
+							data-desativado = "Não Expandir Menu"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "otimizarLayout"
+						>
+						<span
+							data-ativado = "Otimizar Layout"
+							data-desativado = "Não Otimizar Layout"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "criarAreasDeRolagemDaTimeline"
+						>
+						<span
+							data-ativado = "Criar Áreas de Rolagem da Timeline"
+							data-desativado = "Não Criar Áreas de Rolagem da Timeline"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirDados"
+						>
+						<span
+							data-ativado = "Abrir Dados do Processo"
+							data-desativado = "Não Abrir Dados do Processo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirTarefa"
+						>
+						<span
+							data-ativado = "Abrir Tarefa do Processo"
+							data-desativado = "Não Abrir Tarefa do Processo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirGigs"
+						>
+						<span
+							data-ativado = "Abrir GIGS em Nova Janela"
+							data-desativado = "Não Abrir GIGS em Nova Janela"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "apreciarDocumentos"
+						>
+						<span
+							data-ativado = "Apreciar Documentos"
+							data-desativado = "Não Apreciar Documentos"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "baixarProcesso"
+						>
+						<span
+							data-ativado = "Baixar Processo Completo"
+							data-desativado = "Não Baixar Processo Completo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirResumo"
+						>
+						<span
+							data-ativado = "Abrir Resumo do Processo"
+							data-desativado = "Não Abrir Resumo do Processo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "reprocessarChips"
+						>
+						<span
+							data-ativado = "Reprocessar Chips"
+							data-desativado = "Não Reprocessar Chips"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "baixarDocumentos"
+						>
+						<span
+							data-ativado = "Baixar Documentos de Outra Instância"
+							data-desativado = "Não Baixar Documentos de Outra Instância"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "exibirMovimentos"
+						>
+						<span
+							data-ativado = "Exibir Movimentos Processuais"
+							data-desativado = "Não Exibir Movimentos Processuais"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "exibirExpedientes"
+						>
+						<span
+							data-ativado = "Exibir Expedientes"
+							data-desativado = "Não Exibir Expedientes"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirAnexar"
+						>
+						<span
+							data-ativado = "Abrir Anexar Documento"
+							data-desativado = "Não Abrir Anexar Documento"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirAudiencias"
+						>
+						<span
+							data-ativado = "Abrir Audiências do Processo"
+							data-desativado = "Não Abrir Audiências do Processo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirPericias"
+						>
+						<span
+							data-ativado = "Abrir Perícias do Processo"
+							data-desativado = "Não Abrir Perícias do Processo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirVersao1"
+						>
+						<span
+							data-ativado = "Abrir Versão 1 do Processo"
+							data-desativado = "Não Abrir Versão 1 do Processo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "siscondjConsultar"
+						>
+						<span
+							data-ativado = "Consultar Processo no SISCONDJ-JT"
+							data-desativado = "Não Consultar Processo no SISCONDJ-JT"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "sifConsultar"
+						>
+						<span
+							data-ativado = "Consultar Processo no SIF"
+							data-desativado = "Não Consultar Processo no SIF"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "bbConsultar"
+						>
+						<span
+							data-ativado = "Consultar Depósitos Judiciais no BB"
+							data-desativado = "Não Consultar Depósitos Judiciais no BB"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "cefDepositosJudiciaisConsultar"
+						>
+						<span
+							data-ativado = "Consultar Depósitos Judiciais na CEF"
+							data-desativado = "Não Consultar Depósitos Judiciais na CEF"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "cefDepositosRecursaisConsultar"
+						>
+						<span
+							data-ativado = "Consultar Depósitos Recursais na CEF"
+							data-desativado = "Não Consultar Depósitos Recursais na CEF"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirPeticaoInicial"
+						>
+						<span
+							data-ativado = "Abrir Petição Inicial em Nova Janela"
+							data-desativado = "Não Abrir Petição Inicial em Nova Janela"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirUltimaAtaDeAudiencia"
+						>
+						<span
+							data-ativado = "Abrir Última Ata em Nova Janela"
+							data-desativado = "Não Abrir Última Ata em Nova Janela"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirAtasDeAudiencia"
+						>
+						<span
+							data-ativado = "Abrir Atas em Novas Janelas"
+							data-desativado = "Não Abrir Atas em Novas Janelas"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirSentencas"
+						>
+						<span
+							data-ativado = "Abrir Sentenças em Novas Janelas"
+							data-desativado = "Não Abrir Sentenças em Novas Janelas"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirRecursosOrdinarios"
+						>
+						<span
+							data-ativado = "Abrir Recursos Ordinários em Novas Janelas"
+							data-desativado = "Não Abrir Recursos Ordinários em Novas Janelas"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirAgravosDePeticao"
+						>
+						<span
+							data-ativado = "Abrir Agravos de Instrumento em Novas Janelas"
+							data-desativado = "Não Abrir Agravos de Instrumento em Novas Janelas"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirAgravosDeInstrumento"
+						>
+						<span
+							data-ativado = "Abrir Agravos de Petição em Novas Janelas"
+							data-desativado = "Não Abrir Agravos de Petição em Novas Janelas"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirAcordaos"
+						>
+						<span
+							data-ativado = "Abrir Acórdãos em Novas Janelas"
+							data-desativado = "Não Abrir Acórdãos em Novas Janelas"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirConsultaInstancia2"
+						>
+						<span
+							data-ativado = "Abrir Consulta Pública à 2ª Instância"
+							data-desativado = "Não Abrir Consulta Pública à 2ª Instância"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirConsultaTst"
+						>
+						<span
+							data-ativado = "Consultar Processo no TST"
+							data-desativado = "Não Consultar Processo no TST"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "fecharAlertas"
+						>
+						<span
+							data-ativado = "Fechar Alertas"
+							data-desativado = "Não Fechar Alertas"
+						></span>
+					</label>
+					<label class="largura49 legenda"
+							aria-label = "Pesquisar movimento ou documento (o texto é livre e não limitado às opções que eventualmente apareçam)">
+						<input
+							type = "text"
+							class = "pesquisarTimeline"
+							placeholder = "Pesquisar movimento ou documento"
+							list ="pesquisarTimeline"
+						>
+						<datalist id="pesquisarTimeline">
+							<option value="Petição Inicial">
+							<option value="Despacho">
+							<option value="Decisão">
+							<option value="Sentença">
+						</datalist>
+					</label>
+					<label class="largura49 legenda"
+							aria-label = "Separe por ponto-e-vírgula a lista de chips a serem removidos">
+						<input autocomplete
+							type = "text"
+							class = "removerChips"
+							placeholder = "Remover Chips"
+						>
+					</label>
+				</configuracoes>
+			</section>
+			<section>
+				<h2>Assistentes Especializados</h2>
+				<informacoes>
+					<i aria-label="Ativa e desativa automações e otimizações para tarefas específicas"></i>
+				</informacoes>
+				<configuracoes class="assistentesEspecializados">
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "consultaDepositos"
+						>
+						<span
+							data-ativado = "Ativar Assistente de Consulta a Depósitos Judiciais e Recursais"
+							data-desativado = "Desativar Assistente de Consulta a Depósitos Judiciais e Recursais"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "recebimentoInstanciaSuperior"
+						>
+						<span
+							data-ativado = "Ativar Assistente de Recebimento de Instância Superior"
+							data-desativado = "Desativar Assistente de Recebimento de Instância Superior"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "triagemInicial"
+						>
+						<span
+							data-ativado = "Ativar Assistente de Triagem Inicial"
+							data-desativado = "Desativar Assistente de Triagem Inicial"
+						></span>
+					</label>
+				</configuracoes>
+			</section>
+			<section>
+				<h2>Ao Abrir Tarefa do Processo</h2>
+				<informacoes>
+					<i aria-label="Nesta seção, é possível definir ações a serem executadas sempre que uma janela de Tarefa do Processo for aberta. Utilize os alternadores como assistentes especializados para contextos gerais ou específicos."></i>
+				</informacoes>
+				<configuracoes class="pjeAoAbrirTarefaDoProcesso">
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "expandirMenu"
+						>
+						<span
+							data-ativado = "Expandir Menu do Processo"
+							data-desativado = "Não Expandir Menu do Processo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "enviarParaAnalise"
+						>
+						<span
+							data-ativado = "Enviar Para Análise"
+							data-desativado = "Não Enviar Para Análise"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "enviarParaSobrestamento"
+						>
+						<span
+							data-ativado = "Enviar Para Sobrestamento"
+							data-desativado = "Não Enviar Para Sobrestamento"
+						></span>
+					</label>
+					<label class="ativador assistente largura100"
+						aria-label = "Aplica-se a processos cuja última petição seja &ldquo;Apresentação de Esclarecimentos ao Laudo Pericial&rdquo;, &ldquo;Apresentação de Laudo Pericial&rdquo; ou &ldquo;Contestação&rdquo;">
+						<input
+							type = "checkbox"
+							class = "peticoesParaDespacho"
+						>
+						<span
+							data-ativado = "Enviar Processos com Peticões Específicas para Conclusão por Despacho"
+							data-desativado = "Não Enviar Processos com Peticões Específicas para Conclusão por Despacho"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "admissibilidadeRecursalParaConclusaoMagistrado"
+						>
+						<span
+							data-ativado = "Enviar Processos com Chip de Admissibilidade Recursal para Conclusão a Magistrado"
+							data-desativado = "Não Enviar Processos com Chip de Admissibilidade Recursal para Conclusão a Magistrado"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "tutelaLiminarParaDecisao"
+						>
+						<span
+							data-ativado = "Enviar Processos com Chip de Tutela / Liminar para Decisão"
+							data-desativado = "Não Enviar Processos com Chip de Tutela / Liminar para Decisão"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "admissibilidadeRecursalParaDecisao"
+						>
+						<span
+							data-ativado = "Enviar Processos com Chip de Admissibilidade Recursal para Decisão"
+							data-desativado = "Não Enviar Processos com Chip de Admissibilidade Recursal para Decisão"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "remeterRecursoParaRemeterAoSegundoGrau"
+						>
+						<span
+							data-ativado = "Enviar Processos com Chip &ldquo;Remeter Recurso&rdquo; para &ldquo;Remeter ao 2º grau&rdquo;"
+							data-desativado = "Não Enviar Processos com Chip &ldquo;Remeter Recurso&rdquo; para &ldquo;Remeter ao 2º grau&rdquo;"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "enviarParaAnalisePrazosVencidos"
+						>
+						<span
+							data-ativado = "Enviar Processos em &ldquo;Prazos Vencidos&rdquo; para Análise"
+							data-desativado = "Não Enviar Processos em &ldquo;Prazos Vencidos&rdquo; para Análise"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "chipAudienciaDesignadaEnviarParaAguardandoAudiencia"
+						>
+						<span
+							data-ativado = "Enviar Processos com Audiência Designada para Aguardando Audiência"
+							data-desativado = "Não Enviar Processos com Audiência Designada para Aguardando Audiência"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "enviarParaAnaliseRecebidoParaProsseguir"
+						>
+						<span
+							data-ativado = "Enviar Processos com Chip de &ldquo;Recebido - para prosseguir&rdquo; para Análise"
+							data-desativado = "Não Enviar Processos com Chip de &ldquo;Recebido - para prosseguir&rdquo; para Análise"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "enviarParaTranstoEmJulgadoRecebidoParaProsseguir"
+						>
+						<span
+							data-ativado = "Enviar Processos com Chip de &ldquo;Recebido - para prosseguir&rdquo; para Trânsito em Julgado"
+							data-desativado = "Não Enviar Processos com Chip de &ldquo;Recebido - para prosseguir&rdquo; para Trânsito em Julgado"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "preencherDataDoTransito"
+						>
+						<span
+							data-ativado = "Preencher Data de Trânsito em Julgado com a Data que Estiver na Memória"
+							data-desativado = "Não Preencher Data de Trânsito em Julgado com a Data que Estiver na Memória"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "remeterRecursoSelecionarTipo"
+						>
+						<span
+							data-ativado = "Selecionar Tipo em Remeter ao 2º Grau"
+							data-desativado = "Não Selecionar Tipo em Remeter ao 2º Grau"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "remeterRecursoSelecionarCompetencia"
+						>
+						<span
+							data-ativado = "Selecionar &ldquo;TRT - Turmas&rdquo; em Remeter ao 2º Grau"
+							data-desativado = "Não Selecionar &ldquo;TRT - Turmas&rdquo; em Remeter ao 2º Grau"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "polosOtimizarBotoes"
+						>
+						<span
+							data-ativado = "Otimizar Botões em Remeter ao 2º Grau"
+							data-desativado = "Não Otimizar Botões em Remeter ao 2º Grau"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "parteSemEnderecoRetificarAutuacao"
+						>
+						<span
+							data-ativado = "Abrir Retificação de Autuação de Parte Sem Endereço em Remeter ao 2º Grau"
+							data-desativado = "Não Abrir Retificação de Autuação de Parte Sem Endereço em Remeter ao 2º Grau"
+						></span>
+					</label>
+				</configuracoes>
+			</section>
+			<section>
+				<h2>Assistentes de Edição de Documentos e Notificações</h2>
+				<informacoes>
+					<i aria-label="Nesta seção, é possível definir ações a serem executadas sempre que uma janela de Anexar Documento ou de Comunicações for aberta."></i>
+				</informacoes>
+				<configuracoes class="pjeAssistentesDocumentosNotificacoes">
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "otimizarLayout"
+						>
+						<span
+							data-ativado = "Otimizar Layout"
+							data-desativado = "Não Otimizar Layout"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "expandirMenu"
+						>
+						<span
+							data-ativado = "Expandir Menu em Anexar Documento"
+							data-desativado = "Não Expandir Menu em Anexar Documento"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "selecionarCertidao"
+						>
+						<span
+							data-ativado = "Selecionar Tipo Certidão em Anexar Documento"
+							data-desativado = "Não Selecionar Tipo Certidão em Anexar Documento"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "expandirModelos"
+						>
+						<span
+							data-ativado = "Expandir Árvore de Modelos"
+							data-desativado = "Não Expandir Árvore de Modelos"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "descreverEsclarecimentosLaudo"
+						>
+						<span
+							data-ativado = "Descrever Esclarecimentos Sobre Laudo"
+							data-desativado = "Não Descrever Esclarecimentos Sobre Laudo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "descrever"
+						>
+						<span
+							data-ativado = "Descrever Documento ao Clicar no Modelo"
+							data-desativado = "Não Descrever Documento ao Clicar no Modelo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "desmarcarPec"
+						>
+						<span
+							data-ativado = "Desmarcar &ldquo;Enviar para PEC&rdquo;"
+							data-desativado = "Não Desmarcar &ldquo;Enviar para PEC&rdquo;"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "alterarPrazo"
+						>
+						<span
+							data-ativado = "Alterar Prazo pelo Texto do Documento"
+							data-desativado = "Não Alterar Prazo pelo Texto do Documento"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "movimentosRecurso"
+						>
+						<span
+							data-ativado = "Lançar Movimentos &ldquo;Recebido Recurso&rdquo;"
+							data-desativado = "Não Lançar Movimentos &ldquo;Recebido Recurso&rdquo;"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "confeccionar"
+						>
+						<span
+							data-ativado = "Clicar em Confecionar Ato Agrupado"
+							data-desativado = "Não Clicar em Confecionar Ato Agrupado"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "fecharMensagensAcaoConcluida"
+						>
+						<span
+							data-ativado = "Fechar Mensagens de Ação Concluída"
+							data-desativado = "Não Fechar Mensagens de Ação Concluída"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "fecharMensagensSobreImagens"
+						>
+						<span
+							data-ativado = "Fechar Mensagens Sobre Imagens no DEJT"
+							data-desativado = "Não Fechar Mensagens Sobre Imagens no DEJT"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "fecharMensagensDeConfirmacao"
+						>
+						<span
+							data-ativado = "Fechar Mensagens de Confirmação"
+							data-desativado = "Não Fechar Mensagens de Confirmação"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "expandirPartes"
+						>
+						<span
+							data-ativado = "Expandir Partes"
+							data-desativado = "Não Expandir Partes"
+						></span>
+					</label>
+					<label class="ativador assistente largura99">
+						<input
+							type = "checkbox"
+							class = "inserirLink"
+						>
+						<span
+							data-ativado = "Trocar Texto Marcado para Análise &ldquo;link&rdquo; Pelo Link que Estiver na Memória"
+							data-desativado = "Não Trocar Texto Marcado para Análise &ldquo;link&rdquo; Pelo Link que Estiver na Memória"
+						></span>
+					</label>
+					<label class="largura32 legenda"
+							aria-label = "Selecionar Tipo de Documento em Elaborar Ato Agrupado">
+						<input
+							type = "text"
+							class = "comunicacaoTipoDeDocumento"
+							placeholder = "Selecionar Tipo de Documento em Elaborar Ato Agrupado"
+							list ="listaComunicacaoTipoDeDocumento"
+						>
+						<datalist id="listaComunicacaoTipoDeDocumento">
+							<option value="Edital">
+							<option value="Intimação">
+							<option value="Mandado">
+							<option value="Notificação inicial">
+							<option value="Ofício">
+						</datalist>
+					</label>
+					<label class="largura32 legenda"
+						aria-label = "Selecionar Tipo de Prazo em Elaborar Ato Agrupado">
+						<input
+							type = "text"
+							class = "comunicacaoPrazo"
+							placeholder = "Selecionar Tipo de Prazo em Elaborar Ato Agrupado"
+							list ="listaComunicacaoPrazo"
+						>
+						<datalist id="listaComunicacaoPrazo">
+							<option value="Dias Úteis">
+							<option value="Sem Prazo">
+							<option value="Data Certa">
+						</datalist>
+					</label>
+					<label class="largura32 legenda"
+						aria-label = "Definir Data Certa em Elaborar Ato Agrupado">
+						<input autocomplete
+							type = "text"
+							class = "comunicacaoData"
+							placeholder = "Definir Data Certa em Elaborar Ato Agrupado"
+						>
+					</label>
+					<label class="largura32 legenda"
+						aria-label = "Filtrar Modelos de Comunicação">
+						<input autocomplete
+							type = "text"
+							class = "filtrarModelosComunicacao"
+							placeholder = "Filtrar Modelos de Comunicação"
+						>
+					</label>
+					<label class="largura32 legenda"
+						aria-label = "Definir Dias Úteis em Elaborar Ato Agrupado">
+						<input
+							type = "number"
+							min = "1"
+							max = "720"
+							value = "5"
+							class = "comunicacaoDias"
+							placeholder = "Dias Úteis em Elaborar Ato Agrupado"
+						>
+					</label>
+					<label class="largura32 legenda"
+						aria-label = "Preencher Prazo para Apresentação de Esclarecimentos Sobre Laudo">
+						<input
+							type = "number"
+							min = "0"
+							max = "120"
+							value = "15"
+							class = "laudoEsclarecimentoDias"
+							placeholder = "Prazo para Esclarecimentos Sobre Laudo"
+						>
+					</label>
+				</configuracoes>
+			</section>
+			<section>
+				<h2>PJe</h2>
+				<informacoes>
+					<i aria-label="Controle automações, otimizações e preferências a serem aplicadas nas páginas do PJe em geral"></i>
+				</informacoes>
+				<configuracoes class="pje">
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "paginaInicialAcionarBotaoCertificadoDigital"
+						>
+						<span
+							data-ativado = "Acionar Botão &ldquo;Certificado Digital&rdquo; na Página Inicial do PJe"
+							data-desativado = "Não Acionar Botão &ldquo;Certificado Digital&rdquo; na Página Inicial do PJe"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "clicarParaExpandirPainelSuperior"
+						>
+						<span
+							data-ativado = "Expandir Painel Superior ao Clicar no Ativador"
+							data-desativado = "Expandir Painel Superior ao Passar o Cursor do Mouse Sobre o Ativador"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "criarAreasDeRolagemDaPaginaDeDocumento"
+						>
+						<span
+							data-ativado = "Criar Áreas de Rolagem da Página de Documento"
+							data-desativado = "Não Criar Áreas de Rolagem da Página de Documento"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "gigsFecharMensagensConclusao"
+						>
+						<span
+							data-ativado = "Fechar Mensagens de Conclusão de Atividade"
+							data-desativado = "Não Fechar Mensagens de Conclusão de Atividade"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "gigsFecharMensagensExclusao"
+						>
+						<span
+							data-ativado = "Fechar Mensagens de Exclusão de Atividade"
+							data-desativado = "Não Fechar Mensagens de Exclusão de Atividade"
+						></span>
+					</label>
+					<label class="ativador assistente largura99">
+						<input
+							type = "checkbox"
+							class = "chipsCentralizarBotoes"
+						>
+						<span
+							data-ativado = "Centralizar Verticalmente Botão &ldquo;Salvar&rdquo; no Painel &ldquo;Incluir Chips&rdquo;"
+							data-desativado = "Não Centralizar Verticalmente Botão &ldquo;Salvar&rdquo; no Painel &ldquo;Incluir Chips&rdquo;"
+						></span>
+					</label>
+					<label class="ativador assistente largura99">
+						<input
+							type = "checkbox"
+							class = "pjeLegadoSanitizar"
+						>
+						<span
+							data-ativado = "Apreciar Documentos e Desativar Alertas e Destaques ao Abrir Detalhes do Processo no PJe 1.x"
+							data-desativado = "Não Apreciar Documentos e Desativar Alertas e Destaques ao Abrir Detalhes do Processo no PJe 1.x"
+						></span>
+					</label>
+				</configuracoes>
+			</section>
+			<section>
+				<h2>Ao Abrir SISCONDJ-JT</h2>
+				<informacoes>
+					<i aria-label="Nesta seção, é possível definir ações a serem executadas sempre que uma janela de SISCONDJ-JT for aberta."></i>
+				</informacoes>
+				<configuracoes class="siscondj">
+					<label class="ativador assistente largura32">
+						<input
+							type = "checkbox"
+							class = "otimizarLayout"
+						>
+						<span
+							data-ativado = "Otimizar Layout"
+							data-desativado = "Não Otimizar Layout"
+						></span>
+					</label>
+					<label class="ativador assistente largura32">
+						<input
+							type = "checkbox"
+							class = "expandirDepositos"
+						>
+						<span
+							data-ativado = "Expandir Depósitos"
+							data-desativado = "Não Expandir Depósitos"
+						></span>
+					</label>
+					<label class="ativador assistente largura32">
+						<input
+							type = "checkbox"
+							class = "certificarAoAbrirAlvara"
+						>
+						<span
+							data-ativado = "Certificar ao Abrir Alvará"
+							data-desativado = "Não Certificar ao Abrir Alvará"
+						></span>
+					</label>
+				</configuracoes>
+			</section>
+			<section>
+				<h2>Ao Abrir SIF</h2>
+				<informacoes>
+					<i aria-label="Nesta seção, é possível definir ações a serem executadas sempre que uma janela de SIF for aberta."></i>
+				</informacoes>
+				<configuracoes class="sif">
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "abrirDados"
+						>
+						<span
+							data-ativado = "Abrir Dados do Processo"
+							data-desativado = "Não Abrir Dados do Processo"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "selecionarTransferencia"
+						>
+						<span
+							data-ativado = "Selecionar Transferência ao Beneficiário"
+							data-desativado = "Não Selecionar Transferência ao Beneficiário"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "preencherValorOriginario"
+						>
+						<span
+							data-ativado = "Preencher Campo &ldquo;Valor do Alvará&rdquo; com Valor Originário do Depósito"
+							data-desativado = "Não Preencher Campo &ldquo;Valor do Alvará&rdquo; com Valor Originário do Depósito"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "preencherValorDisponivel"
+						>
+						<span
+							data-ativado = "Preencher Campo &ldquo;Valor do Alvará&rdquo; com Valor Disponível na Conta"
+							data-desativado = "Não Preencher Campo &ldquo;Valor do Alvará&rdquo; com Valor Disponível na Conta"
+						></span>
+					</label>
+
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "preencherDataOriginaria"
+						>
+						<span
+							data-ativado = "Preencher Campo &ldquo;Data da Correção Bancária&rdquo; com Data do Depósito"
+							data-desativado = "Não Preencher Campo &ldquo;Data da Correção Bancária&rdquo; com Data do Depósito"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "preencherDataHoje"
+						>
+						<span
+							data-ativado = "Preencher Campo &ldquo;Data da Correção Bancária&rdquo; com Data de Hoje"
+							data-desativado = "Não Preencher Campo &ldquo;Data da Correção Bancária&rdquo; com Data de Hoje"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "preencherNomeTitular"
+						>
+						<span
+							data-ativado = "Preencher Campo &ldquo;Nome do Titular&rdquo; com Nome do Beneficiário Selecionado"
+							data-desativado = "Não Preencher Campo &ldquo;Nome do Titular&rdquo; com Nome do Beneficiário Selecionado"
+						></span>
+					</label>
+					<label class="ativador assistente largura100">
+						<input
+							type = "checkbox"
+							class = "selecionarRepresentacao"
+						>
+						<span
+							data-ativado = "Clicar em Representação Processual ao Alterar Nome do Titular"
+							data-desativado = "Não Clicar em Representação Processual ao Alterar Nome do Titular"
+						></span>
+					</label>
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "selecionarMagistrado"
+						>
+						<span
+							data-ativado = "Selecionar Magistrado"
+							data-desativado = "Não Selecionar Magistrado"
+						></span>
+					</label>
+				</configuracoes>
+			</section>
+			<section>
+				<h2>Modo LGPD</h2>
+				<informacoes>
+					<i aria-label="Com o Modo LGPD ativado, dados sensíveis podem ser ofuscados nas páginas, o que pode ser útil quando se precisa fazer uma apresentação de tela, por exemplo."></i>
+					<a href="https://www.youtube.com/playlist?list=PLg4_Psfl-Z38QNcyqH7F0gkfQziwC_N5o"></a>
+				</informacoes>
+				<configuracoes class="lgpd">
+					<label class="ativador assistente largura49">
+						<input
+							type = "checkbox"
+							class = "ativado"
+						>
+						<span
+							data-ativado = "Ativar Modo LGPD"
+							data-desativado = "Não Ativar Modo LGPD"
+						></span>
+					</label>
+					<label class="largura100 legenda"
+							aria-label = "Seletores CSS separados por vírgula. Para entender o funcionamento deste campo, acesse vídeo explicativo pelo botão à direita do título desta seção. Limpe este campo caso experimente quebras de layout das páginas.">
+						<input
+							type = "text"
+							class = "seletores"
+							placeholder = "Seletores CSS separados por vírgula"
+						>
+					</label>
+				</configuracoes>
+			</section>
+		</main>
+		<footer><esforcos-poupados>Desde </esforcos-poupados></footer>
+		<a id="cooperari" title="O AVJT - Assistente Virtual da Justiça do Trabalho venceu a 1ª Edição (2021) do Prêmio Cooperari - Estratégias para Evoluir, da Justiça do Trabalho" href="http://www.csjt.jus.br/web/csjt/cooperari/inicio"></a>
+	</body>
+<script src="/publicas/definicoes.js"></script>
+<script src="/publicas/gerais.js"></script>
+<script src="/publicas/relatar.js"></script>
+<script src="/publicas/navegador.js"></script>
+<script src="/publicas/dom.js"></script>
+<script src="/publicas/esforcos.js"></script>
+<script src="/navegador/cabecalho.js"></script>
+<script src="/navegador/rodape.js"></script>
+<script src="programa.js"></script>
+</html>

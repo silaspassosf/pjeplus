@@ -1,0 +1,456 @@
+{
+  "peticoes": [
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação",
+      "fase": "Execução",
+      "indice": 0,
+      "numero_processo": "Abrir a tarefa Aguardando final do sobrestamento do processo:\nATOrd\n1000148-47.2017.5.02.0703",
+      "tarefa": "Aguardando final do sobrestamento",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Apresentação de Esclarecimentos ao Laudo Pericial",
+      "fase": "Liquidação",
+      "indice": 1,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1000398-80.2017.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Reclamada apresenta demonstrativo de cálculo e guia de depósito",
+      "fase": "Arquivados",
+      "indice": 2,
+      "numero_processo": "Abrir a tarefa Arquivo do processo:\nCumSen\n1000864-30.2024.5.02.0703\n100%",
+      "tarefa": "Arquivo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Pet. Impugnação à manifestação da Patrona Daniela",
+      "fase": "Liquidação",
+      "indice": 3,
+      "numero_processo": "Abrir a tarefa Análise do processo:\nATOrd\n1001603-03.2024.5.02.0703\n100%",
+      "tarefa": "Análise",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação - DAFNE",
+      "fase": "Liquidação",
+      "indice": 4,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATSum\n1000764-41.2025.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação da Reclamada",
+      "fase": "Liquidação",
+      "indice": 5,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATSum\n1000764-41.2025.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Apresentação de Substabelecimento com Reserva de Poderes",
+      "fase": "Conhecimento",
+      "indice": 6,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1001225-13.2025.5.02.0703\nAudiência em: 30/03/2026 08:20\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Apresentação de Substabelecimento com Reserva de Poderes"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Em segredo/sigilo",
+      "fase": "Conhecimento",
+      "indice": 7,
+      "numero_processo": "Abrir a tarefa Elaborar sentença do processo:\nATOrd\n1001351-63.2025.5.02.0703\nAudiência em: 28/01/2026 16:20\n100%",
+      "tarefa": "Elaborar sentença",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "7- Razões finais",
+      "fase": "Conhecimento",
+      "indice": 8,
+      "numero_processo": "Abrir a tarefa Elaborar sentença do processo:\nATOrd\n1001365-47.2025.5.02.0703\nAudiência em: 28/01/2026 16:35\n100%",
+      "tarefa": "Elaborar sentença",
+      "tipo_peticao": "Razões Finais"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "RAZÕES FINAIS - C L SIQUEIRA MATERIAIS PARA CONSTRUCAO",
+      "fase": "Conhecimento",
+      "indice": 9,
+      "numero_processo": "Abrir a tarefa Elaborar sentença do processo:\nATOrd\n1001365-47.2025.5.02.0703\nAudiência em: 28/01/2026 16:35\n100%",
+      "tarefa": "Elaborar sentença",
+      "tipo_peticao": "Razões Finais"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Réplica e Razões Finais",
+      "fase": "Conhecimento",
+      "indice": 10,
+      "numero_processo": "Abrir a tarefa Elaborar sentença do processo:\nATOrd\n1001528-55.2025.5.02.0047\nAudiência em: 19/12/2025 15:10",
+      "tarefa": "Elaborar sentença",
+      "tipo_peticao": "Réplica"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Agravo de Instrumento em Recurso Ordinário",
+      "fase": "Conhecimento",
+      "indice": 11,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1001580-23.2025.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Agravo de Instrumento em Recurso Ordinário"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Concordância com os esclarecimentos",
+      "fase": "Conhecimento",
+      "indice": 12,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1001609-73.2025.5.02.0703\nAudiência em: 24/02/2026 10:00",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Impugnação ao laudo de insalubridade",
+      "fase": "Conhecimento",
+      "indice": 13,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATSum\n1001670-31.2025.5.02.0703\nAudiência em: 09/02/2026 08:40\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Embargos de Declaração",
+      "fase": "Conhecimento",
+      "indice": 14,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1001738-78.2025.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Embargos de Declaração"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Habilitação",
+      "fase": "Execução",
+      "indice": 15,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nCPSAC\n1001744-85.2025.5.02.0703\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Solicitação de Habilitação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação sobre incompetência da Justiça do Trabalho",
+      "fase": "Execução",
+      "indice": 16,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nCPSAC\n1001744-85.2025.5.02.0703\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Em segredo/sigilo",
+      "fase": "Conhecimento",
+      "indice": 17,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1001748-70.2025.5.02.0009\nAudiência em: 17/03/2026 09:00\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Minuta de Acordo - Adriana Amelia x Poly-Vac",
+      "fase": "Conhecimento",
+      "indice": 18,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1001872-08.2025.5.02.0703\nAudiência em: 17/03/2026 11:05",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Acordo"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação",
+      "fase": "Conhecimento",
+      "indice": 19,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1001872-08.2025.5.02.0703\nAudiência em: 17/03/2026 11:05",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação",
+      "fase": "Conhecimento",
+      "indice": 20,
+      "numero_processo": "Abrir a tarefa Aguardando audiência do processo:\nATOrd\n1001904-13.2025.5.02.0703\nAudiência em: 10/03/2026 08:50\n100%",
+      "tarefa": "Aguardando audiência",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação",
+      "fase": "Conhecimento",
+      "indice": 21,
+      "numero_processo": "Abrir a tarefa Aguardando audiência do processo:\nATOrd\n1001904-13.2025.5.02.0703\nAudiência em: 10/03/2026 08:50\n100%",
+      "tarefa": "Aguardando audiência",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Em segredo/sigilo",
+      "fase": "Conhecimento",
+      "indice": 22,
+      "numero_processo": "Abrir a tarefa Análise do processo:\nATOrd\n1001926-71.2025.5.02.0703\n100%",
+      "tarefa": "Análise",
+      "tipo_peticao": "Contestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Em segredo/sigilo",
+      "fase": "Conhecimento",
+      "indice": 23,
+      "numero_processo": "Abrir a tarefa Análise do processo:\nATOrd\n1001926-71.2025.5.02.0703\n100%",
+      "tarefa": "Análise",
+      "tipo_peticao": "Contestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Em segredo/sigilo",
+      "fase": "Conhecimento",
+      "indice": 24,
+      "numero_processo": "Abrir a tarefa Análise do processo:\nATOrd\n1001926-71.2025.5.02.0703\n100%",
+      "tarefa": "Análise",
+      "tipo_peticao": "Contestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Em segredo/sigilo",
+      "fase": "Conhecimento",
+      "indice": 25,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1001946-62.2025.5.02.0703\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Em segredo/sigilo",
+      "fase": "Conhecimento",
+      "indice": 26,
+      "numero_processo": "Abrir a tarefa Aguardando audiência do processo:\nATOrd\n1001981-22.2025.5.02.0703\nAudiência em: 03/02/2026 11:00\n100%",
+      "tarefa": "Aguardando audiência",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Habilitação",
+      "fase": "Conhecimento",
+      "indice": 27,
+      "numero_processo": "Abrir a tarefa Aguardando audiência do processo:\nATOrd\n1002114-64.2025.5.02.0703\nAudiência em: 26/01/2026 10:10\n100%",
+      "tarefa": "Aguardando audiência",
+      "tipo_peticao": "Solicitação de Habilitação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Acordo - Deric",
+      "fase": "Conhecimento",
+      "indice": 28,
+      "numero_processo": "Abrir a tarefa Aguardando audiência do processo:\nATOrd\n1002115-49.2025.5.02.0703\nAudiência em: 25/02/2026 10:00\n100%",
+      "tarefa": "Aguardando audiência",
+      "tipo_peticao": "Acordo"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "acordo firmado",
+      "fase": "Conhecimento",
+      "indice": 29,
+      "numero_processo": "Abrir a tarefa Aguardando audiência do processo:\nATOrd\n1002115-49.2025.5.02.0703\nAudiência em: 25/02/2026 10:00\n100%",
+      "tarefa": "Aguardando audiência",
+      "tipo_peticao": "Acordo"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Reclamação trabalhista - Lucia Aparecida",
+      "fase": "Conhecimento",
+      "indice": 30,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATSum\n1002247-09.2025.5.02.0703\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Emenda à Inicial"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Habilitação",
+      "fase": "Conhecimento",
+      "indice": 31,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATSum\n1002247-09.2025.5.02.0703\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Solicitação de Habilitação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Habilitação",
+      "fase": "Conhecimento",
+      "indice": 32,
+      "numero_processo": "Abrir a tarefa Aguardando audiência do processo:\nATSum\n1002248-91.2025.5.02.0703\nAudiência em: 10/03/2026 09:20\n100%",
+      "tarefa": "Aguardando audiência",
+      "tipo_peticao": "Solicitação de Habilitação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação AJ - Falência",
+      "fase": "Execução",
+      "indice": 33,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1000580-03.2016.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação - envio do ofício",
+      "fase": "Execução",
+      "indice": 34,
+      "numero_processo": "Abrir a tarefa Análise do processo:\nATOrd\n1001419-28.2016.5.02.0703",
+      "tarefa": "Análise",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação (DADOS BANCARIOS)",
+      "fase": "Execução",
+      "indice": 35,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1002270-67.2016.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Apresentação de Esclarecimentos ao Laudo Pericial",
+      "fase": "Liquidação",
+      "indice": 36,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1000049-77.2017.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Apresentação de Esclarecimentos ao Laudo Pericial"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "(Pipek 0) GOL Peticao ANGELICA SIGNORETTI dilacao",
+      "fase": "Execução",
+      "indice": 37,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1002021-82.2017.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Petição expedição de ofícios",
+      "fase": "Execução",
+      "indice": 38,
+      "numero_processo": "Abrir a tarefa Aguardando final do sobrestamento do processo:\nATOrd\n1002087-58.2017.5.02.0090",
+      "tarefa": "Aguardando final do sobrestamento",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Prosseguimento da execução CAGED",
+      "fase": "Execução",
+      "indice": 39,
+      "numero_processo": "Abrir a tarefa Aguardando final do sobrestamento do processo:\nATOrd\n1000926-80.2018.5.02.0703",
+      "tarefa": "Aguardando final do sobrestamento",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "M Alexsandro - SIMBA",
+      "fase": "Execução",
+      "indice": 40,
+      "numero_processo": "Abrir a tarefa Aguardando final do sobrestamento do processo:\nATOrd\n1001064-47.2018.5.02.0703",
+      "tarefa": "Aguardando final do sobrestamento",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação",
+      "fase": "Execução",
+      "indice": 41,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1000214-22.2020.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Informações Inventários - Davi Gonçalves de Almeida",
+      "fase": "Execução",
+      "indice": 42,
+      "numero_processo": "Abrir a tarefa Análise do processo:\nATSum\n1000403-97.2020.5.02.0703",
+      "tarefa": "Análise",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação",
+      "fase": "Execução",
+      "indice": 43,
+      "numero_processo": "Abrir a tarefa Análise do processo:\nATOrd\n1000427-28.2020.5.02.0703",
+      "tarefa": "Análise",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação sobre resposta do INSS",
+      "fase": "Execução",
+      "indice": 44,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1000558-03.2020.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação requerendo CEJUSC_Arcolimp",
+      "fase": "Liquidação",
+      "indice": 45,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATOrd\n1000825-38.2021.5.02.0703",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Agravo de Petição",
+      "fase": "Execução",
+      "indice": 46,
+      "numero_processo": "Abrir a tarefa Assinar decisão do processo:\nATSum\n1000696-96.2022.5.02.0703\n100%",
+      "tarefa": "Assinar decisão",
+      "tipo_peticao": "Agravo de Petição"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Orientação",
+      "fase": "Execução",
+      "indice": 47,
+      "numero_processo": "Abrir a tarefa Aguardando prazo do processo:\nATSum\n1000908-20.2022.5.02.0703\n100%",
+      "tarefa": "Aguardando prazo",
+      "tipo_peticao": "Manifestação"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Embargos de Declaração",
+      "fase": "Liquidação",
+      "indice": 48,
+      "numero_processo": "Abrir a tarefa Cumprimento de Providências do processo:\nATOrd\n1001294-50.2022.5.02.0703",
+      "tarefa": "Cumprimento de Providências",
+      "tipo_peticao": "Embargos de Declaração"
+    },
+    {
+      "data_juntada": "Sem impedimento ou suspeição",
+      "descricao": "Manifestação",
+      "fase": "Execução",
+      "indice": 49,
+      "numero_processo": "Abrir a tarefa Aguardando final do sobrestamento do processo:\nATSum\n1001431-32.2022.5.02.0703",
+      "tarefa": "Aguardando final do sobrestamento",
+      "tipo_peticao": "Manifestação"
+    }
+  ],
+  "tempo_ms": 3,
+  "total_linhas": 50
+}

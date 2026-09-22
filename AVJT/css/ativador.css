@@ -1,0 +1,116 @@
+label
+{
+	display:block;
+}
+
+.ativador{
+	font-size:11px;
+	margin:0 auto 0 auto;
+	outline:0;
+	user-select:none;
+}
+
+.ativador input{
+	display:none;
+}
+
+.ativador,
+.ativador span,
+.ativador span:before
+{
+	position:relative;
+}
+
+.ativador input:checked + span{
+	color:rgba(var(--extensao-cor-preto),0.8);
+	text-shadow:none;
+}
+
+.ativador input:not(:checked) + span,
+.ativador input:not(:checked) + span:before
+{
+	color:rgba(var(--extensao-cor-branco),0.8);
+}
+
+.ativador,
+.ativador span,
+.ativador span:after,
+.ativador span:before
+{
+	cursor:pointer;
+	display:block;
+	font-weight:700;
+}
+
+.ativador input:checked + span{
+	background:rgba(var(--extensao-cor-branco),1);
+}
+
+.ativador span:after,
+.ativador input:checked + span:after,
+.ativador input:not(:checked) + span:after
+{
+	background:rgba(var(--extensao-cor-primaria),0.9);
+}
+
+.ativador input:not(:checked) + span{
+	background:rgba(var(--extensao-cor-preto),0.6);
+}
+
+.ativador input:not(:checked) + span:after{
+	background:rgba(var(--extensao-cor-vermelho),0.9);
+	left:23px;
+}
+
+.ativador span:after{
+	border-radius:3px;
+}
+
+.assistente{
+	margin-bottom:16px;
+}
+
+.assistente span,
+.assistente span:after
+{
+	border-radius:20px;
+}
+
+.ativador span,
+.ativador span:after
+{
+	box-shadow:0 6px 4px -4px rgba(var(--extensao-cor-preto),0.5);
+}
+
+.ativador span{
+	font-weight:normal;
+	line-height:26px;
+	overflow:hidden;
+	text-align:center;
+	text-shadow:1px 2px 3px rgba(var(--extensao-cor-preto),0.5);
+	transition:background 0.5s ease-in-out,color 0.5s ease,right 0.7s;
+}
+
+.ativador span:after{
+	content:'';
+	height:20px;
+	margin-left:-20px;
+	position:absolute;
+	top:3px;
+	transition:background 0.5s ease-in-out,color 0.5s ease,left 0.5s;
+	width:20px;
+}
+
+.ativador input:checked + span:after{
+	left:calc(100% - 3px);
+}
+
+.ativador input:not(:checked) + span:before{
+	content:attr(data-desativado);
+	padding:0 24px;
+}
+
+.ativador input:checked + span:before{
+	padding:0 24px;
+	content:attr(data-ativado);
+}

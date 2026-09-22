@@ -1,0 +1,59 @@
+{
+  "numero": [
+    "1000319-57.2024.5.02.0703"
+  ],
+  "id": 5974089,
+  "autor": [
+    {
+      "nome": "LEONARDO MARTINS SANTANA",
+      "cpfcnpj": "41420138820",
+      "advogado": {
+        "nome": "NATHALIA ROQUE LEAO",
+        "cpf": "36205805880",
+        "oab": "SP318077"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "TECNISA S.A.",
+      "cpfcnpj": "08065557000112",
+      "advogado": {
+        "nome": "THIAGO MAHFUZ VEZZI",
+        "cpf": "18144238850",
+        "oab": "SP228213"
+      }
+    },
+    {
+      "nome": "UTILES SERVICOS, DESENVOLVIMENTO E INTERMEDIACOES EIRELI",
+      "cpfcnpj": "30522248000183",
+      "advogado": {
+        "nome": "RUBILHAM ANDRADE",
+        "cpf": "24927918823",
+        "oab": "SP355893"
+      }
+    }
+  ],
+  "terceiro": [],
+  "divida": {},
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "06/03/2024",
+  "classeJudicial": {
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
+    "podeIncluirAutoridade": false,
+    "pisoValorCausa": 64840.01,
+    "ativo": true,
+    "idClasseJudicialPai": 323,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Liquidação",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
+}

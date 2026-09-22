@@ -1,0 +1,10 @@
+@import url("/css/navegador.css");
+
+main{
+	height:calc(100vh - 126px);
+	margin:66px 0 60px 0;
+}
+
+h2{
+	margin-bottom:2rem;
+}

@@ -19,7 +19,6 @@ from Fix import espera
 
 
 def preencher_input_js(driver: Any, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
-    """Preenche input via preencher_campo nativo."""
     for tentativa in range(1, max_tentativas + 1):
         try:
             if preencher_campo(driver, seletor, str(valor)):
@@ -35,7 +34,6 @@ def preencher_input_js(driver: Any, seletor: str, valor: Union[str, int], max_te
 
 
 def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False):
-    """Abre o mat-select e clica na opção correspondente via vocabulário nativo."""
     try:
         el_presente = wait_for_clickable(driver, seletor_select, timeout=10, by=By.CSS_SELECTOR)
         if not el_presente:
@@ -65,7 +63,6 @@ def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False
 
 
 def clicar_radio_button_js(driver, texto_label, debug=False):
-    """Clica no mat-radio-button correspondente."""
     try:
         texto_norm = normalizar_string(texto_label)
         radios = espera.elementos(driver, 'mat-radio-button')
@@ -80,7 +77,6 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
 
 
 def _aguardar_ck_com_conteudo(driver: Any, timeout: int = 8) -> bool:
-    """Aguarda CKEditor conter conteúdo não-vazio via espera observável de estado JS."""
     expr = (
         "(window.CKEDITOR && Object.values(window.CKEDITOR.instances).some(function(i){ return (i.getData() || '').trim().length > 0; })) || "
         "(__pjeEls('.ck-editor__editable, .ck-content, div[contenteditable=\"true\"], textarea, iframe').some(function(el){ return ((el.innerText || el.textContent || el.value || '')).trim().length > 0; }))"
@@ -89,7 +85,6 @@ def _aguardar_ck_com_conteudo(driver: Any, timeout: int = 8) -> bool:
 
 
 def aguardar_ato_confeccionado(driver: Any, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
-    """Aguarda confirmação pós-'Finalizar minuta'."""
     if log is None:
         def log(_msg): return None
 
@@ -113,7 +108,6 @@ def aguardar_ato_confeccionado(driver: Any, timeout_fechar: int = 15, timeout_ic
 
 
 def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: int = 15) -> bool:
-    """Barreira geral pós-finalização: só escolher destinatários com a UI estável."""
     if log is None:
         def log(_msg):
             return None
@@ -144,7 +138,6 @@ def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: in
 
 
 def finalizar_minuta(driver: Any, log=None) -> bool:
-    """Clica 'Finalizar minuta' e aguarda confirmacao do ato."""
     if log is None:
         def log(_msg):
             return None
@@ -394,12 +387,8 @@ def executar_preenchimento_minuta(
                 except Exception as _e:
                     log(f'[MODELO][WARN] Exceção ao verificar snackbar: {_e}')
 
-                # 7. Aguardar dialog fechar (10s: dialog pode fechar antes do
-                #    CKEditor terminar de receber o conteúdo do modelo)
                 aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 10)
 
-                # 8. Barreira da juntada: editor precisa conter o conteúdo do modelo
-                #    antes de finalizar a minuta (restaurado do legado)
                 if not _aguardar_ck_com_conteudo(driver, timeout=8):
                     log('[MODELO][WARN] Conteudo do modelo nao confirmado no editor apos 8s')
                 else:
@@ -443,7 +432,6 @@ def executar_preenchimento_minuta(
         else:
             log('8. Sem modelo para inserir')
 
-        # SEMPRE finaliza/salva após inserir modelo (finalizar sempre True)
         log('[COMUNICACAO] Finalizando minuta (salvando)...')
         finalizar_minuta(driver, log=log)
 

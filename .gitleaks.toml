@@ -1,0 +1,37 @@
+# gitleaks config — pjeplus (2026-09-22)
+# Extend do default + allowlist do ruido conhecido deste projeto.
+# Usado pelo hook pre-commit e pelo GitHub Actions.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ruido validado do pjeplus (falsos positivos)"
+paths = [
+  '''(^|/)\.venv/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)pdf/''',
+  '''(^|/)outros projetos/''',
+  '''(^|/)\.claude/''',
+  '''(^|/)leg/''',
+  '''(^|/)ORIGINAIS/''',
+  '''(^|/)cookies_sessoes/''',
+  '''(^|/)Prazo/cookies_sessoes/''',
+  '''(^|/)Play/medicoes/''',
+  '''(^|/)logs_execucao/''',
+  '''(^|/)LEGADO\.md$''',
+  '''(^|/)gitleaks\.toml$''',
+]
+# Chaves de teste obvias em fixtures/tests de terceiros
+regexes = [
+  '''sk-test[0-9a-zA-Z]{4,}''',
+  '''sk-sec(ret)?[-_]?12345''',
+  '''sk-abc123''',
+  '''valid[-_](api[-_]?key|token)''',
+  '''test[-_]api[-_]?key''',
+  '''enter[-_]your[-_]api[-_]?key''',
+]
+# Stops
+stopwords = [
+  "exemplo", "sample", "fixture", "placeholder", "dummy",
+]

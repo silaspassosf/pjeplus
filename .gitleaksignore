@@ -1,6 +1,5 @@
 # Falsos positivos validados manualmente (2026-09-22, varredura pos-higienizacao)
-# Triagem/coleta.py:607 — nome de excecao "_ErroAutenticacao401" casou com a regex
-#   de api-key (prefixo "_" + "401"). Nao e segredo.
-Triagem/coleta.py:generic-api-key
+# NOTA: "_ErroAutenticacao401" (Triagem/coleta.py) agora está na allowlist do
+#   .gitleaks.toml (fingerprint do gitleaks inclui o segredo e quebra ao editar arquivo).
 # NOTA 2026-09-22: o falso positivo de AVJT/publicas/pje.js:732 (XSRF comentado)
 # foi CORRIGIDO NA FONTE (token substituido por placeholder) e removido desta lista.

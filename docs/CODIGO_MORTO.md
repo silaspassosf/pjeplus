@@ -8,7 +8,7 @@
 
 | ID | Item / Arquivo | Evidência | Ação Planejada | Fase |
 |---|---|---|---|---|
-| DEAD-001 | `Andrei/` | 0 referências no pipeline de execução (`x.py` e `pw.py` não importam) | Marcar e deletar na F7 | F7 |
+| DEAD-001 | `Andrei/` | 0 referências no pipeline de execução (`x.py`/`pw.py`) | Mantido para execução isolada e testes (NÃO DELETAR, decisão usuário) | — |
 | DEAD-002 | `gen_bm.py`, `ad.py`, `temp_main_navegacao.py` (raiz) | 0 referências em todo o projeto | Marcar e deletar na F7 | F7 |
 | DEAD-003 | `f.py` (harness multi-testes manual) | Ferramenta manual, não roda em `pw.py` | Mover para `tools/` ou deletar | F7 |
 | DEAD-004 | `Fix/driver_factory.py` | Untracked / legado, sem `criar_driver_pc` (função esperada não existe) | Marcar e deletar na F7 | F7 |

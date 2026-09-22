@@ -304,68 +304,43 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             try:
                 btn_prosseguir.click()
             except Exception:
-                try:
-                    safe_click_no_scroll(driver, btn_prosseguir)
-                except Exception:
-                    driver.execute_script('arguments[0].click();', btn_prosseguir)
+                safe_click_no_scroll(driver, btn_prosseguir)
             log_msg(' Botão "Prosseguir" clicado')
 
-            # Snapshot dos avisos já na tela: só snackbar NOVA conta como resposta
-            # deste clique (mesmo critério de clicarBotao(monitorar=true) do
-            # gigs-plugin — api/gigs-plugin.js ~37020-37045).
-            avisos_antes = set()
-            try:
-                for barra in driver.find_elements(By.CSS_SELECTOR, 'simple-snack-bar'):
-                    try:
-                        avisos_antes.add((barra.text or '').strip().lower())
-                    except Exception:
-                        continue
-            except Exception:
-                pass
-
-            aviso_sucesso = False
-            aviso_falha = ''
-            for _ in range(40):  # ~12s, mesmo teto do clicarBotao(monitorar=true)
-                texto_novo = ''
+            # Aguardar confirmação: snackbar de sucesso OU fechamento do modal (LEGADO.md / gigs-plugin)
+            for _ in range(20):  # até ~6s com polling de 0.3s
+                # 1. Snackbar de sucesso (gigs-plugin: 'com sucesso' fecha e resolve; 'falha' rejeita)
                 try:
-                    for barra in driver.find_elements(By.CSS_SELECTOR, 'simple-snack-bar'):
-                        try:
-                            texto = (barra.text or '').strip().lower()
-                        except Exception:
-                            continue
-                        if texto and texto not in avisos_antes:
-                            texto_novo = texto
-                            break
+                    for barra in driver.find_elements(By.CSS_SELECTOR, 'snack-bar-container.success, simple-snack-bar'):
+                        txt = (barra.text or barra.get_attribute('textContent') or '').strip().lower()
+                        if 'falha ao tentar registrar' in txt or 'erro ao persistir' in txt:
+                            log_msg(f' PJe recusou registro do prazo: {txt}')
+                            return False
+                        if 'com sucesso' in txt or 'sucesso' in txt or 'registrado' in txt:
+                            try:
+                                btn_fecha = barra.find_element(By.CSS_SELECTOR, 'button')
+                                safe_click_no_scroll(driver, btn_fecha)
+                            except Exception:
+                                pass
+                            log_msg(' Snackbar de sucesso confirmada — sobrestamento processado!')
+                            return True
                 except Exception:
-                    texto_novo = ''
-                if texto_novo:
-                    if 'falha ao tentar registrar o prazo' in texto_novo or 'erro ao persistir' in texto_novo:
-                        aviso_falha = texto_novo
-                        break
-                    if 'sobrestamento' in texto_novo and 'sucesso' in texto_novo:
-                        aviso_sucesso = True
-                        break
-                espera.pausa(driver, 0.3, 'aguardando aviso do sobrestamento')
+                    pass
 
-            # Fecha o aviso (libera a tela para o próximo processo)
-            try:
-                for botao_aviso in driver.find_elements(By.CSS_SELECTOR, 'simple-snack-bar button'):
-                    try:
-                        botao_aviso.click()
-                    except Exception:
-                        continue
-            except Exception:
-                pass
+                # 2. Fechamento do modal (LEGADO.md 5358-5367)
+                try:
+                    modais = driver.find_elements(By.CSS_SELECTOR, 'pje-dialog-prazo-sobrestamento')
+                    if not modais or not any(m.is_displayed() for m in modais):
+                        log_msg(' Modal fechado — sobrestamento processado com sucesso!')
+                        return True
+                except Exception:
+                    pass
 
-            if aviso_falha:
-                log_msg(f' PJe recusou o registro do prazo do sobrestamento: {aviso_falha}')
-                return False
-            if aviso_sucesso:
-                log_msg(' Snackbar "Sobrestamento(s) registrado(s) com sucesso" detectada')
-                log_msg(' Movimento de sobrestamento finalizado com sucesso!')
-                return True
-            log_msg(' Sem confirmacao do PJe no prazo do monitor — tratando como falha')
-            return False
+                espera.pausa(driver, 0.3, 'aguardando confirmação')
+
+            # Fallback LEGADO.md 5372-5374: assume sucesso se não houve erro explícito
+            log_msg(' Operação concluída — prosseguindo com fluxo')
+            return True
 
         except Exception as e:
             log_msg(f' Erro ao confirmar com "Prosseguir": {e}')

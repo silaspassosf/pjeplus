@@ -297,6 +297,29 @@ def get_concluidos(tipo: str) -> set:
         return set()
 
 
+_DEAD_DRIVER_MARKERS = (
+    'nenhuma janela aberta',
+    'janela inexistente',
+    'janela atual nao registrada',
+    'no such window',
+    'session deleted',
+    'target closed',
+    'has been closed',
+    'browsing context has been discarded',
+    'invalid session id',
+    'failed to decode response from marionette',
+    'tried to run command without establishing a connection',
+    'unable to connect to marionette',
+    'nosuchwindowerror',
+)
+
+
+def _is_driver_dead(msg: str) -> bool:
+    """True quando a mensagem de erro indica driver irrecuperável."""
+    m = msg.lower()
+    return any(k in m for k in _DEAD_DRIVER_MARKERS)
+
+
 def run_batch(
     items: List[T],
     should_skip: Callable[[T], bool],
@@ -396,6 +419,11 @@ def run_batch(
             _safe_persist(persist_result, item, resultado_falha(err))
             if progress_callback:
                 progress_callback(idx, len(items), item, resultado_falha(err))
+            if stop_on_critical and _is_driver_dead(err):
+                logger.warning("[ENGINE] driver morto em open_item — parando: %s", err)
+                stats["critical_stop"] = True
+                stats["critical_reason"] = err
+                break
             continue
 
         # 3. Executar ação principal
@@ -425,6 +453,11 @@ def run_batch(
             _safe_persist(persist_result, item, resultado_falha(err))
             if progress_callback:
                 progress_callback(idx, len(items), item, resultado_falha(err))
+            if stop_on_critical and _is_driver_dead(err):
+                logger.warning("[ENGINE] driver morto em execute_item — parando: %s", err)
+                stats["critical_stop"] = True
+                stats["critical_reason"] = err
+                break
             continue
 
         # 4. Sucesso — todas as etapas ok

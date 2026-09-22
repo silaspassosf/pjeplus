@@ -168,11 +168,23 @@ def _pz_idpj(driver, atv):
 
 
 def _mddid(driver, atv):
-    """mdd id: pec_mddsent + pec_editalsent."""
-    return _executar_passos(
-        lambda: _a(w, 'pec_mddsent')(driver),
-        lambda: _a(w, 'pec_editalsent')(driver),
-    )
+    """mdd id: pec_mddsent + pec_editalsent.
+
+    Execução explícita (em vez de _executar_passos) para poder interpor
+    a barreira aguardar_renderizacao_nativa entre os dois wrappers.
+    Quando chamados isoladamente o PJe já está estável no início do
+    próximo processo; aqui replicamos essa condição antes do 2º ato.
+    """
+    from atos.wrappers_pec import pec_mddsent, pec_editalsent
+    ok = _normalizar_resultado_acao(pec_mddsent(driver))
+    if ok is False:
+        return False
+    # Barreira: aguarda readyState completo na aba de detalhe após
+    # fechar a aba de minutas do mandado — sem ela o Angular ainda
+    # está processando o ato agrupado quando a aba do edital abre,
+    # causando o spinner "Aguardando" por trás do modal de modelo.
+    aguardar_renderizacao_nativa(driver, timeout=10)
+    return _normalizar_resultado_acao(pec_editalsent(driver))
 
 
 def _xs_meios(driver, atv):

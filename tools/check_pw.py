@@ -146,8 +146,9 @@ def salvar_baseline(scan_data: Dict[str, Dict[str, Any]], migrados: List[str] = 
                 "breakdown": active_breakdown,
             }
         else:
-            # Se zerou e estava no baseline antigo ou migrados, garante em migrados
-            if rel_path in migrados_set:
+            # Se zerou e estava no baseline antigo ou ja em migrados, promove para migrados
+            base_files_antigo = atual_base.get("files", {})
+            if rel_path in base_files_antigo or rel_path in migrados_set:
                 migrados_set.add(rel_path)
 
     payload = {

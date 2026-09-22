@@ -2,9 +2,11 @@
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
   "total_files": 309,
-  "files_with_patterns": 140,
-  "total_patterns": 2942,
-  "migrados": [],
+  "files_with_patterns": 139,
+  "total_patterns": 2909,
+  "migrados": [
+    "atos/comunicacao_preenchimento.py"
+  ],
   "files": {
     "Andrei/atos_helpers.py": {
       "total": 108,
@@ -931,18 +933,6 @@
       "breakdown": {
         "from_selenium": 1,
         "execute_script": 2
-      }
-    },
-    "atos/comunicacao_preenchimento.py": {
-      "total": 33,
-      "breakdown": {
-        "from_selenium": 5,
-        "find_element": 3,
-        "find_elements": 2,
-        "execute_script": 12,
-        "send_keys": 4,
-        "time_sleep": 1,
-        "webdriver_type": 6
       }
     },
     "atos/core.py": {

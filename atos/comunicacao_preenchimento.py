@@ -1,20 +1,22 @@
 import re
 import time
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import NoSuchElementException
-from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
-from Fix.selenium_base.click_operations import aguardar_e_clicar
-from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
+from typing import Optional, Union, Callable, Any
+from Play.pjeplay.locators import By, Keys
+from Play.pjeplay.errors import NoSuchElementException, StaleElementReferenceException, TimeoutException
+from Fix.core import (
+    aguardar_renderizacao_nativa,
+    safe_click_no_scroll,
+    wait_for_clickable,
+    esperar_elemento,
+    aguardar_e_clicar,
+)
 from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
 from Fix.log import logger
 from Fix.utils import normalizar_texto as normalizar_string
-from typing import Optional, Union, Callable, Any
-from selenium.webdriver.remote.webdriver import WebDriver
 from Fix import espera
 
 
-def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
+def preencher_input_js(driver: Any, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
     """Preenche input via querySelector direto + setter de prototype.
     Identico ao gigs-plugin.js preencherInput: sem click previo, sem wait_for_clickable.
     """
@@ -118,7 +120,7 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
 
 
 
-def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
+def _aguardar_ck_com_conteudo(driver: Any, timeout: int = 8) -> bool:
     """Aguarda CKEditor conter conteúdo não-vazio após inserção de modelo.
 
     Faz polling leve via JS até o editor ter dados ou o timeout expirar.
@@ -197,7 +199,7 @@ def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
     return False
 
 
-def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
+def aguardar_ato_confeccionado(driver: Any, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
     """Aguarda confirmação pós-'Finalizar minuta'.
 
     Barreira de sincronização (restaurada do legado): a snackbar "Ato elaborado
@@ -236,7 +238,7 @@ def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, time
     return ok_icone
 
 
-def aguardar_estabilizacao_para_destinatarios(driver: WebDriver, log=None, timeout: int = 15) -> bool:
+def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: int = 15) -> bool:
     """Barreira geral pós-finalização: só escolher destinatários com a UI estável.
 
     Em pw.py (Playwright) `aguardar_renderizacao_nativa` é auto-wait nativo
@@ -285,7 +287,7 @@ def aguardar_estabilizacao_para_destinatarios(driver: WebDriver, log=None, timeo
     return True
 
 
-def finalizar_minuta(driver: WebDriver, log=None) -> bool:
+def finalizar_minuta(driver: Any, log=None) -> bool:
     """Clica 'Finalizar minuta' e aguarda confirmacao do ato.
     Separada de executar_preenchimento_minuta para ser chamada
     tardiamente quando trocar_modelo=True."""
@@ -324,7 +326,7 @@ def finalizar_minuta(driver: WebDriver, log=None) -> bool:
 
 
 def executar_preenchimento_minuta(
-    driver: WebDriver,
+    driver: Any,
     tipo_expediente: str,
     prazo: Union[str, int],
     nome_comunicacao: str,
@@ -516,8 +518,6 @@ def executar_preenchimento_minuta(
             log(f'8. Selecionando modelo: {modelo_nome}')
 
             try:
-                from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
-
                 # 1. Localizar campo filtro e preencher via JS + ENTER (robusto como judicial_fluxo)
                 campo_filtro = wait_for_clickable(driver, 'input#inputFiltro', timeout=10, by=By.CSS_SELECTOR)
                 if not campo_filtro:

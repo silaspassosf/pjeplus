@@ -729,7 +729,7 @@ async function pjeConsultarProcessoNoPainel(numero=''){
 //	        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
 //	        "Accept": "application/json, text/plain, */*",
 //	        "Accept-Language": "pt-BR",
-//	        "X-XSRF-TOKEN": "REMOVIDO-HIGIENIZACAO-20260922",
+//	        "X-XSRF-TOKEN": "<obter do cookie XSRF-TOKEN da sessao atual, nao fixar>",
 //	        "Content-Type": "application/json",
 //	        "Sec-Fetch-Dest": "empty",
 //	        "Sec-Fetch-Mode": "cors",

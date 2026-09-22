@@ -30,6 +30,9 @@ regexes = [
   '''valid[-_](api[-_]?key|token)''',
   '''test[-_]api[-_]?key''',
   '''enter[-_]your[-_]api[-_]?key''',
+  # Triagem/coleta.py — nome de excecao "_ErroAutenticacao401" casou com a regex
+  # de api-key. Nao e segredo (falso positivo validado 2026-09-22).
+  '''_ErroAutenticacao401''',
 ]
 # Stops
 stopwords = [

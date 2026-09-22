@@ -1,7 +1,6 @@
 # Falsos positivos validados manualmente (2026-09-22, varredura pos-higienizacao)
-# AVJT/publicas/pje.js:732 — X-XSRF-TOKEN dentro de bloco COMENTADO (//) de exemplo;
-#   token de sessao antigo, sem valor. Manter comentado e ignorado.
-AVJT/publicas/pje.js:732:generic-api-key
 # Triagem/coleta.py:607 — nome de excecao "_ErroAutenticacao401" casou com a regex
 #   de api-key (prefixo "_" + "401"). Nao e segredo.
-Triagem/coleta.py:607:generic-api-key
+Triagem/coleta.py:generic-api-key
+# NOTA 2026-09-22: o falso positivo de AVJT/publicas/pje.js:732 (XSRF comentado)
+# foi CORRIGIDO NA FONTE (token substituido por placeholder) e removido desta lista.

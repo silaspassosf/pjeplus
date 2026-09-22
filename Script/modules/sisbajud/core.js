@@ -180,28 +180,16 @@ window.SisbCore = {
     },
 
     async resolverSenhaSisb() {
+        // 2026-09-22: logins (PJe/SISBAJUD) sao manuais; servidores locais de senha
+        // (server.py, senha_api.py) foram removidos por seguranca. A senha, quando
+        // necessaria, fica so no GM_getValue local do Tampermonkey.
         try {
             if (typeof GM_getValue !== 'undefined') {
                 let v = GM_getValue('BP_PASS') || GM_getValue('sisbajud_senha');
                 if (v) return String(v);
             }
         } catch(e) {}
-        try {
-            let resp = await fetch('http://127.0.0.1:8000/api/env/BP_PASS');
-            if (resp.ok) {
-                let txt = await resp.text();
-                if (txt && txt.trim()) return txt.trim();
-            }
-        } catch(e) {}
-        try {
-            let resp = await fetch('http://127.0.0.1:8000/.env');
-            if (resp.ok) {
-                let txt = await resp.text();
-                let m = txt.match(/BP_PASS\s*=\s*(.+)/i);
-                if (m && m[1]) return m[1].trim();
-            }
-        } catch(e) {}
-        return window.__sisbSenha || window.BP_PASS || window.__BP_PASS || '';
+        return window.__sisbSenha || window.BP_PASS || '';
     },
 
     salvarEstado: _sisbSet,

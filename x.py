@@ -72,28 +72,6 @@ class DriverType(Enum):
     VT_HEADLESS = "vt_headless"
 
 
-# ============================================================================
-# CAPTURA DE PRINTS (TEEOUTPUT)
-# ============================================================================
-
-class TeeOutput:
-    """Captura stdout/stderr para arquivo e console"""
-    def __init__(self, file_path):
-        self.terminal = sys.stdout
-        self.log_file = open(file_path, 'a', encoding='utf-8')
-        
-    def write(self, message):
-        self.terminal.write(message)
-        self.log_file.write(message)
-        self.log_file.flush()
-        
-    def flush(self):
-        self.terminal.flush()
-        self.log_file.flush()
-        
-    def close(self):
-        self.log_file.close()
-        sys.stdout = self.terminal
 
 
 # ============================================================================
@@ -946,10 +924,6 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     mode_name = "Headless" if headless else "Visible"
     log_file = os.path.join(LOG_DIR, f"x_{env_name}_{mode_name}_{TIMESTAMP}.log")
     
-    # Configurar TeeOutput para capturar print()
-    tee = TeeOutput(log_file)
-    sys.stdout = tee
-    
     # Configurar logging (para logger.info(), logger.error(), etc.)
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
@@ -958,7 +932,7 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
-    # Adicionar FileHandler
+    # Adicionar FileHandler (único sink de arquivo)
     file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s', 
@@ -966,7 +940,7 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)
     
-    # Adicionar StreamHandler para console (vai passar por TeeOutput)
+    # Adicionar StreamHandler para console
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG if debug else logging.INFO)
 
@@ -994,7 +968,7 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
                 import traceback
                 msg += '\n```\n' + ''.join(traceback.format_exception(*record.exc_info)).rstrip() + '\n```'
             return (
-                '- **%s** `[%s]` `%s:%s` — %s\n' % (
+                '- **%s** `[%s]` `%s:%s` - %s\n' % (
                     record.levelname,
                     self.formatTime(record, '%H:%M:%S'),
                     record.module,
@@ -1014,7 +988,7 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
             os.path.basename(log_file),
         ))
 
-    return log_file, tee
+    return log_file, None
 
 
 FLOW_HANDLERS = {

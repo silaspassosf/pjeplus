@@ -22,8 +22,6 @@ def preencher_input_js(driver: Any, seletor: str, valor: Union[str, int], max_te
     for tentativa in range(1, max_tentativas + 1):
         try:
             if preencher_campo(driver, seletor, str(valor)):
-                if debug:
-                    logger.info(f"[INPUT][OK] {seletor}='{valor}'")
                 return True
             if tentativa < max_tentativas:
                 aguardar_renderizacao_nativa(driver, seletor, 'aparecer', 1)
@@ -88,20 +86,14 @@ def aguardar_ato_confeccionado(driver: Any, timeout_fechar: int = 15, timeout_ic
     if log is None:
         def log(_msg): return None
 
-    snackbar_ok = espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=5)
-    if snackbar_ok:
-        log('[MINUTA] Snackbar "Ato elaborado com sucesso" detectada — aguardando barreira de renderização')
+    espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=5)
 
     ok_fechar = aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', 'sumir', timeout_fechar)
-    if ok_fechar:
-        log('[MINUTA] Dialog elaboracao fechado (observer)')
-    else:
+    if not ok_fechar:
         log('[MINUTA][WARN] Timeout aguardando dialog fechar — prosseguindo mesmo assim')
 
     ok_icone = aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', timeout_icone)
-    if ok_icone:
-        log('[MINUTA] Icone verde de ato confeccionado detectado')
-    else:
+    if not ok_icone:
         log('[MINUTA][WARN] Icone verde nao detectado dentro do timeout')
 
     return ok_icone
@@ -118,11 +110,10 @@ def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: in
     if not aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', 'sumir', timeout):
         log(f'[BARREIRA][WARN] Dialog do ato ainda visível após {timeout}s')
 
-    if aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', 5):
-        log('[BARREIRA] Confirmação detectada (tick verde agrupado)')
-    elif aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-individual-tabela-destinatarios', 'aparecer', 5):
-        log('[BARREIRA] Confirmação detectada (tick verde individual)')
-    else:
+    if not (
+        aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', 5)
+        or aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-individual-tabela-destinatarios', 'aparecer', 5)
+    ):
         log('[BARREIRA][WARN] Nenhum tick verde detectado em 5s — prosseguindo')
 
     if not aguardar_renderizacao_nativa(
@@ -133,7 +124,6 @@ def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: in
     ):
         log('[BARREIRA][WARN] Tabela de destinatários não detectada em 10s')
         return False
-    log('[BARREIRA] Tabela de destinatários pronta — liberado para seleção')
     return True
 
 
@@ -142,23 +132,19 @@ def finalizar_minuta(driver: Any, log=None) -> bool:
         def log(_msg):
             return None
 
-    log('9. Finalizando minuta')
     try:
         seletor_finalizar = 'button[aria-label="Finalizar minuta"]'
         btn = wait_for_clickable(driver, seletor_finalizar, timeout=5, by=By.CSS_SELECTOR)
         if not btn:
             raise NoSuchElementException(seletor_finalizar)
         safe_click_no_scroll(driver, btn)
-        log(' Botão Finalizar minuta clicado')
 
         ato_ok = aguardar_ato_confeccionado(driver, log=log)
         if not ato_ok:
             raise Exception('Ato NÃO confeccionado — nenhum sinal de confirmação')
-        log(' Comunicação criada com sucesso!')
         return True
 
     except NoSuchElementException:
-        log('[SALVAR] Botão não encontrado — já foi clicado, ato já confeccionado')
         return True
 
     except Exception as e:
@@ -188,14 +174,12 @@ def executar_preenchimento_minuta(
     try:
         from Fix.utils import inserir_link_ato_validacao
 
-        log(f'1. Selecionando tipo de expediente: {tipo_expediente}')
         if not escolher_opcao_select_js(driver, 'mat-select[placeholder="Tipo de Expediente"]', tipo_expediente, debug=debug):
             log('[ERRO] Falha ao selecionar tipo de expediente')
             raise Exception('Falha ao selecionar tipo de expediente')
 
         aguardar_renderizacao_nativa(driver, 'mat-radio-button', 'aparecer', 5)
 
-        log(f'2. Selecionando tipo de prazo: {tipo_prazo}')
         if prazo == "0" or prazo == 0:
             tipo_prazo = "sem prazo"
 
@@ -204,9 +188,7 @@ def executar_preenchimento_minuta(
             raise Exception(f'Tipo de prazo "{tipo_prazo}" não encontrado')
 
         if prazo and tipo_prazo != "sem prazo":
-            log(f'3. Preenchendo prazo: {prazo}')
             tipo_prazo_norm = normalizar_string(tipo_prazo)
-
             prazo_preenchido = False
 
             seletores_prazo = []
@@ -244,29 +226,22 @@ def executar_preenchimento_minuta(
                     prazo_preenchido = preencher_campo(
                         driver, 'mat-form-field input[type="number"]', str(prazo), limpar=True
                     )
-                    if prazo_preenchido:
-                        log('[FALLBACK][OK] Prazo preenchido via preencher_campo')
-                    else:
+                    if not prazo_preenchido:
                         raise Exception('Elemento input_prazo não encontrado')
                 except Exception as e:
                     log(f'[FALLBACK][ERRO] Falha no fallback: {e}')
                     prazo_preenchido = False
-        else:
-            log('3. Sem prazo a preencher')
 
-        log('4. Clicando "Confeccionar ato agrupado"')
         if not aguardar_e_clicar(driver, 'button[aria-label="Confeccionar ato agrupado"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
             raise Exception('Botão Confeccionar ato agrupado não disponível')
 
         if subtipo:
-            log(f'5. Selecionando subtipo: {subtipo}')
             tentativas_subtipo = 0
             sucesso_subtipo = False
 
             while tentativas_subtipo < 3 and not sucesso_subtipo:
                 try:
                     tentativas_subtipo += 1
-                    log(f'[SUBTIPO] Tentativa {tentativas_subtipo}/3')
 
                     input_subtipo = esperar_elemento(driver, 'input[data-placeholder="Tipo de Documento"]', timeout=10, by=By.CSS_SELECTOR)
                     if not input_subtipo:
@@ -280,12 +255,10 @@ def executar_preenchimento_minuta(
                         txt = getattr(opcao, 'text', '') or ''
                         if subtipo.lower() in txt.lower():
                             safe_click_no_scroll(driver, opcao)
-                            log(f' Subtipo selecionado: {subtipo}')
                             sucesso_subtipo = True
                             break
 
                     if not sucesso_subtipo and tentativas_subtipo < 3:
-                        log('[SUBTIPO] Opção não encontrada, tentando novamente...')
                         try:
                             btn_fechar = espera.elemento(driver, 'pje-pec-dialogo-ato a[mattooltip="Fechar"]')
                             if btn_fechar:
@@ -301,17 +274,13 @@ def executar_preenchimento_minuta(
                     log(f'[SUBTIPO][WARN] Erro na tentativa {tentativas_subtipo}: {e}')
                     if tentativas_subtipo >= 3:
                         log('[SUBTIPO][ERRO] Falha ao selecionar subtipo após 3 tentativas')
-        else:
-            log('5. Sem subtipo para selecionar')
 
         desc_to_use = descricao if descricao else nome_comunicacao
-        log(f'6. Preenchendo descrição: {desc_to_use}')
         if not preencher_input_js(driver, 'input[aria-label="Descrição"]', desc_to_use, debug=debug):
             log('[ERRO] Falha ao preencher descrição')
             raise Exception('Falha ao preencher descrição')
 
         if sigilo:
-            log('7. Marcando sigilo')
             try:
                 from Play.pjeplay.pje import mat_checkbox
                 marcado = mat_checkbox(driver, 'input[name="sigiloso"], mat-checkbox[formcontrolname="sigiloso"]', marcar=True, timeout=5)
@@ -319,15 +288,10 @@ def executar_preenchimento_minuta(
                     cb = espera.elemento(driver, 'input[name="sigiloso"]', teto=2, visivel=False)
                     if cb:
                         safe_click_no_scroll(driver, cb)
-                log(' Sigilo marcado')
             except Exception as e:
                 log(f'[WARN] Falha ao marcar sigilo: {e}')
-        else:
-            log('7. Sem sigilo')
 
         if modelo_nome:
-            log(f'8. Selecionando modelo: {modelo_nome}')
-
             try:
                 campo_filtro = wait_for_clickable(driver, 'input#inputFiltro', timeout=10, by=By.CSS_SELECTOR)
                 if not campo_filtro:
@@ -339,13 +303,11 @@ def executar_preenchimento_minuta(
                         driver.page.keyboard.press('Enter')
                     except Exception:
                         pass
-                log(f'[MODELO] Filtro preenchido: "{modelo_nome}"')
 
                 aguardar_renderizacao_nativa(driver, '.nodo-filtrado', 'aparecer', 10)
                 nodo = aguardar_e_clicar(driver, '.nodo-filtrado', timeout=15)
                 if not nodo:
                     raise Exception(f'Nodo filtrado não encontrado para modelo "{modelo_nome}"')
-                log('[MODELO] Clique em nodo-filtrado realizado')
 
                 modal_aberto = aguardar_renderizacao_nativa(
                     driver, 'pje-dialogo-visualizar-modelo', 'aparecer', 5
@@ -368,21 +330,17 @@ def executar_preenchimento_minuta(
 
                 try:
                     safe_click_no_scroll(driver, btn_inserir)
-                    log(' Modelo inserido')
                 except StaleElementReferenceException:
                     log('[MODELO][WARN] Elemento ficou stale, tentando novamente...')
                     btn_inserir = espera.elemento(driver, seletor_btn_inserir)
                     if btn_inserir:
                         safe_click_no_scroll(driver, btn_inserir)
-                    log(' Modelo inserido (2a tentativa)')
 
                 try:
                     snackbar_modelo_ok = espera.ate_texto(
                         driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=3.0
                     )
-                    if snackbar_modelo_ok:
-                        log('[MODELO] ✓ Snackbar "Modelo inserido" confirmado')
-                    else:
+                    if not snackbar_modelo_ok:
                         log('[MODELO][WARN] Snackbar "Modelo inserido" não detectado após 3s, prosseguindo')
                 except Exception as _e:
                     log(f'[MODELO][WARN] Exceção ao verificar snackbar: {_e}')
@@ -391,8 +349,6 @@ def executar_preenchimento_minuta(
 
                 if not _aguardar_ck_com_conteudo(driver, timeout=8):
                     log('[MODELO][WARN] Conteudo do modelo nao confirmado no editor apos 8s')
-                else:
-                    log('[MODELO] Conteudo do modelo confirmado no editor')
 
             except Exception as e:
                 log(f'[ERRO] Falha ao inserir modelo: {e}')
@@ -400,7 +356,6 @@ def executar_preenchimento_minuta(
 
             try:
                 if inserir_conteudo:
-                    log('[INSERIR] Executando função de inserção de conteúdo...')
                     inserir_fn = inserir_conteudo
                     if isinstance(inserir_conteudo, str):
                         try:
@@ -426,15 +381,10 @@ def executar_preenchimento_minuta(
                             ok = inserir_fn(driver, numero_processo_atual)
                         except Exception:
                             ok = inserir_fn(driver)
-                    log(f"[INSERIR] Resultado da inserção: {'' if ok else ''}")
             except Exception as e:
                 log(f'[INSERIR][WARN] Erro ao executar inserção: {e}')
-        else:
-            log('8. Sem modelo para inserir')
 
-        log('[COMUNICACAO] Finalizando minuta (salvando)...')
         finalizar_minuta(driver, log=log)
-
         return True
     except Exception:
         raise

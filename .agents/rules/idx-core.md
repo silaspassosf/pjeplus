@@ -119,6 +119,7 @@ Q13: X envolve anexos/juntada de documentos?
 
 ## Regras Críticas (sempre aplicáveis)
 
+- **Regra de arquitetura (Playwright é a única via):** Todo código que roda em `py pw.py` fala o vocabulário nativo do projeto (`Fix/espera.py`, `Play/pjeplay/nativo.py`) ou `Page`/`Locator`. É proibido introduzir: `import selenium`, `driver.find_element`, `driver.find_elements`, `driver.execute_script`, `driver.send_keys`, `driver.window_handles`, `WebDriverWait`, `expected_conditions`, tipagem `WebDriver`, `time.sleep`. Espera é sempre condição observável (`espera.ate_*`), nunca pausa cega. JS só existe dentro de helper nomeado — nunca solto no fluxo de negócio. Arquivo listado como migrado em `tools/pw_baseline.json` não pode regredir.
 - **P9 — Import de interação:** funções de interação (`safe_click_no_scroll`, `wait_for_clickable`, `safe_click`, `esperar_elemento`, `aguardar_renderizacao_nativa`) DEVEM vir de `Fix.core`, nunca de `Fix.selenium_base` (cópia congelada, quebra com backend Playwright). Ver `@idx.md` Seção 8-D para detalhe completo.
 - **Nunca editar SHIMS** (`Fix/abas.py`, `Fix/headless_helpers.py`, `Fix/element_wait.py`, etc. — lista completa em `@idx.md` Seção 4) — redirecionam para implementações reais.
 - **Nunca editar LEGADO** (`leg/`, `Mandado/core.py`, `Mandado/processamento.py`, `_archive/`) — apenas referência histórica.

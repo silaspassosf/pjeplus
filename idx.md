@@ -767,6 +767,22 @@ Proibido usar `WebDriverWait`, `ActionChains`, `time.sleep` ou `element.click()`
 | P8 | Imports sempre no topo do módulo |
 | P9 | **Funções de interação Selenium (`safe_click_no_scroll`, `wait_for_clickable`, `aguardar_e_clicar`, `safe_click`, `esperar_elemento`, `esperar_url_conter`, `preencher_multiplos_campos`) devem ser importadas direto de `Fix.core`, NUNCA de `Fix.selenium_base`.** `Fix.selenium_base.__init__.py` faz `from ..core import (...)` no momento do import — uma cópia congelada. Quando `pjeplay.nativo.aplicar()` roda depois e troca essas funções em `Fix.core` via `setattr` pelas versões nativas Playwright (`ctx.wait_for_selector`, actionability engine real), a cópia em `Fix.selenium_base` permanece com a implementação Selenium antiga (ex: `dispatchEvent`). Isso gera falsos negativos (`wait_for_clickable` retorna `None` com elemento visível), cliques que não disparam handlers Angular e timeouts em modo headless PW. **Arquivos já corrigidos por este padrão:** `atos/judicial_utils.py`, `atos/judicial_fluxo.py`. Se encontrar `from Fix.selenium_base import safe_click_no_scroll, wait_for_clickable, ...` em qualquer módulo de negócio, troque para `from Fix.core import ...`. |
 
+### E. Regra de arquitetura: Playwright é a única via
+
+Todo código que roda em `py pw.py` fala o vocabulário nativo do projeto
+(`Fix/espera.py`, `Play/pjeplay/nativo.py`) ou `Page`/`Locator`.
+
+É proibido introduzir em arquivos do projeto:
+`import selenium`, `driver.find_element`, `driver.find_elements`,
+`driver.execute_script`, `driver.send_keys`, `driver.window_handles`,
+`WebDriverWait`, `expected_conditions`, tipagem `WebDriver`, `time.sleep`.
+
+Espera é sempre condição observável (`espera.ate_*`), nunca pausa cega.
+JS só existe dentro de helper nomeado — nunca solto no fluxo de negócio.
+A camada `Play/pjeplay/compat.py` existe apenas para módulos legados ainda não
+migrados; ela não é justificativa para código novo no estilo Selenium.
+Arquivo listado como migrado em `tools/pw_baseline.json` não pode regredir.
+
 ---
 
 ## 9. Referência Legada (`leg/`)

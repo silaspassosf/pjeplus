@@ -23,8 +23,6 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List, Callable, Tuple
 from enum import Enum
 
-from selenium.webdriver.remote.webdriver import WebDriver
-
 
 # ============================================================================
 # LOGGING
@@ -234,7 +232,7 @@ def log_seletor_multiplo(prefixo: str, seletor: str, status: str, erro: Optional
         logger.info("%s[%s] Seletor nao funcionou: %s%s", prefixo, status, seletor, erro_msg)
 
 
-def tentar_seletores(driver: WebDriver, seletores: List[str], funcao_teste: Callable[..., bool],
+def tentar_seletores(driver: Any, seletores: List[str], funcao_teste: Callable[..., bool],
                      prefixo_log: str, *args: Any, **kwargs: Any) -> Tuple[Optional[str], Optional[bool]]:
     for seletor in seletores:
         try:
@@ -262,7 +260,7 @@ def registrar_seletor_correto(arquivo: str, linha: int, acao: str, seletor: str)
         logger.error("[REGISTRO] Erro ao salvar seletor: %s", str(entrada)[:80])
 
 
-def tentar_seletores_com_registro(driver: WebDriver, seletores: List[str], funcao_teste: Callable[..., bool],
+def tentar_seletores_com_registro(driver: Any, seletores: List[str], funcao_teste: Callable[..., bool],
                                   prefixo_log: str, arquivo: str, linha: int, acao: str,
                                   *args: Any, **kwargs: Any) -> Tuple[Optional[str], Optional[bool]]:
     seletor_funcionou, resultado = tentar_seletores(

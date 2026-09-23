@@ -15,21 +15,10 @@ logger = getmodulelogger(__name__)
 import io
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
-# ============================================================================
-# Dependencias — Selenium
-# ============================================================================
-
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support.ui import WebDriverWait
-
-# ============================================================================
-# Dependencias — Fix
-# ============================================================================
-
+import Fix.espera as espera
+from Fix.core import esperar_elemento, aguardar_renderizacao_nativa as _aguardar_renderizacao
 from Fix.extracao import extrair_dados_processo
 from Fix.monitoramento_progresso_unificado import (
     carregar_progresso_unificado,
@@ -37,8 +26,6 @@ from Fix.monitoramento_progresso_unificado import (
     processo_ja_executado_unificado,
     salvar_progresso_unificado,
 )
-from Fix.selenium_base.wait_operations import esperar_elemento
-from Fix.core import aguardar_renderizacao_nativa as _aguardar_renderizacao
 from Fix.abas import fechar_abas_extras as _fechar_abas_extras
 
 # ============================================================================
@@ -96,7 +83,7 @@ def _run_pet_falha(erro: str):
     return r
 
 
-def _abrir_documento_peticao(driver: WebDriver, peticao) -> Optional[object]:
+def _abrir_documento_peticao(driver: Any, peticao) -> Optional[object]:
     """Localiza o link viewer pelo id_item (definitivo — sem fallback)."""
     id_doc = getattr(peticao, 'id_item', '') or ''
     if not id_doc:
@@ -104,26 +91,32 @@ def _abrir_documento_peticao(driver: WebDriver, peticao) -> Optional[object]:
         return None
 
     _aguardar_renderizacao(driver, 'mat-card', modo='aparecer', timeout=8)
+    card_xpath = f'//mat-card[.//a[contains(@href, "/documento/{id_doc}/")]]'
     card = esperar_elemento(
         driver,
-        f'//mat-card[.//a[contains(@href, "/documento/{id_doc}/")]]',
+        card_xpath,
         timeout=10,
-        by=By.XPATH,
     )
     if not card:
         logger.error(f'[PET_ANALISE] mat-card para documento/{id_doc} nao encontrado na timeline')
         return None
 
-    for sel in ('a.tl-documento[accesskey="v"]', 'a.tl-documento[role="button"]', 'a.tl-documento:not([target="_blank"])'):
+    for sel_xpath in (
+        f'{card_xpath}//a[contains(@class, "tl-documento") and @accesskey="v"]',
+        f'{card_xpath}//a[contains(@class, "tl-documento") and @role="button"]',
+        f'{card_xpath}//a[contains(@class, "tl-documento") and not(@target="_blank")]',
+    ):
         try:
-            return card.find_element(By.CSS_SELECTOR, sel)
+            link = espera.elemento(driver, sel_xpath, teto=1)
+            if link:
+                return link
         except Exception:
             continue
     logger.error(f'[PET_ANALISE] Link viewer nao encontrado no card de documento/{id_doc}')
     return None
 
 
-def _extrair_texto_doc_pet(driver: WebDriver, link) -> Optional[str]:
+def _extrair_texto_doc_pet(driver: Any, link) -> Optional[str]:
     """
     Clica no link, aguarda renderizacao e extrai texto via extrair_direto / extrair_documento.
     Mesmo padrao de p2b_fluxo_documentos._extrair_texto_documento.
@@ -156,7 +149,7 @@ def _extrair_texto_doc_pet(driver: WebDriver, link) -> Optional[str]:
     return texto
 
 
-def extrair_texto_peticao_via_api(driver: WebDriver, peticao) -> Optional[str]:
+def extrair_texto_peticao_via_api(driver: Any, peticao) -> Optional[str]:
     """
     Extrai o texto da peticao via API PJe, sem interacao com a timeline.
     Usa session_from_driver para reutilizar cookies da sessao ativa.
@@ -212,7 +205,7 @@ def extrair_texto_peticao_via_api(driver: WebDriver, peticao) -> Optional[str]:
         return None
 
 
-def analise_pet(driver: WebDriver, peticao) -> bool:
+def analise_pet(driver: Any, peticao) -> bool:
     """
     Analise de peticao:
     1. Extrai texto via API PJe (sem abrir documento no browser)
@@ -316,22 +309,20 @@ def _classificar(itens: List) -> Dict[str, list]:
     return buckets
 
 
-def _abrir_processo(driver: WebDriver, item) -> bool:
+def _abrir_processo(driver: Any, item) -> bool:
     id_proc = getattr(item, 'id_processo', None) or getattr(item, 'numero_processo', '')
     numero_limpo = ''.join(filter(str.isdigit, str(id_proc)))
     url = (f"https://pje.trt2.jus.br/pjekz/processo/{numero_limpo}/detalhe"
            if len(numero_limpo) == 20
            else f"https://pje.trt2.jus.br/pjekz/processo/{id_proc}/detalhe")
     driver.get(url)
-    WebDriverWait(driver, 15).until(
-        lambda d: d.execute_script('return document.readyState') == 'complete'
-    )
-    if 'acesso-negado' in driver.current_url.lower():
+    _aguardar_renderizacao(driver, timeout=15)
+    if 'acesso-negado' in (driver.current_url or '').lower():
         raise RuntimeError(f"RESTART_PET: acesso negado - {getattr(item, 'numero_processo', '?')}")
     return True
 
 
-def _executar_bucket_normal(driver: WebDriver, nome: str, itens: list,
+def _executar_bucket_normal(driver: Any, nome: str, itens: list,
                             progresso: dict) -> Dict[str, int]:
     """Buckets que requerem abertura individual do processo."""
     stats = {'sucesso': 0, 'erro': 0}
@@ -379,7 +370,7 @@ def _executar_bucket_normal(driver: WebDriver, nome: str, itens: list,
     return stats
 
 
-def _executar_bucket_analise(driver: WebDriver, itens: list,
+def _executar_bucket_analise(driver: Any, itens: list,
                              progresso: dict) -> Dict[str, int]:
     """Analise: sempre chama analise_pet, independente de hipotese."""
     stats = {'sucesso': 0, 'erro': 0}
@@ -436,7 +427,7 @@ def _consolidar_delete_bookmarklet():
 class PETOrquestrador:
     """Orquestrador do pipeline de peticoes."""
 
-    def __init__(self, driver: WebDriver):
+    def __init__(self, driver: Any):
         self.driver = driver
         self.progresso: dict = carregar_progresso_pet()
 
@@ -490,17 +481,35 @@ class PETOrquestrador:
                     raise
                 stats['erro'] += 1
 
-        if apagar_itens:
-            logger.info('[PET_ORQ] Consolidando delete.js e gerando bookmarklet')
+            if dry_run:
+                logger.info(f'[PET_ORQ][DRY-RUN] Processaria {len(itens_bucket)} itens em {nome}')
+                continue
+
+            logger.info(f'[PET_ORQ] Processando bucket: {nome} ({len(itens_bucket)} itens)')
+
+            if nome == 'analise':
+                s = _executar_bucket_analise(self.driver, itens_bucket, self.progresso)
+            else:
+                s = _executar_bucket_normal(self.driver, nome, itens_bucket, self.progresso)
+
+            stats['sucesso'] += s['sucesso']
+            stats['erro']    += s['erro']
+
+        # Se houve quesitos no lote diretos, consolidar delete.js ao final
+        if buckets.get('diretos') and any(
+            'quesitos' in (getattr(i, 'tipo_peticao', '') or '')
+            or 'quesitos' in (getattr(i, 'descricao', '') or '')
+            for i in buckets['diretos']
+        ):
             _consolidar_delete_bookmarklet()
 
-        logger.info(f'\n[PET_ORQ] Total: {stats["total"]} | '
-                    f'Sucesso: {stats["sucesso"]} | Erro: {stats["erro"]}')
+        logger.info('=' * 60)
+        logger.info(f"[PET_ORQ] Concluido: {stats['sucesso']}/{stats['total']} sucesso, {stats['erro']} erros")
         logger.info('=' * 60)
         return stats
 
 
-def executar_fluxo_pet(driver: WebDriver) -> bool:
+def executar_fluxo_pet(driver: Any) -> bool:
     """Entry point do pipeline de peticoes (compativel com x.py)."""
     try:
         orq = PETOrquestrador(driver)
@@ -582,7 +591,7 @@ function asArray(d) {
 class PeticaoAPIClient:
     """Busca peticoes do escaninho via JavaScript direto."""
 
-    def fetch(self, driver: WebDriver, tamanho_pagina: int = 100) -> list:
+    def fetch(self, driver: Any, tamanho_pagina: int = 100) -> list:
         try:
             driver.set_script_timeout(60)
             res = driver.execute_async_script(_JS_FETCH, tamanho_pagina)

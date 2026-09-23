@@ -2,16 +2,32 @@
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
   "total_files": 308,
-  "files_with_patterns": 130,
-  "total_patterns": 2785,
+  "files_with_patterns": 114,
+  "total_patterns": 2519,
   "migrados": [
+    "atos/anexos/anexos_extracao.py",
     "atos/anexos/anexos_wrappers.py",
     "atos/anexos_sigilo.py",
+    "atos/comunicacao.py",
+    "atos/comunicacao_coleta.py",
+    "atos/comunicacao_destinatarios.py",
+    "atos/comunicacao_finalizacao.py",
+    "atos/comunicacao_navigation.py",
     "atos/comunicacao_preenchimento.py",
+    "atos/core.py",
+    "atos/judicial.py",
+    "atos/judicial_fluxo.py",
+    "atos/judicial_helpers.py",
+    "atos/judicial_modelos.py",
+    "atos/judicial_navegacao.py",
+    "atos/judicial_utils.py",
     "atos/movimentos_chips.py",
     "atos/movimentos_despacho.py",
     "atos/movimentos_fimsob.py",
+    "atos/movimentos_fluxo.py",
     "atos/movimentos_navegacao.py",
+    "atos/movimentos_sobrestamento.py",
+    "atos/wrappers_ato.py",
     "atos/wrappers_mov.py",
     "atos/wrappers_utils.py"
   ],
@@ -868,158 +884,6 @@
       "breakdown": {
         "from_selenium": 2,
         "webdriver_type": 9
-      }
-    },
-    "atos/anexos/anexos_extracao.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 2,
-        "webdriver_type": 1
-      }
-    },
-    "atos/comunicacao.py": {
-      "total": 9,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_element": 1,
-        "find_elements": 3,
-        "webdriver_type": 3
-      }
-    },
-    "atos/comunicacao_coleta.py": {
-      "total": 2,
-      "breakdown": {
-        "execute_script": 2
-      }
-    },
-    "atos/comunicacao_destinatarios.py": {
-      "total": 16,
-      "breakdown": {
-        "from_selenium": 1,
-        "find_element": 7,
-        "find_elements": 4,
-        "execute_script": 3,
-        "send_keys": 1
-      }
-    },
-    "atos/comunicacao_finalizacao.py": {
-      "total": 30,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_element": 5,
-        "find_elements": 10,
-        "execute_script": 11,
-        "send_keys": 1,
-        "webdriver_wait": 1
-      }
-    },
-    "atos/comunicacao_navigation.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 1,
-        "execute_script": 2
-      }
-    },
-    "atos/core.py": {
-      "total": 30,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 1,
-        "find_elements": 2,
-        "execute_script": 8,
-        "send_keys": 1,
-        "webdriver_wait": 3,
-        "time_sleep": 3,
-        "webdriver_type": 8
-      }
-    },
-    "atos/judicial.py": {
-      "total": 4,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 3
-      }
-    },
-    "atos/judicial_fluxo.py": {
-      "total": 32,
-      "breakdown": {
-        "from_selenium": 5,
-        "find_element": 5,
-        "execute_script": 17,
-        "send_keys": 1,
-        "time_sleep": 2,
-        "webdriver_type": 2
-      }
-    },
-    "atos/judicial_helpers.py": {
-      "total": 9,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 4,
-        "find_elements": 1,
-        "webdriver_type": 1
-      }
-    },
-    "atos/judicial_modelos.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 2
-      }
-    },
-    "atos/judicial_navegacao.py": {
-      "total": 28,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 3,
-        "find_elements": 3,
-        "execute_script": 6,
-        "send_keys": 2,
-        "window_handles": 1,
-        "time_sleep": 1,
-        "webdriver_type": 8
-      }
-    },
-    "atos/judicial_utils.py": {
-      "total": 14,
-      "breakdown": {
-        "from_selenium": 1,
-        "find_element": 5,
-        "find_elements": 4,
-        "execute_script": 3,
-        "send_keys": 1
-      }
-    },
-    "atos/movimentos_fluxo.py": {
-      "total": 55,
-      "breakdown": {
-        "from_selenium": 12,
-        "find_element": 4,
-        "find_elements": 8,
-        "execute_script": 1,
-        "window_handles": 8,
-        "webdriver_wait": 8,
-        "expected_conditions": 7,
-        "webdriver_type": 7
-      }
-    },
-    "atos/movimentos_sobrestamento.py": {
-      "total": 27,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 3,
-        "find_elements": 3,
-        "window_handles": 3,
-        "webdriver_wait": 6,
-        "expected_conditions": 6,
-        "time_sleep": 1,
-        "webdriver_type": 1
-      }
-    },
-    "atos/wrappers_ato.py": {
-      "total": 1,
-      "breakdown": {
-        "webdriver_type": 1
       }
     },
     "bianca/api_client.py": {

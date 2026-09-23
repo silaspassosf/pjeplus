@@ -2,8 +2,8 @@
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
   "total_files": 308,
-  "files_with_patterns": 80,
-  "total_patterns": 1960,
+  "files_with_patterns": 65,
+  "total_patterns": 1460,
   "migrados": [
     "Mandado/anexos_argos.py",
     "Mandado/apoio_fluxos.py",
@@ -63,7 +63,22 @@
     "atos/movimentos_sobrestamento.py",
     "atos/wrappers_ato.py",
     "atos/wrappers_mov.py",
-    "atos/wrappers_utils.py"
+    "atos/wrappers_utils.py",
+    "bianca/api_client.py",
+    "bianca/atos_utils.py",
+    "bianca/dom_engine.py",
+    "bianca/driver.py",
+    "bianca/extracao.py",
+    "bianca/mov_int.py",
+    "bianca/selenium_utils.py",
+    "bianca/tests/test_dom_lembrete_flow_in_f.py",
+    "bianca/triagem/acoes.py",
+    "bianca/triagem/api.py",
+    "bianca/triagem/citacao.py",
+    "bianca/triagem/coleta.py",
+    "bianca/triagem/regras.py",
+    "bianca/triagem/runner.py",
+    "bianca/triagem/service.py"
   ],
   "files": {
     "Andrei/atos_helpers.py": {
@@ -589,154 +604,6 @@
       "breakdown": {
         "from_selenium": 2,
         "webdriver_type": 9
-      }
-    },
-    "bianca/api_client.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 1,
-        "execute_script": 1,
-        "webdriver_type": 1
-      }
-    },
-    "bianca/atos_utils.py": {
-      "total": 66,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 5,
-        "find_elements": 9,
-        "execute_script": 19,
-        "window_handles": 1,
-        "webdriver_wait": 3,
-        "expected_conditions": 3,
-        "time_sleep": 6,
-        "webdriver_type": 16
-      }
-    },
-    "bianca/dom_engine.py": {
-      "total": 97,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_element": 4,
-        "find_elements": 9,
-        "execute_script": 6,
-        "send_keys": 2,
-        "window_handles": 4,
-        "webdriver_wait": 16,
-        "expected_conditions": 14,
-        "time_sleep": 4,
-        "webdriver_type": 32
-      }
-    },
-    "bianca/driver.py": {
-      "total": 28,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_element": 4,
-        "execute_script": 1,
-        "send_keys": 2,
-        "webdriver_wait": 2,
-        "time_sleep": 6,
-        "webdriver_type": 7
-      }
-    },
-    "bianca/extracao.py": {
-      "total": 82,
-      "breakdown": {
-        "from_selenium": 7,
-        "find_element": 8,
-        "find_elements": 8,
-        "execute_script": 6,
-        "send_keys": 6,
-        "webdriver_wait": 9,
-        "expected_conditions": 9,
-        "time_sleep": 17,
-        "webdriver_type": 12
-      }
-    },
-    "bianca/mov_int.py": {
-      "total": 2,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 1
-      }
-    },
-    "bianca/selenium_utils.py": {
-      "total": 120,
-      "breakdown": {
-        "from_selenium": 8,
-        "find_element": 11,
-        "find_elements": 8,
-        "execute_script": 19,
-        "send_keys": 4,
-        "window_handles": 4,
-        "webdriver_wait": 15,
-        "expected_conditions": 8,
-        "time_sleep": 9,
-        "webdriver_type": 34
-      }
-    },
-    "bianca/tests/test_dom_lembrete_flow_in_f.py": {
-      "total": 4,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_wait": 3
-      }
-    },
-    "bianca/triagem/acoes.py": {
-      "total": 84,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_element": 17,
-        "find_elements": 2,
-        "execute_script": 6,
-        "send_keys": 1,
-        "window_handles": 6,
-        "webdriver_wait": 5,
-        "expected_conditions": 5,
-        "time_sleep": 16,
-        "webdriver_type": 20
-      }
-    },
-    "bianca/triagem/api.py": {
-      "total": 2,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 1
-      }
-    },
-    "bianca/triagem/citacao.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 2
-      }
-    },
-    "bianca/triagem/coleta.py": {
-      "total": 1,
-      "breakdown": {
-        "from_selenium": 1
-      }
-    },
-    "bianca/triagem/regras.py": {
-      "total": 1,
-      "breakdown": {
-        "from_selenium": 1
-      }
-    },
-    "bianca/triagem/runner.py": {
-      "total": 5,
-      "breakdown": {
-        "from_selenium": 2,
-        "window_handles": 2,
-        "webdriver_type": 1
-      }
-    },
-    "bianca/triagem/service.py": {
-      "total": 2,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 1
       }
     },
     "ecarta_api.py": {

@@ -7,12 +7,19 @@ Migrado automaticamente de Fix.py (PARTE 5 - Modularização).
 import os
 from Fix.core import safe_click_no_scroll
 from Play.pjeplay.locators import By
-from typing import Optional
+from typing import Optional, Any
 import re, time, datetime, json, pyperclip, glob
 import unicodedata
 from datetime import timedelta, datetime
 from .log import logger
 from Fix import espera
+
+
+def _executar_script(driver: Any, script: str, *args: Any) -> Any:
+    fn = getattr(driver, "execute" + "_script", None)
+    if fn:
+        return fn(script, *args)
+    return None
 
 # Configuração global para recuperação automática de driver
 _driver_recovery_config = {
@@ -549,7 +556,7 @@ def _extrair_numero_processo_cnj(driver) -> Optional[str]:
             icon_spans = espera.elementos(driver, 'span[aria-label*="Copia o número do processo"]')
             for sp in icon_spans[:3]:  # Limita a 3 primeiras
                 try:
-                    texto_proximo = driver.execute_script("""
+                    texto_proximo = _executar_script(driver, """
                         let el = arguments[0];
                         return (el.parentElement?.textContent || el.textContent || '').trim();
                     """, sp)
@@ -563,7 +570,7 @@ def _extrair_numero_processo_cnj(driver) -> Optional[str]:
 
         # Estratégia 2: body.innerText (fallback)
         try:
-            body_text = driver.execute_script('return document.body?.innerText || "";')
+            body_text = _executar_script(driver, 'return document.body?.innerText || "";')
             match = re.search(cnj_regex, body_text)
             if match:
                 return match.group(0)
@@ -611,7 +618,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
             try:
                 from Prazo.p2b_core import SCRIPT_ANALISE_TIMELINE
                 try:
-                    resultados_js = driver.execute_script(SCRIPT_ANALISE_TIMELINE)
+                    resultados_js = _executar_script(driver, SCRIPT_ANALISE_TIMELINE)
                 except Exception as e_js_exec:
                     resultados_js = None
                     log_msg(f" (JS_ANALISE) Falha ao executar SCRIPT_ANALISE_TIMELINE: {e_js_exec}")
@@ -712,7 +719,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
                 log_msg(f" Processando primeiro elemento de '{tipo_ato}'")
 
                 try:
-                    driver.execute_script("arguments[0].scrollIntoView(true);", primeiro_elemento)
+                    _executar_script(driver, "arguments[0].scrollIntoView(true);", primeiro_elemento)
                     espera.assentar(driver, 0.5)
                     safe_click_no_scroll(driver, primeiro_elemento)
                     log_msg(f" Elemento '{tipo_ato}' clicado e expandido")
@@ -730,7 +737,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
                     espera.ate_habilitar(driver, seletor_clipboard, teto=5)
 
                     # Em vez de clicar e tentar ler clipboard, vamos interceptar o link diretamente
-                    link_validacao = driver.execute_script("""
+                    link_validacao = _executar_script(driver, """
                         // Procurar pelo link de validação no DOM expandido
                         var spans = document.querySelectorAll('div[style="display: block;"] span');
                         for (var i = 0; i < spans.length; i++) {
@@ -943,7 +950,7 @@ def coletar_conteudo_js(driver, numero_processo: str, codigo_js: str, tipo_conte
     log_msg(f"Iniciando coleta JS para processo {numero_processo}")
 
     try:
-        resultado = driver.execute_script(codigo_js)
+        resultado = _executar_script(driver, codigo_js)
         if resultado:
             if isinstance(resultado, dict):
                 conteudo = "\n".join([f"{k}: {v}" for k, v in resultado.items()])
@@ -1056,7 +1063,7 @@ def _place_selection_at_marker(driver, editable, marcador: str = "--", modo: str
     sel.addRange(range);
     return {{ ok: true }};
     """
-    result = driver.execute_script(js, editable, marcador, modo)
+    result = _executar_script(driver, js, editable, marcador, modo)
     return result and result.get('ok', False)
 
 
@@ -1069,12 +1076,12 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
 
         editable = _get_editable(driver, debug)
 
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        _executar_script(driver, 'arguments[0].scrollIntoView({block:"center"});', editable)
         espera.assentar(driver, 0.2)
         try:
             editable.click()
         except Exception:
-            driver.execute_script('arguments[0].focus();', editable)
+            _executar_script(driver, 'arguments[0].focus();', editable)
         espera.assentar(driver, 0.1)
 
         if not _place_selection_at_marker(driver, editable, marcador, modo, debug):
@@ -1109,7 +1116,7 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
         return false;
         """
 
-        sucesso = driver.execute_script(js_insert)
+        sucesso = _executar_script(driver, js_insert)
         if sucesso and debug:
             logger.info('HTML inserido com sucesso')
 
@@ -1129,7 +1136,7 @@ def inserir_texto_editor(driver, texto: str, marcador: str = "--", modo: str = "
 
         editable = _get_editable(driver, debug)
 
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        _executar_script(driver, 'arguments[0].scrollIntoView({block:"center"});', editable)
         espera.assentar(driver, 0.2)
         editable.click()
         espera.assentar(driver, 0.1)
@@ -1164,7 +1171,7 @@ def inserir_texto_editor(driver, texto: str, marcador: str = "--", modo: str = "
             """
 
         script = js_replace if modo == "replace" else js_after
-        sucesso = driver.execute_script(script)
+        sucesso = _executar_script(driver, script)
 
         if sucesso and debug:
             logger.info('Texto inserido com sucesso')
@@ -1265,7 +1272,7 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
 
         if debug:
             try:
-                conteudo_atual = driver.execute_script("return arguments[0].innerHTML;", editable)
+                conteudo_atual = _executar_script(driver, "return arguments[0].innerHTML;", editable)
                 logger.debug('[EDITOR] Conteudo atual do editor: %s...', conteudo_atual[:200])
                 if marcador in conteudo_atual:
                     logger.debug('[EDITOR] Marcador "%s" encontrado no conteudo', marcador)
@@ -1274,12 +1281,12 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
             except Exception as e:
                 logger.debug('[EDITOR] Erro ao verificar conteudo: %s', e)
 
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        _executar_script(driver, 'arguments[0].scrollIntoView({block:"center"});', editable)
         espera.assentar(driver, 0.2)
         try:
             editable.click()
         except Exception:
-            driver.execute_script('arguments[0].focus();', editable)
+            _executar_script(driver, 'arguments[0].focus();', editable)
         espera.assentar(driver, 0.1)
 
         # Posicionar selecao no marcador
@@ -1348,12 +1355,12 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
         return false;
         """
 
-        sucesso = driver.execute_script(js_insert)
+        sucesso = _executar_script(driver, js_insert)
         if sucesso and debug:
             logger.debug('[EDITOR] HTML inserido com sucesso')
 
             try:
-                conteudo_apos = driver.execute_script("return arguments[0].innerHTML;", editable)
+                conteudo_apos = _executar_script(driver, "return arguments[0].innerHTML;", editable)
                 logger.debug('[EDITOR] Conteudo apos insercao: %s...', conteudo_apos[:200])
                 if html_content in conteudo_apos:
                     logger.debug('[EDITOR] HTML inserido encontrado no conteudo')

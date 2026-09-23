@@ -33,6 +33,51 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 
 ---
 
+## 0. ESTADO DE EXECUÇÃO — atualizado em 23/09/2026 (após F3 em andamento)
+
+> **Este é o plano ÚNICO do projeto.** Não existe outro arquivo de plano.
+> A execução **já está em andamento**: leia esta seção antes de qualquer ação e
+> **não refaça o que já está feito**. **Ao fechar cada fase (ou lote), atualize esta seção** —
+> é o contrato de progresso com o usuário.
+
+**Métrica global:** 74 arquivos em `migrados` (de 139 com padrões) · padrões Selenium restantes: **1.460** (de 2.909 no início) · último smoke registrado: **91/91**.
+
+| Fase | Estado | Evidência |
+|---|---|---|
+| **F0 — Preparação e travas** | ✅ **CONCLUÍDA** (tag `refac-f0`) | `tools/check_pw.py` + `tools/pw_baseline.json` (ratchet ativo), `docs/INVARIANTES.md`, `docs/CODIGO_MORTO.md`, `docs/PENDENCIAS.md`, regra `.agents/rules/anti-selenium.md`; smoke **91/91** |
+| **F1 — Piloto** | ✅ **CONCLUÍDA** (tag `refac-f1`) | `atos/comunicacao_preenchimento.py` migrado e promovido a `migrados`; `x.py`: `TeeOutput` removido + sink único (**DEAD-007 resolvido**) |
+| **F2 — Folhas e utilitários** | ✅ **CONCLUÍDA** (tag `refac-f2`) | 8 arquivos migrados e promovidos (9 `migrados` ao fechar); `Play/migrar_sleeps.py` removido (**DEAD-006 resolvido**); bundle criado |
+| **F3 — Domínios** | ⏳ **EM ANDAMENTO — 6 de 8 domínios fechados** (14 commits) | ✅ fechados: **atos** (25 arquivos, 6 lotes — inclui `core` e `judicial_fluxo`), **PEC** (16), **bianca** (15), **Prazo** (7), **Mandado** (6), **Peticao** (5). ⬜ restantes: **Triagem** e **SISB** |
+| **F4 — Núcleo** | ⬜ não iniciada | maior resíduo: `Fix/core.py` (**173**), `Fix/extracao.py` (126), `Fix/utils.py` (54), `Fix/browser_suporte.py` (29) |
+| **F5 — Desligar compat** | ⬜ não iniciada | — |
+| **F6 — Selenium fora** | ⬜ não iniciada | — |
+| **F7 — Deletar código morto** | ⬜ não iniciada | — |
+
+### F3: o que falta (resíduo medido no baseline atual — 80 arquivos com padrão)
+
+| Área | Principais resíduos | Observação |
+|---|---|---|
+| **Triagem** (domínio F3) | `dom.py` 81, `analise_execucao.py` 54 | **PRÓXIMO — não iniciado** |
+| **SISB** (domínio F3) | `core.py` 49, `ordens_dados_navegacao.py` 47 | último da F3 · sleeps anti-detecção intocáveis (seção 11) |
+| ✅ **bianca** | fechado — 15 arquivos promovidos | commits `95a2b60` + `893520d` |
+| **Fix/** (F4, não F3) | `core.py` 173, `extracao.py` 126, `utils.py` 54, `browser_suporte.py` 29 | **reservado para a F4** — não tocar na F3 |
+| Ferramentas (não são F3) | `tools/pre_xcode_proc.py` 79, `Play/smoke.py` 48 | decidir na F6/F7: migrar ou marcar DEAD |
+| `Andrei/` | 108 + 81 + 58 + 38 | **NÃO MIGRAR** — mantido por decisão do usuário (DEAD-001); excluir do ratchet na F6 |
+
+**Como retomar (ordem exata):** **Triagem** → **SISB** → `py tools/check_pw.py` + `py play/smoke.py --projeto` →
+tag `refac-f3` + bundle → **atualizar esta seção** → só então iniciar a F4 (`Fix/`, `x.py`, `pw.py`, `Fix/variaveis.py`).
+
+### Decisões do usuário já registradas (NÃO reverter)
+
+- **`Andrei/` fica.** Mantido para execução isolada e testes (DEAD-001: "NÃO DELETAR", decisão do usuário).
+- A execução do bot continua **isolada** (mandado sozinho → pec sozinho → vencimento de prazo manual + p2b sozinho) — fora do escopo desta migração.
+
+### Bug de código conhecido (NÃO é trabalho de migração — registrar, não corrigir)
+
+- `Fix/core.py:2551` — import quebrado (`obter_sessao_do_driver` não existe em `Fix/variaveis.py`; os reais são `session_from_driver` e `cliente_para`) → `baixarCP()` sempre falha e cai no fallback DOM vazio.
+
+---
+
 ## 1. MODELO EXECUTOR (pesquisa — decisão tomada)
 
 **Primário: Gemini 3.8 Flash. Escalada: Gemini 3.1 Pro** (para `Fix/core.py` e
@@ -176,7 +221,7 @@ por que é morto, o que depende dele). Atualizado na mesma fase em que o item é
 
 | Item | Evidência | Ação |
 |---|---|---|
-| `Andrei/` | 0 referências no pipeline (`x.py`/`pw.py` não importam) | marcar; deletar na F7 |
+| `Andrei/` | 0 referências no pipeline (`x.py`/`pw.py` não importam) | **MANTIDO — decisão do usuário** (execução isolada/testes). NÃO DELETAR |
 | `gen_bm.py`, `ad.py`, `temp_main_navegacao.py` (raiz) | 0 referências | marcar; deletar na F7 |
 | `f.py` (harness multi-testes manual) | ferramenta manual, não roda em `pw.py` | decidir: `tools/` ou deletar |
 | `Fix/driver_factory.py` | untracked, sem `criar_driver_pc` (função esperada não existe) | marcar; deletar na F7 |
@@ -392,15 +437,23 @@ Arquivo listado como migrado em `tools/pw_baseline.json` não pode regredir.
 ## 13. PROMPT DE KICKOFF (colar no Gemini)
 
 ```text
-Leia D:\pjeplus\PLANO_MIGRACAO_PW.md por inteiro antes de agir.
-Execute fase por fase, na ordem. Para cada fase:
+Leia D:\pjeplus\PW.md por inteiro antes de agir — é o plano ÚNICO do projeto
+(não existe outro arquivo de plano; ignore qualquer referência antiga).
+
+ATENÇÃO: a execução JÁ ESTÁ EM ANDAMENTO. A seção 0 do plano traz o estado real:
+F0 e F1 CONCLUÍDAS (tags refac-f0/refac-f1) e F2 EM ANDAMENTO com 2 lotes commitados.
+NÃO refaça o que já está feito. Retome exatamente de onde parou:
+fechar a F2 (zerar os resíduos dos 8 arquivos listados na seção 0, rodar o lint,
+promover ao baseline de `migrados`, tag refac-f2 + bundle) e só então seguir para a F3.
+
+Para cada fase:
 1. crie a tag/bundle de retorno conforme a seção 2;
 2. trabalhe em commits pequenos (seção 3), testando após cada arquivo (seção 8);
 3. NÃO mude comportamento: se um teste falhar, reverta o arquivo e registre em docs/PENDENCIAS.md;
 4. ao fim da fase, rode o protocolo de teste da seção 8 e me mostre a saída real;
 5. pare e aguarde minha execução real de `py pw.py` antes de fechar a fase.
 
-Comece pela F0 (travas) e me mostre o baseline do tools/check_pw.py antes de seguir.
+Comece mostrando o `py tools/check_pw.py` atual e o resíduo medido, para confirmar o ponto de retomada.
 Não peça confirmação para tarefas mecânicas dentro da fase; peça apenas quando
 o plano disser "registrar" ou quando houver dúvida de comportamento.
 ```

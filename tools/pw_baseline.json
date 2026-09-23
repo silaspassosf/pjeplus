@@ -2,8 +2,8 @@
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
   "total_files": 308,
-  "files_with_patterns": 103,
-  "total_patterns": 2332,
+  "files_with_patterns": 96,
+  "total_patterns": 2147,
   "migrados": [
     "Mandado/anexos_argos.py",
     "Mandado/apoio_fluxos.py",
@@ -16,6 +16,13 @@
     "Peticao/helpers/helpers.py",
     "Peticao/runtime_pet.py",
     "Peticao/suporte_pet.py",
+    "Prazo/loop_execucao_final.py",
+    "Prazo/loop_lote.py",
+    "Prazo/loop_orquestrador.py",
+    "Prazo/p2b_documentos.py",
+    "Prazo/p2b_fluxo_prescricao.py",
+    "Prazo/p2b_gateway.py",
+    "Prazo/p2b_regras_execucao.py",
     "atos/anexos/anexos_extracao.py",
     "atos/anexos/anexos_wrappers.py",
     "atos/anexos_sigilo.py",
@@ -470,84 +477,6 @@
         "window_handles": 3,
         "webdriver_wait": 9,
         "expected_conditions": 9
-      }
-    },
-    "Prazo/loop_execucao_final.py": {
-      "total": 48,
-      "breakdown": {
-        "from_selenium": 5,
-        "find_element": 7,
-        "find_elements": 3,
-        "execute_script": 13,
-        "send_keys": 2,
-        "webdriver_wait": 6,
-        "expected_conditions": 2,
-        "webdriver_type": 10
-      }
-    },
-    "Prazo/loop_lote.py": {
-      "total": 53,
-      "breakdown": {
-        "from_selenium": 5,
-        "find_element": 7,
-        "find_elements": 4,
-        "execute_script": 17,
-        "webdriver_wait": 4,
-        "expected_conditions": 3,
-        "time_sleep": 1,
-        "webdriver_type": 12
-      }
-    },
-    "Prazo/loop_orquestrador.py": {
-      "total": 22,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_elements": 4,
-        "execute_script": 4,
-        "webdriver_wait": 3,
-        "expected_conditions": 1,
-        "webdriver_type": 4
-      }
-    },
-    "Prazo/p2b_documentos.py": {
-      "total": 28,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 4,
-        "find_elements": 5,
-        "window_handles": 3,
-        "webdriver_wait": 2,
-        "expected_conditions": 2,
-        "webdriver_type": 8
-      }
-    },
-    "Prazo/p2b_fluxo_prescricao.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 1,
-        "execute_script": 1,
-        "webdriver_type": 1
-      }
-    },
-    "Prazo/p2b_gateway.py": {
-      "total": 12,
-      "breakdown": {
-        "from_selenium": 2,
-        "execute_script": 1,
-        "window_handles": 4,
-        "time_sleep": 1,
-        "webdriver_type": 4
-      }
-    },
-    "Prazo/p2b_regras_execucao.py": {
-      "total": 19,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_element": 2,
-        "find_elements": 5,
-        "webdriver_wait": 1,
-        "expected_conditions": 1,
-        "webdriver_type": 4
       }
     },
     "SISB/Core/login.py": {

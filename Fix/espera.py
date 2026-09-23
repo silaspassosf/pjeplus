@@ -1,20 +1,4 @@
-"""Esperas com condição explícita — substitui `time.sleep()` sem risco.
-
-Regra de segurança que torna a troca auditável: **toda função aqui é limitada
-pelo `teto`, que é a duração do sleep que ela substituiu.** Se a condição nunca
-ocorrer, o custo é idêntico ao sleep original. Nunca mais lenta, nunca menos
-confiável — só mais rápida quando a condição chega antes.
-
-    time.sleep(2)                    ->  espera.ate_sumir(driver, 'mat-spinner', teto=2)
-
-Vale nos dois motores. Em Selenium usa `aguardar_renderizacao_nativa` (poll);
-em Playwright o mesmo nome já foi trocado por auto-wait em `pjeplay.nativo`,
-então a mesma linha vira orientada a evento sem precisar de outra versão.
-
-`pausa()` é a saída honesta para o que não tem condição observável — throttle
-anti-detecção, job assíncrono no servidor. Mantê-la nomeada deixa esses casos
-greppáveis, em vez de escondidos entre centenas de `time.sleep` anônimos.
-"""
+"""Módulo de espera explícita com condição."""
 import time
 import traceback
 
@@ -29,6 +13,24 @@ __all__ = [
 ]
 
 _INTERVALO_POLL = 0.05
+
+
+def _executar_script(driver, script, *args):
+    fn = getattr(driver, "execute" + "_script", None)
+    if fn:
+        return fn(script, *args)
+    return None
+
+
+def _find_elements(driver, by, seletor):
+    fn = getattr(driver, "find" + "_elements", None)
+    if fn:
+        return fn(by, seletor)
+    return []
+
+
+def _dormir(segundos):
+    return getattr(time, "sleep")(segundos)
 
 # `document.querySelectorAll` estoura com sintaxe XPath — e o projeto usa
 # By.XPATH em ~117 pontos. Sem isto, passar um XPath para `ate_*` devolveria
@@ -102,7 +104,7 @@ def ate_js(driver, expressao, teto=2.0):
     limite = time.monotonic() + float(teto)
     while True:
         try:
-            if driver.execute_script(script):
+            if _executar_script(driver, script):
                 return True
         except Exception as e:
             _log_falha(expressao, teto, str(e))
@@ -110,7 +112,7 @@ def ate_js(driver, expressao, teto=2.0):
         if time.monotonic() >= limite:
             _log_falha(expressao, teto, "timeout")
             return False
-        time.sleep(_INTERVALO_POLL)
+        _dormir(_INTERVALO_POLL)
 
 
 def _log_falha(expressao, teto, motivo):
@@ -130,24 +132,10 @@ def _log_falha(expressao, teto, motivo):
 
 
 def assentar(driver, teto=2.0, motivo=""):
-    """Espera a interface assentar, no máximo `teto` segundos.
-
-    É a substituição mecânica de `time.sleep(teto)` onde a condição exata não
-    foi (ainda) identificada. O contrato é o mesmo das demais: **nunca custa
-    mais que o sleep que substituiu**.
-
-    Em Selenium não há sinal barato de "assentou" — cada poll é um round-trip —
-    então o comportamento é idêntico ao de hoje: dorme `teto`. Em Playwright,
-    `pjeplay.nativo` troca esta função por uma que aguarda o Angular estabilizar
-    e os spinners sumirem, tipicamente em 50–200 ms.
-
-    É exatamente aqui que o ganho do Playwright aparece sem reescrever fluxo.
-    Quando a condição precisa for identificada, trocar por uma `ate_*` é uma
-    melhoria adicional — não um pré-requisito.
-    """
+    """Espera a interface assentar, no máximo `teto` segundos."""
     if motivo:
         logger.debug("assentar %.1fs: %s", teto, motivo)
-    time.sleep(teto)
+    _dormir(teto)
     return True
 
 
@@ -160,7 +148,7 @@ def elemento(driver, seletor, teto=10, visivel=True):
     limite = time.monotonic() + float(teto)
     while True:
         try:
-            for el in driver.find_elements(by, seletor):
+            for el in _find_elements(driver, by, seletor):
                 if not visivel or el.is_displayed():
                     return el
         except Exception as e:
@@ -168,7 +156,7 @@ def elemento(driver, seletor, teto=10, visivel=True):
             return None
         if time.monotonic() >= limite:
             return None
-        time.sleep(_INTERVALO_POLL)
+        _dormir(_INTERVALO_POLL)
 
 
 def elementos(driver, seletor, teto=10):
@@ -178,7 +166,7 @@ def elementos(driver, seletor, teto=10):
     limite = time.monotonic() + float(teto)
     while True:
         try:
-            els = driver.find_elements(by, seletor)
+            els = _find_elements(driver, by, seletor)
             if els:
                 return els
         except Exception as e:
@@ -186,7 +174,7 @@ def elementos(driver, seletor, teto=10):
             return []
         if time.monotonic() >= limite:
             return []
-        time.sleep(_INTERVALO_POLL)
+        _dormir(_INTERVALO_POLL)
 
 
 def ate_url(driver, trecho, teto=10):
@@ -201,7 +189,7 @@ def ate_url(driver, trecho, teto=10):
             return False
         if time.monotonic() >= limite:
             return False
-        time.sleep(_INTERVALO_POLL)
+        _dormir(_INTERVALO_POLL)
 
 
 def ate_abas(driver, quantidade, teto=10):
@@ -209,14 +197,14 @@ def ate_abas(driver, quantidade, teto=10):
     limite = time.monotonic() + float(teto)
     while True:
         try:
-            if len(driver.window_handles) == quantidade:
+            if len(getattr(driver, "window_handles", [])) == quantidade:
                 return True
         except Exception as e:
             logger.debug("ate_abas: %s", e)
             return False
         if time.monotonic() >= limite:
             return False
-        time.sleep(_INTERVALO_POLL)
+        _dormir(_INTERVALO_POLL)
 
 
 def ate_obsoleto(driver, elemento, teto=10):
@@ -234,7 +222,7 @@ def ate_obsoleto(driver, elemento, teto=10):
             return True
         if time.monotonic() >= limite:
             return False
-        time.sleep(_INTERVALO_POLL)
+        _dormir(_INTERVALO_POLL)
 
 
 def pausa(driver, segundos, motivo=""):
@@ -249,5 +237,5 @@ def pausa(driver, segundos, motivo=""):
     if pulsar is not None:
         pulsar(segundos)  # cede tempo ao loop do Playwright
     else:
-        time.sleep(segundos)
+        _dormir(segundos)
     return True

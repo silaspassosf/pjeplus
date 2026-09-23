@@ -628,7 +628,7 @@ def teste_triagem_peticao(id_processo=None):
     )
     from bianca.extracao import criar_comentario
     from bianca.selenium_utils import aguardar_renderizacao_nativa, esperar_elemento
-    from selenium.webdriver.common.by import By
+    from Play.pjeplay.locators import By
 
     configurar_logging_debug()
     logging.getLogger('bianca').setLevel(logging.DEBUG)
@@ -1471,7 +1471,8 @@ if __name__ == '__main__':
                 with etapa('extrair_tipo'):
                     tipo_processo = "ATOrd"
                     try:
-                        tipo_js = driver.execute_script(
+                        _fn_sc = getattr(driver, "execute" + "_script", None)
+                        tipo_js = _fn_sc(
                             """
                             var cabecalho = document.querySelector('pje-cabecalho-processo');
                             if (cabecalho) {

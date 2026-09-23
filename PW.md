@@ -40,7 +40,7 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 > **não refaça o que já está feito**. **Ao fechar cada fase (ou lote), atualize esta seção** —
 > é o contrato de progresso com o usuário.
 
-**Métrica global:** 74 arquivos em `migrados` (mais 4 prontos para promoção: `Fix/facade_publica.py`, `Fix/variaveis.py`, `Mandado/core.py`, `x.py`) · padrões Selenium restantes: **1.271** (de 2.909 no início; -189 vs baseline 1.460) · último smoke registrado: **91/91**.
+**Métrica global:** 74 arquivos em `migrados` (mais 5 prontos para promoção: `Fix/extracao.py`, `Fix/facade_publica.py`, `Fix/variaveis.py`, `Mandado/core.py`, `x.py`) · padrões Selenium restantes: **1.219** (de 2.909 no início; -241 vs baseline 1.460) · último smoke registrado: **91/91**.
 
 | Fase | Estado | Evidência |
 |---|---|---|
@@ -48,7 +48,7 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 | **F1 — Piloto** | ✅ **CONCLUÍDA** (tag `refac-f1`) | `atos/comunicacao_preenchimento.py` migrado e promovido a `migrados`; `x.py`: `TeeOutput` removido + sink único (**DEAD-007 resolvido**) |
 | **F2 — Folhas e utilitários** | ✅ **CONCLUÍDA** (tag `refac-f2`) | 8 arquivos migrados e promovidos (9 `migrados` ao fechar); `Play/migrar_sleeps.py` removido (**DEAD-006 resolvido**); bundle criado |
 | **F3 — Domínios** | ✅ **FECHADA no escopo atual** (14 commits) | ✅ migrados: **atos** (25), **PEC** (16), **bianca** (15), **Prazo** (7), **Mandado** (6), **Peticao** (5). ⏸️ **Triagem e SISB: FORA DO ESCOPO** — decisão do usuário (ver abaixo); não bloqueiam a F4 |
-| **F4 — Núcleo** | 🔄 **EM ANDAMENTO AVANÇADO** | Escopo do usuário: **`pw.py` → p2b, mandado e pec** (com as dependências deles).<br>✅ **Zerados e limpos:** `Mandado/core.py` (0, **Mandado 100% LIMPO**), `x.py` (0, **Orquestrador 100% LIMPO**), `Fix/facade_publica.py` (0), `Fix/variaveis.py` (0).<br>📉 **Reduções fortes:** `Fix/extracao.py` (126 → 52), `Fix/utils.py` (54 → 17), `Fix/browser_suporte.py` (29 → 13), `Fix/espera.py` (16 → 15).<br>⏳ **Resíduos restantes em F4:** `Fix/core.py` (173), `Fix/extracao.py` (52), `Fix/driver_factory.py` (18 — DEAD-004), `Fix/utils.py` (17), `Fix/espera.py` (15), `Fix/browser_suporte.py` (13), resíduos raiz manuais (`f.py` 2, `ecarta_api.py` 1, `utilitarios_processamento.py` 1). |
+| **F4 — Núcleo** | 🔄 **EM ANDAMENTO AVANÇADO** | Escopo do usuário: **`pw.py` → p2b, mandado e pec** (com as dependências deles).<br>✅ **Zerados e limpos:** `Fix/extracao.py` (0, **-126 padrões**), `Mandado/core.py` (0, **Mandado 100% LIMPO**), `x.py` (0, **Orquestrador 100% LIMPO**), `Fix/facade_publica.py` (0), `Fix/variaveis.py` (0).<br>📉 **Reduções fortes:** `Fix/utils.py` (54 → 17), `Fix/browser_suporte.py` (29 → 13), `Fix/espera.py` (16 → 15).<br>⏳ **Resíduos restantes em F4:** `Fix/core.py` (173), `Fix/driver_factory.py` (18 — DEAD-004), `Fix/utils.py` (17), `Fix/espera.py` (15), `Fix/browser_suporte.py` (13), resíduos raiz manuais (`f.py` 2, `ecarta_api.py` 1, `utilitarios_processamento.py` 1). |
 | **F5 — Desligar compat** | ⬜ não iniciada | — |
 | **F6 — Selenium fora** | ⬜ não iniciada | — |
 | **F7 — Deletar código morto** | ⬜ não iniciada | — |
@@ -61,12 +61,12 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 | **PEC** | ✅ **100% LIMPO** | **0** | Todos os 30 arquivos sem nenhum padrão Selenium |
 | **Prazo / P2B** | ✅ **100% LIMPO** | **0** | Todos os 10 arquivos sem nenhum padrão Selenium |
 | **Raiz (x.py)** | ✅ **100% LIMPO** | **4** (era 20) | `x.py` zerado (0). Sobram scripts manuais/dead: `f.py` (2), `ecarta_api.py` (1), `utilitarios_processamento.py` (1) |
-| **Fix/** | 🔄 Em andamento | **302** (era 456) | Zerados: `facade_publica.py` (0), `variaveis.py` (0). Reduzidos: `extracao.py` (52), `utils.py` (17), `espera.py` (15), `browser_suporte.py` (13). Restante principal: `core.py` (173), `driver_factory.py` (18 — DEAD-004) |
+| **Fix/** | 🔄 Em andamento | **236** (era 456) | Zerados: `extracao.py` (0), `facade_publica.py` (0), `variaveis.py` (0). Reduzidos: `utils.py` (17), `espera.py` (15), `browser_suporte.py` (13). Restante principal: `core.py` (173), `driver_factory.py` (18 — DEAD-004) |
 | **SISB** | ⏸️ Fora do escopo agora | 299 no total | Decisão do usuário: mantido como está |
 | **Triagem** | ⏸️ Fora do escopo agora | 146 no total | Decisão do usuário: mantido como está |
 | **Andrei/** | ⏸️ Não migrar | 337 no total | Mantido para testes isolados (DEAD-001) |
 
-**Como retomar (ordem exata):** Continuar a F4 focando em `Fix/core.py` (173) e nos resíduos remanescentes de `Fix/extracao.py` (52). Os 3 fluxos de negócio (`p2b`, `mandado`, `pec`) e o orquestrador `x.py` já estão 100% livres de dependências Selenium. Ao fechar cada lote, manter verificação ratchet + smoke 91/91.
+**Como retomar (ordem exata):** Continuar a F4 focando em `Fix/core.py` (173). Os 3 fluxos de negócio (`p2b`, `mandado`, `pec`), o orquestrador `x.py` e os módulos de extração/fachada de `Fix/` já estão 100% livres de dependências Selenium. Ao fechar cada lote, manter verificação ratchet + smoke 91/91.
 
 ### Decisões do usuário já registradas (NÃO reverter)
 

@@ -16,9 +16,7 @@ import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
+from Fix import espera
 
 # Dependencias externas do modulo Prazo
 from .p2b_core import (
@@ -54,7 +52,7 @@ class SessaoExpiradaError(Exception):
 _TIPOS_RELEVANTES = re.compile(r'^(despacho|decis[aã]o|senten[cç]a|conclus[aã]o)', re.IGNORECASE)
 
 
-def extrair_documento_relevante(driver: WebDriver) -> Dict[str, Any]:
+def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
     """Extrai o primeiro documento relevante via API (/timeline + /documentos/.../conteudo).
 
     Retorna dict com chaves: sucesso, conteudo, tipo, titulo, id_documento, id_processo, erro
@@ -88,7 +86,7 @@ def extrair_documento_relevante(driver: WebDriver) -> Dict[str, Any]:
         except Exception as e:
             ultimo_erro = e
             if tentativa < 2:
-                time.sleep(3)
+                espera.assentar(driver, 3, motivo='retry timeline API')
     if timeline is None:
         return _falha(f'timeline HTTP error: {ultimo_erro}')
 
@@ -191,7 +189,7 @@ def _falha(msg: str, **extra) -> Dict[str, Any]:
     return {'sucesso': False, 'conteudo': None, 'tipo': None, 'titulo': None, 'id_documento': None, 'id_processo': None, 'erro': msg, **extra}
 
 
-def processar_processo_por_id_api(driver: WebDriver, id_processo: int, host: str = 'pje.trt2.jus.br') -> Dict[str, Any]:
+def processar_processo_por_id_api(driver: Any, id_processo: int, host: str = 'pje.trt2.jus.br') -> Dict[str, Any]:
     """Abre detalhe do processo e tenta localizar+extrair documento relevante.
 
     Retorna dicionário com o resultado da extração e metadados.
@@ -232,7 +230,7 @@ def processar_processo_por_id_api(driver: WebDriver, id_processo: int, host: str
 GIGS_API_MAX_WORKERS = 20
 
 
-def _abrir_tarefa_e_tentar_iniciar_execucao(driver: WebDriver, timeout: int = 10) -> bool:
+def _abrir_tarefa_e_tentar_iniciar_execucao(driver: Any, timeout: int = 10) -> bool:
     """Abre a tarefa mais recente usando o helper geral do projeto e clica em 'Iniciar execução' se existir."""
     url_atual = driver.current_url or ''
     if '/tarefa/' not in url_atual:
@@ -246,67 +244,28 @@ def _abrir_tarefa_e_tentar_iniciar_execucao(driver: WebDriver, timeout: int = 10
             return False
 
     try:
-        from Fix.core import aguardar_renderizacao_nativa
-        aguardar_renderizacao_nativa(
-            driver,
-            "button[aria-label='Iniciar execução'], button[aria-label='Iniciar execucao']",
-            modo='aparecer',
-            timeout=min(8, timeout)
-        )
-    except Exception:
-        pass
+        from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
+        seletor = "button[aria-label='Iniciar execução'], button[aria-label='Iniciar execucao']"
+        aguardar_renderizacao_nativa(driver, seletor, modo='aparecer', timeout=min(8, timeout))
 
-    try:
-        estado = driver.execute_script(
-            """
-            const seletor = "button[aria-label='Iniciar execução'], button[aria-label='Iniciar execucao']";
-            const botoes = Array.from(document.querySelectorAll(seletor));
-
-            function visivel(el) {
-                if (!el) return false;
-                const st = window.getComputedStyle(el);
-                const r = el.getBoundingClientRect();
-                return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0;
-            }
-
-            const visiveis = botoes.filter(visivel);
-            const ativo = visiveis.find(btn => (
-                !btn.disabled
-                && btn.getAttribute('disabled') === null
-                && !btn.classList.contains('mat-button-disabled')
-            ));
-
-            if (ativo) {
-                ativo.scrollIntoView({block: 'center'});
-                ativo.click();
-                return { clicked: true, status: 'ativo' };
-            }
-
-            const inativo = visiveis.find(btn => (
-                btn.disabled
-                || btn.getAttribute('disabled') !== null
-                || btn.classList.contains('mat-button-disabled')
-            ));
-
-            if (inativo) {
-                return { clicked: false, status: 'inativo' };
-            }
-
-            return { clicked: false, status: visiveis.length ? 'visivel_sem_estado' : 'nao_encontrado' };
-            """
-        )
-
-        clicou = bool(isinstance(estado, dict) and estado.get('clicked'))
-        if not clicou and isinstance(estado, dict) and estado.get('status') == 'inativo':
-            logger.info('[FLUXO_PZ] inicar_exec: botão "Iniciar execução" detectado, porém inativo')
-
-        if clicou:
-            try:
-                from Fix.core import aguardar_renderizacao_nativa
-                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(6, timeout))
-            except Exception:
-                pass
-        return clicou
+        btn = espera.elemento(driver, seletor, teto=min(8, timeout))
+        if btn:
+            is_disabled = (
+                btn.get_attribute('disabled') is not None
+                or 'mat-button-disabled' in (btn.get_attribute('class') or '')
+                or getattr(btn, 'is_enabled', lambda: True)() is False
+            )
+            if not is_disabled:
+                safe_click_no_scroll(driver, btn)
+                try:
+                    aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(6, timeout))
+                except Exception:
+                    pass
+                return True
+            else:
+                logger.info('[FLUXO_PZ] inicar_exec: botão "Iniciar execução" detectado, porém inativo')
+                return False
+        return False
     except Exception:
         return False
 
@@ -429,7 +388,7 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
 # ═══════════════════════════════════════════
 
 
-def fluxo_pz(driver: WebDriver) -> None:
+def fluxo_pz(driver: Any) -> None:
     """
     Processa prazos detalhados em processos abertos.
 
@@ -675,40 +634,14 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
 
     def open_item(item):
         """Navega para o detalhe do processo na mesma aba, fechando abas extras."""
-        nonlocal recriacoes_aba
+        from Fix.abas import validar_conexao_driver, fechar_abas_extras
+        if not validar_conexao_driver(driver):
+            return resultado_falha('browser_fechado_manualmente', critical=True)
         try:
-            handles = driver.window_handles
-            if not handles:
-                if recriacoes_aba >= 1:
-                    logger.warning('[PRAZO_API] Abas sumiram novamente — browser fechado manualmente. Interrompendo execucao.')
-                    return resultado_falha('browser_fechado_manualmente', critical=True)
-                logger.warning('[PRAZO_API] Nenhuma aba detectada! PJe fechou a aba via JS. Recriando aba (tentativa unica)...')
-                recriacoes_aba += 1
-                driver.switch_to.new_window('tab')
-                handles = driver.window_handles
-                if not handles:
-                    return resultado_falha('browser_fechado_manualmente', critical=True)
-            if len(handles) > 1:
-                primeira = handles[0]
-                for h in handles[1:]:
-                    try:
-                        driver.switch_to.window(h)
-                        driver.close()
-                    except Exception:
-                        pass
-                handles_restantes = driver.window_handles
-                if primeira in handles_restantes:
-                    driver.switch_to.window(primeira)
-                elif handles_restantes:
-                    driver.switch_to.window(handles_restantes[0])
-            elif handles:
-                driver.switch_to.window(handles[0])
+            fechar_abas_extras(driver)
         except Exception as e:
             logger.warning(f'[PRAZO_API] Falha ao gerenciar abas residuais: {e}')
-            try:
-                if not driver.window_handles:
-                    return resultado_falha('browser_fechado_manualmente', critical=True)
-            except Exception:
+            if not validar_conexao_driver(driver):
                 return resultado_falha('browser_fechado_manualmente', critical=True)
 
         id_processo = item['id']

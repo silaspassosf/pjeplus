@@ -8,19 +8,16 @@ import math
 import re
 import time
 import traceback
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+# Selenium imports removed — Playwright native
 
 from Fix import espera
 from Fix.core import (
     safe_click_no_scroll,
     aguardar_renderizacao_nativa,
     aplicar_filtro_100,
+    preencher_campo,
 )
 from Fix.facade_publica import buscar
 from Fix.variaveis import cliente_para
@@ -45,6 +42,17 @@ from .loop_orquestrador import (
 logger = logging.getLogger(__name__)
 
 
+def _executar_js(driver: Any, script: str, *args):
+    """Executa script JS via driver de forma compatível."""
+    fn = getattr(driver, 'execute_script', None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
+
 # ═══════════════════════════════════════════════
 # ── 1. loop_ciclo2_processamento.py ──
 # ═══════════════════════════════════════════════
@@ -61,30 +69,26 @@ def _parse_atividade_xs_param(valor: str) -> tuple:
     return None, None, valor.strip()
 
 
-def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
+def _ciclo2_criar_atividade_xs(driver: Any) -> bool:
     """Cria atividade 'xs' para processos selecionados."""
     try:
         ids_selecionados = _ciclo2_obter_numeros_processos_selecionados(driver)
 
         # Clique no botão tag verde para abrir o dropdown de atividade
-        try:
-            aguardar_renderizacao_nativa(driver, "i.fa.fa-tag.icone.texto-verde", timeout=10)
-            tag_verde = driver.find_element(By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde')
-            safe_click_no_scroll(driver, tag_verde)
-        except Exception:
-            tag_verde = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde'))
-            )
-            safe_click_no_scroll(driver, tag_verde)
+        tag_verde = espera.elemento(driver, 'i.fa.fa-tag.icone.texto-verde', teto=10)
+        if not tag_verde:
+            logger.error('[CICLO2][XS] Botão tag verde não encontrado')
+            return False
+        safe_click_no_scroll(driver, tag_verde)
 
         # Aguardar renderização do menu de atividades
         aguardar_renderizacao_nativa(driver, "button.mat-menu-item", timeout=10)
 
         # Clique direto no botão "Atividade" via CSS/texto
         sucesso_atividade = False
-        btns = driver.find_elements(By.CSS_SELECTOR, "button.mat-menu-item")
+        btns = espera.elementos(driver, "button.mat-menu-item", teto=2)
         for btn in btns:
-            if "Atividade" in btn.text:
+            if "Atividade" in getattr(btn, 'text', ''):
                 safe_click_no_scroll(driver, btn)
                 sucesso_atividade = True
                 break
@@ -116,7 +120,6 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
 
         # Preencher prazo, se o campo existir
         if prazo is not None:
-            campo_prazo = None
             for seletor in [
                 'input[formcontrolname="dias"]',
                 'input[formcontrolname="prazo"]',
@@ -124,77 +127,44 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
                 'mat-form-field input[type="number"]',
                 'input[type="number"]'
             ]:
-                try:
-                    campo = driver.find_element(By.CSS_SELECTOR, seletor)
-                    if campo.is_displayed():
-                        campo_prazo = campo
-                        break
-                except Exception:
-                    continue
-            if campo_prazo:
-                campo_prazo.clear()
-                campo_prazo.send_keys(prazo)
-                driver.execute_script(
-                    "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
-                    campo_prazo
-                )
-                espera.assentar(driver, 0.3)
+                if preencher_campo(driver, seletor, prazo):
+                    espera.assentar(driver, 0.3)
+                    break
 
         # Preencher observação
-        campo_obs = None
+        preencheu_obs = False
         for seletor in [
             "textarea[formcontrolname='observacao']",
             "textarea[aria-label*='Observa']",
             "textarea"
         ]:
-            try:
-                campo = driver.find_element(By.CSS_SELECTOR, seletor)
-                if campo.is_displayed():
-                    campo_obs = campo
-                    break
-            except Exception:
-                continue
+            if preencher_campo(driver, seletor, observacao):
+                espera.assentar(driver, 0.3)
+                preencheu_obs = True
+                break
 
-        if not campo_obs:
+        if not preencheu_obs:
             logger.error('[CICLO2][XS] Campo de observação não encontrado')
             return False
 
-        campo_obs.clear()
-        campo_obs.send_keys(observacao)
-        driver.execute_script(
-            "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
-            campo_obs
-        )
-        espera.assentar(driver, 0.3)
-
-        # Aguardar até que o textarea contenha o texto (sincronização mínima)
-        try:
-            WebDriverWait(driver, 6).until(lambda d: observacao in campo_obs.get_attribute('value'))
-        except Exception:
-            pass
-
         # Encontrar e clicar no botão Salvar
-        spans = driver.find_elements(By.CSS_SELECTOR, "button.mat-raised-button span")
-        btn_salvar = next((s for s in spans if "Salvar" in s.text), None)
+        spans = espera.elementos(driver, "button.mat-raised-button span", teto=2)
+        btn_salvar = next((s for s in spans if "Salvar" in getattr(s, 'text', '')), None)
         if not btn_salvar:
-            try:
-                btn_salvar = driver.find_element(By.CSS_SELECTOR, "button[aria-label*='Salvar'] span")
-            except Exception:
-                btn_salvar = None
+            btn_salvar = espera.elemento(driver, "button[aria-label*='Salvar'] span", teto=1)
         if not btn_salvar:
             logger.error('[CICLO2][XS] Botão Salvar não encontrado')
             return False
-        btn_pai = btn_salvar.find_element(By.XPATH, "..")
+        btn_pai = espera.elemento(btn_salvar, "..", teto=0.5) or btn_salvar
 
         # Scroll e clique no botão salvar
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_pai)
         safe_click_no_scroll(driver, btn_pai)
 
         # Aguardar fechamento do modal via observer
         try:
             aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='sumir', timeout=15)
         except Exception:
-            modais = driver.find_elements(By.CSS_SELECTOR, "mat-dialog-container")
+            modais = espera.elementos(driver, "mat-dialog-container", teto=0.5)
             if modais:
                 logger.error('[CICLO2][XS] Modal ainda aberto após Salvar')
                 return False
@@ -217,7 +187,7 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
         return False
 
 
-def _ciclo2_movimentar_lote(driver: WebDriver, opcao_destino: str, ha_mais: bool) -> bool:
+def _ciclo2_movimentar_lote(driver: Any, opcao_destino: str, ha_mais: bool) -> bool:
     """Abre suitcase, seleciona destino e movimenta processos."""
     if not _ciclo1_abrir_suitcase(driver):
         logger.error('[CICLO2] Falha ao abrir suitcase')
@@ -261,7 +231,7 @@ def _ciclo2_movimentar_lote(driver: WebDriver, opcao_destino: str, ha_mais: bool
     return True
 
 
-def ciclo2_processar_livres_apenas_uma_vez(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências') -> Tuple[int, bool]:
+def ciclo2_processar_livres_apenas_uma_vez(driver: Any, opcao_destino: str = 'Cumprimento de providências') -> Tuple[int, bool]:
     """
     Fase 2.1: Processa APENAS seleção de processos livres (SEM aplicar atividade XS).
     A atividade XS será aplicada na Fase 2.2 para GIGS+LIVRES juntos.
@@ -286,7 +256,7 @@ def ciclo2_processar_livres_apenas_uma_vez(driver: WebDriver, opcao_destino: str
     # 3. Contar total de não-livres (para saber se entra no loop de providências)
     # Primeiro, salvar os selecionados atuais (GIGS+LIVRES) antes de testar não-livres
     try:
-        resultado = driver.execute_script("""
+        resultado = _executar_js(driver, """
             function selecionarProcessos(maxProcessos) {
                 const linhas = document.querySelectorAll('tr.cdk-drag');
                 let selecionados = 0;
@@ -320,12 +290,12 @@ def ciclo2_processar_livres_apenas_uma_vez(driver: WebDriver, opcao_destino: str
             }
             return selecionarProcessos(arguments[0]);
         """, 1)  # Seleciona apenas 1 para contar total
-        total_nao_livres = resultado['totalNaoLivres']
+        total_nao_livres = resultado['totalNaoLivres'] if resultado else 0
         ha_nao_livres = total_nao_livres > 0
 
         # Desselecionar aquele 1 não-livre que foi selecionado para teste
         try:
-            driver.execute_script("""
+            _executar_js(driver, """
                 document.querySelectorAll('mat-checkbox input[type="checkbox"]:checked').forEach(function(c){
                     var linha = c.closest('tr');
                     var temProvidencias = linha.querySelector('a[href*="providencias"]') !== null;
@@ -347,7 +317,7 @@ def ciclo2_processar_livres_apenas_uma_vez(driver: WebDriver, opcao_destino: str
         return livres, False
 
 
-def ciclo2_loop_providencias(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências') -> bool:
+def ciclo2_loop_providencias(driver: Any, opcao_destino: str = 'Cumprimento de providências') -> bool:
     """
     Fase 2.3: Loop para processar providências (cumprimento) - processa NÃO-LIVRES.
     Processa até 20 processos não-livres por iteração.
@@ -364,7 +334,7 @@ def ciclo2_loop_providencias(driver: WebDriver, opcao_destino: str = 'Cumpriment
 
         # Desselecionar todos antes de começar nova iteração
         try:
-            driver.execute_script("document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').forEach(c=>c.click());")
+            _executar_js(driver, "document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').forEach(c=>c.click());")
             # aguardar até que não haja checkboxes marcados (sincronização mínima)
             try:
                 aguardar_renderizacao_nativa(driver, "mat-checkbox input[type=\"checkbox\"]:checked", modo='sumir', timeout=6)
@@ -407,16 +377,16 @@ def ciclo2_loop_providencias(driver: WebDriver, opcao_destino: str = 'Cumpriment
             pass
 
 
-def _ciclo2_contar_processos_selecionados(driver: WebDriver) -> int:
+def _ciclo2_contar_processos_selecionados(driver: Any) -> int:
     """Retorna a quantidade de checkboxes de processo selecionados no painel atual."""
     try:
-        return int(driver.execute_script("return document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').length;"))
+        return int(_executar_js(driver, "return document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').length;") or 0)
     except Exception as e:
         logger.warning(f'[CICLO2] Não foi possível contar selecionados: {e}')
         return 0
 
 
-def _ciclo2_obter_numeros_processos_selecionados(driver: WebDriver) -> List[str]:
+def _ciclo2_obter_numeros_processos_selecionados(driver: Any) -> List[str]:
     """Retorna lista de números de processo atualmente selecionados."""
     script = r"""
         const rows = Array.from(document.querySelectorAll('tr.cdk-drag'));
@@ -434,13 +404,13 @@ def _ciclo2_obter_numeros_processos_selecionados(driver: WebDriver) -> List[str]
         }, []);
     """
     try:
-        return driver.execute_script(script)
+        return _executar_js(driver, script) or []
     except Exception as e:
         logger.warning(f'[CICLO2] Não foi possível obter números de processos selecionados: {e}')
         return []
 
 
-def _ciclo2_reselecionar_processos(driver: WebDriver, numeros_processos: List[str]) -> int:
+def _ciclo2_reselecionar_processos(driver: Any, numeros_processos: List[str]) -> int:
     """Resseliona processos pelo número de processo na tabela."""
     if not numeros_processos:
         return 0
@@ -468,13 +438,13 @@ def _ciclo2_reselecionar_processos(driver: WebDriver, numeros_processos: List[st
         return cont;
     """
     try:
-        return int(driver.execute_script(script, numeros_processos))
+        return int(_executar_js(driver, script, numeros_processos) or 0)
     except Exception as e:
         logger.warning(f'[CICLO2] Falha ao reselecionar processos: {e}')
         return 0
 
 
-def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências') -> Union[bool, str]:
+def ciclo2(driver: Any, opcao_destino: str = 'Cumprimento de providências') -> Union[bool, str]:
     """
     Ciclo 2 completo: GIGS + LIVRES + PROVIDÊNCIAS.
     Ordem: 1) NÃO-LIVRES (providências) → 2) Reaplicar filtros → 3) GIGS+LIVRES+XS
@@ -554,7 +524,7 @@ def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências
 URL_PAINEL_CUMPRIMENTO = 'https://pje.trt2.jus.br/pjekz/painel/global/6/lista-processos'
 
 
-def ciclo3(driver: WebDriver) -> bool:
+def ciclo3(driver: Any) -> bool:
     """
     Ciclo 3: Processar painel de cumprimento de providências (painel 6)
 
@@ -565,7 +535,7 @@ def ciclo3(driver: WebDriver) -> bool:
     4. Aplica atividade XS se houver processos livres
 
     Args:
-        driver: WebDriver já logado
+        driver: conexao/driver PJe já logado
 
     Returns:
         True se sucesso, False se falha crítica
@@ -579,10 +549,7 @@ def ciclo3(driver: WebDriver) -> bool:
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=3)
         except Exception:
-            try:
-                WebDriverWait(driver, 3).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-            except Exception:
-                pass
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
 
         # 2. Aplicar filtro 100
         logger.info("[CICLO3] Aplicando filtro 100...")
@@ -596,17 +563,15 @@ def ciclo3(driver: WebDriver) -> bool:
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
         except Exception:
-            try:
-                WebDriverWait(driver, 2).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-            except Exception:
-                pass
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=2)
 
         # 3. Selecionar livres: percorrer todas as páginas após aplicar filtro 100
         logger.info("[CICLO3] Selecionando processos livres (sem GIGS) em todas as páginas...")
 
         # Tentar obter total de processos para calcular número de páginas
         try:
-            total_text = driver.find_element(By.CSS_SELECTOR, 'span.total-registros').text
+            total_elem = espera.elemento(driver, 'span.total-registros', teto=2)
+            total_text = getattr(total_elem, 'text', '') if total_elem else ''
             m = re.search(r'de\s+(\d+)', total_text)
             total = int(m.group(1)) if m else -1
         except Exception:
@@ -620,7 +585,7 @@ def ciclo3(driver: WebDriver) -> bool:
         total_selecionados = 0
         for pagina in range(paginas):
             try:
-                selecionados = driver.execute_script(SCRIPT_SELECAO_LIVRES)
+                selecionados = _executar_js(driver, SCRIPT_SELECAO_LIVRES)
                 if selecionados == -1:
                     logger.error(f"[CICLO3] ERRO no script de seleção de livres na página {pagina+1}")
                     return False
@@ -635,15 +600,13 @@ def ciclo3(driver: WebDriver) -> bool:
             # Ir para próxima página, se houver
             if pagina < paginas - 1:
                 try:
-                    btn_next = driver.find_element(By.CSS_SELECTOR, 'mat-paginator button[aria-label="Próxima página"]')
-                    safe_click_no_scroll(driver, btn_next)
+                    btn_next = espera.elemento(driver, 'mat-paginator button[aria-label="Próxima página"]', teto=2)
+                    if btn_next:
+                        safe_click_no_scroll(driver, btn_next)
                     try:
                         aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
                     except Exception:
-                        try:
-                            WebDriverWait(driver, 1).until(lambda d: d.execute_script('return document.readyState') == 'complete')
-                        except Exception:
-                            pass
+                        espera.ate_js(driver, "document.readyState === 'complete'", teto=1)
                 except Exception:
                     logger.info("[CICLO3] Não foi possível navegar para próxima página (ou última página atingida)")
 

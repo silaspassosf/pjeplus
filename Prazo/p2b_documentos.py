@@ -9,10 +9,7 @@ import re
 import time
 from typing import Any, List, Optional, Tuple
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from Fix import espera
 
 from .p2b_core import gerar_regex_geral, parse_gigs_param, checar_prox, calc1
 from .p2b_fluxo_lazy import _lazy_import
@@ -27,7 +24,7 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════
 
 
-def _encontrar_documento_relevante(driver: WebDriver) -> Tuple[Optional[Any], Optional[Any], int]:
+def _encontrar_documento_relevante(driver: Any) -> Tuple[Optional[Any], Optional[Any], int]:
     """
     Helper: Encontra documento relevante (decisão/despacho/sentença) na timeline.
 
@@ -59,7 +56,7 @@ def _encontrar_documento_relevante(driver: WebDriver) -> Tuple[Optional[Any], Op
     itens = []
     for sel in container_selectors:
         try:
-            itens = driver.find_elements(By.CSS_SELECTOR, sel)
+            itens = espera.elementos(driver, sel, teto=0.5)
             if itens:
                 break
         except Exception:
@@ -69,24 +66,20 @@ def _encontrar_documento_relevante(driver: WebDriver) -> Tuple[Optional[Any], Op
     for idx, item in enumerate(itens):
         try:
             # Preferir link com classe 'tl-documento', fallback para qualquer <a> dentro do item
-            try:
-                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-            except Exception:
-                try:
-                    link = item.find_element(By.CSS_SELECTOR, 'a[href*="/documento/"]')
-                except Exception:
-                    # último recurso: qualquer link clicável dentro do item
-                    links = item.find_elements(By.TAG_NAME, 'a')
-                    link = None
-                    for l in links:
-                        try:
-                            if l.is_displayed():
-                                link = l
-                                break
-                        except Exception:
-                            continue
-                    if link is None:
+            link = espera.elemento(item, 'a.tl-documento:not([target="_blank"])', teto=0.1)
+            if not link:
+                link = espera.elemento(item, 'a[href*="/documento/"]', teto=0.1)
+            if not link:
+                links = espera.elementos(item, 'a', teto=0.1)
+                for l in links:
+                    try:
+                        if getattr(l, 'is_displayed', lambda: True)():
+                            link = l
+                            break
+                    except Exception:
                         continue
+            if link is None:
+                continue
 
             # Tentar obter o tipo real do documento a partir do primeiro elemento textual
             tipo_real = ''
@@ -94,8 +87,8 @@ def _encontrar_documento_relevante(driver: WebDriver) -> Tuple[Optional[Any], Op
                 # procurar primeiro span/strong/b que contenha texto legível
                 for q in ['span:not(.sr-only)', 'strong', 'b', 'em', 'span']:
                     try:
-                        candidate = link.find_element(By.CSS_SELECTOR, q)
-                        if candidate and candidate.text and candidate.text.strip():
+                        candidate = espera.elemento(link, q, teto=0.1)
+                        if candidate and getattr(candidate, 'text', '') and candidate.text.strip():
                             tipo_real = candidate.text.lower().strip()
                             break
                     except Exception:
@@ -123,33 +116,34 @@ def _documento_nao_assinado(doc_link: Any) -> bool:
     Helper: Detecta se o documento na timeline está marcado como não assinado.
     """
     try:
-        item = doc_link.find_element(By.XPATH, './ancestor::li[contains(@class,"tl-item-container")]')
-        icones = item.find_elements(By.CSS_SELECTOR, 'i.documento-nao-assinado.fa-unlock')
-        for icone in icones:
-            try:
-                if icone.is_displayed():
-                    return True
-            except Exception:
-                pass
-        # Fallback: aria-label direto no ícone (mais restrito)
-        icones_label = item.find_elements(By.CSS_SELECTOR, 'i.documento-nao-assinado[aria-label="Documento não assinado"]')
-        for icone in icones_label:
-            try:
-                if icone.is_displayed():
-                    return True
-            except Exception:
-                pass
+        item = espera.elemento(doc_link, './ancestor::li[contains(@class,"tl-item-container")]', teto=0.1)
+        if item:
+            icones = espera.elementos(item, 'i.documento-nao-assinado.fa-unlock', teto=0.1)
+            for icone in icones:
+                try:
+                    if getattr(icone, 'is_displayed', lambda: True)():
+                        return True
+                except Exception:
+                    pass
+            # Fallback: aria-label direto no ícone (mais restrito)
+            icones_label = espera.elementos(item, 'i.documento-nao-assinado[aria-label="Documento não assinado"]', teto=0.1)
+            for icone in icones_label:
+                try:
+                    if getattr(icone, 'is_displayed', lambda: True)():
+                        return True
+                except Exception:
+                    pass
     except Exception:
         pass
     return False
 
 
-def _extrair_texto_documento(driver: WebDriver, doc_link: Any) -> Optional[str]:
+def _extrair_texto_documento(driver: Any, doc_link: Any) -> Optional[str]:
     """
     Helper: Extrai texto do documento usando múltiplas estratégias.
 
     Args:
-        driver: WebDriver instance
+        driver: conexao/driver PJe
         doc_link: Link do documento
 
     Returns:
@@ -160,10 +154,7 @@ def _extrair_texto_documento(driver: WebDriver, doc_link: Any) -> Optional[str]:
         from Fix.core import aguardar_renderizacao_nativa
         aguardar_renderizacao_nativa(driver, '.timeline, .document-viewer, div.tl-item-container', timeout=2)
     except Exception:
-        try:
-            WebDriverWait(driver, 2).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.timeline, .document-viewer, div.tl-item-container')))
-        except Exception:
-            pass
+        espera.ate_aparecer(driver, '.timeline, .document-viewer, div.tl-item-container', teto=2)
 
     # Estratégia 1: extrair_direto (otimizada)
     texto = _extrair_com_extrair_direto(driver)
@@ -182,7 +173,7 @@ def _extrair_texto_documento(driver: WebDriver, doc_link: Any) -> Optional[str]:
     return None
 
 
-def _extrair_com_extrair_direto(driver: WebDriver) -> Optional[str]:
+def _extrair_com_extrair_direto(driver: Any) -> Optional[str]:
     """Helper: Extrai texto usando extrair_direto."""
     m = _lazy_import()
     extrair_direto = m['extrair_direto']
@@ -212,7 +203,7 @@ def _extrair_com_extrair_direto(driver: WebDriver) -> Optional[str]:
     return None
 
 
-def _extrair_com_extrair_documento(driver: WebDriver) -> Optional[str]:
+def _extrair_com_extrair_documento(driver: Any) -> Optional[str]:
     """Helper: Extrai texto usando extrair_documento (fallback)."""
     m = _lazy_import()
     extrair_documento = m['extrair_documento']
@@ -230,29 +221,13 @@ def _extrair_com_extrair_documento(driver: WebDriver) -> Optional[str]:
     return None
 
 
-def _fechar_aba_processo(driver: WebDriver) -> None:
+def _fechar_aba_processo(driver: Any) -> None:
     """
     Helper: Fecha aba do processo e volta para lista de forma segura.
     """
     try:
-        all_windows = driver.window_handles
-        if not all_windows:
-            return
-        main_window = all_windows[0]
-        try:
-            current_window = driver.current_window_handle
-        except Exception:
-            current_window = None
-
-        if current_window and current_window != main_window and len(all_windows) > 1:
-            driver.close()
-
-        # Garante foco em uma janela viva
-        handles_restantes = driver.window_handles
-        if main_window in handles_restantes:
-            driver.switch_to.window(main_window)
-        elif handles_restantes:
-            driver.switch_to.window(handles_restantes[0])
+        from Fix.abas import fechar_abas_extras
+        fechar_abas_extras(driver)
     except Exception as e:
         logger.warning(f"[LIMPEZA] Falha segura ao alternar abas: {e}")
 
@@ -450,14 +425,14 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
 
 
 @medir_tempo('_processar_regras_gerais')
-def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx: int = 0):
+def _processar_regras_gerais(driver: Any, texto_normalizado: str, doc_idx: int = 0):
     """
     Helper: varre _definir_regras_processamento() em ordem — trechos -> ações.
     A primeira regra cujo trecho casar com o texto decide a(s) ação(ões) e encerra
     (prescrição e arquivamento são só as duas primeiras entradas da mesma lista).
 
     Args:
-        driver: WebDriver instance
+        driver: conexao/driver PJe
         texto_normalizado: Texto normalizado para análise
         doc_idx: Índice atual do documento na timeline (para checar_prox)
 
@@ -498,7 +473,7 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
                     is_checar = (action is checar_prox) or (getattr(action, '__name__', '') == 'checar_prox')
                     if is_checar:
                         try:
-                            itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+                            itens = espera.elementos(driver, 'li.tl-item-container', teto=1)
                             return checar_prox(driver, itens, doc_idx, regras, texto_normalizado)
                         except Exception:
                             return None
@@ -515,17 +490,8 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
                 # Cleanup: fechar abas extras que a action possa ter aberto
                 try:
                     if aba_principal:
-                        for h in driver.window_handles:
-                            if h != aba_principal:
-                                try:
-                                    driver.switch_to.window(h)
-                                    driver.close()
-                                except Exception:
-                                    pass
-                        try:
-                            driver.switch_to.window(aba_principal)
-                        except Exception:
-                            pass
+                        from Fix.abas import forcar_fechamento_abas_extras
+                        forcar_fechamento_abas_extras(driver, aba_principal)
                 except Exception:
                     pass
                 return res

@@ -1,13 +1,14 @@
 {
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
-  "total_files": 308,
-  "files_with_patterns": 51,
-  "total_patterns": 983,
+  "total_files": 304,
+  "files_with_patterns": 50,
+  "total_patterns": 965,
   "migrados": [
     "Fix/browser_suporte.py",
     "Fix/core.py",
     "Fix/diagnostico_runtime.py",
+    "Fix/driver_factory.py",
     "Fix/espera.py",
     "Fix/extracao.py",
     "Fix/facade_publica.py",
@@ -176,15 +177,6 @@
         "expected_conditions": 3,
         "time_sleep": 4,
         "webdriver_type": 16
-      }
-    },
-    "Fix/driver_factory.py": {
-      "total": 18,
-      "breakdown": {
-        "from_selenium": 13,
-        "execute_script": 1,
-        "window_handles": 3,
-        "time_sleep": 1
       }
     },
     "Play/pjeplay/__init__.py": {

@@ -233,17 +233,14 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
         encontrado = False
 
         # 1) tenta mat-select dentro dos complementos
-        for idx, comp in enumerate(complementos):
+        for idx in range(len(complementos)):
             if idx in usados:
                 continue
             try:
-                sel = comp.find_element(By.CSS_SELECTOR, 'mat-select')
-                try:
-                    driver.execute_script(
-                        'arguments[0].parentElement.parentElement.click();', sel
-                    )
-                except Exception:
-                    safe_click_no_scroll(driver, sel)
+                sel = _espera.elemento(driver, f"pje-complemento:nth-of-type({idx + 1}) mat-select", teto=0.5)
+                if not sel:
+                    continue
+                safe_click_no_scroll(driver, sel)
 
                 opts = _espera.elementos(driver, "mat-option[role='option']", teto=timeout_select) or []
                 for op in opts:
@@ -262,44 +259,31 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
 
         # 2) tentar input/textarea no complemento
         if not encontrado:
-            for idx, comp in enumerate(complementos):
+            for idx in range(len(complementos)):
                 if idx in usados:
                     continue
                 try:
-                    inp = comp.find_element(By.CSS_SELECTOR, 'input')
-                    driver.execute_script(
-                        "arguments[0].value = arguments[1]; "
-                        "arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",
-                        inp, termo,
-                    )
-                    usados.add(idx)
-                    encontrado = True
-                    break
+                    inp_sel = f"pje-complemento:nth-of-type({idx + 1}) input"
+                    if _espera.elemento(driver, inp_sel, teto=0.2):
+                        if preencher_campo(driver, inp_sel, termo):
+                            usados.add(idx)
+                            encontrado = True
+                            break
+                    ta_sel = f"pje-complemento:nth-of-type({idx + 1}) textarea"
+                    if _espera.elemento(driver, ta_sel, teto=0.2):
+                        if preencher_campo(driver, ta_sel, termo):
+                            usados.add(idx)
+                            encontrado = True
+                            break
                 except Exception:
-                    try:
-                        ta = comp.find_element(By.CSS_SELECTOR, 'textarea')
-                        driver.execute_script(
-                            "arguments[0].value = arguments[1]; "
-                            "arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",
-                            ta, termo,
-                        )
-                        usados.add(idx)
-                        encontrado = True
-                        break
-                    except Exception:
-                        continue
+                    continue
 
         # 3) fallback: qualquer mat-select visivel na pagina
         if not encontrado:
             all_selects = _espera.elementos(driver, 'mat-select')
             for sel in all_selects:
                 try:
-                    try:
-                        driver.execute_script(
-                            'arguments[0].parentElement.parentElement.click();', sel
-                        )
-                    except Exception:
-                        safe_click_no_scroll(driver, sel)
+                    safe_click_no_scroll(driver, sel)
                     opts = _espera.elementos(driver, "mat-option[role='option']", teto=1) or []
                     for op in opts:
                         if termo_norm in _normalize_text(op.text or ''):

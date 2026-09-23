@@ -11,7 +11,7 @@ import traceback
 import datetime
 from typing import Optional, Any
 from Play.pjeplay.locators import By
-from selenium.common.exceptions import (
+from Play.pjeplay.errors import (
     TimeoutException,
     ElementClickInterceptedException,
     StaleElementReferenceException,
@@ -232,8 +232,8 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
 def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> str:
     """Compatibilidade para aguardar o handle de uma nova aba.
 
-    No backend Playwright, usa driver.pulsar() em vez de time.sleep()
-    para que o loop de eventos do Playwright processe a abertura da aba.
+    No backend Playwright, usa driver.pulsar() para que o loop
+    de eventos do Playwright processe a abertura da aba.
     """
     limite = time.time() + float(timeout)
     while time.time() < limite:
@@ -243,12 +243,11 @@ def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> s
                     return handle
         except Exception:
             break
-        # No Playwright, time.sleep não despacha eventos de página;
-        # pulsar() cede ao loop de eventos do Playwright.
+        # No Playwright, cede ao loop de eventos do Playwright.
         if hasattr(driver, 'pulsar'):
             driver.pulsar(0.05)
         else:
-            time.sleep(0.2)
+            espera.pausa(driver, 0.2)
 
     raise TimeoutException('Nenhuma nova aba detectada dentro do timeout')
 

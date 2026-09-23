@@ -7,6 +7,7 @@ Migrado automaticamente de Fix.py (PARTE 5 - Modularização).
 from typing import Optional, Any
 from Play.pjeplay.locators import By, Keys
 from Play.pjeplay.errors import TimeoutException
+from Play.pjeplay.element import PWElement
 import re, time, datetime, json, pyperclip, unicodedata
 
 # Importar funções de verificação de carregamento
@@ -26,6 +27,18 @@ from .core import aguardar_e_clicar, safe_click, wait, esperar_elemento, preench
 from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
 from .utils import normalizar_cpf_cnpj, formatar_moeda_brasileira, formatar_data_brasileira
 from Fix import espera
+
+
+def _pressionar_tecla(driver, tecla: str):
+    """Envia tecla ao teclado do navegador de forma segura."""
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            driver.page.keyboard.press(tecla)
+        else:
+            safe_click_no_scroll(driver, 'body')
+    except Exception:
+        pass
+
 
 def extrair_direto(driver, timeout=10, debug=False, formatar=True):
     """
@@ -117,24 +130,16 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
         preview = wait(driver, '#previewModeloDocumento', timeout)
         if not preview:
             logger.error('ERRO em extrair_documento: Preview do documento nao encontrado')
-            try:
-                corpo = espera.elemento(driver, 'body')
-                if corpo:
-                    corpo.send_keys(Keys.ESCAPE)
-            except Exception:
-                pass
+            _pressionar_tecla(driver, "Escape")
             return None
 
         texto_completo = preview.text
 
         try:
-            corpo = espera.elemento(driver, 'body')
-            if corpo:
-                corpo.send_keys(Keys.ESCAPE)
+            _pressionar_tecla(driver, "Escape")
             logger.debug('[EXTRAI] Modal HTML fechado')
             espera.ate_sumir(driver, '#previewModeloDocumento', teto=0.5)
-            if corpo:
-                corpo.send_keys(Keys.TAB)
+            _pressionar_tecla(driver, "Tab")
             logger.debug('[WORKAROUND] Pressionada tecla TAB apos fechar modal de documento')
         except Exception as e_esc:
             logger.debug('[EXTRAI][WARN] Falha ao fechar modal com ESC: %s', e_esc)
@@ -173,9 +178,7 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
             logger.error("ERRO em extrair_documento: %s: %s", type(e).__name__, e)
         try:
             if espera.elementos(driver, '#previewModeloDocumento'):
-                corpo = espera.elemento(driver, 'body')
-                if corpo:
-                    corpo.send_keys(Keys.ESCAPE)
+                _pressionar_tecla(driver, "Escape")
         except Exception:
             pass
         return None
@@ -193,40 +196,31 @@ def extrair_pdf(driver, log=True):
         btn_export.click()
         if log:
             logger.debug('[EXPORT] Botao .fa-file-export clicado')
-        for _ in range(20):
-            modais = espera.elementos(driver, 'pje-conteudo-documento-dialog')
-            for modal in modais:
-                try:
-                    titulo = modal.find_element(By.CSS_SELECTOR, '.mat-dialog-title')
-                    if 'Texto Extraido' in titulo.text:
-                        try:
-                            # Caminho headless-safe: ler o <pre> do DOM diretamente,
-                            # sem depender do clipboard do SO (pyperclip.paste()).
-                            pre = modal.find_element(By.CSS_SELECTOR, 'pre')
-                            texto = (pre.text or '').strip()
-                            if not texto:
-                                raise ValueError('<pre> vazio')
-                            if log:
-                                logger.debug('[EXPORT] Texto extraido do modal via <pre>')
-                        except Exception as e:
-                            if log:
-                                logger.warning('[EXPORT] <pre> indisponivel/vazio (%s), usando clipboard do SO', e)
-                            btn_copiar = modal.find_element(By.CSS_SELECTOR, 'i.far.fa-copy')
-                            btn_copiar.click()
-                            espera.assentar(driver, 0.3)
-                            texto = pyperclip.paste()
-                            if log:
-                                logger.debug('[EXPORT] Texto extraido do modal via copiar (fallback)')
-                        try:
-                            btn_fechar = modal.find_element(By.CSS_SELECTOR, 'button[mat-dialog-close]')
-                            btn_fechar.click()
-                        except Exception:
-                            modal.send_keys(Keys.ESCAPE)
-                        espera.ate_sumir(driver, 'pje-conteudo-documento-dialog', teto=0.5)
-                        return texto
-                except Exception:
-                    continue
-            espera.assentar(driver, 0.5)
+        if espera.ate_aparecer(driver, 'pje-conteudo-documento-dialog', teto=10):
+            titulo = espera.elemento(driver, 'pje-conteudo-documento-dialog .mat-dialog-title')
+            if titulo and 'Texto Extraido' in (titulo.text or ''):
+                texto = None
+                pre = espera.elemento(driver, 'pje-conteudo-documento-dialog pre')
+                if pre and (pre.text or '').strip():
+                    texto = pre.text.strip()
+                    if log:
+                        logger.debug('[EXPORT] Texto extraido do modal via <pre>')
+                else:
+                    btn_copiar = espera.elemento(driver, 'pje-conteudo-documento-dialog i.far.fa-copy')
+                    if btn_copiar:
+                        btn_copiar.click()
+                        espera.assentar(driver, 0.3)
+                        texto = pyperclip.paste()
+                        if log:
+                            logger.debug('[EXPORT] Texto extraido do modal via copiar (fallback)')
+                btn_fechar = espera.elemento(driver, 'pje-conteudo-documento-dialog button[mat-dialog-close]')
+                if btn_fechar:
+                    btn_fechar.click()
+                else:
+                    _pressionar_tecla(driver, "Escape")
+                espera.ate_sumir(driver, 'pje-conteudo-documento-dialog', teto=0.5)
+                if texto:
+                    return texto
         if log:
             logger.error('ERRO em extrair_pdf: Modal de texto extraido nao apareceu')
         return None
@@ -707,17 +701,24 @@ def _extrair_via_pdf_viewer(driver, timeout, debug=False):
         } catch(e) { return null; }
         """
         
-        resultado_js = driver.execute_script(js_script)
+        resultado_js = None
+        if hasattr(driver, 'page') and driver.page:
+            try:
+                resultado_js = driver.page.evaluate(f"() => {{ {js_script} }}")
+            except Exception:
+                resultado_js = None
         if resultado_js and resultado_js.strip():
             return resultado_js.strip()
 
         # Fallback para Playwright / Chromium onde contentDocument é inacessível via JS pai:
         # Recupera URL do atributo data/src e extrai o texto do PDF diretamente via sessão
         try:
-            pdf_url = driver.execute_script("""
-                var el = document.querySelector('object.conteudo-pdf, object[type="application/pdf"], embed[type="application/pdf"]');
-                return el ? (el.getAttribute('data') || el.getAttribute('src') || el.data || el.src) : null;
-            """)
+            pdf_url = None
+            if hasattr(driver, 'page') and driver.page:
+                pdf_url = driver.page.evaluate("""() => {
+                    var el = document.querySelector('object.conteudo-pdf, object[type="application/pdf"], embed[type="application/pdf"]');
+                    return el ? (el.getAttribute('data') || el.getAttribute('src') || el.data || el.src) : null;
+                }""")
             if pdf_url:
                 if pdf_url.startswith('/'):
                     from urllib.parse import urljoin
@@ -750,11 +751,12 @@ def _extrair_via_iframe(driver, timeout, debug=False):
         logger.debug('[EXTRAIR_DIRETO] Tentando extracao via iframe...')
     
     try:
-        iframes = driver.find_elements(By.TAG_NAME, "iframe")
+        iframes = espera.elementos(driver, "iframe", teto=0.5)
         for iframe in iframes:
             try:
                 driver.switch_to.frame(iframe)
-                texto = driver.find_element(By.TAG_NAME, "body").text
+                corpo = espera.elemento(driver, "body", teto=0.5)
+                texto = corpo.text if corpo else ""
                 driver.switch_to.default_content()
                 if texto and len(texto.strip()) > 100:
                     return texto.strip()
@@ -786,12 +788,12 @@ def _extrair_via_elemento_dom(driver, timeout, debug=False):
         
         # Se há um visualizador PDF na tela, o texto em article/main/div#documento
         # é apenas o cabeçalho/metadados da página (~260 chars) e NÃO o documento real.
-        tem_pdf = bool(driver.find_elements(By.CSS_SELECTOR, "object.conteudo-pdf, object[type='application/pdf'], embed[type='application/pdf']"))
+        tem_pdf = bool(espera.elementos(driver, "object.conteudo-pdf, object[type='application/pdf'], embed[type='application/pdf']", teto=0.2))
 
         for seletor in seletores:
             try:
-                elemento = driver.find_element(By.CSS_SELECTOR, seletor)
-                texto = elemento.text
+                elemento = espera.elemento(driver, seletor, teto=0.2)
+                texto = elemento.text if elemento else ""
                 min_len = 500 if (tem_pdf and seletor in ("article", "main", "div[id*='documento']")) else 100
                 if texto and len(texto.strip()) > min_len:
                     return texto.strip()
@@ -829,20 +831,16 @@ def _verificar_lembrete_presente(driver, titulo, teto=5):
     fim = time.time() + teto
     while time.time() < fim:
         try:
-            paineis = espera.elementos(
-                driver,
-                '.post-it-item, .lembrete-item, .posit-item, mat-card.posit, pje-visualizador-post-its .post-it-set mat-expansion-panel, .post-it-set mat-expansion-panel',
-            )
+            titulos = espera.elementos(driver, '.post-it-titulo', teto=0.5)
+            for titulo_el in titulos:
+                try:
+                    txt = ''.join(c for c in unicodedata.normalize('NFKD', (titulo_el.text or '').strip().lower()) if not unicodedata.combining(c))
+                    if txt == alvo:
+                        return True
+                except Exception:
+                    continue
         except Exception:
-            paineis = []
-        for painel in paineis:
-            try:
-                titulo_el = painel.find_element(By.CSS_SELECTOR, '.post-it-titulo')
-                txt = ''.join(c for c in unicodedata.normalize('NFKD', titulo_el.text.strip().lower()) if not unicodedata.combining(c))
-                if txt == alvo:
-                    return True
-            except Exception:
-                continue
+            pass
         espera.assentar(driver, 0.4)
     return False
 
@@ -1070,12 +1068,9 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             from Fix.core import preencher_campo
             preencher_campo(driver, 'input[formcontrolname="responsavel"]', responsavel, limpar=True)
             espera.assentar(driver, 0.5)
-            # PENDENCIA: Keys.ARROW_DOWN + Keys.ENTER sem substituto no vocab nativo
-            campo_resp = espera.elemento(driver, 'input[formcontrolname="responsavel"]')
-            if campo_resp:
-                campo_resp.send_keys(Keys.ARROW_DOWN)
-                espera.assentar(driver, 0.2)
-                campo_resp.send_keys(Keys.ENTER)
+            _pressionar_tecla(driver, "ArrowDown")
+            espera.assentar(driver, 0.2)
+            _pressionar_tecla(driver, "Enter")
             if log:
                 logger.debug('[GIGS] Responsavel: %s', responsavel)
         
@@ -1200,11 +1195,11 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
             logger.debug('[COMENTARIO] Visibilidade: %s', visibilidade_upper)
         
         try:
-            radio_buttons = espera.elementos(driver, 'pje-gigs-comentarios-cadastro mat-radio-button, mat-radio-button')
-            if len(radio_buttons) >= 3:
+            radio_inputs = espera.elementos(driver, 'pje-gigs-comentarios-cadastro mat-radio-button input, mat-radio-button input')
+            if len(radio_inputs) >= 3:
                 index_map = {'LOCAL': 0, 'RESTRITA': 1, 'GLOBAL': 2}
                 idx = index_map.get(visibilidade_upper, 0)
-                radio_buttons[idx].find_element(By.CSS_SELECTOR, 'input').click()
+                safe_click_no_scroll(driver, radio_inputs[idx])
                 espera.assentar(driver, 0.3)
                 
                 # Se RESTRITA, pode ter campo adicional (usuários)
@@ -1237,9 +1232,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
                 return True
             else:
                 # Forçar fechar com ESC
-                corpo = espera.elemento(driver, 'body')
-                if corpo:
-                    corpo.send_keys(Keys.ESCAPE)
+                _pressionar_tecla(driver, "Escape")
                 espera.ate_sumir(driver, 'mat-dialog-container', teto=0.5)
                 if log:
                     logger.debug('[COMENTARIO] Comentario criado (modal fechado manualmente)')
@@ -1286,24 +1279,27 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         logger.info(f'============ Processando Polo {polo} ============')
 
         # Garantir foco na janela (equivalente ao window.focus() do maispje)
-        try:
-            driver.execute_script('window.focus();')
-        except Exception:
-            pass
+        if hasattr(driver, 'page') and driver.page:
+            try:
+                driver.page.bring_to_front()
+            except Exception:
+                pass
 
         # 1. Clicar no botão do polo Passivo (único polo processado)
         logger.info(f'Procurando botão de polo {polo}...')
         try:
             # Tentar via JS primeiro (como no maispje)
-            clicado = driver.execute_script("""
-                var radio = document.querySelector('#selecao-polo input[value="Passivo"]');
-                if (radio) {
-                    var matRadio = radio.closest('mat-radio-button') || radio;
-                    matRadio.click();
-                    return true;
-                }
-                return false;
-            """)
+            clicado = False
+            if hasattr(driver, 'page') and driver.page:
+                clicado = bool(driver.page.evaluate("""() => {
+                    var radio = document.querySelector('#selecao-polo input[value="Passivo"]');
+                    if (radio) {
+                        var matRadio = radio.closest('mat-radio-button') || radio;
+                        matRadio.click();
+                        return true;
+                    }
+                    return false;
+                }"""))
             if not clicado:
                 seletor_polo = [
                     (By.CSS_SELECTOR, '#selecao-polo input[value="Passivo"]'),
@@ -1338,14 +1334,16 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
         # 3. Verificar se existe mensagem "Não existem partes a serem selecionadas"
         try:
-            texto_no_reg = driver.execute_script("""
-                var els = document.querySelectorAll('#tabela-registros-bndt div[class*="mensagem"], pje-bndt-partes-sem-registro .mensagem, mat-card .mensagem, div.mensagem.ng-star-inserted');
-                for (var i = 0; i < els.length; i++) {
-                    var txt = (els[i].textContent || '').trim().toLowerCase();
-                    if (txt.includes('não há registros') || txt.includes('não existem partes')) return txt;
-                }
-                return '';
-            """)
+            texto_no_reg = ""
+            if hasattr(driver, 'page') and driver.page:
+                texto_no_reg = driver.page.evaluate("""() => {
+                    var els = document.querySelectorAll('#tabela-registros-bndt div[class*="mensagem"], pje-bndt-partes-sem-registro .mensagem, mat-card .mensagem, div.mensagem.ng-star-inserted');
+                    for (var i = 0; i < els.length; i++) {
+                        var txt = (els[i].textContent || '').trim().toLowerCase();
+                        if (txt.includes('não há registros') || txt.includes('não existem partes')) return txt;
+                    }
+                    return '';
+                }""") or ""
             if texto_no_reg:
                 logger.info(f'Polo {polo}: "{texto_no_reg}" — nada a fazer')
                 driver.close()
@@ -1356,9 +1354,11 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
         # 4. Verificar se há mensagem de classe não permitida
         try:
-            msg_classe = driver.execute_script("""
-                return document.evaluate("//*[contains(text(),'A classe judicial do processo não pode acessar')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue != null;
-            """)
+            msg_classe = False
+            if hasattr(driver, 'page') and driver.page:
+                msg_classe = bool(driver.page.evaluate("""() => {
+                    return document.evaluate("//*[contains(text(),'A classe judicial do processo não pode acessar')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue != null;
+                }"""))
             if msg_classe:
                 logger.warning(f'Polo {polo}: Classe judicial do processo não permite cadastro no BNDT')
                 erro_classe = True
@@ -1388,7 +1388,8 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
     except Exception as e:
         logger.error(f'ERRO na operação {operacao}: {e}')
         # Fechar apenas a aba BNDT (se aberta) para não encerrar o driver principal
-        if nova_aba and nova_aba in driver.window_handles:
+        todas_abas = list(getattr(driver, 'window_handles', []))
+        if nova_aba and nova_aba in todas_abas:
             try:
                 driver.switch_to.window(nova_aba)
                 driver.close()
@@ -1396,7 +1397,7 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
                 pass
 
         # Garantir retorno para a aba principal original
-        if main_window and main_window in driver.window_handles:
+        if main_window and main_window in todas_abas:
             try:
                 driver.switch_to.window(main_window)
             except Exception:
@@ -1467,11 +1468,12 @@ def _bndt_abrir_nova_aba(driver):
     # Tentar abrir diretamente a URL /pjekz/processo/{idProcesso}/bndt (padrão maisPJe / gigs-plugin.js)
     if id_processo:
         url_bndt = f"/pjekz/processo/{id_processo}/bndt"
-        handles_antes = list(driver.window_handles)
-        driver.execute_script("window.open(arguments[0], '_blank');", url_bndt)
+        handles_antes = list(getattr(driver, 'window_handles', []))
+        if hasattr(driver, 'page') and driver.page:
+            driver.page.evaluate("url => window.open(url, '_blank')", url_bndt)
         try:
             espera.ate_abas(driver, len(handles_antes) + 1, teto=10)
-            novos_handles = [w for w in driver.window_handles if w not in handles_antes]
+            novos_handles = [w for w in list(getattr(driver, 'window_handles', [])) if w not in handles_antes]
             if novos_handles:
                 nova_aba = novos_handles[-1]
                 driver.switch_to.window(nova_aba)
@@ -1489,7 +1491,7 @@ def _bndt_abrir_nova_aba(driver):
     _bndt_clicar_icone(driver)
 
     espera.ate_abas(driver, 2, teto=15)
-    all_windows = driver.window_handles
+    all_windows = list(getattr(driver, 'window_handles', []))
     nova_aba = [w for w in all_windows if w != main_window]
     if not nova_aba:
         raise Exception('Nova aba BNDT não foi criada')
@@ -1526,7 +1528,7 @@ def _bndt_selecionar_operacao(driver, inclusao):
             # detection fails, still assume the default selection is Inclusão
             # and do nothing (avoid clicking 'Exclusão' accidentally).
             try:
-                inp = driver.find_element(By.XPATH, "//input[@name='mat-radio-group-1' and @value='INCLUSAO']")
+                inp = espera.elemento(driver, "//input[@name='mat-radio-group-1' and @value='INCLUSAO']")
                 checked = False
                 try:
                     checked = inp.is_selected() or inp.get_attribute('checked') or inp.get_attribute('aria-checked') == 'true'
@@ -1538,8 +1540,9 @@ def _bndt_selecionar_operacao(driver, inclusao):
                 else:
                     # If found but not checked, attempt to click the inclusive radio safely
                     try:
-                        parent = inp.find_element(By.XPATH, 'ancestor::mat-radio-button')
-                        parent.click()
+                        parent = espera.elemento(driver, "//input[@name='mat-radio-group-1' and @value='INCLUSAO']/ancestor::mat-radio-button")
+                        if parent:
+                            parent.click()
                         logger.info('BNDT: Radio Inclusão clicado (detected unchecked -> clicked)')
                         espera.assentar(driver, 0.5)
                         return True
@@ -1579,7 +1582,7 @@ def _bndt_selecionar_operacao(driver, inclusao):
     # Após selecionar o radio, verificar se existe a mensagem "Não existem partes a serem selecionadas"
     # Se existir, significa que não há partes para selecionar, então a operação está cumprida
     try:
-        mensagem_nao_existem_partes = driver.find_elements(By.XPATH, "//div[contains(@class, 'mensagem') and contains(text(), 'Não existem partes a serem selecionadas')]")
+        mensagem_nao_existem_partes = espera.elementos(driver, "//div[contains(@class, 'mensagem') and contains(text(), 'Não existem partes a serem selecionadas')]")
         if mensagem_nao_existem_partes:
             logger.info('BNDT: Não existem partes a serem selecionadas — operação cumprida sem seleções')
             return True
@@ -1596,22 +1599,25 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
     logger.info(f'Selecionando operação: {operacao} para polo {polo}')
 
     # Garantir foco na janela (equivalente ao window.focus() do maispje)
-    try:
-        driver.execute_script('window.focus();')
-    except Exception:
-        pass
+    if hasattr(driver, 'page') and driver.page:
+        try:
+            driver.page.bring_to_front()
+        except Exception:
+            pass
 
     # Tentar via JS primeiro (rápido e robusto como no maispje)
     try:
-        clicado = driver.execute_script("""
-            var radio = document.querySelector('#selecao-tipo-determinacao input[value="' + arguments[0] + '"]');
-            if (radio) {
-                var matRadio = radio.closest('mat-radio-button') || radio;
-                matRadio.click();
-                return true;
-            }
-            return false;
-        """, tipo_operacao)
+        clicado = False
+        if hasattr(driver, 'page') and driver.page:
+            clicado = bool(driver.page.evaluate("""tipo => {
+                var radio = document.querySelector('#selecao-tipo-determinacao input[value="' + tipo + '"]');
+                if (radio) {
+                    var matRadio = radio.closest('mat-radio-button') || radio;
+                    matRadio.click();
+                    return true;
+                }
+                return false;
+            }""", tipo_operacao))
         if clicado:
             logger.info(f'Operação {operacao} selecionada para polo {polo} via JS')
             espera.assentar(driver, 0.5)
@@ -1644,19 +1650,20 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
 def _bndt_processar_selecoes(driver):
     """Seleciona o checkbox de "Selecionar todos" se disponível."""
     selectors = [
-        (By.XPATH, "//mat-checkbox[.//span[contains(text(),'Selecionar todos')]]//label"),
-        (By.XPATH, "//mat-checkbox[.//span[contains(text(),'Selecionar todos')]]//input[@type='checkbox']"),
-        (By.XPATH, "//span[contains(@class,'mat-checkbox-label')][contains(text(),'Selecionar todos')]/ancestor::mat-checkbox//label"),
-        (By.XPATH, "//input[@type='checkbox'][@aria-label='Selecionar todos']/ancestor::mat-checkbox//label")
+        "//mat-checkbox[.//span[contains(text(),'Selecionar todos')]]//label",
+        "//mat-checkbox[.//span[contains(text(),'Selecionar todos')]]//input[@type='checkbox']",
+        "//span[contains(@class,'mat-checkbox-label')][contains(text(),'Selecionar todos')]/ancestor::mat-checkbox//label",
+        "//input[@type='checkbox'][@aria-label='Selecionar todos']/ancestor::mat-checkbox//label"
     ]
 
-    for by, selector in selectors:
+    for selector in selectors:
         try:
-            chk_todos = driver.find_element(by, selector)
-            safe_click_no_scroll(driver, chk_todos)
-            logger.info('Checkbox "Selecionar todos" clicado (sem aguardar elementos extras)')
-            espera.assentar(driver, 0.25)
-            return
+            chk_todos = espera.elemento(driver, selector)
+            if chk_todos:
+                safe_click_no_scroll(driver, chk_todos)
+                logger.info('Checkbox "Selecionar todos" clicado (sem aguardar elementos extras)')
+                espera.assentar(driver, 0.25)
+                return
         except Exception:
             continue
 
@@ -1667,43 +1674,39 @@ def _bndt_processar_selecoes_polo(driver, polo, inclusao=False):
     """Seleciona checkboxes de partes no BNDT via JS rápido (estilo gigs-plugin)."""
     logger.info(f'Processando seleções para polo {polo} via JS...')
     try:
-        script = """
-        var inclusao = arguments[0];
-        if (inclusao) {
-            // Selecionar apenas a primeira parte não registrada
-            var checks = document.querySelectorAll('pje-bndt-partes-sem-registro mat-checkbox[id^="parte"]');
-            if (checks.length > 0) {
-                var lbl = checks[0].querySelector('label');
-                if (lbl) { lbl.click(); return true; }
-            }
-            // Fallback inclusao
-            var fallback = document.querySelectorAll('pje-bndt-partes-sem-registro mat-checkbox');
-            for (var i=0; i<fallback.length; i++) {
-                if ((fallback[i].textContent||'').toLowerCase().indexOf('selecionar todos') === -1) {
-                    var l = fallback[i].querySelector('label');
-                    if (l) { l.click(); return true; }
+        resultado = False
+        if hasattr(driver, 'page') and driver.page:
+            resultado = driver.page.evaluate("""inclusao => {
+                if (inclusao) {
+                    var checks = document.querySelectorAll('pje-bndt-partes-sem-registro mat-checkbox[id^="parte"]');
+                    if (checks.length > 0) {
+                        var lbl = checks[0].querySelector('label');
+                        if (lbl) { lbl.click(); return true; }
+                    }
+                    var fallback = document.querySelectorAll('pje-bndt-partes-sem-registro mat-checkbox');
+                    for (var i=0; i<fallback.length; i++) {
+                        if ((fallback[i].textContent||'').toLowerCase().indexOf('selecionar todos') === -1) {
+                            var l = fallback[i].querySelector('label');
+                            if (l) { l.click(); return true; }
+                        }
+                    }
+                    return false;
+                } else {
+                    var labels = document.querySelectorAll('pje-bndt-exclusao label[for*="debito"][for*="-input"]');
+                    var cont = 0;
+                    for (var i=0; i<labels.length; i++) {
+                        labels[i].click();
+                        cont++;
+                    }
+                    if (cont > 0) return true;
+                    var fallEx = document.querySelectorAll('pje-bndt-exclusao mat-checkbox[id^="parte"] label');
+                    for (var j=0; j<fallEx.length; j++) {
+                        fallEx[j].click();
+                        cont++;
+                    }
+                    return cont > 0;
                 }
-            }
-            return false;
-        } else {
-            // Selecionar todos os débitos para exclusão
-            var labels = document.querySelectorAll('pje-bndt-exclusao label[for*="debito"][for*="-input"]');
-            var cont = 0;
-            for (var i=0; i<labels.length; i++) {
-                labels[i].click();
-                cont++;
-            }
-            if (cont > 0) return true;
-            // Fallback exclusao
-            var fallEx = document.querySelectorAll('pje-bndt-exclusao mat-checkbox[id^="parte"] label');
-            for (var j=0; j<fallEx.length; j++) {
-                fallEx[j].click();
-                cont++;
-            }
-            return cont > 0;
-        }
-        """
-        resultado = driver.execute_script(script, inclusao)
+            }""", inclusao)
         if resultado:
             logger.info(f'[BNDT] Seleções feitas com sucesso via JS (inclusao={inclusao})')
             espera.assentar(driver, 0.5)
@@ -1752,35 +1755,40 @@ def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
 def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
     """Clica Gravar e confirma para um polo específico via JS (estilo gigs-plugin)."""
     logger.info(f'Gravando e confirmando BNDT para polo {polo} via JS...')
-    try:
-        driver.execute_script('window.focus();')
-    except Exception:
-        pass
+    if hasattr(driver, 'page') and driver.page:
+        try:
+            driver.page.bring_to_front()
+        except Exception:
+            pass
         
     try:
-        script = """
-        var btnGravar = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Gravar'));
-        if (btnGravar) {
-            btnGravar.click();
-            return true;
-        }
-        return false;
-        """
-        if driver.execute_script(script):
+        clicado_gravar = False
+        if hasattr(driver, 'page') and driver.page:
+            clicado_gravar = bool(driver.page.evaluate("""() => {
+                var btnGravar = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Gravar'));
+                if (btnGravar) {
+                    btnGravar.click();
+                    return true;
+                }
+                return false;
+            }"""))
+        if clicado_gravar:
             logger.info('Botão Gravar clicado via JS')
             espera.assentar(driver, 0.5)
             
             # Clicar SIM no modal
-            script_sim = """
-            var btnSim = Array.from(document.querySelectorAll('.cdk-overlay-pane button')).find(b => b.textContent.includes('Sim'));
-            if (btnSim) {
-                btnSim.click();
-                return true;
-            }
-            return false;
-            """
             for _ in range(5):
-                if driver.execute_script(script_sim):
+                clicado_sim = False
+                if hasattr(driver, 'page') and driver.page:
+                    clicado_sim = bool(driver.page.evaluate("""() => {
+                        var btnSim = Array.from(document.querySelectorAll('.cdk-overlay-pane button')).find(b => b.textContent.includes('Sim'));
+                        if (btnSim) {
+                            btnSim.click();
+                            return true;
+                        }
+                        return false;
+                    }"""))
+                if clicado_sim:
                     logger.info('Botão Sim clicado via JS')
                     break
                 espera.assentar(driver, 0.3)
@@ -1805,8 +1813,9 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
                 logger.info(f'Operação no polo {polo} concluída com sucesso')
                 # Fechar aviso
                 try:
-                    btn_close = aviso.find_element(By.CSS_SELECTOR, 'button')
-                    btn_close.click()
+                    btn_close = espera.elemento(driver, 'simple-snack-bar button')
+                    if btn_close:
+                        safe_click_no_scroll(driver, btn_close)
                 except Exception:
                     pass
             elif 'A classe judicial do processo não pode acessar' in texto_aviso:
@@ -1935,15 +1944,17 @@ def indexar_processos(driver):
 
             linha = linhas_atuais[idx]
 
-            links = linha.find_elements(By.CSS_SELECTOR, 'a')
             texto = ''
-
-            if links:
-                texto = links[0].text.strip()
-            else:
-                tds = linha.find_elements(By.TAG_NAME, 'td')
-                if tds:
-                    texto = tds[0].text.strip()
+            if hasattr(linha, '_handle') and linha._handle:
+                links = [PWElement(h, getattr(linha, '_page', None)) for h in linha._handle.query_selector_all('a')]
+                if links:
+                    texto = links[0].text.strip()
+                else:
+                    tds = [PWElement(h, getattr(linha, '_page', None)) for h in linha._handle.query_selector_all('td')]
+                    if tds:
+                        texto = tds[0].text.strip()
+            elif hasattr(linha, 'text'):
+                texto = (linha.text or '').strip()
 
             match = padrao_proc.search(texto)
             num_proc = match.group(0) if match else '[sem numero]'
@@ -2013,26 +2024,24 @@ def reindexar_linha(driver, proc_id):
                     
                 # Buscar número do processo na linha (diferentes estratégias)
                 texto_linha = ""
-                
-                # Estratégia 1: Links
-                links = linha_temp.find_elements(By.CSS_SELECTOR, 'a')
-                if links:
-                    texto_linha = links[0].text.strip()
-                else:
-                    # Estratégia 2: Células td
-                    tds = linha_temp.find_elements(By.TAG_NAME, 'td')
-                    if tds:
-                        # Procurar em várias células (processo pode estar em diferentes colunas)
-                        for td in tds[:3]:  # Verificar as 3 primeiras colunas
-                            td_text = td.text.strip()
-                            if proc_id in td_text:
-                                texto_linha = td_text
-                                break
-                        if not texto_linha:
-                            texto_linha = tds[0].text.strip()
+                if hasattr(linha_temp, '_handle') and linha_temp._handle:
+                    links = [PWElement(h, getattr(linha_temp, '_page', None)) for h in linha_temp._handle.query_selector_all('a')]
+                    if links:
+                        texto_linha = links[0].text.strip()
                     else:
-                        # Estratégia 3: Texto geral da linha
-                        texto_linha = linha_temp.text.strip()
+                        tds = [PWElement(h, getattr(linha_temp, '_page', None)) for h in linha_temp._handle.query_selector_all('td')]
+                        if tds:
+                            for td in tds[:3]:
+                                td_text = td.text.strip()
+                                if proc_id in td_text:
+                                    texto_linha = td_text
+                                    break
+                            if not texto_linha:
+                                texto_linha = tds[0].text.strip()
+                        else:
+                            texto_linha = (linha_temp.text or '').strip()
+                elif hasattr(linha_temp, 'text'):
+                    texto_linha = (linha_temp.text or '').strip()
                 
                 if proc_id in texto_linha:
                     logger.info(f'Processo {proc_id} encontrado na linha {idx+1}')
@@ -2053,97 +2062,27 @@ def reindexar_linha(driver, proc_id):
 
 def abrir_detalhes_processo(driver, linha):
     try:
-        btn = linha.find_element(By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]')
+        btn = None
+        if hasattr(linha, '_handle') and linha._handle:
+            h = linha._handle.query_selector('[mattooltip*="Detalhes do Processo"]') or linha._handle.query_selector('button, a')
+            if h:
+                h.scroll_into_view_if_needed()
+                btn = PWElement(h, getattr(linha, '_page', None))
+        if not btn:
+            btn = linha
+        safe_click_no_scroll(driver, btn)
+        return True
     except Exception:
-        try:
-            btn = linha.find_element(By.CSS_SELECTOR, 'button, a')
-        except Exception:
-            return False
-    driver.execute_script("arguments[0].scrollIntoView(true);", btn)
-    safe_click_no_scroll(driver, btn)
-    return True
+        return False
 
 
 def trocar_para_nova_aba(driver, aba_lista_original):
     """
     Troca para uma nova aba diferente da aba original da lista.
-    Inclui tratamento robusto de erros, verificações adicionais e verificação de carregamento.
-    
-    Args:
-        driver: O driver Selenium
-        aba_lista_original: O handle da aba original da lista
-        
-    Returns:
-        str: O handle da nova aba se foi bem-sucedido, None caso contrário
+    Delega para a implementação padronizada em Fix.browser_suporte.
     """
-    try:
-        # Verificar se o driver está conectado
-        if not validar_conexao_driver(driver, "ABAS"):
-            logger.error('ERRO em trocar_para_nova_aba: Driver nao esta conectado')
-            return None
-            
-        # Obter lista atual de abas
-        try:
-            abas = driver.window_handles
-            if not abas:
-                logger.error('ERRO em trocar_para_nova_aba: Nenhuma aba disponivel')
-                return None
-
-            if len(abas) == 1 and abas[0] == aba_lista_original:
-                logger.error('ERRO em trocar_para_nova_aba: Apenas a aba original esta disponivel')
-                return None
-
-            logger.debug('[ABAS] Detectadas %s abas', len(abas))
-        except Exception as e:
-            logger.error('ERRO em trocar_para_nova_aba: Falha ao obter lista de abas: %s', e)
-            return None
-            
-        # Tentar trocar para uma aba diferente da original
-        for h in abas:
-            if h != aba_lista_original:
-                try:
-                    driver.switch_to.window(h)
-                    # Verificar se realmente trocamos de aba
-                    atual_handle = driver.current_window_handle
-                    if atual_handle == h:
-                        # Log com URL útil em vez de ID longo
-                        try:
-                            url_atual = driver.current_url
-                            from urllib.parse import urlparse
-                            parsed = urlparse(url_atual)
-                            path_parts = parsed.path.strip('/').split('/')
-                            if len(path_parts) >= 2:
-                                url_legivel = f"{path_parts[-2]}/{path_parts[-1]}"
-                            else:
-                                url_legivel = parsed.path or url_atual[-30:]
-                            logger.debug('[ABAS] Trocou para: %s', url_legivel)
-                        except:
-                            logger.debug('[ABAS] Trocou para nova aba')
-                        
-                        # VERIFICAÇÃO DE CARREGAMENTO: Se for página /detalhe, verificar se carregou
-                        try:
-                            current_url = driver.current_url or ''
-                            if '/detalhe' in current_url.lower() and _ATOS_CORE_AVAILABLE:
-                                logger.debug('[ABAS] Verificando carregamento da pagina /detalhe...')
-                                if not verificar_carregamento_detalhe(driver, timeout_inicial=2.0, max_tentativas=3, log=True):
-                                    logger.warning('[ABAS][ALERTA] Falha no carregamento da pagina /detalhe, mas continuando...')
-                                else:
-                                    logger.debug('[ABAS] Pagina /detalhe carregada corretamente')
-                        except Exception as e:
-                            logger.warning('[ABAS][ALERTA] Erro na verificacao de carregamento: %s', e)
-
-                        return h
-                    else:
-                        logger.warning('[ABAS][ALERTA] Troca para aba %s falhou, handle atual: %s', h, atual_handle)
-                except Exception as e:
-                    logger.error('ERRO em trocar_para_nova_aba: Erro ao trocar para aba %s: %s', h, e)
-                    continue
-
-        logger.error('ERRO em trocar_para_nova_aba: Nao foi possivel trocar para nenhuma nova aba')
-        return None
-    except Exception as e:
-        logger.error("ERRO em trocar_para_nova_aba: %s: %s", type(e).__name__, e)
-        return None
+    from Fix.browser_suporte import trocar_para_nova_aba as _tpna
+    return _tpna(driver, aba_lista_original)
 
 
 def _indexar_preparar_contexto(driver, max_processos=None):
@@ -2269,10 +2208,12 @@ def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback
                 logger.error('ERRO em _indexar_processar_item: Falha ao reiniciar driver')
                 return "ERRO"
             driver = novo_driver
-            aba_lista_original = driver.window_handles[0] if driver.window_handles else None
+            handles_reiniciados = list(getattr(driver, 'window_handles', []))
+            aba_lista_original = handles_reiniciados[0] if handles_reiniciados else None
 
         if "escaninho" not in atual_url and "documentos" not in atual_url:
-            if not aba_lista_original or aba_lista_original not in driver.window_handles:
+            handles_atuais = list(getattr(driver, 'window_handles', []))
+            if not aba_lista_original or aba_lista_original not in handles_atuais:
                 return "ERRO"
             driver.switch_to.window(aba_lista_original)
             logger.debug('[PROCESSAR] Voltado para aba da lista')

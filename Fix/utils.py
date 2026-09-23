@@ -80,7 +80,7 @@ def obter_credencial(
 
 def sleep_fixed(segundos=1):
     """Compatibilidade para pausas fixas ainda usadas por wrappers legados."""
-    time.sleep(float(segundos))
+    espera.pausa(None, float(segundos))
     return True
 
 
@@ -877,21 +877,16 @@ def coletar_conteudo_formatado_documento(driver, numero_processo: str = None, de
         # 4. Extrair texto do preview
         espera.ate_aparecer(driver, '#previewModeloDocumento', teto=0.5)
         try:
-            preview_el = modal.find_element(By.CSS_SELECTOR, '#previewModeloDocumento')
-            conteudo_texto = preview_el.text.strip()
-            
-            if not conteudo_texto:
-                log_msg(" Preview está vazio, tentando textContent via JS")
-                conteudo_texto = driver.execute_script(
-                    "return arguments[0].textContent;", preview_el
-                ).strip()
+            preview_el = espera.elemento(driver, '#previewModeloDocumento')
+            conteudo_texto = preview_el.text.strip() if preview_el else ""
             
             if not conteudo_texto:
                 log_msg(" Conteúdo do documento está vazio")
                 # Fechar modal antes de retornar
                 try:
-                    botao_fechar = modal.find_element(By.CSS_SELECTOR, 'button[mat-dialog-close], button[aria-label*="Fechar"]')
-                    safe_click_no_scroll(driver, botao_fechar)
+                    botao_fechar = espera.elemento(driver, 'button[mat-dialog-close], button[aria-label*="Fechar"]')
+                    if botao_fechar:
+                        safe_click_no_scroll(driver, botao_fechar)
                 except Exception:
                     pass
                 return False
@@ -908,8 +903,9 @@ def coletar_conteudo_formatado_documento(driver, numero_processo: str = None, de
         
         # 6. Fechar modal
         try:
-            botao_fechar = modal.find_element(By.CSS_SELECTOR, 'button[mat-dialog-close], button[aria-label*="Fechar"]')
-            safe_click_no_scroll(driver, botao_fechar)
+            botao_fechar = espera.elemento(driver, 'button[mat-dialog-close], button[aria-label*="Fechar"]')
+            if botao_fechar:
+                safe_click_no_scroll(driver, botao_fechar)
             log_msg(" Modal fechado")
             espera.ate_sumir(driver, 'mat-dialog-container pje-documento-original', teto=0.3)
         except Exception as e_fechar:
@@ -1613,83 +1609,15 @@ def is_browsing_context_discarded_error(error_message):
 
 
 def validar_conexao_driver(driver, contexto="GERAL", proc_id=None):
-    """Valida se a conexão com o driver Selenium ainda está ativa."""
-    import traceback
-    import datetime as dt
-    try:
-        if not hasattr(driver, 'session_id') or driver.session_id is None:
-            logger.error('[%s][CONEXAO] Driver nao possui session_id valido', contexto)
-            return False
-        try:
-            try:
-                current_url = driver.current_url
-            except Exception as url_err:
-                if is_browsing_context_discarded_error(url_err):
-                    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    logger.error('[%s][CONEXAO][FATAL] [%s] Contexto descartado', contexto, timestamp)
-                    if proc_id:
-                        logger.error('[%s][CONEXAO][FATAL] Processo: %s', contexto, proc_id)
-                    try:
-                        with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
-                            f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{url_err}\n{traceback.format_exc()}\n\n")
-                    except:
-                        pass
-                    return "FATAL"
-                return False
-            try:
-                window_handles = driver.window_handles
-            except Exception as handles_err:
-                if is_browsing_context_discarded_error(handles_err):
-                    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    logger.error('[%s][CONEXAO][FATAL] [%s] Contexto descartado', contexto, timestamp)
-                    if proc_id:
-                        logger.error('[%s][CONEXAO][FATAL] Processo: %s', contexto, proc_id)
-                    try:
-                        with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
-                            f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{handles_err}\n{traceback.format_exc()}\n\n")
-                    except:
-                        pass
-                    return "FATAL"
-                return False
-            logger.debug('[%s][CONEXAO][OK] URL: %s... | Abas: %s', contexto, current_url[:50], len(window_handles))
-            return True
-        except Exception as connection_test_err:
-            if is_browsing_context_discarded_error(connection_test_err):
-                return "FATAL"
-            logger.error('[%s][CONEXAO] Falha no teste: %s', contexto, connection_test_err)
-            return False
-    except Exception as validation_err:
-        if is_browsing_context_discarded_error(validation_err):
-            return "FATAL"
-        logger.error('[%s][CONEXAO] Falha na validacao: %s', contexto, validation_err)
-        return False
+    """Valida se a conexão com o driver ainda está ativa."""
+    from Fix.browser_suporte import validar_conexao_driver as _vcd
+    return _vcd(driver, contexto=contexto, proc_id=proc_id)
 
 
 def obter_driver_padronizado(headless=False):
     """Retorna um driver Firefox padronizado para TRT2."""
-    from selenium import webdriver
-    from selenium.webdriver.firefox.options import Options
-    from selenium.webdriver.firefox.service import Service
-
-    PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
-    FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    GECKODRIVER_PATH = r"d:\PjePlus\Fix\geckodriver.exe"
-
-    options = Options()
-    if headless:
-        options.add_argument('--headless')
-    options.binary_location = FIREFOX_BINARY
-    options.set_preference('profile', PROFILE_PATH)
-
-    service = Service(executable_path=GECKODRIVER_PATH)
-
-    try:
-        driver = webdriver.Firefox(service=service, options=options)
-        driver.implicitly_wait(10)
-        return driver
-    except Exception as e:
-        logger.error("ERRO em obter_driver_padronizado: %s: %s", type(e).__name__, e)
-        raise
+    from Play.pjeplay.launcher import criar_driver_PC
+    return criar_driver_PC(headless=headless)
 
 
 def driver_pc(headless=False):
@@ -1699,7 +1627,6 @@ def driver_pc(headless=False):
 
 def navegar_para_tela(driver, url=None, seletor=None, delay=2, timeout=30, log=True):
     """Navega para URL ou clica em seletor."""
-    import time
     try:
         if log:
             logger.info('[NAVEGAR] Iniciando navegacao...')
@@ -1710,8 +1637,7 @@ def navegar_para_tela(driver, url=None, seletor=None, delay=2, timeout=30, log=T
         if seletor:
             element = espera.elemento(driver, seletor)
             if element:
-                driver.execute_script('arguments[0].scrollIntoView(true);', element)
-                element.click()
+                safe_click_no_scroll(driver, element)
             espera.assentar(driver, delay)
             if log:
                 logger.info('[NAVEGAR] Clicou: %s', seletor)

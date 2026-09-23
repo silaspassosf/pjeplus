@@ -1,7 +1,5 @@
 from typing import Optional, Tuple, Dict, List, Union, Callable, Any
 
-from selenium.webdriver.remote.webdriver import WebDriver
-
 from .judicial_fluxo import fluxo_cls as _fluxo_cls
 from .judicial_fluxo import ato_judicial as _ato_judicial, make_ato_wrapper as _make_ato_wrapper
 from .judicial_helpers import (
@@ -11,7 +9,6 @@ from .judicial_helpers import (
     verificar_bloqueio_recente as _verificar_bloqueio_recente,
 )
 
-# Wrappers centralizados em wrappers_ato.py
 from .wrappers_ato import (
     ato_meios,
     ato_100,
@@ -35,25 +32,19 @@ from .wrappers_ato import (
     ato_parcela,
 )
 
-# Registry de regras/acoes (contrato unificado)
 from .regras import registry
 
 
 def fluxo_cls(
-    driver: WebDriver,
+    driver: Any,
     conclusao_tipo: str,
     forcar_iniciar_execucao: bool = False
 ) -> Tuple[bool, bool]:
-    """Wrapper para atos.judicial_fluxo.fluxo_cls com navegação inteligente via mov_cls.
-    
-    Returns:
-        (sucesso: bool, ja_estava_estado_final: bool)
-    """
     return _fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=forcar_iniciar_execucao)
 
 
 def ato_judicial(
-    driver: WebDriver,
+    driver: Any,
     conclusao_tipo: Optional[str] = None,
     modelo_nome: Optional[str] = None,
     prazo: Optional[int] = None,
@@ -71,7 +62,6 @@ def ato_judicial(
     intimar: Optional[bool] = None,
     **kwargs: Any
 ) -> bool:
-    """Wrapper para atos.judicial_ato.ato_judicial."""
     return _ato_judicial(
         driver,
         conclusao_tipo=conclusao_tipo,
@@ -93,8 +83,7 @@ def ato_judicial(
     )
 
 
-def make_ato_wrapper(conclusao_tipo: str, modelo_nome: str, prazo: Optional[int] = None, marcar_pec: Optional[bool] = None, movimento: Optional[str] = None, gigs: Optional[Any] = None, marcar_primeiro_destinatario: Optional[bool] = None, descricao: Optional[str] = None, sigilo: Optional[str] = None, perito: bool = False, Assinar: bool = False, coleta_conteudo: Optional[Callable] = None, inserir_conteudo: Optional[Callable] = None, intimar: Optional[bool] = None) -> Callable[[WebDriver, bool, Any], bool]:
-    """Wrapper para atos.judicial_ato.make_ato_wrapper."""
+def make_ato_wrapper(conclusao_tipo: str, modelo_nome: str, prazo: Optional[int] = None, marcar_pec: Optional[bool] = None, movimento: Optional[str] = None, gigs: Optional[Any] = None, marcar_primeiro_destinatario: Optional[bool] = None, descricao: Optional[str] = None, sigilo: Optional[str] = None, perito: bool = False, Assinar: bool = False, coleta_conteudo: Optional[Callable] = None, inserir_conteudo: Optional[Callable] = None, intimar: Optional[bool] = None) -> Callable[[Any, bool, Any], bool]:
     return _make_ato_wrapper(
         conclusao_tipo,
         modelo_nome,
@@ -114,20 +103,17 @@ def make_ato_wrapper(conclusao_tipo: str, modelo_nome: str, prazo: Optional[int]
 
 
 def ato_pesquisas(driver, debug=False, gigs=None, **kwargs):
-    """Wrapper para atos.judicial_helpers.ato_pesquisas."""
     return _ato_pesquisas(driver, debug=debug, gigs=gigs, **kwargs)
 
 
 def idpj(
-    driver: WebDriver,
+    driver: Any,
     debug: bool = False
 ) -> bool:
-    """Wrapper para atos.judicial_helpers.idpj."""
     return _idpj(driver, debug=debug)
 
 
 def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=False, perito_nomes=None):
-    """Wrapper para atos.judicial_helpers.preencher_prazos_destinatarios."""
     return _preencher_prazos_destinatarios(
         driver,
         prazo,
@@ -138,5 +124,5 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
 
 
 def verificar_bloqueio_recente(driver, debug=False):
-    """Wrapper para atos.judicial_helpers.verificar_bloqueio_recente."""
     return _verificar_bloqueio_recente(driver, debug=debug)
+

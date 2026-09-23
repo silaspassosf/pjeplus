@@ -2,11 +2,21 @@
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
   "total_files": 308,
-  "files_with_patterns": 65,
-  "total_patterns": 1460,
+  "files_with_patterns": 51,
+  "total_patterns": 983,
   "migrados": [
+    "Fix/browser_suporte.py",
+    "Fix/core.py",
+    "Fix/diagnostico_runtime.py",
+    "Fix/espera.py",
+    "Fix/extracao.py",
+    "Fix/facade_publica.py",
+    "Fix/monitoramento_progresso_unificado.py",
+    "Fix/utils.py",
+    "Fix/variaveis.py",
     "Mandado/anexos_argos.py",
     "Mandado/apoio_fluxos.py",
+    "Mandado/core.py",
     "Mandado/entrada_api.py",
     "Mandado/fluxo_argos.py",
     "Mandado/fluxo_ui.py",
@@ -78,7 +88,11 @@
     "bianca/triagem/coleta.py",
     "bianca/triagem/regras.py",
     "bianca/triagem/runner.py",
-    "bianca/triagem/service.py"
+    "bianca/triagem/service.py",
+    "ecarta_api.py",
+    "f.py",
+    "utilitarios_processamento.py",
+    "x.py"
   ],
   "files": {
     "Andrei/atos_helpers.py": {
@@ -164,39 +178,6 @@
         "webdriver_type": 16
       }
     },
-    "Fix/browser_suporte.py": {
-      "total": 29,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 3,
-        "execute_script": 7,
-        "window_handles": 6,
-        "time_sleep": 2,
-        "webdriver_type": 7
-      }
-    },
-    "Fix/core.py": {
-      "total": 173,
-      "breakdown": {
-        "from_selenium": 20,
-        "find_element": 40,
-        "find_elements": 23,
-        "execute_script": 37,
-        "send_keys": 10,
-        "webdriver_wait": 20,
-        "expected_conditions": 12,
-        "time_sleep": 4,
-        "webdriver_type": 7
-      }
-    },
-    "Fix/diagnostico_runtime.py": {
-      "total": 8,
-      "breakdown": {
-        "from_selenium": 1,
-        "execute_script": 3,
-        "webdriver_type": 4
-      }
-    },
     "Fix/driver_factory.py": {
       "total": 18,
       "breakdown": {
@@ -204,85 +185,6 @@
         "execute_script": 1,
         "window_handles": 3,
         "time_sleep": 1
-      }
-    },
-    "Fix/espera.py": {
-      "total": 16,
-      "breakdown": {
-        "from_selenium": 1,
-        "find_elements": 2,
-        "execute_script": 1,
-        "window_handles": 1,
-        "time_sleep": 11
-      }
-    },
-    "Fix/extracao.py": {
-      "total": 126,
-      "breakdown": {
-        "from_selenium": 10,
-        "find_element": 34,
-        "find_elements": 19,
-        "execute_script": 16,
-        "send_keys": 12,
-        "window_handles": 11,
-        "webdriver_wait": 7,
-        "expected_conditions": 5,
-        "time_sleep": 5,
-        "webdriver_type": 7
-      }
-    },
-    "Fix/facade_publica.py": {
-      "total": 25,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 3,
-        "find_elements": 3,
-        "execute_script": 4,
-        "webdriver_wait": 6,
-        "expected_conditions": 6
-      }
-    },
-    "Fix/monitoramento_progresso_unificado.py": {
-      "total": 6,
-      "breakdown": {
-        "from_selenium": 1,
-        "find_elements": 1,
-        "execute_script": 1,
-        "webdriver_type": 3
-      }
-    },
-    "Fix/utils.py": {
-      "total": 54,
-      "breakdown": {
-        "from_selenium": 9,
-        "find_element": 12,
-        "find_elements": 3,
-        "execute_script": 19,
-        "send_keys": 2,
-        "window_handles": 1,
-        "webdriver_wait": 2,
-        "expected_conditions": 2,
-        "time_sleep": 1,
-        "webdriver_type": 3
-      }
-    },
-    "Fix/variaveis.py": {
-      "total": 1,
-      "breakdown": {
-        "webdriver_type": 1
-      }
-    },
-    "Mandado/core.py": {
-      "total": 19,
-      "breakdown": {
-        "from_selenium": 5,
-        "find_elements": 3,
-        "execute_script": 1,
-        "window_handles": 1,
-        "webdriver_wait": 2,
-        "expected_conditions": 2,
-        "time_sleep": 2,
-        "webdriver_type": 3
       }
     },
     "Play/pjeplay/__init__.py": {
@@ -606,19 +508,6 @@
         "webdriver_type": 9
       }
     },
-    "ecarta_api.py": {
-      "total": 1,
-      "breakdown": {
-        "time_sleep": 1
-      }
-    },
-    "f.py": {
-      "total": 2,
-      "breakdown": {
-        "from_selenium": 1,
-        "execute_script": 1
-      }
-    },
     "tools/grab.py": {
       "total": 7,
       "breakdown": {
@@ -672,23 +561,6 @@
       "total": 1,
       "breakdown": {
         "webdriver_type": 1
-      }
-    },
-    "utilitarios_processamento.py": {
-      "total": 1,
-      "breakdown": {
-        "webdriver_type": 1
-      }
-    },
-    "x.py": {
-      "total": 16,
-      "breakdown": {
-        "from_selenium": 2,
-        "execute_script": 3,
-        "window_handles": 6,
-        "webdriver_wait": 2,
-        "expected_conditions": 1,
-        "time_sleep": 2
       }
     }
   }

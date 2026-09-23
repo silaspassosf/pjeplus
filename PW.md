@@ -33,14 +33,14 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 
 ---
 
-## 0. ESTADO DE EXECUÇÃO — atualizado em 23/09/2026 (após F3 em andamento)
+## 0. ESTADO DE EXECUÇÃO — atualizado em 23/09/2026 (F4 em andamento avançado)
 
 > **Este é o plano ÚNICO do projeto.** Não existe outro arquivo de plano.
 > A execução **já está em andamento**: leia esta seção antes de qualquer ação e
 > **não refaça o que já está feito**. **Ao fechar cada fase (ou lote), atualize esta seção** —
 > é o contrato de progresso com o usuário.
 
-**Métrica global:** 74 arquivos em `migrados` (de 139 com padrões) · padrões Selenium restantes: **1.460** (de 2.909 no início) · último smoke registrado: **91/91**.
+**Métrica global:** 74 arquivos em `migrados` (mais 4 prontos para promoção: `Fix/facade_publica.py`, `Fix/variaveis.py`, `Mandado/core.py`, `x.py`) · padrões Selenium restantes: **1.271** (de 2.909 no início; -189 vs baseline 1.460) · último smoke registrado: **91/91**.
 
 | Fase | Estado | Evidência |
 |---|---|---|
@@ -48,27 +48,25 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 | **F1 — Piloto** | ✅ **CONCLUÍDA** (tag `refac-f1`) | `atos/comunicacao_preenchimento.py` migrado e promovido a `migrados`; `x.py`: `TeeOutput` removido + sink único (**DEAD-007 resolvido**) |
 | **F2 — Folhas e utilitários** | ✅ **CONCLUÍDA** (tag `refac-f2`) | 8 arquivos migrados e promovidos (9 `migrados` ao fechar); `Play/migrar_sleeps.py` removido (**DEAD-006 resolvido**); bundle criado |
 | **F3 — Domínios** | ✅ **FECHADA no escopo atual** (14 commits) | ✅ migrados: **atos** (25), **PEC** (16), **bianca** (15), **Prazo** (7), **Mandado** (6), **Peticao** (5). ⏸️ **Triagem e SISB: FORA DO ESCOPO** — decisão do usuário (ver abaixo); não bloqueiam a F4 |
-| **F4 — Núcleo** | ⏳ **PRÓXIMA — prioridade máxima** | Escopo do usuário: **`pw.py` → p2b, mandado e pec** (com as dependências deles). Resíduos no caminho: `Fix/core.py` (**173**), `Fix/extracao.py` (126), `Fix/utils.py` (54), `Fix/browser_suporte.py` (29), `Fix/facade_publica.py` (25), `Mandado/core.py` (19), `Fix/driver_factory.py` (18), `x.py` (16), `Fix/espera.py` (16), `Fix/variaveis.py` (1) — **456 padrões em Fix/ + 20 na raiz + 19 no Mandado** |
+| **F4 — Núcleo** | 🔄 **EM ANDAMENTO AVANÇADO** | Escopo do usuário: **`pw.py` → p2b, mandado e pec** (com as dependências deles).<br>✅ **Zerados e limpos:** `Mandado/core.py` (0, **Mandado 100% LIMPO**), `x.py` (0, **Orquestrador 100% LIMPO**), `Fix/facade_publica.py` (0), `Fix/variaveis.py` (0).<br>📉 **Reduções fortes:** `Fix/extracao.py` (126 → 52), `Fix/utils.py` (54 → 17), `Fix/browser_suporte.py` (29 → 13), `Fix/espera.py` (16 → 15).<br>⏳ **Resíduos restantes em F4:** `Fix/core.py` (173), `Fix/extracao.py` (52), `Fix/driver_factory.py` (18 — DEAD-004), `Fix/utils.py` (17), `Fix/espera.py` (15), `Fix/browser_suporte.py` (13), resíduos raiz manuais (`f.py` 2, `ecarta_api.py` 1, `utilitarios_processamento.py` 1). |
 | **F5 — Desligar compat** | ⬜ não iniciada | — |
 | **F6 — Selenium fora** | ⬜ não iniciada | — |
 | **F7 — Deletar código morto** | ⬜ não iniciada | — |
 
-### F3: resíduo remanescente após o novo escopo (80 arquivos com padrão)
+### F4: progresso e resíduos medidos (escopo pw.py → p2b, mandado, pec)
 
-| Área | Principais resíduos | Observação |
-|---|---|---|
-| **Fix/** (F4) | `core.py` 173, `extracao.py` 126, `utils.py` 54, `browser_suporte.py` 29, `facade_publica.py` 25, `driver_factory.py` 18, `espera.py` 16, `variaveis.py` 1 | **PRÓXIMA FASE (F4)** — é a dependência direta dos 3 fluxos-alvo |
-| **Raiz** (F4) | `x.py` 16, `f.py` 2, `ecarta_api.py` 1, `utilitarios_processamento.py` 1 | entra junto com a F4 |
-| **Mandado** (F4) | `core.py` 19 | único resíduo do domínio — fecha na F4 |
-| **SISB** | `core.py` 49, `ordens_dados_navegacao.py` 47 + 21 outros (299 no total) | **FORA DO ESCOPO AGORA** — decisão do usuário: é usado no PEC, mas fica como está; não migrar |
-| **Triagem** | `dom.py` 81, `analise_execucao.py` 54 (146 no total) | **FORA DO ESCOPO AGORA** — decisão do usuário; não migrar |
-| Ferramentas | `tools/` (99), `Play/` (82) | decidir na F6/F7: migrar ou marcar DEAD |
-| `Andrei/` | 337 no total | **NÃO MIGRAR** — mantido por decisão do usuário (DEAD-001); excluir do ratchet na F6 |
+| Área | Estado F4 | Resíduos Atuais | Observação |
+|---|---|---|---|
+| **Mandado** | ✅ **100% LIMPO** | **0** (era 19) | Todos os 9 arquivos do domínio sem nenhum padrão Selenium |
+| **PEC** | ✅ **100% LIMPO** | **0** | Todos os 30 arquivos sem nenhum padrão Selenium |
+| **Prazo / P2B** | ✅ **100% LIMPO** | **0** | Todos os 10 arquivos sem nenhum padrão Selenium |
+| **Raiz (x.py)** | ✅ **100% LIMPO** | **4** (era 20) | `x.py` zerado (0). Sobram scripts manuais/dead: `f.py` (2), `ecarta_api.py` (1), `utilitarios_processamento.py` (1) |
+| **Fix/** | 🔄 Em andamento | **302** (era 456) | Zerados: `facade_publica.py` (0), `variaveis.py` (0). Reduzidos: `extracao.py` (52), `utils.py` (17), `espera.py` (15), `browser_suporte.py` (13). Restante principal: `core.py` (173), `driver_factory.py` (18 — DEAD-004) |
+| **SISB** | ⏸️ Fora do escopo agora | 299 no total | Decisão do usuário: mantido como está |
+| **Triagem** | ⏸️ Fora do escopo agora | 146 no total | Decisão do usuário: mantido como está |
+| **Andrei/** | ⏸️ Não migrar | 337 no total | Mantido para testes isolados (DEAD-001) |
 
-**Como retomar (ordem exata):** F3 **fechada no escopo atual** (Triagem e SISB ficam como estão,
-por decisão do usuário). Próximo passo é **iniciar a F4**: migrar `Fix/` (começando por
-`core.py`) + os resíduos da raiz (`x.py`) + `Mandado/core.py` — o caminho completo dos 3 fluxos
-(`pw.py` → p2b, mandado, pec). **Ao fechar cada lote da F4, atualizar esta seção.**
+**Como retomar (ordem exata):** Continuar a F4 focando em `Fix/core.py` (173) e nos resíduos remanescentes de `Fix/extracao.py` (52). Os 3 fluxos de negócio (`p2b`, `mandado`, `pec`) e o orquestrador `x.py` já estão 100% livres de dependências Selenium. Ao fechar cada lote, manter verificação ratchet + smoke 91/91.
 
 ### Decisões do usuário já registradas (NÃO reverter)
 

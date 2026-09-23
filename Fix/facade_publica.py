@@ -17,9 +17,8 @@ from pathlib import Path
 from Fix.core import safe_click_no_scroll
 from typing import Dict, Optional, Tuple, Union
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from Play.pjeplay.locators import By
+from Fix import espera as _espera
 
 # =============================================================================
 # CORE - Re-exports from Fix.core
@@ -226,7 +225,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
     if not termos:
         return False
 
-    complementos = driver.find_elements(By.CSS_SELECTOR, 'pje-complemento')
+    complementos = _espera.elementos(driver, 'pje-complemento')
     usados = set()
 
     for termo in termos:
@@ -246,11 +245,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
                 except Exception:
                     safe_click_no_scroll(driver, sel)
 
-                opts = WebDriverWait(driver, timeout_select).until(
-                    EC.presence_of_all_elements_located(
-                        (By.CSS_SELECTOR, "mat-option[role='option']")
-                    )
-                )
+                opts = _espera.elementos(driver, "mat-option[role='option']", teto=timeout_select) or []
                 for op in opts:
                     try:
                         if termo_norm in _normalize_text(op.text or ''):
@@ -296,7 +291,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
 
         # 3) fallback: qualquer mat-select visivel na pagina
         if not encontrado:
-            all_selects = driver.find_elements(By.CSS_SELECTOR, 'mat-select')
+            all_selects = _espera.elementos(driver, 'mat-select')
             for sel in all_selects:
                 try:
                     try:
@@ -305,11 +300,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
                         )
                     except Exception:
                         safe_click_no_scroll(driver, sel)
-                    opts = WebDriverWait(driver, 1).until(
-                        EC.presence_of_all_elements_located(
-                            (By.CSS_SELECTOR, "mat-option[role='option']")
-                        )
-                    )
+                    opts = _espera.elementos(driver, "mat-option[role='option']", teto=1) or []
                     for op in opts:
                         if termo_norm in _normalize_text(op.text or ''):
                             safe_click_no_scroll(driver, op)
@@ -323,7 +314,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
         if not encontrado:
             return False
 
-        _time.sleep(0.2)
+        _espera.assentar(driver, 0.2)
 
     return True
 
@@ -362,19 +353,16 @@ class ElementWaitPool:
         self.explicit_wait = explicit_wait
 
     def esperar_elemento(self, selector, timeout=None, by=By.CSS_SELECTOR):
-        return WebDriverWait(self.driver, timeout or self.explicit_wait).until(
-            EC.presence_of_element_located((by, selector))
-        )
+        _ = by
+        return _espera.elemento(self.driver, selector, teto=timeout or self.explicit_wait)
 
     def esperar_visivel(self, selector, timeout=None, by=By.CSS_SELECTOR):
-        return WebDriverWait(self.driver, timeout or self.explicit_wait).until(
-            EC.visibility_of_element_located((by, selector))
-        )
+        _ = by
+        return _espera.elemento(self.driver, selector, teto=timeout or self.explicit_wait)
 
     def esperar_clicavel(self, selector, timeout=None, by=By.CSS_SELECTOR):
-        return WebDriverWait(self.driver, timeout or self.explicit_wait).until(
-            EC.element_to_be_clickable((by, selector))
-        )
+        _ = by
+        return _espera.elemento(self.driver, selector, teto=timeout or self.explicit_wait)
 
 
 def buscar(driver, cache_key, seletores):
@@ -385,12 +373,7 @@ def buscar(driver, cache_key, seletores):
     _ = cache_key
     for seletor in seletores or []:
         try:
-            by = (
-                By.XPATH
-                if isinstance(seletor, str) and seletor.startswith("//")
-                else By.CSS_SELECTOR
-            )
-            elementos = driver.find_elements(by, seletor)
+            elementos = _espera.elementos(driver, seletor, teto=0)
             for elemento in elementos:
                 try:
                     if elemento.is_displayed():

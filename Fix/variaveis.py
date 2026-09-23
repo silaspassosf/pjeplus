@@ -745,7 +745,6 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
         id_processo: ID do processo
         tipos: Lista de tipos de documentos a procurar (padrão: Sentença, Decisão, Despacho)
         itens_timeline: Timeline já carregada (opcional)
-        driver: WebDriver para extrair conteúdo (opcional, usado para filtro de edital)
     """
     if tipos is None:
         tipos = ['Sentença', 'Decisão', 'Despacho']

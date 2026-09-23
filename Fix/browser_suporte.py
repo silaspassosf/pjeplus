@@ -9,11 +9,8 @@ click headless e otimizacoes. FX2 (16-granular-fix.md).
 import time
 import traceback
 import datetime
-from typing import Optional
-
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.common.by import By
+from typing import Optional, Any
+from Play.pjeplay.locators import By
 from selenium.common.exceptions import (
     TimeoutException,
     ElementClickInterceptedException,
@@ -63,7 +60,7 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
     Valida se a conexao com o driver Selenium ainda esta ativa.
 
     Args:
-        driver: WebDriver do Selenium
+        driver: driver ativo
         contexto: Contexto da validacao para logs
         proc_id: ID do processo (opcional)
 
@@ -325,7 +322,7 @@ def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
 # ============================================================
 
 
-def limpar_overlays_headless(driver: WebDriver) -> bool:
+def limpar_overlays_headless(driver: Any) -> bool:
     """
     Remove modals, tooltips e overlays que bloqueiam cliques em modo headless.
     Executado via JavaScript para maxima confiabilidade.
@@ -376,7 +373,7 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
         return False
 
 
-def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
+def scroll_to_element_safe(driver: Any, element: Any) -> bool:
     """
     Scroll seguro para elemento com multiplas estrategias.
 
@@ -385,7 +382,7 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
     ja e usado pelo auto-scroll do `locator.click()`.
 
     Args:
-        driver: WebDriver instance
+        driver: driver ativo
         element: Elemento para scrollar
 
     Returns:
@@ -412,7 +409,7 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
             return False
 
 
-def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECTOR, timeout: int = 10) -> bool:
+def click_headless_safe(driver: Any, selector: str, by: Any = By.CSS_SELECTOR, timeout: int = 10) -> bool:
     """
     Click ultra-seguro para modo headless com 3 estrategias progressivas.
 
@@ -426,7 +423,7 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     headless e headed — ja substituida por `pjeplay/nativo.py`.
 
     Args:
-        driver: WebDriver instance
+        driver: driver ativo
         selector: Seletor CSS ou XPath
         by: Tipo de seletor (padrao CSS_SELECTOR)
         timeout: Timeout em segundos
@@ -439,7 +436,9 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     try:
         if not espera.ate_habilitar(driver, selector, teto=timeout):
             raise TimeoutException(f"element_to_be_clickable: {selector}")
-        element = driver.find_element(by, selector)
+        element = espera.elemento(driver, selector, teto=timeout, visivel=False)
+        if element is None:
+            raise TimeoutException(f"element: {selector}")
         element.click()
         return True
     except (ElementClickInterceptedException, TimeoutException):
@@ -455,14 +454,16 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
         # Aguarda elemento estar clicavel apos scroll (DOM-settle)
         if not espera.ate_habilitar(driver, selector, teto=timeout // 2):
             raise TimeoutException(f"element_to_be_clickable: {selector}")
-        driver.find_element(by, selector).click()
+        espera.elemento(driver, selector, teto=timeout // 2, visivel=False).click()
         return True
     except (ElementClickInterceptedException, StaleElementReferenceException):
         pass
 
     # Estrategia 3: JavaScript click (fallback final)
     try:
-        element = driver.find_element(by, selector)
+        element = espera.elemento(driver, selector, teto=2, visivel=False)
+        if element is None:
+            raise TimeoutException(f"element: {selector}")
         driver.execute_script("arguments[0].scrollIntoView({block:'center', inline:'center'});", element)
         if not safe_click_no_scroll(driver, element):
             element.click()
@@ -473,7 +474,7 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
         return False
 
 
-def is_headless_mode(driver: WebDriver) -> bool:
+def is_headless_mode(driver: Any) -> bool:
     """
     Detecta se driver esta em modo headless.
 
@@ -540,7 +541,7 @@ def finalizar_otimizacoes():
 # ============================================================
 
 
-def safe_click_no_scroll(driver, element, log=False):
+def safe_click_no_scroll(driver: Any, element: Any, log: bool = False) -> bool:
     """Click without scroll"""
     try:
         driver.execute_script("arguments[0].click();", element)

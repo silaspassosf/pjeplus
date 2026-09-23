@@ -18,7 +18,7 @@ greppáveis, em vez de escondidos entre centenas de `time.sleep` anônimos.
 import time
 import traceback
 
-from selenium.webdriver.common.by import By
+from Play.pjeplay.locators import By
 
 from Fix.diagnostico_runtime import logger
 

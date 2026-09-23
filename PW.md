@@ -47,28 +47,34 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 | **F0 — Preparação e travas** | ✅ **CONCLUÍDA** (tag `refac-f0`) | `tools/check_pw.py` + `tools/pw_baseline.json` (ratchet ativo), `docs/INVARIANTES.md`, `docs/CODIGO_MORTO.md`, `docs/PENDENCIAS.md`, regra `.agents/rules/anti-selenium.md`; smoke **91/91** |
 | **F1 — Piloto** | ✅ **CONCLUÍDA** (tag `refac-f1`) | `atos/comunicacao_preenchimento.py` migrado e promovido a `migrados`; `x.py`: `TeeOutput` removido + sink único (**DEAD-007 resolvido**) |
 | **F2 — Folhas e utilitários** | ✅ **CONCLUÍDA** (tag `refac-f2`) | 8 arquivos migrados e promovidos (9 `migrados` ao fechar); `Play/migrar_sleeps.py` removido (**DEAD-006 resolvido**); bundle criado |
-| **F3 — Domínios** | ⏳ **EM ANDAMENTO — 6 de 8 domínios fechados** (14 commits) | ✅ fechados: **atos** (25 arquivos, 6 lotes — inclui `core` e `judicial_fluxo`), **PEC** (16), **bianca** (15), **Prazo** (7), **Mandado** (6), **Peticao** (5). ⬜ restantes: **Triagem** e **SISB** |
-| **F4 — Núcleo** | ⬜ não iniciada | maior resíduo: `Fix/core.py` (**173**), `Fix/extracao.py` (126), `Fix/utils.py` (54), `Fix/browser_suporte.py` (29) |
+| **F3 — Domínios** | ✅ **FECHADA no escopo atual** (14 commits) | ✅ migrados: **atos** (25), **PEC** (16), **bianca** (15), **Prazo** (7), **Mandado** (6), **Peticao** (5). ⏸️ **Triagem e SISB: FORA DO ESCOPO** — decisão do usuário (ver abaixo); não bloqueiam a F4 |
+| **F4 — Núcleo** | ⏳ **PRÓXIMA — prioridade máxima** | Escopo do usuário: **`pw.py` → p2b, mandado e pec** (com as dependências deles). Resíduos no caminho: `Fix/core.py` (**173**), `Fix/extracao.py` (126), `Fix/utils.py` (54), `Fix/browser_suporte.py` (29), `Fix/facade_publica.py` (25), `Mandado/core.py` (19), `Fix/driver_factory.py` (18), `x.py` (16), `Fix/espera.py` (16), `Fix/variaveis.py` (1) — **456 padrões em Fix/ + 20 na raiz + 19 no Mandado** |
 | **F5 — Desligar compat** | ⬜ não iniciada | — |
 | **F6 — Selenium fora** | ⬜ não iniciada | — |
 | **F7 — Deletar código morto** | ⬜ não iniciada | — |
 
-### F3: o que falta (resíduo medido no baseline atual — 80 arquivos com padrão)
+### F3: resíduo remanescente após o novo escopo (80 arquivos com padrão)
 
 | Área | Principais resíduos | Observação |
 |---|---|---|
-| **Triagem** (domínio F3) | `dom.py` 81, `analise_execucao.py` 54 | **PRÓXIMO — não iniciado** |
-| **SISB** (domínio F3) | `core.py` 49, `ordens_dados_navegacao.py` 47 | último da F3 · sleeps anti-detecção intocáveis (seção 11) |
-| ✅ **bianca** | fechado — 15 arquivos promovidos | commits `95a2b60` + `893520d` |
-| **Fix/** (F4, não F3) | `core.py` 173, `extracao.py` 126, `utils.py` 54, `browser_suporte.py` 29 | **reservado para a F4** — não tocar na F3 |
-| Ferramentas (não são F3) | `tools/pre_xcode_proc.py` 79, `Play/smoke.py` 48 | decidir na F6/F7: migrar ou marcar DEAD |
-| `Andrei/` | 108 + 81 + 58 + 38 | **NÃO MIGRAR** — mantido por decisão do usuário (DEAD-001); excluir do ratchet na F6 |
+| **Fix/** (F4) | `core.py` 173, `extracao.py` 126, `utils.py` 54, `browser_suporte.py` 29, `facade_publica.py` 25, `driver_factory.py` 18, `espera.py` 16, `variaveis.py` 1 | **PRÓXIMA FASE (F4)** — é a dependência direta dos 3 fluxos-alvo |
+| **Raiz** (F4) | `x.py` 16, `f.py` 2, `ecarta_api.py` 1, `utilitarios_processamento.py` 1 | entra junto com a F4 |
+| **Mandado** (F4) | `core.py` 19 | único resíduo do domínio — fecha na F4 |
+| **SISB** | `core.py` 49, `ordens_dados_navegacao.py` 47 + 21 outros (299 no total) | **FORA DO ESCOPO AGORA** — decisão do usuário: é usado no PEC, mas fica como está; não migrar |
+| **Triagem** | `dom.py` 81, `analise_execucao.py` 54 (146 no total) | **FORA DO ESCOPO AGORA** — decisão do usuário; não migrar |
+| Ferramentas | `tools/` (99), `Play/` (82) | decidir na F6/F7: migrar ou marcar DEAD |
+| `Andrei/` | 337 no total | **NÃO MIGRAR** — mantido por decisão do usuário (DEAD-001); excluir do ratchet na F6 |
 
-**Como retomar (ordem exata):** **Triagem** → **SISB** → `py tools/check_pw.py` + `py play/smoke.py --projeto` →
-tag `refac-f3` + bundle → **atualizar esta seção** → só então iniciar a F4 (`Fix/`, `x.py`, `pw.py`, `Fix/variaveis.py`).
+**Como retomar (ordem exata):** F3 **fechada no escopo atual** (Triagem e SISB ficam como estão,
+por decisão do usuário). Próximo passo é **iniciar a F4**: migrar `Fix/` (começando por
+`core.py`) + os resíduos da raiz (`x.py`) + `Mandado/core.py` — o caminho completo dos 3 fluxos
+(`pw.py` → p2b, mandado, pec). **Ao fechar cada lote da F4, atualizar esta seção.**
 
 ### Decisões do usuário já registradas (NÃO reverter)
 
+- **Escopo real da refatoração (23/09):** o fluxo de **`pw.py` para p2b, mandado e pec**, com as
+  dependências deles. **Triagem e SISB NÃO são mexidos agora** — o SISB é usado no PEC, mas fica
+  como está (o fluxo de sessão dele funciona); a Triagem não está no caminho dos 3 fluxos.
 - **`Andrei/` fica.** Mantido para execução isolada e testes (DEAD-001: "NÃO DELETAR", decisão do usuário).
 - A execução do bot continua **isolada** (mandado sozinho → pec sozinho → vencimento de prazo manual + p2b sozinho) — fora do escopo desta migração.
 

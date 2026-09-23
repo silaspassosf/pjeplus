@@ -37,7 +37,8 @@ from pprint import pformat
 from typing import Dict, Any, Optional, Tuple, Callable
 from Fix.tipos import ResultadoFluxo
 from enum import Enum
-# WebDriverWait importado lazily em resetar_driver() para garantir shim pjeplay correto
+from Fix import espera
+from Fix.abas import fechar_abas_extras
 # Imports dos módulos refatorados
 from Fix.core import finalizar_driver as finalizar_driver_fix, criar_driver_pc, criar_driver_vt
 from Fix.utils import login_cpf, login_manual
@@ -107,7 +108,7 @@ def _aguardar_login_manual(driver, timeout: int = 900) -> bool:
             except Exception:
                 pass
             return True
-        time.sleep(2)
+        espera.pausa(driver, 2)
     logger.error("[LOGIN] Timeout (%ds) aguardando login manual.", timeout)
     return False
 
@@ -127,7 +128,7 @@ def _aguardar_sessao_ativa(driver, timeout: int = 60) -> bool:
         except Exception:
             logger.error("[LOGIN] Browser indisponivel ao confirmar sessao.")
             return False
-        time.sleep(2)
+        espera.pausa(driver, 2)
     logger.error("[LOGIN] access_token nao apareceu em %ds — login automatico "
                  "nao completou (verifique senha/MFA).", timeout)
     return False
@@ -320,25 +321,18 @@ def resetar_driver(driver) -> bool:
             logger.info("[X] resetar_driver: %d aba(s) acesso-negado fechadas", fechadas)
 
         # Fechar abas extras
-        abas = driver.window_handles
-        if len(abas) > 1:
-            for aba in abas[1:]:
-                try:
-                    driver.switch_to.window(aba)
-                    driver.close()
-                except Exception as e:
-                    logger.warning("ERRO em resetar_driver: %s: %s", type(e).__name__, e)
-            driver.switch_to.window(abas[0])
+        fechar_abas_extras(driver)
 
         # Resetar zoom
-        driver.execute_script("document.body.style.zoom='100%'")
+        try:
+            espera.ate_js(driver, "document.body.style.zoom='100%'", teto=0.1)
+        except Exception:
+            pass
 
         # Navegar para página inicial
         driver.get("https://pje.trt2.jus.br/pjekz/")
         try:
-            from selenium.webdriver.support.ui import WebDriverWait as _WDW
-            from selenium.webdriver.support import expected_conditions as _EC
-            _WDW(driver, 5).until(_EC.url_contains("pjekz"))
+            espera.ate_url(driver, "pjekz", teto=5)
         except Exception:
             pass
 
@@ -362,8 +356,7 @@ def executar_bloco_completo(driver, driver_type=None) -> Dict[str, Any]:
 
     def _driver_vivo(d):
         try:
-            _ = d.window_handles
-            return True
+            return bool(getattr(d, 'current_url', None) or hasattr(d, 'page'))
         except Exception:
             return False
 
@@ -522,7 +515,7 @@ def _limpar_acesso_negado(driver) -> int:
     """Fecha abas com URL acesso-negado. Retorna numero de abas fechadas."""
     fechadas = 0
     try:
-        handles = list(driver.window_handles)
+        handles = list(getattr(driver, 'window_handles', []))
         principal = handles[0] if handles else None
         for h in handles[1:]:
             try:
@@ -723,9 +716,7 @@ def executar_citacao(driver) -> Dict[str, Any]:
                 chave = numero_limpo if len(numero_limpo) == 20 else pid
                 url = _URL_PROCESSO_DETALHE.format(chave)
                 d.get(url)
-                WebDriverWait(d, 15).until(
-                    lambda drv: drv.execute_script("return document.readyState") == "complete"
-                )
+                espera.ate_js(d, "document.readyState === 'complete'", teto=15)
                 if "acesso-negado" in (d.current_url or "").lower():
                     raise RuntimeError(f"acesso negado — {reclamada} ({numero or pid})")
                 logger.info("[CITACAO] processo aberto: %s (reclamada: %s)", url, reclamada)
@@ -1027,22 +1018,9 @@ def _resetar_para_painel(driver) -> bool:
     """Fecha abas extras e navega para meu-painel para a próxima execução."""
     try:
         _limpar_acesso_negado(driver)
-        handles = driver.window_handles
-        if len(handles) > 1:
-            primeira = handles[0]
-            for h in handles[1:]:
-                try:
-                    driver.switch_to.window(h)
-                    driver.close()
-                except Exception:
-                    pass
-            handles_restantes = driver.window_handles
-            if primeira in handles_restantes:
-                driver.switch_to.window(primeira)
-            elif handles_restantes:
-                driver.switch_to.window(handles_restantes[0])
+        fechar_abas_extras(driver)
         try:
-            driver.execute_script("document.body.style.zoom='100%'")
+            espera.ate_js(driver, "document.body.style.zoom='100%'", teto=0.1)
         except Exception:
             pass
         driver.get(PAINEL_URL)
@@ -1155,8 +1133,7 @@ def main():
 
             # Verifica se o driver ainda está vivo antes de oferecer o loop
             try:
-                _ = driver.window_handles
-                driver_vivo = True
+                driver_vivo = bool(getattr(driver, 'current_url', None) or hasattr(driver, 'page'))
             except Exception:
                 driver_vivo = False
 

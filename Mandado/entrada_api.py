@@ -22,20 +22,30 @@ from pathlib import Path
 
 from Fix.utils import normalizar_texto
 
-from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support.ui import WebDriverWait
+from typing import Any, Optional, Dict, List
 
 from Fix import espera
-from Fix.core import wait_for_page_load, safe_click_no_scroll, esperar_elemento
+from Fix.core import (
+    wait_for_page_load, safe_click_no_scroll, esperar_elemento,
+    aguardar_renderizacao_nativa, aguardar_e_clicar, safe_click
+)
 from Fix.log import logger
 from utilitarios_processamento import mark_done, is_done, get_concluidos
-from Fix.selenium_base import aguardar_e_clicar, safe_click
-from Fix.core import aguardar_renderizacao_nativa
+from Fix.browser_suporte import abrir_url_nova_aba
 from Fix.abas import fechar_abas_extras as _fechar_abas_extras, aguardar_nova_aba
+
+
+def _fechar_modal_esc(driver: Any):
+    """Fecha modal enviando Escape pelo teclado."""
+    try:
+        if hasattr(driver, 'page'):
+            driver.page.keyboard.press('Escape')
+        elif hasattr(driver, '_page'):
+            driver._page.keyboard.press('Escape')
+        elif hasattr(driver, 'keyboard'):
+            driver.keyboard.press('Escape')
+    except Exception:
+        pass
 
 from Mandado.apoio_fluxos import (
     fluxo_mandados_outros,
@@ -312,11 +322,8 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
         from Fix.variaveis import url_processo_detalhe
         detalhe_url = url_processo_detalhe(id_p or num)
         
-        # Abre em nova aba — usa aguardar_nova_aba (com pulsar() no PW)
-        # em vez de window_handles[-1] direto (race condition no Playwright).
-        driver.execute_script(f"window.open('{detalhe_url}', '_blank');")
-        novo_handle = aguardar_nova_aba(driver, escaninho_handle, timeout=10)
-        driver.switch_to.window(novo_handle)
+        # Abre em nova aba e troca foco
+        novo_handle = abrir_url_nova_aba(driver, detalhe_url, timeout=10)
         
         try:
             wait_for_page_load(driver, timeout=8)
@@ -371,9 +378,11 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                 driver.switch_to.window(escaninho_handle)
         except Exception as e:
             logger.error(f"[MANDADOS_API] Erro ao processar certidão #{num}: {e}")
-            if len(driver.window_handles) > 1:
-                driver.close()
+            _fechar_abas_extras(driver, handle_principal=escaninho_handle)
+            try:
                 driver.switch_to.window(escaninho_handle)
+            except Exception:
+                pass
 
     # 2 - DEPOIS O RESTO
     logger.info(f'[MANDADOS_API] Iniciando processamento do resto ({len(itens_outros)} itens)...')
@@ -532,13 +541,8 @@ def _selecionar_doc_via_timeline(driver, log=True):
     Retorna 'argos', 'outros' ou None se nenhum doc relevante encontrado.
     Regras espelham classificarItem() de lista.timeline.js e fluxo_mandado() do LEGADO.
     """
-    itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-    for item in itens:
-        try:
-            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-        except Exception:
-            continue
-
+    links = espera.elementos(driver, 'li.tl-item-container a.tl-documento:not([target="_blank"])', teto=2)
+    for link in links:
         norm = normalizar_texto(link.text or '')
 
         if any(t in norm for t in _TERMOS_ARGOS):
@@ -561,7 +565,7 @@ def _selecionar_doc_via_timeline(driver, log=True):
     return None
 
 
-def _classificar_tipo_processo_cabecalho(driver: WebDriver, log: bool = True):
+def _classificar_tipo_processo_cabecalho(driver: Any, log: bool = True):
     """Le o span 'align-end' do cabecalho do processo (pje-cabecalho-processo
     > pje-descricao-processo) e retorna seu texto (ex.: 'CartPrecCiv',
     'ATOrd') — mesmo seletor ja usado em f.py/bianca/dom_engine.py para
@@ -571,22 +575,12 @@ def _classificar_tipo_processo_cabecalho(driver: WebDriver, log: bool = True):
     Retorna o texto (trim) ou None se o cabecalho/span nao for encontrado.
     """
     try:
-        texto = driver.execute_script(
-            """
-            var cabecalho = document.querySelector('pje-cabecalho-processo');
-            if (cabecalho) {
-                var spans = cabecalho.querySelectorAll(
-                    'pje-descricao-processo span.align-end.ng-star-inserted'
-                );
-                for (var i = 0; i < spans.length; i++) {
-                    var t = (spans[i].innerText || spans[i].textContent || '').trim();
-                    if (t) { return t; }
-                }
-            }
-            return null;
-            """
-        )
-        return texto.strip() if texto else None
+        spans = espera.elementos(driver, 'pje-cabecalho-processo pje-descricao-processo span.align-end', teto=2)
+        for span in spans:
+            t = (span.text or '').strip()
+            if t:
+                return t
+        return None
     except Exception as e:
         if log:
             logger.warning(f'[MANDADOS_API] Falha ao ler cabecalho do processo: {e}')
@@ -728,11 +722,11 @@ def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=Tr
 
 # ══════════════════════ 5. FECHAMENTO DE INTIMACAO ══════════════════════
 
-def _selecionar_checkbox_intimacao(driver: WebDriver, linha: WebElement, log: bool = True) -> bool:
+def _selecionar_checkbox_intimacao(driver: Any, linha: Any, log: bool = True) -> bool:
     """Marca o checkbox da linha alvo usando poucas tentativas eficientes."""
     try:
-        checkbox_element = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox')
-        input_checkbox = checkbox_element.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+        checkbox_element = espera.elemento(linha, 'mat-checkbox', teto=1)
+        input_checkbox = espera.elemento(checkbox_element, 'input[type="checkbox"]', teto=1)
     except Exception:
         return False
 
@@ -745,29 +739,35 @@ def _selecionar_checkbox_intimacao(driver: WebDriver, linha: WebElement, log: bo
 
     def marcado() -> bool:
         try:
-            return input_checkbox.is_selected()
-        except StaleElementReferenceException:
+            if hasattr(input_checkbox, 'is_checked'):
+                return input_checkbox.is_checked()
+            return getattr(input_checkbox, 'is_selected', lambda: False)()
+        except Exception:
             try:
-                novo_input = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox input[type="checkbox"]')
-                return novo_input.is_selected()
+                novo_input = espera.elemento(linha, 'mat-checkbox input[type="checkbox"]', teto=0.5)
+                if novo_input:
+                    if hasattr(novo_input, 'is_checked'):
+                        return novo_input.is_checked()
+                    return getattr(novo_input, 'is_selected', lambda: False)()
+                return False
             except Exception:
                 return False
 
     for tentativa in tentativas:
         try:
             tentativa()
-            try:
-                WebDriverWait(driver, 1, poll_frequency=0.1).until(lambda d: marcado())
-                return True
-            except TimeoutException:
-                continue
+            t_fim = time.monotonic() + 1.0
+            while time.monotonic() < t_fim:
+                if marcado():
+                    return True
+                espera.assentar(driver, 0.05)
         except Exception:
             continue
 
     return False
 
 
-def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
+def fechar_intimacao(driver: Any, log: bool = True) -> bool:
     """Fecha a intimacao do processo."""
     logger.info('[INTIMACAO] === INICIO ===')
     try:
@@ -776,7 +776,7 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
         try:
             btn_menu = espera.elemento(driver, '#botao-menu', teto=2, visivel=False)
             if btn_menu is None:
-                raise TimeoutException('botao-menu nao encontrado')
+                raise TimeoutError('botao-menu nao encontrado')
             safe_click_no_scroll(driver, btn_menu)
         except Exception:
             logger.info('[INTIMACAO] [1]  FALHOU: Nao conseguiu abrir menu')
@@ -788,11 +788,11 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
         try:
             btn_exp = espera.elemento(driver, 'button[aria-label="Expedientes"]', teto=3, visivel=False)
             if btn_exp is None:
-                raise TimeoutException('botao Expedientes nao encontrado')
+                raise TimeoutError('botao Expedientes nao encontrado')
             safe_click_no_scroll(driver, btn_exp)
         except Exception:
             logger.info('[INTIMACAO] [2]  FALHOU: Nao conseguiu clicar Expedientes')
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            _fechar_modal_esc(driver)
             return False
         logger.info('[INTIMACAO] [2]  Botao Expedientes clicado')
 
@@ -802,14 +802,14 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
 
         # 4. Buscar linha prazo 30
         logger.info('[INTIMACAO] [4] Buscando linhas com prazo 30...')
-        rows = driver.find_elements(By.CSS_SELECTOR, 'tbody tr')
+        rows = espera.elementos(driver, 'tbody tr', teto=2)
         logger.info(f'[INTIMACAO] [4] Total de linhas encontradas: {len(rows)}')
 
         linha_prazo_30 = None
 
         for i, row in enumerate(rows):
             try:
-                cells = row.find_elements(By.TAG_NAME, 'td')
+                cells = espera.elementos(row, 'td', teto=0.5)
                 if len(cells) >= 11:
                     prazo = cells[8].text.strip()
                     fechado = cells[10].text.strip().lower()
@@ -828,7 +828,7 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
 
         if not linha_prazo_30:
             logger.info('[INTIMACAO] [4]  Nenhuma linha prazo 30 nao fechada encontrada')
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            _fechar_modal_esc(driver)
             espera.ate_js(driver, "document.readyState === 'complete'", teto=2)
             return True
 
@@ -836,7 +836,7 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
         logger.info('[INTIMACAO] [5] Tentando marcar checkbox...')
         if not _selecionar_checkbox_intimacao(driver, linha_prazo_30, log=log):
             logger.info('[INTIMACAO] [5]  FALHOU: Nao conseguiu marcar checkbox')
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            _fechar_modal_esc(driver)
             espera.ate_js(driver, "document.readyState === 'complete'", teto=2)
             return False
         logger.info('[INTIMACAO] [5]  Checkbox marcado')
@@ -845,7 +845,7 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
         logger.info('[INTIMACAO] [6] Tentando clicar Fechar Expedientes...')
         if not aguardar_e_clicar(driver, 'button[aria-label="Fechar Expedientes"]', timeout=5):
             logger.info('[INTIMACAO] [6]  FALHOU: Nao conseguiu clicar Fechar Expedientes')
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            _fechar_modal_esc(driver)
             return False
         logger.info('[INTIMACAO] [6]  Botao Fechar Expedientes clicado')
         aguardar_renderizacao_nativa(driver, '.cdk-overlay-container mat-dialog-container', modo='aparecer', timeout=5)
@@ -854,11 +854,10 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
         logger.info('[INTIMACAO] [7] Confirmando fechamento...')
         btn_sim = None
         try:
-            # Busca direta combinada com timeout curto
             xpath_sim = "//mat-dialog-container//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim'] | //div[contains(@class,'cdk-overlay-pane')]//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim'] | //button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']"
             btn_sim = espera.elemento(driver, xpath_sim, teto=2, visivel=False)
             if btn_sim is None:
-                raise TimeoutException('botao Sim nao encontrado')
+                raise TimeoutError('botao Sim nao encontrado')
             safe_click_no_scroll(driver, btn_sim)
         except Exception:
             logger.info('[INTIMACAO] [7]  FALHOU: botao Sim nao encontrado rapidamente')
@@ -875,7 +874,7 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
     except Exception as e:
         logger.info(f'[INTIMACAO] === ERRO GERAL: {str(e)[:150]} ===')
         try:
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            _fechar_modal_esc(driver)
         except Exception:
             pass
         return False

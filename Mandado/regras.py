@@ -29,10 +29,7 @@ import time
 import unicodedata
 from Fix.utils import remover_acentos, normalizar_texto
 from datetime import datetime
-from typing import Dict, List
-
-# Selenium
-from selenium.webdriver.remote.webdriver import WebDriver
+from typing import Dict, List, Any
 
 # ===== IMPORTS PESADOS REMOVIDOS (LAZY LOADING) =====
 # Movidos para cache sob demanda para carregamento 8-10x mais rápido
@@ -663,7 +660,7 @@ ESTRATEGIAS_ARGOS_DESPACHO = [
 
 
 def aplicar_regras_argos(
-    driver: WebDriver,
+    driver: Any,
     resultado_sisbajud: Dict[str, str],
     sigilo_anexos: Dict[str, str],
     tipo_documento: str,
@@ -676,7 +673,7 @@ def aplicar_regras_argos(
     aplicando atos judiciais conforme padrões identificados.
     
     Args:
-        driver: WebDriver Selenium conectado a PJe
+        driver: conectado ao PJe
         resultado_sisbajud: Dict com resultado da consulta SISBAJUD
         sigilo_anexos: Dict com status de sigilo por tipo de anexo
         tipo_documento: Tipo do documento (despacho, decisão, etc)

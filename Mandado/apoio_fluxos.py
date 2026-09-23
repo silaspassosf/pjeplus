@@ -18,9 +18,7 @@ import re
 from Fix.utils import remover_acentos
 from typing import Optional, Any, List, Tuple
 
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.common.by import By
+from Fix import espera
 
 from Fix.abas import validar_conexao_driver
 from Fix.browser_suporte import forcar_fechamento_abas_extras
@@ -86,7 +84,7 @@ __all__ = [
 # 2. utils_lembrete.py — lembrete de bloqueio
 # ════════════════════════════════════════
 
-def lembrete_bloq(driver: WebDriver, debug: bool = False) -> bool:
+def lembrete_bloq(driver: Any, debug: bool = False) -> bool:
     """Wrapper compatível - delegado para criar_lembrete_posit genérico."""
     return criar_lembrete_posit(
         driver,
@@ -100,7 +98,7 @@ def lembrete_bloq(driver: WebDriver, debug: bool = False) -> bool:
 # 3. utils_sigilo.py — sigilo de certidao e anexos
 # ════════════════════════════════════════
 
-def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, debug: bool = False) -> bool:
+def retirar_sigilo(elemento: Any, driver: Optional[Any] = None, debug: bool = False) -> bool:
     """
      DIRETO E SIMPLES: Verifica tl-nao-sigiloso (AZUL) antes de qualquer ação.
 
@@ -111,8 +109,8 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
     4. Caso contrário → retorna True (sem sigilo)
 
     Args:
-        elemento: WebElement do documento na timeline
-        driver: WebDriver Selenium
+        elemento: Elemento do documento na timeline
+        driver: Instancia do driver
         debug: Exibir logs detalhados
 
     Returns:
@@ -123,15 +121,15 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
 
     if not driver:
         try:
-            if hasattr(elemento, '_parent') and hasattr(elemento._parent, 'execute_script'):
+            if hasattr(elemento, '_parent'):
                 driver = elemento._parent
             else:
                 return False
         except Exception:
             return False
 
-    def _link_documento() -> Optional[WebElement]:
-        links = elemento.find_elements(By.CSS_SELECTOR, 'a.tl-documento')
+    def _link_documento() -> Optional[Any]:
+        links = espera.elementos(elemento, 'a.tl-documento', teto=0.5)
         if not links:
             return None
         for link in links:
@@ -166,8 +164,8 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
         ]
         for seletor in seletores:
             try:
-                candidato = elemento.find_element(By.CSS_SELECTOR, seletor)
-                if candidato.is_displayed():
+                candidato = espera.elemento(elemento, seletor, teto=0.5)
+                if candidato and getattr(candidato, 'is_displayed', lambda: True)():
                     btn_sigilo = candidato
                     break
             except Exception:
@@ -206,7 +204,7 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
 
 # ── helpers API para identificação de documentos sigilosos ──────────────────
 
-def _extrair_id_processo_da_url(driver: WebDriver) -> Optional[str]:
+def _extrair_id_processo_da_url(driver: Any) -> Optional[str]:
     """Extrai id_processo numérico da URL atual do PJe (/processo/{id}/)."""
     try:
         m = re.search(r'/processo/(\d+)', driver.current_url)
@@ -215,7 +213,7 @@ def _extrair_id_processo_da_url(driver: WebDriver) -> Optional[str]:
         return None
 
 
-def _criar_api_client_local(driver: WebDriver):
+def _criar_api_client_local(driver: Any):
     """Cria PjeApiClient a partir do driver (lazy import)."""
     try:
         from api.variaveis_client import PjeApiClient, session_from_driver
@@ -279,7 +277,7 @@ def _extrair_texto_pdf_bytes(pdf_bytes: bytes, log: bool = False) -> str:
     return ""
 
 
-def _extrair_texto_certidao_via_api(driver: WebDriver, log: bool = True) -> Optional[str]:
+def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[str]:
     """Extrai o texto COMPLETO da certidão de devolução via API (todas as páginas).
 
     Baixa o PDF binário pelo endpoint /conteudo e extrai com cascata de PDF,
@@ -366,7 +364,7 @@ def _extrair_texto_certidao_via_api(driver: WebDriver, log: bool = True) -> Opti
 
 # ── extração de documentos da timeline via API (certidão/mandado, sem DOM) ──
 
-def _extrair_texto_documento_timeline_api(driver: WebDriver, match_fn, log: bool = True, contexto: str = '') -> Optional[str]:
+def _extrair_texto_documento_timeline_api(driver: Any, match_fn, log: bool = True, contexto: str = '') -> Optional[str]:
     """Localiza (via timeline API) o primeiro documento cujo tipo/título (já
     normalizados, sem acento) satisfaçam match_fn(tipo_norm, titulo_norm) e
     extrai seu texto completo via /conteudo + pdfplumber — sem depender do PDF
@@ -447,7 +445,7 @@ def _extrair_texto_documento_timeline_api(driver: WebDriver, match_fn, log: bool
         return None
 
 
-def _extrair_texto_certidao_oficial_via_api(driver: WebDriver, log: bool = True) -> Optional[str]:
+def _extrair_texto_certidao_oficial_via_api(driver: Any, log: bool = True) -> Optional[str]:
     """Extrai o texto da certidão de Oficial de Justiça (documento atual) via API."""
     return _extrair_texto_documento_timeline_api(
         driver,
@@ -457,7 +455,7 @@ def _extrair_texto_certidao_oficial_via_api(driver: WebDriver, log: bool = True)
     )
 
 
-def _localizar_texto_mandado_anterior_via_api(driver: WebDriver, log: bool = True) -> Optional[str]:
+def _localizar_texto_mandado_anterior_via_api(driver: Any, log: bool = True) -> Optional[str]:
     """Localiza e extrai o texto do mandado (tipo/título 'Mandado') mais recente
     na timeline via API — substitui a busca por ícone de gavel + autor no DOM."""
     return _extrair_texto_documento_timeline_api(
@@ -473,7 +471,7 @@ def _localizar_texto_mandado_anterior_via_api(driver: WebDriver, log: bool = Tru
 
 # ── extração de documentos decisão/despacho via API (igual P2B) ─────────────
 
-def _extrair_documentos_decisao_despacho_api(driver: WebDriver, log: bool = True) -> List[Tuple[str, str, int]]:
+def _extrair_documentos_decisao_despacho_api(driver: Any, log: bool = True) -> List[Tuple[str, str, int]]:
 	"""Extrai documentos de decisão/despacho via API (timeline → PDF → pdfplumber).
 
 	Mesmo approach do P2B (extrair_documento_relevante em p2b_gateway.py).
@@ -591,7 +589,7 @@ def _extrair_documentos_decisao_despacho_api(driver: WebDriver, log: bool = True
 		return []
 
 
-def _identificar_uids_sigilosos_por_api(driver: WebDriver, log: bool = False) -> Optional[List[str]]:
+def _identificar_uids_sigilosos_por_api(driver: Any, log: bool = False) -> Optional[List[str]]:
     """Consulta timeline via API e retorna UIDs de docs sigilosos.
 
     Candidatos: certidão de devolução + 4 documentos mais recentes.
@@ -668,16 +666,16 @@ def _identificar_uids_sigilosos_por_api(driver: WebDriver, log: bool = False) ->
 
 
 def _encontrar_elemento_por_uid(
-    documentos_sequenciais: List[WebElement], uid: str
-) -> Optional[WebElement]:
-    """Retorna o WebElement de documentos_sequenciais cujo link contém o uid."""
+    documentos_sequenciais: List[Any], uid: str
+) -> Optional[Any]:
+    """Retorna o elemento de documentos_sequenciais cujo link contém o uid."""
     uid_norm = (uid or '').strip().lower()
     if not uid_norm:
         return None
 
     for elem in documentos_sequenciais:
         try:
-            links = elem.find_elements(By.CSS_SELECTOR, 'a[href]')
+            links = espera.elementos(elem, 'a[href]', teto=0.5)
             for link in links:
                 href = (link.get_attribute('href') or '').lower()
                 if uid_norm in href:
@@ -689,7 +687,7 @@ def _encontrar_elemento_por_uid(
 
 # ── identificação de documentos sequenciais via API ─────────────────────────
 
-def buscar_documentos_sequenciais_via_api(driver: WebDriver, log: bool = True) -> tuple:
+def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tuple:
     """Identifica documentos do bloco ARGOS via API + DOM e retorna (elementos, uids_sigilosos).
 
     Estratégia hibrida:
@@ -784,7 +782,7 @@ def buscar_documentos_sequenciais_via_api(driver: WebDriver, log: bool = True) -
         # UIDs que nao batem com os hrefs do DOM.
         espera.elemento(driver, 'li.tl-item-container', teto=5, visivel=False)
 
-        elementos = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        elementos = espera.elementos(driver, 'li.tl-item-container', teto=5)
         if log:
             logger.debug('[SEQUENCIAIS_API] %d li.tl-item-container no DOM', len(elementos))
         if not elementos:
@@ -820,7 +818,7 @@ def buscar_documentos_sequenciais_via_api(driver: WebDriver, log: bool = True) -
                 logger.info('[SEQUENCIAIS_API] Decisao nao localizada no DOM')
             return [], []
 
-        resultado: List[WebElement] = [elementos[idx_cert_dom]]
+        resultado: List[Any] = [elementos[idx_cert_dom]]
 
         # Documentos do meio (entre certidao e decisao)
         _TERMOS_MEIO_DOM = {
@@ -855,7 +853,7 @@ def buscar_documentos_sequenciais_via_api(driver: WebDriver, log: bool = True) -
 
 # ── função principal ─────────────────────────────────────────────────────────
 
-def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[WebElement], log: bool = True, debug: bool = False, uids_sigilosos_hint: Optional[List[str]] = None) -> dict:
+def retirar_sigilo_fluxo_argos(driver: Any, documentos_sequenciais: List[Any], log: bool = True, debug: bool = False, uids_sigilosos_hint: Optional[List[str]] = None) -> dict:
     """
      FUNÇÃO ÚNICA PARA TODO O FLUXO DE REMOÇÃO DE SIGILO DO ARGOS
 
@@ -868,8 +866,8 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
     Fallback para varredura de texto no DOM se a API não responder.
 
     Args:
-        driver: WebDriver Selenium
-        documentos_sequenciais: Lista de WebElements dos documentos
+        driver: Instancia do driver
+        documentos_sequenciais: Lista de elementos dos documentos
         log: Exibir logs detalhados
         debug: Ativar modo debug com detalhes das classes CSS
 
@@ -941,7 +939,7 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
     if not certidao_encontrada:
         resultado['certidao_devolucao'] = {'status': 'nao_encontrada'}
     else:
-        links_doc = certidao_encontrada.find_elements(By.CSS_SELECTOR, 'a.tl-documento')
+        links_doc = espera.elementos(certidao_encontrada, 'a.tl-documento', teto=0.5)
         tem_sigilo = False
         if links_doc:
             link_correto = next(
@@ -998,7 +996,7 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
 
     for tipo_nome, elems in encontrados.items():
         for elemento in elems:
-            links_doc = elemento.find_elements(By.CSS_SELECTOR, 'a.tl-documento')
+            links_doc = espera.elementos(elemento, 'a.tl-documento', teto=0.5)
             tem_sigilo = False
             if links_doc:
                 link_correto = next(
@@ -1026,7 +1024,7 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
     return resultado
 
 
-def retirar_sigilo_certidao_devolucao_primeiro(driver: WebDriver, documentos_sequenciais: List[WebElement], log: bool = True) -> bool:
+def retirar_sigilo_certidao_devolucao_primeiro(driver: Any, documentos_sequenciais: List[Any], log: bool = True) -> bool:
     """COMPATIBILIDADE: Chama retirar_sigilo_fluxo_argos e retorna apenas status da certidão."""
     resultado = retirar_sigilo_fluxo_argos(driver, documentos_sequenciais, log)
     cert_status = resultado.get('certidao_devolucao', {}).get('status', 'erro')
@@ -1169,7 +1167,7 @@ def _normalizar_certidao(texto: Optional[str]) -> str:
     return re.sub(r'\s+', ' ', base.lower()).strip()
 
 
-def ultimo_mdd(driver: WebDriver, log: bool = True) -> Tuple[Optional[str], Optional[Any]]:
+def ultimo_mdd(driver: Any, log: bool = True) -> Tuple[Optional[str], Optional[Any]]:
     """
     Busca o último mandado na timeline (item com texto começando por 'Mandado' e ícone de gavel) e retorna (nome_autor, elemento_mandado).
     Versão robusta com verificações de conectividade.
@@ -1181,14 +1179,7 @@ def ultimo_mdd(driver: WebDriver, log: bool = True) -> Tuple[Optional[str], Opti
                 logger.error('[MDD][ERRO_FATAL] Driver em estado inválido ao buscar mandado')
             return None, None
 
-        # Usando aguardar_e_clicar ao invés de find_elements direto para maior robustez
-        timeline = aguardar_e_clicar(driver, 'ul.timeline-container', timeout=5)
-        if not timeline:
-            if log:
-                logger.error('[MDD][ERRO] Timeline não encontrada, tentando método direto')
-            itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-        else:
-            itens = timeline.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        itens = espera.elementos(driver, 'li.tl-item-container', teto=5)
 
         if not itens:
             if log:
@@ -1205,27 +1196,30 @@ def ultimo_mdd(driver: WebDriver, log: bool = True) -> Tuple[Optional[str], Opti
                         return None, None
 
                 # Usa wait com timeout curto para não prejudicar performance
-                link = aguardar_e_clicar(driver, item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])'), timeout=1)
+                link_el = espera.elemento(item, 'a.tl-documento:not([target="_blank"])', teto=0.5)
+                link = aguardar_e_clicar(driver, link_el, timeout=1) if link_el else None
                 if not link:
                     continue
 
                 doc_text = link.text.strip().lower()
                 if doc_text.startswith('mandado'):
                     # Procura ícone de gavel (fa-gavel)
-
-                    icones = item.find_elements(By.CSS_SELECTOR, 'i.fa-gavel')
+                    icones = espera.elementos(item, 'i.fa-gavel', teto=0.5)
                     if not icones:
                         continue  # Não é mandado assinado por oficial
                     # Procura nome do autor próximo ao link ou assinatura
                     nome_autor = None
                     # Tenta encontrar assinatura padrão
                     try:
-                        assinatura = item.find_element(By.CSS_SELECTOR, '.assinatura, .autor, .assinante, .nome-assinatura')
-                        nome_autor = assinatura.text.strip()
+                        assinatura = espera.elemento(item, '.assinatura, .autor, .assinante, .nome-assinatura', teto=0.5)
+                        if assinatura:
+                            nome_autor = assinatura.text.strip()
                     except Exception:
+                        pass
+                    if not nome_autor:
                         # Fallback: procura texto logo após o link
                         try:
-                            spans = item.find_elements(By.CSS_SELECTOR, 'span')
+                            spans = espera.elementos(item, 'span', teto=0.5)
                             for s in spans:
                                 s_text = s.text.strip()
                                 if s_text and s_text.lower() != doc_text:
@@ -1252,7 +1246,7 @@ def ultimo_mdd(driver: WebDriver, log: bool = True) -> Tuple[Optional[str], Opti
         return None, None
 
 
-def _executar_acoes_padrao_negativo(driver: WebDriver, texto_lower: str, log: bool = True) -> None:
+def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = True) -> None:
     """Ações adicionais quando a certidão reconhece o padrão NEGATIVO.
 
     0. Hipótese negativa de penhora (ausência de bens/padrão de vida): chama
@@ -1295,10 +1289,7 @@ def _executar_acoes_padrao_negativo(driver: WebDriver, texto_lower: str, log: bo
             logger.error(f'[MANDADOS][OUTROS] erro em ato_meios() ({motivo}): {e}')
         finally:
             try:
-                if aba_atual in driver.window_handles:
-                    forcar_fechamento_abas_extras(driver, aba_atual)
-                else:
-                    logger.warning(f'[MANDADOS][OUTROS] Aba original ({aba_atual}) não existe mais após ato_meios ({motivo}) — driver pode ficar em aba inesperada')
+                forcar_fechamento_abas_extras(driver, aba_atual)
             except Exception as e_aba:
                 logger.error(f'[MANDADOS][OUTROS] Falha ao normalizar abas após ato_meios ({motivo}): {e_aba}')
 
@@ -1348,7 +1339,7 @@ def _classificar_certidao_oficial(texto: str) -> Optional[str]:
     return None
 
 
-def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> Optional[str]:
+def fluxo_mandados_outros(driver: Any, log: bool = True) -> Optional[str]:
     """
     Processa a certidão de Oficial de Justiça já aberta (fluxo Outros/não-Argos).
 
@@ -1412,7 +1403,7 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> Optional[str]:
     return regra
 
 
-def _criar_gigs_xs1_uma_vez(driver: WebDriver, numero_processo: str, log: bool = True) -> None:
+def _criar_gigs_xs1_uma_vez(driver: Any, numero_processo: str, log: bool = True) -> None:
     """Cria a GIGS sem prazo (xs1) na aba /detalhe, uma única vez por processo."""
     from Fix.extracao import criar_gigs
 
@@ -1429,7 +1420,7 @@ def _criar_gigs_xs1_uma_vez(driver: WebDriver, numero_processo: str, log: bool =
 
 
 def _apagar_mandado_do_escaninho(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     escaninho_handle: str,
     log: bool = True,
@@ -1447,7 +1438,7 @@ def _apagar_mandado_do_escaninho(
             "//button[@aria-label='Remover documento marcados' or @mattooltip='Remover documento' "
             "or contains(@aria-label, 'Remover documento')]"
         )
-        lixeiras = driver.find_elements(By.XPATH, lixeira_xpath)
+        lixeiras = espera.elementos(driver, lixeira_xpath, teto=2)
         if not lixeiras:
             if log:
                 logger.warning(f'[MANDADOS][OUTROS] Lixeira não encontrada no escaninho para #{numero_processo}')
@@ -1458,11 +1449,11 @@ def _apagar_mandado_do_escaninho(
             logger.info(f'[MANDADOS][OUTROS] Lixeira clicada para #{numero_processo}')
 
         aguardar_renderizacao_nativa(driver, 'mat-dialog-container, .cdk-overlay-pane', modo='aparecer', timeout=3)
-        botoes_confirmacao = driver.find_elements(
-            By.XPATH, "//button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')]"
+        botoes_confirmacao = espera.elementos(
+            driver, "//button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')]", teto=2
         )
         for btn in botoes_confirmacao:
-            if btn.is_displayed():
+            if getattr(btn, 'is_displayed', lambda: True)():
                 safe_click_no_scroll(driver, btn)
                 if log:
                     logger.info(f'[MANDADOS][OUTROS] Remoção confirmada para #{numero_processo}')
@@ -1475,7 +1466,7 @@ def _apagar_mandado_do_escaninho(
 
 
 def arquivar_mandado_outros_reconhecido(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     escaninho_handle: str,
     log: bool = True,
@@ -1497,7 +1488,7 @@ def arquivar_mandado_outros_reconhecido(
 
 
 def arquivar_mandado_positivo_reconhecido(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     escaninho_handle: str,
     log: bool = True,
@@ -1527,7 +1518,8 @@ def arquivar_mandado_positivo_reconhecido(
             if painel is not None:
                 # Já existe "mdd positivo": editar adicionando o destinatário (nova linha, vírgula)
                 try:
-                    conteudo_atual = painel.find_element(By.CSS_SELECTOR, '.post-it-conteudo').text.strip()
+                    conteudo_el = espera.elemento(painel, '.post-it-conteudo', teto=0.5)
+                    conteudo_atual = conteudo_el.text.strip() if conteudo_el else ''
                 except Exception:
                     conteudo_atual = ''
                 novo_conteudo = _montar_conteudo_lembrete_mdd(conteudo_atual, nome)
@@ -1627,7 +1619,7 @@ def _montar_conteudo_lembrete_mdd(existente: Optional[str], novo_nome: str) -> s
     return ', '.join(partes) + sufixo
 
 
-def _localizar_lembrete_mdd(driver: WebDriver, log: bool = True) -> Optional[Any]:
+def _localizar_lembrete_mdd(driver: Any, log: bool = True) -> Optional[Any]:
     """Localiza o painel do lembrete 'mdd positivo' no pje-visualizador-post-its.
 
     Retorna o mat-expansion-panel correspondente, ou None se não existir.
@@ -1638,9 +1630,10 @@ def _localizar_lembrete_mdd(driver: WebDriver, log: bool = True) -> Optional[Any
         pass
 
     try:
-        paineis = driver.find_elements(
-            By.CSS_SELECTOR,
+        paineis = espera.elementos(
+            driver,
             'pje-visualizador-post-its .post-it-set mat-expansion-panel, .post-it-set mat-expansion-panel',
+            teto=2,
         )
     except Exception as e:
         if log:
@@ -1650,34 +1643,38 @@ def _localizar_lembrete_mdd(driver: WebDriver, log: bool = True) -> Optional[Any
     alvo = _normalizar_certidao('mdd positivo')
     for painel in paineis:
         try:
-            titulo_el = painel.find_element(By.CSS_SELECTOR, '.post-it-titulo')
-            if _normalizar_certidao(titulo_el.text.strip()) == alvo:
+            titulo_el = espera.elemento(painel, '.post-it-titulo', teto=0.5)
+            if titulo_el and _normalizar_certidao(titulo_el.text.strip()) == alvo:
                 return painel
         except Exception:
             continue
     return None
 
 
-def _editar_lembrete_conteudo(driver: WebDriver, painel: Any, novo_conteudo: str, log: bool = True) -> bool:
+def _editar_lembrete_conteudo(driver: Any, painel: Any, novo_conteudo: str, log: bool = True) -> bool:
     """Edita o conteúdo de um lembrete existente (mesmo modal do criar)."""
     try:
         btn_editar = None
         try:
-            btn_editar = painel.find_element(By.CSS_SELECTOR, 'button[aria-label="Editar Lembrete"]')
+            btn_editar = espera.elemento(painel, 'button[aria-label="Editar Lembrete"]', teto=0.5)
         except Exception:
             pass
         if not btn_editar:
             # painel recolhido: expandir o cabeçalho antes de achar o botão
             try:
-                cabecalho = painel.find_element(By.CSS_SELECTOR, 'mat-expansion-panel-header')
-                safe_click_no_scroll(driver, cabecalho)
-                espera.assentar(driver, 0.5)
-                btn_editar = painel.find_element(By.CSS_SELECTOR, 'button[aria-label="Editar Lembrete"]')
+                cabecalho = espera.elemento(painel, 'mat-expansion-panel-header', teto=0.5)
+                if cabecalho:
+                    safe_click_no_scroll(driver, cabecalho)
+                    espera.assentar(driver, 0.5)
+                    btn_editar = espera.elemento(painel, 'button[aria-label="Editar Lembrete"]', teto=0.5)
             except Exception:
                 if log:
                     logger.warning('[LEMBRETE][MDD] Botão "Editar Lembrete" não encontrado no painel.')
                 return False
-        safe_click_no_scroll(driver, btn_editar)
+        if btn_editar:
+            safe_click_no_scroll(driver, btn_editar)
+        else:
+            return False
     except Exception as e:
         if log:
             logger.warning(f'[LEMBRETE][MDD] Não foi possível abrir a edição do lembrete: {e}')
@@ -1734,7 +1731,7 @@ def _extrair_ementa_mandado(texto: str) -> str:
 
 
 def fluxo_mandados_cp(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     escaninho_handle: str,
     log: bool = True,
@@ -1815,10 +1812,7 @@ def fluxo_mandados_cp(
     aba_processo = driver.current_window_handle
     sucesso_juntada = anex_devcp(driver, numero_processo=numero_processo, debug=log)
     try:
-        if aba_processo in driver.window_handles:
-            forcar_fechamento_abas_extras(driver, aba_processo)
-        else:
-            logger.warning(f'[MANDADOS][CP] #{numero_processo}: aba original ({aba_processo}) não existe mais após anex_devcp()')
+        forcar_fechamento_abas_extras(driver, aba_processo)
     except Exception as e_aba:
         logger.error(f'[MANDADOS][CP] #{numero_processo}: falha ao normalizar abas após anex_devcp(): {e_aba}')
 

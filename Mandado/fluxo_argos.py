@@ -12,10 +12,7 @@ Sequencia obrigatoria: ETAPA 0 (fechar intimacao) -> ETAPA 1 (documentos sequenc
 
 # ══════════════════════ Imports ══════════════════════
 import time
-
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.webdriver import WebDriver
+from typing import Any
 
 from Fix.core import buscar_documento_argos
 from Fix.core import buscar_documentos_sequenciais
@@ -39,7 +36,7 @@ from .anexos_argos import tratar_anexos_argos, processar_sisbajud
 # ══════════════════════ 2. Fluxo Principal ARGOS ══════════════════════
 
 
-def processar_argos(driver: WebDriver, log: bool = False) -> bool:
+def processar_argos(driver: Any, log: bool = False) -> bool:
     """
     Processa fluxo Argos com sequência rigorosa e validações entre etapas.
 

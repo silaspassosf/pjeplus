@@ -285,6 +285,26 @@ def abrir_em_nova_aba(driver, acao, timeout: float = 15) -> Optional[str]:
     return None
 
 
+def abrir_url_nova_aba(driver, url: str, timeout: float = 15) -> Optional[str]:
+    """Abre uma URL em nova aba e retorna o handle da nova aba (ja com foco)."""
+    if hasattr(driver, "context") and hasattr(driver.context, "new_page"):
+        try:
+            nova_pagina = driver.context.new_page()
+            nova_pagina.goto(url)
+            for h, p in getattr(driver, "_handles", {}).items():
+                if p is nova_pagina:
+                    driver.switch_to.window(h)
+                    return h
+        except Exception:
+            pass
+    try:
+        driver.switch_to.new_window('tab')
+        driver.get(url)
+        return getattr(driver, 'current_window_handle', None)
+    except Exception:
+        return None
+
+
 def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
     """Fecha todas as abas extras, mantendo apenas aba_lista_original."""
     try:

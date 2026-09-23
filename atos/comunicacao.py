@@ -1,59 +1,41 @@
 import time
 from Fix.extracao import criar_gigs
 from Fix.log import logger
-from Fix.selenium_base.wait_operations import esperar_elemento
+from Fix.core import esperar_elemento, aguardar_renderizacao_nativa
 from Fix.abas import fechar_abas_extras as _fechar_abas_tabs
-from selenium.webdriver.common.by import By
+from Fix import espera
 from .comunicacao_navigation import abrir_minutas
 from .comunicacao_coleta import executar_coleta_conteudo
 from .comunicacao_preenchimento import executar_preenchimento_minuta, aguardar_ato_confeccionado, aguardar_estabilizacao_para_destinatarios
 from .comunicacao_destinatarios import selecionar_destinatarios
 from .comunicacao_finalizacao import alterar_meio_expedicao, salvar_minuta_final
-from Fix.core import aguardar_renderizacao_nativa
 from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from typing import Optional, Any, Callable, Union, List, Dict, Tuple
-from selenium.webdriver.remote.webdriver import WebDriver
 
 
-def _extrair_observacao_gigs_vencida_xs_pec(driver: WebDriver, debug: bool = False) -> Optional[str]:
-    """Extrai observação da linha GIGS vencida (ícone vermelho) com XS e PEC."""
+def _extrair_observacao_gigs_vencida_xs_pec(driver: Any, debug: bool = False) -> Optional[str]:
     try:
-        linhas = driver.find_elements(By.CSS_SELECTOR, '#tabela-atividades tbody tr')
-        for linha in linhas:
+        spans = espera.elementos(driver, "//table[@id='tabela-atividades']//tr[.//i[contains(@class, 'fa-clock') and contains(@class, 'danger')]]//span[contains(@class, 'descricao')]", teto=1)
+        for span in spans:
             try:
-                icone_vermelho = linha.find_elements(By.CSS_SELECTOR, 'i.fa-clock.danger, i.danger.fa-clock')
-                if not icone_vermelho:
-                    continue
-
-                span_descricao = linha.find_element(By.CSS_SELECTOR, 'span.descricao')
-                texto_descricao = (span_descricao.text or '').strip()
+                texto_descricao = (getattr(span, 'text', '') or '').strip()
                 if not texto_descricao:
                     continue
-
                 texto_lower = texto_descricao.lower()
                 if 'xs' not in texto_lower:
                     continue
-
                 if texto_lower.startswith('prazo:'):
                     texto_descricao = texto_descricao[6:].strip()
-
-                if debug:
-                    logger.info(f"[COMUNICACAO][GIGS] Observação extraída para destinatário informado: {texto_descricao}")
                 return texto_descricao
             except Exception:
                 continue
-
-        if debug:
-            logger.info('[COMUNICACAO][GIGS] Nenhuma linha vencida com XS+PEC encontrada no painel')
         return None
-    except Exception as e:
-        if debug:
-            logger.info(f"[COMUNICACAO][GIGS][ERRO] Falha ao extrair observação do painel: {e}")
+    except Exception:
         return None
 
 
 def comunicacao_judicial(
-    driver: WebDriver,
+    driver: Any,
     tipo_expediente: str,
     prazo: int,
     nome_comunicacao: str,
@@ -111,9 +93,9 @@ def make_comunicacao_wrapper(
     terceiro_default: bool = False,
     assinar: bool = False,
     modelo_troca_correios: Optional[str] = None
-) -> Callable[[WebDriver, bool, Any], bool]:
+) -> Callable[[Any, bool, Any], bool]:
     def wrapper(
-        driver: WebDriver,
+        driver: Any,
         numero_processo: Optional[str] = None,
         observacao: Optional[str] = None,
         destinatarios_override: Optional[List[Dict[str, Any]]] = None,
@@ -311,13 +293,11 @@ def make_comunicacao_wrapper(
                 # Aguarda o ícone verde individual — sinal real de que o Salvar está ativo
                 if status in ('ok', 'fallback', 'geral') or count > 0:
                     try:
-                        from Fix.core import aguardar_renderizacao_nativa as _observer_wait
-                        # Checagem rápida: ícone já presente?
-                        _icone_ja = bool(driver.find_elements(By.CSS_SELECTOR, 'i.pec-icone-verde-ato-individual-tabela-destinatarios'))
+                        _icone_ja = bool(espera.elementos(driver, 'i.pec-icone-verde-ato-individual-tabela-destinatarios', teto=0.1))
                         if _icone_ja:
                             log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde individual já presente — Salvar habilitado.")
                         else:
-                            ok_icone = _observer_wait(
+                            ok_icone = aguardar_renderizacao_nativa(
                                 driver,
                                 'i.pec-icone-verde-ato-individual-tabela-destinatarios',
                                 modo='aparecer',
@@ -326,7 +306,6 @@ def make_comunicacao_wrapper(
                             if ok_icone:
                                 log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde individual detectado — Salvar habilitado.")
                             else:
-                                # Linhas presentes já é suficiente para prosseguir
                                 log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde não detectado em 3s — prosseguindo (Salvar verificará).")
                     except Exception as e:
                         log_fn(f"[COMUNICACAO][ORQUESTRA] Erro ao aguardar renderização: {e}")

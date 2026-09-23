@@ -1,11 +1,19 @@
 {
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
-  "total_files": 309,
-  "files_with_patterns": 139,
-  "total_patterns": 2909,
+  "total_files": 308,
+  "files_with_patterns": 130,
+  "total_patterns": 2785,
   "migrados": [
-    "atos/comunicacao_preenchimento.py"
+    "atos/anexos/anexos_wrappers.py",
+    "atos/anexos_sigilo.py",
+    "atos/comunicacao_preenchimento.py",
+    "atos/movimentos_chips.py",
+    "atos/movimentos_despacho.py",
+    "atos/movimentos_fimsob.py",
+    "atos/movimentos_navegacao.py",
+    "atos/wrappers_mov.py",
+    "atos/wrappers_utils.py"
   ],
   "files": {
     "Andrei/atos_helpers.py": {
@@ -463,12 +471,6 @@
         "webdriver_type": 2
       }
     },
-    "Play/migrar_sleeps.py": {
-      "total": 1,
-      "breakdown": {
-        "time_sleep": 1
-      }
-    },
     "Play/pjeplay/__init__.py": {
       "total": 2,
       "breakdown": {
@@ -875,23 +877,6 @@
         "webdriver_type": 1
       }
     },
-    "atos/anexos/anexos_wrappers.py": {
-      "total": 1,
-      "breakdown": {
-        "from_selenium": 1
-      }
-    },
-    "atos/anexos_sigilo.py": {
-      "total": 9,
-      "breakdown": {
-        "from_selenium": 1,
-        "find_element": 4,
-        "find_elements": 1,
-        "execute_script": 1,
-        "time_sleep": 1,
-        "webdriver_type": 1
-      }
-    },
     "atos/comunicacao.py": {
       "total": 9,
       "breakdown": {
@@ -1005,39 +990,6 @@
         "send_keys": 1
       }
     },
-    "atos/movimentos_chips.py": {
-      "total": 10,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 1,
-        "find_elements": 1,
-        "webdriver_wait": 2,
-        "expected_conditions": 2,
-        "webdriver_type": 1
-      }
-    },
-    "atos/movimentos_despacho.py": {
-      "total": 14,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_elements": 4,
-        "window_handles": 2,
-        "webdriver_wait": 1,
-        "expected_conditions": 1,
-        "webdriver_type": 2
-      }
-    },
-    "atos/movimentos_fimsob.py": {
-      "total": 31,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 1,
-        "window_handles": 6,
-        "webdriver_wait": 11,
-        "expected_conditions": 9,
-        "webdriver_type": 1
-      }
-    },
     "atos/movimentos_fluxo.py": {
       "total": 55,
       "breakdown": {
@@ -1049,15 +1001,6 @@
         "webdriver_wait": 8,
         "expected_conditions": 7,
         "webdriver_type": 7
-      }
-    },
-    "atos/movimentos_navegacao.py": {
-      "total": 19,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_elements": 1,
-        "execute_script": 1,
-        "webdriver_type": 15
       }
     },
     "atos/movimentos_sobrestamento.py": {
@@ -1076,24 +1019,6 @@
     "atos/wrappers_ato.py": {
       "total": 1,
       "breakdown": {
-        "webdriver_type": 1
-      }
-    },
-    "atos/wrappers_mov.py": {
-      "total": 1,
-      "breakdown": {
-        "from_selenium": 1
-      }
-    },
-    "atos/wrappers_utils.py": {
-      "total": 38,
-      "breakdown": {
-        "from_selenium": 5,
-        "find_element": 5,
-        "execute_script": 5,
-        "window_handles": 2,
-        "webdriver_wait": 10,
-        "expected_conditions": 10,
         "webdriver_type": 1
       }
     },

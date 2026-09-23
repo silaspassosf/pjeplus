@@ -2,9 +2,14 @@
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
   "total_files": 308,
-  "files_with_patterns": 114,
-  "total_patterns": 2519,
+  "files_with_patterns": 109,
+  "total_patterns": 2454,
   "migrados": [
+    "Peticao/core/extracao/extracao.py",
+    "Peticao/core/utils/observer.py",
+    "Peticao/helpers/helpers.py",
+    "Peticao/runtime_pet.py",
+    "Peticao/suporte_pet.py",
     "atos/anexos/anexos_extracao.py",
     "atos/anexos/anexos_wrappers.py",
     "atos/anexos_sigilo.py",
@@ -441,49 +446,6 @@
         "find_elements": 1,
         "execute_script": 2,
         "webdriver_wait": 2,
-        "webdriver_type": 2
-      }
-    },
-    "Peticao/core/extracao/extracao.py": {
-      "total": 16,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 2,
-        "find_elements": 1,
-        "webdriver_type": 10
-      }
-    },
-    "Peticao/core/utils/observer.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 2,
-        "webdriver_type": 1
-      }
-    },
-    "Peticao/helpers/helpers.py": {
-      "total": 25,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 9,
-        "find_elements": 4,
-        "time_sleep": 1,
-        "webdriver_type": 8
-      }
-    },
-    "Peticao/runtime_pet.py": {
-      "total": 18,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 1,
-        "execute_script": 1,
-        "webdriver_wait": 2,
-        "webdriver_type": 10
-      }
-    },
-    "Peticao/suporte_pet.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 1,
         "webdriver_type": 2
       }
     },

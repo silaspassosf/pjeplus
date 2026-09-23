@@ -2,9 +2,15 @@
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
   "total_files": 308,
-  "files_with_patterns": 109,
-  "total_patterns": 2454,
+  "files_with_patterns": 103,
+  "total_patterns": 2332,
   "migrados": [
+    "Mandado/anexos_argos.py",
+    "Mandado/apoio_fluxos.py",
+    "Mandado/entrada_api.py",
+    "Mandado/fluxo_argos.py",
+    "Mandado/fluxo_ui.py",
+    "Mandado/regras.py",
     "Peticao/core/extracao/extracao.py",
     "Peticao/core/utils/observer.py",
     "Peticao/helpers/helpers.py",
@@ -228,27 +234,6 @@
         "webdriver_type": 1
       }
     },
-    "Mandado/anexos_argos.py": {
-      "total": 22,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_element": 6,
-        "find_elements": 4,
-        "send_keys": 1,
-        "webdriver_wait": 2,
-        "webdriver_type": 3
-      }
-    },
-    "Mandado/apoio_fluxos.py": {
-      "total": 49,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 8,
-        "find_elements": 12,
-        "window_handles": 2,
-        "webdriver_type": 24
-      }
-    },
     "Mandado/core.py": {
       "total": 19,
       "breakdown": {
@@ -260,42 +245,6 @@
         "expected_conditions": 2,
         "time_sleep": 2,
         "webdriver_type": 3
-      }
-    },
-    "Mandado/entrada_api.py": {
-      "total": 31,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_element": 9,
-        "find_elements": 3,
-        "execute_script": 2,
-        "send_keys": 5,
-        "window_handles": 1,
-        "webdriver_wait": 2,
-        "webdriver_type": 3
-      }
-    },
-    "Mandado/fluxo_argos.py": {
-      "total": 4,
-      "breakdown": {
-        "from_selenium": 3,
-        "webdriver_type": 1
-      }
-    },
-    "Mandado/fluxo_ui.py": {
-      "total": 13,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_element": 2,
-        "find_elements": 6,
-        "window_handles": 3
-      }
-    },
-    "Mandado/regras.py": {
-      "total": 3,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 2
       }
     },
     "PEC/anexos/anexos_configuracao.py": {

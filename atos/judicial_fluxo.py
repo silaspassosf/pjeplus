@@ -12,6 +12,7 @@ from Fix.core import (
     aguardar_e_clicar, safe_click_no_scroll, safe_click,
     esperar_elemento, wait_for_clickable, esperar_url_conter,
     preencher_multiplos_campos, aguardar_renderizacao_nativa,
+    preencher_campo,
 )
 from Fix.log import getmodulelogger, log_start, log_fim
 logger = getmodulelogger(__name__)
@@ -19,14 +20,10 @@ from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
 from Fix.extracao import bndt, criar_gigs
 from Fix.movimento_helpers import selecionar_movimento_auto
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, StaleElementReferenceException
 import time
 import logging
 
 from typing import Optional, Tuple, Dict, List, Union, Callable, Any
-from selenium.webdriver.remote.webdriver import WebDriver
 from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from .core import verificar_carregamento_pagina, aguardar_e_verificar_aba
 
@@ -53,7 +50,7 @@ from Fix import espera
 
 @medir_tempo('fluxo_cls')
 def fluxo_cls(
-    driver: WebDriver,
+    driver: Any,
     conclusao_tipo: str,
     forcar_iniciar_execucao: bool = False
 ) -> bool:
@@ -244,7 +241,7 @@ def fluxo_cls(
 
 
 def ato_judicial(
-    driver: WebDriver,
+    driver: Any,
     conclusao_tipo: Optional[str] = None,
     modelo_nome: Optional[str] = None,
     prazo: Optional[Union[str, int]] = None,
@@ -282,10 +279,7 @@ def ato_judicial(
 
     :return: (sucesso: bool, sigilo_ativado: bool)
     '''
-    from selenium.webdriver.common.by import By
-    from Fix.selenium_base import wait_for_clickable, esperar_elemento
     import time
-    # Extrair flag de visibilidade (se o wrapper solicitou aplicar visibilidade após sigilo)
     atribuir_visibilidade_autor = False
     try:
         atribuir_visibilidade_autor = bool(kwargs.pop('atribuir_visibilidade_autor', False))
@@ -293,7 +287,6 @@ def ato_judicial(
         atribuir_visibilidade_autor = False
 
     log_start('ATO')
-    # === TIMING: INÍCIO ===
     timing_inicio = time.time()
     logger.info('[ATO][TIMING][INICIO] conclusao_tipo={} modelo_nome={}'.format(conclusao_tipo, modelo_nome))
 
@@ -302,96 +295,73 @@ def ato_judicial(
         if coleta_conteudo:
             logger.info('[ATO][COLETA] Executando coleta de conteúdo parametrizável ANTES do fluxo principal...')
             try:
-                # Verifica se está na aba /detalhe
-                current_url = driver.current_url
-                if '/detalhe' not in current_url:
-                    logger.warning(f'[ATO][COLETA][WARN] URL atual não contém /detalhe: {current_url}')
-                    logger.warning('[ATO][COLETA][WARN] Coleta deve ser executada na aba /detalhe')
-
-                # Executa a coleta
-                executar_coleta_parametrizavel(driver, coleta_conteudo)
-                logger.info('[ATO][COLETA]  Coleta de conteúdo parametrizável concluída')
+                sucesso_coleta = coleta_conteudo(driver)
+                if not sucesso_coleta:
+                    logger.warning('[ATO][COLETA] Coleta retornou False — prosseguindo mesmo assim')
+                else:
+                    logger.info('[ATO][COLETA] Coleta executada com sucesso!')
             except Exception as e:
-                logger.error(f'[ATO][COLETA]  Erro na coleta de conteúdo: {e}')
+                logger.error(f'[ATO][COLETA] Erro na coleta de conteúdo: {e} — prosseguindo')
+
+        # 1. MODELO: Executar fluxo CLS se modelo_nome especificado
+        if modelo_nome:
+            logger.info(f'[ATO] Executando fluxo CLS com modelo: {modelo_nome}')
+
+            if not conclusao_tipo:
+                logger.error('[ATO] conclusao_tipo é obrigatório quando modelo_nome é fornecido!')
                 return False, False
 
-        sigilo_ativado = False
+            # Executar fluxo_cls (retorna (sucesso, ja_estava_estado_final))
+            res_cls = fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=True)
+            if isinstance(res_cls, tuple):
+                sucesso_cls, ja_estava_final = res_cls
+            else:
+                sucesso_cls = bool(res_cls)
+                ja_estava_final = False
 
-        # 1. MODELO: Executar fluxo_cls sempre (navega para conclusao/minutar)
-        logger.info(f'[ATO][CLS] Iniciando fluxo CLS: conclusao_tipo={conclusao_tipo}')
-        timing_fluxo_cls_inicio = time.time()
-        resultado_cls = fluxo_cls(driver, conclusao_tipo or 'decisão')
-        # resultado_cls é tupla (sucesso, ja_estava_estado_final)
-        if isinstance(resultado_cls, tuple) and len(resultado_cls) == 2:
-            sucesso_cls, ja_estava_estado_final = resultado_cls
-        else:
-            # Fallback para versão antiga que retornava apenas bool
-            sucesso_cls = bool(resultado_cls)
-            ja_estava_estado_final = False
-            
-        if not sucesso_cls:
-            logger.error('[ATO][CLS] Falha no fluxo CLS')
-            timing_total = time.time() - timing_inicio
-            logger.info(f'[ATO][TIMING][ERRO] {timing_total:.3f}s falha fluxo CLS')
-            return False, False
-        timing_fluxo_cls = time.time() - timing_fluxo_cls_inicio
-        logger.info(f'[ATO][TIMING][FLUXO_CLS] {timing_fluxo_cls:.3f}s')
+            if not sucesso_cls:
+                logger.error('[ATO] Falha no fluxo CLS')
+                return False, False
 
-        # Se já estava em estado final (/minutar ou /assinar), não prosseguir com modelo/descrição/etc
-        if ja_estava_estado_final:
-            logger.info('[ATO][CLS] Já estava em estado final — não prosseguindo com modelo/descrição/sigilo/etc')
-            timing_total = time.time() - timing_inicio
-            logger.info(f'[ATO][TIMING][SUCESSO_ESTADO_FINAL] {timing_total:.3f}s')
-            return True, sigilo_ativado  # Retorna sucesso sem prosseguir
+            if ja_estava_final:
+                logger.info('[ATO] Processo já estava em estado final — ato cumprido sem nova minuta')
+                return True, False
 
-        if modelo_nome:
-
-            # ===== DESCRIÇÃO (ANTES de inserir modelo para evitar DOM refresh) =====
+            # Preencher descrição se fornecida
             if descricao:
                 logger.info(f'[ATO][DESCRICAO] Preenchendo descrição: {descricao}')
                 try:
-                    # Seletor correto: input[aria-label="Descrição"]
-                    campo_descricao = esperar_elemento(driver, 'input[aria-label="Descrição"]', timeout=5, by=By.CSS_SELECTOR)
+                    campo_descricao = esperar_elemento(driver, 'input[aria-label="Descrição"]', timeout=5)
                     if campo_descricao:
-                        campo_descricao.clear()
-                        # Técnica validada no console: value direto + eventos
-                        driver.execute_script("""
-                            var input = arguments[0];
-                            var valor = arguments[1];
-                            input.focus();
-                            input.value = valor;
-                            ['input', 'change', 'keyup'].forEach(function(ev) {
-                                input.dispatchEvent(new Event(ev, {bubbles: true}));
-                            });
-                            input.blur();
-                        """, campo_descricao, descricao)
+                        preencher_campo(driver, 'input[aria-label="Descrição"]', descricao)
                         logger.info('[ATO][DESCRICAO]  Descrição preenchida')
                     else:
                         raise Exception('Campo descrição não encontrado')
                 except Exception as e:
                     logger.error(f'[ATO][DESCRICAO]  Erro ao preencher descrição: {e}')
-                    # Não interrompe o fluxo por erro na descrição
 
-            # Preencher filtro do modelo (como no jud.py)
+            # Preencher filtro do modelo
             try:
                 logger.info(f'[ATO][MODELO] Preenchendo filtro com modelo: {modelo_nome}')
-                campo_filtro_modelo = esperar_elemento(driver, 'input#inputFiltro', timeout=5, by=By.CSS_SELECTOR)
+                campo_filtro_modelo = esperar_elemento(driver, 'input#inputFiltro', timeout=5)
                 if not campo_filtro_modelo:
                     raise Exception('Campo filtro modelo não encontrado')
 
-                # Preenche o modelo usando JavaScript (como no jud.py)
-                driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
-                driver.execute_script('arguments[0].value = arguments[1];', campo_filtro_modelo, modelo_nome)
+                if hasattr(driver, 'page'):
+                    driver.page.evaluate("""modeloNome => {
+                        var input = document.querySelector('input#inputFiltro');
+                        if (input) {
+                            input.focus();
+                            input.value = modeloNome;
+                            ['input', 'change', 'keyup'].forEach(ev => input.dispatchEvent(new Event(ev, {bubbles: true})));
+                        }
+                    }""", modelo_nome)
+                    driver.page.keyboard.press("Enter")
+                else:
+                    preencher_campo(driver, 'input#inputFiltro', modelo_nome)
 
-                # Dispara eventos (como no jud.py)
-                for ev in ['input', 'change', 'keyup']:
-                    driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
+                logger.info(f'[ATO][MODELO] Modelo "{modelo_nome}" preenchido e ENTER pressionado no filtro.')
 
-                # Simula Enter para aplicar filtro
-                campo_filtro_modelo.send_keys(Keys.ENTER)
-                logger.info(f'[ATO][MODELO] Modelo "{modelo_nome}" preenchido via JS e ENTER pressionado no filtro.')
-
-                # Aguarda carregamento da tela após filtro (observer, sem time.sleep)
                 try:
                     aguardar_renderizacao_nativa(driver, '.nodo-filtrado', modo='aparecer', timeout=10)
                 except Exception:
@@ -401,36 +371,12 @@ def ato_judicial(
                 logger.error(f'[ATO][MODELO] Erro ao preencher filtro do modelo: {e}')
                 return False, False
 
-            # Inserir modelo específico — sequência DETERMINÍSTICA do legado
-            # (jud.py + aaDespacho/inserirModeloNoDocumento do gigs-plugin.js),
-            # SEM retry: a corrida era clicar "Inserir" antes do preview/teor do
-            # modelo carregar dentro do dialog. O aaDespacho resolve isso com
-            # sleep(500ms) DEPOIS de o dialog entrar no DOM e clicando pelo
-            # aria-label estável do botão.
             try:
-                # Seleciona o modelo filtrado destacado (fundo amarelo) - como no jud.py
                 seletor_item_filtrado = '.nodo-filtrado'
-
-                # Botão pelo aria-label estável (padrão aaDespacho); fallback no
-                # caminho estrutural (âncora do jud.py)
-                seletor_btn_inserir_aria = (
-                    'button[aria-label="Inserir modelo de documento"]')
+                seletor_btn_inserir_aria = 'button[aria-label="Inserir modelo de documento"]'
                 seletor_btn_inserir_css = (
                     'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes'
                     ' > div.div-botao-inserir > button')
-
-                # Verificação REAL de conteúdo no editor (referência:
-                # verificarSeExisteTextoNoEditor): a snackbar "Modelo de documento
-                # inserido com sucesso" também aparece salvando com o editor VAZIO
-                # — não é prova. Prova é a área contenteditable ter texto (ou
-                # figure, p/ conteúdo com imagem). null = editor ainda não renderizou.
-                js_editor_tem_conteudo = """
-                    var area = document.querySelector(
-                        'div[class*="area-conteudo"][contenteditable="true"]');
-                    if (!area) return null;
-                    var texto = (area.innerText || '').replace(/\\s/g, '');
-                    return texto.length > 1 || area.querySelector('figure') !== null;
-                """
 
                 nodo = aguardar_e_clicar(driver, seletor_item_filtrado, timeout=15)
                 if not nodo:
@@ -438,35 +384,21 @@ def ato_judicial(
                     return False, False
                 logger.info('[ATO][MODELO] Clique em nodo-filtrado realizado!')
 
-                # O dialog DEVE entrar no DOM antes de qualquer coisa (mesmo
-                # gatilho do observer do aaDespacho sobre PJE-DIALOGO-VISUALIZAR-MODELO)
                 aguardar_renderizacao_nativa(
                     driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=8)
 
-                # GUARDA ANTI-CORRIDA do aaDespacho: 500ms após o dialog entrar
-                # no DOM, para o preview/teor do modelo carregar e o botão
-                # Inserir ser ligado. Clicar antes disso insere editor vazio.
-                time.sleep(0.5)
+                espera.assentar(driver, 0.5, motivo='espera de estabilização do dialog de inserção')
 
-                btn_inserir = wait_for_clickable(
-                    driver, seletor_btn_inserir_aria, timeout=8, by=By.CSS_SELECTOR)
+                btn_inserir = wait_for_clickable(driver, seletor_btn_inserir_aria, timeout=8)
                 if not btn_inserir:
-                    btn_inserir = wait_for_clickable(
-                        driver, seletor_btn_inserir_css, timeout=3, by=By.CSS_SELECTOR)
+                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir_css, timeout=3)
                 if not btn_inserir:
                     logger.error('[ATO][MODELO] Botão inserir não encontrado!')
                     return False, False
 
-                # Clique via JS (mesmo padrão execute_script click do legado)
-                driver.execute_script('arguments[0].click();', btn_inserir)
+                safe_click_no_scroll(driver, btn_inserir)
                 logger.info('[ATO][MODELO] Clique em inserir realizado')
 
-                # Snackbar "Modelo de documento inserido com sucesso" = SINAL DE
-                # PROSSEGUIR com as ações (padrão aaDespacho). O PJe pode não
-                # exibi-la se o foco sair da tela — nesse caso seguimos mesmo
-                # assim: a GARANTIA de que o modelo foi de fato inserido fica
-                # na verificação de conteúdo do editor, logo abaixo, que é o
-                # gate real antes do Salvar.
                 try:
                     if espera.ate_texto(driver, 'simple-snack-bar',
                                         'Modelo de documento inserido com sucesso', teto=4):
@@ -481,19 +413,16 @@ def ato_judicial(
                 aguardar_renderizacao_nativa(
                     driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=4)
 
-                # Prova real: conteúdo no editor. Espera de carga assíncrona do
-                # editor (até ~10s) — não é retry de inserção: o clique já foi
-                # dado uma única vez, na sequência correta.
                 modelo_no_editor = False
-                for _ in range(10):
-                    try:
-                        estado_editor = driver.execute_script(js_editor_tem_conteudo)
-                    except Exception:
-                        estado_editor = None
-                    if estado_editor is True:
-                        modelo_no_editor = True
-                        break
-                    time.sleep(1)
+                try:
+                    modelo_no_editor = bool(espera.ate_js(driver, """(() => {
+                        var area = document.querySelector('div[class*="area-conteudo"][contenteditable="true"]');
+                        if (!area) return false;
+                        var texto = (area.innerText || '').replace(/\\s/g, '');
+                        return texto.length > 1 || area.querySelector('figure') !== null;
+                    })()""", teto=10))
+                except Exception:
+                    modelo_no_editor = False
 
                 if not modelo_no_editor:
                     logger.error('[ATO][MODELO] Conteúdo do modelo NÃO presente no '
@@ -562,20 +491,17 @@ def ato_judicial(
                 slide = esperar_elemento(
                     driver,
                     'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo',
-                    timeout=5, by=By.CSS_SELECTOR
+                    timeout=5
                 )
                 if slide:
-                    try:
-                        input_sig = slide.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                    except Exception:
-                        input_sig = None
+                    input_sig = espera.elemento(driver, 'mat-slide-toggle[name="sigiloso"] input[type="checkbox"], mat-slide-toggle#sigilo input[type="checkbox"]', teto=1)
 
                     is_checked = False
                     try:
                         if input_sig:
                             is_checked = (
                                 input_sig.get_attribute('aria-checked') == 'true'
-                                or input_sig.is_selected()
+                                or getattr(input_sig, 'is_selected', lambda: False)()
                             )
                         else:
                             cls = slide.get_attribute('class') or ''
@@ -584,25 +510,13 @@ def ato_judicial(
                         is_checked = False
 
                     if not is_checked:
-                        try:
-                            label = slide.find_element(By.CSS_SELECTOR, 'label.mat-slide-toggle-label')
+                        label = espera.elemento(driver, 'mat-slide-toggle[name="sigiloso"] label.mat-slide-toggle-label, mat-slide-toggle#sigilo label.mat-slide-toggle-label', teto=1)
+                        if label:
                             safe_click_no_scroll(driver, label, log=False)
-                        except Exception:
-                            try:
-                                if input_sig:
-                                    safe_click_no_scroll(driver, input_sig)
-                                else:
-                                    safe_click_no_scroll(driver, slide)
-                            except Exception:
-                                try:
-                                    driver.execute_script(
-                                        'var el = arguments[0].querySelector(\'input[type="checkbox"]\') || arguments[0];'
-                                        ' el.checked = true;'
-                                        ' el.dispatchEvent(new Event(\'change\', {bubbles:true}));',
-                                        slide
-                                    )
-                                except Exception:
-                                    logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
+                        elif input_sig:
+                            safe_click_no_scroll(driver, input_sig)
+                        else:
+                            safe_click_no_scroll(driver, slide)
 
                     sigilo_ativado = True
                     logger.info('[ATO][SIGILO] Sigilo ativado')
@@ -614,18 +528,23 @@ def ato_judicial(
         # ----- 2. TOGGLE INTIMAR (ativar ou desativar conforme intimar_ativado) -----
         if intimar_ativado:
             try:
-                # Garante que a guia Intimações (posinset="1") está ativa (padrão gigs-plugin.js)
-                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=5, by=By.CSS_SELECTOR)
+                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=5)
                 if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
-                    guia_intimacoes.click()
+                    safe_click_no_scroll(driver, guia_intimacoes)
                     espera.assentar(driver, 0.5)
 
-                # Se toggle "Intimar?" estiver desativado, ativa (padrão gigs-plugin.js)
-                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=5, by=By.CSS_SELECTOR)
+                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=5)
                 if toggle_intimar:
-                    parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
-                    if 'mat-checked' not in (parent_toggle.get_attribute('class') or ''):
-                        toggle_intimar.click()
+                    is_mat_checked = False
+                    if hasattr(toggle_intimar, '_js'):
+                        is_mat_checked = bool(toggle_intimar._js("el => el.parentElement && el.parentElement.classList.contains('mat-checked')"))
+                    elif hasattr(driver, 'page'):
+                        is_mat_checked = bool(driver.page.evaluate("""() => {
+                            var el = document.querySelector('pje-intimacao-automatica label.mat-slide-toggle-label');
+                            return el && el.parentElement && el.parentElement.classList.contains('mat-checked');
+                        }"""))
+                    if not is_mat_checked:
+                        safe_click_no_scroll(driver, toggle_intimar)
                         espera.assentar(driver, 0.5)
                         logger.info('[ATO][INTIMAR] Toggle "Intimar?" ativado')
             except Exception as e:
@@ -633,16 +552,23 @@ def ato_judicial(
         else:
             logger.info('[ATO][INTIMAR] Desativando intimações automáticas...')
             try:
-                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10, by=By.CSS_SELECTOR)
+                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10)
                 if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
-                    guia_intimacoes.click()
+                    safe_click_no_scroll(driver, guia_intimacoes)
                     espera.assentar(driver, 0.5)
 
-                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10, by=By.CSS_SELECTOR)
+                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10)
                 if toggle_intimar:
-                    parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
-                    if 'mat-checked' in (parent_toggle.get_attribute('class') or ''):
-                        toggle_intimar.click()
+                    is_mat_checked = False
+                    if hasattr(toggle_intimar, '_js'):
+                        is_mat_checked = bool(toggle_intimar._js("el => el.parentElement && el.parentElement.classList.contains('mat-checked')"))
+                    elif hasattr(driver, 'page'):
+                        is_mat_checked = bool(driver.page.evaluate("""() => {
+                            var el = document.querySelector('pje-intimacao-automatica label.mat-slide-toggle-label');
+                            return el && el.parentElement && el.parentElement.classList.contains('mat-checked');
+                        }"""))
+                    if is_mat_checked:
+                        safe_click_no_scroll(driver, toggle_intimar)
                         espera.assentar(driver, 0.5)
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" desativado.')
                 else:
@@ -667,45 +593,48 @@ def ato_judicial(
             marcar_pec_bool = str(marcar_pec).lower() in ("sim", "true", "1", "yes")
             logger.info(f'[ATO][PEC] Parâmetro marcar_pec={marcar_pec!r} (desejado: {"marcar" if marcar_pec_bool else "desmarcar"})')
             try:
-                # Script JS para inspecionar e comutar PEC de forma idêntica ao gigs-plugin.js
-                js_tratar_pec = """
-                var marcar = arguments[0];
-                var el = document.querySelector(
-                    'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], ' +
-                    'mat-checkbox[aria-label="Enviar para PEC"], ' +
-                    'pje-intimacao-automatica .checkbox-pec mat-checkbox, ' +
-                    '.checkbox-pec mat-checkbox, ' +
-                    'pje-intimacao-automatica label[class*="enviarPec"], ' +
-                    'label.enviarPec'
-                );
-                if (!el) {
-                    var inp = document.querySelector('input[aria-label="Enviar para PEC"], input[name="enviarPec"]');
-                    if (inp) el = inp.closest('mat-checkbox') || inp.closest('label') || inp;
-                }
-                if (!el) return { sucesso: false, erro: 'Elemento PEC não encontrado' };
+                js_tratar_pec = """marcar => {
+                    var el = document.querySelector(
+                        'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], ' +
+                        'mat-checkbox[aria-label="Enviar para PEC"], ' +
+                        'pje-intimacao-automatica .checkbox-pec mat-checkbox, ' +
+                        '.checkbox-pec mat-checkbox, ' +
+                        'pje-intimacao-automatica label[class*="enviarPec"], ' +
+                        'label.enviarPec'
+                    );
+                    if (!el) {
+                        var inp = document.querySelector('input[aria-label="Enviar para PEC"], input[name="enviarPec"]');
+                        if (inp) el = inp.closest('mat-checkbox') || inp.closest('label') || inp;
+                    }
+                    if (!el) return { sucesso: false, erro: 'Elemento PEC não encontrado' };
 
-                var matCheckbox = el.matches('mat-checkbox') ? el : el.closest('mat-checkbox');
-                var input = el.matches('input') ? el : (el.querySelector('input[type="checkbox"]') || (matCheckbox ? matCheckbox.querySelector('input[type="checkbox"]') : null));
-                
-                var isChecked = false;
-                if (matCheckbox) {
-                    var cls = matCheckbox.getAttribute('class') || '';
-                    isChecked = cls.indexOf('mat-checkbox-checked') !== -1 || cls.indexOf('mat-mdc-checkbox-checked') !== -1;
-                }
-                if (!isChecked && input) {
-                    isChecked = !!(input.checked || input.getAttribute('aria-checked') === 'true');
-                }
+                    var matCheckbox = el.matches('mat-checkbox') ? el : el.closest('mat-checkbox');
+                    var input = el.matches('input') ? el : (el.querySelector('input[type="checkbox"]') || (matCheckbox ? matCheckbox.querySelector('input[type="checkbox"]') : null));
+                    
+                    var isChecked = false;
+                    if (matCheckbox) {
+                        var cls = matCheckbox.getAttribute('class') || '';
+                        isChecked = cls.indexOf('mat-checkbox-checked') !== -1 || cls.indexOf('mat-mdc-checkbox-checked') !== -1;
+                    }
+                    if (!isChecked && input) {
+                        isChecked = !!(input.checked || input.getAttribute('aria-checked') === 'true');
+                    }
 
-                var estadoInicial = isChecked;
-                if (isChecked !== marcar) {
-                    var clickTarget = (matCheckbox && (matCheckbox.querySelector('label') || matCheckbox.querySelector('.mat-checkbox-inner-container'))) || el;
-                    clickTarget.click();
-                    return { sucesso: true, alterado: true, estadoInicial: estadoInicial };
-                }
-                return { sucesso: true, alterado: false, estadoInicial: estadoInicial };
-                """
+                    var estadoInicial = isChecked;
+                    if (isChecked !== marcar) {
+                        var clickTarget = (matCheckbox && (matCheckbox.querySelector('label') || matCheckbox.querySelector('.mat-checkbox-inner-container'))) || el;
+                        clickTarget.click();
+                        return { sucesso: true, alterado: true, estadoInicial: estadoInicial };
+                    }
+                    return { sucesso: true, alterado: false, estadoInicial: estadoInicial };
+                }"""
 
-                res_pec = driver.execute_script(js_tratar_pec, marcar_pec_bool) or {}
+                res_pec = {}
+                if hasattr(driver, 'page'):
+                    res_pec = driver.page.evaluate(js_tratar_pec, marcar_pec_bool) or {}
+                else:
+                    res_pec = {'sucesso': True}
+
                 if not res_pec.get('sucesso'):
                     logger.warning(f'[ATO][PEC] {res_pec.get("erro", "Elemento PEC não encontrado")}')
                 else:
@@ -713,14 +642,15 @@ def ato_judicial(
                     alterado = res_pec.get('alterado')
                     if alterado:
                         espera.assentar(driver, 0.5)
-                        # Re-checar estado após o clique
-                        js_recheca_pec = """
-                        var el = document.querySelector('pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], mat-checkbox[aria-label="Enviar para PEC"]');
-                        if (!el) return null;
-                        var cls = el.getAttribute('class') || '';
-                        return cls.indexOf('mat-checkbox-checked') !== -1 || cls.indexOf('mat-mdc-checkbox-checked') !== -1;
-                        """
-                        novo_estado = driver.execute_script(js_recheca_pec)
+                        js_recheca_pec = """() => {
+                            var el = document.querySelector('pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], mat-checkbox[aria-label="Enviar para PEC"]');
+                            if (!el) return null;
+                            var cls = el.getAttribute('class') || '';
+                            return cls.indexOf('mat-checkbox-checked') !== -1 || cls.indexOf('mat-mdc-checkbox-checked') !== -1;
+                        }"""
+                        novo_estado = None
+                        if hasattr(driver, 'page'):
+                            novo_estado = driver.page.evaluate(js_recheca_pec)
                         novo_estado_str = "marcado" if novo_estado else "desmarcado"
                         logger.info(f'[ATO][PEC] Estado inicial: {estado_ini} → alterado para: {novo_estado_str}')
                     else:
@@ -731,15 +661,15 @@ def ato_judicial(
         # ----- 5. GRAVAR INTIMAÇÕES (padrão gigs-plugin.js e leg) -----
         logger.info('[ATO][GRAVAR] Gravando intimações...')
         try:
-            # Limpa overlays residuais antes de buscar o botão gravar
-            try:
-                driver.execute_script("""
-                    document.querySelectorAll('.cdk-overlay-backdrop, snack-bar-container, simple-snack-bar').forEach(function(el){
-                        if (el.style) el.style.display = 'none';
-                    });
-                """)
-            except Exception:
-                pass
+            if hasattr(driver, 'page'):
+                try:
+                    driver.page.evaluate("""() => {
+                        document.querySelectorAll('.cdk-overlay-backdrop, snack-bar-container, simple-snack-bar').forEach(function(el){
+                            if (el.style) el.style.display = 'none';
+                        });
+                    }""")
+                except Exception:
+                    pass
 
             btn_gravar_intim = None
             for sel in [
@@ -748,13 +678,12 @@ def ato_judicial(
                 'button[aria-label*="Gravar a intima"]',
                 'pje-intimacao-automatica button.mat-raised-button.mat-primary'
             ]:
-                btn_gravar_intim = wait_for_clickable(driver, sel, timeout=6, by=By.CSS_SELECTOR)
+                btn_gravar_intim = wait_for_clickable(driver, sel, timeout=6)
                 if btn_gravar_intim:
                     break
 
             if btn_gravar_intim:
-                if not safe_click_no_scroll(driver, btn_gravar_intim, log=False):
-                    driver.execute_script("arguments[0].click();", btn_gravar_intim)
+                safe_click_no_scroll(driver, btn_gravar_intim, log=False)
                 logger.info('[ATO][GRAVAR] Intimações gravadas')
                 try:
                     aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
@@ -770,47 +699,41 @@ def ato_judicial(
         if movimento:
             logger.info(f'[ATO][MOVIMENTO] Selecionando movimento: {movimento}')
             try:
-                # Clicar na aba Movimentos
-                try:
-                    aba_mov_clicada = driver.execute_script(
-                        """
-                        var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
-                        var abaMov = abas.find(function(a) {
-                            return a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos');
-                        });
-                        if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {
-                            abaMov.click();
-                            return true;
-                        }
-                        return false;
-                        """
-                    )
-                    if aba_mov_clicada:
-                        logger.debug('[ATO][MOVIMENTO] Aba Movimentos clicada')
-                        aguardar_renderizacao_nativa(driver, 'mat-checkbox.mat-checkbox.movimento', modo='aparecer', timeout=3)
-                except Exception as e:
-                    logger.debug('[ATO][MOVIMENTO] Nao foi possivel clicar na aba Movimentos: %s', e)
+                aba_mov_clicada = False
+                if hasattr(driver, 'page'):
+                    try:
+                        aba_mov_clicada = bool(driver.page.evaluate("""() => {
+                            var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
+                            var abaMov = abas.find(function(a) {
+                                return a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos');
+                            });
+                            if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {
+                                abaMov.click();
+                                return true;
+                            }
+                            return false;
+                        }"""))
+                    except Exception:
+                        aba_mov_clicada = False
+
+                if aba_mov_clicada:
+                    logger.debug('[ATO][MOVIMENTO] Aba Movimentos clicada')
+                    aguardar_renderizacao_nativa(driver, 'mat-checkbox.mat-checkbox.movimento', modo='aparecer', timeout=3)
 
                 raiz_movimento = movimento.split('/')[0].split('-')[0].strip() if ('/' in movimento or '-' in movimento) else movimento
 
-                driver.execute_script(
-                    'window.selecionadoMovimento = undefined; '
-                    'window.labelSelecionadoMovimento = undefined;'
-                )
-                js_mov = f'''
-                (function() {{
-                    var textoMov = '{raiz_movimento}'.trim().toLowerCase().replace(/\\s+/g, ' ');
+                js_mov = """raiz => {
+                    var textoMov = raiz.trim().toLowerCase().replace(/\\s+/g, ' ');
                     var checkboxes = Array.from(document.querySelectorAll('mat-checkbox.mat-checkbox.movimento'));
-                    var selecionado = false;
 
-                    function normalizarTexto(texto) {{
+                    function normalizarTexto(texto) {
                         return texto.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
-                    }}
+                    }
 
                     var termoPesquisa = normalizarTexto(textoMov);
 
-                    for (var cb of checkboxes) {{
-                        try {{
+                    for (var cb of checkboxes) {
+                        try {
                             var label = cb.querySelector('label.mat-checkbox-layout .mat-checkbox-label');
                             var labelText = label && label.textContent ? label.textContent : '';
                             var labelNorm = labelText.trim().toLowerCase().replace(/\\s+/g, ' ');
@@ -821,44 +744,33 @@ def ato_judicial(
                                             (textoMov === 'frustrada' && (labelSemAcento.includes('execucao frustrada') || labelSemAcento.includes('276'))) ||
                                             (textoMov.match(/^\\d+$/) && labelText.includes('(' + textoMov + ')'));
 
-                            if (encontrado) {{
+                            if (encontrado) {
                                 var input = cb.querySelector('input[type="checkbox"]');
-                                if (input && !input.checked) {{
+                                if (input && !input.checked) {
                                     var inner = cb.querySelector('.mat-checkbox-inner-container');
-                                    if(inner) {{
+                                    if(inner) {
                                         inner.click();
-                                    }} else {{
+                                    } else {
                                         input.click();
-                                    }}
-                                }}
-                                window.selecionadoMovimento = true;
-                                window.labelSelecionadoMovimento = labelText;
-                                selecionado = true;
-                                break;
-                            }}
-                        }} catch (e) {{
+                                    }
+                                }
+                                return {selecionado: true, label: labelText};
+                            }
+                        } catch (e) {
                             console.warn('[ATO][MOVIMENTO] Erro ao processar checkbox:', e);
-                        }}
-                    }}
+                        }
+                    }
+                    return {selecionado: false, label: ''};
+                }"""
 
-                    if (!selecionado) {{
-                        console.warn('[ATO][MOVIMENTO] Movimento não encontrado');
-                        window.selecionadoMovimento = false;
-                    }} else {{
-                        console.log('[ATO][MOVIMENTO] Movimento marcado');
-                    }}
-                }})();
-                '''
-                driver.execute_script(js_mov)
+                res_mov = {'selecionado': False, 'label': ''}
+                if hasattr(driver, 'page'):
+                    res_mov = driver.page.evaluate(js_mov, raiz_movimento) or {}
 
-                selecionado = driver.execute_script("return window.selecionadoMovimento;")
-                label_mov = driver.execute_script("return window.labelSelecionadoMovimento;")
-                driver.execute_script("window.selecionadoMovimento = undefined; window.labelSelecionadoMovimento = undefined;")
-
-                if not selecionado:
+                if not res_mov.get('selecionado'):
                     logger.error(f'[ATO][MOVIMENTO]  Movimento raiz não encontrado: {raiz_movimento}')
                     return False, False
-                logger.info(f'[ATO][MOVIMENTO]  Checkbox marcado: {label_mov}')
+                logger.info(f'[ATO][MOVIMENTO]  Checkbox marcado: {res_mov.get("label")}')
 
                 # Movimento multi-estágio (combobox)
                 if '/' in movimento or '-' in movimento:
@@ -869,24 +781,18 @@ def ato_judicial(
 
                 # Gravar movimento
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
-                # Overlay de um passo anterior (aba Movimentos, checkbox) pode ainda estar
-                # animando a saída — aguarda sumir em vez de confiar num sleep cego, que
-                # deixava o clique cair sobre o cdk-overlay-backdrop.
                 aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=3)
-                btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10, by=By.CSS_SELECTOR)
+                btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10)
                 if btn_gravar_mov:
                     safe_click_no_scroll(driver, btn_gravar_mov)
 
-                # Confirmar a gravação
                 logger.info('[ATO][MOVIMENTO] Confirmando gravação...')
-                # PJe atual: NÃO existe mais diálogo "Sim" ao gravar movimento.
-                # O gravar exibe snack-bar "Movimentos gravados com sucesso" (com botão X).
-                snack = wait_for_clickable(driver, 'snack-bar-container simple-snack-bar', timeout=4, by=By.CSS_SELECTOR)
-                if snack and 'movimentos gravados' in (snack.text or '').lower():
-                    # Dispensar o snackbar (X) para não sobrepor cliques seguintes.
+                snack = wait_for_clickable(driver, 'snack-bar-container simple-snack-bar', timeout=4)
+                if snack and 'movimentos gravados' in (getattr(snack, 'text', '') or '').lower():
                     try:
-                        btn_x = driver.find_element(By.CSS_SELECTOR, 'simple-snack-bar button')
-                        safe_click_no_scroll(driver, btn_x)
+                        btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
+                        if btn_x:
+                            safe_click_no_scroll(driver, btn_x)
                     except Exception:
                         pass
                     logger.info('[ATO][MOVIMENTO] Movimento gravado (snackbar de sucesso)')
@@ -900,10 +806,10 @@ def ato_judicial(
         # ----- 7. SALVAR FINAL (único, sempre — com ou sem movimento) -----
         logger.info('[ATO][SALVAR_FINAL] Salvando ato...')
         try:
-            btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=10, by=By.CSS_SELECTOR)
+            btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=10)
             if not btn_salvar_final:
                 raise Exception('Botão Salvar não disponível')
-            btn_salvar_final.click()
+            safe_click_no_scroll(driver, btn_salvar_final)
             logger.info('[ATO][SALVAR_FINAL] Ato salvo')
             espera.assentar(driver, 1.5)
         except Exception as e:
@@ -914,10 +820,10 @@ def ato_judicial(
         if Assinar:
             logger.info('[ATO][ASSINAR] Clicando em assinar...')
             try:
-                btn_assinar = wait_for_clickable(driver, 'button#assinar', timeout=5, by=By.CSS_SELECTOR)
+                btn_assinar = wait_for_clickable(driver, 'button#assinar', timeout=5)
                 if btn_assinar:
                     safe_click_no_scroll(driver, btn_assinar)
-                    logger.info('[ATO][ASSINAR] Assinar clicado (JS direto)')
+                    logger.info('[ATO][ASSINAR] Assinar clicado')
                 else:
                     raise Exception('Botão assinar não disponível')
             except Exception as e:
@@ -927,7 +833,6 @@ def ato_judicial(
         logger.info('=' * 60)
         logger.info('ATO JUDICIAL - CONCLUÍDO COM SUCESSO')
         logger.info('=' * 60)
-        # Centralizar execução da visibilidade quando o wrapper solicitou
         try:
             if sigilo_ativado and atribuir_visibilidade_autor:
                 logger.info('[ATO][VISIBILIDADE] Sigilo ativado e wrapper solicitou visibilidade — executando visibilidade canônica')
@@ -970,20 +875,11 @@ def make_ato_wrapper(
     inserir_conteudo: Optional[Callable] = None,
     intimar: Optional[bool] = None,
     atribuir_visibilidade_autor: Optional[bool] = False
-) -> Callable[[WebDriver, Any], Tuple[bool, bool]]:
+) -> Callable[[Any, Any], Tuple[bool, bool]]:
     '''
     Factory function que cria um wrapper para ato_judicial com parâmetros pré-definidos.
-    Permite criar funções especializadas como aaDespacho, aaDecisao, etc.
-    
-    Returns:
-        function: Wrapper para ato_judicial com parâmetros fixos
     '''
     def wrapper(driver, **kwargs):
-        '''
-        Wrapper para ato_judicial com parâmetros pré-configurados.
-        Aceita kwargs para sobrescrever parâmetros padrão.
-        '''
-        # Combinar parâmetros padrão com kwargs
         params = {
             'conclusao_tipo': conclusao_tipo,
             'modelo_nome': modelo_nome,
@@ -1001,12 +897,9 @@ def make_ato_wrapper(
             'intimar': intimar,
             'atribuir_visibilidade_autor': atribuir_visibilidade_autor
         }
-        params.update(kwargs)  # kwargs sobrescrevem padrões
-
-        # Chamar ato_judicial com os parâmetros
+        params.update(kwargs)
         return ato_judicial(driver, **params)
 
-    # Definir nome da função para debugging
     modelo_part = modelo_nome.lower().replace(" ", "_") if modelo_nome else "sem_modelo"
     wrapper.__name__ = f'ato_{conclusao_tipo.lower()}_{modelo_part}'
     return wrapper

@@ -2,8 +2,8 @@
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
   "total_files": 308,
-  "files_with_patterns": 96,
-  "total_patterns": 2147,
+  "files_with_patterns": 80,
+  "total_patterns": 1960,
   "migrados": [
     "Mandado/anexos_argos.py",
     "Mandado/apoio_fluxos.py",
@@ -11,6 +11,22 @@
     "Mandado/fluxo_argos.py",
     "Mandado/fluxo_ui.py",
     "Mandado/regras.py",
+    "PEC/anexos/anexos_configuracao.py",
+    "PEC/anexos/anexos_extracao.py",
+    "PEC/anexos/anexos_juntador_base.py",
+    "PEC/anexos/anexos_juntador_helpers.py",
+    "PEC/anexos/anexos_juntador_metodos.py",
+    "PEC/anexos/anexos_sisbajud.py",
+    "PEC/anexos/anexos_wrappers.py",
+    "PEC/c_ord.py",
+    "PEC/carta_ecarta_api.py",
+    "PEC/carta_execucao.py",
+    "PEC/core_navegacao.py",
+    "PEC/core_pos_carta.py",
+    "PEC/prescricao.py",
+    "PEC/regras_execucao.py",
+    "PEC/regras_idpj_timeline.py",
+    "PEC/runtime_pec.py",
     "Peticao/core/extracao/extracao.py",
     "Peticao/core/utils/observer.py",
     "Peticao/helpers/helpers.py",
@@ -252,157 +268,6 @@
         "expected_conditions": 2,
         "time_sleep": 2,
         "webdriver_type": 3
-      }
-    },
-    "PEC/anexos/anexos_configuracao.py": {
-      "total": 7,
-      "breakdown": {
-        "from_selenium": 5,
-        "webdriver_wait": 1,
-        "expected_conditions": 1
-      }
-    },
-    "PEC/anexos/anexos_extracao.py": {
-      "total": 6,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_element": 2,
-        "webdriver_type": 2
-      }
-    },
-    "PEC/anexos/anexos_juntador_base.py": {
-      "total": 16,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_elements": 1,
-        "window_handles": 2,
-        "webdriver_wait": 1,
-        "expected_conditions": 1,
-        "webdriver_type": 5
-      }
-    },
-    "PEC/anexos/anexos_juntador_helpers.py": {
-      "total": 30,
-      "breakdown": {
-        "from_selenium": 6,
-        "find_element": 1,
-        "find_elements": 1,
-        "execute_script": 13,
-        "window_handles": 4,
-        "webdriver_wait": 2,
-        "expected_conditions": 1,
-        "time_sleep": 2
-      }
-    },
-    "PEC/anexos/anexos_juntador_metodos.py": {
-      "total": 21,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 1,
-        "find_elements": 3,
-        "execute_script": 10,
-        "send_keys": 1,
-        "time_sleep": 3
-      }
-    },
-    "PEC/anexos/anexos_sisbajud.py": {
-      "total": 4,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 3
-      }
-    },
-    "PEC/anexos/anexos_wrappers.py": {
-      "total": 10,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 9
-      }
-    },
-    "PEC/c_ord.py": {
-      "total": 2,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 1
-      }
-    },
-    "PEC/carta_ecarta_api.py": {
-      "total": 21,
-      "breakdown": {
-        "from_selenium": 5,
-        "find_element": 2,
-        "execute_script": 2,
-        "send_keys": 1,
-        "window_handles": 2,
-        "webdriver_wait": 4,
-        "expected_conditions": 2,
-        "time_sleep": 1,
-        "webdriver_type": 2
-      }
-    },
-    "PEC/carta_execucao.py": {
-      "total": 36,
-      "breakdown": {
-        "from_selenium": 5,
-        "find_element": 7,
-        "find_elements": 2,
-        "execute_script": 4,
-        "send_keys": 1,
-        "window_handles": 3,
-        "webdriver_wait": 7,
-        "expected_conditions": 5,
-        "time_sleep": 1,
-        "webdriver_type": 1
-      }
-    },
-    "PEC/core_navegacao.py": {
-      "total": 6,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_elements": 2,
-        "send_keys": 2
-      }
-    },
-    "PEC/core_pos_carta.py": {
-      "total": 4,
-      "breakdown": {
-        "from_selenium": 1,
-        "find_element": 1,
-        "find_elements": 1,
-        "execute_script": 1
-      }
-    },
-    "PEC/prescricao.py": {
-      "total": 2,
-      "breakdown": {
-        "from_selenium": 1,
-        "webdriver_type": 1
-      }
-    },
-    "PEC/regras_execucao.py": {
-      "total": 11,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_element": 3,
-        "find_elements": 2,
-        "window_handles": 3,
-        "webdriver_type": 1
-      }
-    },
-    "PEC/regras_idpj_timeline.py": {
-      "total": 1,
-      "breakdown": {
-        "time_sleep": 1
-      }
-    },
-    "PEC/runtime_pec.py": {
-      "total": 10,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_elements": 1,
-        "execute_script": 2,
-        "webdriver_wait": 2,
-        "webdriver_type": 2
       }
     },
     "Play/pjeplay/__init__.py": {

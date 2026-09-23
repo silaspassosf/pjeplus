@@ -17,8 +17,7 @@ Uso:
 import traceback
 from typing import Any, Dict, Optional
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
+
 
 from bianca.config import URL_LISTA_TRIAGEM, URL_PJE_BASE
 from bianca.extracao import criar_comentario, criar_gigs
@@ -40,7 +39,7 @@ def _fechar_tabs_acesso_negado(drv, handle_principal: str, numero: str = "?") ->
     Retorna o numero de abas fechadas.
     """
     fechadas = 0
-    for h in list(drv.window_handles):
+    for h in list(getattr(drv, 'window_handles', [])):
         if h == handle_principal:
             continue
         try:
@@ -61,7 +60,7 @@ def _fechar_tabs_acesso_negado(drv, handle_principal: str, numero: str = "?") ->
 _progresso = ProgressoTriagem()
 
 
-def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
+def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
     """Fluxo principal de triagem inicial.
 
     Etapas:
@@ -74,7 +73,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
          executa acao pos-triagem e salva progresso
 
     Args:
-        driver: WebDriver Selenium opcional. Se None, cria um novo.
+        driver: Driver opcional. Se None, cria um novo.
 
     Returns:
         Dict com {
@@ -150,7 +149,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
                 return resultado_falha("Sem id_processo")
             try:
                 # Limpeza de abas extras
-                for h in list(drv.window_handles):
+                for h in list(getattr(drv, 'window_handles', [])):
                     if h != handle_principal:
                         try:
                             drv.switch_to.window(h)
@@ -161,8 +160,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
 
                 url = "%s/processo/%s/detalhe" % (URL_PJE_BASE, id_processo)
                 drv.get(url)
-                esperar_elemento(drv, "pje-cabecalho-processo,pje-timeline",
-                                 by=By.CSS_SELECTOR, timeout=15)
+                esperar_elemento(drv, "pje-cabecalho-processo,pje-timeline", timeout=15)
                 aguardar_renderizacao_nativa(drv, timeout=5)
                 return resultado_ok()
             except Exception as e:

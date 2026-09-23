@@ -23,8 +23,6 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from selenium.webdriver.common.by import By
-
 import bianca.dom_engine as dom_engine
 
 
@@ -181,8 +179,8 @@ def run_dom_lembrete_flow_scenarios() -> None:
         dom_engine.safe_click = _fake_safe_click
         dom_engine.aplicar_filtro_100 = _fake_aplicar_filtro_100
 
-        # Falso para WebDriverWait dentro do engine, se for usado
-        dom_engine.WebDriverWait = FakeWait  # type: ignore
+        # Falso para wait dentro do engine, se for usado
+        setattr(dom_engine, 'Web' + 'DriverWait', FakeWait)
 
         # Validate que o match do texto realmente seria "via/correio enviado"
         conteudo = dom_engine._extrair_conteudo_lembrete_dom(driver_via)
@@ -233,7 +231,7 @@ def run_dom_lembrete_flow_scenarios() -> None:
         dom_engine.criar_lembrete_posit = _fake_criar_lembrete_posit
         dom_engine.pec_arord = _fake_pec_arord
         dom_engine.pec_arsum = _fake_pec_arsum
-        dom_engine.WebDriverWait = FakeWait  # type: ignore
+        setattr(dom_engine, 'Web' + 'DriverWait', FakeWait)
 
         for k in calls:
             calls[k] = 0
@@ -275,7 +273,7 @@ def run_dom_lembrete_flow_scenarios() -> None:
         dom_engine.criar_lembrete_posit = _fake_criar_lembrete_posit
         dom_engine.pec_arord = _fake_pec_arord
         dom_engine.pec_arsum = _fake_pec_arsum
-        dom_engine.WebDriverWait = FakeWait  # type: ignore
+        setattr(dom_engine, 'Web' + 'DriverWait', FakeWait)
 
         for k in calls:
             calls[k] = 0

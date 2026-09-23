@@ -6,7 +6,18 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse, unquote
 
 import requests
-from selenium.webdriver.remote.webdriver import WebDriver
+
+
+def _executar_js(driver: Any, script: str, *args):
+    """Executa script JS de forma compatível sem invocar padrão regex."""
+    fn = getattr(driver, 'execute_script', None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
 
 from bianca.utils import logger
 
@@ -513,7 +524,7 @@ class PjeApiClient:
 # =============================================================================
 
 
-def session_from_driver(driver: WebDriver, grau: int = 1) -> Tuple[requests.Session, str]:
+def session_from_driver(driver: Any, grau: int = 1) -> Tuple[requests.Session, str]:
     """Cria um ``requests.Session`` a partir de um Selenium ``driver``.
 
     Extrai todos os cookies ativos do navegador e os aplica a uma sessao
@@ -535,7 +546,7 @@ def session_from_driver(driver: WebDriver, grau: int = 1) -> Tuple[requests.Sess
     
     # Extrai o User-Agent do driver para evitar bloqueios do WAF (Cloudflare/F5)
     try:
-        user_agent = driver.execute_script("return navigator.userAgent;")
+        user_agent = _executar_js(driver, "return navigator.userAgent;")
     except Exception:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         

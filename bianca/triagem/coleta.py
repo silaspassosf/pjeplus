@@ -18,8 +18,6 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from selenium.webdriver.remote.webdriver import WebDriver
-
 from bianca.api_client import PjeApiClient, session_from_driver
 from bianca.triagem.preprocess import _strip_cabecalho_rodape
 from bianca.triagem.utils import _norm, logger as _parent_logger

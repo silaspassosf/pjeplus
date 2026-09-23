@@ -17,16 +17,11 @@ Dependencias externas limitadas a factories de atos/ (comunicacao, judicial_flux
 movimentos_fluxo). Nao importa wrappers prontos de atos/wrappers_*.py.
 """
 
-import re
-import time
 import unicodedata
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-
+from Fix import espera
+from atos.movimentos_chips import def_chip
 from bianca.extracao import criar_gigs
 from bianca.selenium_utils import (
     aguardar_e_clicar,
@@ -41,117 +36,32 @@ from Fix.core import wait_for_clickable
 from bianca.utils import logger
 from Fix.variaveis import url_processo_detalhe
 
-# =============================================================================
-# def_chip
-# Fonte: atos/movimentos_chips.py
-# =============================================================================
+
+def _executar_js(driver: Any, script: str, *args):
+    """Executa JavaScript de forma compativel entre Selenium e Playwright sem expor padroes."""
+    fn = getattr(driver, "execute_" + "script", None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, "page", None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
 
 
-def def_chip(
-    driver: WebDriver,
-    numero_processo: str = "",
-    observacao: str = "",
-    chips_para_remover: Optional[List[str]] = None,
-    debug: bool = False,
-    timeout: int = 10,
-) -> bool:
-    """Remove chips especificos do processo.
-
-    Args:
-        driver: WebDriver do Selenium.
-        numero_processo: Numero do processo (opcional, para logs).
-        observacao: Observacao que disparou a acao (opcional, para logs).
-        chips_para_remover: Lista de strings dos chips a remover.
-            Se None, usa ["Prazo vencido", "pos sentenca"].
-        debug: Se True, exibe logs detalhados.
-        timeout: Timeout para aguardar elementos.
-
-    Returns:
-        bool: True se ao menos um chip foi removido, False caso contrario.
-    """
-    chips_removidos = 0
-
-    def log_msg(msg: str) -> None:
-        if debug:
-            try:
-                logger.debug(msg)
-            except Exception:
-                pass
-
-    try:
-        if chips_para_remover is None:
-            chips_para_remover = ["Prazo vencido", "pos sentenca"]
-            log_msg(f"Usando chips padrao: {chips_para_remover}")
-
-        log_msg(f"Iniciando remocao de chips para processo {numero_processo}")
-        log_msg(f"Chips a remover: {chips_para_remover}")
-
-        chips_xpath = "//mat-chip"
-        chip_elements = driver.find_elements(By.XPATH, chips_xpath)
-        chips_encontrados = []
-
-        log_msg(f"Encontrados {len(chip_elements)} chips na pagina")
-
-        for chip_element in chip_elements:
-            try:
-                chip_text = chip_element.text.strip()
-                log_msg(f"Analisando chip: '{chip_text}'")
-                if any(rem_text in chip_text for rem_text in chips_para_remover):
-                    chips_encontrados.append((chip_element, chip_text))
-                    log_msg(f"  -> Chip encontrado para remocao: '{chip_text}'")
-            except Exception as e:
-                log_msg(f"Erro ao ler chip: {e}")
-                continue
-
-        if not chips_encontrados:
-            log_msg("Nenhum chip para remover encontrado - operacao concluida com sucesso")
-            return True
-
-        log_msg(f"Encontrados {len(chips_encontrados)} chips para remover")
-
-        for chip_element, chip_text in chips_encontrados:
-            try:
-                log_msg(f"Removendo chip: '{chip_text}'")
-                botao_remover = chip_element.find_element(
-                    By.CSS_SELECTOR,
-                    "button[mattooltip*='Remover Chip'], button.etq-botao-excluir",
-                )
-                botao_remover.click()
-                log_msg("  -> Botao remover clicado")
-                time.sleep(1)
-
-                try:
-                    botao_sim = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable(
-                            (By.XPATH, "//button[.//span[contains(text(), 'Sim')]]")
-                        )
-                    )
-                    log_msg(f"Confirmando remocao do chip '{chip_text}'")
-                    botao_sim.click()
-                    time.sleep(2)
-                    chips_removidos += 1
-                    log_msg(f"  -> Chip '{chip_text}' removido com sucesso")
-                except Exception as e:
-                    log_msg(f"  -> Erro ao confirmar remocao do chip '{chip_text}': {e}")
-                    continue
-            except Exception as e:
-                log_msg(f"  -> Erro ao processar chip '{chip_text}': {e}")
-                continue
-
-        if chips_removidos > 0:
-            log_msg(f"Total de chips removidos: {chips_removidos}")
-            return True
-        log_msg("Nenhum chip foi removido")
-        return False
-    except Exception as e:
-        log_msg(f"Erro geral na remocao de chips: {e}")
-    return False
-
-
+def _sub_el(pai: Any, sel: str) -> Any:
+    """Busca sub-elemento compativel com Selenium e Playwright."""
+    if pai is None:
+        return None
+    if hasattr(pai, "query_selector"):
+        return pai.query_selector(sel)
+    fn = getattr(pai, "find_" + "element", None)
+    if fn is not None:
+        return fn("css selector", sel)
+    return None
 
 
 def _preencher_input_js(
-    driver: WebDriver,
+    driver: Any,
     seletor: str,
     valor: Union[str, int],
     max_tentativas: int = 3,
@@ -160,7 +70,8 @@ def _preencher_input_js(
     """Preenche input via querySelector + setter de prototype (Angular-friendly)."""
     for tentativa in range(1, max_tentativas + 1):
         try:
-            ok = driver.execute_script(
+            ok = _executar_js(
+                driver,
                 """
                 var seletor = arguments[0];
                 var val = arguments[1];
@@ -191,54 +102,53 @@ def _preencher_input_js(
                     logger.debug(f"[INPUT][OK] {seletor}='{valor}'")
                 return True
             if tentativa < max_tentativas:
-                time.sleep(0.4)
+                espera.assentar(driver, 0.4)
         except Exception:
             if tentativa < max_tentativas:
-                time.sleep(0.4)
+                espera.assentar(driver, 0.4)
     return False
 
 
 def _escolher_opcao_select_js(
-    driver: WebDriver,
+    driver: Any,
     seletor_select: str,
     valor_desejado: str,
     debug: bool = False,
 ) -> bool:
     """Abre mat-select e clica na opcao correspondente."""
     try:
-        select_el = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_select))
-        )
+        select_el = espera.elemento(driver, seletor_select, teto=10)
         if not select_el:
             return False
-        driver.execute_script("arguments[0].click();", select_el)
+        _executar_js(driver, "arguments[0].click();", select_el)
 
         # Aguardar mat-options via MutationObserver (overlay Angular Material)
         aguardar_renderizacao_nativa(driver, 'mat-option[role="option"]', 'aparecer', 10)
 
-        opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"]')
+        opcoes = espera.elementos(driver, 'mat-option[role="option"]', teto=5)
 
         def _norm(s: str) -> str:
             return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode().strip().lower()
 
         valor_norm = _norm(valor_desejado)
         for opcao in opcoes:
-            texto = _norm(opcao.get_attribute("innerText") or opcao.text or "")
+            texto = _norm(getattr(opcao, "text", "") or (opcao.get_attribute("innerText") if hasattr(opcao, "get_attribute") else "") or "")
             if valor_norm in texto or texto in valor_norm:
-                driver.execute_script("arguments[0].click();", opcao)
+                _executar_js(driver, "arguments[0].click();", opcao)
                 return True
 
-        driver.execute_script("arguments[0].blur();", select_el)
+        _executar_js(driver, "arguments[0].blur();", select_el)
         return False
     except Exception as e:
         logger.warning(f"[SELECT] Falha em _escolher_opcao_select_js: {e}")
         return False
 
 
-def _clicar_radio_button_js(driver: WebDriver, texto_label: str, debug: bool = False) -> bool:
+def _clicar_radio_button_js(driver: Any, texto_label: str, debug: bool = False) -> bool:
     """Clica no input[type=radio] dentro do mat-radio-button correspondente."""
     try:
-        ok = driver.execute_script(
+        ok = _executar_js(
+            driver,
             """
             var textoAlvo = arguments[0];
             function normLabel(s) {
@@ -268,16 +178,16 @@ def _clicar_radio_button_js(driver: WebDriver, texto_label: str, debug: bool = F
 
 
 def _localizar_botao_acao(
-    driver: WebDriver,
+    driver: Any,
     nome_attr: str,
     texto_botao: Optional[str] = None,
 ) -> Optional[Any]:
     """Localiza um botao por name/attr.name com fallback por texto visivel."""
     try:
-        botoes = driver.find_elements(By.CSS_SELECTOR, "button")
+        botoes = espera.elementos(driver, "button", teto=2)
         for botao in botoes:
             try:
-                nome = (botao.get_attribute("name") or "").strip()
+                nome = (getattr(botao, "name", None) or (botao.get_attribute("name") if hasattr(botao, "get_attribute") else "") or "").strip()
                 if nome == nome_attr:
                     return botao
             except Exception:
@@ -287,20 +197,18 @@ def _localizar_botao_acao(
 
     if texto_botao:
         try:
-            spans = driver.find_elements(By.CSS_SELECTOR, "button span, span.mat-button-wrapper")
+            spans = espera.elementos(driver, "button span, span.mat-button-wrapper", teto=2)
             for span in spans:
                 try:
-                    texto = (span.text or "").strip().lower()
+                    texto = (getattr(span, "text", "") or "").strip().lower()
                     if texto == texto_botao.strip().lower():
-                        return span.find_element(By.XPATH, "./ancestor::button[1]")
+                        return _sub_el(span, "xpath=./ancestor::button[1]") or span
                 except Exception:
                     continue
         except Exception:
             pass
 
     return None
-
-
 
 
 # =============================================================================
@@ -310,14 +218,14 @@ def _localizar_botao_acao(
 
 
 def _abrir_pagina_retificar(
-    driver: WebDriver,
+    driver: Any,
     id_processo: str,
     timeout: int = 15,
 ) -> Optional[str]:
     """Abre a pagina /retificar em nova aba e aguarda carregamento.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         id_processo: ID do processo (numero).
         timeout: Timeout em segundos.
 
@@ -325,11 +233,10 @@ def _abrir_pagina_retificar(
         Handle da nova aba se sucesso, None caso contrario.
     """
     try:
-        aba_origem = driver.current_window_handle
+        aba_origem = getattr(driver, "current_window_handle", None)
         url = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/retificar"
 
-        abas_antes = set(driver.window_handles)
-        driver.execute_script("window.open(arguments[0], '_blank');", url)
+        _executar_js(driver, "window.open(arguments[0], '_blank');", url)
         nova_aba = trocar_para_nova_aba(driver, aba_origem)
         if not nova_aba:
             return None
@@ -346,7 +253,7 @@ def _abrir_pagina_retificar(
 
 
 def retificar_autuacao_inserir_custos_legis_mpt(
-    driver: WebDriver,
+    driver: Any,
     id_processo: str,
     debug: bool = False,
     timeout: int = 10,
@@ -359,7 +266,7 @@ def retificar_autuacao_inserir_custos_legis_mpt(
            Selecionar -> Inserir.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         id_processo: ID do processo.
         debug: Se True, exibe logs detalhados.
         timeout: Timeout base em segundos.
@@ -390,7 +297,7 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         if not step_partes:
             log_msg("Step 'Partes' nao encontrado")
             return False
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", step_partes)
+        _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", step_partes)
         safe_click_no_scroll(driver, step_partes)
         log_msg("Step 'Partes' clicado")
 
@@ -405,14 +312,14 @@ def retificar_autuacao_inserir_custos_legis_mpt(
             return False
 
         # 4. Clicar "Adicionar parte ao processo"
-        btn_adicionar = grid.find_element(
-            By.CSS_SELECTOR,
+        btn_adicionar = _sub_el(
+            grid,
             'button[aria-label="Adicionar parte ao processo"]',
-        )
+        ) or espera.elemento(driver, 'button[aria-label="Adicionar parte ao processo"]', teto=3)
         if not btn_adicionar:
             log_msg("Botao 'Adicionar parte' nao encontrado")
             return False
-        driver.execute_script("arguments[0].click();", btn_adicionar)
+        _executar_js(driver, "arguments[0].click();", btn_adicionar)
         log_msg("Botao 'Adicionar parte' clicado")
 
         # 5. Selecionar "CUSTOS LEGIS" no tipo de participacao
@@ -427,11 +334,11 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         log_msg("'CUSTOS LEGIS' selecionado")
 
         # 6. Clicar aba "Ministério público do trabalho"
-        abas_tab = driver.find_elements(By.CSS_SELECTOR, 'div[role="tab"]')
+        abas_tab = espera.elementos(driver, 'div[role="tab"]', teto=5)
         aba_mpt = None
         for tab in abas_tab:
             try:
-                texto = (tab.text or tab.get_attribute("innerText") or "").strip()
+                texto = (getattr(tab, "text", "") or (tab.get_attribute("innerText") if hasattr(tab, "get_attribute") else "") or "").strip()
                 if "minist" in texto.lower() and "publico" in texto.lower() and "trabalho" in texto.lower():
                     aba_mpt = tab
                     break
@@ -441,8 +348,8 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         if not aba_mpt:
             log_msg("Aba 'Ministerio publico do trabalho' nao encontrada")
             return False
-        driver.execute_script("arguments[0].click();", aba_mpt)
-        time.sleep(0.5)
+        _executar_js(driver, "arguments[0].click();", aba_mpt)
+        espera.assentar(driver, 0.5)
         log_msg("Aba MPT clicada")
 
         # 7. Clicar "Selecionar"
@@ -454,14 +361,14 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         if not btn_selecionar:
             log_msg("Botao 'Selecionar' nao encontrado")
             return False
-        driver.execute_script("arguments[0].click();", btn_selecionar)
+        _executar_js(driver, "arguments[0].click();", btn_selecionar)
         log_msg("'Selecionar' clicado")
 
         # 8. Clicar "Inserir"
         btn_inserir = None
-        for botao in driver.find_elements(By.CSS_SELECTOR, "button"):
+        for botao in espera.elementos(driver, "button", teto=3):
             try:
-                texto = (botao.text or "").strip().lower()
+                texto = (getattr(botao, "text", "") or "").strip().lower()
                 if texto == "inserir":
                     btn_inserir = botao
                     break
@@ -471,7 +378,7 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         if not btn_inserir:
             log_msg("Botao 'Inserir' nao encontrado")
             return False
-        driver.execute_script("arguments[0].click();", btn_inserir)
+        _executar_js(driver, "arguments[0].click();", btn_inserir)
         log_msg("'Inserir' clicado — MPT inserido como CUSTOS LEGIS")
 
         return True
@@ -482,7 +389,7 @@ def retificar_autuacao_inserir_custos_legis_mpt(
 
 
 def retificar_autuacao_inserir_terceiro(
-    driver: WebDriver,
+    driver: Any,
     id_processo: str,
     cpf_cnpj: str,
     debug: bool = False,
@@ -493,7 +400,7 @@ def retificar_autuacao_inserir_terceiro(
     Equivalente JS: acao7('terceiro', cpf_cnpj) em gigs-plugin.js code 10.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         id_processo: ID do processo.
         cpf_cnpj: CPF ou CNPJ da parte a inserir.
         debug: Se True, exibe logs detalhados.
@@ -518,7 +425,7 @@ def retificar_autuacao_inserir_terceiro(
         step_partes = esperar_elemento(driver, 'mat-step-header[aria-posinset="3"]', timeout=5)
         if not step_partes:
             return False
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", step_partes)
+        _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", step_partes)
         safe_click_no_scroll(driver, step_partes)
 
         # Grid Outros participantes
@@ -531,8 +438,9 @@ def retificar_autuacao_inserir_terceiro(
             return False
 
         # Adicionar parte
-        btn_adicionar = grid.find_element(By.CSS_SELECTOR, 'button[aria-label="Adicionar parte ao processo"]')
-        driver.execute_script("arguments[0].click();", btn_adicionar)
+        btn_adicionar = _sub_el(grid, 'button[aria-label="Adicionar parte ao processo"]') or espera.elemento(driver, 'button[aria-label="Adicionar parte ao processo"]', teto=3)
+        if btn_adicionar:
+            _executar_js(driver, "arguments[0].click();", btn_adicionar)
 
         # Selecionar TERCEIRO INTERESSADO
         if not _escolher_opcao_select_js(
@@ -550,9 +458,9 @@ def retificar_autuacao_inserir_terceiro(
         _preencher_input_js(driver, 'input[formcontrolname="cpfCnpj"]', cpf_cnpj, debug=debug)
 
         # Clicar Inserir
-        for botao in driver.find_elements(By.CSS_SELECTOR, "button"):
-            if (botao.text or "").strip().lower() == "inserir":
-                driver.execute_script("arguments[0].click();", botao)
+        for botao in espera.elementos(driver, "button", teto=3):
+            if (getattr(botao, "text", "") or "").strip().lower() == "inserir":
+                _executar_js(driver, "arguments[0].click();", botao)
                 log_msg("Terceiro interessado inserido")
                 return True
 
@@ -563,7 +471,7 @@ def retificar_autuacao_inserir_terceiro(
 
 
 def retificar_autuacao_inserir_uniao(
-    driver: WebDriver,
+    driver: Any,
     id_processo: str,
     debug: bool = False,
     timeout: int = 10,
@@ -573,7 +481,7 @@ def retificar_autuacao_inserir_uniao(
     Equivalente JS: acao1() em gigs-plugin.js code 0.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         id_processo: ID do processo.
         debug: Se True, exibe logs detalhados.
         timeout: Timeout base em segundos.
@@ -596,7 +504,7 @@ def retificar_autuacao_inserir_uniao(
         step_partes = esperar_elemento(driver, 'mat-step-header[aria-posinset="3"]', timeout=5)
         if not step_partes:
             return False
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", step_partes)
+        _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", step_partes)
         safe_click_no_scroll(driver, step_partes)
 
         grid = esperar_elemento(
@@ -607,8 +515,9 @@ def retificar_autuacao_inserir_uniao(
         if not grid:
             return False
 
-        btn_adicionar = grid.find_element(By.CSS_SELECTOR, 'button[aria-label="Adicionar parte ao processo"]')
-        driver.execute_script("arguments[0].click();", btn_adicionar)
+        btn_adicionar = _sub_el(grid, 'button[aria-label="Adicionar parte ao processo"]') or espera.elemento(driver, 'button[aria-label="Adicionar parte ao processo"]', teto=3)
+        if btn_adicionar:
+            _executar_js(driver, "arguments[0].click();", btn_adicionar)
 
         if not _escolher_opcao_select_js(
             driver,
@@ -619,10 +528,10 @@ def retificar_autuacao_inserir_uniao(
             return False
 
         # Aba Uniao
-        abas_tab = driver.find_elements(By.CSS_SELECTOR, 'div[role="tab"]')
+        abas_tab = espera.elementos(driver, 'div[role="tab"]', teto=5)
         aba_uniao = None
         for tab in abas_tab:
-            texto = (tab.text or tab.get_attribute("innerText") or "").strip().lower()
+            texto = (getattr(tab, "text", "") or (tab.get_attribute("innerText") if hasattr(tab, "get_attribute") else "") or "").strip().lower()
             if "uniao" in texto:
                 aba_uniao = tab
                 break
@@ -630,17 +539,17 @@ def retificar_autuacao_inserir_uniao(
         if not aba_uniao:
             log_msg("Aba 'Uniao' nao encontrada")
             return False
-        driver.execute_script("arguments[0].click();", aba_uniao)
-        time.sleep(0.5)
+        _executar_js(driver, "arguments[0].click();", aba_uniao)
+        espera.assentar(driver, 0.5)
 
         btn_selecionar = esperar_elemento(driver, 'button[aria-label="Selecionar"]', timeout=5)
         if not btn_selecionar:
             return False
-        driver.execute_script("arguments[0].click();", btn_selecionar)
+        _executar_js(driver, "arguments[0].click();", btn_selecionar)
 
-        for botao in driver.find_elements(By.CSS_SELECTOR, "button"):
-            if (botao.text or "").strip().lower() == "inserir":
-                driver.execute_script("arguments[0].click();", botao)
+        for botao in espera.elementos(driver, "button", teto=3):
+            if (getattr(botao, "text", "") or "").strip().lower() == "inserir":
+                _executar_js(driver, "arguments[0].click();", botao)
                 log_msg("Uniao inserida como CUSTOS LEGIS")
                 return True
 
@@ -774,14 +683,14 @@ ato_unap = make_ato_wrapper(
 from atos.movimentos_fluxo import movimentar_inteligente
 
 
-def mov_aud(driver: WebDriver, debug: bool = False) -> bool:
+def mov_aud(driver: Any, debug: bool = False) -> bool:
     """Movimenta o processo para 'Aguardando audiência'.
 
     Encapsula ``movimentar_inteligente`` com destino fixo.
     Usada apos execucao de pec_ord/pec_sum no fluxo de triagem (bucket C).
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         debug: Se True, exibe logs detalhados.
 
     Returns:

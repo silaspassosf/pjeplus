@@ -16,7 +16,6 @@ Funcoes:
 import logging
 from typing import Any, Dict, List, Optional
 
-from selenium.webdriver.remote.webdriver import WebDriver
 
 logger = logging.getLogger("bianca.triagem.api")
 
@@ -99,7 +98,7 @@ function normalizar(d) {
 # =============================================================================
 
 
-def buscar_lista_triagem(driver: WebDriver) -> List[Dict[str, Any]]:
+def buscar_lista_triagem(driver: Any) -> List[Dict[str, Any]]:
     """Busca todos os itens da fila via execute_async_script (fetch no browser).
 
     O fetch corre dentro do contexto do browser: cookies de sessao e XSRF-TOKEN

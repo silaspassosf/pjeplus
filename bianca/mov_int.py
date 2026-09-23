@@ -5,12 +5,11 @@ Módulo de movimentação interna (mov_int) para o fluxo Bianca.
 import logging
 logger = logging.getLogger(__name__)
 
-from typing import Optional
-from selenium.webdriver.remote.webdriver import WebDriver
+from typing import Optional, Any
 from Fix.core import aguardar_e_clicar
 from atos.movimentos_fluxo import movimentar_inteligente
 
-def mov_int(driver: WebDriver, destino: str, debug: bool = True) -> bool:
+def mov_int(driver: Any, destino: str, debug: bool = True) -> bool:
     """
     Executa movimentação interna para o destino especificado.
     Delega para movimentar_inteligente (atos.movimentos_fluxo) que é a implementação

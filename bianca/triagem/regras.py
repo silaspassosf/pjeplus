@@ -26,8 +26,6 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from selenium.webdriver.remote.webdriver import WebDriver
-
 from bianca.triagem.constants import (
     ZONA_SUL_CEPS,
     ZONA_LESTE_CEPS,

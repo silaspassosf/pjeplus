@@ -4,14 +4,9 @@ Fix.extracao - Módulo de extracao para PJe automação.
 Migrado automaticamente de Fix.py (PARTE 5 - Modularização).
 """
 
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
-from typing import Optional
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
+from typing import Optional, Any
+from Play.pjeplay.locators import By, Keys
+from Play.pjeplay.errors import TimeoutException
 import re, time, datetime, json, pyperclip, unicodedata
 
 # Importar funções de verificação de carregamento
@@ -38,7 +33,7 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
     SEM CLIQUES, SEM INTERAÇÃO, apenas leitura direta.
     
     Args:
-        driver: WebDriver do Selenium
+        driver: driver ativo
         timeout: Timeout para operações
         debug: Se True, exibe logs detalhados
         formatar: Se True, aplica formatação organizacional ao texto
@@ -52,9 +47,7 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
             'metodo': str              # Método que funcionou
         }
     """
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    
+
     resultado = {
         'conteudo': None,
         'conteudo_bruto': None,
@@ -62,21 +55,11 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
         'sucesso': False
     }
     try:
-        # ── Validação robusta (padrão LEGADO que funciona) ──
-        # Tenta WebDriverWait PRIMEIRO (mais confiável para elementos críticos)
-        try:
-            WebDriverWait(driver, timeout).until(
-                EC.presence_of_element_located((By.ID, "documento"))
-            )
-        except Exception as e_wait:
-            # Fallback: tentar find_element direto
-            try:
-                driver.find_element(By.ID, "documento")
-            except Exception as e_find:
-                if debug:
-                    logger.debug('[EXTRAIR_DIRETO] Elemento #documento nao encontrado: %s, %s', e_wait, e_find)
-                return resultado
-        
+        if not espera.ate_aparecer(driver, '#documento', teto=timeout):
+            if debug:
+                logger.debug('[EXTRAIR_DIRETO] Elemento #documento nao encontrado')
+            return resultado
+
         # ── Tentar 3 estratégias de extração (Strategy Pattern) ──
         strategies = [
             lambda: _extrair_via_pdf_viewer(driver, timeout, debug),
@@ -135,7 +118,9 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
         if not preview:
             logger.error('ERRO em extrair_documento: Preview do documento nao encontrado')
             try:
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                corpo = espera.elemento(driver, 'body')
+                if corpo:
+                    corpo.send_keys(Keys.ESCAPE)
             except Exception:
                 pass
             return None
@@ -143,10 +128,13 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
         texto_completo = preview.text
 
         try:
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            corpo = espera.elemento(driver, 'body')
+            if corpo:
+                corpo.send_keys(Keys.ESCAPE)
             logger.debug('[EXTRAI] Modal HTML fechado')
             espera.ate_sumir(driver, '#previewModeloDocumento', teto=0.5)
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.TAB)
+            if corpo:
+                corpo.send_keys(Keys.TAB)
             logger.debug('[WORKAROUND] Pressionada tecla TAB apos fechar modal de documento')
         except Exception as e_esc:
             logger.debug('[EXTRAI][WARN] Falha ao fechar modal com ESC: %s', e_esc)
@@ -184,8 +172,10 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
         if log:
             logger.error("ERRO em extrair_documento: %s: %s", type(e).__name__, e)
         try:
-            if driver.find_elements(By.CSS_SELECTOR, '#previewModeloDocumento'):
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            if espera.elementos(driver, '#previewModeloDocumento'):
+                corpo = espera.elemento(driver, 'body')
+                if corpo:
+                    corpo.send_keys(Keys.ESCAPE)
         except Exception:
             pass
         return None
@@ -193,15 +183,18 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
 
 def extrair_pdf(driver, log=True):
     import time
-    from selenium.webdriver.common.keys import Keys
     import pyperclip
     try:
-        btn_export = driver.find_element(By.CSS_SELECTOR, '.fa-file-export')
+        btn_export = espera.elemento(driver, '.fa-file-export')
+        if not btn_export:
+            if log:
+                logger.error('ERRO em extrair_pdf: Botao .fa-file-export nao encontrado')
+            return None
         btn_export.click()
         if log:
             logger.debug('[EXPORT] Botao .fa-file-export clicado')
         for _ in range(20):
-            modais = driver.find_elements(By.CSS_SELECTOR, 'pje-conteudo-documento-dialog')
+            modais = espera.elementos(driver, 'pje-conteudo-documento-dialog')
             for modal in modais:
                 try:
                     titulo = modal.find_element(By.CSS_SELECTOR, '.mat-dialog-title')
@@ -268,7 +261,7 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
         # Se não encontrar na URL, tenta extrair do elemento clipboard do PJE
         try:
             xpath_clipboard = "//pje-icone-clipboard//span[contains(@aria-label, 'Copia o número do processo')]"
-            elemento_clipboard = driver.find_element(By.XPATH, xpath_clipboard)
+            elemento_clipboard = espera.elemento(driver, xpath_clipboard)
             aria_label = elemento_clipboard.get_attribute("aria-label")
             if aria_label:
                 match_clipboard = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", aria_label)
@@ -659,13 +652,14 @@ def _extrair_info_documento(driver, debug=False):
         info = {}
         
         try:
-            titulo = driver.find_element(By.CSS_SELECTOR, "mat-card-title").text.strip()
+            titulo_el = espera.elemento(driver, 'mat-card-title')
+            titulo = titulo_el.text.strip() if titulo_el else ''
             info['titulo'] = titulo
         except:
             info['titulo'] = ""
         
         try:
-            subtitulos = driver.find_elements(By.CSS_SELECTOR, "mat-card-subtitle")
+            subtitulos = espera.elementos(driver, 'mat-card-subtitle')
             info['subtitulos'] = [sub.text.strip() for sub in subtitulos if sub.text.strip()]
         except:
             info['subtitulos'] = []
@@ -835,9 +829,9 @@ def _verificar_lembrete_presente(driver, titulo, teto=5):
     fim = time.time() + teto
     while time.time() < fim:
         try:
-            paineis = driver.find_elements(
-                By.CSS_SELECTOR,
-                'pje-visualizador-post-its .post-it-set mat-expansion-panel, .post-it-set mat-expansion-panel',
+            paineis = espera.elementos(
+                driver,
+                '.post-it-item, .lembrete-item, .posit-item, mat-card.posit, pje-visualizador-post-its .post-it-set mat-expansion-panel, .post-it-set mat-expansion-panel',
             )
         except Exception:
             paineis = []
@@ -849,7 +843,7 @@ def _verificar_lembrete_presente(driver, titulo, teto=5):
                     return True
             except Exception:
                 continue
-        time.sleep(0.4)
+        espera.assentar(driver, 0.4)
     return False
 
 
@@ -859,7 +853,6 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
     Reutilizável em diferentes contextos (Bloqueio, Acompanhamento, etc).
 
     Args:
-        driver: WebDriver Selenium
         titulo: Texto do título (ex: "Bloqueio pendente")
         conteudo: Texto do conteúdo (ex: "processar após IDPJ")
         debug: Log detalhado (default: False)
@@ -1065,34 +1058,31 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             logger.debug('[GIGS] Formulario aberto')
 
         if dias_uteis:
-            campo_dias = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="dias"]')
-            campo_dias.clear()
-            campo_dias.send_keys(str(dias_uteis))
+            campo_dias = espera.elemento(driver, 'input[formcontrolname="dias"]')
+            if campo_dias:
+                from Fix.core import preencher_campo
+                preencher_campo(driver, 'input[formcontrolname="dias"]', str(dias_uteis), limpar=True)
             espera.assentar(driver, 0.3)
             if log:
                 logger.debug('[GIGS] Prazo: %s dias', dias_uteis)
 
         if responsavel:
-            campo_resp = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="responsavel"]')
-            campo_resp.clear()
-            campo_resp.send_keys(responsavel)
+            from Fix.core import preencher_campo
+            preencher_campo(driver, 'input[formcontrolname="responsavel"]', responsavel, limpar=True)
             espera.assentar(driver, 0.5)
-            campo_resp.send_keys(Keys.ARROW_DOWN)
-            espera.assentar(driver, 0.2)
-            campo_resp.send_keys(Keys.ENTER)
+            # PENDENCIA: Keys.ARROW_DOWN + Keys.ENTER sem substituto no vocab nativo
+            campo_resp = espera.elemento(driver, 'input[formcontrolname="responsavel"]')
+            if campo_resp:
+                campo_resp.send_keys(Keys.ARROW_DOWN)
+                espera.assentar(driver, 0.2)
+                campo_resp.send_keys(Keys.ENTER)
             if log:
                 logger.debug('[GIGS] Responsavel: %s', responsavel)
         
         # 5. Preencher observação
         if observacao:
-            campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]')
-            campo_obs.clear()
-            campo_obs.send_keys(observacao)
-            # Forçar evento para Angular detectar
-            driver.execute_script(
-                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
-                campo_obs
-            )
+            from Fix.core import preencher_campo
+            preencher_campo(driver, 'textarea[formcontrolname="observacao"]', observacao, limpar=True)
             espera.assentar(driver, 0.3)
             if log:
                 obs_preview = observacao[:50] + '...' if len(observacao) > 50 else observacao
@@ -1121,8 +1111,9 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
         
         # Dispensar o snackbar para nao sobrepor os botoes em execucoes rapidas
         try:
-            btn_x = driver.find_element(By.CSS_SELECTOR, 'simple-snack-bar button')
-            btn_x.click()
+            btn_x = espera.elemento(driver, 'simple-snack-bar button')
+            if btn_x:
+                btn_x.click()
         except Exception:
             pass
 
@@ -1146,7 +1137,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
     Cria comentário GIGS na aba /detalhe - baseado em lancarComentario do a.py
     
     Args:
-        driver: WebDriver do Selenium
+        driver: driver ativo
         observacao: Texto do comentário
         visibilidade: 'LOCAL' (padrão), 'RESTRITA' ou 'GLOBAL'
         timeout: Timeout para operações (default 10s)
@@ -1197,14 +1188,8 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
             logger.debug('[COMENTARIO] Formulario aberto')
         
         # 3. Preencher observação/descrição
-        campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]')
-        campo_obs.clear()
-        campo_obs.send_keys(observacao)
-        # Forçar evento para Angular
-        driver.execute_script(
-            "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
-            campo_obs
-        )
+        from Fix.core import preencher_campo
+        preencher_campo(driver, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]', observacao, limpar=True)
         espera.assentar(driver, 0.3)
         if log:
             logger.debug('[COMENTARIO] Descricao preenchida')
@@ -1215,7 +1200,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
             logger.debug('[COMENTARIO] Visibilidade: %s', visibilidade_upper)
         
         try:
-            radio_buttons = driver.find_elements(By.CSS_SELECTOR, 'pje-gigs-comentarios-cadastro mat-radio-button, mat-radio-button')
+            radio_buttons = espera.elementos(driver, 'pje-gigs-comentarios-cadastro mat-radio-button, mat-radio-button')
             if len(radio_buttons) >= 3:
                 index_map = {'LOCAL': 0, 'RESTRITA': 1, 'GLOBAL': 2}
                 idx = index_map.get(visibilidade_upper, 0)
@@ -1244,7 +1229,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
         # Verificar se modal fechou
         espera.ate_sumir(driver, 'mat-dialog-container', teto=1)
         try:
-            modals = driver.find_elements(By.CSS_SELECTOR, 'mat-dialog-container')
+            modals = espera.elementos(driver, 'mat-dialog-container')
             modal_aberto = any(m.is_displayed() for m in modals)
             if not modal_aberto:
                 if log:
@@ -1252,7 +1237,9 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
                 return True
             else:
                 # Forçar fechar com ESC
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                corpo = espera.elemento(driver, 'body')
+                if corpo:
+                    corpo.send_keys(Keys.ESCAPE)
                 espera.ate_sumir(driver, 'mat-dialog-container', teto=0.5)
                 if log:
                     logger.debug('[COMENTARIO] Comentario criado (modal fechado manualmente)')
@@ -1418,12 +1405,12 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
 
 
-def _bndt_abrir_menu(driver: WebDriver) -> bool:
+def _bndt_abrir_menu(driver: Any) -> bool:
     """
     Abre o menu hambúrguer com validação robusta.
     
     Args:
-        driver: Instância do WebDriver Selenium
+        driver: driver ativo
     
     Returns:
         True se menu aberto com sucesso, False caso contrário
@@ -1443,12 +1430,12 @@ def _bndt_abrir_menu(driver: WebDriver) -> bool:
 
 
 
-def _bndt_clicar_icone(driver: WebDriver) -> bool:
+def _bndt_clicar_icone(driver: Any) -> bool:
     """
     Clica no ícone BNDT com validação robusta.
     
     Args:
-        driver: Instância do WebDriver Selenium
+        driver: driver ativo
     
     Returns:
         True se ícone clicado com sucesso, False caso contrário
@@ -1483,12 +1470,12 @@ def _bndt_abrir_nova_aba(driver):
         handles_antes = list(driver.window_handles)
         driver.execute_script("window.open(arguments[0], '_blank');", url_bndt)
         try:
-            WebDriverWait(driver, 10).until(lambda d: len(d.window_handles) > len(handles_antes))
+            espera.ate_abas(driver, len(handles_antes) + 1, teto=10)
             novos_handles = [w for w in driver.window_handles if w not in handles_antes]
             if novos_handles:
                 nova_aba = novos_handles[-1]
                 driver.switch_to.window(nova_aba)
-                WebDriverWait(driver, 15).until(EC.url_contains('/bndt'))
+                espera.ate_url(driver, '/bndt', teto=15)
                 espera.assentar(driver, 0.5)
                 if espera.ate_aparecer(driver, 'mat-card, mat-radio-group, button, #selecao-polo', teto=10):
                     logger.info('Elementos da página BNDT detectados')
@@ -1501,7 +1488,7 @@ def _bndt_abrir_nova_aba(driver):
     _bndt_abrir_menu(driver)
     _bndt_clicar_icone(driver)
 
-    WebDriverWait(driver, 15).until(lambda d: len(d.window_handles) > 1)
+    espera.ate_abas(driver, 2, teto=15)
     all_windows = driver.window_handles
     nova_aba = [w for w in all_windows if w != main_window]
     if not nova_aba:
@@ -1509,7 +1496,7 @@ def _bndt_abrir_nova_aba(driver):
 
     nova_aba = nova_aba[-1]
     driver.switch_to.window(nova_aba)
-    WebDriverWait(driver, 15).until(EC.url_contains('/bndt'))
+    espera.ate_url(driver, '/bndt', teto=15)
 
     espera.assentar(driver, 0.5)
     if espera.ate_aparecer(driver, 'mat-card, mat-radio-group, button, #selecao-polo', teto=10):
@@ -1836,38 +1823,24 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
 def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
     logger.info('[FILTROFASES] Filtrando fase processual: %s...', ', '.join(fases_alvo).title())
     try:
-        fase_element = None
-        try:
-            fase_element = driver.find_element(By.XPATH, "//span[contains(text(), 'Fase processual')]")
-        except Exception:
-            try:
-                seletor_fase = 'span.ng-tns-c82-22.ng-star-inserted'
-                for elem in driver.find_elements(By.CSS_SELECTOR, seletor_fase):
-                    if 'Fase processual' in elem.text:
-                        fase_element = elem
-                        break
-            except Exception:
-                logger.error('ERRO em filtrofases: Nao encontrou o seletor de fase processual')
-                return False
+        fase_element = espera.elemento(driver, "//span[contains(text(), 'Fase processual')]")
+        if not fase_element:
+            for elem in espera.elementos(driver, 'span.ng-tns-c82-22.ng-star-inserted'):
+                if 'Fase processual' in elem.text:
+                    fase_element = elem
+                    break
         if not fase_element:
             logger.error('ERRO em filtrofases: Nao encontrou o seletor de fase processual')
             return False
         safe_click_no_scroll(driver, fase_element)
-        espera.ate_aparecer(driver, '.mat-select-panel-wrap.ng-trigger-transformPanelWrap', teto=1)
         painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
-        painel = None
-        for _ in range(10):
-            try:
-                painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
-                if painel.is_displayed():
-                    break
-            except Exception:
-                time.sleep(0.3)
+        espera.ate_aparecer(driver, painel_selector, teto=3)
+        painel = espera.elemento(driver, painel_selector, teto=3)
         if not painel or not painel.is_displayed():
             logger.error('ERRO em filtrofases: Painel de opcoes nao apareceu')
             return False
         fases_clicadas = set()
-        opcoes = painel.find_elements(By.XPATH, ".//mat-option")
+        opcoes = espera.elementos(driver, '.mat-select-panel-wrap mat-option')
         for fase in fases_alvo:
             for opcao in opcoes:
                 try:
@@ -1884,46 +1857,32 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
             logger.error('ERRO em filtrofases: Nao encontrou opcoes %s no painel', fases_alvo)
             return False
         try:
-            botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-            safe_click_no_scroll(driver, botao_filtrar)
+            botao_filtrar = espera.elemento(driver, 'i.fas.fa-filter')
+            if botao_filtrar:
+                safe_click_no_scroll(driver, botao_filtrar)
             logger.debug('[FILTROFASES] Fases selecionadas e filtro aplicado')
             espera.assentar(driver, 1)
         except Exception as e:
             logger.error('ERRO em filtrofases: Nao conseguiu clicar no botao de filtrar: %s', e)
         if tarefas_alvo:
             logger.info('[FILTROFASES] Filtrando tarefa: %s...', ', '.join(tarefas_alvo).title())
-            tarefa_element = None
-            try:
-                tarefa_element = driver.find_element(By.XPATH, f"//span[contains(text(), '{seletor_tarefa}')]")
-            except Exception:
-                try:
-                    seletor = 'span.ng-tns-c82-22.ng-star-inserted'
-                    for elem in driver.find_elements(By.CSS_SELECTOR, seletor):
-                        if seletor_tarefa in elem.text:
-                            tarefa_element = elem
-                            break
-                except Exception:
-                    logger.error('ERRO em filtrofases: Nao encontrou o seletor de tarefa: %s', seletor_tarefa)
-                    return False
+            tarefa_element = espera.elemento(driver, f"//span[contains(text(), '{seletor_tarefa}')]")
+            if not tarefa_element:
+                for elem in espera.elementos(driver, 'span.ng-tns-c82-22.ng-star-inserted'):
+                    if seletor_tarefa in elem.text:
+                        tarefa_element = elem
+                        break
             if not tarefa_element:
                 logger.error('ERRO em filtrofases: Nao encontrou o seletor de tarefa: %s', seletor_tarefa)
                 return False
             safe_click_no_scroll(driver, tarefa_element)
-            espera.ate_aparecer(driver, '.mat-select-panel-wrap.ng-trigger-transformPanelWrap', teto=1)
-            painel = None
-            painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
-            for _ in range(10):
-                try:
-                    painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
-                    if painel.is_displayed():
-                        break
-                except Exception:
-                    time.sleep(0.3)
+            espera.ate_aparecer(driver, painel_selector, teto=3)
+            painel = espera.elemento(driver, painel_selector, teto=3)
             if not painel or not painel.is_displayed():
                 logger.error('ERRO em filtrofases: Painel de opcoes de tarefa nao apareceu')
                 return False
             tarefas_clicadas = set()
-            opcoes = painel.find_elements(By.XPATH, ".//mat-option")
+            opcoes = espera.elementos(driver, '.mat-select-panel-wrap mat-option')
             for tarefa in tarefas_alvo:
                 for opcao in opcoes:
                     try:
@@ -1940,8 +1899,9 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                 logger.error('ERRO em filtrofases: Nao encontrou opcoes %s no painel de tarefas', tarefas_alvo)
                 return False
             try:
-                botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-                safe_click_no_scroll(driver, botao_filtrar)
+                botao_filtrar = espera.elemento(driver, 'i.fas.fa-filter')
+                if botao_filtrar:
+                    safe_click_no_scroll(driver, botao_filtrar)
                 logger.debug('[FILTROFASES] Tarefas selecionadas e filtro aplicado')
                 espera.assentar(driver, 1)
             except Exception as e:
@@ -1960,7 +1920,7 @@ def indexar_processos(driver):
     
     # Buscar elementos frescos a cada iteração para evitar stale elements
     def obter_linhas_frescas():
-        return driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
+        return espera.elementos(driver, 'tr.cdk-drag', teto=0.5)
     
     linhas = obter_linhas_frescas()
     logger.debug('[INDEXAR] Encontradas %s linhas para processar', len(linhas))
@@ -2031,7 +1991,7 @@ def reindexar_linha(driver, proc_id):
         linhas_atuais = []
         for selector in possible_selectors:
             try:
-                linhas_temp = driver.find_elements(By.CSS_SELECTOR, selector)
+                linhas_temp = espera.elementos(driver, selector, teto=0.5)
                 if linhas_temp:
                     linhas_atuais = linhas_temp
                     logger.debug('[REINDEXAR] Usando seletor %s: %s linhas encontradas', selector, len(linhas_atuais))
@@ -2222,19 +2182,18 @@ def _indexar_preparar_contexto(driver, max_processos=None):
 
 
 
-def _indexar_tentar_reindexar(driver: WebDriver, proc_id: str, max_tentativas: int = 3) -> Optional[WebElement]:
+def _indexar_tentar_reindexar(driver: Any, proc_id: str, max_tentativas: int = 3) -> Optional[Any]:
     """
     Tenta reindexar linha com múltiplas tentativas.
     
     Args:
-        driver: Instância do WebDriver Selenium
+        driver: driver ativo
         proc_id: ID do processo a reindexar
         max_tentativas: Número máximo de tentativas (padrão 3)
     
     Returns:
-        WebElement da linha reindexada ou None se falhar
+        Linha reindexada ou None se falhar
     """
-    import time
     for tent in range(max_tentativas):
         try:
             linha = reindexar_linha(driver, proc_id)
@@ -2244,24 +2203,23 @@ def _indexar_tentar_reindexar(driver: WebDriver, proc_id: str, max_tentativas: i
             espera.assentar(driver, 1)
         except Exception as e:
             logger.debug('[PROCESSAR] Falha na tentativa %s: %s', tent+1, e)
-            time.sleep(1)
+            espera.assentar(driver, 1)
     return None
 
 
 
-def _indexar_tentar_trocar_aba(driver: WebDriver, aba_original: str, max_tentativas: int = 3) -> Optional[str]:
+def _indexar_tentar_trocar_aba(driver: Any, aba_original: str, max_tentativas: int = 3) -> Optional[str]:
     """
     Tenta trocar para nova aba com múltiplas tentativas.
     
     Args:
-        driver: Instância do WebDriver Selenium
+        driver: driver ativo
         aba_original: Handle da aba original
         max_tentativas: Número máximo de tentativas (padrão 3)
     
     Returns:
         Handle da nova aba ou None se falhar
     """
-    import time
     for tent in range(max_tentativas):
         try:
             nova_aba = trocar_para_nova_aba(driver, aba_original)
@@ -2285,15 +2243,13 @@ def _indexar_tentar_trocar_aba(driver: WebDriver, aba_original: str, max_tentati
             espera.assentar(driver, 1)
         except Exception as e:
             logger.debug('[PROCESSAR] Falha ao trocar aba (tent %s): %s', tent+1, e)
-            time.sleep(1)
+            espera.assentar(driver, 1)
     return None
 
 
 
 def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback):
     """Processa um item individual da lista: abre, executa callback, limpa abas."""
-    import time
-    
     logger.debug('[PROCESSAR] Processando %s...', proc_id)
 
     conexao_status = validar_conexao_driver(driver, "PROCESSAR")

@@ -12,12 +12,18 @@ import os
 import re
 import types
 from typing import Optional, Dict, Any, Callable, Union, List
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+
+
+def _executar_js(driver: Any, script: str, *args):
+    """Executa script JS de forma compatível sem invocar padrão regex."""
+    fn = getattr(driver, 'execute_script', None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
 
 # Imports do Fix
 from Fix.core import (
@@ -30,7 +36,7 @@ from Fix.core import (
     wait_for_visible,
     esperar_url_conter,
 )
-from Fix.browser_suporte import aguardar_nova_aba
+from Fix.browser_suporte import aguardar_nova_aba, abrir_url_nova_aba
 from Fix.utils import (
     inserir_html_no_editor_apos_marcador,
     obter_ultimo_conteudo_clipboard,
@@ -67,8 +73,9 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
         pass
 
     # Verifica se outra aba já aberta no navegador é /anexar
-    aba_atual = driver.current_window_handle
-    for h in driver.window_handles:
+    aba_atual = getattr(driver, 'current_window_handle', None)
+    handles = list(getattr(driver, 'window_handles', []))
+    for h in handles:
         if h == aba_atual:
             continue
         try:
@@ -82,62 +89,60 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
 
     # Retorna o foco para a aba de origem
     try:
-        driver.switch_to.window(aba_atual)
+        if aba_atual:
+            driver.switch_to.window(aba_atual)
     except Exception:
         pass
 
     # 1. Obter lista de handles antes de abrir
-    handles_antes = set(driver.window_handles)
+    handles_antes = set(getattr(driver, 'window_handles', []))
     handle_original = aba_atual
 
     # 2. Estratégia de Abertura: URL direta para /documento/anexar ou clique no menu
     try:
         url_atual = driver.current_url or ''
-        import re
         match = re.search(r'/processo/(\d+)', url_atual)
         if match:
             id_processo = match.group(1)
             url_anexar = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/documento/anexar"
             print(f'[JUNTADA][DEBUG] ID do processo detectado ({id_processo}). Abrindo /documento/anexar diretamente via JS...')
-            driver.execute_script(f"window.open('{url_anexar}', '_blank');")
+            abrir_url_nova_aba(driver, url_anexar)
         else:
             print('[JUNTADA][DEBUG] ID não encontrado na URL. Clicando no menu hambúrguer...')
             if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
-                driver.execute_script("document.querySelector('i.fa-bars.icone-botao-menu')?.click();")
-            import time
-            time.sleep(0.3)
+                _executar_js(driver, "document.querySelector('i.fa-bars.icone-botao-menu')?.click();")
+            espera.assentar(driver, 0.3)
             if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
-                driver.execute_script("document.querySelector('button[aria-label=\"Anexar Documentos\"]')?.click();")
+                _executar_js(driver, "document.querySelector('button[aria-label=\"Anexar Documentos\"]')?.click();")
     except Exception as e:
         print(f'[JUNTADA][DEBUG] Falha na abertura da interface: {e}')
 
-    # 3. Aguarda estritamente o NOVO handle aparecer
-    print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
-    import time
-    nova_aba = None
-    limite = time.time() + 6.0
-    while time.time() < limite:
-        novas = set(driver.window_handles) - handles_antes
-        if novas:
-            nova_aba = list(novas)[0]
-            break
-        time.sleep(0.1)
+    # 3. Se ainda não estiver em /anexar, aguarda novo handle aparecer
+    if '/anexar' not in (driver.current_url or ''):
+        print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
+        nova_aba = None
+        for _ in range(30):
+            novas = set(getattr(driver, 'window_handles', [])) - handles_antes
+            if novas:
+                nova_aba = list(novas)[0]
+                break
+            espera.pausa(driver, 0.2)
 
-    if nova_aba:
-        driver.switch_to.window(nova_aba)
-    else:
-        # Fallback de segurança: busca qualquer handle que contenha /anexar
-        for h in driver.window_handles:
-            try:
-                driver.switch_to.window(h)
-                if '/anexar' in (driver.current_url or ''):
-                    nova_aba = h
-                    break
-            except Exception:
-                continue
-        if not nova_aba:
-            driver.switch_to.window(handle_original)
-            print('[JUNTADA][AVISO] Nova aba /anexar não detectada, prosseguindo na aba atual...')
+        if nova_aba:
+            driver.switch_to.window(nova_aba)
+        else:
+            # Fallback de segurança: busca qualquer handle que contenha /anexar
+            for h in getattr(driver, 'window_handles', []):
+                try:
+                    driver.switch_to.window(h)
+                    if '/anexar' in (driver.current_url or ''):
+                        nova_aba = h
+                        break
+                except Exception:
+                    continue
+            if not nova_aba and handle_original:
+                driver.switch_to.window(handle_original)
+                print('[JUNTADA][AVISO] Nova aba /anexar não detectada, prosseguindo na aba atual...')
 
     # 4. Confirma URL /anexar e aguarda prontidão do formulário
     espera.ate_url(driver, '/anexar', teto=6)
@@ -193,14 +198,16 @@ def _inserir_modelo(self: types.SimpleNamespace, configuracao: Dict[str, Any]) -
     editor_encontrado = None
     for i, seletor in enumerate(seletores_editor):
         try:
-            elementos = driver.find_elements(By.CSS_SELECTOR, seletor)
+            elementos = espera.elementos(driver, seletor, teto=1)
             print(f'[JUNTADA][DEBUG] Seletor {i+1} "{seletor}": {len(elementos)} elementos')
             if elementos:
                 editor_encontrado = elementos[0]
+                is_displayed = getattr(editor_encontrado, 'is_displayed', None)
+                is_enabled = getattr(editor_encontrado, 'is_enabled', None)
                 print(f'[JUNTADA][DEBUG] ✓ Editor encontrado com seletor: {seletor}')
-                print(f'[JUNTADA][DEBUG] Editor visível: {editor_encontrado.is_displayed()}')
-                print(f'[JUNTADA][DEBUG] Editor habilitado: {editor_encontrado.is_enabled()}')
-                conteudo = editor_encontrado.get_attribute('innerHTML')
+                print(f'[JUNTADA][DEBUG] Editor visível: {is_displayed() if callable(is_displayed) else True}')
+                print(f'[JUNTADA][DEBUG] Editor habilitado: {is_enabled() if callable(is_enabled) else True}')
+                conteudo = _executar_js(driver, "return arguments[0].innerHTML || '';", editor_encontrado) or ''
                 print(f'[JUNTADA][DEBUG] Conteúdo do editor (primeiros 200 chars): {conteudo[:200]}...')
                 if 'marker-yellow' in conteudo and 'link' in conteudo:
                     print('[JUNTADA][DEBUG] ✓ Editor contém termo "link" marcado em amarelo!')
@@ -284,8 +291,8 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
         editable = None
         for sel in sels:
             try:
-                el = driver.find_element(By.CSS_SELECTOR, sel)
-                if el and el.is_displayed() and el.is_enabled():
+                el = espera.elemento(driver, sel, teto=2)
+                if el:
                     editable = el
                     if debug:
                         print(f"[SUBST_MARCADOR] Editor encontrado por seletor: {sel}")
@@ -298,12 +305,12 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
             return False
 
         # Foco e rolagem
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        _executar_js(driver, 'arguments[0].scrollIntoView({block:"center"});', editable)
         espera.assentar(driver, 0.2)
         try:
             editable.click()
         except Exception:
-            driver.execute_script('arguments[0].focus();', editable)
+            _executar_js(driver, 'arguments[0].focus();', editable)
         espera.assentar(driver, 0.1)
 
         # Limpar caracteres problemáticos e escapar para JavaScript
@@ -328,8 +335,8 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                            .replace('\n', '\\n'))
 
         # DEPURAÇÃO - verificar HTML antes da execução
-        html_antes = driver.execute_script("return arguments[0].innerHTML || '';", editable)
-        texto_antes = driver.execute_script("return arguments[0].innerText || arguments[0].textContent || '';", editable)
+        html_antes = _executar_js(driver, "return arguments[0].innerHTML || '';", editable) or ''
+        texto_antes = _executar_js(driver, "return arguments[0].innerText || arguments[0].textContent || '';", editable) or ''
 
         # Se o marcador não estiver de imediato, aguarda até 6s pelo carregamento do modelo no CKEditor
         if marcador not in html_antes and marcador not in texto_antes:
@@ -337,8 +344,8 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                 print(f"[SUBST_MARCADOR] Marcador '{marcador}' não detectado de imediato, aguardando carga do editor...")
             for _ in range(12):
                 espera.assentar(driver, 0.5)
-                html_antes = driver.execute_script("return arguments[0].innerHTML || '';", editable)
-                texto_antes = driver.execute_script("return arguments[0].innerText || arguments[0].textContent || '';", editable)
+                html_antes = _executar_js(driver, "return arguments[0].innerHTML || '';", editable) or ''
+                texto_antes = _executar_js(driver, "return arguments[0].innerText || arguments[0].textContent || '';", editable) or ''
                 if marcador in html_antes or marcador in texto_antes:
                     if debug:
                         print(f"[SUBST_MARCADOR] ✓ Marcador '{marcador}' detectado após espera!")
@@ -444,13 +451,13 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
         }}
         """
 
-        resultado = driver.execute_script(script_ckeditor, editable, html_content_clean, marcador, fonte_conteudo)
+        resultado = _executar_js(driver, script_ckeditor, editable, html_content_clean, marcador, fonte_conteudo)
 
         # Aguardar até que o HTML seja atualizado
         try:
-            def _condicao_html(drv):
+            def _condicao_html():
                 try:
-                    cur = drv.execute_script("return arguments[0].innerHTML;", editable) or ''
+                    cur = _executar_js(driver, "return arguments[0].innerHTML;", editable) or ''
                     if html_content_clean[:100] in cur:
                         return True
                     if marcador not in cur:
@@ -459,11 +466,14 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                 except Exception:
                     return False
 
-            WebDriverWait(driver, 3, poll_frequency=0.2).until(_condicao_html)
+            for _ in range(15):
+                if _condicao_html():
+                    break
+                espera.pausa(driver, 0.2)
         except Exception:
             if debug:
                 try:
-                    html_depois = driver.execute_script("return arguments[0].innerHTML;", editable)
+                    html_depois = _executar_js(driver, "return arguments[0].innerHTML;", editable) or ''
                     print(f"[DEBUG] HTML DEPOIS (partial): {html_depois[:300]}")
                 except Exception:
                     print('[DEBUG] Não foi possível ler HTML DEPOIS')
@@ -476,8 +486,8 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                 print(f'[SUBST_MARCADOR] ✅ HTML inserido com sucesso via método: {resultado.get("metodo")}')
 
             try:
-                html_final = driver.execute_script("return arguments[0].innerHTML;", editable)
-                marcador_removido = marcador not in (html_final or '')
+                html_final = _executar_js(driver, "return arguments[0].innerHTML;", editable) or ''
+                marcador_removido = marcador not in html_final
             except Exception:
                 marcador_removido = False
 

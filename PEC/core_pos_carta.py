@@ -3,8 +3,8 @@ logger = logging.getLogger(__name__)
 
 import time
 
-from selenium.webdriver.common.by import By
 from Fix import espera
+from Fix.core import safe_click_no_scroll
 
 
 def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=False):
@@ -22,7 +22,7 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
     log_msg(f"Iniciando análise de documentos para processo {numero_processo}")
 
     try:
-        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        itens = espera.elementos(driver, 'li.tl-item-container', teto=5)
         if not itens:
             log_msg("Nenhum item encontrado na timeline")
             return False
@@ -38,11 +38,11 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
                 break
 
             try:
-                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                link = espera.elemento(item, 'a.tl-documento:not([target="_blank"])', teto=0.5)
                 if not link:
                     continue
 
-                doc_text = link.text.lower()
+                doc_text = getattr(link, 'text', '').lower()
                 log_msg(f"Verificando documento: {doc_text}")
 
                 if not any(termo in doc_text for termo in ['sentença', 'decisão', 'despacho']):
@@ -51,14 +51,7 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
                 log_msg(f"Documento relevante encontrado: {doc_text}")
 
                 try:
-                    from pathlib import Path
-                    from Fix.facade_publica import carregar_js
-                    SCRIPTS_DIR = Path(__file__).parent / "scripts"
-                    script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
-                    driver.execute_script(script_scroll, link)
-                    espera.assentar(driver, 0.5)
-
-                    link.click()
+                    safe_click_no_scroll(driver, link)
                     espera.assentar(driver, 2)
 
                     log_msg("Documento aberto com sucesso")

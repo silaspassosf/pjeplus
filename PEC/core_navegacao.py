@@ -4,11 +4,8 @@ logger = logging.getLogger(__name__)
 import time
 import re
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-
 from Fix import espera
-from Fix.core import preencher_campo
+from Fix.core import preencher_campo, esperar_elemento
 
 
 def navegar_para_atividades(driver):
@@ -32,9 +29,6 @@ def navegar_para_atividades(driver):
 def aplicar_filtro_xs(driver):
     """Aplica filtro 'xs' no campo Descrição da Atividade do GIGS."""
     try:
-        from Fix.selenium_base import esperar_elemento
-        import time
-
         # Buscar campo de descrição usando aria-label ou data-placeholder
         seletores = [
             'input[aria-label="Descrição da Atividade"]',
@@ -43,24 +37,32 @@ def aplicar_filtro_xs(driver):
         ]
         
         campo_descricao = None
+        seletor_usado = None
         for seletor in seletores:
             campo_descricao = esperar_elemento(driver, seletor, timeout=10)
             if campo_descricao:
+                seletor_usado = seletor
                 logger.info(f"[FILTRO_XS]  Campo encontrado com seletor: {seletor}")
                 break
         
-        if not campo_descricao:
+        if not campo_descricao or not seletor_usado:
             logger.error("[FILTRO_XS]  Campo de descrição não encontrado")
             return False
 
-        # Limpar campo e digitar 'xs'
-        campo_descricao.clear()
-        espera.ate_js(driver, "__pjeEls(%r).some(el => el.value === '')" % seletor, teto=1)
-        campo_descricao.send_keys('xs')
-        espera.ate_js(driver, "__pjeEls(%r).some(el => el.value === 'xs')" % seletor, teto=1)
+        # Preencher 'xs' no campo
+        preencher_campo(driver, seletor_usado, 'xs')
         
         # Pressionar Enter para aplicar filtro
-        campo_descricao.send_keys(Keys.ENTER)
+        try:
+            page = getattr(driver, 'page', None)
+            if page is not None:
+                page.keyboard.press('Enter')
+            else:
+                fn = getattr(campo_descricao, 'send_keys', None)
+                if fn:
+                    fn('\ue007')  # Keys.ENTER
+        except Exception:
+            pass
         logger.info("[FILTRO_XS]  Filtro 'xs' aplicado, aguardando recarga...")
         
         # Aguardar recarga da tabela
@@ -87,12 +89,13 @@ def indexar_processo_atual_gigs(driver):
                 numero_processo = match_url.group(1)
 
         try:
-            candidatos = driver.find_elements(
-                By.CSS_SELECTOR,
+            candidatos = espera.elementos(
+                driver,
                 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho',
+                teto=2,
             )
             for elemento in candidatos:
-                texto = elemento.text.strip()
+                texto = getattr(elemento, 'text', '').strip()
                 match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', texto)
                 if match:
                     numero_processo = match.group(1)
@@ -107,10 +110,10 @@ def indexar_processo_atual_gigs(driver):
 
         observacao = ""
         try:
-            elementos_descricao = driver.find_elements(By.CSS_SELECTOR, 'span.descricao')
+            elementos_descricao = espera.elementos(driver, 'span.descricao', teto=1)
             for elemento in elementos_descricao:
                 try:
-                    texto_completo = elemento.text.strip()
+                    texto_completo = getattr(elemento, 'text', '').strip()
                     if texto_completo.startswith('Prazo:'):
                         observacao = texto_completo[6:].strip().lower()
                         observacao = observacao.rstrip('.')

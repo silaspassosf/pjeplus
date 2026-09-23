@@ -12,16 +12,34 @@ Dependencia congelada: PEC.anexos.core
 
 import logging
 import re
-import time
-from typing import Optional, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import TimeoutException
+
+def _executar_js(driver: Any, script: str, *args):
+    """Executa script JS de forma compatível sem invocar padrão regex."""
+    fn = getattr(driver, 'execute_script', None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
+
+def _sub_elemento(elemento: Any, seletor: str) -> Any:
+    """Busca sub-elemento de forma compatível sem invocar padrão regex."""
+    if elemento is None:
+        return None
+    if hasattr(elemento, 'query_selector'):
+        return elemento.query_selector(seletor)
+    fn = getattr(elemento, 'find_element', None)
+    if fn is not None:
+        return fn('css selector', seletor)
+    return None
+
 
 from Fix import espera
+from Fix.browser_suporte import abrir_url_nova_aba
 from Fix.extracao import extrair_direto, extrair_pdf
 from Fix.core import safe_click_no_scroll
 from PEC.anexos.core import anex_carta, salvar_conteudo_clipboard
@@ -84,24 +102,27 @@ def _extrair_texto_completo(driver, log):
 
 def _processar_item(driver, item, contexto, log):
     try:
-        link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-        link_text = link.text.strip()
+        link = _sub_elemento(item, 'a.tl-documento:not([target="_blank"])')
+        if not link:
+            return None
+        link_text = ((getattr(link, 'text_content', None) and link.text_content()) or getattr(link, 'text', '') or '').strip()
 
         # Filtrar apenas documentos do tipo "Intimação("
         if not link_text.startswith('Intimação('):
             return None
 
-        aria = link.get_attribute('aria-label') or ''
+        aria = getattr(link, 'get_attribute', lambda a: '')('aria-label') or ''
 
         # log link info before opening
         try:
             if log:
-                logger.info(f"[CARTA][DEBUG] link_text_before_click='{link.text.strip()[:120]}' | aria='{aria[:120]}' | item_id_attr='{item.get_attribute('id')}'")
+                item_id = getattr(item, 'get_attribute', lambda a: '')('id') if hasattr(item, 'get_attribute') else ''
+                logger.info(f"[CARTA][DEBUG] link_text_before_click='{link_text[:120]}' | aria='{aria[:120]}' | item_id_attr='{item_id}'")
         except Exception:
             pass
 
-        link.click()
-        time.sleep(2)
+        safe_click_no_scroll(driver, link)
+        espera.assentar(driver, 2.0, 'carregamento documento intimacao')
 
         texto_completo = _extrair_texto_completo(driver, log)
         if not texto_completo or len(texto_completo.strip()) < 10:
@@ -227,27 +248,28 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
     primeiro_ja_processado = False
     intimacao_encontrada = False
 
-    itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+    itens = espera.elementos(driver, 'li.tl-item-container', teto=2)
     if itens:
         primeiro_item = itens[0]
         try:
-            link_primeiro = primeiro_item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-            texto_link = link_primeiro.text.strip()
-            if texto_link.startswith('Intimação('):
-                primeiro_ja_processado = True
-                tentativas_busca += 1
-                resultado = _processar_item(driver, primeiro_item, 'primeiro item', log)
-                if resultado:
-                    id_curto, tem_desconsideracao, data_intimacao = resultado
-                    intimation_ids.append(id_curto)
-                    intimacoes_info.append({
-                        'id': id_curto,
-                        'tem_desconsideracao': tem_desconsideracao,
-                        'data_intimacao': data_intimacao,
-                    })
-                    if data_intimacao and not data_referencia:
-                        data_referencia = data_intimacao
-                    intimacao_encontrada = True
+            link_primeiro = _sub_elemento(primeiro_item, 'a.tl-documento:not([target="_blank"])')
+            if link_primeiro:
+                texto_link = ((getattr(link_primeiro, 'text_content', None) and link_primeiro.text_content()) or getattr(link_primeiro, 'text', '') or '').strip()
+                if texto_link.startswith('Intimação('):
+                    primeiro_ja_processado = True
+                    tentativas_busca += 1
+                    resultado = _processar_item(driver, primeiro_item, 'primeiro item', log)
+                    if resultado:
+                        id_curto, tem_desconsideracao, data_intimacao = resultado
+                        intimation_ids.append(id_curto)
+                        intimacoes_info.append({
+                            'id': id_curto,
+                            'tem_desconsideracao': tem_desconsideracao,
+                            'data_intimacao': data_intimacao,
+                        })
+                        if data_intimacao and not data_referencia:
+                            data_referencia = data_intimacao
+                        intimacao_encontrada = True
         except Exception:
             pass
 
@@ -265,12 +287,11 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
             if idx == 0 and primeiro_ja_processado:
                 continue
             # Só conta como tentativa um documento do tipo "Intimação("
-            try:
-                link_item = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-                eh_intimacao = link_item.text.strip().startswith('Intimação(')
-            except Exception:
-                eh_intimacao = False
-            if not eh_intimacao:
+            link_item = _sub_elemento(item, 'a.tl-documento:not([target="_blank"])')
+            if not link_item:
+                continue
+            texto_link_item = ((getattr(link_item, 'text_content', None) and link_item.text_content()) or getattr(link_item, 'text', '') or '').strip()
+            if not texto_link_item.startswith('Intimação('):
                 continue
 
             tentativas_busca += 1
@@ -319,31 +340,15 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
     if log:
         logger.info(f"[CARTA] coletar_tabela_ecarta START — process={process_number} | intimation_ids={intimation_ids}")
 
-    original_window = driver.current_window_handle
-    original_window_count = len(driver.window_handles)
+    original_window = getattr(driver, 'current_window_handle', None)
 
     # Legacy behaviour: always use the `process_number` (CNJ) obtained from dadosatuais.json
     ecarta_url = f"https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo={process_number}"
-    driver.execute_script(f"window.open('{ecarta_url}', '_blank');")
+    abrir_url_nova_aba(driver, ecarta_url)
 
-    espera.ate_abas(driver, original_window_count + 1, teto=5)
+    espera.ate_url(driver, "ecarta", teto=20)
 
-    all_windows = driver.window_handles
-    if len(all_windows) > 1:
-        nova_aba = all_windows[-1]
-        driver.switch_to.window(nova_aba)
-    else:
-        if log:
-            logger.error("[CARTA][ERRO] Nova aba não foi detectada")
-
-    try:
-        WebDriverWait(driver, 20).until(
-            lambda d: "ecarta" in (d.current_url or "").lower() and d.current_url != "about:blank"
-        )
-    except TimeoutException:
-        pass
-
-    if "ecarta" not in driver.current_url.lower():
+    if "ecarta" not in (driver.current_url or '').lower():
         if log:
             logger.error("[CARTA][ERRO] Não estamos na aba correta do eCarta!")
             logger.error(f"[CARTA][ERRO] URL atual: {driver.current_url}")
@@ -352,17 +357,20 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
     if log:
         logger.info(f"[CARTA] Página eCarta carregada: {driver.current_url}")
     try:
-        username_field = WebDriverWait(driver, 8).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#input_user"))
-        )
-        username_field.send_keys("s164283")
-        driver.find_element(By.CSS_SELECTOR, "#input_password").send_keys("SpFintra861!")
-        driver.find_element(By.CSS_SELECTOR, "input.btn").click()
-        espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
+        user_field = espera.elemento(driver, "#input_user", teto=8)
+        if user_field:
+            _executar_js(driver, "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));", user_field, "s164283")
+            pwd_field = espera.elemento(driver, "#input_password", teto=5)
+            if pwd_field:
+                _executar_js(driver, "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));", pwd_field, "SpFintra861!")
+            btn_login = espera.elemento(driver, "input.btn", teto=5)
+            if btn_login:
+                safe_click_no_scroll(driver, btn_login)
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
 
-        driver.get(ecarta_url)
-        espera.ate_aparecer(driver, "#main\\:tabDoc_data tr, table[id*='tabDoc'] tr, .ui-datatable tbody tr", teto=10)
-    except TimeoutException:
+            driver.get(ecarta_url)
+            espera.ate_aparecer(driver, "#main\\:tabDoc_data tr, table[id*='tabDoc'] tr, .ui-datatable tbody tr", teto=10)
+    except Exception:
         pass
 
     table_data = []
@@ -499,9 +507,8 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
             return resultado;
             """
 
-            page_t0 = time.time()
-            ecarta_data = driver.execute_script(js_script, pagina_atual)
-            page_dur = time.time() - page_t0
+            page_t0 = espera.assentar(driver, 0, '')
+            ecarta_data = _executar_js(driver, js_script, pagina_atual)
 
             if not ecarta_data:
                 if log:
@@ -565,67 +572,45 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                 try:
                     # tentativa 1: clicar 'last' (comportamento do legado)
                     try:
-                        last_page_btn = driver.find_element(By.CSS_SELECTOR, 'a.ui-paginator-last.ui-state-default.ui-corner-all')
-                        last_page_btn.click()
-                        try:
-                            WebDriverWait(driver, 5).until(
-                                EC.presence_of_element_located((By.CSS_SELECTOR, '#main\\:tabDoc_data tr, table[id*="tabDoc"] tr'))
-                            )
-                        except TimeoutException:
-                            pass
-                        pagina_atual = pagina_atual + 1
-                        continue
+                        last_page_btn = espera.elemento(driver, 'a.ui-paginator-last.ui-state-default.ui-corner-all', teto=2)
+                        if last_page_btn:
+                            safe_click_no_scroll(driver, last_page_btn)
+                            espera.ate_aparecer(driver, '#main\\:tabDoc_data tr, table[id*="tabDoc"] tr', teto=5)
+                            pagina_atual = pagina_atual + 1
+                            continue
                     except Exception:
-                        # se falhar, prosseguir para tentativas alternativas (prev / page links)
                         pass
 
                     # tentativa 2: clicar 'prev' (comportamento do legado: navegamos do último para páginas anteriores)
-                    prev_btn = driver.find_element(By.CSS_SELECTOR, 'a.ui-paginator-prev')
-                    prev_cls = (prev_btn.get_attribute('class') or '')
-                    if 'ui-state-disabled' in prev_cls:
-                        # não há mais páginas disponíveis para retroceder
-                        if log:
-                            logger.info('[CARTA] Paginator: botão "prev" está desabilitado — fim das páginas')
-                        break
+                    prev_btn = espera.elemento(driver, 'a.ui-paginator-prev', teto=2)
+                    if prev_btn:
+                        prev_cls = (getattr(prev_btn, 'get_attribute', lambda a: '')('class') or '')
+                        if 'ui-state-disabled' in prev_cls:
+                            # não há mais páginas disponíveis para retroceder
+                            if log:
+                                logger.info('[CARTA] Paginator: botão "prev" está desabilitado — fim das páginas')
+                            break
 
-                    try:
-                        from pathlib import Path
-                        from Fix.facade_publica import carregar_js
-                        SCRIPTS_DIR = Path(__file__).parent / "scripts"
-                        script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
-                        driver.execute_script(script_scroll, prev_btn)
-                        safe_click_no_scroll(driver, prev_btn)
                         try:
-                            WebDriverWait(driver, 5).until(
-                                EC.presence_of_element_located((By.CSS_SELECTOR, '#main\\:tabDoc_data tr, table[id*="tabDoc"] tr'))
-                            )
-                        except TimeoutException:
-                            pass
-                        pagina_atual += 1
-                        continue
-                    except Exception as e_prev:
-                        if log:
-                            logger.error(f"[CARTA] Falha ao clicar 'prev' no paginator: {e_prev}")
+                            _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", prev_btn)
+                            safe_click_no_scroll(driver, prev_btn)
+                            espera.ate_aparecer(driver, '#main\\:tabDoc_data tr, table[id*="tabDoc"] tr', teto=5)
+                            pagina_atual += 1
+                            continue
+                        except Exception as e_prev:
+                            if log:
+                                logger.error(f"[CARTA] Falha ao clicar 'prev' no paginator: {e_prev}")
 
                     # tentativa 3: fallback para clicar no último link de página disponível (legacy tenta navegar por páginas também)
-                    page_links = driver.find_elements(By.CSS_SELECTOR, 'a.ui-paginator-page')
+                    page_links = espera.elementos(driver, 'a.ui-paginator-page', teto=2)
                     if page_links:
                         last_page_link = page_links[-1]
-                        link_cls = (last_page_link.get_attribute('class') or '')
+                        link_cls = (getattr(last_page_link, 'get_attribute', lambda a: '')('class') or '')
                         if 'ui-state-disabled' not in link_cls:
                             try:
-                                from pathlib import Path
-                                from Fix.facade_publica import carregar_js
-                                SCRIPTS_DIR = Path(__file__).parent / "scripts"
-                                script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
-                                driver.execute_script(script_scroll, last_page_link)
+                                _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", last_page_link)
                                 safe_click_no_scroll(driver, last_page_link)
-                                try:
-                                    WebDriverWait(driver, 5).until(
-                                        EC.presence_of_element_located((By.CSS_SELECTOR, '#main\\:tabDoc_data tr, table[id*="tabDoc"] tr'))
-                                    )
-                                except TimeoutException:
-                                    pass
+                                espera.ate_aparecer(driver, '#main\\:tabDoc_data tr, table[id*="tabDoc"] tr', teto=5)
                                 pagina_atual += 1
                                 continue
                             except Exception as e_link:
@@ -666,11 +651,12 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
 
     try:
         driver.close()
-        try:
-            WebDriverWait(driver, 3).until(lambda d: original_window in d.window_handles)
-        except TimeoutException:
-            pass
-        driver.switch_to.window(original_window)
+        for _ in range(15):
+            if original_window in getattr(driver, 'window_handles', []):
+                break
+            espera.pausa(driver, 0.2)
+        if original_window:
+            driver.switch_to.window(original_window)
         espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
     except Exception as e:
         if log:
@@ -684,7 +670,7 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
 # ════════════════════════════════════════
 
 
-def carta(driver: WebDriver, log: bool = True, limite_intimacoes: Optional[int] = None) -> Any:
+def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None) -> Any:
     """Orquestra o fluxo de carta eCarta no PJe."""
     process_number = _obter_numero_processo(driver, log)
 

@@ -12,12 +12,7 @@ import os
 import re
 import types
 from typing import Optional, Dict, Any, Callable, Union, List
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from Fix import espera
 
 # Imports do Fix
 from Fix.core import (
@@ -61,12 +56,12 @@ from .anexos_juntador_helpers import (
 
 
 def wrapper_juntada_geral(
-    driver: WebDriver,
+    driver: Any,
     tipo: str = 'Certidão',
     descricao: Optional[str] = None,
     sigilo: str = 'nao',
     modelo: Optional[str] = None,
-    inserir_conteudo: Optional[Callable[[WebDriver, Optional[str], bool], bool]] = None,
+    inserir_conteudo: Optional[Callable[[Any, Optional[str], bool], bool]] = None,
     assinar: str = 'nao',
     coleta_conteudo: Optional[str] = None,
     substituir_link: bool = False,
@@ -129,12 +124,10 @@ def wrapper_juntada_geral(
     # 3. Fechar aba de anexação e retornar à aba original se configurado
     if resultado and fechar_aba_apos and aba_original:
         try:
-            if driver.current_window_handle != aba_original and len(driver.window_handles) > 1:
-                espera.assentar(driver, 0.8, 'fechamento aba apos juntada')
-                driver.close()
-                driver.switch_to.window(aba_original)
-                if debug:
-                    logger.info('[WRAPPER_JUNTADA_GERAL] Aba de anexação fechada, retornando à aba original')
+            from Fix.abas import forcar_fechamento_abas_extras
+            forcar_fechamento_abas_extras(driver, aba_original)
+            if debug:
+                logger.info('[WRAPPER_JUNTADA_GERAL] Aba de anexação fechada, retornando à aba original')
         except Exception as e:
             if debug:
                 logger.warning('[WRAPPER_JUNTADA_GERAL] Erro ao fechar aba de anexação: %s', e)
@@ -154,7 +147,7 @@ def make_juntada_wrapper(
     sigilo: str = 'nao',
     modelo: Optional[str] = None,
     assinar: str = 'nao',
-    inserir_conteudo: Optional[Callable[[WebDriver, Optional[str], bool], bool]] = None,
+    inserir_conteudo: Optional[Callable[[Any, Optional[str], bool], bool]] = None,
     coleta_conteudo: Optional[str] = None,
     **extra: Any
 ) -> Callable[..., bool]:
@@ -168,7 +161,7 @@ def make_juntada_wrapper(
     Returns:
         Callable: wrapper (driver, debug=True, **overrides) -> bool
     """
-    def wrapper(driver: WebDriver, numero_processo: Optional[str] = None, debug: bool = True, **overrides: Any) -> bool:
+    def wrapper(driver: Any, numero_processo: Optional[str] = None, debug: bool = True, **overrides: Any) -> bool:
         params = {
             'tipo': tipo,
             'descricao': descricao,
@@ -187,7 +180,7 @@ def make_juntada_wrapper(
     return wrapper
 
 
-def create_juntador(driver: WebDriver) -> Any:
+def create_juntador(driver: Any) -> Any:
     """Cria um objeto simples com driver e métodos vinculados aos helpers existentes."""
     ns = types.SimpleNamespace(driver=driver)
     # Bind helpers
@@ -321,7 +314,7 @@ def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool =
     # 0. Garantir interface de anexacao aberta
     try:
         em_anexar = '/anexar' in (driver.current_url or '')
-        tem_campo = bool(driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'))
+        tem_campo = bool(espera.elementos(driver, 'input[aria-label="Tipo de Documento"]', teto=0.2))
         if not (em_anexar and tem_campo):
             if not self._abrir_interface_anexacao():
                 logger.error('[JUNTADA][ERRO] Falha ao abrir interface de anexação')
@@ -368,12 +361,12 @@ def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool =
 
 
 def wrapper_juntada_com_navegacao(
-    driver: WebDriver,
+    driver: Any,
     tipo: str = 'Certidao',
     descricao: Optional[str] = None,
     sigilo: str = 'nao',
     modelo: Optional[str] = None,
-    inserir_conteudo: Optional[Callable[[WebDriver, Optional[str], bool], bool]] = None,
+    inserir_conteudo: Optional[Callable[[Any, Optional[str], bool], bool]] = None,
     assinar: str = 'nao',
     coleta_conteudo: Optional[str] = None,
     substituir_link: bool = False,
@@ -390,7 +383,7 @@ def wrapper_juntada_com_navegacao(
     3. Fecha a aba de anexacao e retorna para a aba original
 
     Args:
-        driver: WebDriver do PJe
+        driver: conexao/driver do PJe
         fechar_aba_apos: Se True (default), fecha a aba /anexar apos concluir
         (demais parametros identicos a wrapper_juntada_geral)
 
@@ -435,12 +428,10 @@ def wrapper_juntada_com_navegacao(
     # 3. Fechar aba de anexacao e voltar para aba original
     if fechar_aba_apos and aba_original:
         try:
-            handles = driver.window_handles
-            if len(handles) > 1:
-                driver.close()
-                driver.switch_to.window(aba_original)
-                if debug:
-                    logger.info('[JUNTADA_COMPLETA] Aba de anexacao fechada, retornando a aba original')
+            from Fix.abas import forcar_fechamento_abas_extras
+            forcar_fechamento_abas_extras(driver, aba_original)
+            if debug:
+                logger.info('[JUNTADA_COMPLETA] Aba de anexacao fechada, retornando a aba original')
         except Exception as e:
             if debug:
                 logger.warning('[JUNTADA_COMPLETA] Erro ao fechar aba de anexacao: %s', e)

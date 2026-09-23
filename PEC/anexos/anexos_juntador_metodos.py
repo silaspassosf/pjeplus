@@ -10,12 +10,20 @@ logger = logging.getLogger(__name__)
 
 import os
 import re
-import time
 import types
 from typing import Optional, Dict, Any, Callable, Union, List
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+
+
+def _executar_js(driver: Any, script: str, *args):
+    """Executa script JS de forma compatível sem invocar padrão regex."""
+    fn = getattr(driver, 'execute_script', None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
 
 # Imports do Fix
 from Fix import espera
@@ -57,15 +65,19 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         campo = elementos_campo[0]
 
         # 2. Clica no elemento pai para abrir dropdown (padrão GIGS)
-        parent_element = campo.find_element(By.XPATH, '../..')
-        safe_click_no_scroll(driver, parent_element)
+        _executar_js(driver, """
+            const el = arguments[0];
+            const p = el.closest('mat-form-field') || (el.parentElement ? el.parentElement.parentElement : el);
+            if (p) p.click();
+        """, campo)
 
         # 3. Aguarda opções aparecerem e clica na desejada
         espera.ate_aparecer(driver, "mat-option[role='option']", teto=3)
-        opcoes = driver.find_elements(By.CSS_SELECTOR, "mat-option[role='option']")
+        opcoes = espera.elementos(driver, "mat-option[role='option']", teto=3)
 
         for opcao in opcoes:
-            if valor.lower() in opcao.text.lower():
+            texto = (getattr(opcao, 'text_content', None) and opcao.text_content()) or getattr(opcao, 'text', '') or ''
+            if valor.lower() in texto.lower():
                 safe_click_no_scroll(driver, opcao)
                 print(f'[JUNTADA][DEBUG] {nome_campo} selecionado: {valor}')
                 return True
@@ -92,7 +104,7 @@ def _preencher_input_gigs(self, seletor: str, valor: str, nome_campo: str) -> bo
         campo = elementos_campo[0]
 
         # Implementa exatamente como no gigs-plugin.js usando JavaScript
-        resultado = driver.execute_script("""
+        resultado = _executar_js(driver, """
             const elemento = arguments[0];
             const valor = arguments[1];
 
@@ -166,7 +178,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                 # Tenta encontrar o elemento
                 if ':contains(' in sel:
                     # Para seletores com :contains, usar JavaScript
-                    elemento = driver.execute_script("""
+                    elemento = _executar_js(driver, """
                         const buttons = document.querySelectorAll('button');
                         return Array.from(buttons).find(btn =>
                             btn.textContent.trim().toLowerCase().includes('salvar') ||
@@ -174,7 +186,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                         );
                     """)
                 else:
-                    elementos = driver.find_elements(By.CSS_SELECTOR, sel)
+                    elementos = espera.elementos(driver, sel, teto=1)
                     elemento = elementos[0] if elementos else None
 
                 if elemento:
@@ -184,16 +196,20 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                     for tentativa in range(2):
                         try:
                             # Scroll para o elemento
-                            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", elemento)
+                            _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", elemento)
 
                             # Verifica se elemento é clicável
-                            if elemento.is_enabled() and elemento.is_displayed():
+                            is_enabled = getattr(elemento, 'is_enabled', None)
+                            is_displayed = getattr(elemento, 'is_displayed', None)
+                            ok_enabled = is_enabled() if callable(is_enabled) else True
+                            ok_displayed = is_displayed() if callable(is_displayed) else True
+                            if ok_enabled and ok_displayed:
                                 # Tenta clique JavaScript
                                 safe_click_no_scroll(driver, elemento)
                                 print(f'[JUNTADA][DEBUG] ✅ Clique realizado: {nome_elemento} (seletor {i+1}, tentativa {tentativa + 1})')
                                 return True
                             else:
-                                print(f'[JUNTADA][DEBUG] Elemento não clicável (enabled: {elemento.is_enabled()}, visible: {elemento.is_displayed()})')
+                                print(f'[JUNTADA][DEBUG] Elemento não clicável (enabled: {ok_enabled}, visible: {ok_displayed})')
                                 espera.assentar(driver, 0.2)
 
                         except Exception as e:
@@ -242,13 +258,17 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             logger.error('[JUNTADA][ERRO] Campo de filtro não encontrado')
             return False
 
-        driver.execute_script('arguments[0].focus(); arguments[0].value = arguments[1];', campo_filtro_modelo, modelo)
+        _executar_js(driver, 'arguments[0].focus(); arguments[0].value = arguments[1];', campo_filtro_modelo, modelo)
         for ev in ['input', 'change', 'keyup']:
-            driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
+            _executar_js(driver, 'var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
         try:
-            campo_filtro_modelo.send_keys(Keys.ENTER)
+            fn_press = getattr(campo_filtro_modelo, 'press', None)
+            if fn_press:
+                fn_press('Enter')
+            else:
+                _executar_js(driver, "arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));", campo_filtro_modelo)
         except Exception:
-            driver.execute_script("arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));", campo_filtro_modelo)
+            _executar_js(driver, "arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));", campo_filtro_modelo)
 
         # 2) Clica no item destacado .nodo-filtrado
         seletor_item_filtrado = '.nodo-filtrado'
@@ -259,12 +279,12 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
                 logger.error('[JUNTADA][ERRO] Nenhum item de modelo encontrado na árvore')
                 return False
 
-        nodos = driver.find_elements(By.CSS_SELECTOR, seletor_item_filtrado)
+        nodos = espera.elementos(driver, seletor_item_filtrado, teto=2)
         if not nodos:
             logger.error('[JUNTADA][ERRO] Elemento do modelo não encontrado')
             return False
         nodo = nodos[0]
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"}); arguments[0].click();', nodo)
+        _executar_js(driver, 'arguments[0].scrollIntoView({block:"center"}); arguments[0].click();', nodo)
         logger.info('[JUNTADA][DEBUG] Clique no nodo do modelo realizado')
 
         # 3) O diálogo DEVE entrar no DOM antes do clique em Inserir (padrão atos/judicial_fluxo.py)
@@ -274,7 +294,7 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         # 4) GUARDA ANTI-CORRIDA ESSENCIAL: 500ms após o diálogo entrar no DOM,
         # para o preview/teor do modelo carregar e o botão Inserir ser ligado.
         # Clicar antes disso insere editor VAZIO!
-        time.sleep(0.5)
+        espera.assentar(driver, 0.5, 'aguarda preview/teor carregar no dialogo')
 
         seletor_btn_inserir_aria = 'button[aria-label="Inserir modelo de documento"]'
         seletor_btn_inserir_css = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
@@ -282,7 +302,7 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
 
         btn_inserir = None
         for sel in [seletor_btn_inserir_aria, seletor_btn_inserir_css, seletor_btn_inserir_fallback]:
-            btn_inserir = wait_for_clickable(driver, sel, timeout=3, by=By.CSS_SELECTOR)
+            btn_inserir = wait_for_clickable(driver, sel, timeout=3)
             if btn_inserir:
                 break
 
@@ -290,7 +310,7 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             logger.error('[JUNTADA][ERRO] Botão Inserir modelo não encontrado!')
             return False
 
-        driver.execute_script('arguments[0].click();', btn_inserir)
+        _executar_js(driver, 'arguments[0].click();', btn_inserir)
         logger.info('[JUNTADA][DEBUG] Clique em Inserir modelo realizado')
 
         # 5) Aguarda diálogo fechar
@@ -306,15 +326,7 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             var html = area.innerHTML || '';
             return html.includes('--') || txt.length > 20 || area.querySelector('table') !== null;
         """
-        modelo_carregado = False
-        for tentativa in range(15):
-            try:
-                if driver.execute_script(js_editor_carregou):
-                    modelo_carregado = True
-                    break
-            except Exception:
-                pass
-            time.sleep(0.5)
+        modelo_carregado = bool(espera.ate_js(driver, js_editor_carregou, teto=8))
 
         if modelo_carregado:
             logger.info('[JUNTADA][DEBUG] Modelo inserido com sucesso (conteúdo confirmado no editor)')
@@ -485,15 +497,7 @@ def _salvar_documento(self) -> bool:
         }
         return false;
     """
-    snack_detectado = False
-    for _ in range(8):
-        try:
-            if self.driver.execute_script(js_snack_salvo):
-                snack_detectado = True
-                break
-        except Exception:
-            pass
-        time.sleep(0.3)
+    snack_detectado = bool(espera.ate_js(self.driver, js_snack_salvo, teto=3))
 
     if not snack_detectado and desabilitou:
         # Re-habilitação do botão após processamento

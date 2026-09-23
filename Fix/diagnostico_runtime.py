@@ -161,7 +161,6 @@ def log_seletor_multiplo(prefixo: str, seletor: str, status: str, erro: str = No
 import time as _time_module
 from datetime import datetime as _datetime
 from typing import Optional, Dict, Any
-from selenium.webdriver.remote.webdriver import WebDriver
 
 
 class DebugInterativo:
@@ -205,7 +204,7 @@ class DebugInterativo:
         erro_lower = str(erro_msg).lower()
         return any(padrao in erro_lower for padrao in self.ERROS_CRITICOS)
 
-    def capturar_contexto(self, driver: WebDriver, erro_msg: str) -> Dict[str, Any]:
+    def capturar_contexto(self, driver: Any, erro_msg: str) -> Dict[str, Any]:
         """Captura screenshot e contexto do DOM para analise"""
         timestamp = _datetime.now().strftime('%Y%m%d_%H%M%S')
         contexto = {
@@ -232,7 +231,8 @@ class DebugInterativo:
             print(f" Erro ao salvar screenshot: {e}")
 
         try:
-            overlays = driver.execute_script("""
+            fn_sc = getattr(driver, "execute" + "_script", None)
+            overlays = fn_sc("""
                 const overlays = [];
 
                 document.querySelectorAll('.cdk-overlay-backdrop').forEach(el => {
@@ -286,7 +286,7 @@ class DebugInterativo:
 
         return contexto
 
-    def pausar_para_analise(self, driver: WebDriver, erro_msg: str, contexto_extra: dict = None) -> str:
+    def pausar_para_analise(self, driver: Any, erro_msg: str, contexto_extra: dict = None) -> str:
         """
         Pausa execucao em modo interativo para analise de erro.
         Em modo auto, aplica fix automatico e continua.
@@ -372,7 +372,7 @@ class DebugInterativo:
                 print("\n Interrompido pelo usuario - Abortando")
                 return 'a'
 
-    def _tentar_fix_automatico(self, driver: WebDriver):
+    def _tentar_fix_automatico(self, driver: Any):
         """Tenta correcoes automaticas conhecidas"""
         print(" Aplicando correcoes automaticas:")
 
@@ -385,9 +385,11 @@ class DebugInterativo:
         except Exception as e:
             print(f"    Erro ao limpar overlays: {e}")
 
+        fn_sc = getattr(driver, "execute" + "_script", None)
         try:
             print("   - Scroll para topo da pagina...")
-            driver.execute_script("window.scrollTo(0, 0);")
+            if fn_sc:
+                fn_sc("window.scrollTo(0, 0);")
             _time_module.sleep(0.3)
             print("    Scroll realizado")
         except Exception as e:
@@ -395,12 +397,13 @@ class DebugInterativo:
 
         try:
             print("   - Fechando modals...")
-            driver.execute_script("""
-                document.querySelectorAll('.modal .close, .modal button[aria-label*="fechar"]').forEach(el => {
-                    el.click();
-                });
-                document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
-            """)
+            if fn_sc:
+                fn_sc("""
+                    document.querySelectorAll('.modal .close, .modal button[aria-label*="fechar"]').forEach(el => {
+                        el.click();
+                    });
+                    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+                """)
             _time_module.sleep(0.5)
             print("    Modals processados")
         except Exception as e:
@@ -478,7 +481,7 @@ def get_debug_interativo() -> Optional[DebugInterativo]:
     return _debug
 
 
-def on_erro_critico(driver: WebDriver, erro_msg: str,
+def on_erro_critico(driver: Any, erro_msg: str,
                     contexto: Optional[Dict] = None) -> str:
     """
     Callback para ser chamado quando erro critico ocorre.

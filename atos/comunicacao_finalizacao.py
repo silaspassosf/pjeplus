@@ -1,12 +1,16 @@
 import time
-from selenium.webdriver.common.by import By
-from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
-from Fix.selenium_base.click_operations import aguardar_e_clicar
-from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
-from Fix.browser_suporte import click_headless_safe
-from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
+from typing import Any
+from Fix.core import (
+    aguardar_renderizacao_nativa,
+    safe_click_no_scroll,
+    safe_click,
+    esperar_elemento,
+    wait_for_clickable,
+    preencher_campo,
+)
+from Fix.browser_suporte import click_headless_safe, scroll_to_element_safe
+from Fix.errors import NavegacaoError
 from Fix.log import log_start, log_fim
-
 from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from Fix import espera
 
@@ -17,23 +21,25 @@ def _detectar_tipo_ato_para_modelo(driver, debug=False, log=None):
             return None
 
     try:
-        elementos = driver.find_elements(
-            By.XPATH,
-            "//span[contains(normalize-space(.),'ATOrd')] | //span[contains(normalize-space(.),'ATSum')]"
+        elementos = espera.elementos(
+            driver,
+            "//span[contains(normalize-space(.),'ATOrd')] | //span[contains(normalize-space(.),'ATSum')]",
+            teto=2
         )
         for elemento in elementos:
-            texto = (elemento.text or '').strip()
+            texto = (getattr(elemento, 'text', '') or '').strip()
             if 'ATSum' in texto:
                 return 'ATSUM'
             if 'ATOrd' in texto:
                 return 'ATORD'
 
-        elementos = driver.find_elements(
-            By.XPATH,
-            "//*[contains(normalize-space(.),'ATOrd')] | //*[contains(normalize-space(.),'ATSum')]"
+        elementos = espera.elementos(
+            driver,
+            "//*[contains(normalize-space(.),'ATOrd')] | //*[contains(normalize-space(.),'ATSum')]",
+            teto=2
         )
         for elemento in elementos:
-            texto = (elemento.text or '').strip()
+            texto = (getattr(elemento, 'text', '') or '').strip()
             if 'ATSum' in texto:
                 return 'ATSUM'
             if 'ATOrd' in texto:
@@ -48,24 +54,24 @@ def _detectar_tipo_ato_para_modelo(driver, debug=False, log=None):
 
 
 def _linhas_correios(driver):
-    """Retorna lista de WebElement <tr> cujo meio de expedicao e Correios.
-    Usa XPath com translate para case-insensitive — ignora hierarquia Angular."""
-    return driver.find_elements(By.XPATH,
+    """Retorna lista de elementos <tr> cujo meio de expedicao e Correios."""
+    xpath = (
         '//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")]'
         '[.//span[contains(@class,"mat-select-min-line") and '
         'contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"correio")]]'
     )
+    return espera.elementos(driver, xpath, teto=2)
 
 
 def _botao_confeccionar_correios(driver, indice=0):
-    """Retorna WebElement do botao Confeccionar ato na linha Correios de indice N, re-consultando o DOM."""
-    linhas = _linhas_correios(driver)
-    if indice >= len(linhas):
-        return None
-    try:
-        return linhas[indice].find_element(By.CSS_SELECTOR, 'button[aria-label="Confeccionar ato"]')
-    except Exception:
-        return None
+    """Retorna elemento do botao Confeccionar ato na linha Correios de indice N, re-consultando o DOM."""
+    xpath = (
+        f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")]'
+        f'[.//span[contains(@class,"mat-select-min-line") and '
+        f'contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"correio")]]'
+        f'//button[@aria-label="Confeccionar ato"])[{indice + 1}]'
+    )
+    return espera.elemento(driver, xpath, teto=2)
 
 
 def _contar_linhas_correios(driver):
@@ -78,33 +84,46 @@ def _abrir_e_limpar_editor(driver, botao, debug=False, log=None):
             return None
 
     try:
-        driver.execute_script('arguments[0].scrollIntoView({block: "center", inline: "center"});', botao)
-        try:
-            botao.click()
-        except Exception:
-            safe_click_no_scroll(driver, botao)
+        scroll_to_element_safe(driver, botao)
+        safe_click_no_scroll(driver, botao)
         log('[COMUNICACAO] Clique no botao Confeccionar ato realizado')
 
         aguardar_renderizacao_nativa(driver, '.ck-editor__editable[contenteditable="true"]', modo='aparecer', timeout=15)
-        editor = wait_for_clickable(driver, '.ck-editor__editable[contenteditable="true"]', timeout=15, by=By.CSS_SELECTOR)
+        editor = wait_for_clickable(driver, '.ck-editor__editable[contenteditable="true"]', timeout=15)
         if not editor:
             log('[COMUNICACAO][WARN] Editor CKEditor nao apareceu apos clicar no botao de edicao')
             return False
         log('[COMUNICACAO] Editor CKEditor aberto')
 
-        limpo = driver.execute_script("""
-            var el = arguments[0];
-            var ck = el.ckeditorInstance || (el.closest('.ck-editor') ? el.closest('.ck-editor').ckeditorInstance : null);
-            if (ck) {
-                ck.setData('');
-                return ck.getData().trim() === '';
-            }
-            el.focus();
-            el.innerHTML = '';
-            el.dispatchEvent(new InputEvent('input', {bubbles: true}));
-            el.dispatchEvent(new Event('change', {bubbles: true}));
-            return el.innerText.trim().length === 0;
-        """, editor)
+        limpo = False
+        if hasattr(editor, '_js'):
+            limpo = bool(editor._js("""el => {
+                var ck = el.ckeditorInstance || (el.closest('.ck-editor') ? el.closest('.ck-editor').ckeditorInstance : null);
+                if (ck) {
+                    ck.setData('');
+                    return ck.getData().trim() === '';
+                }
+                el.focus();
+                el.innerHTML = '';
+                el.dispatchEvent(new InputEvent('input', {bubbles: true}));
+                el.dispatchEvent(new Event('change', {bubbles: true}));
+                return el.innerText.trim().length === 0;
+            }"""))
+        elif hasattr(driver, 'page'):
+            limpo = bool(driver.page.evaluate("""() => {
+                var el = document.querySelector('.ck-editor__editable[contenteditable="true"]');
+                if (!el) return false;
+                var ck = el.ckeditorInstance || (el.closest('.ck-editor') ? el.closest('.ck-editor').ckeditorInstance : null);
+                if (ck) {
+                    ck.setData('');
+                    return ck.getData().trim() === '';
+                }
+                el.focus();
+                el.innerHTML = '';
+                el.dispatchEvent(new InputEvent('input', {bubbles: true}));
+                el.dispatchEvent(new Event('change', {bubbles: true}));
+                return el.innerText.trim().length === 0;
+            }"""))
 
         if not limpo:
             log('[COMUNICACAO][WARN] Editor nao ficou vazio apos limpeza via ckInstance.setData - abortando linha')
@@ -124,19 +143,22 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
             return None
 
     try:
-        campo_ok = driver.execute_script("""
-            var nomeModelo = arguments[0];
-            var filtro = document.querySelector('input#inputFiltro');
-            if (!filtro) return false;
-            filtro.removeAttribute('disabled');
-            filtro.removeAttribute('readonly');
-            filtro.focus();
-            filtro.value = nomeModelo;
-            filtro.dispatchEvent(new Event('input', {bubbles: true}));
-            filtro.dispatchEvent(new Event('change', {bubbles: true}));
-            filtro.dispatchEvent(new Event('keyup', {bubbles: true}));
-            return true;
-        """, modelo_nome)
+        campo_ok = False
+        if hasattr(driver, 'page'):
+            campo_ok = bool(driver.page.evaluate("""nomeModelo => {
+                var filtro = document.querySelector('input#inputFiltro');
+                if (!filtro) return false;
+                filtro.removeAttribute('disabled');
+                filtro.removeAttribute('readonly');
+                filtro.focus();
+                filtro.value = nomeModelo;
+                filtro.dispatchEvent(new Event('input', {bubbles: true}));
+                filtro.dispatchEvent(new Event('change', {bubbles: true}));
+                filtro.dispatchEvent(new Event('keyup', {bubbles: true}));
+                return true;
+            }""", modelo_nome))
+        else:
+            campo_ok = preencher_campo(driver, 'input#inputFiltro', modelo_nome)
 
         if not campo_ok:
             log('[COMUNICACAO][WARN] Campo de filtro de modelo nao encontrado')
@@ -146,7 +168,7 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
         except Exception:
             pass
 
-        nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=10, by=By.CSS_SELECTOR)
+        nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=10)
         if not nodo:
             log(f'[COMUNICACAO][WARN] Nodo filtrado não encontrado para modelo "{modelo_nome}"')
             return False
@@ -157,7 +179,7 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
         except Exception:
             pass
 
-        btn_inserir = wait_for_clickable(driver, 'pje-dialogo-visualizar-modelo button', timeout=8, by=By.CSS_SELECTOR)
+        btn_inserir = wait_for_clickable(driver, 'pje-dialogo-visualizar-modelo button', timeout=8)
         if not btn_inserir:
             log(f'[COMUNICACAO][WARN] Botão inserir modelo não encontrado para "{modelo_nome}"')
             return False
@@ -165,19 +187,8 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
         safe_click_no_scroll(driver, btn_inserir)
 
         # Polling snackbar (idêntico ao fluxo geral de preenchimento)
-        for _poll in range(15):  # até 3s
-            if driver.execute_script("""
-                var bars = document.querySelectorAll('simple-snack-bar');
-                for (var i = 0; i < bars.length; i++) {
-                    var t = bars[i].textContent || '';
-                    if (t.indexOf('Modelo de documento inserido com sucesso') !== -1) return true;
-                }
-                return false;
-            """):
-                return True
-            espera.ate_texto(driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=0.2)
-
-        if debug:
+        snack_ok = espera.ate_texto(driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=3)
+        if not snack_ok and debug:
             log(f'[COMUNICACAO] Snackbar modelo não detectado para "{modelo_nome}", prosseguindo')
         return True
     except Exception as e:
@@ -192,7 +203,7 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
 
     log(f'[TROCAR_MODELO] Iniciando troca de modelo (modelo_troca={modelo_troca})')
 
-    if not esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=20, by=By.CSS_SELECTOR):
+    if not esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=20):
         log('[TROCAR_MODELO] Tabela de destinatários não carregou')
         return False
         
@@ -210,7 +221,7 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
     log(f'[TROCAR_MODELO] Tipo={tipo_ato}, modelo={modelo_reaplicar}')
 
     total = _contar_linhas_correios(driver)
-    total_linhas = len(driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag'))
+    total_linhas = len(espera.elementos(driver, 'tbody.cdk-drop-list tr.cdk-drag', teto=2))
     log(f'[TROCAR_MODELO] Encontradas {total_linhas} linhas na tabela de destinatários, sendo {total} de Correios')
     if total == 0:
         log('[TROCAR_MODELO] Nenhuma linha com Correios encontrada')
@@ -237,8 +248,7 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
             btn_finalizar = wait_for_clickable(
                 driver,
                 'pje-pec-dialogo-ato button[aria-label="Finalizar minuta"]',
-                timeout=10,
-                by=By.CSS_SELECTOR
+                timeout=10
             )
             if not btn_finalizar:
                 log(f'[TROCAR_MODELO] Botão Finalizar não encontrado na linha {i + 1}')
@@ -246,19 +256,9 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
 
             safe_click_no_scroll(driver, btn_finalizar)
 
-            # Polling snackbar "Ato elaborado" (idêntico ao fluxo geral)
-            for _poll in range(25):  # até 5s
-                if driver.execute_script("""
-                    var bars = document.querySelectorAll('simple-snack-bar');
-                    for (var i = 0; i < bars.length; i++) {
-                        var t = bars[i].textContent || '';
-                        if (t.indexOf('Ato elaborado com sucesso') !== -1) return true;
-                    }
-                    return false;
-                """):
-                    log(f'[TROCAR_MODELO] Linha {i + 1}/{total} finalizada')
-                    break
-                espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=0.2)
+            # Aguardar confirmação de ato elaborado
+            espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=5)
+            log(f'[TROCAR_MODELO] Linha {i + 1}/{total} finalizada')
         except Exception as e:
             log(f'[TROCAR_MODELO] Erro ao finalizar linha {i + 1}: {e}')
             continue
@@ -277,23 +277,20 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
         log('[COMUNICACAO]  Alterando meio de expedição IMEDIATAMENTE (pós-seleção de destinatários, pré-salvamento)...')
         t0_expediente = time.perf_counter()
 
-        # VERIFICAÇÃO ULTRA-RÁPIDA: tabela já está pronta? (aguarda até 1s para
-        # cobrir a corrida entre o spinner sumir e o Angular renderizar as linhas)
+        # VERIFICAÇÃO ULTRA-RÁPIDA: tabela já está pronta?
         try:
             aguardar_renderizacao_nativa(driver, 'tbody.cdk-drop-list tr.cdk-drag', modo='aparecer', timeout=1)
         except Exception:
             pass
-        linhas_prontas = driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')
+        linhas_prontas = espera.elementos(driver, 'tbody.cdk-drop-list tr.cdk-drag', teto=1)
         if len(linhas_prontas) > 0:
             log('[COMUNICACAO] Tabela já contém destinatários - pulando esperas')
             linhas_tabela = linhas_prontas
             total_linhas = len(linhas_tabela)
         else:
-            # Aguardar spinner/modal de carregamento desaparecer (observer nativo preferido)
             log('[COMUNICACAO] Verificando spinner/modal rapidamente (observer)...')
             t_spinner = time.perf_counter()
             try:
-                from Fix.core import aguardar_renderizacao_nativa
                 seletores_loading = '.loading-spinner, .mat-progress-spinner, .cdk-overlay-backdrop, .modal-backdrop, .loading-overlay'
                 ok_spinner = aguardar_renderizacao_nativa(driver, seletores_loading, modo='sumir', timeout=3)
             except Exception:
@@ -306,32 +303,28 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 if debug:
                     log(f'[COMUNICACAO][DEBUG] Spinner sumiu em {tempo_spinner:.3f}s')
 
-            # Aguardar destinatários aparecerem (observer preferido)
             log('[COMUNICACAO] Aguardando destinatários aparecerem (observer)...')
             t_dest = time.perf_counter()
             try:
-                from Fix.core import aguardar_renderizacao_nativa
                 ok_rows = aguardar_renderizacao_nativa(driver, 'tbody.cdk-drop-list tr.cdk-drag', modo='aparecer', timeout=5)
             except Exception:
                 ok_rows = False
 
             if not ok_rows:
-                # Fallback: espera.elemento (presença, não visibilidade — mesma condição do WebDriverWait original)
                 if espera.elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', teto=5, visivel=False):
-                    linhas_tabela = driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')
+                    linhas_tabela = espera.elementos(driver, 'tbody.cdk-drop-list tr.cdk-drag', teto=2)
                 else:
                     log('[COMUNICACAO][WARN] Timeout aguardando destinatários, prosseguindo mesmo assim')
                     return False
 
                 tempo_dest = time.perf_counter() - t_dest
                 if debug:
-                    log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (WebDriverWait)')
+                    log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (espera.elemento)')
             else:
                 tempo_dest = time.perf_counter() - t_dest
                 if debug:
                     log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (observer)')
 
-            # Aguardar estabilização via WebDriverWait
             log('[COMUNICACAO] Verificação rápida de estabilização...')
             contagem_inicial = len(linhas_tabela)
             espera.ate_js(
@@ -339,7 +332,7 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 "__pjeEls('tbody.cdk-drop-list tr.cdk-drag').length >= %d" % contagem_inicial,
                 teto=2,
             )
-            linhas_atual = driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')
+            linhas_atual = espera.elementos(driver, 'tbody.cdk-drop-list tr.cdk-drag', teto=1)
             contagem_atual = len(linhas_atual)
             if contagem_atual != contagem_inicial:
                 if debug:
@@ -348,7 +341,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 if debug:
                     log(f'[COMUNICACAO][DEBUG] Contagem estabilizada em {contagem_atual}')
 
-            # Usar a contagem mais recente
             linhas_tabela = linhas_atual
             total_linhas = len(linhas_tabela)
 
@@ -362,8 +354,17 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
         linhas_para_alterar = []
         for idx, linha in enumerate(linhas_tabela, 1):
             try:
-                span_meio = linha.find_element(By.CSS_SELECTOR, '.pec-item-coluna-meio-expedicao-tabela-destinatarios .mat-select-value-text .mat-select-min-line')
-                meio_atual = span_meio.text.strip()
+                meio_atual = ''
+                if hasattr(linha, '_js'):
+                    meio_atual = linha._js("""el => {
+                        const s = el.querySelector('.pec-item-coluna-meio-expedicao-tabela-destinatarios .mat-select-value-text .mat-select-min-line');
+                        return s ? s.innerText.trim() : '';
+                    }""") or ''
+                else:
+                    sel_span = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//span[contains(@class,"mat-select-min-line")]'
+                    sp = espera.elemento(driver, sel_span, teto=1)
+                    meio_atual = (getattr(sp, 'text', '') or '').strip()
+
                 if meio_atual == 'Domicílio Eletrônico':
                     linhas_para_alterar.append((idx, linha))
                 elif debug:
@@ -382,31 +383,30 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
             try:
                 log(f'[COMUNICACAO] Linha {idx}: Domicílio Eletrônico encontrado - alterando para Correio...')
 
-                try:
-                    dropdown = linha.find_element(By.CSS_SELECTOR, 'mat-select[placeholder="Meios de Expedição"]')
-                except Exception:
+                sel_drop = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//mat-select[@placeholder="Meios de Expedição"]'
+                dropdown = espera.elemento(driver, sel_drop, teto=2)
+                if not dropdown:
                     log(f'[COMUNICACAO][WARN] Linha {idx}: Dropdown não encontrado')
                     continue
 
-                # Clicar dropdown (usar aguardar_e_clicar em vez de scrollIntoView + click)
-                aguardar_e_clicar(driver, dropdown, log=False, timeout=3)
+                safe_click_no_scroll(driver, dropdown)
 
                 try:
-                    if not esperar_elemento(driver, 'mat-option', timeout=2, by=By.CSS_SELECTOR):
+                    if not esperar_elemento(driver, 'mat-option', timeout=2):
                         raise Exception('Opções do dropdown não carregaram')
                 except Exception:
                     log(f'[COMUNICACAO][WARN] Linha {idx}: Opções do dropdown não carregaram em 2s')
                     continue
 
-                opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option')
+                opcoes = espera.elementos(driver, 'mat-option', teto=2)
                 correio_clicado = False
                 for opcao in opcoes:
-                    if 'Correio' in opcao.text:
+                    txt = getattr(opcao, 'text', '') or ''
+                    if 'Correio' in txt:
                         safe_click_no_scroll(driver, opcao)
                         log(f'[COMUNICACAO]  Linha {idx}: Domicílio Eletrônico → Correio')
                         alterados += 1
                         correio_clicado = True
-                        # UI-transition: aguardar dropdown fechar apos selecao
                         try:
                             aguardar_renderizacao_nativa(driver, 'div.cdk-overlay-pane', modo='sumir', timeout=2)
                         except Exception:
@@ -416,8 +416,10 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 if not correio_clicado:
                     log(f'[COMUNICACAO][WARN] Linha {idx}: Opção "Correio" não encontrada nas opções')
                     try:
-                        from selenium.webdriver.common.keys import Keys
-                        dropdown.send_keys(Keys.ESCAPE)
+                        if hasattr(driver, 'page'):
+                            driver.page.keyboard.press("Escape")
+                        else:
+                            safe_click_no_scroll(driver, 'body')
                     except Exception:
                         pass
 
@@ -432,15 +434,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
         tempo_total = time.perf_counter() - t0_expediente
         log(f'[COMUNICACAO]  Alterados: {alterados} | Não precisavam: {pulados} | Total: {total_linhas} (tempo: {tempo_total:.3f}s)')
         
-        # Estimativa de performance
-        if tempo_total > 5.0:
-            log(f'[COMUNICACAO][PERF] Tempo alto detectado ({tempo_total:.1f}s). Possíveis otimizações:')
-            if alterados > 0:
-                tempo_medio_por_alteracao = (tempo_total - 1.0) / alterados  # subtraindo tempo de setup
-                log(f'[COMUNICACAO][PERF] - Tempo médio por alteração: {tempo_medio_por_alteracao:.2f}s')
-            if pulados > alterados:
-                log(f'[COMUNICACAO][PERF] - Muitos pulados ({pulados}), considere pré-filtragem')
-
         log_fim('COMUNICACAO_MEIO_EXPEDICAO', {'status': 'sucesso', 'alterados': alterados, 'total': total_linhas})
         return True
     except Exception as e:
@@ -455,29 +448,27 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             return None
 
     log_start('COMUNICACAO_SALVAR_MINUTA')
-    # --- 1. Salvar — seletor canônico do gigs-plugin.js ---
-    # JS: await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]')
-    # Botão só existe no DOM quando a tabela está pronta (destinatários já confirmados) — teto curto.
     _SEL_SALVAR = 'pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]'
-    btn_salvar = esperar_elemento(driver, _SEL_SALVAR, timeout=10, by=By.CSS_SELECTOR)
+    btn_salvar = esperar_elemento(driver, _SEL_SALVAR, timeout=10)
     if not btn_salvar:
         if not click_headless_safe(driver, _SEL_SALVAR, timeout=8):
             log('[COMUNICACAO][ERRO] Botão Salvar não encontrado/habilitado!')
             log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'btn_salvar_nao_encontrado'})
             return False
     else:
-        try:
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_salvar)
-            driver.execute_script("arguments[0].click();", btn_salvar)
-        except Exception:
+        scroll_to_element_safe(driver, btn_salvar)
+        if not safe_click_no_scroll(driver, btn_salvar):
             if not click_headless_safe(driver, _SEL_SALVAR, timeout=5):
                 log('[COMUNICACAO][ERRO] Falha ao clicar no botão Salvar')
                 return False
     log('[COMUNICACAO] Clique no botão Salvar realizado.')
 
-    # --- 2. Checar snackbar de endereço inválido (único erro relevante pós-salvar) ---
+    # 2. Checar snackbar de endereço inválido
+    texto_snack = ''
     try:
-        texto_snack = driver.find_element(By.CSS_SELECTOR, 'snack-bar-container').get_attribute('innerText') or ''
+        el_snack = espera.elemento(driver, 'snack-bar-container', teto=1)
+        if el_snack:
+            texto_snack = (getattr(el_snack, 'text', '') or '').strip()
     except Exception:
         texto_snack = ''
     if 'Selecione o endere' in texto_snack:
@@ -485,19 +476,17 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'endereco_invalido'})
         return False
 
-    # --- 3. Aguardar botão Assinar — seletor canônico do gigs-plugin.js ---
-    # JS: await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],
-    #                           pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]')
+    # 3. Aguardar botão Assinar
     _SEL_ASSINAR = (
         'pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],'
         'pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]'
     )
-    # Botão Assinar só fica habilitado após o backend confeccionar o(s) ato(s) — aguardar habilitado (não só presente).
     btn_finalizar = None
     if aguardar_renderizacao_nativa(driver, _SEL_ASSINAR, modo='habilitado', timeout=12):
-        btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=5, by=By.CSS_SELECTOR)
+        btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=5)
     if not btn_finalizar:
-        btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=15, by=By.CSS_SELECTOR)
+        btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=15)
+
     if not btn_finalizar:
         log('[COMUNICACAO][ERRO] Botão Assinar não habilitou em 27s.')
         log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'assinar_nao_habilitou_27s'})
@@ -507,7 +496,7 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
     if gigs_extra:
         log('[GIGS_EXTRA][WARN] Criação de GIGS via minuta removida. Use criar_gigs na aba /detalhe antes do fluxo.')
 
-    # --- 4. Assinar se solicitado ---
+    # 4. Assinar se solicitado
     if assinar:
         try:
             from Fix.debug_assinatura import ativo as _dbg_ativo, capturar_estado_browser, diff_estado, salvar_delta
@@ -529,41 +518,30 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             log('[COMUNICACAO][DEBUG] reinjetar_antes_assinatura não disponível (1a assinatura)')
 
         if not btn_finalizar:
-            btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=10, by=By.CSS_SELECTOR)
+            btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=10)
         if not btn_finalizar:
             log('[COMUNICACAO][ERRO] Botão Assinar não encontrado — não é possível assinar.')
             log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'btn_finalizar_none_antes_assinar'})
             raise NavegacaoError('assinar_atos: btn_finalizar é None')
 
         try:
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_finalizar)
-            clicado = False
-            try:
-                btn_finalizar.click()
-                clicado = True
-            except Exception:
-                pass
+            scroll_to_element_safe(driver, btn_finalizar)
+            clicado = safe_click_no_scroll(driver, btn_finalizar)
             if not clicado:
-                driver.execute_script("arguments[0].click();", btn_finalizar)
+                click_headless_safe(driver, _SEL_ASSINAR, timeout=5)
             log('[COMUNICACAO] Botão Assinar ato(s) clicado.')
         except Exception as e:
             log(f'[COMUNICACAO][ERRO] Falha ao clicar em Assinar ato(s): {e}')
             log('Comunicação processual finalizada.')
             raise NavegacaoError(f'assinar_atos: {e}')
 
-        # --- 4a. Detectar dialog de validação por dispositivo móvel ---
-        # Usar observer+CSS silencioso: não gera [ERRO] quando o dialog não aparece
-        # (caminho esperado quando cookies de sessão já estão válidos).
-        _TIMEOUT_VALIDACAO_MOVEL = 180  # 3 minutos para o usuário autenticar
+        # 4a. Detectar dialog de validação por dispositivo móvel
+        _TIMEOUT_VALIDACAO_MOVEL = 180
         _dialog_apareceu = aguardar_renderizacao_nativa(driver, 'input.codigo-otp', 'aparecer', 3)
-        try:
-            dialog_movel = driver.find_element(By.CSS_SELECTOR, 'input.codigo-otp') if _dialog_apareceu else None
-        except Exception:
-            dialog_movel = None
+        dialog_movel = espera.elemento(driver, 'input.codigo-otp', teto=1) if _dialog_apareceu else None
 
         if dialog_movel:
             log('[COMUNICACAO] Dialog "Validacao por dispositivo movel" detectado.')
-            # --- 4b. Se já temos cookies de sessão registrados, tentar reconfirmar via radio "sessão" ---
             try:
                 from Fix.assinatura_cookies import cache_tem_cookies
                 _tem_cache = cache_tem_cookies()
@@ -574,44 +552,35 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                 log('[COMUNICACAO] Cache de assinatura com cookies — tentando reconfirmar via "Utilizar certificado digital nesta sessao"...')
                 _dialog_fechou_auto = False
                 try:
-                    # Clicar no radio "Utilizar certificado digital nesta sessão" (value="2" é fixo no componente Angular)
                     _radio = esperar_elemento(
                         driver,
                         'mat-dialog-container input[type="radio"][value="2"]',
-                        timeout=4,
-                        by=By.CSS_SELECTOR
+                        timeout=4
                     )
                     if _radio:
-                        driver.execute_script(
-                            "arguments[0].scrollIntoView({block:'center', behavior:'instant'}); arguments[0].click();",
-                            _radio
-                        )
+                        scroll_to_element_safe(driver, _radio)
+                        safe_click_no_scroll(driver, _radio)
                         log('[COMUNICACAO] Radio "Utilizar certificado digital nesta sessao" clicado (value=2).')
                     else:
-                        # fallback por value direto sem container
                         _radio_fb = esperar_elemento(
                             driver,
                             'input[type="radio"][value="2"]',
-                            timeout=3,
-                            by=By.CSS_SELECTOR
+                            timeout=3
                         )
                         if _radio_fb:
                             safe_click_no_scroll(driver, _radio_fb)
                             log('[COMUNICACAO] Radio clicado via fallback value=2.')
                         else:
                             log('[COMUNICACAO][WARN] Radio value=2 nao localizado — aguardando confirmacao manual.')
-                    # Clicar em Confirmar
+
                     _btn_confirmar = esperar_elemento(
                         driver,
                         '//button[@aria-label="Confirmar" or .//span[normalize-space(text())="Confirmar"]]',
-                        timeout=4,
-                        by=By.XPATH
+                        timeout=4
                     )
                     if _btn_confirmar:
-                        driver.execute_script(
-                            "arguments[0].scrollIntoView({block:'center', behavior:'instant'}); arguments[0].click();",
-                            _btn_confirmar
-                        )
+                        scroll_to_element_safe(driver, _btn_confirmar)
+                        safe_click_no_scroll(driver, _btn_confirmar)
                         log('[COMUNICACAO] Botao Confirmar clicado — aguardando dialog fechar...')
                         _dialog_fechou_auto = aguardar_renderizacao_nativa(
                             driver, 'mat-dialog-container', modo='sumir', timeout=15
@@ -637,7 +606,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                         return False
             else:
                 log('[COMUNICACAO] Sem cache de cookies (1a assinatura) — aguardando autenticacao do usuario...')
-                # Aguardar dialog fechar via MutationObserver (sem polling nem time.sleep)
                 dialog_sumiu = aguardar_renderizacao_nativa(
                     driver, 'mat-dialog-container', modo='sumir', timeout=_TIMEOUT_VALIDACAO_MOVEL
                 )
@@ -657,16 +625,18 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                     salvar_delta(diff_estado(_estado_antes, capturar_estado_browser(driver)))
                 except Exception:
                     log('[COMUNICACAO][DEBUG] salvar_delta falhou (não crítico)')
-            _lista_vazia = bool(driver.find_elements(
-                By.XPATH,
-                "//span[contains(normalize-space(.),'Não há expedientes sendo confeccionados')]"
+
+            _lista_vazia = bool(espera.elementos(
+                driver,
+                "//span[contains(normalize-space(.),'Não há expedientes sendo confeccionados')]",
+                teto=2
             ))
             if _lista_vazia:
                 log('[COMUNICACAO] Assinatura confirmada — lista de expedientes vazia.')
             else:
-                snack_final = esperar_elemento(driver, 'snack-bar-container', timeout=15, by=By.CSS_SELECTOR)
+                snack_final = esperar_elemento(driver, 'snack-bar-container', timeout=15)
                 if snack_final:
-                    txt = snack_final.text or ''
+                    txt = getattr(snack_final, 'text', '') or ''
                     if 'assinado' in txt.lower() and 'sucesso' in txt.lower():
                         log(f'[COMUNICACAO] Assinatura confirmada: "{txt.strip()}"')
                     else:
@@ -674,7 +644,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                 else:
                     log('[COMUNICACAO][WARN] Snackbar de confirmação não detectado em 15s após dialog fechar.')
         else:
-            # Sem dialog → assinatura direta; confirmar via snackbar ou lista de expedientes esvaziada
             log('[COMUNICACAO] Sem dialog de validação móvel — aguardando confirmação de assinatura...')
             aguardar_renderizacao_nativa(driver, 'snack-bar-container', modo='aparecer', timeout=15)
             try:
@@ -687,17 +656,18 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                     salvar_delta(diff_estado(_estado_antes, capturar_estado_browser(driver)))
                 except Exception:
                     log('[COMUNICACAO][DEBUG] salvar_delta falhou (não crítico)')
-            snack_sucesso = esperar_elemento(driver, 'snack-bar-container', timeout=3, by=By.CSS_SELECTOR)
+            snack_sucesso = esperar_elemento(driver, 'snack-bar-container', timeout=3)
             if snack_sucesso:
-                txt = snack_sucesso.text or ''
+                txt = getattr(snack_sucesso, 'text', '') or ''
                 if 'assinado' in txt.lower() and 'sucesso' in txt.lower():
                     log(f'[COMUNICACAO] Assinatura confirmada: "{txt.strip()}"')
                 else:
                     log(f'[COMUNICACAO][WARN] Snackbar de assinatura: "{txt.strip()}"')
             else:
-                _lista_vazia_nd = bool(driver.find_elements(
-                    By.XPATH,
-                    "//span[contains(normalize-space(.),'Não há expedientes sendo confeccionados')]"
+                _lista_vazia_nd = bool(espera.elementos(
+                    driver,
+                    "//span[contains(normalize-space(.),'Não há expedientes sendo confeccionados')]",
+                    teto=2
                 ))
                 if _lista_vazia_nd:
                     log('[COMUNICACAO] Assinatura confirmada — lista de expedientes vazia.')
@@ -707,5 +677,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
     log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'sucesso'})
     log('Comunicação processual finalizada.')
     return True
+
 
 

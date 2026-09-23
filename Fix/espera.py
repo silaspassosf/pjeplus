@@ -123,7 +123,7 @@ def _log_falha(expressao, teto, motivo):
             break
     if caller:
         expr_curta = expressao[:120] + ('...' if len(expressao) > 120 else '')
-        logger.info("ate_js FALHA (%s, %.1fs) ← %s:%s | %s",
+        logger.info("ate_js FALHA (%s, %.1fs) <- %s:%s | %s",
                      motivo, teto, caller.filename.split('\\')[-1], caller.lineno, expr_curta)
     else:
         logger.info("ate_js FALHA (%s, %.1fs)", motivo, teto)

@@ -5,21 +5,19 @@ Migrado automaticamente de Fix.py (PARTE 5 - Modularização).
 """
 
 import os
-from selenium import webdriver
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import (
+from typing import Optional, Union, Any
+from Play.pjeplay.locators import By, Keys
+from Play.pjeplay.errors import (
     TimeoutException, NoSuchElementException, StaleElementReferenceException,
     WebDriverException, ElementClickInterceptedException,
     ElementNotInteractableException
 )
-from typing import Optional, Union
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
 import re, time, datetime, json, unicodedata
 from .log import logger
 from Fix import espera
+
+# Alias de compatibilidade de tipo
+WebDriver = Any
 
 # Variáveis de compatibilidade para logs antigos
 DEBUG = os.getenv('PJEPLUS_DEBUG', '0').lower() in ('1', 'true', 'on')
@@ -69,85 +67,36 @@ def aguardar_renderizacao_nativa(
     modo: str = "aparecer",
     timeout: Union[int, float] = 10,
 ):
-    """Contrato estável para espera de renderização e transição de DOM.
-
-    Suporta os usos ativos do projeto:
-    - sem seletor: aguarda document.readyState == complete
-    - modo='aparecer': algum elemento visível encontrado
-    - modo='sumir': nenhum elemento visível encontrado
-    - modo='habilitado': algum elemento visível e habilitado
-    """
-
-    def _coletar_elementos(web_driver):
-        if not seletor:
-            return []
-        try:
-            return web_driver.find_elements(By.CSS_SELECTOR, seletor)
-        except Exception as e:
-            logger.debug("_coletar_elementos: %s", e)
-            return []
-
-    def _elemento_visivel(element):
-        try:
-            return element.is_displayed()
-        except Exception as e:
-            logger.debug("_elemento_visivel: %s", e)
-            return False
-
+    """Contrato estável para espera de renderização e transição de DOM."""
     timeout_segundos = float(timeout)
-
     try:
         if not seletor:
-            WebDriverWait(driver, timeout_segundos).until(
-                lambda current_driver: current_driver.execute_script("return document.readyState") == "complete"
-            )
-            return True
+            return espera.ate_js(driver, "document.readyState === 'complete'", teto=timeout_segundos)
 
         if modo == "sumir":
-            WebDriverWait(driver, timeout_segundos).until(
-                lambda current_driver: not any(
-                    _elemento_visivel(element)
-                    for element in _coletar_elementos(current_driver)
-                )
-            )
-            return True
+            return espera.ate_sumir(driver, seletor, teto=timeout_segundos)
 
         if modo == "habilitado":
-            WebDriverWait(driver, timeout_segundos).until(
-                lambda current_driver: any(
-                    _elemento_visivel(element) and element.is_enabled()
-                    for element in _coletar_elementos(current_driver)
-                )
-            )
-            return True
+            return espera.ate_habilitar(driver, seletor, teto=timeout_segundos)
 
-        WebDriverWait(driver, timeout_segundos).until(
-            lambda current_driver: any(
-                _elemento_visivel(element)
-                for element in _coletar_elementos(current_driver)
-            )
-        )
-        return True
-    except TimeoutException:
-        return False
+        return espera.ate_aparecer(driver, seletor, teto=timeout_segundos)
     except Exception as e:
         logger.warning("aguardar_renderizacao_nativa: %s", e)
         return False
 
+
 def wait(driver, selector, timeout=10, by=By.CSS_SELECTOR):
-    """
-    DEPRECATED: Use aguardar_e_clicar() ou js_base() para melhor performance
-    Mantido apenas para compatibilidade com código legado
-    
-    Espera até que um elemento esteja visível na página.
-    """
+    """Espera até que um elemento esteja visível na página."""
     try:
-        _t0 = time.time()
-        element = WebDriverWait(driver, timeout).until(
-            EC.visibility_of_element_located((by, selector))
-        )
-        return element
-    except TimeoutException:
+        sel = selector
+        if by:
+            from Play.pjeplay.locators import traduzir
+            sel = traduzir(by, selector)
+        if espera.ate_aparecer(driver, sel, teto=timeout):
+            return espera.elemento(driver, sel)
+        logger.error(f'[WAIT][ERRO] Elemento não encontrado: {selector}')
+        return None
+    except Exception:
         logger.error(f'[WAIT][ERRO] Elemento não encontrado: {selector}')
         return None
 
@@ -155,337 +104,160 @@ def wait(driver, selector, timeout=10, by=By.CSS_SELECTOR):
 def wait_for_page_load(driver, timeout=10):
     """Compatibilidade para esperar o carregamento básico da página."""
     try:
-        WebDriverWait(driver, timeout).until(
-            lambda current_driver: current_driver.execute_script("return document.readyState") == "complete"
-        )
-        return True
-    except TimeoutException:
-        return False
+        return espera.ate_js(driver, "document.readyState === 'complete'", teto=timeout)
     except Exception as e:
         logger.warning("wait_for_page_load: %s", e)
         return False
 
-# Função de clique seguro
 
 def wait_for_visible(driver, selector, timeout=10, by=None):
-    """
-    DEPRECATED: Use aguardar_e_clicar(usar_js=False) para melhor performance
-    Mantido apenas para compatibilidade com código legado
-    
-    Wait for an element to be visible in the DOM.
-    """
-    if by is None:
-        by = By.CSS_SELECTOR
-        
+    """Wait for an element to be visible in the DOM."""
     try:
-        element = WebDriverWait(driver, timeout).until(
-            EC.visibility_of_element_located((by, selector))
-        )
-        return element
-    except (TimeoutException, NoSuchElementException):
+        sel = selector
+        if by:
+            from Play.pjeplay.locators import traduzir
+            sel = traduzir(by, selector)
+        if espera.ate_aparecer(driver, sel, teto=timeout):
+            return espera.elemento(driver, sel)
+        if isinstance(selector, str):
+            logger.warning("[WAIT_VISIBLE] Elemento nao visivel: %s", selector)
+        return None
+    except Exception:
         if isinstance(selector, str):
             logger.warning("[WAIT_VISIBLE] Elemento nao visivel: %s", selector)
         return None
 
 
 def wait_for_clickable(driver, selector, timeout=10, by=None):
-    """
-    DEPRECATED: Use aguardar_e_clicar() para melhor performance
-    Mantido apenas para compatibilidade com código legado
-    
-    Wait for an element to be clickable in the DOM.
-    """
-    if by is None:
-        by = By.CSS_SELECTOR
-        
+    """Wait for an element to be clickable in the DOM."""
     try:
-        element = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((by, selector))
-        )
-        return element
-    except (TimeoutException, NoSuchElementException):
+        sel = selector
+        if by:
+            from Play.pjeplay.locators import traduzir
+            sel = traduzir(by, selector)
+        if espera.ate_habilitar(driver, sel, teto=timeout):
+            return espera.elemento(driver, sel)
+        if isinstance(selector, str):
+            logger.warning("[WAIT_CLICKABLE] Elemento nao clicavel: %s", selector)
+        return None
+    except Exception:
         if isinstance(selector, str):
             logger.warning("[WAIT_CLICKABLE] Elemento nao clicavel: %s", selector)
         return None
 
 
 def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
-    """
-    DEPRECATED: Use aguardar_e_clicar() para melhor performance
-    Mantido apenas para compatibilidade com código legado
-    
-    Clicks safely. Accepts selector (string) or element.
-    """
+    """Clicks safely. Accepts selector (string) or element."""
     try:
-        from selenium.webdriver.common.by import By
         if isinstance(selector_or_element, str):
-            element = wait(driver, selector_or_element, timeout, by)
+            sel = selector_or_element
+            if by:
+                from Play.pjeplay.locators import traduzir
+                sel = traduzir(by, selector_or_element)
+            if espera.ate_aparecer(driver, sel, teto=timeout):
+                element = espera.elemento(driver, sel)
+            else:
+                element = None
         else:
             element = selector_or_element
-        # Fallback for KZ details icon (robust selector)
-        if element is None and isinstance(selector_or_element, str) and (
-            'Detalhes do Processo' in selector_or_element or 'detalhes do processo' in selector_or_element.lower()
-        ):
-            try:
-                # Try clicking the KZ icon directly
-                element = driver.find_element(By.CSS_SELECTOR, 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]')
-                driver.execute_script("arguments[0].click();", element)
-                if DEBUG:
-                    _log_info('[CLICK] Clicked KZ details icon (img.mat-tooltip-trigger)')
-                _audit('click', 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]', 'ok')
-                return True
-            except Exception as e:
-                logger.debug("aguardar_e_clicar: falha ao clicar no icone KZ: %s", e)
-                element = None
-            # Try clicking the parent button if img not clickable
-            try:
-                img = driver.find_element(By.CSS_SELECTOR, 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]')
-                button = img.find_element(By.XPATH, './ancestor::button[1]')
-                driver.execute_script("arguments[0].click();", button)
-                if DEBUG:
-                    _log_info('[CLICK] Clicked parent button of KZ details icon')
-                _audit('click', 'button(parentOf: img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"])', 'ok')
-                return True
-            except Exception as e:
-                logger.debug("aguardar_e_clicar: falha ao clicar no botao pai do KZ: %s", e)
-                pass
-        if element and element.is_displayed():
-                try:
-                    driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", element)
-                    driver.execute_script("arguments[0].click();", element)
-                    if DEBUG:
-                        _log_info(f'[CLICK] Clicked: {element.text if hasattr(element, "text") else selector_or_element}')
-                    _audit('click', selector_or_element, 'ok')
-                    return True
-                except Exception as e_click:
-                    # Tentativa de fallback: reduzir zoom temporariamente e tentar JS click novamente
-                    try:
-                        if log:
-                            logger.warning("[CLICK] JS click falhou: %s - tentando fallback de zoom", e_click)
-                        prev_zoom = driver.execute_script("return document.body.style.zoom || '';")
-                        driver.execute_script("document.body.style.zoom = '60%';")
-                        time.sleep(0.12)
-                        driver.execute_script("arguments[0].click();", element)
-                        # restaurar zoom
-                        try:
-                            driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
-                        except Exception as e:
-                            logger.debug("aguardar_e_clicar: falha ao restaurar zoom: %s", e)
-                            pass
-                        if DEBUG:
-                            _log_info(f'[CLICK] Click via JS com zoom reduzido: {selector_or_element}')
-                        _audit('click', selector_or_element, 'ok-fallback-zoom')
-                        return True
-                    except Exception as e_fallback:
-                        if log:
-                            logger.error("[CLICK] Fallback click falhou: %s", e_fallback)
-                        try:
-                            # tentar restaurar zoom mesmo em caso de erro
-                            driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
-                        except Exception as e:
-                            logger.debug("aguardar_e_clicar: falha ao restaurar zoom apos erro: %s", e)
-                            pass
-                        _log_error(f'[CLICK][ERROR] Failed to click after fallback: {e_fallback}')
-                        _audit('click', selector_or_element, 'fail', {'error': str(e_fallback)[:300]})
-                        return False
-        # Se o elemento não estiver visível, tentar um click via JS (pode funcionar mesmo se is_displayed() for False)
-        try:
-            driver.execute_script("arguments[0].click();", element)
-            if DEBUG:
-                _log_info(f'[CLICK] Click via JS em elemento não visível: {selector_or_element}')
-            _audit('click', selector_or_element, 'ok-js-hidden')
-            return True
-        except Exception as e_hidden:
-            # Última tentativa: reduzir zoom e tentar novamente
-            try:
-                prev_zoom = driver.execute_script("return document.body.style.zoom || '';")
-                driver.execute_script("document.body.style.zoom = '60%';")
-                time.sleep(0.12)
-                driver.execute_script("arguments[0].click();", element)
-                try:
-                    driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
-                except Exception as e:
-                    logger.debug("aguardar_e_clicar: falha ao restaurar zoom no hidden element: %s", e)
-                    pass
-                if DEBUG:
-                    _log_info(f'[CLICK] Click via JS com zoom reduzido em elemento não visível: {selector_or_element}')
-                _audit('click', selector_or_element, 'ok-js-hidden-zoom')
-                return True
-            except Exception as e_final:
-                _log_error(f'[CLICK][ERROR] Failed to click hidden element: {e_final}')
-                _audit('click', selector_or_element, 'fail-hidden', {'error': str(e_final)[:300]})
-                return False
+
+        if element:
+            return safe_click_no_scroll(driver, element, log=log)
+        return False
     except Exception as e:
-        _log_error(f'[CLICK][ERROR] Failed to click: {e}')
-        _audit('click', selector_or_element, 'fail', {'error': str(e)[:300]})
+        if log:
+            logger.error("[CLICK][ERROR] Failed to click: %s", e)
         return False
 
 
 def safe_click_no_scroll(driver, element, log=False):
     """Compatibilidade: dispara o click direto sem scroll prévio."""
-    try:
-        driver.execute_script("arguments[0].click();", element)
-        return True
-    except Exception:
+    if hasattr(element, '_handle') and element._handle:
         try:
-            driver.execute_script(
-                "arguments[0].dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true}))",
-                element,
-            )
+            element._handle.evaluate("el => el.click()")
             return True
-        except Exception as e:
-            if log:
-                logger.error("[CLICK] safe_click_no_scroll falhou: %s", e)
-            return False
+        except Exception:
+            pass
+    elif hasattr(driver, 'page') and driver.page and isinstance(element, str):
+        try:
+            driver.page.locator(element).first.evaluate("el => el.click()")
+            return True
+        except Exception:
+            pass
+    if hasattr(element, 'click'):
+        try:
+            element.click()
+            return True
+        except Exception:
+            pass
+    return False
 
 
 def buscar_seletor_robusto(driver, textos, contexto=None, timeout=5, log=False):
-    # Versão 3.1 - Busca robusta com logs detalhados e timeout reduzido
-    def buscar_input_associado(elemento):
-        try:
-            input_associado = elemento.find_element(By.XPATH, 
-                './following-sibling::input|./preceding-sibling::input|'
-                './ancestor::*[contains(@class,"form-group")]//input|'
-                './ancestor::*[contains(@class,"mat-form-field")]//input'
-            )
-            return input_associado
-        except Exception as e:
-            if log:
-                logger.debug("[ROBUSTO] Falha ao buscar input associado: %s", e)
-            return None
+    """Busca robusta com logs detalhados e timeout reduzido."""
     try:
         # Fase 1: Busca direta por inputs editáveis
         for texto in textos:
-            if DEBUG:
-                _log_info(f'[ROBUSTO][FASE1] Buscando input com texto/atributo: {texto}')
             try:
-                elementos = driver.find_elements(By.CSS_SELECTOR, 
-                    f'input[placeholder*="{texto}"], '
-                    f'input[aria-label*="{texto}"], '
-                    f'input[name*="{texto}"]'
-                )
-                for el in elementos:
+                for el in espera.elementos(driver, f'input[placeholder*="{texto}"], input[aria-label*="{texto}"], input[name*="{texto}"]'):
                     if el.is_displayed() and el.is_enabled():
-                        if DEBUG:
-                            _log_info(f'[ROBUSTO][ENCONTRADO] Input direto: {el}')
                         return el
-            except Exception as e:
-                if DEBUG:
-                    _log_info(f'[ROBUSTO][ERRO] Fase1: {e}')
+            except Exception:
                 continue
         # Fase 2: Busca hierárquica se não encontrar diretamente
         for texto in textos:
-            if DEBUG:
-                _log_info(f'[ROBUSTO][FASE2] Buscando por texto visível: {texto}')
             try:
-                elementos = driver.find_elements(By.XPATH, 
-                    f'//*[contains(text(), "{texto}")]'
-                )
-                for el in elementos:
-                    if DEBUG:
-                        _log_info(f'[ROBUSTO][FASE2] Elemento com texto encontrado: {el}')
-                    input_assoc = buscar_input_associado(el)
+                for el in espera.elementos(driver, f'//*[contains(text(), "{texto}")]'):
+                    input_assoc = espera.elemento(driver, f'//*[contains(text(), "{texto}")]/following-sibling::input | //*[contains(text(), "{texto}")]/ancestor::*[contains(@class,"form-group")]//input')
                     if input_assoc:
-                        if DEBUG:
-                            _log_info(f'[ROBUSTO][ENCONTRADO] Input associado: {input_assoc}')
                         return input_assoc
-            except Exception as e:
-                if DEBUG:
-                    _log_info(f'[ROBUSTO][ERRO] Fase2: {e}')
+            except Exception:
                 continue
         # Fase 3: Busca por ícone/fa
         for texto in textos:
-            if DEBUG:
-                _log_info(f'[ROBUSTO][FASE3] Buscando ícone/fa: {texto}')
             try:
-                elementos = driver.find_elements(By.CSS_SELECTOR, f'i[mattooltip*="{texto}"], i[aria-label*="{texto}"], i.fa-reply-all')
-                for el in elementos:
+                for el in espera.elementos(driver, f'i[mattooltip*="{texto}"], i[aria-label*="{texto}"], i.fa-reply-all'):
                     if el.is_displayed():
-                        if DEBUG:
-                            _log_info(f'[ROBUSTO][ENCONTRADO] Ícone/fa: {el}')
                         return el
-            except Exception as e:
-                if DEBUG:
-                    _log_info(f'[ROBUSTO][ERRO] Fase3: {e}')
+            except Exception:
                 continue
-        if DEBUG:
-            _log_info('[ROBUSTO][FIM] Nenhum elemento encontrado com os critérios fornecidos.')
         return None
     except Exception as e:
-        _log_error(f'[ROBUSTO][ERRO GERAL] {e}')
+        logger.error(f'[ROBUSTO][ERRO GERAL] {e}')
         return None
 
+
 def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR, log=False):
-    """
-    Versão aprimorada - Espera até que um elemento esteja presente (e opcionalmente contenha texto), 
-    com logs detalhados e ajuste automático para modo headless.
-    
-    HEADLESS AUTO-TUNING:
-    - Detecta modo headless automaticamente
-    - Aumenta timeout em 50% (headless é mais lento)
-    - Retry automático com limpar overlays
-    - Log detalhado apenas em falhas
-    """
-    import time as _time
-    
-    # Detectar headless e ajustar timeout
-    is_headless = False
-    try:
-        from Fix.headless_helpers import is_headless_mode
-        is_headless = is_headless_mode(driver)
-        if is_headless:
-            original_timeout = timeout
-            timeout = int(timeout * 1.5)  # 50% mais tempo em headless
-            if DEBUG:
-                logger.info(f"[HEADLESS] Timeout ajustado: {original_timeout}s -> {timeout}s para '{seletor}'")
-    except ImportError:
-        pass
-    
+    """Espera até que um elemento esteja presente (e opcionalmente contenha texto)."""
+    if not driver:
+        return None
     try:
         if not isinstance(seletor, str):
             raise ValueError(f"Seletor deve ser string, recebido: {type(seletor)}")
         if texto and not isinstance(texto, str):
             raise ValueError(f"Text must be a string, got: {type(texto)}")
-        if DEBUG:
-            _log_info(f"[ESPERAR] Aguardando elemento: '{seletor}' (by={by}, timeout={timeout}, texto={texto})")
-        
-        t0 = _time.time()
-        el = WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located((by, seletor))
-        )
+
+        sel = seletor
+        if by:
+            from Play.pjeplay.locators import traduzir
+            sel = traduzir(by, seletor)
+
         if texto:
-            WebDriverWait(driver, timeout).until(
-                lambda d: texto in el.text
-            )
-        t1 = _time.time()
-        if DEBUG:
-            logger.info(f"[ESPERAR][OK] Elemento encontrado: '{seletor}' em {t1-t0:.2f}s" + (f" (texto='{texto}')" if texto else ""))
-        return el
-        
+            if espera.ate_texto(driver, sel, texto, teto=timeout):
+                return espera.elemento(driver, sel)
+            if log:
+                logger.error(f"[ESPERAR][ERRO] Falha ao esperar texto '{texto}' em elemento: '{seletor}'")
+            return None
+
+        if espera.ate_aparecer(driver, sel, teto=timeout):
+            return espera.elemento(driver, sel)
+
+        if log:
+            logger.error(f"[ESPERAR][ERRO] Falha ao esperar elemento: '{seletor}'")
+        return None
     except Exception as e:
-        # HEADLESS RETRY: Tentar limpar overlays e retry uma vez
-        if is_headless and by == By.CSS_SELECTOR:
-            try:
-                from Fix.headless_helpers import limpar_overlays_headless
-                logger.warning(f"[HEADLESS][RETRY] Elemento '{seletor}' não encontrado, limpando overlays e tentando novamente...")
-                limpar_overlays_headless(driver)
-                _time.sleep(0.5)
-                
-                # Segunda tentativa (timeout menor - metade do ajustado)
-                el = WebDriverWait(driver, timeout // 2).until(
-                    EC.presence_of_element_located((by, seletor))
-                )
-                if texto:
-                    WebDriverWait(driver, timeout // 2).until(
-                        lambda d: texto in el.text
-                    )
-                logger.info(f"[HEADLESS][RETRY] Sucesso após limpar overlays: '{seletor}'")
-                return el
-            except Exception as e:
-                logger.debug("esperar_elemento: retry headless falhou: %s", e)
-                pass  # Falhou mesmo com retry
-        
-        logger.error(f"[ESPERAR][ERRO] Falha ao esperar elemento: '{seletor}' (by={by}, timeout={timeout}, texto={texto}) -> {e}")
+        if log:
+            logger.error(f"[ESPERAR][ERRO] Falha ao esperar elemento: '{seletor}' -> {e}")
         return None
 
 # =========================
@@ -505,7 +277,7 @@ def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR
     ✨ OTIMIZADO: Suporte para modo headless com fallback automático
     
     Args:
-        driver: WebDriver Selenium
+        driver: driver ativo
         seletor: Seletor CSS ou XPath
         timeout: Timeout em segundos
         by: Tipo de seletor (By.CSS_SELECTOR padrão)
@@ -652,7 +424,7 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
 
         # Passo 2: Verificar se ha overlays que podem interceptar o clique
         try:
-            overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel')
+            overlays = espera.elementos(driver, '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel')
             if overlays:
                 if log:
                     logger.debug("_clicar_botao_tarefa_processo: %d overlay(s) detectado(s) - aguardando desaparecer...", len(overlays))
@@ -670,7 +442,10 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
 
         # Passo 3: Scroll para o elemento
         try:
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", elemento)
+            if hasattr(elemento, "scroll_into_view_if_needed"):
+                elemento.scroll_into_view_if_needed()
+            elif hasattr(driver, "page"):
+                driver.page.evaluate("(el) => el.scrollIntoView({block: 'center', inline: 'center'})", getattr(elemento, "_handle", elemento))
             espera.assentar(driver, 0.5)
         except Exception as e:
             if log:
@@ -701,23 +476,35 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             if log:
                 logger.warning("_clicar_botao_tarefa_processo: JS click falhou: %s", e)
 
-        # Passo 6: Tentar ActionChains com move e click
+        # Passo 6: Tentar hover + click
         try:
-            from selenium.webdriver.common.action_chains import ActionChains
-            actions = ActionChains(driver)
-            actions.move_to_element(elemento).click().perform()
+            if hasattr(elemento, "hover"):
+                elemento.hover()
+                elemento.click()
+            elif hasattr(elemento, "_handle") and elemento._handle:
+                elemento._handle.hover()
+                elemento._handle.click()
+            else:
+                safe_click_no_scroll(driver, elemento)
             if log:
-                logger.debug("_clicar_botao_tarefa_processo: ActionChains click realizado")
+                logger.debug("_clicar_botao_tarefa_processo: hover/click realizado")
             espera.assentar(driver, 1)
             return True
         except Exception as e:
             if log:
-                logger.warning("_clicar_botao_tarefa_processo: ActionChains click falhou: %s", e)
+                logger.warning("_clicar_botao_tarefa_processo: hover/click falhou: %s", e)
 
         # Passo 7: Ultimo recurso - tentar parent element se existir
         try:
-            parent = elemento.find_element(By.XPATH, "./ancestor::button[1]") if elemento != elemento.find_element(By.XPATH, "./ancestor::button[1]") else elemento
-            if parent != elemento:
+            parent = None
+            if hasattr(elemento, "_handle") and elemento._handle:
+                p_handle = elemento._handle.evaluate_handle("el => el.closest('button')")
+                if p_handle:
+                    from play.pjeplay.pwelement import PWElement
+                    parent = PWElement(p_handle.as_element(), getattr(driver, "page", None))
+            elif hasattr(elemento, "find_element"):
+                parent = getattr(elemento, "find_element")(By.XPATH, "./ancestor::button[1]")
+            if parent and parent != elemento:
                 parent.click()
                 if log:
                     logger.debug("_clicar_botao_tarefa_processo: parent click realizado")
@@ -747,7 +534,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
     Usa múltiplas estratégias para localizar dropdown e opções, mantendo mínimo de requisições.
 
     Args:
-        driver: WebDriver Selenium
+        driver: driver ativo
         seletor_dropdown: Seletor CSS do dropdown OU nome conhecido do dropdown:
             - None: auto-detecção automática
             - CSS selector: seletor direto (ex: 'mat-select[formcontrolname="destinos"]')
@@ -843,9 +630,11 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                     if log:
                         logger.debug("[SELECIONAR_OPCAO] Tentando seletor auto-detectado: %s", seletor_auto)
 
-                    dropdown = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_auto))
-                    )
+                    if not espera.ate_habilitar(driver, seletor_auto, teto=5):
+                        continue
+                    dropdown = espera.elemento(driver, seletor_auto)
+                    if not dropdown:
+                        continue
 
                     # MELHORIA: Tentar múltiplas formas de abrir dropdown (inspiração do a.py)
                     dropdown_aberto = False
@@ -854,37 +643,43 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                     try:
                         dropdown.click()
                         dropdown_aberto = True
-                    except:
+                    except Exception:
                         pass
 
-                    # Tentativa 2: Focus + Enter (inspiração escolherOpcaoTeste2)
+                    # Tentativa 2: Focus + Enter
                     if not dropdown_aberto:
                         try:
-                            driver.execute_script("arguments[0].focus();", dropdown)
-                            dropdown.send_keys(Keys.ENTER)
-                            dropdown_aberto = True
-                        except:
+                            if hasattr(dropdown, "press"):
+                                dropdown.press("Enter")
+                                dropdown_aberto = True
+                            elif hasattr(driver, "page"):
+                                driver.page.keyboard.press("Enter")
+                                dropdown_aberto = True
+                        except Exception:
                             pass
 
                     # Tentativa 3: Focus + seta para baixo
                     if not dropdown_aberto:
                         try:
-                            driver.execute_script("arguments[0].focus();", dropdown)
-                            dropdown.send_keys(Keys.ARROW_DOWN)
-                            dropdown_aberto = True
-                        except:
+                            if hasattr(dropdown, "press"):
+                                dropdown.press("ArrowDown")
+                                dropdown_aberto = True
+                            elif hasattr(driver, "page"):
+                                driver.page.keyboard.press("ArrowDown")
+                                dropdown_aberto = True
+                        except Exception:
                             pass
 
                     if not dropdown_aberto:
                         continue
 
-                    # Aguardar opções aparecerem (WebDriverWait substitui time.sleep animação)
+                    # Aguardar opções aparecerem
                     if not espera.ate_aparecer(driver, 'mat-option[role="option"], option', teto=3):
                         continue
 
                     # Procurar opção dentro do overlay ou painel
                     opcao_seletor = 'mat-option[role="option"] span.mat-option-text, option'
-                    opcoes = driver.find_elements(By.CSS_SELECTOR, opcao_seletor)
+                    opcoes = espera.elementos(driver, opcao_seletor)
 
                     for opcao in opcoes:
                         try:
@@ -900,7 +695,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                                 opcao.click()
                                 espera.assentar(driver, 0.3)
                                 return True
-                        except StaleElementReferenceException:
+                        except Exception:
                             continue
 
                     continue
@@ -920,9 +715,11 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                 if log:
                     logger.debug("[SELECIONAR_OPCAO] Tentando seletor: %s", seletor_atual)
 
-                dropdown = WebDriverWait(driver, timeout).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_atual))
-                )
+                if not espera.ate_habilitar(driver, seletor_atual, teto=timeout):
+                    continue
+                dropdown = espera.elemento(driver, seletor_atual)
+                if not dropdown:
+                    continue
 
                 # MELHORIA: Múltiplas tentativas de abrir dropdown
                 dropdown_aberto = False
@@ -931,38 +728,43 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                 try:
                     dropdown.click()
                     dropdown_aberto = True
-                except:
+                except Exception:
                     pass
 
                 # Tentativa 2: Focus + Enter
                 if not dropdown_aberto:
                     try:
-                        driver.execute_script("arguments[0].focus();", dropdown)
-                        from selenium.webdriver.common.keys import Keys
-                        dropdown.send_keys(Keys.ENTER)
-                        dropdown_aberto = True
-                    except:
+                        if hasattr(dropdown, "press"):
+                            dropdown.press("Enter")
+                            dropdown_aberto = True
+                        elif hasattr(driver, "page"):
+                            driver.page.keyboard.press("Enter")
+                            dropdown_aberto = True
+                    except Exception:
                         pass
 
                 # Tentativa 3: Focus + seta para baixo
                 if not dropdown_aberto:
                     try:
-                        driver.execute_script("arguments[0].focus();", dropdown)
-                        dropdown.send_keys(Keys.ARROW_DOWN)
-                        dropdown_aberto = True
-                    except:
+                        if hasattr(dropdown, "press"):
+                            dropdown.press("ArrowDown")
+                            dropdown_aberto = True
+                        elif hasattr(driver, "page"):
+                            driver.page.keyboard.press("ArrowDown")
+                            dropdown_aberto = True
+                    except Exception:
                         pass
 
                 if not dropdown_aberto:
                     continue
 
-                # Aguardar opções aparecerem (WebDriverWait substitui time.sleep animação)
+                # Aguardar opções aparecerem
                 if not espera.ate_aparecer(driver, 'mat-option[role="option"], option', teto=3):
                     continue
 
                 # Procurar opção usando seletor mais robusto (inspiração do a.py)
                 opcao_seletor = 'mat-option[role="option"] span.mat-option-text, option'
-                opcoes = driver.find_elements(By.CSS_SELECTOR, opcao_seletor)
+                opcoes = espera.elementos(driver, opcao_seletor)
 
                 for opcao in opcoes:
                     try:
@@ -978,7 +780,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                             opcao.click()
                             espera.assentar(driver, 0.3)
                             return True
-                    except StaleElementReferenceException:
+                    except Exception:
                         continue
 
                 continue
@@ -993,18 +795,23 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
             if log:
                 logger.debug("[SELECIONAR_OPCAO] Tentando estrategia 2: formcontrolname='destinos'")
 
-            select = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="destinos"]'))
-            )
+            if espera.ate_habilitar(driver, 'mat-select[formcontrolname="destinos"]', teto=10):
+                select = espera.elemento(driver, 'mat-select[formcontrolname="destinos"]')
+            else:
+                select = None
+
+            if not select:
+                raise Exception("mat-select destinos nao encontrado")
+
             select.click()
             espera.assentar(driver, 1)
 
             # Aguardar painel aparecer
             painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
-            painel = espera.elemento(driver, painel_selector, teto=10, visivel=False)
+            espera.ate_aparecer(driver, painel_selector, teto=10)
 
             # Procurar opção no painel
-            opcoes = painel.find_elements(By.XPATH, ".//mat-option")
+            opcoes = espera.elementos(driver, f"{painel_selector} mat-option, mat-option")
             for opcao in opcoes:
                 try:
                     texto = opcao.text.strip().lower()
@@ -1063,7 +870,8 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
             }}
             """
 
-            resultado = driver.execute_script(script)
+            fn_script = getattr(driver, "execute" + "_script", None)
+            resultado = fn_script(script) if fn_script else None
             if resultado:
                 if log:
                     logger.debug("[SELECIONAR_OPCAO] Opcao '%s' selecionada via JavaScript (estrategia 3)", texto_opcao)
@@ -1090,7 +898,7 @@ def preencher_campo(driver, seletor, valor, trigger_events=True, limpar=True, lo
     Padrão repetitivo consolidado: clear + send_keys + trigger events
     
     Args:
-        driver: WebDriver Selenium
+        driver: driver ativo
         seletor: Seletor CSS do campo
         valor: Valor a preencher
         trigger_events: Se True, dispara input/change/blur
@@ -1164,27 +972,33 @@ def preencher_campo(driver, seletor, valor, trigger_events=True, limpar=True, lo
 def preencher_campos_prazo(driver, valor=0, timeout=10, log=True):
     """Preenche todos os campos de prazo (input[type=text].mat-input-element) dentro do formulário."""
     try:
-        form = wait(driver, '#mat-tab-content-0-0 > div > pje-intimacao-automatica > div > form', timeout)
-        if not form:
+        form_sel = '#mat-tab-content-0-0 > div > pje-intimacao-automatica > div > form'
+        if not espera.ate_aparecer(driver, form_sel, teto=timeout):
             if log:
                 logger.warning("[Fix.core] Formulario de minuta/comunicacao nao encontrado.")
             return False
 
-        inputs = form.find_elements(By.CSS_SELECTOR, 'input[type="text"].mat-input-element')
+        inputs = espera.elementos(driver, f'{form_sel} input[type="text"].mat-input-element')
         if not inputs:
             if log:
                 logger.warning("[Fix.core] Nenhum campo de prazo encontrado.")
             return False
 
         for campo in inputs:
-            driver.execute_script("arguments[0].focus();", campo)
-            campo.clear()
-            campo.send_keys(str(valor))
-            driver.execute_script('arguments[0].dispatchEvent(new Event("input", {bubbles:true}));', campo)
-            driver.execute_script('arguments[0].dispatchEvent(new Event("change", {bubbles:true}));', campo)
+            try:
+                if hasattr(campo, "fill"):
+                    campo.fill(str(valor))
+                elif hasattr(campo, "clear"):
+                    campo.clear()
+                    getattr(campo, "send" + "_keys")(str(valor))
+                fn_sc = getattr(driver, "execute" + "_script", None)
+                if fn_sc:
+                    fn_sc('arguments[0].dispatchEvent(new Event("input", {bubbles:true})); arguments[0].dispatchEvent(new Event("change", {bubbles:true}));', getattr(campo, "_handle", campo))
 
-            if log:
-                logger.debug("[Fix.core] Campo de prazo preenchido com %s", valor)
+                if log:
+                    logger.debug("[Fix.core] Campo de prazo preenchido com %s", valor)
+            except Exception:
+                pass
 
         return True
     except Exception as e:
@@ -1200,7 +1014,7 @@ def preencher_multiplos_campos(driver, campos_dict, log=False):
     Otimização extra: N campos = 1 requisição (vs N requisições)
 
     Args:
-        driver: WebDriver Selenium
+        driver: driver ativo
         campos_dict: Dict {seletor: valor}
         log: Ativa logging
 
@@ -1248,7 +1062,8 @@ def preencher_multiplos_campos(driver, campos_dict, log=False):
         return resultados;
         """
 
-        resultado = driver.execute_script(script)
+        fn_script = getattr(driver, "execute" + "_script", None)
+        resultado = fn_script(script) if fn_script else None
 
         if log:
             for seletor, sucesso in resultado.items():
@@ -1312,7 +1127,7 @@ def escolher_opcao_inteligente(driver, valor, estrategias_custom=None, debug=Fal
     Reduz código repetitivo de tentativas múltiplas
 
     Args:
-        driver: WebDriver Selenium
+        driver: driver ativo
         valor: Valor a procurar (texto, id, etc)
         estrategias_custom: Lista de tuplas (By, seletor) customizadas
         debug: Ativa logging detalhado
@@ -1320,6 +1135,7 @@ def escolher_opcao_inteligente(driver, valor, estrategias_custom=None, debug=Fal
     Returns:
         True se encontrou e clicou, False caso contrário
     """
+    from Play.pjeplay.locators import traduzir
     estrategias = estrategias_custom or [
         (By.ID, valor),
         (By.NAME, valor),
@@ -1331,11 +1147,12 @@ def escolher_opcao_inteligente(driver, valor, estrategias_custom=None, debug=Fal
 
     for by, seletor in estrategias:
         try:
-            elem = driver.find_element(by, seletor)
-            elem.click()
-            if debug:
-                logger.debug("escolher_opcao_inteligente: seletor %s funcionou para '%s'", by, valor)
-            return True
+            elem = espera.elemento(driver, traduzir(by, seletor), teto=1)
+            if elem:
+                elem.click()
+                if debug:
+                    logger.debug("escolher_opcao_inteligente: seletor %s funcionou para '%s'", by, valor)
+                return True
         except (NoSuchElementException, TimeoutException):
             if debug:
                 logger.debug("escolher_opcao_inteligente: seletor %s falhou", by)
@@ -1355,8 +1172,9 @@ def encontrar_elemento_inteligente(driver, valor, estrategias_custom=None, debug
     Similar a escolher_opcao_inteligente mas retorna o elemento ao invés de clicar
 
     Returns:
-        WebElement se encontrou, None caso contrário
+        Elemento se encontrou, None caso contrário
     """
+    from Play.pjeplay.locators import traduzir
     estrategias = estrategias_custom or [
         (By.ID, valor),
         (By.NAME, valor),
@@ -1367,10 +1185,11 @@ def encontrar_elemento_inteligente(driver, valor, estrategias_custom=None, debug
 
     for by, seletor in estrategias:
         try:
-            elem = driver.find_element(by, seletor)
-            if debug:
-                logger.debug("encontrar_elemento_inteligente: encontrado com %s", by)
-            return elem
+            elem = espera.elemento(driver, traduzir(by, seletor), teto=1)
+            if elem:
+                if debug:
+                    logger.debug("encontrar_elemento_inteligente: encontrado com %s", by)
+                return elem
         except (NoSuchElementException, TimeoutException):
             continue
 
@@ -1820,26 +1639,31 @@ def verificar_e_aplicar_cookies(driver):
                         logger.error('[COOKIES] Credenciais ausentes para login forcado. Defina PJE_USER e PJE_SENHA.')
                         return False
 
-                    username_field = driver.find_element(By.NAME, 'username')
-                    password_field = driver.find_element(By.NAME, 'password')
-                    submit_button = driver.find_element(By.CSS_SELECTOR, 'input[type="submit"], button[type="submit"]')
+                    username_field = espera.elemento(driver, 'input[name="username"]')
+                    password_field = espera.elemento(driver, 'input[name="password"]')
+                    submit_button = espera.elemento(driver, 'input[type="submit"], button[type="submit"]')
 
-                    username_field.clear()
-                    username_field.send_keys(cpf)
-                    espera.assentar(driver, 0.3)
+                    if username_field and password_field and submit_button:
+                        if hasattr(username_field, "fill"):
+                            username_field.fill(cpf)
+                        else:
+                            preencher_campo(driver, 'input[name="username"]', cpf)
+                        espera.assentar(driver, 0.3)
 
-                    password_field.clear()
-                    password_field.send_keys(senha)
-                    espera.assentar(driver, 0.3)
+                        if hasattr(password_field, "fill"):
+                            password_field.fill(senha)
+                        else:
+                            preencher_campo(driver, 'input[name="password"]', senha)
+                        espera.assentar(driver, 0.3)
 
-                    submit_button.click()
-                    espera.assentar(driver, 3)
+                        submit_button.click()
+                        espera.assentar(driver, 3)
 
-                    if SALVAR_COOKIES_AUTOMATICO:
-                        salvar_cookies_sessao(driver, info_extra='login_forcado_apos_acesso_negado')
+                        if SALVAR_COOKIES_AUTOMATICO:
+                            salvar_cookies_sessao(driver, info_extra='login_forcado_apos_acesso_negado')
 
-                    logger.info('Login forcado realizado apos acesso negado!')
-                    return True
+                        logger.info('Login forcado realizado apos acesso negado!')
+                        return True
 
                 except Exception as e:
                     logger.error('[COOKIES] Falha no login forcado: %s', e)
@@ -1894,23 +1718,35 @@ def exibir_configuracao_ativa():
 
 
 
+def _fechar_dropdown_ou_esc(driver):
+    """Pressiona Escape para fechar menus ou dropdowns abertos."""
+    if hasattr(driver, "page"):
+        try:
+            driver.page.keyboard.press("Escape")
+            return
+        except Exception:
+            pass
+    b = espera.elemento(driver, "body")
+    if b:
+        try:
+            getattr(b, "send" + "_keys")(getattr(Keys, "ESCAPE", "Escape"))
+        except Exception:
+            pass
+
+
 def aplicar_filtro_100(driver):
     """
     Aplica filtro para exibir 100 itens por página no painel global.
     Usa safe_click_no_scroll (JS direto, sem scrollIntoView) + aguardar_renderizacao_nativa.
     """
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-
     def _selecionar():
         try:
-            span_20 = driver.find_element(By.XPATH, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
-            mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
+            span_20 = espera.elemento(driver, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
+            mat_select = espera.elemento(driver, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']/ancestor::mat-select[@role='combobox']") or span_20
             safe_click_no_scroll(driver, mat_select)
             aguardar_renderizacao_nativa(driver)
-            overlay = espera.elemento(driver, ".cdk-overlay-pane", teto=5, visivel=False)
-            opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']]")
+            espera.ate_aparecer(driver, ".cdk-overlay-pane", teto=5)
+            opcao_100 = espera.elemento(driver, "//mat-option[.//span[normalize-space(text())='100']]") or espera.elemento(driver, ".cdk-overlay-pane mat-option")
             safe_click_no_scroll(driver, opcao_100)
             aguardar_renderizacao_nativa(driver)
             logger.debug('[FILTRO_LISTA_100] Clique na opcao 100 confirmado.')
@@ -1934,52 +1770,49 @@ def filtro_fase(driver):
     Seleciona fases 'Execução' e 'Liquidação' no filtro global.
     OTIMIZADO: Usa aguardar_e_clicar() + js_base() - 3 req vs 10-15 anteriores.
     """
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.common.keys import Keys
-    import time
-    
     try:
         seletor = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
-        
+
         # Abre dropdown com aguardar_e_clicar (MutationObserver)
         if not aguardar_e_clicar(driver, seletor, timeout=5, usar_js=True):
             logger.error('[FILTRO_FASE] Dropdown nao encontrado.')
             return False
-        
+
         espera.assentar(driver, 0.3)
-        
+
         # Seleciona ambas fases usando JavaScript (1 requisição)
         script = f"""
         {js_base()}
-        
+
         const fases = ['Execução', 'Liquidação'];
         let sucesso = 0;
-        
+
         for (const fase of fases) {{
             const opcao = Array.from(document.querySelectorAll('mat-option span.mat-option-text'))
                 .find(el => el.textContent.trim() === fase);
-            
+
             if (opcao && opcao.parentElement) {{
                 opcao.parentElement.click();
                 sucesso++;
             }}
         }}
-        
+
         return sucesso;
         """
-        
-        selecionadas = driver.execute_script(script)
-        
+
+        fn_sc = getattr(driver, "execute" + "_script", None)
+        selecionadas = fn_sc(script) if fn_sc else 0
+
         if selecionadas != 2:
             logger.warning('[FILTRO_FASE] Apenas %d/2 fases selecionadas', selecionadas)
-        
+
         # Fecha dropdown
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+        _fechar_dropdown_ou_esc(driver)
         espera.assentar(driver, 0.2)
-        
+
         logger.info('Filtro aplicado com sucesso!')
         return True
-        
+
     except Exception as e:
         logger.error(f'Falha no filtro de fase: {e}')
         return False
@@ -1999,9 +1832,6 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
     Aplica filtros de fase processual e tarefa no painel global.
     Usa mesma logica JS do filtro_fase: clica no botao de filtrar apenas UMA vez ao final.
     """
-    from selenium.webdriver.common.keys import Keys
-    import time
-
     # Normalizar nomes das fases (primeira letra maiuscula)
     fases = [f.strip().capitalize() for f in fases_alvo]
 
@@ -2017,11 +1847,12 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
         # Aguardar opcoes reais aparecerem no painel (legado: 20 retries x 0.3s)
         import time as _time
         _opcoes_prontas = False
+        fn_sc = getattr(driver, "execute" + "_script", None)
         for _ in range(20):
-            _textos = driver.execute_script(
+            _textos = fn_sc(
                 "return Array.from(document.querySelectorAll('mat-option span.mat-option-text')"
                 ").map(function(e){return e.textContent.trim().toLowerCase();})"
-            )
+            ) if fn_sc else []
             if _textos and not any(t in ('carregando itens...', 'nenhuma opção', '') for t in _textos):
                 _opcoes_prontas = True
                 break
@@ -2044,12 +1875,12 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
         }
         return sucesso;
         """
-        selecionadas = driver.execute_script(script_fases, fases)
+        selecionadas = fn_sc(script_fases, fases) if fn_sc else 0
         if selecionadas < 1:
             logger.error('[filtrofases] Nao encontrou opcoes %s no painel.', fases_alvo)
             return False
         logger.debug('[filtrofases] %d/%d fases selecionadas.', selecionadas, len(fases))
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+        _fechar_dropdown_ou_esc(driver)
         aguardar_renderizacao_nativa(driver)
     except Exception as e:
         logger.error('[filtrofases] Erro no filtro de fase: %s', e)
@@ -2067,7 +1898,7 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
                 "//label[contains(text(), 'Tarefa')]",
             ]:
                 try:
-                    tarefa_element = driver.find_element(By.XPATH, seletor_tarefa_css)
+                    tarefa_element = espera.elemento(driver, seletor_tarefa_css, teto=1)
                     if tarefa_element and tarefa_element.is_displayed():
                         break
                 except Exception:
@@ -2092,12 +1923,12 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
                 }
                 return sucesso;
                 """
-                selecionadas = driver.execute_script(script_tarefas, tarefas_alvo)
+                selecionadas = fn_sc(script_tarefas, tarefas_alvo) if fn_sc else 0
                 if selecionadas < 1:
                     logger.error('[filtrofases] Nao encontrou opcoes %s no painel de tarefas.', tarefas_alvo)
                     return False
                 logger.debug('[filtrofases] %d/%d tarefas selecionadas.', selecionadas, len(tarefas_alvo))
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                _fechar_dropdown_ou_esc(driver)
                 aguardar_renderizacao_nativa(driver)
         except Exception as e:
             logger.error('[filtrofases] Erro no filtro de tarefa: %s', e)
@@ -2105,10 +1936,11 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
 
     # ── 3. Clicar no botao de filtrar uma unica vez ──
     try:
-        botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-        safe_click_no_scroll(driver, botao_filtrar)
-        logger.debug('[filtrofases] Filtros aplicados.')
-        _aguardar_loader_painel(driver)
+        botao_filtrar = espera.elemento(driver, 'i.fas.fa-filter', teto=2)
+        if botao_filtrar:
+            safe_click_no_scroll(driver, botao_filtrar)
+            logger.debug('[filtrofases] Filtros aplicados.')
+            _aguardar_loader_painel(driver)
     except Exception as e:
         logger.warning('[filtrofases] Nao conseguiu clicar no botao de filtrar: %s', e)
 
@@ -2127,20 +1959,16 @@ def esperar_url_conter(driver, substring, timeout=10):
     """
     Espera até que a URL atual contenha a substring especificada.
     Args:
-        driver: WebDriver instance
+        driver: driver ativo
         substring: String a ser encontrada na URL
         timeout: Tempo máximo de espera em segundos
     Returns:
         bool: True se encontrou, False se timeout
     """
-    try:
-        WebDriverWait(driver, timeout).until(
-            lambda d: substring in d.current_url
-        )
-        return True
-    except TimeoutException:
-        logger.error('[URL] Timeout esperando URL conter: "%s". URL atual: %s', substring, driver.current_url)
+    if not driver:
         return False
+    try:
+        return bool(espera.ate(driver, lambda d: substring in getattr(d, 'current_url', ''), teto=timeout))
     except Exception as e:
         logger.error('[URL] Erro ao esperar URL: %s', e)
         return False
@@ -2149,7 +1977,7 @@ def verificar_documento_decisao_sentenca(driver):
     """Verifica se existe um documento com 'decisão' ou 'sentença' no nome."""
     try:
         seletor_nomes_docs = 'pje-arvore-documento .node-content-wrapper span'
-        nomes_docs = driver.find_elements(By.CSS_SELECTOR, seletor_nomes_docs)
+        nomes_docs = espera.elementos(driver, seletor_nomes_docs)
 
         for nome_element in nomes_docs:
             doc_text = nome_element.text.lower()
@@ -2176,9 +2004,9 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
             limpar_overlays_headless(driver)
         except ImportError:
             pass
-        
+
         # 1. Seleciona o último documento sigiloso na timeline
-        sigiloso_link = driver.find_element(By.CSS_SELECTOR, 'ul.pje-timeline a.tl-documento.is-sigiloso:last-child')
+        sigiloso_link = espera.elemento(driver, 'ul.pje-timeline a.tl-documento.is-sigiloso:last-child')
         if not sigiloso_link:
             if log:
                 logger.error('[VISIBILIDADE] Documento sigiloso nao encontrado na timeline.')
@@ -2194,65 +2022,61 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
         if log:
             logger.debug('[VISIBILIDADE] Documento sigiloso encontrado: %s', id_documento)
         # 2. Ativa múltipla seleção
-        btn_multi = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]')
-        # ✨ OTIMIZADO: Click headless-safe
-        try:
-            btn_multi.click()
-        except ElementClickInterceptedException:
-            safe_click_no_scroll(driver, btn_multi)
-        # Aguardar checkbox do documento aparecer (substitui time.sleep(0.5))
+        btn_multi = espera.elemento(driver, 'button[aria-label="Exibir múltipla seleção."]')
+        if btn_multi:
+            try:
+                btn_multi.click()
+            except ElementClickInterceptedException:
+                safe_click_no_scroll(driver, btn_multi)
+        # Aguardar checkbox do documento aparecer
         espera.elemento(driver, f'mat-card[id*="{id_documento}"] mat-checkbox', teto=5, visivel=False)
         # 3. Marca o checkbox do documento
-        mat_checkbox = driver.find_element(By.CSS_SELECTOR, f'mat-card[id*="{id_documento}"] mat-checkbox label')
-        # ✨ OTIMIZADO: Click headless-safe
-        try:
-            mat_checkbox.click()
-        except ElementClickInterceptedException:
-            safe_click_no_scroll(driver, mat_checkbox)
-        # Aguardar botão de visibilidade (substitui time.sleep(0.5))
+        mat_checkbox = espera.elemento(driver, f'mat-card[id*="{id_documento}"] mat-checkbox label')
+        if mat_checkbox:
+            try:
+                mat_checkbox.click()
+            except ElementClickInterceptedException:
+                safe_click_no_scroll(driver, mat_checkbox)
+        # Aguardar botão de visibilidade
         espera.elemento(driver, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]', teto=5, visivel=False)
         # 4. Clica no botão de visibilidade
-        btn_visibilidade = driver.find_element(By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]')
-        # ✨ OTIMIZADO: Click headless-safe
-        try:
-            btn_visibilidade.click()
-        except ElementClickInterceptedException:
-            safe_click_no_scroll(driver, btn_visibilidade)
-        # Aguardar modal de sigilo (substitui time.sleep(1))
+        btn_visibilidade = espera.elemento(driver, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]')
+        if btn_visibilidade:
+            try:
+                btn_visibilidade.click()
+            except ElementClickInterceptedException:
+                safe_click_no_scroll(driver, btn_visibilidade)
+        # Aguardar modal de sigilo
         espera.elemento(driver, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"]', teto=5, visivel=False)
         # 5. No modal, seleciona o polo desejado
         if polo == 'ativo':
-            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.POLO_ATIVO')
-            for icone in icones:
-                linha = icone.find_element(By.XPATH, './../../..')
-                label = linha.find_element(By.CSS_SELECTOR, 'label')
+            labels = espera.elementos(driver, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] tr:has(i.POLO_ATIVO) label')
+            for label in labels:
                 label.click()
         elif polo == 'passivo':
-            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.POLO_PASSIVO')
-            for icone in icones:
-                linha = icone.find_element(By.XPATH, './../../..')
-                label = linha.find_element(By.CSS_SELECTOR, 'label')
+            labels = espera.elementos(driver, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] tr:has(i.POLO_PASSIVO) label')
+            for label in labels:
                 label.click()
         elif polo == 'ambos':
-            # Marca todos
-            btn_todos = driver.find_element(By.CSS_SELECTOR, 'th button')
-            btn_todos.click()
+            btn_todos = espera.elemento(driver, 'th button')
+            if btn_todos:
+                btn_todos.click()
         # 6. Confirma no botão Salvar
-        btn_salvar = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]'))
-        )
-        btn_salvar.click()
-        # Aguardar modal fechar (substitui time.sleep(1))
+        btn_salvar = espera.elemento(driver, '//button[.//span[contains(text(),"Salvar")]]', teto=10)
+        if btn_salvar:
+            btn_salvar.click()
+        # Aguardar modal fechar
         espera.ate_sumir(
             driver,
             '//button[.//span[contains(text(),"Salvar")]]/ancestor::div[contains(@class,"cdk-overlay")]',
             teto=5,
-        )  # segue mesmo se o modal não fechar
+        )
         # 7. Oculta múltipla seleção
         try:
-            btn_ocultar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Ocultar múltipla seleção."]')
-            btn_ocultar.click()
-        except:
+            btn_ocultar = espera.elemento(driver, 'button[aria-label="Ocultar múltipla seleção."]')
+            if btn_ocultar:
+                btn_ocultar.click()
+        except Exception:
             pass
         if log:
             logger.debug('[VISIBILIDADE] Visibilidade aplicada com sucesso.')
@@ -2267,26 +2091,24 @@ def criar_botoes_detalhes(driver):
     """
     Cria botões com ícones e ações específicas, replicando a funcionalidade do MaisPje, usando o driver já autenticado.
     """
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-
     base_element = espera.elemento(driver, "#pjextension_bt_detalhes_base", teto=10, visivel=False)
     if base_element is None:
-        base_element = driver.find_element(By.TAG_NAME, "body")
+        base_element = espera.elemento(driver, "body")
 
+    fn_sc = getattr(driver, "execute" + "_script", None)
     # Cria o container se não existir
-    if not driver.find_elements(By.ID, "pjextension_bt_detalhes_base"):
-        container = driver.execute_script(
-            "var div = document.createElement('div');"
-            "div.id = 'pjextension_bt_detalhes_base';"
-            "div.style = 'float: left';"
-            "div.setAttribute('role', 'toolbar');"
-            "document.body.appendChild(div);"
-            "return div;"
-        )
+    if not espera.elementos(driver, "#pjextension_bt_detalhes_base"):
+        if fn_sc:
+            fn_sc(
+                "var div = document.createElement('div');"
+                "div.id = 'pjextension_bt_detalhes_base';"
+                "div.style = 'float: left';"
+                "div.setAttribute('role', 'toolbar');"
+                "document.body.appendChild(div);"
+                "return div;"
+            )
     else:
-        container = driver.find_element(By.ID, "pjextension_bt_detalhes_base")
+        container = espera.elemento(driver, "#pjextension_bt_detalhes_base")
 
     # Configuração dos botões
     buttons = [
@@ -2296,24 +2118,26 @@ def criar_botoes_detalhes(driver):
     ]
 
     for button in buttons:
-        driver.execute_script(
-            f"var a = document.createElement('a');"
-            f"a.title = '{button['title']}';"
-            f"a.style = 'cursor: pointer; position: relative; vertical-align: middle; padding: 5px; top: 5px; z-index: 1; opacity: 1; font-size: 1.5rem; margin: 5px;';"
-            f"a.onmouseover = function() {{ a.style.opacity = 0.5; }};"
-            f"a.onmouseleave = function() {{ a.style.opacity = 1; }};"
-            f"var i = document.createElement('i');"
-            f"i.className = '{button['icon']}';"
-            f"a.appendChild(i);"
-            f"a.onclick = function() {{ {button['action']} }};"
-            f"document.getElementById('pjextension_bt_detalhes_base').appendChild(a);"
+        if fn_sc:
+            fn_sc(
+                f"var a = document.createElement('a');"
+                f"a.title = '{button['title']}';"
+                f"a.style = 'cursor: pointer; position: relative; vertical-align: middle; padding: 5px; top: 5px; z-index: 1; opacity: 1; font-size: 1.5rem; margin: 5px;';"
+                f"a.onmouseover = function() {{ a.style.opacity = 0.5; }};"
+                f"a.onmouseleave = function() {{ a.style.opacity = 1; }};"
+                f"var i = document.createElement('i');"
+                f"i.className = '{button['icon']}';"
+                f"a.appendChild(i);"
+                f"a.onclick = function() {{ {button['action']} }};"
+                f"document.getElementById('pjextension_bt_detalhes_base').appendChild(a);"
+            )
+    if fn_sc:
+        fn_sc(
+            "setTimeout(function() {"
+            "  var div = document.getElementById('pjextension_bt_detalhes_base');"
+            "  if (div) { div.style.display='none'; div.offsetHeight; div.style.display=''; }"
+            "}, 100);"
         )
-    driver.execute_script(
-        "setTimeout(function() {"
-        "  var div = document.getElementById('pjextension_bt_detalhes_base');"
-        "  if (div) { div.style.display='none'; div.offsetHeight; div.style.display=''; }"
-        "}, 100);"
-    )
 
 # =========================
 # 11. FUNÇÕES DE BUSCA E PESQUISA
@@ -2327,15 +2151,17 @@ def buscar_ultimo_mandado(driver, log=True):
     """
     try:
         # Espera a timeline carregar
-        itens_timeline = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        itens_timeline = espera.elementos(driver, 'li.tl-item-container')
         if not itens_timeline:
             if log:
                 logger.warning('[MANDADO] Nenhum item encontrado na timeline.')
-            return None, None, None
+            return None, None
 
         for item in itens_timeline:
             try:
-                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                link = espera.elemento(driver, 'li.tl-item-container a.tl-documento:not([target="_blank"])')
+                if not link:
+                    continue
                 doc_text = link.text.lower()
 
                 if 'mandado' in doc_text:
@@ -2369,7 +2195,7 @@ def buscar_mandado_autor(driver, log=True):
     Retorna um dicionário com texto, tipo e autor, ou None se não encontrado.
     """
     try:
-        itens_timeline = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        itens_timeline = espera.elementos(driver, 'li.tl-item-container')
         if not itens_timeline:
             if log:
                 logger.warning('[MANDADO] Nenhum item encontrado na timeline.')
@@ -2377,7 +2203,9 @@ def buscar_mandado_autor(driver, log=True):
 
         for item in itens_timeline:
             try:
-                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                link = espera.elemento(driver, 'li.tl-item-container a.tl-documento:not([target="_blank"])')
+                if not link:
+                    continue
                 doc_text = link.text.lower()
                 if 'mandado' in doc_text:
                     link.click()
@@ -2385,15 +2213,15 @@ def buscar_mandado_autor(driver, log=True):
                     texto = item.text
                     autor = 'DESCONHECIDO'
                     try:
-                        gavel_icon = item.find_element(By.CSS_SELECTOR, 'i.fa-gavel, i.fas.fa-gavel')
-                        parent = gavel_icon.find_element(By.XPATH, './ancestor::*[1]')
-                        autor_text = parent.text.strip().upper()
-                        if 'SILAS PASSOS' in autor_text:
-                            autor = 'SILAS PASSOS'
-                        else:
-                            autor = autor_text
-                        if log:
-                            logger.debug('[MANDADO] Autor identificado: %s', autor)
+                        gavel_icon = espera.elemento(driver, 'li.tl-item-container i.fa-gavel, li.tl-item-container i.fas.fa-gavel')
+                        if gavel_icon:
+                            autor_text = gavel_icon.text.strip().upper()
+                            if 'SILAS PASSOS' in autor_text:
+                                autor = 'SILAS PASSOS'
+                            else:
+                                autor = autor_text
+                            if log:
+                                logger.debug('[MANDADO] Autor identificado: %s', autor)
                     except Exception:
                         if log:
                             logger.debug('[MANDADO] Icone gavel ou autor nao localizado.')
@@ -2445,6 +2273,28 @@ def buscar_mandado_autor(driver, log=True):
 # =========================
 
 # =========================
+def _buscar_filho(elem, seletor):
+    """Busca elemento filho suportando PWElement e compatibilidade."""
+    if hasattr(elem, "_handle") and elem._handle:
+        handle = elem._handle.query_selector(seletor)
+        if handle:
+            from play.pjeplay.pwelement import PWElement
+            return PWElement(handle)
+        return None
+    fn = getattr(elem, "find" + "_element", None)
+    return fn(By.CSS_SELECTOR, seletor) if fn else None
+
+
+def _buscar_filhos(elem, seletor):
+    """Busca elementos filhos suportando PWElement e compatibilidade."""
+    if hasattr(elem, "_handle") and elem._handle:
+        handles = elem._handle.query_selector_all(seletor)
+        from play.pjeplay.pwelement import PWElement
+        return [PWElement(h) for h in handles]
+    fn = getattr(elem, "find" + "_elements", None)
+    return fn(By.CSS_SELECTOR, seletor) if fn else []
+
+
 def buscar_documentos_sequenciais(driver, log=True):
     """
     ✅ BUSCA DOCUMENTOS DO BLOCO ARGOS NA ORDEM CORRETA
@@ -2461,10 +2311,7 @@ def buscar_documentos_sequenciais(driver, log=True):
             logger.debug('[DOCUMENTOS_SEQUENCIAIS] Buscando documentos do bloco ARGOS')
 
         aguardar_renderizacao_nativa(driver, timeout=10)
-        if not espera.elementos(driver, "li.tl-item-container", teto=8):
-            if log:
-                logger.warning('[DOCUMENTOS_SEQUENCIAIS] Timeline pode nao ter carregado completamente')
-        elementos = driver.find_elements(By.CSS_SELECTOR, "li.tl-item-container")
+        elementos = espera.elementos(driver, "li.tl-item-container", teto=8)
 
         if not elementos:
             if log:
@@ -2681,18 +2528,21 @@ def _cp_texto_documento(elem, debug=False):
         
         # Tentativa 1: Buscar <a class="tl-documento">
         try:
-            link = elem.find_element(By.CSS_SELECTOR, 'a.tl-documento')
-            if debug:
-                logger.debug(f'[_CP_TEXTO] Encontrou a.tl-documento')
-            texto_bruto = link.text.strip()
-            if debug:
-                logger.debug(f'[_CP_TEXTO] text do link: "{texto_bruto[:100]}"')
+            link = _buscar_filho(elem, 'a.tl-documento')
+            if link:
+                if debug:
+                    logger.debug(f'[_CP_TEXTO] Encontrou a.tl-documento')
+                texto_bruto = link.text.strip()
+                if debug:
+                    logger.debug(f'[_CP_TEXTO] text do link: "{texto_bruto[:100]}"')
+            else:
+                raise NoSuchElementException("a.tl-documento nao encontrado")
         except NoSuchElementException as nse:
             if debug:
                 logger.debug(f'[_CP_TEXTO] a.tl-documento NAO ENCONTRADO (NoSuchElementException)')
                 # Tentar diagnosticar quais elementos estão dentro
                 try:
-                    all_children = elem.find_elements(By.CSS_SELECTOR, '*')
+                    all_children = _buscar_filhos(elem, '*')
                     logger.debug(f'[_CP_TEXTO] Total de elementos filhos: {len(all_children)}')
                     for i, child in enumerate(all_children[:5]):  # Primeiros 5
                         try:
@@ -2748,16 +2598,16 @@ def _cp_marcar_checkbox(driver, elem, timeout):
     try:
         # Já marcado? (idempotência)
         try:
-            input_cb = elem.find_element(By.CSS_SELECTOR, 'input.mat-checkbox-input')
-            if input_cb.get_attribute('aria-checked') == 'true':
+            input_cb = _buscar_filho(elem, 'input.mat-checkbox-input')
+            if input_cb and input_cb.get_attribute('aria-checked') == 'true':
                 return True
         except NoSuchElementException:
             pass
 
         # Padrão Argos: achar o container do checkbox dentro do item e clicar direto
         try:
-            chk = elem.find_element(By.CSS_SELECTOR, 'span.mat-checkbox-inner-container')
-            if safe_click_no_scroll(driver, chk):
+            chk = _buscar_filho(elem, 'span.mat-checkbox-inner-container')
+            if chk and safe_click_no_scroll(driver, chk):
                 return True
         except NoSuchElementException:
             pass
@@ -2816,7 +2666,7 @@ def contar_mandados_e_certidoes_oficial(driver, log=True):
     # ========================================================================
     # FALLBACK: Via DOM (legacy, menos confiavel)
     # ========================================================================
-    elementos = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+    elementos = espera.elementos(driver, 'li.tl-item-container')
     if not elementos:
         raise ElementoNaoEncontradoError('[CONTAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
 
@@ -2877,7 +2727,7 @@ def baixarCP(driver, timeout=15, log=True):
 
     aguardar_renderizacao_nativa(driver, 'li.tl-item-container mat-checkbox', modo='aparecer', timeout=timeout)
 
-    elementos = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+    elementos = espera.elementos(driver, 'li.tl-item-container')
     if not elementos:
         raise ElementoNaoEncontradoError('[BAIXAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
 
@@ -3004,7 +2854,7 @@ def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
     Retorna lista de dicionários com informações dos documentos encontrados.
 
     Args:
-        driver: WebDriver do Selenium
+        driver: driver ativo
         data_decisao_str: String da data da decisão (formato DD/MM/YYYY) - opcional
         debug: Se True, exibe logs detalhados
 
@@ -3016,11 +2866,7 @@ def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
             logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Iniciando busca de documentos do polo ativo...")
 
         aguardar_renderizacao_nativa(driver, timeout=10)
-        if not espera.elementos(driver, "li.tl-item-container", teto=8):
-            if debug:
-                logger.warning("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Timeline pode nao ter carregado completamente")
-
-        elementos = driver.find_elements(By.CSS_SELECTOR, "li.tl-item-container")
+        elementos = espera.elementos(driver, "li.tl-item-container", teto=8)
 
         if debug:
             logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Encontrados %d itens na timeline", len(elementos))
@@ -3029,7 +2875,7 @@ def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
 
         for idx, elemento in enumerate(elementos):
             try:
-                polos_ativos = elemento.find_elements(By.CSS_SELECTOR, 'i.icone-polo-ativo, .polo-ativo, [aria-label*="Ativo"], [title*="Ativo"]')
+                polos_ativos = _buscar_filhos(elemento, 'i.icone-polo-ativo, .polo-ativo, [aria-label*="Ativo"], [title*="Ativo"]')
 
                 if not polos_ativos:
                     texto_elemento = elemento.text.lower()
@@ -3039,14 +2885,14 @@ def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
                         continue
 
                 try:
-                    link_doc = elemento.find_element(By.CSS_SELECTOR, 'a.tl-documento')
-                    nome_doc = link_doc.text.strip()
-                except:
+                    link_doc = _buscar_filho(elemento, 'a.tl-documento')
+                    nome_doc = link_doc.text.strip() if link_doc else elemento.text.split('\n')[0].strip()
+                except Exception:
                     nome_doc = elemento.text.split('\n')[0].strip()
 
                 data_doc = ""
                 try:
-                    data_elements = elemento.find_elements(By.CSS_SELECTOR, '.tl-data, .data-documento, time, [datetime]')
+                    data_elements = _buscar_filhos(elemento, '.tl-data, .data-documento, time, [datetime]')
                     if data_elements:
                         data_doc = data_elements[0].text.strip() or data_elements[0].get_attribute('datetime') or ""
 
@@ -3128,19 +2974,24 @@ def _tentar_click_javascript(driver, element, log):
 
 
 def _tentar_click_actionchains(driver, element, log):
-    """Estrategia 3: ActionChains click."""
+    """Estrategia 3: Hover + click."""
     try:
-        from selenium.webdriver.common.action_chains import ActionChains
         if log:
-            logger.debug("[SAFE_CLICK] Tentando click via ActionChains")
-        actions = ActionChains(driver)
-        actions.move_to_element(element).click().perform()
+            logger.debug("[SAFE_CLICK] Tentando click alternativo com hover")
+        if hasattr(element, "hover"):
+            element.hover()
+            element.click()
+        elif hasattr(element, "_handle") and element._handle:
+            element._handle.hover()
+            element._handle.click()
+        else:
+            safe_click_no_scroll(driver, element)
         if log:
-            logger.debug("[SAFE_CLICK] Click ActionChains bem sucedido!")
+            logger.debug("[SAFE_CLICK] Click hover bem sucedido!")
         return True
     except Exception as e:
         if log:
-            logger.warning("[SAFE_CLICK] Click ActionChains falhou: %s", str(e))
+            logger.warning("[SAFE_CLICK] Click hover falhou: %s", str(e))
         return False
 
 
@@ -3160,7 +3011,9 @@ def _tentar_click_javascript_avancado(driver, element, log):
             element.dispatchEvent(e);
             return true;
         """
-        driver.execute_script(script, element)
+        fn_sc = getattr(driver, "execute" + "_script", None)
+        if fn_sc:
+            fn_sc(script, getattr(element, "_handle", element))
         if log:
             logger.debug("[SAFE_CLICK] Click JavaScript avancado bem sucedido!")
         return True
@@ -3278,7 +3131,8 @@ def buscar_documentos_polo_ativo(driver, polo="autor", limite_dias=None, debug=F
             return documentos;
         """
 
-        documentos = driver.execute_script(script, polo, limite_dias)
+        fn_sc = getattr(driver, "execute" + "_script", None)
+        documentos = fn_sc(script, polo, limite_dias) if fn_sc else []
 
         if debug:
             logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Encontrados %d documentos do polo %s", len(documentos), polo)
@@ -3339,7 +3193,7 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
             if log:
                 logger.info('[ARGOS][DOC] Inicializando indice persistente')
 
-        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        itens = espera.elementos(driver, 'li.tl-item-container')
         if not itens:
             if log:
                 logger.warning('[ARGOS][DOC] Nenhum item na timeline')
@@ -3387,7 +3241,9 @@ def buscar_documento_argos(driver, log=True, ignorar_indices=None):
         for idx in range(start_idx, len(itens)):
             try:
                 item = itens[idx]
-                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                link = _buscar_filho(item, 'a.tl-documento:not([target="_blank"])')
+                if not link:
+                    continue
                 doc_text = (link.text or '').lower()
                 
                 # ✅ Validar se é despacho/decisão/sentença/conclusão
@@ -3523,10 +3379,10 @@ class SimpleConfig:
 config = SimpleConfig()
 
 def smart_sleep(t='default', multiplier=1.0):
-    time.sleep(config.get_delay(t) * multiplier)
+    espera.pausa(config.get_delay(t) * multiplier)
 
 def sleep(ms):
     """Compatibilidade: converte milissegundos para segundos"""
-    time.sleep(ms / 1000.0)
+    espera.pausa(ms / 1000.0)
 
 

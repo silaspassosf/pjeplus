@@ -6,7 +6,7 @@ charset-normalizer==3.4.7
 cryptography==50.0.0
 greenlet==3.5.4
 h11==0.16.0
-idna==3.13
+idna==3.15
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
 jaraco.functools==4.6.0

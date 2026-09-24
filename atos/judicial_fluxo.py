@@ -17,6 +17,7 @@ from Fix.core import (
 from Fix.log import getmodulelogger, log_start, log_fim
 logger = getmodulelogger(__name__)
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO, BTN_GRAVAR_MOVIMENTOS, EDITOR_AREA_CONTEUDO
+from Play.pjeplay.locators import By
 from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
 from Fix.extracao import bndt, criar_gigs
 from Fix.movimento_helpers import selecionar_movimento_auto

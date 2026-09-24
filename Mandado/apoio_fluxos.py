@@ -156,11 +156,9 @@ def retirar_sigilo(elemento: Any, driver: Optional[Any] = None, debug: bool = Fa
 
         btn_sigilo = None
         seletores = [
+            'button[name="Inserir sigilo"]',
             'pje-doc-sigiloso button',
             'pje-doc-sigiloso span button',
-            'button i.fa-wpexplorer',
-            'i.fa-wpexplorer.tl-sigiloso',
-            'i.fa-wpexplorer',
         ]
         for seletor in seletores:
             try:

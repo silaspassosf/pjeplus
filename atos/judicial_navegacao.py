@@ -24,12 +24,18 @@ from Fix import espera
 
 def _localizar_botao_navegacao(driver: Any, label: str):
     """Localiza botão de navegação de tarefa via estratégias combinadas."""
-    seletor = (
-        f"button[aria-label='{label}'], "
-        f"button[aria-label*='{label}'], "
-        f"//button[.//span[normalize-space(text())='{label}']]"
+    el = espera.elemento(
+        driver,
+        f"button[aria-label='{label}'], button[aria-label*='{label}']",
+        teto=2,
     )
-    return espera.elemento(driver, seletor, teto=2)
+    if el:
+        return el
+    return espera.elemento(
+        driver,
+        f"//button[.//span[normalize-space(text())='{label}']]",
+        teto=2,
+    )
 
 
 def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:

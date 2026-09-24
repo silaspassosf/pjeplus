@@ -34,10 +34,9 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
 
         btn_sigilo = None
         for seletor in [
+            'button[name="Inserir sigilo"]',
             'pje-doc-sigiloso button',
             'pje-doc-sigiloso span button',
-            'button i.fa-wpexplorer',
-            'i.fa-wpexplorer',
         ]:
             try:
                 if hasattr(elemento, 'query_selector'):
@@ -68,7 +67,7 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
 
 def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bool = False) -> bool:
     try:
-        sel_vis = 'button[aria-label="Incluir visibilidade para Sigilo"]'
+        sel_vis = 'button[mattooltip="Visibilidade para Sigilo"]'
         if not espera.ate_habilitar(driver, sel_vis, teto=5):
             logger.warning('[VISIBILIDADE_LOTE] Botao de visibilidade nao habilitou')
             return False

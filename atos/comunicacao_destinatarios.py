@@ -6,6 +6,7 @@ import re
 import json
 from Fix.log import log_seletor_multiplo, logger
 from Fix import espera
+from Play.pjeplay.locators import By
 
 
 def _normalizar_nome_para_match(nome):

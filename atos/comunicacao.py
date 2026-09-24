@@ -4,6 +4,7 @@ from Fix.log import logger
 from Fix.core import esperar_elemento, aguardar_renderizacao_nativa
 from Fix.abas import fechar_abas_extras as _fechar_abas_tabs
 from Fix import espera
+from Play.pjeplay.locators import By
 from .comunicacao_navigation import abrir_minutas
 from .comunicacao_coleta import executar_coleta_conteudo
 from .comunicacao_preenchimento import executar_preenchimento_minuta, aguardar_ato_confeccionado, aguardar_estabilizacao_para_destinatarios

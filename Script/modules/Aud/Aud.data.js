@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aud - Dados (perfis, peritos, textos padrão)
 // @namespace    pjetools
-// @version      1.0
+// @version      1.1
 // @grant        none
 // ==/UserScript==
 (function () {
@@ -55,7 +55,8 @@ otavio: {
 {"t": "Dispensa Testemunha", "h": "<p style=\"text-align:justify;text-indent:3cm;\">O reclamante requer a oitiva da testemunha **** , com o intuito de comprovar a existência de vínculo de emprego.</p>\
 <p style=\"text-align:justify;text-indent:3cm;\">No particular, considero desnecessária a oitiva da testemunha, porquanto os depoimentos pessoais das partes são convergentes entre si, praticamente uníssonos, dirimindo a controvérsia sobre as questões de fato que abarcam o presente processo. Por conta disso, indefiro o depoimento. Protestos.</p>"}, // @ITEM: Inst LLM
 {"t": "Inst LLM", "h": "<p style=\"text-align:justify;text-indent:3cm;\">INCONCILIADOS.<br>&nbsp;</p>\
-<p style=\"text-align:justify;text-indent:3cm;\">A(s) defesa(s) está(ão) nos autos.</p>\
+<p style=\"text-align:justify;text-indent:3cm;\">Recebida defesa com documentos. Concede-se o prazo de 05 dias para a reclamante se manifestar sobre a defesa e documentos, apontando eventuais diferenças que entender devidas, ainda que por amostragem, sob pena de preclusão.</p>\
+<p style=\"text-align:justify;text-indent:3cm;\">Prazo de 05 dias para regularização processual.</p>\
 <p style=\"text-align:justify;text-indent:3cm;\">O Ato Normativo 003626-80.2025.2.00.0000 do CNJ, de setembro de 2025, estipula a obrigatoriedade do registro audiovisual de todas as audiências (arts. 1º e 3º). Nesse sentido, esclareço que a audiência será gravada, com disponibilização de link no acervo eletrônico dos autos, exceto na fase de tratativas de conciliação, ao início e ao final da audiência (CLT, arts. 846 e 850), haja vista a confidencialidade garantida pelo art. 30 da Lei 13.140/15, como aliás já decidiu o TED da OAB/SP (Processo: E-6.115/2023).</p>\
 <p style=\"text-align:justify;text-indent:3cm;\">Portanto, os depoimentos prestados na presente audiência serão integralmente gravados, razão pela qual não haverá pelo(a) magistrado (a), a transcrição exata das declarações dos depoentes.</p>\
 <p style=\"text-align:justify;text-indent:3cm;\">Todavia, visando apenas a facilitação de suas manifestações sobre o conteúdo da prova, será elaborado por ferramenta de Inteligência Artificial (Google) um breve resumo das informações úteis ao julgamento da causa (art. 851 e 852-F da CLT), ficando expressamente destacado que esse breve resumo não substitui, para fins probatórios, a íntegra dos depoimentos - que estarão documentados em meio audiovisual - e nem implica aquiescência das partes quanto ao conteúdo do resumo, servindo apenas e tão somente para auxílio na análise das provas. Portanto, prevalece em caso de divergências a versão original do vídeo disponibilizada no sistema PJe.</p>\

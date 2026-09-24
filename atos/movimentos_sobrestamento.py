@@ -119,14 +119,14 @@ def mov_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
         except Exception:
             safe_click_no_scroll(driver, btn_prosseguir)
 
-        for _ in range(20):
+        for _ in range(25):
             try:
                 for barra in espera.elementos(driver, 'snack-bar-container.success, simple-snack-bar', teto=0.1):
                     txt = (getattr(barra, 'text', '') or '').strip().lower()
                     if 'falha ao tentar registrar' in txt or 'erro ao persistir' in txt:
-                        logger.error("[SOBRESTAMENTO] #%s: PJe recusou registro do prazo: %s", numero_processo, txt)
+                        logger.error("[SOBRESTAMENTO] #%s: Falha ao tentar registrar o prazo do sobrestamento: %s", numero_processo, txt)
                         return False
-                    if 'com sucesso' in txt or 'sucesso' in txt or 'registrado' in txt:
+                    if 'sobrestamento(s) registrado(s) com sucesso' in txt or 'com sucesso' in txt or 'sucesso' in txt:
                         btn_fecha = espera.elemento(driver, 'snack-bar-container button', teto=0.5)
                         if btn_fecha:
                             try:
@@ -146,7 +146,8 @@ def mov_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
 
             espera.pausa(driver, 0.3, 'aguardando confirmacao')
 
-        return True
+        logger.error("[SOBRESTAMENTO] #%s: Falha ao tentar registrar o prazo do sobrestamento", numero_processo)
+        return False
 
     except Exception as e:
         logger.error("[SOBRESTAMENTO] #%s: erro geral: %s", numero_processo, e)

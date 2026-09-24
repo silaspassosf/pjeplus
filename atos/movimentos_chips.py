@@ -13,7 +13,12 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
         if chips_para_remover is None:
             chips_para_remover = ["Prazo vencido", "pós sentença"]
 
-        chip_elements = espera.elementos(driver, "//mat-chip", teto=timeout)
+        btn_expandir = espera.elemento(driver, 'pje-lista-etiquetas button[aria-label="Expandir Chips"]', teto=2)
+        if btn_expandir:
+            safe_click_no_scroll(driver, btn_expandir)
+            espera.assentar(driver, 1)
+
+        chip_elements = espera.elementos(driver, "//pje-lista-etiquetas//mat-chip", teto=timeout)
         chips_encontrados = []
 
         for chip_element in chip_elements:
@@ -29,7 +34,7 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
 
         for chip_text in chips_encontrados:
             try:
-                btn_remover_xpath = f"//mat-chip[contains(., '{chip_text}')]//button[contains(@mattooltip, 'Remover Chip') or contains(@class, 'etq-botao-excluir')]"
+                btn_remover_xpath = f"//pje-lista-etiquetas//mat-chip[contains(., '{chip_text}')]//button[contains(@mattooltip, 'Remover Chip') or contains(@class, 'etq-botao-excluir')]"
                 botao_remover = espera.elemento(driver, btn_remover_xpath, teto=3)
                 if not botao_remover:
                     continue

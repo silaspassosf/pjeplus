@@ -16,7 +16,7 @@ from Fix.core import (
 )
 from Fix.log import getmodulelogger, log_start, log_fim
 logger = getmodulelogger(__name__)
-from Fix.selectors_pje import BTN_TAREFA_PROCESSO
+from Fix.selectors_pje import BTN_TAREFA_PROCESSO, BTN_GRAVAR_MOVIMENTOS, EDITOR_AREA_CONTEUDO
 from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
 from Fix.extracao import bndt, criar_gigs
 from Fix.movimento_helpers import selecionar_movimento_auto
@@ -415,12 +415,12 @@ def ato_judicial(
 
                 modelo_no_editor = False
                 try:
-                    modelo_no_editor = bool(espera.ate_js(driver, """(() => {
-                        var area = document.querySelector('div[class*="area-conteudo"][contenteditable="true"][role="textbox"]');
+                    modelo_no_editor = bool(espera.ate_js(driver, f"""(() => {{
+                        var area = document.querySelector('{EDITOR_AREA_CONTEUDO}');
                         if (!area) return false;
                         var texto = (area.innerText || '').replace(/\\s/g, '');
                         return texto.length > 1 || area.querySelector('figure') !== null;
-                    })()""", teto=10))
+                    }})()""", teto=10))
                 except Exception:
                     modelo_no_editor = False
 
@@ -782,7 +782,7 @@ def ato_judicial(
                 # Gravar movimento
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
                 aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=3)
-                btn_gravar_mov = wait_for_clickable(driver, "pje-lancador-movimentos-dialogo button[aria-label='Gravar os movimentos a serem lançados']", timeout=10)
+                btn_gravar_mov = wait_for_clickable(driver, BTN_GRAVAR_MOVIMENTOS, timeout=10)
                 if btn_gravar_mov:
                     safe_click_no_scroll(driver, btn_gravar_mov)
 

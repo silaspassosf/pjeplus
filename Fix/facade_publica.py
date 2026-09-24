@@ -189,6 +189,11 @@ from api.variaveis_resolvers import (
 # =============================================================================
 
 BTN_TAREFA_PROCESSO = 'button[mattooltip="Abre a tarefa do processo"]'
+EDITOR_AREA_CONTEUDO = 'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]'
+BTN_GRAVAR_MOVIMENTOS = "pje-lancador-movimentos-dialogo button[aria-label='Gravar os movimentos a serem lançados']"
+BTN_EXPANDIR_CHIPS = 'pje-lista-etiquetas button[aria-label="Expandir Chips"]'
+CHIPS_LISTA = "//pje-lista-etiquetas//mat-chip"
+DIALOG_PRAZO_SOBRESTAMENTO = 'pje-dialog-prazo-sobrestamento'
 
 # buscar_seletor_robusto is re-exported from Fix.core above
 
@@ -497,6 +502,11 @@ __all__ = [
     'obter_chave_ultimo_despacho_decisao_sentenca',
     # Selectors PJe (ex-Fix.selectors_pje)
     'BTN_TAREFA_PROCESSO',
+    'EDITOR_AREA_CONTEUDO',
+    'BTN_GRAVAR_MOVIMENTOS',
+    'BTN_EXPANDIR_CHIPS',
+    'CHIPS_LISTA',
+    'DIALOG_PRAZO_SOBRESTAMENTO',
     # Movimento helpers (ex-Fix.movimento_helpers)
     'selecionar_movimento_dois_estagios', 'selecionar_movimento_auto',
     # Shim classes e helpers

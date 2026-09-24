@@ -75,13 +75,14 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
 
 
 def _aguardar_ck_com_conteudo(driver: Any, timeout: int = 8) -> bool:
-    expr = """(() => {
+    from Fix.selectors_pje import EDITOR_AREA_CONTEUDO
+    expr = f"""(() => {{
         if (document.querySelector('pdf-viewer')) return true;
-        var area = document.querySelector('div[class*="area-conteudo"][contenteditable="true"][role="textbox"]');
+        var area = document.querySelector('{EDITOR_AREA_CONTEUDO}');
         if (!area) return false;
         var texto = (area.innerText || '').replace(/\\s/g, '');
         return texto.length > 1 || area.querySelector('figure') !== null;
-    })()"""
+    }})()"""
     return bool(espera.ate_js(driver, expr, teto=timeout))
 
 

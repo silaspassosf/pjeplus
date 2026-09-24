@@ -4,7 +4,7 @@ from typing import Any
 
 from Fix.core import safe_click_no_scroll, safe_click, preencher_campo, esperar_elemento
 from Fix.browser_suporte import abrir_em_nova_aba
-from Fix.selectors_pje import BTN_TAREFA_PROCESSO
+from Fix.selectors_pje import BTN_TAREFA_PROCESSO, DIALOG_PRAZO_SOBRESTAMENTO
 from Fix import espera
 
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ def mov_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
 
         espera.pausa(driver, 0.5, 'prazo do sobrestamento preenchido')
 
-        btn_prosseguir = espera.elemento(driver, "//pje-dialog-prazo-sobrestamento//button[.//span[contains(text(), 'Prosseguir')] or contains(., 'Prosseguir')]", teto=timeout)
+        btn_prosseguir = espera.elemento(driver, f"//{DIALOG_PRAZO_SOBRESTAMENTO}//button[.//span[contains(text(), 'Prosseguir')] or contains(., 'Prosseguir')]", teto=timeout)
         if not btn_prosseguir:
             logger.warning("[SOBRESTAMENTO] #%s: botao 'Prosseguir' nao encontrado", numero_processo)
             return False
@@ -138,7 +138,7 @@ def mov_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
                 pass
 
             try:
-                modais = espera.elementos(driver, 'pje-dialog-prazo-sobrestamento', teto=0.1)
+                modais = espera.elementos(driver, DIALOG_PRAZO_SOBRESTAMENTO, teto=0.1)
                 if not modais or not any(getattr(m, 'is_displayed', lambda: False)() for m in modais):
                     return True
             except Exception:

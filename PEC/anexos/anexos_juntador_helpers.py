@@ -282,8 +282,9 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
             return False
 
         # 2. Encontrar o editor CKEditor
+        from Fix.selectors_pje import EDITOR_AREA_CONTEUDO
         sels = [
-            'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]',
+            EDITOR_AREA_CONTEUDO,
             '.ck-editor__editable[contenteditable="true"]',
             '.ck-content[contenteditable="true"]',
         ]

@@ -2395,10 +2395,9 @@ def _obter_timeline_via_api(driver, log=True):
         list[dict] ou None se falhar
     """
     try:
-        from Fix.variaveis import PjeApiClient, obter_sessao_do_driver
+        from Fix.variaveis import cliente_para
         from Fix.extracao import extrair_numero_processo_url
         
-        # Extrair número do processo da URL
         url_atual = driver.current_url
         numero_processo = extrair_numero_processo_url(url_atual)
         if not numero_processo:
@@ -2406,20 +2405,11 @@ def _obter_timeline_via_api(driver, log=True):
                 logger.warning('[TIMELINE_API] Nao conseguiu extrair numero_processo da URL: %s', url_atual)
             return None
         
-        # Obter sessão e cliente API
-        sess = obter_sessao_do_driver(driver)
-        if not sess:
+        client = cliente_para(driver)
+        if not client:
             if log:
                 logger.warning('[TIMELINE_API] Nao conseguiu extrair sessao do driver')
             return None
-        
-        # Extrair host da URL
-        from urllib.parse import urlparse
-        parsed = urlparse(url_atual)
-        host = parsed.netloc
-        
-        # Criar cliente API
-        client = PjeApiClient(sess, host)
         
         # Chamar endpoint /timeline
         timeline = client.timeline(numero_processo, buscarDocumentos=True, buscarMovimentos=False)

@@ -416,7 +416,7 @@ def ato_judicial(
                 modelo_no_editor = False
                 try:
                     modelo_no_editor = bool(espera.ate_js(driver, """(() => {
-                        var area = document.querySelector('div[class*="area-conteudo"][contenteditable="true"]');
+                        var area = document.querySelector('div[class*="area-conteudo"][contenteditable="true"][role="textbox"]');
                         if (!area) return false;
                         var texto = (area.innerText || '').replace(/\\s/g, '');
                         return texto.length > 1 || area.querySelector('figure') !== null;

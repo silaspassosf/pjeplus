@@ -75,11 +75,14 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
 
 
 def _aguardar_ck_com_conteudo(driver: Any, timeout: int = 8) -> bool:
-    expr = (
-        "(window.CKEDITOR && Object.values(window.CKEDITOR.instances).some(function(i){ return (i.getData() || '').trim().length > 0; })) || "
-        "(__pjeEls('.ck-editor__editable, .ck-content, div[contenteditable=\"true\"], textarea, iframe').some(function(el){ return ((el.innerText || el.textContent || el.value || '')).trim().length > 0; }))"
-    )
-    return espera.ate_js(driver, expr, teto=timeout)
+    expr = """(() => {
+        if (document.querySelector('pdf-viewer')) return true;
+        var area = document.querySelector('div[class*="area-conteudo"][contenteditable="true"][role="textbox"]');
+        if (!area) return false;
+        var texto = (area.innerText || '').replace(/\\s/g, '');
+        return texto.length > 1 || area.querySelector('figure') !== null;
+    })()"""
+    return bool(espera.ate_js(driver, expr, teto=timeout))
 
 
 def aguardar_ato_confeccionado(driver: Any, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:

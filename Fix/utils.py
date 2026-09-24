@@ -1017,9 +1017,9 @@ def coletar_elemento_css(driver, numero_processo: str, seletor_css: str, tipo_co
 def _get_editable(driver, debug: bool = False):
     """Localiza o editor CKEditor na página - Integrado de editor_insert.py"""
     sels = [
+        'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]',
         '.ck-editor__editable[contenteditable="true"]',
         '.ck-content[contenteditable="true"]',
-        'div[role="textbox"][contenteditable="true"]',
     ]
     for sel in sels:
         try:

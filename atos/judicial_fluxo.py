@@ -782,7 +782,7 @@ def ato_judicial(
                 # Gravar movimento
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
                 aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=3)
-                btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10)
+                btn_gravar_mov = wait_for_clickable(driver, "pje-lancador-movimentos-dialogo button[aria-label='Gravar os movimentos a serem lançados']", timeout=10)
                 if btn_gravar_mov:
                     safe_click_no_scroll(driver, btn_gravar_mov)
 

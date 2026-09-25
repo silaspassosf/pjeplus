@@ -28,6 +28,44 @@ arquivos fora dessa pasta, exceto quando o usuário autorizar explicitamente.
 
 ---
 
+## ⚠️ Branch Obrigatória: `main` (CRÍTICO)
+
+**Toda edição na pasta `Script/` deve ser feita na branch `main` — NUNCA na
+`refactor/pw-nativo`.**
+
+Motivo: o `@require` do `pjetools.user.js` (e do `hcalc.user.js`) baixa os
+módulos do GitHub **na branch `main`**:
+`https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/...`
+
+Se você editar um módulo em outra branch, o Tampermonkey continuará baixando a
+versão antiga da `main` — o usuário não verá a mudança mesmo recarregando.
+
+### Regras de branch para a pasta `Script/`
+
+- **Antes de editar**: confirme que está na `main` (`git branch --show-current`).
+  Se estiver em outra branch, faça `git checkout main` primeiro.
+- **A pasta `Script/` é independente da refatoração.** As demais pastas
+  (`Fix/`, `core/`, `atos/`, etc.) podem estar em `refactor/pw-nativo` em
+  andamento, mas isso **não** afeta `Script/`. Não faça merge da refatoração
+  para publicar mudanças de `Script/`.
+- **Commit/push**: commite e envie **somente** os arquivos da pasta `Script/`
+  alterados (módulo + orquestrador), nunca `git add -A` nem o workspace inteiro.
+- **Se a `main` estiver desatualizada** em relação a outra branch na pasta
+  `Script/`, traga os arquivos via checkout seletivo:
+  `git checkout <branch> -- Script/caminho/arquivo.js` e commite na `main`.
+
+### Fluxo de publicação (resumo)
+
+1. `git checkout main`
+2. Edite o módulo em `Script/`
+3. Bumpe a versão do orquestrador (`pjetools.user.js` / `hcalc.user.js`)
+4. `git add Script/<módulo> Script/<orquestrador>`
+5. `git commit --no-verify -m "Script: <descrição>"`
+6. `git push origin main`
+7. Usuário recarrega o Tampermonkey → baixa a versão nova da `main`
+
+---
+
 ## Fonte de Conhecimento Obrigatória
 
 Antes de qualquer produção, leia `Script/SCRIPT_README.md` com `read/file`.

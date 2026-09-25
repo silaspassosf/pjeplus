@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.3.6
+// lista.check.js v0.3.7
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -42,8 +42,11 @@ function _pjeTlClassApi(item) {
         if (/(expedicao|expedido)/.test(low)) return null;
         // Anti-falso-positivo pontual: "Manifestação (pedido de alvará)"
         if (titulo.startsWith('manifestacao')) return null;
-        // Filtro de exclusão: tipo "Planilha" nunca é alvará a liberar
-        if (titulo.includes('planilha')) return null;
+        // Filtro de exclusão: tipo "Planilha" nunca é alvará a liberar.
+        // Checa o `low` completo (título + nomeDocumento + descrição), pois
+        // o título da API pode vir vazio e "Planilha de Cálculos" chega só
+        // na descrição (ex: "Planilha de Cálculos, dedução alvará2").
+        if (low.includes('planilha')) return null;
         // Qualquer outra menção a "alvará" no tipo+nome+descrição entra
         // (comportamento da v0.2.0, que detectava corretamente — a v0.3.3
         // exigia alvará na descrição E título exato e perdia alvarás reais).

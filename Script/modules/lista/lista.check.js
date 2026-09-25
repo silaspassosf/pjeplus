@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.3.3
+// lista.check.js v0.3.4
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -33,26 +33,19 @@ function _pjeTlClassApi(item) {
     const low = titulo + ' ' + desc;
     if (low.includes('devolucao de ordem') || low.includes('ordem de pesquisa patrimonial')) return 'Certidão devolução pesquisa';
     if (low.includes('certidao de oficial') || low.includes('oficial de justica')) return 'Certidão de oficial de justiça';
-    // "Expedição"/"expedido" na descrição nunca é alvará a liberar
-    const ehExpedicao = /(expedicao|expedido)/.test(low);
     // Mandado de pagamento NÃO é o alvará em si (é a certidão que o expede):
     // não entra na lista, mas fica marcado para a conferência (a descrição
     // traz nome + valor que são batidos em executarPgto).
-    if (titulo.includes('mandado de pagamento') && desc.includes('alvara')) return 'MandadoPagamento';
+    if (titulo.includes('mandado de pagamento')) return 'MandadoPagamento';
     if (low.includes('alvara')) {
-        if (ehExpedicao) return null;
-        // Anti-falso-positivo: descrição com "alvará" só é alvará real se o TIPO
-        // do documento for Alvará, Certidão, Mandado de pagamento ou Documento
-        // Diverso com descrição Alvará/SISCONDJ/SIF (ex.: "Manifestação (pedido de
-        // alvara reclamante)" NÃO entra).
-        const ehAlvara = desc.includes('alvara');
-        if ((titulo === 'alvara' && ehAlvara) ||
-            (titulo === 'certidao' && ehAlvara) ||
-            (titulo.includes('mandado de pagamento') && ehAlvara) ||
-            (titulo.includes('documento diverso') && /(alvara|siscondj|sif)/.test(desc))) {
-            return 'Alvarás';
-        }
-        return null;
+        // "Expedição"/"expedido" na descrição nunca é alvará a liberar
+        if (/(expedicao|expedido)/.test(low)) return null;
+        // Anti-falso-positivo pontual: "Manifestação (pedido de alvará)"
+        if (titulo.startsWith('manifestacao')) return null;
+        // Qualquer outra menção a "alvará" no tipo+nome+descrição entra
+        // (comportamento da v0.2.0, que detectava corretamente — a v0.3.3
+        // exigia alvará na descrição E título exato e perdia alvarás reais).
+        return 'Alvarás';
     }
     if (low.includes('sobrestamento')) return 'Decisao (Sobrestamento)';
     if (low.includes('serasa') || low.includes('apjur') || low.includes('carta acao')) return 'SerasaAntigo';
@@ -140,14 +133,6 @@ window.lerTimelineCompleta = async function () {
         const iconLink = elem ? elem.querySelector('a.tl-documento[target="_blank"]') : null;
         // Captura href direto do ícone para bypass de UI — abre documento via API
         const iconHref = iconLink ? iconLink.getAttribute('href') : null;
-
-        // Ícone da timeline: alvará só vale para documento interno (gavel).
-        // Juntada por polo ativo/passivo/terceiro (fa-user POLO_*) não entra;
-        // o label do ícone não importa.
-        if (tipo === 'Alvarás' && elem) {
-            const icone = elem.querySelector('.tl-icon i');
-            if (!icone || !icone.classList.contains('fa-gavel')) continue;
-        }
 
         const anexosApi = Array.isArray(item.anexos) ? item.anexos : [];
 

@@ -1,0 +1,70 @@
+{
+  "nome": "playwright-20260923-211702",
+  "backend": "playwright",
+  "total": 169.036,
+  "tempo_morto": 0.0,
+  "qtd_sleeps": 0,
+  "tempo_helper": 51.823,
+  "chamadas_helper": 526,
+  "tempo_espera": 49.877,
+  "chamadas_espera": 511,
+  "etapas": [
+    {
+      "nome": "execucao completa",
+      "segundos": 169.036,
+      "erro": null
+    }
+  ],
+  "por_helper": {
+    "Fix.espera.assentar": {
+      "n": 475,
+      "segundos": 48.828,
+      "falhas": 0
+    },
+    "Fix.core.wait_for_page_load": {
+      "n": 5,
+      "segundos": 0.672,
+      "falhas": 0
+    },
+    "Fix.browser_suporte.aguardar_nova_aba": {
+      "n": 3,
+      "segundos": 0.648,
+      "falhas": 0
+    },
+    "Fix.espera.ate_js": {
+      "n": 19,
+      "segundos": 0.53,
+      "falhas": 0
+    },
+    "Fix.core.preencher_campo": {
+      "n": 4,
+      "segundos": 0.514,
+      "falhas": 0
+    },
+    "Fix.espera.ate_habilitar": {
+      "n": 8,
+      "segundos": 0.291,
+      "falhas": 0
+    },
+    "Fix.espera.ate_aparecer": {
+      "n": 7,
+      "segundos": 0.216,
+      "falhas": 0
+    },
+    "Fix.core.aguardar_renderizacao_nativa": {
+      "n": 2,
+      "segundos": 0.085,
+      "falhas": 0
+    },
+    "Fix.core.aguardar_e_clicar": {
+      "n": 1,
+      "segundos": 0.027,
+      "falhas": 0
+    },
+    "Fix.espera.ate_texto": {
+      "n": 2,
+      "segundos": 0.012,
+      "falhas": 0
+    }
+  }
+}

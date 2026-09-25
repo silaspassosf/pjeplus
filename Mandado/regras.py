@@ -49,7 +49,7 @@ def _lazy_import_mandado_regras():
         from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, extrair_destinatarios_decisao, indexar_e_processar_lista
         from Fix.core import buscar_mandado_autor
         from Fix.extracao import criar_gigs
-        from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
+        from Fix.core import esperar_elemento, aguardar_e_clicar
         from Fix.utils import limpar_temp_selenium, configurar_recovery_driver
         
         _mandado_regras_modules_cache.update({
@@ -74,7 +74,7 @@ def _lazy_import_mandado_regras():
 
 # Módulos Locais (mantidos leves)
 from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
-from Fix.selenium_base import preencher_campo
+from Fix.core import preencher_campo
 from Fix.extracao import salvar_destinatarios_cache
 from Fix.abas import validar_conexao_driver
 from Fix import espera

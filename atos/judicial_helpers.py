@@ -11,6 +11,12 @@ from .wrappers_ato import ato_bloq, ato_meios
 
 
 def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: Any):
+    """Ato de pesquisas (BACEN): sigilo + VISIBILIDADE da decisão após o ato.
+
+    IMPORTANTE: devolve (sucesso, sigilo_ativado) — é o sinal que dispara a
+    atribuição de visibilidade em `ato_judicial` quando
+    `atribuir_visibilidade_autor=True` (recuperado do pre-refac).
+    """
     try:
         try:
             btn_iniciar = espera.elemento(driver, "button[aria-label*='Iniciar a execução'], button[mattooltip*='Iniciar a execução']", teto=1)
@@ -20,6 +26,16 @@ def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: 
         except Exception:
             pass
         
+        # Recuperado do pre-refac: este ato sempre aplica sigilo, ATRIBUI
+        # VISIBILIDADE À DECISÃO após o ato judicial e DESLIGA o toggle
+        # INTIMAR (intimar=False). `setdefault` preserva overrides explícitos
+        # do chamador (ex.: p2b_gateway passa sigilo=True).
+        params = dict(kwargs)
+        params.setdefault('sigilo', True)
+        params.setdefault('atribuir_visibilidade_autor', True)
+        params.setdefault('descricao', 'Pesquisas para execução')
+        params.setdefault('intimar', False)
+
         sucesso, sigilo_ativado = ato_judicial(
             driver,
             conclusao_tipo='BACEN',
@@ -30,7 +46,7 @@ def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: 
             gigs=gigs,
             marcar_primeiro_destinatario=True,
             debug=debug,
-            **kwargs
+            **params
         )
         return sucesso, sigilo_ativado
     except Exception as e:

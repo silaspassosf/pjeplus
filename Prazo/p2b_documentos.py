@@ -290,9 +290,10 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         # REGRA DE BLOQUEIO / IMPUGNAÇÕES - DEVE VIR ANTES PARA TER PRIORIDADE
         ([
             'sob pena de bloqueio',
+            'sob pena de penhora',
             'impugnações apresentadas', 'impugnacoes apresentadas', 'homologo estes',
             'fixando o crédito do autor em', 'referente ao principal', 'sob pena de sequestro',
-            'comprovar a quitação', 'comprovar o pagamento', 'comprovar recolhimento', 'comprovar recolhimentos',
+            'atestar a quitação', 'comprovar o pagamento', 'comprovar recolhimento', 'comprovar recolhimentos',
             'a reclamada para pagamento da parcela pendente',
             'intime-se a reclamada para pagamento das', 'homologo os calculos',
             'sob pena de prosseguimento da execução',
@@ -303,7 +304,7 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         (['Diante do trânsito em julgado, líquida a sentença'], (_inicar_exec,)),
 
         # REGRAS DE SOBRESTAMENTO
-        (['Abre-se, como reiteração'], ("criar_gigs[1//xs sob 24]", ato_sobrestamento)),
+        (['Abre-se, como reiteração'], ("criar_gigs[1//xs sob 24]", "criar_gigs[1//xs pec exequente pessoal]", ato_sobrestamento)),
 
         ([
             '05 dias para a apresentação',
@@ -358,6 +359,9 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         # REGRA DE BLOQUEIO CONVERTIDO
         (['bloqueio realizado, ora convertido'], ("criar_gigs[-1//Bruna - Liberação]",)),
 
+        # REGRA DE CONCLUSOS PARA LIBERAÇÃO (restaurada do legado — LEGADO.md L49555)
+        (['conclusos para liberação'], ("criar_gigs[-1//Bruna - Liberação]",)),
+
         # REGRA DE PARCELAMENTO
         (['sobre o preenchimento dos pressupostos legais para concessão do parcelamento'], ("criar_gigs[1/Bruna/Liberação]",)),
 
@@ -406,7 +410,7 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
 
         # REGRA DE BAIXA/AGUARDE-SE (Conjunto que aciona checar_prox como helper)
         ([
-            'determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição',
+            'inoportuna petição', 'determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição',
             'art. 112 do CPC', 'comunique-se por Edital', 'comunique-se de forma concomitante',
             'Aguarde-se', 'Aguarde-se o prazo',
             'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão',
@@ -461,7 +465,8 @@ def _processar_regras_gerais(driver: Any, texto_normalizado: str, doc_idx: int =
                     try:
                         dias, responsavel, observacao = parse_gigs_param(m_g.group(1))
                         if criar_gigs:
-                            criar_gigs(driver, dias, responsavel, observacao)
+                            if criar_gigs(driver, dias, responsavel, observacao) is False:
+                                logger.warning('[FLUXO_PZ] criar_gigs falhou: %s', m_g.group(1))
                     except Exception as e:
                         logger.error('[FLUXO_PZ] criar_gigs sintaxe falhou: %s', e)
                 return None

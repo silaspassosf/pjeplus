@@ -23,16 +23,17 @@ from Fix import espera
 from Fix.abas import validar_conexao_driver
 from Fix.browser_suporte import forcar_fechamento_abas_extras
 from Fix.core import (
+    aguardar_e_clicar,
     aguardar_renderizacao_nativa,
     baixarCP,
     contar_mandados_e_certidoes_oficial,
+    extrair_id_processo,
     preencher_campo,
     safe_click_no_scroll,
 )
 from Fix.facade_publica import ElementoNaoEncontradoError
 from Fix.extracao import extrair_direto, extrair_documento, criar_lembrete_posit
 from Fix.log import logger
-from Fix.selenium_base import aguardar_e_clicar
 
 from atos import (
     ato_judicial,
@@ -156,9 +157,13 @@ def retirar_sigilo(elemento: Any, driver: Optional[Any] = None, debug: bool = Fa
 
         btn_sigilo = None
         seletores = [
+            # LEGADO.md ~45110: o ícone de sigilo é `i.fa-wpexplorer`.
             'button[name="Inserir sigilo"]',
             'pje-doc-sigiloso button',
             'pje-doc-sigiloso span button',
+            'button i.fa-wpexplorer',
+            'i.fa-wpexplorer.tl-sigiloso',
+            'i.fa-wpexplorer',
         ]
         for seletor in seletores:
             try:
@@ -203,18 +208,22 @@ def retirar_sigilo(elemento: Any, driver: Optional[Any] = None, debug: bool = Fa
 # ── helpers API para identificação de documentos sigilosos ──────────────────
 
 def _extrair_id_processo_da_url(driver: Any) -> Optional[str]:
-    """Extrai id_processo numérico da URL atual do PJe (/processo/{id}/)."""
-    try:
-        m = re.search(r'/processo/(\d+)', driver.current_url)
-        return m.group(1) if m else None
-    except Exception:
-        return None
+    """ID numérico do processo na URL atual do PJe (`/processo/{id}`).
+
+    Delega ao helper estrutural `Fix.core.extrair_id_processo`.
+    """
+    return extrair_id_processo(driver)
 
 
 def _criar_api_client_local(driver: Any):
-    """Cria PjeApiClient a partir do driver (lazy import)."""
+    """Cria PjeApiClient a partir do driver (lazy import).
+
+    Mantem a sessao `requests` (em vez de `cliente_para`) porque os chamadores
+    usam `client.sess.get` para baixar PDF alem dos metodos do cliente —
+    `cliente_para` devolve o cliente, nao a sessao (receita R03, regra 3).
+    """
     try:
-        from api.variaveis_client import PjeApiClient, session_from_driver
+        from Fix.variaveis import PjeApiClient, session_from_driver
         sess, trt_host = session_from_driver(driver)
         return PjeApiClient(sess, trt_host, grau=1)
     except Exception:

@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.2.0
+// lista.check.js v0.3.3
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -28,12 +28,32 @@ function _norm(t) {
 }
 window.norm = _norm;
 function _pjeTlClassApi(item) {
-    const raw = (item.titulo || '') + ' ' + (item.nomeDocumento || '') + ' ' + (item.descricao || '');
-    const low = _norm(raw);
+    const titulo = _norm(item.titulo || '');
+    const desc = _norm((item.nomeDocumento || '') + ' ' + (item.descricao || ''));
+    const low = titulo + ' ' + desc;
     if (low.includes('devolucao de ordem') || low.includes('ordem de pesquisa patrimonial')) return 'Certidão devolução pesquisa';
     if (low.includes('certidao de oficial') || low.includes('oficial de justica')) return 'Certidão de oficial de justiça';
-    if (low.includes('mandado de pagamento') && low.includes('alvara')) return 'Alvarás';
-    if (low.includes('alvara') || low.includes('juntada de alvara')) return 'Alvarás';
+    // "Expedição"/"expedido" na descrição nunca é alvará a liberar
+    const ehExpedicao = /(expedicao|expedido)/.test(low);
+    // Mandado de pagamento NÃO é o alvará em si (é a certidão que o expede):
+    // não entra na lista, mas fica marcado para a conferência (a descrição
+    // traz nome + valor que são batidos em executarPgto).
+    if (titulo.includes('mandado de pagamento') && desc.includes('alvara')) return 'MandadoPagamento';
+    if (low.includes('alvara')) {
+        if (ehExpedicao) return null;
+        // Anti-falso-positivo: descrição com "alvará" só é alvará real se o TIPO
+        // do documento for Alvará, Certidão, Mandado de pagamento ou Documento
+        // Diverso com descrição Alvará/SISCONDJ/SIF (ex.: "Manifestação (pedido de
+        // alvara reclamante)" NÃO entra).
+        const ehAlvara = desc.includes('alvara');
+        if ((titulo === 'alvara' && ehAlvara) ||
+            (titulo === 'certidao' && ehAlvara) ||
+            (titulo.includes('mandado de pagamento') && ehAlvara) ||
+            (titulo.includes('documento diverso') && /(alvara|siscondj|sif)/.test(desc))) {
+            return 'Alvarás';
+        }
+        return null;
+    }
     if (low.includes('sobrestamento')) return 'Decisao (Sobrestamento)';
     if (low.includes('serasa') || low.includes('apjur') || low.includes('carta acao')) return 'SerasaAntigo';
     if (low.includes('edital')) return 'Edital';
@@ -121,18 +141,40 @@ window.lerTimelineCompleta = async function () {
         // Captura href direto do ícone para bypass de UI — abre documento via API
         const iconHref = iconLink ? iconLink.getAttribute('href') : null;
 
-        documentos.push({
-            tipo, texto: item.titulo || '', id: uid, idDoc, tipoTexto: '',
-            elementoId: elem ? (elem.id || null) : null,
-            elementoSel: (elem && elem.id) ? `#${CSS.escape(elem.id)}` : null,
-            linkId: iconLink ? (iconLink.id || null) : null,
-            iconHref, data, isAnexo: false,
-        });
+        // Ícone da timeline: alvará só vale para documento interno (gavel).
+        // Juntada por polo ativo/passivo/terceiro (fa-user POLO_*) não entra;
+        // o label do ícone não importa.
+        if (tipo === 'Alvarás' && elem) {
+            const icone = elem.querySelector('.tl-icon i');
+            if (!icone || !icone.classList.contains('fa-gavel')) continue;
+        }
 
         const anexosApi = Array.isArray(item.anexos) ? item.anexos : [];
+
+        // Certidão (Alvará) com anexo "Documento Diverso (Alvará)":
+        // conta apenas o anexo — o documento principal não é listado.
+        const ehCertidaoAlvara = tipo === 'Alvarás' && _norm(item.titulo || '').startsWith('certidao');
+        const anexosAlvara = ehCertidaoAlvara
+            ? anexosApi.filter(ax => _norm((ax.titulo || '') + ' ' + (ax.nomeDocumento || '')).includes('alvara'))
+            : [];
+
+        if (!(ehCertidaoAlvara && anexosAlvara.length)) {
+            documentos.push({
+                tipo, texto: item.titulo || '', id: uid, idDoc, tipoTexto: '',
+                desc: (item.nomeDocumento || '') + ' ' + (item.descricao || ''),
+                elementoId: elem ? (elem.id || null) : null,
+                elementoSel: (elem && elem.id) ? `#${CSS.escape(elem.id)}` : null,
+                linkId: iconLink ? (iconLink.id || null) : null,
+                iconHref, data, isAnexo: false,
+            });
+        }
+
         for (const anexo of anexosApi) {
-            const t = ((anexo.titulo || '') + ' ' + (anexo.nomeDocumento || '')).toLowerCase();
-            const tipoAnexo = /serasa|serasajud/.test(t) ? 'Serasa' : /cnib|indisp/.test(t) ? 'CNIB' : null;
+            const t = _norm((anexo.titulo || '') + ' ' + (anexo.nomeDocumento || ''));
+            let tipoAnexo = null;
+            if (anexosAlvara.includes(anexo)) tipoAnexo = 'Alvarás';
+            else if (/serasa|serasajud/.test(t)) tipoAnexo = 'Serasa';
+            else if (/cnib|indisp/.test(t)) tipoAnexo = 'CNIB';
             if (!tipoAnexo) continue;
             const uidAnexo = anexo.idUnicoDocumento || `anexo_${uid}_${tipoAnexo}`;
             const elemAnexo = encontrarElementoPorUid(uidAnexo);
@@ -188,6 +230,7 @@ window.filtrarDocs = function (docs) {
         const tipo = (d.tipo || '').toLowerCase();
         const texto = (d.texto || '').toLowerCase();
         if (tipo === 'edital') return false;
+        if (tipo === 'mandadopagamento') return false; // usado só pela conferência (executarPgto)
         if (/expedi[cç][aã]o/.test(tipo) && /ordem/.test(tipo)) return false;
         if (/expedi[cç][aã]o/.test(texto) && /ordem/.test(texto)) return false;
         if ((tipo === 'alvarás') && /(expedi[cç][aã]o|expedid[ao]s?|devolvid[ao]s?)/.test(texto))

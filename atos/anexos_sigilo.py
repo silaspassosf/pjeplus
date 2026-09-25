@@ -34,9 +34,15 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
 
         btn_sigilo = None
         for seletor in [
+            # LEGADO.md ~45110: o ícone de sigilo é `i.fa-wpexplorer` (dentro de
+            # `pje-doc-sigiloso span button`). Sem estes seletores o sigilo não é
+            # aplicado, o checkbox do anexo não é marcado e — como a seleção deve
+            # preceder o "Visibilidade para Sigilo" — o botão nunca habilita.
             'button[name="Inserir sigilo"]',
             'pje-doc-sigiloso button',
             'pje-doc-sigiloso span button',
+            'button i.fa-wpexplorer',
+            'i.fa-wpexplorer',
         ]:
             try:
                 if hasattr(elemento, 'query_selector'):
@@ -65,8 +71,65 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
         return False
 
 
+_JS_MARCAR_SIGILOSOS = """
+var n = 0;
+function marcar(item) {
+  if (!item.querySelector('a.tl-documento.is-sigiloso')) { return; }
+  var cb = item.querySelector('mat-checkbox input[type="checkbox"]');
+  if (cb && !cb.checked) {
+    var alvo = item.querySelector('mat-checkbox label') || cb;
+    alvo.click();
+    n++;
+  }
+}
+Array.prototype.forEach.call(document.querySelectorAll('.tl-item-anexo'), marcar);
+if (n === 0) {
+  Array.prototype.forEach.call(document.querySelectorAll('ul.pje-timeline mat-card'), marcar);
+}
+return n;
+"""
+
+
+def marcar_sigilosos_timeline(driver: Any) -> int:
+    """Marca os checkboxes dos documentos sigilosos da timeline.
+
+    Ordem do LEGADO.md (~6793): a seleção do sigiloso vem ANTES do botão
+    "Visibilidade para Sigilo". Devolve quantos checkboxes foram marcados.
+    """
+    try:
+        executar = getattr(driver, 'execute_script', None)
+        if not executar:
+            return 0
+        return int(executar(_JS_MARCAR_SIGILOSOS) or 0)
+    except Exception:
+        return 0
+
+
 def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bool = False) -> bool:
     try:
+        # Ordem do LEGADO.md (~6793 / Fix.core.visibilidade_sigilosos): PRIMEIRO o
+        # documento sigiloso tem de estar selecionado (múltipla seleção ativa), só
+        # DEPOIS se clica em "Visibilidade para Sigilo". Sem seleção o botão nunca
+        # habilita — era daí que vinha a falha silenciosa do lote.
+        marcados = espera.ate_js(
+            driver,
+            """__pjeEls('ul.pje-timeline mat-checkbox input[type="checkbox"]').some(el => el.checked)""",
+            teto=2,
+        )
+        if not marcados:
+            qtd = marcar_sigilosos_timeline(driver)
+            if qtd and log:
+                logger.info('[VISIBILIDADE_LOTE] %s documento(s) sigiloso(s) selecionado(s) antes da visibilidade', qtd)
+            marcados = bool(qtd) and espera.ate_js(
+                driver,
+                """__pjeEls('ul.pje-timeline mat-checkbox input[type="checkbox"]').some(el => el.checked)""",
+                teto=3,
+            )
+        if not marcados:
+            logger.warning('[VISIBILIDADE_LOTE] Nenhum documento sigiloso selecionado na timeline '
+                           '— seleção deve preceder o clique em Visibilidade')
+            return False
+
         sel_vis = 'button[mattooltip="Visibilidade para Sigilo"]'
         if not espera.ate_habilitar(driver, sel_vis, teto=5):
             logger.warning('[VISIBILIDADE_LOTE] Botao de visibilidade nao habilitou')
@@ -74,6 +137,7 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
 
         btn_vis = espera.elemento(driver, sel_vis, teto=2)
         if not btn_vis:
+            logger.warning('[VISIBILIDADE_LOTE] Botao de visibilidade nao encontrado')
             return False
         safe_click_no_scroll(driver, btn_vis)
 
@@ -89,6 +153,7 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
 
         icone_header = espera.elemento(driver, seletor_marcar, teto=2)
         if not icone_header:
+            logger.warning('[VISIBILIDADE_LOTE] Icone "Marcar todas" nao encontrado no modal')
             return False
         safe_click_no_scroll(driver, icone_header)
 
@@ -99,6 +164,7 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
 
         btn_salvar = espera.elemento(driver, xpath_salvar, teto=2)
         if not btn_salvar:
+            logger.warning('[VISIBILIDADE_LOTE] Botao Salvar nao encontrado')
             return False
         safe_click_no_scroll(driver, btn_salvar)
 

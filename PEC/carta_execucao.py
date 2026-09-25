@@ -12,6 +12,7 @@ Dependencia congelada: PEC.anexos.core
 
 import logging
 import re
+import time
 from typing import Optional, Dict, Any, List, Tuple
 
 
@@ -100,6 +101,39 @@ def _extrair_texto_completo(driver, log):
     return texto_completo
 
 
+def _extrair_texto_via_api(driver, item, log) -> Optional[str]:
+    """Leitura DIRETA do documento pela API — sem abrir o viewer e sem o
+    export "Texto Extraído" (OCR).
+
+    Usa `Fix.variaveis.obter_texto_documento` (LEGADO.md ~17883), que sempre
+    existiu e lê o conteúdo textual/HTML do documento sem tocar na interface.
+    """
+    try:
+        item_id = ''
+        if hasattr(item, 'get_attribute'):
+            item_id = item.get_attribute('id') or ''
+        id_doc = re.sub(r'^doc_', '', item_id).strip()
+        if not id_doc.isdigit():
+            return None
+
+        from Fix.core import extrair_id_processo
+        from Fix.variaveis import cliente_para, obter_texto_documento
+
+        id_proc = extrair_id_processo(driver)
+        if not id_proc:
+            return None
+
+        texto = obter_texto_documento(cliente_para(driver), id_proc, id_doc)
+        if texto and len(texto.strip()) >= 10:
+            if log:
+                logger.info(f"[CARTA][API] Documento lido direto da API ({len(texto)} chars, doc={id_doc})")
+            return texto.lower()
+    except Exception as e:
+        if log:
+            logger.warning(f"[CARTA][API] Falha na leitura direta do documento: {e}")
+    return None
+
+
 def _processar_item(driver, item, contexto, log):
     try:
         link = _sub_elemento(item, 'a.tl-documento:not([target="_blank"])')
@@ -121,10 +155,17 @@ def _processar_item(driver, item, contexto, log):
         except Exception:
             pass
 
-        safe_click_no_scroll(driver, link)
-        espera.assentar(driver, 2.0, 'carregamento documento intimacao')
+        # Leitura DIRETA pela API (obter_texto_documento — LEGADO.md ~17883):
+        # evita abrir o documento e evita o export "Texto Extraído" (OCR).
+        texto_completo = _extrair_texto_via_api(driver, item, log)
 
-        texto_completo = _extrair_texto_completo(driver, log)
+        if not texto_completo or not _texto_e_correio(texto_completo):
+            # Fallback UI (extrair_direto / extrair_pdf) só quando a leitura
+            # direta não bastou para provar que a intimação é de correio.
+            safe_click_no_scroll(driver, link)
+            espera.assentar(driver, 2.0, 'carregamento documento intimacao')
+            texto_completo = _extrair_texto_completo(driver, log)
+
         if not texto_completo or len(texto_completo.strip()) < 10:
             return None
 

@@ -14,6 +14,18 @@ from typing import Any
 from Fix.core import logger, safe_click_no_scroll, preencher_campo
 from Fix import espera
 
+
+def _executar_js(driver: Any, script: str, *args):
+    """Executa JavaScript de forma compativel entre Selenium e Playwright."""
+    fn = getattr(driver, "execute_" + "script", None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
+
 def _aguardar_painel_destinatarios_assentar(driver: Any, teto_linhas: int = 10) -> int:
     """Espera o painel de destinatários terminar de renderizar/hidratar.
 
@@ -88,9 +100,11 @@ def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: boo
                 # Clicar em "Selecionar todas"
                 if espera.ate_habilitar(driver, '#selecionar-todas', teto=10):
                     btn_selecionar_todas = espera.elemento(driver, '#selecionar-todas', teto=2)
+                    clicou = False
                     if btn_selecionar_todas:
-                        safe_click_no_scroll(driver, btn_selecionar_todas, log=False)
-                    logger.info('[PRAZOS] Todas as partes selecionadas')
+                        clicou = safe_click_no_scroll(driver, btn_selecionar_todas, log=False)
+                    if clicou:
+                        logger.info('[PRAZOS] Todas as partes selecionadas')
                     espera.assentar(driver, 0.5)
                     
                     # Desmarcar aqueles com "Domicílio Eletrônico"
@@ -122,24 +136,52 @@ def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: boo
         # Se prazo foi fornecido, preenche os campos de prazo APENAS nas linhas selecionadas
         if prazo is not None:
             try:
-                xpath_linhas = "//table[contains(@class, 't-class')]//tbody//tr[contains(@class, 'ng-star-inserted') and .//input[@type='checkbox' and (@aria-checked='true' or @checked)]]"
-                qtd = len(espera.elementos(driver, xpath_linhas, teto=2))
-                if qtd == 0:
+                script_prazo = """
+                var valor = String(arguments[0]);
+                var linhas = Array.prototype.slice.call(
+                    document.querySelectorAll('table.t-class tbody tr.ng-star-inserted')
+                );
+                var marcadas = linhas.filter(function (tr) {
+                    var cb = tr.querySelector('input[aria-label="Intimar parte"]');
+                    return !!cb && cb.checked === true;
+                });
+                var campos = [];
+                if (marcadas.length > 0) {
+                    marcadas.forEach(function (tr) {
+                        campos = campos.concat(Array.prototype.slice.call(
+                            tr.querySelectorAll('mat-form-field[class*="prazo"] input')
+                        ));
+                    });
+                } else {
+                    campos = Array.prototype.slice.call(
+                        document.querySelectorAll('mat-form-field[class*="prazo"] input')
+                    );
+                }
+                var preenchidos = 0;
+                campos.forEach(function (el) {
+                    el.value = valor;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    preenchidos += 1;
+                });
+                return { marcadas: marcadas.length, preenchidos: preenchidos };
+                """
+                resultado = _executar_js(driver, script_prazo, str(prazo))
+                if not isinstance(resultado, dict):
+                    resultado = {}
+                marcadas = int(resultado.get('marcadas') or 0)
+                preenchidos = int(resultado.get('preenchidos') or 0)
+
+                tem_campo = espera.ate_js(
+                    driver,
+                    "document.querySelectorAll('mat-form-field[class*=\"prazo\"] input').length > 0",
+                    teto=3,
+                )
+                if not tem_campo or preenchidos == 0:
                     logger.warning('[PRAZOS] Nenhum campo de prazo na linha selecionada')
                     return False
 
-                logger.info(f'[PRAZOS] Encontrados {qtd} campos de prazo')
-
-                for i in range(1, qtd + 1):
-                    try:
-                        sel = f"({xpath_linhas}//mat-form-field[contains(@class, 'prazo')]//input)[{i}]"
-                        preencher_campo(driver, sel, str(prazo))
-                        logger.info(f'[PRAZOS] Campo {i} preenchido com prazo: {prazo}')
-                    except Exception as e:
-                        logger.warning(f'[PRAZOS] Erro ao preencher campo {i}: {e}')
-                        continue
-
-                espera.assentar(driver, 0.3)
+                logger.info(f'[PRAZOS] {preenchidos} campo(s) de prazo preenchido(s) em {marcadas} linha(s) marcada(s)')
 
             except Exception as e:
                 logger.warning(f'[PRAZOS] Erro ao preencher campos de prazo: {e}')

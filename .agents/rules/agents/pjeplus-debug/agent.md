@@ -80,6 +80,18 @@ Com base no código lido e no `idx.md`, defina:
   - qual padrão do `idx.md` se aplica (ex: SmartFinder, MutationObserver, exceção tipada)
   - se há risco de impacto em outro módulo
 
+**OBRIGATÓRIO antes de propor o caminho — comparação com `pre-refac`:**
+1. Verifique o MESMO trecho na tag pré-refatoração:
+   `git show pre-refac:CAMINHO/ARQUIVO.py` (e `git log -S "trecho" -- ARQUIVO` para achar o commit que trocou).
+2. Se a lógica funcionava antes e parou, o caminho proposto é **RESTAURAR** a lógica
+   (preservando o motor Playwright: `espera.ate_*`, `Fix/espera.py`, `By` de `Play.pjeplay.locators`) —
+   NÃO recriar do zero. Indique no diagnóstico o que o `pre-refac` fazia de diferente.
+3. **Nunca proponha código Selenium** (`find_element(s)`, `WebDriverWait`, `time.sleep`,
+   `import selenium`) como correção — o caminho correto é traduzir a lógica para os helpers atuais.
+4. Consulte `.agents/rules/restauracao-pre-refac.md` (tabela de falhas já diagnosticadas como
+   perda de tradução: import de `By`/`time` removido, seletor misto CSS+XPath, propriedade DOM
+   traduzida como atributo XPath, seletores de sigilo/visibilidade errados).
+
 Se o caminho violar um padrão do `idx.md`, registre o conflito explicitamente —
 o modelo pesado precisa saber.
 

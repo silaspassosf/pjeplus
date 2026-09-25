@@ -47,6 +47,14 @@ orchestrator.agent.md   ← invoke diretamente para qualquer tarefa não-trivial
 
 ## 2. Regras Absolutas
 
+### R0 — Restauração pré-refatoração (REGRA PRIMÁRIA para bug de funcionalidade)
+- **Se um fluxo/ato/seletor parou de funcionar, a lógica que funcionava está na tag `pre-refac`.**
+  Comandos: `git show pre-refac:CAMINHO/ARQUIVO.py` (arquivo inteiro), `git log -S "trecho" -- ARQUIVO` (qual commit trocou).
+- **Restaure a LÓGICA preservando a arquitetura Playwright** (`Fix/espera.py`, `espera.ate_*`, `By` de `Play.pjeplay.locators`) — NUNCA reintroduza Selenium.
+- **Não recrie do zero o que já existia.** Primeiro restaure do `pre-refac`, depois adapte ao motor atual.
+- Detalhes e tabela de falhas já diagnosticadas: `.agents/rules/restauracao-pre-refac.md` (leitura obrigatória em diagnóstico).
+- Validação obrigatória pós-correção: `py tools/check_pw.py` + `py play/smoke.py --projeto` (91/91).
+
 ### R1 — Escopo Exato
 - ✅ Implementar exatamente o que foi pedido
 - ✅ Reutilizar código existente (verificar `idx.md` primeiro)
@@ -72,10 +80,11 @@ Sempre `py` (não `python` nem `python3`). Validação: `py -m py_compile arquiv
 `pw.py` é o executor principal — não `x.py` diretamente:
 
 ```
-py pw.py              # Playwright nativo (padrão)
-py pw.py --selenium   # Baseline Selenium
+py pw.py              # Playwright nativo (padrão — ÚNICO caminho em produção)
 py pw.py --trace      # + trace.zip navegável
 ```
+
+> ⚠️ A flag `--selenium` foi REMOVIDA na migração (F6). Não usar, não recriar, não sugerir.
 
 Ver `idx.md` seção 0.5 para detalhes completos.
 

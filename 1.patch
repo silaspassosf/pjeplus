@@ -1,0 +1,96 @@
+--- a/atos/comunicacao_destinatarios.py
++++ b/atos/comunicacao_destinatarios.py
+@@ -6,6 +6,7 @@
+ import json
+ from Fix.log import log_seletor_multiplo, logger
+ from Fix import espera
++from Play.pjeplay.locators import By
+ 
+ 
+ def _normalizar_nome_para_match(nome):
+--- a/atos/judicial_fluxo.py
++++ b/atos/judicial_fluxo.py
+@@ -17,6 +17,7 @@
+ from Fix.log import getmodulelogger, log_start, log_fim
+ logger = getmodulelogger(__name__)
+ from Fix.selectors_pje import BTN_TAREFA_PROCESSO, BTN_GRAVAR_MOVIMENTOS, EDITOR_AREA_CONTEUDO
++from Play.pjeplay.locators import By
+ from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
+ from Fix.extracao import bndt, criar_gigs
+ from Fix.movimento_helpers import selecionar_movimento_auto
+--- a/atos/comunicacao.py
++++ b/atos/comunicacao.py
+@@ -4,6 +4,7 @@
+ from Fix.core import esperar_elemento, aguardar_renderizacao_nativa
+ from Fix.abas import fechar_abas_extras as _fechar_abas_tabs
+ from Fix import espera
++from Play.pjeplay.locators import By
+ from .comunicacao_navigation import abrir_minutas
+ from .comunicacao_coleta import executar_coleta_conteudo
+ from .comunicacao_preenchimento import executar_preenchimento_minuta, aguardar_ato_confeccionado, aguardar_estabilizacao_para_destinatarios
+--- a/atos/judicial_navegacao.py
++++ b/atos/judicial_navegacao.py
+@@ -24,12 +24,18 @@
+ 
+ def _localizar_botao_navegacao(driver: Any, label: str):
+     """Localiza botão de navegação de tarefa via estratégias combinadas."""
+-    seletor = (
+-        f"button[aria-label='{label}'], "
+-        f"button[aria-label*='{label}'], "
+-        f"//button[.//span[normalize-space(text())='{label}']]"
++    el = espera.elemento(
++        driver,
++        f"button[aria-label='{label}'], button[aria-label*='{label}']",
++        teto=2,
+     )
+-    return espera.elemento(driver, seletor, teto=2)
++    if el:
++        return el
++    return espera.elemento(
++        driver,
++        f"//button[.//span[normalize-space(text())='{label}']]",
++        teto=2,
++    )
+ 
+ 
+ def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:
+--- a/atos/anexos_sigilo.py
++++ b/atos/anexos_sigilo.py
+@@ -34,10 +34,9 @@
+ 
+         btn_sigilo = None
+         for seletor in [
++            'button[name="Inserir sigilo"]',
+             'pje-doc-sigiloso button',
+             'pje-doc-sigiloso span button',
+-            'button i.fa-wpexplorer',
+-            'i.fa-wpexplorer',
+         ]:
+             try:
+                 if hasattr(elemento, 'query_selector'):
+--- a/Mandado/apoio_fluxos.py
++++ b/Mandado/apoio_fluxos.py
+@@ -156,11 +156,9 @@
+ 
+         btn_sigilo = None
+         seletores = [
++            'button[name="Inserir sigilo"]',
+             'pje-doc-sigiloso button',
+             'pje-doc-sigiloso span button',
+-            'button i.fa-wpexplorer',
+-            'i.fa-wpexplorer.tl-sigiloso',
+-            'i.fa-wpexplorer',
+         ]
+         for seletor in seletores:
+             try:
+--- a/atos/anexos_sigilo.py
++++ b/atos/anexos_sigilo.py
+@@ -68,7 +68,7 @@
+ 
+ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bool = False) -> bool:
+     try:
+-        sel_vis = 'button[aria-label="Incluir visibilidade para Sigilo"]'
++        sel_vis = 'button[mattooltip="Visibilidade para Sigilo"]'
+         if not espera.ate_habilitar(driver, sel_vis, teto=5):
+             logger.warning('[VISIBILIDADE_LOTE] Botao de visibilidade nao habilitou')
+             return False

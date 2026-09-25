@@ -100,6 +100,19 @@ Reversão natural: como nada foi aplicado na falha, não há nada a desfazer. O 
 - Zero refatoração não solicitada: corrija o que foi pedido. O que não foi tocado, não toque.
 - Uma busca, uma vez: `search` no máximo uma vez por sessão.
 
+## Restauração pré-refatoração (quando o markdown apontar)
+
+Se o bloco `<!-- pjeplus:apply -->` descrever uma RESTAURAÇÃO de lógica pré-refatoração
+(regra primária: `.agents/rules/restauracao-pre-refac.md`):
+- Aplique exatamente a lógica do `pre-refac` **já traduzida** no bloco para o motor atual
+  (`espera.ate_*`, `Fix/espera.py`, `By` de `Play.pjeplay.locators`) — não "melhore" a lógica,
+  não recrie, não simplifique: o que funcionava volta como era.
+- Se o bloco contiver código Selenium (`find_element(s)`, `WebDriverWait`, `expected_conditions`,
+  `time.sleep`), PARE e emita FALHA DE APLICAÇÃO com motivo `bloco contém Selenium — pedir
+  reescrita em vocabulário Playwright`. Não traduza por conta própria, não aplique parcialmente.
+- Validação mínima após aplicar: `py -m py_compile <arquivo>`; se o projeto pedir, os gates
+  completos são `py tools/check_pw.py` e `py play/smoke.py --projeto`.
+
 ---
 
 ## Fontes de Contexto Internas

@@ -31,6 +31,7 @@ from .core import (
     preencher_multiplos_campos,
     com_retry,
     buscar_seletor_robusto,
+    extrair_id_processo,
     esperar_elemento,
     esperar_url_conter,
     escolher_opcao_inteligente,
@@ -429,7 +430,7 @@ __all__ = [
     'aguardar_e_clicar', 'selecionar_opcao', 'preencher_campo',
     'preencher_campos_prazo', 'preencher_multiplos_campos',
     # Core - Retry e robustez
-    'com_retry', 'buscar_seletor_robusto', 'esperar_elemento',
+    'com_retry', 'buscar_seletor_robusto', 'extrair_id_processo', 'esperar_elemento',
     'esperar_url_conter', 'escolher_opcao_inteligente',
     'encontrar_elemento_inteligente',
     # Core - Legadas

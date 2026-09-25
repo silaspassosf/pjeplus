@@ -4,6 +4,10 @@ Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless,
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 
+> **REGRAS ALWAYS-ON DE ARQUITETURA (2026-09-24, vigem para qualquer agente):**
+> 1. `.agents/rules/anti-selenium.md` — Playwright é a única via; proibido reintroduzir Selenium.
+> 2. `.agents/rules/restauracao-pre-refac.md` — **se um fluxo/ato/seletor parou de funcionar, a lógica que funcionava está na tag `pre-refac`**: `git show pre-refac:CAMINHO/ARQUIVO.py`. Restaure a lógica preservando a arquitetura Playwright (espera.ate_*, `Fix/espera.py`, `By` de `Play.pjeplay.locators`) — não recrie do zero, não reintroduza Selenium. O arquivo traz também a tabela das falhas já diagnosticadas como perda de tradução (import de `By`/`time` removido, seletor misto CSS+XPath, propriedade DOM traduzida como atributo XPath, seletores de sigilo/visibilidade errados) com as correções validadas.
+
 ---
 
 ## 0.1 Quick Reference Card — Acesso Direto (Sem Busca)
@@ -454,6 +458,7 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `mov_fimsob` | `atos/movimentos_fimsob.py` |
 | `navegar_para_tarefa` | `atos/movimentos_navegacao.py` |
 | `p2b`, `gigs_sem_prazo` | `Prazo/p2b_gateway.py` |
+| `inicar_exec`, `decidir_rota_iniciar_exec`, `credito_mock`, `obrigacoespagar` | `Prazo/p2b_gateway.py` (roteamento por API), `Fix/variaveis.py::PjeApiClient.obrigacoes_pagar`, JS `Prazo/scripts/credito_mock.js` |
 | `pec_ord`, `pec_sum`, `pec_bloqueio`, `pec_*` | `atos/wrappers_pec.py` (19+ wrappers) |
 | `preencher_campo`, `preencher_campos_prazo` | `Fix/core.py` |
 | `prescricao`, `prescreve` | `Prazo/p2b_fluxo_prescricao.py` (satélite) |
@@ -526,6 +531,10 @@ x.py: executar_prazo()
           ├─ testar_gigs_sem_prazo() [API: GIGS API]
           ├─ Prazo/p2b_documentos.py: _encontrar_documento_relevante() [DOM: timeline]
           ├─ Prazo/p2b_gateway.py: extrair_documento_relevante() [API: /timeline → /conteudo → pdfplumber]
+          ├─ Prazo/p2b_gateway.py: inicar_exec() [roteia por API — decidir_rota_iniciar_exec():
+          │     fase executção→ato_pesquisas | liquidação sem movimento 50047→ato_pesqliq |
+          │     liquidação homologada: obrigacoes_pagar() → ato_pesquisas, ou GIGS "registrar obrigação" +
+          │     registrar_credito_mock_0_01() (JS Prazo/scripts/credito_mock.js) → ato_pesquisas]
           └─ Prazo/p2b_documentos.py: _processar_regras_gerais (varredura sequencial regex → ação, ver _definir_regras_processamento)
 ```
 
@@ -637,7 +646,7 @@ Estes arquivos têm ≤30 linhas e apenas re-exportam de `facade_publica.py` ou 
 |---|---|---|
 | `bianca/` | CÓPIA ATIVA (pré-xcode mantida separada) | Usar `bianca/` para Triagem e DOM — é a versão chamada por `x.py` |
 | `Triagem/` | CÓPIA LEGADA | `bianca/triagem_engine.py` é o entry point real |
-| `api/` (raiz) | CÓPIA | `Fix/variaveis.py` é a implementação real do PjeApiClient |
+| `api/` (raiz) | SPLIT do antigo `Fix/variaveis` — contém a camada gateway (`request_gateway`, `gateway_get/post/patch`, `buscar_todas_paginas`) que `Fix/variaveis.py` ainda NÃO tem | `Fix/variaveis.py` é o canônico dos helpers e de `cliente_para`; `api/variaveis_client.py` segue obrigatório para POST/PATCH e paginação |
 | `api/` (em `leg/api/`) | Snapshot legado | Referência apenas |
 
 ---

@@ -8,6 +8,10 @@ trigger: always_on
 
 **LEITURA OBRIGATÓRIA:** filtro de escopo primário e inegociável. Antes de qualquer grep/glob/busca exploratória, consulte esta tabela e a árvore de decisão abaixo. Se não cobrir o termo buscado, a busca é permitida — mas `idx.md` deve ser atualizado ao final. Buscas genéricas sem consulta prévia são proibidas.
 
+> **REGRAS always-on adicionais (inegociáveis):**
+> - `.agents/rules/anti-selenium.md` — Playwright é a única via. Proibido reintroduzir Selenium em qualquer arquivo.
+> - `.agents/rules/restauracao-pre-refac.md` — **se parou de funcionar, a lógica que funcionava está na tag `pre-refac`** (`git show pre-refac:CAMINHO/ARQUIVO.py`). Restaure a lógica preservando a arquitetura Playwright; nunca recrie do zero o que já existia; nunca reintroduza Selenium. Tabela de falhas já diagnosticadas como perda de tradução está nesse arquivo.
+
 ---
 
 ## Quick Reference Card — Acesso Direto (Sem Busca)

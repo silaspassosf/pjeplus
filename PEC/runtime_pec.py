@@ -576,11 +576,6 @@ class PECOrquestrador:
                 _, bucket, acao = match
                 buckets[bucket].append((atv, acao))
 
-        if buckets.get('comunicacoes'):
-            buckets['comunicacoes'].sort(
-                key=lambda item: 1 if 'xs sigilo' in (getattr(item[0], 'observacao', '') or '').lower() else 0
-            )
-
         if dry_run:
             self._log_dry_run(buckets)
             return {'total': len(atividades), 'sucesso': 0, 'erro': 0}

@@ -54,7 +54,8 @@ if not logger.handlers:
 
 
 # Sobrestamento vencido deve ser processado por ÚLTIMO, imediatamente antes de SISBAJUD
-BUCKET_ORDEM = ['xs_sob', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud_teimosinha', 'sisbajud_resultado']
+# xs sigilo: bucket próprio, logo após o 1º bloco (xs_sob) e antes de carta
+BUCKET_ORDEM = ['xs_sob', 'xs_sigilo', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud_teimosinha', 'sisbajud_resultado']
 
 
 # ─── helpers: acoes com logica interna ou assinatura especial ────────────────
@@ -435,7 +436,8 @@ registry.register(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b|\bedi
 registry.register(r'\bpec\s+dec\b|\bxs\s+pec\s+dec\b',                 'comunicacoes', _w(_a(w, 'pec_decisao')))
 registry.register(r'\bpec\s+idpj\b|\bxs\s+pec\s+idpj\b',               'comunicacoes', _w(_a(w, 'pec_editalidpj')))
 registry.register(r'\bxs\s+bloq\b|\bpec\s+bloq\b',                     'comunicacoes', _w(_a(w, 'pec_bloqueio')))
-registry.register(r'\bxs\s+sigilo\b',                                   'comunicacoes', _xs_sigilo)
+registry.register(r'\bxs\s+sigilo\b',                                   'xs_sigilo', _xs_sigilo)
+registry.register(r'\bexequente\s+pessoal\b',                           'comunicacoes', _w(_a(w, 'pec_exeq')))
 # ── OUTROS ────────────────────────────────────────────────────────────────────
 registry.register(r'\bxs\s+audx\b|\baudx\b|\baud\s+x\b',               'outros',   _audx_mov_int)
 registry.register(r'\bxs\s+parcial\b',                                  'outros',   _xs_parcial)

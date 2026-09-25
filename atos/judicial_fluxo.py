@@ -21,6 +21,7 @@ from Play.pjeplay.locators import By
 from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
 from Fix.extracao import bndt, criar_gigs
 from Fix.movimento_helpers import selecionar_movimento_auto
+import json
 import time
 import logging
 
@@ -374,10 +375,34 @@ def ato_judicial(
 
             try:
                 seletor_item_filtrado = '.nodo-filtrado'
+                seletor_dialogo = 'pje-dialogo-visualizar-modelo'
                 seletor_btn_inserir_aria = 'button[aria-label="Inserir modelo de documento"]'
                 seletor_btn_inserir_css = (
                     'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes'
                     ' > div.div-botao-inserir > button')
+
+                # Paciência (padrão do gigs-plugin.js): o modal de visualização só
+                # pode ser aberto depois que o dialog anterior saiu do DOM. Se um
+                # dialog antigo ainda estiver presente, a espera de "aparecer"
+                # retorna na hora, o clique em Inserir cai cedo demais e o modal
+                # abre e fecha sem inserir o modelo no editor.
+                espera.ate_sumir(driver, seletor_dialogo, teto=4)
+
+                # Fotografia do editor ANTES da inserção: a prova de sucesso é a
+                # mudança de conteúdo no editor — o snackbar não serve (aparece
+                # até quando a minuta é salva com o editor vazio).
+                js_snapshot = (
+                    r"(() => { var area = document.querySelector('" + EDITOR_AREA_CONTEUDO + r"');"
+                    r" if (!area) return '';"
+                    r" var txt = (area.innerText || '').replace(/\s/g, '');"
+                    r" return txt + '|' + area.querySelectorAll('figure').length; })()"
+                )
+                editor_antes = ''
+                try:
+                    if hasattr(driver, 'page'):
+                        editor_antes = driver.page.evaluate(js_snapshot) or ''
+                except Exception:
+                    editor_antes = ''
 
                 nodo = aguardar_e_clicar(driver, seletor_item_filtrado, timeout=15)
                 if not nodo:
@@ -385,34 +410,22 @@ def ato_judicial(
                     return False, False
                 logger.info('[ATO][MODELO] Clique em nodo-filtrado realizado!')
 
-                aguardar_renderizacao_nativa(
-                    driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=8)
+                if not aguardar_renderizacao_nativa(
+                        driver, seletor_dialogo, modo='aparecer', timeout=15):
+                    logger.error('[ATO][MODELO] Dialog de visualização do modelo não abriu!')
+                    return False, False
 
-                espera.assentar(driver, 0.5, motivo='espera de estabilização do dialog de inserção')
+                espera.assentar(driver, 0.5, motivo='aguardando o teor do modelo carregar no dialog')
 
-                btn_inserir = wait_for_clickable(driver, seletor_btn_inserir_aria, timeout=8)
+                btn_inserir = wait_for_clickable(driver, seletor_btn_inserir_aria, timeout=10)
                 if not btn_inserir:
-                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir_css, timeout=3)
+                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir_css, timeout=5)
                 if not btn_inserir:
                     logger.error('[ATO][MODELO] Botão inserir não encontrado!')
                     return False, False
 
                 safe_click_no_scroll(driver, btn_inserir)
-                logger.info('[ATO][MODELO] Clique em inserir realizado')
-
-                try:
-                    if espera.ate_texto(driver, 'simple-snack-bar',
-                                        'Modelo de documento inserido com sucesso', teto=4):
-                        logger.info('[ATO][MODELO] Snackbar de inserção detectada '
-                                    '— sinal para prosseguir')
-                    else:
-                        logger.warning('[ATO][MODELO] Snackbar não detectada '
-                                       '(foco pode ter saído da tela); seguindo '
-                                       'para verificação de conteúdo')
-                except Exception:
-                    pass
-                aguardar_renderizacao_nativa(
-                    driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=4)
+                logger.info('[ATO][MODELO] Clique em inserir realizado (única vez)')
 
                 modelo_no_editor = False
                 try:
@@ -420,8 +433,8 @@ def ato_judicial(
                         var area = document.querySelector('{EDITOR_AREA_CONTEUDO}');
                         if (!area) return false;
                         var texto = (area.innerText || '').replace(/\\s/g, '');
-                        return texto.length > 1 || area.querySelector('figure') !== null;
-                    }})()""", teto=10))
+                        return !!texto && (texto + '|' + area.querySelectorAll('figure').length) !== {json.dumps(editor_antes)};
+                    }})()""", teto=30))
                 except Exception:
                     modelo_no_editor = False
 
@@ -430,6 +443,11 @@ def ato_judicial(
                                  'editor após inserção — abortando antes do Salvar')
                     return False, False
                 logger.info('[ATO][MODELO] Modelo inserido (conteúdo confirmado no editor)')
+
+                # Paciência (LEGADO.md ~3843): mesmo com o modelo já visível no
+                # editor, dar tempo de o Angular concluir a inserção antes de
+                # qualquer clique em Salvar — senão a minuta salva sem o modelo.
+                espera.assentar(driver, 1.5, motivo='paciência pós-inserção do modelo')
 
             except Exception as e:
                 logger.error(f'[ATO][MODELO] Erro ao inserir modelo: {e}')
@@ -780,25 +798,16 @@ def ato_judicial(
                         return False, False
                     logger.info('[ATO][MOVIMENTO]  Complementos selecionados via combobox')
 
-                # Gravar movimento
+                # Gravar movimento — o próprio clique em Gravar conclui a movimentação:
+                # não há confirmação a aguardar (o snackbar não é prova de nada).
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
                 aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=3)
                 btn_gravar_mov = wait_for_clickable(driver, BTN_GRAVAR_MOVIMENTOS, timeout=10)
                 if btn_gravar_mov:
                     safe_click_no_scroll(driver, btn_gravar_mov)
-
-                logger.info('[ATO][MOVIMENTO] Confirmando gravação...')
-                snack = wait_for_clickable(driver, 'snack-bar-container simple-snack-bar', timeout=4)
-                if snack and 'movimentos gravados' in (getattr(snack, 'text', '') or '').lower():
-                    try:
-                        btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
-                        if btn_x:
-                            safe_click_no_scroll(driver, btn_x)
-                    except Exception:
-                        pass
-                    logger.info('[ATO][MOVIMENTO] Movimento gravado (snackbar de sucesso)')
+                    logger.info('[ATO][MOVIMENTO] Movimento gravado')
                 else:
-                    logger.warning('[ATO][MOVIMENTO] Sem confirmação de gravação do movimento (snackbar ausente), assumindo sucesso')
+                    logger.error('[ATO][MOVIMENTO] Botão Gravar movimento não disponível')
 
             except Exception as e:
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')

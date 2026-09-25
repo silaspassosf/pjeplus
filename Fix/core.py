@@ -110,6 +110,21 @@ def wait_for_page_load(driver, timeout=10):
         return False
 
 
+def extrair_id_processo(driver) -> Optional[str]:
+    """ID numérico do processo na URL atual do PJe (`/processo/{id}`).
+
+    Leitura direta da URL — sem tocar no DOM e sem dependência de motor. Ponto
+    único para quem precisa do id nas chamadas de API (`cliente_para` +
+    `partes`/`domicilio_eletronico`/`obter_texto_documento`).
+    """
+    try:
+        m = re.search(r'/processo/(\d+)', getattr(driver, 'current_url', '') or '')
+        return m.group(1) if m else None
+    except Exception as e:
+        logger.debug('extrair_id_processo: %s', e)
+        return None
+
+
 def wait_for_visible(driver, selector, timeout=10, by=None):
     """Wait for an element to be visible in the DOM."""
     try:

@@ -231,6 +231,28 @@ class PjeApiClient:
         except Exception:
             return None
 
+    def obrigacoes_pagar(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
+        """Obrigações de pagar registradas no processo (crédito exequente).
+
+        Endpoint documentado em `api/apis.md` §8.3:
+        GET /pje-comum-api/api/processos/id/{idProcesso}/obrigacoespagar
+
+        Lista vazia (`[]`) = liquidação homologada ainda SEM crédito registrado —
+        usado pelo P2B para decidir entre iniciar execução direto ou registrar o
+        crédito mock antes. `None` = falha de consulta (indecidível).
+        """
+        url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/obrigacoespagar")
+        try:
+            r = self.sess.get(url, timeout=15)
+            if not r.ok:
+                return None
+            dados = r.json()
+            if not isinstance(dados, list):
+                return None
+            return dados
+        except Exception:
+            return None
+
     def debitos_trabalhistas_bndt(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
         """Obtém partes cadastradas no BNDT (Banco Nacional de Devedores Trabalhistas).
         
@@ -372,7 +394,11 @@ def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
         for c in cookies:
             sess.cookies.set(c['name'], c['value'])
         parsed = urlparse(driver.current_url)
-        trt_host = parsed.netloc
+        trt_host = parsed.netloc or 'pje.trt2.jus.br'
+        # Se o browser estiver fora do PJe (tela de SSO/login em outro host),
+        # o netloc da URL nao serve de base para a API — volta ao padrao.
+        if 'trt2.jus.br' not in trt_host:
+            trt_host = 'pje.trt2.jus.br'
     except Exception:
         raise
     sess.headers.update({

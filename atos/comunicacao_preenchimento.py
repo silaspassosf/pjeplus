@@ -18,6 +18,17 @@ from Fix.utils import normalizar_texto as normalizar_string
 from Fix import espera
 
 
+def _executar_js(driver: Any, script: str, *args):
+    """Executa JavaScript de forma compativel entre Selenium e Playwright."""
+    fn = getattr(driver, "execute_" + "script", None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
+
 def preencher_input_js(driver: Any, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
     for tentativa in range(1, max_tentativas + 1):
         try:
@@ -62,14 +73,26 @@ def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False
 
 def clicar_radio_button_js(driver, texto_label, debug=False):
     try:
-        texto_norm = normalizar_string(texto_label)
-        radios = espera.elementos(driver, 'mat-radio-button')
-        for r in radios:
-            lbl = normalizar_string(getattr(r, 'text', '') or '')
-            if texto_norm in lbl:
-                safe_click_no_scroll(driver, r)
-                return True
-        return False
+        ok = _executar_js(
+            driver,
+            """
+            var alvo = String(arguments[0]).normalize('NFD')
+                .replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+            var radios = document.querySelectorAll('mat-radio-button');
+            for (var i = 0; i < radios.length; i++) {
+                var rotulo = (radios[i].innerText || radios[i].textContent || '')
+                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+                if (rotulo.indexOf(alvo) === -1) continue;
+                var input = radios[i].querySelector('input[type="radio"]');
+                if (!input) continue;
+                input.click();
+                if (input.checked) return true;
+            }
+            return false;
+            """,
+            texto_label,
+        )
+        return bool(ok)
     except Exception as e:
         raise NavegacaoError(f'clicar_radio_button_js({texto_label}): {e}')
 
@@ -119,6 +142,16 @@ def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: in
         or aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-individual-tabela-destinatarios', 'aparecer', 5)
     ):
         log('[BARREIRA][WARN] Nenhum tick verde detectado em 5s — prosseguindo')
+
+    # Barreira de conteúdo (aviso): se o editor da minuta ainda está em tela,
+    # confirmar teor estável antes de liberar destinatários. O hard-fail do
+    # modelo fica em executar_preenchimento_minuta; aqui é só defensivo.
+    try:
+        from Fix.selectors_pje import EDITOR_AREA_CONTEUDO
+        if espera.elementos(driver, EDITOR_AREA_CONTEUDO, teto=0.5) and not _aguardar_ck_com_conteudo(driver, timeout=10):
+            log('[BARREIRA][WARN] Editor da minuta sem conteudo estável antes dos destinatários')
+    except Exception as _e:
+        log(f'[BARREIRA][WARN] Checagem de conteúdo ignorada: {_e}')
 
     if not aguardar_renderizacao_nativa(
         driver,
@@ -175,9 +208,11 @@ def executar_preenchimento_minuta(
         def log(_msg):
             return None
 
+    _passo = 'inicio'
     try:
         from Fix.utils import inserir_link_ato_validacao
 
+        _passo = 'tipo_expediente'
         if not escolher_opcao_select_js(driver, 'mat-select[placeholder="Tipo de Expediente"]', tipo_expediente, debug=debug):
             log('[ERRO] Falha ao selecionar tipo de expediente')
             raise Exception('Falha ao selecionar tipo de expediente')
@@ -187,10 +222,15 @@ def executar_preenchimento_minuta(
         if prazo == "0" or prazo == 0:
             tipo_prazo = "sem prazo"
 
+        _passo = 'tipo_prazo'
         if not clicar_radio_button_js(driver, tipo_prazo, debug=debug):
             log('[ERRO] Falha ao selecionar tipo de prazo')
             raise Exception(f'Tipo de prazo "{tipo_prazo}" não encontrado')
 
+        if not espera.ate_js(driver, "__pjeEls('mat-radio-button input[type=\"radio\"]').some(el => el.checked)", teto=5):
+            raise Exception(f'tipo de prazo "{tipo_prazo}" nao foi marcado')
+
+        _passo = 'prazo'
         if prazo and tipo_prazo != "sem prazo":
             tipo_prazo_norm = normalizar_string(tipo_prazo)
             prazo_preenchido = False
@@ -236,9 +276,11 @@ def executar_preenchimento_minuta(
                     log(f'[FALLBACK][ERRO] Falha no fallback: {e}')
                     prazo_preenchido = False
 
+        _passo = 'confeccionar'
         if not aguardar_e_clicar(driver, 'button[aria-label="Confeccionar ato agrupado"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
             raise Exception('Botão Confeccionar ato agrupado não disponível')
 
+        _passo = 'subtipo'
         if subtipo:
             tentativas_subtipo = 0
             sucesso_subtipo = False
@@ -279,11 +321,13 @@ def executar_preenchimento_minuta(
                     if tentativas_subtipo >= 3:
                         log('[SUBTIPO][ERRO] Falha ao selecionar subtipo após 3 tentativas')
 
+        _passo = 'descricao'
         desc_to_use = descricao if descricao else nome_comunicacao
         if not preencher_input_js(driver, 'input[aria-label="Descrição"]', desc_to_use, debug=debug):
             log('[ERRO] Falha ao preencher descrição')
             raise Exception('Falha ao preencher descrição')
 
+        _passo = 'sigilo'
         if sigilo:
             try:
                 from Play.pjeplay.pje import mat_checkbox
@@ -294,21 +338,39 @@ def executar_preenchimento_minuta(
                         safe_click_no_scroll(driver, cb)
             except Exception as e:
                 log(f'[WARN] Falha ao marcar sigilo: {e}')
+            # Fallback/verificação via JS: o thumb do mat-slide-toggle intercepta o
+            # clique do driver (input cdk-visually-hidden) e o toggle fica desmarcado.
+            try:
+                _sigilo_ok = _executar_js(
+                    driver,
+                    """
+                    var el = document.querySelector('input[name="sigiloso"]');
+                    if (el && !el.checked) { el.click(); }
+                    return !!(el && el.checked);
+                    """,
+                )
+                if not _sigilo_ok:
+                    log('[SIGILO][ERRO] Toggle de sigilo permaneceu desmarcado após fallback JS')
+            except Exception as _e:
+                log(f'[SIGILO][WARN] Fallback JS do sigilo falhou: {_e}')
 
+        _passo = 'modelo'
         if modelo_nome:
             try:
                 campo_filtro = wait_for_clickable(driver, 'input#inputFiltro', timeout=10, by=By.CSS_SELECTOR)
                 if not campo_filtro:
                     raise Exception('Campo de filtro de modelo não encontrado')
 
-                preencher_campo(driver, 'input#inputFiltro', modelo_nome, trigger_events=True, limpar=True)
+                if not preencher_campo(driver, 'input#inputFiltro', modelo_nome, trigger_events=True, limpar=True):
+                    # fallback com retry — preencher_campo pode falhar silenciosamente
+                    preencher_input_js(driver, 'input#inputFiltro', modelo_nome, debug=debug)
                 if hasattr(driver, 'page') and hasattr(driver.page, 'keyboard'):
                     try:
                         driver.page.keyboard.press('Enter')
                     except Exception:
                         pass
 
-                aguardar_renderizacao_nativa(driver, '.nodo-filtrado', 'aparecer', 10)
+                # aguardar_e_clicar já aguarda o nodo aparecer — não duplicar a espera
                 nodo = aguardar_e_clicar(driver, '.nodo-filtrado', timeout=15)
                 if not nodo:
                     raise Exception(f'Nodo filtrado não encontrado para modelo "{modelo_nome}"')
@@ -342,17 +404,22 @@ def executar_preenchimento_minuta(
 
                 try:
                     snackbar_modelo_ok = espera.ate_texto(
-                        driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=3.0
+                        driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=1.5
                     )
                     if not snackbar_modelo_ok:
-                        log('[MODELO][WARN] Snackbar "Modelo inserido" não detectado após 3s, prosseguindo')
+                        log('[MODELO][WARN] Snackbar "Modelo inserido" não detectado após 1.5s, prosseguindo')
                 except Exception as _e:
                     log(f'[MODELO][WARN] Exceção ao verificar snackbar: {_e}')
 
                 aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 10)
 
+                # BARRA DURA anti-race: sem teor confirmado no editor, o fluxo não pode
+                # seguir para salvar/destinatários (minuta vazia → "Informe o conteúdo
+                # do documento" na assinatura). Duas checagens de 8s antes de abortar.
                 if not _aguardar_ck_com_conteudo(driver, timeout=8):
-                    log('[MODELO][WARN] Conteudo do modelo nao confirmado no editor apos 8s')
+                    log('[MODELO][RETRY] Conteudo ainda ausente no editor — rechecando (8s)')
+                    if not _aguardar_ck_com_conteudo(driver, timeout=8):
+                        raise Exception('Conteudo do modelo nao confirmado no editor apos 16s')
 
             except Exception as e:
                 log(f'[ERRO] Falha ao inserir modelo: {e}')
@@ -388,7 +455,8 @@ def executar_preenchimento_minuta(
             except Exception as e:
                 log(f'[INSERIR][WARN] Erro ao executar inserção: {e}')
 
+        _passo = 'finalizar'
         finalizar_minuta(driver, log=log)
         return True
-    except Exception:
-        raise
+    except Exception as e:
+        raise Exception(f'[passo={_passo}] {e}') from e

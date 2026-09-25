@@ -31,9 +31,17 @@ Você atende três tipos de tarefa com o mesmo fluxo:
 
 ## Contexto do Projeto
 
-**Propósito:** Automação Python + Selenium para o sistema PJe (Processo Judicial Eletrônico).
-Navegador alvo: Mozilla Firefox exclusivamente.
-Meta de longo prazo: execução headless no GitHub Actions.
+**Propósito:** Automação Python + **Playwright** para o sistema PJe (Processo Judicial Eletrônico).
+Navegador alvo: Mozilla Firefox exclusivamente. Motor: `py pw.py` (Playwright nativo via `Play/pjeplay/`).
+
+> **REGRA PRIMÁRIA DE DIAGNÓSTICO/CORREÇÃO — leia `.agents/rules/restauracao-pre-refac.md`:**
+> **Se um fluxo/ato/seletor parou de funcionar, a lógica que funcionava está na tag `pre-refac`**
+> (`git show pre-refac:CAMINHO/ARQUIVO.py`). Antes de propor qualquer patch, RESTAURE do estado
+> anterior; restaure a LÓGICA preservando a arquitetura Playwright (`espera.ate_*`, `Fix/espera.py`,
+> `By` de `Play.pjeplay.locators`). **Nunca reintroduza Selenium** (`import selenium`,
+> `find_element(s)`, `WebDriverWait`, `expected_conditions`, `time.sleep`) — o ratchet
+> `tools/check_pw.py` barra o commit. Não recrie do zero o que já existia: restaure → adapte →
+> valide (`py tools/check_pw.py` + `py play/smoke.py --projeto`).
 
 ---
 

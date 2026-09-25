@@ -22,7 +22,7 @@ import requests
 from urllib.parse import urlparse
 from pathlib import Path
 from Fix.log import logger
-from Fix.core import safe_click_no_scroll
+from Fix.core import safe_click_no_scroll, aguardar_renderizacao_nativa
 from .core import aguardar_e_clicar, safe_click, wait, esperar_elemento, preencher_campo
 from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
 from .utils import normalizar_cpf_cnpj, formatar_moeda_brasileira, formatar_data_brasileira
@@ -1038,6 +1038,13 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             info = f"{dias_uteis or '-'}/{responsavel or '-'}/{observacao or '-'}"
             logger.debug("[GIGS] Criando: %s", info)
 
+        # Blindagem para chamadas consecutivas (ex.: criar_gigs[x] logo após
+        # criar_gigs[y] na mesma regra): antes de abrir o próximo formulário,
+        # aguardar a destruição do anterior. Sem isso o textarea antigo segue no
+        # DOM, é reutilizado e o "Salvar" do novo GIGS não grava a atividade.
+        espera.ate_sumir(driver, 'textarea[formcontrolname="observacao"]', teto=6)
+        aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=6)
+
         if log:
             logger.debug('[GIGS] Clicando Nova Atividade...')
         btn_nova = espera.elemento(
@@ -1049,9 +1056,19 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
         if not btn_nova:
             raise TimeoutException("Botao 'Nova Atividade' nao encontrado")
         btn_nova.click()
-        espera.ate_aparecer(driver, 'textarea[formcontrolname="observacao"]', teto=1)
 
         espera.ate_aparecer(driver, 'textarea[formcontrolname="observacao"]', teto=timeout)
+
+        # Paciência: exigir formulário NOVO (observação vazia). Se o valor já vier
+        # preenchido, é resquício do GIGS anterior — não gravar em cima dele.
+        if not espera.ate_js(
+            driver,
+            """__pjeEls('textarea[formcontrolname="observacao"]').some("""
+            """el => (el.value || '') === '')""",
+            teto=timeout,
+        ):
+            raise TimeoutException('Formulario de atividade nao ficou limpo (resquicio do anterior)')
+
         if log:
             logger.debug('[GIGS] Formulario aberto')
 
@@ -1084,6 +1101,15 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
                 logger.debug('[GIGS] Observacao: %s', obs_preview)
         
         # 6. Salvar
+        # Dispensar snackbar pendente (do GIGS anterior) ANTES de salvar, para a
+        # deteccao abaixo nao casar com um toast antigo e mascarar uma falha.
+        try:
+            btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
+            if btn_x:
+                btn_x.click()
+        except Exception:
+            pass
+
         if log:
             logger.debug('[GIGS] Salvando...')
         btn_salvar = espera.elemento(driver, "//button[contains(., 'Salvar')]", teto=timeout)
@@ -1091,8 +1117,8 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             raise TimeoutException("Botao 'Salvar' nao encontrado")
         btn_salvar.click()
 
-        # 7. Aguardar confirmação e limpar o form (previne StaleElement em chamadas seguidas)
-        espera.assentar(driver, 0.3)
+        # 7. Confirmacao real: o formulario so fecha apos a gravacao efetiva
+        # (previne StaleElement em chamadas seguidas).
         if espera.ate_aparecer(
             driver,
             "//snack-bar-container//span[contains(normalize-space(.), 'Atividade salva com sucesso')]",
@@ -1100,25 +1126,19 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
         ):
             if log:
                 logger.debug('[GIGS] Atividade criada com sucesso')
-        else:
-            if log:
-                logger.warning('[GIGS] Confirmacao nao detectada, assumindo sucesso')
-        
-        # Dispensar o snackbar para nao sobrepor os botoes em execucoes rapidas
+
         try:
-            btn_x = espera.elemento(driver, 'simple-snack-bar button')
+            btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
             if btn_x:
                 btn_x.click()
         except Exception:
             pass
 
-        # Aguardar que o formulario da atividade seja destruído/fechado
-        try:
-            from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, 'textarea[formcontrolname="observacao"]', modo='sumir', timeout=4)
-        except Exception:
-            pass
-            
+        if not espera.ate_sumir(driver, 'textarea[formcontrolname="observacao"]', teto=6):
+            if log:
+                logger.error('[GIGS] Formulario nao fechou apos Salvar — atividade nao gravada')
+            return False
+
         return True
         
     except Exception as e:

@@ -1,0 +1,25 @@
+--- a/PEC/carta_execucao.py
++++ b/PEC/carta_execucao.py
+@@ -12,6 +12,7 @@
+ 
+ import logging
+ import re
++import time
+ from typing import Optional, Dict, Any, List, Tuple
+ 
+ 
+--- a/atos/judicial_utils.py
++++ b/atos/judicial_utils.py
+@@ -122,7 +122,11 @@
+         # Se prazo foi fornecido, preenche os campos de prazo APENAS nas linhas selecionadas
+         if prazo is not None:
+             try:
+-                xpath_linhas = "//table[contains(@class, 't-class')]//tbody//tr[contains(@class, 'ng-star-inserted') and .//input[@type='checkbox' and (@aria-checked='true' or @checked)]]"
++                xpath_linhas = (
++                    "//table[contains(@class, 't-class')]//tbody//tr[contains(@class, 'ng-star-inserted') "
++                    "and .//mat-checkbox[contains(@class, 'mat-checkbox-checked') or contains(@class, 'mat-mdc-checkbox-checked')]"
++                    "//input[@type='checkbox'][@aria-label='Intimar parte']]"
++                )
+                 qtd = len(espera.elementos(driver, xpath_linhas, teto=2))
+                 if qtd == 0:
+                     logger.warning('[PRAZOS] Nenhum campo de prazo na linha selecionada')

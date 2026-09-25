@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.3.4
+// lista.check.js v0.3.5
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -133,6 +133,14 @@ window.lerTimelineCompleta = async function () {
         const iconLink = elem ? elem.querySelector('a.tl-documento[target="_blank"]') : null;
         // Captura href direto do ícone para bypass de UI — abre documento via API
         const iconHref = iconLink ? iconLink.getAttribute('href') : null;
+
+        // Ícone da timeline: alvará só vale para documento interno (gavel).
+        // Juntada por polo ativo/passivo/terceiro (fa-user POLO_*) não entra;
+        // o label do ícone não importa.
+        if (tipo === 'Alvarás' && elem) {
+            const icone = elem.querySelector('.tl-icon i');
+            if (!icone || !icone.classList.contains('fa-gavel')) continue;
+        }
 
         const anexosApi = Array.isArray(item.anexos) ? item.anexos : [];
 

@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.3.7
+// lista.check.js v0.3.8
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -156,7 +156,11 @@ window.lerTimelineCompleta = async function () {
             ? anexosApi.filter(ax => _norm((ax.titulo || '') + ' ' + (ax.nomeDocumento || '')).includes('alvara'))
             : [];
 
-        if (!(ehCertidaoAlvara && anexosAlvara.length)) {
+        // Se é certidão de alvará COM anexo alvará, só o anexo entra na lista.
+        // A certidão é apenas um container/índice, não o documento real.
+        if (ehCertidaoAlvara && anexosAlvara.length) {
+            // Skip a certidão — só os anexos são processados abaixo.
+        } else {
             documentos.push({
                 tipo, texto: item.titulo || '', id: uid, idDoc, tipoTexto: '',
                 desc: (item.nomeDocumento || '') + ' ' + (item.descricao || ''),

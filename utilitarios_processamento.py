@@ -30,7 +30,7 @@ def executar_processamento_iterativo_com_corte_em_erro_critico(
     processamento em lote, evitando poluição do log com mensagens repetidas.
 
     Args:
-        driver: Instância do driver
+        driver: WebDriver instance
         nome_modulo: Nome do módulo para logging (ex: "DOM", "P2B", "MANDADO")
         lista_itens: Lista de itens a processar (pode ser dict ou list)
         funcao_processamento_item: Função que processa um item individual

@@ -1,174 +1,203 @@
-from typing import Any, Optional
+"""
+Utilitários para inserção de sigilo individual e visibilidade em lote em anexos.
+Especializado em separar sigilo (individual) de visibilidade (lote).
+"""
+
 import logging
 from Fix.core import safe_click_no_scroll
+import time
+from typing import Optional
+
+from selenium.webdriver.common.by import By
 from Fix import espera
 
 logger = logging.getLogger(__name__)
 
 
-def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = False) -> bool:
+def inserir_sigilo_individual(elemento, driver=None, debug=False):
+    """
+    Insere sigilo INDIVIDUALMENTE em um anexo/documento.
+    Padrão INVERSO de retirar_sigilo:
+    - retirar_sigilo: sem sigilo → retorna; com sigilo → clica e aguarda DESAPARECER
+    - inserir_sigilo: com sigilo → retorna; sem sigilo → clica e aguarda APARECER
+
+    Lógica:
+    1. Se JÁ TEM SIGILO (is-sigiloso) → retorna True (não precisa fazer nada)
+    2. Se NÃO TEM SIGILO → clica botão para ADICIONAR sigilo
+    3. Aguarda aplicação da classe 'is-sigiloso' (confirmação)
+
+    Args:
+        elemento: WebElement do documento/anexo na timeline
+        driver: WebDriver Selenium
+        debug: Exibir logs detalhados
+
+    Returns:
+        True se sigilo foi adicionado ou já existia, False em erro
+    """
     if not elemento:
         return False
 
     if not driver:
         try:
-            if hasattr(elemento, '_parent'):
+            if hasattr(elemento, '_parent') and hasattr(elemento._parent, 'execute_script'):
                 driver = elemento._parent
             else:
                 return False
         except Exception:
             return False
 
-    def _tem_sigilo() -> bool:
+    def _link_documento():
+        links = elemento.find_elements(By.CSS_SELECTOR, 'a.tl-documento')
+        if not links:
+            return None
+        for link in links:
+            role = (link.get_attribute('role') or '').lower()
+            target = (link.get_attribute('target') or '').lower()
+            if role == 'button' or target != '_blank':
+                return link
+        return links[-1]
+
+    def _tem_sigilo():
+        # Utiliza JavaScript para uma verificação instantânea, ignorando qualquer implicit_wait global do driver
+        script = "return arguments[0].querySelector('i.tl-sigiloso, a.is-sigiloso') !== null;"
         try:
-            if hasattr(elemento, 'query_selector'):
-                return elemento.query_selector('i.tl-sigiloso, a.is-sigiloso') is not None
-            cls = (getattr(elemento, 'get_attribute', lambda a: '')('class') or '')
-            return 'is-sigiloso' in cls or 'tl-sigiloso' in cls
+            return driver.execute_script(script, elemento)
         except Exception:
             return False
 
     try:
+        # Se JÁ TEM SIGILO, retorna sucesso imediatamente (padrão inverso)
         if _tem_sigilo():
+            if debug:
+                logger.info('[SIGILO_INSERIR] Já com sigilo (tl-sigiloso/is-sigiloso detectado)')
             return True
 
+        # NÃO TEM SIGILO, precisa buscar botão e clicar
         btn_sigilo = None
-        for seletor in [
-            # LEGADO.md ~45110: o ícone de sigilo é `i.fa-wpexplorer` (dentro de
-            # `pje-doc-sigiloso span button`). Sem estes seletores o sigilo não é
-            # aplicado, o checkbox do anexo não é marcado e — como a seleção deve
-            # preceder o "Visibilidade para Sigilo" — o botão nunca habilita.
-            'button[name="Inserir sigilo"]',
+        seletores = [
             'pje-doc-sigiloso button',
             'pje-doc-sigiloso span button',
             'button i.fa-wpexplorer',
             'i.fa-wpexplorer',
-        ]:
+        ]
+
+        for seletor in seletores:
             try:
-                if hasattr(elemento, 'query_selector'):
-                    candidato = elemento.query_selector(seletor)
-                    if candidato:
-                        btn_sigilo = candidato
-                        break
+                candidato = elemento.find_element(By.CSS_SELECTOR, seletor)
+                if candidato.is_displayed():
+                    btn_sigilo = candidato
+                    break
             except Exception:
                 continue
 
         if not btn_sigilo:
-            logger.warning('[SIGILO_INSERIR] Botao de sigilo nao encontrado')
+            if debug:
+                logger.error('[SIGILO_INSERIR] Botão de sigilo não encontrado')
             return False
 
-        safe_click_no_scroll(driver, btn_sigilo)
+        # Clica para ADICIONAR sigilo
+        try:
+            safe_click_no_scroll(driver, btn_sigilo)
+        except Exception:
+            btn_sigilo.click()
 
-        for _ in range(8):
-            espera.assentar(driver, 0.25)
-            if _tem_sigilo():
-                return True
+        # Aguarda sigilo APARECER (via tl-sigiloso ou is-sigiloso)
+        for tentativa in range(8):
+            time.sleep(0.25)
+            try:
+                if _tem_sigilo():
+                    if debug:
+                        logger.info(f'[SIGILO_INSERIR] ✅ Sigilo adicionado após tentativa {tentativa+1}')
+                    return True
+            except Exception:
+                pass
 
-        logger.warning('[SIGILO_INSERIR] Clique executado, mas sigilo nao foi detectado')
+        if debug:
+            logger.error('[SIGILO_INSERIR] ❌ Clique executado, mas sigilo não foi detectado')
         return False
+
     except Exception as e:
-        logger.warning('[SIGILO_INSERIR] Erro geral: %s', e)
+        if debug:
+            logger.error(f"[SIGILO_INSERIR] ❌ Erro geral: {e}")
         return False
 
 
-_JS_MARCAR_SIGILOSOS = """
-var n = 0;
-function marcar(item) {
-  if (!item.querySelector('a.tl-documento.is-sigiloso')) { return; }
-  var cb = item.querySelector('mat-checkbox input[type="checkbox"]');
-  if (cb && !cb.checked) {
-    var alvo = item.querySelector('mat-checkbox label') || cb;
-    alvo.click();
-    n++;
-  }
-}
-Array.prototype.forEach.call(document.querySelectorAll('.tl-item-anexo'), marcar);
-if (n === 0) {
-  Array.prototype.forEach.call(document.querySelectorAll('ul.pje-timeline mat-card'), marcar);
-}
-return n;
-"""
+def visibilidade_sigilosos_lote_apenas(driver, polo='ativo', log=False):
+    """
+    Aplica visibilidade em lote nos anexos que já receberam sigilo.
+    Checkboxes já selecionados individualmente na FASE 1 (após cada inserir_sigilo).
 
+    Sequência (múltipla seleção já ativada antes da FASE 1):
+    1. Clicar botão "+" de visibilidade (i.fas.fa-plus.fa-lg)
+    2. No modal: clicar "Marcar todas" (button.botao-icone-titulo-coluna)
+    3. Salvar
 
-def marcar_sigilosos_timeline(driver: Any) -> int:
-    """Marca os checkboxes dos documentos sigilosos da timeline.
-
-    Ordem do LEGADO.md (~6793): a seleção do sigiloso vem ANTES do botão
-    "Visibilidade para Sigilo". Devolve quantos checkboxes foram marcados.
+    :param driver: A instância do WebDriver.
+    :param polo: mantido por compatibilidade, não utilizado (modal usa toggle geral).
+    :param log: Ativa logs detalhados.
+    :return: True se executou com sucesso, False caso contrário.
     """
     try:
-        executar = getattr(driver, 'execute_script', None)
-        if not executar:
-            return 0
-        return int(executar(_JS_MARCAR_SIGILOSOS) or 0)
-    except Exception:
-        return 0
-
-
-def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bool = False) -> bool:
-    try:
-        # Ordem do LEGADO.md (~6793 / Fix.core.visibilidade_sigilosos): PRIMEIRO o
-        # documento sigiloso tem de estar selecionado (múltipla seleção ativa), só
-        # DEPOIS se clica em "Visibilidade para Sigilo". Sem seleção o botão nunca
-        # habilita — era daí que vinha a falha silenciosa do lote.
-        marcados = espera.ate_js(
-            driver,
-            """__pjeEls('ul.pje-timeline mat-checkbox input[type="checkbox"]').some(el => el.checked)""",
-            teto=2,
-        )
-        if not marcados:
-            qtd = marcar_sigilosos_timeline(driver)
-            if qtd and log:
-                logger.info('[VISIBILIDADE_LOTE] %s documento(s) sigiloso(s) selecionado(s) antes da visibilidade', qtd)
-            marcados = bool(qtd) and espera.ate_js(
-                driver,
-                """__pjeEls('ul.pje-timeline mat-checkbox input[type="checkbox"]').some(el => el.checked)""",
-                teto=3,
-            )
-        if not marcados:
-            logger.warning('[VISIBILIDADE_LOTE] Nenhum documento sigiloso selecionado na timeline '
-                           '— seleção deve preceder o clique em Visibilidade')
+        # 1. Clicar botão "+" de visibilidade (anexos já selecionados via checkboxes na FASE 1)
+        if log:
+            logger.info('[VISIBILIDADE_LOTE] Abrindo modal de visibilidade...')
+        try:
+            if not espera.ate_habilitar(driver, 'button[aria-label="Incluir visibilidade para Sigilo"]', teto=5):
+                raise Exception('botão de visibilidade não habilitou')
+            btn_vis = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Incluir visibilidade para Sigilo"]')
+            safe_click_no_scroll(driver, btn_vis)
+        except Exception as e:
+            if log:
+                logger.error(f'[VISIBILIDADE_LOTE] Falha ao clicar botão de visibilidade: {e}')
             return False
 
-        sel_vis = 'button[mattooltip="Visibilidade para Sigilo"]'
-        if not espera.ate_habilitar(driver, sel_vis, teto=5):
-            logger.warning('[VISIBILIDADE_LOTE] Botao de visibilidade nao habilitou')
-            return False
-
-        btn_vis = espera.elemento(driver, sel_vis, teto=2)
-        if not btn_vis:
-            logger.warning('[VISIBILIDADE_LOTE] Botao de visibilidade nao encontrado')
-            return False
-        safe_click_no_scroll(driver, btn_vis)
-
+        # 2. Aguardar modal carregar completamente (dump: ~1.8s entre "+" e "Marcar todas")
+        #    Espera as linhas da tabela (tr.cdk-drag) aparecerem dentro do modal
         modal_container = '.cdk-overlay-container .mat-dialog-container'
         modal = espera.elemento(driver, modal_container, teto=4, visivel=False)
+        linhas_modal = None
         if modal:
-            espera.elemento(driver, f'{modal_container} tr.cdk-drag', teto=5, visivel=False)
+            if log:
+                logger.info('[VISIBILIDADE_LOTE] Modal detectado, aguardando conteúdo carregar...')
+            # Aguarda conteúdo do modal — linhas da tabela de partes (tr.cdk-drag)
+            linhas_modal = espera.elemento(driver, f'{modal_container} tr.cdk-drag', teto=5, visivel=False)
+        if not linhas_modal and log:
+            logger.warning('[VISIBILIDADE_LOTE] Linhas do modal não detectadas, tentando prosseguir...')
 
-        seletor_marcar = 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna'
-        if not espera.ate_habilitar(driver, seletor_marcar, teto=5):
-            logger.warning('[VISIBILIDADE_LOTE] Botao Marcar todas nao habilitou')
+        # 3. Marcar todas as partes — aguarda botão ficar clicável
+        if log:
+            logger.info('[VISIBILIDADE_LOTE] Marcando todas as partes no modal...')
+        try:
+            seletor_marcar = 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna'
+            if not espera.ate_habilitar(driver, seletor_marcar, teto=5):
+                raise Exception('botão Marcar todas não habilitou')
+            icone_header = driver.find_element(By.CSS_SELECTOR, seletor_marcar)
+            safe_click_no_scroll(driver, icone_header)
+        except Exception as e:
+            if log:
+                logger.error(f'[VISIBILIDADE_LOTE] Falha ao marcar partes no modal: {e}')
             return False
 
-        icone_header = espera.elemento(driver, seletor_marcar, teto=2)
-        if not icone_header:
-            logger.warning('[VISIBILIDADE_LOTE] Icone "Marcar todas" nao encontrado no modal')
+        # 4. Salvar — aguarda botão ficar clicável
+        if log:
+            logger.info('[VISIBILIDADE_LOTE] Salvando configuração...')
+        try:
+            xpath_salvar = '//button[.//span[contains(text(),"Salvar")]]'
+            if not espera.ate_habilitar(driver, xpath_salvar, teto=10):
+                raise Exception('botão Salvar não habilitou')
+            btn_salvar = driver.find_element(By.XPATH, xpath_salvar)
+            safe_click_no_scroll(driver, btn_salvar)
+        except Exception as e:
+            if log:
+                logger.error(f'[VISIBILIDADE_LOTE] Falha ao salvar: {e}')
             return False
-        safe_click_no_scroll(driver, icone_header)
 
-        xpath_salvar = '//button[.//span[contains(text(),"Salvar")]]'
-        if not espera.ate_habilitar(driver, xpath_salvar, teto=10):
-            logger.warning('[VISIBILIDADE_LOTE] Botao Salvar nao habilitou')
-            return False
-
-        btn_salvar = espera.elemento(driver, xpath_salvar, teto=2)
-        if not btn_salvar:
-            logger.warning('[VISIBILIDADE_LOTE] Botao Salvar nao encontrado')
-            return False
-        safe_click_no_scroll(driver, btn_salvar)
-
+        if log:
+            logger.info('[VISIBILIDADE_LOTE] ✅ Visibilidade em lote aplicada com sucesso')
         return True
+
     except Exception as e:
-        logger.warning('[VISIBILIDADE_LOTE][ERRO] Falha ao aplicar visibilidade em lote: %s', e)
+        logger.error(f'[VISIBILIDADE_LOTE][ERRO] Falha ao aplicar visibilidade em lote: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
         return False

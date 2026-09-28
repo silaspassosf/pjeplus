@@ -1,9 +1,5 @@
+import time
 from typing import Optional
-from Fix import espera
-from Fix.log import get_module_logger
-
-logger = get_module_logger(__name__)
-
 
 def verificar_timeline_idpj_mandado_edital(driver, id_processo: str, id_documento_sentenca: Optional[str] = None) -> bool:
     """
@@ -17,7 +13,7 @@ def verificar_timeline_idpj_mandado_edital(driver, id_processo: str, id_document
     A leitura da timeline é feita via API REST de forma otimizada.
 
     Args:
-        driver: Instância de conexão ativa com o PJe.
+        driver: Instância do WebDriver contendo a sessão ativa do PJe.
         id_processo: ID interno do processo no PJe (numérico).
         id_documento_sentenca: ID do documento da sentença IDPJ para usar como marco temporal.
                                Apenas documentos protocolados DEPOIS dessa sentença serão analisados.
@@ -25,8 +21,11 @@ def verificar_timeline_idpj_mandado_edital(driver, id_processo: str, id_document
     Returns:
         bool: True se deve Executar, False se Não deve Executar.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
-        from Fix.variaveis import session_from_driver
+        from api.variaveis_client import session_from_driver
     except ImportError:
         logger.error("Falha ao importar session_from_driver.")
         return False
@@ -52,7 +51,7 @@ def verificar_timeline_idpj_mandado_edital(driver, id_processo: str, id_document
                     break
             except Exception as e:
                 logger.warning(f"Erro ao buscar timeline (retry...): {e}")
-                espera.pausa(driver, 1, "retry busca timeline")
+                time.sleep(1)
                 
         if not timeline:
             logger.error("Timeline retornou vazia ou ocorreu erro na requisição.")

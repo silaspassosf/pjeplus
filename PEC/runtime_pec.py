@@ -13,7 +13,8 @@ from Fix.utils import remover_acentos, normalizar_texto
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from Fix import espera
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from api import PjeApiClient, buscar_todas_paginas, session_from_driver
 from Fix.extracao import extrair_dados_processo
@@ -50,7 +51,7 @@ class AtividadePEC:
 
 
 class PECAPIClient:
-    def fetch_atividades_vencidas(self, driver: Any, tamanho_pagina: int = 100) -> Optional[List[AtividadePEC]]:
+    def fetch_atividades_vencidas(self, driver: WebDriver, tamanho_pagina: int = 100) -> Optional[List[AtividadePEC]]:
         """Retorna a lista de atividades; None quando a API falha (403/401/
         sessao morta) — para que o orquestrador reporte FALHA e o main()
         acione o retry com novo login (mesmo contrato de mandado/p2b)."""
@@ -151,10 +152,10 @@ def salvar_progresso_pec(progresso: Dict[str, Any]) -> bool:
     return True
 
 
-def extrair_numero_processo_pec(driver: Any) -> Optional[str]:
+def extrair_numero_processo_pec(driver: WebDriver) -> Optional[str]:
     """Extrai o numero do processo da URL ou elemento da pagina (adaptado para PEC)."""
     try:
-        url = getattr(driver, 'current_url', '') or ''
+        url = driver.current_url
         if "processo/" in url:
             match = re.search(r"processo/(\d+)", url)
             if match:
@@ -168,9 +169,9 @@ def extrair_numero_processo_pec(driver: Any) -> Optional[str]:
                 return numero_limpo
 
         try:
-            candidatos = espera.elementos(driver, 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho, .numero-processo', teto=2)
+            candidatos = driver.find_elements(By.CSS_SELECTOR, 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho, .numero-processo')
             for elemento in candidatos:
-                texto = getattr(elemento, 'text', '').strip()
+                texto = elemento.text.strip()
                 match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', texto)
                 if match:
                     numero_limpo = re.sub(r'[^\d]', '', match.group(1))
@@ -180,7 +181,7 @@ def extrair_numero_processo_pec(driver: Any) -> Optional[str]:
             logger.info(f"[PROGRESSO_PEC]  Erro ao buscar por seletores: {inner_e}")
 
         try:
-            script = """
+            numero_js = driver.execute_script("""
                 var textoCompleto = document.body.innerText || document.body.textContent || '';
                 var matches = textoCompleto.match(/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/g);
                 if (matches && matches.length > 0) {
@@ -192,9 +193,7 @@ def extrair_numero_processo_pec(driver: Any) -> Optional[str]:
                     return matchTitulo[0].replace(/[^\\d]/g, '');
                 }
                 return null;
-            """
-            fn = getattr(driver, 'execute_script', None)
-            numero_js = fn(script) if fn else None
+            """)
             if numero_js:
                 logger.info(f"[PROGRESSO_PEC]  Numero extraido via JavaScript: {numero_js}")
                 return numero_js
@@ -537,7 +536,10 @@ def _aguardar_carregamento(driver) -> None:
         from Fix.core import aguardar_renderizacao_nativa
         aguardar_renderizacao_nativa(driver, timeout=10)
     except Exception:
-        espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
+        from selenium.webdriver.support.ui import WebDriverWait
+        WebDriverWait(driver, 10).until(
+            lambda d: d.execute_script('return document.readyState') == 'complete'
+        )
 
 
 class PECOrquestrador:
@@ -575,6 +577,11 @@ class PECOrquestrador:
             if match:
                 _, bucket, acao = match
                 buckets[bucket].append((atv, acao))
+
+        if buckets.get('comunicacoes'):
+            buckets['comunicacoes'].sort(
+                key=lambda item: 1 if 'xs sigilo' in (getattr(item[0], 'observacao', '') or '').lower() else 0
+            )
 
         if dry_run:
             self._log_dry_run(buckets)

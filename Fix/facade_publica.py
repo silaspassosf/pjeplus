@@ -17,8 +17,9 @@ from pathlib import Path
 from Fix.core import safe_click_no_scroll
 from typing import Dict, Optional, Tuple, Union
 
-from Play.pjeplay.locators import By
-from Fix import espera as _espera
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 # =============================================================================
 # CORE - Re-exports from Fix.core
@@ -31,7 +32,6 @@ from .core import (
     preencher_multiplos_campos,
     com_retry,
     buscar_seletor_robusto,
-    extrair_id_processo,
     esperar_elemento,
     esperar_url_conter,
     escolher_opcao_inteligente,
@@ -190,11 +190,6 @@ from api.variaveis_resolvers import (
 # =============================================================================
 
 BTN_TAREFA_PROCESSO = 'button[mattooltip="Abre a tarefa do processo"]'
-EDITOR_AREA_CONTEUDO = 'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]'
-BTN_GRAVAR_MOVIMENTOS = "pje-lancador-movimentos-dialogo button[aria-label='Gravar os movimentos a serem lançados']"
-BTN_EXPANDIR_CHIPS = 'pje-lista-etiquetas button[aria-label="Expandir Chips"]'
-CHIPS_LISTA = "//pje-lista-etiquetas//mat-chip"
-DIALOG_PRAZO_SOBRESTAMENTO = 'pje-dialog-prazo-sobrestamento'
 
 # buscar_seletor_robusto is re-exported from Fix.core above
 
@@ -231,7 +226,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
     if not termos:
         return False
 
-    complementos = _espera.elementos(driver, 'pje-complemento')
+    complementos = driver.find_elements(By.CSS_SELECTOR, 'pje-complemento')
     usados = set()
 
     for termo in termos:
@@ -239,16 +234,23 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
         encontrado = False
 
         # 1) tenta mat-select dentro dos complementos
-        for idx in range(len(complementos)):
+        for idx, comp in enumerate(complementos):
             if idx in usados:
                 continue
             try:
-                sel = _espera.elemento(driver, f"pje-complemento:nth-of-type({idx + 1}) mat-select", teto=0.5)
-                if not sel:
-                    continue
-                safe_click_no_scroll(driver, sel)
+                sel = comp.find_element(By.CSS_SELECTOR, 'mat-select')
+                try:
+                    driver.execute_script(
+                        'arguments[0].parentElement.parentElement.click();', sel
+                    )
+                except Exception:
+                    safe_click_no_scroll(driver, sel)
 
-                opts = _espera.elementos(driver, "mat-option[role='option']", teto=timeout_select) or []
+                opts = WebDriverWait(driver, timeout_select).until(
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, "mat-option[role='option']")
+                    )
+                )
                 for op in opts:
                     try:
                         if termo_norm in _normalize_text(op.text or ''):
@@ -265,32 +267,49 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
 
         # 2) tentar input/textarea no complemento
         if not encontrado:
-            for idx in range(len(complementos)):
+            for idx, comp in enumerate(complementos):
                 if idx in usados:
                     continue
                 try:
-                    inp_sel = f"pje-complemento:nth-of-type({idx + 1}) input"
-                    if _espera.elemento(driver, inp_sel, teto=0.2):
-                        if preencher_campo(driver, inp_sel, termo):
-                            usados.add(idx)
-                            encontrado = True
-                            break
-                    ta_sel = f"pje-complemento:nth-of-type({idx + 1}) textarea"
-                    if _espera.elemento(driver, ta_sel, teto=0.2):
-                        if preencher_campo(driver, ta_sel, termo):
-                            usados.add(idx)
-                            encontrado = True
-                            break
+                    inp = comp.find_element(By.CSS_SELECTOR, 'input')
+                    driver.execute_script(
+                        "arguments[0].value = arguments[1]; "
+                        "arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",
+                        inp, termo,
+                    )
+                    usados.add(idx)
+                    encontrado = True
+                    break
                 except Exception:
-                    continue
+                    try:
+                        ta = comp.find_element(By.CSS_SELECTOR, 'textarea')
+                        driver.execute_script(
+                            "arguments[0].value = arguments[1]; "
+                            "arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",
+                            ta, termo,
+                        )
+                        usados.add(idx)
+                        encontrado = True
+                        break
+                    except Exception:
+                        continue
 
         # 3) fallback: qualquer mat-select visivel na pagina
         if not encontrado:
-            all_selects = _espera.elementos(driver, 'mat-select')
+            all_selects = driver.find_elements(By.CSS_SELECTOR, 'mat-select')
             for sel in all_selects:
                 try:
-                    safe_click_no_scroll(driver, sel)
-                    opts = _espera.elementos(driver, "mat-option[role='option']", teto=1) or []
+                    try:
+                        driver.execute_script(
+                            'arguments[0].parentElement.parentElement.click();', sel
+                        )
+                    except Exception:
+                        safe_click_no_scroll(driver, sel)
+                    opts = WebDriverWait(driver, 1).until(
+                        EC.presence_of_all_elements_located(
+                            (By.CSS_SELECTOR, "mat-option[role='option']")
+                        )
+                    )
                     for op in opts:
                         if termo_norm in _normalize_text(op.text or ''):
                             safe_click_no_scroll(driver, op)
@@ -304,7 +323,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
         if not encontrado:
             return False
 
-        _espera.assentar(driver, 0.2)
+        _time.sleep(0.2)
 
     return True
 
@@ -343,16 +362,19 @@ class ElementWaitPool:
         self.explicit_wait = explicit_wait
 
     def esperar_elemento(self, selector, timeout=None, by=By.CSS_SELECTOR):
-        _ = by
-        return _espera.elemento(self.driver, selector, teto=timeout or self.explicit_wait)
+        return WebDriverWait(self.driver, timeout or self.explicit_wait).until(
+            EC.presence_of_element_located((by, selector))
+        )
 
     def esperar_visivel(self, selector, timeout=None, by=By.CSS_SELECTOR):
-        _ = by
-        return _espera.elemento(self.driver, selector, teto=timeout or self.explicit_wait)
+        return WebDriverWait(self.driver, timeout or self.explicit_wait).until(
+            EC.visibility_of_element_located((by, selector))
+        )
 
     def esperar_clicavel(self, selector, timeout=None, by=By.CSS_SELECTOR):
-        _ = by
-        return _espera.elemento(self.driver, selector, teto=timeout or self.explicit_wait)
+        return WebDriverWait(self.driver, timeout or self.explicit_wait).until(
+            EC.element_to_be_clickable((by, selector))
+        )
 
 
 def buscar(driver, cache_key, seletores):
@@ -363,7 +385,12 @@ def buscar(driver, cache_key, seletores):
     _ = cache_key
     for seletor in seletores or []:
         try:
-            elementos = _espera.elementos(driver, seletor, teto=0)
+            by = (
+                By.XPATH
+                if isinstance(seletor, str) and seletor.startswith("//")
+                else By.CSS_SELECTOR
+            )
+            elementos = driver.find_elements(by, seletor)
             for elemento in elementos:
                 try:
                     if elemento.is_displayed():
@@ -430,7 +457,7 @@ __all__ = [
     'aguardar_e_clicar', 'selecionar_opcao', 'preencher_campo',
     'preencher_campos_prazo', 'preencher_multiplos_campos',
     # Core - Retry e robustez
-    'com_retry', 'buscar_seletor_robusto', 'extrair_id_processo', 'esperar_elemento',
+    'com_retry', 'buscar_seletor_robusto', 'esperar_elemento',
     'esperar_url_conter', 'escolher_opcao_inteligente',
     'encontrar_elemento_inteligente',
     # Core - Legadas
@@ -503,11 +530,6 @@ __all__ = [
     'obter_chave_ultimo_despacho_decisao_sentenca',
     # Selectors PJe (ex-Fix.selectors_pje)
     'BTN_TAREFA_PROCESSO',
-    'EDITOR_AREA_CONTEUDO',
-    'BTN_GRAVAR_MOVIMENTOS',
-    'BTN_EXPANDIR_CHIPS',
-    'CHIPS_LISTA',
-    'DIALOG_PRAZO_SOBRESTAMENTO',
     # Movimento helpers (ex-Fix.movimento_helpers)
     'selecionar_movimento_dois_estagios', 'selecionar_movimento_auto',
     # Shim classes e helpers

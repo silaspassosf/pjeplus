@@ -16,7 +16,9 @@ import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from Fix import espera
+
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 
 # Dependencias externas do modulo Prazo
 from .p2b_core import (
@@ -36,7 +38,7 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
-from Fix.variaveis import cliente_para, session_from_driver, url_processo_detalhe
+from Fix.variaveis import url_processo_detalhe
 from Fix import espera
 
 
@@ -52,11 +54,12 @@ class SessaoExpiradaError(Exception):
 _TIPOS_RELEVANTES = re.compile(r'^(despacho|decis[aã]o|senten[cç]a|conclus[aã]o)', re.IGNORECASE)
 
 
-def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
+def extrair_documento_relevante(driver: WebDriver) -> Dict[str, Any]:
     """Extrai o primeiro documento relevante via API (/timeline + /documentos/.../conteudo).
 
     Retorna dict com chaves: sucesso, conteudo, tipo, titulo, id_documento, id_processo, erro
     """
+    from api.variaveis_client import session_from_driver
 
     # 1) obter id_processo da URL
     m = re.search(r'/processo/(\d+)', driver.current_url)
@@ -85,7 +88,7 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
         except Exception as e:
             ultimo_erro = e
             if tentativa < 2:
-                espera.assentar(driver, 3, motivo='retry timeline API')
+                time.sleep(3)
     if timeline is None:
         return _falha(f'timeline HTTP error: {ultimo_erro}')
 
@@ -188,7 +191,7 @@ def _falha(msg: str, **extra) -> Dict[str, Any]:
     return {'sucesso': False, 'conteudo': None, 'tipo': None, 'titulo': None, 'id_documento': None, 'id_processo': None, 'erro': msg, **extra}
 
 
-def processar_processo_por_id_api(driver: Any, id_processo: int, host: str = 'pje.trt2.jus.br') -> Dict[str, Any]:
+def processar_processo_por_id_api(driver: WebDriver, id_processo: int, host: str = 'pje.trt2.jus.br') -> Dict[str, Any]:
     """Abre detalhe do processo e tenta localizar+extrair documento relevante.
 
     Retorna dicionário com o resultado da extração e metadados.
@@ -229,7 +232,7 @@ def processar_processo_por_id_api(driver: Any, id_processo: int, host: str = 'pj
 GIGS_API_MAX_WORKERS = 20
 
 
-def _abrir_tarefa_e_tentar_iniciar_execucao(driver: Any, timeout: int = 10) -> bool:
+def _abrir_tarefa_e_tentar_iniciar_execucao(driver: WebDriver, timeout: int = 10) -> bool:
     """Abre a tarefa mais recente usando o helper geral do projeto e clica em 'Iniciar execução' se existir."""
     url_atual = driver.current_url or ''
     if '/tarefa/' not in url_atual:
@@ -243,45 +246,68 @@ def _abrir_tarefa_e_tentar_iniciar_execucao(driver: Any, timeout: int = 10) -> b
             return False
 
     try:
-        from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
-        seletor = "button[aria-label='Iniciar execução'], button[aria-label='Iniciar execucao']"
-        aguardar_renderizacao_nativa(driver, seletor, modo='aparecer', timeout=min(8, timeout))
-
-        btn = espera.elemento(driver, seletor, teto=min(8, timeout))
-        if btn:
-            is_disabled = (
-                btn.get_attribute('disabled') is not None
-                or 'mat-button-disabled' in (btn.get_attribute('class') or '')
-                or getattr(btn, 'is_enabled', lambda: True)() is False
-            )
-            if not is_disabled:
-                safe_click_no_scroll(driver, btn)
-                try:
-                    aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(6, timeout))
-                except Exception:
-                    pass
-                return True
-            else:
-                logger.info('[FLUXO_PZ] inicar_exec: botão "Iniciar execução" detectado, porém inativo')
-                return False
-        return False
+        from Fix.core import aguardar_renderizacao_nativa
+        aguardar_renderizacao_nativa(
+            driver,
+            "button[aria-label='Iniciar execução'], button[aria-label='Iniciar execucao']",
+            modo='aparecer',
+            timeout=min(8, timeout)
+        )
     except Exception:
-        return False
+        pass
 
-
-def _abrir_tarefa(driver: Any, timeout: int = 10) -> bool:
-    """Abre a tarefa mais recente na mesma aba, sem clicar em "Iniciar execução".
-
-    Usado nos caminhos em que a execução NÃO deve ser iniciada (ex.: liquidação
-    ainda não homologada, que roda o wrapper de liquidação).
-    """
-    if '/tarefa/' in (getattr(driver, 'current_url', '') or ''):
-        return True
     try:
-        from atos.movimentos_fluxo import abrir_tarefa_por_api
-        return bool(abrir_tarefa_por_api(driver, timeout=timeout))
-    except Exception as e:
-        logger.warning('[FLUXO_PZ] inicar_exec: falha ao abrir tarefa: %s', e)
+        estado = driver.execute_script(
+            """
+            const seletor = "button[aria-label='Iniciar execução'], button[aria-label='Iniciar execucao']";
+            const botoes = Array.from(document.querySelectorAll(seletor));
+
+            function visivel(el) {
+                if (!el) return false;
+                const st = window.getComputedStyle(el);
+                const r = el.getBoundingClientRect();
+                return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+            }
+
+            const visiveis = botoes.filter(visivel);
+            const ativo = visiveis.find(btn => (
+                !btn.disabled
+                && btn.getAttribute('disabled') === null
+                && !btn.classList.contains('mat-button-disabled')
+            ));
+
+            if (ativo) {
+                ativo.scrollIntoView({block: 'center'});
+                ativo.click();
+                return { clicked: true, status: 'ativo' };
+            }
+
+            const inativo = visiveis.find(btn => (
+                btn.disabled
+                || btn.getAttribute('disabled') !== null
+                || btn.classList.contains('mat-button-disabled')
+            ));
+
+            if (inativo) {
+                return { clicked: false, status: 'inativo' };
+            }
+
+            return { clicked: false, status: visiveis.length ? 'visivel_sem_estado' : 'nao_encontrado' };
+            """
+        )
+
+        clicou = bool(isinstance(estado, dict) and estado.get('clicked'))
+        if not clicou and isinstance(estado, dict) and estado.get('status') == 'inativo':
+            logger.info('[FLUXO_PZ] inicar_exec: botão "Iniciar execução" detectado, porém inativo')
+
+        if clicou:
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(6, timeout))
+            except Exception:
+                pass
+        return clicou
+    except Exception:
         return False
 
 
@@ -314,181 +340,16 @@ def obter_fase_processual(driver, caminho_json: str = 'dadosatuais.json', debug:
         return None
 
 
-# Movimento CNJ que homologa a liquidação (api/apis.md §5) — define o roteamento
-MOV_HOMOLOGADA_LIQUIDACAO = 50047
-
-# GIGS criada quando a liquidação homologada ainda não tem crédito registrado
-GIGS_OBS_REGISTRAR_OBRIGACAO = 'registrar obrigação'
-CREDITO_MOCK = '0,01'
-SCRIPTS_DIR = Path(__file__).parent / 'scripts'
-
-
-def _tem_homologacao_liquidacao(client, id_processo: str) -> bool:
-    """True se a timeline tem o movimento 50047 (Homologada a Liquidação)."""
-    itens = client.timeline(id_processo, buscarDocumentos=False, buscarMovimentos=True) or []
-    for item in itens:
-        try:
-            if int(item.get('codEvento') or 0) == MOV_HOMOLOGADA_LIQUIDACAO:
-                return True
-        except (TypeError, ValueError):
-            pass
-        if 'homologada a liquidacao' in normalizar_texto(str(item.get('titulo') or '')):
-            return True
-    return False
-
-
-def decidir_rota_iniciar_exec(client, id_processo: str) -> Optional[str]:
-    """Decide o caminho do `inicar_exec` só com API — sem checar botão.
-
-    - fase já é execução                                       → 'pesquisas'
-    - fase liquidação/homologação SEM movimento 50047           → 'pesqliq'
-    - liquidação homologada (50047) COM obrigações registradas  → 'executar_pesquisas'
-    - liquidação homologada (50047) SEM obrigações registradas  → 'mock_pesquisas'
-
-    Devolve `None` quando a API não responde ou a fase não é reconhecida — nesse
-    caso o chamador cai no fallback antigo (botão "Iniciar execução" + fase do
-    `dadosatuais.json`).
-    """
-    try:
-        dados = client.processo_por_id(id_processo) or {}
-        fase = str(dados.get('labelFaseProcessual') or dados.get('faseProcessual') or '').lower()
-
-        if 'execu' in fase:
-            return 'pesquisas'
-
-        if 'liquid' in fase or 'homolog' in fase:
-            if not _tem_homologacao_liquidacao(client, id_processo):
-                return 'pesqliq'
-            obrigacoes = client.obrigacoes_pagar(id_processo)
-            if isinstance(obrigacoes, list) and obrigacoes:
-                return 'executar_pesquisas'
-            return 'mock_pesquisas'
-
-        logger.info('[FLUXO_PZ] inicar_exec: fase processual nao reconhecida (%r)', fase)
-    except Exception as e:
-        logger.warning('[FLUXO_PZ] inicar_exec: decisao por API falhou: %s', e)
-    return None
-
-
-def _preencher_credito_mock_js(driver: Any, valor: str, placeholder: str = 'Crédito do demandante') -> bool:
-    """Preenche o campo monetário com a estratégia de teclado do `debito.js`."""
-    page = getattr(driver, 'page', None)
-    if page is None:
-        logger.warning('[FLUXO_PZ] credito_mock: driver sem page (motor nao suportado)')
-        return False
-
-    try:
-        from Fix.scripts import carregar_js
-        script = carregar_js('credito_mock.js', SCRIPTS_DIR)
-    except Exception as e:
-        logger.warning('[FLUXO_PZ] credito_mock: falha ao carregar JS: %s', e)
-        return False
-    if not script:
-        logger.warning('[FLUXO_PZ] credito_mock: JS nao encontrado em %s', SCRIPTS_DIR)
-        return False
-
-    try:
-        res = page.evaluate(script, {'valor': valor, 'placeholder': placeholder}) or {}
-    except Exception as e:
-        logger.warning('[FLUXO_PZ] credito_mock: falha ao preencher "%s": %s', placeholder, e)
-        return False
-
-    if not res.get('ok'):
-        logger.warning('[FLUXO_PZ] credito_mock: %s', res.get('motivo') or 'preenchimento falhou')
-        return False
-    logger.info('[FLUXO_PZ] credito_mock: "%s" = %s', placeholder, res.get('valor'))
-    return True
-
-
-def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
-    """Registra R$ 0,01 como crédito do demandante (obrigação de pagar).
-
-    Replica o fluxo do `Script/modules/debito/registrar_debito.js`:
-      /obrigacao-pagar/{id}/cadastro → marca Credor e Devedor → Próximo →
-      /inclusao → Data do Cálculo (hoje) + Crédito do demandante (0,01) → Salvar,
-    e fecha a aba de obrigações ao final.
-    """
-    from urllib.parse import urlparse
-    from datetime import datetime
-    from Fix.browser_suporte import abrir_url_nova_aba, forcar_fechamento_abas_extras
-    from Fix.core import safe_click_no_scroll, preencher_campo
-
-    aba_principal = getattr(driver, 'current_window_handle', None)
-    host = urlparse(getattr(driver, 'current_url', '') or '').netloc
-    if not host:
-        logger.warning('[FLUXO_PZ] credito_mock: host nao detectado na URL atual')
-        return False
-
-    url = f'https://{host}/pjekz/obrigacao-pagar/{id_processo}/cadastro'
-    if not abrir_url_nova_aba(driver, url):
-        logger.warning('[FLUXO_PZ] credito_mock: falha ao abrir %s', url)
-        return False
-
-    try:
-        # 1) /cadastro — marcar as partes (Credor e Devedor) e avançar
-        if not espera.ate_aparecer(driver, 'table.t-class', teto=15):
-            logger.warning('[FLUXO_PZ] credito_mock: tabela de partes nao apareceu')
-            return False
-
-        for papel in ('Credor', 'Devedor'):
-            xpath = (
-                "//tbody//tr[contains(@class,'tr-class')]"
-                f"[.//span[contains(@class,'mat-select-min-line')][normalize-space(.)='{papel}']]"
-                "//input[@type='checkbox']"
-            )
-            checkbox = espera.elemento(driver, xpath, teto=5)
-            if checkbox:
-                safe_click_no_scroll(driver, checkbox)
-            else:
-                logger.warning('[FLUXO_PZ] credito_mock: checkbox de %s nao encontrado', papel)
-
-        btn_proximo = espera.elemento(driver, "//button[@name='proximo']", teto=10)
-        if not btn_proximo:
-            logger.warning('[FLUXO_PZ] credito_mock: botao Proximo nao encontrado')
-            return False
-        safe_click_no_scroll(driver, btn_proximo)
-
-        # 2) /inclusao — Data do Cálculo (hoje) + Crédito do demandante (0,01)
-        if not espera.ate_aparecer(driver, 'input[data-placeholder="Crédito do demandante"]', teto=20):
-            logger.warning('[FLUXO_PZ] credito_mock: formulario de inclusao nao abriu')
-            return False
-        preencher_campo(
-            driver,
-            'input[data-placeholder="Data do Cálculo"]',
-            datetime.now().strftime('%d/%m/%Y'),
-        )
-        if not _preencher_credito_mock_js(driver, CREDITO_MOCK):
-            return False
-
-        # 3) Salvar o registro
-        btn_salvar = espera.elemento(driver, "//button[@name='salvar']", teto=10)
-        if not btn_salvar:
-            logger.warning('[FLUXO_PZ] credito_mock: botao Salvar nao encontrado')
-            return False
-        safe_click_no_scroll(driver, btn_salvar)
-        espera.assentar(driver, 1.0, motivo='registro do credito mock')
-        logger.info('[FLUXO_PZ] credito_mock: crédito %s registrado (processo %s)', CREDITO_MOCK, id_processo)
-        return True
-    except Exception as e:
-        logger.error('[FLUXO_PZ] credito_mock: erro no registro: %s', e)
-        return False
-    finally:
-        if aba_principal:
-            forcar_fechamento_abas_extras(driver, aba_principal)
-
-
 def inicar_exec(driver, texto_normalizado: Optional[str] = None):
-    """Helper: cria duas GIGS padrão, decide a rota por API e executa o wrapper.
+    """Helper: cria duas GIGS padrão, tenta Iniciar execução e roteia ato.
 
-    1) cria GIG '1/Ana Lucia/Argos'  (try independente)
-    2) cria GIG '1//xs sigilo'       (try independente — não bloqueado por falha do 1)
-    3) rota decidida SÓ por API (`decidir_rota_iniciar_exec`):
-       'pesquisas'          → fase já é execução: ato_pesquisas (caminho definido)
-       'pesqliq'            → liquidação SEM movimento 50047: ato_pesqliq
-       'executar_pesquisas' → liquidação homologada COM obrigações: inicia execução + ato_pesquisas
-       'mock_pesquisas'     → liquidação homologada SEM obrigações: GIGS de observação +
-                              crédito mock 0,01 → inicia execução + ato_pesquisas
-       None                 → API indisponível: fallback (botão "Iniciar execução" + fase)
+    1) cria GIG '1/Ana Lucia/Argos'      (try independente)
+    2) cria GIG '1//xs sigilo'            (try independente — não bloqueado por falha do 1)
+    3) abre a tarefa mais recente pelo helper geral do projeto e tenta clicar 'Iniciar execução'
+       - sucesso → ato_pesquisas (processo já está em execução)
+       - falha   → roteia por fase:
+           'liquid'/'homolog' → ato_pesqliq
+           caso contrário     → ato_pesquisas
 
     Retorna o resultado da ação executada (tupla ou bool).
     """
@@ -516,77 +377,39 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
         except Exception as e:
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs sigilo: %s', e)
 
-    # 3) Rota decidida SÓ por API (fase + movimento 50047 + obrigações a pagar).
-    id_processo = None
-    rota = None
+    # 3) Abrir a tarefa na mesma aba e tentar clicar "Iniciar execução" diretamente.
+    # Se o botão não existir, manter o roteamento por fase atual.
+    mov_ok = False
     try:
-        from Fix.core import extrair_id_processo
-
-        id_processo = extrair_id_processo(driver)
-        if id_processo:
-            rota = decidir_rota_iniciar_exec(cliente_para(driver), id_processo)
-            logger.info('[FLUXO_PZ] inicar_exec: rota por API=%s (id_processo=%s)', rota, id_processo)
-    except Exception as e:
-        logger.warning('[FLUXO_PZ] inicar_exec: roteamento por API indisponivel (%s)', e)
-
-    # 3.1) Fallback (API fora/fase desconhecida): abre a tarefa, tenta o botão
-    #      "Iniciar execução" e roteia pela fase do dadosatuais.json (comportamento antigo).
-    if rota is None:
-        mov_ok = False
-        try:
-            mov_ok = _abrir_tarefa_e_tentar_iniciar_execucao(driver, timeout=10)
-            if mov_ok:
-                logger.info('[FLUXO_PZ] inicar_exec: Iniciar execução clicado com sucesso (fallback)')
-            else:
-                logger.info('[FLUXO_PZ] inicar_exec: Iniciar execução não disponível, roteando por fase (fallback)')
-        except Exception as e:
-            logger.info('[FLUXO_PZ] inicar_exec: checagem direta de Iniciar execução falhou (%s)', e)
-
+        mov_ok = _abrir_tarefa_e_tentar_iniciar_execucao(driver, timeout=10)
         if mov_ok:
-            rota = 'pesquisas'
+            logger.info('[FLUXO_PZ] inicar_exec: Iniciar execução clicado com sucesso')
         else:
+            logger.info('[FLUXO_PZ] inicar_exec: Iniciar execução não disponível, roteando por fase')
+    except Exception as e:
+        logger.info('[FLUXO_PZ] inicar_exec: checagem direta de Iniciar execução falhou (%s), roteando por fase', e)
+
+    try:
+        if mov_ok:
+            # Processo movido para execução → ato_pesquisas (forçar sigilo)
+            if ato_pesquisas:
+                resultado = ato_pesquisas(driver, sigilo=True)
+        else:
+            # Fallback: rotear por fase processual
             fase_lower = ''
             try:
-                fase_lower = (obter_fase_processual(driver) or '').lower()
+                fase = obter_fase_processual(driver)
+                fase_lower = (fase or '').lower()
             except Exception:
                 pass
-            rota = 'pesqliq' if ('liquid' in fase_lower or 'homolog' in fase_lower) else 'pesquisas'
 
-    # 3.2) Liquidação ainda não homologada → wrapper de liquidação.
-    #      Aqui NÃO se clica "Iniciar execução": a execução não deve começar.
-    if rota == 'pesqliq':
-        _abrir_tarefa(driver)
-        if ato_pesqliq:
-            resultado = ato_pesqliq(driver, sigilo=True)
-        return resultado
-
-    # 3.3) Liquidação homologada SEM crédito registrado → GIGS de observação + mock 0,01.
-    if rota == 'mock_pesquisas' and id_processo:
-        if criar_gigs:
-            try:
-                criar_gigs(driver, observacao=GIGS_OBS_REGISTRAR_OBRIGACAO)
-            except Exception as e:
-                logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS "%s": %s',
-                             GIGS_OBS_REGISTRAR_OBRIGACAO, e)
-        registrar_credito_mock_0_01(driver, id_processo)
-
-    # 3.4) Rotas de pesquisa: garante a tarefa aberta e roda o ato de pesquisas.
-    #      Quando é caso de INICIAR a execução (liquidação homologada), tenta o botão;
-    #      quando a fase já é execução, apenas abre a tarefa.
-    try:
-        if rota in ('executar_pesquisas', 'mock_pesquisas'):
-            if not _abrir_tarefa_e_tentar_iniciar_execucao(driver, timeout=10):
-                logger.info('[FLUXO_PZ] inicar_exec: botão "Iniciar execução" indisponível — seguindo para o ato')
-        else:
-            _abrir_tarefa(driver)
+            if ('liquid' in fase_lower or 'homolog' in fase_lower) and ato_pesqliq:
+                # Chamadas em fallback também devem forçar sigilo
+                resultado = ato_pesqliq(driver, sigilo=True)
+            elif ato_pesquisas:
+                resultado = ato_pesquisas(driver, sigilo=True)
     except Exception as e:
-        logger.info('[FLUXO_PZ] inicar_exec: abertura de tarefa falhou (%s) — seguindo para o ato', e)
-
-    try:
-        if ato_pesquisas:
-            resultado = ato_pesquisas(driver, sigilo=True)
-    except Exception as e:
-        logger.error('[FLUXO_PZ] inicar_exec: erro ao executar ato_pesquisas: %s', e)
+        logger.error('[FLUXO_PZ] inicar_exec: erro no roteamento: %s', e)
 
     # aplicar visibilidade se necessário
     try:
@@ -606,7 +429,7 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
 # ═══════════════════════════════════════════
 
 
-def fluxo_pz(driver: Any) -> None:
+def fluxo_pz(driver: WebDriver) -> None:
     """
     Processa prazos detalhados em processos abertos.
 
@@ -852,14 +675,40 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
 
     def open_item(item):
         """Navega para o detalhe do processo na mesma aba, fechando abas extras."""
-        from Fix.abas import validar_conexao_driver, fechar_abas_extras
-        if not validar_conexao_driver(driver):
-            return resultado_falha('browser_fechado_manualmente', critical=True)
+        nonlocal recriacoes_aba
         try:
-            fechar_abas_extras(driver)
+            handles = driver.window_handles
+            if not handles:
+                if recriacoes_aba >= 1:
+                    logger.warning('[PRAZO_API] Abas sumiram novamente — browser fechado manualmente. Interrompendo execucao.')
+                    return resultado_falha('browser_fechado_manualmente', critical=True)
+                logger.warning('[PRAZO_API] Nenhuma aba detectada! PJe fechou a aba via JS. Recriando aba (tentativa unica)...')
+                recriacoes_aba += 1
+                driver.switch_to.new_window('tab')
+                handles = driver.window_handles
+                if not handles:
+                    return resultado_falha('browser_fechado_manualmente', critical=True)
+            if len(handles) > 1:
+                primeira = handles[0]
+                for h in handles[1:]:
+                    try:
+                        driver.switch_to.window(h)
+                        driver.close()
+                    except Exception:
+                        pass
+                handles_restantes = driver.window_handles
+                if primeira in handles_restantes:
+                    driver.switch_to.window(primeira)
+                elif handles_restantes:
+                    driver.switch_to.window(handles_restantes[0])
+            elif handles:
+                driver.switch_to.window(handles[0])
         except Exception as e:
             logger.warning(f'[PRAZO_API] Falha ao gerenciar abas residuais: {e}')
-            if not validar_conexao_driver(driver):
+            try:
+                if not driver.window_handles:
+                    return resultado_falha('browser_fechado_manualmente', critical=True)
+            except Exception:
                 return resultado_falha('browser_fechado_manualmente', critical=True)
 
         id_processo = item['id']

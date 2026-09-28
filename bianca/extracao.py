@@ -14,86 +14,19 @@ Nenhuma dependencia externa ao modulo bianca.
 """
 
 import re
+import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from Fix import espera
-from Fix.core import safe_click_no_scroll, safe_click, preencher_campo
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 from bianca.utils import logger
-from bianca.selenium_utils import aguardar_e_clicar, esperar_elemento
-
-
-_KEY_ARROW_DOWN = '\ue015'
-_KEY_ENTER = '\ue007'
-_KEY_ESCAPE = '\ue00c'
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa JavaScript de forma compativel entre Selenium e Playwright sem expor padroes."""
-    fn = getattr(driver, "execute_" + "script", None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, "page", None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
-
-def _sub_el(pai: Any, sel: str) -> Any:
-    """Busca sub-elemento compativel com Selenium e Playwright."""
-    if pai is None:
-        return None
-    if hasattr(pai, "query_selector"):
-        return pai.query_selector(sel)
-    fn = getattr(pai, "find_" + "element", None)
-    if fn is not None:
-        return fn("css selector", sel)
-    return None
-
-
-def _sub_els(pai: Any, sel: str) -> List[Any]:
-    """Busca multiplos sub-elementos compativeis com Selenium e Playwright."""
-    if pai is None:
-        return []
-    if hasattr(pai, "query_selector_all"):
-        return pai.query_selector_all(sel)
-    fn = getattr(pai, "find_" + "elements", None)
-    if fn is not None:
-        return fn("css selector", sel)
-    return []
-
-
-def _enviar_teclas(el: Any, texto: str):
-    """Preenche campo de texto compativel."""
-    if el is None:
-        return
-    if hasattr(el, "fill"):
-        el.fill(texto)
-    elif hasattr(el, "type"):
-        el.type(texto)
-    else:
-        fn = getattr(el, "send_" + "keys", None)
-        if fn is not None:
-            fn(texto)
-
-
-def _pressionar_tecla(driver: Any, el: Any, tecla_nome: str, tecla_code: str):
-    """Envia tecla especial compativel."""
-    page = getattr(driver, "page", None)
-    if page is not None and hasattr(page, "keyboard"):
-        try:
-            page.keyboard.press(tecla_nome)
-            return
-        except Exception:
-            pass
-    if el is not None:
-        fn = getattr(el, "send_" + "keys", None)
-        if fn is not None:
-            try:
-                fn(tecla_code)
-                return
-            except Exception:
-                pass
-    _executar_js(driver, f"window.dispatchEvent(new KeyboardEvent('keydown', {{key: '{tecla_nome}', bubbles: true}}));")
+from bianca.selenium_utils import aguardar_e_clicar, esperar_elemento, preencher_campo
 
 
 # =============================================================================
@@ -167,7 +100,7 @@ def _parse_gigs_string(string: str) -> Dict[str, Any]:
 
 
 def criar_gigs(
-    driver: Any,
+    driver: WebDriver,
     dias_uteis: Any = None,
     responsavel: Optional[str] = None,
     observacao: Optional[str] = None,
@@ -188,7 +121,7 @@ def criar_gigs(
     3. Salva e confirma
 
     Args:
-        driver: Instancia do navegador.
+        driver: WebDriver Selenium.
         dias_uteis: Dias uteis para prazo, ou string unificada, ou None.
         responsavel: Nome do responsavel (opcional).
         observacao: Texto da observacao.
@@ -217,97 +150,95 @@ def criar_gigs(
 
         if log:
             logger.debug("[GIGS] Clicando Nova Atividade...")
-        btn_nova_xpath = (
-            "//button[.//span[contains(translate(normalize-space(.), "
-            "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), "
-            "'nova atividade')] "
-            "or contains(translate(@aria-label, "
-            "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), "
-            "'nova atividade')]"
+        btn_nova = WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((
+                By.XPATH,
+                "//button[.//span[contains(translate(normalize-space(.), "
+                "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), "
+                "'nova atividade')] "
+                "or contains(translate(@aria-label, "
+                "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), "
+                "'nova atividade')]"
+            ))
         )
-        if espera.ate_habilitar(driver, btn_nova_xpath, teto=timeout):
-            btn_nova = espera.elemento(driver, btn_nova_xpath, teto=2)
-            if btn_nova:
-                safe_click_no_scroll(driver, btn_nova)
-        espera.assentar(driver, 0.2)
+        btn_nova.click()
+        time.sleep(0.2)
 
-        espera.ate_presenca(
-            driver,
-            'textarea[formcontrolname="observacao"]',
-            teto=timeout,
+        WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]')
+            )
         )
         if log:
             logger.debug("[GIGS] Formulario aberto")
 
         if dias_uteis:
-            campo_dias = espera.elemento(
-                driver, 'input[formcontrolname="dias"]', teto=5
+            campo_dias = driver.find_element(
+                By.CSS_SELECTOR, 'input[formcontrolname="dias"]'
             )
-            if campo_dias:
-                if hasattr(campo_dias, "clear"):
-                    campo_dias.clear()
-                _enviar_teclas(campo_dias, str(dias_uteis))
-                espera.assentar(driver, 0.3)
-                if log:
-                    logger.debug("[GIGS] Prazo: %s dias", dias_uteis)
+            campo_dias.clear()
+            campo_dias.send_keys(str(dias_uteis))
+            time.sleep(0.3)
+            if log:
+                logger.debug("[GIGS] Prazo: %s dias", dias_uteis)
 
         if responsavel:
-            campo_resp = espera.elemento(
-                driver, 'input[formcontrolname="responsavel"]', teto=5
+            campo_resp = driver.find_element(
+                By.CSS_SELECTOR, 'input[formcontrolname="responsavel"]'
             )
-            if campo_resp:
-                if hasattr(campo_resp, "clear"):
-                    campo_resp.clear()
-                _enviar_teclas(campo_resp, responsavel)
-                espera.assentar(driver, 0.5)
-                _pressionar_tecla(driver, campo_resp, "ArrowDown", _KEY_ARROW_DOWN)
-                espera.assentar(driver, 0.2)
-                _pressionar_tecla(driver, campo_resp, "Enter", _KEY_ENTER)
-                if log:
-                    logger.debug("[GIGS] Responsavel: %s", responsavel)
+            campo_resp.clear()
+            campo_resp.send_keys(responsavel)
+            time.sleep(0.5)
+            campo_resp.send_keys(Keys.ARROW_DOWN)
+            time.sleep(0.2)
+            campo_resp.send_keys(Keys.ENTER)
+            if log:
+                logger.debug("[GIGS] Responsavel: %s", responsavel)
 
         if observacao:
-            campo_obs = espera.elemento(
-                driver, 'textarea[formcontrolname="observacao"]', teto=5
+            campo_obs = driver.find_element(
+                By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'
             )
-            if campo_obs:
-                if hasattr(campo_obs, "clear"):
-                    campo_obs.clear()
-                _enviar_teclas(campo_obs, observacao)
-                _executar_js(
-                    driver,
-                    "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
-                    campo_obs,
+            campo_obs.clear()
+            campo_obs.send_keys(observacao)
+            # Forcar evento para Angular detectar
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
+                campo_obs,
+            )
+            time.sleep(0.3)
+            if log:
+                obs_preview = (
+                    observacao[:50] + '...'
+                    if len(observacao) > 50
+                    else observacao
                 )
-                espera.assentar(driver, 0.3)
-                if log:
-                    obs_preview = (
-                        observacao[:50] + '...'
-                        if len(observacao) > 50
-                        else observacao
-                    )
-                    logger.debug("[GIGS] Observacao: %s", obs_preview)
+                logger.debug("[GIGS] Observacao: %s", obs_preview)
 
         # Salvar
         if log:
             logger.debug("[GIGS] Salvando...")
-        btn_salvar_xpath = "//button[contains(., 'Salvar')]"
-        if espera.ate_habilitar(driver, btn_salvar_xpath, teto=timeout):
-            btn_salvar = espera.elemento(driver, btn_salvar_xpath, teto=2)
-            if btn_salvar:
-                safe_click_no_scroll(driver, btn_salvar)
+        btn_salvar = WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(., 'Salvar')]")
+            )
+        )
+        btn_salvar.click()
 
         # Aguardar confirmacao
-        espera.assentar(driver, 0.3)
-        conf_xpath = (
-            "//snack-bar-container//span[contains(normalize-space(.), "
-            "'Atividade salva com sucesso')]"
-        )
-        if espera.ate_presenca(driver, conf_xpath, teto=timeout):
+        time.sleep(0.3)
+        try:
+            WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((
+                    By.XPATH,
+                    "//snack-bar-container//span[contains(normalize-space(.), "
+                    "'Atividade salva com sucesso')]"
+                ))
+            )
             if log:
                 logger.debug("[GIGS] Atividade criada com sucesso")
             return True
-        else:
+        except TimeoutException:
             if log:
                 logger.warning("[GIGS] Confirmacao nao detectada, assumindo sucesso")
             return True
@@ -324,7 +255,7 @@ def criar_gigs(
 
 
 def criar_comentario(
-    driver: Any,
+    driver: WebDriver,
     observacao: str,
     visibilidade: str = 'LOCAL',
     timeout: Union[int, float] = 10,
@@ -333,7 +264,7 @@ def criar_comentario(
     """Cria comentario GIGS na aba /detalhe.
 
     Args:
-        driver: Instancia do navegador.
+        driver: WebDriver do Selenium.
         observacao: Texto do comentario.
         visibilidade: 'LOCAL' (padrao), 'RESTRITA' ou 'GLOBAL'.
         timeout: Timeout para operacoes (default 10s).
@@ -351,53 +282,59 @@ def criar_comentario(
             )
             logger.debug("[COMENTARIO] Criando: %s", com_preview)
 
+
         # 1. Clicar "Novo Comentario"
         if log:
             logger.debug("[COMENTARIO] Clicando Novo Comentario...")
 
+        # Preferir id do botão quando existir
         btn_novo = None
-        if espera.ate_habilitar(driver, "#novo-comentario, button#novo-comentario", teto=2):
-            btn_novo = espera.elemento(driver, "#novo-comentario, button#novo-comentario", teto=1)
+        try:
+            btn_novo = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "#novo-comentario, button#novo-comentario"))
+            )
+        except Exception:
+            pass
 
         if btn_novo is None:
-            btn_novo_xpath = (
-                "//button[contains(., 'Novo Coment\u00e1rio') "
-                "or contains(., 'Novo coment\u00e1rio') "
-                "or contains(., 'Novo Comentario') "
-                "or contains(., 'Novo comentario')]"
+            btn_novo = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((
+                    By.XPATH,
+                    "//button[contains(., 'Novo Coment\u00e1rio') "
+                    "or contains(., 'Novo coment\u00e1rio') "
+                    "or contains(., 'Novo Comentario') "
+                    "or contains(., 'Novo comentario')]"
+                ))
             )
-            if espera.ate_habilitar(driver, btn_novo_xpath, teto=timeout):
-                btn_novo = espera.elemento(driver, btn_novo_xpath, teto=2)
 
-        if btn_novo:
-            safe_click_no_scroll(driver, btn_novo)
-        espera.assentar(driver, 0.2)
+        btn_novo.click()
+        time.sleep(0.2)
 
         # 2. Aguardar formulario
-        espera.ate_presenca(
-            driver,
-            'textarea[formcontrolname="descricao"], textarea[name="descricao"]',
-            teto=timeout,
+        WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((
+                By.CSS_SELECTOR,
+                'textarea[formcontrolname="descricao"], '
+                'textarea[name="descricao"]',
+            ))
         )
         if log:
             logger.debug("[COMENTARIO] Formulario aberto")
 
         # 3. Preencher observacao/descricao
-        campo_obs = espera.elemento(
-            driver,
-            'textarea[formcontrolname="descricao"], textarea[name="descricao"]',
-            teto=5,
+        campo_obs = driver.find_element(
+            By.CSS_SELECTOR,
+            'textarea[formcontrolname="descricao"], '
+            'textarea[name="descricao"]',
         )
-        if campo_obs:
-            _executar_js(driver, "arguments[0].focus();", campo_obs)
-            _executar_js(
-                driver,
-                "arguments[0].value = arguments[1];"
-                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
-                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
-                campo_obs, observacao,
-            )
-        espera.assentar(driver, 0.3)
+        driver.execute_script("arguments[0].focus();", campo_obs)
+        driver.execute_script(
+            "arguments[0].value = arguments[1];"
+            "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
+            "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
+            campo_obs, observacao,
+        )
+        time.sleep(0.3)
         if log:
             logger.debug("[COMENTARIO] Descricao preenchida")
 
@@ -407,18 +344,21 @@ def criar_comentario(
             logger.debug("[COMENTARIO] Visibilidade: %s", visibilidade_upper)
 
         try:
-            radio_buttons = espera.elementos(
-                driver,
-                'pje-gigs-comentarios-cadastro mat-radio-button, mat-radio-button',
-                teto=5,
+            radio_buttons = driver.find_elements(
+                By.CSS_SELECTOR,
+                'pje-gigs-comentarios-cadastro mat-radio-button, '
+                'mat-radio-button',
             )
             if len(radio_buttons) >= 3:
                 index_map = {'LOCAL': 0, 'RESTRITA': 1, 'GLOBAL': 2}
                 idx = index_map.get(visibilidade_upper, 0)
-                radio_input = _sub_el(radio_buttons[idx], 'input')
-                if radio_input:
-                    _executar_js(driver, "arguments[0].click();", radio_input)
-                espera.assentar(driver, 0.3)
+                radio_input = radio_buttons[idx].find_element(
+                    By.CSS_SELECTOR, 'input'
+                )
+                # Angular Material oculta o input com cdk-visually-hidden;
+                # JS click e necessario pois scroll/interacao direta falha.
+                driver.execute_script("arguments[0].click();", radio_input)
+                time.sleep(0.3)
 
                 if visibilidade_upper == 'RESTRITA':
                     if log:
@@ -426,7 +366,7 @@ def criar_comentario(
                             "[COMENTARIO] Visibilidade RESTRITA - "
                             "pode requerer selecao de usuarios"
                         )
-                    espera.assentar(driver, 0.5)
+                    time.sleep(0.5)
         except Exception as e:
             if log:
                 logger.warning(
@@ -438,33 +378,37 @@ def criar_comentario(
         # 5. Salvar
         if log:
             logger.debug("[COMENTARIO] Salvando...")
-        btn_salvar_xpath = "//button[contains(., 'Salvar')]"
-        if espera.ate_habilitar(driver, btn_salvar_xpath, teto=timeout):
-            btn_salvar = espera.elemento(driver, btn_salvar_xpath, teto=2)
-            if btn_salvar:
-                safe_click_no_scroll(driver, btn_salvar)
-        espera.assentar(driver, 0.2)
+        btn_salvar = WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(., 'Salvar')]")
+            )
+        )
+        btn_salvar.click()
+        time.sleep(0.2)
 
         # 6. Verificar se modal fechou
-        espera.assentar(driver, 0.2)
+        time.sleep(0.2)
         try:
-            modals = espera.elementos(driver, 'mat-dialog-container', teto=2)
-            modal_aberto = any(getattr(m, "is_displayed", lambda: True)() for m in modals)
+            modals = driver.find_elements(
+                By.CSS_SELECTOR, 'mat-dialog-container'
+            )
+            modal_aberto = any(m.is_displayed() for m in modals)
             if not modal_aberto:
                 if log:
                     logger.debug("[COMENTARIO] Comentario criado com sucesso")
                 return True
             else:
-                corpo = espera.elemento(driver, 'body', teto=2)
-                _pressionar_tecla(driver, corpo, "Escape", _KEY_ESCAPE)
-                espera.assentar(driver, 0.5)
+                driver.find_element(
+                    By.TAG_NAME, 'body'
+                ).send_keys(Keys.ESCAPE)
+                time.sleep(0.5)
                 if log:
                     logger.debug(
                         "[COMENTARIO] Comentario criado "
                         "(modal fechado manualmente)"
                     )
                 return True
-        except Exception:
+        except Exception as e:
             if log:
                 logger.debug("[COMENTARIO] Comentario criado")
             return True
@@ -485,7 +429,7 @@ def criar_comentario(
 
 
 def criar_lembrete_posit(
-    driver: Any,
+    driver: WebDriver,
     titulo: str,
     conteudo: str,
     debug: bool = False,
@@ -493,7 +437,7 @@ def criar_lembrete_posit(
     """Cria lembrete/post-it generico com titulo e conteudo customizaveis.
 
     Args:
-        driver: Instancia do navegador.
+        driver: WebDriver Selenium.
         titulo: Texto do titulo.
         conteudo: Texto do conteudo.
         debug: Log detalhado (default: False).
@@ -516,7 +460,7 @@ def criar_lembrete_posit(
             if debug:
                 logger.warning('[LEMBRETE][POSIT] Botao hamburger nao encontrado')
             return False
-        espera.assentar(driver, 0.8)
+        time.sleep(0.8)
 
         seletores_lembrete = [
             'pje-icone-post-it button',
@@ -545,10 +489,10 @@ def criar_lembrete_posit(
                 logger.warning('[LEMBRETE][POSIT] Botao de lembrete nao encontrado no menu')
             return False
 
-        espera.assentar(driver, 0.8)
+        time.sleep(0.8)
 
         aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
-        espera.assentar(driver, 0.5)
+        time.sleep(0.5)
 
         # preencher_campo espera (driver, seletor, valor)
         titulo_elem = esperar_elemento(driver, '#tituloPostit', timeout=5)
@@ -574,7 +518,7 @@ def criar_lembrete_posit(
             except Exception:
                 continue
 
-        espera.assentar(driver, 0.8)
+        time.sleep(0.8)
         if debug:
             logger.debug('[LEMBRETE][POSIT] "%s" criado', titulo)
         return True
@@ -595,24 +539,24 @@ def criar_lembrete_posit(
 
 
 def indexar_processos(
-    driver: Any,
-) -> List[Tuple[str, Any]]:
+    driver: WebDriver,
+) -> List[Tuple[str, WebElement]]:
     """Indexa processos de forma robusta, evitando stale elements.
 
     Busca elementos frescos a cada iteracao para evitar problemas de
     StaleElementReferenceException.
 
     Args:
-        driver: Instancia do navegador.
+        driver: WebDriver Selenium.
 
     Returns:
         Lista de tuplas (proc_id, linha_element).
     """
     padrao_proc = re.compile(r'\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}')
-    processos: List[Tuple[str, Any]] = []
+    processos: List[Tuple[str, WebElement]] = []
 
     def obter_linhas_frescas():
-        return espera.elementos(driver, 'tr.cdk-drag', teto=3)
+        return driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
 
     linhas = obter_linhas_frescas()
     logger.debug('[INDEXAR] Encontradas %s linhas para processar', len(linhas))
@@ -631,15 +575,15 @@ def indexar_processos(
 
             linha = linhas_atuais[idx]
 
-            links = _sub_els(linha, 'a')
+            links = linha.find_elements(By.CSS_SELECTOR, 'a')
             texto = ''
 
             if links:
-                texto = (getattr(links[0], "text", "") or "").strip()
+                texto = links[0].text.strip()
             else:
-                tds = _sub_els(linha, 'td')
+                tds = linha.find_elements(By.TAG_NAME, 'td')
                 if tds:
-                    texto = (getattr(tds[0], "text", "") or "").strip()
+                    texto = tds[0].text.strip()
 
             match = padrao_proc.search(texto)
             num_proc = match.group(0) if match else '[sem numero]'
@@ -663,22 +607,22 @@ def indexar_processos(
 
 
 def reindexar_linha(
-    driver: Any, proc_id: str
-) -> Optional[Any]:
+    driver: WebDriver, proc_id: str
+) -> Optional[WebElement]:
     """Reindexar linha quando elemento fica stale.
 
     Nao navega automaticamente - respeita a pagina atual do modulo.
 
     Args:
-        driver: Instancia do navegador.
+        driver: WebDriver Selenium.
         proc_id: ID do processo a reindexar.
 
     Returns:
-        Elemento da linha encontrada ou None se nao encontrada.
+        WebElement da linha encontrada ou None se nao encontrada.
     """
     try:
         # Verificar se ainda estamos em uma pagina valida do PJE
-        url_atual = getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")
+        url_atual = driver.current_url
         if 'acesso-negado' in url_atual.lower() or 'access-denied' in url_atual.lower():
             logger.error("ACESSO NEGADO detectado na URL: %s", url_atual)
             return None
@@ -702,8 +646,8 @@ def reindexar_linha(
         linhas_atuais = []
         for selector in possible_selectors:
             try:
-                linhas_temp = espera.elementos(
-                    driver, selector, teto=2
+                linhas_temp = driver.find_elements(
+                    By.CSS_SELECTOR, selector
                 )
                 if linhas_temp:
                     linhas_atuais = linhas_temp
@@ -732,8 +676,7 @@ def reindexar_linha(
 
         for idx, linha_temp in enumerate(linhas_atuais):
             try:
-                is_vis = getattr(linha_temp, "is_displayed", None)
-                if is_vis is not None and not is_vis():
+                if not linha_temp.is_displayed():
                     continue
             except Exception:
                 continue
@@ -742,23 +685,23 @@ def reindexar_linha(
                 texto_linha = ""
 
                 # Estrategia 1: Links
-                links = _sub_els(linha_temp, 'a')
+                links = linha_temp.find_elements(By.CSS_SELECTOR, 'a')
                 if links:
-                    texto_linha = (getattr(links[0], "text", "") or "").strip()
+                    texto_linha = links[0].text.strip()
                 else:
                     # Estrategia 2: Celulas td
-                    tds = _sub_els(linha_temp, 'td')
+                    tds = linha_temp.find_elements(By.TAG_NAME, 'td')
                     if tds:
                         for td in tds[:3]:
-                            td_text = (getattr(td, "text", "") or "").strip()
+                            td_text = td.text.strip()
                             if proc_id in td_text:
                                 texto_linha = td_text
                                 break
                         if not texto_linha:
-                            texto_linha = (getattr(tds[0], "text", "") or "").strip()
+                            texto_linha = tds[0].text.strip()
                     else:
                         # Estrategia 3: Texto geral da linha
-                        texto_linha = (getattr(linha_temp, "text", "") or "").strip()
+                        texto_linha = linha_temp.text.strip()
 
                 if proc_id in texto_linha:
                     logger.info(
@@ -789,26 +732,30 @@ def reindexar_linha(
 
 
 def abrir_detalhes_processo(
-    driver: Any, linha: Any
+    driver: WebDriver, linha: WebElement
 ) -> bool:
     """Abre detalhes do processo a partir de uma linha da tabela.
 
-    Tenta encontrar o botao de detalhes via matTooltip, ou clica
-    no primeiro botao/link disponivel na linha.
+    Tenta encontrar o bota de detalhes via matTooltip, ou clica
+    no primeiro bota/link disponivel na linha.
 
     Args:
-        driver: Instancia do navegador.
-        linha: Elemento da linha da tabela.
+        driver: WebDriver Selenium.
+        linha: WebElement da linha da tabela.
 
     Returns:
         True se conseguiu abrir detalhes, False caso contrario.
     """
-    btn = _sub_el(linha, '[mattooltip*="Detalhes do Processo"]')
-    if not btn:
-        btn = _sub_el(linha, 'button, a')
-    if not btn:
-        return False
+    try:
+        btn = linha.find_element(
+            By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]'
+        )
+    except Exception:
+        try:
+            btn = linha.find_element(By.CSS_SELECTOR, 'button, a')
+        except Exception:
+            return False
 
-    _executar_js(driver, "arguments[0].scrollIntoView(true);", btn)
-    _executar_js(driver, "arguments[0].click();", btn)
+    driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+    driver.execute_script("arguments[0].click();", btn)
     return True

@@ -37,8 +37,7 @@ from pprint import pformat
 from typing import Dict, Any, Optional, Tuple, Callable
 from Fix.tipos import ResultadoFluxo
 from enum import Enum
-from Fix import espera
-from Fix.abas import fechar_abas_extras
+# WebDriverWait importado lazily em resetar_driver() para garantir shim pjeplay correto
 # Imports dos módulos refatorados
 from Fix.core import finalizar_driver as finalizar_driver_fix, criar_driver_pc, criar_driver_vt
 from Fix.utils import login_cpf, login_manual
@@ -73,6 +72,28 @@ class DriverType(Enum):
     VT_HEADLESS = "vt_headless"
 
 
+# ============================================================================
+# CAPTURA DE PRINTS (TEEOUTPUT)
+# ============================================================================
+
+class TeeOutput:
+    """Captura stdout/stderr para arquivo e console"""
+    def __init__(self, file_path):
+        self.terminal = sys.stdout
+        self.log_file = open(file_path, 'a', encoding='utf-8')
+        
+    def write(self, message):
+        self.terminal.write(message)
+        self.log_file.write(message)
+        self.log_file.flush()
+        
+    def flush(self):
+        self.terminal.flush()
+        self.log_file.flush()
+        
+    def close(self):
+        self.log_file.close()
+        sys.stdout = self.terminal
 
 
 # ============================================================================
@@ -108,7 +129,7 @@ def _aguardar_login_manual(driver, timeout: int = 900) -> bool:
             except Exception:
                 pass
             return True
-        espera.pausa(driver, 2)
+        time.sleep(2)
     logger.error("[LOGIN] Timeout (%ds) aguardando login manual.", timeout)
     return False
 
@@ -128,7 +149,7 @@ def _aguardar_sessao_ativa(driver, timeout: int = 60) -> bool:
         except Exception:
             logger.error("[LOGIN] Browser indisponivel ao confirmar sessao.")
             return False
-        espera.pausa(driver, 2)
+        time.sleep(2)
     logger.error("[LOGIN] access_token nao apareceu em %ds — login automatico "
                  "nao completou (verifique senha/MFA).", timeout)
     return False
@@ -321,18 +342,25 @@ def resetar_driver(driver) -> bool:
             logger.info("[X] resetar_driver: %d aba(s) acesso-negado fechadas", fechadas)
 
         # Fechar abas extras
-        fechar_abas_extras(driver)
+        abas = driver.window_handles
+        if len(abas) > 1:
+            for aba in abas[1:]:
+                try:
+                    driver.switch_to.window(aba)
+                    driver.close()
+                except Exception as e:
+                    logger.warning("ERRO em resetar_driver: %s: %s", type(e).__name__, e)
+            driver.switch_to.window(abas[0])
 
         # Resetar zoom
-        try:
-            espera.ate_js(driver, "document.body.style.zoom='100%'", teto=0.1)
-        except Exception:
-            pass
+        driver.execute_script("document.body.style.zoom='100%'")
 
         # Navegar para página inicial
         driver.get("https://pje.trt2.jus.br/pjekz/")
         try:
-            espera.ate_url(driver, "pjekz", teto=5)
+            from selenium.webdriver.support.ui import WebDriverWait as _WDW
+            from selenium.webdriver.support import expected_conditions as _EC
+            _WDW(driver, 5).until(_EC.url_contains("pjekz"))
         except Exception:
             pass
 
@@ -356,7 +384,8 @@ def executar_bloco_completo(driver, driver_type=None) -> Dict[str, Any]:
 
     def _driver_vivo(d):
         try:
-            return bool(getattr(d, 'current_url', None) or hasattr(d, 'page'))
+            _ = d.window_handles
+            return True
         except Exception:
             return False
 
@@ -515,7 +544,7 @@ def _limpar_acesso_negado(driver) -> int:
     """Fecha abas com URL acesso-negado. Retorna numero de abas fechadas."""
     fechadas = 0
     try:
-        handles = list(getattr(driver, 'window_handles', []))
+        handles = list(driver.window_handles)
         principal = handles[0] if handles else None
         for h in handles[1:]:
             try:
@@ -716,7 +745,9 @@ def executar_citacao(driver) -> Dict[str, Any]:
                 chave = numero_limpo if len(numero_limpo) == 20 else pid
                 url = _URL_PROCESSO_DETALHE.format(chave)
                 d.get(url)
-                espera.ate_js(d, "document.readyState === 'complete'", teto=15)
+                WebDriverWait(d, 15).until(
+                    lambda drv: drv.execute_script("return document.readyState") == "complete"
+                )
                 if "acesso-negado" in (d.current_url or "").lower():
                     raise RuntimeError(f"acesso negado — {reclamada} ({numero or pid})")
                 logger.info("[CITACAO] processo aberto: %s (reclamada: %s)", url, reclamada)
@@ -915,6 +946,10 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     mode_name = "Headless" if headless else "Visible"
     log_file = os.path.join(LOG_DIR, f"x_{env_name}_{mode_name}_{TIMESTAMP}.log")
     
+    # Configurar TeeOutput para capturar print()
+    tee = TeeOutput(log_file)
+    sys.stdout = tee
+    
     # Configurar logging (para logger.info(), logger.error(), etc.)
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
@@ -923,7 +958,7 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
-    # Adicionar FileHandler (único sink de arquivo)
+    # Adicionar FileHandler
     file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s', 
@@ -931,7 +966,7 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)
     
-    # Adicionar StreamHandler para console
+    # Adicionar StreamHandler para console (vai passar por TeeOutput)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG if debug else logging.INFO)
 
@@ -959,7 +994,7 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
                 import traceback
                 msg += '\n```\n' + ''.join(traceback.format_exception(*record.exc_info)).rstrip() + '\n```'
             return (
-                '- **%s** `[%s]` `%s:%s` - %s\n' % (
+                '- **%s** `[%s]` `%s:%s` — %s\n' % (
                     record.levelname,
                     self.formatTime(record, '%H:%M:%S'),
                     record.module,
@@ -979,7 +1014,7 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
             os.path.basename(log_file),
         ))
 
-    return log_file, None
+    return log_file, tee
 
 
 FLOW_HANDLERS = {
@@ -1018,9 +1053,22 @@ def _resetar_para_painel(driver) -> bool:
     """Fecha abas extras e navega para meu-painel para a próxima execução."""
     try:
         _limpar_acesso_negado(driver)
-        fechar_abas_extras(driver)
+        handles = driver.window_handles
+        if len(handles) > 1:
+            primeira = handles[0]
+            for h in handles[1:]:
+                try:
+                    driver.switch_to.window(h)
+                    driver.close()
+                except Exception:
+                    pass
+            handles_restantes = driver.window_handles
+            if primeira in handles_restantes:
+                driver.switch_to.window(primeira)
+            elif handles_restantes:
+                driver.switch_to.window(handles_restantes[0])
         try:
-            espera.ate_js(driver, "document.body.style.zoom='100%'", teto=0.1)
+            driver.execute_script("document.body.style.zoom='100%'")
         except Exception:
             pass
         driver.get(PAINEL_URL)
@@ -1133,7 +1181,8 @@ def main():
 
             # Verifica se o driver ainda está vivo antes de oferecer o loop
             try:
-                driver_vivo = bool(getattr(driver, 'current_url', None) or hasattr(driver, 'page'))
+                _ = driver.window_handles
+                driver_vivo = True
             except Exception:
                 driver_vivo = False
 

@@ -7,7 +7,9 @@ Funcoes:
 """
 
 import re
-from typing import Dict, Any
+from typing import Dict
+
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from bianca.api_client import PjeApiClient, session_from_driver
 
@@ -21,11 +23,11 @@ _FALHA_CITACAO = {
 }
 
 
-def def_citacao(driver: Any, processo_info: Dict) -> Dict:
+def def_citacao(driver: WebDriver, processo_info: Dict) -> Dict:
     """Analisa polo passivo e define tipo de citacao (ord/sum vs ordc/sumc).
 
     Args:
-        driver: Driver na pagina do processo.
+        driver: WebDriver na pagina do processo.
         processo_info: Dict com metadados do processo ('tipo').
 
     Returns:

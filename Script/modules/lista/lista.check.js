@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.3.3
+// lista.check.js v0.3.9
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -33,26 +33,24 @@ function _pjeTlClassApi(item) {
     const low = titulo + ' ' + desc;
     if (low.includes('devolucao de ordem') || low.includes('ordem de pesquisa patrimonial')) return 'Certidão devolução pesquisa';
     if (low.includes('certidao de oficial') || low.includes('oficial de justica')) return 'Certidão de oficial de justiça';
-    // "Expedição"/"expedido" na descrição nunca é alvará a liberar
-    const ehExpedicao = /(expedicao|expedido)/.test(low);
     // Mandado de pagamento NÃO é o alvará em si (é a certidão que o expede):
     // não entra na lista, mas fica marcado para a conferência (a descrição
     // traz nome + valor que são batidos em executarPgto).
-    if (titulo.includes('mandado de pagamento') && desc.includes('alvara')) return 'MandadoPagamento';
+    if (titulo.includes('mandado de pagamento')) return 'MandadoPagamento';
     if (low.includes('alvara')) {
-        if (ehExpedicao) return null;
-        // Anti-falso-positivo: descrição com "alvará" só é alvará real se o TIPO
-        // do documento for Alvará, Certidão, Mandado de pagamento ou Documento
-        // Diverso com descrição Alvará/SISCONDJ/SIF (ex.: "Manifestação (pedido de
-        // alvara reclamante)" NÃO entra).
-        const ehAlvara = desc.includes('alvara');
-        if ((titulo === 'alvara' && ehAlvara) ||
-            (titulo === 'certidao' && ehAlvara) ||
-            (titulo.includes('mandado de pagamento') && ehAlvara) ||
-            (titulo.includes('documento diverso') && /(alvara|siscondj|sif)/.test(desc))) {
-            return 'Alvarás';
-        }
-        return null;
+        // "Expedição"/"expedido" na descrição nunca é alvará a liberar
+        if (/(expedicao|expedido)/.test(low)) return null;
+        // Anti-falso-positivo pontual: "Manifestação (pedido de alvará)"
+        if (titulo.startsWith('manifestacao')) return null;
+        // Filtro de exclusão: tipo "Planilha" nunca é alvará a liberar.
+        // Checa o `low` completo (título + nomeDocumento + descrição), pois
+        // o título da API pode vir vazio e "Planilha de Cálculos" chega só
+        // na descrição (ex: "Planilha de Cálculos, dedução alvará2").
+        if (low.includes('planilha')) return null;
+        // Qualquer outra menção a "alvará" no tipo+nome+descrição entra
+        // (comportamento da v0.2.0, que detectava corretamente — a v0.3.3
+        // exigia alvará na descrição E título exato e perdia alvarás reais).
+        return 'Alvarás';
     }
     if (low.includes('sobrestamento')) return 'Decisao (Sobrestamento)';
     if (low.includes('serasa') || low.includes('apjur') || low.includes('carta acao')) return 'SerasaAntigo';
@@ -158,7 +156,11 @@ window.lerTimelineCompleta = async function () {
             ? anexosApi.filter(ax => _norm((ax.titulo || '') + ' ' + (ax.nomeDocumento || '')).includes('alvara'))
             : [];
 
-        if (!(ehCertidaoAlvara && anexosAlvara.length)) {
+        // Se é certidão de alvará COM anexo alvará, só o anexo entra na lista.
+        // A certidão é apenas um container/índice, não o documento real.
+        if (ehCertidaoAlvara && anexosAlvara.length) {
+            // Skip a certidão — só os anexos são processados abaixo.
+        } else {
             documentos.push({
                 tipo, texto: item.titulo || '', id: uid, idDoc, tipoTexto: '',
                 desc: (item.nomeDocumento || '') + ' ' + (item.descricao || ''),
@@ -490,6 +492,244 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
 // ── Estado persistente de seleção ──
 window._checkVisited = new Set();
 
+// ── Agrupamento de alvarás por beneficiário e valor ──
+// Agrupa alvarás não registrados por beneficiário, somando valores
+// e selecionando a data mais recente não registrada
+window.agruparAlvarasPorBeneficiario = function (docs) {
+    const alvaras = docs.filter(d => d.tipo === 'Alvarás' && !d.isAnexo);
+    
+    if (!alvaras.length) return [];
+    
+    // Agrupa por beneficiário (nome do autor/advogado/perito)
+    const grupos = {};
+    
+    alvaras.forEach(alv => {
+        // Tenta extrair beneficiário do texto/descrição
+        const texto = (alv.texto || '') + ' ' + (alv.desc || '');
+        const nomeBeneficiario = extrairNomeBeneficiario(texto);
+        
+        if (!nomeBeneficiario) return;
+        
+        if (!grupos[nomeBeneficiario]) {
+            grupos[nomeBeneficiario] = {
+                nome: nomeBeneficiario,
+                valorTotal: 0,
+                documentos: [],
+                dataMaisRecente: null,
+                flags: {}
+            };
+        }
+        
+        const grupo = grupos[nomeBeneficiario];
+        
+        // Extrai valor do alvará
+        const valor = extrairValorDoAlvara(texto);
+        grupo.valorTotal += valor;
+        
+        // Adiciona documento ao grupo
+        grupo.documentos.push({
+            ...alv,
+            valorExtrato: valor
+        });
+        
+        // Atualiza data mais recente
+        if (!grupo.dataMaisRecente || alv.data > grupo.dataMaisRecente) {
+            grupo.dataMaisRecente = alv.data;
+        }
+    });
+    
+    // Converte para array e ordena por valor total (maior primeiro)
+    return Object.values(grupos).sort((a, b) => b.valorTotal - a.valorTotal);
+};
+
+// Extrai nome do beneficiário do texto do alvará
+function extrairNomeBeneficiario(texto) {
+    if (!texto) return null;
+    
+    const low = texto.toLowerCase();
+    
+    // Busca padrão SISCONDJ: "Beneficiário: NOME"
+    const matchBeneficiario = texto.match(/beneficiario[.:]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+    if (matchBeneficiario) return matchBeneficiario[1].trim();
+    
+    // Se não achou "Beneficiário", tenta autor
+    const matchAutor = texto.match(/autor[.:]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+    if (matchAutor) return matchAutor[1].trim();
+    
+    // Tenta procurador/advogado
+    const matchProcurador = texto.match(/procurador[.:]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+    if (matchProcurador) return matchProcurador[1].trim();
+    
+    return null;
+}
+
+// Extrai valor monetário do texto do alvará
+function extrairValorDoAlvara(texto) {
+    if (!texto) return 0;
+    
+    // Busca padrão: "Valor Total: R$ X.XXX,XX" ou similar
+    // Ou "Valor Principal: R$ X.XXX,XX"
+    let valor = 0;
+    
+    // Tenta encontrar "Valor" seguido de número
+    const matchValor = texto.match(/valor\s+(?:principal|total|de\s+pagamento)?[.:]?\s*(\d{1,3}\.\d{3}(?:,\d{3})*\.\d{2})/i);
+    if (matchValor) {
+        valor = parseMoney(matchValor[1]);
+        if (valor > 0) return valor;
+    }
+    
+    // Tenta encontrar "Calculado em" com valor anterior
+    const matchCalculado = texto.match(/calculado\s+em[.:]?\s*(\d{1,3}\.\d{3}(?:,\d{3})*\.\d{2})/i);
+    if (matchCalculado) {
+        valor = parseMoney(matchCalculado[1]);
+        if (valor > 0) return valor;
+    }
+    
+    return 0;
+}
+
+// Parseia valor monetário (formato R$ X.XXX,XX ou X.XXX,XX)
+function parseMoney(str) {
+    if (!str) return 0;
+    
+    let text = String(str)
+        .replace(/R\$\s*/gi, '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .trim();
+    
+    const number = parseFloat(text);
+    return Number.isFinite(number) ? number : 0;
+}
+
+// Detecta flags baseados no conteúdo do alvará
+function detectarFlags(texto, flags) {
+    if (!texto) return;
+    
+    const low = texto.toLowerCase();
+    
+    // Autor → flag crédito
+    if (/^autor/.test(texto)) {
+        flags.credito = true;
+    }
+    
+    // Advogado/Procurador → flag honorários advocatícios
+    if (/^procurador/.test(texto) || /advogado/.test(low)) {
+        flags.honorariosAdvocaticios = true;
+    }
+    
+    // Perito → flag honorários periciais
+    if (/^perito/.test(texto)) {
+        flags.honorariosPericiais = true;
+    }
+    
+    // CONTRIB.PREVIDENC. → flag INSS
+    if (/contrib\.previdenc\./.test(low)) {
+        flags.inss = true;
+    }
+    
+    // Recolher GRU → flag custas
+    if (/recolher gru/.test(low)) {
+        flags.custas = true;
+    }
+}
+
+// Mostra resumo dos alvarás agrupados
+window.mostrarResumoAlvaras = function (grupos) {
+    if (!grupos || !grupos.length) {
+        showToast('Nenhum alvará encontrado', '#6c757d', 3000);
+        return;
+    }
+    
+    // Cria painel de resumo
+    const panelId = 'pjeResumoAlvaras';
+    document.getElementById(panelId)?.remove();
+    
+    const c = document.createElement('div');
+    c.id = panelId;
+    c.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);z-index:999999999;background:#fff;border:2px solid #0078aa;border-radius:8px;padding:20px;min-width:400px;max-width:600px;box-shadow:0 8px 32px rgba(0,0,0,.3);font-family:sans-serif;`;
+    
+    // Header
+    const hdr = document.createElement('div');
+    hdr.style.cssText = `display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;`;
+    hdr.innerHTML = `<h3 style="margin:0;color:#0078aa;font-size:16px">📋 Resumo de Alvarás (${grupos.length})</h3>` +
+        `<button style="background:none;border:none;font-size:20px;cursor:pointer;color:#666">✕</button>`;
+    const closeBtn = hdr.querySelector('button');
+    closeBtn.onclick = () => c.remove();
+    c.appendChild(hdr);
+    
+    // Lista de grupos
+    const lista = document.createElement('div');
+    lista.style.cssText = `max-height:300px;overflow:auto;margin-bottom:15px;`;
+    
+    grupos.forEach(grupo => {
+        const div = document.createElement('div');
+        div.style.cssText = `border:1px solid #eee;padding:10px;margin-bottom:10px;border-radius:4px;`;
+        
+        // Nome do beneficiário
+        const nomeDiv = document.createElement('div');
+        nomeDiv.style.cssText = `font-weight:bold;font-size:14px;margin-bottom:5px;`;
+        nomeDiv.textContent = grupo.nome;
+        div.appendChild(nomeDiv);
+        
+        // Flags
+        const flagsDiv = document.createElement('div');
+        flagsDiv.style.cssText = `font-size:12px;color:#666;margin-bottom:5px;`;
+        const flagLabels = [];
+        if (grupo.flags.credito) flagLabels.push('Crédito');
+        if (grupo.flags.honorariosAdvocaticios) flagLabels.push('Honorários Advocatícios');
+        if (grupo.flags.honorariosPericiais) flagLabels.push('Honorários Periciais');
+        if (grupo.flags.inss) flagLabels.push('INSS');
+        if (grupo.flags.custas) flagLabels.push('Custas');
+        flagsDiv.textContent = flagLabels.length ? `Flags: ${flagLabels.join(', ')}` : '';
+        div.appendChild(flagsDiv);
+        
+        // Valor total
+        const valorDiv = document.createElement('div');
+        valorDiv.style.cssText = `font-size:16px;font-weight:bold;color:#0078aa;margin-bottom:5px;`;
+        valorDiv.textContent = `Total: R$ ${grupo.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        div.appendChild(valorDiv);
+        
+        // Data mais recente
+        const dataDiv = document.createElement('div');
+        dataDiv.style.cssText = `font-size:12px;color:#666;`;
+        dataDiv.textContent = `Data mais recente: ${grupo.dataMaisRecente || 'Desconhecida'}`;
+        div.appendChild(dataDiv);
+        
+        lista.appendChild(div);
+    });
+    
+    c.appendChild(lista);
+    
+    // Botões de ação
+    const actions = document.createElement('div');
+    actions.style.cssText = `display:flex;gap:10px;justify-content:flex-end;`;
+    
+    const btnConfirmar = document.createElement('button');
+    btnConfirmar.textContent = '✅ Confirmar e Conferir';
+    btnConfirmar.style.cssText = `padding:8px 16px;background:#0078aa;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;`;
+    btnConfirmar.onclick = () => {
+        c.remove();
+        // Chama executarPgto para conferência
+        if (typeof window.executarPgto === 'function') {
+            setTimeout(() => window.executarPgto().catch(err =>
+                console.error('Erro ao executar conferir alvarás:', err)
+            ), 100);
+        }
+    };
+    
+    const btnCancelar = document.createElement('button');
+    btnCancelar.textContent = '❌ Cancelar';
+    btnCancelar.style.cssText = `padding:8px 16px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;`;
+    btnCancelar.onclick = () => c.remove();
+    
+    actions.appendChild(btnConfirmar);
+    actions.appendChild(btnCancelar);
+    c.appendChild(actions);
+    
+    document.body.appendChild(c);
+};
+
 async function onCheckRowClick(doc) {
     // ── CAMINHO 1: Documento principal — scroll + highlight persistente ──
     if (!doc.isAnexo) {
@@ -700,15 +940,20 @@ window.executarCheck = async function () {
                 e.stopPropagation();
                 e.preventDefault();
                 try {
-                    if (typeof window.executarPgto === 'function') {
-                        // Delay para garantir que painel não é removido antes do executarPgto
-                        setTimeout(() => window.executarPgto().catch(err =>
-                            console.error('Erro ao executar conferir alvarás:', err)
-                        ), 100);
+                    // 1) Agrupa alvarás por beneficiário e valor
+                    const docs = await lerTimelineCompleta();
+                    const filtrados = filtrarDocs(docs);
+                    const grupos = window.agruparAlvarasPorBeneficiario(filtrados);
+                    
+                    // 2) Mostra resumo antes de confirmar
+                    if (grupos.length > 0) {
+                        window.mostrarResumoAlvaras(grupos);
                     } else {
-                        console.warn('executarPgto não encontrado');
+                        showToast('Nenhum alvará não registrado encontrado', '#6c757d', 3000);
                     }
-                } catch (e) { console.error('Erro ao executar conferir alvarás:', e); }
+                } catch (err) {
+                    console.error('Erro ao preparar conferência de alvarás:', err);
+                }
             };
 
             // Inserir antes do botão fechar (último botão no header)

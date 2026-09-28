@@ -1,75 +1,22 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from typing import Optional, Any
 from Fix.utils import remover_acentos
 
 from .core import *
-from Fix.core import (
-    aguardar_renderizacao_nativa,
-    safe_click,
-    safe_click_no_scroll,
-    esperar_elemento,
-    buscar_seletor_robusto,
-)
-import Fix.espera as espera
+from Fix.core import aguardar_renderizacao_nativa, safe_click_no_scroll
+from Fix.selenium_base import safe_click_no_scroll
+
+from typing import Optional
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support.ui import WebDriverWait
 
 
-def _obter_abas(driver) -> list:
-    """Retorna lista de handles/páginas de forma unificada."""
-    context = getattr(driver, 'context', None)
-    if context and hasattr(context, 'pages'):
-        return list(context.pages)
-    handles = getattr(driver, '_handles', None)
-    if handles:
-        return list(handles.keys())
-    return list(getattr(driver, 'window_handles', []))
-
-
-def _trocar_para_aba(driver, aba) -> None:
-    """Troca o foco para a aba especificada (Page do Playwright ou handle)."""
-    if hasattr(aba, 'bring_to_front'):
-        aba.bring_to_front()
-        if hasattr(driver, '_page'):
-            driver._page = aba
-    elif isinstance(aba, str):
-        driver.switch_to.window(aba)
-
-
-def _trocar_para_aba_detalhe(driver, debug: bool = False) -> bool:
-    """Busca e troca para a aba que contém /detalhe na URL."""
-    url_atual = getattr(driver, 'current_url', '') or ''
-    if '/detalhe' in url_atual:
-        return True
-
-    context = getattr(driver, 'context', None)
-    if context and hasattr(context, 'pages'):
-        for p in context.pages:
-            if '/detalhe' in (p.url or ''):
-                p.bring_to_front()
-                if hasattr(driver, '_page'):
-                    driver._page = p
-                if debug:
-                    logger.debug(f"[MOV] Aba /detalhe encontrada: {p.url}")
-                return True
-
-    for h in _obter_abas(driver):
-        try:
-            _trocar_para_aba(driver, h)
-            if '/detalhe' in (getattr(driver, 'current_url', '') or ''):
-                if debug:
-                    logger.debug(f"[MOV] Aba /detalhe encontrada: {driver.current_url}")
-                return True
-        except Exception:
-            continue
-
-    return False
-
-
-def _localizar_botao_tarefa(driver: Any, timeout: int = 8):
+def _localizar_botao_tarefa(driver: WebDriver, timeout: int = 8):
     """Tentativa robusta de localizar o botão 'Abrir tarefa do processo'.
     Retorna WebElement ou None.
     """
+    from selenium.webdriver.common.by import By
     try:
         # 1) seletor canônico
         btn = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout)
@@ -92,8 +39,8 @@ def _localizar_botao_tarefa(driver: Any, timeout: int = 8):
         alt = ["button[mattooltip*='tarefa']", "button[aria-label*='tarefa']", "button[title*='tarefa']"]
         for s in alt:
             try:
-                el = espera.elemento(driver, s, teto=1)
-                if el and getattr(el, 'is_displayed', lambda: True)():
+                el = driver.find_element(By.CSS_SELECTOR, s)
+                if el and el.is_displayed():
                     return el
             except Exception:
                 continue
@@ -103,8 +50,10 @@ def _localizar_botao_tarefa(driver: Any, timeout: int = 8):
     return None
 
 
-def _obter_tarefa_atual_robusta(driver: Any, timeout: int = 6, debug: bool = False) -> Optional[str]:
+def _obter_tarefa_atual_robusta(driver: WebDriver, timeout: int = 6, debug: bool = False) -> Optional[str]:
     """Obtém a tarefa atual sem depender do cabeçalho da tarefa estar renderizado."""
+    from selenium.webdriver.common.by import By
+
     seletores_tarefa = [
         'pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1, pje-cabecalho-tarefa',
         'span.texto-tarefa-processo',
@@ -114,17 +63,17 @@ def _obter_tarefa_atual_robusta(driver: Any, timeout: int = 6, debug: bool = Fal
 
     for seletor in seletores_tarefa:
         try:
-            for el in espera.elementos(driver, seletor, teto=1):
-                texto = (getattr(el, 'text', '') or '').strip()
+            for el in driver.find_elements(By.CSS_SELECTOR, seletor):
+                texto = (el.text or '').strip()
                 if texto:
                     return texto
         except Exception:
             continue
 
-    url_atual = getattr(driver, 'current_url', '') or ''
+    url_atual = driver.current_url or ''
     if '/tarefa/' in url_atual:
         try:
-            titulo = (getattr(driver, 'title', '') or '').strip()
+            titulo = (driver.title or '').strip()
             if titulo:
                 return titulo
         except Exception:
@@ -135,37 +84,31 @@ def _obter_tarefa_atual_robusta(driver: Any, timeout: int = 6, debug: bool = Fal
         try:
             tarefa_btn = _localizar_botao_tarefa(driver, timeout=max(2, timeout // 2))
             if tarefa_btn:
-                tarefa_texto = ''
                 try:
-                    span_tarefa = espera.elemento(driver, '.texto-tarefa-processo', teto=1)
-                    if span_tarefa and (getattr(span_tarefa, 'text', '') or '').strip():
-                        tarefa_texto = span_tarefa.text.strip()
+                    span_tarefa = tarefa_btn.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
+                    tarefa_texto = (span_tarefa.text or '').strip()
                 except Exception:
-                    pass
-
-                if not tarefa_texto:
-                    tarefa_texto = (getattr(tarefa_btn, 'text', '') or '').strip()
+                    tarefa_texto = (tarefa_btn.text or '').strip()
 
                 if tarefa_texto:
                     if debug:
                         logger.info(f'[MOV_INT] Tarefa identificada pelo botão: {tarefa_texto}')
 
                     try:
-                        handle_orig = getattr(driver, 'current_window_handle', None)
+                        abas_antes = set(driver.window_handles)
                         if safe_click_no_scroll(driver, tarefa_btn, log=debug):
                             try:
-                                from Fix.browser_suporte import aguardar_nova_aba
-                                if handle_orig:
-                                    nova_aba = aguardar_nova_aba(driver, handle_orig, timeout=4)
-                                    if nova_aba:
-                                        driver.switch_to.window(nova_aba)
+                                from Fix.abas import aguardar_nova_aba
+                                nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=4)
+                                if nova_aba:
+                                    driver.switch_to.window(nova_aba)
                             except Exception:
                                 pass
 
                             for seletor_fallback in ['pje-cabecalho-tarefa h1.titulo-tarefa', 'span.texto-tarefa-processo', 'mat-card-title', 'h1']:
                                 try:
-                                    for el in espera.elementos(driver, seletor_fallback, teto=1):
-                                        texto = (getattr(el, 'text', '') or '').strip()
+                                    for el in driver.find_elements(By.CSS_SELECTOR, seletor_fallback):
+                                        texto = (el.text or '').strip()
                                         if texto:
                                             return texto
                                 except Exception:
@@ -181,7 +124,7 @@ def _obter_tarefa_atual_robusta(driver: Any, timeout: int = 6, debug: bool = Fal
 
 
 def mov_simples(
-    driver: Any,
+    driver: WebDriver,
     seletor_alvo: str,
     texto_confirmacao: Optional[str] = None,
     debug: bool = False,
@@ -196,6 +139,10 @@ def mov_simples(
     5. Clica no botão alvo
     6. (Opcional) Confirma ação
     """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
     def log_debug(msg):
         if debug:
             try:
@@ -206,7 +153,18 @@ def mov_simples(
     try:
         # ===== ETAPA 1: GARANTIR QUE ESTÁ EM /DETALHE =====
         log_debug("Buscando aba /detalhe...")
-        if not _trocar_para_aba_detalhe(driver, debug=debug):
+        abas_atuais = driver.window_handles
+        aba_detalhe = None
+
+        for aba in abas_atuais:
+            driver.switch_to.window(aba)
+            url_atual = driver.current_url
+            if '/detalhe' in url_atual:
+                aba_detalhe = aba
+                log_debug(f" Aba /detalhe encontrada: {url_atual}")
+                break
+
+        if not aba_detalhe:
             logger.error('[MOV_SIMPLES][ERRO] Aba /detalhe não encontrada!')
             return False
 
@@ -220,22 +178,19 @@ def mov_simples(
         # Captura o texto da tarefa
         tarefa_do_botao = None
         try:
-            span_tarefa = espera.elemento(driver, '.texto-tarefa-processo', teto=1)
-            if span_tarefa and (getattr(span_tarefa, 'text', '') or '').strip():
+            span_tarefa = btn_abrir_tarefa.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
+            if span_tarefa:
                 tarefa_do_botao = span_tarefa.text.strip()
                 log_debug(f"Tarefa identificada: '{tarefa_do_botao}'")
         except Exception:
-            pass
-
-        if not tarefa_do_botao:
             try:
-                tarefa_do_botao = (getattr(btn_abrir_tarefa, 'text', '') or '').strip()
+                tarefa_do_botao = btn_abrir_tarefa.text.strip()
                 log_debug(f"Tarefa identificada (texto completo): '{tarefa_do_botao}'")
             except Exception:
                 log_debug("Não foi possível capturar nome da tarefa")
 
         # Clica na tarefa (usar estratégia sem scroll/dispatchEvent)
-        handle_orig = getattr(driver, 'current_window_handle', None)
+        abas_antes = set(driver.window_handles)
         click_resultado = safe_click_no_scroll(driver, btn_abrir_tarefa, log=debug)
 
         if not click_resultado:
@@ -244,9 +199,8 @@ def mov_simples(
 
         nova_aba = None
         try:
-            from Fix.browser_suporte import aguardar_nova_aba
-            if handle_orig:
-                nova_aba = aguardar_nova_aba(driver, handle_orig, timeout=6)
+            from Fix.abas import aguardar_nova_aba
+            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=6)
         except Exception:
             pass
 
@@ -258,23 +212,22 @@ def mov_simples(
 
         # ===== ETAPA 4: PROCURAR E CLICAR NO BOTÃO ALVO =====
         log_debug(f"Procurando botão alvo: {seletor_alvo}")
-        btn_alvo = espera.elemento(driver, seletor_alvo, teto=timeout//2)
-        if btn_alvo:
+        try:
+            btn_alvo = WebDriverWait(driver, timeout//2).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_alvo))
+            )
             safe_click(driver, btn_alvo)
-        else:
+        except Exception:
             logger.error(f'[MOV_SIMPLES][ERRO] Botão alvo não encontrado: {seletor_alvo}')
             return False
 
         # ===== ETAPA 5: CONFIRMAÇÃO (OPCIONAL) =====
         if texto_confirmacao:
             try:
-                xpath_confirma = f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]]"
-                btn_confirma = espera.elemento(driver, xpath_confirma, teto=timeout//2)
-                if btn_confirma:
-                    safe_click(driver, btn_confirma)
-                else:
-                    logger.error(f'[MOV_SIMPLES][ERRO] Não foi possível clicar no botão de confirmação "{texto_confirmacao}"')
-                    return False
+                btn_confirma = WebDriverWait(driver, timeout//2).until(
+                    EC.element_to_be_clickable((By.XPATH, f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]]"))
+                )
+                btn_confirma.click()
             except Exception as e:
                 logger.error(f'[MOV_SIMPLES][ERRO] Não foi possível clicar no botão de confirmação "{texto_confirmacao}": {e}')
                 return False
@@ -287,7 +240,7 @@ def mov_simples(
 
 
 def mov(
-    driver: Any,
+    driver: WebDriver,
     seletor_alvo: str,
     texto_confirmacao: Optional[str] = None,
     debug: bool = False,
@@ -305,6 +258,9 @@ def mov(
     6. (Opcional) Confirma ação se texto_confirmacao for fornecido
     """
     logger.info(f'[MOV] Iniciando movimento geral - Seletor: {seletor_alvo}')
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
 
     def log_debug(msg):
         if debug:
@@ -313,74 +269,95 @@ def mov(
             except Exception:
                 pass
 
+    def buscar_aba_detalhe():
+        """Busca e troca para aba /detalhe"""
+        log_debug("Buscando aba /detalhe...")
+        abas_atuais = driver.window_handles
+        aba_detalhe = None
+        
+        for aba in abas_atuais:
+            driver.switch_to.window(aba)
+            url_atual = driver.current_url
+            if '/detalhe' in url_atual:
+                aba_detalhe = aba
+                log_debug(f"✅ Aba /detalhe encontrada: {url_atual}")
+                break
+        
+        if aba_detalhe:
+            driver.switch_to.window(aba_detalhe)
+            return True
+        else:
+            logger.error('[MOV][ERRO] Aba /detalhe não encontrada!')
+            return False
+    
     def tentar_encontrar_alvo():
         """Tenta encontrar o botão alvo, com fallback para Análise"""
         try:
             # Primeira tentativa: buscar o alvo diretamente
-            btn_alvo = espera.elemento(driver, seletor_alvo, teto=timeout//3)
-            if btn_alvo:
-                safe_click(driver, btn_alvo)
-                return True
+            btn_alvo = WebDriverWait(driver, timeout//3).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_alvo))
+            )
+            safe_click(driver, btn_alvo)
+            return True
         except Exception:
-            pass
+            # Verificar se já está em "Análise" - se sim, e botão não encontrado, está correto
+            if seletor_alvo == "button[aria-label='Aguardando prazo']":
+                try:
+                    # Verificar se estamos em uma tarefa de análise
+                    elementos_analise = driver.find_elements(By.XPATH, "//*[contains(translate(text(), 'ANÁLISE', 'análise'), 'análise')]")
+                    em_analise = any('análise' in el.text.lower() for el in elementos_analise if el.is_displayed())
+                    if em_analise:
+                        log_debug("Já está em 'Análise' e botão 'Aguardando prazo' não disponível - está correto")
+                        return True
+                except Exception:
+                    pass
 
-        # Verificar se já está em "Análise" - se sim, e botão não encontrado, está correto
-        if seletor_alvo == "button[aria-label='Aguardando prazo']":
-            try:
-                # Verificar se estamos em uma tarefa de análise
-                elementos_analise = espera.elementos(driver, "//*[contains(translate(text(), 'ANÁLISE', 'análise'), 'análise')]", teto=1)
-                em_analise = any('análise' in (getattr(el, 'text', '') or '').lower() for el in elementos_analise if getattr(el, 'is_displayed', lambda: True)())
-                if em_analise:
-                    log_debug("Já está em 'Análise' e botão 'Aguardando prazo' não disponível - está correto")
-                    return True
-            except Exception:
-                pass
-
-        # SEMPRE tenta clicar em "Análise" se não encontrar o alvo
-        log_debug("Botão alvo não encontrado. Tentando clicar em 'Análise'...")
-        btn_analise = None
-        
-        # Busca por texto "Análise"
-        btns_analise = espera.elementos(driver, "//button[contains(translate(normalize-space(text()), 'ANÁLISE', 'análise'), 'análise')]", teto=2)
-        for btn in btns_analise:
-            if getattr(btn, 'is_displayed', lambda: True)() and getattr(btn, 'is_enabled', lambda: True)():
-                btn_analise = btn
-                break
-        
-        # Fallback: busca por aria-label
-        if not btn_analise:
-            btns_analise = espera.elementos(driver, "button[aria-label*='Análise']", teto=2)
+            # SEMPRE tenta clicar em "Análise" se não encontrar o alvo
+            log_debug("Botão alvo não encontrado. Tentando clicar em 'Análise'...")
+            btn_analise = None
+            
+            # Busca por texto "Análise"
+            btns_analise = driver.find_elements(By.XPATH, "//button[contains(translate(normalize-space(text()), 'ANÁLISE', 'análise'), 'análise')]")
             for btn in btns_analise:
-                if getattr(btn, 'is_displayed', lambda: True)() and getattr(btn, 'is_enabled', lambda: True)():
+                if btn.is_displayed() and btn.is_enabled():
                     btn_analise = btn
                     break
-        
-        if btn_analise:
-            safe_click(driver, btn_analise)
-            try:
-                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao', modo='aparecer', timeout=8)
-            except Exception:
-                pass
             
-            # Segunda tentativa: buscar o alvo após Análise
-            try:
-                btn_alvo = espera.elemento(driver, seletor_alvo, teto=timeout//3)
-                if btn_alvo:
+            # Fallback: busca por aria-label
+            if not btn_analise:
+                btns_analise = driver.find_elements(By.CSS_SELECTOR, "button[aria-label*='Análise']")
+                for btn in btns_analise:
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_analise = btn
+                        break
+            
+            if btn_analise:
+                safe_click(driver, btn_analise)
+                try:
+                    aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao', modo='aparecer', timeout=8)
+                except Exception:
+                    pass
+                
+                # Segunda tentativa: buscar o alvo após Análise
+                try:
+                    btn_alvo = WebDriverWait(driver, timeout//3).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_alvo))
+                    )
                     safe_click(driver, btn_alvo)
                     return True
-            except Exception:
-                pass
-            log_debug("Botão alvo não encontrado mesmo após 'Análise'")
-            return False
-        else:
-            log_debug("Botão 'Análise' não encontrado")
-            return False
+                except Exception:
+                    log_debug("Botão alvo não encontrado mesmo após 'Análise'")
+                    return False
+            else:
+                log_debug("Botão 'Análise' não encontrado")
+                return False
     
     # Máximo de 2 tentativas completas
     for tentativa in range(1, 3):
         try:
+            
             # ===== ETAPA 1: GARANTIR QUE ESTÁ EM /DETALHE =====
-            if not _trocar_para_aba_detalhe(driver, debug=debug):
+            if not buscar_aba_detalhe():
                 logger.error(f'[MOV][ERRO] Tentativa {tentativa}: Não foi possível encontrar aba /detalhe')
                 if tentativa == 2:  # Última tentativa
                     return False
@@ -398,22 +375,19 @@ def mov(
             # Captura o texto da tarefa antes do clique
             tarefa_do_botao = None
             try:
-                span_tarefa = espera.elemento(driver, '.texto-tarefa-processo', teto=1)
-                if span_tarefa and (getattr(span_tarefa, 'text', '') or '').strip():
+                span_tarefa = btn_abrir_tarefa.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
+                if span_tarefa:
                     tarefa_do_botao = span_tarefa.text.strip()
                     log_debug(f"Tarefa identificada: '{tarefa_do_botao}'")
             except Exception:
-                pass
-
-            if not tarefa_do_botao:
                 try:
-                    tarefa_do_botao = (getattr(btn_abrir_tarefa, 'text', '') or '').strip()
+                    tarefa_do_botao = btn_abrir_tarefa.text.strip()
                     log_debug(f"Tarefa identificada (texto completo): '{tarefa_do_botao}'")
                 except Exception:
                     log_debug("Não foi possível capturar nome da tarefa")
             
             # Clica na tarefa (usar dispatchEvent/sem scroll)
-            handle_orig = getattr(driver, 'current_window_handle', None)
+            abas_antes = set(driver.window_handles)
             click_resultado = safe_click_no_scroll(driver, btn_abrir_tarefa, log=debug)
             
             if not click_resultado:
@@ -424,9 +398,8 @@ def mov(
 
             nova_aba = None
             try:
-                from Fix.browser_suporte import aguardar_nova_aba
-                if handle_orig:
-                    nova_aba = aguardar_nova_aba(driver, handle_orig, timeout=6)
+                from Fix.abas import aguardar_nova_aba
+                nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=6)
             except Exception:
                 pass
             
@@ -441,13 +414,10 @@ def mov(
                 # ===== ETAPA 5: CONFIRMAÇÃO (OPCIONAL) =====
                 if texto_confirmacao:
                     try:
-                        xpath_confirma = f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]]"
-                        btn_confirma = espera.elemento(driver, xpath_confirma, teto=timeout//2)
-                        if btn_confirma:
-                            safe_click(driver, btn_confirma)
-                        else:
-                            logger.error(f'[MOV][ERRO] Botão de confirmação "{texto_confirmacao}" não encontrado')
-                            return False
+                        btn_confirma = WebDriverWait(driver, timeout//2).until(
+                            EC.element_to_be_clickable((By.XPATH, f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]]"))
+                        )
+                        btn_confirma.click()
                     except Exception as e:
                         logger.error(f'[MOV][ERRO] Não foi possível clicar no botão de confirmação "{texto_confirmacao}": {e}')
                         return False
@@ -460,15 +430,11 @@ def mov(
                     return False
                 # Fechar aba da tarefa antes de tentar novamente
                 try:
-                    abas = _obter_abas(driver)
-                    if nova_aba and nova_aba in abas:
-                        try:
-                            driver.close()
-                        except Exception:
-                            pass
-                        abas_restantes = _obter_abas(driver)
-                        if abas_restantes:
-                            _trocar_para_aba(driver, abas_restantes[0])
+                    if nova_aba and nova_aba in driver.window_handles:
+                        driver.close()
+                        # Voltar para primeira aba disponível
+                        if driver.window_handles:
+                            driver.switch_to.window(driver.window_handles[0])
                 except Exception:
                     pass
                 continue
@@ -488,13 +454,15 @@ def _remover_acentos(texto: str) -> str:
     return remover_acentos(texto)
 
 
-def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int = 8):
+def _localizar_botao_destino_movimento(driver: WebDriver, destino: str, timeout: int = 8):
     """Localiza o botão de destino alinhado ao gigs-plugin/mini-selenium:
     1. Aguarda pje-botoes-transicao ter pelo menos 5 botões (esperarColecao)
     2. Busca por textContent normalizado (removeAcento + includes) — tal como querySelectorByText
     3. Fallback para busca global de botões na página
     4. Fallback para aria-label / title
     """
+    from selenium.webdriver.common.by import By
+
     destino_lower = (destino or '').strip().lower()
     if not destino_lower:
         return None
@@ -509,8 +477,8 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
 
     def _match(el) -> bool:
         try:
-            texto = _texto_normalizado((getattr(el, 'text_content', None) and el.text_content()) or getattr(el, 'text', '') or '')
-            return destino_normalizado in texto and getattr(el, 'is_displayed', lambda: True)() and not el.get_attribute('disabled')
+            texto = _texto_normalizado(el.text or driver.execute_script('return arguments[0].textContent;', el))
+            return destino_normalizado in texto and el.is_displayed() and not el.get_attribute('disabled')
         except Exception:
             return False
 
@@ -519,7 +487,7 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
 
     # 2. Dentro de pje-botoes-transicao (alvo primário)
     try:
-        for el in espera.elementos(driver, 'pje-botoes-transicao button', teto=2):
+        for el in driver.find_elements(By.CSS_SELECTOR, 'pje-botoes-transicao button'):
             if _match(el):
                 return el
     except Exception:
@@ -527,7 +495,7 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
 
     # 3. Qualquer botão visível na página (fallback global)
     try:
-        for el in espera.elementos(driver, 'button', teto=2):
+        for el in driver.find_elements(By.TAG_NAME, 'button'):
             if _match(el):
                 return el
     except Exception:
@@ -535,9 +503,9 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
 
     # 4. aria-label / title
     try:
-        for el in espera.elementos(driver, 'button[aria-label], button[title]', teto=2):
+        for el in driver.find_elements(By.CSS_SELECTOR, 'button[aria-label], button[title]'):
             attr = (el.get_attribute('aria-label') or el.get_attribute('title') or '')
-            if destino_normalizado in _texto_normalizado(attr) and getattr(el, 'is_displayed', lambda: True)() and not el.get_attribute('disabled'):
+            if destino_normalizado in _texto_normalizado(attr) and el.is_displayed() and not el.get_attribute('disabled'):
                 return el
     except Exception:
         pass
@@ -545,7 +513,7 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
     return None
 
 
-def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
+def abrir_tarefa_por_api(driver: WebDriver, timeout: int = 10) -> bool:
     """Abre a tarefa mais recente do processo via API REST (padrão gigs-plugin).
     
     Estratégia:
@@ -622,7 +590,7 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
         return False
 
 
-def _tarefa_atual_via_api(driver: Any) -> Optional[str]:
+def _tarefa_atual_via_api(driver: WebDriver) -> Optional[str]:
     """Nome da tarefa mais recente do processo via API, SEM navegar o browser.
 
     Consulta o mesmo endpoint de abrir_tarefa_por_api
@@ -667,7 +635,8 @@ def _tarefa_atual_via_api(driver: Any) -> Optional[str]:
         return None
 
 
-def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15, profundidade: int = 0, pular_abertura_api: bool = False) -> bool:
+def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15, profundidade: int = 0, pular_abertura_api: bool = False) -> bool:
+    from selenium.webdriver.common.by import By
 
     def log(msg):
         try:
@@ -814,9 +783,10 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
         except Exception:
             pass
         return False
+        return False
 
 
-def clicar_ultimo_lance(driver: Any, texto_ultimo_lance: str, timeout: int = 5) -> bool:
+def clicar_ultimo_lance(driver, texto_ultimo_lance: str, timeout: int = 5) -> bool:
     """Tenta clicar no último lance indicado pelo texto.
 
     Retorna True se clicou, False caso contrário.
@@ -833,10 +803,10 @@ def clicar_ultimo_lance(driver: Any, texto_ultimo_lance: str, timeout: int = 5) 
         if not btn:
             # tentar buscar por parcial do texto
             try:
-                btns = espera.elementos(driver, f"//button[contains(., '{texto_ultimo_lance}')]", teto=max(2, timeout//2))
+                btns = driver.find_elements_by_xpath(f"//button[contains(., '{texto_ultimo_lance}')]")
                 for b in btns:
                     try:
-                        if getattr(b, 'is_displayed', lambda: True)() and getattr(b, 'is_enabled', lambda: True)():
+                        if b.is_displayed() and b.is_enabled():
                             btn = b
                             break
                     except Exception:

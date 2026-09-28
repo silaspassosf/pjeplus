@@ -12,17 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-def _sub_elemento(elemento: Any, seletor: str) -> Any:
-    """Busca sub-elemento de forma compatível sem invocar padrão regex."""
-    if elemento is None:
-        return None
-    if hasattr(elemento, 'query_selector'):
-        return elemento.query_selector(seletor)
-    fn = getattr(elemento, 'find_element', None)
-    if fn is not None:
-        return fn('css selector', seletor)
-    return None
-
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from atos.judicial import ato_fal, ato_prov, ato_termoS
 from atos.movimentos import def_chip, mov_sob, mov_fimsob
@@ -54,8 +45,7 @@ if not logger.handlers:
 
 
 # Sobrestamento vencido deve ser processado por ÚLTIMO, imediatamente antes de SISBAJUD
-# xs sigilo: bucket próprio, logo após o 1º bloco (xs_sob) e antes de carta
-BUCKET_ORDEM = ['xs_sob', 'xs_sigilo', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud_teimosinha', 'sisbajud_resultado']
+BUCKET_ORDEM = ['xs_sob', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud_teimosinha', 'sisbajud_resultado']
 
 
 # ─── helpers: acoes com logica interna ou assinatura especial ────────────────
@@ -270,7 +260,7 @@ def _executar_sisbajud(driver, atv, fn_sisb):
     else:
         try:
             # Teste rápido para ver se a janela não foi fechada pelo usuário ou quebrou
-            _ = getattr(_shared_driver_sisb, 'window_handles', None)
+            _ = _shared_driver_sisb.window_handles
         except Exception:
             logger.info('[SISBAJUD] Driver compartilhado morto. Reinicializando...')
             _shared_driver_sisb = iniciar_sisbajud(driver_pje=driver, extrair_dados=False)
@@ -436,8 +426,7 @@ registry.register(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b|\bedi
 registry.register(r'\bpec\s+dec\b|\bxs\s+pec\s+dec\b',                 'comunicacoes', _w(_a(w, 'pec_decisao')))
 registry.register(r'\bpec\s+idpj\b|\bxs\s+pec\s+idpj\b',               'comunicacoes', _w(_a(w, 'pec_editalidpj')))
 registry.register(r'\bxs\s+bloq\b|\bpec\s+bloq\b',                     'comunicacoes', _w(_a(w, 'pec_bloqueio')))
-registry.register(r'\bxs\s+sigilo\b',                                   'xs_sigilo', _xs_sigilo)
-registry.register(r'\bexequente\s+pessoal\b',                           'comunicacoes', _w(_a(w, 'pec_exeq')))
+registry.register(r'\bxs\s+sigilo\b',                                   'comunicacoes', _xs_sigilo)
 # ── OUTROS ────────────────────────────────────────────────────────────────────
 registry.register(r'\bxs\s+audx\b|\baudx\b|\baud\s+x\b',               'outros',   _audx_mov_int)
 registry.register(r'\bxs\s+parcial\b',                                  'outros',   _xs_parcial)
@@ -527,12 +516,8 @@ def _data_para_numerico(data_texto: Optional[str]) -> Optional[str]:
 def _data_decisao_do_item(item) -> Optional[str]:
     """Data da decisão no item da timeline (title do .tl-item-hora, LEGADO.md 30830-30845)."""
     try:
-        hora = _sub_elemento(item, '.tl-item-hora')
-        if not hora:
-            return None
-        titulo = (getattr(hora, 'get_attribute', lambda a: '')('title') or
-                  (getattr(hora, 'text_content', None) and hora.text_content()) or
-                  getattr(hora, 'text', '') or '')
+        hora = item.find_element(By.CSS_SELECTOR, '.tl-item-hora')
+        titulo = hora.get_attribute('title') or hora.text or ''
     except Exception:
         return None
     return _data_para_numerico(titulo)
@@ -547,7 +532,7 @@ def _selecionar_decisao_timeline(driver):
     2) primeiro documento relevante, se nenhum tiver o ícone.
     """
     try:
-        itens = espera.elementos(driver, 'li.tl-item-container', teto=2)
+        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
     except Exception:
         itens = []
     if not itens:
@@ -556,23 +541,23 @@ def _selecionar_decisao_timeline(driver):
 
     fallback = None
     for item in itens:
-        link = _sub_elemento(item, 'a.tl-documento:not([target="_blank"])')
-        if not link:
+        try:
+            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+        except Exception:
             continue
-        link_texto = (getattr(link, 'text_content', None) and link.text_content()) or getattr(link, 'text', '') or ''
-        if not _RELEVANTE_DOC_RE.search(link_texto):
+        if not _RELEVANTE_DOC_RE.search(link.text or ''):
             continue
         if fallback is None:
             fallback = (link, _data_decisao_do_item(item))
-        magistrado_icon = _sub_elemento(item, 'div.tl-icon[aria-label*="Magistrado"]')
-        if not magistrado_icon:
+        try:
+            item.find_element(By.CSS_SELECTOR, 'div.tl-icon[aria-label*="Magistrado"]')
+        except Exception:
             continue
-        logger.debug(f"[DEF_SOB] Decisão assinada por magistrado: '{link_texto}'")
+        logger.debug(f"[DEF_SOB] Decisão assinada por magistrado: '{link.text}'")
         return link, _data_decisao_do_item(item)
 
     if fallback is not None:
-        fallback_texto = (getattr(fallback[0], 'text_content', None) and fallback[0].text_content()) or getattr(fallback[0], 'text', '') or ''
-        logger.debug(f"[DEF_SOB] Documento relevante (sem ícone de magistrado): '{fallback_texto}'")
+        logger.debug(f"[DEF_SOB] Documento relevante (sem ícone de magistrado): '{fallback[0].text}'")
     return fallback if fallback is not None else (None, None)
 
 
@@ -586,12 +571,11 @@ def _data_sobrestamento_na_tarefa(driver) -> Optional[datetime]:
     )
     for seletor in seletores:
         try:
-            celulas = espera.elementos(driver, seletor, teto=1)
+            celulas = driver.find_elements(By.CSS_SELECTOR, seletor)
         except Exception:
             continue
         for celula in celulas:
-            celula_texto = (getattr(celula, 'text_content', None) and celula.text_content()) or getattr(celula, 'text', '') or ''
-            data_str = _data_para_numerico(celula_texto)
+            data_str = _data_para_numerico(celula.text or '')
             if not data_str:
                 continue
             try:
@@ -609,7 +593,7 @@ def _match_def_sob(texto_norm: str, chave: str) -> bool:
     return any(gerar_regex_geral(termo).search(texto_norm) for termo in DEF_SOB_TERMOS[chave])
 
 
-def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Optional[str]:
+def _extrair_decisao_sobrestamento_api(driver: WebDriver, timeout: int = 10) -> Optional[str]:
     """
     Extrai conteúdo da decisão de sobrestamento via API REST + pdfplumber.
     ANTES de clicar no documento (enquanto URL ainda é /processo).
@@ -891,7 +875,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
         if not mov_fimsob(driver, debug=debug):
             logger.error('[DEF_SOB][JUIZO] mov_fimsob falhou')
             return False
-        if aba_processo in getattr(driver, 'window_handles', []):
+        if aba_processo in driver.window_handles:
             driver.switch_to.window(aba_processo)
         return bool(ato_fal(driver, debug=debug))
 
@@ -914,7 +898,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
         try:
             if not mov_fimsob(driver, debug=debug):
                 return False
-            if aba_processo in getattr(driver, 'window_handles', []):
+            if aba_processo in driver.window_handles:
                 driver.switch_to.window(aba_processo)
             return bool(ato_prov(driver, debug=debug))
         except Exception as e:

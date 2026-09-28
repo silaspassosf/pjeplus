@@ -1,19 +1,17 @@
-from typing import Optional, Tuple, Dict, List, Union, Callable, Any
+from typing import Optional, Tuple, Dict, List, Union, Callable
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
 from Fix import espera
 from Fix.utils import login_pc
-from Fix.core import (
-    safe_click,
-    safe_click_no_scroll,
-    esperar_elemento,
-    esperar_url_conter,
-    aguardar_e_clicar,
-    selecionar_opcao,
-    preencher_campo,
-    aguardar_renderizacao_nativa,
-    aplicar_filtro_100,
-    buscar_documentos_sequenciais,
-)
+from Fix.selenium_base.element_interaction import safe_click, preencher_campos_prazo
+from Fix.selenium_base.wait_operations import esperar_elemento, esperar_url_conter
+from Fix.selenium_base.retry_logic import buscar_seletor_robusto, com_retry
+from Fix.selenium_base.click_operations import aguardar_e_clicar
+from Fix.selenium_base import selecionar_opcao, preencher_campo
 from Fix.extracao import criar_gigs
+from Fix.core import aplicar_filtro_100, buscar_documentos_sequenciais
 from Fix.utils import limpar_temp_selenium
 from Fix.extracao import indexar_e_processar_lista, extrair_dados_processo, carregar_destinatarios_cache
 from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
@@ -25,34 +23,34 @@ from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 logger = logging.getLogger(__name__)
 
 
-def _is_doc_ready_complete(driver: Any) -> bool:
-    try:
-        if hasattr(driver, 'page'):
-            return bool(driver.page.evaluate("() => document.readyState === 'complete'"))
-        return True
-    except Exception:
-        return True
-
-
 def selecionar_opcao_select(
-    driver: Any,
+    driver: WebDriver,
     seletor: str,
     texto_opcao: str,
     timeout: int = 10
 ) -> bool:
     """
     Seleciona uma opção em um mat-select de forma robusta.
+    
+    Args:
+        driver: WebDriver do Selenium
+        seletor: Seletor CSS do elemento mat-select
+        texto_opcao: Texto da opção a selecionar
+        timeout: Timeout em segundos (padrão: 10)
+    
+    Returns:
+        bool: True se selecionado com sucesso, False caso contrário
     """
     try:
         if not espera.ate_habilitar(driver, seletor, teto=timeout):
             raise Exception(f'{seletor} não habilitou')
-        safe_click_no_scroll(driver, seletor)
+        select = driver.find_element(By.CSS_SELECTOR, seletor)
+        select.send_keys(Keys.ENTER)
         espera.ate_aparecer(driver, 'mat-option', teto=timeout)
-        opcoes = espera.elementos(driver, 'mat-option', teto=timeout)
+        opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option')
         for opcao in opcoes:
-            txt = getattr(opcao, 'text', '') or ''
-            if texto_opcao.lower() in txt.lower():
-                safe_click(driver, opcao)
+            if texto_opcao.lower() in opcao.text.lower():
+                opcao.click()
                 return True
         raise Exception(f'Opção "{texto_opcao}" não encontrada em {seletor}!')
     except Exception as e:
@@ -61,7 +59,7 @@ def selecionar_opcao_select(
 
 
 def verificar_carregamento_pagina(
-    driver: Any,
+    driver: WebDriver,
     timeout_spinner: float = 1.0,
     max_tentativas: int = 5,
     log: bool = False
@@ -69,67 +67,85 @@ def verificar_carregamento_pagina(
     """
     Verifica se a página está em estado de carregamento (spinner visível).
     Continua tentando até o spinner desaparecer - NÃO desiste facilmente.
+    
+    Args:
+        driver: WebDriver do Selenium
+        timeout_spinner: Tempo em segundos para aguardar entre tentativas (padrão: 1.0)
+        max_tentativas: Número máximo de tentativas de reload (padrão: 5)
+        log: Ativa logs detalhados
+    
+    Returns:
+        bool: True se a página carregou corretamente, False se falhou após todas tentativas
     """
+    # Script JavaScript otimizado e rápido
+    JS_CHECK_LOADING = """
+    if (document.readyState !== 'complete') return 'loading';
+    const spinner = document.querySelector('mat-progress-spinner, mat-spinner, .mat-progress-spinner');
+    if (spinner && window.getComputedStyle(spinner).display !== 'none') return 'spinner';
+    return 'complete';
+    """
+    
     for tentativa in range(1, max_tentativas + 1):
-        espera.assentar(driver, timeout_spinner, motivo='aguardar spinner')
+        time.sleep(timeout_spinner)
         
         try:
-            _sel = 'mat-progress-spinner, mat-spinner, .mat-progress-spinner, .loading-spinner, .loading-overlay, .modal-backdrop, .cdk-overlay-backdrop'
+            # Quick observer-based check (avoid polling when possible)
             try:
-                _ok = aguardar_renderizacao_nativa(driver, _sel, modo='sumir', timeout=timeout_spinner)
+                from Fix.core import aguardar_renderizacao_nativa as _observer_wait
+                _sel = 'mat-progress-spinner, mat-spinner, .mat-progress-spinner, .loading-spinner, .loading-overlay, .modal-backdrop, .cdk-overlay-backdrop'
+                _ok = _observer_wait(driver, _sel, modo='sumir', timeout=timeout_spinner)
             except Exception:
                 _ok = False
 
             if _ok:
-                if _is_doc_ready_complete(driver):
+                try:
+                    if driver.execute_script("return document.readyState") == "complete":
+                        return True
+                except Exception:
                     return True
 
-            status = 'complete'
-            if hasattr(driver, 'page'):
-                try:
-                    status = driver.page.evaluate("""() => {
-                        if (document.readyState !== 'complete') return 'loading';
-                        const spinner = document.querySelector('mat-progress-spinner, mat-spinner, .mat-progress-spinner');
-                        if (spinner && window.getComputedStyle(spinner).display !== 'none') return 'spinner';
-                        return 'complete';
-                    }""")
-                except Exception:
-                    status = 'complete'
+            # Verificação rápida via JavaScript com timeout implícito do driver
+            status = driver.execute_script(JS_CHECK_LOADING)
             
             if status == 'complete':
                 return True
             
             if status == 'loading':
-                espera.assentar(driver, 0.3, motivo='aguardar readyState complete')
-                if _is_doc_ready_complete(driver):
+                # Aguarda mais um pouco e verifica de novo
+                time.sleep(0.3)
+                if driver.execute_script("return document.readyState") == "complete":
                     return True
             
+            # Spinner ou loading persistente - refresh
             if log:
                 logger.warning(f"[CARREGAMENTO] Status={status}, F5...")
             
             driver.refresh()
             try:
-                espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
+                WebDriverWait(driver, 10).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete"
+                )
             except Exception:
                 pass
             
             try:
-                aguardar_renderizacao_nativa(driver, 'mat-progress-spinner, mat-spinner, .loading-spinner, .loading-overlay', 'sumir', 5)
+                from Fix.core import aguardar_renderizacao_nativa as _obs
+                _obs(driver, 'mat-progress-spinner, mat-spinner, .loading-spinner, .loading-overlay', 'sumir', 5)
             except Exception:
-                espera.assentar(driver, 0.5, motivo='espera de segurança pós reload')
+                time.sleep(0.5)
             
         except Exception as e:
             if log:
                 logger.warning(f"[CARREGAMENTO] Erro: {e}")
-            return True
+            return True  # Em caso de erro, prossegue
     
     if log:
-        logger.error(f"[CARREGAMENTO] Falha após {max_tentativas} tentativas")
+        logger.error(f"[CARREGAMENTO]  Falha após {max_tentativas} tentativas")
     raise NavegacaoError(f"verificar_carregamento_pagina: falha após {max_tentativas} tentativas")
 
 
 def aguardar_e_verificar_aba(
-    driver: Any,
+    driver: WebDriver,
     url_esperada: str = None,
     timeout_aba: int = 10,
     timeout_spinner: float = 2.0,
@@ -138,13 +154,28 @@ def aguardar_e_verificar_aba(
 ) -> bool:
     """
     Aguarda uma nova aba carregar e verifica se não está travada no spinner.
+    Útil para quando se abre uma nova aba (tarefa ou minuta) e precisa garantir que carregou.
+    
+    Args:
+        driver: WebDriver do Selenium
+        url_esperada: Parte da URL esperada na nova aba (ex: '/tarefa', '/minutar'). None para não verificar.
+        timeout_aba: Timeout em segundos para aguardar a URL esperada
+        timeout_spinner: Tempo em segundos para aguardar antes de verificar o spinner
+        max_tentativas_reload: Número máximo de tentativas de reload se detectar spinner
+        log: Ativa logs detalhados
+    
+    Returns:
+        bool: True se a aba carregou corretamente, False caso contrário
     """
     try:
+        # Se URL esperada foi especificada, aguarda ela aparecer
         if url_esperada:
             if not espera.ate_url(driver, url_esperada, teto=timeout_aba):
                 if log:
-                    logger.warning(f"[ABA] Timeout aguardando URL com '{url_esperada}'. URL atual: {driver.current_url}")
+                    logger.warning(f"[ABA]  Timeout aguardando URL com '{url_esperada}'. URL atual: {driver.current_url}")
+                # Continua mesmo assim para verificar o carregamento
         
+        # Verifica se a página carregou (não está travada no spinner)
         return verificar_carregamento_pagina(
             driver,
             timeout_spinner=timeout_spinner,
@@ -158,7 +189,7 @@ def aguardar_e_verificar_aba(
 
 
 def verificar_carregamento_detalhe(
-    driver: Any,
+    driver: WebDriver,
     timeout_inicial: float = 2.0,
     max_tentativas: int = 3,
     log: bool = False
@@ -166,7 +197,22 @@ def verificar_carregamento_detalhe(
     """
     Verifica se a página /detalhe carregou corretamente.
     A página /detalhe não tem spinner, então verificamos a presença do botão de filtro.
+    
+    Indicador de página carregada:
+    <button mat-mini-fab color="branco" aria-label="Filtrar" class="mat-mini-fab... botao-menu">
+        <i class="fa fa-filter botao-menu-texto"></i>
+    </button>
+    
+    Args:
+        driver: WebDriver do Selenium
+        timeout_inicial: Tempo em segundos para aguardar antes de verificar (padrão: 2.0)
+        max_tentativas: Número máximo de tentativas de reload (padrão: 3)
+        log: Ativa logs detalhados
+    
+    Returns:
+        bool: True se a página carregou corretamente, False se falhou após todas tentativas
     """
+    # Seletores para o botão de filtro que indica página carregada
     FILTRO_SELECTORS = [
         'button[aria-label="Filtrar"] i.fa-filter',
         'button.botao-menu i.fa-filter',
@@ -177,33 +223,41 @@ def verificar_carregamento_detalhe(
     ]
     
     for tentativa in range(1, max_tentativas + 1):
+        # Quick observer-based check first (no fixed sleep)
         try:
+            from Fix.core import aguardar_renderizacao_nativa as _observer_wait
             SELECTOR_JOINED = ', '.join(FILTRO_SELECTORS)
             try:
-                _found = aguardar_renderizacao_nativa(driver, SELECTOR_JOINED, modo='aparecer', timeout=timeout_inicial)
+                _found = _observer_wait(driver, SELECTOR_JOINED, modo='aparecer', timeout=timeout_inicial)
             except Exception:
                 _found = False
             if _found:
-                if _is_doc_ready_complete(driver):
+                try:
+                    if driver.execute_script("return document.readyState") == "complete":
+                        return True
+                except Exception:
                     return True
         except Exception:
             pass
 
+        # Verifica se a URL contém /detalhe
         try:
             current_url = driver.current_url or ''
             if '/detalhe' not in current_url.lower():
                 if log:
                     logger.warning(f"[DETALHE] URL não contém /detalhe: {current_url}")
+                # Não é página de detalhe, retorna True para não bloquear
                 return True
         except Exception:
             pass
         
+        # Verifica presença do botão de filtro
         filtro_encontrado = False
         for selector in FILTRO_SELECTORS:
             try:
-                elementos = espera.elementos(driver, selector, teto=1)
+                elementos = driver.find_elements(By.CSS_SELECTOR, selector)
                 for elemento in elementos:
-                    if getattr(elemento, 'is_displayed', lambda: True)():
+                    if elemento.is_displayed():
                         filtro_encontrado = True
                         break
                 if filtro_encontrado:
@@ -212,37 +266,47 @@ def verificar_carregamento_detalhe(
                 continue
         
         if filtro_encontrado:
+            # Verifica também se o readyState está completo
             try:
-                if _is_doc_ready_complete(driver):
+                ready_state = driver.execute_script("return document.readyState")
+                if ready_state == "complete":
                     return True
                 else:
                     try:
-                        aguardar_renderizacao_nativa(driver, SELECTOR_JOINED, 'aparecer', 2)
+                        from Fix.core import aguardar_renderizacao_nativa as _obs2
+                        _obs2(driver, SELECTOR_JOINED, 'aparecer', 2)
                     except Exception:
                         pass
-                    if _is_doc_ready_complete(driver):
+                    ready_state = driver.execute_script("return document.readyState")
+                    if ready_state == "complete":
                         return True
             except Exception:
                 pass
             
+            # Botão encontrado, considera carregado
             return True
         
+        # Botão não encontrado - página não carregou
         if log:
-            logger.warning(f"[DETALHE] Botão de filtro não encontrado na tentativa {tentativa}. Recarregando página (F5)...")
+            logger.warning(f"[DETALHE]  Botão de filtro não encontrado na tentativa {tentativa}. Recarregando página (F5)...")
         
         try:
             driver.refresh()
             try:
-                aguardar_renderizacao_nativa(driver, SELECTOR_JOINED, 'aparecer', 5)
+                from Fix.core import aguardar_renderizacao_nativa as _obs3
+                _obs3(driver, SELECTOR_JOINED, 'aparecer', 5)
             except Exception:
                 pass
-            espera.ate_js(driver, "document.readyState === 'complete'", teto=15)
+            # Aguarda readyState ficar completo
+            WebDriverWait(driver, 15).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
         except Exception as e:
             if log:
                 logger.error(f"[DETALHE] Erro ao recarregar página: {e}")
     
-    logger.error(f"[DETALHE] Falha após {max_tentativas} tentativas. Página /detalhe não carregou.")
+    # Esgotou tentativas
+    logger.error(f"[DETALHE]  Falha após {max_tentativas} tentativas. Página /detalhe não carregou.")
     raise NavegacaoError(f"verificar_carregamento_detalhe: falha após {max_tentativas} tentativas")
-
 
 

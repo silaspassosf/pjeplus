@@ -1,12 +1,20 @@
 # -*- coding: utf-8 -*-
-"""Ponto de entrada do PJePlus sobre Playwright nativo com medição.
+"""Ponto de entrada do PJePlus, nos dois motores, com medicao comparavel.
 
-    py pw.py                     # Playwright nativo
+Mesmo `x.py`, mesmos fluxos, mesma instrumentacao - so o motor muda. E isso que
+permite comparar sem vies: qualquer diferenca no relatorio vem do backend, nao
+de o teste ser diferente.
+
+    py pw.py                     # Playwright (nativo ligado)
     py pw.py --seletores         # + monitor de assertividade de seletores e fallbacks
+    py pw.py --selenium          # Selenium, para o baseline
     py pw.py --trace             # + trace.zip navegavel do Playwright
+    py pw.py --sem-nativo        # so compatibilidade, sem helpers nativos
     py pw.py --comparar a.json b.json
 
-Cada execucao grava um relatorio em play/medicoes/.
+Cada execucao grava um relatorio em play/medicoes/. Rodando o mesmo lote de
+processos nos dois motores, `--comparar` separa o ganho do motor do ganho da
+reescrita.
 """
 import os
 import sys
@@ -34,11 +42,13 @@ def main():
         i = sys.argv.index("--comparar")
         return _comparar(sys.argv[i + 1], sys.argv[i + 2])
 
+    selenium = "--selenium" in sys.argv
     trace = "--trace" in sys.argv
-    backend = "playwright"
+    backend = "selenium" if selenium else "playwright"
 
-    import pjeplay
-    pjeplay.iniciar(raiz_projeto=RAIZ, nativo=True)
+    if not selenium:
+        import pjeplay
+        pjeplay.iniciar(raiz_projeto=RAIZ, nativo="--sem-nativo" not in sys.argv)
 
     # Purga de progresso: remove de todos os fluxos os processos executados
     # ou com erro ha mais de 2 dias (ou sem data registrada). Nao bloqueia.
@@ -64,7 +74,7 @@ def main():
     rotulo = f"{backend}-{marca}"
 
     driver_visto = []
-    if trace:
+    if trace and not selenium:
         import Fix.driver_factory as factory
         criar_original = factory.criar_driver_PC
 

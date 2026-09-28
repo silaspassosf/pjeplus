@@ -1,13 +1,20 @@
-import re
-import logging
-from typing import Any
+"""
+atos.anexos.extracao - Extração de dados do PJe.
+"""
 
+import logging
 logger = logging.getLogger(__name__)
 
+import re
+from typing import Optional
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 
-def extrair_numero_processo_da_url(driver: Any) -> str:
+
+def extrair_numero_processo_da_url(driver: WebDriver) -> str:
+    """Extrai o número do processo da URL atual."""
     try:
-        url_atual = getattr(driver, 'current_url', '') or ''
+        url_atual = driver.current_url
         padroes = [
             r'processo/(\d+)',
             r'processoTrfId=(\d+)',
@@ -26,4 +33,3 @@ def extrair_numero_processo_da_url(driver: Any) -> str:
         return f"URL_{hash(url_atual) % 10000}"
     except Exception as e:
         return f"ERRO_{str(e)[:20]}"
-

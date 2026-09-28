@@ -13,7 +13,12 @@ from contextlib import contextmanager
 from typing import Dict, Any, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Selenium imports removed — Playwright native
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from Fix import espera
 from Fix.core import (
@@ -26,17 +31,6 @@ from Fix.variaveis import PjeApiClient, obter_gigs_com_fase, session_from_driver
 from core.resultado_execucao import ResultadoExecucao
 
 logger = logging.getLogger(__name__)
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS via driver de forma compatível."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
 
 # ═══════════════════════════════════════════════
 # ── 1. loop_base.py ──
@@ -78,7 +72,7 @@ def pausar_confirmacao(acao: str, detalhe: str = '') -> bool:
         return True
 
 
-def log_seletor_vencedor(acao: str, by: Any, seletor: str) -> None:
+def log_seletor_vencedor(acao: str, by: By, seletor: str) -> None:
     """Registra qual seletor funcionou em ações com múltiplas tentativas."""
     logger.info(f"[SELETOR][{acao}] Vencedor: by={by} seletor={seletor}")
 
@@ -266,7 +260,7 @@ return selecionarProcessos(arguments[0]);
 # ── 2. loop_helpers.py ──
 # ═══════════════════════════════════════════════
 
-def _extrair_numero_processo_da_linha(linha_elemento: Any) -> Optional[str]:
+def _extrair_numero_processo_da_linha(linha_elemento: WebElement) -> Optional[str]:
     """Extrai número de processo de um elemento <tr> da tabela de atividades.
 
     Procura por <a> (links) que contenham o padrão de número de processo:
@@ -284,9 +278,9 @@ def _extrair_numero_processo_da_linha(linha_elemento: Any) -> Optional[str]:
 
         # Estratégia 1: Procurar em links <a> (localização padrão no PJe)
         try:
-            links = espera.elementos(linha_elemento, 'a', teto=0.1)
+            links = linha_elemento.find_elements(By.CSS_SELECTOR, 'a')
             for link in links:
-                texto = getattr(link, 'text', '').strip()
+                texto = link.text.strip()
                 match = padrao_processo.search(texto)
                 if match:
                     return match.group(1)
@@ -308,13 +302,13 @@ def _extrair_numero_processo_da_linha(linha_elemento: Any) -> Optional[str]:
         return None
 
 
-def selecionar_processos_nao_livres(driver: Any, max_processos: int = 20) -> Tuple[int, bool]:
+def selecionar_processos_nao_livres(driver: WebDriver, max_processos: int = 20) -> Tuple[int, bool]:
     """Seleciona processos não livres (com prazo preenchido, comentário ou campo preenchido).
     Retorna (quantidade_selecionada, ha_mais) onde ha_mais indica se há mais processos além do limite.
     """
     try:
         # Executar script JavaScript para seleção
-        resultado = _executar_js(driver, SCRIPT_SELECAO_NAO_LIVRES, max_processos)
+        resultado = driver.execute_script(SCRIPT_SELECAO_NAO_LIVRES, max_processos)
 
         if resultado == -1:
             logger.error('[LOOP_PRAZO][ERRO] Falha no script de selecao de nao livres')
@@ -341,12 +335,12 @@ def selecionar_processos_nao_livres(driver: Any, max_processos: int = 20) -> Tup
 # ── 3. loop_api.py ──
 # ═══════════════════════════════════════════════
 
-def _selecionar_processos_por_gigs_aj_jt(driver: Any, client: 'PjeApiClient') -> int:
+def _selecionar_processos_por_gigs_aj_jt(driver: WebDriver, client: 'PjeApiClient') -> int:
     """Seleciona processos com atividade GIGS AJ-JT apenas em fase LIQUIDAÇÃO."""
     try:
         if not pausar_confirmacao('CICLO2/GIGS_AJ_JT', 'Iniciar varredura e seleção de processos com AJ-JT'):
             return 0
-        linhas = espera.elementos(driver, 'tr.cdk-drag', teto=1)
+        linhas = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
         processos_com_gigs = []
 
         for linha in linhas:
@@ -376,8 +370,7 @@ def _selecionar_processos_por_gigs_aj_jt(driver: Any, client: 'PjeApiClient') ->
         if processos_com_gigs:
             if not pausar_confirmacao('CICLO2/GIGS_AJ_JT_SCRIPT', f'Selecionar {len(processos_com_gigs)} processo(s) via script JS'):
                 return 0
-            selecionados = _executar_js(
-                driver,
+            selecionados = driver.execute_script(
                 SCRIPT_SELECAO_GIGS_AJ_JT,
                 processos_com_gigs
             )
@@ -385,7 +378,10 @@ def _selecionar_processos_por_gigs_aj_jt(driver: Any, client: 'PjeApiClient') ->
             try:
                 aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.5)
             except Exception:
-                espera.ate_js(driver, "document.readyState === 'complete'", teto=1.5)
+                try:
+                    WebDriverWait(driver, 1.5).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+                except Exception:
+                    pass
             return selecionados
 
         logger.info('[CICLO2][GIGS-AJ-JT] Nenhum processo com atividade AJ-JT encontrado')
@@ -457,7 +453,7 @@ def _obter_processos_com_gigs_api(client: 'PjeApiClient', numeros_processos: Lis
 # ── 4. loop_ciclo1.py ──
 # ═══════════════════════════════════════════════
 
-def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
+def ciclo1(driver: WebDriver, opcao_destino: str = 'Análise') -> Union[bool, str]:
     """
     Orquestra ciclo 1: filtro, marcação, suitcase, movimentação para painel 14.
 
@@ -482,8 +478,8 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
 
     # ===== VERIFICAÇÃO PRÉVIA: Lista já vazia antes do filtro =====
     try:
-        mensagem_vazia = espera.elementos(driver, "//span[contains(text(), 'Não há processos neste tema')]", teto=0.5)
-        if mensagem_vazia and any(getattr(el, 'is_displayed', lambda: True)() for el in mensagem_vazia):
+        mensagem_vazia = driver.find_elements(By.XPATH, "//span[contains(text(), 'Não há processos neste tema')]")
+        if mensagem_vazia and any(el.is_displayed() for el in mensagem_vazia):
             logger.info('[CICLO1] Lista já vazia antes do filtro - nada a processar')
             return "no_more_processes"
     except Exception:
@@ -504,8 +500,11 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
         except Exception:
-            espera.ate_js(driver, "document.readyState === 'complete'", teto=1)
-        processos = espera.elementos(driver, 'tbody tr.tr-class', teto=1)
+            try:
+                WebDriverWait(driver, 1).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+            except Exception:
+                pass
+        processos = driver.find_elements(By.CSS_SELECTOR, 'tbody tr.tr-class')
         qtd_processos = len(processos)
         logger.info(f'[CICLO1] Detectados {qtd_processos} processo(s) na lista')
 
@@ -579,7 +578,7 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
 # ── 5. __init__.py (loop parts) ──
 # ═══════════════════════════════════════════════
 
-def loop_prazo(driver: Any) -> Dict[str, Any]:
+def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
     """Função wrapper que executa o fluxo completo de prazo (ciclo1 + ciclo2)"""
     try:
         # lazy import to avoid circular dependency with loop_execucao_final
@@ -594,7 +593,7 @@ def loop_prazo(driver: Any) -> Dict[str, Any]:
         # Espera dinâmica: aguardar elemento chave do painel de atividades
         try:
             if espera.elemento(driver, "//span[contains(text(), 'Fase processual')]", teto=12, visivel=False) is None:
-                raise TimeoutError()
+                raise TimeoutException()
             logger.info('[LOOP_PRAZO] Elemento "Fase processual" presente - prosseguindo')
         except Exception:
             logger.info('[LOOP_PRAZO] Timeout aguardando elemento "Fase processual" - prosseguindo mesmo assim')

@@ -1,20 +1,28 @@
 import time
 import re
-from typing import Any
+from selenium.webdriver.common.by import By
 from Fix.log import getmodulelogger
 logger = getmodulelogger(__name__)
 
 from Fix.core import aguardar_renderizacao_nativa, esperar_url_conter
 from Fix.abas import aguardar_nova_aba
+
 from Fix.variaveis import url_processo_detalhe
 from .core import aguardar_e_clicar
 
 
-def abrir_minutas(driver: Any, debug: bool = False) -> bool:
+def abrir_minutas(driver, debug=False):
+    """Tenta navegação direta para a página de minutas; faz fallback para navegação por cliques.
+    Retorna True se a tela de minutas estiver pronta, levanta Exception em erro crítico.
+    """
     try:
-        current_url = getattr(driver, 'current_url', '') or ''
+        current_url = driver.current_url
+        if debug:
+            logger.info(f'[URL] URL atual: {current_url}')
 
         if '/comunicacoesprocessuais/minutas' in current_url:
+            if debug:
+                logger.info('[URL] Já está na página de minutas; pulando redirecionamento.')
             return True
 
         match = re.search(r'/processo/(\d+)/detalhe', current_url)
@@ -23,11 +31,26 @@ def abrir_minutas(driver: Any, debug: bool = False) -> bool:
 
         processo_id = match.group(1)
         url_minutas = url_processo_detalhe(processo_id, "comunicacoesprocessuais/minutas")
+        if debug:
+            logger.info(f'[URL] Abrindo URL de minutas: {url_minutas}')
 
-        driver.switch_to.new_window('tab')
-        driver.get(url_minutas)
+        aba_atual = driver.current_window_handle
+        driver.execute_script(f"window.open('{url_minutas}', '_blank');")
 
+        try:
+            nova_aba = aguardar_nova_aba(driver, aba_atual, timeout=10)
+        except Exception:
+            nova_aba = None
+
+        if not nova_aba:
+            raise Exception('Nova aba de minutas não abriu')
+
+        driver.switch_to.window(nova_aba)
+        driver.execute_script("window.focus();")
+
+        # Aguardar readyState == complete (padrao PEC, sem suposicoes de spinner)
         if not aguardar_renderizacao_nativa(driver, timeout=15):
+            logger.info('[MINUTAS] Timeout readyState; refresh na aba')
             try:
                 driver.refresh()
             except Exception:

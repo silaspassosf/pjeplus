@@ -29,7 +29,10 @@ import time
 import unicodedata
 from Fix.utils import remover_acentos, normalizar_texto
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List
+
+# Selenium
+from selenium.webdriver.remote.webdriver import WebDriver
 
 # ===== IMPORTS PESADOS REMOVIDOS (LAZY LOADING) =====
 # Movidos para cache sob demanda para carregamento 8-10x mais rápido
@@ -49,7 +52,7 @@ def _lazy_import_mandado_regras():
         from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, extrair_destinatarios_decisao, indexar_e_processar_lista
         from Fix.core import buscar_mandado_autor
         from Fix.extracao import criar_gigs
-        from Fix.core import esperar_elemento, aguardar_e_clicar
+        from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
         from Fix.utils import limpar_temp_selenium, configurar_recovery_driver
         
         _mandado_regras_modules_cache.update({
@@ -74,7 +77,7 @@ def _lazy_import_mandado_regras():
 
 # Módulos Locais (mantidos leves)
 from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
-from Fix.core import preencher_campo
+from Fix.selenium_base import preencher_campo
 from Fix.extracao import salvar_destinatarios_cache
 from Fix.abas import validar_conexao_driver
 from Fix import espera
@@ -660,7 +663,7 @@ ESTRATEGIAS_ARGOS_DESPACHO = [
 
 
 def aplicar_regras_argos(
-    driver: Any,
+    driver: WebDriver,
     resultado_sisbajud: Dict[str, str],
     sigilo_anexos: Dict[str, str],
     tipo_documento: str,
@@ -673,7 +676,7 @@ def aplicar_regras_argos(
     aplicando atos judiciais conforme padrões identificados.
     
     Args:
-        driver: conectado ao PJe
+        driver: WebDriver Selenium conectado a PJe
         resultado_sisbajud: Dict com resultado da consulta SISBAJUD
         sigilo_anexos: Dict com status de sigilo por tipo de anexo
         tipo_documento: Tipo do documento (despacho, decisão, etc)

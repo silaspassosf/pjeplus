@@ -10,20 +10,12 @@ logger = logging.getLogger(__name__)
 
 import os
 import re
+import time
 import types
 from typing import Optional, Dict, Any, Callable, Union, List
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS de forma compatível sem invocar padrão regex."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 # Imports do Fix
 from Fix import espera
@@ -65,19 +57,15 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         campo = elementos_campo[0]
 
         # 2. Clica no elemento pai para abrir dropdown (padrão GIGS)
-        _executar_js(driver, """
-            const el = arguments[0];
-            const p = el.closest('mat-form-field') || (el.parentElement ? el.parentElement.parentElement : el);
-            if (p) p.click();
-        """, campo)
+        parent_element = campo.find_element(By.XPATH, '../..')
+        safe_click_no_scroll(driver, parent_element)
 
         # 3. Aguarda opções aparecerem e clica na desejada
         espera.ate_aparecer(driver, "mat-option[role='option']", teto=3)
-        opcoes = espera.elementos(driver, "mat-option[role='option']", teto=3)
+        opcoes = driver.find_elements(By.CSS_SELECTOR, "mat-option[role='option']")
 
         for opcao in opcoes:
-            texto = (getattr(opcao, 'text_content', None) and opcao.text_content()) or getattr(opcao, 'text', '') or ''
-            if valor.lower() in texto.lower():
+            if valor.lower() in opcao.text.lower():
                 safe_click_no_scroll(driver, opcao)
                 print(f'[JUNTADA][DEBUG] {nome_campo} selecionado: {valor}')
                 return True
@@ -104,7 +92,7 @@ def _preencher_input_gigs(self, seletor: str, valor: str, nome_campo: str) -> bo
         campo = elementos_campo[0]
 
         # Implementa exatamente como no gigs-plugin.js usando JavaScript
-        resultado = _executar_js(driver, """
+        resultado = driver.execute_script("""
             const elemento = arguments[0];
             const valor = arguments[1];
 
@@ -178,7 +166,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                 # Tenta encontrar o elemento
                 if ':contains(' in sel:
                     # Para seletores com :contains, usar JavaScript
-                    elemento = _executar_js(driver, """
+                    elemento = driver.execute_script("""
                         const buttons = document.querySelectorAll('button');
                         return Array.from(buttons).find(btn =>
                             btn.textContent.trim().toLowerCase().includes('salvar') ||
@@ -186,7 +174,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                         );
                     """)
                 else:
-                    elementos = espera.elementos(driver, sel, teto=1)
+                    elementos = driver.find_elements(By.CSS_SELECTOR, sel)
                     elemento = elementos[0] if elementos else None
 
                 if elemento:
@@ -196,20 +184,16 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                     for tentativa in range(2):
                         try:
                             # Scroll para o elemento
-                            _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", elemento)
+                            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", elemento)
 
                             # Verifica se elemento é clicável
-                            is_enabled = getattr(elemento, 'is_enabled', None)
-                            is_displayed = getattr(elemento, 'is_displayed', None)
-                            ok_enabled = is_enabled() if callable(is_enabled) else True
-                            ok_displayed = is_displayed() if callable(is_displayed) else True
-                            if ok_enabled and ok_displayed:
+                            if elemento.is_enabled() and elemento.is_displayed():
                                 # Tenta clique JavaScript
                                 safe_click_no_scroll(driver, elemento)
                                 print(f'[JUNTADA][DEBUG] ✅ Clique realizado: {nome_elemento} (seletor {i+1}, tentativa {tentativa + 1})')
                                 return True
                             else:
-                                print(f'[JUNTADA][DEBUG] Elemento não clicável (enabled: {ok_enabled}, visible: {ok_displayed})')
+                                print(f'[JUNTADA][DEBUG] Elemento não clicável (enabled: {elemento.is_enabled()}, visible: {elemento.is_displayed()})')
                                 espera.assentar(driver, 0.2)
 
                         except Exception as e:
@@ -258,17 +242,13 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             logger.error('[JUNTADA][ERRO] Campo de filtro não encontrado')
             return False
 
-        _executar_js(driver, 'arguments[0].focus(); arguments[0].value = arguments[1];', campo_filtro_modelo, modelo)
+        driver.execute_script('arguments[0].focus(); arguments[0].value = arguments[1];', campo_filtro_modelo, modelo)
         for ev in ['input', 'change', 'keyup']:
-            _executar_js(driver, 'var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
+            driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
         try:
-            fn_press = getattr(campo_filtro_modelo, 'press', None)
-            if fn_press:
-                fn_press('Enter')
-            else:
-                _executar_js(driver, "arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));", campo_filtro_modelo)
+            campo_filtro_modelo.send_keys(Keys.ENTER)
         except Exception:
-            _executar_js(driver, "arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));", campo_filtro_modelo)
+            driver.execute_script("arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));", campo_filtro_modelo)
 
         # 2) Clica no item destacado .nodo-filtrado
         seletor_item_filtrado = '.nodo-filtrado'
@@ -279,12 +259,12 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
                 logger.error('[JUNTADA][ERRO] Nenhum item de modelo encontrado na árvore')
                 return False
 
-        nodos = espera.elementos(driver, seletor_item_filtrado, teto=2)
+        nodos = driver.find_elements(By.CSS_SELECTOR, seletor_item_filtrado)
         if not nodos:
             logger.error('[JUNTADA][ERRO] Elemento do modelo não encontrado')
             return False
         nodo = nodos[0]
-        _executar_js(driver, 'arguments[0].scrollIntoView({block:"center"}); arguments[0].click();', nodo)
+        driver.execute_script('arguments[0].scrollIntoView({block:"center"}); arguments[0].click();', nodo)
         logger.info('[JUNTADA][DEBUG] Clique no nodo do modelo realizado')
 
         # 3) O diálogo DEVE entrar no DOM antes do clique em Inserir (padrão atos/judicial_fluxo.py)
@@ -294,7 +274,7 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         # 4) GUARDA ANTI-CORRIDA ESSENCIAL: 500ms após o diálogo entrar no DOM,
         # para o preview/teor do modelo carregar e o botão Inserir ser ligado.
         # Clicar antes disso insere editor VAZIO!
-        espera.assentar(driver, 0.5, 'aguarda preview/teor carregar no dialogo')
+        time.sleep(0.5)
 
         seletor_btn_inserir_aria = 'button[aria-label="Inserir modelo de documento"]'
         seletor_btn_inserir_css = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
@@ -302,7 +282,7 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
 
         btn_inserir = None
         for sel in [seletor_btn_inserir_aria, seletor_btn_inserir_css, seletor_btn_inserir_fallback]:
-            btn_inserir = wait_for_clickable(driver, sel, timeout=3)
+            btn_inserir = wait_for_clickable(driver, sel, timeout=3, by=By.CSS_SELECTOR)
             if btn_inserir:
                 break
 
@@ -310,7 +290,7 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             logger.error('[JUNTADA][ERRO] Botão Inserir modelo não encontrado!')
             return False
 
-        _executar_js(driver, 'arguments[0].click();', btn_inserir)
+        driver.execute_script('arguments[0].click();', btn_inserir)
         logger.info('[JUNTADA][DEBUG] Clique em Inserir modelo realizado')
 
         # 5) Aguarda diálogo fechar
@@ -326,7 +306,15 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             var html = area.innerHTML || '';
             return html.includes('--') || txt.length > 20 || area.querySelector('table') !== null;
         """
-        modelo_carregado = bool(espera.ate_js(driver, js_editor_carregou, teto=8))
+        modelo_carregado = False
+        for tentativa in range(15):
+            try:
+                if driver.execute_script(js_editor_carregou):
+                    modelo_carregado = True
+                    break
+            except Exception:
+                pass
+            time.sleep(0.5)
 
         if modelo_carregado:
             logger.info('[JUNTADA][DEBUG] Modelo inserido com sucesso (conteúdo confirmado no editor)')
@@ -479,96 +467,39 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
 
 
 def _salvar_documento(self) -> bool:
-    """Salva documento com confirmação efetiva no PJe.
-
-    Inspirado no comportamento histórico do branch main (core.py.backup_final)
-    e adaptado para Playwright nativo sem dependências de Selenium:
-    1. Sincroniza editor (blur + eventos) e descarta snackbar residual de inserção de modelo.
-    2. Clica no botão Salvar com fallback robusto.
-    3. Aguarda confirmação real de salvamento:
-       - snackbar específico de salvamento (excluindo 'modelo')
-       - OU botão Salvar desabilitado + botão Assinar liberado.
-    4. Retry de clique caso o documento não tenha persistido e o botão Salvar continue ativo.
-    5. Assentamento seguro antes de liberar o fechamento da aba.
-    """
-    driver = self.driver
+    """Salva documento com confirmação efetiva no PJe."""
     print('[JUNTADA] Salvando documento final...')
-
-    # 1. Sincronização do editor e descarte de notificações de etapas anteriores (ex: inserção de modelo)
-    _executar_js(driver, """
-        const ed = document.querySelector('.ck-editor__editable[contenteditable="true"], [contenteditable="true"]');
-        if (ed) {
-            ed.dispatchEvent(new Event('input', { bubbles: true }));
-            ed.dispatchEvent(new Event('change', { bubbles: true }));
-            ed.blur();
-        }
-        // Fecha ou descarta qualquer snackbar anterior para evitar falsos positivos
-        const oldSnacks = document.querySelectorAll('simple-snack-bar, snack-bar-container');
-        oldSnacks.forEach(snack => {
-            const btn = snack.querySelector('button');
-            if (btn) btn.click();
-            else snack.remove();
-        });
-    """)
-    espera.assentar(driver, 0.4, 'sincronizacao do editor e descarte de snackbar residual')
-
-    # 2. Clique no botão Salvar
-    clicou = self._clicar_elemento_gigs('button[aria-label="Salvar"]', 'Salvar documento')
-    if not clicou:
-        # Fallback via JS nativo se _clicar_elemento_gigs não conseguiu
-        clicou = bool(_executar_js(driver, """
-            const btn = document.querySelector('button[aria-label="Salvar"], button.mat-primary[aria-label="Salvar"]');
-            if (btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true') {
-                btn.click();
-                return true;
-            }
-            return false;
-        """))
-    if not clicou:
+    if not self._clicar_elemento_gigs('button[aria-label="Salvar"]', 'Salvar documento'):
         print('[JUNTADA][ERRO] Falha no salvamento principal!')
         return False
 
     print('[JUNTADA] Aguardando processamento do salvamento...')
+    # Confirmação via desabilitação temporária do botão ou snackbar do PJe
+    desabilitou = espera.ate_desabilitar(self.driver, 'button[aria-label="Salvar"]', teto=5)
 
-    # 3. Confirmação objetiva do salvamento
-    js_salvamento_confirmado = """
-        // A. Snackbar específico de salvamento (descarta explicitamente mensagens de modelo)
+    js_snack_salvo = """
         var snack = document.querySelector('simple-snack-bar, snack-bar-container');
         if (snack) {
             var t = (snack.innerText || snack.textContent || '').toLowerCase();
-            if (!t.includes('modelo') && (t.includes('salv') || t.includes('gravad') || (t.includes('documento') && t.includes('sucesso')))) {
-                return true;
-            }
-        }
-        // B. Botão Salvar desabilitado + Botão Assinar liberado indica minuta gravada com sucesso
-        var btnSalvar = document.querySelector('button[aria-label="Salvar"]');
-        var btnAssinar = document.querySelector('button[aria-label="Assinar documento e juntar ao processo"], button[aria-label*="Assinar"]');
-        var salvarDesabilitado = btnSalvar && (btnSalvar.disabled || btnSalvar.getAttribute('aria-disabled') === 'true' || btnSalvar.classList.contains('mat-button-disabled'));
-        var assinarPronto = btnAssinar && !btnAssinar.disabled && btnAssinar.getAttribute('aria-disabled') !== 'true';
-        if (salvarDesabilitado && assinarPronto) {
-            return true;
+            return t.includes('salv') || t.includes('sucesso');
         }
         return false;
     """
+    snack_detectado = False
+    for _ in range(8):
+        try:
+            if self.driver.execute_script(js_snack_salvo):
+                snack_detectado = True
+                break
+        except Exception:
+            pass
+        time.sleep(0.3)
 
-    salvo = bool(espera.ate_js(driver, js_salvamento_confirmado, teto=4))
+    if not snack_detectado and desabilitou:
+        # Re-habilitação do botão após processamento
+        espera.ate_habilitar(self.driver, 'button[aria-label="Salvar"]', teto=6)
 
-    # 4. Retry de segurança como no main (core.py.backup_final) caso ainda não tenha persistido
-    if not salvo:
-        btn_ainda_ativo = _executar_js(driver, """
-            const btn = document.querySelector('button[aria-label="Salvar"]');
-            return !!(btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true');
-        """)
-        if btn_ainda_ativo:
-            print('[JUNTADA][WARN] Documento ainda não salvo após 4s, tentando retry do clique...')
-            _executar_js(driver, """
-                const btn = document.querySelector('button[aria-label="Salvar"]');
-                if (btn) btn.click();
-            """)
-            salvo = bool(espera.ate_js(driver, js_salvamento_confirmado, teto=4))
-
-    # Assentamento final de segurança antes de prosseguir (evita fechar a aba com requisição de rede pendente)
-    espera.assentar(driver, 1.2, 'pos-salvar juntada')
+    espera.assentar(self.driver, 0.8, 'pos-salvar juntada')
     print('[JUNTADA] Salvamento confirmado com sucesso.')
     return True
 

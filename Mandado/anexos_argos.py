@@ -13,7 +13,14 @@ Entrypoints públicos:
 # ══════════════════════ Imports ══════════════════════
 import re
 import time
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List
+
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.ui import WebDriverWait
 
 from core.resultado_execucao import ResultadoExecucao
 
@@ -65,12 +72,11 @@ def _identificar_tipo_anexo(texto: str) -> Optional[str]:
     return None
 
 
-def _localizar_modal_visibilidade(driver: Any, timeout: int = 4) -> Optional[Any]:
+def _localizar_modal_visibilidade(driver: WebDriver, timeout: int = 4) -> Optional[WebElement]:
     """Localiza modal de visibilidade com espera ativa."""
     try:
-        t_fim = time.monotonic() + timeout
-        while time.monotonic() < t_fim:
-            candidatos = espera.elementos(driver, _SELETORES_ANEXOS['modal_container'], teto=0.5)
+        def _buscar_modal(drv):
+            candidatos = drv.find_elements(By.CSS_SELECTOR, _SELETORES_ANEXOS['modal_container'])
             for modal in candidatos:
                 try:
                     modal_html = modal.get_attribute('innerHTML') or ''
@@ -78,47 +84,37 @@ def _localizar_modal_visibilidade(driver: Any, timeout: int = 4) -> Optional[Any
                     continue
                 if 'Visibilidade de Sigilo de Documento' in modal_html and 'Atribuir às partes' in modal_html:
                     return modal
-            espera.assentar(driver, 0.1)
-        return None
-    except Exception:
+            return False
+        return WebDriverWait(driver, timeout, poll_frequency=0.1).until(_buscar_modal)
+    except TimeoutException:
         return None
 
 
-def _processar_modal_visibilidade(driver: Any, modal: Any, log: bool = True) -> bool:
+def _processar_modal_visibilidade(driver: WebDriver, modal: WebElement, log: bool = True) -> bool:
     """Processa modal: seleciona checkboxes e salva (modo rápido)."""
     try:
         espera.assentar(driver, 0.12)
         selecionar_todos_ok = False
         try:
-            icone = espera.elemento(modal, _SELETORES_ANEXOS['selecionar_todos'], teto=1)
-            if icone:
-                safe_click_no_scroll(driver, icone)
-                espera.assentar(driver, 0.15)
-                selecionar_todos_ok = True
+            icone = modal.find_element(By.CSS_SELECTOR, _SELETORES_ANEXOS['selecionar_todos'])
+            safe_click_no_scroll(driver, icone)
+            espera.assentar(driver, 0.15)
+            selecionar_todos_ok = True
         except Exception:
             pass
         if not selecionar_todos_ok:
-            checkboxes = espera.elementos(modal, _SELETORES_ANEXOS['checkbox'], teto=1)
+            checkboxes = modal.find_elements(By.CSS_SELECTOR, _SELETORES_ANEXOS['checkbox'])
             for checkbox in checkboxes:
                 try:
-                    checkbox_input = espera.elemento(checkbox, "input[type='checkbox']", teto=0.5)
-                    is_sel = False
-                    if hasattr(checkbox_input, 'is_checked'):
-                        is_sel = checkbox_input.is_checked()
-                    elif hasattr(checkbox_input, 'is_selected'):
-                        is_sel = checkbox_input.is_selected()
-                    if not is_sel:
+                    checkbox_input = checkbox.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+                    if not checkbox_input.is_selected():
                         safe_click_no_scroll(driver, checkbox)
                         espera.assentar(driver, 0.1)
                 except Exception:
                     continue
         espera.assentar(driver, 0.08)
-        btn_salvar = espera.elemento(modal, _SELETORES_ANEXOS['btn_salvar'], teto=2)
-        if not btn_salvar:
-            return False
-        is_disp = getattr(btn_salvar, 'is_displayed', lambda: True)()
-        is_enab = getattr(btn_salvar, 'is_enabled', lambda: True)()
-        if not (is_disp and is_enab):
+        btn_salvar = modal.find_element(By.XPATH, _SELETORES_ANEXOS['btn_salvar'])
+        if not (btn_salvar.is_displayed() and btn_salvar.is_enabled()):
             return False
         safe_click_no_scroll(driver, btn_salvar)
         if espera.ate_obsoleto(driver, modal, teto=4):
@@ -258,7 +254,7 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
     return 'negativo', 'SISBAJUD não encontrado na seção Bloqueio de valores', executados
 
 
-def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: bool = True) -> Optional[Dict]:
+def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebElement], log: bool = True) -> Optional[Dict]:
     """
     ETAPA 2 DO FLUXO ARGOS - Processar anexos sigilosos e extrair SISBAJUD
 
@@ -284,7 +280,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
     btn_anexos_encontrado = None
     for sel in seletores_teste:
         try:
-            elementos = espera.elementos(doc, sel, teto=0.5)
+            elementos = doc.find_elements(By.CSS_SELECTOR, sel)
             if elementos:
                 btn_anexos_encontrado = elementos[0]
                 if log:
@@ -309,7 +305,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             logger.info('[ARGOS][ANEXOS]  Botão de anexos não encontrado com nenhum seletor testado')
         return None
 
-    anexos = espera.elementos(driver, _SELETORES_ANEXOS['anexos'], teto=2)
+    anexos = driver.find_elements(By.CSS_SELECTOR, _SELETORES_ANEXOS['anexos'])
     tem_anexos = len(anexos) > 0
 
     if not anexos:
@@ -330,11 +326,10 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
     try:
         seletor_multi = 'button[aria-label="Exibir múltipla seleção."]'
         if espera.ate_habilitar(driver, seletor_multi, teto=10):
-            btn_multi = espera.elemento(driver, seletor_multi, teto=1)
-            if btn_multi:
-                safe_click_no_scroll(driver, btn_multi)
-                if log:
-                    logger.info('[ARGOS][ANEXOS]  ✅ Múltipla seleção ativada')
+            btn_multi = driver.find_element(By.CSS_SELECTOR, seletor_multi)
+            safe_click_no_scroll(driver, btn_multi)
+            if log:
+                logger.info('[ARGOS][ANEXOS]  ✅ Múltipla seleção ativada')
         elif log:
             logger.warning('[ARGOS][ANEXOS]  ⚠️ Falha ao ativar múltipla seleção (não crítico)')
     except Exception:
@@ -349,14 +344,9 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
 
     anexos_com_sigilo = []
 
-    # Desativa implicit_wait durante o loop para evitar latência em find_element se suportado
-    _implicit_saved = None
-    try:
-        if hasattr(driver, 'timeouts') and hasattr(driver.timeouts, 'implicit_wait'):
-            _implicit_saved = driver.timeouts.implicit_wait
-            driver.implicitly_wait(0)
-    except Exception:
-        pass
+    # Desativa implicit_wait durante o loop para evitar latência em find_element
+    _implicit_saved = driver.timeouts.implicit_wait
+    driver.implicitly_wait(0)
 
     # 1. Inserir sigilo individualmente em cada anexo especial
     try:
@@ -382,9 +372,8 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
                     logger.info(f'[ARGOS][ANEXOS]  ✅ Sigilo inserido: {tipo.upper()}')
                 # Selecionar checkbox imediatamente após inserir sigilo
                 try:
-                    chk = espera.elemento(anexo, 'span.mat-checkbox-inner-container', teto=0.5)
-                    if chk:
-                        safe_click_no_scroll(driver, chk)
+                    chk = anexo.find_element(By.CSS_SELECTOR, 'span.mat-checkbox-inner-container')
+                    safe_click_no_scroll(driver, chk)
                 except Exception:
                     pass
             else:
@@ -392,11 +381,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
                     logger.warning(f'[ARGOS][ANEXOS] ❌ Falha ao inserir sigilo em {tipo.upper()}')
                 sigilo_anexos[tipo] = "falha"
     finally:
-        if _implicit_saved is not None:
-            try:
-                driver.implicitly_wait(_implicit_saved)
-            except Exception:
-                pass
+        driver.implicitly_wait(_implicit_saved)
 
     # Disparar visibilidade se algum anexo especial foi processado (com sucesso OU falha)
     # Falha pode indicar que sigilo já estava presente mas não foi detectado
@@ -429,12 +414,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             if log:
                 logger.error(f'[ARGOS][ANEXOS] Erro ao aplicar visibilidade em lote: {e}')
             try:
-                if hasattr(driver, 'page'):
-                    driver.page.keyboard.press('Escape')
-                elif hasattr(driver, '_page'):
-                    driver._page.keyboard.press('Escape')
-                elif hasattr(driver, 'keyboard'):
-                    driver.keyboard.press('Escape')
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
             except Exception:
                 pass
     else:

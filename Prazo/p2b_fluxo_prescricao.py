@@ -4,7 +4,7 @@
 import logging
 import time
 
-from typing import Any
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from .p2b_fluxo_lazy import _lazy_import
 
@@ -88,7 +88,7 @@ def prescreve(driver):
         return False
 
 
-def analisar_timeline_prescreve_js_puro(driver: Any):
+def analisar_timeline_prescreve_js_puro(driver: WebDriver):
     """
     Análise da timeline usando JavaScript PURO - replicando o script fornecido.
     Executa em SEGUNDOS como o userscript original.
@@ -97,7 +97,7 @@ def analisar_timeline_prescreve_js_puro(driver: Any):
         pass
         
         # JavaScript DIRETO baseado no script fornecido
-        js_script = r"""
+        js_script = """
         function lerTimelineCompleta() {
             const seletores = ['li.tl-item-container', '.tl-data .tl-item-container', '.timeline-item'];
             let itens = [];
@@ -232,8 +232,7 @@ def analisar_timeline_prescreve_js_puro(driver: Any):
         # Executar JavaScript e capturar resultado
         start_time = time.time()
         
-        _exec_js = getattr(driver, 'execute_script', None)
-        resultado_json = _exec_js(js_script) if _exec_js else None
+        resultado_json = driver.execute_script(js_script)
         
         elapsed = time.time() - start_time
         pass

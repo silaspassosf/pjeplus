@@ -1,12 +1,12 @@
-from Fix.core import safe_click_no_scroll, esperar_elemento, wait_for_clickable, preencher_campo
+from Fix.core import safe_click_no_scroll, esperar_elemento, wait_for_clickable
 from Fix.core import aguardar_renderizacao_nativa
 from Fix.browser_suporte import click_headless_safe
 from Fix.utils import normalizar_texto as normalizar_string
 import re
 import json
+from selenium.webdriver.common.by import By
 from Fix.log import log_seletor_multiplo, logger
 from Fix import espera
-from Play.pjeplay.locators import By
 
 
 def _normalizar_nome_para_match(nome):
@@ -286,33 +286,36 @@ _SELETORES_BTN_ACRESCENTAR = [
 
 
 def _clicar_btn_acrescentar(driver, linha, qtd_cliques, debug=False):
-    for _ in range(qtd_cliques):
+    """Localiza e clica no botão 'acrescentar' dentro de uma linha/row do painel de partes.
+
+    Retorna True se clicou, False se não encontrou o botão.
+    """
+    btn_seta = None
+    for seletor in _SELETORES_BTN_ACRESCENTAR:
+        log_seletor_multiplo('[DESTINATARIOS]', seletor, 'TENTATIVA')
         try:
-            if hasattr(linha, '_js'):
-                clicou = linha._js("""el => {
-                    const seletores = [
-                        'button[mattooltip="Clique para acrescentar esta parte à lista de destinatários de expedientes e comunicações."]',
-                        'button.icone-clicavel[aria-label*="acrescentar"]',
-                        'button[mattooltip*="acrescentar"]',
-                        'button[aria-label*="acrescentar"]',
-                        'button[aria-label="Clique para acrescentar esta parte à lista de destinatários de expedientes e comunicações."]',
-                        'button.icone-clicavel'
-                    ];
-                    for (const sel of seletores) {
-                        const btn = el.querySelector(sel);
-                        if (btn) {
-                            const clickable = btn.closest('button') || btn;
-                            clickable.scrollIntoView({block: 'center'});
-                            clickable.click();
-                            return true;
-                        }
-                    }
-                    return false;
-                }""")
-                if not clicou:
-                    return False
-            else:
-                return False
+            btn_seta = linha.find_element(By.CSS_SELECTOR, seletor)
+            log_seletor_multiplo('[DESTINATARIOS]', seletor, 'SUCESSO')
+            break
+        except Exception as e:
+            log_seletor_multiplo('[DESTINATARIOS]', seletor, 'FALHA', str(e))
+            continue
+
+    if not btn_seta:
+        return False
+
+    try:
+        clickable = driver.execute_script(
+            "return (arguments[0].closest && arguments[0].closest('button')) || arguments[0];",
+            btn_seta
+        )
+        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
+        for _ in range(qtd_cliques):
+            safe_click_no_scroll(driver, clickable, log=False)
+    except Exception:
+        try:
+            for _ in range(qtd_cliques):
+                btn_seta.click()
         except Exception:
             return False
     return True
@@ -340,10 +343,14 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                 ok = aguardar_renderizacao_nativa(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', modo='aparecer', timeout=timeout)
             except Exception:
                 ok = False
-            linhas = espera.elementos(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', teto=timeout)
+            linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
+            if not linhas:
+                esperar_elemento(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', timeout=timeout, by=By.CSS_SELECTOR)
+                linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
         except Exception:
-            linhas = espera.elementos(driver, 'mat-row, .pec-partes-polo li, ul.sem-padding li', teto=2)
+            linhas = driver.find_elements(By.CSS_SELECTOR, 'mat-row, .pec-partes-polo li, ul.sem-padding li')
 
+        # --- tentativa por documento ---
         if doc_digits:
             candidatos = []
             for linha in linhas:
@@ -362,8 +369,8 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                     try:
                         score = 20
                         try:
-                            texto_span = linha._js("el => (el.querySelector('.nome-parte, .nome-tipo-parte, .pec-formatacao-padrao-dados-parte.nome-parte') || {}).textContent || ''") if hasattr(linha, '_js') else ''
-                            nome_linha = normalizar_string(texto_span)
+                            nome_span = linha.find_element(By.CSS_SELECTOR, '.nome-parte, .nome-tipo-parte, .pec-formatacao-padrao-dados-parte.nome-parte')
+                            nome_linha = normalizar_string(nome_span.text or '')
                             if nome_alvo_norm and nome_linha == nome_alvo_norm:
                                 score += 40
                             elif nome_alvo_norm and nome_alvo_norm in nome_linha:
@@ -465,26 +472,30 @@ def _selecionar_por_lista(driver, lista_destinatarios, origem_log, log, fallback
 
 def _incluir_tribunal_por_cep(driver, log, debug=False):
     try:
-        campo_cep = wait_for_clickable(driver, 'input#inputCep', timeout=10)
+        campo_cep = wait_for_clickable(driver, 'input#inputCep', timeout=10, by=By.CSS_SELECTOR)
         if not campo_cep:
             raise RuntimeError('Campo CEP não encontrado')
-        preencher_campo(driver, 'input#inputCep', '01302906', limpar=True)
+        campo_cep.clear()
+        for char in '01302906':
+            campo_cep.send_keys(char)
+            espera.assentar(driver, 0.1)
         espera.assentar(driver, 1)
 
         opcao_tribunal = wait_for_clickable(
             driver,
             "//span[@class='mat-option-text' and contains(text(), '01302-906')]",
-            timeout=10
+            timeout=10,
+            by=By.XPATH
         )
         if not opcao_tribunal:
             raise RuntimeError('Opção tribunal não encontrada')
         safe_click_no_scroll(driver, opcao_tribunal, log=False)
 
-        btn_salvar_alteracoes = wait_for_clickable(driver, 'button[aria-label="Salva as alterações"]', timeout=10)
+        btn_salvar_alteracoes = wait_for_clickable(driver, 'button[aria-label="Salva as alterações"]', timeout=10, by=By.CSS_SELECTOR)
         if btn_salvar_alteracoes:
             safe_click_no_scroll(driver, btn_salvar_alteracoes, log=False)
 
-        btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10)
+        btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10, by=By.CSS_SELECTOR)
         if btn_fechar:
             safe_click_no_scroll(driver, btn_fechar, log=False)
         espera.assentar(driver, 0.5)
@@ -497,7 +508,7 @@ def _incluir_tribunal_por_cep(driver, log, debug=False):
 
 def _selecionar_endereco_tribunal(driver, log, debug=False):
     try:
-        if not esperar_elemento(driver, '.pec-consulta-enderecos', timeout=5):
+        if not esperar_elemento(driver, '.pec-consulta-enderecos', timeout=5, by=By.CSS_SELECTOR):
             if debug:
                 log('[DESTINATARIOS] Endereço do tribunal não solicitado após seleção do destinatário')
             return False
@@ -507,27 +518,30 @@ def _selecionar_endereco_tribunal(driver, log, debug=False):
         return False
 
     try:
-        if esperar_elemento(driver, "//*[contains(text(), 'Nenhum resultado encontrado')]", timeout=3):
+        if esperar_elemento(driver, "//*[contains(text(), 'Nenhum resultado encontrado')]", timeout=3, by=By.XPATH):
             log('[DESTINATARIOS] 3b. Nenhum resultado encontrado -> incluir tribunal via CEP')
             return _incluir_tribunal_por_cep(driver, log, debug=debug)
     except Exception:
         pass
 
     try:
-        setas = espera.elementos(
-            driver,
-            "//tr[.//td[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tribunal')]]//button[@aria-label='Selecionar endereço']",
-            teto=5
+        linhas_tribunal = driver.find_elements(
+            By.XPATH,
+            "//td[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tribunal')]"
         )
-        for seta in setas:
+        for linha in linhas_tribunal:
             try:
-                safe_click_no_scroll(driver, seta, log=False)
-                log('[DESTINATARIOS] ✓ Endereço do tribunal selecionado')
-                btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10)
-                if btn_fechar:
-                    safe_click_no_scroll(driver, btn_fechar, log=False)
-                espera.assentar(driver, 0.5)
-                return True
+                linha_tr = linha.find_element(By.XPATH, './ancestor::tr')
+                seta = linha_tr.find_element(By.CSS_SELECTOR, 'button[aria-label="Selecionar endereço"]')
+                if seta:
+                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', seta)
+                    safe_click_no_scroll(driver, seta, log=False)
+                    log('[DESTINATARIOS] ✓ Endereço do tribunal selecionado')
+                    btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10, by=By.CSS_SELECTOR)
+                    if btn_fechar:
+                        safe_click_no_scroll(driver, btn_fechar, log=False)
+                    espera.assentar(driver, 0.5)
+                    return True
             except Exception:
                 continue
     except Exception:
@@ -631,7 +645,9 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             for i in range(cliques):
                 _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
                 if i < cliques - 1:
-                    btn_polo_passivo = espera.elemento(driver, 'button[name="btnIntimarSomentePoloPassivo"]', teto=2)
+                    # Spinner já sumiu (garantido por _clicar_e_aguardar_spinner) — apenas
+                    # reobter a referência (Angular pode recriar o nó), sem novo timeout de espera.
+                    btn_polo_passivo = driver.find_element(By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]')
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo: {e}')
@@ -641,10 +657,11 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
         log('[DESTINATARIOS] OPÇÃO TERCEIROS: Clicando em terceiros interessados')
         try:
             if espera.ate_habilitar(driver, 'button[name="btnIntimarSomenteTerceirosInteressados"]', teto=5):
-                btn_terceiro = espera.elemento(driver, 'button[name="btnIntimarSomenteTerceirosInteressados"]', teto=2)
+                btn_terceiro = driver.find_element(By.CSS_SELECTOR, 'button[name="btnIntimarSomenteTerceirosInteressados"]')
             else:
+                # <i> não tem estado disabled real: ate_aparecer, não ate_habilitar
                 espera.ate_aparecer(driver, 'i.fa.fa-user.pec-polo-outros-partes-processo', teto=5)
-                btn_terceiro = espera.elemento(driver, 'i.fa.fa-user.pec-polo-outros-partes-processo', teto=2)
+                btn_terceiro = driver.find_element(By.CSS_SELECTOR, 'i.fa.fa-user.pec-polo-outros-partes-processo')
             _clicar_e_aguardar_spinner(driver, btn_terceiro)
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
@@ -658,7 +675,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                 '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo")'
                 ' and contains(normalize-space(.), "Polo Passivo")]]'
             )
-            if not click_headless_safe(driver, painel_header_xpath, by='xpath'):
+            if not click_headless_safe(driver, painel_header_xpath, by=By.XPATH):
                 raise RuntimeError('Falha ao expandir painel Polo Passivo')
 
             aguardar_renderizacao_nativa(

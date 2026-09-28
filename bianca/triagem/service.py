@@ -14,6 +14,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from selenium.webdriver.remote.webdriver import WebDriver
+
 from bianca.triagem.coleta import _coletar_textos_processo
 from bianca.triagem.utils import _normalizar_continuacao
 from bianca.triagem.regras import (
@@ -176,7 +178,7 @@ def triagem_peticao(driver) -> str:
     um texto de analise estruturado.
 
     Args:
-        driver: Driver na pagina de detalhe do processo.
+        driver: WebDriver Selenium na pagina de detalhe do processo.
 
     Returns:
         str: Texto da analise formatada, ou 'ERRO: ...' em caso de falha.

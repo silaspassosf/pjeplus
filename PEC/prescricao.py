@@ -8,6 +8,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Any
+from selenium.webdriver.common.by import By
 from Fix.abas import aguardar_nova_aba
 from Fix.extracao import criar_lembrete_posit
 from Fix.core import buscar_documentos_polo_ativo, esperar_elemento
@@ -29,7 +30,7 @@ def def_presc(driver: Any, numero_processo: str, texto_decisao: str, data_decisa
     4. Caso padrão (prescrição interrompida) → nada a executar (True).
     
     Args:
-        driver: conexao/driver PJe
+        driver: WebDriver do Selenium
         numero_processo: Número do processo
         texto_decisao: Texto da decisão analisada
         data_decisao_str: Data da decisão no formato DD/MM/YYYY

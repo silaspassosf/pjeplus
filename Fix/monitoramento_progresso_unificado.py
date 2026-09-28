@@ -9,8 +9,8 @@ import re
 import shutil
 from datetime import datetime
 from typing import Optional, Dict, Any, Callable, Tuple
+from selenium.webdriver.common.by import By
 import logging
-from Fix import espera
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -437,7 +437,7 @@ def extrair_numero_processo_unificado(driver, tipo_execucao: str) -> Optional[st
     Extrai o número do processo da página atual usando estratégias específicas por tipo.
 
     Args:
-        driver: driver ativo
+        driver: WebDriver do Selenium
         tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
 
     Returns:
@@ -461,8 +461,7 @@ def extrair_numero_processo_unificado(driver, tipo_execucao: str) -> Optional[st
         if tipo_execucao == 'pec':
             # Estratégia adicional para PEC: JavaScript robusto
             try:
-                fn_sc = getattr(driver, "execute" + "_script", None)
-                numero_js = fn_sc("""
+                numero_js = driver.execute_script("""
                     // Busca por padrão de processo em todo o texto da página
                     var textoCompleto = document.body.innerText || document.body.textContent || '';
                     var matches = textoCompleto.match(/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/g);
@@ -479,7 +478,7 @@ def extrair_numero_processo_unificado(driver, tipo_execucao: str) -> Optional[st
                     }
 
                     return null;
-                """) if fn_sc else None
+                """)
 
                 if numero_js:
                     _log_progresso(tipo_execucao, f"✅ Número extraído via JavaScript: {numero_js}", numero_js)
@@ -490,7 +489,7 @@ def extrair_numero_processo_unificado(driver, tipo_execucao: str) -> Optional[st
 
         # Estratégia comum: buscar por seletores CSS
         try:
-            candidatos = espera.elementos(driver,
+            candidatos = driver.find_elements(By.CSS_SELECTOR,
                 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho, .numero-processo')
 
             for elemento in candidatos:
@@ -519,7 +518,7 @@ def verificar_acesso_negado_unificado(driver, tipo_execucao: str) -> bool:
     Verifica se estamos na página de acesso negado.
 
     Args:
-        driver: driver ativo
+        driver: WebDriver do Selenium
         tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
 
     Returns:
@@ -694,7 +693,7 @@ def executar_com_monitoramento_unificado(
 
     Args:
         tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
-        driver: driver ativo
+        driver: WebDriver do Selenium
         numero_processo: Número do processo (None para extrair automaticamente)
         funcao_processamento: Função a ser executada
         *args, **kwargs: Argumentos para a função de processamento

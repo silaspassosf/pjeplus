@@ -10,9 +10,9 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
-
-import Fix.espera as espera
-from Fix.core import esperar_elemento
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.common.by import By
+from Fix.selenium_base.wait_operations import esperar_elemento
 
 # Import para API calls
 from ..api.client import PjeApiClient, session_from_driver
@@ -21,22 +21,33 @@ from Fix.variaveis import obter_chave_ultimo_despacho_decisao_sentenca
 from ..runtime_pet import extrair_texto_peticao_via_api
 
 
-def _buscar_documento_relevante_timeline(driver: Any) -> Tuple[Optional[Any], Optional[Any], str]:
+def _buscar_documento_relevante_timeline(driver: WebDriver) -> Tuple[Optional[Any], Optional[Any], str]:
     """
     Busca documento relevante (sentenca/decisao/despacho) na timeline via DOM.
+
+    Baseado na implementacao do p2b_fluxo_documentos.py.
+    Busca APENAS no tipo real do documento (primeiro <span> dentro do link).
+
     Returns:
         Tupla (doc_encontrado, doc_link, tipo_documento)
     """
-    itens = espera.elementos(driver, 'li.tl-item-container a.tl-documento:not([target="_blank"])', teto=2)
+    from selenium.webdriver.common.by import By
+
+    itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
 
     # Busca do mais recente para o mais antigo
-    for link in itens:
+    for item in itens:
         try:
-            texto_link = (getattr(link, 'text', '') or '').lower().strip()
-            m = re.match(r'^(despacho|decis[aã]o|senten[cç]a)', texto_link)
-            if m:
-                tipo = m.group(1)
-                return link, link, tipo.title()
+            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+
+            # Extrair apenas o primeiro <span> (tipo real do documento)
+            primeiro_span = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
+            tipo_real = primeiro_span.text.lower().strip() if primeiro_span else ''
+
+            # Verificar se o tipo REAL e um dos procurados
+            if tipo_real and re.search(r'^(despacho|decisao|sentenca)', tipo_real):
+                return item, link, tipo_real.title()  # Retorna capitalizado
+
         except Exception:
             continue
 
@@ -117,14 +128,14 @@ def apagar(numero_processo: str, id_documento: str):
     except Exception as e:
         logger.error("ERRO em apagar: Erro ao registrar processo no delete.js: %s: %s", type(e).__name__, e)
 
-def checar_habilitacao(item, driver: Any) -> bool:
+def checar_habilitacao(item, driver: WebDriver) -> bool:
     """
     Checagem completa para a regra de direitos-habilitacao
     Inclui verificacao de advogado + verificacoes de audiencia para ato_ceju
 
     Args:
         item: Item da peticao com atributos do processo
-        driver: acesso ao PJe
+        driver: WebDriver para acesso ao PJe
 
     Returns:
         bool: True se deve executar ato_ceju, False caso contrario
@@ -166,12 +177,11 @@ def checar_habilitacao(item, driver: Any) -> bool:
             id do li: 'doc_453562049' -> '453562049'.
             """
             try:
-                sel = espera.elemento(
-                    driver,
-                    'li.tl-item-container[style*="background-color"]',
-                    teto=1
+                sel = driver.find_element(
+                    By.CSS_SELECTOR,
+                    'li.tl-item-container[style*="background-color"]'
                 )
-                li_id = sel.get_attribute('id') or '' if sel else ''
+                li_id = sel.get_attribute('id') or ''
                 m = re.match(r'doc_(\d+)', li_id)
                 return m.group(1) if m else ''
             except Exception:
@@ -291,7 +301,7 @@ def checar_habilitacao(item, driver: Any) -> bool:
         return False
 
 
-def agravo_peticao(item, driver: Any) -> bool:
+def agravo_peticao(item, driver: WebDriver) -> bool:
     """
     Processa Agravo de Peticao: busca documento relevante na timeline via DOM
     e executa ato apropriado baseado no conteudo.
@@ -320,7 +330,8 @@ def agravo_peticao(item, driver: Any) -> bool:
             from ..core.utils.observer import aguardar_renderizacao_nativa
             aguardar_renderizacao_nativa(driver, '.timeline, .document-viewer, div.tl-item-container', timeout=2)
         except Exception:
-            espera.assentar(driver, 2, motivo='aguardar carregamento documento timeline')
+            import time
+            time.sleep(2)
 
         # Extrair conteudo usando extrair_direto
         texto = None
@@ -390,7 +401,7 @@ def agravo_peticao(item, driver: Any) -> bool:
             return False
 
 
-def def_quesitos(item, driver: Any) -> bool:
+def def_quesitos(item, driver: WebDriver) -> bool:
     """
     Processa peticoes com quesitos: analisa se deve admitir assistente tecnico ou apagar.
 
@@ -411,11 +422,13 @@ def def_quesitos(item, driver: Any) -> bool:
 
         # 1. Selecionar primeira peticao com quesitos na timeline
         link_peticao = None
-        itens = espera.elementos(driver, 'li.tl-item-container a.tl-documento:not([target="_blank"])', teto=2)
-        for link in itens:
+        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        for item_timeline in itens:
             try:
-                texto_link = (getattr(link, 'text', '') or '').lower()
-                if 'quesitos' in texto_link:
+                link = item_timeline.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                span_texto = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
+                texto_link = span_texto.text.lower()
+                if 'quesitos' in texto_link or 'apresentacao de quesitos' in texto_link:
                     link_peticao = link
                     break
             except Exception:
@@ -463,7 +476,7 @@ def def_quesitos(item, driver: Any) -> bool:
         return False
 
 
-def _desp_assist(driver: Any, numero_processo: str) -> bool:
+def _desp_assist(driver: WebDriver, numero_processo: str) -> bool:
     """
     Analisa despachos subsequentes a peticao de quesitos para decidir admissao de assistente.
 
@@ -479,13 +492,15 @@ def _desp_assist(driver: Any, numero_processo: str) -> bool:
     """
     try:
         # Buscar despachos na timeline apos a peticao
-        itens = espera.elementos(driver, 'li.tl-item-container a.tl-documento:not([target="_blank"])', teto=2)
+        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         despachos = []
 
-        for link in itens:
+        for item_timeline in itens:
             try:
-                tipo_doc = (getattr(link, 'text', '') or '').lower().strip()
-                if tipo_doc.startswith('despacho'):
+                link = item_timeline.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                span_texto = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
+                tipo_doc = span_texto.text.lower().strip()
+                if tipo_doc == 'despacho':
                     despachos.append(link)
             except Exception:
                 continue
@@ -527,7 +542,7 @@ def _desp_assist(driver: Any, numero_processo: str) -> bool:
         return False
 
 
-def _extrair_texto_despacho(driver: Any, link_despacho) -> Optional[str]:
+def _extrair_texto_despacho(driver: WebDriver, link_despacho) -> Optional[str]:
     """
     Extrai texto de um despacho clicando no link.
     """
@@ -548,7 +563,7 @@ def _extrair_texto_despacho(driver: Any, link_despacho) -> Optional[str]:
         return None
 
 
-def contesta_calc(item, driver: Any) -> bool:
+def contesta_calc(item, driver: WebDriver) -> bool:
     """
     Processa peticao de calculos de liquidacao:
     1. Busca despacho na timeline (ignora decisao/sentenca)
@@ -562,12 +577,14 @@ def contesta_calc(item, driver: Any) -> bool:
     logger.info('[CONTESTA_CALC] Iniciando para %s', numero_processo)
 
     # 1. Buscar despacho na timeline
-    itens_tl = espera.elementos(driver, 'li.tl-item-container a.tl-documento:not([target="_blank"])', teto=2)
+    itens_tl = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
     link_despacho = None
-    for link in itens_tl:
+    for item_tl in itens_tl:
         try:
-            tipo_doc = (getattr(link, 'text', '') or '').lower().strip()
-            if tipo_doc.startswith('despacho'):
+            link = item_tl.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+            span = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
+            tipo_doc = span.text.lower().strip()
+            if tipo_doc == 'despacho':
                 link_despacho = link
                 break
         except Exception:

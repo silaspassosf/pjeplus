@@ -9,12 +9,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 from typing import Optional, Callable, Any
+from selenium.webdriver.remote.webdriver import WebDriver
 from .anexos_sisbajud import _wrapper_sisbajud_generico, _obter_conteudo_relatorio_sisbajud
 from .anexos_juntador_base import wrapper_juntada_geral
 
 
 def anex_carta(
-    driver: Any,
+    driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
     ecarta_html: Optional[str] = None
@@ -38,7 +39,7 @@ def anex_carta(
     if ecarta_html is not None:
         conteudo = ecarta_html
 
-    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
+    def inserir_fn(driver: WebDriver, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
         # Usar substituir_marcador_por_conteudo que é mais robusto para CKEditor
         from Fix.utils import substituir_marcador_por_conteudo
         return substituir_marcador_por_conteudo(
@@ -63,7 +64,7 @@ def anex_carta(
 
 
 def anex_sisbconsulta(
-    driver: Any,
+    driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
     tipo: str = 'Certidão',
@@ -78,7 +79,7 @@ def anex_sisbconsulta(
 
 
 def anex_bloqneg(
-    driver: Any,
+    driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
     tipo: str = 'Certidão',
@@ -93,7 +94,7 @@ def anex_bloqneg(
 
 
 def anex_parcial(
-    driver: Any,
+    driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
     tipo: str = 'Certidão',
@@ -108,7 +109,7 @@ def anex_parcial(
 
 
 def anex_retifidpj(
-    driver: Any,
+    driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
 ) -> bool:
@@ -122,7 +123,7 @@ def anex_retifidpj(
       assinar: nao
       sigilo: nao
     """
-    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
+    def inserir_fn(driver: WebDriver, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
         # Não insere conteúdo adicional; usa modelo padrão
         return True
 
@@ -141,7 +142,7 @@ def anex_retifidpj(
 
 
 def anex_devcp(
-    driver: Any,
+    driver: WebDriver,
     numero_processo: Optional[str] = None,
     debug: bool = True,
 ) -> bool:
@@ -155,7 +156,7 @@ def anex_devcp(
       assinar: nao
       sigilo: nao
     """
-    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
+    def inserir_fn(driver: WebDriver, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
         # Não insere conteúdo adicional; usa modelo padrão (mesmo padrão de anex_retifidpj)
         return True
 

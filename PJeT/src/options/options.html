@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PJeT — Opções e Configurações</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="brand">
+        <span class="logo">⚖</span>
+        <div>
+          <h1>PJeT — PJe Tools Pro</h1>
+          <p class="subtitle">Gerenciamento de módulos e diagnóstico da extensão</p>
+        </div>
+      </div>
+      <span class="badge">v1.0.0</span>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Módulos do PJe (TRT2)</h2>
+        <p class="desc">Ative ou desative ferramentas conforme sua rotina de trabalho:</p>
+        
+        <div class="modules-grid">
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-lista-check" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>🔎 Lista Check Execução</strong>
+              <span>Gera relatório de medidas (pesquisas, alvarás, certidões) e autocheck.</span>
+            </div>
+          </label>
+
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-lista-edital" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>📣 Lista de Editais</strong>
+              <span>Relatório rápido de editais publicados no processo.</span>
+            </div>
+          </label>
+
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-sisbajud" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>💸 SISBAJUD</strong>
+              <span>Integração de extração e relatórios de ordens de bloqueio.</span>
+            </div>
+          </label>
+
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-argos" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>⚖️ Argos</strong>
+              <span>Assistente para certidões e mandados devolvidos.</span>
+            </div>
+          </label>
+
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-hcalc" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>📊 Homologação de Cálculos (HCalc)</strong>
+              <span>Overlay e extrator de planilhas de liquidação PJe-Calc.</span>
+            </div>
+          </label>
+
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-debito" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>💰 Registrar Débito</strong>
+              <span>Lançamento rápido em Obrigação de Pagar.</span>
+            </div>
+          </label>
+
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-alvara" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>📜 Alvará / SISCONDJ</strong>
+              <span>Consulta e conferência de alvarás judiciais.</span>
+            </div>
+          </label>
+
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-audiencia" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>🎙️ Audiência (PJeAud)</strong>
+              <span>Assistente e automações em pautas de audiência.</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Sistemas Externos Vinculados</h2>
+        <div class="modules-grid">
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-infojud" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>🏛️ InfoJud (e-CAC Receita)</strong>
+              <span>Preenchimento automatizado de ordens judiciais na Receita Federal.</span>
+            </div>
+          </label>
+
+          <label class="toggle-item">
+            <input type="checkbox" id="mod-simba" />
+            <div class="toggle-track"></div>
+            <div class="toggle-text">
+              <strong>🦁 SIMBA e BCB</strong>
+              <span>Exportação para portal SIMBA e pré-cadastro no Banco Central.</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <section class="card diagnostic-card">
+        <h2>🛠️ Diagnóstico e Suporte via Console</h2>
+        <p class="desc">
+          O PJeT encapsula todas as etapas em logs coloridos. Abra o <strong>DevTools Console (F12)</strong> em qualquer página do PJe para ver o rastreamento em tempo real.
+        </p>
+        <div class="code-box">
+          <code>pjetStatus()</code>
+          <span class="code-desc">Digite no console para visualizar a tabela de status atual da extensão, tokens XSRF, rota e cache.</span>
+        </div>
+        <div class="btn-group">
+          <button type="button" id="btn-reset" class="btn-secondary">Restaurar Padrões</button>
+          <button type="button" id="btn-testar" class="btn-secondary">Testar Storage</button>
+        </div>
+        <div id="diag-msg" class="diag-msg"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div id="status" class="status"></div>
+      <button type="button" id="btn-salvar" class="btn-primary">Salvar Alterações</button>
+    </footer>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

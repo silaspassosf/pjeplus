@@ -1,0 +1,89 @@
+@import url("/css/navegador.css");
+
+main{
+	color:rgba(var(--extensao-cor-branco),1);
+	height:calc(100vh - 96px);
+	margin:66px 0 30px 0;
+	padding:1rem;
+}
+
+main section{
+	animation:crescer 1s ease-out 1s 1 both;
+	background:rgba(var(--extensao-cor-preto),0.4);
+	border-radius:0.5rem 0.5rem 1rem 1rem;
+	height:calc(100vh - 66px - 30px - 2rem);
+	margin:0 auto;
+	overflow-y:scroll;
+	padding:0;
+	width:100%;
+}
+
+main h2{
+	background:
+		var(--extensao-gradiente-branco-preto),
+		linear-gradient(
+			rgba(var(--extensao-cor-preto),0.8)   0%,
+			rgba(var(--extensao-cor-preto),0.8) 100%
+		),
+		rgba(var(--extensao-cor-primaria),1)
+	;
+	box-shadow:0px 3px 3px 2px rgba(var(--extensao-cor-preto), 0.5);
+	padding:0.5rem 0 2.5rem 0;
+	position:sticky;
+	top:0px;
+	z-index:1;
+}
+
+main p,
+main li
+{
+	animation:aparecer 1s ease-out 2s 1 both;
+	font-size:1.2rem;
+	font-weight:500;
+	line-height:1.5rem;
+	text-align:left;
+}
+
+main p{
+	padding:1rem 2rem;
+	width:100%;
+	position:sticky;
+	top:1.8rem;
+	z-index:1;
+}
+
+main ul{
+	margin:0 3rem;
+	padding:0 0 2rem 0;
+}
+
+main ul li{
+	margin-left:4rem;
+	padding:0.5rem 0;
+	list-style:disc outside;
+}
+
+#termos{
+	display:none;
+}
+
+img{
+	animation:aparecer 1s ease-in 2s 1 both;
+	display:block;
+	height:70px;
+	margin:1rem;
+	width:70px;
+}
+
+seta{
+	animation:aparecer 1s ease-in 0.2s 1 both;
+	background:rgba(var(--extensao-cor-verde));
+	mask:url(/imagens/icones/seta.svg) center center no-repeat;
+	display:block;
+	height:70px;
+	left:50px;
+	position:fixed;
+	top:55px;
+	z-index:9;
+	width:70px;
+}

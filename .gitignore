@@ -1,0 +1,89 @@
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+.npm
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Credenciais e artefatos de sessao (higienizacao 2026-09-22)
+cookies_sessoes/
+Prazo/cookies_sessoes/
+ORIGINAIS/
+.claude/
+outros projetos/
+questao/
+telegrambot/
+pdf/
+*.bundle
+
+# Logs & Temp
+*.log
+*.tmp
+temp/
+logs/
+.cache/
+
+# Project specific
+cookies_sessoes/*.json
+!cookies_sessoes/.gitkeep
+build/supervisor_gui/
+build/temp/
+
+# Artefatos de runtime (regenerados a cada execução, não são seeds/fixtures)
+erro.md
+p2b_log.txt
+progresso.json
+log.py
+dadosatuais.json
+destinatarios_argos.json
+PEC/clipboard.txt
+# Artefatos SISBAJUD com dados de partes processuais (CPF/nomes de executados)
+**/sisbajud_conciso_ultimo.txt
+**/sisbajud_conciso*.txt
+
+
+# Large binaries
+*.exe
+*.dmg
+*.pkg
+*.msi
+*.rar
+*.zip
+*.7z
+.export_hashes.json
+context_dump.md
+.gist_id
+setup_credenciais.py
+
+# Arquivos com credenciais locais
+00modelos.ps1
+.claude/Modelos.ps1
+cache/assinatura_cookies.json
+Aud1/
+hermes/

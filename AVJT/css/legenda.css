@@ -1,0 +1,122 @@
+.legenda:hover::before,
+label[aria-label]:hover::before
+{
+	animation:aparecer 0.1s ease-out 0s 1 both;
+	border-radius:5px;
+	content:attr(aria-label);
+	background-color:rgba(var(--extensao-cor-preto),0.9);
+	color:rgba(var(--extensao-cor-branco),1);
+	display:block;
+	font-size:0.9rem;
+	font-weight:600;
+	padding:5px;
+	position:absolute;
+	text-align:center;
+	white-space:pre-line;
+	z-index:9;
+}
+
+.legenda:hover::before
+{
+	bottom:50px;
+	left:-20px;
+	width:90px;
+}
+
+label[aria-label]:hover::before{
+	left:calc(50% - 15vw);
+	top:calc(100% - 1.5rem);
+	width:30vw;
+}
+
+
+
+informacoes{
+	display:flex;
+	justify-content:space-between;
+	padding:0 1rem;
+	position:absolute;
+	right:0;
+	width:100%;
+}
+informacoes *{
+	color:rgba(var(--extensao-cor-branco));
+	display:block;
+	font-size:1.4rem;
+	font-style:normal;
+	line-height:2rem;
+	text-align:center;
+	z-index:9;
+}
+informacoes i,
+informacoes i::before
+{
+	cursor:help;
+	height:24px;
+	width:24px;
+	z-index:9;
+}
+informacoes i::before{
+	background:var(--extensao-icone-i) center center / 70% 70% no-repeat;
+	border:rgba(var(--extensao-cor-laranja),1) solid 3px;
+	border-radius:15px;
+	content:"";
+	left:1rem;
+	position:absolute;
+	top:3px;
+}
+informacoes i:hover::before,
+informacoes i:hover::after
+{
+	background:rgba(var(--extensao-cor-preto),0.95);
+	border-radius:15px;
+	box-shadow:0px 2px 2px 2px rgba(var(--extensao-cor-preto), 0.3);
+	left:1rem;
+	position:absolute;
+	transition:all 0.5s ease-out;
+	top:3px;
+	width:85vw;
+	z-index:9;
+}
+informacoes i:hover::before{
+	background:
+		var(--extensao-icone-i) center center / 70% 70% no-repeat,
+		rgba(var(--extensao-cor-preto),0.95)
+	;
+	animation:aparecer 0.5s ease-out 0s 1 both;
+}
+informacoes i:hover::after{
+	animation:aparecer 0.5s ease-out 0.6s 1 both;
+	border:rgba(var(--extensao-cor-laranja),1) solid 3px;
+	content:attr(aria-label);
+	padding:20px;
+}
+informacoes a{
+	background:var(--extensao-icone-youtube) center center no-repeat;
+	cursor:pointer;
+	height:30px;
+	opacity:0.9;
+	width:30px;
+}
+informacoes a:hover{
+	opacity:1;
+}
+informacoes a:active{
+	opacity:0.8;
+}
+informacoes a:hover::before
+{
+	animation:aparecer 0.5s ease-out 0s 1 both;
+	background:rgba(var(--extensao-cor-preto),0.9);
+	border:rgba(var(--extensao-cor-vermelho),1) 3px solid;
+	border-radius:25px 0 25px 25px;
+	box-shadow:0px 2px 2px 2px rgba(var(--extensao-cor-preto), 0.3);
+	content:"Playlist do Youtube com vídeos relevantes sobre esta seção";
+	padding:20px;
+	position:absolute;
+	right:calc(1rem + 25px);
+	top:15px;
+	width:50vw;
+}
+
+

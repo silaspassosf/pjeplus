@@ -1,0 +1,7 @@
+
+*:focus {
+	outline: 2px solid #008cdd !important;
+	box-shadow: 0 0 0 6px white;
+	outline-offset: 0.15rem;
+	z-index: 1;
+}

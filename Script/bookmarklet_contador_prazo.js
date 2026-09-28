@@ -1,0 +1,113 @@
+/**
+ * Bookmarklet — Contador de Prazo (dias úteis) — PJePlus
+ *
+ * Cria um pequeno overlay com:
+ *   - Data inicial (máscara dd/mm/aaaa)
+ *   - Prazo em dias (úteis)
+ * Ao clicar em OK, calcula e mostra o prazo final.
+ *
+ * Contagem SEMPRE começa no dia seguinte ao informado e usa a tabela de dias
+ * úteis do projeto (dias-uteis-trt2-2025.json — cobre 2025 e 2026). Fora do
+ * período coberto, cai em dias úteis padrão (segunda a sexta).
+ *
+ * Uso: copie o conteúdo do arquivo _oneliner.txt para um novo favorito
+ * (URL: javascript:...) ou cole no console da página.
+ */
+(function contadorPrazoBookmarklet() {
+  'use strict';
+  if (window.__contadorPrazoEl) { window.__contadorPrazoEl.close(); return; }
+
+  // Calendário de dias úteis do projeto (bitmask por ano, dia-do-ano 1..366).
+  // Gerado a partir de dias-uteis-trt2-2025.json.
+  var CAL = {
+    2025: "011001111100111110011111001111100111110011111001111100111110010111001111100111110011111001111100111110011110000111100111010011111001111100111110011111001111100111110011101001111100111110011011001111100111110011111001111100111110011111001111100111110011111001111100111110011111001111100110110011111001011100111110011111001110100111110011111001111100111110000000000000",
+    2026: "000000000000000000001110011111001111100111110000011001111100111110011111001111100111110011000001111100111110000111001111000111110011111001111100111110011100001111100111110011111001111100111000011111001111100111110011111000111100111110011111001111100011110011111001111100111110011111000111100111110011110000111100111110011110001111100111110001111001111100000000000000"
+  };
+  // Intervalo coberto pela tabela (dias-uteis-trt2-2025.json). Dentro dele a
+  // tabela é autoritativa (inclui recesso forense); fora, usa segunda a sexta.
+  var MIN = new Date(2025, 0, 2);
+  var MAX = new Date(2026, 11, 18);
+
+  function dois(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(d) { return dois(d.getDate()) + '/' + dois(d.getMonth() + 1) + '/' + d.getFullYear(); }
+  function doy(d) { var s = new Date(d.getFullYear(), 0, 1); return Math.round((d - s) / 864e5) + 1; }
+  function ehUtil(d) {
+    if (d >= MIN && d <= MAX) return CAL[d.getFullYear()].charAt(doy(d) - 1) === '1'; // tabela é autoritativa
+    var w = d.getDay();
+    return w !== 0 && w !== 6; // fora da tabela: segunda a sexta
+  }
+  function somarUteis(base, qtd) {
+    var d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    var n = 0, guard = 0;
+    while (n < qtd && guard < 2000) {
+      d.setDate(d.getDate() + 1); // sempre começa no dia seguinte ao informado
+      guard++;
+      if (ehUtil(d)) n++;
+    }
+    return d;
+  }
+
+  // Overlay
+  var div = document.createElement('div');
+  div.style.cssText = 'position:fixed;top:80px;right:20px;z-index:2147483647;background:#fff;'
+    + 'border:1px solid #bbb;border-radius:8px;padding:14px 16px;'
+    + 'font:13px/1.4 Segoe UI,Arial,sans-serif;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.25);width:260px;';
+  div.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+    + '<b style="font-size:14px;">Contador de prazo</b>'
+    + '<span id="cp-fechar" style="cursor:pointer;font-weight:bold;color:#888;">&#10005;</span></div>'
+    + '<label style="display:block;margin-bottom:4px;">Data inicial (dd/mm/aaaa)</label>'
+    + '<input id="cp-data" placeholder="dd/mm/aaaa" inputmode="numeric" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid #bbb;border-radius:4px;margin-bottom:10px;">'
+    + '<label style="display:block;margin-bottom:4px;">Prazo em dias uteis</label>'
+    + '<input id="cp-dias" type="number" min="1" placeholder="ex.: 5" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid #bbb;border-radius:4px;margin-bottom:10px;">'
+    + '<button id="cp-ok" style="width:100%;padding:8px;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">OK</button>'
+    + '<div id="cp-resultado" style="margin-top:10px;font-weight:bold;min-height:18px;word-break:break-word;"></div>';
+  document.body.appendChild(div);
+  window.__contadorPrazoEl = {
+    el: div,
+    close: function () {
+      try { document.body.removeChild(div); } catch (e) { /* ignore */ }
+      window.__contadorPrazoEl = null;
+    }
+  };
+
+  var inpData = div.querySelector('#cp-data');
+
+  // Máscara dd/mm/aaaa
+  inpData.addEventListener('input', function () {
+    var v = inpData.value.replace(/\D/g, '').slice(0, 8);
+    var out;
+    if (v.length > 4) out = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+    else if (v.length > 2) out = v.slice(0, 2) + '/' + v.slice(2);
+    else out = v;
+    inpData.value = out;
+  });
+
+  function parseData(s) {
+    var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((s || '').trim());
+    if (!m) return null;
+    var dd = +m[1], mm = +m[2], yy = +m[3];
+    var d = new Date(yy, mm - 1, dd);
+    if (d.getFullYear() !== yy || d.getMonth() !== mm - 1 || d.getDate() !== dd) return null;
+    return d;
+  }
+
+  div.querySelector('#cp-ok').addEventListener('click', function () {
+    var res = div.querySelector('#cp-resultado');
+    var d0 = parseData(inpData.value);
+    var dias = parseInt(div.querySelector('#cp-dias').value, 10);
+    if (!d0) { res.style.color = '#c00'; res.textContent = 'Data invalida (use dd/mm/aaaa)'; return; }
+    if (!dias || dias < 1) { res.style.color = '#c00'; res.textContent = 'Informe o prazo em dias'; return; }
+    var df = somarUteis(d0, dias);
+    res.style.color = '#0a7d32';
+    res.innerHTML = 'Prazo final: <b>' + fmt(df) + '</b><br><span style="font-weight:normal;color:#555;">'
+      + dias + ' dia(s) uteis a partir de ' + fmt(d0) + '</span>';
+  });
+
+  div.querySelector('#cp-dias').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') div.querySelector('#cp-ok').click();
+  });
+  div.querySelector('#cp-fechar').addEventListener('click', window.__contadorPrazoEl.close);
+
+  console.log('[contador-prazo] ok');
+})();

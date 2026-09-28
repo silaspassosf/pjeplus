@@ -1,0 +1,74 @@
+{
+  "name": "Configuração Recomendada - Restricted Copilot para PjePlus",
+  "description": "Configurações otimizadas para uso no workspace PjePlus",
+  "configurations": {
+    "maxSecurity": {
+      "name": "Máxima Segurança (Recomendado para PjePlus)",
+      "settings": {
+        "restrictedCopilot.restrictiveMode": true,
+        "restrictedCopilot.inquisitiveMode": true,
+        "restrictedCopilot.maxContextLines": 25
+      },
+      "description": "Configuração mais restritiva para código sensível"
+    },
+    "balanced": {
+      "name": "Equilibrado",
+      "settings": {
+        "restrictedCopilot.restrictiveMode": true,
+        "restrictedCopilot.inquisitiveMode": true,
+        "restrictedCopilot.maxContextLines": 50
+      },
+      "description": "Configuração padrão balanceada"
+    },
+    "expanded": {
+      "name": "Contexto Expandido",
+      "settings": {
+        "restrictedCopilot.restrictiveMode": true,
+        "restrictedCopilot.inquisitiveMode": true,
+        "restrictedCopilot.maxContextLines": 100
+      },
+      "description": "Mais contexto para análises complexas"
+    }
+  },
+  "instructions": {
+    "howToApply": [
+      "1. Abra VS Code no workspace PjePlus",
+      "2. File → Preferences → Settings",
+      "3. Procure por 'Restricted Copilot'",
+      "4. Configure os valores conforme uma das opções acima",
+      "5. Salve as configurações"
+    ],
+    "workspaceSpecific": [
+      "Para aplicar apenas no workspace PjePlus:",
+      "1. Abra o workspace PjePlus",
+      "2. File → Preferences → Settings",
+      "3. Clique na aba 'Workspace'",
+      "4. Configure as opções do Restricted Copilot",
+      "5. As configurações ficarão salvas em .vscode/settings.json"
+    ]
+  },
+  "usage": {
+    "quickStart": [
+      "1. Abra qualquer arquivo .py no PjePlus (ex: bacen.py, p2.py)",
+      "2. Coloque o cursor dentro de uma função",
+      "3. Clique com botão direito → 'Analyze Current Function'",
+      "4. Painel lateral abrirá com análise restrita",
+      "5. Faça perguntas específicas sobre o código"
+    ],
+    "autoCompile": [
+      "1. Abra qualquer arquivo .py, .js, .ts no PjePlus",
+      "2. Clique com botão direito → '🔧 Compile & Validate Current File'",
+      "3. A extensão executará compilação automática",
+      "4. Se houver erros, focará automaticamente na linha",
+      "5. Use @restricted no chat para correção específica"
+    ],
+    "examples": [
+      "• Analisar função específica: cursor na função + botão direito",
+      "• Analisar seleção: selecionar código + botão direito",
+      "• Compilar arquivo: botão direito → 'Compile & Validate'",
+      "• Alternar modo restritivo: Ctrl+Shift+P → 'Toggle Restrictive Mode'",
+      "• Análise de erro: selecionar código com erro + análise",
+      "• Auto-fix: após erro detectado → 'Auto-Compile & Fix'"
+    ]
+  }
+}

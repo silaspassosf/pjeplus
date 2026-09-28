@@ -1,0 +1,70 @@
+{
+  "nome": "playwright-20260731-162324",
+  "backend": "playwright",
+  "total": 534.895,
+  "tempo_morto": 31.383,
+  "qtd_sleeps": 69,
+  "tempo_helper": 13.527,
+  "chamadas_helper": 250,
+  "tempo_espera": 10.76,
+  "chamadas_espera": 225,
+  "etapas": [
+    {
+      "nome": "execucao completa",
+      "segundos": 534.895,
+      "erro": null
+    }
+  ],
+  "por_helper": {
+    "Fix.espera.pausa": {
+      "n": 5,
+      "segundos": 3.074,
+      "falhas": 0
+    },
+    "Fix.espera.ate_js": {
+      "n": 94,
+      "segundos": 2.982,
+      "falhas": 4
+    },
+    "Fix.espera.assentar": {
+      "n": 43,
+      "segundos": 1.841,
+      "falhas": 2
+    },
+    "Fix.core.esperar_elemento": {
+      "n": 11,
+      "segundos": 1.422,
+      "falhas": 0
+    },
+    "Fix.core.aguardar_renderizacao_nativa": {
+      "n": 14,
+      "segundos": 1.345,
+      "falhas": 0
+    },
+    "Fix.espera.ate_texto": {
+      "n": 37,
+      "segundos": 1.259,
+      "falhas": 4
+    },
+    "Fix.espera.ate_aparecer": {
+      "n": 25,
+      "segundos": 1.001,
+      "falhas": 0
+    },
+    "Fix.espera.ate_habilitar": {
+      "n": 11,
+      "segundos": 0.399,
+      "falhas": 0
+    },
+    "Fix.espera.ate_desabilitar": {
+      "n": 5,
+      "segundos": 0.121,
+      "falhas": 0
+    },
+    "Fix.espera.ate_sumir": {
+      "n": 5,
+      "segundos": 0.083,
+      "falhas": 0
+    }
+  }
+}

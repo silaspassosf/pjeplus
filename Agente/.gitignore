@@ -1,0 +1,8 @@
+out
+dist
+node_modules
+.vscode-test/
+# *.vsix - Comentado para permitir commit da extensão compilada
+
+# Incluir arquivo da extensão para migração
+!restricted-copilot-0.0.1.vsix

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Teste OCR - Otimizações Avançadas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<style>
+body{font-family:monospace;background:#1e1e2e;color:#cdd6f4;margin:0;padding:16px}
+h1{color:#89b4fa}h2{color:#a6e3a1;margin-top:12px}
+input[type=file]{display:block;margin:12px 0;padding:8px;background:#313244;border:1px solid #45475a;color:#cdd6f4;border-radius:6px;width:100%;max-width:400px}
+button{padding:10px 24px;background:#89b4fa;color:#1e1e2e;border:none;border-radius:6px;font-weight:bold;cursor:pointer}
+button:disabled{background:#45475a;color:#6c7086;cursor:not-allowed}
+#status{margin:12px 0;padding:10px;background:#313244;border-radius:6px;color:#f9e2af;white-space:pre-wrap;height:120px;overflow-y:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.box{background:#313244;border-radius:8px;padding:12px;border:1px solid #45475a}
+.box pre{white-space:pre-wrap;word-break:break-word;font-size:11px;height:400px;overflow-y:auto;line-height:1.4}
+.highlight{background:#f38ba8;color:#1e1e2e;font-weight:bold;padding:0 2px}
+canvas {max-width:100%; border: 1px solid #f38ba8; margin-bottom: 12px; background: white;}
+table{border-collapse:collapse;width:100%;margin-top:8px;background:#1e1e2e}
+td,th{border:1px solid #45475a;padding:8px 12px;font-size:14px}
+th{background:#45475a;color:#89b4fa;text-align:left}
+.ok{color:#a6e3a1;font-weight:bold}.fail{color:#f38ba8}.warn{color:#f9e2af;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>Teste OCR - Binarização Adaptativa + Whitelist</h1>
+<p>Implementações ativas: <b>Escala 5.0 (300+ DPI)</b>, <b>Binarização Otsu</b>, <b>Whitelist de Caracteres</b>, <b>PSM 6</b>, <b>Reconstrução Posicional Numérica</b> e <b>Confiança (Confidence Score)</b> do Tesseract.</p>
+<input type="file" id="fileInput" accept="application/pdf">
+<button id="btnRun" onclick="run()">Processar Paginas 1 e 2</button>
+<div id="status">Aguardando PDF...</div>
+
+<div class="box" style="margin-top:16px">
+  <h2>Valores Extraídos</h2>
+  <table id="tblResult">
+    <tr><th>Campo</th><th>Valor Processado</th><th>Valor Bruto (OCR)</th><th>Confiança (0-100)</th><th>IRPF</th><th>Status</th></tr>
+  </table>
+</div>
+
+<div class="grid">
+  <div class="box">
+    <h2>Imagens Tratadas (Otsu + Sem Linhas)</h2>
+    <div id="imgContainer"></div>
+  </div>
+  <div class="box">
+    <h2>Texto OCR Gerado</h2>
+    <pre id="txtResult">-</pre>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+const statusEl=document.getElementById('status');
+function log(msg){statusEl.textContent+=msg+'\n';statusEl.scrollTop=statusEl.scrollHeight;}
+
+const REGEXES={
+  verbas:   {label:'VERBAS',           rx:/VERBAS\s*\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i, g:1},
+  fgts:     {label:'FGTS',             rx:/FGTS\s*\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i, g:1},
+  inssTotal:{label:'INSS Total',       rx:/SAL[AÁ]RIOS\s*DEVIDOS\s*\|\s*([\d.,]+|[a-z\d.,]+)\s*\|/i, g:1},
+  inssAutor:{label:'INSS Reclamante',  rx:/DEDU[CÇ][AÃ]O[\s\S]{1,50}?\|\s*[\(\[]?\s*([\d.,]+|[a-z\d.,]+)[\s\)\]]*\s*\|/i, g:1},
+  dataLiq:  {label:'Data Liquidação',  rx:/(?:Data\s+Liquida[çc][ãa]o|em)\s*[:\-\u2014\u2013]*\s*(\d{2}\/\d{2}\/\d{4})/i, g:1}
+};
+
+// Lista de peritos conhecidos (espelha window.hcalcPeritosDetectados do hcalc).
+// Preencha nomes de peritos aqui para validar a disambiguacao perito x advogado.
+const PERITOS_CONHECIDOS = [];
+
+function calcularOtsu(data) {
+    let histogram = new Array(256).fill(0);
+    for (let i = 0; i < data.length; i += 4) {
+        let luma = Math.round((data[i] + data[i+1] + data[i+2]) / 3);
+        histogram[luma]++;
+    }
+    let total = data.length / 4;
+    let sum = 0;
+    for (let t = 0; t < 256; t++) sum += t * histogram[t];
+    
+    let sumB = 0, wB = 0, wF = 0, varMax = 0, threshold = 0;
+    
+    for (let t = 0; t < 256; t++) {
+        wB += histogram[t];
+        if (wB === 0) continue;
+        wF = total - wB;
+        if (wF === 0) break;
+        sumB += t * histogram[t];
+        let mB = sumB / wB;
+        let mF = (sum - sumB) / wF;
+        let varBetween = wB * wF * (mB - mF) * (mB - mF);
+        if (varBetween > varMax) {
+            varMax = varBetween;
+            threshold = t;
+        }
+    }
+    return threshold;
+}
+
+function processarImagemOtsu(canvas) {
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
+
+    // Aumentar o contraste esticando o histograma antes de binarizar
+    // Ignoramos pixels perfeitamente brancos para não estragar a conta
+    let min = 255, max = 0;
+    for (let i = 0; i < data.length; i += 4) {
+        let v = (data[i] + data[i+1] + data[i+2]) / 3;
+        if(v < 255) { if(v < min) min = v; if(v > max) max = v; }
+    }
+    for (let i = 0; i < data.length; i += 4) {
+        let v = (data[i] + data[i+1] + data[i+2]) / 3;
+        if(v < 255) {
+            let stretched = (v - min) * 255 / (max - min);
+            data[i] = stretched; data[i+1] = stretched; data[i+2] = stretched;
+        }
+    }
+
+    // Binarização Otsu Adaptativa
+    let otsuThresh = calcularOtsu(data);
+    log('[Imagem] Threshold Otsu calculado: ' + otsuThresh);
+    
+    for (let i = 0; i < data.length; i += 4) {
+        let luma = (data[i] + data[i+1] + data[i+2]) / 3;
+        if (luma > otsuThresh) {
+            data[i] = 255; data[i+1] = 255; data[i+2] = 255; // fundo branco
+        } else {
+            data[i] = 0; data[i+1] = 0; data[i+2] = 0; // texto preto
+        }
+    }
+
+    // Apaga apenas as linhas de grade horizontais REAIS (ocupam mais de 25% da largura da imagem)
+    // Isso impede que números longos borrados sejam confundidos com linhas de grade na escala 6.0
+    const minLineX = Math.floor(width * 0.25); 
+    for (let y = 0; y < height; y++) {
+        let runStart = -1;
+        for (let x = 0; x < width; x++) {
+            let i = (y * width + x) * 4;
+            if (data[i] === 0) { // pixel preto
+                if (runStart === -1) runStart = x;
+            } else {
+                if (runStart !== -1) {
+                    if (x - runStart > minLineX) {
+                        for (let k = runStart; k < x; k++) {
+                            let idx = (y * width + k) * 4;
+                            data[idx] = 255; data[idx+1] = 255; data[idx+2] = 255;
+                        }
+                    }
+                    runStart = -1;
+                }
+            }
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+}
+
+const FIELD_RULES = {
+  verbas: { type: 'currency' },
+  fgts: { type: 'currency' },
+  inssTotal: { type: 'currency' },
+  inssAutor: { type: 'currency' },
+  hon: { type: 'currency' },
+  dataLiq: { type: 'date' }
+};
+
+// Score de validacao final = 0.5*conf + 0.3*matchRegex + 0.2*coerenciaSemantica
+const SCORE_OK = 0.60;
+const SCORE_WARN = 0.45;
+
+function parseBRL(raw, fieldName = "") {
+  if (!raw) return null;
+  let s = String(raw).trim();
+  s = s.replace(/[R$§\s]/g, '');
+  s = s.replace(/[Oo]/g, '0');
+  s = s.replace(/[Il|]/g, '1');
+  s = s.replace(/[,.;:](?=\d{3}\b)/g, '');
+  if (/^\d+[.,]\d{2}$/.test(s)) {
+    s = s.replace('.', '').replace(',', '.');
+    return Number(s);
+  }
+  if (/^\d+$/.test(s)) {
+    if (s.length >= 3) {
+      return Number(s.slice(0, -2) + '.' + s.slice(-2));
+    }
+    return Number('0.' + s.padStart(2, '0'));
+  }
+  s = s.replace(/\./g, '').replace(',', '.');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatBRL(value) {
+  if (value == null || Number.isNaN(value)) return '-';
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseDateBR(raw) {
+  if (!raw) return null;
+  let s = String(raw).replace(/[^\d/]/g, '');
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[1]}/${m[2]}/${m[3]}` : null;
+}
+
+function coerenciaMoeda(val) {
+  if (val == null || !Number.isFinite(val)) return 0;
+  if (val < 0 || val > 1000000000) return 0; // faixa sanitaria p/ planilhas trabalhistas
+  return 1;
+}
+
+function coerenciaData(val) {
+  const m = String(val || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return 0;
+  const d = +m[1], mo = +m[2], y = +m[3];
+  if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31 && y >= 2020 && y <= 2030) return 1;
+  return 0.3;
+}
+
+function normalizeField(name, raw) {
+  const rule = FIELD_RULES[name];
+  if (!rule) return { formatted: raw, parsedOk: true, coerencia: 1, parsedValue: null };
+  if (rule.type === 'currency') {
+    const val = parseBRL(raw, name);
+    return {
+      formatted: val !== null ? formatBRL(val) : raw,
+      parsedOk: val !== null,
+      parsedValue: val,
+      coerencia: coerenciaMoeda(val)
+    };
+  }
+  if (rule.type === 'date') {
+    const val = parseDateBR(raw);
+    return {
+      formatted: val !== null ? val : raw,
+      parsedOk: val !== null,
+      parsedValue: val,
+      coerencia: coerenciaData(val)
+    };
+  }
+  return { formatted: raw, parsedOk: true, coerencia: 1, parsedValue: null };
+}
+
+function medianaConfianca(words) {
+    const vals = (words || []).map(w => Number(w.confidence)).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+    if (!vals.length) return null;
+    const mid = Math.floor(vals.length / 2);
+    return vals.length % 2 ? vals[mid] : Math.round((vals[mid - 1] + vals[mid]) / 2);
+}
+
+function buscarConfianca(rawStr, words, mediana) {
+    if (!words || !words.length) return null;
+    const alvo = String(rawStr || '').replace(/[^\w\d]/g, '');
+    if (!alvo) return mediana || null;
+    let best = 0;
+    for (const w of words) {
+        const wt = String(w.text || '').replace(/[^\w\d]/g, '');
+        if (!wt) continue;
+        // Casa token que e substring do valor OCR (cobre tokens divididos/agrupados)
+        if (alvo.length >= 4 && (alvo.includes(wt) || wt.includes(alvo))) {
+            const c = Number(w.confidence);
+            if (Number.isFinite(c) && c > best) best = c;
+        }
+    }
+    return best > 0 ? best : (mediana || null);
+}
+
+function normalizarNomeParaComparacao(nome) {
+    if (!nome) return '';
+    return String(nome).normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[.]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim().toUpperCase();
+}
+
+function ehPerito(nome) {
+    const alvo = normalizarNomeParaComparacao(nome);
+    if (!alvo) return false;
+    const peritos = (typeof window !== 'undefined' && window.hcalcPeritosDetectados) || PERITOS_CONHECIDOS;
+    return (peritos || []).some(p => {
+        const np = normalizarNomeParaComparacao(p);
+        return np && (np.includes(alvo) || alvo.includes(np));
+    });
+}
+
+function extrairHonorarios(texto, linesAndWords, mediana) {
+    const peritos = [];
+    const advogados = [];
+    const mapaIrpf = {};
+
+    // IRPF SOBRE HONORÁRIOS PARA <NOME> | <valor>
+    const rxIrpf = /IRPF\s+SOBRE\s+HONOR[AÁ]RIOS\s+PARA\s+([^|]{2,60}?)\s*\|\s*([\d.,]+)\s*\|/gi;
+    let m;
+    while ((m = rxIrpf.exec(texto)) !== null) {
+        mapaIrpf[normalizarNomeParaComparacao(m[1])] = m[2].trim();
+    }
+
+    // HONORÁRIOS LÍQUIDOS PARA <NOME> | <valor>
+    const rxHon = /HONOR[AÁ]RIOS\s+L[IÍ]QUIDOS\s+PARA\s+([^|]{2,60}?)\s*\|\s*([\d.,]+)\s*\|/gi;
+    while ((m = rxHon.exec(texto)) !== null) {
+        const nome = m[1].trim();
+        if (!nome) continue;
+        const raw = m[2].trim();
+        const conf = buscarConfianca(raw, linesAndWords, mediana);
+        const norm = normalizeField('hon', raw);
+        const item = {
+            nome,
+            final: norm.formatted,
+            raw,
+            irpf: mapaIrpf[normalizarNomeParaComparacao(nome)] || '',
+            conf,
+            parsedOk: norm.parsedOk,
+            coerencia: norm.coerencia
+        };
+        if (ehPerito(nome)) peritos.push(item);
+        else advogados.push(item);
+    }
+
+    // HONORÁRIOS PERICIAIS explícitos (sem nome de advogado)
+    const mPer = texto.match(/HONOR[AÁ]RIOS\s+PERICIAIS[^|]{0,40}?\|\s*([\d.,]+)\s*\|/i);
+    if (mPer && mPer[1]) {
+        const raw = mPer[1].trim();
+        const norm = normalizeField('hon', raw);
+        peritos.push({
+            nome: '(perito)',
+            final: norm.formatted,
+            raw,
+            irpf: '',
+            conf: buscarConfianca(raw, linesAndWords, mediana),
+            parsedOk: norm.parsedOk,
+            coerencia: norm.coerencia
+        });
+    }
+
+    return { peritos, advogados };
+}
+
+function processarExtractions(texto, linesAndWords) {
+    const mediana = medianaConfianca(linesAndWords);
+    const r = {};
+    for(const [k, v] of Object.entries(REGEXES)) {
+        const m = texto.match(v.rx);
+        if (m && m[v.g]) {
+            const rawStr = m[v.g].trim();
+            const conf = buscarConfianca(rawStr, linesAndWords, mediana);
+            const norm = normalizeField(k, rawStr);
+            r[k] = { final: norm.formatted, raw: rawStr, conf, parsedOk: norm.parsedOk, coerencia: norm.coerencia };
+        } else {
+            r[k] = { final: '', raw: '', conf: null, parsedOk: false, coerencia: 0 };
+        }
+    }
+    // PÓS-VALIDAÇÃO DE DOMÍNIO — FGTS
+    // PJe-Calc: FGTS (crédito) == DEPÓSITO FGTS (débito). O OCR costuma perder
+    // um dígito na célula de crédito (ex.: 68617 em vez de 686517); o débito
+    // costuma vir íntegro. Se divergirem, usa o DEPÓSITO FGTS como fonte.
+    const mDepFgts = texto.match(/DEP[OÓ]SITO\s+FGTS\s*\|\s*[\(\[]?\s*([\d.,]+|[a-z\d.,]+)/i);
+    if (r.fgts && r.fgts.parsedOk && mDepFgts && mDepFgts[1]) {
+        const dep = normalizeField('hon', mDepFgts[1].trim());
+        const vFgts = parseBRL(r.fgts.raw, 'fgts');
+        if (dep.parsedOk && dep.parsedValue !== null && vFgts !== null &&
+            Math.abs(vFgts - dep.parsedValue) > 0.005) {
+            r.fgts.final = dep.formatted;
+            r.fgts.inferido = true;
+        }
+    }
+
+    r.honorarios = extrairHonorarios(texto, linesAndWords, mediana);
+    return r;
+}
+
+function calcularStatus(entry) {
+    if (!entry.final || entry.final === '') return { cls: 'fail', text: 'Não Encontrado' };
+    if (!entry.parsedOk) return { cls: 'fail', text: 'Revisar (Formato)' };
+    if (entry.inferido) return { cls: 'warn', text: 'Inferido (cross-check DEPÓSITO FGTS)' };
+    const confNorm = entry.conf === null ? 0.5 : entry.conf / 100;
+    const score = 0.5 * confNorm + 0.3 + 0.2 * entry.coerencia;
+    if (score >= SCORE_OK) return { cls: 'ok', text: 'OK' };
+    if (score >= SCORE_WARN) return { cls: 'warn', text: 'Inferido (Conf. Baixa)' };
+    return { cls: 'fail', text: 'Revisar (Formato/Conf)' };
+}
+
+function destacar(txt) {
+  // We can't safely use innerHTML with OCR text containing < or >, so we just return the raw text
+  return txt;
+}
+
+async function run(){
+  const file=document.getElementById('fileInput').files[0];
+  if(!file){alert('Selecione um PDF.');return;}
+  
+  document.getElementById('btnRun').disabled=true;
+  statusEl.textContent='';
+  document.getElementById('txtResult').innerHTML='...';
+  document.getElementById('imgContainer').innerHTML='';
+  document.getElementById('tblResult').innerHTML='<tr><th>Campo</th><th>Valor Processado</th><th>Valor Bruto (OCR)</th><th>Confiança (0-100)</th><th>IRPF</th><th>Status</th></tr>';
+  
+  try{
+    log('1. Carregando PDF...');
+    const ab=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    
+    log('2. Iniciando OCR...');
+    const worker = await Tesseract.createWorker('por', 1, {
+      logger: m => { if(m.status === 'recognizing text') log('[OCR] ' + Math.round(m.progress*100) + '%'); }
+    });
+
+    // Adicionando a whitelist e configurações pedidas. IMPORTANTE: TEM QUE TER ESPAÇO NA WHITELIST!
+    await worker.setParameters({
+      tessedit_pageseg_mode: 6, // Bloco uniforme
+      preserve_interword_spaces: '0',
+      tessedit_char_whitelist: ' 0123456789.,()|-/%ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÃÁÀÂÇÉÊÍÓÔÕÚÜãáàâçéêíóôõúü'
+    });
+
+    let ocrTotal = '';
+    let allWords = [];
+    const paginas = Math.min(pdf.numPages, 2); 
+
+    for(let p = 1; p <= paginas; p++) {
+        log('--- Processando Pagina ' + p + ' ---');
+        const pg=await pdf.getPage(p);
+        
+        // Upscale brutal de 6.0 para OCR perfeito de vírgulas
+        const vp=pg.getViewport({scale:6.0});
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.floor(vp.width);
+        canvas.height=Math.floor(vp.height);
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await pg.render({canvasContext:ctx, viewport:vp}).promise;
+
+        processarImagemOtsu(canvas);
+        
+        const div = document.createElement('div');
+        div.innerHTML = '<h3>Pág ' + p + '</h3>';
+        const imgDisp = document.createElement('img');
+        imgDisp.src = canvas.toDataURL('image/png');
+        imgDisp.style.width = '100%';
+        div.appendChild(imgDisp);
+        document.getElementById('imgContainer').appendChild(div);
+        
+        const res = await worker.recognize(canvas.toDataURL('image/png'));
+        ocrTotal += '=== PAGINA ' + p + ' ===\n' + (res.data.text || '') + '\n\n';
+        if (res.data.words) {
+            allWords = allWords.concat(res.data.words);
+        }
+    }
+
+    // Usamos textContent para evitar que caracteres como < ou > quebrem o HTML e sumam com o texto
+    document.getElementById('txtResult').textContent = ocrTotal;
+
+    // EXTRACAO E TABELA
+    log('\n3. Aplicando Regexes e Validação de Confiança...');
+    const resultados = processarExtractions(ocrTotal, allWords);
+    const tbody = document.getElementById('tblResult');
+
+    function addRow(campo, entry, irpf) {
+        const status = calcularStatus(entry);
+        const txtFinal = entry.final || '(vazio)';
+        const txtRaw = entry.raw || '-';
+        const txtConf = entry.conf === null ? 'N/A' : entry.conf + '%';
+        tbody.innerHTML += '<tr><td>' + campo + '</td><td class="' + status.cls + '">' + txtFinal + '</td><td>' + txtRaw + '</td><td>' + txtConf + '</td><td>' + (irpf || '-') + '</td><td class="' + status.cls + '">' + status.text + '</td></tr>';
+    }
+
+    for(const key of ['verbas', 'fgts', 'inssTotal', 'inssAutor']) {
+        addRow(REGEXES[key].label, resultados[key]);
+    }
+    // Honorários advocatícios (um por advogado)
+    for(const adv of resultados.honorarios.advogados) {
+        addRow('Hon. Adv. — ' + adv.nome, adv, adv.irpf ? formatBRL(parseBRL(adv.irpf)) : '-');
+    }
+    // Honorários periciais (apenas quando perito identificado)
+    for(const per of resultados.honorarios.peritos) {
+        addRow('Hon. Perito — ' + per.nome, per, per.irpf ? formatBRL(parseBRL(per.irpf)) : '-');
+    }
+    addRow(REGEXES.dataLiq.label, resultados.dataLiq);
+
+    await worker.terminate();
+    log('\nConcluído!');
+  }catch(e){
+    log('ERRO: '+e.message);
+  }
+  document.getElementById('btnRun').disabled=false;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,785 @@
+[20:07:36] [pjeplus] [INFO] ORQUESTRADOR UNIFICADO PJEPlus
+[pjeplus] ORQUESTRADOR UNIFICADO PJEPlus
+[20:07:36] [pjeplus] [INFO] data/hora: 17/09/2026 20:07:36
+[pjeplus] data/hora: 17/09/2026 20:07:36
+[20:07:36] [pjeplus] [INFO] ambiente: pc_visible
+[pjeplus] ambiente: pc_visible
+[20:07:36] [pjeplus] [INFO] log: logs_execucao\x_PC_Visible_20260917_200732.log
+[pjeplus] log: logs_execucao\x_PC_Visible_20260917_200732.log
+[20:07:38] [pjeplay] [INFO] driver criado: PC (playwright)
+[pjeplay] driver criado: PC (playwright)
+[20:07:38] [pjeplus] [INFO] [COOKIES] Tentando login automatico via cookies salvos...
+[pjeplus] [COOKIES] Tentando login automatico via cookies salvos...
+[20:07:39] [pjeplus] [WARNING] [COOKIES] URL de acesso negado detectada. Apagando cookies carregados.
+[pjeplus] [COOKIES] URL de acesso negado detectada. Apagando cookies carregados.
+[20:07:39] [pjeplus] [WARNING] [COOKIES] Cookies invalidos ou inexistentes. Login manual necessario.
+[pjeplus] [COOKIES] Cookies invalidos ou inexistentes. Login manual necessario.
+[20:07:39] [pjeplus] [INFO] [LOGIN_MANUAL] Navegando para tela de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[pjeplus] [LOGIN_MANUAL] Navegando para tela de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[20:07:39] [pjeplus] [INFO] [LOGIN_MANUAL] Aguarde o login manual ate: https://pje.trt2.jus.br/pjekz/gigs/meu-painel
+[pjeplus] [LOGIN_MANUAL] Aguarde o login manual ate: https://pje.trt2.jus.br/pjekz/gigs/meu-painel
+[20:09:28] [pjeplus] [INFO] [LOGIN] Sessao OAuth completa confirmada (0s).
+[pjeplus] [LOGIN] Sessao OAuth completa confirmada (0s).
+[20:09:28] [pjeplus] [INFO] ── fluxo: E ──
+[pjeplus] ── fluxo: E ──
+[20:09:28] [PEC.runtime_pec] [INFO] [PECAPIClient] Iniciando fetch_atividades_vencidas (API Gateway)...
+[PEC.runtime_pec] [PECAPIClient] Iniciando fetch_atividades_vencidas (API Gateway)...
+[20:09:29] [PEC.runtime_pec] [INFO] [PECAPIClient] OK 127/127 atividades carregadas
+[PEC.runtime_pec] [PECAPIClient] OK 127/127 atividades carregadas
+[20:09:29] [PEC.runtime_pec] [INFO] [PECAPIClient] Total de atividades parseadas: 127
+[PEC.runtime_pec] [PECAPIClient] Total de atividades parseadas: 127
+[20:09:29] [PEC.runtime_pec] [INFO] [PEC] Filtro D-1 OFF — processando todas: 127
+[PEC.runtime_pec] [PEC] Filtro D-1 OFF — processando todas: 127
+[20:09:29] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC] ✅ Progresso carregado: 12 executados, 56 com erro
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC] ✅ Progresso carregado: 12 executados, 56 com erro
+[20:09:29] [PEC.runtime_pec] [INFO] [PEC] Skip já executado: 1001053-76.2022.5.02.0703
+[PEC.runtime_pec] [PEC] Skip já executado: 1001053-76.2022.5.02.0703
+[20:09:29] [PEC.runtime_pec] [INFO] [PEC] Skip já executado: 1000012-69.2025.5.02.0703
+[PEC.runtime_pec] [PEC] Skip já executado: 1000012-69.2025.5.02.0703
+[20:09:31] [PEC.carta_execucao] [INFO] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[PEC.carta_execucao] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[20:09:31] [PEC.carta_execucao] [INFO] [CARTA] dadosatuais.json.numero=['1000268-12.2025.5.02.0703']
+[PEC.carta_execucao] [CARTA] dadosatuais.json.numero=['1000268-12.2025.5.02.0703']
+[20:09:32] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - fd9af0c' | aria='' | item_id_attr='doc_483744564'
+[PEC.carta_execucao] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - fd9af0c' | aria='' | item_id_attr='doc_483744564'
+[20:09:34] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000268-12.2025.5.02.0703reclamante: anderson de souza reclamado: m.s....
+[PEC.carta_execucao] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000268-12.2025.5.02.0703reclamante: anderson de souza reclamado: m.s....
+[20:09:34] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[20:09:34] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] extracted_id=fd9af0c (source=link_text)
+[PEC.carta_execucao] [CARTA][DEBUG] extracted_id=fd9af0c (source=link_text)
+[20:09:34] [PEC.carta_execucao] [INFO] [CARTA] coletar_intimacoes retornou 1 ids (took 2.80s): ['fd9af0c'] | data_referencia='28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA] coletar_intimacoes retornou 1 ids (took 2.80s): ['fd9af0c'] | data_referencia='28 de agosto de 2026'
+[20:09:34] [PEC.carta_ecarta_api] [INFO] [CARTA-API] START — process=1000268-12.2025.5.02.0703 | intimation_ids=['fd9af0c']
+[PEC.carta_ecarta_api] [CARTA-API] START — process=1000268-12.2025.5.02.0703 | intimation_ids=['fd9af0c']
+[20:09:35] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Abrindo eCarta para login único...
+[PEC.carta_ecarta_api] [CARTA-API] Abrindo eCarta para login único...
+[20:09:36] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Login realizado com sucesso
+[PEC.carta_ecarta_api] [CARTA-API] Login realizado com sucesso
+[20:09:36] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Sessão HTTP inicializada
+[PEC.carta_ecarta_api] [CARTA-API] Sessão HTTP inicializada
+[20:09:36] [PEC.carta_ecarta_api] [INFO] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1000268-12.2025.5.02.0703
+[PEC.carta_ecarta_api] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1000268-12.2025.5.02.0703
+[20:09:36] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 3 linhas extraídas (GET: 0.1s)
+[PEC.carta_ecarta_api] [CARTA-API] 3 linhas extraídas (GET: 0.1s)
+[20:09:36] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 1 linha(s) de 3
+[PEC.carta_ecarta_api] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 1 linha(s) de 3
+[20:09:36] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 1 linhas na(s) data(s) alvo, 1 com rastreio para auditar
+[PEC.carta_ecarta_api] [CARTA-API] 1 linhas na(s) data(s) alvo, 1 com rastreio para auditar
+[20:09:36] [PEC.carta_ecarta_api] [INFO] [CARTA-API] DONE — 1 registros, 0 falso(s) positivo(s) corrigido(s) (total: 1.8s)
+[PEC.carta_ecarta_api] [CARTA-API] DONE — 1 registros, 0 falso(s) positivo(s) corrigido(s) (total: 1.8s)
+[20:09:36] [PEC.carta_execucao] [INFO] [CARTA] coletar_tabela_ecarta_api retornou 1 registros (took 2.28s)
+[PEC.carta_execucao] [CARTA] coletar_tabela_ecarta_api retornou 1 registros (took 2.28s)
+[20:09:36] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[20:09:36] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Conteúdo salvo: 356 chars
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Conteúdo salvo: 356 chars
+[20:09:36] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Processo: 1000268-12.2025.5.02.0703
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Processo: 1000268-12.2025.5.02.0703
+[20:09:36] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Tipo (informativo): ecarta
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Tipo (informativo): ecarta
+[20:09:36] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[20:09:36] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[JUNTADA][DEBUG] Abrindo interface de anexação...
+[JUNTADA][DEBUG] ID do processo detectado (6948808). Abrindo /documento/anexar diretamente via JS...
+[JUNTADA][DEBUG] Mudando para aba de anexação...
+[JUNTADA][DEBUG] Tipo de Documento selecionado: Certidão
+[20:10:01] [PEC.anexos.anexos_juntador_metodos] [INFO] [JUNTADA][DEBUG] Modelo inserido com sucesso (conteudo substancial detectado no editor)
+[PEC.anexos.anexos_juntador_metodos] [JUNTADA][DEBUG] Modelo inserido com sucesso (conteudo substancial detectado no editor)
+[SUBST_MARCADOR] Iniciando colagem após marcador '--'...
+[SUBST_MARCADOR] Usando conteúdo customizado: 686 chars
+[SUBST_MARCADOR] Editor encontrado por seletor: .ck-editor__editable[contenteditable="true"]
+[DEBUG] HTML ANTES: <p style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:center;text-indent:4.5cm;" class="corpo"><strong>CERTIDÃO</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">CERTIFICO que a(as) int
+[DEBUG] TEXTO ANTES: CERTIDÃO
+
+CERTIFICO que a(as) intimação (ões) recebeu(ram) o(s) seguinte(s) código(s) de rastreamento - ids e resultado:
+
+--
+
+
+
+[DEBUG] Contém marcador '--' no HTML? True
+[DEBUG] Contém marcador '--' no TEXTO? True
+[SUBST_MARCADOR] Resultado do script: {'sucesso': True, 'metodo': 'ckeditor_api'}
+[SUBST_MARCADOR] ✅ HTML inserido com sucesso via método: ckeditor_api
+[SUBST_MARCADOR] Verificação final: marcador removido = True
+[JUNTADA] Salvando documento final...
+[JUNTADA][DEBUG] Tentando seletor 1: button[aria-label="Salvar"]
+[JUNTADA][DEBUG] Elemento encontrado com seletor 1: button[aria-label="Salvar"]
+[JUNTADA][DEBUG] ✅ Clique realizado: Salvar documento (seletor 1, tentativa 1)
+[JUNTADA] Aguardando processamento do salvamento...
+[JUNTADA] Salvamento confirmado.
+[20:10:01] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL]  Juntada automática concluída com sucesso!
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL]  Juntada automática concluída com sucesso!
+[20:10:02] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000268-12.2025.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000268-12.2025.5.02.0703] ✅ Processo marcado como executado
+[20:10:02] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:10:04] [PEC.carta_execucao] [INFO] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[PEC.carta_execucao] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[20:10:04] [PEC.carta_execucao] [INFO] [CARTA] dadosatuais.json.numero=['1001330-87.2025.5.02.0703']
+[PEC.carta_execucao] [CARTA] dadosatuais.json.numero=['1001330-87.2025.5.02.0703']
+[20:10:04] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - c181d62' | aria='' | item_id_attr='doc_483744717'
+[PEC.carta_execucao] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - c181d62' | aria='' | item_id_attr='doc_483744717'
+[20:10:06] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1001330-87.2025.5.02.0703reclamante: michele fernandes reclamado: empr...
+[PEC.carta_execucao] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1001330-87.2025.5.02.0703reclamante: michele fernandes reclamado: empr...
+[20:10:06] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[20:10:06] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] extracted_id=c181d62 (source=link_text)
+[PEC.carta_execucao] [CARTA][DEBUG] extracted_id=c181d62 (source=link_text)
+[20:10:06] [PEC.carta_execucao] [INFO] [CARTA] coletar_intimacoes retornou 1 ids (took 2.99s): ['c181d62'] | data_referencia='28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA] coletar_intimacoes retornou 1 ids (took 2.99s): ['c181d62'] | data_referencia='28 de agosto de 2026'
+[20:10:07] [PEC.carta_ecarta_api] [INFO] [CARTA-API] START — process=1001330-87.2025.5.02.0703 | intimation_ids=['c181d62']
+[PEC.carta_ecarta_api] [CARTA-API] START — process=1001330-87.2025.5.02.0703 | intimation_ids=['c181d62']
+[20:10:07] [PEC.carta_ecarta_api] [INFO] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1001330-87.2025.5.02.0703
+[PEC.carta_ecarta_api] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1001330-87.2025.5.02.0703
+[20:10:07] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 2 linhas extraídas (GET: 0.5s)
+[PEC.carta_ecarta_api] [CARTA-API] 2 linhas extraídas (GET: 0.5s)
+[20:10:07] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 2 linha(s) de 2
+[PEC.carta_ecarta_api] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 2 linha(s) de 2
+[20:10:07] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 2 linhas na(s) data(s) alvo, 2 com rastreio para auditar
+[PEC.carta_ecarta_api] [CARTA-API] 2 linhas na(s) data(s) alvo, 2 com rastreio para auditar
+[20:10:08] [PEC.carta_ecarta_api] [WARNING] [CARTA-API] ⚠️ FALSO POSITIVO: YH315421303BR — tabela dizia "A entrega não pode ser efetuada - Cliente mudou-se", mas histórico comprova devolução (10/09/2026 16:59 — Objeto não entregue - cliente mudou-se | Objeto será devolvido ao remetente)
+[PEC.carta_ecarta_api] [CARTA-API] ⚠️ FALSO POSITIVO: YH315421303BR — tabela dizia "A entrega não pode ser efetuada - Cliente mudou-se", mas histórico comprova devolução (10/09/2026 16:59 — Objeto não entregue - cliente mudou-se | Objeto será devolvido ao remetente)
+[20:10:08] [PEC.carta_ecarta_api] [INFO] [CARTA-API] DONE — 2 registros, 1 falso(s) positivo(s) corrigido(s) (total: 1.1s)
+[PEC.carta_ecarta_api] [CARTA-API] DONE — 2 registros, 1 falso(s) positivo(s) corrigido(s) (total: 1.1s)
+[20:10:08] [PEC.carta_execucao] [INFO] [CARTA] coletar_tabela_ecarta_api retornou 2 registros (took 1.61s)
+[PEC.carta_execucao] [CARTA] coletar_tabela_ecarta_api retornou 2 registros (took 1.61s)
+[20:10:08] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[20:10:08] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Conteúdo salvo: 799 chars
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Conteúdo salvo: 799 chars
+[20:10:08] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Processo: 1001330-87.2025.5.02.0703
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Processo: 1001330-87.2025.5.02.0703
+[20:10:08] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Tipo (informativo): ecarta
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Tipo (informativo): ecarta
+[20:10:08] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[20:10:08] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[JUNTADA][DEBUG] Abrindo interface de anexação...
+[JUNTADA][DEBUG] ID do processo detectado (7565799). Abrindo /documento/anexar diretamente via JS...
+[JUNTADA][DEBUG] Mudando para aba de anexação...
+[JUNTADA][DEBUG] Tipo de Documento selecionado: Certidão
+[20:10:32] [PEC.anexos.anexos_juntador_metodos] [INFO] [JUNTADA][DEBUG] Modelo inserido com sucesso (conteudo substancial detectado no editor)
+[PEC.anexos.anexos_juntador_metodos] [JUNTADA][DEBUG] Modelo inserido com sucesso (conteudo substancial detectado no editor)
+[SUBST_MARCADOR] Iniciando colagem após marcador '--'...
+[SUBST_MARCADOR] Usando conteúdo customizado: 1174 chars
+[SUBST_MARCADOR] Editor encontrado por seletor: .ck-editor__editable[contenteditable="true"]
+[DEBUG] HTML ANTES: <p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:center;text-indent:4.5cm;"><strong>CERTIDÃO</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">CERTIFICO que a(as) int
+[DEBUG] TEXTO ANTES: CERTIDÃO
+
+CERTIFICO que a(as) intimação (ões) recebeu(ram) o(s) seguinte(s) código(s) de rastreamento - ids e resultado:
+
+
+
+
+    IID: c181d62
+OBJETO: YH315421317BR
+DESTINATARIO: ANA CAROLINA DOS SANTOS
+DATA DO ENVIO: 31/08/2026
+DATA DE ENTREGA: 04/09/2026
+RESULTADO: ENTREGUE
+DEVOLVIDA? ( ) - Desmarc
+[DEBUG] Contém marcador '--' no HTML? False
+[DEBUG] Contém marcador '--' no TEXTO? False
+[SUBST_MARCADOR] Resultado do script: {'sucesso': False, 'erro': 'Nenhum método funcionou'}
+[SUBST_MARCADOR] ❌ Falha na inserção: Nenhum método funcionou
+[20:10:32] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL]  Juntada automática falhou ou foi pulada
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL]  Juntada automática falhou ou foi pulada
+[20:10:32] [PEC.carta_execucao] [ERROR] [CARTA] Juntada automatica falhou ou foi pulada.
+
+============================================================
+[PEC.carta_execucao] [CARTA] Juntada automatica falhou ou foi pulada.
+============================================================
+[20:10:33] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001330-87.2025.5.02.0703] ❌ Erro: Acao _carta_exec retornou False
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001330-87.2025.5.02.0703] ❌ Erro: Acao _carta_exec retornou False
+[20:10:33] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:10:35] [PEC.carta_execucao] [INFO] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[PEC.carta_execucao] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[20:10:35] [PEC.carta_execucao] [INFO] [CARTA] dadosatuais.json.numero=['1000151-84.2026.5.02.0703']
+[PEC.carta_execucao] [CARTA] dadosatuais.json.numero=['1000151-84.2026.5.02.0703']
+[20:10:35] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação) - ba409a5' | aria='' | item_id_attr='doc_484206039'
+[PEC.carta_execucao] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação) - ba409a5' | aria='' | item_id_attr='doc_484206039'
+[20:10:37] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] documento extraído (excerpt): --- poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000151-84.2026.5.02.0703reclamante: beatriz negrini recchi reclam...
+[PEC.carta_execucao] [CARTA][DEBUG] documento extraído (excerpt): --- poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000151-84.2026.5.02.0703reclamante: beatriz negrini recchi reclam...
+[20:10:37] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] data_intimacao extraida do texto: '30 de agosto de 2026'
+[PEC.carta_execucao] [CARTA][DEBUG] data_intimacao extraida do texto: '30 de agosto de 2026'
+[20:10:37] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] correio_detectado=False | len_texto=806 | contem_ecarta=False | contem_via_ecarta=False | tem_rastreio=False
+[PEC.carta_execucao] [CARTA][DEBUG] correio_detectado=False | len_texto=806 | contem_ecarta=False | contem_via_ecarta=False | tem_rastreio=False
+[20:10:37] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] amostra_meio_texto: do despacho id 6923bbb proferido nos autos.conclusãonesta data, faço os autos conclusos ao exmo(a). sr(a). juiz(a) dotrabalho da 3ª vt de zona sul de são paulo.são paulo, 30 de agosto de 2026.andrei b
+[PEC.carta_execucao] [CARTA][DEBUG] amostra_meio_texto: do despacho id 6923bbb proferido nos autos.conclusãonesta data, faço os autos conclusos ao exmo(a). sr(a). juiz(a) dotrabalho da 3ª vt de zona sul de são paulo.são paulo, 30 de agosto de 2026.andrei b
+[20:10:37] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - 4d0fa2f' | aria='' | item_id_attr='doc_483745344'
+[PEC.carta_execucao] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - 4d0fa2f' | aria='' | item_id_attr='doc_483745344'
+[20:10:40] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000151-84.2026.5.02.0703reclamante: beatriz negrini recchi reclamado:...
+[PEC.carta_execucao] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000151-84.2026.5.02.0703reclamante: beatriz negrini recchi reclamado:...
+[20:10:40] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[20:10:40] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] extracted_id=4d0fa2f (source=link_text)
+[PEC.carta_execucao] [CARTA][DEBUG] extracted_id=4d0fa2f (source=link_text)
+[20:10:40] [PEC.carta_execucao] [INFO] [CARTA] coletar_intimacoes retornou 1 ids (took 5.33s): ['4d0fa2f'] | data_referencia='28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA] coletar_intimacoes retornou 1 ids (took 5.33s): ['4d0fa2f'] | data_referencia='28 de agosto de 2026'
+[20:10:40] [PEC.carta_ecarta_api] [INFO] [CARTA-API] START — process=1000151-84.2026.5.02.0703 | intimation_ids=['4d0fa2f']
+[PEC.carta_ecarta_api] [CARTA-API] START — process=1000151-84.2026.5.02.0703 | intimation_ids=['4d0fa2f']
+[20:10:40] [PEC.carta_ecarta_api] [INFO] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1000151-84.2026.5.02.0703
+[PEC.carta_ecarta_api] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1000151-84.2026.5.02.0703
+[20:10:41] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 4 linhas extraídas (GET: 0.5s)
+[PEC.carta_ecarta_api] [CARTA-API] 4 linhas extraídas (GET: 0.5s)
+[20:10:41] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 1 linha(s) de 4
+[PEC.carta_ecarta_api] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 1 linha(s) de 4
+[20:10:41] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 1 linhas na(s) data(s) alvo, 1 com rastreio para auditar
+[PEC.carta_ecarta_api] [CARTA-API] 1 linhas na(s) data(s) alvo, 1 com rastreio para auditar
+[20:10:41] [PEC.carta_ecarta_api] [INFO] [CARTA-API] DONE — 1 registros, 0 falso(s) positivo(s) corrigido(s) (total: 0.9s)
+[PEC.carta_ecarta_api] [CARTA-API] DONE — 1 registros, 0 falso(s) positivo(s) corrigido(s) (total: 0.9s)
+[20:10:41] [PEC.carta_execucao] [INFO] [CARTA] coletar_tabela_ecarta_api retornou 1 registros (took 1.38s)
+[PEC.carta_execucao] [CARTA] coletar_tabela_ecarta_api retornou 1 registros (took 1.38s)
+[20:10:41] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[20:10:41] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Conteúdo salvo: 322 chars
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Conteúdo salvo: 322 chars
+[20:10:41] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Processo: 1000151-84.2026.5.02.0703
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Processo: 1000151-84.2026.5.02.0703
+[20:10:41] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Tipo (informativo): ecarta
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Tipo (informativo): ecarta
+[20:10:41] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[20:10:41] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[JUNTADA][DEBUG] Abrindo interface de anexação...
+[JUNTADA][DEBUG] ID do processo detectado (8223824). Abrindo /documento/anexar diretamente via JS...
+[JUNTADA][DEBUG] Mudando para aba de anexação...
+[JUNTADA][DEBUG] Tipo de Documento selecionado: Certidão
+[20:11:05] [PEC.anexos.anexos_juntador_metodos] [INFO] [JUNTADA][DEBUG] Modelo inserido com sucesso (conteudo substancial detectado no editor)
+[PEC.anexos.anexos_juntador_metodos] [JUNTADA][DEBUG] Modelo inserido com sucesso (conteudo substancial detectado no editor)
+[SUBST_MARCADOR] Iniciando colagem após marcador '--'...
+[SUBST_MARCADOR] Usando conteúdo customizado: 542 chars
+[SUBST_MARCADOR] Editor encontrado por seletor: .ck-editor__editable[contenteditable="true"]
+[DEBUG] HTML ANTES: <p style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify;text-indent:4.5cm;" class="corpo"><br data-cke-filler="true"></p>
+[DEBUG] TEXTO ANTES: 
+
+[DEBUG] Contém marcador '--' no HTML? False
+[DEBUG] Contém marcador '--' no TEXTO? False
+[SUBST_MARCADOR] Resultado do script: {'sucesso': False, 'erro': 'Nenhum método funcionou'}
+[SUBST_MARCADOR] ❌ Falha na inserção: Nenhum método funcionou
+[20:11:05] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL]  Juntada automática falhou ou foi pulada
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL]  Juntada automática falhou ou foi pulada
+[20:11:05] [PEC.carta_execucao] [ERROR] [CARTA] Juntada automatica falhou ou foi pulada.
+
+============================================================
+[PEC.carta_execucao] [CARTA] Juntada automatica falhou ou foi pulada.
+============================================================
+[20:11:06] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000151-84.2026.5.02.0703] ❌ Erro: Acao _carta_exec retornou False
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000151-84.2026.5.02.0703] ❌ Erro: Acao _carta_exec retornou False
+[20:11:06] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:11:07] [PEC.carta_execucao] [INFO] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[PEC.carta_execucao] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[20:11:07] [PEC.carta_execucao] [INFO] [CARTA] dadosatuais.json.numero=['1000815-52.2025.5.02.0703']
+[PEC.carta_execucao] [CARTA] dadosatuais.json.numero=['1000815-52.2025.5.02.0703']
+[20:11:08] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação) - e854bd7' | aria='' | item_id_attr='doc_484679028'
+[PEC.carta_execucao] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação) - e854bd7' | aria='' | item_id_attr='doc_484679028'
+[20:11:10] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] documento extraído (excerpt): --- poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000815-52.2025.5.02.0703reclamante: antonio alberto dantas reclam...
+[PEC.carta_execucao] [CARTA][DEBUG] documento extraído (excerpt): --- poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000815-52.2025.5.02.0703reclamante: antonio alberto dantas reclam...
+[20:11:10] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] data_intimacao extraida do texto: '01 de setembro de 2026'
+[PEC.carta_execucao] [CARTA][DEBUG] data_intimacao extraida do texto: '01 de setembro de 2026'
+[20:11:10] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] correio_detectado=False | len_texto=762 | contem_ecarta=False | contem_via_ecarta=False | tem_rastreio=False
+[PEC.carta_execucao] [CARTA][DEBUG] correio_detectado=False | len_texto=762 | contem_ecarta=False | contem_via_ecarta=False | tem_rastreio=False
+[20:11:10] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] amostra_meio_texto: ado para tomar ciência do despacho id 566326c proferido nos autos.conclusãonesta data, faço os autos conclusos ao exmo(a). sr(a). juiz(a) dotrabalho da 3ª vt de zona sul de são paulo.são paulo, 01 de 
+[PEC.carta_execucao] [CARTA][DEBUG] amostra_meio_texto: ado para tomar ciência do despacho id 566326c proferido nos autos.conclusãonesta data, faço os autos conclusos ao exmo(a). sr(a). juiz(a) dotrabalho da 3ª vt de zona sul de são paulo.são paulo, 01 de 
+[20:11:10] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] link_text_before_click='Intimação(Defesa IDPJ) - d003332' | aria='' | item_id_attr='doc_483747576'
+[PEC.carta_execucao] [CARTA][DEBUG] link_text_before_click='Intimação(Defesa IDPJ) - d003332' | aria='' | item_id_attr='doc_483747576'
+[20:11:12] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000815-52.2025.5.02.0703reclamante: antonio alberto dantas reclamado:...
+[PEC.carta_execucao] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1000815-52.2025.5.02.0703reclamante: antonio alberto dantas reclamado:...
+[20:11:12] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[20:11:12] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] extracted_id=d003332 (source=link_text)
+[PEC.carta_execucao] [CARTA][DEBUG] extracted_id=d003332 (source=link_text)
+[20:11:12] [PEC.carta_execucao] [INFO] [CARTA] coletar_intimacoes retornou 1 ids (took 5.08s): ['d003332'] | data_referencia='28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA] coletar_intimacoes retornou 1 ids (took 5.08s): ['d003332'] | data_referencia='28 de agosto de 2026'
+[20:11:13] [PEC.carta_ecarta_api] [INFO] [CARTA-API] START — process=1000815-52.2025.5.02.0703 | intimation_ids=['d003332']
+[PEC.carta_ecarta_api] [CARTA-API] START — process=1000815-52.2025.5.02.0703 | intimation_ids=['d003332']
+[20:11:13] [PEC.carta_ecarta_api] [INFO] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1000815-52.2025.5.02.0703
+[PEC.carta_ecarta_api] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1000815-52.2025.5.02.0703
+[20:11:13] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 10 linhas extraídas (GET: 0.5s)
+[PEC.carta_ecarta_api] [CARTA-API] 10 linhas extraídas (GET: 0.5s)
+[20:11:13] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 1 linha(s) de 10
+[PEC.carta_ecarta_api] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 1 linha(s) de 10
+[20:11:13] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 1 linhas na(s) data(s) alvo, 1 com rastreio para auditar
+[PEC.carta_ecarta_api] [CARTA-API] 1 linhas na(s) data(s) alvo, 1 com rastreio para auditar
+[20:11:13] [PEC.carta_ecarta_api] [INFO] [CARTA-API] DONE — 1 registros, 0 falso(s) positivo(s) corrigido(s) (total: 0.8s)
+[PEC.carta_ecarta_api] [CARTA-API] DONE — 1 registros, 0 falso(s) positivo(s) corrigido(s) (total: 0.8s)
+[20:11:13] [PEC.carta_execucao] [INFO] [CARTA] coletar_tabela_ecarta_api retornou 1 registros (took 1.28s)
+[PEC.carta_execucao] [CARTA] coletar_tabela_ecarta_api retornou 1 registros (took 1.28s)
+[20:11:13] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[20:11:13] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Conteúdo salvo: 360 chars
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Conteúdo salvo: 360 chars
+[20:11:13] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Processo: 1000815-52.2025.5.02.0703
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Processo: 1000815-52.2025.5.02.0703
+[20:11:13] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Tipo (informativo): ecarta
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Tipo (informativo): ecarta
+[20:11:13] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[20:11:13] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[JUNTADA][DEBUG] Abrindo interface de anexação...
+[JUNTADA][DEBUG] ID do processo detectado (7244649). Abrindo /documento/anexar diretamente via JS...
+[JUNTADA][DEBUG] Mudando para aba de anexação...
+[JUNTADA][DEBUG] Tipo de Documento selecionado: Certidão
+[20:11:38] [PEC.anexos.anexos_juntador_metodos] [INFO] [JUNTADA][DEBUG] Modelo inserido com sucesso (conteudo substancial detectado no editor)
+[PEC.anexos.anexos_juntador_metodos] [JUNTADA][DEBUG] Modelo inserido com sucesso (conteudo substancial detectado no editor)
+[SUBST_MARCADOR] Iniciando colagem após marcador '--'...
+[SUBST_MARCADOR] Usando conteúdo customizado: 690 chars
+[SUBST_MARCADOR] Editor encontrado por seletor: .ck-editor__editable[contenteditable="true"]
+[DEBUG] HTML ANTES: <p style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify;text-indent:4.5cm;" class="corpo"><br data-cke-filler="true"></p>
+[DEBUG] TEXTO ANTES: 
+
+[DEBUG] Contém marcador '--' no HTML? False
+[DEBUG] Contém marcador '--' no TEXTO? False
+[SUBST_MARCADOR] Resultado do script: {'sucesso': False, 'erro': 'Nenhum método funcionou'}
+[SUBST_MARCADOR] ❌ Falha na inserção: Nenhum método funcionou
+[20:11:38] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL]  Juntada automática falhou ou foi pulada
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL]  Juntada automática falhou ou foi pulada
+[20:11:38] [PEC.carta_execucao] [ERROR] [CARTA] Juntada automatica falhou ou foi pulada.
+
+============================================================
+[PEC.carta_execucao] [CARTA] Juntada automatica falhou ou foi pulada.
+============================================================
+[20:11:38] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000815-52.2025.5.02.0703] ❌ Erro: Acao _carta_exec retornou False
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000815-52.2025.5.02.0703] ❌ Erro: Acao _carta_exec retornou False
+[20:11:38] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:11:40] [PEC.carta_execucao] [INFO] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[PEC.carta_execucao] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[20:11:40] [PEC.carta_execucao] [INFO] [CARTA] dadosatuais.json.numero=['1001480-39.2023.5.02.0703']
+[PEC.carta_execucao] [CARTA] dadosatuais.json.numero=['1001480-39.2023.5.02.0703']
+[20:11:41] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - a2d8565' | aria='' | item_id_attr='doc_483428235'
+[PEC.carta_execucao] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - a2d8565' | aria='' | item_id_attr='doc_483428235'
+[20:11:43] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1001480-39.2023.5.02.0703reclamante: bruno alves da silva reclamado: a...
+[PEC.carta_execucao] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul atord 1001480-39.2023.5.02.0703reclamante: bruno alves da silva reclamado: a...
+[20:11:43] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA][DEBUG] data_intimacao extraida do texto: '28 de agosto de 2026'
+[20:11:43] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] extracted_id=a2d8565 (source=link_text)
+[PEC.carta_execucao] [CARTA][DEBUG] extracted_id=a2d8565 (source=link_text)
+[20:11:43] [PEC.carta_execucao] [INFO] [CARTA] coletar_intimacoes retornou 1 ids (took 3.44s): ['a2d8565'] | data_referencia='28 de agosto de 2026'
+[PEC.carta_execucao] [CARTA] coletar_intimacoes retornou 1 ids (took 3.44s): ['a2d8565'] | data_referencia='28 de agosto de 2026'
+[20:11:44] [PEC.carta_ecarta_api] [INFO] [CARTA-API] START — process=1001480-39.2023.5.02.0703 | intimation_ids=['a2d8565']
+[PEC.carta_ecarta_api] [CARTA-API] START — process=1001480-39.2023.5.02.0703 | intimation_ids=['a2d8565']
+[20:11:44] [PEC.carta_ecarta_api] [INFO] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1001480-39.2023.5.02.0703
+[PEC.carta_ecarta_api] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1001480-39.2023.5.02.0703
+[20:11:44] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 9 linhas extraídas (GET: 0.5s)
+[PEC.carta_ecarta_api] [CARTA-API] 9 linhas extraídas (GET: 0.5s)
+[20:11:44] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 0 linha(s) de 9
+[PEC.carta_ecarta_api] [CARTA-API] Selecao por DATA (>= 28 de agosto de 2026): 0 linha(s) de 9
+[20:11:44] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Nenhuma linha nesta data ou mais recente
+[PEC.carta_ecarta_api] [CARTA-API] Nenhuma linha nesta data ou mais recente
+[20:11:44] [PEC.carta_execucao] [INFO] [CARTA] coletar_tabela_ecarta_api retornou 0 registros (took 1.37s)
+[PEC.carta_execucao] [CARTA] coletar_tabela_ecarta_api retornou 0 registros (took 1.37s)
+[20:11:44] [PEC.carta_execucao] [ERROR] [CARTA] Nenhuma correlacao encontrada no eCarta.
+
+============================================================
+[PEC.carta_execucao] [CARTA] Nenhuma correlacao encontrada no eCarta.
+============================================================
+[20:11:44] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001480-39.2023.5.02.0703] ✅ Processo marcado como executado
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001480-39.2023.5.02.0703] ✅ Processo marcado como executado
+[20:11:44] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:11:47] [PEC.carta_execucao] [INFO] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[PEC.carta_execucao] [CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=<class 'dict'>
+[20:11:47] [PEC.carta_execucao] [INFO] [CARTA] dadosatuais.json.numero=['1002109-42.2025.5.02.0703']
+[PEC.carta_execucao] [CARTA] dadosatuais.json.numero=['1002109-42.2025.5.02.0703']
+[20:11:48] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - 5f5964f' | aria='' | item_id_attr='doc_485022116'
+[PEC.carta_execucao] [CARTA][DEBUG] link_text_before_click='Intimação(Intimação para manifestação sobre IDPJ) - 5f5964f' | aria='' | item_id_attr='doc_485022116'
+[20:11:51] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul cumprse 1002109-42.2025.5.02.0703requerente: felipe costa salvador requerido...
+[PEC.carta_execucao] [CARTA][DEBUG] documento extraído (excerpt): poder judiciário justiça do trabalho tribunal regional do trabalho da 2ª região 3ª vara do trabalho de são paulo - zona sul cumprse 1002109-42.2025.5.02.0703requerente: felipe costa salvador requerido...
+[20:11:51] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] data_intimacao extraida do texto: '03 de setembro de 2026'
+[PEC.carta_execucao] [CARTA][DEBUG] data_intimacao extraida do texto: '03 de setembro de 2026'
+[20:11:51] [PEC.carta_execucao] [INFO] [CARTA][DEBUG] extracted_id=5f5964f (source=link_text)
+[PEC.carta_execucao] [CARTA][DEBUG] extracted_id=5f5964f (source=link_text)
+[20:11:51] [PEC.carta_execucao] [INFO] [CARTA] coletar_intimacoes retornou 1 ids (took 4.67s): ['5f5964f'] | data_referencia='03 de setembro de 2026'
+[PEC.carta_execucao] [CARTA] coletar_intimacoes retornou 1 ids (took 4.67s): ['5f5964f'] | data_referencia='03 de setembro de 2026'
+[20:11:52] [PEC.carta_ecarta_api] [INFO] [CARTA-API] START — process=1002109-42.2025.5.02.0703 | intimation_ids=['5f5964f']
+[PEC.carta_ecarta_api] [CARTA-API] START — process=1002109-42.2025.5.02.0703 | intimation_ids=['5f5964f']
+[20:11:52] [PEC.carta_ecarta_api] [INFO] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1002109-42.2025.5.02.0703
+[PEC.carta_ecarta_api] [CARTA-API] GET https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo=1002109-42.2025.5.02.0703
+[20:11:52] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 1 linhas extraídas (GET: 0.7s)
+[PEC.carta_ecarta_api] [CARTA-API] 1 linhas extraídas (GET: 0.7s)
+[20:11:52] [PEC.carta_ecarta_api] [INFO] [CARTA-API] Selecao por DATA (>= 03 de setembro de 2026): 1 linha(s) de 1
+[PEC.carta_ecarta_api] [CARTA-API] Selecao por DATA (>= 03 de setembro de 2026): 1 linha(s) de 1
+[20:11:52] [PEC.carta_ecarta_api] [INFO] [CARTA-API] 1 linhas na(s) data(s) alvo, 1 com rastreio para auditar
+[PEC.carta_ecarta_api] [CARTA-API] 1 linhas na(s) data(s) alvo, 1 com rastreio para auditar
+[20:11:53] [PEC.carta_ecarta_api] [WARNING] [CARTA-API] ⚠️ FALSO POSITIVO: YH326296615BR — tabela dizia "A entrega não pode ser efetuada - Endereço incorreto", mas histórico comprova devolução (16/09/2026 17:12 — Objeto não entregue - Endereço inexistente | O número indicado para entrega é inexistente. Objeto será devolvido ao remetente)
+[PEC.carta_ecarta_api] [CARTA-API] ⚠️ FALSO POSITIVO: YH326296615BR — tabela dizia "A entrega não pode ser efetuada - Endereço incorreto", mas histórico comprova devolução (16/09/2026 17:12 — Objeto não entregue - Endereço inexistente | O número indicado para entrega é inexistente. Objeto será devolvido ao remetente)
+[20:11:53] [PEC.carta_ecarta_api] [INFO] [CARTA-API] DONE — 1 registros, 1 falso(s) positivo(s) corrigido(s) (total: 1.2s)
+[PEC.carta_ecarta_api] [CARTA-API] DONE — 1 registros, 1 falso(s) positivo(s) corrigido(s) (total: 1.2s)
+[20:11:53] [PEC.carta_execucao] [INFO] [CARTA] coletar_tabela_ecarta_api retornou 1 registros (took 1.79s)
+[PEC.carta_execucao] [CARTA] coletar_tabela_ecarta_api retornou 1 registros (took 1.79s)
+[20:11:53] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Salvando conteúdo tipo 'ecarta'...
+[20:11:53] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Conteúdo salvo: 473 chars
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Conteúdo salvo: 473 chars
+[20:11:53] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Processo: 1002109-42.2025.5.02.0703
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Processo: 1002109-42.2025.5.02.0703
+[20:11:53] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Tipo (informativo): ecarta
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Tipo (informativo): ecarta
+[20:11:53] [PEC.anexos.anexos_configuracao] [INFO] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[PEC.anexos.anexos_configuracao] [CLIPBOARD] Arquivo: D:\PjePlus\PEC\clipboard.txt
+[20:11:53] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...
+[JUNTADA][DEBUG] Abrindo interface de anexação...
+[20:12:03] [PEC.anexos.anexos_juntador] [INFO] [JUNTADA][WARN] Interface nao detectada — recarregando a pagina e tentando novamente
+[PEC.anexos.anexos_juntador] [JUNTADA][WARN] Interface nao detectada — recarregando a pagina e tentando novamente
+[20:12:03] [PEC.anexos.anexos_juntador] [INFO] [WRAPPER_JUNTADA_GERAL]  Juntada automática falhou ou foi pulada
+[PEC.anexos.anexos_juntador] [WRAPPER_JUNTADA_GERAL]  Juntada automática falhou ou foi pulada
+[20:12:03] [PEC.carta_execucao] [ERROR] [CARTA] Juntada automatica falhou ou foi pulada.
+
+============================================================
+[PEC.carta_execucao] [CARTA] Juntada automatica falhou ou foi pulada.
+============================================================
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1002109-42.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1002109-42.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000166-53.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000166-53.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001949-17.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001949-17.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001214-57.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001214-57.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000634-27.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000634-27.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001262-40.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001262-40.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000899-19.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000899-19.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001539-56.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001539-56.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000604-16.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000604-16.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000604-16.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000604-16.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001901-58.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001901-58.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001168-92.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001168-92.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000787-84.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000787-84.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1002146-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1002146-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1002298-20.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1002298-20.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000265-04.2018.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000265-04.2018.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000476-59.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000476-59.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001076-22.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001076-22.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000217-64.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000217-64.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000731-03.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000731-03.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000201-13.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000201-13.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001188-24.2023.5.02.0713] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001188-24.2023.5.02.0713] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000422-93.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000422-93.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001214-47.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001214-47.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001645-33.2016.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001645-33.2016.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000750-62.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000750-62.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001762-09.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001762-09.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000318-38.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000318-38.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001680-21.2024.5.02.0603] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001680-21.2024.5.02.0603] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001064-47.2018.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001064-47.2018.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000982-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000982-69.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000202-71.2021.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000202-71.2021.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001343-23.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001343-23.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001852-17.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001852-17.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001723-12.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001723-12.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000150-12.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000150-12.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001691-17.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001691-17.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000468-19.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000468-19.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001610-58.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001610-58.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:03] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001277-19.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001277-19.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001365-28.2017.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001365-28.2017.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000426-33.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000426-33.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000148-71.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000148-71.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001374-19.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001374-19.2019.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000292-06.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000292-06.2026.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001292-27.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001292-27.2015.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000720-27.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000720-27.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001060-39.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001060-39.2020.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001473-47.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001473-47.2023.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1000808-60.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1000808-60.2025.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001868-05.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001868-05.2024.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC][1001644-38.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC][1001644-38.2022.5.02.0703] ❌ Erro: Message: Nenhuma janela aberta
+
+[20:12:04] [Fix.monitoramento_progresso_unificado] [INFO] [PROGRESSO_PEC]  Progresso salvo com segurança
+[Fix.monitoramento_progresso_unificado] [PROGRESSO_PEC]  Progresso salvo com segurança
+[20:12:04] [PEC.runtime_pec] [INFO] [RESUMO] Total: 127 | Sucesso: 2 | Erro: 55
+[PEC.runtime_pec] [RESUMO] Total: 127 | Sucesso: 2 | Erro: 55
+[20:12:04] [pjeplus] [INFO] [PEC] total=127 sucesso=72 erro=55
+[pjeplus] [PEC] total=127 sucesso=72 erro=55
+[20:12:04] [pjeplus] [INFO] [PEC] FALHA (155.3s)
+[pjeplus] [PEC] FALHA (155.3s)
+[20:12:04] [pjeplus] [INFO] sucesso: False
+[pjeplus] sucesso: False
+[20:12:04] [pjeplus] [INFO] tempo: 155.26s
+[pjeplus] tempo: 155.26s
+[20:12:04] [pjeplus] [WARNING] [X] _resetar_para_painel: Message: Nenhuma janela aberta
+
+[pjeplus] [X] _resetar_para_painel: Message: Nenhuma janela aberta
+
+
+──────────────────────────────────────────────────
+  FLUXO CONCLUÍDO — driver mantido aberto
+──────────────────────────────────────────────────
+  Próximo fluxo (ou X para fechar o browser):
+
+Fluxo:
+A - Bloco Completo
+B - Mandado
+C - Prazo + P2B
+D - P2B
+E - PEC
+F - Triagem
+G - Petição
+H - Domicílio Eletrônico
+I - Citação
+X - Cancelar
+> 

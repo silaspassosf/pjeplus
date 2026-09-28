@@ -1,0 +1,24 @@
+quinzinho-botao.informacoes:hover::before{
+	animation:aparecer 0.3s ease-out 0s 1 both;
+	background:
+		var(--quinzinho-gradiente-branco-preto),
+		var(--quinzinho-icone-branco) no-repeat 5px center / 25px,
+		rgba(var(--quinzinho-cor-primaria),0.95)
+	;
+	border:rgba(var(--quinzinho-cor-preto),0.3) solid 3px;
+	border-radius:0 15px 15px 15px;
+	color:rgba(var(--quinzinho-cor-branco),1);
+	content:attr(aria-label);
+	display:block;
+	font-size:14px;
+	font-weight:600;
+	left:100%;
+	line-height:18px;
+	position:absolute;
+	padding:5px 5px 5px 35px;
+	text-align:center;
+	top:50%;
+	white-space:pre-line;
+	width:200px;
+	z-index:99;
+}

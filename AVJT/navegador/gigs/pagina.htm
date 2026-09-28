@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Configurações de AutoGIGS</title>
+		<link href="../../imagens/icones/extensao/azul.svg" property="stylesheet" rel="icon" type="image/svg+xml">
+		<link rel="stylesheet" href="estilo.css" />
+	</head>
+	<body>
+		<header><h1></h1></header>
+		<main>
+			<form>
+				<fieldset>
+					<section>
+						<h2>Configurações de AutoGIGS</h2>
+						<informacoes><i aria-label="Preencha os campos espelhando-se na página do GIGS"></i></informacoes>
+						<configuracoes id="cadastro">
+							<label>Posição do Botão:<br>
+								<input type="number" class="configuracao" id="posicao" min="1" value="1">
+							</label>
+							<label>Cor do Botão:<br>
+								<input type="color" class="configuracao" id="cor" value="#8800FF">
+							</label>
+							<label class="largura32">Texto do Botão:<br>
+								<input autocomplete	required type="text" class="configuracao" id="rotulo" value="">
+							</label>
+							<label class="largura49">Tipo de Atividade:<br>
+								<input type="text" class="configuracao" id="tipo" value="" list="tipos">
+							</label>
+							<label class="largura49" aria-label="Prazo em Dias ou data Certa (DD/MM/AAAA)">Prazo:<br>
+								<input type="text" class="configuracao" id="prazo" value="1" list="prazos">
+							</label>
+							<label class="largura100">Responsável:<br>
+								<input autocomplete type="text" class="configuracao" id="responsavel" value="">
+							</label>
+							<label class="ativador assistente largura49">
+								<input type="checkbox" class="configuracao" id="destacar">
+								<span data-ativado="Destacar" data-desativado="Não Destacar"></span>
+							</label>
+							<label class="ativador assistente largura49">
+								<input type="checkbox" class="configuracao" id="gravar">
+								<span data-ativado="Clicar em Salvar" data-desativado="Não Clicar em Salvar"></span>
+							</label>
+							<label class="largura100">Observações:<br>
+								<textarea rows="3" class="configuracao" id="observacao"></textarea>
+							</label>
+							<label class="largura100">Comentários:<br>
+								<textarea rows="3" class="configuracao" id="comentario"></textarea>
+							</label>
+						</configuracoes>
+					</section>
+				</fieldset>
+				<input type="submit" id="salvar" value="Salvar" title="Salvar">
+			</form>
+			<section>
+				<h2>Importar Configurações</h2>
+				<configuracoes>
+					<label class="largura100">Importar:<br>
+						<textarea rows="3" class="configuracao" id="importar-configuracoes"></textarea>
+					</label>
+					<input type="button" id="importar" value="Importar Configurações" title="Importar Configurações">
+				</configuracoes>
+				<h2>Exportar Configurações</h2>
+				<configuracoes id="exportar">
+					<label class="largura100">Exportar:<br>
+						<textarea rows="3" class="configuracao" id="exportar-configuracoes"></textarea>
+					</label>
+				</configuracoes>
+			</section>
+		</main>
+		<footer></footer>
+	</body>
+<datalist id="prazos">
+	<option value="PROCESSO.acordo.vencimento">
+	<option value="PROCESSO.audiencia.data">
+</datalist>
+<datalist id="tipos">
+	<option value="Comentário">
+	<option value="Prazo">
+	<option value="Acordo">
+	<option value="Agravo de Instrumento">
+	<option value="Agravo de Petição">
+	<option value="ARISP">
+	<option value="Arquivamento">
+	<option value="Arrematante">
+	<option value="Audiência">
+	<option value="Autor">
+	<option value="Banco">
+	<option value="Banco Central (BACEN-JUD)">
+	<option value="BNDT">
+	<option value="Calculista">
+	<option value="Carta Precatória">
+	<option value="CNIB">
+	<option value="Comprovação Recolhimento Imposto de Renda">
+	<option value="Comprovação Recolhimento Previdenciário">
+	<option value="Contadoria">
+	<option value="Convênios">
+	<option value="Correios/SPE">
+	<option value="DETRAN">
+	<option value="Devolução AR/CE">
+	<option value="Devolução CP">
+	<option value="Edital">
+	<option value="Embargos">
+	<option value="INSS">
+	<option value="Intimação">
+	<option value="Leilão">
+	<option value="Leiloeiro">
+	<option value="Mandado">
+	<option value="Ofício">
+	<option value="Pagamento">
+	<option value="Partes">
+	<option value="Perito">
+	<option value="Precatório">
+	<option value="Precatório/RPV">
+	<option value="Prescrição Intercorrente">
+	<option value="Quesitos">
+	<option value="Recurso Autor">
+	<option value="Recurso INSS">
+	<option value="Recurso Réu">
+	<option value="Remessa">
+	<option value="Requisição de Honorários Periciais">
+	<option value="Réu">
+	<option value="SERASAJUD">
+	<option value="SIMBA">
+	<option value="Suspensão do Feito">
+</datalist>
+<script src="/publicas/definicoes.js"></script>
+<script src="/publicas/gerais.js"></script>
+<script src="/publicas/relatar.js"></script>
+<script src="/publicas/navegador.js"></script>
+<script src="/publicas/dom.js"></script>
+<script src="/navegador/cabecalho.js"></script>
+<script src="/navegador/rodape.js"></script>
+<script src="programa.js"></script>
+</html>

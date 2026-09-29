@@ -295,6 +295,44 @@ class CatalogoSeletores:
             timeout=3.0,
         ))
 
+        self.registrar(SeletorRegistro(
+            acao="campo_prazo_dias_uteis",
+            seletor_principal='input[aria-label="Prazo em dias úteis"]',
+            fallbacks=[
+                'input[placeholder*="dias úteis"]',
+                'mat-form-field input[type="number"]',
+                'input[formcontrolname="prazo"]',
+            ],
+            contexto="pec",
+            condicao_sucesso="presente",
+            timeout=3.0,
+        ))
+
+        self.registrar(SeletorRegistro(
+            acao="campo_prazo_data_certa",
+            seletor_principal='input[aria-label="Prazo em data certa"]',
+            fallbacks=[
+                'input[placeholder*="data"]',
+                'input[type="date"]',
+            ],
+            contexto="pec",
+            condicao_sucesso="presente",
+            timeout=3.0,
+        ))
+
+        self.registrar(SeletorRegistro(
+            acao="campo_prazo_dias_corridos",
+            seletor_principal='input[aria-label="Prazo em dias úteis"]',
+            fallbacks=[
+                'input[placeholder*="dias"]',
+                'mat-form-field input[type="number"]',
+                'input[formcontrolname="prazo"]',
+            ],
+            contexto="pec",
+            condicao_sucesso="presente",
+            timeout=3.0,
+        ))
+
         # 12. PEC / Juntada: Salvar Documento
         self.registrar(SeletorRegistro(
             acao="salvar_documento_anexo",

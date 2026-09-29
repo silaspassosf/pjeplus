@@ -42,31 +42,6 @@ def preencher_input_js(driver: Any, seletor: str, valor: Union[str, int], max_te
     return False
 
 
-def _preencher_filtro_modelo_js(driver: Any, seletor: str, valor: str) -> bool:
-    """Replica `preencherInput` de gigs-plugin para el filtro de modelos.
-
-    Usa el setter nativo del prototipo HTMLInputElement + triggerEvent + Enter,
-    en lugar de `preencher_campo` (que espera 5s con esperarElemento y es lento).
-    """
-    valor_escapado = str(valor).replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
-    script = f"""
-    (() => {{
-        const campo = document.querySelector('{seletor}');
-        if (!campo) return false;
-        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(campo, '{valor_escapado}');
-        const triggerEvent = (el, tipo) => el.dispatchEvent(new Event(tipo, {{ bubbles: true }}));
-        triggerEvent(campo, 'input'); triggerEvent(campo, 'change'); triggerEvent(campo, 'dateChange'); triggerEvent(campo, 'keyup');
-        campo.dispatchEvent(new KeyboardEvent('keydown', {{ key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }}));
-        campo.dispatchEvent(new KeyboardEvent('keyup', {{ key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }}));
-        return true;
-    }})()
-    """
-    try:
-        return bool(_executar_js(driver, script))
-    except Exception:
-        return False
-
-
 def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False):
     try:
         el_presente = wait_for_clickable(driver, seletor_select, timeout=10, by=By.CSS_SELECTOR)
@@ -122,16 +97,27 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
         raise NavegacaoError(f'clicar_radio_button_js({texto_label}): {e}')
 
 
-def _aguardar_ck_com_conteudo(driver: Any, timeout: int = 8) -> bool:
-    from Fix.selectors_pje import EDITOR_AREA_CONTEUDO
-    expr = f"""(() => {{
-        if (document.querySelector('pdf-viewer')) return true;
-        var area = document.querySelector('{EDITOR_AREA_CONTEUDO}');
-        if (!area) return false;
-        var texto = (area.innerText || '').replace(/\\s/g, '');
-        return texto.length > 1 || area.querySelector('figure') !== null;
-    }})()"""
-    return bool(espera.ate_js(driver, expr, teto=timeout))
+# Helpers de modelo centralizados em atos/judicial_modelos.py (fluxo único).
+from .judicial_modelos import (
+    _resolver_editor_alvo,
+    _medir_conteudo_editor,
+    inserir_modelo_no_editor,
+)
+
+
+def _aguardar_ck_com_conteudo(driver: Any, timeout: int = 8, seletor: Optional[str] = None, baseline: int = 0) -> bool:
+    """Confirma conteúdo REAL no editor-ALVO (escopado + mudança vs baseline).
+
+    Delega ao JS canônico de judicial_modelos; mantida como wrapper para os
+    chamadores que só querem a checagem (ex.: barreira de destinatários).
+    """
+    from .judicial_modelos import _JS_EDITOR_COM_CONTEUDO
+    alvo = seletor or _resolver_editor_alvo(driver)
+    return bool(espera.ate_js(
+        driver,
+        "(%s)(%r, %d)" % (_JS_EDITOR_COM_CONTEUDO, alvo, baseline),
+        teto=timeout,
+    ))
 
 
 def aguardar_ato_confeccionado(driver: Any, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
@@ -258,39 +244,18 @@ def executar_preenchimento_minuta(
         _passo = 'prazo'
         if prazo and tipo_prazo != "sem prazo":
             tipo_prazo_norm = normalizar_string(tipo_prazo)
+            acao_map = {
+                'dias uteis': 'campo_prazo_dias_uteis',
+                'data certa': 'campo_prazo_data_certa',
+                'dias corridos': 'campo_prazo_dias_corridos',
+            }
+            acao_prazo = acao_map.get(tipo_prazo_norm, 'campo_prazo_destinatario')
+            from Fix.seletores_catalogo import buscar_elemento_por_acao
+            el_prazo = buscar_elemento_por_acao(driver, acao_prazo, contexto="pec", timeout=10)
             prazo_preenchido = False
-
-            seletores_prazo = []
-            if tipo_prazo_norm == 'dias uteis':
-                seletores_prazo = [
-                    'input[aria-label="Prazo em dias úteis"]',
-                    'input[placeholder*="dias úteis"]',
-                    'mat-form-field input[type="number"]',
-                    'input[formcontrolname="prazo"]'
-                ]
-            elif tipo_prazo_norm == 'data certa':
-                seletores_prazo = [
-                    'input[aria-label="Prazo em data certa"]',
-                    'input[placeholder*="data"]',
-                    'input[type="date"]'
-                ]
-            elif tipo_prazo_norm == 'dias corridos':
-                seletores_prazo = [
-                    'input[aria-label="Prazo em dias úteis"]',
-                    'input[placeholder*="dias"]',
-                    'mat-form-field input[type="number"]',
-                    'input[formcontrolname="prazo"]'
-                ]
-
-            aguardar_renderizacao_nativa(driver, 'mat-form-field input[type="number"], input[aria-label="Prazo em dias úteis"], input[placeholder*="data"], input[type="date"], input[formcontrolname="prazo"]', 'aparecer', 10)
-
-            for seletor in seletores_prazo:
-                if preencher_input_js(driver, seletor, prazo, debug=debug):
-                    prazo_preenchido = True
-                    break
-
+            if el_prazo:
+                prazo_preenchido = preencher_campo(driver, el_prazo, str(prazo), limpar=True, trigger_events=True)
             if not prazo_preenchido:
-                log('[AVISO] Não foi possível preencher prazo com nenhum seletor, tentando fallback...')
                 try:
                     prazo_preenchido = preencher_campo(
                         driver, 'mat-form-field input[type="number"]', str(prazo), limpar=True
@@ -381,85 +346,10 @@ def executar_preenchimento_minuta(
 
         _passo = 'modelo'
         if modelo_nome:
-            try:
-                campo_filtro = wait_for_clickable(driver, 'input#inputFiltro', timeout=10, by=By.CSS_SELECTOR)
-                if not campo_filtro:
-                    raise Exception('Campo de filtro de modelo não encontrado')
-
-                # Tecleo rápido (padrão gigs-plugin preencherInput): setter nativo +
-                # triggerEvent + Enter. Evita la demora de preencher_campo (5s).
-                if not _preencher_filtro_modelo_js(driver, 'input#inputFiltro', modelo_nome):
-                    # fallback con retry — si el JS falla, usar el camino lento
-                    if not preencher_campo(driver, 'input#inputFiltro', modelo_nome, trigger_events=True, limpar=True):
-                        preencher_input_js(driver, 'input#inputFiltro', modelo_nome, debug=debug)
-                    if hasattr(driver, 'page') and hasattr(driver.page, 'keyboard'):
-                        try:
-                            driver.page.keyboard.press('Enter')
-                        except Exception:
-                            pass
-
-                # aguardar_e_clicar ya aguarda el nodo aparecer — no duplicar la espera
-                nodo = aguardar_e_clicar(driver, '.nodo-filtrado', timeout=15)
-                if not nodo:
-                    raise Exception(f'Nodo filtrado no encontrado para modelo "{modelo_nome}"')
-
-                modal_abierto = aguardar_renderizacao_nativa(
-                    driver, 'pje-dialogo-visualizar-modelo', 'aparecer', 5
-                )
-                if not modal_abierto:
-                    log('[MODELO][WARN] Modal de visualización no abrió, intentando insertar igual...')
-
-                seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
-                btn_inserir = None
-                for tentativa in range(5):
-                    try:
-                        btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=4, by=By.CSS_SELECTOR)
-                        if btn_inserir:
-                            break
-                        raise TimeoutException('Botón insertar no clicable')
-                    except (TimeoutException, StaleElementReferenceException):
-                        if tentativa < 4:
-                            continue
-                        raise Exception('Botón insertar no encontrado tras 5 intentos')
-
-                try:
-                    safe_click_no_scroll(driver, btn_inserir)
-                except StaleElementReferenceException:
-                    log('[MODELO][WARN] Elemento quedó stale, reintentando...')
-                    btn_inserir = espera.elemento(driver, seletor_btn_inserir)
-                    if btn_inserir:
-                        safe_click_no_scroll(driver, btn_inserir)
-
-                # Confirmar inserción con el snackbar COMPLETO (padrão gigs-plugin
-                # AguardarModeloNoDocumento): 'Modelo de documento inserido con
-                # sucesso no editor'. Espera real (teto=10) — no 1.5s.
-                try:
-                    snackbar_modelo_ok = espera.ate_texto(
-                        driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso no editor', teto=10
-                    )
-                    if not snackbar_modelo_ok:
-                        log('[MODELO][WARN] Snackbar "Modelo inserido no editor" no detectado en 10s, prosiguiendo')
-                except Exception as _e:
-                    log(f'[MODELO][WARN] Excepción al verificar snackbar: {_e}')
-
-                # CERRAR el modal ANTES de continuar: sin esto, la función de
-                # destinatarios dispara en el fondo (clic en polo activo) con el
-                # modal aún en pantalla. Espera hasta que desaparezca.
-                modal_cerrado = aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 15)
-                if not modal_cerrado:
-                    log('[MODELO][WARN] Modal de modelo no se cerró en 15s — riesgo de overlay en destinatarios')
-
-                # BARRA DURA anti-race: sin teor confirmado en el editor, el flujo no
-                # puede seguir para salvar/destinatarios (minuta vacía → "Informe el
-                # contenido del documento" en la firma). Dos chequeos de 8s antes de abortar.
-                if not _aguardar_ck_com_conteudo(driver, timeout=8):
-                    log('[MODELO][RETRY] Contenido aún ausente en el editor — rechequeando (8s)')
-                    if not _aguardar_ck_com_conteudo(driver, timeout=8):
-                        raise Exception('Contenido del modelo no confirmado en el editor tras 16s')
-
-            except Exception as e:
-                log(f'[ERRO] Falha ao inserir modelo: {e}')
-                raise
+            # Fluxo único de inserção (atos/judicial_modelos.inserir_modelo_no_editor):
+            # filtro → nodo → diálogo → teor → inserir → confirmação escopada + baseline.
+            if not inserir_modelo_no_editor(driver, modelo_nome, log=log):
+                raise Exception(f'Modelo "{modelo_nome}" não confirmado no editor-alvo')
 
             try:
                 if inserir_conteudo:

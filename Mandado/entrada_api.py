@@ -761,33 +761,22 @@ def _selecionar_checkbox_intimacao(driver: Any, linha: Any, log: bool = True) ->
 
 
 def fechar_intimacao(driver: Any, log: bool = True) -> bool:
-    """Fecha a intimacao do processo."""
+    """Fecha a intimacao do processo via catálogo de ações semânticas."""
     logger.debug('[INTIMACAO] === INICIO ===')
+    from Fix.seletores_catalogo import buscar_elemento_por_acao, clicar_por_acao
     try:
         # 1. Abrir menu
-        logger.debug('[INTIMACAO] [1] Tentando abrir menu #botao-menu...')
-        try:
-            btn_menu = espera.elemento(driver, '#botao-menu', teto=2, visivel=False)
-            if btn_menu is None:
-                raise TimeoutError('botao-menu nao encontrado')
-            safe_click_no_scroll(driver, btn_menu)
-        except Exception:
-            logger.error('[INTIMACAO] [1] FALHOU: Nao conseguiu abrir menu #botao-menu')
+        logger.debug('[INTIMACAO] [1] Abrindo menu...')
+        if not clicar_por_acao(driver, "abrir_menu_tarefa", contexto="mandado", timeout=2):
+            logger.error('[INTIMACAO] [1] FALHOU: Nao conseguiu abrir menu')
             return False
-        logger.debug('[INTIMACAO] [1] Menu aberto')
 
         # 2. Clicar Expedientes
-        logger.debug('[INTIMACAO] [2] Tentando clicar Expedientes...')
-        try:
-            btn_exp = espera.elemento(driver, 'button[aria-label="Expedientes"]', teto=3, visivel=False)
-            if btn_exp is None:
-                raise TimeoutError('botao Expedientes nao encontrado')
-            safe_click_no_scroll(driver, btn_exp)
-        except Exception:
+        logger.debug('[INTIMACAO] [2] Clicando Expedientes...')
+        if not clicar_por_acao(driver, "abrir_expedientes", contexto="mandado", timeout=3):
             logger.error('[INTIMACAO] [2] FALHOU: Nao conseguiu clicar Expedientes')
             _fechar_modal_esc(driver)
             return False
-        logger.debug('[INTIMACAO] [2] Botao Expedientes clicado')
 
         # 3. Aguardar modal
         logger.debug('[INTIMACAO] [3] Aguardando modal abrir...')
@@ -799,7 +788,6 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
         logger.debug('[INTIMACAO] [4] Total de linhas encontradas: %d', len(rows))
 
         linha_prazo_30 = None
-
         for i, row in enumerate(rows):
             try:
                 cells = espera.elementos(row, 'td', teto=0.5)
@@ -822,39 +810,30 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
             return True
 
         # 5. Clicar checkbox
-        logger.debug('[INTIMACAO] [5] Tentando marcar checkbox...')
+        logger.debug('[INTIMACAO] [5] Marcando checkbox...')
         if not _selecionar_checkbox_intimacao(driver, linha_prazo_30, log=log):
             logger.error('[INTIMACAO] [5] FALHOU: Nao conseguiu marcar checkbox')
             _fechar_modal_esc(driver)
             espera.ate_js(driver, "document.readyState === 'complete'", teto=2)
             return False
-        logger.debug('[INTIMACAO] [5] Checkbox marcado')
 
         # 6. Clicar Fechar Expedientes
-        logger.debug('[INTIMACAO] [6] Tentando clicar Fechar Expedientes...')
-        if not aguardar_e_clicar(driver, 'button[aria-label="Fechar Expedientes"]', timeout=5):
+        logger.debug('[INTIMACAO] [6] Clicando Fechar Expedientes...')
+        if not clicar_por_acao(driver, "fechar_expedientes", contexto="mandado", timeout=5):
             logger.error('[INTIMACAO] [6] FALHOU: Nao conseguiu clicar Fechar Expedientes')
             _fechar_modal_esc(driver)
             return False
-        logger.debug('[INTIMACAO] [6] Botao Fechar Expedientes clicado')
         aguardar_renderizacao_nativa(driver, '.cdk-overlay-container mat-dialog-container', modo='aparecer', timeout=5)
 
-        # 7. Confirmar no botao do dialogo usando JS direto e sem loop custoso
+        # 7. Confirmar no botao do dialogo
         logger.debug('[INTIMACAO] [7] Confirmando fechamento...')
-        btn_sim = None
-        try:
-            xpath_sim = "//mat-dialog-container//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim'] | //div[contains(@class,'cdk-overlay-pane')]//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim'] | //button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']"
-            btn_sim = espera.elemento(driver, xpath_sim, teto=2, visivel=False)
-            if btn_sim is None:
-                raise TimeoutError('botao Sim nao encontrado')
-            safe_click_no_scroll(driver, btn_sim)
-        except Exception:
+        if not clicar_por_acao(driver, "confirmar_dialogo_sim", contexto="geral", timeout=3):
             logger.error('[INTIMACAO] [7] FALHOU: botao Sim nao encontrado')
             return False
 
-        # Aguardar timeline pronta apos fechamento (sem sleep fixo e sem snackbar)
+        # 8. Aguardar timeline estabilizar
         logger.debug('[INTIMACAO] [8] Aguardando timeline estabilizar...')
-        espera.elemento(driver, 'li.tl-item-container', teto=3, visivel=False)
+        buscar_elemento_por_acao(driver, "abrir_timeline", contexto="geral", timeout=3)
 
         logger.debug('[INTIMACAO] === SUCESSO ===')
         return True

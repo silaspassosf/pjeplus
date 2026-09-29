@@ -1,8 +1,7 @@
-## Regra de arquitetura: Playwright é a única via no branch `refat` (`refactor/pw-nativo`)
+## Regra de arquitetura: Playwright é a única via no branch `main`
 
-O agente deve operar e editar EXCLUSIVAMENTE na branch `refat` (`refactor/pw-nativo`),
-respeitando rigorosamente o `idx.md` deste branch. A branch `main` é apenas fonte
-histórica de consulta (`git show main:ARQUIVO`).
+O agente deve operar e editar EXCLUSIVAMENTE na branch `main`,
+respeitando rigorosamente o `idx.md`. O branch `refactor/pw-nativo` foi totalmente incorporado à `main`.
 
 Todo código que roda em `py pw.py` fala o vocabulário nativo do projeto
 (`Fix/espera.py`, `Play/pjeplay/nativo.py`) ou `Page`/`Locator`.

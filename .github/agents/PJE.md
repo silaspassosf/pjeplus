@@ -46,7 +46,7 @@ Receba o bloco `pjeplus:apply` **ou** instrução direta do usuário e aplique.
 | **ENTREGA** | `Edição aplicada.` ou bloco `FALHA DE APLICAÇÃO` |
 | **ESCALA** | Sem bloco `pjeplus:apply` → Analyst; bloco ambíguo → pergunta única; bloco com Selenium → FALHA pedindo reescrita Playwright |
 
-**Branch exclusiva:** tudo em `refat` (`refactor/pw-nativo`). Confirme `git branch --show-current` antes da primeira edição; fora do branch → informe e pare.
+**Branch exclusiva:** tudo em `main`. Confirme `git branch --show-current` antes da primeira edição; fora do branch → informe e pare.
 **Anti-Selenium (inegociável):** proibido `import selenium`, `find_element(s)`, `WebDriverWait`, `expected_conditions`, `time.sleep`. Vocabulário nativo: `Fix/core`, `Fix/espera.py` (`espera.ate_*`), `_executar_js`, `Play.pjeplay.locators`. Se o bloco contiver Selenium → FALHA DE APLICAÇÃO, não traduza por conta própria.
 
 ---

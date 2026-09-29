@@ -57,7 +57,7 @@ Você lê, mapeia, diagnostica e corrige de forma cirúrgica.
 | **ENTREGA** | `## Diagnóstico` + `## Correção` aplicada (máx. 10 linhas de texto) — no modo excepcional, `00act.md` |
 | **ESCALA** | Correção grande/multimódulo → Analyst; tarefa ambígua → pergunta única |
 
-**Branch exclusiva:** `refat` (`refactor/pw-nativo`) — confirme `git branch --show-current`.
+**Branch exclusiva:** `main` — confirme `git branch --show-current`.
 **Anti-Selenium (inegociável):** diagnose considerando apenas o vocabulário Playwright nativo
 (`Fix/core`, `Fix/espera.py`/`espera.ate_*`, `_executar_js`, `Play.pjeplay.locators`). Se a correção
 proposta exigir Selenium, ela está errada — reformule em Playwright.

@@ -1,17 +1,17 @@
-**BRANCH DE TRABALHO EXCLUSIVA: `refat` (`refactor/pw-nativo`)**
-- O agente deve SEMPRE verificar `git branch --show-current`. Toda edição, refatoração e manutenção do PJePlus deve ocorrer OBRIGATORIAMENTE no branch `refat` (`refactor/pw-nativo`) e respeitar o `idx.md` deste branch.
-- A branch `main` serve exclusivamente como consulta histórica de comportamento funcional validado (`git show main:CAMINHO/ARQUIVO.py`) — NUNCA edite em `main` código de automação, nem faça checkout/merge/fetch automáticos (a única exceção é `Script/`, que tem ciclo próprio de publicação).
+**BRANCH DE TRABALHO EXCLUSIVA: `main`**
+- O agente deve SEMPRE verificar `git branch --show-current`. Toda edição, refatoração e manutenção do PJePlus deve ocorrer OBRIGATORIAMENTE no branch `main` e respeitar o `idx.md`.
+- O branch `refactor/pw-nativo` foi totalmente incorporado à `main`.
 
 **REGRA DE ARQUITETURA INEGOCIÁVEL: APENAS PLAYWRIGHT, NUNCA SELENIUM**
 - É TERMINANTEMENTE PROIBIDO reintroduzir ou usar Selenium (`import selenium`, `driver.find_element`, `driver.find_elements`, `WebDriverWait`, `expected_conditions`, tipagem `WebDriver`, `time.sleep`).
 - Toda automação deve falar o vocabulário nativo Playwright do projeto (`Fix/espera.py`, `Play/pjeplay/nativo.py`, `_executar_js`, `espera.ate_*`, locators/handles seguros).
 
-Leia e siga todas as instruções em ./idx.md para contexto arquitetural completo do projeto pjeplus no branch `refat`.
+Leia e siga todas as instruções em ./idx.md para contexto arquitetural completo do projeto pjeplus no branch `main`.
 
 Regras always-on deste workspace estão em .agents/rules/ e são carregadas automaticamente — não precisam ser relidas manualmente.
 
 Agentes especializados disponíveis em .agents/rules/agents/ (invocar pelo nome quando a tarefa se encaixar no escopo dele):
-- pjeplus-analyst — análise e implementação direta no branch refat com Playwright (bugs, features, refatoração cirúrgica); excepcionalmente gera bloco pjeplus:apply quando o usuário pedir explicitamente
+- pjeplus-analyst — análise e implementação direta no branch main com Playwright (bugs, features, refatoração cirúrgica); excepcionalmente gera bloco pjeplus:apply quando o usuário pedir explicitamente
 - pjeplus-debug — diagnóstico cross-module leve + correção pontual aplicada e validada; excepcionalmente gera dump 00act.md quando o usuário pedir explicitamente
 - pjeplus-surgical — aplicação de patch mínimo a partir de bloco pjeplus:apply ou instrução direta (modo único: sempre edita)
 - pjeplus-script — especialista exclusivo na pasta Script/ (Tampermonkey, console, bookmarklets)

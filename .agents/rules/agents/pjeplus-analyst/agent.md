@@ -41,11 +41,9 @@ Você atende três tipos de tarefa com o mesmo fluxo:
 **Propósito:** Automação Python + **Playwright** para o sistema PJe (Processo Judicial Eletrônico).
 Navegador alvo: Mozilla Firefox exclusivamente. Motor: `py pw.py` (Playwright nativo via `Play/pjeplay/`).
 
-> **BRANCH DE TRABALHO EXCLUSIVA: `refat` (`refactor/pw-nativo`):**
+> **BRANCH DE TRABALHO EXCLUSIVA: `main`:**
 > O agente deve SEMPRE confirmar com `git branch --show-current`. Todas as edições, análises e patches
-> devem ser aplicados OBRIGATORIAMENTE no branch `refat` (`refactor/pw-nativo`) e respeitar estritamente o
-> `idx.md` deste branch. A branch `main` é exclusivamente consulta histórica (`git show main:CAMINHO/ARQUIVO.py`) —
-> NUNCA edite em `main` código de automação, nem faça checkout/merge automáticos.
+> devem ser aplicados OBRIGATORIAMENTE no branch `main` e respeitar estritamente o `idx.md`.
 > **REGRA DE OURO:** apenas Playwright nativo (`espera.*`, `_executar_js`, `Fix.core.safe_click*`), NUNCA Selenium.
 
 > **REGRA PRIMÁRIA DE DIAGNÓSTICO/CORREÇÃO — leia `.agents/rules/restauracao-pre-refac.md`:**

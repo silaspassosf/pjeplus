@@ -1,6 +1,6 @@
 # PJePlus — Índice de Navegação Precisa (IDX)
 
-Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless, FLOW_HANDLERS, env vars, pjeplay)
+Atualizado: 2026-09-29 (refatoração arquitetural Mandado, P2B, PEC: observabilidade centralizada, catálogo canônico de seletores, consolidação de modelos no editor)
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 
@@ -49,6 +49,7 @@ Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless,
 
 | Tarefa | Arquivo | Função/Símbolo |
 |---|---|---|
+| **Catálogo de Seletores (Ações Semânticas)** | `Fix/seletores_catalogo.py` | `buscar_elemento_por_acao`, `clicar_por_acao`, `obter_catalogo` |
 | **Clicar (caso geral)** | `Fix/browser_suporte.py` | `click_headless_safe(driver, seletor)` |
 | Clicar em elemento já encontrado | `Fix/core.py` | `safe_click_no_scroll(driver, el)` |
 | Clicar com retry | `Fix/core.py` | `safe_click(driver, seletor)` |
@@ -96,6 +97,7 @@ Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless,
 | Tarefa | Arquivo | Função/Símbolo |
 |---|---|---|
 | Logger estruturado | `Fix/diagnostico_runtime.py` | `PJELogger`, `log_start`, `log_sucesso`, `log_erro` |
+| **Log de erro estruturado & sanitização** | `Fix/diagnostico_runtime.py` | `log_erro_estruturado`, `sanitizar_dados_sensiveis` |
 | Debug interativo | `Fix/diagnostico_runtime.py` | `DebugInterativo`, `get_debug_interativo` |
 | Medir tempo (decorator) | `Fix/core.py` | `medir_tempo` — ativar com `PJEPLUS_TIME=1` |
 
@@ -117,6 +119,7 @@ Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless,
 | Tarefa | Arquivo | Função/Símbolo |
 |---|---|---|
 | Ato judicial (motor) | `atos/judicial_fluxo.py` | `fluxo_cls`, `ato_judicial`, `make_ato_wrapper` |
+| **Inserir modelo no editor (guarda anti-corrida)** | `atos/judicial_modelos.py` | `inserir_modelo_no_editor` |
 | 45+ atos prontos | `atos/wrappers_ato.py` | `ato_bloq`, `ato_pesqliq`, `ato_prev`, `ato_ccs`… |
 | Comunicação judicial | `atos/comunicacao.py` | `comunicacao_judicial`, `make_comunicacao_wrapper` |
 | 19+ wrappers PEC | `atos/wrappers_pec.py` | `pec_ord`, `pec_sum`, `pec_bloqueio`… |

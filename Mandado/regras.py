@@ -349,71 +349,49 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
         return True
     return False
 
+def decidir_ato_despacho_argos(resultado_sisbajud: str, tem_anexos_sigilosos: bool) -> str:
+    """Regra de negócio pura: decide o nome do ato judicial para despacho com ARGOS."""
+    if resultado_sisbajud == 'positivo':
+        return 'ato_bloq'
+    elif resultado_sisbajud == 'negativo':
+        return 'ato_termoS' if tem_anexos_sigilosos else 'ato_meios'
+    return 'ato_meios'
+
+
 def estrategia_despacho_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Prioridade: documento com palavra 'ARGOS'"""
     tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'despacho' not in tipo_norm:
         return False
 
-    if texto_documento and 'argos' in texto_documento.lower():
-        if debug:
-            logger.info('[ARGOS][REGRAS] NOVA REGRA: Despacho com ARGOS detectado - aplicando regras específicas')
-        
-        if resultado_sisbajud == 'positivo':
-            if debug:
-                logger.info('[ARGOS][REGRAS] Ação definida pela regra: ato_bloq')
-            if debug:
-                logger.info('[ARGOS][REGRAS] Regra despacho+argos reconhecida (SISBAJUD positivo)')
-            inicio_ato = time.time()
-            try:
-                ato_bloq(driver, debug=debug)
-            except Exception as e:
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS][ERRO] ato_bloq falhou: {e}')
-            if debug:
-                logger.info(f'[ARGOS][REGRAS] ato_bloq finalizado em {time.time() - inicio_ato:.2f}s')
-        elif resultado_sisbajud == 'negativo':
-            # Quando SISBAJUD é negativo, distinguir se há anexos sigilosos
-            if any(v == 'sim' for v in (sigilo_anexos or {}).values()):
-                if debug:
-                    logger.info('[ARGOS][REGRAS] ARGOS: SISBAJUD negativo com anexo sigiloso, executando ato_termoS')
-                if debug:
-                    logger.info('[ARGOS][REGRAS] Regra despacho+argos reconhecida (SISBAJUD negativo + sigilo)')
-                inicio_ato = time.time()
-                try:
-                    ato_termoS(driver, debug=debug)
-                except Exception as e:
-                    if debug:
-                        logger.info(f'[ARGOS][REGRAS][ERRO] ato_termoS falhou: {e}')
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS] ato_termoS finalizado em {time.time() - inicio_ato:.2f}s')
-            else:
-                if debug:
-                    logger.info('[ARGOS][REGRAS] ARGOS: SISBAJUD negativo sem anexo sigiloso, executando ato_meios')
-                if debug:
-                    logger.info('[ARGOS][REGRAS] Regra despacho+argos reconhecida (SISBAJUD negativo sem sigilo)')
-                inicio_ato = time.time()
-                try:
-                    ato_meios(driver, debug=debug)
-                except Exception as e:
-                    if debug:
-                        logger.info(f'[ARGOS][REGRAS][ERRO] ato_meios falhou: {e}')
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS] ato_meios finalizado em {time.time() - inicio_ato:.2f}s')
-        else:
-            # Caso de SISBAJUD indefinido ou outro valor — padrão para ato_meios
-            if debug:
-                logger.info('[ARGOS][REGRAS] Ação padrão (SISBAJUD indefinido): ato_meios')
-            inicio_ato = time.time()
-            try:
-                ato_meios(driver, debug=debug)
-            except Exception as e:
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS][ERRO] ato_meios falhou: {e}')
-            if debug:
-                logger.info(f'[ARGOS][REGRAS] ato finalizado em {time.time() - inicio_ato:.2f}s')
-        return True
-    return False
+    if not (texto_documento and 'argos' in texto_documento.lower()):
+        return False
+
+    if debug:
+        logger.debug('[ARGOS][REGRAS] Despacho com ARGOS detectado - aplicando regras')
+
+    tem_sigilosos = any(v == 'sim' for v in (sigilo_anexos or {}).values())
+    nome_ato = decidir_ato_despacho_argos(resultado_sisbajud, tem_sigilosos)
+
+    atos_map = {
+        'ato_bloq': ato_bloq,
+        'ato_termoS': ato_termoS,
+        'ato_meios': ato_meios,
+    }
+    fn_ato = atos_map.get(nome_ato, ato_meios)
+
+    if debug:
+        logger.debug('[ARGOS][REGRAS] Ação definida: %s', nome_ato)
+
+    inicio_ato = time.time()
+    try:
+        fn_ato(driver, debug=debug)
+    except Exception as e:
+        logger.error('[ARGOS][REGRAS] %s falhou: %s', nome_ato, e)
+
+    if debug:
+        logger.debug('[ARGOS][REGRAS] %s finalizado em %.2fs', nome_ato, time.time() - inicio_ato)
+    return True
 
 def estrategia_infojud(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Despacho com 'Realize-se a pesquisa INFOJUD'"""

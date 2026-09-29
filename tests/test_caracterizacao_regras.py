@@ -188,6 +188,14 @@ class TestCaracterizacaoP2B(unittest.TestCase):
         rota = decidir_rota_iniciar_exec(mock_client, "12345")
         self.assertEqual(rota, "mock_pesquisas")
 
+    def test_decidir_ato_despacho_argos(self):
+        from Mandado.regras import decidir_ato_despacho_argos
+        self.assertEqual(decidir_ato_despacho_argos("positivo", False), "ato_bloq")
+        self.assertEqual(decidir_ato_despacho_argos("positivo", True), "ato_bloq")
+        self.assertEqual(decidir_ato_despacho_argos("negativo", True), "ato_termoS")
+        self.assertEqual(decidir_ato_despacho_argos("negativo", False), "ato_meios")
+        self.assertEqual(decidir_ato_despacho_argos("outro", False), "ato_meios")
+
 
 if __name__ == "__main__":
     unittest.main()

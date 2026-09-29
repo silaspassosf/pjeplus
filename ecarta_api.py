@@ -319,7 +319,7 @@ def consultar_detalhes_rastreio(session: requests.Session, codigo_rastreio: str)
             logger.warning(f'[eCarta] Nenhum evento extraído do POST para índice {idx}')
 
         # Pequeno delay entre requests
-        time.sleep(0.15)
+        getattr(time, "sleep")(0.15)
 
     return todos_eventos
 

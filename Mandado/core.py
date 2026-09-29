@@ -28,14 +28,9 @@ from datetime import datetime
 from typing import Dict, Any
 from Fix.tipos import ResultadoFluxo
 
-# Selenium
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (
-    TimeoutException,
-)
+from Play.pjeplay.locators import By
+from Play.pjeplay.errors import TimeoutException
+from Fix import espera
 
 # Módulos Locais Fix
 from Fix.core import (
@@ -83,7 +78,7 @@ processo_ja_executado = processo_ja_executado_mandado
 marcar_processo_executado = marcar_processo_executado_mandado
 
 
-def _aguardar_estabilizacao_pos_processo(driver: WebDriver, timeout: float = 6.0) -> bool:
+def _aguardar_estabilizacao_pos_processo(driver: Any, timeout: float = 6.0) -> bool:
     """Aguarda estado estável após fechar abas antes de abrir próximo processo."""
     inicio = time.time()
 
@@ -94,18 +89,15 @@ def _aguardar_estabilizacao_pos_processo(driver: WebDriver, timeout: float = 6.0
                 logger.error('[FLUXO][POS] Contexto fatal detectado durante estabilização')
                 return False
 
-            abas = driver.window_handles
-            url_atual = (driver.current_url or '').lower()
-
-            # Estado esperado: uma aba na lista/painel global
-            if len(abas) == 1 and ('/lista-processos' in url_atual or '/painel/global/' in url_atual):
-                # Pequeno buffer para render da lista/chips antes do próximo clique
-                try:
-                    _ = driver.find_elements(By.CSS_SELECTOR, 'tbody tr.tr-class, tr.cdk-drag')
-                except Exception:
-                    pass
-                espera.assentar(driver, 0.1)
-                return True
+            if espera.ate_abas(driver, 1, teto=0.1):
+                url_atual = (driver.current_url or '').lower()
+                if '/lista-processos' in url_atual or '/painel/global/' in url_atual:
+                    try:
+                        _ = espera.elementos(driver, 'tbody tr.tr-class, tr.cdk-drag', teto=0.5)
+                    except Exception:
+                        pass
+                    espera.assentar(driver, 0.1)
+                    return True
         except Exception:
             pass
 
@@ -119,7 +111,7 @@ def _aguardar_estabilizacao_pos_processo(driver: WebDriver, timeout: float = 6.0
 
 # 2. Funções de Navegação
 
-def navegacao(driver: WebDriver) -> bool:
+def navegacao(driver: Any) -> bool:
     """Navegação para a lista de documentos internos do PJe TRT2"""
     try:
         url_lista = os.getenv('URL_PJE_ESCANINHO', 'https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos')
@@ -136,7 +128,7 @@ def navegacao(driver: WebDriver) -> bool:
                 # Alguns perfis/headless podem não suportar maximize
                 pass
             try:
-                driver.execute_script("document.body.style.zoom='70%';")
+                espera.ate_js(driver, "document.body.style.zoom='70%'", teto=0.1)
             except Exception:
                 # Falha ao aplicar zoom via JS não é crítico
                 pass
@@ -147,7 +139,7 @@ def navegacao(driver: WebDriver) -> bool:
         # CONTAR PROCESSOS ANTES DO CLIQUE NO FILTRO
         try:
             processos_antes_selector = 'tr.cdk-drag'
-            processos_antes = driver.find_elements(By.CSS_SELECTOR, processos_antes_selector)
+            processos_antes = espera.elementos(driver, processos_antes_selector, teto=0.5)
             quantidade_antes = len(processos_antes)
         except Exception as count_error:
             logger.info(f'[NAV][CONTAGEM][ERRO] Erro ao contar processos antes: {count_error}')
@@ -159,7 +151,7 @@ def navegacao(driver: WebDriver) -> bool:
         # IDENTIFICAR O ÍCONE ESPECÍFICO DE MANDADOS DEVOLVIDOS
         try:
             # Procurar pelo ícone com aria-label contendo "Mandados devolvidos"
-            icones_mandados = driver.find_elements(By.CSS_SELECTOR, 'i[aria-label*="Mandados devolvidos"]')
+            icones_mandados = espera.elementos(driver, 'i[aria-label*="Mandados devolvidos"]', teto=2)
 
             if not icones_mandados:
                 logger.info('[NAV][ERRO] Ícone de mandados devolvidos não encontrado')
@@ -200,9 +192,9 @@ def navegacao(driver: WebDriver) -> bool:
             filtro_selector = 'mat-chip'
 
             # Aguardar até 10 segundos pela presença de QUALQUER chip de filtro
-            filtro_chips = WebDriverWait(driver, 10).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, filtro_selector))
-            )
+            filtro_chips = espera.elementos(driver, filtro_selector, teto=10)
+            if not filtro_chips:
+                raise TimeoutException('Nenhum chip encontrado')
 
             # Verificar se algum chip contém "Mandados devolvidos"
             filtro_encontrado = False
@@ -225,7 +217,7 @@ def navegacao(driver: WebDriver) -> bool:
                 resultado_retry = aguardar_e_clicar(driver, icone_selector, timeout=10, log=True)
                 if resultado_retry:
                     logger.info('[NAV][FILTRO]  Retry do clique realizado')
-                    time.sleep(0.002)  # Aguardar carregamento após retry
+                    espera.assentar(driver, 0.05)
                     return True
                 else:
                     logger.info('[NAV][FILTRO]  Falha no retry do clique')
@@ -237,7 +229,7 @@ def navegacao(driver: WebDriver) -> bool:
             resultado_retry = aguardar_e_clicar(driver, icone_selector, timeout=10, log=True)
             if resultado_retry:
                 logger.info('[NAV][FILTRO]  Retry do clique realizado após timeout')
-                time.sleep(0.002)
+                espera.assentar(driver, 0.05)
                 return True
             else:
                 logger.info('[NAV][FILTRO]  Falha no retry após timeout')
@@ -252,7 +244,7 @@ def navegacao(driver: WebDriver) -> bool:
 
 
 
-def iniciar_fluxo_robusto(driver: WebDriver) -> ResultadoFluxo:
+def iniciar_fluxo_robusto(driver: Any) -> ResultadoFluxo:
     """Executa o fluxo de Mandado via engine-based da entrada API."""
     logger.info('[FLUXO] Iniciando Mandado via entrada API (engine-based)')
 

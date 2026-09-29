@@ -12,13 +12,11 @@ logger = logging.getLogger(__name__)
 import re
 import time
 import pyperclip
-from typing import Optional
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
+from typing import Optional, Any
 from Fix import espera
 
 
-def extrair_numero_processo_da_pagina(driver: WebDriver, debug: bool = True) -> Optional[str]:
+def extrair_numero_processo_da_pagina(driver: Any, debug: bool = True) -> Optional[str]:
     """
     Tenta extrair o número do processo do cabeçalho da página PJe.
     Se não encontrar, tenta clicar no ícone de copiar e ler do clipboard do sistema (se pyperclip disponível).
@@ -27,19 +25,21 @@ def extrair_numero_processo_da_pagina(driver: WebDriver, debug: bool = True) -> 
     try:
         # 1. Tenta extrair do cabeçalho
         try:
-            el = driver.find_element(By.CSS_SELECTOR, 'span.texto-numero-processo')
-            numero = el.text.strip()
-            if numero:
-                return numero
+            el = espera.elemento(driver, 'span.texto-numero-processo', teto=1)
+            if el:
+                numero = getattr(el, 'text', '').strip()
+                if numero:
+                    return numero
         except Exception as e:
             if debug:
                 logger.debug(f'[EXTRATOR] Erro ao extrair do cabeçalho: {e}')
 
         # 2. Tenta clicar no ícone de copiar e ler do clipboard
         try:
-            icone = driver.find_element(By.CSS_SELECTOR, 'i.far.fa-copy.fa-lg')
-            safe_click_no_scroll(driver, icone)
-            espera.assentar(driver, 0.2)
+            icone = espera.elemento(driver, 'i.far.fa-copy.fa-lg', teto=1)
+            if icone:
+                safe_click_no_scroll(driver, icone)
+                espera.assentar(driver, 0.2)
             try:
                 numero = pyperclip.paste().strip()
                 if numero:
@@ -57,12 +57,12 @@ def extrair_numero_processo_da_pagina(driver: WebDriver, debug: bool = True) -> 
     return None
 
 
-def extrair_numero_processo_da_url(driver: WebDriver) -> str:
+def extrair_numero_processo_da_url(driver: Any) -> str:
     """
     Extrai o numero do processo da URL atual.
 
     Args:
-        driver: Selenium WebDriver
+        driver: conexao/driver PJe
 
     Returns:
         str: Numero do processo ou identificacao alternativa

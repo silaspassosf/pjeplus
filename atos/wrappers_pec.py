@@ -281,6 +281,19 @@ pec_arord = make_comunicacao_wrapper(
     endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
 )
 
+pec_exeq = make_comunicacao_wrapper(
+    tipo_expediente='Intimação',
+    prazo=5,
+    nome_comunicacao='Intimação',
+    sigilo=False,
+    modelo_nome='xsexeq',
+    subtipo="Intimação",
+    gigs_extra=None,
+    destinatarios='polo_ativo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
+    cliques_polo_passivo=1,  # Notificação Inicial já adiciona 1x automaticamente
+    endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
+)
+
 # ====================================================
 # WRAPPERS COM DOMICÍLIO ELETRÔNICO - xs ord / xs sum
 # ====================================================

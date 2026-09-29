@@ -8,6 +8,11 @@ trigger: always_on
 
 **LEITURA OBRIGATÓRIA:** filtro de escopo primário e inegociável. Antes de qualquer grep/glob/busca exploratória, consulte esta tabela e a árvore de decisão abaixo. Se não cobrir o termo buscado, a busca é permitida — mas `idx.md` deve ser atualizado ao final. Buscas genéricas sem consulta prévia são proibidas.
 
+> **REGRAS always-on adicionais (inegociáveis):**
+> - **Branch de trabalho exclusiva: `refat` (`refactor/pw-nativo`)** — Confirme sempre com `git branch --show-current`. O agente deve cuidar e editar EXCLUSIVAMENTE no branch `refat` (`refactor/pw-nativo`), respeitando o `idx.md` dele. A branch `main` é apenas fonte histórica via `git show main:ARQUIVO` (sem checkout/merge automático).
+> - `.agents/rules/anti-selenium.md` — Playwright é a única via. Proibido reintroduzir Selenium em qualquer arquivo.
+> - `.agents/rules/restauracao-pre-refac.md` — **se parou de funcionar, a lógica que funcionava está na tag `pre-refac`** (`git show pre-refac:CAMINHO/ARQUIVO.py`) ou em `main`. Restaure a lógica preservando a arquitetura Playwright; nunca recrie do zero o que já existia; nunca reintroduza Selenium. Tabela de falhas já diagnosticadas como perda de tradução está nesse arquivo.
+
 ---
 
 ## Quick Reference Card — Acesso Direto (Sem Busca)
@@ -119,6 +124,8 @@ Q13: X envolve anexos/juntada de documentos?
 
 ## Regras Críticas (sempre aplicáveis)
 
+- **Branch de trabalho exclusiva (`refat` / `refactor/pw-nativo`):** Todas as edições e implementações DEVEM ser feitas na branch `refat` (`refactor/pw-nativo`). Confirme sempre com `git branch --show-current`. Respeite o `idx.md` deste branch. A branch `main` é estritamente referência histórica (`git show main:ARQUIVO`).
+- **Regra de arquitetura (Playwright é a única via):** Todo código que roda em `py pw.py` fala o vocabulário nativo do projeto (`Fix/espera.py`, `Play/pjeplay/nativo.py`) ou `Page`/`Locator`. É proibido introduzir: `import selenium`, `driver.find_element`, `driver.find_elements`, `driver.execute_script`, `driver.send_keys`, `driver.window_handles`, `WebDriverWait`, `expected_conditions`, tipagem `WebDriver`, `time.sleep`. Espera é sempre condição observável (`espera.ate_*`), nunca pausa cega. JS só existe dentro de helper nomeado — nunca solto no fluxo de negócio. Arquivo listado como migrado em `tools/pw_baseline.json` não pode regredir.
 - **P9 — Import de interação:** funções de interação (`safe_click_no_scroll`, `wait_for_clickable`, `safe_click`, `esperar_elemento`, `aguardar_renderizacao_nativa`) DEVEM vir de `Fix.core`, nunca de `Fix.selenium_base` (cópia congelada, quebra com backend Playwright). Ver `@idx.md` Seção 8-D para detalhe completo.
 - **Nunca editar SHIMS** (`Fix/abas.py`, `Fix/headless_helpers.py`, `Fix/element_wait.py`, etc. — lista completa em `@idx.md` Seção 4) — redirecionam para implementações reais.
 - **Nunca editar LEGADO** (`leg/`, `Mandado/core.py`, `Mandado/processamento.py`, `_archive/`) — apenas referência histórica.

@@ -1,0 +1,559 @@
+{
+  "version": "1.0",
+  "description": "Baseline de migracao Playwright nativo (ratchet)",
+  "total_files": 304,
+  "files_with_patterns": 50,
+  "total_patterns": 965,
+  "migrados": [
+    "Fix/browser_suporte.py",
+    "Fix/core.py",
+    "Fix/diagnostico_runtime.py",
+    "Fix/driver_factory.py",
+    "Fix/espera.py",
+    "Fix/extracao.py",
+    "Fix/facade_publica.py",
+    "Fix/monitoramento_progresso_unificado.py",
+    "Fix/utils.py",
+    "Fix/variaveis.py",
+    "Mandado/anexos_argos.py",
+    "Mandado/apoio_fluxos.py",
+    "Mandado/core.py",
+    "Mandado/entrada_api.py",
+    "Mandado/fluxo_argos.py",
+    "Mandado/fluxo_ui.py",
+    "Mandado/regras.py",
+    "PEC/anexos/anexos_configuracao.py",
+    "PEC/anexos/anexos_extracao.py",
+    "PEC/anexos/anexos_juntador_base.py",
+    "PEC/anexos/anexos_juntador_helpers.py",
+    "PEC/anexos/anexos_juntador_metodos.py",
+    "PEC/anexos/anexos_sisbajud.py",
+    "PEC/anexos/anexos_wrappers.py",
+    "PEC/c_ord.py",
+    "PEC/carta_ecarta_api.py",
+    "PEC/carta_execucao.py",
+    "PEC/core_navegacao.py",
+    "PEC/core_pos_carta.py",
+    "PEC/prescricao.py",
+    "PEC/regras_execucao.py",
+    "PEC/regras_idpj_timeline.py",
+    "PEC/runtime_pec.py",
+    "Peticao/core/extracao/extracao.py",
+    "Peticao/core/utils/observer.py",
+    "Peticao/helpers/helpers.py",
+    "Peticao/runtime_pet.py",
+    "Peticao/suporte_pet.py",
+    "Prazo/loop_execucao_final.py",
+    "Prazo/loop_lote.py",
+    "Prazo/loop_orquestrador.py",
+    "Prazo/p2b_documentos.py",
+    "Prazo/p2b_fluxo_prescricao.py",
+    "Prazo/p2b_gateway.py",
+    "Prazo/p2b_regras_execucao.py",
+    "atos/anexos/anexos_extracao.py",
+    "atos/anexos/anexos_wrappers.py",
+    "atos/anexos_sigilo.py",
+    "atos/comunicacao.py",
+    "atos/comunicacao_coleta.py",
+    "atos/comunicacao_destinatarios.py",
+    "atos/comunicacao_finalizacao.py",
+    "atos/comunicacao_navigation.py",
+    "atos/comunicacao_preenchimento.py",
+    "atos/core.py",
+    "atos/judicial.py",
+    "atos/judicial_fluxo.py",
+    "atos/judicial_helpers.py",
+    "atos/judicial_modelos.py",
+    "atos/judicial_navegacao.py",
+    "atos/judicial_utils.py",
+    "atos/movimentos_chips.py",
+    "atos/movimentos_despacho.py",
+    "atos/movimentos_fimsob.py",
+    "atos/movimentos_fluxo.py",
+    "atos/movimentos_navegacao.py",
+    "atos/movimentos_sobrestamento.py",
+    "atos/wrappers_ato.py",
+    "atos/wrappers_mov.py",
+    "atos/wrappers_utils.py",
+    "bianca/api_client.py",
+    "bianca/atos_utils.py",
+    "bianca/dom_engine.py",
+    "bianca/driver.py",
+    "bianca/extracao.py",
+    "bianca/mov_int.py",
+    "bianca/selenium_utils.py",
+    "bianca/tests/test_dom_lembrete_flow_in_f.py",
+    "bianca/triagem/acoes.py",
+    "bianca/triagem/api.py",
+    "bianca/triagem/citacao.py",
+    "bianca/triagem/coleta.py",
+    "bianca/triagem/regras.py",
+    "bianca/triagem/runner.py",
+    "bianca/triagem/service.py",
+    "ecarta_api.py",
+    "f.py",
+    "utilitarios_processamento.py",
+    "x.py"
+  ],
+  "files": {
+    "Andrei/atos_helpers.py": {
+      "total": 108,
+      "breakdown": {
+        "from_selenium": 7,
+        "find_element": 18,
+        "find_elements": 8,
+        "execute_script": 26,
+        "send_keys": 2,
+        "window_handles": 6,
+        "webdriver_wait": 12,
+        "expected_conditions": 7,
+        "time_sleep": 7,
+        "webdriver_type": 15
+      }
+    },
+    "Andrei/atos_judicial.py": {
+      "total": 38,
+      "breakdown": {
+        "from_selenium": 6,
+        "find_element": 7,
+        "execute_script": 18,
+        "send_keys": 1,
+        "webdriver_wait": 2,
+        "expected_conditions": 2,
+        "webdriver_type": 2
+      }
+    },
+    "Andrei/driver.py": {
+      "total": 8,
+      "breakdown": {
+        "from_selenium": 4,
+        "time_sleep": 1,
+        "webdriver_type": 3
+      }
+    },
+    "Andrei/extracao.py": {
+      "total": 81,
+      "breakdown": {
+        "from_selenium": 7,
+        "find_element": 6,
+        "find_elements": 4,
+        "execute_script": 1,
+        "send_keys": 5,
+        "window_handles": 4,
+        "webdriver_wait": 16,
+        "expected_conditions": 14,
+        "time_sleep": 16,
+        "webdriver_type": 8
+      }
+    },
+    "Andrei/helpers.py": {
+      "total": 25,
+      "breakdown": {
+        "from_selenium": 2,
+        "find_element": 9,
+        "find_elements": 4,
+        "time_sleep": 1,
+        "webdriver_type": 9
+      }
+    },
+    "Andrei/pipeline.py": {
+      "total": 19,
+      "breakdown": {
+        "from_selenium": 4,
+        "find_element": 1,
+        "execute_script": 1,
+        "webdriver_wait": 2,
+        "webdriver_type": 11
+      }
+    },
+    "Andrei/utils_selenium.py": {
+      "total": 58,
+      "breakdown": {
+        "from_selenium": 6,
+        "find_elements": 1,
+        "execute_script": 14,
+        "window_handles": 5,
+        "webdriver_wait": 9,
+        "expected_conditions": 3,
+        "time_sleep": 4,
+        "webdriver_type": 16
+      }
+    },
+    "Play/pjeplay/__init__.py": {
+      "total": 2,
+      "breakdown": {
+        "webdriver_wait": 2
+      }
+    },
+    "Play/pjeplay/actions.py": {
+      "total": 3,
+      "breakdown": {
+        "find_elements": 1,
+        "send_keys": 1,
+        "time_sleep": 1
+      }
+    },
+    "Play/pjeplay/api_resiliencia.py": {
+      "total": 3,
+      "breakdown": {
+        "execute_script": 1,
+        "time_sleep": 2
+      }
+    },
+    "Play/pjeplay/compat.py": {
+      "total": 6,
+      "breakdown": {
+        "webdriver_wait": 4,
+        "expected_conditions": 2
+      }
+    },
+    "Play/pjeplay/driver.py": {
+      "total": 5,
+      "breakdown": {
+        "find_element": 1,
+        "find_elements": 1,
+        "webdriver_wait": 1,
+        "time_sleep": 2
+      }
+    },
+    "Play/pjeplay/medicao.py": {
+      "total": 2,
+      "breakdown": {
+        "time_sleep": 2
+      }
+    },
+    "Play/pjeplay/nativo.py": {
+      "total": 3,
+      "breakdown": {
+        "window_handles": 2,
+        "webdriver_wait": 1
+      }
+    },
+    "Play/pjeplay/waits.py": {
+      "total": 10,
+      "breakdown": {
+        "find_element": 1,
+        "find_elements": 1,
+        "window_handles": 2,
+        "webdriver_wait": 3,
+        "expected_conditions": 2,
+        "time_sleep": 1
+      }
+    },
+    "Play/smoke.py": {
+      "total": 48,
+      "breakdown": {
+        "from_selenium": 5,
+        "find_element": 14,
+        "find_elements": 2,
+        "execute_script": 5,
+        "send_keys": 1,
+        "window_handles": 3,
+        "webdriver_wait": 9,
+        "expected_conditions": 9
+      }
+    },
+    "SISB/Core/login.py": {
+      "total": 25,
+      "breakdown": {
+        "from_selenium": 4,
+        "find_element": 3,
+        "send_keys": 6,
+        "webdriver_wait": 3,
+        "time_sleep": 9
+      }
+    },
+    "SISB/Core/sessao_helpers.py": {
+      "total": 4,
+      "breakdown": {
+        "execute_script": 1,
+        "time_sleep": 3
+      }
+    },
+    "SISB/Core/utils_web.py": {
+      "total": 18,
+      "breakdown": {
+        "from_selenium": 3,
+        "find_element": 2,
+        "execute_script": 4,
+        "send_keys": 1,
+        "webdriver_wait": 2,
+        "expected_conditions": 2,
+        "time_sleep": 4
+      }
+    },
+    "SISB/batch.py": {
+      "total": 20,
+      "breakdown": {
+        "from_selenium": 1,
+        "window_handles": 14,
+        "webdriver_type": 5
+      }
+    },
+    "SISB/core.py": {
+      "total": 49,
+      "breakdown": {
+        "from_selenium": 7,
+        "find_element": 3,
+        "execute_script": 8,
+        "send_keys": 7,
+        "window_handles": 5,
+        "webdriver_wait": 6,
+        "expected_conditions": 4,
+        "time_sleep": 9
+      }
+    },
+    "SISB/ordens_dados_navegacao.py": {
+      "total": 47,
+      "breakdown": {
+        "from_selenium": 4,
+        "find_element": 6,
+        "find_elements": 5,
+        "execute_script": 4,
+        "send_keys": 5,
+        "webdriver_wait": 9,
+        "expected_conditions": 9,
+        "time_sleep": 1,
+        "webdriver_type": 4
+      }
+    },
+    "SISB/ordens_execucao.py": {
+      "total": 21,
+      "breakdown": {
+        "from_selenium": 4,
+        "find_element": 4,
+        "find_elements": 1,
+        "webdriver_wait": 6,
+        "expected_conditions": 5,
+        "webdriver_type": 1
+      }
+    },
+    "SISB/performance.py": {
+      "total": 7,
+      "breakdown": {
+        "execute_script": 3,
+        "time_sleep": 1,
+        "webdriver_type": 3
+      }
+    },
+    "SISB/processamento/minutas_campos.py": {
+      "total": 1,
+      "breakdown": {
+        "webdriver_type": 1
+      }
+    },
+    "SISB/processamento/minutas_relatorio.py": {
+      "total": 11,
+      "breakdown": {
+        "from_selenium": 2,
+        "find_element": 1,
+        "execute_script": 4,
+        "send_keys": 3,
+        "webdriver_type": 1
+      }
+    },
+    "SISB/processamento/minutas_reus.py": {
+      "total": 1,
+      "breakdown": {
+        "webdriver_type": 1
+      }
+    },
+    "SISB/processamento/minutas_salvar.py": {
+      "total": 2,
+      "breakdown": {
+        "execute_script": 2
+      }
+    },
+    "SISB/processamento/navegacao.py": {
+      "total": 12,
+      "breakdown": {
+        "from_selenium": 2,
+        "find_element": 3,
+        "find_elements": 2,
+        "execute_script": 2,
+        "send_keys": 1,
+        "webdriver_type": 2
+      }
+    },
+    "SISB/processamento/ordens_acao.py": {
+      "total": 8,
+      "breakdown": {
+        "from_selenium": 2,
+        "execute_script": 3,
+        "send_keys": 1,
+        "time_sleep": 2
+      }
+    },
+    "SISB/processamento/ordens_dados.py": {
+      "total": 4,
+      "breakdown": {
+        "from_selenium": 1,
+        "find_elements": 2,
+        "webdriver_type": 1
+      }
+    },
+    "SISB/processamento/relatorios_dados.py": {
+      "total": 15,
+      "breakdown": {
+        "from_selenium": 3,
+        "find_element": 5,
+        "find_elements": 2,
+        "webdriver_wait": 2,
+        "expected_conditions": 2,
+        "webdriver_type": 1
+      }
+    },
+    "SISB/processamento/series_fluxo.py": {
+      "total": 4,
+      "breakdown": {
+        "time_sleep": 4
+      }
+    },
+    "SISB/processamento/series_navegar.py": {
+      "total": 21,
+      "breakdown": {
+        "from_selenium": 1,
+        "find_element": 7,
+        "find_elements": 4,
+        "execute_script": 7,
+        "time_sleep": 2
+      }
+    },
+    "SISB/processamento_campos_principais.py": {
+      "total": 1,
+      "breakdown": {
+        "webdriver_type": 1
+      }
+    },
+    "SISB/processamento_campos_reus.py": {
+      "total": 5,
+      "breakdown": {
+        "execute_script": 4,
+        "webdriver_type": 1
+      }
+    },
+    "SISB/processamento_minuta.py": {
+      "total": 3,
+      "breakdown": {
+        "execute_script": 1,
+        "webdriver_type": 2
+      }
+    },
+    "SISB/processamento_relatorios.py": {
+      "total": 4,
+      "breakdown": {
+        "execute_script": 2,
+        "window_handles": 1,
+        "webdriver_type": 1
+      }
+    },
+    "SISB/relatorios_integracao.py": {
+      "total": 16,
+      "breakdown": {
+        "from_selenium": 3,
+        "find_element": 5,
+        "find_elements": 2,
+        "webdriver_wait": 2,
+        "expected_conditions": 2,
+        "webdriver_type": 2
+      }
+    },
+    "Script/modules/Aud/aud_server.py": {
+      "total": 2,
+      "breakdown": {
+        "time_sleep": 2
+      }
+    },
+    "Triagem/analise_execucao.py": {
+      "total": 54,
+      "breakdown": {
+        "from_selenium": 6,
+        "find_element": 10,
+        "execute_script": 5,
+        "send_keys": 1,
+        "window_handles": 4,
+        "webdriver_wait": 4,
+        "expected_conditions": 4,
+        "time_sleep": 11,
+        "webdriver_type": 9
+      }
+    },
+    "Triagem/dom.py": {
+      "total": 81,
+      "breakdown": {
+        "from_selenium": 7,
+        "find_element": 3,
+        "find_elements": 10,
+        "execute_script": 6,
+        "send_keys": 3,
+        "window_handles": 5,
+        "webdriver_wait": 22,
+        "expected_conditions": 20,
+        "time_sleep": 2,
+        "webdriver_type": 3
+      }
+    },
+    "Triagem/runtime_triagem.py": {
+      "total": 11,
+      "breakdown": {
+        "from_selenium": 2,
+        "webdriver_type": 9
+      }
+    },
+    "tools/grab.py": {
+      "total": 7,
+      "breakdown": {
+        "execute_script": 4,
+        "window_handles": 2,
+        "time_sleep": 1
+      }
+    },
+    "tools/monitor.py": {
+      "total": 3,
+      "breakdown": {
+        "from_selenium": 1,
+        "find_element": 2
+      }
+    },
+    "tools/pre_xcode_proc.py": {
+      "total": 79,
+      "breakdown": {
+        "from_selenium": 12,
+        "find_element": 13,
+        "find_elements": 12,
+        "execute_script": 7,
+        "send_keys": 3,
+        "window_handles": 3,
+        "webdriver_wait": 5,
+        "expected_conditions": 3,
+        "time_sleep": 17,
+        "webdriver_type": 4
+      }
+    },
+    "tools/probe.py": {
+      "total": 1,
+      "breakdown": {
+        "time_sleep": 1
+      }
+    },
+    "tools/probe_endpoint.py": {
+      "total": 1,
+      "breakdown": {
+        "time_sleep": 1
+      }
+    },
+    "tools/probe_triagem.py": {
+      "total": 7,
+      "breakdown": {
+        "execute_script": 4,
+        "time_sleep": 3
+      }
+    },
+    "tools/selector_learning.py": {
+      "total": 1,
+      "breakdown": {
+        "webdriver_type": 1
+      }
+    }
+  }
+}

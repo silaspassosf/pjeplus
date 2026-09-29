@@ -19,12 +19,7 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any, Dict, List, Callable, Optional, Tuple
 
-from selenium.common.exceptions import NoSuchWindowException, StaleElementReferenceException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from Fix import espera
 
 from Fix.utils import remover_acentos, normalizar_texto
 
@@ -48,7 +43,7 @@ class CriteriaMatcher:
         Inicializa matcher.
 
         Args:
-            driver: WebDriver instance
+            driver: conexao/driver PJe
             config: Configuração do driver/modo
             wait_pool: ElementWaitPool para waits consistentes
         """
@@ -172,14 +167,16 @@ class CriteriaMatcher:
 
         try:
             # Localizar tabela de prazos
-            tabela = self.driver.find_element(By.ID, "data-table")
+            tabela = espera.elemento(self.driver, "#data-table", teto=2)
+            if not tabela:
+                return prazos
 
             # Extrair linhas (exceto header)
-            linhas = tabela.find_elements(By.TAG_NAME, "tr")[1:]
+            linhas = espera.elementos(tabela, "tr", teto=1)[1:]
 
             for linha in linhas:
                 try:
-                    colunas = linha.find_elements(By.TAG_NAME, "td")
+                    colunas = espera.elementos(linha, "td", teto=0.5)
 
                     if len(colunas) >= 4:  # Assumindo colunas: Tipo, Data Início, Data Fim, Status
                         prazo = {
@@ -231,7 +228,7 @@ class CriteriaMatcher:
         """Obtém número da página atual."""
         try:
             # Procurar por indicador de página (ex: "Página 1 de 10")
-            elementos_pagina = self.driver.find_elements(By.XPATH, "//*[contains(text(), 'Página')]")
+            elementos_pagina = espera.elementos(self.driver, "//*[contains(text(), 'Página')]", teto=1)
             for elem in elementos_pagina:
                 texto = elem.text
                 if 'Página' in texto:
@@ -246,7 +243,7 @@ class CriteriaMatcher:
     def _obter_total_paginas(self) -> int:
         """Obtém total de páginas."""
         try:
-            elementos_pagina = self.driver.find_elements(By.XPATH, "//*[contains(text(), 'Página')]")
+            elementos_pagina = espera.elementos(self.driver, "//*[contains(text(), 'Página')]", teto=1)
             for elem in elementos_pagina:
                 texto = elem.text
                 if 'de' in texto:
@@ -462,7 +459,7 @@ def processo_ja_executado_p2b(processo_id: str, progresso: dict) -> bool:
     return processo_id in progresso.get('processos_executados', [])
 
 
-def calc1(driver: WebDriver) -> Optional[Any]:
+def calc1(driver: Any) -> Optional[Any]:
     """Extrai dados do processo e escolhe o ato correto para réu.
 
     Regras:
@@ -508,7 +505,7 @@ def calc1(driver: WebDriver) -> Optional[Any]:
         return None
 
 
-def checar_prox(driver: WebDriver, itens: List[Any], doc_idx: int, regras: List[Any], texto_normalizado: str) -> Tuple[Optional[Any], Optional[Any], Optional[int]]:
+def checar_prox(driver: Any, itens: List[Any], doc_idx: int, regras: List[Any], texto_normalizado: str) -> Tuple[Optional[Any], Optional[Any], Optional[int]]:
     """
     Verifica se há próximo documento relevante na timeline.
 
@@ -516,7 +513,7 @@ def checar_prox(driver: WebDriver, itens: List[Any], doc_idx: int, regras: List[
     filtrando por magistrados específicos (otavio, mariana).
 
     Args:
-        driver: WebDriver instance
+        driver: conexao/driver PJe
         itens: Lista de itens da timeline
         doc_idx: Índice atual do documento
         regras: Lista de regras (não utilizado nesta implementação)
@@ -547,12 +544,12 @@ def checar_prox(driver: WebDriver, itens: List[Any], doc_idx: int, regras: List[
             item = itens[idx]
 
             # Buscar link do documento (seletor específico para evitar popups)
-            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-            if not link or not link.is_displayed():
+            link = espera.elemento(item, 'a.tl-documento:not([target="_blank"])', teto=0.5)
+            if not link or not getattr(link, 'is_displayed', lambda: True)():
                 continue
 
             # Extrair e normalizar texto do link
-            raw_text = link.text or ''
+            raw_text = getattr(link, 'text', '') or ''
             doc_text = unicodedata.normalize('NFD', raw_text).encode('ascii', 'ignore').decode('ascii').lower()
 
             # Verificar se é documento relevante (despacho, decisão, sentença, conclusão, embargos de declaração)
@@ -565,9 +562,9 @@ def checar_prox(driver: WebDriver, itens: List[Any], doc_idx: int, regras: List[
                 continue
 
             # Verificar magistrados (otavio ou mariana)
-            mag_icons = item.find_elements(By.CSS_SELECTOR, 'div.tl-icon[aria-label*="Magistrado"]')
-            mag_ok = any('otavio' in (mag.get_attribute('aria-label') or '').lower() or
-                        'mariana' in (mag.get_attribute('aria-label') or '').lower()
+            mag_icons = espera.elementos(item, 'div.tl-icon[aria-label*="Magistrado"]', teto=0.5)
+            mag_ok = any('otavio' in (getattr(mag, 'get_attribute', lambda _: '')('aria-label') or '').lower() or
+                        'mariana' in (getattr(mag, 'get_attribute', lambda _: '')('aria-label') or '').lower()
                         for mag in mag_icons)
 
             if mag_ok:

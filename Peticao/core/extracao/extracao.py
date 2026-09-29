@@ -7,9 +7,7 @@ import re
 import logging
 from typing import Optional, Dict, Any, List, Union
 
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.common.by import By
-
+import Fix.espera as espera
 from ..utils.observer import aguardar_renderizacao_nativa
 
 import sys
@@ -88,7 +86,7 @@ try {
 """
 
 
-def _extrair_objeto_pje(driver: WebDriver, timeout: int = 8, debug: bool = False) -> Dict[str, Optional[str]]:
+def _extrair_objeto_pje(driver: Any, timeout: int = 8, debug: bool = False) -> Dict[str, Optional[str]]:
     try:
         if not aguardar_renderizacao_nativa(driver, "object.conteudo-pdf", 'aparecer', timeout):
             raise TimeoutError('object.conteudo-pdf não apareceu')
@@ -197,17 +195,17 @@ def _formatar_texto(texto: str, tipo_doc: Optional[str]) -> str:
     return texto.strip()
 
 
-def _extrair_info_documento(driver: WebDriver, debug: bool = False) -> Dict[str, Any]:
+def _extrair_info_documento(driver: Any, debug: bool = False) -> Dict[str, Any]:
     info: Dict[str, Any] = {'titulo': '', 'subtitulos': [], 'documento_id': ''}
     try:
         try:
-            titulo = driver.find_element(By.CSS_SELECTOR, 'mat-card-title').text.strip()
-            info['titulo'] = titulo
+            el_titulo = espera.elemento(driver, 'mat-card-title', teto=1)
+            info['titulo'] = (getattr(el_titulo, 'text', '') or '').strip() if el_titulo else ''
         except Exception:
             info['titulo'] = ''
         try:
-            subs = driver.find_elements(By.CSS_SELECTOR, 'mat-card-subtitle')
-            info['subtitulos'] = [s.text.strip() for s in subs if s.text.strip()]
+            subs = espera.elementos(driver, 'mat-card-subtitle', teto=1)
+            info['subtitulos'] = [(getattr(s, 'text', '') or '').strip() for s in subs if (getattr(s, 'text', '') or '').strip()]
         except Exception:
             info['subtitulos'] = []
         try:
@@ -222,7 +220,7 @@ def _extrair_info_documento(driver: WebDriver, debug: bool = False) -> Dict[str,
     return info
 
 
-def extrair_direto(driver: WebDriver, timeout: int = 10, debug: bool = False, formatar: bool = True) -> Dict[str, Any]:
+def extrair_direto(driver: Any, timeout: int = 10, debug: bool = False, formatar: bool = True) -> Dict[str, Any]:
     resultado: Dict[str, Any] = {
         'sucesso': False,
         'metodo': 'objeto_pje',
@@ -260,7 +258,7 @@ def extrair_direto(driver: WebDriver, timeout: int = 10, debug: bool = False, fo
         return resultado
 
 
-def extrair_documento(driver: WebDriver, regras_analise=None, timeout: int = 15, log: bool = False) -> Optional[str]:
+def extrair_documento(driver: Any, regras_analise=None, timeout: int = 15, log: bool = False) -> Optional[str]:
     """Compat shim: manter assinatura antiga `extrair_documento`.
     Retorna o texto formatado (str) ou None se falhar.
     """
@@ -281,7 +279,7 @@ def _extrair_formatar_texto(texto_bruto: str, debug: bool = False) -> str:
         return texto_bruto or ''
 
 
-def extrair_pdf(driver: WebDriver, timeout: int = 15, debug: bool = False, log: bool = False) -> Optional[str]:
+def extrair_pdf(driver: Any, timeout: int = 15, debug: bool = False, log: bool = False) -> Optional[str]:
     """Compat shim: extrai especificamente PDF (retorna texto formatado).
     Aceita o parâmetro legado `log` para compatibilidade (mapeado para `debug`)."""
     # aceitar ambos: `debug` ou legado `log` (priorizar `debug` se True)
@@ -294,7 +292,7 @@ def extrair_pdf(driver: WebDriver, timeout: int = 15, debug: bool = False, log: 
     return res.get('conteudo')
 
 
-def criar_gigs(driver: WebDriver, dias: str, resposta: str, observacao: str) -> bool:
+def criar_gigs(driver: Any, dias: str, resposta: str, observacao: str) -> bool:
     """
     Função para criar GIGS - Guia de Informações Gerenciais Simplificada.
     Esta é uma implementação simplificada que pode ser expandida conforme necessário.
@@ -312,12 +310,12 @@ def criar_gigs(driver: WebDriver, dias: str, resposta: str, observacao: str) -> 
         return False
 
 
-def extrair_dados_processo(driver: WebDriver, caminho_json: str = 'dadosatuais.json', debug: bool = False) -> Dict[str, Any]:
+def extrair_dados_processo(driver: Any, caminho_json: str = 'dadosatuais.json', debug: bool = False) -> Dict[str, Any]:
     """
     Extrai dados do processo via API do PJe (TRT2), seguindo a mesma lógica da extensão MaisPje.
     Função completa auto-contida.
     """
-    def get_cookies_dict(driver: WebDriver) -> Dict[str, str]:
+    def get_cookies_dict(driver: Any) -> Dict[str, str]:
         try:
             cookies = driver.get_cookies()
             return {c['name']: c['value'] for c in cookies}
@@ -325,7 +323,7 @@ def extrair_dados_processo(driver: WebDriver, caminho_json: str = 'dadosatuais.j
             logger.info(f"[ERRO] Falha ao obter cookies: {e}")
             return {}
 
-    def extrair_numero_processo_url(driver: WebDriver) -> Optional[str]:
+    def extrair_numero_processo_url(driver: Any) -> Optional[str]:
         import re
         from urllib.parse import urlparse
 
@@ -335,20 +333,20 @@ def extrair_dados_processo(driver: WebDriver, caminho_json: str = 'dadosatuais.j
             return m.group(1)
 
         try:
-            from selenium.webdriver.common.by import By
             xpath_clipboard = "//pje-icone-clipboard//span[contains(@aria-label, 'Copia o número do processo')]"
-            elemento_clipboard = driver.find_element(By.XPATH, xpath_clipboard)
-            aria_label = elemento_clipboard.get_attribute("aria-label")
-            if aria_label:
-                match_clipboard = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", aria_label)
-                if match_clipboard:
-                    return match_clipboard.group(1)
+            elemento_clipboard = espera.elemento(driver, xpath_clipboard, teto=1)
+            if elemento_clipboard:
+                aria_label = elemento_clipboard.get_attribute("aria-label")
+                if aria_label:
+                    match_clipboard = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", aria_label)
+                    if match_clipboard:
+                        return match_clipboard.group(1)
         except Exception:
             pass
 
         return None
 
-    def extrair_trt_host(driver: WebDriver) -> str:
+    def extrair_trt_host(driver: Any) -> str:
         from urllib.parse import urlparse
         url = driver.current_url
         parsed = urlparse(url)

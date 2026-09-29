@@ -217,7 +217,7 @@ class PWDriver:
         if self._pagina is None or self._pagina.is_closed():
             vivas = [p for p in self._handles.values() if not p.is_closed()]
             if not vivas:
-                raise NoSuchWindowException("Nenhuma janela aberta")
+                raise NoSuchWindowException(f"Nenhuma janela aberta (abas registradas: {len(self._handles)})")
             self._pagina = vivas[0]
         return self._pagina
 

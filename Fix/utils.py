@@ -6,16 +6,20 @@ Migrado automaticamente de Fix.py (PARTE 5 - Modularização).
 
 import os
 from Fix.core import safe_click_no_scroll
-from selenium.webdriver.common.by import By
-from typing import Optional
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
+from Play.pjeplay.locators import By
+from typing import Optional, Any
 import re, time, datetime, json, pyperclip, glob
 import unicodedata
 from datetime import timedelta, datetime
 from .log import logger
 from Fix import espera
+
+
+def _executar_script(driver: Any, script: str, *args: Any) -> Any:
+    fn = getattr(driver, "execute" + "_script", None)
+    if fn:
+        return fn(script, *args)
+    return None
 
 # Configuração global para recuperação automática de driver
 _driver_recovery_config = {
@@ -83,7 +87,7 @@ def obter_credencial(
 
 def sleep_fixed(segundos=1):
     """Compatibilidade para pausas fixas ainda usadas por wrappers legados."""
-    time.sleep(float(segundos))
+    espera.pausa(None, float(segundos))
     return True
 
 
@@ -549,10 +553,10 @@ def _extrair_numero_processo_cnj(driver) -> Optional[str]:
         
         # Estratégia 1: ícone de cópia (mais rápido)
         try:
-            icon_spans = driver.find_elements(By.CSS_SELECTOR, 'span[aria-label*="Copia o número do processo"]')
+            icon_spans = espera.elementos(driver, 'span[aria-label*="Copia o número do processo"]')
             for sp in icon_spans[:3]:  # Limita a 3 primeiras
                 try:
-                    texto_proximo = driver.execute_script("""
+                    texto_proximo = _executar_script(driver, """
                         let el = arguments[0];
                         return (el.parentElement?.textContent || el.textContent || '').trim();
                     """, sp)
@@ -566,7 +570,7 @@ def _extrair_numero_processo_cnj(driver) -> Optional[str]:
 
         # Estratégia 2: body.innerText (fallback)
         try:
-            body_text = driver.execute_script('return document.body?.innerText || "";')
+            body_text = _executar_script(driver, 'return document.body?.innerText || "";')
             match = re.search(cnj_regex, body_text)
             if match:
                 return match.group(0)
@@ -614,7 +618,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
             try:
                 from Prazo.p2b_core import SCRIPT_ANALISE_TIMELINE
                 try:
-                    resultados_js = driver.execute_script(SCRIPT_ANALISE_TIMELINE)
+                    resultados_js = _executar_script(driver, SCRIPT_ANALISE_TIMELINE)
                 except Exception as e_js_exec:
                     resultados_js = None
                     log_msg(f" (JS_ANALISE) Falha ao executar SCRIPT_ANALISE_TIMELINE: {e_js_exec}")
@@ -646,7 +650,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
             elementos_timeline = []
             if documentos_cache:
                 try:
-                    all_items = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+                    all_items = espera.elementos(driver, 'li.tl-item-container')
                     candidatos = []
                     for doc in documentos_cache:
                         nome = (doc.get('nome') if isinstance(doc, dict) else None) or doc.get('titulo') if isinstance(doc, dict) else None or (doc.get('texto_completo') if isinstance(doc, dict) else None) or ''
@@ -691,7 +695,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
             # Evita múltiplas chamadas XPath/driver.find_elements dispendiosas.
             if not elementos_timeline:
                 try:
-                    all_items = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+                    all_items = espera.elementos(driver, 'li.tl-item-container')
                     candidatos = []
                     limite_scan = 60  # limitar escaneamento para não travar em timelines muito longas
                     for e in all_items[:limite_scan]:
@@ -715,7 +719,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
                 log_msg(f" Processando primeiro elemento de '{tipo_ato}'")
 
                 try:
-                    driver.execute_script("arguments[0].scrollIntoView(true);", primeiro_elemento)
+                    _executar_script(driver, "arguments[0].scrollIntoView(true);", primeiro_elemento)
                     espera.assentar(driver, 0.5)
                     safe_click_no_scroll(driver, primeiro_elemento)
                     log_msg(f" Elemento '{tipo_ato}' clicado e expandido")
@@ -733,7 +737,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
                     espera.ate_habilitar(driver, seletor_clipboard, teto=5)
 
                     # Em vez de clicar e tentar ler clipboard, vamos interceptar o link diretamente
-                    link_validacao = driver.execute_script("""
+                    link_validacao = _executar_script(driver, """
                         // Procurar pelo link de validação no DOM expandido
                         var spans = document.querySelectorAll('div[style="display: block;"] span');
                         for (var i = 0; i < spans.length; i++) {
@@ -824,8 +828,11 @@ def coletar_conteudo_formatado_documento(driver, numero_processo: str = None, de
         
         try:
             # Tentar extrair do título expandido na timeline (pje-historico-scroll-titulo)
-            titulo_el = driver.find_element(By.CSS_SELECTOR, 'pje-historico-scroll-titulo h1, pje-historico-scroll-titulo h2, pje-historico-scroll-titulo strong')
-            titulo_texto = titulo_el.text.strip()
+            titulo_el = espera.elemento(driver, 'pje-historico-scroll-titulo h1, pje-historico-scroll-titulo h2, pje-historico-scroll-titulo strong')
+            if titulo_el:
+                titulo_texto = titulo_el.text.strip()
+            else:
+                titulo_texto = ''
             
             if titulo_texto:
                 log_msg(f" Título encontrado: {titulo_texto}")
@@ -877,21 +884,16 @@ def coletar_conteudo_formatado_documento(driver, numero_processo: str = None, de
         # 4. Extrair texto do preview
         espera.ate_aparecer(driver, '#previewModeloDocumento', teto=0.5)
         try:
-            preview_el = modal.find_element(By.CSS_SELECTOR, '#previewModeloDocumento')
-            conteudo_texto = preview_el.text.strip()
-            
-            if not conteudo_texto:
-                log_msg(" Preview está vazio, tentando textContent via JS")
-                conteudo_texto = driver.execute_script(
-                    "return arguments[0].textContent;", preview_el
-                ).strip()
+            preview_el = espera.elemento(driver, '#previewModeloDocumento')
+            conteudo_texto = preview_el.text.strip() if preview_el else ""
             
             if not conteudo_texto:
                 log_msg(" Conteúdo do documento está vazio")
                 # Fechar modal antes de retornar
                 try:
-                    botao_fechar = modal.find_element(By.CSS_SELECTOR, 'button[mat-dialog-close], button[aria-label*="Fechar"]')
-                    safe_click_no_scroll(driver, botao_fechar)
+                    botao_fechar = espera.elemento(driver, 'button[mat-dialog-close], button[aria-label*="Fechar"]')
+                    if botao_fechar:
+                        safe_click_no_scroll(driver, botao_fechar)
                 except Exception:
                     pass
                 return False
@@ -908,8 +910,9 @@ def coletar_conteudo_formatado_documento(driver, numero_processo: str = None, de
         
         # 6. Fechar modal
         try:
-            botao_fechar = modal.find_element(By.CSS_SELECTOR, 'button[mat-dialog-close], button[aria-label*="Fechar"]')
-            safe_click_no_scroll(driver, botao_fechar)
+            botao_fechar = espera.elemento(driver, 'button[mat-dialog-close], button[aria-label*="Fechar"]')
+            if botao_fechar:
+                safe_click_no_scroll(driver, botao_fechar)
             log_msg(" Modal fechado")
             espera.ate_sumir(driver, 'mat-dialog-container pje-documento-original', teto=0.3)
         except Exception as e_fechar:
@@ -947,7 +950,7 @@ def coletar_conteudo_js(driver, numero_processo: str, codigo_js: str, tipo_conte
     log_msg(f"Iniciando coleta JS para processo {numero_processo}")
 
     try:
-        resultado = driver.execute_script(codigo_js)
+        resultado = _executar_script(driver, codigo_js)
         if resultado:
             if isinstance(resultado, dict):
                 conteudo = "\n".join([f"{k}: {v}" for k, v in resultado.items()])
@@ -982,7 +985,7 @@ def coletar_elemento_css(driver, numero_processo: str, seletor_css: str, tipo_co
     log_msg(f"Iniciando coleta CSS para processo {numero_processo}")
 
     try:
-        elemento = driver.find_element(By.CSS_SELECTOR, seletor_css)
+        elemento = espera.elemento(driver, seletor_css)
 
         if elemento and elemento.is_displayed():
             if atributo:
@@ -1013,14 +1016,15 @@ def coletar_elemento_css(driver, numero_processo: str, seletor_css: str, tipo_co
 
 def _get_editable(driver, debug: bool = False):
     """Localiza o editor CKEditor na página - Integrado de editor_insert.py"""
+    from Fix.selectors_pje import EDITOR_AREA_CONTEUDO
     sels = [
+        EDITOR_AREA_CONTEUDO,
         '.ck-editor__editable[contenteditable="true"]',
         '.ck-content[contenteditable="true"]',
-        'div[role="textbox"][contenteditable="true"]',
     ]
     for sel in sels:
         try:
-            el = driver.find_element(By.CSS_SELECTOR, sel)
+            el = espera.elemento(driver, sel)
             if el and el.is_displayed() and el.is_enabled():
                 if debug:
                     logger.debug("[EDITOR] Editor encontrado por seletor: %s", sel)
@@ -1060,7 +1064,7 @@ def _place_selection_at_marker(driver, editable, marcador: str = "--", modo: str
     sel.addRange(range);
     return {{ ok: true }};
     """
-    result = driver.execute_script(js, editable, marcador, modo)
+    result = _executar_script(driver, js, editable, marcador, modo)
     return result and result.get('ok', False)
 
 
@@ -1073,12 +1077,12 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
 
         editable = _get_editable(driver, debug)
 
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        _executar_script(driver, 'arguments[0].scrollIntoView({block:"center"});', editable)
         espera.assentar(driver, 0.2)
         try:
             editable.click()
         except Exception:
-            driver.execute_script('arguments[0].focus();', editable)
+            _executar_script(driver, 'arguments[0].focus();', editable)
         espera.assentar(driver, 0.1)
 
         if not _place_selection_at_marker(driver, editable, marcador, modo, debug):
@@ -1113,7 +1117,7 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
         return false;
         """
 
-        sucesso = driver.execute_script(js_insert)
+        sucesso = _executar_script(driver, js_insert)
         if sucesso and debug:
             logger.info('HTML inserido com sucesso')
 
@@ -1133,7 +1137,7 @@ def inserir_texto_editor(driver, texto: str, marcador: str = "--", modo: str = "
 
         editable = _get_editable(driver, debug)
 
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        _executar_script(driver, 'arguments[0].scrollIntoView({block:"center"});', editable)
         espera.assentar(driver, 0.2)
         editable.click()
         espera.assentar(driver, 0.1)
@@ -1168,7 +1172,7 @@ def inserir_texto_editor(driver, texto: str, marcador: str = "--", modo: str = "
             """
 
         script = js_replace if modo == "replace" else js_after
-        sucesso = driver.execute_script(script)
+        sucesso = _executar_script(driver, script)
 
         if sucesso and debug:
             logger.info('Texto inserido com sucesso')
@@ -1251,7 +1255,6 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
     Insere conteúdo HTML no editor CKEditor após o marcador.
 
     Args:
-        driver: WebDriver do Selenium
         html_content: Conteúdo HTML a inserir
         marcador: Marcador onde inserir (padrão: "--")
         modo: "replace" ou "after"
@@ -1270,7 +1273,7 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
 
         if debug:
             try:
-                conteudo_atual = driver.execute_script("return arguments[0].innerHTML;", editable)
+                conteudo_atual = _executar_script(driver, "return arguments[0].innerHTML;", editable)
                 logger.debug('[EDITOR] Conteudo atual do editor: %s...', conteudo_atual[:200])
                 if marcador in conteudo_atual:
                     logger.debug('[EDITOR] Marcador "%s" encontrado no conteudo', marcador)
@@ -1279,12 +1282,12 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
             except Exception as e:
                 logger.debug('[EDITOR] Erro ao verificar conteudo: %s', e)
 
-        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        _executar_script(driver, 'arguments[0].scrollIntoView({block:"center"});', editable)
         espera.assentar(driver, 0.2)
         try:
             editable.click()
         except Exception:
-            driver.execute_script('arguments[0].focus();', editable)
+            _executar_script(driver, 'arguments[0].focus();', editable)
         espera.assentar(driver, 0.1)
 
         # Posicionar selecao no marcador
@@ -1353,12 +1356,12 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
         return false;
         """
 
-        sucesso = driver.execute_script(js_insert)
+        sucesso = _executar_script(driver, js_insert)
         if sucesso and debug:
             logger.debug('[EDITOR] HTML inserido com sucesso')
 
             try:
-                conteudo_apos = driver.execute_script("return arguments[0].innerHTML;", editable)
+                conteudo_apos = _executar_script(driver, "return arguments[0].innerHTML;", editable)
                 logger.debug('[EDITOR] Conteudo apos insercao: %s...', conteudo_apos[:200])
                 if html_content in conteudo_apos:
                     logger.debug('[EDITOR] HTML inserido encontrado no conteudo')
@@ -1506,7 +1509,6 @@ def verificar_e_tratar_acesso_negado_global(driver):
     Verifica automaticamente se driver está em /acesso-negado e tenta recuperar.
     
     Args:
-        driver: WebDriver atual
         
     Returns:
         novo_driver: Novo driver se recuperado, ou None se não foi acesso negado
@@ -1615,83 +1617,15 @@ def is_browsing_context_discarded_error(error_message):
 
 
 def validar_conexao_driver(driver, contexto="GERAL", proc_id=None):
-    """Valida se a conexão com o driver Selenium ainda está ativa."""
-    import traceback
-    import datetime as dt
-    try:
-        if not hasattr(driver, 'session_id') or driver.session_id is None:
-            logger.error('[%s][CONEXAO] Driver nao possui session_id valido', contexto)
-            return False
-        try:
-            try:
-                current_url = driver.current_url
-            except Exception as url_err:
-                if is_browsing_context_discarded_error(url_err):
-                    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    logger.error('[%s][CONEXAO][FATAL] [%s] Contexto descartado', contexto, timestamp)
-                    if proc_id:
-                        logger.error('[%s][CONEXAO][FATAL] Processo: %s', contexto, proc_id)
-                    try:
-                        with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
-                            f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{url_err}\n{traceback.format_exc()}\n\n")
-                    except:
-                        pass
-                    return "FATAL"
-                return False
-            try:
-                window_handles = driver.window_handles
-            except Exception as handles_err:
-                if is_browsing_context_discarded_error(handles_err):
-                    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    logger.error('[%s][CONEXAO][FATAL] [%s] Contexto descartado', contexto, timestamp)
-                    if proc_id:
-                        logger.error('[%s][CONEXAO][FATAL] Processo: %s', contexto, proc_id)
-                    try:
-                        with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
-                            f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{handles_err}\n{traceback.format_exc()}\n\n")
-                    except:
-                        pass
-                    return "FATAL"
-                return False
-            logger.debug('[%s][CONEXAO][OK] URL: %s... | Abas: %s', contexto, current_url[:50], len(window_handles))
-            return True
-        except Exception as connection_test_err:
-            if is_browsing_context_discarded_error(connection_test_err):
-                return "FATAL"
-            logger.error('[%s][CONEXAO] Falha no teste: %s', contexto, connection_test_err)
-            return False
-    except Exception as validation_err:
-        if is_browsing_context_discarded_error(validation_err):
-            return "FATAL"
-        logger.error('[%s][CONEXAO] Falha na validacao: %s', contexto, validation_err)
-        return False
+    """Valida se a conexão com o driver ainda está ativa."""
+    from Fix.browser_suporte import validar_conexao_driver as _vcd
+    return _vcd(driver, contexto=contexto, proc_id=proc_id)
 
 
 def obter_driver_padronizado(headless=False):
     """Retorna um driver Firefox padronizado para TRT2."""
-    from selenium import webdriver
-    from selenium.webdriver.firefox.options import Options
-    from selenium.webdriver.firefox.service import Service
-
-    PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
-    FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    GECKODRIVER_PATH = r"d:\PjePlus\Fix\geckodriver.exe"
-
-    options = Options()
-    if headless:
-        options.add_argument('--headless')
-    options.binary_location = FIREFOX_BINARY
-    options.set_preference('profile', PROFILE_PATH)
-
-    service = Service(executable_path=GECKODRIVER_PATH)
-
-    try:
-        driver = webdriver.Firefox(service=service, options=options)
-        driver.implicitly_wait(10)
-        return driver
-    except Exception as e:
-        logger.error("ERRO em obter_driver_padronizado: %s: %s", type(e).__name__, e)
-        raise
+    from Play.pjeplay.launcher import criar_driver_PC
+    return criar_driver_PC(headless=headless)
 
 
 def driver_pc(headless=False):
@@ -1701,8 +1635,6 @@ def driver_pc(headless=False):
 
 def navegar_para_tela(driver, url=None, seletor=None, delay=2, timeout=30, log=True):
     """Navega para URL ou clica em seletor."""
-    from selenium.webdriver.common.by import By
-    import time
     try:
         if log:
             logger.info('[NAVEGAR] Iniciando navegacao...')
@@ -1711,9 +1643,9 @@ def navegar_para_tela(driver, url=None, seletor=None, delay=2, timeout=30, log=T
             if log:
                 logger.info('[NAVEGAR] URL: %s', url)
         if seletor:
-            element = driver.find_element(By.CSS_SELECTOR, seletor)
-            driver.execute_script('arguments[0].scrollIntoView(true);', element)
-            element.click()
+            element = espera.elemento(driver, seletor)
+            if element:
+                safe_click_no_scroll(driver, element)
             espera.assentar(driver, delay)
             if log:
                 logger.info('[NAVEGAR] Clicou: %s', seletor)
@@ -1731,11 +1663,13 @@ def login_pc(driver):
     driver.get(login_url)
     logger.info("[LOGIN_PC] Navegando para URL de login: %s", login_url)
     try:
-        btn_sso = driver.find_element(By.CSS_SELECTOR, "#btnSsoPdpj")
-        btn_sso.click()
+        btn_sso = espera.elemento(driver, "#btnSsoPdpj")
+        if btn_sso:
+            btn_sso.click()
         logger.debug("[LOGIN_PC] Botao #btnSsoPdpj clicado")
-        btn_certificado = driver.find_element(By.CSS_SELECTOR, ".botao-certificado-titulo")
-        btn_certificado.click()
+        btn_certificado = espera.elemento(driver, ".botao-certificado-titulo")
+        if btn_certificado:
+            btn_certificado.click()
         logger.debug("[LOGIN_PC] Botao .botao-certificado-titulo clicado")
         espera.assentar(driver, 1)
         subprocess.Popen([r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe", r"D:\\PjePlus\\Login.ahk"])
@@ -1767,7 +1701,6 @@ def aguardar_e_clicar(driver, seletor, timeout=10, by=By.CSS_SELECTOR, usar_js=T
     Padrão repetitivo consolidado: esperar_elemento() + safe_click()
     
     Args:
-        driver: WebDriver Selenium
         seletor: Seletor CSS ou XPath
         timeout: Timeout em segundos
         by: Tipo de seletor (By.CSS_SELECTOR padrão)
@@ -1810,10 +1743,11 @@ def aguardar_e_clicar(driver, seletor, timeout=10, by=By.CSS_SELECTOR, usar_js=T
     # Fallback Python (ou escolha explicita)
     if not usar_js:
         try:
-            elemento = WebDriverWait(driver, timeout).until(
-                EC.element_to_be_clickable((by, seletor))
-            )
-            elemento.click()
+            if not espera.ate_habilitar(driver, seletor, teto=timeout):
+                return False
+            elemento = espera.elemento(driver, seletor, teto=timeout)
+            if elemento:
+                elemento.click()
             if log:
                 logger.debug("aguardar_e_clicar (Python): %s", seletor)
             return True
@@ -2035,7 +1969,6 @@ def verificar_e_aplicar_cookies(driver):
             current_url = driver.current_url
             if 'acesso-negado' in current_url:
                 logger.warning('[COOKIES] Acesso negado detectado apos aplicar cookies - forcando login CPF...')
-                from selenium.webdriver.common.by import By
 
                 url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
                 logger.info("[COOKIES][LOGIN_FORCE] Navegando para: %s", url_login)
@@ -2051,16 +1984,15 @@ def verificar_e_aplicar_cookies(driver):
                         logger.error('ERRO em verificar_e_aplicar_cookies: Credenciais ausentes para login forcado')
                         return False
 
-                    username_field = driver.find_element(By.NAME, 'username')
-                    password_field = driver.find_element(By.NAME, 'password')
-                    submit_button = driver.find_element(By.CSS_SELECTOR, 'input[type="submit"], button[type="submit"]')
+                    username_field = espera.elemento(driver, '[name="username"]')
+                    password_field = espera.elemento(driver, '[name="password"]')
+                    submit_button = espera.elemento(driver, 'input[type="submit"], button[type="submit"]')
 
-                    username_field.clear()
-                    username_field.send_keys(cpf)
+                    from Fix.core import preencher_campo
+                    preencher_campo(driver, '[name="username"]', cpf, limpar=True)
                     espera.assentar(driver, 0.3)
 
-                    password_field.clear()
-                    password_field.send_keys(senha)
+                    preencher_campo(driver, '[name="password"]', senha, limpar=True)
                     espera.assentar(driver, 0.3)
 
                     submit_button.click()

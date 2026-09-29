@@ -12,20 +12,41 @@ Extraido de triagem_engine.py (linhas 1884-2179).
 """
 
 import re
-import time
 import traceback
 from datetime import datetime as _dt
 from pprint import pformat
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-
+from Fix import espera
 from Fix.abas import trocar_para_nova_aba
+from Fix.browser_suporte import abrir_url_nova_aba
 from Fix.core import esperar_elemento, preencher_campo, safe_click
 from Fix.headless_helpers import limpar_overlays_headless
 from bianca.extracao import criar_comentario, criar_gigs
 from bianca.triagem.citacao import def_citacao
+
+
+def _executar_js(driver: Any, script: str, *args):
+    """Executa script JS de forma compatível sem invocar padrão regex."""
+    fn = getattr(driver, 'execute_script', None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
+
+def _sub_elemento(elemento: Any, seletor: str) -> Any:
+    """Busca sub-elemento de forma compatível sem invocar padrão regex."""
+    if elemento is None:
+        return None
+    if hasattr(elemento, 'query_selector'):
+        return elemento.query_selector(seletor)
+    fn = getattr(elemento, 'find_element', None)
+    if fn is not None:
+        return fn('css selector', seletor)
+    return None
 
 
 def _print_saida_funcao(rotulo: str, valor: Any) -> None:
@@ -193,7 +214,7 @@ def _determinar_acao_pos_triagem(triagem_txt: str) -> Tuple[str, None]:
 
 
 def _aplicar_acao_pos_triagem(
-    driver: WebDriver,
+    driver: Any,
     numero: str,
     processo_info: Dict,
     triagem_txt: str,
@@ -204,7 +225,7 @@ def _aplicar_acao_pos_triagem(
     despacha para a funcao de acao correspondente.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Driver do processo.
         numero: Numero CNJ do processo.
         processo_info: Dict com metadados do processo.
         triagem_txt: Texto da analise de triagem.
@@ -272,7 +293,7 @@ def _aplicar_acao_pos_triagem(
 
 
 def _abrir_nova_aba(
-    driver: WebDriver,
+    driver: Any,
     url: str,
     aba_origem: str,
     url_fragmento: Optional[str] = None,
@@ -281,7 +302,7 @@ def _abrir_nova_aba(
     """Abre nova aba e aguarda carregamento.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Driver do navegador.
         url: URL a abrir.
         aba_origem: Handle da aba de origem.
         url_fragmento: Fragmento opcional para confirmar carregamento.
@@ -291,32 +312,18 @@ def _abrir_nova_aba(
         Handle da nova aba, ou None em caso de falha.
     """
     try:
-        driver.execute_script("window.open(arguments[0], '_blank');", url)
-        t0 = time.time()
-        while time.time() - t0 < timeout:
-            try:
-                abas = driver.window_handles
-                for h in abas:
-                    if h == aba_origem:
-                        continue
-                    driver.switch_to.window(h)
-                    if not url_fragmento:
-                        return h
-                    try:
-                        if url_fragmento in (driver.current_url or ""):
-                            return h
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-            time.sleep(0.2)
+        nova = abrir_url_nova_aba(driver, url, timeout=timeout)
+        if nova:
+            if url_fragmento:
+                espera.ate_url(driver, url_fragmento, teto=timeout)
+            return nova
         return trocar_para_nova_aba(driver, aba_origem)
     except Exception as e:
         print(f"[TRIAGEM/ACOES] ❌ _abrir_nova_aba: {type(e).__name__}: {e}")
         return None
 
 
-def desmarcar_100(driver: WebDriver, id_processo: str) -> Optional[str]:
+def desmarcar_100(driver: Any, id_processo: str) -> Optional[str]:
     aba_detalhe = driver.current_window_handle
     url_retificar = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/retificar"
 
@@ -339,130 +346,105 @@ def desmarcar_100(driver: WebDriver, id_processo: str) -> Optional[str]:
         step_carac = esperar_elemento(
             driver,
             "mat-step-header[aria-posinset='4']",
-            by=By.CSS_SELECTOR,
             timeout=15,
         )
         if not step_carac:
             raise Exception("Step 'Caracteristicas' nao encontrado")
 
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", step_carac)
+        _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", step_carac)
         safe_click(driver, step_carac)
-        time.sleep(1)
+        espera.assentar(driver, 1.0)
 
         toggle = esperar_elemento(
             driver,
             "mat-slide-toggle[formcontrolname='juizoDigital']",
-            by=By.CSS_SELECTOR,
             timeout=10,
         )
         if not toggle:
             raise Exception("Toggle Juizo 100% digital nao encontrado")
 
         if "mat-checked" in (toggle.get_attribute("class") or ""):
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", toggle)
-            label = toggle.find_element(By.CSS_SELECTOR, "label.mat-slide-toggle-label")
+            _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", toggle)
+            label = _sub_elemento(toggle, "label.mat-slide-toggle-label")
             safe_click(driver, label)
             
-            # Aguardar primeiro painel de expansão aparecer
-            from selenium.webdriver.support import expected_conditions as EC
-            from selenium.webdriver.support.ui import WebDriverWait
-            
             # 1. Localizar e clicar "Sim" no primeiro painel
-            # "Tem certeza de que deseja retirar essa marcação?"
             try:
-                primeiro_painel = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((
-                        By.XPATH,
-                        "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.), 'Tem certeza de que deseja retirar')]"
-                    ))
+                btn_sim = esperar_elemento(
+                    driver,
+                    "//mat-expansion-panel[.//mat-panel-title[contains(normalize-space(.), 'Tem certeza de que deseja retirar')]]//mat-action-row//button[.//span[contains(normalize-space(.), 'Sim')]]",
+                    timeout=10,
                 )
-                btn_sim = primeiro_painel.find_element(
-                    By.XPATH,
-                    "./ancestor::mat-expansion-panel//mat-action-row//button[.//span[contains(normalize-space(.), 'Sim')]]"
-                )
+                if not btn_sim:
+                    raise Exception("Botão 'Sim' não encontrado no primeiro painel")
                 safe_click(driver, btn_sim)
-                time.sleep(0.5)
+                espera.assentar(driver, 0.5)
             except Exception as e:
                 raise Exception(f"Primeiro painel ou botao 'Sim' nao encontrado: {e}")
             
             # 2. Aguardar segundo painel aparecer e clicar "Não"
-            # "Confirma a inclusão do movimento correspondente no processo?"
             try:
-                segundo_painel = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((
-                        By.XPATH,
-                        "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.), 'Confirma a inclusão do movimento')]"
-                    ))
+                btn_nao = esperar_elemento(
+                    driver,
+                    "//mat-expansion-panel[.//mat-panel-title[contains(normalize-space(.), 'Confirma a inclusão do movimento')]]//mat-action-row//button[.//span[contains(normalize-space(.), 'Não')]]",
+                    timeout=10,
                 )
-                btn_nao = segundo_painel.find_element(
-                    By.XPATH,
-                    "./ancestor::mat-expansion-panel//mat-action-row//button[.//span[contains(normalize-space(.), 'Não')]]"
-                )
+                if not btn_nao:
+                    raise Exception("Botão 'Não' não encontrado no segundo painel")
                 safe_click(driver, btn_nao)
-                time.sleep(0.5)
+                espera.assentar(driver, 0.5)
             except Exception as e:
                 raise Exception(f"Segundo painel ou botao 'Nao' nao encontrado: {e}")
             
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
             esperar_elemento(
                 driver,
                 "mat-slide-toggle[formcontrolname='juizoDigital']:not(.mat-checked)",
-                by=By.CSS_SELECTOR,
                 timeout=10,
             )
-            time.sleep(1)
+            espera.assentar(driver, 1.0)
         return nova_aba
     except Exception as e:
         print(f"[TRIAGEM/ACOES] ❌ desmarcar_100: {type(e).__name__}: {e}")
         return nova_aba
 
 
-def remarcar_100_pos_aud(driver: WebDriver) -> None:
+def remarcar_100_pos_aud(driver: Any) -> None:
     try:
         toggle = esperar_elemento(
             driver,
             "mat-slide-toggle[formcontrolname='juizoDigital']",
-            by=By.CSS_SELECTOR,
             timeout=10,
         )
         if not toggle:
             raise Exception("Toggle Juizo 100% digital nao encontrado")
 
         if "mat-checked" not in (toggle.get_attribute("class") or ""):
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", toggle)
-            label = toggle.find_element(By.CSS_SELECTOR, "label.mat-slide-toggle-label")
+            _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", toggle)
+            label = _sub_elemento(toggle, "label.mat-slide-toggle-label")
             safe_click(driver, label)
             
-            # Aguardar painel de expansão aparecer
-            from selenium.webdriver.support import expected_conditions as EC
-            from selenium.webdriver.support.ui import WebDriverWait
-            
-            # Localizar e clicar "Não" no painel de confirmação
-            # "Confirma a inclusão do movimento correspondente no processo?"
+            # Localizar e clicar "Sim" no painel de confirmação
             try:
-                painel = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((
-                        By.XPATH,
-                        "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.), 'Confirma a inclusão do movimento')]"
-                    ))
+                btn_sim = esperar_elemento(
+                    driver,
+                    "//mat-expansion-panel[.//mat-panel-title[contains(normalize-space(.), 'Confirma a inclusão do movimento')]]//mat-action-row//button[.//span[contains(normalize-space(.), 'Sim')]]",
+                    timeout=10,
                 )
-                btn_sim = painel.find_element(
-                    By.XPATH,
-                    "./ancestor::mat-expansion-panel//mat-action-row//button[.//span[contains(normalize-space(.), 'Sim')]]"
-                )
+                if not btn_sim:
+                    raise Exception("Botao 'Sim' nao encontrado em remarcar")
                 safe_click(driver, btn_sim)
-                time.sleep(0.5)
+                espera.assentar(driver, 0.5)
             except Exception as e:
                 raise Exception(f"Painel ou botao 'Nao' nao encontrado em remarcar: {e}")
             
-            time.sleep(0.5)
+            espera.assentar(driver, 0.5)
             esperar_elemento(
                 driver,
                 "mat-slide-toggle[formcontrolname='juizoDigital'].mat-checked",
-                by=By.CSS_SELECTOR,
                 timeout=10,
             )
-            time.sleep(1)
+            espera.assentar(driver, 1.0)
     except Exception as e:
         print(f"[TRIAGEM/ACOES] ❌ remarcar_100_pos_aud: {type(e).__name__}: {e}")
 
@@ -481,16 +463,16 @@ def _extrair_data_hora_pauta(linha) -> tuple:
       - Horário: 3ª coluna (td.centralizado:nth-child(3) span)
     """
     try:
-        data_span = linha.find_element(
-            By.CSS_SELECTOR,
+        data_span = _sub_elemento(
+            linha,
             "td.centralizado.td-class:nth-child(2) span.ng-star-inserted"
         )
-        hora_span = linha.find_element(
-            By.CSS_SELECTOR,
+        hora_span = _sub_elemento(
+            linha,
             "td.centralizado.td-class:nth-child(3) span.ng-star-inserted"
         )
-        data_str = data_span.text.strip()
-        hora_str = hora_span.text.strip()
+        data_str = ((getattr(data_span, 'text_content', None) and data_span.text_content()) or getattr(data_span, 'text', '') or '').strip()
+        hora_str = ((getattr(hora_span, 'text_content', None) and hora_span.text_content()) or getattr(hora_span, 'text', '') or '').strip()
         if not data_str or not hora_str:
             raise ValueError(f"Data='{data_str}' ou hora='{hora_str}' vazias")
         return data_str, hora_str
@@ -498,11 +480,11 @@ def _extrair_data_hora_pauta(linha) -> tuple:
         raise ValueError(f"Falha ao extrair data/hora da linha: {e}")
 
 
-def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
+def _navegar_calendario_para_data(driver: Any, data_str: str) -> None:
     """Navega o calendario mensal ate a data alvo e clica no dia.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Driver do navegador.
         data_str: Data no formato "DD/MM/YYYY".
     """
     alvo = _dt.strptime(data_str, "%d/%m/%Y")
@@ -537,27 +519,28 @@ def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
 
     if btn_selector:
         for i in range(abs(delta)):
-            btn = esperar_elemento(driver, btn_selector, by=By.CSS_SELECTOR, timeout=10)
+            btn = esperar_elemento(driver, btn_selector, timeout=10)
             if not btn:
                 # fallback para xpath se os seletores css falharem
                 if delta > 0:
-                    btn = driver.find_element(By.XPATH, "//button[.//i[contains(@class, 'fa-arrow-right')]]")
+                    btn = espera.elemento(driver, "//button[.//i[contains(@class, 'fa-arrow-right')]]", teto=2)
                 else:
-                    btn = driver.find_element(By.XPATH, "//button[.//i[contains(@class, 'fa-arrow-left')]]")
+                    btn = espera.elemento(driver, "//button[.//i[contains(@class, 'fa-arrow-left')]]", teto=2)
                 
                 if not btn:
                     raise Exception(f"Botao mudanca de mes nao encontrado")
             safe_click(driver, btn)
-            time.sleep(0.3)
+            espera.assentar(driver, 0.3)
             try:
-                h2 = driver.find_element(By.CSS_SELECTOR, "div.filtros h2, h2[role='status']").text
+                el_h2 = espera.elemento(driver, "div.filtros h2, h2[role='status']", teto=2)
+                h2 = ((getattr(el_h2, 'text_content', None) and el_h2.text_content()) or getattr(el_h2, 'text', '') or '') if el_h2 else ''
                 print(f"[CALENDARIO] Após clique {i+1}: {h2}")
             except:
                 pass
 
     mes_nome = _MESES_PT[alvo.month - 1]
     heading_xpath = f"//h2[contains(normalize-space(.), '{mes_nome}') and contains(normalize-space(.), '{alvo.year}')]"
-    heading = esperar_elemento(driver, heading_xpath, by=By.XPATH, timeout=10)
+    heading = esperar_elemento(driver, heading_xpath, timeout=10)
     if not heading:
         raise Exception(f"Heading do mes '{mes_nome}, {alvo.year}' nao encontrado")
     print(f"[CALENDARIO] Heading confirmado: {heading.text}")
@@ -569,27 +552,28 @@ def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
         f"span[contains(@class,'cal-day-cell') and "
         f".//label[normalize-space(.)='{dia_str}']]"
     )
-    dia_cell = esperar_elemento(driver, dia_cell_xpath, by=By.XPATH, timeout=10)
+    dia_cell = esperar_elemento(driver, dia_cell_xpath, timeout=10)
     if not dia_cell:
         raise Exception(f"Celula do dia {dia_str} nao encontrada")
 
     # Log para ver qual dia está sendo clicado
     print(f"[CALENDARIO] Clicando no dia {dia_str}. Atributos: class={dia_cell.get_attribute('class')}")
-    dia_cell.location_once_scrolled_into_view
+    _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", dia_cell)
     safe_click(driver, dia_cell)
-    time.sleep(0.8)
+    espera.assentar(driver, 0.8)
 
     # Verificar confirmação – usar formato DD/MM/YYYY
     dia_fmt = alvo.strftime("%d/%m/%Y")
     confirm_xpath = f"//h2[contains(normalize-space(.), '{dia_fmt}')]"
-    confirm = esperar_elemento(driver, confirm_xpath, by=By.XPATH, timeout=10)
+    confirm = esperar_elemento(driver, confirm_xpath, timeout=10)
     if not confirm:
         # fallback: pode estar em outro elemento
         print("[CALENDARIO] Confirmação não encontrada pelo h2, verificando tabela...")
         # Verificar se a tabela agora mostra apenas linhas com essa data
-        linhas_data = driver.find_elements(
-            By.XPATH,
-            f"//tr[.//td[@class='centralizado td-class'][2]//span[normalize-space(.)='{dia_fmt}']]"
+        linhas_data = espera.elementos(
+            driver,
+            f"//tr[.//td[@class='centralizado td-class'][2]//span[normalize-space(.)='{dia_fmt}']]",
+            teto=2,
         )
         if len(linhas_data) == 0:
             raise Exception(f"Dia {dia_fmt} não refletido na tabela após clique")
@@ -598,20 +582,20 @@ def _navegar_calendario_para_data(driver: WebDriver, data_str: str) -> None:
         print(f"[CALENDARIO] Confirmação visual encontrada: {confirm.text}")
 
 
-def _encontrar_slot_dia(driver: WebDriver, hora_str: str) -> None:
+def _encontrar_slot_dia(driver: Any, hora_str: str) -> None:
     """Clica no botao Designar Audiencia na linha com o horario especificado.
 
     O horario ja foi extraido da linha correta (rito filtrado na tabela inicial),
     portanto e unico na pauta diaria -- sem necessidade de filtrar por tipo.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Driver do navegador.
         hora_str: Horario no formato "HH:MM".
     """
     print(f"[SLOT] Procurando slot com horário '{hora_str}'")
     # Primeiro, registrar todas as linhas visíveis para diagnóstico
     try:
-        todas_linhas = driver.find_elements(By.XPATH, "//tr[.//span[contains(@class,'ng-star-inserted')]]")
+        todas_linhas = espera.elementos(driver, "//tr[.//span[contains(@class,'ng-star-inserted')]]", teto=2)
         # for idx, tr in enumerate(todas_linhas):
         #     texto = tr.text[:120]
         #     print(f"Linha {idx}: {texto}")
@@ -621,22 +605,22 @@ def _encontrar_slot_dia(driver: WebDriver, hora_str: str) -> None:
     # Para garantir que pegamos a linha da pauta DIÁRIA (e não a tabela inicial que pode ainda estar no DOM),
     # verificamos se o horário está na primeira ou segunda coluna (na tabela inicial o horário fica na 3ª coluna).
     linha_xpath = f"//tr[td[position()<=2]//span[normalize-space(.)='{hora_str}']]"
-    linha = esperar_elemento(driver, linha_xpath, by=By.XPATH, timeout=15)
+    linha = esperar_elemento(driver, linha_xpath, timeout=15)
     if not linha:
         raise Exception(f"Linha com horario '{hora_str}' nao encontrada na pauta diaria")
 
     # Log detalhado da linha selecionada
     print(f"[SLOT] Linha encontrada: {linha.text[:200]}")
     # Clica no botão com aria-label "Designar Audiência"
-    btn_plus = linha.find_element(
-        By.XPATH,
+    btn_plus = _sub_elemento(
+        linha,
         ".//button[contains(@aria-label,'Designar')] | .//i[contains(@class,'fa-plus-circle')]/ancestor::button"
     )
     print(f"[SLOT] Clicando no botão designar")
     safe_click(driver, btn_plus)
 
 
-def _tem_audiencia_marcada(driver: WebDriver, processo_info: Optional[Dict] = None) -> bool:
+def _tem_audiencia_marcada(driver: Any, processo_info: Optional[Dict] = None) -> bool:
     """Verifica se o processo tem audiência marcada.
 
     Fonte primária: Inspeciona `dt#audiencias` no DOM e valida presença de data/hora concretos.
@@ -644,26 +628,28 @@ def _tem_audiencia_marcada(driver: WebDriver, processo_info: Optional[Dict] = No
     """
     try:
         # Tenta extrair do DOM primeiro (mais confiável para audiências canceladas)
-        dt = driver.find_element(By.CSS_SELECTOR, "dt#audiencias")
-        if dt.is_displayed():
-            parent_text = ""
-            try:
-                parent = dt.find_element(By.XPATH, "./ancestor::*[1]")
-                parent_text = (parent.text or "").strip()
-            except Exception:
-                parent_text = (dt.text or "").strip()
+        dt = espera.elemento(driver, "dt#audiencias", teto=2)
+        if dt:
+            is_displayed = getattr(dt, 'is_displayed', lambda: True)
+            if (is_displayed() if callable(is_displayed) else True):
+                parent_text = ""
+                try:
+                    parent = _sub_elemento(dt, "./ancestor::*[1]")
+                    parent_text = (((getattr(parent, 'text_content', None) and parent.text_content()) or getattr(parent, 'text', '') or '')).strip()
+                except Exception:
+                    parent_text = (((getattr(dt, 'text_content', None) and dt.text_content()) or getattr(dt, 'text', '') or '')).strip()
 
-            if parent_text:
-                re_data = re.search(r"\b\d{2}/\d{2}/\d{4}\b", parent_text)
-                re_hora = re.search(r"\b\d{2}:\d{2}\b", parent_text)
-                if re_data or re_hora:
-                    print("[TRIAGEM] _tem_audiencia_marcada via DOM: True")
-                    return True
-                
-        # Se encontrou dt mas não tem data/hora válida, ou não está exibido, é False
-        print("[TRIAGEM] _tem_audiencia_marcada via DOM: False (dt#audiencias encontrado mas sem data/hora)")
-        return False
-        
+                if parent_text:
+                    re_data = re.search(r"\b\d{2}/\d{2}/\d{4}\b", parent_text)
+                    re_hora = re.search(r"\b\d{2}:\d{2}\b", parent_text)
+                    if re_data or re_hora:
+                        print("[TRIAGEM] _tem_audiencia_marcada via DOM: True")
+                        return True
+                    
+            # Se encontrou dt mas não tem data/hora válida, ou não está exibido, é False
+            print("[TRIAGEM] _tem_audiencia_marcada via DOM: False (dt#audiencias encontrado mas sem data/hora)")
+            return False
+            
     except Exception:
         # Se não encontrar dt#audiencias, significa que não tem audiência no DOM
         print("[TRIAGEM] _tem_audiencia_marcada via DOM: False (dt#audiencias nao encontrado)")
@@ -671,7 +657,7 @@ def _tem_audiencia_marcada(driver: WebDriver, processo_info: Optional[Dict] = No
 
 
 def _marcar_aud(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     rito: str,
     aba_retorno: str,
@@ -711,68 +697,52 @@ def _marcar_aud(
         _navegar_calendario_para_data(driver, data_str)
         _encontrar_slot_dia(driver, hora_str)
 
-        modal = esperar_elemento(driver, "mat-dialog-container", by=By.CSS_SELECTOR, timeout=10)
+        modal = esperar_elemento(driver, "mat-dialog-container", timeout=10)
         if not modal:
             raise Exception("Modal de audiencia nao encontrado")
 
-        input_num = modal.find_element(By.CSS_SELECTOR, "input#inputNumeroProcesso")
-        valor_atual = (input_num.get_attribute('value') or '').strip()
-        try:
-            safe_click(driver, input_num)
-            input_num.clear()
-            time.sleep(0.3)
-            # Remove mask and send only digits to avoid mask duplication
-            numero_limpo = "".join(filter(str.isdigit, numero_processo))
-            for ch in numero_limpo:
-                input_num.send_keys(ch)
-                time.sleep(0.02)
-            driver.execute_script(
-                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
-                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
-                input_num,
-            )
-        except Exception:
-            preencher_campo(driver, "#inputNumeroProcesso", numero_processo)
-        time.sleep(0.8)
+        numero_limpo = "".join(filter(str.isdigit, numero_processo))
+        preencher_campo(driver, "#inputNumeroProcesso", numero_limpo)
+        espera.assentar(driver, 0.8)
 
         btn_confirmar = esperar_elemento(
             driver,
             "//mat-dialog-container//button[.//span[normalize-space(.)='Confirmar']]",
-            by=By.XPATH,
             timeout=10,
         )
         if not btn_confirmar:
             raise Exception("Botao Confirmar nao encontrado")
         safe_click(driver, btn_confirmar)
-        time.sleep(1)
+        espera.assentar(driver, 1.0)
 
         modal_confirmado = esperar_elemento(
             driver,
             "div.container-conteudo",
-            by=By.CSS_SELECTOR,
             timeout=10,
         )
         if not modal_confirmado:
             raise Exception("Confirmacao de designacao de audiencia nao encontrada no dialogo")
 
         # Usa textContent para ler o texto mesmo durante a animação do modal (onde .text retorna vazio)
-        texto_confirmacao = driver.execute_script("return arguments[0].textContent;", modal_confirmado).strip().lower()
+        texto_confirmacao = (_executar_js(driver, "return arguments[0].textContent;", modal_confirmado) or '').strip().lower()
         print(f"[MARCAR_AUD] Texto do modal retornado: '{texto_confirmacao}'")
 
         if "sucesso" not in texto_confirmacao and "confirmada" not in texto_confirmacao:
             # Tentar capturar toast de erro
             erro_msg = "Modal nao indicou sucesso."
             try:
-                snack = driver.find_element(By.CSS_SELECTOR, "simple-snack-bar")
-                if snack.is_displayed():
-                    erro_msg = f"Erro do PJe: {snack.text.strip()}"
+                snack = espera.elemento(driver, "simple-snack-bar", teto=1)
+                if snack:
+                    snack_txt = ((getattr(snack, 'text_content', None) and snack.text_content()) or getattr(snack, 'text', '') or '').strip()
+                    erro_msg = f"Erro do PJe: {snack_txt}"
             except:
                 pass
             
             # Clica no botao Fechar/Cancelar para não travar a tela
             try:
-                btn_fechar_erro = driver.find_element(By.CSS_SELECTOR, "div.container-botoes button")
-                safe_click(driver, btn_fechar_erro)
+                btn_fechar_erro = espera.elemento(driver, "div.container-botoes button", teto=2)
+                if btn_fechar_erro:
+                    safe_click(driver, btn_fechar_erro)
             except:
                 pass
             
@@ -781,15 +751,15 @@ def _marcar_aud(
         btn_fechar = esperar_elemento(
             driver,
             "//div[contains(@class,'container-botoes')]//button[.//span[contains(normalize-space(.), 'Fechar')]]",
-            by=By.XPATH,
             timeout=10,
         )
         if not btn_fechar:
             # Fallback para qualquer botão se 'Fechar' não for encontrado
-            btn_fechar = driver.find_element(By.CSS_SELECTOR, "div.container-botoes button")
+            btn_fechar = espera.elemento(driver, "div.container-botoes button", teto=2)
             
-        safe_click(driver, btn_fechar)
-        time.sleep(0.5)
+        if btn_fechar:
+            safe_click(driver, btn_fechar)
+        espera.assentar(driver, 0.5)
         sucesso = True
     except Exception as e:
         print(f"[TRIAGEM/ACOES] ❌ _marcar_aud: {type(e).__name__}: {e}")
@@ -800,7 +770,7 @@ def _marcar_aud(
             except Exception:
                 pass
             try:
-                if aba_retorno in driver.window_handles:
+                if aba_retorno in getattr(driver, 'window_handles', []):
                     driver.switch_to.window(aba_retorno)
             except Exception:
                 pass
@@ -813,7 +783,7 @@ def _marcar_aud(
 
 
 def acao_bucket_a(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     processo_info: Dict,
 ) -> Tuple[bool, Optional[str]]:
@@ -826,7 +796,7 @@ def acao_bucket_a(
       4. Registra comentario sobre a acao executada
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Driver do processo.
         numero_processo: Numero CNJ do processo.
         processo_info: Dict com metadados do processo.
 
@@ -880,7 +850,7 @@ def acao_bucket_a(
                 return False, None
             
             try:
-                if aba_retificar in driver.window_handles:
+                if aba_retificar in getattr(driver, 'window_handles', []):
                     driver.switch_to.window(aba_retificar)
                     remarcar_100_pos_aud(driver)
                     driver.close()
@@ -888,7 +858,7 @@ def acao_bucket_a(
                 print(f"[TRIAGEM/A] ⚠ Falha ao remarcar 100%: {e}")
 
             try:
-                for handle in driver.window_handles:
+                for handle in getattr(driver, 'window_handles', []):
                     driver.switch_to.window(handle)
                     if '/detalhe' in (driver.current_url or ''):
                         break
@@ -925,7 +895,7 @@ def acao_bucket_a(
             return False, None
 
         try:
-            if aba_retificar in driver.window_handles:
+            if aba_retificar in getattr(driver, 'window_handles', []):
                 driver.switch_to.window(aba_retificar)
                 remarcar_100_pos_aud(driver)
                 driver.close()
@@ -933,7 +903,7 @@ def acao_bucket_a(
             print(f"[TRIAGEM/A] ⚠ Erro ao finalizar retificar: {e}")
 
         try:
-            for handle in driver.window_handles:
+            for handle in getattr(driver, 'window_handles', []):
                 driver.switch_to.window(handle)
                 if '/detalhe' in (driver.current_url or ''):
                     break
@@ -970,7 +940,7 @@ def acao_bucket_a(
 
 
 def acao_bucket_b(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     processo_info: Dict,
 ) -> Tuple[bool, Optional[str]]:
@@ -982,7 +952,7 @@ def acao_bucket_b(
       3. Registra comentario sobre a acao executada
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Driver do processo.
         numero_processo: Numero CNJ do processo.
         processo_info: Dict com metadados do processo.
 
@@ -1025,7 +995,7 @@ def acao_bucket_b(
 
 
 def acao_bucket_c(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     processo_info: Dict,
 ) -> Tuple[bool, Optional[str]]:
@@ -1037,7 +1007,7 @@ def acao_bucket_c(
       3. Se PEC ok, executa mov_aud
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Driver do processo.
         numero_processo: Numero CNJ do processo.
         processo_info: Dict com metadados do processo.
 
@@ -1089,7 +1059,7 @@ def acao_bucket_c(
 
 
 def acao_bucket_d(
-    driver: WebDriver,
+    driver: Any,
     numero_processo: str,
     processo_info: Dict,
 ) -> Tuple[bool, Optional[str]]:
@@ -1100,7 +1070,7 @@ def acao_bucket_d(
       2. Registra comentario
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Driver do processo.
         numero_processo: Numero CNJ do processo.
         processo_info: Dict com metadados do processo.
 

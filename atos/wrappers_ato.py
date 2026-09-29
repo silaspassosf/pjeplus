@@ -94,16 +94,6 @@ ato_crte = make_ato_wrapper(
 
 # Função auxiliar para inserir relatório conciso SISBAJUD no modelo xsparcial
 def _inserir_relatorio_conciso_sisbajud(driver, numero_processo=None, conteudo_relatorio=None, debug=True):
-    """
-    Insere o relatório conciso do SISBAJUD no marcador SISBAJUD do modelo xsparcial.
-    Usa a mesma lógica do wrapper de juntada.
-    
-    Args:
-        driver: WebDriver do Selenium
-        numero_processo: Número do processo (opcional, usado para buscar do clipboard)
-        conteudo_relatorio: Conteúdo HTML do relatório (se fornecido, usa direto sem buscar clipboard)
-        debug: Habilitar logs
-    """
     try:
         from PEC.anexos import substituir_marcador_por_conteudo
         import os

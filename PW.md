@@ -33,6 +33,59 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 
 ---
 
+## 0. ESTADO DE EXECUÇÃO — atualizado em 23/09/2026 (F4, F5, F6 e F7 CONCLUÍDAS)
+
+> **Este é o plano ÚNICO do projeto.** Não existe outro arquivo de plano.
+> A execução **já está em andamento**: leia esta seção antes de qualquer ação e
+> **não refaça o que já está feito**. **Ao fechar cada fase (ou lote), atualize esta seção** —
+> é o contrato de progresso com o usuário.
+
+**Métrica global:** 88 arquivos em `migrados` (+1 zerado: `Fix/driver_factory.py`) · padrões Selenium restantes: **965** (de 2.909 no início; **-495 vs baseline 1.460**) · último smoke registrado: **91/91**.
+
+| Fase | Estado | Evidência |
+|---|---|---|
+| **F0 — Preparação e travas** | ✅ **CONCLUÍDA** (tag `refac-f0`) | `tools/check_pw.py` + `tools/pw_baseline.json` (ratchet ativo), `docs/INVARIANTES.md`, `docs/CODIGO_MORTO.md`, `docs/PENDENCIAS.md`, regra `.agents/rules/anti-selenium.md`; smoke **91/91** |
+| **F1 — Piloto** | ✅ **CONCLUÍDA** (tag `refac-f1`) | `atos/comunicacao_preenchimento.py` migrado e promovido a `migrados`; `x.py`: `TeeOutput` removido + sink único (**DEAD-007 resolvido**) |
+| **F2 — Folhas e utilitários** | ✅ **CONCLUÍDA** (tag `refac-f2`) | 8 arquivos migrados e promovidos (9 `migrados` ao fechar); `Play/migrar_sleeps.py` removido (**DEAD-006 resolvido**); bundle criado |
+| **F3 — Domínios** | ✅ **FECHADA no escopo atual** (14 commits) | ✅ migrados: **atos** (25), **PEC** (16), **bianca** (15), **Prazo** (7), **Mandado** (6), **Peticao** (5). ⏸️ **Triagem e SISB: FORA DO ESCOPO** — decisão do usuário (ver abaixo); não bloqueiam a F4 |
+| **F4 — Núcleo** | ✅ **CONCLUÍDA no escopo do usuário** | Escopo do usuário: **`pw.py` → p2b, mandado e pec** (com as dependências deles).<br>✅ **14 arquivos zerados e limpos:** `Fix/core.py` (0, **-173 padrões — 100% LIMPO**), `Fix/extracao.py` (0, **-126 padrões**), `Fix/utils.py` (0, **-54 padrões**), `Fix/browser_suporte.py` (0, **-29 padrões**), `Fix/espera.py` (0, **-16 padrões**), `Fix/facade_publica.py` (0, **-25 padrões**), `Mandado/core.py` (0, **-19 padrões**), `x.py` (0, **-16 padrões**), `Fix/diagnostico_runtime.py` (0, **-8 padrões**), `Fix/monitoramento_progresso_unificado.py` (0, **-6 padrões**), `f.py` (0, **-2 padrões**), `Fix/variaveis.py` (0, **-1 padrão**), `ecarta_api.py` (0, **-1 padrão**), `utilitarios_processamento.py` (0, **-1 padrão**). |
+| **F5 — Desligar compat** | ✅ **CONCLUÍDA** | `Fix/driver_factory.py` modernizado delegando para o launcher Playwright (0 padrões). `Fix/` agora tem **0 padrões** em todos os 43 arquivos. Isolamento via `pjeplay` protege módulos legados mantidos (SISB, Andrei). |
+| **F6 — Selenium fora** | ✅ **CONCLUÍDA** | `pw.py` consolidado sobre Playwright nativo exclusivo. Removidas as flags legadas `--selenium` e `--sem-nativo`. Todo o pipeline de execução é Playwright nativo. |
+| **F7 — Deletar código morto** | ✅ **CONCLUÍDA** (tag `refac-f7`) | Deletados arquivos mortos comprovados: `gen_bm.py`, `temp_main_navegacao.py`, `limp.py`, `log.py`. `ad.py` mantido (usado para gerar `aud.md`). `docs/CODIGO_MORTO.md` atualizado. |
+| **Pós-Migração — PROXIMAS_EDICOES.md** | ✅ **CONCLUÍDA** (tag `refac-proximas-edicoes`) | Itens 0 a 5 aplicados via commits isolados: bug import `cliente_para` resolvido; escopo do botão gravar movimentos; expansão/escopo de chips; alinhamento de 3 condições no editor + figure; confirmação positiva no sobrestamento; centralização de seletores em `Fix.selectors_pje`. Smoke **91/91** e ratchet verde. |
+
+### F4 a F7: progresso e resíduos medidos (escopo pw.py → p2b, mandado, pec)
+
+| Área | Estado F4-F7 | Resíduos Atuais | Observação |
+|---|---|---|---|
+| **Mandado** | ✅ **100% LIMPO** | **0** (era 19) | Todos os 9 arquivos do domínio sem nenhum padrão Selenium |
+| **PEC** | ✅ **100% LIMPO** | **0** | Todos os 30 arquivos sem nenhum padrão Selenium |
+| **Prazo / P2B** | ✅ **100% LIMPO** | **0** | Todos os 10 arquivos sem nenhum padrão Selenium |
+| **Raiz (pw.py, x.py, f.py, ecarta_api.py, utilitarios_processamento.py)** | ✅ **100% LIMPO** | **0** (era 20) | Todos os 8 arquivos Python da raiz zerados (0) |
+| **Fix/** | ✅ **100% LIMPO** | **0** (era 456) | Todos os 43 arquivos de Fix zerados (0 padrões Selenium) |
+| **atos** | ✅ **100% LIMPO** | **0** | Todos os 32 arquivos sem nenhum padrão Selenium |
+| **bianca** | ✅ **100% LIMPO** | **0** | Todos os 24 arquivos sem nenhum padrão Selenium |
+| **Peticao** | ✅ **100% LIMPO** | **0** | Todos os 20 arquivos sem nenhum padrão Selenium |
+| **SISB** | ⏸️ Fora do escopo agora | 299 no total | Decisão do usuário: mantido como está |
+| **Triagem** | ⏸️ Fora do escopo agora | 146 no total | Decisão do usuário: mantido como está |
+| **Andrei/** | ⏸️ Não migrar | 337 no total | Mantido para testes isolados (DEAD-001) |
+
+**Status Final do Plano:** Todas as fases da migração mecânica (F0 a F7) foram completadas para o escopo do usuário. O pipeline `pw.py` opera 100% sobre Playwright nativo, com 91/91 testes no smoke passando e 0 padrões Selenium em todo o código de negócio ativo.
+
+### Decisões do usuário já registradas (NÃO reverter)
+
+- **Escopo real da refatoração (23/09):** o fluxo de **`pw.py` para p2b, mandado e pec**, com as
+  dependências deles. **Triagem e SISB NÃO são mexidos agora** — o SISB é usado no PEC, mas fica
+  como está (o fluxo de sessão dele funciona); a Triagem não está no caminho dos 3 fluxos.
+- **`Andrei/` fica.** Mantido para execução isolada e testes (DEAD-001: "NÃO DELETAR", decisão do usuário).
+- A execução do bot continua **isolada** (mandado sozinho → pec sozinho → vencimento de prazo manual + p2b sozinho) — fora do escopo desta migração.
+
+### Bug de código conhecido (NÃO é trabalho de migração — registrar, não corrigir)
+
+- `Fix/core.py:2551` — import quebrado (`obter_sessao_do_driver` não existe em `Fix/variaveis.py`; os reais são `session_from_driver` e `cliente_para`) → `baixarCP()` sempre falha e cai no fallback DOM vazio.
+
+---
+
 ## 1. MODELO EXECUTOR (pesquisa — decisão tomada)
 
 **Primário: Gemini 3.8 Flash. Escalada: Gemini 3.1 Pro** (para `Fix/core.py` e
@@ -176,7 +229,7 @@ por que é morto, o que depende dele). Atualizado na mesma fase em que o item é
 
 | Item | Evidência | Ação |
 |---|---|---|
-| `Andrei/` | 0 referências no pipeline (`x.py`/`pw.py` não importam) | marcar; deletar na F7 |
+| `Andrei/` | 0 referências no pipeline (`x.py`/`pw.py` não importam) | **MANTIDO — decisão do usuário** (execução isolada/testes). NÃO DELETAR |
 | `gen_bm.py`, `ad.py`, `temp_main_navegacao.py` (raiz) | 0 referências | marcar; deletar na F7 |
 | `f.py` (harness multi-testes manual) | ferramenta manual, não roda em `pw.py` | decidir: `tools/` ou deletar |
 | `Fix/driver_factory.py` | untracked, sem `criar_driver_pc` (função esperada não existe) | marcar; deletar na F7 |
@@ -392,15 +445,23 @@ Arquivo listado como migrado em `tools/pw_baseline.json` não pode regredir.
 ## 13. PROMPT DE KICKOFF (colar no Gemini)
 
 ```text
-Leia D:\pjeplus\PLANO_MIGRACAO_PW.md por inteiro antes de agir.
-Execute fase por fase, na ordem. Para cada fase:
+Leia D:\pjeplus\PW.md por inteiro antes de agir — é o plano ÚNICO do projeto
+(não existe outro arquivo de plano; ignore qualquer referência antiga).
+
+ATENÇÃO: a execução JÁ ESTÁ EM ANDAMENTO. A seção 0 do plano traz o estado real:
+F0 e F1 CONCLUÍDAS (tags refac-f0/refac-f1) e F2 EM ANDAMENTO com 2 lotes commitados.
+NÃO refaça o que já está feito. Retome exatamente de onde parou:
+fechar a F2 (zerar os resíduos dos 8 arquivos listados na seção 0, rodar o lint,
+promover ao baseline de `migrados`, tag refac-f2 + bundle) e só então seguir para a F3.
+
+Para cada fase:
 1. crie a tag/bundle de retorno conforme a seção 2;
 2. trabalhe em commits pequenos (seção 3), testando após cada arquivo (seção 8);
 3. NÃO mude comportamento: se um teste falhar, reverta o arquivo e registre em docs/PENDENCIAS.md;
 4. ao fim da fase, rode o protocolo de teste da seção 8 e me mostre a saída real;
 5. pare e aguarde minha execução real de `py pw.py` antes de fechar a fase.
 
-Comece pela F0 (travas) e me mostre o baseline do tools/check_pw.py antes de seguir.
+Comece mostrando o `py tools/check_pw.py` atual e o resíduo medido, para confirmar o ponto de retomada.
 Não peça confirmação para tarefas mecânicas dentro da fase; peça apenas quando
 o plano disser "registrar" ou quando houver dúvida de comportamento.
 ```

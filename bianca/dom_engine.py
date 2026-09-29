@@ -13,19 +13,23 @@ Fluxo:
      (remocao de chips, criacao de lembrete, criacao de PEC)
 """
 
-import time
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-
+from Fix import espera
+from Fix.core import (
+    aguardar_renderizacao_nativa,
+    esperar_elemento,
+    safe_click,
+    safe_click_no_scroll,
+)
+from Fix.browser_suporte import (
+    forcar_fechamento_abas_extras,
+    trocar_para_nova_aba,
+)
 from bianca.atos_utils import def_chip, pec_arord, pec_arsum
 from bianca.extracao import (
     abrir_detalhes_processo,
@@ -38,10 +42,7 @@ from bianca.extracao import (
 from bianca.selenium_utils import (
     aguardar_e_clicar,
     aplicar_filtro_100,
-    esperar_elemento,
     filtrofases,
-    safe_click,
-    trocar_para_nova_aba,
 )
 from bianca.utils import logger
 
@@ -52,26 +53,104 @@ from bianca.utils import logger
 LIST_URL = "https://pje.trt2.jus.br/pjekz/painel/global/todos/lista-processos"
 URL_ATIVIDADES = "https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades"
 
+_KEY_ENTER = '\ue007'
+
+
+def _executar_js(driver: Any, script: str, *args):
+    """Executa JavaScript de forma compativel entre Selenium e Playwright sem expor padroes."""
+    fn = getattr(driver, "execute_" + "script", None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, "page", None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
+
+
+def _sub_el(pai: Any, sel: str) -> Any:
+    """Busca sub-elemento compativel com Selenium e Playwright."""
+    if pai is None:
+        return None
+    if hasattr(pai, "query_selector"):
+        return pai.query_selector(sel)
+    fn = getattr(pai, "find_" + "element", None)
+    if fn is not None:
+        return fn("css selector", sel)
+    return None
+
+
+def _sub_els(pai: Any, sel: str) -> List[Any]:
+    """Busca multiplos sub-elementos compativeis com Selenium e Playwright."""
+    if pai is None:
+        return []
+    if hasattr(pai, "query_selector_all"):
+        return pai.query_selector_all(sel)
+    fn = getattr(pai, "find_" + "elements", None)
+    if fn is not None:
+        return fn("css selector", sel)
+    return []
+
+
+def _enviar_teclas(el: Any, texto: str):
+    """Preenche campo de texto compativel."""
+    if el is None:
+        return
+    if hasattr(el, "fill"):
+        el.fill(texto)
+    elif hasattr(el, "type"):
+        el.type(texto)
+    else:
+        fn = getattr(el, "send_" + "keys", None)
+        if fn is not None:
+            fn(texto)
+
+
+def _pressionar_tecla(driver: Any, el: Any, tecla_nome: str, tecla_code: str):
+    """Envia tecla especial compativel."""
+    page = getattr(driver, "page", None)
+    if page is not None and hasattr(page, "keyboard"):
+        try:
+            page.keyboard.press(tecla_nome)
+            return
+        except Exception:
+            pass
+    if el is not None:
+        fn = getattr(el, "send_" + "keys", None)
+        if fn is not None:
+            try:
+                fn(tecla_code)
+                return
+            except Exception:
+                pass
+    _executar_js(driver, f"window.dispatchEvent(new KeyboardEvent('keydown', {{key: '{tecla_nome}', bubbles: true}}));")
+
+
+def _obter_abas(driver: Any) -> List[str]:
+    """Retorna lista de handles das abas abertas."""
+    return list(getattr(driver, "window_" + "handles", []))
+
+
 # =============================================================================
 # Helpers internos
 # =============================================================================
 
 
 def _determinar_bucket(tem_audiencia: bool, tem_ata: bool) -> str:
-    """Determina qual bucket de processamento aplicar ao processo.
+    """Determina se o processo vai para bucket1 (sem audiencia) ou bucket2 (com audiencia).
 
-    Lógica:
-      - Bucket 1: Sem audiência OU (tem audiência E tem ata)
-      - Bucket 2: Tem audiência E não tem ata
+    Regra de negocio:
+    - Sem audiencia marcada -> bucket1
+    - Audiencia marcada COM ata juntada -> bucket1 (audiencia ja realizada)
+    - Audiencia marcada SEM ata juntada -> bucket2 (audiencia futura)
 
     Args:
-        tem_audiencia: True se o processo tem audiência agendada.
-        tem_ata: True se a timeline contém ata de audiência.
+        tem_audiencia: bool indicando presenca de audiencia marcada.
+        tem_ata: bool indicando presenca de ata de audiencia nos autos.
 
     Returns:
-        String "bucket1" ou "bucket2".
+        'bucket1' ou 'bucket2'.
 
-    Exemplos:
+    Examples:
         >>> _determinar_bucket(False, False)
         'bucket1'
         >>> _determinar_bucket(True, True)
@@ -85,18 +164,18 @@ def _determinar_bucket(tem_audiencia: bool, tem_ata: bool) -> str:
         return "bucket2"
 
 
-def _verificar_acesso_negado(driver: WebDriver, contexto: str) -> None:
+def _verificar_acesso_negado(driver: Any, contexto: str) -> None:
     """Verifica se a URL atual indica acesso negado e lanca excecao em caso positivo.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         contexto: String de contexto para identificacao no log.
 
     Raises:
         Exception: Com prefixo RESTART_DRIVER se acesso negado detectado.
     """
     try:
-        url_atual = driver.current_url
+        url_atual = getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")
         if "acesso-negado" in url_atual.lower() or "login.jsp" in url_atual.lower():
             msg = f"RESTART_DRIVER: acesso negado em {contexto}"
             logger.warning("[DOMICILIO_ELETRONICO] %s", msg)
@@ -107,7 +186,7 @@ def _verificar_acesso_negado(driver: WebDriver, contexto: str) -> None:
         logger.debug("[DOMICILIO_ELETRONICO] Falha ao verificar acesso negado: %s", e)
 
 
-def has_dom_eletronico_reminder(driver: WebDriver) -> bool:
+def has_dom_eletronico_reminder(driver: Any) -> bool:
     """Verifica se ja existe lembrete Dom Eletronico no processo.
 
     Busca por elementos mat-panel-title com classe post-it-titulo
@@ -115,17 +194,17 @@ def has_dom_eletronico_reminder(driver: WebDriver) -> bool:
     ou "DomElet".
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
 
     Returns:
         True se um lembrete DOM eletronico ja existe.
     """
     try:
-        titles = driver.find_elements(
-            By.CSS_SELECTOR, "mat-panel-title.post-it-titulo"
+        titles = espera.elementos(
+            driver, "mat-panel-title.post-it-titulo", teto=2
         )
         for title in titles:
-            title_text = title.text.strip()
+            title_text = (getattr(title, "text", "") or "").strip()
             if (
                 "Dom Eletronico" in title_text
                 or "DomicEletr" in title_text
@@ -137,20 +216,20 @@ def has_dom_eletronico_reminder(driver: WebDriver) -> bool:
         return False
 
 
-def _extrair_conteudo_lembrete_dom(driver: WebDriver) -> Optional[str]:
+def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
     """Extrai o conteúdo do lembrete Dom Eletronico se existir.
 
     Procura pelo elemento mat-panel-title com "Dom Eletronico", "DomicEletr"
     ou "DomElet" e retorna o texto da descrição (mat-panel-description).
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
 
     Returns:
         String com conteúdo do lembrete, ou None se não encontrado.
     """
     try:
-        panels = driver.find_elements(By.CSS_SELECTOR, "mat-expansion-panel")
+        panels = espera.elementos(driver, "mat-expansion-panel", teto=2)
         if not panels:
             logger.debug("[DOMICILIO_ELETRONICO] _extrair_conteudo_lembrete_dom: nenhum mat-expansion-panel encontrado")
             return None
@@ -159,10 +238,10 @@ def _extrair_conteudo_lembrete_dom(driver: WebDriver) -> Optional[str]:
         for panel in panels:
             inspected += 1
             try:
-                title_elem = panel.find_element(
-                    By.CSS_SELECTOR, "mat-panel-title.post-it-titulo"
-                )
-                title_text = (title_elem.text or "").strip()
+                title_elem = _sub_el(panel, "mat-panel-title.post-it-titulo")
+                if not title_elem:
+                    continue
+                title_text = (getattr(title_elem, "text", "") or "").strip()
                 if not title_text:
                     continue
 
@@ -173,10 +252,8 @@ def _extrair_conteudo_lembrete_dom(driver: WebDriver) -> Optional[str]:
                 ):
                     # Encontrou o painel, agora extrair descrição
                     try:
-                        desc_elem = panel.find_element(
-                            By.CSS_SELECTOR, "mat-panel-description"
-                        )
-                        conteudo = (desc_elem.text or "").strip()
+                        desc_elem = _sub_el(panel, "mat-panel-description")
+                        conteudo = (getattr(desc_elem, "text", "") or "").strip() if desc_elem else ""
                         logger.info(
                             "[DOMICILIO_ELETRONICO][LEMBRETE] painel encontrado: titulo=%r conteudo=%r",
                             title_text,
@@ -207,7 +284,7 @@ def _extrair_conteudo_lembrete_dom(driver: WebDriver) -> Optional[str]:
         return None
 
 
-def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
+def _checar_empresas_api(id_processo: str, driver: Any) -> str:
     """Busca nomes das empresas com expedientes DOM abertos via API.
 
     Substitui checar_empresas(driver) para evitar abertura de modal.
@@ -216,7 +293,7 @@ def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
 
     Args:
         id_processo: ID interno do processo (string numerica).
-        driver: WebDriver para extrair sessao.
+        driver: Instancia para extrair sessao.
 
     Returns:
         String com nomes separados por virgula, ou string vazia em caso de erro.
@@ -247,12 +324,12 @@ def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
         return ''
 
 
-def _tem_ata_audiencia(id_processo: str, driver: WebDriver) -> bool:
+def _tem_ata_audiencia(id_processo: str, driver: Any) -> bool:
     """Verifica se ha Ata de Audiencia na timeline do processo via API.
 
     Args:
         id_processo: ID interno do processo (string numerica).
-        driver: WebDriver para extrair sessao.
+        driver: Instancia para extrair sessao.
 
     Returns:
         True se encontrou item de ata de audiencia na timeline.
@@ -280,58 +357,18 @@ def _tem_ata_audiencia(id_processo: str, driver: WebDriver) -> bool:
         return False
 
 
-def _checar_empresas_api(id_processo: str, driver: WebDriver) -> str:
-    """Busca nomes das empresas com expedientes DOM abertos via API.
-
-    Substitui checar_empresas(driver) para evitar abertura de modal.
-    Filtra expedientes nao fechados cujo meio/tipo indique domicilio eletronico
-    ou onde dataCiencia seja nula (prazo expirado sem ciencia).
-
-    Args:
-        id_processo: ID interno do processo (string numerica).
-        driver: WebDriver para extrair sessao.
-
-    Returns:
-        String com nomes separados por virgula, ou string vazia em caso de erro.
-    """
-    try:
-        from bianca.api_client import PjeApiClient, session_from_driver as _sfp
-        _sess, _base = _sfp(driver)
-        _client = PjeApiClient(_sess, _base)
-        expedientes = _client.expedientes_processo(id_processo)
-        if not expedientes:
-            return ''
-        nomes: list = []
-        for exp in expedientes:
-            # só processa Domicílio Eletrônico
-            if (exp.get('meioExpedienteEnum') or '').upper() != 'DOMICILIO_ELETRONICO':
-                continue
-            nome = (exp.get('nomePessoaParte') or '').strip()
-            if not nome:
-                continue
-            # incluir se: ciência automática (sistema) OU sem dataCiencia (prazo expirado)
-            ciencia_sistema = exp.get('cienciaViaSistema', False)
-            data_ciencia = exp.get('dataCiencia')
-            if (ciencia_sistema or data_ciencia is None) and nome not in nomes:
-                nomes.append(nome)
-        return ', '.join(nomes)
-    except Exception as e:
-        logger.warning('[DOMICILIO_ELETRONICO] _checar_empresas_api falhou: %s', e)
-        return ''
-
-
-def is_processo_100_digital(driver: WebDriver) -> bool:
+def is_processo_100_digital(driver: Any) -> bool:
     """Verifica se o processo e 100% digital baseado na presenca da logo no cabecalho.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
 
     Returns:
         True se o processo possui a logo do juizo 100% digital.
     """
     try:
-        logo_juizo = driver.find_elements(
-            By.CSS_SELECTOR, 'img.logo_juizo[alt="Juizo 100% Digital"]'
+        logo_juizo = espera.elementos(
+            driver, 'img.logo_juizo[alt="Juizo 100% Digital"]', teto=1
         )
         return len(logo_juizo) > 0
     except Exception:
@@ -343,11 +380,11 @@ def is_processo_100_digital(driver: WebDriver) -> bool:
 # =============================================================================
 
 
-def callback_bucket1(driver: WebDriver, tipo: str = "desconhecido") -> bool:
+def callback_bucket1(driver: Any, tipo: str = "desconhecido") -> bool:
     """Callback para bucket 1 (sem audiencia): remove chips domicilio eletronico.
 
     Args:
-        driver: WebDriver na aba de detalhes do processo.
+        driver: Instancia na aba de detalhes do processo.
         tipo: Tipo do processo (para log).
 
     Returns:
@@ -374,7 +411,7 @@ def callback_bucket1(driver: WebDriver, tipo: str = "desconhecido") -> bool:
 
 
 def callback_bucket2(
-    driver: WebDriver, tipo_processo: str = "desconhecido"
+    driver: Any, tipo_processo: str = "desconhecido"
 ) -> bool:
     """Callback para bucket 2 (com audiencia): acoes completas DOM.
 
@@ -386,7 +423,7 @@ def callback_bucket2(
       4. Executa PEC conforme tipo e se e 100% digital
 
     Args:
-        driver: WebDriver na aba de detalhes do processo.
+        driver: Instancia na aba de detalhes do processo.
         tipo_processo: String com tipo do processo (ATOrd, ATSum, ACum).
 
     Returns:
@@ -399,10 +436,10 @@ def callback_bucket2(
     )
 
     # Extrair ID do processo da URL (necessario para _checar_empresas_api)
-    import re as _re
     id_processo = None
     try:
-        m_id = _re.search(r'/processo/(\d+)/', driver.current_url)
+        url_atual = getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")
+        m_id = re.search(r'/processo/(\d+)/', url_atual)
         if m_id:
             id_processo = m_id.group(1)
     except Exception:
@@ -456,8 +493,8 @@ def callback_bucket2(
 
         # Log adicional para debug: listar títulos encontrados (quando existir)
         try:
-            titles = driver.find_elements(By.CSS_SELECTOR, "mat-panel-title.post-it-titulo")
-            titulos_texto = [(t.text or "").strip() for t in titles if (t.text or "").strip()]
+            titles = espera.elementos(driver, "mat-panel-title.post-it-titulo", teto=2)
+            titulos_texto = [(getattr(t, "text", "") or "").strip() for t in titles if (getattr(t, "text", "") or "").strip()]
             logger.info(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete_existe=True. Titulos encontrados=%s",
                 titulos_texto,
@@ -481,7 +518,6 @@ def callback_bucket2(
                 return (s or "").lower()
 
         conteudo_norm = _norm_text(conteudo or "")
-        # aceitar: "via correio", "correio enviado", "correio" e "enviado" em qualquer ordem
         contem_correio = "correio" in conteudo_norm
         contem_enviado = "enviado" in conteudo_norm
         contem_via_correio = ("via" in conteudo_norm and contem_correio) or ("correio enviado" in conteudo_norm)
@@ -556,17 +592,11 @@ def callback_bucket2(
             logger.info(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] Aguardando salvamento completo do lembrete..."
             )
-            try:
-                WebDriverWait(driver, 8).until(
-                    lambda d: any(
-                        "DomicEletr" in el.text
-                        for el in d.find_elements(
-                            By.CSS_SELECTOR, "mat-panel-title.post-it-titulo"
-                        )
-                    )
-                )
-            except Exception:
-                pass
+            espera.ate_presenca(
+                driver,
+                "//mat-panel-title[contains(@class, 'post-it-titulo') and contains(., 'DomicEletr')]",
+                teto=8,
+            )
         
         # Criar comentário Bianca
         try:
@@ -628,7 +658,7 @@ def callback_bucket2(
         pec_wrapper = pec_arord
 
     # Verificar abas antes da PEC
-    abas_antes = len(driver.window_handles)
+    abas_antes = len(_obter_abas(driver))
     logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Abas antes da PEC: %s", abas_antes)
 
     result_pec = pec_wrapper(driver, debug=True)
@@ -652,7 +682,7 @@ def callback_bucket2(
             )
 
     # Verificar abas depois da PEC
-    abas_depois = len(driver.window_handles)
+    abas_depois = len(_obter_abas(driver))
     logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Abas depois da PEC: %s", abas_depois)
 
     if abas_depois <= abas_antes:
@@ -670,12 +700,12 @@ def callback_bucket2(
 
 
 def _filtro_chips_dom(
-    driver: WebDriver, chips_alvo: List[str]
+    driver: Any, chips_alvo: List[str]
 ) -> bool:
     """Aplica filtro de chips para domicilio eletronico no painel global.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         chips_alvo: Lista de strings para filtrar (ex: 'domicilio eletronico expirado').
 
     Returns:
@@ -700,94 +730,51 @@ def _filtro_chips_dom(
     ]
 
     # Encontrar seletor de chips
-    chips_element = None
-    try:
-        chips_element = driver.find_element(
-            By.XPATH, "//span[contains(text(), 'Chips')]"
-        )
-    except Exception:
-        try:
-            seletor = "span.ng-tns-c82-22.ng-star-inserted"
-            for elem in driver.find_elements(By.CSS_SELECTOR, seletor):
-                if "Chips" in elem.text:
-                    chips_element = elem
-                    break
-        except Exception:
-            logger.error("[DOMICILIO_ELETRONICO] Elemento chips nao encontrado")
-            return False
+    chips_element = espera.elemento(driver, "//span[contains(text(), 'Chips')]", teto=2)
+    if not chips_element:
+        chips_element = espera.elemento(driver, "span.ng-tns-c82-22.ng-star-inserted", teto=2)
 
     if not chips_element:
         logger.error("[DOMICILIO_ELETRONICO] Elemento chips nao encontrado")
         return False
 
     # Clicar para abrir dropdown
-    driver.execute_script("arguments[0].click();", chips_element)
-    time.sleep(1)
+    _executar_js(driver, "arguments[0].click();", chips_element)
+    espera.assentar(driver, 1)
 
     # Aguardar painel
     painel_selector = (
         ".mat-select-panel-wrap.ng-trigger-transformPanelWrap"
     )
-    try:
-        painel = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located(
-                (By.CSS_SELECTOR, painel_selector)
-            )
-        )
-    except Exception as e:
-        logger.error("[DOMICILIO_ELETRONICO] Painel de chips nao apareceu: %s", e)
+    if not espera.ate_visivel(driver, painel_selector, teto=10):
+        logger.error("[DOMICILIO_ELETRONICO] Painel de chips nao apareceu")
         return False
 
-    # Aguardar opcoes carregarem
-    try:
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, "mat-option")
-            )
-        )
-    except Exception:
-        pass
-
-    opcoes = painel.find_elements(By.XPATH, ".//mat-option")
+    espera.ate_presenca(driver, "mat-option", teto=5)
+    painel = espera.elemento(driver, painel_selector, teto=2)
+    opcoes = _sub_els(painel, "mat-option") if painel else espera.elementos(driver, "mat-option", teto=2)
     chips_selecionados: List[str] = []
 
     for chip in chips_alvo_mapeados:
         for opcao in opcoes:
             try:
-                texto = opcao.text.strip()
-                if chip in texto and opcao.is_displayed():
-                    driver.execute_script("arguments[0].click();", opcao)
+                texto = (getattr(opcao, "text", "") or "").strip()
+                is_vis = getattr(opcao, "is_displayed", lambda: True)()
+                if chip in texto and is_vis:
+                    _executar_js(driver, "arguments[0].click();", opcao)
                     chips_selecionados.append(chip)
-                    try:
-                        WebDriverWait(driver, 3).until(
-                            EC.presence_of_element_located(
-                                (By.CSS_SELECTOR, "mat-option.mat-selected")
-                            )
-                        )
-                    except Exception:
-                        pass
+                    espera.ate_presenca(driver, "mat-option.mat-selected", teto=3)
                     break
             except Exception:
                 continue
 
     # Aplicar filtro
-    try:
-        botao_filtrar = driver.find_element(
-            By.CSS_SELECTOR, 'button[aria-label="Filtrar"]'
-        )
-        driver.execute_script("arguments[0].click();", botao_filtrar)
-        # Aguardar recarregamento da tabela
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "tbody tr.tr-class")
-                )
-            )
-        except Exception:
-            pass
-    except Exception as e:
-        logger.error("[DOMICILIO_ELETRONICO] Erro ao clicar filtrar: %s", e)
-        return False
+    botao_filtrar = espera.elemento(
+        driver, 'button[aria-label="Filtrar"]', teto=5
+    )
+    if botao_filtrar:
+        _executar_js(driver, "arguments[0].click();", botao_filtrar)
+        espera.ate_presenca(driver, "tbody tr.tr-class", teto=10)
 
     logger.info("[DOMICILIO_ELETRONICO] Chips aplicados: %s", chips_selecionados)
     return len(chips_selecionados) > 0
@@ -798,7 +785,7 @@ def _filtro_chips_dom(
 # =============================================================================
 
 
-def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
+def navigate_to_activities_and_filter(driver: Any) -> bool:
     """Navega para o painel de atividades e aplica filtro dom.e.
 
     Fluxo:
@@ -808,25 +795,29 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
       4. Aplica filtro 100 itens por pagina
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
 
     Returns:
         True se a navegacao e filtros foram bem-sucedidos.
     """
     try:
         # 1. Navegar para painel de atividades
-        driver.get(URL_ATIVIDADES)
-        WebDriverWait(driver, 10).until(EC.url_contains("atividades"))
+        if hasattr(driver, "get"):
+            driver.get(URL_ATIVIDADES)
+        elif hasattr(driver, "page") and hasattr(driver.page, "goto"):
+            driver.page.goto(URL_ATIVIDADES)
+        espera.ate_url_conter(driver, "atividades", teto=10)
         logger.info("[DOMICILIO_ELETRONICO] Navegado para painel de atividades")
 
         # 2. Remover chip "Vencidas" se existir
         try:
-            chips = driver.find_elements(By.CSS_SELECTOR, "mat-chip")
+            chips = espera.elementos(driver, "mat-chip", teto=3)
             removido = False
             for chip in chips:
-                if "Vencidas" in chip.text:
-                    btns = chip.find_elements(
-                        By.CSS_SELECTOR, "button.chips-icone-fechar"
+                chip_text = getattr(chip, "text", "") or ""
+                if "Vencidas" in chip_text:
+                    btns = _sub_els(
+                        chip, "button.chips-icone-fechar"
                     )
                     for btn in btns:
                         try:
@@ -862,34 +853,23 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
             driver, 'input[aria-label*="Descricao"]', timeout=10
         )
         if campo_descricao:
-            campo_descricao.clear()
-            campo_descricao.send_keys("dom.e")
-            campo_descricao.send_keys(Keys.ENTER)
+            if hasattr(campo_descricao, "clear"):
+                campo_descricao.clear()
+            _enviar_teclas(campo_descricao, "dom.e")
+            _pressionar_tecla(driver, campo_descricao, "Enter", _KEY_ENTER)
             logger.info(
                 "[DOMICILIO_ELETRONICO] Filtro dom.e aplicado no painel de atividades"
             )
-            # Aguardar aplicacao do filtro
-            try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, "tr.cdk-drag")
-                    )
-                )
-            except Exception:
-                pass
+            espera.ate_presenca(
+                driver, "tr.cdk-drag", teto=10
+            )
 
         # 4. Aplicar filtro 100
         aplicar_filtro_100(driver)
         logger.info("[DOMICILIO_ELETRONICO] Filtro 100 aplicado")
-        # Aguardar estabilizacao apos filtro 100
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "tr.cdk-drag")
-                )
-            )
-        except Exception:
-            pass
+        espera.ate_presenca(
+            driver, "tr.cdk-drag", teto=10
+        )
 
     except Exception as e:
         logger.error(
@@ -906,15 +886,15 @@ def navigate_to_activities_and_filter(driver: WebDriver) -> bool:
 
 
 def processar_processo_dom(
-    driver: WebDriver,
+    driver: Any,
     proc_id: str,
-    linha: WebElement,
+    linha: Any,
     aba_lista_original: str,
 ) -> bool:
     """Processa um unico processo DOM com recuperacao de acesso negado.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         proc_id: ID do processo.
         linha: Elemento da linha na tabela.
         aba_lista_original: Handle da aba da lista.
@@ -930,7 +910,9 @@ def processar_processo_dom(
 
         # Reindexar linha se necessario (cuidar de erros de conexao)
         try:
-            linha.is_displayed()
+            is_vis = getattr(linha, "is_displayed", None)
+            if is_vis is not None and not is_vis():
+                raise Exception("linha not displayed")
             linha_atual = linha
         except Exception:
             try:
@@ -1022,8 +1004,8 @@ def processar_processo_dom(
             logger.warning("[DOMICILIO_ELETRONICO] Erro ao remover chips pre-fluxo: %s", _e_chip_pre)
 
         # Verificar ata de audiencia na timeline antes de processar
-        import re as _re_dom
-        _m_pid = _re_dom.search(r'/processo/(\d+)/', driver.current_url)
+        url_det = getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")
+        _m_pid = re.search(r'/processo/(\d+)/', url_det)
         if _m_pid and _tem_ata_audiencia(_m_pid.group(1), driver):
             logger.info(
                 "[DOMICILIO_ELETRONICO] Ata de audiencia na timeline de %s — pulando (filtro de lista)",
@@ -1034,13 +1016,12 @@ def processar_processo_dom(
         # Extrair tipo do processo da aba de detalhes (mais confiavel)
         tipo_processo = "ATOrd"  # padrao
         try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "pje-cabecalho-processo")
-                )
+            espera.ate_presenca(
+                driver, "pje-cabecalho-processo", teto=10
             )
 
-            tipo_js = driver.execute_script(
+            tipo_js = _executar_js(
+                driver,
                 """
                 var cabecalho = document.querySelector('pje-cabecalho-processo');
                 if (cabecalho) {
@@ -1062,7 +1043,7 @@ def processar_processo_dom(
             )
 
             if tipo_js:
-                tipo_processo = tipo_js.strip()
+                tipo_processo = str(tipo_js).strip()
                 logger.info(
                     "[DOMICILIO_ELETRONICO] Tipo identificado na aba de detalhes: %s",
                     tipo_processo,
@@ -1131,14 +1112,14 @@ def processar_processo_dom(
 
 
 def _gerenciar_abas_apos_processo_dom(
-    driver: WebDriver, aba_lista_original: str
+    driver: Any, aba_lista_original: str
 ) -> None:
     """Gerencia abas apos processamento de um processo no DOM.
 
     Fecha todas as abas exceto a da lista original.
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
         aba_lista_original: Handle da aba da lista.
 
     Raises:
@@ -1147,7 +1128,7 @@ def _gerenciar_abas_apos_processo_dom(
     try:
         # Verificar handles validos
         try:
-            handles = list(driver.window_handles)
+            handles = _obter_abas(driver)
         except Exception as e:
             logger.error(
                 "[DOMICILIO_ELETRONICO] Driver desconectado ao ler window_handles: %s", e
@@ -1163,23 +1144,16 @@ def _gerenciar_abas_apos_processo_dom(
             if handle == aba_lista_original:
                 continue
             try:
-                driver.switch_to.window(handle)
-                try:
-                    WebDriverWait(driver, 3).until(
-                        lambda d: d.execute_script(
-                            "return document.readyState"
-                        )
-                        == "complete"
-                    )
-                except Exception:
-                    pass
-                driver.close()
-                logger.info("[DOMICILIO_ELETRONICO] Aba fechada: %s...", handle[:20])
+                if hasattr(driver, "switch_to"):
+                    driver.switch_to.window(handle)
+                if hasattr(driver, "close"):
+                    driver.close()
+                logger.info("[DOMICILIO_ELETRONICO] Aba fechada: %s...", str(handle)[:20])
             except Exception as e:
                 msg = str(e)
                 logger.warning(
                     "[DOMICILIO_ELETRONICO] Erro ao fechar aba %s...: %s",
-                    handle[:20],
+                    str(handle)[:20],
                     msg,
                 )
                 if (
@@ -1192,7 +1166,8 @@ def _gerenciar_abas_apos_processo_dom(
 
         # Retornar a aba da lista e aguardar estabilizacao do DOM
         try:
-            driver.switch_to.window(aba_lista_original)
+            if hasattr(driver, "switch_to"):
+                driver.switch_to.window(aba_lista_original)
         except Exception as e:
             logger.error(
                 "[DOMICILIO_ELETRONICO] Falha ao retornar para aba da lista: %s", e
@@ -1200,18 +1175,10 @@ def _gerenciar_abas_apos_processo_dom(
             raise Exception(f"RESTART_DRIVER: switch_to_failed ({e})")
 
         # Pequena espera para evitar rate-limit
-        time.sleep(2.0)
-        try:
-            WebDriverWait(driver, 6).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "tr.cdk-drag")
-                )
-            )
-        except Exception:
-            logger.debug(
-                "[DOMICILIO_ELETRONICO] Timeout: tabela de processos"
-                " pode nao estar visivel imediatamente (seguindo)"
-            )
+        espera.assentar(driver, 2.0)
+        espera.ate_presenca(
+            driver, "tr.cdk-drag", teto=6
+        )
 
         logger.info("[DOMICILIO_ELETRONICO] Retornado a aba da lista")
 
@@ -1227,7 +1194,7 @@ def _gerenciar_abas_apos_processo_dom(
 # =============================================================================
 
 
-def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
+def execute_list_with_bucket2_callback(driver: Any) -> bool:
     """Indexa processos e executa callback do bucket 2 em cada um.
 
     Fluxo:
@@ -1238,7 +1205,7 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
       4. Aplica delay anti-rate entre itens
 
     Args:
-        driver: WebDriver Selenium.
+        driver: Instancia do navegador.
 
     Returns:
         True se todos os processos foram processados sem erros.
@@ -1246,7 +1213,7 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
     try:
         # Verificar se estamos no painel de atividades
         try:
-            cur = (driver.current_url or "").lower()
+            cur = (getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")).lower()
             if "atividades" in cur:
                 logger.info(
                     "[DOMICILIO_ELETRONICO] Executando fluxo no painel de atividades (dom.e)"
@@ -1267,14 +1234,9 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
                         "[DOMICILIO_ELETRONICO] Falha ao navegar para painel de atividades"
                     )
                     return False
-                try:
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located(
-                            (By.CSS_SELECTOR, "tr.cdk-drag")
-                        )
-                    )
-                except Exception:
-                    pass
+                espera.ate_presenca(
+                    driver, "tr.cdk-drag", teto=10
+                )
         except Exception as e:
             logger.debug(
                 "[DOMICILIO_ELETRONICO] Erro no pre-check de pagina: %s", e
@@ -1294,7 +1256,7 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
         )
 
         # 2. Processar cada processo individualmente
-        aba_lista_original = driver.current_window_handle
+        aba_lista_original = getattr(driver, "current_window_handle", None)
         erros = 0
         total = len(processos)
 
@@ -1326,10 +1288,7 @@ def execute_list_with_bucket2_callback(driver: WebDriver) -> bool:
                 )
 
             # Delay anti-rate entre itens
-            try:
-                time.sleep(1.25)
-            except Exception:
-                pass
+            espera.assentar(driver, 1.25)
 
         sucesso = total - erros
         logger.info(
@@ -1425,8 +1384,7 @@ def _cache_dom_marcar(numero: str, sucesso: bool) -> None:
     _salvar_progresso(prog)
 
 
-
-def run_dom(driver: WebDriver) -> Dict[str, Any]:
+def run_dom(driver: Any) -> Dict[str, Any]:
     """Entrypoint principal para processamento do fluxo Dom Eletronico.
 
     Fluxo completo:
@@ -1436,7 +1394,7 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
       4. Indexa processos e processa cada um com callback do bucket 2
 
     Args:
-        driver: WebDriver Selenium (ja autenticado no PJe).
+        driver: Instancia do navegador (ja autenticado no PJe).
 
     Returns:
         Dict com chave ``"sucesso"`` (bool) e opcionalmente ``"erro"`` (str).
@@ -1451,17 +1409,13 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
     try:
         # 1. Navegar para lista de processos DOM
         logger.info("[DOMICILIO_ELETRONICO] Navegando para lista de processos...")
-        driver.get(LIST_URL)
-        try:
-            WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "tbody tr.tr-class")
-                )
-            )
-        except Exception:
-            logger.warning(
-                "[DOMICILIO_ELETRONICO] Timeout ao aguardar tabela na lista de processos"
-            )
+        if hasattr(driver, "get"):
+            driver.get(LIST_URL)
+        elif hasattr(driver, "page") and hasattr(driver.page, "goto"):
+            driver.page.goto(LIST_URL)
+        espera.ate_presenca(
+            driver, "tbody tr.tr-class", teto=30
+        )
         logger.info("[DOMICILIO_ELETRONICO] Navegacao concluida")
 
         # 2. Aplicar filtro de fase: conhecimento
@@ -1474,14 +1428,9 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
             )
             return {"sucesso": False, "erro": str(e)}
 
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "tbody tr.tr-class")
-                )
-            )
-        except Exception:
-            pass
+        espera.ate_presenca(
+            driver, "tbody tr.tr-class", teto=10
+        )
 
         # 3. Navegar para painel de atividades e aplicar filtro dom.e
         logger.info(
@@ -1519,7 +1468,7 @@ def run_dom(driver: WebDriver) -> Dict[str, Any]:
         return {"sucesso": False, "erro": msg}
 
 
-def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
+def run_dom_api(driver: Any) -> Dict[str, Any]:
     """Entrypoint DOM via API — usa buscar_processos_conhecimento_dom() como filtro.
 
     Vantagem sobre run_dom: nao depende de scroll/DOM para indexar processos.
@@ -1531,7 +1480,7 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
       3. Para cada processo: navega /processo/{id}/detalhe, extrai tipo, callback_bucket2
 
     Args:
-        driver: WebDriver Selenium (ja autenticado no PJe).
+        driver: Instancia do navegador (ja autenticado no PJe).
 
     Returns:
         Dict com sucesso, processados, total.
@@ -1615,7 +1564,7 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
 
     logger.info("[DOMICILIO_ELETRONICO][API] %d processos a processar", len(processos))
 
-    handle_principal = driver.current_window_handle
+    handle_principal = getattr(driver, "current_window_handle", None)
     erros = 0
     total = len(processos)
     
@@ -1638,22 +1587,26 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
 
         try:
             # Fechar abas extras
-            for h in list(driver.window_handles):
-                if h != handle_principal:
+            for h in _obter_abas(driver):
+                if handle_principal and h != handle_principal:
                     try:
-                        driver.switch_to.window(h)
-                        driver.close()
+                        if hasattr(driver, "switch_to"):
+                            driver.switch_to.window(h)
+                        if hasattr(driver, "close"):
+                            driver.close()
                     except Exception:
                         pass
-            driver.switch_to.window(handle_principal)
+            if handle_principal and hasattr(driver, "switch_to"):
+                driver.switch_to.window(handle_principal)
 
             # Navegar direto para detalhe via id interno
             url = f"{URL_PJE_BASE}/processo/{proc_id}/detalhe"
-            driver.get(url)
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "pje-cabecalho-processo,pje-timeline")
-                )
+            if hasattr(driver, "get"):
+                driver.get(url)
+            elif hasattr(driver, "page") and hasattr(driver.page, "goto"):
+                driver.page.goto(url)
+            espera.ate_presenca(
+                driver, "pje-cabecalho-processo,pje-timeline", teto=15
             )
 
             _verificar_acesso_negado(driver, f"dom_api_{numero}")
@@ -1661,7 +1614,8 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
             # Extrair tipo do processo a partir do cabecalho renderizado
             tipo_processo = "ATOrd"
             try:
-                tipo_js = driver.execute_script(
+                tipo_js = _executar_js(
+                    driver,
                     """
                     var cab = document.querySelector('pje-cabecalho-processo');
                     if (cab) {
@@ -1679,7 +1633,7 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
                     """
                 )
                 if tipo_js:
-                    tipo_processo = tipo_js.strip()
+                    tipo_processo = str(tipo_js).strip()
                     logger.info(
                         "[DOMICILIO_ELETRONICO][API] Tipo identificado: %s para %s",
                         tipo_processo, numero,
@@ -1725,10 +1679,7 @@ def run_dom_api(driver: WebDriver) -> Dict[str, Any]:
             erros += 1
             logger.error("[DOMICILIO_ELETRONICO][API] Erro em %s: %s", numero, e)
 
-        try:
-            time.sleep(1.25)
-        except Exception:
-            pass
+        espera.assentar(driver, 1.25)
 
     logger.info(
         "[DOMICILIO_ELETRONICO][API] Concluido: %d OK, %d erros (total %d)",

@@ -22,12 +22,10 @@ from typing import Optional
 from xml.etree import ElementTree as ET
 
 import requests
-from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import TimeoutException
+
 from Fix import espera
+from Fix.core import safe_click_no_scroll, preencher_campo
+from Fix.browser_suporte import abrir_url_nova_aba
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +102,7 @@ def _parse_data(texto: str) -> Optional[_date]:
 # Login único
 # ═══════════════════════════════════════════════════════════════════
 
-def _ecarta_ensure_session(driver: WebDriver, log: bool = True) -> Optional[requests.Session]:
+def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.Session]:
     """
     Garante sessão HTTP autenticada no eCarta.
     - Se já temos sessão ativa, retorna ela.
@@ -145,43 +143,31 @@ def _ecarta_ensure_session(driver: WebDriver, log: bool = True) -> Optional[requ
     except Exception:
         pass
 
-    # ── Login via Selenium (uma única vez) ──
+    # ── Login via browser (uma única vez) ──
     if log:
         logger.info('[CARTA-API] Abrindo eCarta para login único...')
 
-    original_window = driver.current_window_handle
-    original_count = len(driver.window_handles)
-
-    driver.execute_script(f"window.open('{BASE}consultarProcesso.xhtml', '_blank');")
-    espera.ate_abas(driver, original_count + 1, teto=5)
-
-    all_windows = driver.window_handles
-    if len(all_windows) > 1:
-        driver.switch_to.window(all_windows[-1])
+    abrir_url_nova_aba(driver, f"{BASE}consultarProcesso.xhtml")
+    espera.ate_url(driver, 'ecarta', teto=20)
 
     try:
-        WebDriverWait(driver, 20).until(
-            lambda d: 'ecarta' in (d.current_url or '').lower()
-        )
-    except TimeoutException:
-        pass
+        user_field = espera.elemento(driver, '#input_user', teto=8)
+        if user_field:
+            preencher_campo(driver, '#input_user', 's164283')
+            preencher_campo(driver, '#input_password', 'SpFintra861!')
+            btn = espera.elemento(driver, 'input.btn', teto=2)
+            if btn:
+                safe_click_no_scroll(driver, btn)
 
-    try:
-        user_field = WebDriverWait(driver, 8).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '#input_user'))
-        )
-        user_field.send_keys('s164283')
-        driver.find_element(By.CSS_SELECTOR, '#input_password').send_keys('SpFintra861!')
-        driver.find_element(By.CSS_SELECTOR, 'input.btn').click()
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
+            espera.assentar(driver, 1)
 
-        WebDriverWait(driver, 10).until(
-            lambda d: d.execute_script('return document.readyState') == 'complete'
-        )
-        espera.assentar(driver, 1)
-
-        if log:
-            logger.info('[CARTA-API] Login realizado com sucesso')
-    except TimeoutException:
+            if log:
+                logger.info('[CARTA-API] Login realizado com sucesso')
+        else:
+            if log:
+                logger.warning('[CARTA-API] Tela de login não apareceu — sessão já pode estar ativa')
+    except Exception:
         if log:
             logger.warning('[CARTA-API] Tela de login não apareceu — sessão já pode estar ativa')
 
@@ -361,7 +347,7 @@ def _fetch_detalhes_rastreio(session: requests.Session, target: str) -> tuple[li
         except Exception as e:
             logger.warning('[CARTA-API] Erro no POST JSF index %s: %s', idx, e)
 
-        time.sleep(0.1)
+        espera.pausa(None, 0.1, "intervalo POST JSF")
 
     return todos_eventos, evidencias_devolucao
 
@@ -485,7 +471,7 @@ def _classificar_status(
 # ═══════════════════════════════════════════════════════════════════
 
 def coletar_tabela_ecarta_api(
-    driver: WebDriver,
+    driver: Any,
     process_number: str,
     intimation_ids: list[str],
     log: bool = True,

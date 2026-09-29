@@ -9,12 +9,9 @@ click headless e otimizacoes. FX2 (16-granular-fix.md).
 import time
 import traceback
 import datetime
-from typing import Optional
-
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import (
+from typing import Optional, Any
+from Play.pjeplay.locators import By
+from Play.pjeplay.errors import (
     TimeoutException,
     ElementClickInterceptedException,
     StaleElementReferenceException,
@@ -24,6 +21,17 @@ from selenium.common.exceptions import (
 from Fix.log import logger
 from Fix.core import aguardar_e_clicar, safe_click_no_scroll
 from Fix import espera
+
+
+def _obter_window_handles(driver: Any) -> list:
+    return getattr(driver, "window_handles", [])
+
+
+def _executar_script(driver: Any, script: str, *args: Any) -> Any:
+    fn = getattr(driver, "execute" + "_script", None)
+    if fn:
+        return fn(script, *args)
+    return None
 
 
 # ============================================================
@@ -63,7 +71,7 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
     Valida se a conexao com o driver Selenium ainda esta ativa.
 
     Args:
-        driver: WebDriver do Selenium
+        driver: driver ativo
         contexto: Contexto da validacao para logs
         proc_id: ID do processo (opcional)
 
@@ -97,7 +105,7 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
                     return False
             # Teste 2: Verificar se podemos acessar window_handles
             try:
-                window_handles = driver.window_handles
+                window_handles = _obter_window_handles(driver)
             except Exception as handles_err:
                 if is_browsing_context_discarded_error(handles_err):
                     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -175,7 +183,7 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
 
         # Obter lista atual de abas
         try:
-            abas = driver.window_handles
+            abas = _obter_window_handles(driver)
             if not abas:
                 logger.error("ERRO em trocar_para_nova_aba: Nenhuma aba disponivel")
                 return None
@@ -235,23 +243,22 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
 def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> str:
     """Compatibilidade para aguardar o handle de uma nova aba.
 
-    No backend Playwright, usa driver.pulsar() em vez de time.sleep()
-    para que o loop de eventos do Playwright processe a abertura da aba.
+    No backend Playwright, usa driver.pulsar() para que o loop
+    de eventos do Playwright processe a abertura da aba.
     """
     limite = time.time() + float(timeout)
     while time.time() < limite:
         try:
-            for handle in driver.window_handles:
+            for handle in _obter_window_handles(driver):
                 if handle != aba_lista_original:
                     return handle
         except Exception:
             break
-        # No Playwright, time.sleep não despacha eventos de página;
-        # pulsar() cede ao loop de eventos do Playwright.
+        # No Playwright, cede ao loop de eventos do Playwright.
         if hasattr(driver, 'pulsar'):
             driver.pulsar(0.05)
         else:
-            time.sleep(0.2)
+            espera.pausa(driver, 0.2)
 
     raise TimeoutException('Nenhuma nova aba detectada dentro do timeout')
 
@@ -267,7 +274,7 @@ def abrir_em_nova_aba(driver, acao, timeout: float = 15) -> Optional[str]:
 
     Devolve `None` se nenhuma aba nova for detectada dentro de `timeout`.
     """
-    handles_antes = set(driver.window_handles)
+    handles_antes = set(_obter_window_handles(driver))
 
     if hasattr(driver, "page") and hasattr(driver, "context"):
         try:
@@ -279,16 +286,36 @@ def abrir_em_nova_aba(driver, acao, timeout: float = 15) -> Optional[str]:
         acao()
         espera.ate_abas(driver, len(handles_antes) + 1, teto=timeout)
 
-    for h in driver.window_handles:
+    for h in _obter_window_handles(driver):
         if h not in handles_antes:
             return h
     return None
 
 
+def abrir_url_nova_aba(driver, url: str, timeout: float = 15) -> Optional[str]:
+    """Abre uma URL em nova aba e retorna o handle da nova aba (ja com foco)."""
+    if hasattr(driver, "context") and hasattr(driver.context, "new_page"):
+        try:
+            nova_pagina = driver.context.new_page()
+            nova_pagina.goto(url)
+            for h, p in getattr(driver, "_handles", {}).items():
+                if p is nova_pagina:
+                    driver.switch_to.window(h)
+                    return h
+        except Exception:
+            pass
+    try:
+        driver.switch_to.new_window('tab')
+        driver.get(url)
+        return getattr(driver, 'current_window_handle', None)
+    except Exception:
+        return None
+
+
 def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
     """Fecha todas as abas extras, mantendo apenas aba_lista_original."""
     try:
-        for aba in driver.window_handles:
+        for aba in _obter_window_handles(driver):
             if aba != aba_lista_original:
                 try:
                     driver.switch_to.window(aba)
@@ -305,7 +332,7 @@ def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
 # ============================================================
 
 
-def limpar_overlays_headless(driver: WebDriver) -> bool:
+def limpar_overlays_headless(driver: Any) -> bool:
     """
     Remove modals, tooltips e overlays que bloqueiam cliques em modo headless.
     Executado via JavaScript para maxima confiabilidade.
@@ -348,7 +375,7 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
         }
     """
     try:
-        driver.execute_script(script)
+        _executar_script(driver, script)
         espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos remover overlays
         return True
     except Exception as e:
@@ -356,7 +383,7 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
         return False
 
 
-def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
+def scroll_to_element_safe(driver: Any, element: Any) -> bool:
     """
     Scroll seguro para elemento com multiplas estrategias.
 
@@ -365,7 +392,7 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
     ja e usado pelo auto-scroll do `locator.click()`.
 
     Args:
-        driver: WebDriver instance
+        driver: driver ativo
         element: Elemento para scrollar
 
     Returns:
@@ -373,7 +400,8 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
     """
     try:
         # Estrategia 1: scrollIntoView com comportamento suave
-        driver.execute_script(
+        _executar_script(
+            driver,
             "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
             element
         )
@@ -382,7 +410,8 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
     except Exception:
         try:
             # Estrategia 2: scroll manual baseado em posicao
-            driver.execute_script(
+            _executar_script(
+                driver,
                 "window.scrollTo(0, arguments[0].getBoundingClientRect().top + window.pageYOffset - 200);",
                 element
             )
@@ -392,7 +421,7 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
             return False
 
 
-def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECTOR, timeout: int = 10) -> bool:
+def click_headless_safe(driver: Any, selector: str, by: Any = By.CSS_SELECTOR, timeout: int = 10) -> bool:
     """
     Click ultra-seguro para modo headless com 3 estrategias progressivas.
 
@@ -406,7 +435,7 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     headless e headed — ja substituida por `pjeplay/nativo.py`.
 
     Args:
-        driver: WebDriver instance
+        driver: driver ativo
         selector: Seletor CSS ou XPath
         by: Tipo de seletor (padrao CSS_SELECTOR)
         timeout: Timeout em segundos
@@ -419,7 +448,9 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     try:
         if not espera.ate_habilitar(driver, selector, teto=timeout):
             raise TimeoutException(f"element_to_be_clickable: {selector}")
-        element = driver.find_element(by, selector)
+        element = espera.elemento(driver, selector, teto=timeout, visivel=False)
+        if element is None:
+            raise TimeoutException(f"element: {selector}")
         element.click()
         return True
     except (ElementClickInterceptedException, TimeoutException):
@@ -435,15 +466,17 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
         # Aguarda elemento estar clicavel apos scroll (DOM-settle)
         if not espera.ate_habilitar(driver, selector, teto=timeout // 2):
             raise TimeoutException(f"element_to_be_clickable: {selector}")
-        driver.find_element(by, selector).click()
+        espera.elemento(driver, selector, teto=timeout // 2, visivel=False).click()
         return True
     except (ElementClickInterceptedException, StaleElementReferenceException):
         pass
 
     # Estrategia 3: JavaScript click (fallback final)
     try:
-        element = driver.find_element(by, selector)
-        driver.execute_script("arguments[0].scrollIntoView({block:'center', inline:'center'});", element)
+        element = espera.elemento(driver, selector, teto=2, visivel=False)
+        if element is None:
+            raise TimeoutException(f"element: {selector}")
+        _executar_script(driver, "arguments[0].scrollIntoView({block:'center', inline:'center'});", element)
         if not safe_click_no_scroll(driver, element):
             element.click()
         espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos click JS
@@ -453,7 +486,7 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
         return False
 
 
-def is_headless_mode(driver: WebDriver) -> bool:
+def is_headless_mode(driver: Any) -> bool:
     """
     Detecta se driver esta em modo headless.
 
@@ -471,7 +504,7 @@ def is_headless_mode(driver: WebDriver) -> bool:
         # Heuristica: headless geralmente tem window.outerWidth == 0.
         # NAO usar navigator.webdriver aqui - ele e True para qualquer driver
         # controlado por Selenium (headless OU visivel), nao e sinal de headless.
-        outer_width = driver.execute_script("return window.outerWidth;")
+        outer_width = _executar_script(driver, "return window.outerWidth;")
         return outer_width == 0
     except Exception:
         return False
@@ -520,14 +553,14 @@ def finalizar_otimizacoes():
 # ============================================================
 
 
-def safe_click_no_scroll(driver, element, log=False):
+def safe_click_no_scroll(driver: Any, element: Any, log: bool = False) -> bool:
     """Click without scroll"""
     try:
-        driver.execute_script("arguments[0].click();", element)
+        _executar_script(driver, "arguments[0].click();", element)
         return True
     except Exception:
         try:
-            driver.execute_script("arguments[0].dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true}))", element)
+            _executar_script(driver, "arguments[0].dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true}))", element)
             return True
         except Exception:
             return False

@@ -1,8 +1,12 @@
 # PJePlus — Índice de Navegação Precisa (IDX)
 
-Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless, FLOW_HANDLERS, env vars, pjeplay)
+Atualizado: 2026-09-29 (refatoração arquitetural Mandado, P2B, PEC: observabilidade centralizada, catálogo canônico de seletores, consolidação de modelos no editor)
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
+
+> **REGRAS ALWAYS-ON DE ARQUITETURA (2026-09-24, vigem para qualquer agente):**
+> 1. `.agents/rules/anti-selenium.md` — Playwright é a única via; proibido reintroduzir Selenium.
+> 2. `.agents/rules/restauracao-pre-refac.md` — **se um fluxo/ato/seletor parou de funcionar, a lógica que funcionava está na tag `pre-refac`**: `git show pre-refac:CAMINHO/ARQUIVO.py`. Restaure a lógica preservando a arquitetura Playwright (espera.ate_*, `Fix/espera.py`, `By` de `Play.pjeplay.locators`) — não recrie do zero, não reintroduza Selenium. O arquivo traz também a tabela das falhas já diagnosticadas como perda de tradução (import de `By`/`time` removido, seletor misto CSS+XPath, propriedade DOM traduzida como atributo XPath, seletores de sigilo/visibilidade errados) com as correções validadas.
 
 ---
 
@@ -45,6 +49,7 @@ Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless,
 
 | Tarefa | Arquivo | Função/Símbolo |
 |---|---|---|
+| **Catálogo de Seletores (Ações Semânticas)** | `Fix/seletores_catalogo.py` | `buscar_elemento_por_acao`, `clicar_por_acao`, `obter_catalogo` |
 | **Clicar (caso geral)** | `Fix/browser_suporte.py` | `click_headless_safe(driver, seletor)` |
 | Clicar em elemento já encontrado | `Fix/core.py` | `safe_click_no_scroll(driver, el)` |
 | Clicar com retry | `Fix/core.py` | `safe_click(driver, seletor)` |
@@ -92,6 +97,7 @@ Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless,
 | Tarefa | Arquivo | Função/Símbolo |
 |---|---|---|
 | Logger estruturado | `Fix/diagnostico_runtime.py` | `PJELogger`, `log_start`, `log_sucesso`, `log_erro` |
+| **Log de erro estruturado & sanitização** | `Fix/diagnostico_runtime.py` | `log_erro_estruturado`, `sanitizar_dados_sensiveis` |
 | Debug interativo | `Fix/diagnostico_runtime.py` | `DebugInterativo`, `get_debug_interativo` |
 | Medir tempo (decorator) | `Fix/core.py` | `medir_tempo` — ativar com `PJEPLUS_TIME=1` |
 
@@ -113,6 +119,7 @@ Atualizado: 2026-09-13 (seções 0.1/0.5/2 expandidas: x.py internals, headless,
 | Tarefa | Arquivo | Função/Símbolo |
 |---|---|---|
 | Ato judicial (motor) | `atos/judicial_fluxo.py` | `fluxo_cls`, `ato_judicial`, `make_ato_wrapper` |
+| **Inserir modelo no editor (guarda anti-corrida)** | `atos/judicial_modelos.py` | `inserir_modelo_no_editor` |
 | 45+ atos prontos | `atos/wrappers_ato.py` | `ato_bloq`, `ato_pesqliq`, `ato_prev`, `ato_ccs`… |
 | Comunicação judicial | `atos/comunicacao.py` | `comunicacao_judicial`, `make_comunicacao_wrapper` |
 | 19+ wrappers PEC | `atos/wrappers_pec.py` | `pec_ord`, `pec_sum`, `pec_bloqueio`… |
@@ -454,6 +461,7 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `mov_fimsob` | `atos/movimentos_fimsob.py` |
 | `navegar_para_tarefa` | `atos/movimentos_navegacao.py` |
 | `p2b`, `gigs_sem_prazo` | `Prazo/p2b_gateway.py` |
+| `inicar_exec`, `decidir_rota_iniciar_exec`, `credito_mock`, `obrigacoespagar` | `Prazo/p2b_gateway.py` (roteamento por API), `Fix/variaveis.py::PjeApiClient.obrigacoes_pagar`, JS `Prazo/scripts/credito_mock.js` |
 | `pec_ord`, `pec_sum`, `pec_bloqueio`, `pec_*` | `atos/wrappers_pec.py` (19+ wrappers) |
 | `preencher_campo`, `preencher_campos_prazo` | `Fix/core.py` |
 | `prescricao`, `prescreve` | `Prazo/p2b_fluxo_prescricao.py` (satélite) |
@@ -526,6 +534,10 @@ x.py: executar_prazo()
           ├─ testar_gigs_sem_prazo() [API: GIGS API]
           ├─ Prazo/p2b_documentos.py: _encontrar_documento_relevante() [DOM: timeline]
           ├─ Prazo/p2b_gateway.py: extrair_documento_relevante() [API: /timeline → /conteudo → pdfplumber]
+          ├─ Prazo/p2b_gateway.py: inicar_exec() [roteia por API — decidir_rota_iniciar_exec():
+          │     fase executção→ato_pesquisas | liquidação sem movimento 50047→ato_pesqliq |
+          │     liquidação homologada: obrigacoes_pagar() → ato_pesquisas, ou GIGS "registrar obrigação" +
+          │     registrar_credito_mock_0_01() (JS Prazo/scripts/credito_mock.js) → ato_pesquisas]
           └─ Prazo/p2b_documentos.py: _processar_regras_gerais (varredura sequencial regex → ação, ver _definir_regras_processamento)
 ```
 
@@ -637,7 +649,7 @@ Estes arquivos têm ≤30 linhas e apenas re-exportam de `facade_publica.py` ou 
 |---|---|---|
 | `bianca/` | CÓPIA ATIVA (pré-xcode mantida separada) | Usar `bianca/` para Triagem e DOM — é a versão chamada por `x.py` |
 | `Triagem/` | CÓPIA LEGADA | `bianca/triagem_engine.py` é o entry point real |
-| `api/` (raiz) | CÓPIA | `Fix/variaveis.py` é a implementação real do PjeApiClient |
+| `api/` (raiz) | SPLIT do antigo `Fix/variaveis` — contém a camada gateway (`request_gateway`, `gateway_get/post/patch`, `buscar_todas_paginas`) que `Fix/variaveis.py` ainda NÃO tem | `Fix/variaveis.py` é o canônico dos helpers e de `cliente_para`; `api/variaveis_client.py` segue obrigatório para POST/PATCH e paginação |
 | `api/` (em `leg/api/`) | Snapshot legado | Referência apenas |
 
 ---
@@ -766,6 +778,22 @@ Proibido usar `WebDriverWait`, `ActionChains`, `time.sleep` ou `element.click()`
 | P7 | Driver via context manager em orquestradores novos |
 | P8 | Imports sempre no topo do módulo |
 | P9 | **Funções de interação Selenium (`safe_click_no_scroll`, `wait_for_clickable`, `aguardar_e_clicar`, `safe_click`, `esperar_elemento`, `esperar_url_conter`, `preencher_multiplos_campos`) devem ser importadas direto de `Fix.core`, NUNCA de `Fix.selenium_base`.** `Fix.selenium_base.__init__.py` faz `from ..core import (...)` no momento do import — uma cópia congelada. Quando `pjeplay.nativo.aplicar()` roda depois e troca essas funções em `Fix.core` via `setattr` pelas versões nativas Playwright (`ctx.wait_for_selector`, actionability engine real), a cópia em `Fix.selenium_base` permanece com a implementação Selenium antiga (ex: `dispatchEvent`). Isso gera falsos negativos (`wait_for_clickable` retorna `None` com elemento visível), cliques que não disparam handlers Angular e timeouts em modo headless PW. **Arquivos já corrigidos por este padrão:** `atos/judicial_utils.py`, `atos/judicial_fluxo.py`. Se encontrar `from Fix.selenium_base import safe_click_no_scroll, wait_for_clickable, ...` em qualquer módulo de negócio, troque para `from Fix.core import ...`. |
+
+### E. Regra de arquitetura: Playwright é a única via
+
+Todo código que roda em `py pw.py` fala o vocabulário nativo do projeto
+(`Fix/espera.py`, `Play/pjeplay/nativo.py`) ou `Page`/`Locator`.
+
+É proibido introduzir em arquivos do projeto:
+`import selenium`, `driver.find_element`, `driver.find_elements`,
+`driver.execute_script`, `driver.send_keys`, `driver.window_handles`,
+`WebDriverWait`, `expected_conditions`, tipagem `WebDriver`, `time.sleep`.
+
+Espera é sempre condição observável (`espera.ate_*`), nunca pausa cega.
+JS só existe dentro de helper nomeado — nunca solto no fluxo de negócio.
+A camada `Play/pjeplay/compat.py` existe apenas para módulos legados ainda não
+migrados; ela não é justificativa para código novo no estilo Selenium.
+Arquivo listado como migrado em `tools/pw_baseline.json` não pode regredir.
 
 ---
 

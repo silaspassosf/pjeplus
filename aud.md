@@ -6,7 +6,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.5.7
+// @version      2.6.5
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -58,12 +58,15 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/trt.js?v=1.0.0
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.3.85
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.3.87
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=2.1.80
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=2.1.70
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=2.1.70
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.1.79
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.3.20
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=2.6.2
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=2.6.2
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/ordens.js?v=2.6.4
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/detalhes.js?v=2.6.2
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/minuta.js?v=2.6.2
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.6.2
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.6.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.1.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/saldo_extracao.js?v=2.1.1
@@ -73,8 +76,8 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
 // ── AUD modularizado: DADOS (textos jurídicos) carregados ANTES da LÓGICA;
 // Aud.js original permanece no repo como fallback, mas não é mais carregado.
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.data.js?v=1.0.3
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.core.js?v=2.3.94
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.data.js?v=1.1.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.core.js?v=2.3.95
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/marcar.js?v=1.3.4
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
@@ -1302,7 +1305,7 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
 // ==UserScript==
 // @name         Aud - Dados (perfis, peritos, textos padrão)
 // @namespace    pjetools
-// @version      1.0
+// @version      1.1
 // @grant        none
 // ==/UserScript==
 (function () {
@@ -1356,7 +1359,8 @@ otavio: {
 {"t": "Dispensa Testemunha", "h": "<p style=\"text-align:justify;text-indent:3cm;\">O reclamante requer a oitiva da testemunha **** , com o intuito de comprovar a existência de vínculo de emprego.</p>\
 <p style=\"text-align:justify;text-indent:3cm;\">No particular, considero desnecessária a oitiva da testemunha, porquanto os depoimentos pessoais das partes são convergentes entre si, praticamente uníssonos, dirimindo a controvérsia sobre as questões de fato que abarcam o presente processo. Por conta disso, indefiro o depoimento. Protestos.</p>"}, // @ITEM: Inst LLM
 {"t": "Inst LLM", "h": "<p style=\"text-align:justify;text-indent:3cm;\">INCONCILIADOS.<br>&nbsp;</p>\
-<p style=\"text-align:justify;text-indent:3cm;\">A(s) defesa(s) está(ão) nos autos.</p>\
+<p style=\"text-align:justify;text-indent:3cm;\">Recebida defesa com documentos. Concede-se o prazo de 05 dias para a reclamante se manifestar sobre a defesa e documentos, apontando eventuais diferenças que entender devidas, ainda que por amostragem, sob pena de preclusão.</p>\
+<p style=\"text-align:justify;text-indent:3cm;\">Prazo de 05 dias para regularização processual.</p>\
 <p style=\"text-align:justify;text-indent:3cm;\">O Ato Normativo 003626-80.2025.2.00.0000 do CNJ, de setembro de 2025, estipula a obrigatoriedade do registro audiovisual de todas as audiências (arts. 1º e 3º). Nesse sentido, esclareço que a audiência será gravada, com disponibilização de link no acervo eletrônico dos autos, exceto na fase de tratativas de conciliação, ao início e ao final da audiência (CLT, arts. 846 e 850), haja vista a confidencialidade garantida pelo art. 30 da Lei 13.140/15, como aliás já decidiu o TED da OAB/SP (Processo: E-6.115/2023).</p>\
 <p style=\"text-align:justify;text-indent:3cm;\">Portanto, os depoimentos prestados na presente audiência serão integralmente gravados, razão pela qual não haverá pelo(a) magistrado (a), a transcrição exata das declarações dos depoentes.</p>\
 <p style=\"text-align:justify;text-indent:3cm;\">Todavia, visando apenas a facilitação de suas manifestações sobre o conteúdo da prova, será elaborado por ferramenta de Inteligência Artificial (Google) um breve resumo das informações úteis ao julgamento da causa (art. 851 e 852-F da CLT), ficando expressamente destacado que esse breve resumo não substitui, para fins probatórios, a íntegra dos depoimentos - que estarão documentados em meio audiovisual - e nem implica aquiescência das partes quanto ao conteúdo do resumo, servindo apenas e tão somente para auxílio na análise das provas. Portanto, prevalece em caso de divergências a versão original do vídeo disponibilizada no sistema PJe.</p>\

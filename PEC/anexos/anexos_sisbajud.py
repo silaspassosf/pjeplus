@@ -9,7 +9,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 from typing import Optional, Dict, Any, List
-from selenium.webdriver.remote.webdriver import WebDriver
 from .anexos_juntador_base import wrapper_juntada_geral
 
 
@@ -32,7 +31,7 @@ def _obter_conteudo_relatorio_sisbajud(numero_processo: Optional[str] = None, de
 
 
 def _wrapper_sisbajud_generico(
-    driver: WebDriver,
+    driver: Any,
     tipo: str,
     descricao: str,
     modelo: str,
@@ -43,7 +42,7 @@ def _wrapper_sisbajud_generico(
     debug: bool = True
 ) -> bool:
     """Wrapper genérico para SISBAJUD usando as funções já definidas."""
-    def inserir_fn(driver: WebDriver, numero_processo: Optional[str] = numero_processo, debug: bool = True) -> bool:
+    def inserir_fn(driver: Any, numero_processo: Optional[str] = numero_processo, debug: bool = True) -> bool:
         # Buscar conteúdo do clipboard pelo número do processo
         conteudo = _obter_conteudo_relatorio_sisbajud(numero_processo=numero_processo, debug=debug)
         if not conteudo:
@@ -87,7 +86,7 @@ def executar_juntada_pje(driver_pje, tipo_fluxo, numero_processo, log=True):
     Dispatch canonico para juntada SISBAJUD baseado no tipo de fluxo.
 
     Args:
-        driver_pje: WebDriver do PJe
+        driver_pje: conexao/driver do PJe
         tipo_fluxo: 'NEGATIVO', 'DESBLOQUEIO', ou 'POSITIVO'
         numero_processo: Numero CNJ do processo
         log: Se True, exibe logs

@@ -97,10 +97,6 @@ from .apoio_fluxos import (
     lembrete_bloq
 )
 
-with open("log.py", "w", encoding="utf-8") as f:
-    f.write(f"# Última execução: {datetime.now()}\n")
-    f.write(f"# Script: {os.path.abspath(sys.argv[0])}\n")
-    f.write(f"# Argumentos: {' '.join(sys.argv[1:])}\n")
 
 
 def _normalizar_texto_match(valor: str) -> str:

@@ -60,7 +60,7 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         #    1ª tentativa, forçando o reload/retry)
         elementos_campo = espera.elementos(driver, seletor, teto=4)
         if not elementos_campo:
-            print(f'[JUNTADA][ERRO] Campo {nome_campo} não apareceu a tempo')
+            logger.error('[JUNTADA] Campo %s não apareceu a tempo', nome_campo)
             return False
         campo = elementos_campo[0]
 
@@ -79,14 +79,14 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
             texto = (getattr(opcao, 'text_content', None) and opcao.text_content()) or getattr(opcao, 'text', '') or ''
             if valor.lower() in texto.lower():
                 safe_click_no_scroll(driver, opcao)
-                print(f'[JUNTADA][DEBUG] {nome_campo} selecionado: {valor}')
+                logger.debug('[JUNTADA] %s selecionado: %s', nome_campo, valor)
                 return True
 
-        print(f'[JUNTADA][ERRO] Opção "{valor}" não encontrada em {nome_campo}')
+        logger.error('[JUNTADA] Opção "%s" não encontrada em %s', valor, nome_campo)
         return False
 
     except Exception as e:
-        print(f'[JUNTADA][ERRO] Falha ao selecionar {nome_campo}: {e}')
+        logger.error('[JUNTADA] Falha ao selecionar %s: %s', nome_campo, e)
         return False
 
 
@@ -173,7 +173,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
 
         for i, sel in enumerate(seletores):
             try:
-                print(f'[JUNTADA][DEBUG] Tentando seletor {i + 1}: {sel}')
+                logger.debug('[JUNTADA] Tentando seletor %d: %s', i + 1, sel)
 
                 # Tenta encontrar o elemento
                 if ':contains(' in sel:
@@ -190,7 +190,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                     elemento = elementos[0] if elementos else None
 
                 if elemento:
-                    print(f'[JUNTADA][DEBUG] Elemento encontrado com seletor {i + 1}: {sel}')
+                    logger.debug('[JUNTADA] Elemento encontrado com seletor %d: %s', i + 1, sel)
 
                     # Tentativas de clique
                     for tentativa in range(2):
@@ -206,137 +206,53 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                             if ok_enabled and ok_displayed:
                                 # Tenta clique JavaScript
                                 safe_click_no_scroll(driver, elemento)
-                                print(f'[JUNTADA][DEBUG] ✅ Clique realizado: {nome_elemento} (seletor {i+1}, tentativa {tentativa + 1})')
+                                logger.debug('[JUNTADA] Clique realizado: %s (seletor %d, tentativa %d)', nome_elemento, i + 1, tentativa + 1)
                                 return True
                             else:
-                                print(f'[JUNTADA][DEBUG] Elemento não clicável (enabled: {ok_enabled}, visible: {ok_displayed})')
+                                logger.debug('[JUNTADA] Elemento não clicável (enabled: %s, visible: %s)', ok_enabled, ok_displayed)
                                 espera.assentar(driver, 0.2)
 
                         except Exception as e:
                             if tentativa < 1:
-                                print(f'[JUNTADA][DEBUG] Tentativa {tentativa + 1} falhou para {nome_elemento}: {e}')
+                                logger.debug('[JUNTADA] Tentativa %d falhou para %s: %s', tentativa + 1, nome_elemento, e)
                                 espera.assentar(driver, 0.3)
                             else:
-                                print(f'[JUNTADA][AVISO] Tentativas falharam para {nome_elemento} com seletor {sel}: {e}')
+                                logger.debug('[JUNTADA] Tentativas falharam para %s com seletor %s: %s', nome_elemento, sel, e)
                 else:
-                    print(f'[JUNTADA][DEBUG] Elemento não encontrado com seletor {i + 1}: {sel}')
+                    logger.debug('[JUNTADA] Elemento não encontrado com seletor %d: %s', i + 1, sel)
 
             except Exception as e:
                 if i < len(seletores) - 1:  # Não é o último seletor
-                    print(f'[JUNTADA][DEBUG] Seletor {i + 1} "{sel}" falhou: {e}')
+                    logger.debug('[JUNTADA] Seletor %d "%s" falhou: %s', i + 1, sel, e)
                     continue
                 else:
-                    print(f'[JUNTADA][ERRO] Último seletor "{sel}" falhou: {e}')
+                    logger.debug('[JUNTADA] Último seletor "%s" falhou: %s', sel, e)
 
-        print(f'[JUNTADA][ERRO] Todos os seletores falharam para {nome_elemento}')
+        logger.error('[JUNTADA] Todos os seletores falharam para %s', nome_elemento)
         return False
 
     except Exception as e:
-        print(f'[JUNTADA][ERRO] Falha geral ao clicar {nome_elemento}: {e}')
+        logger.error('[JUNTADA] Falha geral ao clicar %s: %s', nome_elemento, e)
         return False
 
 
 def _selecionar_modelo_gigs(self, modelo: str) -> bool:
-    """Seleciona e insere o modelo exatamente como no aaDespacho e atos/judicial_fluxo.py.
-    
-    Sequência à prova de corrida:
-    1. Preenche #inputFiltro e envia ENTER para expandir/destacar árvore do PJe.
-    2. Clica no item .nodo-filtrado destacado.
-    3. Aguarda diálogo <pje-dialogo-visualizar-modelo> entrar no DOM.
-    4. GUARDA ANTI-CORRIDA (500ms): aguarda preview/teor carregar no diálogo
-       (evita inserção de documento em branco).
-    5. Clica no botão Inserir e aguarda diálogo sumir.
-    6. Verificação REAL no CKEditor: aguarda até que o texto/marcador apareça
-       de verdade na área editável antes de liberar o próximo passo.
+    """Seleciona e insere o modelo no editor da juntada.
+
+    Delega ao fluxo ÚNICO de `atos/judicial_modelos.inserir_modelo_no_editor`
+    (padrão gigs-plugin aaDespacho): filtro → nodo-filtrado → diálogo → espera
+    POSITIVA do teor no preview → clique Inserir → confirmação escopada ao
+    editor-alvo + baseline. O editor-alvo inclui o CKEditor da juntada
+    (`.ck-editor__editable`), então a confirmação de conteúdo é a mesma que a
+    função de colar conteúdo (`substituir_marcador_por_conteudo`) espera.
     """
-    try:
-        driver = self.driver
-
-        # 1) Preenche filtro via JS + envia ENTER
-        campo_filtro_modelo = espera.elemento(driver, '#inputFiltro', teto=10)
-        if not campo_filtro_modelo:
-            logger.error('[JUNTADA][ERRO] Campo de filtro não encontrado')
-            return False
-
-        _executar_js(driver, 'arguments[0].focus(); arguments[0].value = arguments[1];', campo_filtro_modelo, modelo)
-        for ev in ['input', 'change', 'keyup']:
-            _executar_js(driver, 'var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
-        try:
-            fn_press = getattr(campo_filtro_modelo, 'press', None)
-            if fn_press:
-                fn_press('Enter')
-            else:
-                _executar_js(driver, "arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));", campo_filtro_modelo)
-        except Exception:
-            _executar_js(driver, "arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));", campo_filtro_modelo)
-
-        # 2) Clica no item destacado .nodo-filtrado
-        seletor_item_filtrado = '.nodo-filtrado'
-        if not espera.ate_aparecer(driver, seletor_item_filtrado, teto=10):
-            logger.warning('[JUNTADA][MODELO] .nodo-filtrado não apareceu a tempo, tentando nodo genérico...')
-            seletor_item_filtrado = 'mat-tree-node, .mat-tree-node'
-            if not espera.ate_aparecer(driver, seletor_item_filtrado, teto=5):
-                logger.error('[JUNTADA][ERRO] Nenhum item de modelo encontrado na árvore')
-                return False
-
-        nodos = espera.elementos(driver, seletor_item_filtrado, teto=2)
-        if not nodos:
-            logger.error('[JUNTADA][ERRO] Elemento do modelo não encontrado')
-            return False
-        nodo = nodos[0]
-        _executar_js(driver, 'arguments[0].scrollIntoView({block:"center"}); arguments[0].click();', nodo)
-        logger.info('[JUNTADA][DEBUG] Clique no nodo do modelo realizado')
-
-        # 3) O diálogo DEVE entrar no DOM antes do clique em Inserir (padrão atos/judicial_fluxo.py)
-        if not espera.ate_aparecer(driver, 'pje-dialogo-visualizar-modelo', teto=8):
-            logger.warning('[JUNTADA][MODELO] Diálogo pje-dialogo-visualizar-modelo não detectado de imediato, verificando botão...')
-
-        # 4) GUARDA ANTI-CORRIDA ESSENCIAL: 500ms após o diálogo entrar no DOM,
-        # para o preview/teor do modelo carregar e o botão Inserir ser ligado.
-        # Clicar antes disso insere editor VAZIO!
-        espera.assentar(driver, 0.5, 'aguarda preview/teor carregar no dialogo')
-
-        seletor_btn_inserir_aria = 'button[aria-label="Inserir modelo de documento"]'
-        seletor_btn_inserir_css = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
-        seletor_btn_inserir_fallback = 'pje-dialogo-visualizar-modelo button'
-
-        btn_inserir = None
-        for sel in [seletor_btn_inserir_aria, seletor_btn_inserir_css, seletor_btn_inserir_fallback]:
-            btn_inserir = wait_for_clickable(driver, sel, timeout=3)
-            if btn_inserir:
-                break
-
-        if not btn_inserir:
-            logger.error('[JUNTADA][ERRO] Botão Inserir modelo não encontrado!')
-            return False
-
-        _executar_js(driver, 'arguments[0].click();', btn_inserir)
-        logger.info('[JUNTADA][DEBUG] Clique em Inserir modelo realizado')
-
-        # 5) Aguarda diálogo fechar
-        espera.ate_sumir(driver, 'pje-dialogo-visualizar-modelo', teto=6)
-
-        # 6) VERIFICAÇÃO REAL NO EDITOR: confirma que o conteúdo do modelo carregou
-        # (texto útil > 20 caracteres ou marcador '--' ou tabela presente)
-        js_editor_carregou = """
-            var area = document.querySelector('.ck-editor__editable[contenteditable="true"]') ||
-                       document.querySelector('div[class*="area-conteudo"][contenteditable="true"]');
-            if (!area) return false;
-            var txt = (area.innerText || area.textContent || '').replace(/\\s/g, '');
-            var html = area.innerHTML || '';
-            return html.includes('--') || txt.length > 20 || area.querySelector('table') !== null;
-        """
-        modelo_carregado = bool(espera.ate_js(driver, js_editor_carregou, teto=8))
-
-        if modelo_carregado:
-            logger.info('[JUNTADA][DEBUG] Modelo inserido com sucesso (conteúdo confirmado no editor)')
-            return True
-        else:
-            logger.error('[JUNTADA][ERRO] Modelo não carregou no editor após espera (editor vazio)')
-            return False
-    except Exception as e:
-        logger.error(f'[JUNTADA][ERRO] Falha ao selecionar/inserir modelo: {e}')
-        return False
+    from atos.judicial_modelos import inserir_modelo_no_editor
+    ok = inserir_modelo_no_editor(self.driver, modelo, log=logger.info)
+    if ok:
+        logger.info('[JUNTADA][DEBUG] Modelo inserido com sucesso (conteúdo confirmado no editor)')
+    else:
+        logger.error('[JUNTADA][ERRO] Modelo não carregou no editor (editor vazio)')
+    return ok
 
 
 def _executar_coleta_opcional(self, configuracao: Dict[str, Any]) -> bool:
@@ -347,15 +263,15 @@ def _executar_coleta_opcional(self, configuracao: Dict[str, Any]) -> bool:
 
     numero_processo_atual = extrair_numero_processo_da_url(self.driver)
     if not numero_processo_atual:
-        print('[JUNTADA][COLETA][WARN] Número do processo não identificado')
+        logger.debug('[JUNTADA][COLETA] Número do processo não identificado')
         return True  # Não falha por não conseguir extrair número
 
     try:
-        print(f'[JUNTADA][COLETA] Iniciando coleta: {coleta_conteudo} | processo: {numero_processo_atual}')
+        logger.debug('[JUNTADA][COLETA] Iniciando coleta: %s | processo: %s', coleta_conteudo, numero_processo_atual)
         executar_coleta_parametrizavel(self.driver, numero_processo_atual, coleta_conteudo, debug=True)
         return True
     except Exception as e:
-        print(f'[JUNTADA][COLETA][WARN] Falha ao executar coleta opcional: {e}')
+        logger.warning('[JUNTADA][COLETA] Falha ao executar coleta opcional: %s', e)
         return True  # Coleta opcional não deve falhar a juntada
 
 
@@ -492,7 +408,7 @@ def _salvar_documento(self) -> bool:
     5. Assentamento seguro antes de liberar o fechamento da aba.
     """
     driver = self.driver
-    print('[JUNTADA] Salvando documento final...')
+    logger.debug('[JUNTADA] Salvando documento final...')
 
     # 1. Sincronização do editor e descarte de notificações de etapas anteriores (ex: inserção de modelo)
     _executar_js(driver, """
@@ -525,10 +441,10 @@ def _salvar_documento(self) -> bool:
             return false;
         """))
     if not clicou:
-        print('[JUNTADA][ERRO] Falha no salvamento principal!')
+        logger.error('[JUNTADA] Falha no salvamento principal!')
         return False
 
-    print('[JUNTADA] Aguardando processamento do salvamento...')
+    logger.debug('[JUNTADA] Aguardando processamento do salvamento...')
 
     # 3. Confirmação objetiva do salvamento
     js_salvamento_confirmado = """
@@ -560,7 +476,7 @@ def _salvar_documento(self) -> bool:
             return !!(btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true');
         """)
         if btn_ainda_ativo:
-            print('[JUNTADA][WARN] Documento ainda não salvo após 4s, tentando retry do clique...')
+            logger.debug('[JUNTADA] Documento ainda não salvo após 4s, tentando retry do clique...')
             _executar_js(driver, """
                 const btn = document.querySelector('button[aria-label="Salvar"]');
                 if (btn) btn.click();
@@ -569,7 +485,7 @@ def _salvar_documento(self) -> bool:
 
     # Assentamento final de segurança antes de prosseguir (evita fechar a aba com requisição de rede pendente)
     espera.assentar(driver, 1.2, 'pos-salvar juntada')
-    print('[JUNTADA] Salvamento confirmado com sucesso.')
+    logger.debug('[JUNTADA] Salvamento confirmado com sucesso.')
     return True
 
 

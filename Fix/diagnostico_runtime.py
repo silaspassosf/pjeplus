@@ -20,6 +20,7 @@ Uso:
 import os
 import logging
 import sys
+from typing import Optional, Dict, Any, List
 
 # ── mapeamento de string para nivel ──
 _LOG_LEVEL_MAP = {
@@ -125,6 +126,62 @@ def log_erro(modulo: str, item_id, erro) -> None:
 def log_fim(modulo: str, resumo) -> None:
     """Registra conclusao do processamento com *resumo* (dict ou str)."""
     logger.info('[%s] FIM %s', modulo, resumo)
+
+
+# ── Sanitização de dados sensíveis e erro estruturado ──
+
+import re as _re_log
+
+_RE_CPF = _re_log.compile(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b')
+_RE_CNPJ = _re_log.compile(r'\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b')
+_RE_TOKEN = _re_log.compile(r'(?i)(token|bearer|password|senha|jwt)[:=]\s*([^\s,;]+)')
+
+
+def sanitizar_dados_sensiveis(texto: str) -> str:
+    """Remove CPFs, CNPJs e tokens de mensagens de erro e logs."""
+    if not texto:
+        return ''
+    t = _RE_CPF.sub('[CPF_OCULTADO]', str(texto))
+    t = _RE_CNPJ.sub('[CNPJ_OCULTADO]', t)
+    t = _RE_TOKEN.sub(r'\1=[OCULTADO]', t)
+    return t
+
+
+def log_erro_estruturado(
+    codigo: str,
+    fluxo: str,
+    modulo: str,
+    funcao: str,
+    processo: str = "",
+    etapa: str = "",
+    acao: str = "",
+    seletor: str = "",
+    excecao: str = "",
+    causa: str = "",
+    retry: bool = False,
+    consequencia: str = "",
+    logger_alvo: Optional[logging.Logger] = None,
+) -> str:
+    """Registra erro estruturado com campos canônicos e sanitização de dados sensíveis."""
+    log_obj = logger_alvo or logger
+    linhas = [
+        f"ERRO [{codigo}]",
+        f"fluxo={fluxo}",
+        f"modulo={modulo}",
+        f"funcao={funcao}",
+        f"processo={sanitizar_dados_sensiveis(processo)}",
+        f"etapa={etapa}",
+        f"acao={acao}",
+        f"seletor={seletor}",
+        f"excecao={excecao}",
+        f"causa={sanitizar_dados_sensiveis(causa)}",
+        f"retry={str(retry).lower()}",
+    ]
+    if consequencia:
+        linhas.append(f"consequencia={sanitizar_dados_sensiveis(consequencia)}")
+    msg = "\n".join(linhas)
+    log_obj.error("\n" + msg)
+    return msg
 
 
 # ── funcoes legadas ──

@@ -40,17 +40,7 @@ from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix.utils import normalizar_texto
 from Fix import espera
 
-# Configuração global de logging (caso não tenha sido feita no script principal)
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
-    datefmt='%H:%M:%S',
-    force=True
-)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    logger.addHandler(logging.StreamHandler())
 
 
 # Sobrestamento vencido deve ser processado por ÚLTIMO, imediatamente antes de SISBAJUD

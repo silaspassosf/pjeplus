@@ -61,12 +61,12 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
     3. Aguarda prontidão de input[aria-label="Tipo de Documento"].
     """
     driver = self.driver
-    print('[JUNTADA][DEBUG] Abrindo interface de anexação...')
+    logger.debug('[JUNTADA] Abrindo interface de anexação...')
 
     # 0. Já estamos na página de anexação?
     try:
         if '/anexar' in (driver.current_url or ''):
-            print('[JUNTADA][DEBUG] Já na interface de anexação, prosseguindo...')
+            logger.debug('[JUNTADA] Já na interface de anexação, prosseguindo...')
             espera.ate_habilitar(driver, 'input[aria-label="Tipo de Documento"]', teto=4)
             return True
     except Exception:
@@ -81,7 +81,7 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
         try:
             driver.switch_to.window(h)
             if '/anexar' in (driver.current_url or ''):
-                print(f'[JUNTADA][DEBUG] Aba /anexar já existente detectada: {h}')
+                logger.debug('[JUNTADA] Aba /anexar já existente detectada: %s', h)
                 espera.ate_habilitar(driver, 'input[aria-label="Tipo de Documento"]', teto=4)
                 return True
         except Exception:
@@ -105,21 +105,21 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
         if match:
             id_processo = match.group(1)
             url_anexar = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/documento/anexar"
-            print(f'[JUNTADA][DEBUG] ID do processo detectado ({id_processo}). Abrindo /documento/anexar diretamente via JS...')
+            logger.debug('[JUNTADA] ID do processo detectado (%s). Abrindo /documento/anexar via URL...', id_processo)
             abrir_url_nova_aba(driver, url_anexar)
         else:
-            print('[JUNTADA][DEBUG] ID não encontrado na URL. Clicando no menu hambúrguer...')
+            logger.debug('[JUNTADA] ID não encontrado na URL. Clicando no menu hambúrguer...')
             if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
                 _executar_js(driver, "document.querySelector('i.fa-bars.icone-botao-menu')?.click();")
             espera.assentar(driver, 0.3)
             if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
                 _executar_js(driver, "document.querySelector('button[aria-label=\"Anexar Documentos\"]')?.click();")
     except Exception as e:
-        print(f'[JUNTADA][DEBUG] Falha na abertura da interface: {e}')
+        logger.debug('[JUNTADA] Falha na abertura da interface: %s', e)
 
     # 3. Se ainda não estiver em /anexar, aguarda novo handle aparecer
     if '/anexar' not in (driver.current_url or ''):
-        print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
+        logger.debug('[JUNTADA] Mudando para aba de anexação...')
         nova_aba = None
         for _ in range(30):
             novas = set(getattr(driver, 'window_handles', [])) - handles_antes
@@ -142,7 +142,7 @@ def _abrir_interface_anexacao(self: types.SimpleNamespace) -> bool:
                     continue
             if not nova_aba and handle_original:
                 driver.switch_to.window(handle_original)
-                print('[JUNTADA][AVISO] Nova aba /anexar não detectada, prosseguindo na aba atual...')
+                logger.debug('[JUNTADA] Nova aba /anexar não detectada, prosseguindo na aba atual...')
 
     # 4. Confirma URL /anexar e aguarda prontidão do formulário
     espera.ate_url(driver, '/anexar', teto=6)
@@ -178,13 +178,13 @@ def _inserir_modelo(self: types.SimpleNamespace, configuracao: Dict[str, Any]) -
     driver = self.driver
     modelo_original = configuracao.get('modelo', '')
     if modelo_original:
-        print(f'[JUNTADA][DEBUG] Selecionando e inserindo modelo: {modelo_original}')
+        logger.debug('[JUNTADA] Selecionando e inserindo modelo: %s', modelo_original)
         if not self._selecionar_modelo_gigs(modelo_original):
             return False
-        print('[JUNTADA][DEBUG] Aguardando modelo ser inserido no editor...')
+        logger.debug('[JUNTADA] Aguardando modelo ser inserido no editor...')
         aguardar_renderizacao_nativa(driver, '[contenteditable="true"]', 'aparecer', 5)
 
-    print('[JUNTADA][DEBUG] Verificando se editor está disponível após inserção do modelo...')
+    logger.debug('[JUNTADA] Verificando se editor está disponível após inserção do modelo...')
 
     seletores_editor = [
         'div[aria-label="Conteúdo principal. Alt+F10 para acessar a barra de tarefas"].area-conteudo.ck.ck-content.ck-editor__editable',
@@ -199,32 +199,32 @@ def _inserir_modelo(self: types.SimpleNamespace, configuracao: Dict[str, Any]) -
     for i, seletor in enumerate(seletores_editor):
         try:
             elementos = espera.elementos(driver, seletor, teto=1)
-            print(f'[JUNTADA][DEBUG] Seletor {i+1} "{seletor}": {len(elementos)} elementos')
+            logger.debug('[JUNTADA] Seletor %d "%s": %d elementos', i + 1, seletor, len(elementos))
             if elementos:
                 editor_encontrado = elementos[0]
                 is_displayed = getattr(editor_encontrado, 'is_displayed', None)
                 is_enabled = getattr(editor_encontrado, 'is_enabled', None)
-                print(f'[JUNTADA][DEBUG] ✓ Editor encontrado com seletor: {seletor}')
-                print(f'[JUNTADA][DEBUG] Editor visível: {is_displayed() if callable(is_displayed) else True}')
-                print(f'[JUNTADA][DEBUG] Editor habilitado: {is_enabled() if callable(is_enabled) else True}')
+                logger.debug('[JUNTADA] Editor encontrado com seletor: %s', seletor)
+                logger.debug('[JUNTADA] Editor visível: %s', is_displayed() if callable(is_displayed) else True)
+                logger.debug('[JUNTADA] Editor habilitado: %s', is_enabled() if callable(is_enabled) else True)
                 conteudo = _executar_js(driver, "return arguments[0].innerHTML || '';", editor_encontrado) or ''
-                print(f'[JUNTADA][DEBUG] Conteúdo do editor (primeiros 200 chars): {conteudo[:200]}...')
+                logger.debug('[JUNTADA] Conteúdo do editor (primeiros 200 chars): %s...', conteudo[:200])
                 if 'marker-yellow' in conteudo and 'link' in conteudo:
-                    print('[JUNTADA][DEBUG] ✓ Editor contém termo "link" marcado em amarelo!')
+                    logger.debug('[JUNTADA] Editor contém termo "link" marcado em amarelo!')
                 elif conteudo.strip() and len(conteudo) > 100:
-                    print('[JUNTADA][DEBUG] ✓ Editor contém conteúdo do modelo inserido')
+                    logger.debug('[JUNTADA] Editor contém conteúdo do modelo inserido')
                 else:
-                    print('[JUNTADA][AVISO] Editor parece vazio - modelo pode não ter sido inserido')
+                    logger.debug('[JUNTADA] Editor parece vazio - modelo pode não ter sido inserido')
                 break
         except Exception as e:
-            print(f'[JUNTADA][DEBUG] Erro com seletor {i+1}: {e}')
+            logger.debug('[JUNTADA] Erro com seletor %d: %s', i + 1, e)
             continue
 
     if not editor_encontrado:
-        print('[JUNTADA][ERRO] Nenhum editor encontrado com os seletores disponíveis!')
+        logger.error('[JUNTADA] Nenhum editor encontrado com os seletores disponíveis!')
         return False
 
-    print('[JUNTADA][DEBUG] ✓ Editor disponível para manipulação')
+    logger.debug('[JUNTADA] Editor disponível para manipulação')
     return True
 
 
@@ -245,7 +245,7 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
         marcador: Texto a ser localizado (padrão: "--")
     """
     if debug:
-        print(f"[SUBST_MARCADOR] Iniciando colagem após marcador '{marcador}'...")
+        logger.debug("[SUBST_MARCADOR] Iniciando colagem após marcador '%s'...", marcador)
 
     try:
         # 1. Determina qual conteúdo usar
@@ -256,7 +256,7 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
             conteudo_para_usar = conteudo_customizado
             fonte_conteudo = "conteudo_customizado"
             if debug:
-                print(f"[SUBST_MARCADOR] Usando conteúdo customizado: {len(conteudo_customizado)} chars")
+                logger.debug("[SUBST_MARCADOR] Usando conteúdo customizado: %d chars", len(conteudo_customizado))
         else:
             # Carrega conteúdo do clipboard/arquivo
             def carregar_clipboard_arquivo():
@@ -266,19 +266,19 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                         with open(clipboard_file, 'r', encoding='utf-8') as f:
                             content = f.read().strip()
                         if debug:
-                            print(f"[SUBST_MARCADOR] Carregado do arquivo: {len(content)} chars")
+                            logger.debug("[SUBST_MARCADOR] Carregado do arquivo: %d chars", len(content))
                         return content
                     return None
                 except Exception as e:
                     if debug:
-                        print(f"[SUBST_MARCADOR] Erro ao carregar arquivo: {e}")
+                        logger.debug("[SUBST_MARCADOR] Erro ao carregar arquivo: %s", e)
                     return None
 
             conteudo_para_usar = carregar_clipboard_arquivo()
             fonte_conteudo = "clipboard_arquivo"
 
         if not conteudo_para_usar:
-            print("[SUBST_MARCADOR] ✗ Nenhum conteúdo disponível para colar")
+            logger.error("[SUBST_MARCADOR] Nenhum conteúdo disponível para colar")
             return False
 
         # 2. Encontrar o editor CKEditor
@@ -296,13 +296,13 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                 if el:
                     editable = el
                     if debug:
-                        print(f"[SUBST_MARCADOR] Editor encontrado por seletor: {sel}")
+                        logger.debug("[SUBST_MARCADOR] Editor encontrado por seletor: %s", sel)
                     break
             except Exception:
                 continue
 
         if not editable:
-            print("[SUBST_MARCADOR] ✗ Editor CKEditor não encontrado na página")
+            logger.error("[SUBST_MARCADOR] Editor CKEditor não encontrado na página")
             return False
 
         # Foco e rolagem
@@ -342,21 +342,21 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
         # Se o marcador não estiver de imediato, aguarda até 6s pelo carregamento do modelo no CKEditor
         if marcador not in html_antes and marcador not in texto_antes:
             if debug:
-                print(f"[SUBST_MARCADOR] Marcador '{marcador}' não detectado de imediato, aguardando carga do editor...")
+                logger.debug("[SUBST_MARCADOR] Marcador '%s' não detectado de imediato, aguardando carga do editor...", marcador)
             for _ in range(12):
                 espera.assentar(driver, 0.5)
                 html_antes = _executar_js(driver, "return arguments[0].innerHTML || '';", editable) or ''
                 texto_antes = _executar_js(driver, "return arguments[0].innerText || arguments[0].textContent || '';", editable) or ''
                 if marcador in html_antes or marcador in texto_antes:
                     if debug:
-                        print(f"[SUBST_MARCADOR] ✓ Marcador '{marcador}' detectado após espera!")
+                        logger.debug("[SUBST_MARCADOR] Marcador '%s' detectado após espera!", marcador)
                     break
 
         if debug:
-            print(f"[DEBUG] HTML ANTES: {html_antes[:300]}")
-            print(f"[DEBUG] TEXTO ANTES: {texto_antes[:300]}")
-            print(f"[DEBUG] Contém marcador '{marcador}' no HTML? {marcador in html_antes}")
-            print(f"[DEBUG] Contém marcador '{marcador}' no TEXTO? {marcador in texto_antes}")
+            logger.debug("[SUBST_MARCADOR] HTML ANTES: %s", html_antes[:300])
+            logger.debug("[SUBST_MARCADOR] TEXTO ANTES: %s", texto_antes[:300])
+            logger.debug("[SUBST_MARCADOR] Contém marcador '%s' no HTML? %s", marcador, marcador in html_antes)
+            logger.debug("[SUBST_MARCADOR] Contém marcador '%s' no TEXTO? %s", marcador, marcador in texto_antes)
 
         script_ckeditor = f"""
         console.log('[SUBST_MARCADOR] === USANDO LÓGICA ROBUSTA DO EDITOR_INSERT ===');
@@ -495,16 +495,16 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
             if debug:
                 try:
                     html_depois = _executar_js(driver, "return arguments[0].innerHTML;", editable) or ''
-                    print(f"[DEBUG] HTML DEPOIS (partial): {html_depois[:300]}")
+                    logger.debug("[DEBUG] HTML DEPOIS (partial): %s", html_depois[:300])
                 except Exception:
-                    print('[DEBUG] Não foi possível ler HTML DEPOIS')
+                    logger.debug('[DEBUG] Não foi possível ler HTML DEPOIS')
 
         if debug:
-            print(f"[SUBST_MARCADOR] Resultado do script: {resultado}")
+            logger.debug("[SUBST_MARCADOR] Resultado do script: %s", resultado)
 
         if resultado and isinstance(resultado, dict) and resultado.get('sucesso'):
             if debug:
-                print(f'[SUBST_MARCADOR] ✅ HTML inserido com sucesso via método: {resultado.get("metodo")}')
+                logger.debug('[SUBST_MARCADOR] HTML inserido com sucesso via método: %s', resultado.get("metodo"))
 
             try:
                 html_final = _executar_js(driver, "return arguments[0].innerHTML;", editable) or ''
@@ -513,16 +513,16 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                 marcador_removido = False
 
             if debug:
-                print(f'[SUBST_MARCADOR] Verificação final: marcador removido = {marcador_removido}')
+                logger.debug('[SUBST_MARCADOR] Verificação final: marcador removido = %s', marcador_removido)
 
             return True
         else:
             erro = resultado.get('erro', 'Erro desconhecido') if resultado and isinstance(resultado, dict) else 'Script retornou None'
             if debug:
-                print(f'[SUBST_MARCADOR] ❌ Falha na inserção: {erro}')
+                logger.error('[SUBST_MARCADOR] Falha na inserção: %s', erro)
             return False
 
     except Exception as e:
         if debug:
-            print(f"[SUBST_MARCADOR] ✗ Erro geral: {e}")
+            logger.error("[SUBST_MARCADOR] Erro geral: %s", e)
         return False

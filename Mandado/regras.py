@@ -29,7 +29,7 @@ import time
 import unicodedata
 from Fix.utils import remover_acentos, normalizar_texto
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Callable, Optional
 
 # ===== IMPORTS PESADOS REMOVIDOS (LAZY LOADING) =====
 # Movidos para cache sob demanda para carregamento 8-10x mais rápido
@@ -349,6 +349,19 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
         return True
     return False
 
+def _executar_ato_seguro(driver: Any, fn_ato: Callable, nome_ato: str, debug: bool = False) -> bool:
+    """Executa ato judicial com medição de tempo e tratamento seguro de exceções."""
+    t0 = time.time()
+    try:
+        fn_ato(driver, debug=debug)
+        if debug:
+            logger.debug('[ARGOS][REGRAS] %s finalizado em %.2fs', nome_ato, time.time() - t0)
+        return True
+    except Exception as e:
+        logger.error('[ARGOS][REGRAS] %s falhou: %s', nome_ato, e)
+        return False
+
+
 def decidir_ato_despacho_argos(resultado_sisbajud: str, tem_anexos_sigilosos: bool) -> str:
     """Regra de negócio pura: decide o nome do ato judicial para despacho com ARGOS."""
     if resultado_sisbajud == 'positivo':
@@ -383,15 +396,8 @@ def estrategia_despacho_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_do
     if debug:
         logger.debug('[ARGOS][REGRAS] Ação definida: %s', nome_ato)
 
-    inicio_ato = time.time()
-    try:
-        fn_ato(driver, debug=debug)
-    except Exception as e:
-        logger.error('[ARGOS][REGRAS] %s falhou: %s', nome_ato, e)
+    return _executar_ato_seguro(driver, fn_ato, nome_ato, debug=debug)
 
-    if debug:
-        logger.debug('[ARGOS][REGRAS] %s finalizado em %.2fs', nome_ato, time.time() - inicio_ato)
-    return True
 
 def estrategia_infojud(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Despacho com 'Realize-se a pesquisa INFOJUD'"""
@@ -401,12 +407,10 @@ def estrategia_infojud(driver, resultado_sisbajud, sigilo_anexos, tipo_documento
 
     if not texto_documento:
         return False
-        
+
     txt_lower = texto_documento.lower()
-    # Normalizar para tratar acentos e espaços extras
     normalized = unicodedata.normalize('NFD', texto_documento).encode('ascii', 'ignore').decode('ascii').lower()
-    
-    # Variantes da regra de pesquisa INFOJUD (expandida para maior cobertura)
+
     regras_infojud = [
         'realize-se a pesquisa infojud',
         'realize se a pesquisa infojud',
@@ -419,37 +423,16 @@ def estrategia_infojud(driver, resultado_sisbajud, sigilo_anexos, tipo_documento
         'através do sistema argos',
         'atraves do sistema argos'
     ]
-    
-    encontrou = False
-    for r in regras_infojud:
-        if r in txt_lower or r in normalized:
-            encontrou = True
-            break
-            
-    if encontrou:
-        if debug:
-            logger.info('[ARGOS][REGRAS] Regra despacho+infojud reconhecida')
-        
-        if any(v == 'sim' for v in sigilo_anexos.values()):
-            inicio_ato = time.time()
-            try:
-                ato_termoS(driver, debug=debug)
-            except Exception as e:
-                if debug:
-                    logger.error(f'[ARGOS][REGRAS][ERRO] ato_termoS falhou: {e}')
-            if debug:
-                logger.info(f'[ARGOS][REGRAS] ato_termoS finalizado em {time.time() - inicio_ato:.2f}s')
-        else:
-            inicio_ato = time.time()
-            try:
-                ato_meios(driver, debug=debug)
-            except Exception as e:
-                if debug:
-                    logger.error(f'[ARGOS][REGRAS][ERRO] ato_meios falhou: {e}')
-            if debug:
-                logger.info(f'[ARGOS][REGRAS] ato finalizado em {time.time() - inicio_ato:.2f}s')
-        return True
-    return False
+
+    if not any(r in txt_lower or r in normalized for r in regras_infojud):
+        return False
+
+    if debug:
+        logger.debug('[ARGOS][REGRAS] Regra despacho+infojud reconhecida')
+
+    tem_sigilosos = any(v == 'sim' for v in (sigilo_anexos or {}).values())
+    fn_ato, nome_ato = (ato_termoS, 'ato_termoS') if tem_sigilosos else (ato_meios, 'ato_meios')
+    return _executar_ato_seguro(driver, fn_ato, nome_ato, debug=debug)
 
 
 

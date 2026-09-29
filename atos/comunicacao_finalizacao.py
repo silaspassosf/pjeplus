@@ -142,58 +142,13 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
         def log(_msg):
             return None
 
-    try:
-        campo_ok = False
-        if hasattr(driver, 'page'):
-            campo_ok = bool(driver.page.evaluate("""nomeModelo => {
-                var filtro = document.querySelector('input#inputFiltro');
-                if (!filtro) return false;
-                filtro.removeAttribute('disabled');
-                filtro.removeAttribute('readonly');
-                filtro.focus();
-                filtro.value = nomeModelo;
-                filtro.dispatchEvent(new Event('input', {bubbles: true}));
-                filtro.dispatchEvent(new Event('change', {bubbles: true}));
-                filtro.dispatchEvent(new Event('keyup', {bubbles: true}));
-                return true;
-            }""", modelo_nome))
-        else:
-            campo_ok = preencher_campo(driver, 'input#inputFiltro', modelo_nome)
-
-        if not campo_ok:
-            log('[COMUNICACAO][WARN] Campo de filtro de modelo nao encontrado')
-            return False
-        try:
-            aguardar_renderizacao_nativa(driver, '.nodo-filtrado', modo='aparecer', timeout=5)
-        except Exception:
-            pass
-
-        nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=10)
-        if not nodo:
-            log(f'[COMUNICACAO][WARN] Nodo filtrado não encontrado para modelo "{modelo_nome}"')
-            return False
-
-        safe_click_no_scroll(driver, nodo)
-        try:
-            aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=5)
-        except Exception:
-            pass
-
-        btn_inserir = wait_for_clickable(driver, 'pje-dialogo-visualizar-modelo button', timeout=8)
-        if not btn_inserir:
-            log(f'[COMUNICACAO][WARN] Botão inserir modelo não encontrado para "{modelo_nome}"')
-            return False
-
-        safe_click_no_scroll(driver, btn_inserir)
-
-        # Polling snackbar (idêntico ao fluxo geral de preenchimento)
-        snack_ok = espera.ate_texto(driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=3)
-        if not snack_ok and debug:
-            log(f'[COMUNICACAO] Snackbar modelo não detectado para "{modelo_nome}", prosseguindo')
-        return True
-    except Exception as e:
-        log(f'[COMUNICACAO][WARN] Falha ao inserir modelo "{modelo_nome}": {e}')
-        raise NavegacaoError(f'inserir_modelo_por_nome({modelo_nome}): {e}')
+    # Fluxo único de inserção (atos/judicial_modelos.inserir_modelo_no_editor):
+    # filtro → nodo → diálogo → teor → inserir → confirmação escopada + baseline.
+    from .judicial_modelos import inserir_modelo_no_editor
+    if not inserir_modelo_no_editor(driver, modelo_nome, log=log):
+        log(f'[COMUNICACAO][WARN] Modelo "{modelo_nome}" não confirmado no editor-alvo')
+        return False
+    return True
 
 
 def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):

@@ -42,6 +42,7 @@ from .judicial_navegacao import (
 )
 from .judicial_modelos import (
     esperar_insercao_modelo,
+    inserir_modelo_no_editor,
 )
 from .judicial_utils import (
     preencher_prazos_destinatarios,
@@ -342,116 +343,18 @@ def ato_judicial(
                 except Exception as e:
                     logger.error(f'[ATO][DESCRICAO]  Erro ao preencher descrição: {e}')
 
-            # Preencher filtro do modelo
-            try:
-                logger.info(f'[ATO][MODELO] Preenchendo filtro com modelo: {modelo_nome}')
-                campo_filtro_modelo = esperar_elemento(driver, 'input#inputFiltro', timeout=5)
-                if not campo_filtro_modelo:
-                    raise Exception('Campo filtro modelo não encontrado')
-
-                if hasattr(driver, 'page'):
-                    driver.page.evaluate("""modeloNome => {
-                        var input = document.querySelector('input#inputFiltro');
-                        if (input) {
-                            input.focus();
-                            input.value = modeloNome;
-                            ['input', 'change', 'keyup'].forEach(ev => input.dispatchEvent(new Event(ev, {bubbles: true})));
-                        }
-                    }""", modelo_nome)
-                    driver.page.keyboard.press("Enter")
-                else:
-                    preencher_campo(driver, 'input#inputFiltro', modelo_nome)
-
-                logger.info(f'[ATO][MODELO] Modelo "{modelo_nome}" preenchido e ENTER pressionado no filtro.')
-
-                try:
-                    aguardar_renderizacao_nativa(driver, '.nodo-filtrado', modo='aparecer', timeout=10)
-                except Exception:
-                    logger.warning('[ATO][MODELO] Timeout aguardando nodo-filtrado, prosseguindo...')
-
-            except Exception as e:
-                logger.error(f'[ATO][MODELO] Erro ao preencher filtro do modelo: {e}')
+            # ===== INSERÇÃO DE MODELO (fluxo único: atos/judicial_modelos.inserir_modelo_no_editor) =====
+            # Aguarda o editor tornar-se contenteditable antes de inserir.
+            espera.ate_aparecer(
+                driver,
+                'div[class*="area-conteudo"][contenteditable="true"], div.ck-content[contenteditable="true"]',
+                teto=10,
+            )
+            logger.info(f'[ATO][MODELO] Inserindo modelo "{modelo_nome}"...')
+            if not inserir_modelo_no_editor(driver, modelo_nome, log=logger.info):
+                logger.error('[ATO][MODELO] Modelo não confirmado no editor-alvo — abortando antes do Salvar')
                 return False, False
-
-            try:
-                seletor_item_filtrado = '.nodo-filtrado'
-                seletor_dialogo = 'pje-dialogo-visualizar-modelo'
-                seletor_btn_inserir_aria = 'button[aria-label="Inserir modelo de documento"]'
-                seletor_btn_inserir_css = (
-                    'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes'
-                    ' > div.div-botao-inserir > button')
-
-                # Paciência (padrão do gigs-plugin.js): o modal de visualização só
-                # pode ser aberto depois que o dialog anterior saiu do DOM. Se um
-                # dialog antigo ainda estiver presente, a espera de "aparecer"
-                # retorna na hora, o clique em Inserir cai cedo demais e o modal
-                # abre e fecha sem inserir o modelo no editor.
-                espera.ate_sumir(driver, seletor_dialogo, teto=4)
-
-                # Fotografia do editor ANTES da inserção: a prova de sucesso é a
-                # mudança de conteúdo no editor — o snackbar não serve (aparece
-                # até quando a minuta é salva com o editor vazio).
-                js_snapshot = (
-                    r"(() => { var area = document.querySelector('" + EDITOR_AREA_CONTEUDO + r"');"
-                    r" if (!area) return '';"
-                    r" var txt = (area.innerText || '').replace(/\s/g, '');"
-                    r" return txt + '|' + area.querySelectorAll('figure').length; })()"
-                )
-                editor_antes = ''
-                try:
-                    if hasattr(driver, 'page'):
-                        editor_antes = driver.page.evaluate(js_snapshot) or ''
-                except Exception:
-                    editor_antes = ''
-
-                nodo = aguardar_e_clicar(driver, seletor_item_filtrado, timeout=15)
-                if not nodo:
-                    logger.error('[ATO][MODELO] Nodo do modelo não encontrado!')
-                    return False, False
-                logger.info('[ATO][MODELO] Clique em nodo-filtrado realizado!')
-
-                if not aguardar_renderizacao_nativa(
-                        driver, seletor_dialogo, modo='aparecer', timeout=15):
-                    logger.error('[ATO][MODELO] Dialog de visualização do modelo não abriu!')
-                    return False, False
-
-                espera.assentar(driver, 0.5, motivo='aguardando o teor do modelo carregar no dialog')
-
-                btn_inserir = wait_for_clickable(driver, seletor_btn_inserir_aria, timeout=10)
-                if not btn_inserir:
-                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir_css, timeout=5)
-                if not btn_inserir:
-                    logger.error('[ATO][MODELO] Botão inserir não encontrado!')
-                    return False, False
-
-                safe_click_no_scroll(driver, btn_inserir)
-                logger.info('[ATO][MODELO] Clique em inserir realizado (única vez)')
-
-                modelo_no_editor = False
-                try:
-                    modelo_no_editor = bool(espera.ate_js(driver, f"""(() => {{
-                        var area = document.querySelector('{EDITOR_AREA_CONTEUDO}');
-                        if (!area) return false;
-                        var texto = (area.innerText || '').replace(/\\s/g, '');
-                        return !!texto && (texto + '|' + area.querySelectorAll('figure').length) !== {json.dumps(editor_antes)};
-                    }})()""", teto=30))
-                except Exception:
-                    modelo_no_editor = False
-
-                if not modelo_no_editor:
-                    logger.error('[ATO][MODELO] Conteúdo do modelo NÃO presente no '
-                                 'editor após inserção — abortando antes do Salvar')
-                    return False, False
-                logger.info('[ATO][MODELO] Modelo inserido (conteúdo confirmado no editor)')
-
-                # Paciência (LEGADO.md ~3843): mesmo com o modelo já visível no
-                # editor, dar tempo de o Angular concluir a inserção antes de
-                # qualquer clique em Salvar — senão a minuta salva sem o modelo.
-                espera.assentar(driver, 1.5, motivo='paciência pós-inserção do modelo')
-
-            except Exception as e:
-                logger.error(f'[ATO][MODELO] Erro ao inserir modelo: {e}')
-                return False, False
+            espera.assentar(driver, 1.0, motivo='paciência pós-inserção do modelo')
 
         # ===== INSERIR CONTEÚDO (antes do salvar, como no jud.py) =====
         if inserir_conteudo:
@@ -463,18 +366,64 @@ def ato_judicial(
                 logger.error(f'[ATO][INSERIR]  Erro ao inserir conteúdo: {e}')
                 return False, False
 
-        # ===== SALVAR IMEDIATAMENTE APÓS INSERÇÃO (como no jud.py) =====
-        logger.info('[ATO][SALVAR] Salvando modelo após inserção...')
+        # ===== SALVAR APÓS INSERÇÃO (Referência: aaDespacho e clicarBotao do gigs-plugin) =====
+        logger.info('[ATO][SALVAR] Salvando minuta após inserção...')
         try:
-            btn_salvar = wait_for_clickable(driver, '//button[contains(@class, "mat-raised-button") and contains(@class, "mat-primary") and contains(., "Salvar") and @aria-label="Salvar"]', timeout=15, by=By.XPATH)
+            seletor_btn_salvar = 'button[aria-label="Salvar"]'
+            btn_salvar = wait_for_clickable(driver, seletor_btn_salvar, timeout=15)
+            if not btn_salvar:
+                btn_salvar = wait_for_clickable(
+                    driver,
+                    '//button[contains(@class, "mat-raised-button") and contains(., "Salvar")]',
+                    timeout=5,
+                    by=By.XPATH
+                )
             if not btn_salvar:
                 raise Exception('Botão Salvar não disponível')
-            safe_click(driver, btn_salvar)
-            logger.info('[ATO][SALVAR] Clique no botao Salvar realizado')
 
-            # Aguarda controles da aba destinatários (OR de seletores como no leg)
-            # Toggle OU botão gravar OU PEC OU tabela de partes — qualquer um indica que a aba renderizou
-            if not aguardar_renderizacao_nativa(
+            safe_click(driver, btn_salvar)
+            logger.info('[ATO][SALVAR] Clique no botão Salvar realizado')
+
+            # Monitoramento ativo do salvamento (gigs-plugin clicarBotao com monitorar=true):
+            # 1. Aguarda barra/spinner de progresso de gravação sumir
+            espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=15)
+
+            # 2. Confirmação POSITIVA de minuta salva. O retorno é OBRIGATÓRIO:
+            #    "spinner sumiu" não é prova (pode nunca ter aparecido). Só aceitamos
+            #    snackbar explícita OU a transição real para a aba de destinatários.
+            js_snack_salvo = """() => {
+                var snacks = Array.from(document.querySelectorAll('simple-snack-bar, snack-bar-container'));
+                for (var s of snacks) {
+                    var txt = (s.innerText || '').toLowerCase();
+                    if (txt.includes('minuta salva') || txt.includes('minuta foi salva')) {
+                        var btn = s.querySelector('button');
+                        if (btn) btn.click();
+                        return true;
+                    }
+                }
+                return false;
+            }"""
+            salvou = bool(espera.ate_js(driver, js_snack_salvo, teto=15))
+
+            if not salvou:
+                # Sem snackbar: exige a transição observável para a aba de destinatários
+                # (controles que só existem APÓS o salvamento da minuta).
+                salvou = bool(aguardar_renderizacao_nativa(
+                    driver,
+                    'pje-intimacao-automatica label.mat-slide-toggle-label, '
+                    'button[aria-label="Gravar a intimação/notificação"], '
+                    'mat-checkbox[aria-label="Enviar para PEC"], '
+                    'button#selecionar-polo-ativo',
+                    modo='aparecer',
+                    timeout=15,
+                ))
+
+            if not salvou:
+                logger.error('[ATO][SALVAR] Sem confirmação positiva de salvamento (nem snackbar nem aba de destinatários) — abortando')
+                return False, False
+
+            # Aguarda renderização dos controles da aba de destinatários
+            aguardar_renderizacao_nativa(
                 driver,
                 'button[aria-label="Gravar a intimação/notificação"], '
                 'pje-intimacao-automatica label.mat-slide-toggle-label, '
@@ -484,16 +433,13 @@ def ato_judicial(
                 'button#selecionar-polo-ativo',
                 modo='aparecer',
                 timeout=15,
-            ):
-                logger.warning('[ATO][SALVAR] Timeout aguardando controles de destinatários, prosseguindo...')
+            )
 
-
-            # Compatibilidade com transição Angular (como no leg)
-            espera.assentar(driver, 1.5)
-            logger.info('[ATO][SALVAR] Aguardando ativação da aba destinatários...')
+            espera.assentar(driver, 1.0, motivo='estabilização pós-salvamento da minuta')
+            logger.info('[ATO][SALVAR] Minuta salva e aba destinatários pronta')
 
         except Exception as e:
-            logger.error(f'[ATO][SALVAR] Botão Salvar não encontrado ou não clicável: {e}')
+            logger.error(f'[ATO][SALVAR] Erro ao salvar minuta: {e}')
             return False, False
 
         # ===== ABA DESTINATÁRIOS =====

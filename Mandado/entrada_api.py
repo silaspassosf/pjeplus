@@ -444,51 +444,6 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
     return True
 
 
-def _gigs_sem_prazo_via_js(driver, tamanho_pagina: int = 100) -> list:
-    """Busca GIGS sem prazo (XS) reaproveitando o core de API/paginacao."""
-    client = _criar_api_client(driver)
-    resultado = _buscar_todas_paginas_gateway(
-        client,
-        '/pje-gigs-api/api/relatorioatividades/',
-        params_base={
-            'filtrarAtividadesSemPrazo': 'true',
-            'filtrarAtividadesSemPrazoConcluidas': 'false',
-            'ordenacaoCrescente': 'true',
-            'filtrarPorDestinatario': 'false',
-            'filtrarPorLocalizacao': 'false',
-        },
-        tamanho_pagina=tamanho_pagina,
-        limite_paginas=200,
-        timeout=20,
-    )
-
-    if not resultado.get('ok'):
-        erro = (resultado.get('error') or {}).get('message') or 'sem_resposta'
-        logger.error(f"[MANDADOS_API] falha GIGS sem prazo: {erro}")
-        return []
-
-    dados = resultado.get('data') or []
-
-    # Filtrar somente GIGS com descricao xs (se aplica)
-    filtrados = []
-    for item in dados:
-        tipo = (item.get('tipoAtividade') or {}).get('descricao', '') or (item.get('tipoAtividade') or {}).get('nome', '')
-        if isinstance(tipo, str) and 'xs' in tipo.lower():
-            filtrados.append(item)
-
-    logger.info(f"[MANDADOS_API] GIGS sem prazo bruto {len(dados)}, filtrado xs {len(filtrados)}")
-    return filtrados
-
-
-def testar_api_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> list:
-    """Teste local rapido do endpoint de GIGS sem prazo (XS)."""
-    resultado = _gigs_sem_prazo_via_js(driver, tamanho_pagina=tamanho_pagina)
-    logger.info(f"[MANDADOS_API] total capturado: {len(resultado)}")
-    if resultado:
-        logger.info(f"[MANDADOS_API] exemplo: {resultado[0]}")
-    return resultado
-
-
 # ══════════════════════ 2. TIMELINE / SELECAO DE DOCUMENTO ══════════════════════
 
 _TERMOS_ARGOS = (
@@ -647,70 +602,6 @@ def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None, es
         return False
     finally:
         _fechar_abas_extras(driver, handle_principal)
-
-
-# ══════════════════════ 4. UTILS / COMPATIBILIDADE ══════════════════════
-
-def retirar_sigilo_demais_documentos_especificos(driver, documentos_sequenciais, log=True):
-    """COMPATIBILIDADE: Chama retirar_sigilo_fluxo_argos e retorna lista de demais documentos."""
-    resultado = retirar_sigilo_fluxo_argos(driver, documentos_sequenciais, log)
-    return resultado.get('demais_documentos', [])
-
-
-def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=True):
-    """
-     FUNCAO EFICIENTE - Remove sigilo APENAS dos documentos especificos fornecidos:
-    Os documentos_sequenciais ja vem filtrados da buscar_documentos_sequenciais()
-    MAXIMO 5 documentos: 1 certidao devolucao, 1 certidao expedicao, 1 intimacao, 1 decisao, 1 planilha
-
-    NADA MAIS que isso - SEM VARRER TIMELINE INTEIRA!
-    """
-    if not documentos_sequenciais:
-        return []
-
-    #  EFICIENCIA: Os documentos ja vem filtrados, apenas remover sigilo diretamente
-    documentos_processados = []
-    total_processados = 0
-
-    #  PROCESSAMENTO DIRETO: Remove sigilo apenas dos documentos fornecidos
-    for i, elemento in enumerate(documentos_sequenciais):
-        try:
-            texto = elemento.text.strip()[:50] if elemento.text else f"DOCUMENTO_{i+1}"
-
-            resultado_sigilo = retirar_sigilo(elemento, driver)
-
-            if resultado_sigilo:
-                documentos_processados.append({
-                    'indice': i+1,
-                    'texto': texto,
-                    'status': 'sucesso'
-                })
-                total_processados += 1
-            else:
-                documentos_processados.append({
-                    'indice': i+1,
-                    'texto': texto,
-                    'status': 'falha'
-                })
-
-        except Exception as e:
-            if log:
-                logger.error(f"[SIGILO_ESPECIFICO]  Erro ao processar documento {i+1}: {e}")
-            documentos_processados.append({
-                'indice': i+1,
-                'texto': texto if 'texto' in locals() else f"DOCUMENTO_{i+1}",
-                'status': 'erro',
-                'erro': str(e)
-            })
-
-    #  RELATORIO FINAL
-    if log:
-
-        for doc in documentos_processados:
-            status_icon = "" if doc['status'] == 'sucesso' else "" if doc['status'] == 'erro' else ""
-
-
-    return documentos_processados
 
 
 # ══════════════════════ 5. FECHAMENTO DE INTIMACAO ══════════════════════

@@ -5,6 +5,8 @@ from .judicial_fluxo import ato_judicial as _ato_judicial, make_ato_wrapper as _
 from .judicial_helpers import (
     ato_pesquisas as _ato_pesquisas,
     idpj as _idpj,
+)
+from .judicial_utils import (
     preencher_prazos_destinatarios as _preencher_prazos_destinatarios,
     verificar_bloqueio_recente as _verificar_bloqueio_recente,
 )

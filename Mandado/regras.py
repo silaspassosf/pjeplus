@@ -36,42 +36,6 @@ from typing import Dict, List, Any, Callable, Optional
 
 from core.rule_registry import RuleRegistry
 
-# Cache de módulos para lazy loading
-_mandado_regras_modules_cache = {}
-
-def _lazy_import_mandado_regras():
-    """Carrega módulos pesados sob demanda (lazy loading)."""
-    global _mandado_regras_modules_cache
-    
-    if not _mandado_regras_modules_cache:
-        from Fix.utils import navegar_para_tela
-        from Fix.core import buscar_seletor_robusto, buscar_documento_argos
-        from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, extrair_destinatarios_decisao, indexar_e_processar_lista
-        from Fix.core import buscar_mandado_autor
-        from Fix.extracao import criar_gigs
-        from Fix.core import esperar_elemento, aguardar_e_clicar
-        from Fix.utils import limpar_temp_selenium, configurar_recovery_driver
-        
-        _mandado_regras_modules_cache.update({
-            'navegar_para_tela': navegar_para_tela,
-            'extrair_pdf': extrair_pdf,
-            'analise_outros': analise_outros,
-            'extrair_documento': extrair_documento,
-            'criar_gigs': criar_gigs,
-            'esperar_elemento': esperar_elemento,
-            'aguardar_e_clicar': aguardar_e_clicar,
-            'buscar_seletor_robusto': buscar_seletor_robusto,
-            'limpar_temp_selenium': limpar_temp_selenium,
-            'indexar_e_processar_lista': indexar_e_processar_lista,
-            'extrair_dados_processo': extrair_dados_processo,
-            'buscar_documento_argos': buscar_documento_argos,
-            'buscar_mandado_autor': buscar_mandado_autor,
-            'extrair_destinatarios_decisao': extrair_destinatarios_decisao,
-            'configurar_recovery_driver': configurar_recovery_driver,
-        })
-    
-    return _mandado_regras_modules_cache
-
 # Módulos Locais (mantidos leves)
 from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
 from Fix.core import preencher_campo

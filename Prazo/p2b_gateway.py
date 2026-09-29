@@ -767,11 +767,6 @@ def _buscar_relatorio_atividades(client, tamanho_pagina: int) -> List[dict]:
     raise RuntimeError(f"Fluxo API XS1 falhou: limite de paginas atingido ({limite_paginas})")
 
 
-def gerar_script_gigs_xs1(tamanho_pagina: int = 100) -> str:
-    """Compatibilidade legado: script JS descontinuado, fluxo usa API Core em Python."""
-    return "// Deprecated: use testar_gigs_xs1(driver, tamanho_pagina)"
-
-
 def testar_gigs_xs1(driver, tamanho_pagina: int = 100) -> List[dict]:
     """Retorna atividades XS1 via API Core (gateway + paginacao compartilhada)."""
     client = _criar_api_client(driver)
@@ -787,11 +782,6 @@ def testar_gigs_xs1(driver, tamanho_pagina: int = 100) -> List[dict]:
             xs1.append(item)
 
     return xs1
-
-
-def gerar_script_gigs_sem_prazo(tamanho_pagina: int = 100) -> str:
-    """Compatibilidade: wrapper para gerar_script_gigs_xs1."""
-    return gerar_script_gigs_xs1(tamanho_pagina=tamanho_pagina)
 
 
 def testar_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> List[dict]:

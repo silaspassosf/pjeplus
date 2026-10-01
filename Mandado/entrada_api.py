@@ -12,7 +12,6 @@ Cadeia: processar_mandados_devolvidos_api -> processar_mandado_detalhe
 
 # ══════════════════════ IMPORTS ══════════════════════
 
-import importlib.util
 import logging
 import os
 import sys
@@ -62,34 +61,15 @@ from Mandado.apoio_fluxos import (
     retirar_sigilo_certidao_devolucao_primeiro,
 )
 
-from utilitarios_processamento import run_batch, create_skip_checker, resultado_ok, resultado_falha
-from Fix.variaveis import url_processo_detalhe
+
 
 # ══════════════════════ 1. API ENTRY ══════════════════════
 
-_API_CORE_TYPES = None
-
-
-def _api_core_types():
-    global _API_CORE_TYPES
-    if _API_CORE_TYPES is not None:
-        return _API_CORE_TYPES
-
-    core_path = Path(__file__).resolve().parents[1] / 'api' / 'variaveis_client.py'
-    spec = importlib.util.spec_from_file_location('pjeplus_api_variaveis_client_runtime', str(core_path))
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f'[MANDADOS_API] Nao foi possivel carregar API Core: {core_path}')
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    _API_CORE_TYPES = (module.PjeApiClient, module.session_from_driver)
-    return _API_CORE_TYPES
-
-
 def _criar_api_client(driver):
-    pje_api_client_cls, session_from_driver_fn = _api_core_types()
-    sess, trt_host = session_from_driver_fn(driver)
-    return pje_api_client_cls(sess, trt_host, grau=1)
+    """Cria PjeApiClient a partir do driver (import direto de Fix.variaveis)."""
+    from Fix.variaveis import PjeApiClient, session_from_driver
+    sess, trt_host = session_from_driver(driver)
+    return PjeApiClient(sess, trt_host, grau=1)
 
 
 def _buscar_todas_paginas_gateway(
@@ -217,230 +197,106 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
     ativar_filtro_mandados_devolvidos(driver)
     escaninho_handle = driver.current_window_handle
 
-    # ── Classificar cada item ANTES de abrir qualquer processo, consultando a
-    # timeline real via API (mesmo criterio de _TERMOS_ARGOS/_TERMOS_OUTROS
-    # usado depois no DOM). Evita abrir aba so para descobrir "e argos" e pular.
-    client = _criar_api_client(driver)
-    itens_argos_sigilo = []
-    itens_certidao = []
-    itens_outros = []
+    # ── Montar fila: extrair id/numero de cada item sem chamar API por processo.
+    # A classificacao real (argos vs outros) e feita pela timeline DOM ao abrir
+    # cada processo — igual ao comportamento pre-refac, evita N chamadas HTTP
+    # sequenciais antes de processar o 1o mandado.
+    itens_fila = []
     for item in mandados:
         processo_obj = item.get('processo') or {}
         id_p = processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id')
         num = processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero')
-
         if not (id_p or num):
             continue
+        itens_fila.append({'id': id_p, 'numero': num})
 
-        obj = {'id': id_p, 'numero': num}
-        tipo = _classificar_tipo_timeline_api(client, id_p) if id_p else None
-        if tipo == 'argos':
-            itens_argos_sigilo.append(obj)
-        elif tipo == 'outros':
-            itens_certidao.append(obj)
-        else:
-            itens_outros.append(obj)
-
-    if not itens_argos_sigilo and not itens_certidao and not itens_outros:
+    if not itens_fila:
         logger.info('[MANDADOS_API] Nenhum item na fila')
         return False
 
-    logger.info(f'[MANDADOS_API] {len(itens_argos_sigilo)} Argos/Sigilo, {len(itens_certidao)} Certidoes de Oficial, {len(itens_outros)} outros na fila')
+    logger.info(f'[MANDADOS_API] {len(itens_fila)} mandado(s) na fila')
 
     # ════════════════════════════════════════
-    # BLOCO 1: ARGOS / SIGILO / DEVOLUCAO DE PESQUISA (primeiro)
+    # FILA UNIFICADA: itera todos os mandados, classifica no DOM ao abrir
+    # cada processo (igual ao comportamento pre-refac). O fluxo Argos e
+    # Outros sao disparados conforme o tipo detectado pelo _selecionar_doc_via_timeline.
     # ════════════════════════════════════════
-    if itens_argos_sigilo:
-        logger.info(f'[MANDADOS_API] BLOCO 1: Processando {len(itens_argos_sigilo)} itens Argos/Sigilo...')
-        from Fix.variaveis import url_processo_detalhe
-        concluidos_antes = get_concluidos('mandado')
-        if concluidos_antes:
-            logger.info(f'[MANDADOS_API] BLOCO 1: {len(concluidos_antes)} ja concluidos — serao pulados')
-        
-        for it in itens_argos_sigilo:
-            num = it['numero']
-            id_p = it['id']
-            
-            if _should_skip_mandado(num):
-                logger.info(f'[MANDADOS_API][BLOCO1] #{num} ja concluido — pulando')
-                continue
-            
-            logger.info(f'[MANDADOS_API][BLOCO1] Processando Argos/Sigilo: #{num}')
+    from Fix.variaveis import url_processo_detalhe
+    from Mandado.fluxo_argos import processar_argos
 
-            detalhe_url = url_processo_detalhe(id_p or num)
-            try:
-                # Navega na aba do escaninho (sem abrir nova aba).
-                # Isso garante que _aba_original no wrapper pec_idpj seja o escaninho,
-                # e não o processo, evitando que o wrapper feche o escaninho como "extra".
-                driver.get(detalhe_url)
-                wait_for_page_load(driver, timeout=15)
-                from Mandado.fluxo_argos import processar_argos
+    concluidos_antes = get_concluidos('mandado')
+    if concluidos_antes:
+        logger.info(f'[MANDADOS_API] {len(concluidos_antes)} ja concluidos — serao pulados')
+
+    for it in itens_fila:
+        num = it['numero']
+        id_p = it['id']
+
+        if _should_skip_mandado(num):
+            logger.info(f'[MANDADOS_API] #{num} ja concluido — pulando')
+            continue
+
+        logger.info(f'[MANDADOS_API] Processando: #{num}')
+        detalhe_url = url_processo_detalhe(id_p or num)
+
+        # Abre em NOVA ABA — preserva escaninho_handle intacto durante todo
+        # o processamento (processar_argos pode abrir/fechar abas proprias).
+        novo_handle = abrir_url_nova_aba(driver, detalhe_url, timeout=12)
+
+        try:
+            wait_for_page_load(driver, timeout=15)
+            # Aguarda timeline renderizar antes de classificar
+            aguardar_renderizacao_nativa(driver, 'li.tl-item-container', timeout=10)
+
+            tipo = _selecionar_doc_via_timeline(driver, log=True)
+
+            if tipo == 'argos':
+                logger.info(f'[MANDADOS_API] #{num} -> Argos (timeline DOM)')
                 result = processar_argos(driver, log=True)
                 if result:
                     _marcar_concluido_mandado(str(num))
                 else:
-                    logger.warning(f'[MANDADOS_API][BLOCO1] #{num}: processar_argos retornou False')
-            except Exception as e:
-                logger.error(f'[MANDADOS_API][BLOCO1] Erro ao processar Argos #{num}: {e}')
-            finally:
-                # Fechar todas as abas extras e retornar ao escaninho.
-                _fechar_abas_extras(driver, escaninho_handle)
-                # Se o escaninho foi fechado pelo wrapper (não deveria ocorrer mais),
-                # navega de volta para garantir estado consistente.
-                try:
-                    if driver.current_window_handle != escaninho_handle:
-                        driver.switch_to.window(escaninho_handle)
-                except Exception:
-                    pass
+                    logger.warning(f'[MANDADOS_API] #{num}: processar_argos retornou False')
 
-        # Ao fim do BLOCO 1, a aba está no último processo processado.
-        # Renavegar para o escaninho para restaurar o estado esperado pelo BLOCO 2.
-        driver.get(url_escaninho)
-        wait_for_page_load(driver, timeout=10)
-        ativar_filtro_mandados_devolvidos(driver)
-
-    # ════════════════════════════════════════
-    # BLOCO 2: CERTIDAO DE OFICIAL (segundo)
-    # ════════════════════════════════════════
-    for it in itens_certidao:
-        num = it['numero']
-        id_p = it['id']
-        
-        if _should_skip_mandado(num):
-            logger.info(f'[MANDADOS_API][BLOCO2] #{num} ja concluido — pulando')
-            continue
-        
-        logger.info(f'[MANDADOS_API] Processando Certidao: #{num}')
-        
-        from Fix.variaveis import url_processo_detalhe
-        detalhe_url = url_processo_detalhe(id_p or num)
-        
-        # Abre em nova aba e troca foco
-        novo_handle = abrir_url_nova_aba(driver, detalhe_url, timeout=10)
-        
-        try:
-            wait_for_page_load(driver, timeout=8)
-            # Aguardar timeline renderizar (substitui time.sleep(2) por espera direcionada)
-            aguardar_renderizacao_nativa(driver, "li.tl-item-container", timeout=5)
-            
-            tipo = _selecionar_doc_via_timeline(driver, log=True)
-            if tipo == 'outros':
+            elif tipo == 'outros':
                 tipo_cabecalho = _classificar_tipo_processo_cabecalho(driver, log=True)
                 if tipo_cabecalho == 'CartPrecCiv':
+                    logger.info(f'[MANDADOS_API] #{num} -> Outros/CP')
                     resultado_cp = fluxo_mandados_cp(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                     if resultado_cp == 'incompleto':
-                        logger.info(f"[MANDADOS_API] #{num}: Fluxo CP incompleto — GIGS xs1 + apagar do escaninho ja executado.")
+                        logger.info(f'[MANDADOS_API] #{num}: CP incompleto — GIGS xs1 + apagar executado')
+                        _marcar_concluido_mandado(str(num))
+                    elif resultado_cp == 'completo':
+                        logger.info(f'[MANDADOS_API] #{num}: CP completo — processo arquivado')
                         _marcar_concluido_mandado(str(num))
                     else:
-                        if resultado_cp == 'completo':
-                            logger.info(f"[MANDADOS_API] #{num}: Fluxo CP completo — processo arquivado.")
-                            _marcar_concluido_mandado(str(num))
-                        else:
-                            logger.warning(f"[MANDADOS_API] #{num}: Fluxo CP falhou.")
-                        driver.close()
-                        driver.switch_to.window(escaninho_handle)
+                        logger.warning(f'[MANDADOS_API] #{num}: Fluxo CP falhou')
                 else:
+                    logger.info(f'[MANDADOS_API] #{num} -> Outros (geral)')
                     regra = fluxo_mandados_outros(driver, log=True)
                     if regra:
                         if regra == 'positivo':
-                            logger.info(f"[MANDADOS_API] #{num}: Regra 'positivo' reconhecida. Executando GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.")
                             arquivar_mandado_positivo_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                         else:
-                            logger.info(f"[MANDADOS_API] #{num}: Regra '{regra}' reconhecida. Executando GIGS xs1 + apagar do escaninho.")
                             arquivar_mandado_outros_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                         _marcar_concluido_mandado(str(num))
                     else:
-                        logger.info(f"[MANDADOS_API] #{num}: Nenhuma regra reconhecida. Pulando.")
-                        driver.close()
-                        driver.switch_to.window(escaninho_handle)
-            elif tipo == 'argos':
-                # Divergencia rara entre classificacao previa (API) e DOM: nao descartar,
-                # processar pelo fluxo Argos correto (mesmo tratamento do BLOCO 1).
-                logger.info(f"[MANDADOS_API] #{num}: Tipo na timeline={tipo} (divergiu da classificacao previa). Processando via fluxo Argos.")
-                from Mandado.fluxo_argos import processar_argos
-                result = processar_argos(driver, log=True)
-                if result:
-                    _marcar_concluido_mandado(str(num))
-                else:
-                    logger.warning(f'[MANDADOS_API][BLOCO2] #{num}: processar_argos retornou False')
-                driver.close()
-                driver.switch_to.window(escaninho_handle)
+                        logger.info(f'[MANDADOS_API] #{num}: Nenhuma regra reconhecida — pulando')
+
             else:
-                logger.info(f"[MANDADOS_API] #{num}: Nenhum doc relevante na timeline. Pulando.")
-                driver.close()
-                driver.switch_to.window(escaninho_handle)
+                logger.info(f'[MANDADOS_API] #{num}: Nenhum doc relevante na timeline — pulando')
+
         except Exception as e:
-            logger.error(f"[MANDADOS_API] Erro ao processar certidão #{num}: {e}")
-            _fechar_abas_extras(driver, handle_principal=escaninho_handle)
+            logger.error(f'[MANDADOS_API] Erro ao processar #{num}: {e}')
+        finally:
+            # Fecha a aba do processo e volta ao escaninho
+            _fechar_abas_extras(driver, escaninho_handle)
             try:
                 driver.switch_to.window(escaninho_handle)
             except Exception:
                 pass
 
-    # 2 - DEPOIS O RESTO
-    logger.info(f'[MANDADOS_API] Iniciando processamento do resto ({len(itens_outros)} itens)...')
-    # ── Verificar progresso de execucoes anteriores
-    concluidos = get_concluidos('mandado')
-    if concluidos:
-        logger.info(f'[MANDADOS_API] {len(concluidos)} processo(s) ja concluidos em execucao anterior — serao ignorados')
-
-    # ── should_skip: factory do engine (baseada em progresso unificado)
-    should_skip = create_skip_checker('mandado')
-
-    def open_item(item):
-        """No-op: navegacao e feita dentro de execute_item."""
-        return resultado_ok()
-
-    def execute_item(item):
-        """Processa o mandado no processo aberto."""
-        num = item.get('numero') or item.get('id')
-        try:
-            resultado = processar_mandado_detalhe(
-                driver,
-                numero_processo=item.get('numero'),
-                id_processo=item.get('id'),
-                escaninho_handle=escaninho_handle,
-            )
-            if resultado == 'PULAR':
-                logger.info(f"[MANDADOS_API] #{num} pulado (tipo nao mapeado)")
-                return resultado_ok(pulado=True)
-            elif resultado:
-                return resultado_ok()
-            else:
-                return resultado_falha("processar_mandado_detalhe retornou False")
-        except Exception as e:
-            logger.error(f"[MANDADOS_API] Erro ao processar {num}: {e}")
-            return resultado_falha(str(e))
-
-    def persist_result(item, result):
-        """Persiste progresso apenas em caso de sucesso real (nao PULAR)."""
-        if result.get('ok'):
-            dados = result.get('dados') or {}
-            if not dados.get('pulado'):
-                num = item.get('numero') or item.get('id')
-                if num:
-                    logger.info(f"[MANDADOS_API] #{num} concluido")
-                    _marcar_concluido_mandado(str(num))
-
-    stats = run_batch(
-        items=itens_outros,
-        should_skip=should_skip,
-        open_item=open_item,
-        execute_item=execute_item,
-        persist_result=persist_result,
-    )
-
-    logger.info(
-        f'[MANDADOS_API] Concluido — '
-        f'total={stats["total"]} sucesso={stats["sucesso"]} '
-        f'pulados={stats["pulados"]} falha={stats["falha"]}'
-    )
-
-    if stats["falha"]:
-        falhas_reg = [r for r in stats["itens"] if r["status"] == "falha"]
-        labels = [str(r["item"].get("numero") or r["item"].get("id", "")) for r in falhas_reg]
-        logger.warning(f'[MANDADOS_API] Falhas: {labels}')
-
+    logger.info('[MANDADOS_API] Fila processada — concluido')
     return True
 
 

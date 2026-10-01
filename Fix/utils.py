@@ -477,26 +477,25 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
             pass
 
         # ----------------------------------------------------------------
-        # LOGIN MANUAL: solicitar ao usuario que faca login no browser
+        # LOGIN MANUAL: aguarda automaticamente a deteccao do painel
+        # (sem input() bloqueante — detecta /meu-painel sozinho)
         # ----------------------------------------------------------------
+        _urls_pos_login = ('gigs/meu-painel', 'quadro-avisos/visualizar')
         print('\n' + '=' * 60)
         print('  LOGIN PJe MANUAL NECESSARIO')
         print('=' * 60)
         print('  O browser esta aberto na pagina de login do PJe.')
         print('  Faca o login manualmente (CPF + senha + MFA se necessario).')
-        print('  Apos concluir o login no browser, volte aqui e')
-        print('  pressione ENTER para continuar o fluxo.')
+        print('  O fluxo continuara AUTOMATICAMENTE apos detectar o painel.')
         print('=' * 60)
-        input('  [PJe] Login concluido? Pressione ENTER para continuar... ')
-        print()
 
-        # Verificar se o login foi de fato concluido
-        timeout = 30
+        # Polling automatico: aguarda ate 5 minutos pelo painel
+        timeout_login = 300
         inicio = time.time()
-        while time.time() - inicio < timeout:
+        while time.time() - inicio < timeout_login:
             try:
-                cur = driver.current_url.lower()
-                if not any(k in cur for k in ['login', 'auth', 'realms']):
+                cur = driver.current_url
+                if any(u in cur for u in _urls_pos_login):
                     logger.info('[LOGIN_PJE] Login manual confirmado (URL: %s)', cur)
                     try:
                         if SALVAR_COOKIES_AUTOMATICO:
@@ -508,8 +507,8 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                 pass
             espera.assentar(driver, 1)
 
-        logger.warning('[LOGIN_PJE] Login nao detectado apos confirmacao manual. URL: %s',
-                       getattr(driver, 'current_url', '<indisponivel>'))
+        logger.warning('[LOGIN_PJE] Login nao detectado apos %ds. URL: %s',
+                       timeout_login, getattr(driver, 'current_url', '<indisponivel>'))
         return False
 
     except Exception as e:

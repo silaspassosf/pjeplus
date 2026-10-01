@@ -287,6 +287,43 @@ class PjeApiClient:
         except Exception:
             return None
 
+    def gateway_get(self, path: str, params: Optional[Dict] = None, timeout: int = 20) -> Dict[str, Any]:
+        """GET generico com envelope {'ok', 'status', 'data', 'error'}.
+
+        Usado por _buscar_todas_paginas_gateway (Mandado/entrada_api.py) para
+        paginar endpoints do gateway PJe que nao possuem metodo dedicado.
+
+        Returns:
+            {'ok': True,  'status': <int>, 'data': <parsed json>, 'error': None}
+            {'ok': False, 'status': <int|None>, 'data': None, 'error': {'type': ..., 'message': ...}}
+        """
+        try:
+            r = self.sess.get(self._url(path), params=params, timeout=timeout)
+            if r.ok:
+                try:
+                    data = r.json()
+                except Exception:
+                    data = r.text
+                return {'ok': True, 'status': r.status_code, 'data': data, 'error': None}
+            else:
+                try:
+                    msg = r.text[:200]
+                except Exception:
+                    msg = str(r.status_code)
+                return {
+                    'ok': False,
+                    'status': r.status_code,
+                    'data': None,
+                    'error': {'type': 'http_error', 'message': msg, 'method': 'GET', 'path': path, 'status': r.status_code},
+                }
+        except Exception as exc:
+            return {
+                'ok': False,
+                'status': None,
+                'data': None,
+                'error': {'type': type(exc).__name__, 'message': str(exc), 'method': 'GET', 'path': path, 'status': None},
+            }
+
     def domicilio_eletronico(self, id_parte: str) -> Optional[bool]:
         """Verifica se uma parte está habilitada no domicílio eletrônico.
         

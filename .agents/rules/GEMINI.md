@@ -1,6 +1,6 @@
 **BRANCH DE TRABALHO EXCLUSIVA: `main`**
 - O agente deve SEMPRE verificar `git branch --show-current`. Toda edição, refatoração e manutenção do PJePlus deve ocorrer OBRIGATORIAMENTE no branch `main` e respeitar o `idx.md`.
-- O branch `refactor/pw-nativo` foi totalmente incorporado à `main`.
+- Não consulte branches anteriores nem troque de branch automaticamente.
 
 **REGRA DE ARQUITETURA INEGOCIÁVEL: APENAS PLAYWRIGHT, NUNCA SELENIUM**
 - É TERMINANTEMENTE PROIBIDO reintroduzir ou usar Selenium (`import selenium`, `driver.find_element`, `driver.find_elements`, `WebDriverWait`, `expected_conditions`, tipagem `WebDriver`, `time.sleep`).
@@ -18,6 +18,6 @@ Agentes especializados disponíveis em .agents/rules/agents/ (invocar pelo nome 
 
 Antes de qualquer busca exploratória (grep/glob) fora do escopo já mapeado, consulte .agents/rules/idx-core.md (Quick Reference + Árvore de Decisão). Se a tarefa não estiver coberta lá, leia ./idx.md para o índice completo (palavras-chave, cadeias de chamada, catálogo de atos/, API obrigatória).
 
-**REGRAS always-on: leia também .agents/rules/anti-selenium.md e .agents/rules/restauracao-pre-refac.md — são inegociáveis.**
+**REGRAS always-on: leia também .agents/rules/anti-selenium.md e .agents/rules/comparacao-historica.md — são inegociáveis.**
 
-Resumo da regra de restauração (detalhes no arquivo): se um fluxo/ato/seletor parou de funcionar, a lógica que funcionava está na tag `pre-refac` (`git show pre-refac:CAMINHO/ARQUIVO.py`) ou em `main`. Restaure a LÓGICA preservando a arquitetura Playwright atual (espera.ate_*, Fix/espera.py, locators) — nunca reintroduza Selenium. Não recrie do zero o que já existia; restaure, adapte para Playwright, e valide com `py -m py_compile`.
+Resumo temporal (detalhes no arquivo): em caso de dúvida, falha ou regressão, compare o código atual com o estado imediatamente anterior ao commit `968047a` (`git show 968047a^:CAMINHO/ARQUIVO.py`). A comparação é somente histórica; não restaure nem copie código automaticamente. Não consulte branches anteriores. `gigs-plugin.js`, `LEGADO.md`, `legado.md` e outras fontes legadas só podem ser consultadas se o prompt as mencionar expressamente.

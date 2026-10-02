@@ -26,7 +26,7 @@ applyTo: "Prazo/**/*.py"
 1. Aplicar `filtrofases` primeiro (reduz número de itens)
 2. Depois `aplicar_filtro_100` (define 100 por página)
 
-> ⚠️ Legado (`ref/Prazo/loop.py`) usa esta ordem. A ordem inversa funciona mas é menos eficiente.
+> Preserve esta ordem conforme o fluxo atual. Não consulte `ref/` ou outras fontes legadas salvo se o prompt do usuário as mencionar expressamente.
 
 ### Import correto de `aplicar_filtro_100`
 

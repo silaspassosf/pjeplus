@@ -237,22 +237,111 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
 
 
 def _selecionar_modelo_gigs(self, modelo: str) -> bool:
-    """Seleciona e insere o modelo no editor da juntada.
+    """Seleciona e insere o modelo no editor da juntada (aaAnexar).
 
-    Delega ao fluxo ÚNICO de `atos/judicial_modelos.inserir_modelo_no_editor`
-    (padrão gigs-plugin aaDespacho): filtro → nodo-filtrado → diálogo → espera
-    POSITIVA do teor no preview → clique Inserir → confirmação escopada ao
-    editor-alvo + baseline. O editor-alvo inclui o CKEditor da juntada
-    (`.ck-editor__editable`), então a confirmação de conteúdo é a mesma que a
-    função de colar conteúdo (`substituir_marcador_por_conteudo`) espera.
+    Implementação DEDICADA ao contexto da juntada/anexar — NÃO delega para
+    judicial_modelos.inserir_modelo_no_editor porque:
+    - O editor-alvo é 'div[class*="area-conteudo"][contenteditable][aria-label*="Conteúdo principal"]'
+    - O aaAnexar do gigs-plugin foca esse editor ANTES de filtrar (api/gigs-plugin.js:10106)
+    - A prova de conteúdo é innerText > 1 OU figure (verificarSeExisteTextoNoEditor L10261)
+    Fonte: api/gigs-plugin.js acao_bt_aaAnexar L10100-10124 + inserirModeloNoDocumento L10192-10253.
     """
-    from atos.judicial_modelos import inserir_modelo_no_editor
-    ok = inserir_modelo_no_editor(self.driver, modelo, log=logger.info)
-    if ok:
-        logger.info('[JUNTADA][DEBUG] Modelo inserido com sucesso (conteúdo confirmado no editor)')
-    else:
-        logger.error('[JUNTADA][ERRO] Modelo não carregou no editor (editor vazio)')
-    return ok
+    driver = self.driver
+    try:
+        # 0. Foco no editor-alvo ANTES de filtrar (padrão aaAnexar gigs L10106)
+        sel_editor = (
+            'div[class*="area-conteudo"][contenteditable="true"][aria-label*="Conteúdo principal"],'
+            'div[class*="area-conteudo"][contenteditable="true"],'
+            '.ck-editor__editable[contenteditable="true"]'
+        )
+        _executar_js(driver, """
+            var el = document.querySelector(arguments[0].split(',').find(s => document.querySelector(s)));
+            if (el) { el.focus(); }
+        """, sel_editor)
+
+        # 1. Disparar eventos iniciais no filtro (elimina carregamento eterno — aaAnexar L10111)
+        _executar_js(driver, """
+            var f = document.getElementById('inputFiltro');
+            if (f) {
+                f.dispatchEvent(new Event('input', {bubbles: true}));
+                f.dispatchEvent(new Event('keyup', {bubbles: true}));
+            }
+        """)
+
+        # 2. Preencher filtro com native setter + eventos (padrão preencherInput gigs)
+        campo_filtro = wait_for_clickable(driver, 'input#inputFiltro', timeout=10)
+        if not campo_filtro:
+            logger.error('[JUNTADA][MODELO][ERRO] Campo input#inputFiltro não encontrado')
+            return False
+
+        _executar_js(driver, """
+            var el = arguments[0];
+            var val = arguments[1];
+            el.focus();
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
+                .set.call(el, val);
+            ['input', 'change', 'keyup'].forEach(ev =>
+                el.dispatchEvent(new Event(ev, {bubbles: true}))
+            );
+            el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));
+        """, campo_filtro, modelo)
+
+        # 3. Aguardar nodo filtrado (buscandoModeloNaArvore gigs L15112)
+        nodo = wait_for_clickable(driver, 'span.nodo-filtrado, .nodo-filtrado', timeout=12)
+        if not nodo:
+            logger.error('[JUNTADA][MODELO][ERRO] .nodo-filtrado não encontrado para "%s"', modelo)
+            return False
+
+        _executar_js(driver, "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", nodo)
+        logger.debug('[JUNTADA][MODELO] Clique em .nodo-filtrado realizado')
+
+        # 4. Aguardar diálogo de preview entrar no DOM
+        if not espera.ate_aparecer(driver, 'pje-dialogo-visualizar-modelo', teto=10):
+            logger.warning('[JUNTADA][MODELO] Diálogo pje-dialogo-visualizar-modelo não detectado')
+
+        # 5. GUARDA ANTI-CORRIDA: 500ms para o teor do preview carregar (aaAnexar gigs L10222)
+        espera.assentar(driver, 0.5, 'aguarda preview/teor carregar no dialogo antes de inserir')
+
+        # 6. Clicar botão Inserir (aria-label estável conforme gigs L10224)
+        btn_inserir = wait_for_clickable(driver, 'button[aria-label="Inserir modelo de documento"]', timeout=8)
+        if not btn_inserir:
+            btn_inserir = wait_for_clickable(
+                driver,
+                'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button',
+                timeout=5,
+            )
+        if not btn_inserir:
+            logger.error('[JUNTADA][MODELO][ERRO] Botão Inserir não encontrado')
+            return False
+
+        _executar_js(driver, "arguments[0].click();", btn_inserir)
+        logger.debug('[JUNTADA][MODELO] Clique em Inserir modelo realizado')
+
+        # 7. Aguardar diálogo de preview sumir
+        espera.ate_sumir(driver, 'pje-dialogo-visualizar-modelo', teto=8)
+
+        # 8. VERIFICAÇÃO REAL DE CONTEÚDO (verificarSeExisteTextoNoEditor gigs L10261)
+        # Editor da juntada: 'div[class*="area-conteudo"][contenteditable="true"]'
+        # Prova: innerText > 1 char OU figure presente
+        _JS_JUNTADA_EDITOR_COM_CONTEUDO = """
+            var area = document.querySelector('div[class*="area-conteudo"][contenteditable="true"]')
+                    || document.querySelector('.ck-editor__editable[contenteditable="true"]');
+            if (!area) return false;
+            var txt = (area.innerText || area.textContent || '').replace(/\\s/g, '');
+            return txt.length > 1 || area.querySelector('figure') !== null;
+        """
+        modelo_carregado = bool(espera.ate_js(driver, _JS_JUNTADA_EDITOR_COM_CONTEUDO, teto=8))
+
+        if modelo_carregado:
+            logger.info('[JUNTADA][MODELO] Modelo "%s" confirmado no editor (conteúdo real)', modelo)
+            return True
+        else:
+            logger.error('[JUNTADA][MODELO][ERRO] Editor permaneceu vazio após inserção de "%s"', modelo)
+            return False
+
+    except Exception as e:
+        logger.error('[JUNTADA][MODELO][ERRO] Falha ao selecionar/inserir modelo: %s', e)
+        return False
 
 
 def _executar_coleta_opcional(self, configuracao: Dict[str, Any]) -> bool:

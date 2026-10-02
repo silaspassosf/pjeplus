@@ -131,6 +131,14 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
         else:
             logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
 
+        # Garantir término completo da visibilidade e ausência de modal/spinner antes de prosseguir
+        from Fix import espera
+        espera.ate_sumir(
+            driver,
+            'mat-dialog-container, mat-progress-spinner, mat-spinner, mat-progress-bar, .loading-spinner, .loading-overlay',
+            teto=10
+        )
+
         # Extrair dados de anexos para decisão de rota
         if hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
             sigilo_anexos = anexos_info.detalhes.get('sigilo_anexos', {})

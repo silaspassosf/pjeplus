@@ -135,7 +135,7 @@ Reversão natural: como nada foi aplicado na falha, não há nada a desfazer. O 
 
 - `idx.md` — Manifesto oficial. Topologia, diretórios, filosofia e regras de ouro.
 - `pjeplus-architecture.md` — Detalhes de módulos e funções históricas.
-- `LEGADO.md` — Apenas trechos específicos quando apontados pelo usuário.
+- `LEGADO.md` — Consultar apenas quando o prompt do usuário mencionar expressamente essa fonte.
 
 ---
 
@@ -150,7 +150,7 @@ Reversão natural: como nada foi aplicado na falha, não há nada a desfazer. O 
 - `pw.py` — Executor principal. Ponto de entrada real (`py pw.py`).
 - `x.py` — Orquestrador de fluxos de negócio, chamado por `pw.py`.
 - `Play/pjeplay/` — Backend Playwright (superfície compat sobre Playwright).
-- `ref/`, `ORIGINAIS/`, `LEGADO.md` — Legado funcional. Referência histórica, não modelo de estilo atual.
+- `ref/`, `ORIGINAIS/`, `LEGADO.md` — Fontes legadas; não consultar salvo menção expressa no prompt.
 
 ---
 
@@ -251,13 +251,10 @@ No modo MESA:
 
 ---
 
-## Restauração pré-refatoração (quando o bloco apontar)
+## Referência histórica (quando o pedido exigir)
 
-Se o bloco `<!-- pjeplus:apply -->` descrever uma RESTAURAÇÃO de lógica pré-refatoração
-(regra primária: `.agents/rules/restauracao-pre-refac.md`):
-- Aplique exatamente a lógica do `pre-refac` **já traduzida** no bloco para o motor atual
-  (`espera.ate_*`, `Fix/espera.py`, `By` de `Play.pjeplay.locators`) — não "melhore" a lógica,
-  não recrie, não simplifique: o que funcionava volta como era.
+Em caso de dúvida ou falha, compare com `968047a^` conforme `.agents/rules/comparacao-historica.md`.
+Não consulte branches anteriores nem copie ou reaplique código automaticamente. Aplique somente o pedido atual no Playwright vigente.
 - Se o bloco contiver código Selenium, PARE e emita FALHA DE APLICAÇÃO com motivo
   `bloco contém Selenium — pedir reescrita em vocabulário Playwright`.
 - Validação mínima após aplicar: `py -m py_compile <arquivo>`.

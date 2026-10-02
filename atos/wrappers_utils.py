@@ -24,11 +24,21 @@ def _trocar_para_aba_detalhe(driver: Any, log: bool = False) -> str:
     try:
         if hasattr(driver, 'context') and hasattr(driver.context, 'pages'):
             for p in driver.context.pages:
-                if '/detalhe' in (p.url or ''):
+                if not p.is_closed() and '/detalhe' in (p.url or ''):
                     p.bring_to_front()
+                    if hasattr(driver, '_registrar_pagina'):
+                        driver._registrar_pagina(p)
                     if hasattr(driver, '_pagina'):
                         driver._pagina = p
                     return p.url
+            vivas = [p for p in driver.context.pages if not p.is_closed()]
+            if vivas:
+                p = vivas[0]
+                p.bring_to_front()
+                if hasattr(driver, '_registrar_pagina'):
+                    driver._registrar_pagina(p)
+                if hasattr(driver, '_pagina'):
+                    driver._pagina = p
 
         url_atual = getattr(driver, 'current_url', '') or ''
         if '/detalhe' in url_atual:
@@ -132,10 +142,20 @@ def _selecionar_polo(driver: Any, polo: str, log: bool = False) -> bool:
 
 def _clicar_salvar(driver: Any, log: bool = False) -> bool:
     try:
-        btn_salvar = espera.elemento(driver, '//button[.//span[contains(text(),"Salvar")]]', teto=10)
+        xpath_salvar = '//mat-dialog-container//button[contains(., "Salvar") or .//span[contains(text(),"Salvar")]]'
+        if not espera.ate_habilitar(driver, xpath_salvar, teto=10):
+            return False
+        btn_salvar = espera.elemento(driver, xpath_salvar, teto=2)
         if btn_salvar:
             safe_click_no_scroll(driver, btn_salvar)
-            aguardar_renderizacao_nativa(driver, 'simple-snack-bar', 'aparecer', 5)
+            seletores_loading = (
+                'mat-progress-spinner, mat-spinner, mat-progress-bar, '
+                '.loading-spinner, .loading-overlay, pje-dialogo-status-progresso'
+            )
+            if espera.ate_aparecer(driver, seletores_loading, teto=1.5):
+                espera.ate_sumir(driver, seletores_loading, teto=20)
+            espera.ate_sumir(driver, 'mat-dialog-container', teto=10)
+            espera.ate_sumir(driver, '.cdk-overlay-backdrop, .modal-backdrop', teto=5)
             return True
         return False
     except Exception as e:
@@ -181,17 +201,4 @@ def executar_visibilidade_sigilosos_se_necessario(driver: Any, sigilo_ativado: b
         return visibilidade_sigilosos(driver, log=True)
     except Exception as e:
         logger.warning('[VISIBILIDADE][ERRO] Excecao ao executar visibilidade_sigilosos: %s', e)
-        return False
-
-
-def preparar_campo_filtro_modelo(driver: Any, log: bool = False) -> bool:
-    try:
-        campo = espera.elemento(driver, 'input#inputFiltro', teto=10)
-        if not campo:
-            return False
-        preencher_campo(driver, 'input#inputFiltro', '', trigger_events=True, limpar=True)
-        aguardar_renderizacao_nativa(driver, 'input#inputFiltro', 'aparecer', 2)
-        return True
-    except Exception as e:
-        logger.warning('[CLS][MODELO][ERRO] Falha ao preparar campo de filtro de modelos: %s', e)
         return False

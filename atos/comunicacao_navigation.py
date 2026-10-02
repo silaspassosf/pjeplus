@@ -24,7 +24,6 @@ def abrir_minutas(driver: Any, debug: bool = False) -> bool:
         processo_id = match.group(1)
         url_minutas = url_processo_detalhe(processo_id, "comunicacoesprocessuais/minutas")
 
-        driver.switch_to.new_window('tab')
         driver.get(url_minutas)
 
         if not aguardar_renderizacao_nativa(driver, timeout=15):

@@ -565,6 +565,21 @@ def safe_click_no_scroll(driver: Any, element: Any, log: bool = False) -> bool:
         except Exception:
             return False
 
+def _sub_elemento(elemento: Any, seletor: str) -> Any:
+    """Busca sub-elemento de forma compatível sem invocar padrão regex.
+    
+    Suporta Playwright (query_selector) e Selenium (find_element).
+    Retorna None se o elemento pai é None ou se o sub-elemento não for encontrado.
+    """
+    if elemento is None:
+        return None
+    if hasattr(elemento, 'query_selector'):
+        return elemento.query_selector(seletor)
+    fn = getattr(elemento, 'find_element', None)
+    if fn is not None:
+        return fn('css selector', seletor)
+    return None
+
 
 # ============================================================
 # Public API
@@ -589,4 +604,5 @@ __all__ = [
     # click_operations
     'aguardar_e_clicar',
     'safe_click_no_scroll',
+    '_sub_elemento',
 ]

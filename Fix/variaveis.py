@@ -446,11 +446,55 @@ def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
     return sess, trt_host
 
 
+class _PlaywrightResponseAdapter:
+    """Envelopa APIResponse do Playwright para compatibilidade com requests.Response."""
+
+    def __init__(self, resp):
+        self._resp = resp
+
+    @property
+    def ok(self):
+        return getattr(self._resp, 'ok', False)
+
+    @property
+    def status_code(self):
+        return getattr(self._resp, 'status', 200)
+
+    @property
+    def headers(self):
+        return getattr(self._resp, 'headers', {})
+
+    @property
+    def text(self):
+        try:
+            fn = getattr(self._resp, 'text', None)
+            return fn() if callable(fn) else (fn or "")
+        except Exception:
+            return ""
+
+    @property
+    def content(self):
+        try:
+            fn = getattr(self._resp, 'body', None)
+            if callable(fn):
+                return fn()
+            return getattr(self._resp, 'content', b'') or b""
+        except Exception:
+            return b""
+
+    def json(self):
+        return self._resp.json()
+
+    def raise_for_status(self):
+        if not getattr(self._resp, 'ok', False):
+            raise RuntimeError(f"HTTP {getattr(self._resp, 'status', '?')}: {getattr(self._resp, 'status_text', '')}")
+
+
 class _RequestContextComoSessao:
     """Adapta o `APIRequestContext` do Playwright à fatia de `requests.Session`
     que `PjeApiClient` usa (`.get(url, params=, timeout=, headers=)` -> objeto
-    com `.ok`/`.json()`). `APIResponse` já expõe `.ok` e `.json()` com a mesma
-    forma, então nenhum método de `PjeApiClient` precisa ser duplicado.
+    com `.ok`/`.json()`). `APIResponse` é envolvido em `_PlaywrightResponseAdapter`
+    para expor também `.text`, `.content`, `.headers` e `.status_code`.
     """
 
     def __init__(self, contexto, grau: int = 1):
@@ -467,7 +511,8 @@ class _RequestContextComoSessao:
             hdrs.update(headers)
         segundos = timeout[1] if isinstance(timeout, (tuple, list)) else timeout
         timeout_ms = int(segundos * 1000) if segundos is not None else None
-        return self._ctx.get(url, params=params, headers=hdrs, timeout=timeout_ms)
+        res = self._ctx.get(url, params=params, headers=hdrs, timeout=timeout_ms)
+        return _PlaywrightResponseAdapter(res)
 
 
 def cliente_para(driver, grau: int = 1) -> PjeApiClient:
@@ -924,6 +969,17 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
                 continue
 
             ctype = (r.headers.get('Content-Type') or '').lower()
+
+            raw_content = getattr(r, 'content', b'') or b''
+            if raw_content and (raw_content.startswith(b'%PDF') or 'pdf' in ctype):
+                try:
+                    from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
+                    texto_pdf = _extrair_texto_pdf_bytes(raw_content, log=False)
+                    if texto_pdf and len(texto_pdf.strip()) >= 10:
+                        return texto_pdf.strip()
+                except Exception:
+                    pass
+
             text_body = None
             try:
                 text_body = r.text

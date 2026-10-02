@@ -1,32 +1,52 @@
 # f.py -- Harness de teste isolado: Multi-testes
 # Uso: py f.py [teste] [id_processo]
 #   testes disponiveis:
-#     argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem,
+#     argos, sisb, pec, pesquisa, ordem, pecord, pecidpj, mddid, anex, triagem,
 #     probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, carta_completa, todos
 #   Exemplos:
 #     py f.py argos            → teste Argos no processo padrão (7508281)
 #     py f.py argos 7449746    → teste Argos no processo 7449746
 #     py f.py probe 7449746 465383360  → probe documento 465383360 do processo 7449746
+#     py f.py pecidpj          → pec_idpj (Intimação defesa IDPJ)
+#     py f.py mddid            → ação real de 'xs mddid' (pec_mddsent + pec_editalsent)
 # ============================================================
 #
 # ARQUITETURA: este harness usa exactamente os mesmos entrypoints que pw.py → x.py.
+#   Bootstrap: pjeplay.iniciar(nativo=True) — MESMO motor de produção (Playwright)
 #   Driver:    Fix.core.criar_driver_vt / criar_driver_pc
 #   Finalizar: Fix.core.finalizar_driver
 #   Login:     Fix.utils.login_manual (interativo) ou login_cpf (CPF salvo)
 #   Navegação: driver.get(url) + espera.ate_js(driver, "document.readyState==='complete'", teto=15)
 #   Espera:    Fix.espera — nunca time.sleep()
+#   Log:       console + logs_execucao/f_<timestamp>.log (DEBUG nos módulos de negócio)
 # ============================================================
 
 import json
 import logging
+import os
 import sys
 from contextlib import contextmanager
 import time
 
+# ── Bootstrap Playwright (idêntico a pw.py) ──────────────────────────────────
+# DEVE vir ANTES de qualquer import de Fix/*: pjeplay.iniciar() instala o
+# backend Playwright e aplica os helpers nativos (auto-wait). Sem isto o
+# harness não roda no mesmo motor de produção.
+AQUI = os.path.dirname(os.path.abspath(__file__))
+PLAY = os.path.join(AQUI, "play")
+for _caminho in (AQUI, PLAY):
+    if _caminho not in sys.path:
+        sys.path.insert(0, _caminho)
+
+import pjeplay  # noqa: E402
+
+pjeplay.iniciar(raiz_projeto=AQUI, nativo=True)
+os.chdir(AQUI)
+
 # Entrypoints reais (mesmo que x.py usa)
-from Fix.core import criar_driver_vt, criar_driver_pc, finalizar_driver
-from Fix.utils import login_manual, login_cpf, navegar_para_tela
-from Fix import espera
+from Fix.core import criar_driver_vt, criar_driver_pc, finalizar_driver  # noqa: E402
+from Fix.utils import login_manual, login_cpf, navegar_para_tela  # noqa: E402
+from Fix import espera  # noqa: E402
 
 # ============================================================
 # URLs de processos para testes (valores padrão)
@@ -76,18 +96,41 @@ class _DestaquFormatter(logging.Formatter):
 
 
 def configurar_logging_debug():
+    """Logging profundo: console + arquivo, DEBUG nos módulos de negócio.
+
+    Espelha o sink de arquivo de x.py (logs_execucao/) para que a falha possa
+    ser rastreada linha a linha depois da execução.
+    """
     handler = logging.StreamHandler()
     handler.setFormatter(_DestaquFormatter())
     root = logging.getLogger()
-    root.setLevel(logging.INFO)
+    root.setLevel(logging.DEBUG)
     if not root.handlers:
         root.addHandler(handler)
     else:
         for h in root.handlers:
             h.setFormatter(_DestaquFormatter())
 
+    # Sink de arquivo (um por execução do harness) — idempotente
+    global _LOG_FILE_CONFIGURADO
+    if not _LOG_FILE_CONFIGURADO:
+        try:
+            log_dir = os.path.join(AQUI, 'logs_execucao')
+            os.makedirs(log_dir, exist_ok=True)
+            marca = time.strftime('%Y%m%d_%H%M%S')
+            arq = os.path.join(log_dir, f'f_{marca}.log')
+            fh = logging.FileHandler(arq, encoding='utf-8')
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(logging.Formatter(
+                '[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s', datefmt='%H:%M:%S'))
+            root.addHandler(fh)
+            _LOG_FILE_CONFIGURADO = True
+            LOGGER.info('[LOG] arquivo de log: %s', arq)
+        except Exception as e:
+            LOGGER.warning('[LOG] nao foi possivel criar arquivo de log: %s', e)
+
     # Debug nos módulos do projeto
-    for nome in ('Fix', 'PEC', 'SISB', 'atos', 'Mandado', 'Prazo'):
+    for nome in ('Fix', 'PEC', 'SISB', 'atos', 'Mandado', 'Prazo', 'bianca', 'core'):
         logging.getLogger(nome).setLevel(logging.DEBUG)
 
     # Silenciar módulos ruidosos (Playwright, urllib3)
@@ -96,9 +139,43 @@ def configurar_logging_debug():
         'playwright', 'asyncio',
     ):
         logging.getLogger(nome).setLevel(logging.WARNING)
+        
+    # Ativar o profiler global para testes
+    _ativar_profiler_tempo_global()
 
 
 LOGGER = logging.getLogger('f')
+_LOG_FILE_CONFIGURADO = False
+
+_PROFILER_ATIVO = False
+_PROFILE_CALLS = {}
+
+def _profiler_tracer(frame, event, arg):
+    """Tracer global via sys.setprofile para cronometrar todas as funções dos módulos do PJePlus."""
+    if event == 'call':
+        module = frame.f_globals.get('__name__') or ''
+        # Monitora apenas módulos do próprio projeto, ignorando internas e terceiros
+        if module and (module.startswith(('atos.', 'Fix.', 'PEC.', 'Mandado.', 'Prazo.', 'bianca.')) or module == 'core'):
+            _PROFILE_CALLS[frame] = time.perf_counter()
+    elif event == 'return' or event == 'exception':
+        if frame in _PROFILE_CALLS:
+            t0 = _PROFILE_CALLS.pop(frame)
+            tf = time.perf_counter() - t0
+            # Evitar poluição: só loga funções que demoram mais de 100ms
+            if tf >= 0.1:
+                module = frame.f_globals.get('__name__', '')
+                func = frame.f_code.co_name
+                if not func.startswith('<'):
+                    LOGGER.debug(f"[PROFILER GLOBAL] {module}.{func} levou {tf:.3f}s")
+    return _profiler_tracer
+
+def _ativar_profiler_tempo_global():
+    """Ativa o rastreador global do Python para cronometrar a execução de todas as funções."""
+    global _PROFILER_ATIVO
+    if _PROFILER_ATIVO: return
+    _PROFILER_ATIVO = True
+    sys.setprofile(_profiler_tracer)
+    LOGGER.info("[PROFILER GLOBAL] sys.setprofile ativado! Monitorando lentidão em todas as chamadas.")
 
 
 @contextmanager
@@ -528,6 +605,136 @@ def teste_pec_ord(id_processo=None):
 
 
 # ============================================================
+# TESTE 6b: PEC — pec_idpj (Intimação defesa IDPJ, xidpj c, prazo=17)
+# ============================================================
+
+def teste_pec_idpj(id_processo=None):
+    """
+    Teste isolado do wrapper pec_idpj — Intimação para manifestação sobre IDPJ:
+        - pec_idpj(driver) — modelo xidpj c, prazo=17, destinatarios=polo_passivo
+        - movimentar_inteligente(driver, 'Aguardando Prazo') — move o processo
+
+    Chama a função real de atos.wrappers_pec (sem lógica própria).
+    """
+    from atos.wrappers_pec import pec_idpj
+    from atos.movimentos_fluxo import movimentar_inteligente
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_PEC, id_processo)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[PEC_IDPJ_TEST] Teste isolado: pec_idpj (xidpj c, prazo=17)')
+    LOGGER.info('[PEC_IDPJ_TEST] Processo: %s', url)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[PEC_IDPJ_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_manual(driver):
+                LOGGER.error('[PEC_IDPJ_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[PEC_IDPJ_TEST] Navegando para %s', url)
+            _navegar(driver, url)
+
+        with etapa('pec_idpj'):
+            LOGGER.info('[PEC_IDPJ_TEST] Executando pec_idpj (modelo xidpj c, prazo=17)...')
+            ok = pec_idpj(driver, debug=True)
+            LOGGER.info('[PEC_IDPJ_TEST] pec_idpj -> %s', 'OK' if ok else 'FALHA')
+
+        with etapa('mov_int_aguardando_prazo'):
+            LOGGER.info('[PEC_IDPJ_TEST] Movendo para Aguardando Prazo...')
+            ok = movimentar_inteligente(driver, 'Aguardando Prazo')
+            LOGGER.info('[PEC_IDPJ_TEST] movimentar_inteligente -> %s', 'OK' if ok else 'FALHA')
+
+        LOGGER.info('[PEC_IDPJ_TEST] concluido com sucesso')
+
+    except Exception:
+        LOGGER.exception('[PEC_IDPJ_TEST] Erro nao tratado')
+    finally:
+        LOGGER.info('[PEC_IDPJ_TEST] encerrando driver')
+        if driver is not None:
+            try:
+                finalizar_driver(driver)
+            except Exception:
+                pass
+
+
+# ============================================================
+# TESTE 6c: PEC — xs mddid (pec_mddsent + pec_editalsent)
+# ============================================================
+
+class _AtvMinima:
+    """Atividade mínima compatível com a assinatura (driver, atv) do registry PEC."""
+    def __init__(self, numero_processo='', observacao='xs mddid'):
+        self.numero_processo = numero_processo
+        self.observacao = observacao
+        self.status = ''
+        self.data_prazo = ''
+        self.tipo_gigs = ''
+        self.id_processo = None
+
+
+def teste_mddid(id_processo=None):
+    """
+    Teste isolado da ação real da observação 'xs mddid':
+        PEC.regras_execucao._mddid(driver, atv)
+        → pec_mddsent(driver) + barreira aguardar_renderizacao_nativa + pec_editalsent(driver)
+
+    Chama a MESMA função registrada no RuleRegistry (sem lógica própria).
+    """
+    from PEC.regras_execucao import _mddid
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_PEC, id_processo)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[MDDID_TEST] Teste isolado: xs mddid (pec_mddsent + pec_editalsent)')
+    LOGGER.info('[MDDID_TEST] Processo: %s', url)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[MDDID_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not login_manual(driver):
+                LOGGER.error('[MDDID_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[MDDID_TEST] Navegando para %s', url)
+            _navegar(driver, url)
+
+        with etapa('mddid'):
+            atv = _AtvMinima(numero_processo=pid, observacao='xs mddid')
+            LOGGER.info('[MDDID_TEST] Executando _mddid (pec_mddsent + pec_editalsent)...')
+            ok = _mddid(driver, atv)
+            LOGGER.info('[MDDID_TEST] _mddid -> %s', 'OK' if ok else 'FALHA')
+
+        LOGGER.info('[MDDID_TEST] concluido com sucesso')
+
+    except Exception:
+        LOGGER.exception('[MDDID_TEST] Erro nao tratado')
+    finally:
+        LOGGER.info('[MDDID_TEST] encerrando driver')
+        if driver is not None:
+            try:
+                finalizar_driver(driver)
+            except Exception:
+                pass
+
+
+# ============================================================
 # TESTE 7: Anex Carta — juntada completa com clipboard
 # ============================================================
 
@@ -637,7 +844,7 @@ def teste_triagem_peticao(id_processo=None):
         with etapa('navegar'):
             _navegar(driver, url)
             try:
-                espera.ate_seletor(driver, 'pje-cabecalho-processo,pje-timeline', teto=15)
+                espera.ate_aparecer(driver, 'pje-cabecalho-processo,pje-timeline', teto=15)
             except Exception:
                 pass
 
@@ -716,7 +923,7 @@ def teste_triagem_peticao(id_processo=None):
 
         with etapa('aguardar_gigs'):
             try:
-                espera.ate_seletor(driver, 'pje-gigs-lista-atividades button', teto=8)
+                espera.ate_aparecer(driver, 'pje-gigs-lista-atividades button', teto=8)
             except Exception:
                 pass
 
@@ -1465,6 +1672,10 @@ if __name__ == '__main__':
         teste_sisbajud_ordem(id_p)
     elif teste in ('pecord', '6'):
         teste_pec_ord(id_p)
+    elif teste in ('pecidpj', 'idpj', '6b'):
+        teste_pec_idpj(id_p)
+    elif teste in ('mddid', 'xs_mddid', '6c'):
+        teste_mddid(id_p)
     elif teste in ('anex', 'anex_carta', 'juntada', '7'):
         teste_anex_carta(id_p)
     elif teste in ('triagem', 'bianca', '8'):
@@ -1501,6 +1712,10 @@ if __name__ == '__main__':
         teste_sisbajud_ordem(id_p)
         print('\n--- TESTE 6: PEC ORD ---')
         teste_pec_ord(id_p)
+        print('\n--- TESTE 6b: PEC IDPJ ---')
+        teste_pec_idpj(id_p)
+        print('\n--- TESTE 6c: XS MDDID ---')
+        teste_mddid(id_p)
         print('\n--- TESTE 7: ANEX CARTA ---')
         teste_anex_carta(id_p)
         print('\n--- TESTE 8: TRIAGEM ---')
@@ -1513,6 +1728,7 @@ if __name__ == '__main__':
         teste_pec_excluiargos(id_p)
     else:
         print(f'Teste desconhecido: {teste}')
-        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, anex, triagem,')
-        print('             probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, carta, todos')
+        print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, pecidpj, mddid,')
+        print('             anex, triagem, probe, tdbg, dom, bndt, p2b, excluiargos,')
+        print('             sisbdir, carta, todos')
         print('Uso: py f.py <teste> [id_processo]')

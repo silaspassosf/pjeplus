@@ -217,6 +217,16 @@ class PWDriver:
         if self._pagina is None or self._pagina.is_closed():
             vivas = [p for p in self._handles.values() if not p.is_closed()]
             if not vivas:
+                if self._context:
+                    vivas_ctx = [p for p in self._context.pages if not p.is_closed()]
+                    if vivas_ctx:
+                        self._registrar_pagina(vivas_ctx[0])
+                        self._pagina = vivas_ctx[0]
+                        return self._pagina
+                    nova = self._context.new_page()
+                    self._registrar_pagina(nova)
+                    self._pagina = nova
+                    return self._pagina
                 raise NoSuchWindowException(f"Nenhuma janela aberta (abas registradas: {len(self._handles)})")
             self._pagina = vivas[0]
         return self._pagina

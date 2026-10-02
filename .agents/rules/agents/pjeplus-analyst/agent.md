@@ -46,11 +46,10 @@ Navegador alvo: Mozilla Firefox exclusivamente. Motor: `py pw.py` (Playwright na
 > devem ser aplicados OBRIGATORIAMENTE no branch `main` e respeitar estritamente o `idx.md`.
 > **REGRA DE OURO:** apenas Playwright nativo (`espera.*`, `_executar_js`, `Fix.core.safe_click*`), NUNCA Selenium.
 
-> **REGRA PRIMÁRIA DE DIAGNÓSTICO/CORREÇÃO — leia `.agents/rules/restauracao-pre-refac.md`:**
-> **Se um fluxo/ato/seletor parou de funcionar, a lógica que funcionava está na tag `pre-refac`**
-> (`git show pre-refac:CAMINHO/ARQUIVO.py`) ou em `main`. Antes de propor qualquer patch, RESTAURE do estado
-> anterior; restaure a LÓGICA preservando a arquitetura Playwright (`espera.ate_*`, `Fix/espera.py`,
-> locators nativos). **Nunca reintroduza Selenium** (`import selenium`,
+> **REGRA DE DIAGNÓSTICO — leia `.agents/rules/comparacao-historica.md`:**
+> Trabalhe apenas em `main`; não consulte branches anteriores. Em caso de dúvida, falha ou regressão,
+> compare com `968047a^` (`git show 968047a^:CAMINHO/ARQUIVO.py`). A comparação é diagnóstica, não uma ordem
+> para restaurar/copiar código. Corrija somente o pedido atual seguindo o Playwright (`espera.ate_*`, `Fix/espera.py`, locators nativos). **Nunca reintroduza Selenium** (`import selenium`,
 > `find_element(s)`, `WebDriverWait`, `expected_conditions`, `time.sleep`). Não recrie do zero o que já existia:
 > restaure → adapte para Playwright → valide (`py -m py_compile`).
 
@@ -83,8 +82,7 @@ Navegador alvo: Mozilla Firefox exclusivamente. Motor: `py pw.py` (Playwright na
 | `SISB/standards.py` | Modelo de dataclass a replicar em outros módulos |
 | `x.py` e variações | Orquestrador final — alvo de cloud |
 | `extensions/` | Extensões Firefox (maisPJe, AVJT) — **nunca modificar** |
-| `legado.md` | Legado consolidado — consultar para entender a **lógica/intenção** de um fluxo; jamais copiar código; a implementação resultante deve seguir as APIs e padrões de `idx.md` |
-| `ref/`, `ORIGINAIS/` | Legado funcional — consultar em regressão, nunca base primária |
+| `legado.md`, `LEGADO.md`, `gigs-plugin.js`, `ref/`, `ORIGINAIS/` | Fontes legadas — consultar somente quando o prompt mencionar expressamente a fonte |
 | `aprendizado_seletores.json` | Cache de seletores aprendidos pelo SmartFinder |
 | `monitor_aprendizado.log` | Log exclusivo de falhas/acertos de seletores |
 
@@ -199,11 +197,7 @@ Antes de gerar qualquer código, execute mentalmente estas etapas:
 2. **Identificar o módulo afetado** usando a topologia acima e o `idx.md`.
 3. **Localizar o arquivo exato** — se não tiver certeza, perguntar ao usuário antes.
 4. **Ler o bloco completo antes de propor:** qualquer patch que modifique uma função existente exige `read/file` do bloco completo dessa função. Sem exceção, mesmo que o trecho pareça óbvio.
-4a. **Regra de uso do legado (`legado.md` / `ref/` / `ORIGINAIS/`):**
-    - **Consultar** quando o comportamento esperado não está claro ou o fluxo regrediu.
-    - **Extrair apenas a lógica e a intenção** (ex.: qual elemento clicar, qual sequência de passos).
-    - **Nunca copiar código do legado** — toda implementação resultante deve usar as APIs definidas em `idx.md` (ex.: `click_headless_safe` em vez de `execute_script` direto, `aguardar_renderizacao_nativa` em vez de `time.sleep`, seletores via `Fix/headless_helpers.py` em vez de `WebDriverWait` hardcoded).
-    - **Teste obrigatório após adaptação:** `py -m py_compile arquivo.py` deve passar antes de qualquer entrega.
+4a. **Regra temporal e de fontes:** em dúvida, falha ou regressão, compare `main` com `968047a^`, sem consultar branches anteriores e sem restaurar/copiar código automaticamente. Se indisponível, relate a lacuna. Consulte `legado.md`, `LEGADO.md`, `gigs-plugin.js`, `ref/` ou `ORIGINAIS/` somente se o prompt mencionar expressamente aquela fonte. Mantenha a implementação compatível com `idx.md` e valide com `py -m py_compile arquivo.py`.
 4b. **Regra de coesão com as APIs Fix (obrigatório ao criar ou editar qualquer interação com o navegador):**
     - Antes de escrever qualquer linha de código que envolva clicar, esperar ou encontrar elemento, consultar a seção **6. API de Interação Obrigatória** do `idx.md`.
     - Proibido usar `WebDriverWait`, `ActionChains`, `time.sleep` ou `.click()` direto nos módulos de negócio.

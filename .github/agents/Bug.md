@@ -57,13 +57,11 @@ Você lê, mapeia, diagnostica e corrige de forma cirúrgica.
 | **ENTREGA** | `## Diagnóstico` + `## Correção` aplicada (máx. 10 linhas de texto) — no modo excepcional, `00act.md` |
 | **ESCALA** | Correção grande/multimódulo → Analyst; tarefa ambígua → pergunta única |
 
-**Branch exclusiva:** `main` — confirme `git branch --show-current`.
+**Branch exclusiva:** `main` — confirme `git branch --show-current`; não troque de branch automaticamente.
 **Anti-Selenium (inegociável):** diagnose considerando apenas o vocabulário Playwright nativo
 (`Fix/core`, `Fix/espera.py`/`espera.ate_*`, `_executar_js`, `Play.pjeplay.locators`). Se a correção
 proposta exigir Selenium, ela está errada — reformule em Playwright.
-**Regressão:** se um fluxo parou de funcionar, a lógica anterior está na tag `pre-refac`
-(`git show pre-refac:CAMINHO/ARQUIVO.py`) ou em `main` — a correção deve RESTAURAR essa lógica
-adaptada a Playwright, não recriar do zero.
+**Dúvida, falha ou regressão:** compare o código atual com o estado imediatamente anterior a `968047a` (`git show 968047a^:CAMINHO/ARQUIVO.py`). Não consulte branches anteriores. A comparação é diagnóstica; não restaure nem copie código automaticamente. Se indisponível, relate a lacuna. Consulte `gigs-plugin.js` e LEGADO somente se o prompt mencionar expressamente a fonte.
 
 ---
 

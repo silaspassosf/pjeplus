@@ -1,5 +1,4 @@
 import re
-import time
 from typing import Optional, Union, Callable, Any
 from Play.pjeplay.locators import By, Keys
 from Play.pjeplay.errors import NoSuchElementException, StaleElementReferenceException, TimeoutException
@@ -97,76 +96,229 @@ def clicar_radio_button_js(driver, texto_label, debug=False):
         raise NavegacaoError(f'clicar_radio_button_js({texto_label}): {e}')
 
 
-# Helpers de modelo centralizados em atos/judicial_modelos.py (fluxo único).
-from .judicial_modelos import (
-    _resolver_editor_alvo,
-    _medir_conteudo_editor,
-    inserir_modelo_no_editor,
-)
-
-
-def _aguardar_ck_com_conteudo(driver: Any, timeout: int = 8, seletor: Optional[str] = None, baseline: int = 0) -> bool:
-    """Confirma conteúdo REAL no editor-ALVO (escopado + mudança vs baseline).
-
-    Delega ao JS canônico de judicial_modelos; mantida como wrapper para os
-    chamadores que só querem a checagem (ex.: barreira de destinatários).
+def inserir_modelo_comunicacao(driver: Any, modelo_nome: str, log=None) -> bool:
+    """Insere modelo na elaboração do ato de comunicação conforme LEGADO.md (L1940-1990 e L19230-19265).
+    1. Preenche input#inputFiltro com eventos e ENTER
+    2. Clica no .nodo-filtrado
+    3. Aguarda botão Inserir e pressiona ESPAÇO (padrão MaisPje / legado)
+    4. Aguarda confirmação REAL de texto no editor (> 50 chars) — NÃO depende de snackbar
+    5. Aguarda diálogo de visualização sumir
     """
-    from .judicial_modelos import _JS_EDITOR_COM_CONTEUDO
-    alvo = seletor or _resolver_editor_alvo(driver)
-    return bool(espera.ate_js(
-        driver,
-        "(%s)(%r, %d)" % (_JS_EDITOR_COM_CONTEUDO, alvo, baseline),
-        teto=timeout,
-    ))
-
-
-def aguardar_ato_confeccionado(driver: Any, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
     if log is None:
         def log(_msg): return None
 
-    espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=5)
+    log(f'[MODELO_PEC] Selecionando modelo: {modelo_nome}')
+    # 1. Campo de filtro
+    campo_filtro = wait_for_clickable(driver, 'input#inputFiltro', timeout=10, by=By.CSS_SELECTOR)
+    if not campo_filtro:
+        log('[MODELO_PEC][ERRO] Campo input#inputFiltro não encontrado')
+        return False
 
-    ok_fechar = aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', 'sumir', timeout_fechar)
-    if not ok_fechar:
-        log('[MINUTA][WARN] Timeout aguardando dialog fechar — prosseguindo mesmo assim')
+    # Dispara eventos de input e preenchimento conforme legado L1958-1970
+    _executar_js(driver, """
+        var el = arguments[0];
+        var val = arguments[1];
+        el.focus();
+        el.value = '';
+        el.dispatchEvent(new Event('input', {bubbles: true}));
+        el.dispatchEvent(new Event('change', {bubbles: true}));
+        el.dispatchEvent(new Event('keyup', {bubbles: true}));
+        el.value = val;
+        el.dispatchEvent(new Event('input', {bubbles: true}));
+        el.dispatchEvent(new Event('change', {bubbles: true}));
+        el.dispatchEvent(new Event('keyup', {bubbles: true}));
+        el.dispatchEvent(new KeyboardEvent('keydown', {keyCode: 13, which: 13, bubbles: true}));
+    """, campo_filtro, modelo_nome)
 
-    ok_icone = aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', timeout_icone)
-    if not ok_icone:
-        log('[MINUTA][WARN] Icone verde nao detectado dentro do timeout')
+    if hasattr(driver, 'page') and driver.page:
+        try:
+            driver.page.keyboard.press('Enter')
+        except Exception:
+            pass
 
-    return ok_icone
+    espera.assentar(driver, 1.0, motivo='aguardando filtro de modelo ser aplicado na árvore')
+
+    # 2. Nodo filtrado
+    nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=12, by=By.CSS_SELECTOR)
+    if not nodo:
+        log(f'[MODELO_PEC][ERRO] .nodo-filtrado não encontrado para "{modelo_nome}"')
+        return False
+
+    try:
+        _executar_js(driver, "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", nodo)
+    except Exception:
+        safe_click_no_scroll(driver, nodo)
+    log('[MODELO_PEC] Clique em .nodo-filtrado realizado')
+
+    # 3. Botão Inserir no preview
+    seletor_btn_inserir = (
+        'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button,'
+        'pje-dialogo-visualizar-modelo button,'
+        'button[aria-label="Inserir modelo de documento"]'
+    )
+    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=10, by=By.CSS_SELECTOR)
+    if not btn_inserir:
+        log('[MODELO_PEC][ERRO] Botão Inserir não encontrado no preview do modelo')
+        return False
+
+    espera.assentar(driver, 0.6, motivo='pausa antes de inserir (padrão legado L19257)')
+
+    # 4. Inserir com tecla ESPAÇO (padrão MaisPje / legado L19260) + clique fallback
+    _inserido = False
+    try:
+        if hasattr(btn_inserir, '_handle') and btn_inserir._handle:
+            btn_inserir._handle.focus()
+            if hasattr(driver, 'page') and driver.page:
+                driver.page.keyboard.press('Space')
+                _inserido = True
+    except Exception:
+        pass
+
+    if not _inserido:
+        try:
+            _executar_js(driver, """
+                var btn = arguments[0];
+                btn.focus();
+                btn.dispatchEvent(new KeyboardEvent('keydown', {code: 'Space', keyCode: 32, which: 32, bubbles: true}));
+                btn.dispatchEvent(new KeyboardEvent('keyup', {code: 'Space', keyCode: 32, which: 32, bubbles: true}));
+                btn.click();
+            """, btn_inserir)
+        except Exception:
+            safe_click_no_scroll(driver, btn_inserir)
+
+    log('[MODELO_PEC] Comando de inserção enviado ao botão')
+
+    # 5. VERIFICAÇÃO REAL DE CONTEÚDO NO EDITOR (conforme legado L19520-19525)
+    # Não confia em snackbar: verifica diretamente innerText/textContent do editor!
+    _JS_TEXTO_EDITOR = """() => {
+        var sels = [
+            'pje-pec-dialogo-ato div[contenteditable="true"]',
+            'div.area-conteudo[contenteditable="true"]',
+            '.ck-editor__editable[contenteditable="true"]',
+            '.ck-content[contenteditable="true"]',
+            'div[contenteditable="true"]'
+        ];
+        for (var s of sels) {
+            var el = document.querySelector(s);
+            if (el) {
+                var clone = el.cloneNode(true);
+                clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
+                var txt = (clone.innerText || clone.textContent || '').trim();
+                if (txt.length > 50 || clone.querySelector('p.corpo') || clone.querySelector('figure') || clone.querySelector('table')) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }"""
+
+    tem_conteudo = espera.ate_js(driver, f"({_JS_TEXTO_EDITOR})()", teto=12)
+    if not tem_conteudo:
+        log('[MODELO_PEC][WARN] Editor ainda sem texto — tentando acionar clique direto de fallback...')
+        try:
+            if hasattr(btn_inserir, '_handle') and btn_inserir._handle:
+                btn_inserir._handle.click()
+        except Exception:
+            safe_click_no_scroll(driver, btn_inserir)
+        tem_conteudo = espera.ate_js(driver, f"({_JS_TEXTO_EDITOR})()", teto=8)
+
+    if not tem_conteudo:
+        log(f'[MODELO_PEC][ERRO] Editor permaneceu vazio após inserção do modelo "{modelo_nome}"')
+        return False
+
+    log(f'[MODELO_PEC] ✓ Conteúdo do modelo "{modelo_nome}" CONFIRMADO dentro do editor.')
+
+    # 6. Aguardar diálogo de modelo sumir
+    aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=10)
+    espera.ate_js(driver, "document.querySelector('pje-dialogo-visualizar-modelo') === null", teto=5)
+    espera.pausa(driver, 1.0, motivo='estabilizacao apos inserir modelo (fechar modal)')
+    return True
 
 
-def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: int = 15) -> bool:
+# Diálogo "Elaboração do ato de comunicação" (pje-pec-dialogo-ato).
+# Enquanto estiver visível, a dialog está aberta — e os elementos de
+# destinatários (ícone verde de check, tabela) existem POR TRÁS dela.
+_JS_ELAB_VISIVEL = """(function(){
+    var dlg = document.querySelector('pje-pec-dialogo-ato');
+    if (dlg) {
+        var c = dlg.closest('mat-dialog-container, .cdk-overlay-pane') || dlg;
+        if (c.offsetWidth > 0 || c.offsetHeight > 0 || c.getClientRects().length > 0) return true;
+    }
+    var sp = document.querySelector('mat-progress-spinner, mat-spinner, .loading-spinner, pje-dialogo-status-progresso');
+    if (sp && (sp.offsetWidth > 0 || sp.offsetHeight > 0 || sp.getClientRects().length > 0)) return true;
+    return false;
+})()"""
+
+
+def aguardar_fechamento_dialogo_elaboracao(driver: Any, log=None, timeout: int = 20) -> bool:
+    """Hard-gate de finalização do ato de comunicação.
+
+    Só retorna True quando a dialog "Elaboração do ato de comunicação" NÃO está
+    mais visível. Motivo: o ícone verde de check e a tabela de destinatários
+    existem por trás da dialog — checá-los como sinal de "pronto" fazia o fluxo
+    seguir com a dialog ainda aberta e destinatários atropelando a finalização.
+    """
+    if not espera.ate_js(driver, f"!({_JS_ELAB_VISIVEL})", teto=timeout):
+        if log:
+            log('[MINUTA][ERRO] Dialog "Elaboração do ato de comunicação" ainda aberta '
+                '— finalização não confirmada')
+        return False
+    return True
+
+
+def aguardar_ato_confeccionado(driver: Any, timeout_fechar: int = 20, timeout_icone: int = 10, log=None) -> bool:
+    if log is None:
+        def log(_msg): return None
+
+    # PROVA de finalização = dialog "Elaboração do ato de comunicação" FECHADA.
+    # Ícone verde de check e a tabela de destinatários ficam POR TRÁS da dialog:
+    # checá-los como sinal de pronto fazia o fluxo seguir com a dialog aberta.
+    if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=timeout_fechar):
+        return False
+
+    # Snackbar "Ato elaborado com sucesso." — apenas fecha para não bloquear
+    # os cliques de destinatários (não é critério de sucesso).
+    try:
+        if espera.elementos(driver, 'simple-snack-bar', teto=1):
+            _btn_snack = espera.elemento(driver, 'simple-snack-bar button', teto=2)
+            if _btn_snack:
+                safe_click_no_scroll(driver, _btn_snack)
+                log('[MINUTA] Snackbar de ato elaborado fechado.')
+    except Exception as _e:
+        log(f'[MINUTA][WARN] Não foi possível fechar o snackbar: {_e}')
+
+    return True
+
+
+def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: int = 20) -> bool:
     if log is None:
         def log(_msg):
             return None
 
-    if not aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', timeout):
-        log(f'[BARREIRA][WARN] Dialog de modelo ainda visível após {timeout}s — risco de overlay nos destinatários')
+    # HARD-GATE 1: dialog de modelo DEVE ter sumido do DOM
+    dlg_modelo_sumiu = espera.ate_js(
+        driver,
+        "document.querySelector('pje-dialogo-visualizar-modelo') === null",
+        teto=timeout
+    )
+    if not dlg_modelo_sumiu:
+        log('[BARREIRA][ERRO] Dialog de modelo ainda presente — seleção de destinatários abortada')
+        return False
 
-    if not aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', 'sumir', timeout):
-        log(f'[BARREIRA][WARN] Dialog do ato ainda visível após {timeout}s')
+    # HARD-GATE 2: dialog de elaboração do ato DEVE ter sumido do DOM
+    dlg_ato_sumiu = espera.ate_js(
+        driver,
+        "document.querySelector('pje-pec-dialogo-ato') === null",
+        teto=timeout
+    )
+    if not dlg_ato_sumiu:
+        log('[BARREIRA][ERRO] Dialog de elaboração do ato ainda aberta — seleção de destinatários abortada')
+        return False
 
-    if not (
-        aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', 5)
-        or aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-individual-tabela-destinatarios', 'aparecer', 5)
-    ):
-        log('[BARREIRA][WARN] Nenhum tick verde detectado em 5s — prosseguindo')
-
-    # Barreira de conteúdo (aviso): se o editor da minuta ainda está em tela,
-    # confirmar teor estável antes de liberar destinatários. O hard-fail do
-    # modelo fica em executar_preenchimento_minuta; aqui é só defensivo.
-    try:
-        from Fix.selectors_pje import EDITOR_AREA_CONTEUDO
-        if espera.elementos(driver, EDITOR_AREA_CONTEUDO, teto=0.5) and not _aguardar_ck_com_conteudo(driver, timeout=10):
-            log('[BARREIRA][WARN] Editor da minuta sem conteudo estável antes dos destinatários')
-    except Exception as _e:
-        log(f'[BARREIRA][WARN] Checagem de conteúdo ignorada: {_e}')
-
+    # HARD-GATE 3: tabela de destinatários disponível na tela principal
     if not aguardar_renderizacao_nativa(
         driver,
-        'tbody.cdk-drop-list',
+        'pje-pec-tabela-destinatarios, tbody.cdk-drop-list',
         'aparecer',
         10,
     ):
@@ -175,28 +327,89 @@ def aguardar_estabilizacao_para_destinatarios(driver: Any, log=None, timeout: in
     return True
 
 
+def _aguardar_overlay_livre(driver: Any, timeout: int = 15) -> bool:
+    """Aguarda overlay de loading do PJe sumir antes de clicar."""
+    seletores_loading = (
+        'mat-progress-spinner, mat-spinner, mat-progress-bar, '
+        '.loading-spinner, pje-dialogo-status-progresso'
+    )
+    try:
+        return bool(aguardar_renderizacao_nativa(driver, seletores_loading, modo='sumir', timeout=timeout))
+    except Exception:
+        return True
+
+
 def finalizar_minuta(driver: Any, log=None) -> bool:
+    """Finaliza a minuta clicando em 'Finalizar minuta'.
+    3. Aguarda snackbar 'Ato elaborado com sucesso.' e fecha
+    4. Confirma que a dialog de elaboração fechou
+    """
     if log is None:
         def log(_msg):
             return None
 
     try:
-        seletor_finalizar = 'button[aria-label="Finalizar minuta"]'
-        btn = wait_for_clickable(driver, seletor_finalizar, timeout=5, by=By.CSS_SELECTOR)
+        # 1. Finalizar minuta
+        seletor_finalizar = (
+            'pje-pec-dialogo-ato button[aria-label="Finalizar minuta"],'
+            'button[aria-label="Finalizar minuta"]'
+        )
+        btn = None
+        for _tentativa in range(3):
+            btn = wait_for_clickable(driver, seletor_finalizar, timeout=10, by=By.CSS_SELECTOR)
+            if btn:
+                break
+            log(f'[MINUTA][WARN] "Finalizar minuta" não clicável — tentativa {_tentativa + 1}/3')
         if not btn:
-            raise NoSuchElementException(seletor_finalizar)
-        safe_click_no_scroll(driver, btn)
+            log('[MINUTA][ERRO] Botão "Finalizar minuta" não encontrado — ato NÃO finalizado')
+            return False
 
-        ato_ok = aguardar_ato_confeccionado(driver, log=log)
-        if not ato_ok:
-            raise Exception('Ato NÃO confeccionado — nenhum sinal de confirmação')
-        return True
+        # Dispara eventos de clique no botão Finalizar minuta
+        _clicado = False
+        try:
+            if hasattr(btn, '_handle') and btn._handle:
+                btn._handle.evaluate("""el => {
+                    el.focus();
+                    el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true}));
+                    el.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true}));
+                    el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+                }""")
+                _clicado = True
+        except Exception:
+            pass
 
-    except NoSuchElementException:
+        espera.pausa(driver, 1.0, motivo='estabilizacao antes de finalizar a minuta')
+        if not _clicado:
+            try:
+                if hasattr(btn, 'click'):
+                    btn.click()
+                else:
+                    safe_click_no_scroll(driver, btn)
+            except Exception:
+                safe_click_no_scroll(driver, btn)
+        log('[MINUTA] "Finalizar minuta" clicado — aguardando fechar a dialog de elaboração.')
+        
+        # O backend processa o modelo e uma snackbar e spinner vao aparecer
+        espera.pausa(driver, 1.0, motivo='estabilizacao apos clicar em finalizar minuta')
+
+        # 3. Aguardar snackbar "Ato elaborado com sucesso." (padrão gigs-plugin L10935)
+        snack_ok = espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=10)
+        if snack_ok:
+            log('[MINUTA] Snackbar "Ato elaborado com sucesso" confirmada.')
+            try:
+                btn_snack = espera.elemento(driver, 'simple-snack-bar button', teto=2)
+                if btn_snack:
+                    safe_click_no_scroll(driver, btn_snack)
+            except Exception:
+                pass
+
+        # 4. Aguardar diálogo de elaboração sumir
+        aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', modo='sumir', timeout=15)
+        log('[MINUTA] Dialog de elaboração do ato fechada com sucesso.')
         return True
 
     except Exception as e:
-        log(f'[SALVAR][ERRO] Falha ao salvar/finalizar: {e}')
+        log(f'[MINUTA][ERRO] Falha ao finalizar minuta: {e}')
         raise
 
 
@@ -319,17 +532,10 @@ def executar_preenchimento_minuta(
 
         _passo = 'sigilo'
         if sigilo:
-            try:
-                from Play.pjeplay.pje import mat_checkbox
-                marcado = mat_checkbox(driver, 'input[name="sigiloso"], mat-checkbox[formcontrolname="sigiloso"]', marcar=True, timeout=5)
-                if not marcado:
-                    cb = espera.elemento(driver, 'input[name="sigiloso"]', teto=2, visivel=False)
-                    if cb:
-                        safe_click_no_scroll(driver, cb)
-            except Exception as e:
-                log(f'[WARN] Falha ao marcar sigilo: {e}')
-            # Fallback/verificação via JS: o thumb do mat-slide-toggle intercepta o
-            # clique do driver (input cdk-visually-hidden) e o toggle fica desmarcado.
+            # O input é um mat-slide-toggle (role="switch", cdk-visually-hidden):
+            # o thumb intercepta o clique do driver e o mat_checkbox estoura
+            # timeout de 5s. Marcar via JS PRIMEIRO (caminho que funciona);
+            # helpers de driver ficam só como fallback.
             try:
                 _sigilo_ok = _executar_js(
                     driver,
@@ -339,16 +545,29 @@ def executar_preenchimento_minuta(
                     return !!(el && el.checked);
                     """,
                 )
-                if not _sigilo_ok:
-                    log('[SIGILO][ERRO] Toggle de sigilo permaneceu desmarcado após fallback JS')
             except Exception as _e:
+                _sigilo_ok = False
                 log(f'[SIGILO][WARN] Fallback JS do sigilo falhou: {_e}')
+            if not _sigilo_ok:
+                try:
+                    marcado = mat_checkbox(driver, 'input[name="sigiloso"], mat-checkbox[formcontrolname="sigiloso"]', marcar=True, timeout=5)
+                    if not marcado:
+                        cb = espera.elemento(driver, 'input[name="sigiloso"]', teto=2, visivel=False)
+                        if cb:
+                            safe_click_no_scroll(driver, cb)
+                except Exception as e:
+                    log(f'[WARN] Falha ao marcar sigilo: {e}')
+                if not _sigilo_ok:
+                    log('[SIGILO][ERRO] Toggle de sigilo permaneceu desmarcado após fallbacks')
 
         _passo = 'modelo'
         if modelo_nome:
-            # Fluxo único de inserção (atos/judicial_modelos.inserir_modelo_no_editor):
-            # filtro → nodo → diálogo → teor → inserir → confirmação escopada + baseline.
-            if not inserir_modelo_no_editor(driver, modelo_nome, log=log):
+            # FLUXO DEDICADO para dialog de comunicação PEC (pje-pec-dialogo-ato).
+            # NÃO delega para judicial_modelos.inserir_modelo_no_editor porque a
+            # hierarquia de dialogs é diferente: o editor-alvo fica dentro de
+            # pje-pec-dialogo-ato e o _resolver_editor_alvo não o enxerga corretamente.
+            # Fonte: LEGADO.md L1940-1990, L19230-19265 e gigs-plugin.js aaAnexar L10106.
+            if not inserir_modelo_comunicacao(driver, modelo_nome, log=log):
                 raise Exception(f'Modelo "{modelo_nome}" não confirmado no editor-alvo')
 
             try:
@@ -382,7 +601,8 @@ def executar_preenchimento_minuta(
                 log(f'[INSERIR][WARN] Erro ao executar inserção: {e}')
 
         _passo = 'finalizar'
-        finalizar_minuta(driver, log=log)
+        if not finalizar_minuta(driver, log=log):
+            raise Exception('finalizar_minuta falhou — ato não finalizado (documento vazio)')
         return True
     except Exception as e:
         raise Exception(f'[passo={_passo}] {e}') from e

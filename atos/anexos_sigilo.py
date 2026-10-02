@@ -212,7 +212,7 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
             except Exception:
                 pass
 
-        xpath_salvar = '//mat-dialog-container//button[contains(., "Salvar")] | //button[.//span[contains(text(),"Salvar")]]'
+        xpath_salvar = '//mat-dialog-container//button[contains(., "Salvar") or .//span[contains(text(),"Salvar")]]'
         if not espera.ate_habilitar(driver, xpath_salvar, teto=10):
             logger.warning('[VISIBILIDADE_LOTE] Botao Salvar nao habilitou')
             return False
@@ -222,6 +222,29 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
             logger.warning('[VISIBILIDADE_LOTE] Botao Salvar nao encontrado')
             return False
         safe_click_no_scroll(driver, btn_salvar)
+
+        # Mesma lógica da função destinatários (atos/comunicacao_destinatarios.py):
+        # Aguarda loading/spinner do servidor se detectado e aguarda modal sumir
+        seletores_loading = (
+            'mat-progress-spinner, mat-spinner, mat-progress-bar, '
+            '.loading-spinner, .loading-overlay, pje-dialogo-status-progresso'
+        )
+        if espera.ate_aparecer(driver, seletores_loading, teto=1.5):
+            if log:
+                logger.info('[VISIBILIDADE_LOTE] Spinner/Aguarde detectado — aguardando sumir...')
+            espera.ate_sumir(driver, seletores_loading, teto=20)
+
+        # Aguardar modal e overlays sumirem por completo
+        espera.ate_sumir(driver, modal_container, teto=10)
+        espera.ate_sumir(driver, '.cdk-overlay-backdrop, .modal-backdrop', teto=5)
+
+        # Ocultar múltipla seleção se ainda estiver visível
+        try:
+            btn_ocultar = espera.elemento(driver, 'button[aria-label="Ocultar múltipla seleção."]', teto=1)
+            if btn_ocultar:
+                safe_click_no_scroll(driver, btn_ocultar)
+        except Exception:
+            pass
 
         return True
     except Exception as e:

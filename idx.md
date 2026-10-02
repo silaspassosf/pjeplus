@@ -1,12 +1,13 @@
 # PJePlus — Índice de Navegação Precisa (IDX)
 
-Atualizado: 2026-09-29 (refatoração arquitetural Mandado, P2B, PEC: observabilidade centralizada, catálogo canônico de seletores, consolidação de modelos no editor)
+Atualizado: 2026-10-01 (regras de referência histórica e branch de trabalho)
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 
-> **REGRAS ALWAYS-ON DE ARQUITETURA (2026-09-24, vigem para qualquer agente):**
+> **REGRAS ALWAYS-ON DE ARQUITETURA (vigem para qualquer agente):**
 > 1. `.agents/rules/anti-selenium.md` — Playwright é a única via; proibido reintroduzir Selenium.
-> 2. `.agents/rules/restauracao-pre-refac.md` — **se um fluxo/ato/seletor parou de funcionar, a lógica que funcionava está na tag `pre-refac`**: `git show pre-refac:CAMINHO/ARQUIVO.py`. Restaure a lógica preservando a arquitetura Playwright (espera.ate_*, `Fix/espera.py`, `By` de `Play.pjeplay.locators`) — não recrie do zero, não reintroduza Selenium. O arquivo traz também a tabela das falhas já diagnosticadas como perda de tradução (import de `By`/`time` removido, seletor misto CSS+XPath, propriedade DOM traduzida como atributo XPath, seletores de sigilo/visibilidade errados) com as correções validadas.
+> 2. `.agents/rules/comparacao-historica.md` — branch de trabalho sempre `main`; em caso de dúvida/falha, compare com `968047a^`. A comparação é diagnóstica, não modo de restauração. Não consulte branches anteriores.
+> 3. `gigs-plugin.js`, `LEGADO.md` e outras fontes legadas só podem ser consultadas se o prompt as mencionar expressamente.
 
 ---
 
@@ -31,6 +32,7 @@ Atualizado: 2026-09-29 (refatoração arquitetural Mandado, P2B, PEC: observabil
 | Captura stdout → arquivo + console | `x.py` | `TeeOutput` |
 | Logging por sessão (arquivo + erro.md) | `x.py` | `configurar_logging(driver_type, debug)` |
 | Purgar progresso antigo | `Fix/monitoramento_progresso_unificado.py` | `limpar_progresso_antigos` |
+| Limpar cache/temporários/logs/progresso | `limp.py` | `main()` — `py limp.py [--dias N] [--dry-run] [--sem-progresso]` |
 | Backend Playwright | `play/pjeplay/` | `pjeplay.iniciar()` |
 
 ### Driver & Sessão
@@ -822,6 +824,7 @@ git show 2ab0fca:<caminho/do/arquivo.py>
 | Diretório/Arquivo | Descrição |
 |---|---|
 | `pw.py` | **Executor principal** — ponto de entrada real do PJePlus (ver Seção 0.5) |
+| `limp.py` | **Limpeza** — remove cache Python, temporários da raiz, logs de execução e progresso antigos (`py limp.py [--dias N] [--dry-run] [--sem-progresso]`) |
 | `x.py` | Orquestrador de fluxos de negócio — chamado por `pw.py` |
 | `scripts/` | Scripts auxiliares JS/Python (ver Seção 0.5 para catálogo completo) |
 | `play/pjeplay/` | Backend Playwright — superfície WebDriver nativa. Entrada: `py pw.py` |

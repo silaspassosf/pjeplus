@@ -8,7 +8,6 @@ Entrypoints publicos:
 """
 
 # ── Imports ──
-import importlib.util
 import io
 import json
 import logging
@@ -153,18 +152,9 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
             id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo,
         )
 
-    # 4) extrair via pdfplumber
-    try:
-        import pdfplumber
-    except Exception:
-        return _falha('pdfplumber não instalado. Execute: pip install pdfplumber', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo)
-
-    try:
-        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-            paginas = [p.extract_text() or '' for p in pdf.pages]
-        texto = '\n\n--- PÁGINA ---\n\n'.join(paginas).strip()
-    except Exception as e:
-        return _falha(f'pdfplumber erro: {e}', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo)
+    # 4) extrair texto do PDF (cascata: pdfplumber → pymupdf → pypdfium2)
+    from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
+    texto = _extrair_texto_pdf_bytes(pdf_bytes, log=True)
 
     if not texto or len(texto) < 20:
         return _falha('PDF sem texto extraível (possivelmente escaneado)', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo)
@@ -623,6 +613,21 @@ def fluxo_pz(driver: Any) -> None:
             raise SessaoExpiradaError('API retornou 401 — sessao expirada')
             
         if (resultado or {}).get('decisao_recente'):
+            # D-5: tarefa de sobrestamento não deve ser movida — o fim do
+            # sobrestamento é gerido pelo próprio fluxo de sobrestamento.
+            tarefa_atual = None
+            try:
+                from atos.movimentos_fluxo import _tarefa_atual_via_api
+                tarefa_atual = _tarefa_atual_via_api(driver)
+            except Exception:
+                pass
+            if tarefa_atual and 'sobrestamento' in tarefa_atual.lower():
+                logger.info(f'[FLUXO_PZ] Decisão recente (< 5 dias) mas tarefa atual é "{tarefa_atual}" — nada a fazer.')
+                try:
+                    _fechar_aba_processo(driver)
+                except Exception:
+                    pass
+                return True
             logger.info('[FLUXO_PZ] Decisão recente (< 5 dias), executando mov_int Aguardando Prazo e pulando.')
             mov_ok = False
             try:
@@ -693,29 +698,11 @@ def fluxo_pz(driver: Any) -> None:
 # 4. fluxo_api.py
 # ═══════════════════════════════════════════
 
-_API_CORE_TYPES = None
-
-
-def _api_core_types():
-    global _API_CORE_TYPES
-    if _API_CORE_TYPES is not None:
-        return _API_CORE_TYPES
-
-    core_path = Path(__file__).resolve().parents[1] / 'api' / 'variaveis_client.py'
-    spec = importlib.util.spec_from_file_location('pjeplus_api_variaveis_client_runtime', str(core_path))
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f'[PRAZO_API] Nao foi possivel carregar API Core: {core_path}')
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    _API_CORE_TYPES = (module.PjeApiClient, module.session_from_driver)
-    return _API_CORE_TYPES
-
-
 def _criar_api_client(driver):
-    pje_api_client_cls, session_from_driver_fn = _api_core_types()
-    sess, trt_host = session_from_driver_fn(driver)
-    return pje_api_client_cls(sess, trt_host, grau=1)
+    """Cria PjeApiClient a partir do driver (import direto de Fix.variaveis)."""
+    from Fix.variaveis import PjeApiClient, session_from_driver
+    sess, trt_host = session_from_driver(driver)
+    return PjeApiClient(sess, trt_host, grau=1)
 
 
 def _buscar_relatorio_atividades(client, tamanho_pagina: int) -> List[dict]:

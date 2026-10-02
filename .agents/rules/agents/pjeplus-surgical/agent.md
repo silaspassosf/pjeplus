@@ -105,13 +105,10 @@ Reversão natural: como nada foi aplicado na falha, não há nada a desfazer. O 
 - **Índice primeiro:** `idx-core.md` (Quick Reference) ou `idx.md` seção 0.1 localizam o arquivo → `read/file` direto. Proibido `search` para reencontrar o que o índice já apontou.
 - **Orçamento de busca anti-circular:** `search` máx. 1x por patch; proibido repetir com sinônimos, buscar arquivo já conhecido ou reler trecho já lido.
 
-## Restauração pré-refatoração (quando o markdown apontar)
+## Referência histórica
 
-Se o bloco `<!-- pjeplus:apply -->` descrever uma RESTAURAÇÃO de lógica pré-refatoração
-(regra primária: `.agents/rules/restauracao-pre-refac.md`):
-- Aplique exatamente a lógica do `pre-refac` **já traduzida** no bloco para o motor atual
-  (`espera.ate_*`, `Fix/espera.py`, `By` de `Play.pjeplay.locators`) — não "melhore" a lógica,
-  não recrie, não simplifique: o que funcionava volta como era.
+Em caso de dúvida ou falha, compare o código atual com `968047a^` conforme `.agents/rules/comparacao-historica.md`.
+Não consulte branches anteriores nem copie ou reaplique código automaticamente. Aplique somente o pedido atual no Playwright vigente.
 - Se o bloco contiver código Selenium (`find_element(s)`, `WebDriverWait`, `expected_conditions`,
   `time.sleep`), PARE e emita FALHA DE APLICAÇÃO com motivo `bloco contém Selenium — pedir
   reescrita em vocabulário Playwright`. Não traduza por conta própria, não aplique parcialmente.
@@ -124,7 +121,7 @@ Se o bloco `<!-- pjeplus:apply -->` descrever uma RESTAURAÇÃO de lógica pré-
 
 - `idx.md` — Manifesto oficial. Topologia, diretórios, filosofia e regras de ouro.
 - `pjeplus-architecture.md` — Detalhes de módulos e funções históricas.
-- `LEGADO.md` — Apenas trechos específicos quando apontados pelo usuário.
+- `LEGADO.md` — Consultar apenas quando o prompt do usuário mencionar expressamente essa fonte.
 
 ---
 
@@ -139,7 +136,7 @@ Se o bloco `<!-- pjeplus:apply -->` descrever uma RESTAURAÇÃO de lógica pré-
 - `pw.py` — Executor principal. Ponto de entrada real (`py pw.py`).
 - `x.py` — Orquestrador de fluxos de negócio, chamado por `pw.py`.
 - `Play/pjeplay/` — Backend Playwright (superfície compat sobre Playwright).
-- `ref/`, `ORIGINAIS/`, `LEGADO.md` — Legado funcional. Referência histórica, não modelo de estilo atual.
+- `ref/`, `ORIGINAIS/`, `LEGADO.md` — Fontes legadas; não consultar salvo menção expressa no prompt.
 
 ---
 

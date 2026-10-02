@@ -180,7 +180,7 @@ def _criar_driver_headless_com_login_visivel(driver_type: DriverType, vt_mode: b
             logger.error("[HEADLESS] Nao foi possivel abrir janela visivel para login.")
             return None
 
-        login_manual(driver_vis)  # aguarda meu-painel OU quadro-avisos/visualizar
+        login_cpf(driver_vis)  # login automático via CPF com fallback manual
 
         if not _aguardar_sessao_ativa(driver_vis, timeout=30):
             logger.error("[HEADLESS] Sessao OAuth nao completou apos login manual.")
@@ -237,7 +237,7 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
             logger.error("ERRO em criar_e_logar_driver: falha ao criar driver")
             return None
 
-        if not login_manual(driver):
+        if not login_cpf(driver):
             logger.error("ERRO em criar_e_logar_driver: login nao concluido")
             if not _aguardar_login_manual(driver):
                 finalizar_driver_fix(driver)

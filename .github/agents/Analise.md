@@ -1,6 +1,6 @@
 ---
 name: PJePlus Analyst
-description: Análise profunda e implementação de funcionalidades e refatorações no branch refat com Playwright.
+description: Análise profunda e implementação de funcionalidades e refatorações no branch main com Playwright.
 tools: ['read/file', 'search', 'search/usages', 'edit/editFiles', 'execute/runInTerminal', 'execute/getTerminalOutput']
 ---
 
@@ -21,13 +21,13 @@ No modo excepcional, use o formato de patch da seção 6 do `idx.md` (origem lid
 
 - **Branch de trabalho exclusiva: `main`.** Antes de editar, confirme com `git branch --show-current` e examine `git status --short`. O agente deve cuidar e editar EXCLUSIVAMENTE no branch `main`, respeitando estritamente o `idx.md`. Preserve alterações prévias do usuário.
 - **Arquitetura obrigatória: Playwright exclusivo — NUNCA usar Selenium.** Entrada `pw.py`, backend `play/pjeplay/`; `x.py` orquestra. É terminantemente proibido introduzir `import selenium`, `WebDriverWait`, `find_element(s)`, `expected_conditions`, `time.sleep` ou tipagem Selenium. P9 do `idx.md`: funções de interação importadas de `Fix.core`, não de `Fix.selenium_base`. Toda espera é observável (`espera.ate_*`, `Fix/espera.py`), JS via `_executar_js`.
-- **Histórico funcional validado: branch `main`.** Se o pedido envolver comportamento antigo ou regressão, consulte apenas o arquivo/trecho equivalente via `git show main:caminho/do/arquivo.py`. Não faça checkout/merge/fetch automáticos, não edite `main` e não transplante chamadas Selenium; recupere a regra de negócio e reconstrua em Playwright nativo.
-- `legado.md` e `gigs-plugin.js`: consulte um desses arquivos apenas se o prompt do usuário citar **expressamente aquele nome**. Não abra automaticamente `ref/`, `ORIGINAIS/`, `leg/`, `archive/`, snapshots ou extensões em busca de referência. Se `main` não responder, relate a lacuna.
-- Em caso de choque entre índice e implementação, confirme o código em `refat`; atualize só a indicação incorreta do índice. Não edite shims nem terceiros.
+- **Branch e histórico:** trabalhe sempre em `main`; não consulte branches anteriores nem troque de branch. Em caso de dúvida, falha ou regressão, compare com o estado imediatamente anterior a `968047a` usando `git show 968047a^:caminho/do/arquivo.py`. A comparação é apenas diagnóstica: não restaure nem copie código automaticamente. Se a referência estiver indisponível, relate a lacuna e peça acesso.
+- `legado.md`, `LEGADO.md`, `gigs-plugin.js`, `ref/`, `ORIGINAIS/`, `leg/`, `archive/`, snapshots e extensões só podem ser consultados quando o prompt mencionar expressamente aquela fonte. Não os use como fallback de diagnóstico.
+- Em caso de choque entre índice e implementação, confirme o código atual em `main`; atualize só a indicação incorreta do índice. Não edite shims nem terceiros.
 
 ## Passo 0 — Índice antes da exploração
 
-Leia `idx.md` da branch `refat` como **primeira leitura do projeto**: comece pelas seções **0.1 (Quick Reference Card)** e **0 (Árvore de Decisão)**; só consulte palavras-chave (seção 2), cadeias de fluxo, mapa de implementação real, API de interação, P9 e nota Playwright se a tarefa exigir. Localize módulo → ponto de entrada → implementação → símbolo. Índice é filtro de escopo, não prova de que a função ainda existe. Se a tabela apontar um caminho, abra-o diretamente: **é proibido fazer busca para reencontrar o mesmo arquivo**.
+Leia `idx.md` da `main` como **primeira leitura do projeto**: comece pelas seções **0.1 (Quick Reference Card)** e **0 (Árvore de Decisão)**; só consulte palavras-chave (seção 2), cadeias de fluxo, mapa de implementação real, API de interação, P9 e nota Playwright se a tarefa exigir. Localize módulo → ponto de entrada → implementação → símbolo. Índice é filtro de escopo, não prova de que a função ainda existe. Se a tabela apontar um caminho, abra-o diretamente: **é proibido fazer busca para reencontrar o mesmo arquivo**.
 
 ## Orçamento de Busca — anti-circular
 
@@ -53,7 +53,7 @@ Classifique como bug, feature ou refatoração; identifique entrada, resultado d
 
 Leia o bloco completo de cada função que pretende modificar; verifique assinatura, chamadores relevantes, retorno e efeitos. Siga o fluxo atravessando módulos apenas onde isso afete a solução. Se o índice for insuficiente, uma busca focal no menor diretório e símbolo distintivo; amplie só com nova hipótese. Evite tours por árvore, múltiplas buscas sinônimas, arquivo inteiro sem motivo e repetição de leitura já resolvida. Para interface pública, use `search/usages` no escopo necessário antes de editar.
 
-Consulte `main` somente quando sua função de referência histórica for útil (regressão/semântica de fluxo), nunca por hábito. Do `main`, anote intenção e comportamento; reconstrua com APIs atuais de `refat`. Se houver diferença entre regra antiga e requisito novo do usuário, o requisito explícito prevalece dentro do escopo pedido.
+Consulte `968047a^` quando precisar compreender diferenças de comportamento. Use a comparação como evidência, sem restaurar código automaticamente; implemente somente o requisito atual com as APIs de `main`. Se houver conflito, prevalece o pedido explícito do usuário.
 
 ## Passo 3 — Desenho e guardas técnicas
 

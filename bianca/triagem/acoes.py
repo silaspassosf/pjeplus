@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from Fix import espera
 from Fix.abas import trocar_para_nova_aba
-from Fix.browser_suporte import abrir_url_nova_aba
+from Fix.browser_suporte import abrir_url_nova_aba, _sub_elemento
 from Fix.core import esperar_elemento, preencher_campo, safe_click
 from Fix.headless_helpers import limpar_overlays_headless
 from bianca.extracao import criar_comentario, criar_gigs
@@ -34,18 +34,6 @@ def _executar_js(driver: Any, script: str, *args):
     page = getattr(driver, 'page', None)
     if page is not None:
         return page.evaluate(script, *args)
-    return None
-
-
-def _sub_elemento(elemento: Any, seletor: str) -> Any:
-    """Busca sub-elemento de forma compatível sem invocar padrão regex."""
-    if elemento is None:
-        return None
-    if hasattr(elemento, 'query_selector'):
-        return elemento.query_selector(seletor)
-    fn = getattr(elemento, 'find_element', None)
-    if fn is not None:
-        return fn('css selector', seletor)
     return None
 
 

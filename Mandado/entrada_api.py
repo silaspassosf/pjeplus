@@ -12,6 +12,7 @@ Cadeia: processar_mandados_devolvidos_api -> processar_mandado_detalhe
 
 # ══════════════════════ IMPORTS ══════════════════════
 
+import importlib.util
 import logging
 import os
 import sys
@@ -61,15 +62,41 @@ from Mandado.apoio_fluxos import (
     retirar_sigilo_certidao_devolucao_primeiro,
 )
 
+from utilitarios_processamento import run_batch, create_skip_checker, resultado_ok, resultado_falha
+from Fix.variaveis import url_processo_detalhe
+
+# ── LEGADO (utils.py: bloco de diagnostico, preservado por fidelidade) ──
+with open("log.py", "w", encoding="utf-8") as f:
+    f.write(f"# Ultima execucao: {datetime.now()}\n")
+    f.write(f"# Script: {os.path.abspath(sys.argv[0])}\n")
+    f.write(f"# Argumentos: {' '.join(sys.argv[1:])}\n")
 
 
 # ══════════════════════ 1. API ENTRY ══════════════════════
 
+_API_CORE_TYPES = None
+
+
+def _api_core_types():
+    global _API_CORE_TYPES
+    if _API_CORE_TYPES is not None:
+        return _API_CORE_TYPES
+
+    core_path = Path(__file__).resolve().parents[1] / 'api' / 'variaveis_client.py'
+    spec = importlib.util.spec_from_file_location('pjeplus_api_variaveis_client_runtime', str(core_path))
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f'[MANDADOS_API] Nao foi possivel carregar API Core: {core_path}')
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _API_CORE_TYPES = (module.PjeApiClient, module.session_from_driver)
+    return _API_CORE_TYPES
+
+
 def _criar_api_client(driver):
-    """Cria PjeApiClient a partir do driver (import direto de Fix.variaveis)."""
-    from Fix.variaveis import PjeApiClient, session_from_driver
-    sess, trt_host = session_from_driver(driver)
-    return PjeApiClient(sess, trt_host, grau=1)
+    pje_api_client_cls, session_from_driver_fn = _api_core_types()
+    sess, trt_host = session_from_driver_fn(driver)
+    return pje_api_client_cls(sess, trt_host, grau=1)
 
 
 def _buscar_todas_paginas_gateway(
@@ -197,107 +224,276 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
     ativar_filtro_mandados_devolvidos(driver)
     escaninho_handle = driver.current_window_handle
 
-    # ── Montar fila: extrair id/numero de cada item sem chamar API por processo.
-    # A classificacao real (argos vs outros) e feita pela timeline DOM ao abrir
-    # cada processo — igual ao comportamento pre-refac, evita N chamadas HTTP
-    # sequenciais antes de processar o 1o mandado.
-    itens_fila = []
+    # ── Classificar cada item ANTES de abrir qualquer processo, consultando a
+    # timeline real via API (mesmo criterio de _TERMOS_ARGOS/_TERMOS_OUTROS
+    # usado depois no DOM). Evita abrir aba so para descobrir "e argos" e pular.
+    client = _criar_api_client(driver)
+    itens_argos_sigilo = []
+    itens_certidao = []
+    itens_outros = []
     for item in mandados:
         processo_obj = item.get('processo') or {}
         id_p = processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id')
         num = processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero')
+
         if not (id_p or num):
             continue
-        itens_fila.append({'id': id_p, 'numero': num})
 
-    if not itens_fila:
+        obj = {'id': id_p, 'numero': num}
+        tipo = _classificar_tipo_timeline_api(client, id_p) if id_p else None
+        if tipo == 'argos':
+            itens_argos_sigilo.append(obj)
+        elif tipo == 'outros':
+            itens_certidao.append(obj)
+        else:
+            itens_outros.append(obj)
+
+    if not itens_argos_sigilo and not itens_certidao and not itens_outros:
         logger.info('[MANDADOS_API] Nenhum item na fila')
         return False
 
-    logger.info(f'[MANDADOS_API] {len(itens_fila)} mandado(s) na fila')
+    logger.info(f'[MANDADOS_API] {len(itens_argos_sigilo)} Argos/Sigilo, {len(itens_certidao)} Certidoes de Oficial, {len(itens_outros)} outros na fila')
 
     # ════════════════════════════════════════
-    # FILA UNIFICADA: itera todos os mandados, classifica no DOM ao abrir
-    # cada processo (igual ao comportamento pre-refac). O fluxo Argos e
-    # Outros sao disparados conforme o tipo detectado pelo _selecionar_doc_via_timeline.
+    # BLOCO 1: ARGOS / SIGILO / DEVOLUCAO DE PESQUISA (primeiro)
     # ════════════════════════════════════════
-    from Fix.variaveis import url_processo_detalhe
-    from Mandado.fluxo_argos import processar_argos
+    if itens_argos_sigilo:
+        logger.info(f'[MANDADOS_API] BLOCO 1: Processando {len(itens_argos_sigilo)} itens Argos/Sigilo...')
+        from Fix.variaveis import url_processo_detalhe
+        concluidos_antes = get_concluidos('mandado')
+        if concluidos_antes:
+            logger.info(f'[MANDADOS_API] BLOCO 1: {len(concluidos_antes)} ja concluidos — serao pulados')
+        
+        for it in itens_argos_sigilo:
+            num = it['numero']
+            id_p = it['id']
+            
+            if _should_skip_mandado(num):
+                logger.info(f'[MANDADOS_API][BLOCO1] #{num} ja concluido — pulando')
+                continue
+            
+            logger.info(f'[MANDADOS_API][BLOCO1] Processando Argos/Sigilo: #{num}')
 
-    concluidos_antes = get_concluidos('mandado')
-    if concluidos_antes:
-        logger.info(f'[MANDADOS_API] {len(concluidos_antes)} ja concluidos — serao pulados')
-
-    for it in itens_fila:
-        num = it['numero']
-        id_p = it['id']
-
-        if _should_skip_mandado(num):
-            logger.info(f'[MANDADOS_API] #{num} ja concluido — pulando')
-            continue
-
-        logger.info(f'[MANDADOS_API] Processando: #{num}')
-        detalhe_url = url_processo_detalhe(id_p or num)
-
-        # Abre em NOVA ABA — preserva escaninho_handle intacto durante todo
-        # o processamento (processar_argos pode abrir/fechar abas proprias).
-        novo_handle = abrir_url_nova_aba(driver, detalhe_url, timeout=12)
-
-        try:
-            wait_for_page_load(driver, timeout=15)
-            # Aguarda timeline renderizar antes de classificar
-            aguardar_renderizacao_nativa(driver, 'li.tl-item-container', timeout=10)
-
-            tipo = _selecionar_doc_via_timeline(driver, log=True)
-
-            if tipo == 'argos':
-                logger.info(f'[MANDADOS_API] #{num} -> Argos (timeline DOM)')
+            detalhe_url = url_processo_detalhe(id_p or num)
+            try:
+                # Navega na aba do escaninho (sem abrir nova aba).
+                # Isso garante que _aba_original no wrapper pec_idpj seja o escaninho,
+                # e não o processo, evitando que o wrapper feche o escaninho como "extra".
+                driver.get(detalhe_url)
+                wait_for_page_load(driver, timeout=15)
+                from Mandado.fluxo_argos import processar_argos
                 result = processar_argos(driver, log=True)
                 if result:
                     _marcar_concluido_mandado(str(num))
                 else:
-                    logger.warning(f'[MANDADOS_API] #{num}: processar_argos retornou False')
+                    logger.warning(f'[MANDADOS_API][BLOCO1] #{num}: processar_argos retornou False')
+            except Exception as e:
+                logger.error(f'[MANDADOS_API][BLOCO1] Erro ao processar Argos #{num}: {e}')
+            finally:
+                # Fechar todas as abas extras e retornar ao escaninho.
+                _fechar_abas_extras(driver, escaninho_handle)
+                # Se o escaninho foi fechado pelo wrapper (não deveria ocorrer mais),
+                # navega de volta para garantir estado consistente.
+                try:
+                    if driver.current_window_handle != escaninho_handle:
+                        driver.switch_to.window(escaninho_handle)
+                except Exception:
+                    pass
 
-            elif tipo == 'outros':
+        # Ao fim do BLOCO 1, a aba está no último processo processado.
+        # Renavegar para o escaninho para restaurar o estado esperado pelo BLOCO 2.
+        driver.get(url_escaninho)
+        wait_for_page_load(driver, timeout=10)
+        ativar_filtro_mandados_devolvidos(driver)
+
+    # ════════════════════════════════════════
+    # BLOCO 2: CERTIDAO DE OFICIAL (segundo)
+    # ════════════════════════════════════════
+    for it in itens_certidao:
+        num = it['numero']
+        id_p = it['id']
+        
+        if _should_skip_mandado(num):
+            logger.info(f'[MANDADOS_API][BLOCO2] #{num} ja concluido — pulando')
+            continue
+        
+        logger.info(f'[MANDADOS_API] Processando Certidao: #{num}')
+        
+        from Fix.variaveis import url_processo_detalhe
+        detalhe_url = url_processo_detalhe(id_p or num)
+        
+        # Abre em nova aba e troca foco
+        novo_handle = abrir_url_nova_aba(driver, detalhe_url, timeout=10)
+        
+        try:
+            wait_for_page_load(driver, timeout=8)
+            # Aguardar timeline renderizar (substitui time.sleep(2) por espera direcionada)
+            aguardar_renderizacao_nativa(driver, "li.tl-item-container", timeout=5)
+            
+            tipo = _selecionar_doc_via_timeline(driver, log=True)
+            if tipo == 'outros':
                 tipo_cabecalho = _classificar_tipo_processo_cabecalho(driver, log=True)
                 if tipo_cabecalho == 'CartPrecCiv':
-                    logger.info(f'[MANDADOS_API] #{num} -> Outros/CP')
                     resultado_cp = fluxo_mandados_cp(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                     if resultado_cp == 'incompleto':
-                        logger.info(f'[MANDADOS_API] #{num}: CP incompleto — GIGS xs1 + apagar executado')
-                        _marcar_concluido_mandado(str(num))
-                    elif resultado_cp == 'completo':
-                        logger.info(f'[MANDADOS_API] #{num}: CP completo — processo arquivado')
+                        logger.info(f"[MANDADOS_API] #{num}: Fluxo CP incompleto — GIGS xs1 + apagar do escaninho ja executado.")
                         _marcar_concluido_mandado(str(num))
                     else:
-                        logger.warning(f'[MANDADOS_API] #{num}: Fluxo CP falhou')
+                        if resultado_cp == 'completo':
+                            logger.info(f"[MANDADOS_API] #{num}: Fluxo CP completo — processo arquivado.")
+                            _marcar_concluido_mandado(str(num))
+                        else:
+                            logger.warning(f"[MANDADOS_API] #{num}: Fluxo CP falhou.")
+                        driver.close()
+                        driver.switch_to.window(escaninho_handle)
                 else:
-                    logger.info(f'[MANDADOS_API] #{num} -> Outros (geral)')
                     regra = fluxo_mandados_outros(driver, log=True)
                     if regra:
                         if regra == 'positivo':
+                            logger.info(f"[MANDADOS_API] #{num}: Regra 'positivo' reconhecida. Executando GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.")
                             arquivar_mandado_positivo_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                         else:
+                            logger.info(f"[MANDADOS_API] #{num}: Regra '{regra}' reconhecida. Executando GIGS xs1 + apagar do escaninho.")
                             arquivar_mandado_outros_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                         _marcar_concluido_mandado(str(num))
                     else:
-                        logger.info(f'[MANDADOS_API] #{num}: Nenhuma regra reconhecida — pulando')
-
+                        logger.info(f"[MANDADOS_API] #{num}: Nenhuma regra reconhecida. Pulando.")
+                        driver.close()
+                        driver.switch_to.window(escaninho_handle)
+            elif tipo == 'argos':
+                # Divergencia rara entre classificacao previa (API) e DOM: nao descartar,
+                # processar pelo fluxo Argos correto (mesmo tratamento do BLOCO 1).
+                logger.info(f"[MANDADOS_API] #{num}: Tipo na timeline={tipo} (divergiu da classificacao previa). Processando via fluxo Argos.")
+                from Mandado.fluxo_argos import processar_argos
+                result = processar_argos(driver, log=True)
+                if result:
+                    _marcar_concluido_mandado(str(num))
+                else:
+                    logger.warning(f'[MANDADOS_API][BLOCO2] #{num}: processar_argos retornou False')
+                driver.close()
+                driver.switch_to.window(escaninho_handle)
             else:
-                logger.info(f'[MANDADOS_API] #{num}: Nenhum doc relevante na timeline — pulando')
-
+                logger.info(f"[MANDADOS_API] #{num}: Nenhum doc relevante na timeline. Pulando.")
+                driver.close()
+                driver.switch_to.window(escaninho_handle)
         except Exception as e:
-            logger.error(f'[MANDADOS_API] Erro ao processar #{num}: {e}')
-        finally:
-            # Fecha a aba do processo e volta ao escaninho
-            _fechar_abas_extras(driver, escaninho_handle)
+            logger.error(f"[MANDADOS_API] Erro ao processar certidão #{num}: {e}")
+            _fechar_abas_extras(driver, handle_principal=escaninho_handle)
             try:
                 driver.switch_to.window(escaninho_handle)
             except Exception:
                 pass
 
-    logger.info('[MANDADOS_API] Fila processada — concluido')
+    # 2 - DEPOIS O RESTO
+    logger.info(f'[MANDADOS_API] Iniciando processamento do resto ({len(itens_outros)} itens)...')
+    # ── Verificar progresso de execucoes anteriores
+    concluidos = get_concluidos('mandado')
+    if concluidos:
+        logger.info(f'[MANDADOS_API] {len(concluidos)} processo(s) ja concluidos em execucao anterior — serao ignorados')
+
+    # ── should_skip: factory do engine (baseada em progresso unificado)
+    should_skip = create_skip_checker('mandado')
+
+    def open_item(item):
+        """No-op: navegacao e feita dentro de execute_item."""
+        return resultado_ok()
+
+    def execute_item(item):
+        """Processa o mandado no processo aberto."""
+        num = item.get('numero') or item.get('id')
+        try:
+            resultado = processar_mandado_detalhe(
+                driver,
+                numero_processo=item.get('numero'),
+                id_processo=item.get('id'),
+                escaninho_handle=escaninho_handle,
+            )
+            if resultado == 'PULAR':
+                logger.info(f"[MANDADOS_API] #{num} pulado (tipo nao mapeado)")
+                return resultado_ok(pulado=True)
+            elif resultado:
+                return resultado_ok()
+            else:
+                return resultado_falha("processar_mandado_detalhe retornou False")
+        except Exception as e:
+            logger.error(f"[MANDADOS_API] Erro ao processar {num}: {e}")
+            return resultado_falha(str(e))
+
+    def persist_result(item, result):
+        """Persiste progresso apenas em caso de sucesso real (nao PULAR)."""
+        if result.get('ok'):
+            dados = result.get('dados') or {}
+            if not dados.get('pulado'):
+                num = item.get('numero') or item.get('id')
+                if num:
+                    logger.info(f"[MANDADOS_API] #{num} concluido")
+                    _marcar_concluido_mandado(str(num))
+
+    stats = run_batch(
+        items=itens_outros,
+        should_skip=should_skip,
+        open_item=open_item,
+        execute_item=execute_item,
+        persist_result=persist_result,
+    )
+
+    logger.info(
+        f'[MANDADOS_API] Concluido — '
+        f'total={stats["total"]} sucesso={stats["sucesso"]} '
+        f'pulados={stats["pulados"]} falha={stats["falha"]}'
+    )
+
+    if stats["falha"]:
+        falhas_reg = [r for r in stats["itens"] if r["status"] == "falha"]
+        labels = [str(r["item"].get("numero") or r["item"].get("id", "")) for r in falhas_reg]
+        logger.warning(f'[MANDADOS_API] Falhas: {labels}')
+
     return True
+
+
+def _gigs_sem_prazo_via_js(driver, tamanho_pagina: int = 100) -> list:
+    """Busca GIGS sem prazo (XS) reaproveitando o core de API/paginacao."""
+    client = _criar_api_client(driver)
+    resultado = _buscar_todas_paginas_gateway(
+        client,
+        '/pje-gigs-api/api/relatorioatividades/',
+        params_base={
+            'filtrarAtividadesSemPrazo': 'true',
+            'filtrarAtividadesSemPrazoConcluidas': 'false',
+            'ordenacaoCrescente': 'true',
+            'filtrarPorDestinatario': 'false',
+            'filtrarPorLocalizacao': 'false',
+        },
+        tamanho_pagina=tamanho_pagina,
+        limite_paginas=200,
+        timeout=20,
+    )
+
+    if not resultado.get('ok'):
+        erro = (resultado.get('error') or {}).get('message') or 'sem_resposta'
+        logger.error(f"[MANDADOS_API] falha GIGS sem prazo: {erro}")
+        return []
+
+    dados = resultado.get('data') or []
+
+    # Filtrar somente GIGS com descricao xs (se aplica)
+    filtrados = []
+    for item in dados:
+        tipo = (item.get('tipoAtividade') or {}).get('descricao', '') or (item.get('tipoAtividade') or {}).get('nome', '')
+        if isinstance(tipo, str) and 'xs' in tipo.lower():
+            filtrados.append(item)
+
+    logger.info(f"[MANDADOS_API] GIGS sem prazo bruto {len(dados)}, filtrado xs {len(filtrados)}")
+    return filtrados
+
+
+def testar_api_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> list:
+    """Teste local rapido do endpoint de GIGS sem prazo (XS)."""
+    resultado = _gigs_sem_prazo_via_js(driver, tamanho_pagina=tamanho_pagina)
+    logger.info(f"[MANDADOS_API] total capturado: {len(resultado)}")
+    if resultado:
+        logger.info(f"[MANDADOS_API] exemplo: {resultado[0]}")
+    return resultado
 
 
 # ══════════════════════ 2. TIMELINE / SELECAO DE DOCUMENTO ══════════════════════
@@ -460,6 +656,70 @@ def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None, es
         _fechar_abas_extras(driver, handle_principal)
 
 
+# ══════════════════════ 4. UTILS / COMPATIBILIDADE ══════════════════════
+
+def retirar_sigilo_demais_documentos_especificos(driver, documentos_sequenciais, log=True):
+    """COMPATIBILIDADE: Chama retirar_sigilo_fluxo_argos e retorna lista de demais documentos."""
+    resultado = retirar_sigilo_fluxo_argos(driver, documentos_sequenciais, log)
+    return resultado.get('demais_documentos', [])
+
+
+def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=True):
+    """
+     FUNCAO EFICIENTE - Remove sigilo APENAS dos documentos especificos fornecidos:
+    Os documentos_sequenciais ja vem filtrados da buscar_documentos_sequenciais()
+    MAXIMO 5 documentos: 1 certidao devolucao, 1 certidao expedicao, 1 intimacao, 1 decisao, 1 planilha
+
+    NADA MAIS que isso - SEM VARRER TIMELINE INTEIRA!
+    """
+    if not documentos_sequenciais:
+        return []
+
+    #  EFICIENCIA: Os documentos ja vem filtrados, apenas remover sigilo diretamente
+    documentos_processados = []
+    total_processados = 0
+
+    #  PROCESSAMENTO DIRETO: Remove sigilo apenas dos documentos fornecidos
+    for i, elemento in enumerate(documentos_sequenciais):
+        try:
+            texto = elemento.text.strip()[:50] if elemento.text else f"DOCUMENTO_{i+1}"
+
+            resultado_sigilo = retirar_sigilo(elemento, driver)
+
+            if resultado_sigilo:
+                documentos_processados.append({
+                    'indice': i+1,
+                    'texto': texto,
+                    'status': 'sucesso'
+                })
+                total_processados += 1
+            else:
+                documentos_processados.append({
+                    'indice': i+1,
+                    'texto': texto,
+                    'status': 'falha'
+                })
+
+        except Exception as e:
+            if log:
+                logger.error(f"[SIGILO_ESPECIFICO]  Erro ao processar documento {i+1}: {e}")
+            documentos_processados.append({
+                'indice': i+1,
+                'texto': texto if 'texto' in locals() else f"DOCUMENTO_{i+1}",
+                'status': 'erro',
+                'erro': str(e)
+            })
+
+    #  RELATORIO FINAL
+    if log:
+
+        for doc in documentos_processados:
+            status_icon = "" if doc['status'] == 'sucesso' else "" if doc['status'] == 'erro' else ""
+
+
+    return documentos_processados
+
+
 # ══════════════════════ 5. FECHAMENTO DE INTIMACAO ══════════════════════
 
 def _selecionar_checkbox_intimacao(driver: Any, linha: Any, log: bool = True) -> bool:
@@ -508,33 +768,45 @@ def _selecionar_checkbox_intimacao(driver: Any, linha: Any, log: bool = True) ->
 
 
 def fechar_intimacao(driver: Any, log: bool = True) -> bool:
-    """Fecha a intimacao do processo via catálogo de ações semânticas."""
-    logger.debug('[INTIMACAO] === INICIO ===')
-    from Fix.seletores_catalogo import buscar_elemento_por_acao, clicar_por_acao
+    """Fecha a intimacao do processo."""
+    logger.info('[INTIMACAO] === INICIO ===')
     try:
         # 1. Abrir menu
-        logger.debug('[INTIMACAO] [1] Abrindo menu...')
-        if not clicar_por_acao(driver, "abrir_menu_tarefa", contexto="mandado", timeout=2):
-            logger.error('[INTIMACAO] [1] FALHOU: Nao conseguiu abrir menu')
+        logger.info('[INTIMACAO] [1] Tentando abrir menu #botao-menu...')
+        try:
+            btn_menu = espera.elemento(driver, '#botao-menu', teto=2, visivel=False)
+            if btn_menu is None:
+                raise TimeoutError('botao-menu nao encontrado')
+            safe_click_no_scroll(driver, btn_menu)
+        except Exception:
+            logger.info('[INTIMACAO] [1]  FALHOU: Nao conseguiu abrir menu')
             return False
+        logger.info('[INTIMACAO] [1]  Menu aberto')
 
         # 2. Clicar Expedientes
-        logger.debug('[INTIMACAO] [2] Clicando Expedientes...')
-        if not clicar_por_acao(driver, "abrir_expedientes", contexto="mandado", timeout=3):
-            logger.error('[INTIMACAO] [2] FALHOU: Nao conseguiu clicar Expedientes')
+        logger.info('[INTIMACAO] [2] Tentando clicar Expedientes...')
+        try:
+            btn_exp = espera.elemento(driver, 'button[aria-label="Expedientes"]', teto=3, visivel=False)
+            if btn_exp is None:
+                raise TimeoutError('botao Expedientes nao encontrado')
+            safe_click_no_scroll(driver, btn_exp)
+        except Exception:
+            logger.info('[INTIMACAO] [2]  FALHOU: Nao conseguiu clicar Expedientes')
             _fechar_modal_esc(driver)
             return False
+        logger.info('[INTIMACAO] [2]  Botao Expedientes clicado')
 
         # 3. Aguardar modal
-        logger.debug('[INTIMACAO] [3] Aguardando modal abrir...')
+        logger.info('[INTIMACAO] [3] Aguardando modal abrir...')
         espera.elemento(driver, 'tbody tr', teto=5, visivel=False)
 
         # 4. Buscar linha prazo 30
-        logger.debug('[INTIMACAO] [4] Buscando linhas com prazo 30...')
+        logger.info('[INTIMACAO] [4] Buscando linhas com prazo 30...')
         rows = espera.elementos(driver, 'tbody tr', teto=2)
-        logger.debug('[INTIMACAO] [4] Total de linhas encontradas: %d', len(rows))
+        logger.info(f'[INTIMACAO] [4] Total de linhas encontradas: {len(rows)}')
 
         linha_prazo_30 = None
+
         for i, row in enumerate(rows):
             try:
                 cells = espera.elementos(row, 'td', teto=0.5)
@@ -544,49 +816,63 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
 
                     if prazo == '30' and fechado != "sim":
                         linha_prazo_30 = row
-                        logger.debug('[INTIMACAO] [4] Linha %d selecionada (prazo 30, nao fechado)', i + 1)
+                        assinatura_linha = tuple(
+                            cell.text.strip().lower()
+                            for cell in cells[:10]
+                        )
+                        logger.info(f'[INTIMACAO] [4]  Linha {i+1} selecionada (prazo 30, nao fechado)')
                         break
             except Exception as e:
-                logger.debug('[INTIMACAO] [4] Erro na linha %d: %s', i + 1, str(e)[:40])
+                logger.info(f'[INTIMACAO] [4] Erro na linha {i+1}: {str(e)[:40]}')
                 continue
 
         if not linha_prazo_30:
-            logger.debug('[INTIMACAO] [4] Nenhuma linha prazo 30 nao fechada encontrada')
+            logger.info('[INTIMACAO] [4]  Nenhuma linha prazo 30 nao fechada encontrada')
             _fechar_modal_esc(driver)
             espera.ate_js(driver, "document.readyState === 'complete'", teto=2)
             return True
 
         # 5. Clicar checkbox
-        logger.debug('[INTIMACAO] [5] Marcando checkbox...')
+        logger.info('[INTIMACAO] [5] Tentando marcar checkbox...')
         if not _selecionar_checkbox_intimacao(driver, linha_prazo_30, log=log):
-            logger.error('[INTIMACAO] [5] FALHOU: Nao conseguiu marcar checkbox')
+            logger.info('[INTIMACAO] [5]  FALHOU: Nao conseguiu marcar checkbox')
             _fechar_modal_esc(driver)
             espera.ate_js(driver, "document.readyState === 'complete'", teto=2)
             return False
+        logger.info('[INTIMACAO] [5]  Checkbox marcado')
 
         # 6. Clicar Fechar Expedientes
-        logger.debug('[INTIMACAO] [6] Clicando Fechar Expedientes...')
-        if not clicar_por_acao(driver, "fechar_expedientes", contexto="mandado", timeout=5):
-            logger.error('[INTIMACAO] [6] FALHOU: Nao conseguiu clicar Fechar Expedientes')
+        logger.info('[INTIMACAO] [6] Tentando clicar Fechar Expedientes...')
+        if not aguardar_e_clicar(driver, 'button[aria-label="Fechar Expedientes"]', timeout=5):
+            logger.info('[INTIMACAO] [6]  FALHOU: Nao conseguiu clicar Fechar Expedientes')
             _fechar_modal_esc(driver)
             return False
+        logger.info('[INTIMACAO] [6]  Botao Fechar Expedientes clicado')
         aguardar_renderizacao_nativa(driver, '.cdk-overlay-container mat-dialog-container', modo='aparecer', timeout=5)
 
-        # 7. Confirmar no botao do dialogo
-        logger.debug('[INTIMACAO] [7] Confirmando fechamento...')
-        if not clicar_por_acao(driver, "confirmar_dialogo_sim", contexto="geral", timeout=3):
-            logger.error('[INTIMACAO] [7] FALHOU: botao Sim nao encontrado')
+        # 7. Confirmar no botao do dialogo usando JS direto e sem loop custoso
+        logger.info('[INTIMACAO] [7] Confirmando fechamento...')
+        btn_sim = None
+        try:
+            xpath_sim = "//mat-dialog-container//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim'] | //div[contains(@class,'cdk-overlay-pane')]//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim'] | //button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']"
+            btn_sim = espera.elemento(driver, xpath_sim, teto=2, visivel=False)
+            if btn_sim is None:
+                raise TimeoutError('botao Sim nao encontrado')
+            safe_click_no_scroll(driver, btn_sim)
+        except Exception:
+            logger.info('[INTIMACAO] [7]  FALHOU: botao Sim nao encontrado rapidamente')
             return False
 
-        # 8. Aguardar timeline estabilizar
-        logger.debug('[INTIMACAO] [8] Aguardando timeline estabilizar...')
-        buscar_elemento_por_acao(driver, "abrir_timeline", contexto="geral", timeout=3)
+        # Aguardar timeline pronta apos fechamento (sem sleep fixo e sem snackbar)
+        logger.info('[INTIMACAO] [8] Aguardando timeline estabilizar...')
+        espera.elemento(driver, 'li.tl-item-container', teto=3, visivel=False)
 
-        logger.debug('[INTIMACAO] === SUCESSO ===')
+        logger.info('[INTIMACAO] === SUCESSO ===')
+
         return True
 
     except Exception as e:
-        logger.error('[INTIMACAO] === ERRO GERAL: %s ===', str(e)[:150])
+        logger.info(f'[INTIMACAO] === ERRO GERAL: {str(e)[:150]} ===')
         try:
             _fechar_modal_esc(driver)
         except Exception:

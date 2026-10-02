@@ -490,8 +490,8 @@ def _remover_acentos(texto: str) -> str:
 
 def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int = 8):
     """Localiza o botão de destino alinhado ao gigs-plugin/mini-selenium:
-    1. Aguarda pje-botoes-transicao ter pelo menos 5 botões (esperarColecao)
-    2. Busca por textContent normalizado (removeAcento + includes) — tal como querySelectorByText
+    1. Busca por textContent normalizado (removeAcento + includes) — tal como querySelectorByText
+    2. Busca prioritária em pje-botoes-transicao button
     3. Fallback para busca global de botões na página
     4. Fallback para aria-label / title
     """
@@ -502,47 +502,36 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
     destino_normalizado = _remover_acentos(destino_lower)
 
     def _texto_normalizado(texto: str) -> str:
-        # espelha removeAcento + removeQuebraDeLinha do mini-selenium.js
         import re as _re
         texto = _remover_acentos((texto or '').strip().lower())
-        return _re.sub(r'[\r\n]+', ' ', texto)
+        return _re.sub(r'[\r\n\t]+', ' ', texto)
 
     def _match(el) -> bool:
         try:
             texto = _texto_normalizado((getattr(el, 'text_content', None) and el.text_content()) or getattr(el, 'text', '') or '')
-            return destino_normalizado in texto and getattr(el, 'is_displayed', lambda: True)() and not el.get_attribute('disabled')
+            aria = _texto_normalizado(el.get_attribute('aria-label') or el.get_attribute('title') or '')
+            return (destino_normalizado in texto or destino_normalizado in aria) and getattr(el, 'is_displayed', lambda: True)() and not el.get_attribute('disabled')
         except Exception:
             return False
 
-    # 1. Aguardar pje-botoes-transicao renderizar via MutationObserver (padrão esperarElemento do mini-selenium.js)
-    aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=timeout)
-
-    # 2. Dentro de pje-botoes-transicao (alvo primário)
+    # 1. Dentro de pje-botoes-transicao (se houver)
     try:
-        for el in espera.elementos(driver, 'pje-botoes-transicao button', teto=2):
+        for el in espera.elementos(driver, 'pje-botoes-transicao button', teto=min(1.5, timeout)):
             if _match(el):
                 return el
     except Exception:
         pass
 
-    # 3. Qualquer botão visível na página (fallback global)
+    # 2. Qualquer botão visível na página
     try:
-        for el in espera.elementos(driver, 'button', teto=2):
+        for el in espera.elementos(driver, 'button, input[type="button"]', teto=min(1.5, timeout)):
             if _match(el):
-                return el
-    except Exception:
-        pass
-
-    # 4. aria-label / title
-    try:
-        for el in espera.elementos(driver, 'button[aria-label], button[title]', teto=2):
-            attr = (el.get_attribute('aria-label') or el.get_attribute('title') or '')
-            if destino_normalizado in _texto_normalizado(attr) and getattr(el, 'is_displayed', lambda: True)() and not el.get_attribute('disabled'):
                 return el
     except Exception:
         pass
 
     return None
+
 
 
 def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
@@ -668,47 +657,37 @@ def _tarefa_atual_via_api(driver: Any) -> Optional[str]:
 
 
 def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15, profundidade: int = 0, pular_abertura_api: bool = False) -> bool:
-
-    def log(msg):
-        try:
-            logger.info(msg)
-        except Exception:
-            pass
-
+    """Movimentação inteligente de processos baseada na máquina de estados do gigs-plugin.js (acao_bt_aaMovimento).
+    
+    1. Verifica se já está no destino (via API ou DOM);
+    2. Aborta em elaboração/assinatura ou controle de acordo para segurança dos dados;
+    3. Se na tarefa Análise: clica no botão de destino em pje-botoes-transicao;
+    4. Se em outra tarefa: tenta destino direto ou transiciona para Análise (movimentar_analise) e repete.
+    """
     if profundidade >= 3:
-        logger.error(f'[MOV_INT] Limite de {profundidade} navegacoes atingido sem conseguir "{destino}" — abortando (tarefa possivelmente sem o botao de destino)')
+        logger.error(f'[MOV_INT] Limite de {profundidade} navegacoes atingido sem conseguir "{destino}" — abortando')
         return False
 
     try:
+        from .movimentos_navegacao import clicar_botao_por_texto, movimentar_analise, navegar_para_tarefa
+
         # ===== ETAPA -1: JÁ ESTÁ NO DESTINO? (verificação via API, sem abrir a tarefa) =====
-        # Antes de navegar, consulta via API se a tarefa já está no estado de
-        # destino — evita o padrão "abre a tarefa e fecha em seguida" sem ação
-        # visível (comum no p2b, onde a tarefa já está em 'Aguardando Prazo').
         if '?' not in (destino or ''):
             tarefa_api = _tarefa_atual_via_api(driver)
             if tarefa_api:
                 destino_pre = _remover_acentos((destino or '').lower())
                 if destino_pre and destino_pre in _remover_acentos(tarefa_api.lower()):
-                    log(f"[MOV_INT] tarefa já está em '{tarefa_api}' (via API) — nada a fazer")
+                    logger.info(f"[MOV_INT] tarefa já está em '{tarefa_api}' (via API) — nada a fazer")
                     return True
 
-        # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API (padrao gigs-plugin L4491-4516) =====
-        # Em chamadas recursivas (apos navegar para 'análise') NAO reabrir a
-        # tarefa via API — isso desfaz a navegacao e causa loop infinito.
-        api_ok = False
+        # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API SE NECESSÁRIO =====
         if not pular_abertura_api:
-            api_ok = abrir_tarefa_por_api(driver, timeout=timeout)
+            abrir_tarefa_por_api(driver, timeout=timeout)
 
-        tarefa_text = None
-        if api_ok:
-            tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
+        tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
         if not tarefa_text:
-            try:
-                from .movimentos_navegacao import navegar_para_tarefa
-                if navegar_para_tarefa(driver, 'análise', debug=True, timeout=timeout):
-                    tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
-            except Exception:
-                pass
+            if navegar_para_tarefa(driver, 'análise', debug=True, timeout=timeout):
+                tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
 
         if not tarefa_text:
             logger.warning('[MOV_INT] Não foi possível determinar tarefa atual — abortando')
@@ -719,101 +698,111 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
         if '?' in destino:
             destino_norm = destino_norm.replace('?', '') + ' ' + tarefa_norm
 
-        log(f"[MOV_INT] tarefa='{tarefa_text}' destino='{destino}'")
+        logger.info(f"[MOV_INT] tarefa='{tarefa_text}' destino='{destino}'")
 
+        # 1. JÁ SE ENCONTRA NA TAREFA DESTINO
         if destino_norm and destino_norm in tarefa_norm:
+            logger.info("[MOV_INT] Processo já se encontra na tarefa de destino.")
             if ultimo_lance:
                 try:
-                    btn = esperar_elemento(driver, 'button', texto=ultimo_lance, timeout=3)
-                    if btn:
-                        safe_click_no_scroll(driver, btn)
+                    clicar_ultimo_lance(driver, ultimo_lance)
                 except Exception:
                     pass
-            if chip:
+            if chip or responsavel:
                 try:
-                    safe_click_no_scroll(driver, esperar_elemento(driver, 'button[aria-label="Incluir Chip Amarelo"]', timeout=2))
-                except Exception:
-                    pass
-            if responsavel:
-                try:
-                    buscar_seletor_robusto(driver, ['Abrir o GIGS', 'GIGS'], timeout=2)
+                    chip_responsavel(driver, chip=chip, responsavel=responsavel)
                 except Exception:
                     pass
             return True
 
+        # 2. INTERROMPER EM TAREFA DE ELABORAR OU ASSINAR (proteção de minuta)
         if 'elaborar' in tarefa_norm or 'assinar' in tarefa_norm:
-            log('[MOV_INT] tarefa de elaborar/assinar - abortando')
+            logger.warning('[MOV_INT] Processo em tarefa de elaborar/assinar — movimento cancelado para evitar perda de minuta')
             return False
 
-        # Tentativa genérica de clicar no botão de destino direto na tarefa atual
-        try:
-            bt = _localizar_botao_destino_movimento(driver, destino, timeout=timeout)
-            if bt and bt.is_enabled():
-                log(f"[MOV_INT] clicando botão destino direto: {destino}")
-                if safe_click_no_scroll(driver, bt, log=True):
-                    if ultimo_lance:
-                        try:
-                            clicar_ultimo_lance(driver, ultimo_lance)
-                        except Exception:
-                            pass
-                    try:
-                        chip_responsavel(driver, chip=chip, responsavel=responsavel)
-                    except Exception:
-                        pass
-                    return True
-        except Exception as e:
-            log(f"[MOV_INT] falha ao clicar destino direto: {e}")
-
-        if 'elaborar' in tarefa_norm or 'assinar' in tarefa_norm:
-            log('[MOV_INT] tarefa de elaborar/assinar - abortando')
+        # 3. INTERROMPER EM CONTROLE DE ACORDO
+        if 'controle de acordo' in tarefa_norm:
+            logger.warning('[MOV_INT] Processo em controle de acordo — requer movimentação manual')
             return False
 
+        # 4. REGRA GERAL (gigs-plugin.js L12293-12386):
+        # 4.1 Processo já está na tarefa ANÁLISE:
         if 'analise' in tarefa_norm:
-            try:
-                bt = _localizar_botao_destino_movimento(driver, destino, timeout=timeout)
-                if bt and bt.is_enabled():
-                    safe_click_no_scroll(driver, bt)
-                    # último lance, chip e responsavel manejados por helpers
-                    if ultimo_lance:
-                        try:
-                            clicar_ultimo_lance(driver, ultimo_lance)
-                        except Exception:
-                            pass
+            aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(5, timeout))
+            if clicar_botao_por_texto(driver, destino, debug=True):
+                logger.info(f'[MOV_INT] Botão destino "{destino}" clicado na tarefa Análise!')
+                if ultimo_lance:
+                    try:
+                        clicar_ultimo_lance(driver, ultimo_lance)
+                    except Exception:
+                        pass
+                if chip or responsavel:
                     try:
                         chip_responsavel(driver, chip=chip, responsavel=responsavel)
                     except Exception:
                         pass
-                    return True
-                return False
-            except Exception:
-                return False
+                return True
 
-        try:
-            from .movimentos_navegacao import navegar_para_tarefa
-            if navegar_para_tarefa(driver, 'análise', debug=True, timeout=timeout, tarefa_atual_conhecida=tarefa_text):
-                tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True) or tarefa_text
-                tarefa_norm = _remover_acentos((tarefa_text or '').lower())
-                if 'analise' in tarefa_norm:
-                    return movimentar_inteligente(driver, destino, ultimo_lance=ultimo_lance, chip=chip, responsavel=responsavel, timeout=timeout, profundidade=profundidade + 1, pular_abertura_api=True)
-        except Exception:
-            pass
+            # Conforme LEGADO L4869: se destino é 'aguardando prazo' e já está em 'Análise',
+            # mas o botão não está disponível, a tarefa já está no estado correto após elaboração/expedição.
+            if 'aguardando prazo' in destino_norm or 'prazo' in destino_norm:
+                logger.info("[MOV_INT] Já está em 'Análise' e botão 'Aguardando prazo' não disponível — conforme LEGADO L4869, está correto.")
+                return True
 
-        try:
-            btn_analise = _localizar_botao_destino_movimento(driver, 'Análise', timeout=4)
-            if btn_analise:
-                safe_click_no_scroll(driver, btn_analise)
-                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao', modo='aparecer', timeout=6)
-                return movimentar_inteligente(driver, destino, ultimo_lance=ultimo_lance, chip=chip, responsavel=responsavel, timeout=timeout, profundidade=profundidade + 1, pular_abertura_api=True)
-        except Exception:
-            pass
+            logger.warning(f'[MOV_INT] Botão destino "{destino}" não encontrado na tarefa Análise')
+            return False
 
+        # 4.2 Processo em outra tarefa (ex: 'Cumprimento de Providências'):
+        # Tenta clique no destino direto se o botão estiver visível na tarefa
+        if clicar_botao_por_texto(driver, destino, timeout=1, debug=True):
+            logger.info(f'[MOV_INT] Botão destino "{destino}" clicado diretamente na tarefa atual!')
+            if ultimo_lance:
+                try:
+                    clicar_ultimo_lance(driver, ultimo_lance)
+                except Exception:
+                    pass
+            if chip or responsavel:
+                try:
+                    chip_responsavel(driver, chip=chip, responsavel=responsavel)
+                except Exception:
+                    pass
+            return True
+
+        # Se não há transição direta para o destino, movimenta primeiro para Análise (movimentar_analise do gigs-plugin.js)
+        logger.info(f'[MOV_INT] Destino direto indisponível na tarefa "{tarefa_text}" — transicionando para Análise (gigs-plugin)...')
+        if movimentar_analise(driver, tarefa_text, debug=True):
+            # Estando em Análise, repete para clicar no botão de destino
+            return movimentar_inteligente(
+                driver,
+                destino,
+                ultimo_lance=ultimo_lance,
+                chip=chip,
+                responsavel=responsavel,
+                timeout=timeout,
+                profundidade=profundidade + 1,
+                pular_abertura_api=True
+            )
+
+        # Fallback via navegar_para_tarefa se movimentar_analise não encontrou botão
+        if navegar_para_tarefa(driver, 'análise', debug=True, timeout=timeout, tarefa_atual_conhecida=tarefa_text):
+            return movimentar_inteligente(
+                driver,
+                destino,
+                ultimo_lance=ultimo_lance,
+                chip=chip,
+                responsavel=responsavel,
+                timeout=timeout,
+                profundidade=profundidade + 1,
+                pular_abertura_api=True
+            )
+
+        logger.warning(f'[MOV_INT] Não foi possível transicionar para Análise a partir de "{tarefa_text}"')
         return False
+
     except Exception as e:
-        try:
-            logger.error(f'[MOV_INT][ERRO] {e}')
-        except Exception:
-            pass
+        logger.error(f'[MOV_INT][ERRO] {e}')
         return False
+
 
 
 def clicar_ultimo_lance(driver: Any, texto_ultimo_lance: str, timeout: int = 5) -> bool:

@@ -1,7 +1,8 @@
 # PJePlus — Instruções GitHub Copilot
 
-**Atualizado:** 2026-09-06  
-**Escopo:** Automação Python+Playwright/Selenium para o sistema PJe (Processo Judicial Eletrônico). Firefox exclusivo.
+**Atualizado:** 2026-10-01
+
+**Escopo:** Automação Python+Playwright para o sistema PJe (Processo Judicial Eletrônico). Firefox exclusivo.
 
 ---
 
@@ -47,12 +48,13 @@ orchestrator.agent.md   ← invoke diretamente para qualquer tarefa não-trivial
 
 ## 2. Regras Absolutas
 
-### R0 — Restauração pré-refatoração (REGRA PRIMÁRIA para bug de funcionalidade)
-- **Se um fluxo/ato/seletor parou de funcionar, a lógica que funcionava está na tag `pre-refac`.**
-  Comandos: `git show pre-refac:CAMINHO/ARQUIVO.py` (arquivo inteiro), `git log -S "trecho" -- ARQUIVO` (qual commit trocou).
-- **Restaure a LÓGICA preservando a arquitetura Playwright** (`Fix/espera.py`, `espera.ate_*`, `By` de `Play.pjeplay.locators`) — NUNCA reintroduza Selenium.
-- **Não recrie do zero o que já existia.** Primeiro restaure do `pre-refac`, depois adapte ao motor atual.
-- Detalhes e tabela de falhas já diagnosticadas: `.agents/rules/restauracao-pre-refac.md` (leitura obrigatória em diagnóstico).
+### R0 — Branch e referência temporal
+- **Branch de trabalho é sempre `main`.** Confirme com `git branch --show-current`. Não consulte branches anteriores nem troque de branch.
+- Em caso de dúvida, falha ou regressão, compare o código atual com o estado imediatamente anterior ao commit `968047a`: use `git show 968047a^:CAMINHO/ARQUIVO.py`.
+- A comparação é apenas evidência histórica; **não restaure nem copie automaticamente** o código antigo. Corrija conforme o pedido atual, mantendo a arquitetura Playwright (`Fix/espera.py`, `espera.ate_*`, `By` de `Play.pjeplay.locators`) — nunca reintroduza Selenium.
+- Se a referência `968047a^` ou o arquivo solicitado não estiver disponível, relate a lacuna e peça o acesso correto. Não procure substitutos em branches anteriores.
+- `gigs-plugin.js`, `LEGADO.md`, `legado.md` e outras fontes legadas só podem ser consultadas quando o prompt do usuário mencionar expressamente a fonte.
+- Detalhes: `.agents/rules/comparacao-historica.md`.
 - Validação obrigatória pós-correção: `py tools/check_pw.py` + `py play/smoke.py --projeto` (91/91).
 
 ### R1 — Escopo Exato
@@ -68,7 +70,7 @@ orchestrator.agent.md   ← invoke diretamente para qualquer tarefa não-trivial
 - ✅ Scripts de teste simples: `py -m py_compile arquivo.py`, `py test_X.py`
 
 ### R3 — Reutilização Mandatória
-Verificar em `idx.md` (seção 2, Índice de Palavras-Chave) antes de criar qualquer função. Funções de interação Selenium: obrigatoriamente de `Fix.core` (nunca `Fix.selenium_base` — congelado pré-Playwright).
+Verificar em `idx.md` (seção 2, Índice de Palavras-Chave) antes de criar qualquer função. Funções de interação devem vir de `Fix.core` (nunca de `Fix.selenium_base` — cópia congelada).
 
 ### R4 — Comando Python
 Sempre `py` (não `python` nem `python3`). Validação: `py -m py_compile arquivo.py`
@@ -108,8 +110,7 @@ Detalhados em `idx.md` seções 7-8. Resumo:
 ## 5. Shims e Legado — Não Editar
 
 - **SHIMs** (`Fix/abas.py`, `Fix/headless_helpers.py`, `Fix/log.py` etc.) → modificações vão nos arquivos reais (ver `idx.md` seção 4)
-- **`leg/`**, `Mandado/core.py` (legado), `_archive/` → apenas referência, nunca editar
-- **`ref/`** → backup legado, nunca base primária
+- **`leg/`**, `Mandado/core.py`, `_archive/`, `ref/`, `LEGADO.md` → não editar. Consultar qualquer fonte legada somente se o prompt a mencionar expressamente.
 
 ---
 

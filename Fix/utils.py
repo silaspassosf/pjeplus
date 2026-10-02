@@ -434,16 +434,14 @@ def sessao_oauth_completa(driver) -> bool:
 
 
 def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True, forcar=False):
-    """Login MANUAL por CPF/senha - o usuário realiza o login no browser e confirma no terminal.
+    """Login automático por CPF/senha alimentado pelo Gerenciador de Credenciais do Windows.
 
-    O login automático foi desativado. O browser é aberto na página de login
-    e o fluxo aguarda confirmação manual via input() no terminal.
-
-    forcar=True: apaga cookies antes de pedir login manual (sessão morta).
+    Recupera credenciais do Windows (keyring - serviço 'pjeplus').
+    Preenche automaticamente no formulário Keycloak/PDPJ (conforme padrão LEGADO.md ~15323).
+    Se as credenciais estiverem ausentes ou em caso de MFA/captcha, faz fallback
+    transparente para login manual no browser.
     """
     try:
-        import time
-
         # Apagar cookies se sessao morta ou forcar reautenticacao
         if forcar or not sessao_oauth_completa(driver):
             try:
@@ -463,53 +461,107 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
         if not url_login:
             url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
 
-        logger.info("[LOGIN_PJE] Navegando para a pagina de login: %s", url_login)
+        logger.info("[LOGIN_CPF] Navegando para a pagina de login: %s", url_login)
         driver.get(url_login)
         espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
 
         # Se ja estamos logados, retorna direto
         try:
-            cur = driver.current_url.lower()
-            if not any(k in cur for k in ['login', 'auth', 'realms']):
-                logger.info('[LOGIN_PJE] Ja autenticado (URL indica sessao ativa)')
+            cur = (getattr(driver, 'current_url', '') or '').lower()
+            if not any(k in cur for k in ['login', 'auth', 'realms']) and sessao_oauth_completa(driver):
+                logger.info('[LOGIN_CPF] Ja autenticado (URL indica sessao ativa)')
                 return True
         except Exception:
             pass
 
-        # ----------------------------------------------------------------
-        # LOGIN MANUAL: aguarda automaticamente a deteccao do painel
-        # (sem input() bloqueante — detecta /meu-painel sozinho)
-        # ----------------------------------------------------------------
-        _urls_pos_login = ('gigs/meu-painel', 'quadro-avisos/visualizar')
-        print('\n' + '=' * 60)
-        print('  LOGIN PJe MANUAL NECESSARIO')
-        print('=' * 60)
-        print('  O browser esta aberto na pagina de login do PJe.')
-        print('  Faca o login manualmente (CPF + senha + MFA se necessario).')
-        print('  O fluxo continuara AUTOMATICAMENTE apos detectar o painel.')
-        print('=' * 60)
+        # Obter credenciais do Gerenciador de Credenciais do Windows (keyring)
+        if not cpf or not senha:
+            if not cpf:
+                cpf = obter_credencial(
+                    'PJE_CPF',
+                    servicos=('pjeplus', 'pje', 'sisbajud', 'SISB'),
+                    aliases=('PJE_USER', 'CPF', 'PJE_SILAS', 'SILAS', 'SISB_CPF', 'BP_SISB')
+                )
+            if not senha:
+                senha = obter_credencial(
+                    'PJE_SENHA',
+                    servicos=('pjeplus', 'pje', 'sisbajud', 'SISB'),
+                    aliases=('PJE_PASSWORD', 'SENHA', 'PASSWORD', 'SISB_SENHA', 'BP_PASS')
+                )
 
-        # Polling automatico: aguarda ate 5 minutos pelo painel
-        timeout_login = 300
-        inicio = time.time()
-        while time.time() - inicio < timeout_login:
+        if not cpf or not senha:
+            logger.warning(
+                '[LOGIN_CPF] Credenciais PJE_CPF / PJE_SENHA nao encontradas no '
+                'Gerenciador de Credenciais do Windows. Prosseguindo com login manual.'
+            )
+            return login_manual(driver, aguardar_url_painel=aguardar_url_final)
+
+        # Clicar no botao SSO PDPJ antes de preencher credenciais se presente (LEGADO.md ~15354)
+        if espera.ate_aparecer(driver, '#btnSsoPdpj', teto=3):
             try:
-                cur = driver.current_url
-                if any(u in cur for u in _urls_pos_login):
-                    logger.info('[LOGIN_PJE] Login manual confirmado (URL: %s)', cur)
-                    try:
-                        if SALVAR_COOKIES_AUTOMATICO:
-                            salvar_cookies_sessao(driver, info_extra='login_manual_pje')
-                    except Exception:
-                        pass
-                    return True
-            except Exception:
-                pass
-            espera.assentar(driver, 1)
+                if hasattr(driver, 'page') and driver.page:
+                    driver.page.click('#btnSsoPdpj')
+                else:
+                    safe_click_no_scroll(driver, '#btnSsoPdpj')
+                logger.info('[LOGIN_CPF] Botao SSO PDPJ clicado')
+                espera.pausa(driver, 1.0)
+            except Exception as e:
+                logger.debug('[LOGIN_CPF] Aviso ao clicar no botao SSO PDPJ: %s', e)
 
-        logger.warning('[LOGIN_PJE] Login nao detectado apos %ds. URL: %s',
-                       timeout_login, getattr(driver, 'current_url', '<indisponivel>'))
-        return False
+        # Aguardar campo de usuario do Keycloak (#username)
+        if not espera.ate_aparecer(driver, '#username', teto=10):
+            logger.warning('[LOGIN_CPF] Campo #username nao localizado. Redirecionando para login manual...')
+            return login_manual(driver, aguardar_url_painel=aguardar_url_final)
+
+        # Preencher CPF e senha
+        try:
+            from Fix.core import preencher_campo
+            if hasattr(driver, 'page') and driver.page:
+                driver.page.fill('#username', str(cpf))
+                driver.page.fill('#password', str(senha))
+            else:
+                preencher_campo(driver, '#username', cpf)
+                preencher_campo(driver, '#password', senha)
+            logger.info('[LOGIN_CPF] Credenciais preenchidas via Windows Credential Manager')
+        except Exception as e:
+            logger.error('[LOGIN_CPF] Falha ao preencher credenciais: %s', e)
+            return login_manual(driver, aguardar_url_painel=aguardar_url_final)
+
+        # Clicar no botao de login (#kc-login - LEGADO.md ~15390)
+        try:
+            if hasattr(driver, 'page') and driver.page:
+                driver.page.click('#kc-login')
+            else:
+                safe_click_no_scroll(driver, '#kc-login')
+            logger.info('[LOGIN_CPF] Botao de login clicado (#kc-login)')
+        except Exception as e:
+            logger.error('[LOGIN_CPF] Falha ao clicar no botao de login: %s', e)
+            return login_manual(driver, aguardar_url_painel=aguardar_url_final)
+
+        # Aguardar redirecionamento / conclusao do login
+        if aguardar_url_final:
+            timeout_login = 45
+            inicio = time.time()
+            _urls_pos_login = ('gigs/meu-painel', 'quadro-avisos/visualizar', 'pjekz')
+            while time.time() - inicio < timeout_login:
+                try:
+                    cur = (getattr(driver, 'current_url', '') or '').lower()
+                    if any(u in cur for u in _urls_pos_login) or (not any(k in cur for k in ['login', 'auth', 'realms']) and sessao_oauth_completa(driver)):
+                        logger.info('[LOGIN_CPF] Login realizado com sucesso (URL: %s)', cur)
+                        if SALVAR_COOKIES_AUTOMATICO:
+                            try:
+                                salvar_cookies_sessao(driver, info_extra='login_cpf')
+                            except Exception:
+                                pass
+                        return True
+                except Exception:
+                    pass
+                espera.pausa(driver, 0.5)
+
+            logger.warning('[LOGIN_CPF] Timeout no login automatico por CPF (pode requerer MFA/captcha).')
+            return login_manual(driver, aguardar_url_painel=True)
+
+        return True
 
     except Exception as e:
         logger.error("ERRO em login_cpf: %s: %s", type(e).__name__, e)

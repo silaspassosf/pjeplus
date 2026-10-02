@@ -121,6 +121,10 @@ def _extrair_texto_via_api(driver, item, log) -> Optional[str]:
 
         id_proc = extrair_id_processo(driver)
         if not id_proc:
+            m = re.search(r'/processo/(\d+)', getattr(driver, 'current_url', '') or '')
+            if m:
+                id_proc = m.group(1)
+        if not id_proc:
             return None
 
         texto = obter_texto_documento(cliente_para(driver), id_proc, id_doc)
@@ -159,9 +163,8 @@ def _processar_item(driver, item, contexto, log):
         # evita abrir o documento e evita o export "Texto Extraído" (OCR).
         texto_completo = _extrair_texto_via_api(driver, item, log)
 
-        if not texto_completo or not _texto_e_correio(texto_completo):
-            # Fallback UI (extrair_direto / extrair_pdf) só quando a leitura
-            # direta não bastou para provar que a intimação é de correio.
+        if not texto_completo:
+            # Fallback UI (extrair_direto / extrair_pdf) só se a leitura direta via API não obtiver o texto
             safe_click_no_scroll(driver, link)
             espera.assentar(driver, 2.0, 'carregamento documento intimacao')
             texto_completo = _extrair_texto_completo(driver, log)

@@ -30,8 +30,7 @@ arquivos fora dessa pasta, exceto quando o usuário autorizar explicitamente.
 
 ## ⚠️ Branch Obrigatória: `main` (CRÍTICO)
 
-**Toda edição na pasta `Script/` deve ser feita na branch `main` — NUNCA na
-`refactor/pw-nativo`.**
+**Toda edição na pasta `Script/` deve ser feita na branch `main`.**
 
 Motivo: o `@require` do `pjetools.user.js` (e do `hcalc.user.js`) baixa os
 módulos do GitHub **na branch `main`**:
@@ -43,26 +42,18 @@ versão antiga da `main` — o usuário não verá a mudança mesmo recarregando
 ### Regras de branch para a pasta `Script/`
 
 - **Antes de editar**: confirme que está na `main` (`git branch --show-current`).
-  Se estiver em outra branch, faça `git checkout main` primeiro.
+  Não troque de branch automaticamente; se não estiver em `main`, reporte e não edite.
 - **A pasta `Script/` é independente da refatoração.** As demais pastas
-  (`Fix/`, `core/`, `atos/`, etc.) podem estar em `refactor/pw-nativo` em
-  andamento, mas isso **não** afeta `Script/`. Não faça merge da refatoração
-  para publicar mudanças de `Script/`.
-- **Commit/push**: commite e envie **somente** os arquivos da pasta `Script/`
-  alterados (módulo + orquestrador), nunca `git add -A` nem o workspace inteiro.
-- **Se a `main` estiver desatualizada** em relação a outra branch na pasta
-  `Script/`, traga os arquivos via checkout seletivo:
-  `git checkout <branch> -- Script/caminho/arquivo.js` e commite na `main`.
+  (`Fix/`, `core/`, `atos/`, etc.) também são trabalhadas em `main`.
+- Não faça commit ou push sem pedido explícito do usuário.
 
 ### Fluxo de publicação (resumo)
 
-1. `git checkout main`
-2. Edite o módulo em `Script/`
-3. Bumpe a versão do orquestrador (`pjetools.user.js` / `hcalc.user.js`)
-4. `git add Script/<módulo> Script/<orquestrador>`
-5. `git commit --no-verify -m "Script: <descrição>"`
-6. `git push origin main`
-7. Usuário recarrega o Tampermonkey → baixa a versão nova da `main`
+1. Confirme que está em `main`, sem trocar de branch automaticamente.
+2. Edite o módulo em `Script/`.
+3. Bumpe a versão do orquestrador (`pjetools.user.js` / `hcalc.user.js`) quando necessário.
+4. Faça commit/push somente se o usuário pedir explicitamente.
+5. Usuário recarrega o Tampermonkey → baixa a versão nova da `main`.
 
 ---
 

@@ -40,10 +40,7 @@ from .judicial_navegacao import (
     verificar_estado_atual,
     focar_campo_minutar_se_necessario,
 )
-from .judicial_modelos import (
-    esperar_insercao_modelo,
-    inserir_modelo_no_editor,
-)
+from .judicial_modelos import inserir_modelo_no_editor
 from .judicial_utils import (
     preencher_prazos_destinatarios,
     verificar_bloqueio_recente
@@ -541,6 +538,21 @@ def ato_judicial(
             except Exception as e:
                 logger.error(f'[ATO][INTIMAR] Erro ao desativar intimações: {e}')
 
+        # ----- AGUARDAR ESTABILIZAÇÃO DA ABA (quando intimar=False) -----
+        # Após desativar intimações, a aba precisa de tempo para renderizar
+        # antes de prosseguir para Gravar/Movimento. Sem isso, o spinner fica
+        # travado na tela porque o Angular ainda está processando a transição.
+        if not intimar_ativado:
+            logger.info('[ATO][INTIMAR] Aguardando estabilização da aba após desativar intimações...')
+            try:
+                # Aguarda o spinner/carregamento da aba de intimações sumir
+                espera.ate_sumir(driver, 'mat-progress-spinner, .mat-progress-spinner, mat-progress-bar, .mat-progress-bar', teto=8)
+                # Pequena pausa extra para o Angular finalizar a renderização
+                espera.assentar(driver, 1.5, motivo='estabilização pós-desativação de intimações')
+            except Exception as e:
+                logger.debug(f'[ATO][INTIMAR] Erro ao aguardar estabilização: {e}')
+                # Mesmo com erro, continua — não bloqueia o fluxo
+
         # ----- 3. DESTINATÁRIOS E PRAZO (quando intimar=True) -----
         if intimar_ativado and (prazo is not None or marcar_primeiro_destinatario):
             logger.info(f'[ATO][PRAZO] Configurando destinatários/prazos: prazo={prazo} (apenas_primeiro={marcar_primeiro_destinatario})')
@@ -664,6 +676,20 @@ def ato_judicial(
         if movimento:
             logger.info(f'[ATO][MOVIMENTO] Selecionando movimento: {movimento}')
             try:
+                # Snackbars pendentes (ex.: "Intimações salvas com sucesso") podem
+                # interceptar o clique na aba — esconde e dá tempo de assentar
+                # antes de trocar de guia (paciência do legado).
+                if hasattr(driver, 'page'):
+                    try:
+                        driver.page.evaluate("""() => {
+                            document.querySelectorAll('.cdk-overlay-backdrop, snack-bar-container, simple-snack-bar').forEach(function(el){
+                                if (el.style) el.style.display = 'none';
+                            });
+                        }""")
+                    except Exception:
+                        pass
+                espera.assentar(driver, 1.0, motivo='paciência pós-intimações antes de abrir aba Movimentos')
+
                 aba_mov_clicada = False
                 if hasattr(driver, 'page'):
                     try:
@@ -746,9 +772,21 @@ def ato_judicial(
 
                 # Gravar movimento — o próprio clique em Gravar conclui a movimentação:
                 # não há confirmação a aguardar (o snackbar não é prova de nada).
+                # IMPORTANTE (aaDespacho gigs-plugin): na ABA Movimentos do editor
+                # lateral o botão vive em pje-lancador-de-movimentos; o seletor antigo
+                # (pje-lancador-movimentos-dialogo) só casa quando o lançador é aberto
+                # pelo menu de Detalhes — por isso nunca era encontrado aqui.
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
                 aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=3)
-                btn_gravar_mov = wait_for_clickable(driver, BTN_GRAVAR_MOVIMENTOS, timeout=10)
+                btn_gravar_mov = None
+                for sel in [
+                    'pje-lancador-de-movimentos button[aria-label*="Gravar"]',      # aba Movimentos (aaDespacho)
+                    BTN_GRAVAR_MOVIMENTOS,                                           # diálogo Lançar movimentos
+                    "button[aria-label='Gravar os movimentos a serem lançados']",   # fallback legado
+                ]:
+                    btn_gravar_mov = wait_for_clickable(driver, sel, timeout=5)
+                    if btn_gravar_mov:
+                        break
                 if btn_gravar_mov:
                     safe_click_no_scroll(driver, btn_gravar_mov)
                     logger.info('[ATO][MOVIMENTO] Movimento gravado')

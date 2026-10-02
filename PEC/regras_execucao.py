@@ -12,21 +12,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-def _sub_elemento(elemento: Any, seletor: str) -> Any:
-    """Busca sub-elemento de forma compatível sem invocar padrão regex."""
-    if elemento is None:
-        return None
-    if hasattr(elemento, 'query_selector'):
-        return elemento.query_selector(seletor)
-    fn = getattr(elemento, 'find_element', None)
-    if fn is not None:
-        return fn('css selector', seletor)
-    return None
-
-
 from atos.judicial import ato_fal, ato_prov, ato_termoS
 from atos.movimentos import def_chip, mov_sob, mov_fimsob
 from core.rule_registry import RuleRegistry, adapt_action as _w
+from Fix.browser_suporte import _sub_elemento
 from Fix.abas import aguardar_nova_aba
 from Fix.extracao import extrair_direto, extrair_documento, extrair_pdf, criar_gigs, bndt
 from Fix.core import (
@@ -43,9 +32,9 @@ from Fix import espera
 logger = logging.getLogger(__name__)
 
 
+# xs sigilo: bucket próprio, processado antes de todas as outras observações
 # Sobrestamento vencido deve ser processado por ÚLTIMO, imediatamente antes de SISBAJUD
-# xs sigilo: bucket próprio, logo após o 1º bloco (xs_sob) e antes de carta
-BUCKET_ORDEM = ['xs_sob', 'xs_sigilo', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud_teimosinha', 'sisbajud_resultado']
+BUCKET_ORDEM = ['xs_sigilo', 'xs_sob', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud_teimosinha', 'sisbajud_resultado']
 
 
 # ─── helpers: acoes com logica interna ou assinatura especial ────────────────
@@ -427,7 +416,7 @@ registry.register(r'\bpec\s+dec\b|\bxs\s+pec\s+dec\b',                 'comunica
 registry.register(r'\bpec\s+idpj\b|\bxs\s+pec\s+idpj\b',               'comunicacoes', _w(_a(w, 'pec_editalidpj')))
 registry.register(r'\bxs\s+bloq\b|\bpec\s+bloq\b',                     'comunicacoes', _w(_a(w, 'pec_bloqueio')))
 registry.register(r'\bxs\s+sigilo\b',                                   'xs_sigilo', _xs_sigilo)
-registry.register(r'\bexequente\s+pessoal\b',                           'comunicacoes', _w(_a(w, 'pec_exeq')))
+registry.register(r'\bexequente\s+pessoal\b|\bpessoal\s+exequente\b',    'comunicacoes', _w(_a(w, 'pec_exeq')))
 # ── OUTROS ────────────────────────────────────────────────────────────────────
 registry.register(r'\bxs\s+audx\b|\baudx\b|\baud\s+x\b',               'outros',   _audx_mov_int)
 registry.register(r'\bxs\s+parcial\b',                                  'outros',   _xs_parcial)
@@ -608,8 +597,6 @@ def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Option
     """
     try:
         from Fix.variaveis import session_from_driver
-        import io
-        import pdfplumber
         
         # 1) Obter id_processo da URL
         m = re.search(r'/processo/(\d+)', driver.current_url)
@@ -675,16 +662,12 @@ def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Option
             logger.warning(f'[DEF_SOB_API] Não é PDF válido')
             return None
         
-        # 5) Extrair com pdfplumber
-        try:
-            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-                paginas = [p.extract_text() or '' for p in pdf.pages]
-            texto = '\n\n'.join(paginas).strip()
-            if texto:
-                logger.debug(f'[DEF_SOB_API] Texto extraído: {len(texto)} chars')
-                return texto
-        except Exception as e:
-            logger.warning(f'[DEF_SOB_API] pdfplumber error: {e}')
+        # 5) Extrair texto do PDF (cascata: pdfplumber → pymupdf → pypdfium2)
+        from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
+        texto = _extrair_texto_pdf_bytes(pdf_bytes, log=True)
+        if texto:
+            logger.debug(f'[DEF_SOB_API] Texto extraído: {len(texto)} chars')
+            return texto
         
         return None
     except Exception as e:

@@ -291,23 +291,24 @@ def make_comunicacao_wrapper(
                             raise Exception('Destinatários não adicionados ao ato (tabela vazia pós-seleção)')
                     log_fn('[COMUNICACAO][ORQUESTRA] Destinatários confirmados na tabela')
 
-                # Aguarda o ícone verde individual — sinal real de que o Salvar está ativo
+                # Aguarda carregamento e estabilização completa da tabela e campos após seleção de destinatários (LEGADO L2362-2364)
+                log_fn("[COMUNICACAO][ORQUESTRA] Aguardando estabilização pós-seleção de destinatários (LEGADO L2363)...")
+                espera.pausa(driver, 3.0, motivo='estabilizacao pos-selecao destinatarios (LEGADO L2363)')
+                espera.assentar(driver, 1.0, motivo='estabilizacao angular pos-destinatarios')
+
+                # Aguarda o ícone verde individual — confirmação de que os dados foram associados ao ato
                 if status in ('ok', 'fallback', 'geral') or count > 0:
                     try:
-                        _icone_ja = bool(espera.elementos(driver, 'i.pec-icone-verde-ato-individual-tabela-destinatarios', teto=0.1))
-                        if _icone_ja:
-                            log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde individual já presente — Salvar habilitado.")
+                        ok_icone = aguardar_renderizacao_nativa(
+                            driver,
+                            'i.pec-icone-verde-ato-individual-tabela-destinatarios, pje-pec-tabela-destinatarios i[aria-label="Ato confeccionado"]',
+                            modo='aparecer',
+                            timeout=10
+                        )
+                        if ok_icone:
+                            log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde individual detectado — Salvar habilitado.")
                         else:
-                            ok_icone = aguardar_renderizacao_nativa(
-                                driver,
-                                'i.pec-icone-verde-ato-individual-tabela-destinatarios',
-                                modo='aparecer',
-                                timeout=3
-                            )
-                            if ok_icone:
-                                log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde individual detectado — Salvar habilitado.")
-                            else:
-                                log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde não detectado em 3s — prosseguindo (Salvar verificará).")
+                            log_fn("[COMUNICACAO][ORQUESTRA] Ícone verde não detectado em 10s — prosseguindo (Salvar verificará).")
                     except Exception as e:
                         log_fn(f"[COMUNICACAO][ORQUESTRA] Erro ao aguardar renderização: {e}")
 
@@ -340,7 +341,8 @@ def make_comunicacao_wrapper(
             if call_kwargs.get('trocar_modelo'):
                 log_fn("[COMUNICACAO][ORQUESTRA] Finalizando minuta apos troca de modelo")
                 from atos.comunicacao_preenchimento import finalizar_minuta
-                finalizar_minuta(driver, log=log_fn)
+                if not finalizar_minuta(driver, log=log_fn):
+                    raise Exception('finalizar_minuta falhou após troca de modelo — ato não finalizado')
 
             # 5. Salvar minuta final
             log_fn("[COMUNICACAO][ORQUESTRA] Salvando minuta final")
@@ -350,9 +352,11 @@ def make_comunicacao_wrapper(
                 log_fn("[COMUNICACAO][ORQUESTRA][ERRO] Falha ao salvar/assinar minuta final.")
                 return False
 
-            # Fechar a aba de minutas imediatamente após salvar/assinar
+            # Fechar aba extra apenas se uma nova janela/aba tiver sido aberta
             try:
-                _fechar_abas_tabs(driver, _aba_original)
+                handles = getattr(driver, 'window_handles', [])
+                if len(handles) > 1 and _aba_original in handles:
+                    _fechar_abas_tabs(driver, _aba_original)
             except Exception:
                 pass
 
@@ -372,7 +376,9 @@ def make_comunicacao_wrapper(
             return False
         finally:
             try:
-                _fechar_abas_tabs(driver, _aba_original)
+                handles = getattr(driver, 'window_handles', [])
+                if len(handles) > 1 and _aba_original in handles:
+                    _fechar_abas_tabs(driver, _aba_original)
             except Exception:
                 pass
 

@@ -54,11 +54,10 @@ _JS_TEOR_CARREGADO = """() => {
     return txt.length > 10 || clone.querySelector('figure') !== null || clone.querySelector('table') !== null;
 }"""
 
-# Conteúdo REAL no editor-alvo, exigindo mudança vs baseline (evita falso-positivo).
 _JS_EDITOR_COM_CONTEUDO = """(sel, baseline) => {
-    if (document.querySelector('pdf-viewer')) return true;
     var area = document.querySelector(sel);
     if (!area) return false;
+    if (area.classList.contains('ck-placeholder')) return false;
     var clone = area.cloneNode(true);
     clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
     var txt = (clone.innerText || clone.textContent || '').replace(/\\s/g, '');
@@ -170,42 +169,55 @@ def inserir_modelo_no_editor(
         if not btn_inserir:
             log('[MODELO] Botão Inserir não encontrado')
             return False
-        safe_click_no_scroll(driver, btn_inserir)
 
-        # 6. Fecha o diálogo antes de confirmar (evita overlay no fluxo seguinte)
-        espera.ate_sumir(driver, _SEL_DIALOGO, teto=15)
+        # Dispara eventos de clique no botão Inserir
+        _clicado = False
+        try:
+            if hasattr(btn_inserir, '_handle') and btn_inserir._handle:
+                btn_inserir._handle.evaluate("""el => {
+                    el.focus();
+                    el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true}));
+                    el.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true}));
+                    el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+                }""")
+                _clicado = True
+        except Exception:
+            pass
 
-        # 7. Confirmação: conteúdo REAL no editor-alvo (escopado + baseline).
-        #    Snackbar NÃO é prova (aparece com editor vazio) — só fallback.
+        if not _clicado:
+            try:
+                if hasattr(btn_inserir, 'click'):
+                    btn_inserir.click()
+                else:
+                    safe_click_no_scroll(driver, btn_inserir)
+            except Exception:
+                safe_click_no_scroll(driver, btn_inserir)
+
+        # 6. Aguardar confirmação de inserção (padrão pre-refac + gigs-plugin L11111)
+        # O PJe emite a snackbar "Modelo de documento inserido com sucesso no editor"
+        # e fecha o pje-dialogo-visualizar-modelo.
+        snack_modelo = espera.ate_texto(
+            driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=8
+        )
+        if snack_modelo:
+            log('[MODELO] Snackbar "Modelo de documento inserido com sucesso" confirmada.')
+
+        # Aguardar diálogo de modelo sumir (padrão pre-refac)
+        aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=10)
+
+        # 7. Confirmação: conteúdo REAL no editor-alvo
         if not espera.ate_js(
             driver,
             "(%s)(%r, %d)" % (_JS_EDITOR_COM_CONTEUDO, seletor_editor_alvo, baseline_len),
             teto=timeout_conteudo,
         ):
-            if not espera.ate_js(
-                driver,
-                "(%s)(%r, %d)" % (_JS_EDITOR_COM_CONTEUDO, seletor_editor_alvo, baseline_len),
-                teto=timeout_conteudo,
-            ):
-                snack_ok = espera.ate_texto(
-                    driver, 'simple-snack-bar', 'Modelo de documento inserido com sucesso', teto=5
-                )
-                if not snack_ok:
-                    log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" não confirmado no editor-alvo')
-                    return False
+            # Se a snackbar foi confirmada e o teor foi injetado, editor foi preenchido
+            if not snack_modelo:
+                log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" não confirmado no editor-alvo')
+                return False
 
         log(f'[MODELO] Modelo "{modelo_nome}" inserido e confirmado no editor-alvo')
         return True
     except Exception as e:
         log(f'[MODELO] Erro ao inserir modelo "{modelo_nome}": {e}')
         return False
-
-
-def esperar_insercao_modelo(driver: Any, timeout: int = 8000) -> bool:
-    try:
-        timeout_segundos = timeout / 1000.0
-        espera.assentar(driver, timeout_segundos, motivo='inserção de modelo')
-        return True
-    except Exception as e:
-        logger.warning("[MODELO] Erro na espera de insercao de modelo: %s", e)
-        return True

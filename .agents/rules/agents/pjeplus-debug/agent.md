@@ -57,13 +57,11 @@ Você lê, mapeia, diagnostica e corrige de forma cirúrgica.
 | **ENTREGA** | `## Diagnóstico` + `## Correção` aplicada (máx. 10 linhas de texto) — no modo excepcional, `00act.md` |
 | **ESCALA** | Correção grande/multimódulo → Analyst; tarefa ambígua → pergunta única |
 
-**Branch exclusiva:** `main` — confirme `git branch --show-current`.
+**Branch exclusiva:** `main` — confirme `git branch --show-current`; não troque de branch automaticamente.
 **Anti-Selenium (inegociável):** diagnose considerando apenas o vocabulário Playwright nativo
 (`Fix/core`, `Fix/espera.py`/`espera.ate_*`, `_executar_js`, `Play.pjeplay.locators`). Se a correção
 proposta exigir Selenium, ela está errada — reformule em Playwright.
-**Regressão:** se um fluxo parou de funcionar, a lógica anterior está na tag `pre-refac`
-(`git show pre-refac:CAMINHO/ARQUIVO.py`) ou em `main` — a correção deve RESTAURAR essa lógica
-adaptada a Playwright, não recriar do zero.
+**Dúvida, falha ou regressão:** compare o código atual com `968047a^` (`git show 968047a^:CAMINHO/ARQUIVO.py`). Não consulte branches anteriores. A comparação é diagnóstica; não restaure nem copie código automaticamente. Se indisponível, relate a lacuna. Consulte `gigs-plugin.js` e LEGADO somente se o prompt mencionar expressamente a fonte.
 
 ---
 
@@ -119,17 +117,13 @@ Com base no código lido e no `idx.md`, defina:
   - qual padrão do `idx.md` se aplica (ex: SmartFinder, MutationObserver, exceção tipada)
   - se há risco de impacto em outro módulo
 
-**OBRIGATÓRIO antes de propor o caminho — comparação com `pre-refac`:**
-1. Verifique o MESMO trecho na tag pré-refatoração:
-   `git show pre-refac:CAMINHO/ARQUIVO.py` (e `git log -S "trecho" -- ARQUIVO` para achar o commit que trocou).
-2. Se a lógica funcionava antes e parou, o caminho proposto é **RESTAURAR** a lógica
-   (preservando o motor Playwright: `espera.ate_*`, `Fix/espera.py`, `By` de `Play.pjeplay.locators`) —
-   NÃO recriar do zero. Indique no diagnóstico o que o `pre-refac` fazia de diferente.
-3. **Nunca proponha código Selenium** (`find_element(s)`, `WebDriverWait`, `time.sleep`,
+**OBRIGATÓRIO antes de propor o caminho — comparação diagnóstica:**
+1. Compare o trecho com o estado imediatamente anterior a `968047a`: `git show 968047a^:CAMINHO/ARQUIVO.py`.
+2. Não consulte branches anteriores. Se a referência estiver indisponível, relate a lacuna; não procure substitutos.
+3. Use diferenças apenas como evidência. Não restaure nem copie código automaticamente; a correção deve atender ao pedido atual e seguir o Playwright vigente.
+4. **Nunca proponha código Selenium** (`find_element(s)`, `WebDriverWait`, `time.sleep`,
    `import selenium`) como correção — o caminho correto é traduzir a lógica para os helpers atuais.
-4. Consulte `.agents/rules/restauracao-pre-refac.md` (tabela de falhas já diagnosticadas como
-   perda de tradução: import de `By`/`time` removido, seletor misto CSS+XPath, propriedade DOM
-   traduzida como atributo XPath, seletores de sigilo/visibilidade errados).
+5. Consulte `.agents/rules/comparacao-historica.md` para o procedimento e as fontes autorizadas.
 
 Se o caminho violar um padrão do `idx.md`, registre o conflito explicitamente —
 o modelo pesado precisa saber.

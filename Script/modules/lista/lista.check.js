@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.3.9
+// lista.check.js v0.3.10
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -31,7 +31,17 @@ function _pjeTlClassApi(item) {
     const titulo = _norm(item.titulo || '');
     const desc = _norm((item.nomeDocumento || '') + ' ' + (item.descricao || ''));
     const low = titulo + ' ' + desc;
-    if (low.includes('devolucao de ordem') || low.includes('ordem de pesquisa patrimonial')) return 'Certidão devolução pesquisa';
+    if (low.includes('devolucao de ordem') ||
+        low.includes('devolucao de pesquisa') ||
+        low.includes('ordem de pesquisa') ||
+        low.includes('pesquisa patrimonial') ||
+        low.includes('certidao de devolucao') ||
+        low.includes('argos') ||
+        (low.includes('pesquisa') && (titulo.includes('certidao') || desc.includes('certidao') || low.includes('devolucao')))) {
+        if (!/(expedicao|expedido)/.test(low)) {
+            return 'Certidão devolução pesquisa';
+        }
+    }
     if (low.includes('certidao de oficial') || low.includes('oficial de justica')) return 'Certidão de oficial de justiça';
     // Mandado de pagamento NÃO é o alvará em si (é a certidão que o expede):
     // não entra na lista, mas fica marcado para a conferência (a descrição
@@ -105,7 +115,7 @@ async function expandirAnexos(container) {
 window.lerTimelineCompleta = async function () {
     const state = PJeState.lista;
     const agora = Date.now();
-    if (state.docs && (agora - state.readAt) < CACHE_TTL) return state.docs;
+    if (state.docs && state.docs.length > 0 && (agora - state.readAt) < CACHE_TTL) return state.docs;
 
     const idProcesso = _pjeTlIdProcesso();
     if (!idProcesso) return [];
@@ -172,7 +182,7 @@ window.lerTimelineCompleta = async function () {
         }
 
         for (const anexo of anexosApi) {
-            const t = _norm((anexo.titulo || '') + ' ' + (anexo.nomeDocumento || ''));
+            const t = _norm((anexo.titulo || '') + ' ' + (anexo.nomeDocumento || '') + ' ' + (anexo.descricao || ''));
             let tipoAnexo = null;
             if (anexosAlvara.includes(anexo)) tipoAnexo = 'Alvarás';
             else if (/serasa|serasajud/.test(t)) tipoAnexo = 'Serasa';
@@ -215,17 +225,27 @@ window.resolverLink = function (doc) {
 }
 
 // ── Predicados ──────────────────────────────────────────────────
-window.isCertDevolucao = d => _norm(d.tipo).includes('certidao devolucao');
-window.isCertOficial = d => _norm(d.tipo).includes('certidao de oficial');
-window.isAlvara = d => _norm(d.tipo) === 'alvaras';
-window.isSobrest = d => d.tipo.toLowerCase().includes('sobrestamento');
-window.isSerasaAntigo = d => d.tipo === 'SerasaAntigo';
+const isCertDevolucao = d => {
+    const t = _norm(d.tipo);
+    return t.includes('certidao devolucao') || t.includes('pesquisa');
+};
+const isCertOficial = d => _norm(d.tipo).includes('certidao de oficial');
+const isAlvara = d => _norm(d.tipo) === 'alvaras';
+const isSobrest = d => d.tipo.toLowerCase().includes('sobrestamento');
+const isSerasaAntigo = d => d.tipo === 'SerasaAntigo';
 
-window.byDataDesc = (a, b) => {
+const byDataDesc = (a, b) => {
     const da = (a.data || '').split('/').reverse().join('').padEnd(8, '0');
     const db = (b.data || '').split('/').reverse().join('').padEnd(8, '0');
     return db.localeCompare(da);
 };
+
+window.isCertDevolucao = isCertDevolucao;
+window.isCertOficial = isCertOficial;
+window.isAlvara = isAlvara;
+window.isSobrest = isSobrest;
+window.isSerasaAntigo = isSerasaAntigo;
+window.byDataDesc = byDataDesc;
 
 window.filtrarDocs = function (docs) {
     return docs.filter(d => {
@@ -834,20 +854,20 @@ window.autoSelecionarPesquisaCheck = async function () {
     (icone.closest('button') || icone).click();
     await sleep(600);
 
-    // 2) Usar a timeline já lida para saber exatamente quais pesquisas têm CNIB+Serasa
+    // 2) Usar a timeline já lida para saber exatamente quais pesquisas têm CNIB/Serasa
     const docs = await lerTimelineCompleta();
     const pares = [];
-    const pais = docs.filter(d => !d.isAnexo && /pesquisa/i.test(d.tipo || d.texto || ''));
+    const pais = docs.filter(d => !d.isAnexo && (/pesquisa/i.test(d.tipo || d.texto || '') || isCertDevolucao(d) || isCertOficial(d)));
     for (const pai of pais) {
         const anexos = docs.filter(d => d.isAnexo && d.parentId === pai.id);
         const temCnib = anexos.some(a => a.tipo === 'CNIB');
         const temSerasa = anexos.some(a => a.tipo === 'Serasa');
-        if (temCnib && temSerasa) {
+        if (temCnib || temSerasa) {
             pares.push({ pai, anexos: anexos.filter(a => a.tipo === 'CNIB' || a.tipo === 'Serasa') });
         }
     }
     if (!pares.length) {
-        showToast('Nenhuma pesquisa com par CNIB + Serasa encontrada', '#6c757d', 3000);
+        showToast('Nenhuma pesquisa com anexo CNIB ou Serasa encontrada', '#6c757d', 3000);
         return;
     }
 

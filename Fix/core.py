@@ -937,6 +937,24 @@ def preencher_campo(driver, seletor, valor, trigger_events=True, limpar=True, lo
         # Escapar valor para JavaScript
         valor_escapado = str(valor).replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"').replace("\n", "\\n")
         
+        if not isinstance(seletor, str):
+            script_el = f"""
+            {js_base()}
+            const campo = arguments[0];
+            if (!campo) return false;
+            if ({str(limpar).lower()}) {{ campo.value = ''; }}
+            campo.value = '{valor_escapado}';
+            if (String({str(trigger_events).lower()}) === 'true') {{
+                triggerEvent(campo, 'input');
+                triggerEvent(campo, 'change');
+                triggerEvent(campo, 'blur');
+            }}
+            try {{ campo.blur(); }} catch(e) {{}}
+            return true;
+            """
+            fn_exec = getattr(driver, 'execute_script', None)
+            return bool(fn_exec(script_el, seletor)) if fn_exec else False
+
         # execute_async_script: callback automático
         script = f"""
         {js_base()}
@@ -955,12 +973,13 @@ def preencher_campo(driver, seletor, valor, trigger_events=True, limpar=True, lo
                 
                 campo.value = '{valor_escapado}';
                 
-                if ({str(trigger_events).lower()}) {{
+                if (String(trigger_events).toLowerCase() === 'true') {{
                     triggerEvent(campo, 'input');
                     triggerEvent(campo, 'change');
                     triggerEvent(campo, 'blur');
                 }}
                 
+                try {{ campo.blur(); }} catch(e) {{}}
                 callback(true);
             }})
             .catch(err => {{

@@ -205,12 +205,11 @@ def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -
 # ESTRATEGIAS_ARGOS - Strategy Pattern for Argos document relevance
 # =========================
 def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
-    """Regra IDPJ por decisão; SISBAJUD afeta apenas lembrete."""
+    """Regra IDPJ por decisão ou despacho; SISBAJUD afeta apenas lembrete."""
     txt_lower = texto_documento.lower() if texto_documento else ''
     tipo_norm = normalizar_texto(str(tipo_documento or ''))
-    if 'decisao' not in tipo_norm:
-        return False
-    # diagnóstico: verificar presença com e sem normalização de acentos
+    # Conforme LEGADO.md (~45946): IDPJ pode constar em decisão, despacho ou sentença
+    # Não restringir estritamente se o conteúdo for de IDPJ.
     normalized = normalizar_texto(texto_documento) if texto_documento else ''
     
     # Lista expandida de palavras-chave para detectar IDPJ
@@ -270,11 +269,9 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
         #   3) pec_idpj — com gigs_extra=False para NÃO recriar o GIGS
         if resultado_sisbajud == 'positivo':
             logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio')
-            # CRÍTICO: o lembrete DEVE ser criado e finalizado antes de prosseguir.
-            # criar_lembrete_posit pode falhar silenciosamente (retorna False em ~1s se
-            # o menu/diálogo não abrir) — por isso checamos o retorno e tentamos de novo.
-            titulo_lembrete = 'IDPJcomBloq'
-            conteudo_lembrete = 'Processar bloqueios após intimar para pagamento depois do transito do IDPJ.'
+            # Conforme LEGADO.md (~46374): título "Bloqueio pendente", conteúdo "processar após IDPJ"
+            titulo_lembrete = 'Bloqueio pendente'
+            conteudo_lembrete = 'processar após IDPJ'
             lembrete_ok = False
             for tentativa in range(1, 4):
                 try:
@@ -282,7 +279,7 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
                 except Exception as e:
                     logger.warning(f'[ARGOS][REGRAS][WARN] lembrete tentativa {tentativa}/3 falhou: {type(e).__name__}: {e}')
                 if lembrete_ok:
-                    logger.info('[ARGOS][REGRAS] Lembrete de bloqueio confirmado no painel de post-its')
+                    logger.info('[ARGOS][REGRAS] Lembrete de bloqueio confirmado')
                     break
                 logger.warning(f'[ARGOS][REGRAS][WARN] lembrete nao confirmado (tentativa {tentativa}/3) — reassentando e tentando de novo')
                 espera.assentar(driver, 1.5, motivo='[LEMBRETE] retry apos falha')
@@ -575,6 +572,7 @@ ESTRATEGIAS_ARGOS_DECISAO = [
 ]
 
 ESTRATEGIAS_ARGOS_DESPACHO = [
+    ("IDPJ (instauração/855-A/desconsideração)", estrategia_defiro_instauracao),
     ("despacho+argos", estrategia_despacho_argos),
     ("despacho+infojud", estrategia_infojud),
 ]

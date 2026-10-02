@@ -64,7 +64,8 @@ class TestCaracterizacaoPEC(unittest.TestCase):
         self.assertEqual(match_res[1], "sisbajud_resultado")
 
     def test_determinar_regra_sigilo_e_chip(self):
-        from PEC.regras_execucao import determinar_regra
+        from PEC.regras_execucao import determinar_regra, BUCKET_ORDEM
+        self.assertEqual(BUCKET_ORDEM[0], "xs_sigilo")
         match_sigilo = determinar_regra("xs sigilo documentos")
         self.assertIsNotNone(match_sigilo)
         self.assertEqual(match_sigilo[1], "xs_sigilo")

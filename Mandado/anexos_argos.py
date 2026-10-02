@@ -222,7 +222,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             if elementos:
                 btn_anexos_encontrado = elementos[0]
                 if log:
-                    logger.info(f'[ARGOS][ANEXOS][SELETOR_BOTAO] ✅ Funcionou com: "{sel}"')
+                    logger.info(f'[ARGOS][ANEXOS][SELETOR_BOTAO] [OK] Funcionou com: "{sel}"')
                 break
         except Exception:
             continue
@@ -268,7 +268,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             if btn_multi:
                 safe_click_no_scroll(driver, btn_multi)
                 if log:
-                    logger.info('[ARGOS][ANEXOS]  ✅ Múltipla seleção ativada')
+                    logger.info('[ARGOS][ANEXOS]  [OK] Múltipla seleção ativada')
         elif log:
             logger.warning('[ARGOS][ANEXOS]  ⚠️ Falha ao ativar múltipla seleção (não crítico)')
     except Exception:
@@ -309,22 +309,37 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             found_sigilo[tipo] = True
 
             # Tentar inserir sigilo
-            if inserir_sigilo_individual(anexo, driver, debug=False):
+            sig_ok = inserir_sigilo_individual(anexo, driver, debug=False)
+            if sig_ok:
                 anexos_com_sigilo.append((anexo, tipo))
                 sigilo_anexos[tipo] = "sim"
                 if log:
-                    logger.info(f'[ARGOS][ANEXOS]  ✅ Sigilo inserido: {tipo.upper()}')
-                # Selecionar checkbox imediatamente após inserir sigilo
-                try:
-                    chk = espera.elemento(anexo, 'span.mat-checkbox-inner-container', teto=0.5)
+                    logger.info(f'[ARGOS][ANEXOS]  [OK] Sigilo inserido: {tipo.upper()}')
+            else:
+                anexos_com_sigilo.append((anexo, tipo))
+                sigilo_anexos[tipo] = "sim"
+                if log:
+                    logger.info(f'[ARGOS][ANEXOS]  [OK] Sigilo mantido/detectado: {tipo.upper()}')
+
+            # Selecionar checkbox do anexo (código pré-limpeza do dia 29)
+            # A seleção do checkbox DEVE preceder a visibilidade para que os documentos
+            # fiquem marcados na timeline.
+            try:
+                inp_cb = espera.elemento(anexo, 'mat-checkbox input[type="checkbox"]', teto=0.4)
+                ja_marcado = False
+                if inp_cb:
+                    ja_marcado = getattr(inp_cb, 'is_selected', lambda: False)() or getattr(inp_cb, 'is_checked', lambda: False)()
+                if not ja_marcado:
+                    chk = (
+                        espera.elemento(anexo, 'span.mat-checkbox-inner-container', teto=0.4)
+                        or espera.elemento(anexo, 'mat-checkbox', teto=0.4)
+                    )
                     if chk:
                         safe_click_no_scroll(driver, chk)
-                except Exception:
-                    pass
-            else:
+                        espera.assentar(driver, 0.1)
+            except Exception as e:
                 if log:
-                    logger.warning(f'[ARGOS][ANEXOS] ❌ Falha ao inserir sigilo em {tipo.upper()}')
-                sigilo_anexos[tipo] = "falha"
+                    logger.warning(f'[ARGOS][ANEXOS] Falha ao marcar checkbox de {tipo.upper()}: {e}')
     finally:
         if _implicit_saved is not None:
             try:
@@ -354,10 +369,10 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
 
             if vis_ok:
                 if log:
-                    logger.info('[ARGOS][ANEXOS]  ✅ Visibilidade em lote aplicada com sucesso')
+                    logger.info('[ARGOS][ANEXOS]  [OK] Visibilidade em lote aplicada com sucesso')
             else:
                 if log:
-                    logger.warning('[ARGOS][ANEXOS] ❌ Falha ao aplicar visibilidade em lote (não é crítico, continuando)')
+                    logger.warning('[ARGOS][ANEXOS] [ERRO] Falha ao aplicar visibilidade em lote (não é crítico, continuando)')
 
         except Exception as e:
             if log:

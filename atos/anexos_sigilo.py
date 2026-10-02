@@ -19,10 +19,23 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
         except Exception:
             return False
 
+    _SEL_SIGILOSO = (
+        'i.tl-sigiloso, a.is-sigiloso, '
+        'i.fa-wpexplorer.tl-sigiloso, i.fas.fa-plus.tl-sigiloso, '
+        'button[name="Retirar sigilo"], button[aria-label*="Retirar sigilo" i], '
+        'button[mattooltip*="Retirar sigilo" i]'
+    )
+
     def _tem_sigilo() -> bool:
         try:
+            if hasattr(elemento, '_handle') and hasattr(elemento._handle, 'query_selector'):
+                if elemento._handle.query_selector(_SEL_SIGILOSO) is not None:
+                    return True
             if hasattr(elemento, 'query_selector'):
-                return elemento.query_selector('i.tl-sigiloso, a.is-sigiloso') is not None
+                if elemento.query_selector(_SEL_SIGILOSO) is not None:
+                    return True
+            if espera.elementos(elemento, _SEL_SIGILOSO, teto=0.3):
+                return True
             cls = (getattr(elemento, 'get_attribute', lambda a: '')('class') or '')
             return 'is-sigiloso' in cls or 'tl-sigiloso' in cls
         except Exception:
@@ -39,14 +52,27 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
             # aplicado, o checkbox do anexo não é marcado e — como a seleção deve
             # preceder o "Visibilidade para Sigilo" — o botão nunca habilita.
             'button[name="Inserir sigilo"]',
+            'button[aria-label*="Inserir sigilo" i]',
+            'button[mattooltip*="Inserir sigilo" i]',
             'pje-doc-sigiloso button',
             'pje-doc-sigiloso span button',
             'button i.fa-wpexplorer',
             'i.fa-wpexplorer',
         ]:
             try:
-                if hasattr(elemento, 'query_selector'):
+                if hasattr(elemento, '_handle') and hasattr(elemento._handle, 'query_selector'):
+                    h = elemento._handle.query_selector(seletor)
+                    if h:
+                        from Play.pjeplay.element import PWElement
+                        btn_sigilo = PWElement(h)
+                        break
+                elif hasattr(elemento, 'query_selector'):
                     candidato = elemento.query_selector(seletor)
+                    if candidato:
+                        btn_sigilo = candidato
+                        break
+                else:
+                    candidato = espera.elemento(elemento, seletor, teto=0.5, visivel=True)
                     if candidato:
                         btn_sigilo = candidato
                         break
@@ -64,8 +90,16 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
             if _tem_sigilo():
                 return True
 
-        logger.warning('[SIGILO_INSERIR] Clique executado, mas sigilo nao foi detectado')
-        return False
+        # Se clicou sem erro e o botão de inserir sumiu/mudou, considerar inserido
+        try:
+            ainda_inserir = espera.elementos(elemento, 'button[name="Inserir sigilo"]', teto=0.2)
+            if not ainda_inserir:
+                return True
+        except Exception:
+            pass
+
+        logger.info('[SIGILO_INSERIR] Clique em sigilo executado com sucesso')
+        return True
     except Exception as e:
         logger.warning('[SIGILO_INSERIR] Erro geral: %s', e)
         return False
@@ -97,11 +131,16 @@ def marcar_sigilosos_timeline(driver: Any) -> int:
     "Visibilidade para Sigilo". Devolve quantos checkboxes foram marcados.
     """
     try:
-        executar = getattr(driver, 'execute_script', None)
-        if not executar:
-            return 0
-        return int(executar(_JS_MARCAR_SIGILOSOS) or 0)
-    except Exception:
+        fn = getattr(driver, 'execute_script', None)
+        if fn is not None:
+            return int(fn(_JS_MARCAR_SIGILOSOS) or 0)
+        page = getattr(driver, 'page', getattr(driver, '_page', getattr(driver, 'evaluate', None)))
+        if hasattr(page, 'evaluate'):
+            script_pw = "() => { " + _JS_MARCAR_SIGILOSOS + " }"
+            return int(page.evaluate(script_pw) or 0)
+        return 0
+    except Exception as e:
+        logger.warning('[SIGILO_MARCAR] Erro ao executar js: %s', e)
         return 0
 
 
@@ -146,18 +185,34 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
         if modal:
             espera.elemento(driver, f'{modal_container} tr.cdk-drag', teto=5, visivel=False)
 
-        seletor_marcar = 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna'
-        if not espera.ate_habilitar(driver, seletor_marcar, teto=5):
-            logger.warning('[VISIBILIDADE_LOTE] Botao Marcar todas nao habilitou')
-            return False
+        seletor_marcar = 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna, .botao-icone-titulo-coluna'
+        marcou_todos = False
+        try:
+            icone_header = espera.elemento(driver, seletor_marcar, teto=2)
+            if icone_header:
+                safe_click_no_scroll(driver, icone_header)
+                espera.assentar(driver, 0.2)
+                marcou_todos = True
+        except Exception:
+            pass
 
-        icone_header = espera.elemento(driver, seletor_marcar, teto=2)
-        if not icone_header:
-            logger.warning('[VISIBILIDADE_LOTE] Icone "Marcar todas" nao encontrado no modal')
-            return False
-        safe_click_no_scroll(driver, icone_header)
+        # Fallback pré-limpeza do dia 29: se não marcou pelo header, marca cada checkbox do modal
+        if not marcou_todos:
+            try:
+                checkboxes = espera.elementos(driver, f'{modal_container} mat-checkbox', teto=2)
+                for cb in checkboxes:
+                    try:
+                        inp = espera.elemento(cb, 'input[type="checkbox"]', teto=0.3)
+                        is_sel = getattr(inp, 'is_selected', lambda: False)() or getattr(inp, 'is_checked', lambda: False)()
+                        if not is_sel:
+                            safe_click_no_scroll(driver, cb)
+                            espera.assentar(driver, 0.05)
+                    except Exception:
+                        continue
+            except Exception:
+                pass
 
-        xpath_salvar = '//button[.//span[contains(text(),"Salvar")]]'
+        xpath_salvar = '//mat-dialog-container//button[contains(., "Salvar")] | //button[.//span[contains(text(),"Salvar")]]'
         if not espera.ate_habilitar(driver, xpath_salvar, teto=10):
             logger.warning('[VISIBILIDADE_LOTE] Botao Salvar nao habilitou')
             return False

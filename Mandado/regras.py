@@ -205,11 +205,11 @@ def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -
 # ESTRATEGIAS_ARGOS - Strategy Pattern for Argos document relevance
 # =========================
 def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
-    """Regra IDPJ por decisão ou despacho; SISBAJUD afeta apenas lembrete."""
+    """Regra IDPJ por decisão; SISBAJUD afeta apenas lembrete."""
     txt_lower = texto_documento.lower() if texto_documento else ''
     tipo_norm = normalizar_texto(str(tipo_documento or ''))
-    # Conforme LEGADO.md (~45946): IDPJ pode constar em decisão, despacho ou sentença
-    # Não restringir estritamente se o conteúdo for de IDPJ.
+    if 'decisao' not in tipo_norm:
+        return False
     normalized = normalizar_texto(texto_documento) if texto_documento else ''
     
     # Lista expandida de palavras-chave para detectar IDPJ
@@ -572,7 +572,6 @@ ESTRATEGIAS_ARGOS_DECISAO = [
 ]
 
 ESTRATEGIAS_ARGOS_DESPACHO = [
-    ("IDPJ (instauração/855-A/desconsideração)", estrategia_defiro_instauracao),
     ("despacho+argos", estrategia_despacho_argos),
     ("despacho+infojud", estrategia_infojud),
 ]

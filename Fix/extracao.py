@@ -1856,95 +1856,9 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
 
 
 def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
-    logger.info('[FILTROFASES] Filtrando fase processual: %s...', ', '.join(fases_alvo).title())
-    try:
-        fase_element = espera.elemento(driver, "//span[contains(text(), 'Fase processual')]")
-        if not fase_element:
-            for elem in espera.elementos(driver, 'span.ng-tns-c82-22.ng-star-inserted'):
-                if 'Fase processual' in elem.text:
-                    fase_element = elem
-                    break
-        if not fase_element:
-            logger.error('ERRO em filtrofases: Nao encontrou o seletor de fase processual')
-            return False
-        safe_click_no_scroll(driver, fase_element)
-        painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
-        espera.ate_aparecer(driver, painel_selector, teto=3)
-        painel = espera.elemento(driver, painel_selector, teto=3)
-        if not painel or not painel.is_displayed():
-            logger.error('ERRO em filtrofases: Painel de opcoes nao apareceu')
-            return False
-        fases_clicadas = set()
-        opcoes = espera.elementos(driver, '.mat-select-panel-wrap mat-option')
-        for fase in fases_alvo:
-            for opcao in opcoes:
-                try:
-                    texto = opcao.text.strip().lower()
-                    if fase in texto and opcao.is_displayed():
-                        safe_click_no_scroll(driver, opcao)
-                        fases_clicadas.add(fase)
-                        logger.debug('[FILTROFASES] Fase "%s" selecionada', fase)
-                        espera.assentar(driver, 0.5)
-                        break
-                except Exception:
-                    continue
-        if len(fases_clicadas) == 0:
-            logger.error('ERRO em filtrofases: Nao encontrou opcoes %s no painel', fases_alvo)
-            return False
-        try:
-            botao_filtrar = espera.elemento(driver, 'i.fas.fa-filter')
-            if botao_filtrar:
-                safe_click_no_scroll(driver, botao_filtrar)
-            logger.debug('[FILTROFASES] Fases selecionadas e filtro aplicado')
-            espera.assentar(driver, 1)
-        except Exception as e:
-            logger.error('ERRO em filtrofases: Nao conseguiu clicar no botao de filtrar: %s', e)
-        if tarefas_alvo:
-            logger.info('[FILTROFASES] Filtrando tarefa: %s...', ', '.join(tarefas_alvo).title())
-            tarefa_element = espera.elemento(driver, f"//span[contains(text(), '{seletor_tarefa}')]")
-            if not tarefa_element:
-                for elem in espera.elementos(driver, 'span.ng-tns-c82-22.ng-star-inserted'):
-                    if seletor_tarefa in elem.text:
-                        tarefa_element = elem
-                        break
-            if not tarefa_element:
-                logger.error('ERRO em filtrofases: Nao encontrou o seletor de tarefa: %s', seletor_tarefa)
-                return False
-            safe_click_no_scroll(driver, tarefa_element)
-            espera.ate_aparecer(driver, painel_selector, teto=3)
-            painel = espera.elemento(driver, painel_selector, teto=3)
-            if not painel or not painel.is_displayed():
-                logger.error('ERRO em filtrofases: Painel de opcoes de tarefa nao apareceu')
-                return False
-            tarefas_clicadas = set()
-            opcoes = espera.elementos(driver, '.mat-select-panel-wrap mat-option')
-            for tarefa in tarefas_alvo:
-                for opcao in opcoes:
-                    try:
-                        texto = opcao.text.strip().lower()
-                        if tarefa.lower() in texto and opcao.is_displayed():
-                            safe_click_no_scroll(driver, opcao)
-                            tarefas_clicadas.add(tarefa)
-                            logger.debug('[FILTROFASES] Tarefa "%s" selecionada', tarefa)
-                            espera.assentar(driver, 0.5)
-                            break
-                    except Exception:
-                        continue
-            if len(tarefas_clicadas) == 0:
-                logger.error('ERRO em filtrofases: Nao encontrou opcoes %s no painel de tarefas', tarefas_alvo)
-                return False
-            try:
-                botao_filtrar = espera.elemento(driver, 'i.fas.fa-filter')
-                if botao_filtrar:
-                    safe_click_no_scroll(driver, botao_filtrar)
-                logger.debug('[FILTROFASES] Tarefas selecionadas e filtro aplicado')
-                espera.assentar(driver, 1)
-            except Exception as e:
-                logger.error('ERRO em filtrofases: Nao conseguiu clicar no botao de filtrar para tarefas: %s', e)
-    except Exception as e:
-        logger.error("ERRO em filtrofases: %s: %s", type(e).__name__, e)
-        return False
-    return True
+    """Aplica filtros de fase e tarefa redirecionando para Fix.core.filtrofases."""
+    from Fix.core import filtrofases as _filtrofases_core
+    return _filtrofases_core(driver, fases_alvo=fases_alvo, tarefas_alvo=tarefas_alvo, seletor_tarefa=seletor_tarefa)
 
 def indexar_processos(driver):
     """

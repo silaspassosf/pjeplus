@@ -1,0 +1,35 @@
+{
+  "nome": "playwright-20261003-135249",
+  "backend": "playwright",
+  "total": 93.859,
+  "tempo_morto": 0.0,
+  "qtd_sleeps": 0,
+  "tempo_helper": 13.202,
+  "chamadas_helper": 33,
+  "tempo_espera": 13.202,
+  "chamadas_espera": 33,
+  "etapas": [
+    {
+      "nome": "execucao completa",
+      "segundos": 93.859,
+      "erro": null
+    }
+  ],
+  "por_helper": {
+    "Fix.espera.pausa": {
+      "n": 25,
+      "segundos": 13.085,
+      "falhas": 0
+    },
+    "Fix.espera.ate_js": {
+      "n": 5,
+      "segundos": 0.08,
+      "falhas": 0
+    },
+    "Fix.espera.ate_aparecer": {
+      "n": 3,
+      "segundos": 0.037,
+      "falhas": 0
+    }
+  }
+}

@@ -88,3 +88,11 @@ cache/assinatura_cookies.json
 Aud1/
 hermes/
 scratch/
+
+# Gastos / Planilhas e credenciais privadas
+*.xlsx
+Gastos/token.json
+Gastos/client_secret.json
+Gastos/credenciais.json
+Gastos/compilados_finais/
+

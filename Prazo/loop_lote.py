@@ -16,8 +16,8 @@ from Fix.core import (
     aguardar_renderizacao_nativa,
     aplicar_filtro_100,
     com_retry,
+    filtrofases,
 )
-from Fix.extracao import filtrofases
 from Fix.facade_publica import buscar
 
 from .loop_orquestrador import (
@@ -109,9 +109,8 @@ def _ciclo1_aplicar_filtro_fases(driver: Any) -> Union[bool, str]:
         t_filtro = time.perf_counter() - t0
         logger.info(f'[LATENCIA][DETALHE] CICLO1 filtrofases: {t_filtro:.3f}s')
         if not result:
-            # filtrofases retorna False quando não encontra as opções para selecionar
-            # Isso significa que não há processos nessas fases
-            return "no_more_processes"
+            logger.error('[CICLO1][FILTRO] Falha ao aplicar filtro de fases.')
+            return False
 
         # Aguardar spinner do filtro (div.carregando) — garante que Angular processou
         # o filtro ANTES de iniciar o polling de células (evita detectar linhas stale)

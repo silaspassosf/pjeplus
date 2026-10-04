@@ -294,16 +294,39 @@ def abrir_em_nova_aba(driver, acao, timeout: float = 15) -> Optional[str]:
 
 def abrir_url_nova_aba(driver, url: str, timeout: float = 15) -> Optional[str]:
     """Abre uma URL em nova aba e retorna o handle da nova aba (ja com foco)."""
-    if hasattr(driver, "context") and hasattr(driver.context, "new_page"):
+    handles_antes = set(_obter_window_handles(driver))
+
+    # 1. Via Playwright nativo: window.open na pagina atual com expect_page no context.
+    # Garante que o navegador crie uma ABA na janela existente (em vez de nova janela SO).
+    if hasattr(driver, "context") and hasattr(driver, "page"):
         try:
-            nova_pagina = driver.context.new_page()
-            nova_pagina.goto(url)
+            with driver.context.expect_page(timeout=int(timeout * 1000)) as pinfo:
+                driver.page.evaluate("url => window.open(url, '_blank')", url)
+            nova_pagina = pinfo.value
+            if hasattr(driver, "_registrar_pagina"):
+                driver._registrar_pagina(nova_pagina)
             for h, p in getattr(driver, "_handles", {}).items():
                 if p is nova_pagina:
                     driver.switch_to.window(h)
                     return h
         except Exception:
             pass
+
+    # 2. Via JS window.open padrao + espera por nova aba
+    try:
+        if hasattr(driver, "page"):
+            driver.page.evaluate("url => window.open(url, '_blank')", url)
+        else:
+            _executar_script(driver, "window.open(arguments[0], '_blank');", url)
+        espera.ate_abas(driver, len(handles_antes) + 1, teto=timeout)
+        for h in _obter_window_handles(driver):
+            if h not in handles_antes:
+                driver.switch_to.window(h)
+                return h
+    except Exception:
+        pass
+
+    # 3. Fallback driver switch_to.new_window
     try:
         driver.switch_to.new_window('tab')
         driver.get(url)

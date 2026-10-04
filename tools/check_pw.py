@@ -32,7 +32,7 @@ BASELINE_PATH = WORKSPACE_ROOT / "tools" / "pw_baseline.json"
 
 EXCLUDE_DIRS = {
     ".venv", "venv", "worktrees", "outros projetos", "ORIGINAIS",
-    ".git", "__pycache__", ".idea", ".vscode"
+    ".git", "__pycache__", ".idea", ".vscode", "Gastos", "GASTOS"
 }
 
 EXCLUDE_FILES = {

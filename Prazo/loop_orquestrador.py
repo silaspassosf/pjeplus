@@ -20,6 +20,7 @@ from Fix.core import (
     aguardar_renderizacao_nativa,
     aplicar_filtro_100,
     com_retry,
+    safe_click_no_scroll,
 )
 from Fix.variaveis import PjeApiClient, obter_gigs_com_fase, session_from_driver
 
@@ -454,7 +455,150 @@ def _obter_processos_com_gigs_api(client: 'PjeApiClient', numeros_processos: Lis
 
 
 # ═══════════════════════════════════════════════
-# ── 4. loop_ciclo1.py ──
+# ── 4. loop_ciclo0.py ──
+# ═══════════════════════════════════════════════
+
+def ciclo0(driver: Any) -> bool:
+    """
+    Ciclo 0: Painel Global 14 (Análise)
+    a- navega para https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos
+    b- filtro fase execução e liquidação
+    c- listar 100
+    d- seleção livres + atividade xs1
+    """
+    from .loop_lote import _ciclo1_aplicar_filtro_fases
+    from .loop_execucao_final import _ciclo2_criar_atividade_xs
+
+    # a- Navegar para Painel Global 14
+    url_painel14 = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
+    if not pausar_confirmacao('CICLO0/NAVEGAR_PAINEL14', f'Navegar para {url_painel14}'):
+        return False
+    logger.info(f'[CICLO0] Navegando para Painel Global 14: {url_painel14}')
+    driver.get(url_painel14)
+
+    # Espera dinâmica: aguardar URL e elemento chave do painel de atividades
+    if not espera.ate_url(driver, "painel/global/14", teto=10):
+        logger.warning(f'[CICLO0] URL ainda não contém painel/global/14. URL atual: {getattr(driver, "current_url", "")}. Forçando navegação direta...')
+        driver.get(url_painel14)
+        espera.ate_url(driver, "painel/global/14", teto=10)
+
+    logger.info(f'[CICLO0] URL confirmada: {getattr(driver, "current_url", "")}')
+
+    try:
+        if espera.elemento(driver, 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]', teto=12) is None:
+            raise TimeoutError()
+        logger.info('[CICLO0] Dropdown "Fase processual" presente - prosseguindo')
+    except Exception:
+        logger.warning('[CICLO0] Timeout aguardando dropdown "Fase processual" - prosseguindo mesmo assim')
+
+    # ===== VERIFICAÇÃO PRÉVIA: Lista já vazia antes do filtro =====
+    try:
+        mensagem_vazia = espera.elementos(driver, "//span[contains(text(), 'Não há processos neste tema')]", teto=0.5)
+        if mensagem_vazia and any(getattr(el, 'is_displayed', lambda: True)() for el in mensagem_vazia):
+            logger.info('[CICLO0] Lista já vazia antes do filtro - nada a processar')
+            return True
+    except Exception:
+        pass  # Se erro ao verificar, segue normalmente
+
+    # b- Filtro fase execução e liquidação
+    with medir_latencia('CICLO0_APLICAR_FILTRO_FASES'):
+        filtro_result = _ciclo1_aplicar_filtro_fases(driver)
+    if filtro_result == "no_more_processes":
+        logger.info('[CICLO0] Nenhum processo em liquidação/execução.')
+        return True
+    if not filtro_result:
+        logger.error('[CICLO0] Falha ao aplicar filtro de fases.')
+        return False
+
+    # c- Listar 100
+    with medir_latencia('CICLO0_FILTRO_100'):
+        logger.info('[CICLO0] Aplicando filtro 100...')
+        try:
+            ja_100 = espera.elemento(driver, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='100']", teto=0.5)
+            if ja_100:
+                logger.info('[CICLO0] Lista já configurada com 100 itens')
+            else:
+                aplicar_filtro_100(driver)
+                logger.info('[CICLO0] Filtro 100 aplicado')
+        except Exception as e:
+            logger.warning(f'[CICLO0] Aviso ao aplicar filtro 100: {e}')
+
+        try:
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=3)
+        except Exception:
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
+
+    # d- Seleção livres + atividade xs1
+    with medir_latencia('CICLO0_SELECAO_LIVRES_E_XS1'):
+        logger.info('[CICLO0] Selecionando processos livres...')
+
+        # Obter total de processos para calcular páginas se > 100
+        try:
+            total_elem = espera.elemento(driver, 'span.total-registros', teto=2)
+            total_text = getattr(total_elem, 'text', '') if total_elem else ''
+            m = re.search(r'de\s+(\d+)', total_text)
+            total = int(m.group(1)) if m else -1
+        except Exception:
+            total = -1
+
+        paginas = math.ceil(total / 100) if total > 0 else 1
+        total_selecionados = 0
+
+        for pagina in range(paginas):
+            try:
+                selecionados = _executar_js(driver, SCRIPT_SELECAO_LIVRES)
+                if selecionados == -1:
+                    logger.error(f"[CICLO0] ERRO no script de seleção de livres na página {pagina+1}")
+                    return False
+                elif isinstance(selecionados, int) and selecionados > 0:
+                    total_selecionados += selecionados
+                    logger.info(f"[CICLO0] Página {pagina+1}: {selecionados} livres selecionados")
+                    logger.info(f"[CICLO0] Aplicando atividade XS (xs1) para os processos livres selecionados...")
+                    if not _ciclo2_criar_atividade_xs(driver):
+                        logger.error(f"[CICLO0] Falha ao aplicar XS na página {pagina+1}")
+                        return False
+                    logger.info(f"[CICLO0] Atividade XS aplicada na página {pagina+1}")
+                else:
+                    logger.info(f"[CICLO0] Página {pagina+1}: 0 livres selecionados")
+            except Exception as e:
+                logger.error(f"[CICLO0] Erro ao selecionar livres na página {pagina+1}: {e}")
+
+            # Ir para próxima página, se houver
+            if pagina < paginas - 1:
+                try:
+                    btn_next = espera.elemento(driver, 'mat-paginator button[aria-label="Próxima página"]', teto=2)
+                    if btn_next:
+                        safe_click_no_scroll(driver, btn_next)
+                    try:
+                        aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+                    except Exception:
+                        espera.ate_js(driver, "document.readyState === 'complete'", teto=1)
+                except Exception:
+                    logger.info("[CICLO0] Não foi possível navegar para próxima página (ou última página atingida)")
+
+        logger.info(f"[CICLO0] Total de processos livres selecionados: {total_selecionados}")
+
+        if total_selecionados == 0:
+            logger.info("[CICLO0] Nenhum processo livre encontrado")
+
+    # ===== CÓDIGO DO CICLO 1 COMENTADO (movimentação em lote / suitcase) =====
+    # # with medir_latencia('CICLO1_MARCAR_TODAS'):
+    # #     marcar_result = _ciclo1_marcar_todas(driver)
+    # # with medir_latencia('CICLO1_ABRIR_SUITCASE'):
+    # #     abriu_suitcase = _ciclo1_abrir_suitcase(driver)
+    # # with medir_latencia('CICLO1_AGUARDAR_MOVIMENTACAO_LOTE'):
+    # #     aguardou_mov_lote = _ciclo1_aguardar_movimentacao_lote(driver)
+    # # with medir_latencia(f'CICLO1_MOVIMENTAR_DESTINO_Análise'):
+    # #     moveu_destino = _ciclo1_movimentar_destino(driver, 'Análise')
+    # # with medir_latencia('CICLO1_RETORNAR_LISTA'):
+    # #     _ciclo1_retornar_lista(driver)
+
+    logger.info("[CICLO0] Ciclo 0 concluído com sucesso")
+    return True
+
+
+# ═══════════════════════════════════════════════
+# ── 4b. loop_ciclo1.py (preservado para referência) ──
 # ═══════════════════════════════════════════════
 
 def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
@@ -580,71 +724,80 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
 # ═══════════════════════════════════════════════
 
 def loop_prazo(driver: Any) -> Dict[str, Any]:
-    """Função wrapper que executa o fluxo completo de prazo (ciclo1 + ciclo2)"""
+    """Função wrapper que executa o fluxo de prazo (Ciclo 0 + Cumprimento de Providências)"""
     try:
         # lazy import to avoid circular dependency with loop_execucao_final
-        from .loop_execucao_final import ciclo2, ciclo3
+        # from .loop_execucao_final import ciclo2  # loop 2 comentado temporariamente
+        from .loop_execucao_final import ciclo3
 
-        # 1. Navegar para Painel Global 14 (Análise)
-        url_lista = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
-        if not pausar_confirmacao('LOOP/NAVEGAR_PAINEL14', f'Navegar para {url_lista}'):
-            return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 14")
-        logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 14: {url_lista}')
-        driver.get(url_lista)
-        # Espera dinâmica: aguardar elemento chave do painel de atividades
-        try:
-            if espera.elemento(driver, "//span[contains(text(), 'Fase processual')]", teto=12, visivel=False) is None:
-                raise TimeoutError()
-            logger.info('[LOOP_PRAZO] Elemento "Fase processual" presente - prosseguindo')
-        except Exception:
-            logger.info('[LOOP_PRAZO] Timeout aguardando elemento "Fase processual" - prosseguindo mesmo assim')
+        # ===== LOOP 0 (Painel 14 - Análise: filtro fases + listar 100 + livres + xs1) =====
+        logger.info("[LOOP_PRAZO] Loop 0: Executando ciclo 0 no painel 14")
+        resultado_ciclo0 = ciclo0(driver)
+        if not resultado_ciclo0:
+            logger.error("[LOOP_PRAZO] Erro crítico no ciclo 0.")
+            return ResultadoExecucao(sucesso=False, status='FALHA', erro="Falha em ciclo 0")
 
-        # FASE 1: Loop para ciclo1 (Análise)
-        logger.info("[LOOP_PRAZO] Fase 1: Processando processos no painel 14")
-        while True:
-            resultado_ciclo1 = ciclo1(driver)
+        # ===== LOOP 1 e LOOP 2 (comentados por enquanto) =====
+        # # 1. Navegar para Painel Global 14 (Análise)
+        # url_lista = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
+        # if not pausar_confirmacao('LOOP/NAVEGAR_PAINEL14', f'Navegar para {url_lista}'):
+        #     return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 14")
+        # logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 14: {url_lista}')
+        # driver.get(url_lista)
+        # # Espera dinâmica: aguardar elemento chave do painel de atividades
+        # try:
+        #     if espera.elemento(driver, "//span[contains(text(), 'Fase processual')]", teto=12, visivel=False) is None:
+        #         raise TimeoutError()
+        #     logger.info('[LOOP_PRAZO] Elemento "Fase processual" presente - prosseguindo')
+        # except Exception:
+        #     logger.info('[LOOP_PRAZO] Timeout aguardando elemento "Fase processual" - prosseguindo mesmo assim')
+        #
+        # # FASE 1: Loop para ciclo1 (Análise)
+        # logger.info("[LOOP_PRAZO] Fase 1: Processando processos no painel 14")
+        # while True:
+        #     resultado_ciclo1 = ciclo1(driver)
+        #
+        #     if resultado_ciclo1 == "no_more_processes":
+        #         logger.info("[LOOP_PRAZO] Não há mais processos para processar no ciclo1.")
+        #         break
+        #     elif resultado_ciclo1 == "single_process":
+        #         logger.info("[LOOP_PRAZO] Apenas 1 processo detectado - pulando batch")
+        #         break
+        #     elif resultado_ciclo1 == "complete_single_batch":
+        #         logger.info("[LOOP_PRAZO] Lote único processado (<20 processos) - não repetir ciclo1")
+        #         break
+        #     elif resultado_ciclo1 is False:
+        #         logger.error("[LOOP_PRAZO] Erro crítico no ciclo1.")
+        #         return ResultadoExecucao(sucesso=False, status='FALHA', erro="Falha em ciclo1")
+        #     elif resultado_ciclo1 in ["go_to_ciclo2", "marcar_todas_not_found_but_continue"]:
+        #         break
+        #
+        #     logger.info("[LOOP_PRAZO] Ciclo 1 concluído. Verificando se há mais...")
+        #     aguardar_renderizacao_nativa(driver, timeout=4)
+        #
+        # # 2. Navegar para Painel Global 8 (Cumprimento de providências)
+        # url_painel8 = "https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos"
+        # if not pausar_confirmacao('LOOP/NAVEGAR_PAINEL8', f'Navegar para {url_painel8}'):
+        #     return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 8")
+        # logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 8: {url_painel8}')
+        # driver.get(url_painel8)
+        # espera.ate_url(driver, "painel/global/8", teto=5)
+        #
+        # # FASE 2: Ciclo 2
+        # logger.info("[LOOP_PRAZO] Fase 2: Executando ciclo 2")
+        # resultado_ciclo2 = ciclo2(driver)
 
-            if resultado_ciclo1 == "no_more_processes":
-                logger.info("[LOOP_PRAZO] Não há mais processos para processar no ciclo1.")
-                break
-            elif resultado_ciclo1 == "single_process":
-                logger.info("[LOOP_PRAZO] Apenas 1 processo detectado - pulando batch")
-                break
-            elif resultado_ciclo1 == "complete_single_batch":
-                logger.info("[LOOP_PRAZO] Lote único processado (<20 processos) - não repetir ciclo1")
-                break
-            elif resultado_ciclo1 is False:
-                logger.error("[LOOP_PRAZO] Erro crítico no ciclo1.")
-                return ResultadoExecucao(sucesso=False, status='FALHA', erro="Falha em ciclo1")
-            elif resultado_ciclo1 in ["go_to_ciclo2", "marcar_todas_not_found_but_continue"]:
-                break
-
-            logger.info("[LOOP_PRAZO] Ciclo 1 concluído. Verificando se há mais...")
-            aguardar_renderizacao_nativa(driver, timeout=4)
-
-        # 2. Navegar para Painel Global 8 (Cumprimento de providências)
-        url_painel8 = "https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos"
-        if not pausar_confirmacao('LOOP/NAVEGAR_PAINEL8', f'Navegar para {url_painel8}'):
-            return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 8")
-        logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 8: {url_painel8}')
-        driver.get(url_painel8)
-        espera.ate_url(driver, "painel/global/8", teto=5)
-
-        # FASE 2: Ciclo 2
-        logger.info("[LOOP_PRAZO] Fase 2: Executando ciclo 2")
-        resultado_ciclo2 = ciclo2(driver)
-
-        # FASE 3: Ciclo 3 (painel cumprimento providências - livres sem GIGS)
-        logger.info("[LOOP_PRAZO] Fase 3: Executando ciclo 3")
+        # FASE 3: Ciclo 3 (painel cumprimento de providências - painel 6: livres sem GIGS + xs1)
+        logger.info("[LOOP_PRAZO] Fase Cumprimento de Providências: Executando ciclo 3 (painel 6)")
         resultado_ciclo3 = ciclo3(driver)
 
+        sucesso_geral = resultado_ciclo0 is True and resultado_ciclo3 is True
         return ResultadoExecucao(
-            sucesso=resultado_ciclo2 is True and resultado_ciclo3 is True,
-            status='OK',
+            sucesso=sucesso_geral,
+            status='OK' if sucesso_geral else 'FALHA',
             detalhes={
-                "ciclo1": "concluido",
-                "ciclo2": resultado_ciclo2,
-                "ciclo3": resultado_ciclo3
+                "ciclo0": resultado_ciclo0,
+                "ciclo3": resultado_ciclo3,
             }
         )
     except Exception as e:

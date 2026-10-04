@@ -403,13 +403,33 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
     try:
         user_field = espera.elemento(driver, "#input_user", teto=8)
         if user_field:
-            _executar_js(driver, "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));", user_field, "s164283")
-            pwd_field = espera.elemento(driver, "#input_password", teto=5)
-            if pwd_field:
-                _executar_js(driver, "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));", pwd_field, "SpFintra861!")
+            from PEC.carta_ecarta_api import _obter_credenciais_ecarta
+            ecarta_user, ecarta_pwd = _obter_credenciais_ecarta()
+            if hasattr(driver, "page"):
+                try:
+                    driver.page.fill('#input_user', ecarta_user)
+                    driver.page.fill('#input_password', ecarta_pwd)
+                except Exception:
+                    _executar_js(driver, "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true})); arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", user_field, ecarta_user)
+                    pwd_field = espera.elemento(driver, "#input_password", teto=5)
+                    if pwd_field:
+                        _executar_js(driver, "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true})); arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", pwd_field, ecarta_pwd)
+            else:
+                _executar_js(driver, "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true})); arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", user_field, ecarta_user)
+                pwd_field = espera.elemento(driver, "#input_password", teto=5)
+                if pwd_field:
+                    _executar_js(driver, "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true})); arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", pwd_field, ecarta_pwd)
+
             btn_login = espera.elemento(driver, "input.btn", teto=5)
             if btn_login:
                 safe_click_no_scroll(driver, btn_login)
+            elif hasattr(driver, "page"):
+                try:
+                    driver.page.click('input.btn')
+                except Exception:
+                    pass
+
+            espera.ate_sumir(driver, "#input_user", teto=10)
             espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
 
             driver.get(ecarta_url)
@@ -750,6 +770,13 @@ def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None
     dur_ct = time.time() - t_ct
     if log:
         logger.info(f"[CARTA] coletar_tabela_ecarta_api retornou {len(table_data) if table_data else 0} registros (took {dur_ct:.2f}s)")
+
+    if not table_data:
+        if log:
+            logger.info("[CARTA] coletar_tabela_ecarta_api nao retornou dados, tentando coletar_tabela_ecarta via DOM...")
+        table_data = coletar_tabela_ecarta(
+            driver, process_number, intimation_ids, log=log
+        )
 
     if not table_data:
         if log:

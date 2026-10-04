@@ -102,12 +102,26 @@ def _parse_data(texto: str) -> Optional[_date]:
 # Login único
 # ═══════════════════════════════════════════════════════════════════
 
+def _obter_credenciais_ecarta() -> tuple[str, str]:
+    """Recupera credenciais do eCarta via keyring do Windows, com fallback seguro."""
+    user, pwd = "s164283", "SpFintra861!"
+    try:
+        import keyring
+        u = keyring.get_password("pjeplus_ecarta", "username")
+        p = keyring.get_password("pjeplus_ecarta", "password")
+        if u and p:
+            user, pwd = u, p
+    except Exception:
+        pass
+    return user, pwd
+
+
 def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.Session]:
     """
     Garante sessão HTTP autenticada no eCarta.
     - Se já temos sessão ativa, retorna ela.
     - Senão, tenta extrair JSESSIONID do driver (se já logado).
-    - Se não tiver cookie, faz login via Selenium uma única vez.
+    - Se não tiver cookie, faz login via browser uma única vez em nova aba.
     """
     global _ecarta_session, _ecarta_logged_in
 
@@ -116,9 +130,9 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
 
     s = requests.Session()
 
-    # Tenta extrair cookies da sessão atual do Selenium
+    # Tenta extrair cookies da sessão atual do driver
     try:
-        selenium_cookies = driver.get_cookies()
+        selenium_cookies = driver.get_cookies() if hasattr(driver, "get_cookies") else []
         for c in selenium_cookies:
             if 'trt2' in (c.get('domain', '') or '') or 'ecarta' in (c.get('name', '') or '').lower():
                 s.cookies.set(
@@ -143,37 +157,64 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
     except Exception:
         pass
 
-    # ── Login via browser (uma única vez) ──
+    # ── Login via browser (uma única vez em nova aba) ──
     if log:
         logger.info('[CARTA-API] Abrindo eCarta para login único...')
 
+    original_window = getattr(driver, 'current_window_handle', None)
     abrir_url_nova_aba(driver, f"{BASE}consultarProcesso.xhtml")
     espera.ate_url(driver, 'ecarta', teto=20)
 
     try:
         user_field = espera.elemento(driver, '#input_user', teto=8)
         if user_field:
-            preencher_campo(driver, '#input_user', 's164283')
-            preencher_campo(driver, '#input_password', 'SpFintra861!')
-            btn = espera.elemento(driver, 'input.btn', teto=2)
+            ecarta_user, ecarta_pwd = _obter_credenciais_ecarta()
+            if log:
+                logger.info(f'[CARTA-API] Preenchendo credenciais eCarta para {ecarta_user}...')
+
+            if hasattr(driver, "page"):
+                try:
+                    driver.page.fill('#input_user', ecarta_user)
+                    driver.page.fill('#input_password', ecarta_pwd)
+                except Exception:
+                    preencher_campo(driver, '#input_user', ecarta_user)
+                    preencher_campo(driver, '#input_password', ecarta_pwd)
+            else:
+                preencher_campo(driver, '#input_user', ecarta_user)
+                preencher_campo(driver, '#input_password', ecarta_pwd)
+
+            btn = espera.elemento(driver, 'input.btn', teto=5)
             if btn:
                 safe_click_no_scroll(driver, btn)
+            elif hasattr(driver, "page"):
+                try:
+                    driver.page.click('input.btn')
+                except Exception:
+                    pass
 
-            espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
+            espera.ate_sumir(driver, '#input_user', teto=10)
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
             espera.assentar(driver, 1)
+
+            # Re-navegar para URL da consulta para confirmar sessão ativa (padrão LEGADO.md)
+            try:
+                driver.get(f"{BASE}consultarProcesso.xhtml")
+                espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
+            except Exception:
+                pass
 
             if log:
                 logger.info('[CARTA-API] Login realizado com sucesso')
         else:
             if log:
                 logger.warning('[CARTA-API] Tela de login não apareceu — sessão já pode estar ativa')
-    except Exception:
+    except Exception as e:
         if log:
-            logger.warning('[CARTA-API] Tela de login não apareceu — sessão já pode estar ativa')
+            logger.warning(f'[CARTA-API] Erro durante login eCarta: {e}')
 
     # Extrai cookies pós-login
     try:
-        selenium_cookies = driver.get_cookies()
+        selenium_cookies = driver.get_cookies() if hasattr(driver, "get_cookies") else []
         for c in selenium_cookies:
             s.cookies.set(
                 c['name'], c['value'],
@@ -185,12 +226,17 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
         if log:
             logger.warning('[CARTA-API] falha ao ler/transferir cookies pós-login: %s', e)
 
-    # Fecha a aba de login
+    # Fecha a aba de login e retorna o foco para a janela original
     try:
         driver.close()
-        driver.switch_to.window(original_window)
-    except Exception:
-        pass
+        handles = getattr(driver, 'window_handles', [])
+        if original_window and original_window in handles:
+            driver.switch_to.window(original_window)
+        elif handles:
+            driver.switch_to.window(handles[0])
+    except Exception as e:
+        if log:
+            logger.warning(f'[CARTA-API] Erro ao fechar aba de login: {e}')
 
     _ecarta_session = s
     _ecarta_logged_in = True

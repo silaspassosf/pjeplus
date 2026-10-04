@@ -53,19 +53,19 @@ def _montar_options_vt(headless=False, usar_perfil_vt=False, modo_fallback=False
     return None
 
 
-def com_retry(func, max_tentativas=3, delay_base=2):
-    def wrapper(*args, **kwargs):
-        for tentativa in range(1, max_tentativas + 1):
-            try:
-                driver = func(*args, **kwargs)
-                if driver:
-                    return driver
-            except Exception as e:
+def com_retry(func, max_tentativas=3, delay_base=2, backoff_base=None, log=False, *args, **kwargs):
+    delay = backoff_base if backoff_base is not None else delay_base
+    for tentativa in range(1, max_tentativas + 1):
+        try:
+            resultado = func(*args, **kwargs)
+            if resultado:
+                return resultado
+        except Exception as e:
+            if log:
                 logger.warning(f"Tentativa {tentativa}/{max_tentativas} falhou: {e}")
-                if tentativa < max_tentativas:
-                    espera.pausa(None, delay_base * tentativa)
-        return None
-    return wrapper
+            if tentativa < max_tentativas:
+                espera.assentar(None, float(delay) * (1.5 ** (tentativa - 1) if backoff_base else tentativa))
+    return None
 
 
 def fechar_janelas_extras(driver):

@@ -1773,14 +1773,28 @@ def aplicar_filtro_100(driver):
     Aplica filtro para exibir 100 itens por página no painel global.
     Usa safe_click_no_scroll (JS direto, sem scrollIntoView) + aguardar_renderizacao_nativa.
     """
+    try:
+        span_100_ativo = espera.elemento(driver, "//mat-select//span[contains(@class,'mat-select-min-line') and normalize-space(text())='100']", teto=0.5)
+        if span_100_ativo:
+            logger.info('Filtro lista 100 ja esta ativo')
+            return True
+    except Exception:
+        pass
+
     def _selecionar():
         try:
-            span_20 = espera.elemento(driver, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
-            mat_select = espera.elemento(driver, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']/ancestor::mat-select[@role='combobox']") or span_20
+            span_pag = espera.elemento(driver, "//mat-select//span[contains(@class,'mat-select-min-line') and (normalize-space(text())='20' or normalize-space(text())='50')]")
+            mat_select = espera.elemento(driver, "//mat-select[.//span[contains(@class,'mat-select-min-line') and (normalize-space(text())='20' or normalize-space(text())='50')]]") or span_pag
+            if not mat_select:
+                mat_select = espera.elemento(driver, "mat-paginator mat-select")
+            if not mat_select:
+                return False
             safe_click_no_scroll(driver, mat_select)
             aguardar_renderizacao_nativa(driver)
             espera.ate_aparecer(driver, ".cdk-overlay-pane", teto=5)
             opcao_100 = espera.elemento(driver, "//mat-option[.//span[normalize-space(text())='100']]") or espera.elemento(driver, ".cdk-overlay-pane mat-option")
+            if not opcao_100:
+                return False
             safe_click_no_scroll(driver, opcao_100)
             aguardar_renderizacao_nativa(driver)
             logger.debug('[FILTRO_LISTA_100] Clique na opcao 100 confirmado.')
@@ -1866,23 +1880,21 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
     Aplica filtros de fase processual e tarefa no painel global.
     Usa mesma logica JS do filtro_fase: clica no botao de filtrar apenas UMA vez ao final.
     """
-    # Normalizar nomes das fases (primeira letra maiuscula)
-    fases = [f.strip().capitalize() for f in fases_alvo]
+    fases = [f.strip() for f in fases_alvo]
 
     logger.info('[filtrofases] Filtrando fase processual: %s...', ', '.join(fases))
 
     # ── 1. Filtro de fase processual ──
     try:
         seletor = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
-        if not aguardar_e_clicar(driver, seletor, timeout=5, usar_js=True):
+        if not aguardar_e_clicar(driver, seletor, timeout=10, usar_js=True):
             logger.error('[filtrofases] Dropdown de fase nao encontrado.')
             return False
         aguardar_renderizacao_nativa(driver)
-        # Aguardar opcoes reais aparecerem no painel (legado: 20 retries x 0.3s)
-        import time as _time
+        # Aguardar opcoes reais aparecerem no painel (espera observável)
         _opcoes_prontas = False
-        fn_sc = getattr(driver, "execute" + "_script", None)
-        for _ in range(20):
+        fn_sc = getattr(driver, "execute_script", None) or getattr(driver, "execute" + "_script", None)
+        for _ in range(25):
             _textos = fn_sc(
                 "return Array.from(document.querySelectorAll('mat-option span.mat-option-text')"
                 ").map(function(e){return e.textContent.trim().toLowerCase();})"
@@ -1890,18 +1902,26 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
             if _textos and not any(t in ('carregando itens...', 'nenhuma opção', '') for t in _textos):
                 _opcoes_prontas = True
                 break
-            _time.sleep(0.3)
+            espera.assentar(driver, 0.3)
         if not _opcoes_prontas:
             logger.error('[filtrofases] Painel de opcoes nao populou apos espera.')
             return False
         script_fases = """
         var fases = arguments[0];
         var sucesso = 0;
-        for (var i = 0; i < fases.length; i++) {
-            var opcoes = document.querySelectorAll('mat-option span.mat-option-text');
+        function norm(s) {
+            return (s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();
+        }
+        var fasesNorm = fases.map(norm);
+        var opcoes = Array.from(document.querySelectorAll('mat-option'));
+        for (var i = 0; i < fasesNorm.length; i++) {
             for (var j = 0; j < opcoes.length; j++) {
-                if (opcoes[j].textContent.trim() === fases[i]) {
-                    opcoes[j].parentElement.click();
+                var txt = norm(opcoes[j].textContent);
+                if (txt.includes(fasesNorm[i])) {
+                    var isSelected = opcoes[j].getAttribute('aria-selected') === 'true' || opcoes[j].classList.contains('mat-selected');
+                    if (!isSelected) {
+                        opcoes[j].click();
+                    }
                     sucesso++;
                     break;
                 }
@@ -1945,11 +1965,19 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
                 script_tarefas = """
                 var tarefas = arguments[0];
                 var sucesso = 0;
-                for (var i = 0; i < tarefas.length; i++) {
-                    var opcoes = document.querySelectorAll('mat-option span.mat-option-text');
+                function norm(s) {
+                    return (s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();
+                }
+                var tarefasNorm = tarefas.map(norm);
+                var opcoes = Array.from(document.querySelectorAll('mat-option'));
+                for (var i = 0; i < tarefasNorm.length; i++) {
                     for (var j = 0; j < opcoes.length; j++) {
-                        if (opcoes[j].textContent.trim().toLowerCase() === tarefas[i].toLowerCase()) {
-                            opcoes[j].parentElement.click();
+                        var txt = norm(opcoes[j].textContent);
+                        if (txt.includes(tarefasNorm[i])) {
+                            var isSelected = opcoes[j].getAttribute('aria-selected') === 'true' || opcoes[j].classList.contains('mat-selected');
+                            if (!isSelected) {
+                                opcoes[j].click();
+                            }
                             sucesso++;
                             break;
                         }
@@ -1970,7 +1998,7 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
 
     # ── 3. Clicar no botao de filtrar uma unica vez ──
     try:
-        botao_filtrar = espera.elemento(driver, 'i.fas.fa-filter', teto=2)
+        botao_filtrar = espera.elemento(driver, "button[aria-label*='Filtrar'], i.fas.fa-filter, i.fa-filter, //button[.//i[contains(@class, 'fa-filter')]]", teto=2)
         if botao_filtrar:
             safe_click_no_scroll(driver, botao_filtrar)
             logger.debug('[filtrofases] Filtros aplicados.')

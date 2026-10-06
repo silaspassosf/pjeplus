@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJeTools — Elaboração de Alvará
 // @namespace    pjetools
-// @version      1.0.2
+// @version      1.0.3
 // @description  Analisa decisão ativa e prepara dados para elaboração de alvarás
 // @author       PJeTools
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe
@@ -24,7 +24,9 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estilos.js?v=1.0.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/overlay.js?v=1.0.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=1.0.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=1.0.2
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=1.0.3
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/dock_siscondj.js?v=1.0.3
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/preenchimento_siscondj.js?v=1.0.3
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/minuta.js?v=1.0.1
 // ==/UserScript==
 
@@ -456,7 +458,9 @@
         buscarDadosProcesso: Alv.dados.buscarDadosProcesso,
         minuta: Alv.minuta,
         siscon: Alv.siscon,
-        siscondj: Alv.siscondj
+        siscondj: Alv.siscondj,
+        dockSiscondj: Alv.dockSiscondj,
+        preenchimentoSiscondj: Alv.preenchimentoSiscondj
     };
 
     window.PjeAlvara.extrairReferenciaDeposito = Alv.extracao.extrairReferenciaDeposito;

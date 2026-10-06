@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJeTools — Elaboração de Alvará
 // @namespace    pjetools
-// @version      0.7.1
+// @version      1.0.0
 // @description  Analisa decisão ativa e prepara dados para elaboração de alvarás
 // @author       PJeTools
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe
@@ -17,15 +17,15 @@
 // @connect      aplicacoes1.trt2.jus.br
 // @run-at       document-start
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js?v=2.3.23
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/utils.js?v=5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao.js?v=5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/dados_processo.js?v=5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estado.js?v=5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estilos.js?v=5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/overlay.js?v=5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/minuta.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/utils.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/dados_processo.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estado.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estilos.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/overlay.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/minuta.js?v=1.0.0
 // ==/UserScript==
 
 (function () {
@@ -34,7 +34,7 @@
     const INSTANCE_KEY =
         '__PJE_ALVARA_USERSCRIPT_INSTANCE__';
 
-    const INSTANCE_VERSION = '0.5.0';
+    const INSTANCE_VERSION = '1.0.0';
 
     if (window[INSTANCE_KEY]) {
         console.warn(

@@ -217,17 +217,20 @@
         return item;
     }
 
+    function obterDadosProcessoCache() {
+        return _dadosProcessoCache;
+    }
+
     // Regras de preenchimento automático por tipo de verba (detectada OU adicionada):
     //  - Crédito do exequente: beneficiário = polo ativo; se destino é conta do
     //    advogado/escritório → Nome e CPF do PRIMEIRO advogado do autor.
     //  - Devolução à reclamada: beneficiário = polo passivo; procurador da
     //    reclamada → primeiro advogado do passivo.
-    //  - Honorários advocatícios: sempre o primeiro advogado do autor por padrão
-    //    (da reclamada NUNCA é automático — só se adicionado manualmente).
+    //  - Honorários advocatícios (autor): sempre o primeiro advogado do autor.
+    //  - Honorários advocatícios (reclamada): primeiro advogado da reclamada.
     //  - Honorários periciais: se a decisão detectou a verba mas NÃO nomeou o
     //    perito, preenche com o primeiro perito dos dados da API. Se a decisão
-    //    nomeou, o nome extraído prevalece. Verba não detectada nem entra no
-    //    overlay (regra geral).
+    //    nomeou, o nome extraído prevalece (e busca CPF/dados se houver correspondência).
     function aplicarPreenchimentoAutomatico(item, dados) {
         if (!dados) return item;
 
@@ -247,16 +250,36 @@
             }
         }
 
-        if (item.id === 'honorarios-advocaticios' || item.tipo === 'Honorários advocatícios') {
+        if (item.id === 'honorarios-advocaticios-reclamada' || item.tipo === 'Honorários advocatícios (reclamada)') {
+            preencherDestinatario(item, dados, 'PASSIVO', true);
+        }
+
+        if (item.id === 'honorarios-advocaticios' || item.tipo === 'Honorários advocatícios' || item.tipo === 'Honorários advocatícios (autor)') {
             preencherDestinatario(item, dados, 'ATIVO', true);
         }
 
         if (item.id === 'honorarios-periciais' || item.tipo === 'Honorários periciais') {
-            if (!item.perito) {
+            if (item.perito) {
+                // Tenta associar com os dados de peritos da API
+                const peritosLista = Array.isArray(dados.peritos) ? dados.peritos : [];
+                const peritoEncontrado = peritosLista.find(p => {
+                    const nomeP = (p.nome || '').toLowerCase();
+                    const nomeItem = item.perito.toLowerCase();
+                    return nomeP.includes(nomeItem) || nomeItem.includes(nomeP);
+                });
+                if (peritoEncontrado) {
+                    item.perito = peritoEncontrado.nome;
+                    if (peritoEncontrado.cpfcnpj) {
+                        item.destinatarioDocumento = peritoEncontrado.cpfcnpj;
+                    }
+                }
+            } else {
                 const perito = primeiraPerito(dados);
-
                 if (perito && perito.nome) {
                     item.perito = perito.nome;
+                    if (perito.cpfcnpj) {
+                        item.destinatarioDocumento = perito.cpfcnpj;
+                    }
                 }
             }
         }
@@ -266,6 +289,7 @@
 
     Alv.dados = {
         buscarDadosProcesso: buscarDadosProcesso,
+        obterDadosProcessoCache: obterDadosProcessoCache,
         aplicarPreenchimentoAutomatico: aplicarPreenchimentoAutomatico,
         obterProcessoId: obterProcessoId,
         primeiraParte: primeiraParte,

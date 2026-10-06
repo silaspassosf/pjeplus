@@ -134,6 +134,31 @@
             `;
         }
 
+        if (item.tipo === 'FGTS') {
+            return `
+                <div class="pje-alvara-dados-grid">
+                    <label>
+                        Banco para Ofício
+                        <input
+                            data-field="banco"
+                            placeholder="Banco (ex: Banco do Brasil ou CEF)"
+                            value="${utils.escapeHtml(item.banco || 'Banco do Brasil')}"
+                        >
+                    </label>
+                    <label style="display:flex;align-items:flex-end;">
+                        <button
+                            type="button"
+                            class="pje-alvara-secondary"
+                            data-gerar-oficio-btn
+                            style="width:100%;font-weight:bold;height:34px;background:#0369a1;color:#fff;border:none;border-radius:4px;cursor:pointer;"
+                        >
+                            📄 Gerar Ofício
+                        </button>
+                    </label>
+                </div>
+            `;
+        }
+
         // Sequência visual do preenchimento: Nome e documento → Agência →
         // Conta → Banco. ID de depósito não é exibido (irrelevante no overlay).
         return `
@@ -237,8 +262,23 @@
         }
 
         if (
+            item.id === 'honorarios-advocaticios-reclamada' ||
+            item.tipo === 'Honorários advocatícios (reclamada)'
+        ) {
+            return `
+                <option value="Conta do advogado da reclamada">
+                    Conta do advogado da reclamada
+                </option>
+                <option value="Conta escritório da reclamada">
+                    Conta escritório da reclamada
+                </option>
+            `;
+        }
+
+        if (
             item.id === 'honorarios-advocaticios' ||
-            item.tipo === 'Honorários advocatícios'
+            item.tipo === 'Honorários advocatícios' ||
+            item.tipo === 'Honorários advocatícios (autor)'
         ) {
             return `
                 <option value="Conta do advogado autor">
@@ -248,6 +288,13 @@
                     Conta escritório
                 </option>
             `;
+        }
+
+        if (
+            item.id === 'fgts' ||
+            item.tipo === 'FGTS'
+        ) {
+            return `<option value="Ofício de transferência">Ofício de transferência</option>`;
         }
 
         if (
@@ -473,8 +520,10 @@
                             <option>Crédito do exequente</option>
                             <option>INSS</option>
                             <option>Custas</option>
-                            <option>Honorários advocatícios</option>
+                            <option>Honorários advocatícios (autor)</option>
+                            <option>Honorários advocatícios (reclamada)</option>
                             <option>Honorários periciais</option>
+                            <option>FGTS</option>
                             <option>Devolução à reclamada</option>
                             <option>Transferência para outro processo</option>
                         </select>
@@ -637,13 +686,39 @@
 
                 // Troca de destinatário/advogado → consulta só para este card.
                 if (
-                    window.Alv.siscon &&
                     event.target.matches('select[data-field="destinoTipo"]')
                 ) {
                     const card = event.target.closest('[data-alvara-card]');
 
                     if (card) {
-                        Alv.siscon.consultarNoCard(card, true);
+                        const novoDestino = event.target.value;
+                        const inputNome = card.querySelector('[data-field="destinatarioNome"]');
+                        const inputDoc = card.querySelector('[data-field="destinatarioDocumento"]');
+                        const marker = card.querySelector('[data-conta-juridica]');
+
+                        if (/escrit[oó]rio/i.test(novoDestino)) {
+                            if (card.dataset.razaoSocial && inputNome) inputNome.value = card.dataset.razaoSocial;
+                            if (card.dataset.cnpj && inputDoc) inputDoc.value = card.dataset.cnpj;
+                            if (marker && card.dataset.razaoSocial) {
+                                marker.textContent = 'CONTA JURÍDICA - ' + card.dataset.razaoSocial +
+                                    (card.dataset.cnpj ? ' - ' + card.dataset.cnpj : '');
+                                marker.style.display = 'block';
+                                marker.hidden = false;
+                            }
+                        } else if (/advogado|procurador/i.test(novoDestino)) {
+                            if (card.dataset.advogadoNome && inputNome) inputNome.value = card.dataset.advogadoNome;
+                            if (card.dataset.advogadoCpf && inputDoc) inputDoc.value = card.dataset.advogadoCpf;
+                            if (marker) {
+                                marker.style.display = 'none';
+                                marker.hidden = true;
+                            }
+                        }
+
+                        atualizarEstadoPeloOverlay();
+
+                        if (window.Alv.siscon) {
+                            Alv.siscon.consultarNoCard(card, true);
+                        }
                     }
                 }
             }
@@ -745,6 +820,13 @@
             });
 
         instalarEventosRemocao(overlay);
+
+        overlay.addEventListener('click', event => {
+            if (event.target.closest('[data-gerar-oficio-btn]')) {
+                event.preventDefault();
+                alert('Gerar Ofício: função em desenvolvimento (placeholder da fase 1).');
+            }
+        });
 
         overlay.querySelector('[data-criar-alvaras]')
             ?.addEventListener('click', () => {

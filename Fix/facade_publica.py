@@ -214,117 +214,298 @@ def _normalize_text(s: str) -> str:
     return s
 
 
-def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: int = 2) -> bool:
-    """Seleciona movimentos em multiplos estagios (comboboxes / complementos).
+def executar_movimento_judicial(driver, movimento: Union[str, int]) -> bool:
+    """Executa o lançamento de movimentos no editor de atos judiciais.
 
-    Uso: chamar esta funcao dentro de ``ato_judicial`` quando o parametro ``movimento``
-    contem separadores (``/`` ou ``-``). A funcao tenta, em ordem:
-      1) localizar ``mat-select`` dentro de ``pje-complemento`` e escolher
-         ``mat-option`` que contenha o termo;
-      2) preencher ``input`` ou ``textarea`` dentro do complemento correspondente;
-      3) fallback: abrir qualquer ``mat-select`` visivel e buscar a opcao.
+    Implementação canônica baseada no padrão comprovado do gigs-plugin.js (aaDespacho):
+      1) Ativa a guia Movimentos (pje-editor-lateral div[aria-posinset="2"]) se desativada;
+      2) Decompõe o movimento em etapa primária e complementos secundários;
+      3) Localiza e marca a caixa de seleção do movimento primário (pje-movimento mat-checkbox label);
+      4) Para cada complemento secundário (dropdown / opção / input):
+         - Localiza o campo no container daquele movimento (pje-complemento mat-form-field[class*="ng-untouched"]);
+         - Se for combobox (mat-select): abre o dropdown e clica na mat-option com o texto da opção;
+         - Se for input/textarea: preenche o valor e despacha eventos input/change;
+      5) Clica no botão Gravar do lançador (pje-lancador-de-movimentos button[aria-label*="Gravar"]);
+      6) Confirma no diálogo (mat-dialog-container button 'Sim') caso seja exibido.
 
-    Retorna True se todas as etapas (segmentos) do movimento foram satisfeitas,
-    False caso contrario.
+    Retorna True em caso de sucesso, False caso contrário.
     """
-    termos = [t.strip() for t in _re.split(r'[/\\-]', movimento) if t.strip()]
-    if not termos:
-        return False
+    if not movimento or str(movimento).lower() in ('nenhum', 'none', 'false'):
+        return True
 
-    complementos = _espera.elementos(driver, 'pje-complemento')
-    usados = set()
+    mov_str = str(movimento).strip()
 
-    for termo in termos:
-        termo_norm = _normalize_text(termo)
-        encontrado = False
+    js_movimento = """
+    async (movimentoStr) => {
+        function norm(t) {
+            if (!t) return '';
+            return t.normalize('NFKD')
+                .replace(/[\\u0300-\\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[\\r\\n\\t]+/g, ' ')
+                .trim();
+        }
 
-        # 1) tenta mat-select dentro dos complementos
-        for idx in range(len(complementos)):
-            if idx in usados:
-                continue
-            try:
-                sel = _espera.elemento(driver, f"pje-complemento:nth-of-type({idx + 1}) mat-select", teto=0.5)
-                if not sel:
-                    continue
-                safe_click_no_scroll(driver, sel)
+        function sleep(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
 
-                opts = _espera.elementos(driver, "mat-option[role='option']", teto=timeout_select) or []
-                for op in opts:
-                    try:
-                        if termo_norm in _normalize_text(op.text or ''):
-                            safe_click_no_scroll(driver, op)
-                            usados.add(idx)
-                            encontrado = True
-                            break
-                    except Exception:
-                        continue
-                if encontrado:
-                    break
-            except Exception:
-                continue
+        if (!movimentoStr) return { sucesso: false, erro: 'Movimento vazio' };
 
-        # 2) tentar input/textarea no complemento
-        if not encontrado:
-            for idx in range(len(complementos)):
-                if idx in usados:
-                    continue
-                try:
-                    inp_sel = f"pje-complemento:nth-of-type({idx + 1}) input"
-                    if _espera.elemento(driver, inp_sel, teto=0.2):
-                        if preencher_campo(driver, inp_sel, termo):
-                            usados.add(idx)
-                            encontrado = True
-                            break
-                    ta_sel = f"pje-complemento:nth-of-type({idx + 1}) textarea"
-                    if _espera.elemento(driver, ta_sel, teto=0.2):
-                        if preencher_campo(driver, ta_sel, termo):
-                            usados.add(idx)
-                            encontrado = True
-                            break
-                except Exception:
-                    continue
+        // 1. Ativar guia Movimentos no pje-editor-lateral se desativada (gigs-plugin ~11848)
+        let guia = document.querySelector('pje-editor-lateral div[aria-posinset="2"]');
+        if (!guia) {
+            const tabs = Array.from(document.querySelectorAll('pje-editor-lateral div[role="tab"], .mat-tab-label'));
+            guia = tabs.find(t => {
+                const txt = norm(t.textContent || '');
+                return txt.includes('movimento');
+            });
+        }
+        if (guia) {
+            if (guia.getAttribute('aria-selected') === 'false') {
+                guia.click();
+                await sleep(600);
+            }
+        }
 
-        # 3) fallback: qualquer mat-select visivel na pagina
-        if not encontrado:
-            all_selects = _espera.elementos(driver, 'mat-select')
-            for sel in all_selects:
-                try:
-                    safe_click_no_scroll(driver, sel)
-                    opts = _espera.elementos(driver, "mat-option[role='option']", teto=1) or []
-                    for op in opts:
-                        if termo_norm in _normalize_text(op.text or ''):
-                            safe_click_no_scroll(driver, op)
-                            encontrado = True
-                            break
-                    if encontrado:
-                        break
-                except Exception:
-                    continue
+        // 2. Decomposição do movimento (gigs-plugin ~11854)
+        // Suporta divisores de movimentos múltiplos e estágios (/ ou , ou ; ou ' - ')
+        let str = String(movimentoStr).trim();
+        let padraoDivisor = /(?<!\\d{7})\\-/gm;
+        let complementosPrimarios = str.includes('/') ? [str] : str.split(padraoDivisor);
 
-        if not encontrado:
+        const lancador = document.querySelector('pje-lancador-de-movimentos') || document;
+
+        for (let comp of complementosPrimarios) {
+            comp = comp.trim();
+            if (!comp) continue;
+
+            let partes = [];
+            if (comp.includes('/')) {
+                partes = comp.split('/').map(s => s.trim()).filter(Boolean);
+            } else if (comp.includes(',')) {
+                partes = comp.split(',').map(s => s.trim()).filter(Boolean);
+            } else if (comp.includes(';')) {
+                partes = comp.split(';').map(s => s.trim()).filter(Boolean);
+            } else {
+                partes = [comp];
+            }
+
+            let primario = partes[0] || '';
+            let secundarios = partes.slice(1);
+            let primarioNorm = norm(primario);
+
+            // 3. Localizar pje-movimento mat-checkbox e label (gigs-plugin ~11870)
+            let chkAlvo = null;
+            let labelAlvo = null;
+            let blocoAlvo = null;
+
+            const blocos = Array.from(lancador.querySelectorAll('pje-movimento'));
+            for (const b of blocos) {
+                const chk = b.querySelector('mat-checkbox');
+                const lbl = b.querySelector('mat-checkbox label, label.mat-checkbox-layout, label') || chk;
+                if (!chk || !lbl) continue;
+                const txt = norm(lbl.innerText || lbl.textContent || '');
+
+                let match = false;
+                if (txt.includes(primarioNorm)) {
+                    match = true;
+                } else if (/^\\d+$/.test(primarioNorm)) {
+                    if (txt.includes('(' + primarioNorm + ')') || txt.split(/\\s+/).includes(primarioNorm)) {
+                        match = true;
+                    }
+                } else if (primarioNorm === 'frustrada' && (txt.includes('execucao frustrada') || txt.includes('276'))) {
+                    match = true;
+                }
+
+                if (match) {
+                    blocoAlvo = b;
+                    chkAlvo = chk;
+                    labelAlvo = lbl;
+                    break;
+                }
+            }
+
+            // Fallback: busca qualquer mat-checkbox dentro do lançador
+            if (!chkAlvo) {
+                const todosChk = Array.from(lancador.querySelectorAll('mat-checkbox'));
+                for (const chk of todosChk) {
+                    const lbl = chk.querySelector('label') || chk;
+                    const txt = norm(lbl.innerText || lbl.textContent || '');
+                    if (txt.includes(primarioNorm) || (/^\\d+$/.test(primarioNorm) && txt.includes('(' + primarioNorm + ')'))) {
+                        chkAlvo = chk;
+                        labelAlvo = lbl;
+                        blocoAlvo = chk.closest('pje-movimento') || chk.parentElement.parentElement || chk.parentElement;
+                        break;
+                    }
+                }
+            }
+
+            if (!chkAlvo) {
+                return { sucesso: false, erro: 'Movimento não localizado no lançador: ' + primario };
+            }
+
+            // Marcar checkbox caso não esteja marcado (gigs-plugin ~11872)
+            const isChecked = chkAlvo.classList.contains('mat-checkbox-checked') ||
+                              chkAlvo.classList.contains('mat-mdc-checkbox-checked') ||
+                              (chkAlvo.querySelector('input[type=\"checkbox\"]') && chkAlvo.querySelector('input[type=\"checkbox\"]').checked);
+
+            if (!isChecked) {
+                const target = labelAlvo || chkAlvo.querySelector('.mat-checkbox-inner-container') || chkAlvo;
+                target.click();
+                await sleep(600); // Aguarda Angular instanciar complementos
+            }
+
+            // 4. Preencher complementos secundários (dropdown / opção / input)
+            if (secundarios.length > 0) {
+                await sleep(500);
+
+                for (let i = 0; i < secundarios.length; i++) {
+                    const item = secundarios[i];
+                    const itemNorm = norm(item);
+
+                    const containerMov = blocoAlvo || chkAlvo.closest('pje-movimento') || chkAlvo.parentElement.parentElement;
+
+                    // Localiza o próximo complemento não preenchido (gigs-plugin ~11880: pje-complemento mat-form-field[class*=\"ng-untouched\"])
+                    let compSecundario = containerMov.querySelector('pje-complemento mat-form-field[class*=\"ng-untouched\"]');
+                    if (!compSecundario) {
+                        const comps = Array.from(containerMov.querySelectorAll('pje-complemento'));
+                        for (const c of comps) {
+                            const sel = c.querySelector('mat-select');
+                            if (sel) {
+                                const valTxt = (sel.querySelector('.mat-select-value-text, .mat-select-value') || {}).innerText || '';
+                                if (!valTxt.trim()) { compSecundario = c; break; }
+                            }
+                            const inp = c.querySelector('input:not([type=\"checkbox\"]), textarea');
+                            if (inp && !inp.value.trim()) { compSecundario = c; break; }
+                        }
+                        if (!compSecundario && comps.length > i) {
+                            compSecundario = comps[i];
+                        }
+                    }
+
+                    if (!compSecundario) {
+                        compSecundario = lancador.querySelector('pje-complemento mat-form-field[class*=\"ng-untouched\"]');
+                    }
+
+                    if (!compSecundario) {
+                        return { sucesso: false, erro: 'Campo de complemento secundário não encontrado para: ' + item };
+                    }
+
+                    // Complemento combobox (mat-select) - gigs-plugin ~12122 / escolherOpcaoTeste2 ~36759
+                    const comboBox = compSecundario.querySelector('mat-select');
+                    if (comboBox) {
+                        comboBox.focus();
+                        comboBox.click();
+                        await sleep(400);
+
+                        let optEncontrada = null;
+                        for (let tentativa = 0; tentativa < 10; tentativa++) {
+                            const opts = Array.from(document.querySelectorAll('mat-option[role=\"option\"], mat-option, .mat-select-panel mat-option'));
+                            for (const opt of opts) {
+                                const txtOpt = norm(opt.innerText || opt.textContent || '');
+                                if (txtOpt.includes(itemNorm)) {
+                                    optEncontrada = opt;
+                                    break;
+                                }
+                            }
+                            if (optEncontrada) break;
+                            await sleep(200);
+                        }
+
+                        if (!optEncontrada) {
+                            return { sucesso: false, erro: 'Opção do dropdown não encontrada: ' + item };
+                        }
+
+                        optEncontrada.scrollIntoView({ block: 'center' });
+                        optEncontrada.click();
+                        await sleep(600);
+                    }
+
+                    // Complemento input / textarea - gigs-plugin ~12127
+                    const input = compSecundario.querySelector('input:not([type=\"checkbox\"]), textarea');
+                    if (input) {
+                        input.focus();
+                        input.value = item;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        await sleep(400);
+                    }
+                }
+            }
+        }
+
+        // 5. Clicar no botão Gravar do lançador (gigs-plugin ~11886)
+        await sleep(400);
+        let btnGravar = lancador.querySelector('button[aria-label*=\"Gravar\"]') ||
+                        document.querySelector('pje-lancador-de-movimentos button[aria-label*=\"Gravar\"]');
+        if (!btnGravar) {
+            const botoes = Array.from(lancador.querySelectorAll('button'));
+            btnGravar = botoes.find(b => norm(b.innerText || b.getAttribute('aria-label') || '').includes('gravar'));
+        }
+
+        if (btnGravar) {
+            btnGravar.click();
+            await sleep(500);
+
+            // 6. Confirmar se surgir modal (gigs-plugin ~11887: MAT-DIALOG-CONTAINER BUTTON 'Sim')
+            for (let t = 0; t < 5; t++) {
+                const dialog = document.querySelector('mat-dialog-container, .cdk-overlay-pane');
+                if (dialog) {
+                    const botoesDialog = Array.from(dialog.querySelectorAll('button'));
+                    const btnSim = botoesDialog.find(b => {
+                        const txt = norm(b.innerText || b.textContent || '');
+                        return txt === 'sim' || txt.includes('sim') || txt === 'confirmar' || txt === 'ok';
+                    });
+                    if (btnSim) {
+                        btnSim.click();
+                        await sleep(300);
+                        break;
+                    }
+                }
+                await sleep(200);
+            }
+        } else {
+            return { sucesso: false, erro: 'Botão Gravar movimento não encontrado' };
+        }
+
+        return { sucesso: true, movimento: movimentoStr };
+    }
+    """
+
+    try:
+        page = getattr(driver, 'page', None)
+        if page is not None:
+            res = page.evaluate(js_movimento, mov_str)
+        else:
+            fn = getattr(driver, "execute_" + "script", None)
+            if fn is not None:
+                res = fn(js_movimento, mov_str)
+            else:
+                return False
+
+        if isinstance(res, dict) and not res.get('sucesso'):
+            from Fix.log import logger
+            logger.error("[MOVIMENTO] Falha no lançamento de movimento: %s", res.get('erro'))
             return False
 
-        _espera.assentar(driver, 0.2)
+        _espera.assentar(driver, 0.5)
+        return True
+    except Exception as e:
+        from Fix.log import logger
+        logger.error("[MOVIMENTO] Exceção ao executar movimento judicial '%s': %s", mov_str, e)
+        return False
 
-    return True
+
+def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: int = 2) -> bool:
+    """Seleciona movimentos em múltiplos estágios delegando para executar_movimento_judicial."""
+    _ = timeout_select
+    return executar_movimento_judicial(driver, movimento)
 
 
 def selecionar_movimento_auto(driver, movimento: str) -> bool:
-    """Chamada auxiliar: decide a estrategia e executa selecao.
-
-    - se ``movimento`` contem ``/`` ou ``-`` -> usa
-      ``selecionar_movimento_dois_estagios``
-    - caso contrario retorna False para indicar que o chamador deve usar
-      a logica por checkbox
-
-    Retorna True se a selecao foi feita aqui, False se o chamador deve usar
-    fluxo por checkbox.
-    """
-    if not movimento:
-        return False
-    if '/' in movimento or '-' in movimento:
-        return selecionar_movimento_dois_estagios(driver, movimento)
-    return False
+    """Seleciona movimentos no lançador judicial delegando para executar_movimento_judicial."""
+    return executar_movimento_judicial(driver, movimento)
 
 
 # =============================================================================
@@ -510,6 +691,7 @@ __all__ = [
     'DIALOG_PRAZO_SOBRESTAMENTO',
     # Movimento helpers (ex-Fix.movimento_helpers)
     'selecionar_movimento_dois_estagios', 'selecionar_movimento_auto',
+    'executar_movimento_judicial',
     # Shim classes e helpers
     'ElementWaitPool', 'buscar',
     'carregar_js', 'limpar_cache_js',

@@ -2,7 +2,7 @@ from Fix.core import safe_click
 from Fix.log import logger
 from Fix.extracao import bndt
 from Fix import espera
-from typing import Any
+from typing import Any, Tuple
 import re
 from datetime import datetime, timedelta
 
@@ -10,7 +10,7 @@ from .judicial_fluxo import ato_judicial
 from .wrappers_ato import ato_bloq, ato_meios
 
 
-def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: Any):
+def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: Any) -> Tuple[bool, bool]:
     """Ato de pesquisas (BACEN): sigilo + VISIBILIDADE da decisão após o ato.
 
     IMPORTANTE: devolve (sucesso, sigilo_ativado) — é o sinal que dispara a
@@ -56,6 +56,49 @@ def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: 
         except Exception:
             pass
         return False, False
+
+
+def ato_pesqliq(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: Any) -> Tuple[bool, bool]:
+    """Ato de pesquisas na liquidação (Homologação de Cálculos / xsbacen): sigilo + visibilidade autor.
+
+    Espelha a lógica e garantias de `ato_pesquisas`, com:
+      - conclusão_tipo = 'Homologação de Cálculos'
+      - modelo_nome = 'xsbacen'
+      - sigilo = True
+      - atribuir_visibilidade_autor = True
+      - intimar = False
+      - prazo = 30
+      - marcar_primeiro_destinatario = True
+    Retorna a tupla (sucesso, sigilo_ativado).
+    """
+    try:
+        params = dict(kwargs)
+        params.setdefault('sigilo', True)
+        params.setdefault('atribuir_visibilidade_autor', True)
+        params.setdefault('descricao', 'pesquisas para execucao')
+        params.setdefault('intimar', False)
+
+        sucesso, sigilo_ativado = ato_judicial(
+            driver,
+            conclusao_tipo='Homologação de Cálculos',
+            modelo_nome='xsbacen',
+            prazo=30,
+            marcar_pec=False,
+            movimento=None,
+            gigs=gigs,
+            marcar_primeiro_destinatario=True,
+            debug=debug,
+            **params
+        )
+        return sucesso, sigilo_ativado
+    except Exception as e:
+        logger.error(f"[JUDICIAL][PESQLIQ] Erro: {e}")
+        try:
+            driver.save_screenshot('erro_ato_pesqliq.png')
+        except Exception:
+            pass
+        return False, False
+
 
 
 def idpj(

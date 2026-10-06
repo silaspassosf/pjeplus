@@ -163,7 +163,7 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
 
     original_window = getattr(driver, 'current_window_handle', None)
     abrir_url_nova_aba(driver, f"{BASE}consultarProcesso.xhtml")
-    espera.ate_url(driver, 'ecarta', teto=20)
+    espera.ate_url(driver, 'ecarta', teto=6)
 
     try:
         user_field = espera.elemento(driver, '#input_user', teto=8)

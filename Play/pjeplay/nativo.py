@@ -387,7 +387,8 @@ def ate_url(driver, trecho, teto=10):
     if ctx is None:
         return _delegar("ate_url", driver, trecho, teto)
     try:
-        driver.page.wait_for_url(lambda u: trecho in (u or ""), timeout=_ms(teto))
+        trecho_alvo = (trecho or "").lower()
+        driver.page.wait_for_url(lambda u: trecho_alvo in (u or "").lower(), timeout=_ms(teto))
         return True
     except Exception:
         return False

@@ -180,9 +180,10 @@ def elementos(driver, seletor, teto=10):
 def ate_url(driver, trecho, teto=10):
     """Espera a URL corrente conter `trecho`."""
     limite = time.monotonic() + float(teto)
+    trecho_alvo = (trecho or "").lower()
     while True:
         try:
-            if trecho in (driver.current_url or ""):
+            if trecho_alvo in (driver.current_url or "").lower():
                 return True
         except Exception as e:
             logger.debug("ate_url: %s", e)

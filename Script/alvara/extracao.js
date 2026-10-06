@@ -10,15 +10,20 @@
     const logAviso = Alv.log.aviso;
     const REGEX = {
         depositoCreditoSemValor: [
-            // aceita ao/à/para o/para a/em favor do/da e masculino+féminino
+            // aceita ao/à/para o/para a/em favor do/da e masculino+feminino
             // ("libere-se à autora", "libere-se ao exequente", "em favor da exequenta")
             /(?:ante\s+o\s+)?dep[oó]sito\s+efetuado[\s\S]{0,500}?(?:libere-se|liber[eê]-se)\s+(?:ao|à|para\s+(?:o|a)|em\s+favor\s+(?:do|da))\s+(?:exequente|exequenta|reclamante|autora?|demandante)/i,
-            /(?:libere-se|liber[eê]-se)\s+(?:ao|à|para\s+(?:o|a)|em\s+favor\s+(?:do|da))\s+(?:exequente|exequenta|reclamante|autora?|demandante)[\s\S]{0,180}?cr[eé]dito/i
+            /(?:libere-se|liber[eê]-se)\s+(?:ao|à|para\s+(?:o|a)|em\s+favor\s+(?:do|da))\s+(?:exequente|exequenta|reclamante|autora?|demandante)[\s\S]{0,180}?cr[eé]dito/i,
+            /(?:libere-se|liber[eê]-se)\s+(?:o\s+valor\s+)?(?:ao|à|para\s+(?:o|a)|em\s+favor\s+(?:do|da))\s+(?:exequente|exequenta|reclamante|autora?|demandante)/i,
+            /(?:libere-se|liber[eê]-se)\s+(?:o\s+)?cr[eé]dito\s+(?:ao|à|para\s+(?:o|a)|em\s+favor\s+(?:do|da))\s+(?:exequente|exequenta|reclamante|autora?|demandante)/i,
+            /(?:libere-se|liber[eê]-se)\s+o\s+valor\s+ao\s+autor/i
         ],
 
         credito: [
-            /crédito\s+do\s+(?:autor|reclamante|exequente|demandante)[\s\S]{0,100}?R\$\s*([\d.,]+)/i,
-            /crédito[\s\S]{0,100}?R\$\s*([\d.,]+)/i
+            /(?:libere-se|liber[eê]-se)\s+(?:ao|à|para\s+(?:o|a)|em\s+favor\s+(?:do|da))\s+(?:exequente|exequenta|reclamante|autora?|demandante)[\s\S]{0,100}?(?:cr[eé]dito|valor)[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+            /(?:libere-se|liber[eê]-se)\s+(?:o\s+valor\s+de\s+)?R\$\s*([\d.,]+)[\s\S]{0,100}?(?:ao|à|para\s+(?:o|a)|em\s+favor\s+(?:do|da))\s+(?:exequente|exequenta|reclamante|autora?|demandante)/i,
+            /cr[eé]dito\s+(?:do|da)\s+(?:autor|autora|reclamante|exequente|demandante)[\s\S]{0,100}?R\$\s*([\d.,]+)/i,
+            /cr[eé]dito[\s\S]{0,100}?R\$\s*([\d.,]+)/i
         ],
 
         devolucaoReclamada: [
@@ -34,6 +39,14 @@
             /transfira-se[\s\S]{0,180}?para\s+os\s+autos/i
         ],
 
+        inssNegativo: /(?:recolhimentos?\s+previdenci[aá]rios?|contribui[cç][õo]es?\s+previdenci[aá]rias?|inss)[\s\S]{0,120}?recolhid[oa]s?\s+(?:diretamente\s+)?em\s+guia\s+pr[oó]pria|recolhid[oa]s?\s+(?:diretamente\s+)?em\s+guia\s+pr[oó]pria/i,
+
+        inssTotalDireto: [
+            /(?:contribui[cç][õo]es\s+previdenci[aá]rias|inss|previd[eê]ncia)[\s\S]{0,300}?\(\s*total\s+de\s+R\$\s*([\d.,]+)\s*\)/i,
+            /(?:contribui[cç][õo]es\s+previdenci[aá]rias|inss|previd[eê]ncia)[\s\S]{0,300}?total\s+(?:de\s+)?R\$\s*([\d.,]+)/i,
+            /transfer[eê]ncia\s+de\s+valores\s+ao\s+[oó]rg[aã]o\s+competente[\s\S]{0,300}?total\s+(?:de\s+)?R\$\s*([\d.,]+)/i
+        ],
+
         inssReclamante: [
             /\(cota\s+do\s+reclamante\)[\s\S]{0,120}?R\$\s*([\d.,]+)/i,
             /inss[\s\S]{0,120}?reclamante[\s\S]{0,120}?R\$\s*([\d.,]+)/i
@@ -44,25 +57,49 @@
             /inss[\s\S]{0,120}?reclamada[\s\S]{0,120}?R\$\s*([\d.,]+)/i
         ],
 
+        fgtsNegativo: /(?:fgts|fundo\s+de\s+garantia)[\s\S]{0,120}?recolhido\s+em\s+conta\s+vinculada|recolhido\s+em\s+conta\s+vinculada[\s\S]{0,120}?(?:fgts|fundo\s+de\s+garantia)/i,
+
+        fgts: [
+            /(?:transfer[eê]ncia\s+do\s+valor\s+de\s+)?R\$\s*([\d.,]+)[\s\S]{0,100}?referente\s+ao\s+fgts/i,
+            /referente\s+ao\s+fgts[\s\S]{0,100}?R\$\s*([\d.,]+)/i,
+            /(?:fgts|fundo\s+de\s+garantia)[\s\S]{0,120}?(?:no\s+valor\s+de|no\s+importe\s+de|de)?\s*R\$\s*([\d.,]+)/i
+        ],
+
+        fgtsBanco: /(?:of[ií]cio\s+ao|solicitando\s+a\s+transfer[eê]ncia[\s\S]{0,100}?ao|junto\s+ao|perante\s+o|no|ao|banco)\s+(Banco\s+do\s+Brasil|BB|Caixa\s+Econ[oô]mica\s+Federal|CEF|Caixa)/i,
+
         custas: [
             /custas\s+de\s*(?:\|\s*)?R\$\s*([\d.,]+)/i,
             /custas[\s\S]{0,100}?R\$\s*([\d.,]+)/i
         ],
 
-        honorariosAdvogado: [
-            /honorários\s+advocatícios[\s\S]{0,150}?R\$\s*([\d.,]+)/i,
-            /honorários\s+sucumbenciais[\s\S]{0,150}?R\$\s*([\d.,]+)/i
+        honorariosAdvogadoAutor: [
+            /(?:libere-se|liber[eê]-se)\s+(?:ao|à|para\s+(?:o|a))\s+patrono\s+(?:da\s+parte\s+)?(?:autora?|reclamante|exequente)\s+seus\s+honor[aá]rios[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+            /honor[aá]rios[\s\S]{0,100}?(?:ao|do)\s+patrono\s+(?:da\s+parte\s+)?(?:autora?|reclamante|exequente)[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+            /honor[aá]rios\s+advocat[ií]cios[\s\S]{0,100}?(?:ao|à|para\s+(?:o|a))\s+(?:autor|autora|reclamante|exequente)[\s\S]{0,80}?R\$\s*([\d.,]+)/i
+        ],
+
+        honorariosAdvogadoReclamada: [
+            /(?:libere-se|liber[eê]-se)\s+(?:ao|à|para\s+(?:o|a))\s+patrono\s+(?:da\s+parte\s+)?(?:reclamada|executada|r[eé]u?)\s+seus\s+honor[aá]rios[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+            /honor[aá]rios[\s\S]{0,100}?(?:ao|do)\s+patrono\s+(?:da\s+parte\s+)?(?:reclamada|executada|r[eé]u?)[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+            /honor[aá]rios\s+advocat[ií]cios[\s\S]{0,100}?(?:ao|à|para\s+(?:o|a))\s+(?:reclamada|executada|r[eé]u)[\s\S]{0,80}?R\$\s*([\d.,]+)/i
+        ],
+
+        honorariosAdvogadoGenerico: [
+            /honor[aá]rios\s+advocat[ií]cios[\s\S]{0,150}?R\$\s*([\d.,]+)/i,
+            /honor[aá]rios\s+sucumbenciais[\s\S]{0,150}?R\$\s*([\d.,]+)/i
         ],
 
         honorariosPericiais: [
-            /honorários\s+periciais[\s\S]{0,180}?R\$\s*([\d.,]+)/gi,
-            /honorários\s+(?:periciais\s+)?técnicos[\s\S]{0,120}?R\$\s*([\d.,]+)/gi,
-            /honorários\s+médicos[\s\S]{0,120}?R\$\s*([\d.,]+)/gi,
-            /honorários\s+(?:periciais\s+)?contábeis[\s\S]{0,120}?R\$\s*([\d.,]+)/gi
+            /(?:libere-se|liber[eê]-se)\s+(?:ao|à|para\s+(?:o|a))\s+perit[oa][\s\S]{0,100}?seus\s+honor[aá]rios[\s\S]{0,80}?R\$\s*([\d.,]+)/gi,
+            /honor[aá]rios\s+periciais[\s\S]{0,180}?R\$\s*([\d.,]+)/gi,
+            /honor[aá]rios\s+(?:periciais\s+)?t[eé]cnicos[\s\S]{0,120}?R\$\s*([\d.,]+)/gi,
+            /honor[aá]rios\s+m[eé]dicos[\s\S]{0,120}?R\$\s*([\d.,]+)/gi,
+            /honor[aá]rios\s+(?:periciais\s+)?cont[aá]beis[\s\S]{0,120}?R\$\s*([\d.,]+)/gi
         ],
 
         peritoNome: [
-            /honorários\s+periciais[\s\S]{0,240}?(?:em favor de|para o perito|para a perita|para)\s+([A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+(?:de|da|do|das|dos|[A-ZÀ-ÿ][a-zà-ÿ]+)){1,5})/i,
+            /(?:libere-se|liber[eê]-se)\s+(?:ao|à|para\s+(?:o|a))\s+perit[oa](?:\s+(?:cont[aá]bil|m[eé]dic[oa]|t[eé]cnic[oa]|grafot[eé]cnic[oa]|do\s+ju[ií]zo))?\s+([A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+(?:de|da|do|das|dos|[A-ZÀ-ÿ][a-zà-ÿ]+))*?)(?=\s+seus\s+honor[aá]rios|\s*,|\s*$)/i,
+            /honor[aá]rios\s+periciais[\s\S]{0,240}?(?:em favor de|para o perito|para a perita|para)\s+([A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+(?:de|da|do|das|dos|[A-ZÀ-ÿ][a-zà-ÿ]+)){1,5})/i,
             /(?:perito|perita|perícia)[\s\S]{0,160}?nome\s*:?\s*([A-ZÀ-ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ]+){1,5})/i
         ]
     };
@@ -222,27 +259,61 @@
             REGEX.transferenciaOutroProcesso
         );
 
-        const inssReclamante = firstMatch(
-            texto,
-            REGEX.inssReclamante
-        );
+        // INSS: se recolhido diretamente em guia própria, NÃO registrar.
+        // Se houver menção ao total explícito ("total de R$ X"), registra apenas o total.
+        let inssTotal = 0;
+        const inssNegativo = REGEX.inssNegativo.test(texto);
+        let inssReclamante = '';
+        let inssReclamada = '';
 
-        const inssReclamada = firstMatch(
-            texto,
-            REGEX.inssReclamada
-        );
+        if (!inssNegativo) {
+            const inssTotalDireto = firstMatch(texto, REGEX.inssTotalDireto);
+            if (inssTotalDireto) {
+                inssTotal = utils.parseMoney(inssTotalDireto);
+            } else {
+                inssReclamante = firstMatch(texto, REGEX.inssReclamante);
+                inssReclamada = firstMatch(texto, REGEX.inssReclamada);
+                inssTotal = (
+                    utils.parseMoney(inssReclamante) +
+                    utils.parseMoney(inssReclamada)
+                );
+            }
+        }
 
-        const inssTotal = (
-            utils.parseMoney(inssReclamante) +
-            utils.parseMoney(inssReclamada)
-        );
+        // FGTS: se recolhido em conta vinculada, NÃO registrar.
+        let fgtsValor = '';
+        let fgtsBanco = '';
+        const fgtsNegativo = REGEX.fgtsNegativo.test(texto);
+
+        if (!fgtsNegativo) {
+            const fgtsMatch = firstMatch(texto, REGEX.fgts);
+            if (fgtsMatch) {
+                fgtsValor = utils.formatMoney(fgtsMatch);
+                const bancoMatch = texto.match(REGEX.fgtsBanco);
+                const bancoRaw = bancoMatch ? bancoMatch[1] : '';
+                if (/brasil|bb/i.test(bancoRaw)) {
+                    fgtsBanco = 'Banco do Brasil';
+                } else if (/caixa|cef/i.test(bancoRaw)) {
+                    fgtsBanco = 'CEF';
+                } else {
+                    fgtsBanco = 'Banco do Brasil';
+                }
+            }
+        }
 
         const custas = firstMatch(texto, REGEX.custas);
 
-        const honorariosAdvogado = firstMatch(
-            texto,
-            REGEX.honorariosAdvogado
-        );
+        // Honorários Advocatícios: distingue autor vs reclamada
+        const honAdvAutor = firstMatch(texto, REGEX.honorariosAdvogadoAutor);
+        const honAdvReclamada = firstMatch(texto, REGEX.honorariosAdvogadoReclamada);
+        const honAdvGenerico = firstMatch(texto, REGEX.honorariosAdvogadoGenerico);
+
+        let honorariosAdvocaticiosAutor = honAdvAutor || '';
+        let honorariosAdvocaticiosReclamada = honAdvReclamada || '';
+
+        if (!honorariosAdvocaticiosAutor && !honorariosAdvocaticiosReclamada && honAdvGenerico) {
+            honorariosAdvocaticiosAutor = honAdvGenerico;
+        }
 
         const honorariosPericiaisValores = allMatches(
             texto,
@@ -321,12 +392,23 @@
                 ? utils.formatMoney(inssTotal)
                 : '',
 
+            fgts: fgtsValor,
+            fgtsBanco: fgtsBanco,
+
             custas: custas
                 ? utils.formatMoney(custas)
                 : '',
 
-            honorariosAdvocaticios: honorariosAdvogado
-                ? utils.formatMoney(honorariosAdvogado)
+            honorariosAdvocaticios: honorariosAdvocaticiosAutor
+                ? utils.formatMoney(honorariosAdvocaticiosAutor)
+                : '',
+
+            honorariosAdvocaticiosAutor: honorariosAdvocaticiosAutor
+                ? utils.formatMoney(honorariosAdvocaticiosAutor)
+                : '',
+
+            honorariosAdvocaticiosReclamada: honorariosAdvocaticiosReclamada
+                ? utils.formatMoney(honorariosAdvocaticiosReclamada)
                 : '',
 
             honorariosPericiais: honorariosPericiaisTotal > 0
@@ -334,10 +416,10 @@
                 : '',
 
             peritoNome: (function () {
-                const nome = firstMatch(texto, REGEX.peritoNome) || '';
+                let nome = firstMatch(texto, REGEX.peritoNome) || '';
 
-                // Remove preposições/conectivos arrastados pelo regex
-                // ("Maria Contadora em" -> "Maria Contadora").
+                // Remove sufixos como "seus honorários" e preposições/conectivos
+                nome = nome.replace(/\s+seus\s+honor[aá]rios.*$/i, '').trim();
                 const limpo = nome
                     .replace(/\s+(?:em|para|de|do|da|dos|das|a|o|e)$/i, '')
                     .trim();

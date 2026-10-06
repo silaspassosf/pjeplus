@@ -223,47 +223,58 @@
         const html = r.responseText || '';
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        const getByLabel = (text) => {
-            const wanted = (text || '').replace(/:$/, '').trim().toLowerCase();
-            const labels = [...doc.querySelectorAll('label')];
-            const label = labels.find(el => (el.textContent || '').replace(/:$/, '').trim().toLowerCase() === wanted);
+        const normStr = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/:$/, '').trim().toLowerCase();
+
+        const getSpanValue = (label) => {
             if (!label) return '';
-            const span = label.parentElement ? label.parentElement.querySelector('span.readonly') : null;
-            return (span ? span.textContent : '').trim();
+            let span = label.parentElement ? label.parentElement.querySelector('span.readonly, .readonly') : null;
+            if (span) return (span.textContent || '').trim();
+            const row = label.closest ? label.closest('.ui-grid-row, tr, div') : null;
+            span = row ? row.querySelector('span.readonly, .readonly') : null;
+            return span ? (span.textContent || '').trim() : '';
         };
 
-        const getRowsByLabel = (root, text) => [...root.querySelectorAll('label')]
-            .filter(label => (label.textContent || '').replace(/:$/, '').trim().toLowerCase() === (text || '').replace(/:$/, '').trim().toLowerCase());
+        const getByLabel = (text) => {
+            const wanted = normStr(text);
+            const labels = [...doc.querySelectorAll('label')];
+            const label = labels.find(el => normStr(el.textContent) === wanted);
+            return getSpanValue(label);
+        };
+
         const bankBlocks = [...doc.querySelectorAll('h4')]
             .filter(h => /Dados Bancários/i.test(h.textContent || ''))
             .map(title => {
                 const nodes = [];
-                for (let node = title.parentElement?.nextElementSibling; node; node = node.nextElementSibling) {
-                    if (node.querySelector('h4')) break;
+                let startNode = title;
+                if (title.parentElement && title.parentElement.children.length === 1 && !/body|html/i.test(title.parentElement.tagName)) {
+                    startNode = title.parentElement;
+                }
+                for (let node = startNode.nextElementSibling; node; node = node.nextElementSibling) {
+                    if (node.querySelector('h4') || node.tagName === 'H4') break;
                     nodes.push(node);
                 }
                 const getValue = text => {
-                    const wanted = text.replace(/:$/, '').trim().toLowerCase();
+                    const wanted = normStr(text);
                     const label = nodes.flatMap(node => [...node.querySelectorAll('label')])
-                        .find(item => (item.textContent || '').replace(/:$/, '').trim().toLowerCase() === wanted);
-                    return label?.parentElement?.querySelector('span.readonly')?.textContent.trim() || '';
+                        .find(item => normStr(item.textContent) === wanted);
+                    return getSpanValue(label);
                 };
                 return {
                     titulo: (title.textContent || '').trim(),
                     getValue,
-                    juridica: getValue('Conta Jurídica').toLowerCase() === 'sim'
+                    juridica: normStr(getValue('Conta Jurídica')) === 'sim'
                 };
             });
         const blocosComDados = bankBlocks.map(block => ({
             titulo: block.titulo,
             contaJuridica: block.juridica,
-            razaoSocial: block.getValue('Razão Social:'),
-            cnpj: block.getValue('CNPJ:'),
-            codigoBanco: block.getValue('Código Banco:'),
-            banco: block.getValue('Banco:'),
-            agencia: block.getValue('Agência:'),
-            conta: block.getValue('Conta:'),
-            tipo: block.getValue('Tipo:')
+            razaoSocial: block.getValue('Razão Social'),
+            cnpj: block.getValue('CNPJ'),
+            codigoBanco: block.getValue('Código Banco'),
+            banco: block.getValue('Banco'),
+            agencia: block.getValue('Agência'),
+            conta: block.getValue('Conta'),
+            tipo: block.getValue('Tipo')
         })).filter(block => block.banco || block.agencia || block.conta || block.contaJuridica);
         const cjIndex = blocosComDados.findIndex(block => block.contaJuridica);
         const bancoBrasilIndex = blocosComDados.findIndex(block => /Banco do Brasil/i.test(block.titulo));
@@ -298,29 +309,29 @@
             .map(block => ({ ...block, detailUrl: detailUrl }))
             .filter(block => block.banco || block.agencia || block.conta);
 
-        const nome = getByLabel('Nome') || getByLabel('Razão Social') || contaJuridicaDados.razaoSocial || '';
-        const documento = getByLabel('CPF') || getByLabel('CNPJ') || contaJuridicaDados.cnpj || '';
+        const nomePessoa = getByLabel('Nome') || '';
+        const cpfPessoa = getByLabel('CPF') || '';
+        const razaoSocial = bankBlock.razaoSocial || getByLabel('Razão Social') || '';
+        const cnpj = bankBlock.cnpj || getByLabel('CNPJ') || '';
 
-        if (kind === 'cnpj') {
-            return {
-                ...contaJuridicaDados,
-                nome: contaJuridicaDados.razaoSocial || getByLabel('Razão Social') || nome,
-                documento: getByLabel('CNPJ') || documento,
-                banco: contaJuridicaDados.banco,
-                tipo: contaJuridicaDados.tipo,
-                agencia: contaJuridicaDados.agencia,
-                conta: contaJuridicaDados.conta
-            };
-        }
+        // Se contaJuridica for Sim: por padrão destino é escritório com Razão Social e CNPJ
+        // Se contaJuridica for Não: por padrão destino é advogado com Nome e CPF
+        const nomePadrao = contaJuridica ? (razaoSocial || nomePessoa) : (nomePessoa || razaoSocial);
+        const docPadrao = contaJuridica ? (cnpj || cpfPessoa) : (cpfPessoa || cnpj);
 
         return {
             ...contaJuridicaDados,
-            nome: nome,
-            documento: documento,
-            banco: contaJuridicaDados.banco,
-            tipo: contaJuridicaDados.tipo,
-            agencia: contaJuridicaDados.agencia,
-            conta: contaJuridicaDados.conta
+            contaJuridica,
+            advogadoNome: nomePessoa,
+            advogadoCpf: cpfPessoa,
+            razaoSocial,
+            cnpj,
+            nome: kind === 'cnpj' ? (razaoSocial || nomePadrao) : nomePadrao,
+            documento: kind === 'cnpj' ? (cnpj || docPadrao) : docPadrao,
+            banco: bankBlock.banco,
+            tipo: bankBlock.tipo,
+            agencia: bankBlock.agencia,
+            conta: bankBlock.conta
         };
     }
 
@@ -473,28 +484,77 @@
     }
 
     function _preencherCampos(card, data) {
-        const set = (sel, val) => {
-            const input = card.querySelector(sel);
-            if (input && val && !input.value.trim()) input.value = val;
-        };
+        if (!card || !data) return;
 
-        // Nome/documento só se estiverem vazios (mantêm editáveis).
-        set('[data-field="destinatarioNome"]', data.nome);
-        set('[data-field="destinatarioDocumento"]', data.documento);
+        const selectDestino = card.querySelector('[data-field="destinoTipo"]');
+        const inputNome = card.querySelector('[data-field="destinatarioNome"]');
+        const inputDoc = card.querySelector('[data-field="destinatarioDocumento"]');
+        const inputBanco = card.querySelector('[data-field="banco"]');
+        const inputAgencia = card.querySelector('[data-field="agencia"]');
+        const inputConta = card.querySelector('[data-field="conta"]');
+        const inputTipoConta = card.querySelector('[data-field="tipoConta"]');
+        const marker = card.querySelector('[data-conta-juridica]');
 
-        // Banco/agência/conta/tipo: autopreenchidos e SEGUEM editáveis.
-        set('[data-field="banco"]', data.banco);
-        set('[data-field="agencia"]', data.agencia);
-        set('[data-field="conta"]', data.conta);
-        set('[data-field="tipoConta"]', data.tipo);
         if (data.contaJuridica) {
-            const marker = card.querySelector('[data-conta-juridica]');
+            // Selecionar por padrão o destinatário "Conta escritório"
+            if (selectDestino) {
+                const optEscritorio = [...selectDestino.options].find(o => /conta escrit[oó]rio/i.test(o.value));
+                if (optEscritorio) {
+                    selectDestino.value = optEscritorio.value;
+                }
+            }
+
+            // Preencher com os dados corretos de Nome do Escritório e CNPJ
+            const nomeEscritorio = data.razaoSocial || data.nome || '';
+            const cnpjEscritorio = data.cnpj || data.documento || '';
+            if (inputNome && nomeEscritorio) inputNome.value = nomeEscritorio;
+            if (inputDoc && cnpjEscritorio) inputDoc.value = cnpjEscritorio;
+
             if (marker) {
                 marker.textContent = 'CONTA JURÍDICA - ' + (data.razaoSocial || '') +
                     (data.cnpj ? ' - ' + data.cnpj : '');
+                marker.style.display = 'block';
                 marker.hidden = false;
             }
+
+            card.dataset.contaJuridica = 'true';
+            card.dataset.razaoSocial = data.razaoSocial || '';
+            card.dataset.cnpj = data.cnpj || '';
+            if (data.advogadoNome) card.dataset.advogadoNome = data.advogadoNome;
+            if (data.advogadoCpf) card.dataset.advogadoCpf = data.advogadoCpf;
+        } else {
+            // Quando conta jurídica é Não: por padrão destinatário é conta do advogado
+            if (selectDestino && /escrit[oó]rio/i.test(selectDestino.value)) {
+                const optAdv = [...selectDestino.options].find(o =>
+                    /conta (?:do )?advogado|transfer[eê]ncia para conta do advogado/i.test(o.value)
+                );
+                if (optAdv) {
+                    selectDestino.value = optAdv.value;
+                }
+            }
+
+            const nomeAdv = data.advogadoNome || data.nome || '';
+            const cpfAdv = data.advogadoCpf || data.documento || '';
+            if (inputNome && nomeAdv) inputNome.value = nomeAdv;
+            if (inputDoc && cpfAdv) inputDoc.value = cpfAdv;
+
+            if (marker) {
+                marker.style.display = 'none';
+                marker.hidden = true;
+            }
+
+            card.dataset.contaJuridica = 'false';
+            card.dataset.razaoSocial = '';
+            card.dataset.cnpj = '';
+            if (data.advogadoNome) card.dataset.advogadoNome = data.advogadoNome;
+            if (data.advogadoCpf) card.dataset.advogadoCpf = data.advogadoCpf;
         }
+
+        // Dados bancários (preenchidos e seguem editáveis)
+        if (inputBanco && data.banco) inputBanco.value = data.banco;
+        if (inputAgencia && data.agencia) inputAgencia.value = data.agencia;
+        if (inputConta && data.conta) inputConta.value = data.conta;
+        if (inputTipoConta && data.tipo) inputTipoConta.value = data.tipo;
     }
 
     async function consultarCard(card, opts) {
@@ -556,21 +616,47 @@
 
         if (!item) return;
 
-        // Merge: só preenche o que estiver vazio — campos seguem editáveis.
         item.dados = item.dados || {};
-        if (data.banco && !item.dados.banco) item.dados.banco = data.banco;
-        if (data.agencia && !item.dados.agencia) item.dados.agencia = data.agencia;
-        if (data.conta && !item.dados.conta) item.dados.conta = data.conta;
-        if (data.tipo && !item.dados.tipoConta) item.dados.tipoConta = data.tipo;
-        if (data.contaJuridica) item.dados.contaJuridica = true;
-        if (data.razaoSocial && !item.dados.razaoSocial) item.dados.razaoSocial = data.razaoSocial;
-        if (data.cnpj && !item.dados.cnpj) item.dados.cnpj = data.cnpj;
+        if (data.banco) item.dados.banco = data.banco;
+        if (data.agencia) item.dados.agencia = data.agencia;
+        if (data.conta) item.dados.conta = data.conta;
+        if (data.tipo) item.dados.tipoConta = data.tipo;
+
+        const selectDestino = card.querySelector('[data-field="destinoTipo"]');
+
+        if (data.contaJuridica) {
+            item.dados.contaJuridica = true;
+            item.dados.razaoSocial = data.razaoSocial || '';
+            item.dados.cnpj = data.cnpj || '';
+            if (data.advogadoNome) item.dados.advogadoNome = data.advogadoNome;
+            if (data.advogadoCpf) item.dados.advogadoCpf = data.advogadoCpf;
+
+            if (selectDestino && selectDestino.value) {
+                item.destinoTipo = selectDestino.value;
+            } else {
+                item.destinoTipo = /reclamada/i.test(item.tipo)
+                    ? 'Conta escritório da reclamada'
+                    : 'Conta escritório';
+            }
+            item.destinatarioNome = data.razaoSocial || data.nome || item.destinatarioNome;
+            item.destinatarioDocumento = data.cnpj || data.documento || item.destinatarioDocumento;
+        } else {
+            item.dados.contaJuridica = false;
+            item.dados.razaoSocial = '';
+            item.dados.cnpj = '';
+            if (selectDestino && selectDestino.value) item.destinoTipo = selectDestino.value;
+            if (data.advogadoNome || data.nome) {
+                item.destinatarioNome = data.advogadoNome || data.nome;
+            }
+            if (data.advogadoCpf || data.documento) {
+                item.destinatarioDocumento = data.advogadoCpf || data.documento;
+            }
+            if (data.advogadoNome) item.dados.advogadoNome = data.advogadoNome;
+            if (data.advogadoCpf) item.dados.advogadoCpf = data.advogadoCpf;
+        }
+
         if (Array.isArray(data.alternativas) && data.alternativas.length) {
             item.dados.alternativas = data.alternativas;
-        }
-        if (!item.destinatarioNome && data.nome) item.destinatarioNome = data.nome;
-        if (!item.destinatarioDocumento && data.documento) {
-            item.destinatarioDocumento = data.documento;
         }
 
         Alv.estado.salvarEstado(estado);

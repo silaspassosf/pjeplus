@@ -1,26 +1,31 @@
 // ==UserScript==
 // @name         PJeTools — Elaboração de Alvará
 // @namespace    pjetools
-// @version      0.6.0
+// @version      0.7.1
 // @description  Analisa decisão ativa e prepara dados para elaboração de alvarás
 // @author       PJeTools
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe#*
 // @match        https://pje.trt*.jus.br/pjekz/processo/*/detalhe
 // @match        https://pje.trt*.jus.br/pjekz/processo/*/detalhe#*
+// @match        https://alvaraeletronico.trt2.jus.br/portaltrtsp/*
+// @match        https://siscondj.trt*.jus.br/*
+// @match        https://pje.trt*.jus.br/siscondj/*
 // @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @connect      aplicacoes1.trt2.jus.br
 // @run-at       document-start
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js?v=2.3.23
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/utils.js?v=3
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao.js?v=3
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/dados_processo.js?v=3
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estado.js?v=3
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estilos.js?v=4
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/overlay.js?v=3
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=4
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=3
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/minuta.js?v=3
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/utils.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/dados_processo.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estado.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estilos.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/overlay.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/minuta.js?v=5
 // ==/UserScript==
 
 (function () {
@@ -47,6 +52,12 @@
     function isPaginaDetalhe() {
         return /^\/pjekz\/processo\/\d+\/detalhe(?:\/.*)?$/i
             .test(location.pathname);
+    }
+
+    function isPaginaSiscondj() {
+        const host = (location.hostname || '').toLowerCase();
+        const path = (location.pathname || '').toLowerCase();
+        return host.includes('alvaraeletronico') || host.includes('siscondj') || path.includes('/portaltrt');
     }
 
     const Alv = (window.Alv = window.Alv || {});
@@ -162,45 +173,44 @@
         }
     }
 
-    function criarBotao() {
-        if (!isPaginaDetalhe()) {
-            logDiagnostico(
-                'rota atual não é detalhe:',
-                location.pathname
-            );
-            return false;
+    function encontrarDestinoComentarios() {
+        // 1. h4 com aria-label de Comentários do Gigs
+        const h4 = document.querySelector(
+            'h4[aria-label*="Comentários do Gigs"],' +
+            'mat-panel-title h4[aria-label*="Comentários"],' +
+            '[aria-label="Comentários do Gigs"]'
+        );
+        if (h4) {
+            return h4.closest('mat-panel-title') || h4.parentElement;
         }
 
-        const botaoExistente =
-            document.getElementById(BUTTON_ID);
-
-        if (botaoExistente) {
-            return true;
+        // 2. mat-panel-title com h4 ou texto de Comentários
+        const titles = document.querySelectorAll('mat-panel-title');
+        for (const title of titles) {
+            if (/coment[aá]rios/i.test(title.textContent)) {
+                return title;
+            }
         }
 
-        if (!document.body) {
-            logAviso(
-                'document.body ainda não existe; nova tentativa será feita.'
-            );
-            return false;
-        }
+        return null;
+    }
 
+    function fabricarBotao() {
         const botao = document.createElement('button');
 
         botao.id = BUTTON_ID;
         botao.type = 'button';
         botao.textContent = 'Alvará';
-        botao.title =
-            'Analisar decisão e preparar alvarás';
+        botao.title = 'Analisar decisão e preparar alvarás';
 
         Object.assign(botao.style, {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             minWidth: '86px',
-            height: '36px',
+            height: '32px',
             margin: '0',
-            padding: '7px 14px',
+            padding: '5px 12px',
             border: '1px solid #166534',
             borderRadius: '5px',
             background: '#16a34a',
@@ -215,11 +225,60 @@
             zIndex: '2147483647'
         });
 
+        // Impede que clicar no botão acione a expansão/recolhimento do painel de comentários
+        botao.addEventListener('mousedown', event => {
+            event.stopPropagation();
+        });
+
         botao.addEventListener('click', event => {
             event.preventDefault();
             event.stopPropagation();
             analisarDecisao();
         });
+
+        return botao;
+    }
+
+    function criarBotao() {
+        if (!isPaginaDetalhe()) {
+            logDiagnostico(
+                'rota atual não é detalhe:',
+                location.pathname
+            );
+            return false;
+        }
+
+        let botao = document.getElementById(BUTTON_ID);
+        const destinoComentarios = encontrarDestinoComentarios();
+
+        if (destinoComentarios) {
+            if (!botao) {
+                botao = fabricarBotao();
+            }
+
+            if (!destinoComentarios.contains(botao)) {
+                botao.style.marginLeft = '14px';
+                botao.style.marginRight = '8px';
+                botao.style.alignSelf = 'center';
+                destinoComentarios.appendChild(botao);
+                document.getElementById(BUTTON_HOST_ID)?.remove();
+                logDiagnostico('botão injetado em Comentários do Gigs.');
+            }
+            return true;
+        }
+
+        if (botao) {
+            return true;
+        }
+
+        if (!document.body) {
+            logAviso(
+                'document.body ainda não existe; nova tentativa será feita.'
+            );
+            return false;
+        }
+
+        botao = fabricarBotao();
 
         const candidatos = [
             '.mat-toolbar',
@@ -297,9 +356,12 @@
 
             if (isPaginaDetalhe()) {
                 criarBotao();
+            } else if (isPaginaSiscondj()) {
+                Alv.siscondj?.iniciarPainelSiscondj?.();
+                Alv.siscondj?.iniciarAutomacaoSiscondj?.();
             } else {
                 logDiagnostico(
-                    'aguardando rota de detalhe:',
+                    'aguardando rota de detalhe ou siscondj:',
                     location.pathname
                 );
             }
@@ -314,6 +376,9 @@
 
             if (isPaginaDetalhe()) {
                 criarBotao();
+            } else if (isPaginaSiscondj()) {
+                Alv.siscondj?.iniciarPainelSiscondj?.();
+                Alv.siscondj?.iniciarAutomacaoSiscondj?.();
             } else {
                 const host =
                     document.getElementById(BUTTON_HOST_ID);
@@ -363,6 +428,9 @@
 
             if (isPaginaDetalhe()) {
                 criarBotao();
+            } else if (isPaginaSiscondj()) {
+                Alv.siscondj?.iniciarPainelSiscondj?.();
+                Alv.siscondj?.iniciarAutomacaoSiscondj?.();
             } else {
                 removerElementosDaPagina();
             }

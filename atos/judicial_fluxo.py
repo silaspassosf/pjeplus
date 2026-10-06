@@ -449,14 +449,15 @@ def ato_judicial(
         # ----- 1. SIGILO (primeiro de tudo, logo após a aba renderizar) -----
         if sigilo:
             logger.info('[ATO][SIGILO] Aplicando sigilo...')
+            sigilo_ativado = True
             try:
                 slide = esperar_elemento(
                     driver,
-                    'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo',
+                    'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo, mat-slide-toggle:has-text("Sigiloso"), label.mat-slide-toggle-label',
                     timeout=5
                 )
                 if slide:
-                    input_sig = espera.elemento(driver, 'mat-slide-toggle[name="sigiloso"] input[type="checkbox"], mat-slide-toggle#sigilo input[type="checkbox"]', teto=1)
+                    input_sig = espera.elemento(driver, 'mat-slide-toggle[name="sigiloso"] input[type="checkbox"], mat-slide-toggle#sigilo input[type="checkbox"], input[name="sigiloso"]', teto=1)
 
                     is_checked = False
                     try:
@@ -480,10 +481,9 @@ def ato_judicial(
                         else:
                             safe_click_no_scroll(driver, slide)
 
-                    sigilo_ativado = True
                     logger.info('[ATO][SIGILO] Sigilo ativado')
                 else:
-                    logger.debug('[ATO][SIGILO] Toggle de sigilo não encontrado')
+                    logger.debug('[ATO][SIGILO] Toggle de sigilo não encontrado (mantendo flag ativa)')
             except Exception as e:
                 logger.debug(f'[ATO][SIGILO] Erro ao aplicar sigilo: {e}')
 
@@ -688,127 +688,46 @@ def ato_judicial(
                         }""")
                     except Exception:
                         pass
-                espera.assentar(driver, 1.0, motivo='paciência pós-intimações antes de abrir aba Movimentos')
+                espera.assentar(driver, 0.8, motivo='paciência pós-intimações antes de abrir aba Movimentos')
 
-                aba_mov_clicada = False
-                if hasattr(driver, 'page'):
-                    try:
-                        aba_mov_clicada = bool(driver.page.evaluate("""() => {
-                            var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
-                            var abaMov = abas.find(function(a) {
-                                return a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos');
-                            });
-                            if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {
-                                abaMov.click();
-                                return true;
-                            }
-                            return false;
-                        }"""))
-                    except Exception:
-                        aba_mov_clicada = False
-
-                if aba_mov_clicada:
-                    logger.debug('[ATO][MOVIMENTO] Aba Movimentos clicada')
-                    aguardar_renderizacao_nativa(driver, 'mat-checkbox.mat-checkbox.movimento', modo='aparecer', timeout=3)
-
-                raiz_movimento = movimento.split('/')[0].split('-')[0].strip() if ('/' in movimento or '-' in movimento) else movimento
-
-                js_mov = """raiz => {
-                    var textoMov = raiz.trim().toLowerCase().replace(/\\s+/g, ' ');
-                    var checkboxes = Array.from(document.querySelectorAll('mat-checkbox.mat-checkbox.movimento'));
-
-                    function normalizarTexto(texto) {
-                        return texto.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
-                    }
-
-                    var termoPesquisa = normalizarTexto(textoMov);
-
-                    for (var cb of checkboxes) {
-                        try {
-                            var label = cb.querySelector('label.mat-checkbox-layout .mat-checkbox-label');
-                            var labelText = label && label.textContent ? label.textContent : '';
-                            var labelNorm = labelText.trim().toLowerCase().replace(/\\s+/g, ' ');
-                            var labelSemAcento = normalizarTexto(labelText);
-
-                            var encontrado = labelNorm.includes(textoMov) ||
-                                            labelSemAcento.includes(termoPesquisa) ||
-                                            (textoMov === 'frustrada' && (labelSemAcento.includes('execucao frustrada') || labelSemAcento.includes('276'))) ||
-                                            (textoMov.match(/^\\d+$/) && labelText.includes('(' + textoMov + ')'));
-
-                            if (encontrado) {
-                                var input = cb.querySelector('input[type="checkbox"]');
-                                if (input && !input.checked) {
-                                    var inner = cb.querySelector('.mat-checkbox-inner-container');
-                                    if(inner) {
-                                        inner.click();
-                                    } else {
-                                        input.click();
-                                    }
-                                }
-                                return {selecionado: true, label: labelText};
-                            }
-                        } catch (e) {
-                            console.warn('[ATO][MOVIMENTO] Erro ao processar checkbox:', e);
-                        }
-                    }
-                    return {selecionado: false, label: ''};
-                }"""
-
-                res_mov = {'selecionado': False, 'label': ''}
-                if hasattr(driver, 'page'):
-                    res_mov = driver.page.evaluate(js_mov, raiz_movimento) or {}
-
-                if not res_mov.get('selecionado'):
-                    logger.error(f'[ATO][MOVIMENTO]  Movimento raiz não encontrado: {raiz_movimento}')
+                from Fix.movimento_helpers import executar_movimento_judicial
+                ok_mov = executar_movimento_judicial(driver, movimento)
+                if not ok_mov:
+                    logger.error(f'[ATO][MOVIMENTO]  Falha ao executar movimento: {movimento}')
                     return False, False
-                logger.info(f'[ATO][MOVIMENTO]  Checkbox marcado: {res_mov.get("label")}')
-
-                # Movimento multi-estágio (combobox)
-                if '/' in movimento or '-' in movimento:
-                    if not selecionar_movimento_auto(driver, movimento):
-                        logger.error(f'[ATO][MOVIMENTO]  Complementos do movimento não encontrados: {movimento}')
-                        return False, False
-                    logger.info('[ATO][MOVIMENTO]  Complementos selecionados via combobox')
-
-                # Gravar movimento — o próprio clique em Gravar conclui a movimentação:
-                # não há confirmação a aguardar (o snackbar não é prova de nada).
-                # IMPORTANTE (aaDespacho gigs-plugin): na ABA Movimentos do editor
-                # lateral o botão vive em pje-lancador-de-movimentos; o seletor antigo
-                # (pje-lancador-movimentos-dialogo) só casa quando o lançador é aberto
-                # pelo menu de Detalhes — por isso nunca era encontrado aqui.
-                logger.info('[ATO][MOVIMENTO] Gravando movimento...')
-                aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=3)
-                btn_gravar_mov = None
-                for sel in [
-                    'pje-lancador-de-movimentos button[aria-label*="Gravar"]',      # aba Movimentos (aaDespacho)
-                    BTN_GRAVAR_MOVIMENTOS,                                           # diálogo Lançar movimentos
-                    "button[aria-label='Gravar os movimentos a serem lançados']",   # fallback legado
-                ]:
-                    btn_gravar_mov = wait_for_clickable(driver, sel, timeout=5)
-                    if btn_gravar_mov:
-                        break
-                if btn_gravar_mov:
-                    safe_click_no_scroll(driver, btn_gravar_mov)
-                    logger.info('[ATO][MOVIMENTO] Movimento gravado')
-                else:
-                    logger.error('[ATO][MOVIMENTO] Botão Gravar movimento não disponível')
+                logger.info(f'[ATO][MOVIMENTO]  Movimento "{movimento}" lançado e gravado com sucesso')
+                espera.assentar(driver, 0.8)
 
             except Exception as e:
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')
                 return False, False
 
-        # ----- 7. SALVAR FINAL (único, sempre — com ou sem movimento) -----
-        logger.info('[ATO][SALVAR_FINAL] Salvando ato...')
+        # ----- 7. SALVAR FINAL (apenas se houver alterações não salvas no botão Salvar) -----
+        logger.info('[ATO][SALVAR_FINAL] Verificando se há alterações pendentes para salvar...')
         try:
-            btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=10)
-            if not btn_salvar_final:
-                raise Exception('Botão Salvar não disponível')
-            safe_click_no_scroll(driver, btn_salvar_final)
-            logger.info('[ATO][SALVAR_FINAL] Ato salvo')
-            espera.assentar(driver, 1.5)
+            js_salvar_se_ativo = """() => {
+                var btns = Array.from(document.querySelectorAll('button[aria-label="Salvar"], button.mat-raised-button.mat-primary'));
+                var btnSalvar = btns.find(function(b) {
+                    var aria = (b.getAttribute('aria-label') || '').toLowerCase();
+                    var txt = (b.innerText || '').toLowerCase();
+                    return (aria.includes('salvar') || txt.includes('salvar')) && !b.disabled && !b.hasAttribute('disabled');
+                });
+                if (btnSalvar && btnSalvar.offsetWidth > 0 && btnSalvar.offsetHeight > 0) {
+                    btnSalvar.click();
+                    return true;
+                }
+                return false;
+            }"""
+            salvou_final = False
+            if hasattr(driver, 'page'):
+                salvou_final = bool(driver.page.evaluate(js_salvar_se_ativo))
+            if salvou_final:
+                logger.info('[ATO][SALVAR_FINAL] Ato salvo (alterações pendentes gravadas)')
+                espera.assentar(driver, 1.0)
+            else:
+                logger.debug('[ATO][SALVAR_FINAL] Nenhum botão Salvar ativo pendente')
         except Exception as e:
-            logger.error(f'[ATO][SALVAR_FINAL] {e}')
-            return False, False
+            logger.debug(f'[ATO][SALVAR_FINAL] {e}')
 
         # 8. ASSINAR: Clicar em assinar se especificado
         if Assinar:

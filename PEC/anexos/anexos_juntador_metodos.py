@@ -50,36 +50,64 @@ from .anexos_juntador_helpers import substituir_marcador_por_conteudo
 
 
 def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> bool:
-    """Implementa escolherOpcaoTeste do gigs-plugin.js"""
+    """Implementa escolherOpcaoTeste/escolherOpcaoTeste2 do gigs-plugin.js com suporte a autocomplete."""
     try:
         driver = self.driver
 
-        # 1. Encontra o campo (com espera — a aba /anexar recém-aberta é
-        #    detectada pelo executar_juntada enquanto o Angular ainda não
-        #    habilitou o formulário, e o find_element seco estourava na
-        #    1ª tentativa, forçando o reload/retry)
-        elementos_campo = espera.elementos(driver, seletor, teto=4)
+        # 1. Encontra o campo (com espera)
+        elementos_campo = espera.elementos(driver, seletor, teto=6)
         if not elementos_campo:
             logger.error('[JUNTADA] Campo %s não apareceu a tempo', nome_campo)
             return False
         campo = elementos_campo[0]
 
-        # 2. Clica no elemento pai para abrir dropdown (padrão GIGS)
+        # 2. Foco e abertura via click / Enter / ArrowDown (padrão gigs escolherOpcaoTeste2)
         _executar_js(driver, """
             const el = arguments[0];
+            el.focus();
             const p = el.closest('mat-form-field') || (el.parentElement ? el.parentElement.parentElement : el);
             if (p) p.click();
+            el.click();
+            el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));
+            el.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', keyCode: 40, bubbles: true}));
         """, campo)
 
-        # 3. Aguarda opções aparecerem e clica na desejada
-        espera.ate_aparecer(driver, "mat-option[role='option']", teto=3)
-        opcoes = espera.elementos(driver, "mat-option[role='option']", teto=3)
+        # 3. Aguarda opções aparecerem
+        if not espera.ate_aparecer(driver, "mat-option[role='option'], mat-option", teto=3):
+            # Se não abriu imediatamente, preenche valor no input para ativar autocomplete do Angular
+            _executar_js(driver, """
+                const el = arguments[0];
+                const val = arguments[1];
+                el.focus();
+                Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(el, val);
+                ['input', 'change', 'keyup'].forEach(ev => el.dispatchEvent(new Event(ev, {bubbles: true})));
+                el.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', keyCode: 40, bubbles: true}));
+            """, campo, valor)
+            espera.ate_aparecer(driver, "mat-option[role='option'], mat-option", teto=4)
 
+        opcoes = espera.elementos(driver, "mat-option[role='option'], mat-option", teto=4)
         for opcao in opcoes:
             texto = (getattr(opcao, 'text_content', None) and opcao.text_content()) or getattr(opcao, 'text', '') or ''
             if valor.lower() in texto.lower():
                 safe_click_no_scroll(driver, opcao)
                 logger.debug('[JUNTADA] %s selecionado: %s', nome_campo, valor)
+                return True
+
+        # Fallback de filtragem direta: se opções foram abertas mas a desejada não apareceu (lista grande)
+        _executar_js(driver, """
+            const el = arguments[0];
+            const val = arguments[1];
+            el.focus();
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(el, val);
+            ['input', 'change', 'keyup'].forEach(ev => el.dispatchEvent(new Event(ev, {bubbles: true})));
+        """, campo, valor)
+        espera.assentar(driver, 0.4)
+        opcoes = espera.elementos(driver, "mat-option[role='option'], mat-option", teto=4)
+        for opcao in opcoes:
+            texto = (getattr(opcao, 'text_content', None) and opcao.text_content()) or getattr(opcao, 'text', '') or ''
+            if valor.lower() in texto.lower():
+                safe_click_no_scroll(driver, opcao)
+                logger.debug('[JUNTADA] %s selecionado após filtro: %s', nome_campo, valor)
                 return True
 
         logger.error('[JUNTADA] Opção "%s" não encontrada em %s', valor, nome_campo)
@@ -286,13 +314,56 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));
         """, campo_filtro, modelo)
 
-        # 3. Aguardar nodo filtrado (buscandoModeloNaArvore gigs L15112)
-        nodo = wait_for_clickable(driver, 'span.nodo-filtrado, .nodo-filtrado', timeout=12)
-        if not nodo:
+        if hasattr(driver, 'page') and driver.page:
+            try:
+                driver.page.keyboard.press('Enter')
+            except Exception:
+                pass
+        espera.assentar(driver, 0.6, 'aguardando filtro de modelo ser aplicado na árvore')
+
+        # 3. Aguardar nodo filtrado (buscandoModeloNaArvore gigs L15112) com expansão e spinner check
+        js_buscar_nodo = """() => {
+            var ancora = document.querySelector('pje-arvore-modelo-documento #inputFiltro, #inputFiltro');
+            if (ancora && ancora.parentElement) {
+                var spin = ancora.parentElement.querySelector('i[class*="fa-spinner"], mat-progress-spinner, .fa-spin');
+                if (spin && spin.offsetWidth > 0) return { status: 'pesquisando' };
+            }
+            var nodo = document.querySelector('span.nodo-filtrado, .nodo-filtrado');
+            if (nodo) {
+                var alvo = nodo.closest('mat-tree-node') || nodo.parentElement || nodo;
+                try { alvo.scrollIntoView({block: 'center', behavior: 'instant'}); } catch(e) {}
+                nodo.click();
+                return { status: 'encontrado' };
+            }
+            var fechados = Array.from(document.querySelectorAll('pje-arvore-modelo-documento div[aria-expanded="false"], pje-arvore-modelo-documento mat-tree-node[aria-expanded="false"] button'));
+            if (fechados.length > 0) {
+                fechados[0].click();
+                return { status: 'expandindo' };
+            }
+            return { status: 'aguardando' };
+        }"""
+        limite_nodo = time.time() + 15
+        clicou_nodo = False
+        while time.time() < limite_nodo:
+            try:
+                res = _executar_js(driver, f"return ({js_buscar_nodo})();")
+                if isinstance(res, dict) and res.get('status') == 'encontrado':
+                    clicou_nodo = True
+                    break
+            except Exception:
+                pass
+            espera.assentar(driver, 0.4)
+
+        if not clicou_nodo:
+            nodo = wait_for_clickable(driver, 'span.nodo-filtrado, .nodo-filtrado', timeout=4)
+            if nodo:
+                _executar_js(driver, "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", nodo)
+                clicou_nodo = True
+
+        if not clicou_nodo:
             logger.error('[JUNTADA][MODELO][ERRO] .nodo-filtrado não encontrado para "%s"', modelo)
             return False
 
-        _executar_js(driver, "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", nodo)
         logger.debug('[JUNTADA][MODELO] Clique em .nodo-filtrado realizado')
 
         # 4. Aguardar diálogo de preview entrar no DOM
@@ -300,37 +371,74 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
             logger.warning('[JUNTADA][MODELO] Diálogo pje-dialogo-visualizar-modelo não detectado')
 
         # 5. GUARDA ANTI-CORRIDA: 500ms para o teor do preview carregar (aaAnexar gigs L10222)
-        espera.assentar(driver, 0.5, 'aguarda preview/teor carregar no dialogo antes de inserir')
+        espera.assentar(driver, 0.6, 'aguarda preview/teor carregar no dialogo antes de inserir')
 
-        # 6. Clicar botão Inserir (aria-label estável conforme gigs L10224)
-        btn_inserir = wait_for_clickable(driver, 'button[aria-label="Inserir modelo de documento"]', timeout=8)
-        if not btn_inserir:
-            btn_inserir = wait_for_clickable(
-                driver,
-                'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button',
-                timeout=5,
-            )
+        # 6. Clicar botão Inserir (aria-label estável conforme gigs L10224 e MaisPje)
+        seletor_btn_inserir = (
+            'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button,'
+            'pje-dialogo-visualizar-modelo button,'
+            'button[aria-label="Inserir modelo de documento"]'
+        )
+        btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=8)
         if not btn_inserir:
             logger.error('[JUNTADA][MODELO][ERRO] Botão Inserir não encontrado')
             return False
 
-        _executar_js(driver, "arguments[0].click();", btn_inserir)
+        # Dispara tecla Space (padrão MaisPje / legado L19260) com fallback de clique
+        _inserido = False
+        try:
+            if hasattr(btn_inserir, '_handle') and btn_inserir._handle:
+                btn_inserir._handle.focus()
+                if hasattr(driver, 'page') and driver.page:
+                    driver.page.keyboard.press('Space')
+                    _inserido = True
+        except Exception:
+            pass
+
+        if not _inserido:
+            _executar_js(driver, """
+                var btn = arguments[0];
+                btn.focus();
+                btn.dispatchEvent(new KeyboardEvent('keydown', {code: 'Space', keyCode: 32, which: 32, bubbles: true}));
+                btn.dispatchEvent(new KeyboardEvent('keyup', {code: 'Space', keyCode: 32, which: 32, bubbles: true}));
+                btn.click();
+            """, btn_inserir)
+
         logger.debug('[JUNTADA][MODELO] Clique em Inserir modelo realizado')
 
         # 7. Aguardar diálogo de preview sumir
         espera.ate_sumir(driver, 'pje-dialogo-visualizar-modelo', teto=8)
 
         # 8. VERIFICAÇÃO REAL DE CONTEÚDO (verificarSeExisteTextoNoEditor gigs L10261)
-        # Editor da juntada: 'div[class*="area-conteudo"][contenteditable="true"]'
-        # Prova: innerText > 1 char OU figure presente
-        _JS_JUNTADA_EDITOR_COM_CONTEUDO = """
-            var area = document.querySelector('div[class*="area-conteudo"][contenteditable="true"]')
-                    || document.querySelector('.ck-editor__editable[contenteditable="true"]');
-            if (!area) return false;
-            var txt = (area.innerText || area.textContent || '').replace(/\\s/g, '');
-            return txt.length > 1 || area.querySelector('figure') !== null;
-        """
-        modelo_carregado = bool(espera.ate_js(driver, _JS_JUNTADA_EDITOR_COM_CONTEUDO, teto=8))
+        _JS_JUNTADA_EDITOR_COM_CONTEUDO = """() => {
+            var sels = [
+                'div[class*="area-conteudo"][contenteditable="true"]',
+                '.ck-editor__editable[contenteditable="true"]',
+                '.ck-content[contenteditable="true"]',
+                'div[contenteditable="true"]'
+            ];
+            for (var s of sels) {
+                var area = document.querySelector(s);
+                if (area) {
+                    var clone = area.cloneNode(true);
+                    clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
+                    var txt = (clone.innerText || clone.textContent || '').replace(/\\s/g, '');
+                    if (txt.length > 1 || clone.querySelector('figure') !== null || clone.querySelector('table') !== null) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }"""
+        modelo_carregado = bool(espera.ate_js(driver, f"({_JS_JUNTADA_EDITOR_COM_CONTEUDO})()", teto=8))
+
+        if not modelo_carregado:
+            # Fallback: tentar clique direto no botão de inserir se o modal ainda estiver por perto
+            try:
+                _executar_js(driver, "arguments[0].click();", btn_inserir)
+            except Exception:
+                pass
+            modelo_carregado = bool(espera.ate_js(driver, f"({_JS_JUNTADA_EDITOR_COM_CONTEUDO})()", teto=5))
 
         if modelo_carregado:
             logger.info('[JUNTADA][MODELO] Modelo "%s" confirmado no editor (conteúdo real)', modelo)

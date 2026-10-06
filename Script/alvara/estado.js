@@ -75,6 +75,12 @@
         };
     }
 
+    function obterCacheDadosProcesso() {
+        return (Alv.dados && typeof Alv.dados.obterDadosProcessoCache === 'function')
+            ? Alv.dados.obterDadosProcessoCache()
+            : (carregarEstado()?.processo || null);
+    }
+
     function criarItemManual(tipo) {
         const base = {
             id: criarIdItem('manual'),
@@ -102,7 +108,8 @@
             };
         }
 
-        if (tipo === 'INSS') {
+        if (tipo === 'INSS' || tipo === 'Contribuições previdenciárias — INSS') {
+            base.tipo = 'Contribuições previdenciárias — INSS';
             base.destinoTipo = 'DARF';
             base.siscon = false;
         }
@@ -112,8 +119,19 @@
             base.siscon = false;
         }
 
-        if (tipo === 'Honorários advocatícios') {
+        if (tipo === 'Honorários advocatícios' || tipo === 'Honorários advocatícios (autor)') {
+            base.tipo = 'Honorários advocatícios (autor)';
             base.destinoTipo = 'Conta do advogado autor';
+            base.dados = {
+                banco: '',
+                agencia: '',
+                conta: '',
+                tipoConta: ''
+            };
+        }
+
+        if (tipo === 'Honorários advocatícios (reclamada)') {
+            base.destinoTipo = 'Conta do advogado da reclamada';
             base.dados = {
                 banco: '',
                 agencia: '',
@@ -131,6 +149,13 @@
                 conta: '',
                 tipoConta: ''
             };
+        }
+
+        if (tipo === 'FGTS') {
+            base.destinoTipo = 'Ofício de transferência';
+            base.banco = 'Banco do Brasil';
+            base.dados = null;
+            base.siscon = false;
         }
 
         if (tipo === 'Devolução à reclamada') {
@@ -173,7 +198,8 @@
 
         // Mesmas regras de preenchimento das verbas detectadas — usa o
         // cache dos dados do processo da última chamada de API.
-        return aplicarPreenchimentoAutomatico(base, _dadosProcessoCache);
+        const cache = obterCacheDadosProcesso();
+        return aplicarPreenchimentoAutomatico(base, cache);
     }
 
     function criarEstado(valores, dadosProcesso) {
@@ -237,11 +263,12 @@
             });
         }
 
-        if (valores.honorariosAdvocaticios) {
+        const honAutor = valores.honorariosAdvocaticiosAutor || valores.honorariosAdvocaticios;
+        if (honAutor) {
             itens.push(aplicarPreenchimentoAutomatico({
-                id: 'honorarios-advocaticios',
-                tipo: 'Honorários advocatícios',
-                valor: valorInicial(valores.honorariosAdvocaticios),
+                id: 'honorarios-advocaticios-autor',
+                tipo: 'Honorários advocatícios (autor)',
+                valor: valorInicial(honAutor),
                 destinoTipo: 'Conta do advogado autor',
                 destinatarioNome: '',
                 destinatarioDocumento: '',
@@ -253,6 +280,38 @@
                 },
                 siscon: true
             }, dadosProcesso));
+        }
+
+        if (valores.honorariosAdvocaticiosReclamada) {
+            itens.push(aplicarPreenchimentoAutomatico({
+                id: 'honorarios-advocaticios-reclamada',
+                tipo: 'Honorários advocatícios (reclamada)',
+                valor: valorInicial(valores.honorariosAdvocaticiosReclamada),
+                destinoTipo: 'Conta do advogado da reclamada',
+                destinatarioNome: '',
+                destinatarioDocumento: '',
+                dados: {
+                    banco: '',
+                    agencia: '',
+                    conta: '',
+                    tipoConta: ''
+                },
+                siscon: true
+            }, dadosProcesso));
+        }
+
+        if (valores.fgts) {
+            itens.push({
+                id: 'fgts',
+                tipo: 'FGTS',
+                valor: valorInicial(valores.fgts),
+                banco: valores.fgtsBanco || 'Banco do Brasil',
+                destinoTipo: 'Ofício de transferência',
+                destinatarioNome: '',
+                destinatarioDocumento: '',
+                dados: null,
+                siscon: false
+            });
         }
 
         if (valores.honorariosPericiais) {
@@ -285,7 +344,7 @@
 
         return {
             versao: 1,
-            processoId: (dadosProcesso && dadosProcesso.processoId) || obterProcessoId(),
+            processoId: (dadosProcesso && dadosProcesso.processoId) || Alv.dados?.obterProcessoId?.() || '',
             processo: dadosProcesso ? {
                 numero: dadosProcesso.numero || '',
                 partes: dadosProcesso.partes,
@@ -300,15 +359,29 @@
 
     function salvarEstado(estado) {
         estado.salvoEm = new Date().toISOString();
+        const json = JSON.stringify(estado);
         localStorage.setItem(
             STORAGE_KEY,
-            JSON.stringify(estado)
+            json
         );
+        try {
+            if (typeof GM_setValue === 'function') {
+                GM_setValue('pje_alvara_estado', json);
+                if (estado.processo?.numero) {
+                    GM_setValue('pje_alvara_processo', estado.processo.numero);
+                }
+            }
+        } catch (e) {
+            console.warn('[PjeAlvara] Erro ao salvar estado via GM_setValue:', e);
+        }
     }
 
     function carregarEstado() {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY);
+            let raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw && typeof GM_getValue === 'function') {
+                raw = GM_getValue('pje_alvara_estado');
+            }
             return raw ? JSON.parse(raw) : null;
         } catch (error) {
             console.error('[PjeAlvara] Erro ao carregar estado:', error);
@@ -350,7 +423,8 @@
         });
     }
 
-    function obterDadosDoCard(card) {
+    function obterDadosDoCard(card, estadoExistente) {
+        const itemExistente = estadoExistente?.itens?.find(i => i.id === card.dataset.itemId);
         const dados = {
             id: card.dataset.itemId,
             tipo: card.querySelector('[data-field="tipo"]')?.value || '',
@@ -369,13 +443,22 @@
         const agencia = card.querySelector('[data-field="agencia"]');
         const conta = card.querySelector('[data-field="conta"]');
         const tipoConta = card.querySelector('[data-field="tipoConta"]');
+        const ehContaJuridica = card.dataset.contaJuridica !== undefined
+            ? card.dataset.contaJuridica === 'true'
+            : Boolean(itemExistente?.dados?.contaJuridica);
 
-        if (banco || agencia || conta || tipoConta) {
+        if (banco || agencia || conta || tipoConta || ehContaJuridica) {
             dados.dados = {
                 banco: banco?.value || '',
                 agencia: agencia?.value || '',
                 conta: conta?.value || '',
-                tipoConta: tipoConta?.value || ''
+                tipoConta: tipoConta?.value || '',
+                contaJuridica: ehContaJuridica,
+                razaoSocial: card.dataset.razaoSocial || itemExistente?.dados?.razaoSocial || '',
+                cnpj: card.dataset.cnpj || itemExistente?.dados?.cnpj || '',
+                advogadoNome: card.dataset.advogadoNome || itemExistente?.dados?.advogadoNome || '',
+                advogadoCpf: card.dataset.advogadoCpf || itemExistente?.dados?.advogadoCpf || '',
+                alternativas: itemExistente?.dados?.alternativas || []
             };
         } else {
             dados.dados = null;
@@ -435,7 +518,7 @@
 
         estado.itens = Array.from(
             overlay.querySelectorAll('[data-alvara-card]')
-        ).map(obterDadosDoCard).map(item => {
+        ).map(card => obterDadosDoCard(card, estado)).map(item => {
             if (
                 item.tipo === 'Devolução à reclamada' ||
                 item.id === 'devolucao-reclamada'

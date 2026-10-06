@@ -542,12 +542,27 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
                 pass
             rota = 'pesqliq' if ('liquid' in fase_lower or 'homolog' in fase_lower) else 'pesquisas'
 
-    # 3.2) Liquidação ainda não homologada → wrapper de liquidação.
+    # 3.2) Liquidação ainda não homologada → wrapper de liquidação + crédito mock 0,01.
     #      Aqui NÃO se clica "Iniciar execução": a execução não deve começar.
     if rota == 'pesqliq':
         _abrir_tarefa(driver)
         if ato_pesqliq:
-            resultado = ato_pesqliq(driver, sigilo=True)
+            resultado = ato_pesqliq(driver, sigilo=True, atribuir_visibilidade_autor=True)
+
+        if not id_processo:
+            try:
+                from Fix.core import extrair_id_processo
+                id_processo = extrair_id_processo(driver)
+            except Exception:
+                pass
+
+        if id_processo:
+            logger.info('[FLUXO_PZ] inicar_exec: registrando credito mock 0,01 apos pesqliq (processo %s)', id_processo)
+            try:
+                registrar_credito_mock_0_01(driver, id_processo)
+            except Exception as e:
+                logger.error('[FLUXO_PZ] inicar_exec: falha ao registrar credito mock apos pesqliq: %s', e)
+
         return resultado
 
     # 3.3) Liquidação homologada SEM crédito registrado → GIGS de observação + mock 0,01.

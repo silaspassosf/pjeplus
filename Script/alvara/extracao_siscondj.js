@@ -130,81 +130,401 @@
             .replace(/"/g, '&quot;');
     }
 
-    function preencherCreditoExequente(d) {
-        console.log('[Siscondj] Placeholder: preencherCreditoExequente', d);
-        alert(`[Preenchimento: Crédito do Exequente]\nBeneficiário: ${d.destinatarioNome || 'N/A'}\nCPF/CNPJ: ${d.destinatarioDocumento || 'N/A'}\nValor: ${d.valor || 'N/A'}\nBanco: ${d.banco || 'N/A'}\nAg: ${d.agencia || 'N/A'} Conta: ${d.conta || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    // ─────────────────────────────────────────────────────────────────
+    // MOTOR DE PREENCHIMENTO AUTOMATIZADO (FASE 2 — BASE AV.MD)
+    // ─────────────────────────────────────────────────────────────────
+
+    function _sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    function preencherFgts(d) {
-        console.log('[Siscondj] Placeholder: preencherFgts', d);
-        alert(`[Preenchimento: FGTS]\nBanco: ${d.banco || 'N/A'}\nValor: ${d.valor || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    function _setValor(seletorOuEl, valor) {
+        const el = typeof seletorOuEl === 'string' ? document.querySelector(seletorOuEl) : seletorOuEl;
+        if (!el || valor === undefined || valor === null) return false;
+        el.value = valor;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
     }
 
-    function preencherInss(d) {
-        console.log('[Siscondj] Placeholder: preencherInss', d);
-        alert(`[Preenchimento: INSS]\nValor: ${d.valor || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    function _setChosen(seletorOuEl, valor) {
+        const el = typeof seletorOuEl === 'string' ? document.querySelector(seletorOuEl) : seletorOuEl;
+        if (!el || valor === undefined || valor === null) return false;
+        el.value = valor;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        if (window.$) {
+            try {
+                window.$(el).trigger('chosen:updated').trigger('change');
+            } catch (e) {}
+        }
+        return true;
     }
 
-    function preencherCustas(d) {
-        console.log('[Siscondj] Placeholder: preencherCustas', d);
-        alert(`[Preenchimento: Custas]\nValor: ${d.valor || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    function _marcarRadio(seletor) {
+        const radio = document.querySelector(seletor);
+        if (!radio) return false;
+        radio.checked = true;
+        radio.dispatchEvent(new Event('click', { bubbles: true }));
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
     }
 
-    function preencherHonorariosAutor(d) {
-        console.log('[Siscondj] Placeholder: preencherHonorariosAutor', d);
-        alert(`[Preenchimento: Honorários Autor]\nAdvogado: ${d.destinatarioNome || 'N/A'}\nCPF: ${d.destinatarioDocumento || 'N/A'}\nValor: ${d.valor || 'N/A'}\nBanco: ${d.banco || 'N/A'}\nAg: ${d.agencia || 'N/A'} Conta: ${d.conta || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    function _marcarCheck(seletor, checked = true) {
+        const chk = document.querySelector(seletor);
+        if (!chk) return false;
+        if (chk.checked !== checked) {
+            chk.click();
+        }
+        return true;
     }
 
-    function preencherHonorariosReclamada(d) {
-        console.log('[Siscondj] Placeholder: preencherHonorariosReclamada', d);
-        alert(`[Preenchimento: Honorários Reclamada]\nAdvogado: ${d.destinatarioNome || 'N/A'}\nCPF: ${d.destinatarioDocumento || 'N/A'}\nValor: ${d.valor || 'N/A'}\nBanco: ${d.banco || 'N/A'}\nAg: ${d.agencia || 'N/A'} Conta: ${d.conta || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    function _selecionarOpcaoPorTexto(seletor, regexOuTexto) {
+        const select = document.querySelector(seletor);
+        if (!select) return null;
+        const re = typeof regexOuTexto === 'string' ? new RegExp(regexOuTexto, 'i') : regexOuTexto;
+        for (const opt of Array.from(select.options)) {
+            if (re.test(opt.text) || re.test(opt.value)) {
+                _setChosen(select, opt.value);
+                return opt;
+            }
+        }
+        return null;
     }
 
-    function preencherHonorariosPericiais(d) {
-        console.log('[Siscondj] Placeholder: preencherHonorariosPericiais', d);
-        alert(`[Preenchimento: Honorários Periciais]\nPerito: ${d.destinatarioNome || 'N/A'}\nDocumento: ${d.destinatarioDocumento || 'N/A'}\nValor: ${d.valor || 'N/A'}\nBanco: ${d.banco || 'N/A'}\nAg: ${d.agencia || 'N/A'} Conta: ${d.conta || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    function _selecionarTipoFinalidade(tipoFinalidade) {
+        _setChosen('#cb_tipoFinalidade', tipoFinalidade);
+        if (typeof window.abrirLinhasFinalidades === 'function') {
+            try { window.abrirLinhasFinalidades(); } catch (e) {}
+        }
     }
 
-    function preencherDevolucaoReclamada(d) {
-        console.log('[Siscondj] Placeholder: preencherDevolucaoReclamada', d);
-        alert(`[Preenchimento: Devolução Reclamada]\nDestinatário: ${d.destinatarioNome || 'N/A'}\nValor: ${d.valor || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    async function _configurarBeneficiario(tipoBeneficiario, nomeOuDoc, isPerito = false) {
+        _setChosen('#cb_tipoBeneficiario', tipoBeneficiario);
+        if (typeof window.cbTipoBeneficiarioChange === 'function') {
+            try { window.cbTipoBeneficiarioChange(); } catch (e) {}
+        }
+        await _sleep(350);
+
+        if (isPerito) {
+            // No alvará para perito, colocamos apenas o CPF e o sistema puxa o nome sozinho
+            const docLimpo = String(nomeOuDoc || '').replace(/\D/g, '');
+            if (docLimpo) {
+                _setValor('#solicitacaoTransiente_beneficiario_pessoa_cpfCnpj', docLimpo);
+                if (typeof window.validaCpfCnpj_solicitacaoTransiente_beneficiario_pessoa_cpfCnpj === 'function') {
+                    try { window.validaCpfCnpj_solicitacaoTransiente_beneficiario_pessoa_cpfCnpj(); } catch (e) {}
+                } else {
+                    const btnVal = document.getElementById('solicitacaoTransiente_beneficiario_pessoa_cpfCnpj_button');
+                    if (btnVal) btnVal.click();
+                }
+            }
+        } else if (nomeOuDoc) {
+            const docLimpo = String(nomeOuDoc).replace(/\D/g, '');
+            const selBeneficiario = document.getElementById('comboBeneficiario');
+            if (selBeneficiario) {
+                let optEncontrada = null;
+                for (const opt of Array.from(selBeneficiario.options)) {
+                    if (opt.value === '0') continue;
+                    if (docLimpo && opt.value.replace(/\D/g, '').includes(docLimpo)) {
+                        optEncontrada = opt;
+                        break;
+                    }
+                    if (opt.text.toLowerCase().includes(String(nomeOuDoc).toLowerCase())) {
+                        optEncontrada = opt;
+                        break;
+                    }
+                }
+                if (optEncontrada) {
+                    _setChosen(selBeneficiario, optEncontrada.value);
+                    if (typeof window.verificarBeneficiarioSelecionado === 'function') {
+                        try { window.verificarBeneficiarioSelecionado(); } catch (e) {}
+                    }
+                    if (typeof window.setarHiddens === 'function') {
+                        try { window.setarHiddens(optEncontrada.value); } catch (e) {}
+                    }
+                }
+            }
+        }
     }
 
-    function preencherVerbaGenerica(tipo, d) {
-        console.log('[Siscondj] Placeholder: preencherVerbaGenerica', tipo, d);
-        alert(`[Preenchimento: ${tipo}]\nDestinatário: ${d.destinatarioNome || 'N/A'}\nValor: ${d.valor || 'N/A'}\n\n(Automação do formulário em desenvolvimento)`);
+    function _configurarTitularConta(item) {
+        const ehCj = item.dados?.contaJuridica || Boolean(item.dados?.cnpj);
+        if (ehCj) {
+            // Conta Jurídica: seleciona Não e marca Representante Legal com CNPJ
+            _marcarRadio('#rb_beneficiarioTitularContaFalse');
+            _marcarCheck('#rb_representanteLegal', true);
+            const cnpjLimpo = String(item.dados?.cnpj || item.destinatarioDocumento || '').replace(/\D/g, '');
+            if (cnpjLimpo) {
+                _setValor('#solicitacaoTransiente_representanteLegal_cpfCnpj', cnpjLimpo);
+                if (typeof window.validaCpfCnpj_solicitacaoTransiente_representanteLegal_cpfCnpj === 'function') {
+                    try { window.validaCpfCnpj_solicitacaoTransiente_representanteLegal_cpfCnpj(); } catch (e) {}
+                }
+            }
+        } else {
+            // Pessoa Física titular
+            _marcarRadio('#rb_beneficiarioTitularContaTrue');
+        }
     }
 
-    function executarPreenchimento(tipo, dados) {
+    function _configurarContaBancaria(item, finalidade) {
+        const bancoStr = item.dados?.banco || item.banco || '';
+        const ag = item.dados?.agencia || '';
+        const cc = item.dados?.conta || '';
+        const tipo = item.dados?.tipoConta || '';
+        const ehPoupanca = /poup/i.test(tipo);
+
+        if (finalidade === 'CREDITO_CONTA_BB') {
+            _setValor('[name="finalidadeCreditoEmContaBB.contaBancaria.agencia"]', ag);
+            _setValor('[name="finalidadeCreditoEmContaBB.contaBancaria.conta"]', cc);
+            _setChosen('#cb_tipoCredito', ehPoupanca ? 'POUPANCA' : 'CONTA_CORRENTE');
+        } else if (finalidade === 'CREDITO_CONTA_OUTRO_BANCO') {
+            const codBanco = (item.dados?.codigoBanco || bancoStr.match(/\b\d{3}\b/)?.[0] || '').trim();
+            const nomeBanco = bancoStr.replace(/^\d+[\s—-]+/, '').trim();
+
+            if (codBanco) {
+                _selecionarOpcaoPorTexto('#cmb_banco', new RegExp('^' + codBanco + '\\b', 'i'));
+            } else if (nomeBanco) {
+                _selecionarOpcaoPorTexto('#cmb_banco', new RegExp(nomeBanco, 'i'));
+            }
+
+            _setValor('[name="finalidadeCreditoOutrosBancos.contaBancaria.agencia"]', ag);
+            _setValor('[name="finalidadeCreditoOutrosBancos.contaBancaria.conta"]', cc);
+            _setChosen('#cb_tipoCreditoOutrosBancos', ehPoupanca ? 'POUPANCA' : 'CONTA_CORRENTE');
+        }
+    }
+
+    function _configurarDarf(item) {
+        // Código 1889
+        _setValor('[name="finalidadeDARF.codigo.id"]', item.codigoReceita || '1889');
+
+        // Nº de referência = CPF do autor
+        const cpfRef = String(item.destinatarioDocumento || '').replace(/\D/g, '');
+        if (cpfRef) _setValor('[name="finalidadeDARF.numeroReferencia"]', cpfRef);
+
+        // Data de apuração = data do depósito (ou data atual)
+        if (item.dataApuracao) {
+            _setValor('[name="finalidadeDARF.periodoApuracao"]', item.dataApuracao);
+        }
+
+        // Data de vencimento = último dia do mês corrente
+        const agora = new Date();
+        const ultimoDia = new Date(agora.getFullYear(), agora.getMonth() + 1, 0);
+        const diaFmt = String(ultimoDia.getDate()).padStart(2, '0') + '/' +
+                       String(ultimoDia.getMonth() + 1).padStart(2, '0') + '/' +
+                       ultimoDia.getFullYear();
+        _setValor('[name="finalidadeDARF.dataVencimento"]', diaFmt);
+
+        // Valor principal
+        const valLimpo = String(item.valor || '').replace(/[^\d,\.]/g, '').trim();
+        if (valLimpo) _setValor('[name="finalidadeDARF.valorPrincipal"]', valLimpo);
+    }
+
+    function _configurarValorEResgate(item) {
+        _setChosen('#cb_tipoResgate', 'RESGATE_PARCIAL');
+
+        const valLimpo = String(item.valor || '').replace(/[^\d,\.]/g, '').trim();
+        if (valLimpo) {
+            _setValor('#valor_real', valLimpo);
+            _setValor('[name="solicitacaoTransiente.valorReal"]', valLimpo);
+        }
+
+        // Sempre selecionar "com correção"
+        _marcarRadio('#rb_comCorrecao');
+    }
+
+    async function preencherCreditoExequente(item) {
+        _atualizarStatusDock(`Preenchendo Crédito do Exequente...`);
+        const bancoStr = item.dados?.banco || item.banco || '';
+        const ehBB = /Banco do Brasil|^001\b/i.test(bancoStr);
+        const finalidade = ehBB ? 'CREDITO_CONTA_BB' : 'CREDITO_CONTA_OUTRO_BANCO';
+
+        _selecionarTipoFinalidade(finalidade);
+        await _sleep(300);
+
+        // Autor ('1')
+        await _configurarBeneficiario('1', item.destinatarioDocumento || item.destinatarioNome);
+        await _sleep(300);
+
+        _configurarTitularConta(item);
+        _configurarContaBancaria(item, finalidade);
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`Crédito do Exequente preenchido!`, 'ok');
+    }
+
+    async function preencherHonorariosAutor(item) {
+        _atualizarStatusDock(`Preenchendo Honorários Advocatícios...`);
+        const bancoStr = item.dados?.banco || item.banco || '';
+        const ehBB = /Banco do Brasil|^001\b/i.test(bancoStr);
+        const finalidade = ehBB ? 'CREDITO_CONTA_BB' : 'CREDITO_CONTA_OUTRO_BANCO';
+
+        _selecionarTipoFinalidade(finalidade);
+        await _sleep(300);
+
+        // Advogado do Autor ('9')
+        await _configurarBeneficiario('9', item.destinatarioNome || item.dados?.advogadoNome);
+        await _sleep(300);
+
+        _configurarTitularConta(item);
+        _configurarContaBancaria(item, finalidade);
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`Honorários Advocatícios preenchidos!`, 'ok');
+    }
+
+    async function preencherHonorariosReclamada(item) {
+        _atualizarStatusDock(`Preenchendo Honorários Advocatícios (Ré)...`);
+        const bancoStr = item.dados?.banco || item.banco || '';
+        const ehBB = /Banco do Brasil|^001\b/i.test(bancoStr);
+        const finalidade = ehBB ? 'CREDITO_CONTA_BB' : 'CREDITO_CONTA_OUTRO_BANCO';
+
+        _selecionarTipoFinalidade(finalidade);
+        await _sleep(300);
+
+        // Advogado do Réu ('10')
+        await _configurarBeneficiario('10', item.destinatarioNome || item.dados?.advogadoNome);
+        await _sleep(300);
+
+        _configurarTitularConta(item);
+        _configurarContaBancaria(item, finalidade);
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`Honorários da Ré preenchidos!`, 'ok');
+    }
+
+    async function preencherHonorariosPericiais(item) {
+        _atualizarStatusDock(`Preenchendo Honorários Periciais (${item.perito || ''})...`);
+        const bancoStr = item.dados?.banco || item.banco || '';
+        const ehBB = /Banco do Brasil|^001\b/i.test(bancoStr);
+        const finalidade = ehBB ? 'CREDITO_CONTA_BB' : 'CREDITO_CONTA_OUTRO_BANCO';
+
+        _selecionarTipoFinalidade(finalidade);
+        await _sleep(300);
+
+        // Perito é Terceiro ('11')
+        await _configurarBeneficiario('11', item.destinatarioDocumento, true);
+        await _sleep(300);
+
+        _configurarTitularConta(item);
+        _configurarContaBancaria(item, finalidade);
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`Honorários Periciais preenchidos!`, 'ok');
+    }
+
+    async function preencherCustas(item) {
+        _atualizarStatusDock(`Preenchendo Custas (GRU)...`);
+        _selecionarTipoFinalidade('GRU');
+        await _sleep(300);
+
+        // Beneficiária é sempre a reclamada ('5')
+        await _configurarBeneficiario('5', item.destinatarioNome);
+        await _sleep(300);
+
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`Custas (GRU) preenchidas!`, 'ok');
+    }
+
+    async function preencherInss(item) {
+        _atualizarStatusDock(`Preenchendo INSS (DARF / GPS)...`);
+        _selecionarTipoFinalidade('DARF');
+        await _sleep(300);
+
+        // Contribuinte é o autor ('1')
+        await _configurarBeneficiario('1', item.destinatarioDocumento || item.destinatarioNome);
+        await _sleep(300);
+
+        _configurarDarf(item);
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`INSS preenchido!`, 'ok');
+    }
+
+    async function preencherImpostoRenda(item) {
+        _atualizarStatusDock(`Preenchendo Imposto de Renda (DARF 1889)...`);
+        _selecionarTipoFinalidade('DARF');
+        await _sleep(300);
+
+        // Contribuinte é o autor ('1')
+        await _configurarBeneficiario('1', item.destinatarioDocumento || item.destinatarioNome);
+        await _sleep(300);
+
+        _configurarDarf(item);
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`Imposto de Renda (DARF 1889) preenchido!`, 'ok');
+    }
+
+    async function preencherDevolucaoReclamada(item) {
+        _atualizarStatusDock(`Preenchendo Devolução à Reclamada...`);
+        const bancoStr = item.dados?.banco || item.banco || '';
+        const ehBB = /Banco do Brasil|^001\b/i.test(bancoStr);
+        const finalidade = ehBB ? 'CREDITO_CONTA_BB' : 'CREDITO_CONTA_OUTRO_BANCO';
+
+        _selecionarTipoFinalidade(finalidade);
+        await _sleep(300);
+
+        // Réu ('5')
+        await _configurarBeneficiario('5', item.destinatarioDocumento || item.destinatarioNome);
+        await _sleep(300);
+
+        _configurarTitularConta(item);
+        _configurarContaBancaria(item, finalidade);
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`Devolução à Reclamada preenchida!`, 'ok');
+    }
+
+    async function preencherFgts(item) {
+        _atualizarStatusDock(`FGTS: em regra expedido via ofício CEF.`);
+        alert('FGTS: O pagamento é expedido via ofício bancário à CEF. Utilize o botão "Gerar Ofício".');
+    }
+
+    async function preencherVerbaGenerica(tipo, item) {
+        _atualizarStatusDock(`Preenchendo ${tipo}...`);
+        const bancoStr = item.dados?.banco || item.banco || '';
+        const ehBB = /Banco do Brasil|^001\b/i.test(bancoStr);
+        const finalidade = ehBB ? 'CREDITO_CONTA_BB' : 'CREDITO_CONTA_OUTRO_BANCO';
+
+        _selecionarTipoFinalidade(finalidade);
+        await _sleep(300);
+
+        await _configurarBeneficiario('1', item.destinatarioDocumento || item.destinatarioNome);
+        await _sleep(300);
+
+        _configurarTitularConta(item);
+        _configurarContaBancaria(item, finalidade);
+        _configurarValorEResgate(item);
+        _atualizarStatusDock(`${tipo} preenchido!`, 'ok');
+    }
+
+    async function executarPreenchimento(tipo, dados) {
         switch (tipo) {
             case 'Crédito do exequente':
-                preencherCreditoExequente(dados);
+                await preencherCreditoExequente(dados);
                 break;
             case 'FGTS':
-                preencherFgts(dados);
+                await preencherFgts(dados);
                 break;
             case 'Contribuições previdenciárias — INSS':
             case 'INSS':
-                preencherInss(dados);
+                await preencherInss(dados);
                 break;
             case 'Custas':
-                preencherCustas(dados);
+                await preencherCustas(dados);
+                break;
+            case 'Imposto de Renda':
+            case 'IRPF':
+            case 'DARF':
+                await preencherImpostoRenda(dados);
                 break;
             case 'Honorários advocatícios (autor)':
             case 'Honorários advocatícios':
-                preencherHonorariosAutor(dados);
+                await preencherHonorariosAutor(dados);
                 break;
             case 'Honorários advocatícios (reclamada)':
-                preencherHonorariosReclamada(dados);
+                await preencherHonorariosReclamada(dados);
                 break;
             case 'Honorários periciais':
-                preencherHonorariosPericiais(dados);
+                await preencherHonorariosPericiais(dados);
                 break;
             case 'Devolução à reclamada':
-                preencherDevolucaoReclamada(dados);
+                await preencherDevolucaoReclamada(dados);
                 break;
             default:
-                preencherVerbaGenerica(tipo, dados);
+                await preencherVerbaGenerica(tipo, dados);
         }
     }
 
@@ -221,9 +541,10 @@
 
         const ehFgts = tipo === 'FGTS';
         const temDadosBancarios = !['INSS', 'Contribuições previdenciárias — INSS', 'Custas'].includes(tipo) && !ehFgts;
+        const itemJsonStr = JSON.stringify(item);
 
         return `
-            <div class="pje-siscondj-card" data-card-id="${_escape(id)}" style="background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+            <div class="pje-siscondj-card" data-card-id="${_escape(id)}" data-item-json="${_escape(itemJsonStr)}" style="background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                     <span style="font-weight:bold;font-size:12px;color:#0369a1;background:#e0f2fe;padding:2px 6px;border-radius:4px;">${_escape(tipo)}</span>
                     <span style="font-size:11px;color:#64748b;">#${idx + 1}</span>
@@ -380,13 +701,29 @@
                 event.preventDefault();
                 const card = btnPreencher.closest('.pje-siscondj-card');
                 const tipo = btnPreencher.getAttribute('data-tipo');
-                const dados = {};
+                const dadosForm = {};
 
                 card.querySelectorAll('[data-campo]').forEach(input => {
-                    dados[input.getAttribute('data-campo')] = input.value.trim();
+                    dadosForm[input.getAttribute('data-campo')] = input.value.trim();
                 });
 
-                executarPreenchimento(tipo, dados);
+                let itemCompleto = {};
+                try {
+                    const rawJson = card.getAttribute('data-item-json');
+                    if (rawJson) itemCompleto = JSON.parse(rawJson);
+                } catch (e) {}
+
+                const itemFinal = Object.assign({}, itemCompleto, dadosForm);
+                if (dadosForm.banco || dadosForm.agencia || dadosForm.conta || dadosForm.tipoConta) {
+                    itemFinal.dados = Object.assign({}, itemCompleto.dados, {
+                        banco: dadosForm.banco !== undefined ? dadosForm.banco : itemCompleto.dados?.banco,
+                        agencia: dadosForm.agencia !== undefined ? dadosForm.agencia : itemCompleto.dados?.agencia,
+                        conta: dadosForm.conta !== undefined ? dadosForm.conta : itemCompleto.dados?.conta,
+                        tipoConta: dadosForm.tipoConta !== undefined ? dadosForm.tipoConta : itemCompleto.dados?.tipoConta
+                    });
+                }
+
+                executarPreenchimento(tipo, itemFinal);
             }
         });
 

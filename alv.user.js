@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJeTools — Elaboração de Alvará
 // @namespace    pjetools
-// @version      1.0.1
+// @version      1.0.2
 // @description  Analisa decisão ativa e prepara dados para elaboração de alvarás
 // @author       PJeTools
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe
@@ -24,7 +24,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/estilos.js?v=1.0.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/overlay.js?v=1.0.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=1.0.1
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=1.0.1
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=1.0.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/minuta.js?v=1.0.1
 // ==/UserScript==
 
@@ -34,7 +34,7 @@
     const INSTANCE_KEY =
         '__PJE_ALVARA_USERSCRIPT_INSTANCE__';
 
-    const INSTANCE_VERSION = '1.0.1';
+    const INSTANCE_VERSION = '1.0.2';
 
     if (window[INSTANCE_KEY]) {
         console.warn(

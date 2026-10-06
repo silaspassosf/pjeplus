@@ -259,7 +259,43 @@
         }
 
         if (item.id === 'honorarios-periciais' || item.tipo === 'Honorários periciais') {
+            const peritosMap = obterListaPeritos();
+
+            function buscarDadosPerito(termo) {
+                if (!termo) return null;
+                const limpo = termo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                for (const [nome, dadosPerito] of Object.entries(peritosMap)) {
+                    const nomeLimpo = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                    if (nomeLimpo.includes(limpo) || limpo.includes(nomeLimpo)) {
+                        return { nome, dados: dadosPerito };
+                    }
+                    const partes = nomeLimpo.split(/\s+/).filter(p => p.length > 4);
+                    if (partes.some(p => limpo.includes(p))) {
+                        return { nome, dados: dadosPerito };
+                    }
+                }
+                return null;
+            }
+
+            let match = null;
             if (item.perito) {
+                match = buscarDadosPerito(item.perito);
+            }
+            if (!match && Array.isArray(dados.peritos)) {
+                for (const p of dados.peritos) {
+                    match = buscarDadosPerito(p.nome);
+                    if (match) break;
+                }
+            }
+
+            if (match) {
+                item.perito = match.nome;
+                item.dados = item.dados || {};
+                if (match.dados.banco) item.dados.banco = match.dados.banco;
+                if (match.dados.agencia) item.dados.agencia = match.dados.agencia;
+                if (match.dados.conta) item.dados.conta = match.dados.conta;
+                if (!item.dados.tipoConta && match.dados.conta) item.dados.tipoConta = 'Corrente';
+            } else if (item.perito) {
                 // Tenta associar com os dados de peritos da API
                 const peritosLista = Array.isArray(dados.peritos) ? dados.peritos : [];
                 const peritoEncontrado = peritosLista.find(p => {
@@ -287,12 +323,31 @@
         return item;
     }
 
+    const PERITOS_AUD_BASE = {
+        "ROGERIO APARECIDO ROSA": { banco: "001 — Banco do Brasil", agencia: "1832", conta: "160235-7" },
+        "REGIANE SOUZA ROCHA SILVA": { banco: "001 — Banco do Brasil", agencia: "0717", conta: "127844-4" },
+        "CARLOS IRAYBA CREMONINI": { banco: "341 — Itaú Unibanco", agencia: "8215", conta: "13827-5" },
+        "ALEXANDRE MARCOS INACO CIRINO": { banco: "237 — Banco Bradesco", agencia: "2677", conta: "0049115-2" },
+        "ALLAN STRUCK PINHEIRO": { banco: "001 — Banco do Brasil", agencia: "1563", conta: "30305-4" },
+        "MARIANA ACCARDO DE MORAES FONTES": { banco: "341 — Itaú Unibanco", agencia: "3768", conta: "39697-4" },
+        "VLADIA JUOZEPAVICIUS GONÇALVES": { banco: "", agencia: "", conta: "" }
+    };
+
+    function obterListaPeritos() {
+        const dinamico = (window.AUD_DATA && window.AUD_DATA.PR) ||
+                         (typeof unsafeWindow !== 'undefined' && unsafeWindow.AUD_DATA && unsafeWindow.AUD_DATA.PR) ||
+                         {};
+        return Object.assign({}, PERITOS_AUD_BASE, dinamico);
+    }
+
     Alv.dados = {
         buscarDadosProcesso: buscarDadosProcesso,
         obterDadosProcessoCache: obterDadosProcessoCache,
         aplicarPreenchimentoAutomatico: aplicarPreenchimentoAutomatico,
         obterProcessoId: obterProcessoId,
         primeiraParte: primeiraParte,
-        primeiroAdvogado: primeiroAdvogado
+        primeiroAdvogado: primeiroAdvogado,
+        obterListaPeritos: obterListaPeritos,
+        PERITOS_AUD: PERITOS_AUD_BASE
     };
 })();

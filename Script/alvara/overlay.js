@@ -70,21 +70,30 @@
 
         if (item.id === 'honorarios-periciais' ||
             item.tipo === 'Honorários periciais') {
+            const peritosCadastrados = (Alv.dados && typeof Alv.dados.obterListaPeritos === 'function')
+                ? Alv.dados.obterListaPeritos()
+                : {};
+            const peritoAtual = (item.perito || '').trim();
+            const nomesPeritos = Object.keys(peritosCadastrados);
+
+            // Se houver perito no item que não esteja na lista, inclui no início
+            if (peritoAtual && !nomesPeritos.some(n => n.toLowerCase() === peritoAtual.toLowerCase())) {
+                nomesPeritos.unshift(peritoAtual);
+            }
+
+            const optionsPeritos = nomesPeritos.map(nome => {
+                const isSelected = peritoAtual && (nome.toLowerCase() === peritoAtual.toLowerCase());
+                return `<option value="${utils.escapeHtml(nome)}" ${isSelected ? 'selected' : ''}>${utils.escapeHtml(nome)}</option>`;
+            }).join('');
+
             return `
                 <label>
                     Perito
                     <select data-field="perito">
                         <option value="">Selecione o perito</option>
-                        <option value="__PLACEHOLDER_PLANILHA__">
-                            Lista de peritos — integração futura
-                        </option>
+                        ${optionsPeritos}
                     </select>
                 </label>
-
-                <div class="pje-alvara-info">
-                    Os dados do perito serão carregados futuramente
-                    a partir de uma planilha.
-                </div>
 
                 <div class="pje-alvara-dados-grid">
                     <label>
@@ -719,6 +728,35 @@
                         if (window.Alv.siscon) {
                             Alv.siscon.consultarNoCard(card, true);
                         }
+                    }
+                }
+
+                // Troca de perito → preenchimento automático dos dados bancários do cadastro AUD
+                if (
+                    event.target.matches('select[data-field="perito"]')
+                ) {
+                    const card = event.target.closest('[data-alvara-card]');
+                    if (card) {
+                        const peritoNome = event.target.value.trim();
+                        const peritosMap = (Alv.dados && typeof Alv.dados.obterListaPeritos === 'function')
+                            ? Alv.dados.obterListaPeritos()
+                            : {};
+                        const peritoKey = Object.keys(peritosMap).find(k => k.toLowerCase() === peritoNome.toLowerCase());
+                        const dadosBancarios = peritoKey ? peritosMap[peritoKey] : null;
+
+                        const inputBanco = card.querySelector('[data-field="banco"]');
+                        const inputAgencia = card.querySelector('[data-field="agencia"]');
+                        const inputConta = card.querySelector('[data-field="conta"]');
+                        const inputTipoConta = card.querySelector('[data-field="tipoConta"]');
+
+                        if (dadosBancarios) {
+                            if (inputBanco) inputBanco.value = dadosBancarios.banco || '';
+                            if (inputAgencia) inputAgencia.value = dadosBancarios.agencia || '';
+                            if (inputConta) inputConta.value = dadosBancarios.conta || '';
+                            if (inputTipoConta) inputTipoConta.value = dadosBancarios.tipoConta || (dadosBancarios.conta ? 'Corrente' : '');
+                        }
+
+                        atualizarEstadoPeloOverlay();
                     }
                 }
             }

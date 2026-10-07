@@ -25,7 +25,13 @@
     // FIX: Plano B - Procura uma data até 100 caracteres antes ou depois da palavra INSS
     dataCalculoFallback: /inss[\s\S]{0,100}?(\d{2}\/\d{2}\/\d{4})|(\d{2}\/\d{2}\/\d{4})[\s\S]{0,100}?inss/i,
 
-    credito:     /crédito\s+do\s+(?:autor|reclamante|demandante)[\s\S]{0,30}?R\$\s*([\d.,]+)/i,
+    credito:       /crédito\s+do\s+(?:autor|reclamante|demandante)[\s\S]{0,30}?R\$\s*([\d.,]+)/i,
+    // Padrão direto: "fixando o crédito em R$86,13" (mais simples e prioritário)
+    creditoSimples: /fixando\s+o\s+crédito\s+em\s+R\$\s*([\d.,]+)/i,
+    // Variante: "fixo o crédito do trabalhador em R$X" ou "fixado o crédito em R$X"
+    creditoUnico:  /fix(?:ando|o|a|ados?)\s+(?:o\s+)?(?:valor\s+(?:d[oe]\s+)?)?crédito[^R]{0,60}R\$\s*([\d.,]+)/i,
+    // Fallback amplo: "crédito em R$X" (sem exigir 'do reclamante')
+    creditoFixado: /(?:fixando|fixo|fixa|fixados?)\s+(?:o\s+)?(?:valor\s+d[oe]\s+)?crédito[\s\S]{0,40}?R\$\s*([\d.,]+)/i,
     fgts:        /R\$\s*([\d.,]+)[\s\S]{0,30}?FGTS|FGTS[\s\S]{0,60}?R\$\s*([\d.,]+)/i,
     inssReclamante: /\(cota\s+do\s+reclamante\)[\s\S]{0,100}?R\$\s*([\d.,]+)/i,
     inssReclamada:  /cota[\s-]*parte\s+no\s+INSS[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
@@ -90,7 +96,7 @@
 
     return {
       dataCalculo:    dataCalc,
-      credito:        m(RE.credito),
+      credito:        m(RE.credito) || m(RE.creditoSimples) || m(RE.creditoUnico) || m(RE.creditoFixado),
       fgts:           m(RE.fgts),
       inss:           inssTotal,
       inssDetalhes:   { reclamante: inssRec, reclamada: inssRcd },
@@ -217,7 +223,7 @@ async function preencherMonetario(input, valorBR) {
     if (!idMatch) { console.error('[PjeRegistrarDebito] Execute em /processo/[id]/detalhe.'); return; }
     var processoId = idMatch[1];
 
-    // Trava de segurança atualizada: procura o PDF ou a nova classe da Minuta
+    // Trava de segurança: procura o PDF ou a nova classe da Minuta
     var objPdf = document.querySelector('object.conteudo-pdf');
     var objMinuta = document.querySelector('mat-card.container-html, .visualizador-html');
 
@@ -232,31 +238,43 @@ async function preencherMonetario(input, valorBR) {
       return;
     }
 
-    console.log('[PjeRegistrarDebito] ⏳ Extraindo...');
-    var res = await extractor().catch(function (e) {
-      return { sucesso: false, erro: e && e.message ? e.message : String(e) };
-    });
+    try {
+      console.log('[PjeRegistrarDebito] ⏳ Extraindo...');
+      var res = await extractor().catch(function (e) {
+        return { sucesso: false, erro: e && e.message ? e.message : String(e) };
+      });
 
-    if (!res.sucesso) {
-      console.error('[PjeRegistrarDebito] ❌ Falha na extração:', res.erro);
-      alert('❌ Falha na extração:\n' + res.erro);
-      return;
+      if (!res.sucesso) {
+        console.error('[PjeRegistrarDebito] ❌ Falha na extração:', res.erro);
+        alert('❌ Falha na extração:\n' + res.erro);
+        return;
+      }
+
+      var textoRaw = res.conteudo_bruto || res.conteudo || '';
+      console.log('[PjeRegistrarDebito] 📄 Texto (' + textoRaw.length + ' chars):', textoRaw.substring(0, 800));
+
+      var blocos = extrairBlocos(textoRaw);
+      console.log('[PjeRegistrarDebito] ✅ Blocos extraídos (' + blocos.length + '):', blocos);
+
+      var algumValor = blocos.some(function (b) {
+        return b && (b.credito || b.fgts || b.inss || b.honAdv || b.honPericiais || b.custas);
+      });
+      if (!algumValor) {
+        var continuar = confirm('⚠️ Nenhum valor extraído.\n\nVeja o console (F12).\n\nProsseguir mesmo assim?');
+        if (!continuar) return;
+      }
+
+      salvar({ blocos: blocos, blocoAtual: 0, processoId: processoId });
+      window.open('https://pje.trt2.jus.br/pjekz/obrigacao-pagar/' + processoId + '/cadastro', '_blank');
+    } catch (e) {
+      console.error('[PjeRegistrarDebito] ❌ Erro em executar():', e);
+      // Tenta abrir a aba mesmo assim se já salvou os dados
+      try {
+        if (localStorage.getItem(STORAGE_KEY)) {
+          window.open('https://pje.trt2.jus.br/pjekz/obrigacao-pagar/' + processoId + '/cadastro', '_blank');
+        }
+      } catch (_) { }
     }
-
-    var textoRaw = res.conteudo_bruto || res.conteudo || '';
-    console.log('[PjeRegistrarDebito] 📄 Texto (' + textoRaw.length + ' chars):', textoRaw.substring(0, 800));
-
-    var blocos = extrairBlocos(textoRaw);
-    console.log('[PjeRegistrarDebito] ✅ Blocos extraídos (' + blocos.length + '):', blocos);
-
-    var algumValor = blocos[0].credito || blocos[0].fgts || blocos[0].inss;
-    if (!algumValor) {
-      var continuar = confirm('⚠️ Nenhum valor extraído.\n\nVeja o console (F12).\n\nProsseguir mesmo assim?');
-      if (!continuar) return;
-    }
-
-    salvar({ blocos: blocos, blocoAtual: 0, processoId: processoId });
-    window.open('https://pje.trt2.jus.br/pjekz/obrigacao-pagar/' + processoId + '/cadastro', '_blank');
   }
 
   // ── PASSO 2 — /cadastro: marcar partes + avançar ──────────────────────────────

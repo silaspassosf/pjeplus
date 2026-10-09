@@ -350,7 +350,7 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                     regra = fluxo_mandados_outros(driver, log=True)
                     if regra:
                         if regra == 'positivo':
-                            logger.info(f"[MANDADOS_API] #{num}: Regra 'positivo' reconhecida. Executando GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.")
+                            logger.info(f"[MANDADOS_API] #{num}: Regra 'positivo' reconhecida. Executando GIGS xs1 + GIGS sem prazo (dados do mandado) + apagar do escaninho.")
                             arquivar_mandado_positivo_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                         else:
                             logger.info(f"[MANDADOS_API] #{num}: Regra '{regra}' reconhecida. Executando GIGS xs1 + apagar do escaninho.")

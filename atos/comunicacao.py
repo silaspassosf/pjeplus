@@ -8,7 +8,11 @@ from Play.pjeplay.locators import By
 from .comunicacao_navigation import abrir_minutas
 from .comunicacao_coleta import executar_coleta_conteudo
 from .comunicacao_preenchimento import executar_preenchimento_minuta, aguardar_ato_confeccionado, aguardar_estabilizacao_para_destinatarios
-from .comunicacao_destinatarios import selecionar_destinatarios
+from .comunicacao_destinatarios import (
+    selecionar_destinatarios,
+    remover_destinatarios_endereco_invalido,
+    contar_linhas_destinatarios,
+)
 from .comunicacao_finalizacao import alterar_meio_expedicao, salvar_minuta_final
 from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from typing import Optional, Any, Callable, Union, List, Dict, Tuple
@@ -166,9 +170,9 @@ def make_comunicacao_wrapper(
             'cliques_polo_passivo': overrides.get('cliques_polo_passivo', cliques_polo_passivo),
             'destinatarios': destinatarios_param,
             # Passa adiante quaisquer flags de controle (mudar_expediente, checar_sp) diretamente
-            'mudar_expediente': mudar_expediente,
+            'mudar_expediente': overrides.get('mudar_expediente', mudar_expediente),
             'checar_sp': overrides.get('checar_sp', overrides.get('checar_sp_', checar_sp)),
-            'endereco_tipo': endereco_tipo,
+            'endereco_tipo': overrides.get('endereco_tipo', endereco_tipo),
             'debug': debug,
             'terceiro': overrides.get('terceiro', terceiro_default),
             'trocar_modelo': overrides.get('trocar_modelo', trocar_modelo),
@@ -312,14 +316,26 @@ def make_comunicacao_wrapper(
                     except Exception as e:
                         log_fn(f"[COMUNICACAO][ORQUESTRA] Erro ao aguardar renderização: {e}")
 
-            # 4. Alterar meio de expedição se necessário (fluxo 1: pec_decisao, etc)
-            if endereco_tipo == 'correios':
-                log_fn("[COMUNICACAO][ORQUESTRA] Alterando meio de expedição para correios")
+            # 3.8. Excluir destinatários com endereço inválido (ícone vermelho)
+            # 4. Alterar meio de expedição se necessário (fluxo 1: pec_decisao, pec_exeq, etc)
+            # Executado antes da limpeza para que a mudança para Correio vincule endereço válido
+            # via envelope, evitando que o destinatário seja indevidamente excluído (ex: pec_exeq).
+            resolved_endereco_tipo = call_kwargs.get('endereco_tipo') or endereco_tipo
+            if not resolved_endereco_tipo and (call_kwargs.get('mudar_expediente') or mudar_expediente):
+                resolved_endereco_tipo = 'correios'
+
+            if resolved_endereco_tipo and 'correio' in str(resolved_endereco_tipo).lower():
+                log_fn(f"[COMUNICACAO][ORQUESTRA] Alterando meio de expedição para correios (endereco_tipo={resolved_endereco_tipo})")
                 alterar_meio_expedicao(
                     driver,
                     debug=debug,
                     log=log_fn
                 )
+
+            # Requisito obrigatório: verificar a tabela após destinatários/meio de expedição e antes de salvar,
+            # excluindo destinatários com endereço inválido independente da função (mesmo que seja o único).
+            log_fn("[COMUNICACAO][ORQUESTRA] Verificando e removendo destinatários com endereço inválido...")
+            remover_destinatarios_endereco_invalido(driver, log=log_fn, debug=debug)
 
             # 4.5. Trocar modelo se necessário (fluxo 2: pec_ord, pec_sum, etc)
             if call_kwargs.get('trocar_modelo'):
@@ -343,6 +359,17 @@ def make_comunicacao_wrapper(
                 from atos.comunicacao_preenchimento import finalizar_minuta
                 if not finalizar_minuta(driver, log=log_fn):
                     raise Exception('finalizar_minuta falhou após troca de modelo — ato não finalizado')
+
+            # 4.9. Guarda final pré-salvamento: garantir que não restou destinatário com endereço inválido
+            removidos_finais = remover_destinatarios_endereco_invalido(driver, log=log_fn, debug=debug)
+            if removidos_finais > 0:
+                log_fn(f"[COMUNICACAO][ORQUESTRA] {removidos_finais} destinatário(s) adicional(is) com endereço inválido removido(s)")
+
+            # Validação: verificar se restou ao menos um destinatário válido na tabela
+            total_destinatarios_restantes = contar_linhas_destinatarios(driver)
+            if total_destinatarios_restantes == 0:
+                log_fn("[COMUNICACAO][ORQUESTRA][WARN] Tabela de destinatários vazia após exclusão de endereços inválidos — salvamento não pode prosseguir")
+                return False
 
             # 5. Salvar minuta final
             log_fn("[COMUNICACAO][ORQUESTRA] Salvando minuta final")

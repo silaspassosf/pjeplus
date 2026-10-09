@@ -88,6 +88,11 @@ class TestCaracterizacaoPEC(unittest.TestCase):
         self.assertIsNotNone(prazo_5)
         self.assertEqual(prazo_5.weekday(), 2)  # Quarta-feira seguinte (pula fds)
 
+    def test_selecionar_modelo_gigs_imports(self):
+        import PEC.anexos.anexos_juntador_metodos as metodos
+        self.assertTrue(hasattr(metodos, 'time'))
+        self.assertIsNotNone(metodos.time)
+
 
 class TestCaracterizacaoMandado(unittest.TestCase):
     """Caracterização de regras e decisões puras do fluxo Mandado."""
@@ -138,6 +143,55 @@ class TestCaracterizacaoMandado(unittest.TestCase):
         self.assertIn("argos", _TERMOS_ARGOS)
         self.assertIn("pesquisa patrimonial", _TERMOS_ARGOS)
         self.assertIn("certidao de oficial de justica", _TERMOS_OUTROS)
+
+    def test_extrair_nome_destinatario_certidao(self):
+        from Mandado.apoio_fluxos import _extrair_nome_destinatario_certidao
+        texto_real_1000397 = (
+            "PODER JUDICIÁRIO JUSTIÇA DO TRABALHO\n"
+            "ATOrd 1000397-80.2026.5.02.0703\n"
+            "DESTINATÁRIO: ABN MONTAGENS ELETRICAS LTDA - ME\n"
+            "CERTIFICO que dirigi-me ao endereço e procedi a citação..."
+        )
+        nome = _extrair_nome_destinatario_certidao(texto_real_1000397)
+        self.assertEqual(nome, "ABN MONTAGENS ELETRICAS LTDA - ME")
+
+        texto_sem_dois_pontos = "DESTINATARIO CICERO FARIAS SILVA\nCertifico..."
+        nome2 = _extrair_nome_destinatario_certidao(texto_sem_dois_pontos)
+        self.assertEqual(nome2, "CICERO FARIAS SILVA")
+
+        self.assertIsNone(_extrair_nome_destinatario_certidao(None))
+        self.assertIsNone(_extrair_nome_destinatario_certidao("Texto sem destinatario"))
+
+    def test_arquivar_mandado_positivo_registra_gigs_sem_prazo(self):
+        from unittest.mock import patch, MagicMock
+        from Mandado.apoio_fluxos import arquivar_mandado_positivo_reconhecido
+
+        driver_mock = MagicMock()
+        texto_certidao = "DESTINATÁRIO: EMPRESA TESTE LTDA\nCertifico..."
+
+        with patch("Mandado.apoio_fluxos._extrair_texto_certidao_oficial_via_api", return_value=texto_certidao), \
+             patch("Mandado.apoio_fluxos._criar_gigs_xs1_uma_vez") as mock_xs1, \
+             patch("Fix.extracao.criar_gigs", return_value=True) as mock_criar_gigs, \
+             patch("Mandado.apoio_fluxos._apagar_mandado_do_escaninho", return_value=True) as mock_apagar:
+
+            res = arquivar_mandado_positivo_reconhecido(
+                driver=driver_mock,
+                numero_processo="1000397-80.2026.5.02.0703",
+                escaninho_handle="h1",
+                log=False,
+            )
+
+            self.assertTrue(res)
+            mock_xs1.assert_called_once_with(driver_mock, "1000397-80.2026.5.02.0703", False)
+            mock_criar_gigs.assert_called_once_with(
+                driver_mock,
+                "",
+                "",
+                "EMPRESA TESTE LTDA - já alterado endereço na autuação.",
+                log=False,
+            )
+            mock_apagar.assert_called_once_with(driver_mock, "1000397-80.2026.5.02.0703", "h1", False)
+
 
 
 class TestCaracterizacaoP2B(unittest.TestCase):
@@ -196,6 +250,36 @@ class TestCaracterizacaoP2B(unittest.TestCase):
         self.assertEqual(decidir_ato_despacho_argos("negativo", True), "ato_termoS")
         self.assertEqual(decidir_ato_despacho_argos("negativo", False), "ato_meios")
         self.assertEqual(decidir_ato_despacho_argos("outro", False), "ato_meios")
+
+    def test_mandado_anterior_penhora_helper(self):
+        from Mandado.apoio_fluxos import _mandado_contem_penhora
+        # Casos positivos
+        doc1 = {"tipo": "Mandado de Penhora", "descricao": "(Mandado de Penhora e avaliação de veículo placa FAV5939)"}
+        self.assertTrue(_mandado_contem_penhora(doc1))
+
+        doc2 = {"tipo": "Mandado", "titulo": "Mandado de Penhora e Avaliação"}
+        self.assertTrue(_mandado_contem_penhora(doc2))
+
+        doc3 = {"tipo": "Mandado", "descricao": "cumprimento de penhora de bens"}
+        self.assertTrue(_mandado_contem_penhora(doc3))
+
+        # Casos negativos
+        doc4 = {"tipo": "Mandado", "titulo": "Mandado de Notificação", "descricao": "notificação da reclamada"}
+        self.assertFalse(_mandado_contem_penhora(doc4))
+
+        doc5 = {"tipo": "Certidão", "descricao": "certidão de devolução"}
+        self.assertFalse(_mandado_contem_penhora(doc5))
+
+    def test_fix_espera_ate(self):
+        from Fix import espera
+        self.assertTrue(hasattr(espera, 'ate'))
+        chamadas = []
+        def cond(driver):
+            chamadas.append(1)
+            return len(chamadas) >= 2
+        res = espera.ate(None, cond, teto=2, intervalo=0.01)
+        self.assertTrue(res)
+        self.assertGreaterEqual(len(chamadas), 2)
 
 
 if __name__ == "__main__":

@@ -241,6 +241,7 @@ pec_ordc = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios=None,
     mudar_expediente=True,
+    wrapper_name='pec_ordc'
 )
 
 pec_sumc = make_comunicacao_wrapper(
@@ -253,6 +254,7 @@ pec_sumc = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios=None,
     mudar_expediente=True,
+    wrapper_name='pec_sumc'
 )
 
 pec_arsum = make_comunicacao_wrapper(
@@ -265,7 +267,8 @@ pec_arsum = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
     cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
+    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    wrapper_name='pec_arsum'
 )
 
 pec_arord = make_comunicacao_wrapper(
@@ -278,7 +281,8 @@ pec_arord = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
     cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
+    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    wrapper_name='pec_arord'
 )
 
 pec_exeq = make_comunicacao_wrapper(
@@ -291,7 +295,8 @@ pec_exeq = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios='polo_ativo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
     cliques_polo_passivo=1,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
+    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    wrapper_name='pec_exeq'
 )
 
 # ====================================================

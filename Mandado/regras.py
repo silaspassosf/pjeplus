@@ -38,7 +38,7 @@ from core.rule_registry import RuleRegistry
 
 # Módulos Locais (mantidos leves)
 from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
-from Fix.core import preencher_campo
+from Fix.core import preencher_campo, aguardar_renderizacao_nativa
 from Fix.extracao import salvar_destinatarios_cache
 from Fix.abas import validar_conexao_driver
 from Fix import espera
@@ -292,21 +292,45 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
         elif debug:
             logger.info('[ARGOS][REGRAS] SISBAJUD não positivo: sem lembrete, seguindo com pec_idpj')
 
+        # BARREIRA 1: nada do lembrete (diálogo/overlay) pode sobreviver antes do GIGS.
         try:
-            if debug:
-                logger.info('[ARGOS][IDPJ] Passo 2/3: criando GIGS xs carta (aguarda salvar)')
-            criar_gigs(driver, 7, '', 'xs carta')
+            espera.ate_sumir(driver, '#tituloPostit', teto=5)
+            aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=5)
         except Exception as e:
-            if debug:
-                logger.warning(f'[ARGOS][REGRAS][WARN] Falha ao criar GIGS xs carta: {e}')
+            logger.warning(f'[ARGOS][IDPJ] barreira pos-lembrete: {type(e).__name__}: {e}')
+
+        # Passo 2/3: GIGS xs carta — retorno verificado (antes era ignorado) com retry.
+        gigs_ok = False
+        for tentativa in range(1, 4):
+            try:
+                logger.info(f'[ARGOS][IDPJ] Passo 2/3: criando GIGS xs carta (tentativa {tentativa}/3)')
+                gigs_ok = bool(criar_gigs(driver, 7, '', 'xs carta'))
+            except Exception as e:
+                logger.warning(f'[ARGOS][REGRAS][WARN] GIGS xs carta tentativa {tentativa}/3 falhou: {type(e).__name__}: {e}')
+            if gigs_ok:
+                logger.info('[ARGOS][IDPJ] GIGS xs carta confirmado (formulário fechado)')
+                break
+            espera.assentar(driver, 1.5, motivo='[IDPJ] retry GIGS xs carta')
+        if not gigs_ok:
+            logger.error('[ARGOS][IDPJ][ERRO] GIGS xs carta nao confirmado apos 3 tentativas — prosseguindo com pec_idpj')
+
+        # BARREIRA 2: formulário do GIGS e overlays precisam ter sumido antes do PEC.
+        try:
+            espera.ate_sumir(driver, 'textarea[formcontrolname="observacao"]', teto=6)
+            aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=5)
+        except Exception as e:
+            logger.warning(f'[ARGOS][IDPJ] barreira pos-GIGS: {type(e).__name__}: {e}')
 
         try:
-            if debug:
-                logger.info('[ARGOS][IDPJ] Passo 3/3: executando pec_idpj (GIGS xs carta já criado no passo 2)')
-            pec_idpj(driver, debug=debug, gigs_extra=False)
+            logger.info('[ARGOS][IDPJ] Passo 3/3: executando pec_idpj (GIGS xs carta já criado no passo 2)')
+            res_idpj = pec_idpj(driver, debug=debug, gigs_extra=False)
+            if isinstance(res_idpj, tuple) and not res_idpj[0]:
+                return False
+            if res_idpj is False:
+                return False
         except Exception as e:
-            if debug:
-                logger.error(f'[ARGOS][REGRAS][ERRO] Falha ao executar pec_idpj: {e}')
+            logger.error(f'[ARGOS][REGRAS][ERRO] Falha ao executar pec_idpj: {e}')
+            return False
         return True
     return False
 
@@ -314,12 +338,27 @@ def _executar_ato_seguro(driver: Any, fn_ato: Callable, nome_ato: str, debug: bo
     """Executa ato judicial com medição de tempo e tratamento seguro de exceções."""
     t0 = time.time()
     try:
-        fn_ato(driver, debug=debug)
+        res = fn_ato(driver, debug=debug)
+        duracao = time.time() - t0
+        sucesso = False
+        if isinstance(res, tuple):
+            sucesso = bool(res[0])
+        elif isinstance(res, bool):
+            sucesso = res
+        elif res is not None:
+            sucesso = bool(res)
+        else:
+            sucesso = True
+
+        if not sucesso:
+            logger.error('[ARGOS][REGRAS] %s retornou falha (%.2fs)', nome_ato, duracao)
+            return False
+
         if debug:
-            logger.debug('[ARGOS][REGRAS] %s finalizado em %.2fs', nome_ato, time.time() - t0)
+            logger.debug('[ARGOS][REGRAS] %s finalizado com sucesso em %.2fs', nome_ato, duracao)
         return True
     except Exception as e:
-        logger.error('[ARGOS][REGRAS] %s falhou: %s', nome_ato, e)
+        logger.error('[ARGOS][REGRAS] %s falhou com exceção: %s', nome_ato, e)
         return False
 
 
@@ -457,25 +496,11 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
             if resultado_sisbajud != 'positivo' and all(v == 'nao' for v in (sigilo_anexos or {}).values()):
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_meios (1 reclamada, SISBAJUD negativo/indefinido, sem sigilo)')
-                inicio_ato = time.time()
-                try:
-                    ato_meios(driver, debug=debug)
-                except Exception as e:
-                    if debug:
-                        logger.error(f'[ARGOS][REGRAS][ERRO] ato_meios falhou: {e}')
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS] ato_meios finalizado em {time.time() - inicio_ato:.2f}s')
+                return _executar_ato_seguro(driver, ato_meios, 'ato_meios', debug=debug)
             elif resultado_sisbajud != 'positivo' and any(v == 'sim' for v in (sigilo_anexos or {}).values()):
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_termoE (1 reclamada, SISBAJUD negativo, com sigilo)')
-                inicio_ato = time.time()
-                try:
-                    ato_termoE(driver, debug=debug)
-                except Exception as e:
-                    if debug:
-                        logger.error(f'[ARGOS][REGRAS][ERRO] ato_termoE falhou: {e}')
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS] ato_termoE finalizado em {time.time() - inicio_ato:.2f}s')
+                return _executar_ato_seguro(driver, ato_termoE, 'ato_termoE', debug=debug)
             else:
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_bloq (1 reclamada, SISBAJUD positivo/indefinido)')
@@ -492,27 +517,13 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
                             logger.error(f'[ARGOS][REGRAS][ERRO] lembrete_bloq falhou: {e}')
                     if debug:
                         logger.info(f'[ARGOS][REGRAS] lembrete_bloq finalizado em {time.time() - inicio_lembrete:.2f}s')
-                inicio_ato = time.time()
-                try:
-                    ato_bloq(driver, debug=debug)
-                except Exception as e:
-                    if debug:
-                        logger.error(f'[ARGOS][REGRAS][ERRO] ato_bloq falhou: {e}')
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS] ato_bloq finalizado em {time.time() - inicio_ato:.2f}s')
+                return _executar_ato_seguro(driver, ato_bloq, 'ato_bloq', debug=debug)
         else:
             # Multiplas reclamadas
             if resultado_sisbajud != 'positivo':
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_meiosub (multiplas reclamadas, SISBAJUD negativo/indefinido)')
-                inicio_ato = time.time()
-                try:
-                    ato_meiosub(driver, debug=debug)
-                except Exception as e:
-                    if debug:
-                        logger.error(f'[ARGOS][REGRAS][ERRO] ato_meiosub falhou: {e}')
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS] ato_meiosub finalizado em {time.time() - inicio_ato:.2f}s')
+                return _executar_ato_seguro(driver, ato_meiosub, 'ato_meiosub', debug=debug)
             else:
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_bloq (multiplas reclamadas, SISBAJUD positivo/indefinido)')
@@ -529,15 +540,8 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
                             logger.error(f'[ARGOS][REGRAS][ERRO] lembrete_bloq falhou: {e}')
                     if debug:
                         logger.info(f'[ARGOS][REGRAS] lembrete_bloq finalizado em {time.time() - inicio_lembrete:.2f}s')
-                inicio_ato = time.time()
-                try:
-                    ato_bloq(driver, debug=debug)
-                except Exception as e:
-                    if debug:
-                        logger.error(f'[ARGOS][REGRAS][ERRO] ato_bloq falhou: {e}')
-                if debug:
-                    logger.info(f'[ARGOS][REGRAS] ato_bloq finalizado em {time.time() - inicio_ato:.2f}s')
-        return True
+                return _executar_ato_seguro(driver, ato_bloq, 'ato_bloq', debug=debug)
+        return False
     return False
 
 

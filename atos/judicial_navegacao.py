@@ -230,18 +230,38 @@ def preparar_campo_minutar(driver: Any) -> bool:
     Prepara o campo de filtro de modelos na tela de minutar.
 
     Returns:
-        bool: True se conseguiu preparar o campo
+        bool: True se conseguiu preparar o campo ou se a tela de minutar já está ativa
     """
     try:
         logger.info('[NAVEGAÇÃO] Preparando campo de filtro para minutar...')
+        seletor_filtro = 'input#inputFiltro, input[id="inputFiltro"], pje-arvore-modelo-documento input, input[placeholder*="Filtro" i]'
 
-        campo_filtro_modelo = espera.elemento(driver, 'input#inputFiltro', teto=10)
+        campo_filtro_modelo = espera.elemento(driver, seletor_filtro, teto=12)
         if not campo_filtro_modelo:
-            raise Exception('input#inputFiltro não apareceu')
+            campo_filtro_modelo = espera.ate_aparecer(driver, seletor_filtro, teto=5)
+
+        if not campo_filtro_modelo:
+            # Tolerância estrutural: se já estamos em /minutar ou o editor CKEditor já está presente,
+            # não abortamos o fluxo_cls! O inserir_modelo_no_editor tem retries e localizadores próprios.
+            estado_atual = verificar_estado_atual(driver)
+            editor_presente = False
+            try:
+                if hasattr(driver, 'page'):
+                    editor_presente = bool(driver.page.evaluate("""() => {
+                        return !!document.querySelector('div.ck-content[contenteditable="true"], div[class*="area-conteudo"]');
+                    }"""))
+            except Exception:
+                pass
+
+            if estado_atual == 'minutar' or editor_presente:
+                logger.warning('[NAVEGAÇÃO] Campo #inputFiltro não detectado no teto, mas tela de minuta está ativa (editor=%s). Prosseguindo para inserção de modelo.', editor_presente)
+                return True
+
+            raise Exception('input#inputFiltro não apareceu e página não está em minutar')
 
         if hasattr(driver, 'page'):
-            driver.page.evaluate("""() => {
-                var el = document.querySelector('input#inputFiltro');
+            driver.page.evaluate("""(sel) => {
+                var el = document.querySelector(sel);
                 if (el) {
                     el.removeAttribute('disabled');
                     el.removeAttribute('readonly');
@@ -250,7 +270,7 @@ def preparar_campo_minutar(driver: Any) -> bool:
                     el.dispatchEvent(new Event('input', {bubbles: true}));
                     el.dispatchEvent(new Event('keyup', {bubbles: true}));
                 }
-            }""")
+            }""", 'input#inputFiltro, input[id="inputFiltro"]')
         else:
             preencher_campo(driver, 'input#inputFiltro', '')
 
@@ -334,32 +354,64 @@ def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
         return False
 
 
-def aguardar_transicao_minutar(driver: Any) -> bool:
+def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
     """
     Aguarda a transição da tela de conclusão para a tela de minutar.
-    Usando a lógica do gigs-plugin: observa o DOM (pje-arvore-modelo-documento)
-    que é muito mais rápido e confiável que o polling de URL no Angular.
+    Observa a mudança da URL para /minutar e a renderização dos componentes
+    exclusivos de minutar (árvore de modelos, input de filtro, editor).
 
     Returns:
         bool: True se conseguiu fazer a transição
     """
     try:
-        logger.info('[CONCLUSÃO] Aguardando transição para tela de minutar (DOM Observer)...')
-        from Fix.core import esperar_url_conter
+        logger.info(f'[CONCLUSÃO] Aguardando transição para tela de minutar (teto={timeout}s)...')
 
-        try:
-            if aguardar_renderizacao_nativa(driver, 'pje-arvore-modelo-documento', modo='aparecer', timeout=10):
-                logger.info('[CONCLUSÃO] Transição detectada via renderização do DOM (pje-arvore-modelo-documento)')
-                return True
-        except Exception as e:
-            logger.warning(f'[CONCLUSÃO] Fallback: Falha no observer do DOM: {e}')
+        seletor_exclusivo_minutar = (
+            'input#inputFiltro, input[id="inputFiltro"], '
+            'pje-arvore-modelo-documento, div.ck-content[contenteditable="true"], '
+            'div[class*="area-conteudo"]'
+        )
 
-        logger.info('[CONCLUSÃO] Verificando URL /minutar como fallback...')
-        if not esperar_url_conter(driver, '/minutar', timeout=10):
-            logger.error(f'[CONCLUSÃO] Falha na transição para minutar: DOM não renderizou e URL não mudou: {driver.current_url}')
+        limite = time.monotonic() + float(timeout)
+        transicionou = False
+        while time.monotonic() < limite:
+            url = (getattr(driver, 'current_url', '') or '').lower()
+            if '/minutar' in url:
+                transicionou = True
+                break
+            try:
+                if hasattr(driver, 'page'):
+                    if driver.page.evaluate(f"""() => {{
+                        var els = document.querySelectorAll('{seletor_exclusivo_minutar}');
+                        for (var i = 0; i < els.length; i++) {{
+                            var el = els[i];
+                            if (el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0)) {{
+                                return true;
+                            }}
+                        }}
+                        return false;
+                    }}"""):
+                        transicionou = True
+                        break
+            except Exception:
+                pass
+            time.sleep(0.15)
+
+        if not transicionou:
+            transicionou = bool(espera.elemento(driver, seletor_exclusivo_minutar, teto=3))
+
+        if not transicionou:
+            logger.error(f'[CONCLUSÃO] Falha na transição para minutar após {timeout}s: URL={getattr(driver, "current_url", "")}')
             return False
 
-        logger.info('[CONCLUSÃO] Transição para minutar concluída via URL fallback')
+        # Aguardar spinners de carregamento inicial assentarem
+        try:
+            espera.ate_sumir(driver, '.loading-spinner, .mat-progress-spinner, .fa-spin', teto=5)
+        except Exception:
+            pass
+        espera.assentar(driver, 0.5, motivo='estabilização pós-transição para minutar')
+
+        logger.info('[CONCLUSÃO] ✅ Transição para minutar detectada com sucesso')
         return True
 
     except Exception as e:
@@ -398,14 +450,16 @@ def focar_campo_minutar_se_necessario(driver: Any) -> bool:
     try:
         if verificar_estado_atual(driver) == 'minutar':
             logger.info('[CONCLUSÃO] Já em minutar - focando no campo de filtro')
-            campo_filtro_modelo = espera.elemento(driver, 'input#inputFiltro', teto=10)
-            if not campo_filtro_modelo:
-                raise Exception('input#inputFiltro não apareceu')
-            if hasattr(driver, 'page'):
-                driver.page.evaluate("() => { const el = document.querySelector('input#inputFiltro'); if (el) el.focus(); }")
+            seletor_filtro = 'input#inputFiltro, input[id="inputFiltro"], pje-arvore-modelo-documento input'
+            campo_filtro_modelo = espera.elemento(driver, seletor_filtro, teto=10)
+            if campo_filtro_modelo:
+                if hasattr(driver, 'page'):
+                    driver.page.evaluate("() => { const el = document.querySelector('input#inputFiltro'); if (el) el.focus(); }")
+                else:
+                    preencher_campo(driver, 'input#inputFiltro', '')
+                logger.info('[CONCLUSÃO] Foco no campo #inputFiltro realizado')
             else:
-                preencher_campo(driver, 'input#inputFiltro', '')
-            logger.info('[CONCLUSÃO] Foco no campo #inputFiltro realizado')
+                logger.warning('[CONCLUSÃO] Campo de filtro não visível de imediato ao focar')
         return True
     except Exception as e:
         logger.warning(f'[CONCLUSÃO] Erro ao focar campo minutar: {e}')

@@ -16,7 +16,7 @@ Entrypoint publico: fluxo_mandados_outros()
 import os
 import re
 from Fix.utils import remover_acentos
-from typing import Optional, Any, List, Tuple
+from typing import Optional, Any, List, Tuple, Dict
 
 from Fix import espera
 
@@ -32,7 +32,7 @@ from Fix.core import (
     safe_click_no_scroll,
 )
 from Fix.facade_publica import ElementoNaoEncontradoError
-from Fix.extracao import extrair_direto, extrair_documento, criar_lembrete_posit
+from Fix.extracao import extrair_direto, extrair_documento, criar_gigs, criar_lembrete_posit
 from Fix.log import logger
 
 from atos import (
@@ -474,6 +474,101 @@ def _localizar_texto_mandado_anterior_via_api(driver: Any, log: bool = True) -> 
         log=log,
         contexto='[MANDADO_ANTERIOR]',
     )
+
+
+def _localizar_mandado_anterior_timeline_api(driver: Any, log: bool = True) -> Optional[Dict[str, Any]]:
+    """Localiza o documento do mandado anterior na timeline via API.
+
+    Retorna o dict do documento da timeline cujo tipo/título/descrição contenha 'mandado'
+    e não seja certidão.
+    """
+    import unicodedata
+
+    def _norm(t):
+        return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
+
+    id_processo = _extrair_id_processo_da_url(driver)
+    if not id_processo:
+        if log:
+            logger.info('[MANDADOS][OUTROS][API] id_processo não encontrado na URL')
+        return None
+
+    client = _criar_api_client_local(driver)
+    if not client:
+        if log:
+            logger.info('[MANDADOS][OUTROS][API] Falha ao criar API client')
+        return None
+
+    try:
+        timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
+        if not timeline:
+            if log:
+                logger.info('[MANDADOS][OUTROS][API] Timeline vazia ao buscar mandado anterior')
+            return None
+
+        for doc in timeline:
+            if not isinstance(doc, dict):
+                continue
+            tipo_norm = _norm(doc.get('tipo', ''))
+            titulo_norm = _norm(doc.get('titulo', ''))
+            desc_norm = _norm(doc.get('descricao', ''))
+            if (
+                ('mandado' in tipo_norm or 'mandado' in titulo_norm or 'mandado' in desc_norm)
+                and 'certidao' not in tipo_norm
+                and 'certidao' not in titulo_norm
+                and 'certidao' not in desc_norm
+            ):
+                if log:
+                    logger.info(
+                        '[MANDADOS][OUTROS][API] Mandado anterior localizado na timeline: id=%s tipo=%s titulo=%s desc=%s',
+                        doc.get('id'), doc.get('tipo'), doc.get('titulo'), doc.get('descricao')
+                    )
+                return doc
+
+        return None
+    except Exception as e:
+        if log:
+            logger.warning('[MANDADOS][OUTROS][API] Erro ao buscar mandado anterior na timeline: %s', e)
+        return None
+
+
+def _mandado_contem_penhora(doc_mandado: Dict[str, Any]) -> bool:
+    """Verifica se tipo, título, descrição ou nome do mandado anterior contém 'penhora'."""
+    if not isinstance(doc_mandado, dict):
+        return False
+    import unicodedata
+
+    def _norm(t):
+        return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
+
+    texto_combinado = " ".join([
+        str(doc_mandado.get('tipo') or ''),
+        str(doc_mandado.get('titulo') or ''),
+        str(doc_mandado.get('descricao') or ''),
+        str(doc_mandado.get('nome') or ''),
+        str(doc_mandado.get('descricaoComplementar') or ''),
+        str(doc_mandado.get('complemento') or ''),
+    ])
+    return 'penhor' in _norm(texto_combinado)
+
+
+def _verificar_mandado_anterior_penhora_dom(driver: Any) -> bool:
+    """Fallback no DOM: varre os links tl-documento procurando mandado anterior com 'penhora'."""
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            return bool(driver.page.evaluate("""() => {
+                const links = document.querySelectorAll('a.tl-documento');
+                for (let i = 0; i < links.length; i++) {
+                    const txt = (links[i].innerText || '').toLowerCase();
+                    if (txt.includes('mandado') && !txt.includes('certid')) {
+                        if (txt.includes('penhor')) return true;
+                    }
+                }
+                return false;
+            }"""))
+    except Exception:
+        pass
+    return False
 
 
 # ── extração de documentos decisão/despacho via API (igual P2B) ─────────────
@@ -1308,11 +1403,18 @@ def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = T
     if 'penhora' in texto_lower:
         _chamar_ato_meios('certidão negativa de mandado de penhora')
 
-    logger.info('[MANDADOS][OUTROS] padrao_negativo detectado — localizando mandado anterior via API')
+    logger.info('[MANDADOS][OUTROS] padrao_negativo detectado — localizando mandado anterior via API timeline')
+    doc_mandado_ant = _localizar_mandado_anterior_timeline_api(driver, log=log)
+    if doc_mandado_ant and _mandado_contem_penhora(doc_mandado_ant):
+        desc_info = doc_mandado_ant.get('descricao') or doc_mandado_ant.get('titulo') or doc_mandado_ant.get('tipo') or ''
+        _chamar_ato_meios(f'descrição do mandado anterior contém penhora: "{desc_info}"')
+    elif not doc_mandado_ant and _verificar_mandado_anterior_penhora_dom(driver):
+        _chamar_ato_meios('descrição do mandado anterior contém penhora (detectado via DOM)')
+
     texto_mandado_ant = _localizar_texto_mandado_anterior_via_api(driver, log=log)
 
     if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
-        _chamar_ato_meios('do mandado anterior')
+        _chamar_ato_meios('do mandado anterior (conteúdo do PDF)')
 
     if "penhora de bens" in texto_lower:
         _chamar_ato_meios('penhora de bens')
@@ -1419,8 +1521,14 @@ def _criar_gigs_xs1_uma_vez(driver: Any, numero_processo: str, log: bool = True)
             logger.info(f'[MANDADOS][OUTROS] GIGS já criado para #{numero_processo}. Pulando criação.')
         return
     try:
-        criar_gigs(driver, dias_uteis="1", responsavel="", observacao="xs1", log=log)
-        _GIGS_CRIADO_PARA_PROCESSO.add(numero_processo)
+        ok = bool(criar_gigs(driver, dias_uteis="1", responsavel="", observacao="xs1", log=log))
+        if ok:
+            _GIGS_CRIADO_PARA_PROCESSO.add(numero_processo)
+            if log:
+                logger.info(f'[MANDADOS][OUTROS] GIGS xs1 criado com sucesso para #{numero_processo}')
+        else:
+            if log:
+                logger.warning(f'[MANDADOS][OUTROS] criar_gigs xs1 retornou False para #{numero_processo}')
     except Exception as e:
         if log:
             logger.error(f'[MANDADOS][OUTROS] Falha ao criar GIGS xs1 para #{numero_processo}: {e}')
@@ -1500,12 +1608,13 @@ def arquivar_mandado_positivo_reconhecido(
     escaninho_handle: str,
     log: bool = True,
 ) -> bool:
-    """Ação do fluxo POSITIVO (Outros): GIGS xs1 + lembrete 'mdd positivo' + apagar do escaninho.
+    """Ação do fluxo POSITIVO (Outros): GIGS xs1 + GIGS sem prazo (dados do mandado) + apagar do escaninho.
 
     Mantém a ordem pedida: cria a GIGS xs1 na aba /detalhe, extrai o destinatário da
-    própria certidão (padrão 'DESTINATÁRIO: NOME' / 'DESTINATÁRIO NOME'), cria o lembrete
-    (título 'mdd positivo', conteúdo '<nome> - já alterado endereço na autuação.') e só
-    então apaga o mandado do escaninho — tudo ainda na aba /detalhe até o passo final.
+    própria certidão (padrão 'DESTINATÁRIO: NOME' / 'DESTINATÁRIO NOME'), registra os dados
+    do mandado positivo criando GIGS sem prazo:
+        criar_gigs(driver, "", "", f'{nome} - já alterado endereço na autuação.')
+    e só então apaga o mandado do escaninho — tudo ainda na aba /detalhe até o passo final.
     """
     _criar_gigs_xs1_uma_vez(driver, numero_processo, log)
 
@@ -1517,58 +1626,27 @@ def arquivar_mandado_positivo_reconhecido(
         if log:
             logger.error(f'[MANDADOS][OUTROS][POSITIVO] Falha ao extrair destinatário da certidão de #{numero_processo}: {e}')
 
-    if nome:
-        if log:
+    conteudo_gigs = f'{nome} - já alterado endereço na autuação.' if nome else 'já alterado endereço na autuação.'
+    if log:
+        if nome:
             logger.info(f'[MANDADOS][OUTROS][POSITIVO] Destinatário identificado: {nome}')
-        try:
-            painel = _localizar_lembrete_mdd(driver, log=log)
-            if painel is not None:
-                # Já existe "mdd positivo": editar adicionando o destinatário (nova linha, vírgula)
-                try:
-                    conteudo_el = espera.elemento(painel, '.post-it-conteudo', teto=0.5)
-                    conteudo_atual = conteudo_el.text.strip() if conteudo_el else ''
-                except Exception:
-                    conteudo_atual = ''
-                novo_conteudo = _montar_conteudo_lembrete_mdd(conteudo_atual, nome)
-                if log:
-                    logger.info(f'[MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" existe — editando para: {novo_conteudo}')
-                _editar_lembrete_conteudo(driver, painel, novo_conteudo, log=log)
-            else:
-                if log:
-                    logger.info('[MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" não existe — criando novo.')
-                criar_lembrete_posit_ok = False
-                try:
-                    criar_lembrete_posit_ok = bool(criar_lembrete_posit(
-                        driver,
-                        'mdd positivo',
-                        f'{nome} - já alterado endereço na autuação.',
-                        debug=log,
-                    ))
-                except Exception as e:
-                    logger.error(f'[MANDADOS][OUTROS][POSITIVO] Erro ao criar lembrete para #{numero_processo}: {e}')
-                if not criar_lembrete_posit_ok:
-                    # Retry único: função agora só devolve True com o lembrete
-                    # confirmado no painel — não há mais falso-positivo.
-                    espera.assentar(driver, 1.5, motivo='[LEMBRETE] retry apos falha')
-                    try:
-                        criar_lembrete_posit_ok = bool(criar_lembrete_posit(
-                            driver,
-                            'mdd positivo',
-                            f'{nome} - já alterado endereço na autuação.',
-                            debug=log,
-                        ))
-                    except Exception as e:
-                        logger.error(f'[MANDADOS][OUTROS][POSITIVO] Erro no retry do lembrete para #{numero_processo}: {e}')
-                    if criar_lembrete_posit_ok:
-                        logger.info(f'[MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" confirmado para #{numero_processo} (retry)')
-                    else:
-                        logger.error(f'[MANDADOS][OUTROS][POSITIVO] Lembrete "mdd positivo" NAO confirmado para #{numero_processo} — seguindo com apagar do escaninho')
-        except Exception as e:
-            if log:
-                logger.error(f'[MANDADOS][OUTROS][POSITIVO] Falha ao criar/editar lembrete para #{numero_processo}: {e}')
-    else:
+        else:
+            logger.warning(f'[MANDADOS][OUTROS][POSITIVO] Destinatário não identificado na certidão de #{numero_processo} — usando texto padrão.')
+
+    try:
+        from Fix.extracao import criar_gigs
         if log:
-            logger.warning(f'[MANDADOS][OUTROS][POSITIVO] Destinatário não identificado na certidão de #{numero_processo} — lembrete não criado.')
+            logger.info(f'[MANDADOS][OUTROS][POSITIVO] Registrando GIGS sem prazo com dados: "{conteudo_gigs}"')
+        gigs_ok = bool(criar_gigs(driver, "", "", conteudo_gigs, log=log))
+        if gigs_ok:
+            if log:
+                logger.info(f'[MANDADOS][OUTROS][POSITIVO] GIGS sem prazo criado com sucesso para #{numero_processo}')
+        else:
+            if log:
+                logger.warning(f'[MANDADOS][OUTROS][POSITIVO] GIGS sem prazo retornou False para #{numero_processo}')
+    except Exception as e:
+        if log:
+            logger.error(f'[MANDADOS][OUTROS][POSITIVO] Erro ao registrar GIGS sem prazo para #{numero_processo}: {e}')
 
     return _apagar_mandado_do_escaninho(driver, numero_processo, escaninho_handle, log)
 

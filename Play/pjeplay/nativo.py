@@ -77,7 +77,9 @@ def aguardar_renderizacao_nativa(driver, seletor=None, modo="aparecer", timeout=
         return False
 
 
-def wait_for_page_load(driver, timeout=10):
+def wait_for_page_load(driver, timeout=10, seletor=None):
+    if hasattr(driver, 'garantir_carregamento'):
+        return driver.garantir_carregamento(seletor_esperado=seletor, timeout_refresh=min(5.0, float(timeout)))
     ctx = _ctx(driver)
     if ctx is None:
         return _delegar("wait_for_page_load", driver, timeout)

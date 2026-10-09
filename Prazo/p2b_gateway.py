@@ -858,11 +858,19 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
         detalhe_url = url_processo_detalhe(id_processo)
         logger.info(f'[PRAZO_API] Abrindo processo id={id_processo} numero={item.get("numero")}')
         driver.get(detalhe_url)
-        try:
-            wait_for_page_load(driver, timeout=20)
-        except Exception:
-            pass
-        return resultado_ok()
+        from Fix.core import garantir_carregamento_pagina
+        ok_carregou = garantir_carregamento_pagina(
+            driver,
+            seletor_esperado='pje-cabecalho-processo,pje-timeline',
+            timeout_refresh=5.0,
+            url_alvo=detalhe_url,
+        )
+        if ok_carregou:
+            espera.ate_aparecer(driver, '#botao-menu, i.fa-bars', teto=5)
+            return resultado_ok()
+
+        logger.error(f'[PRAZO_API] /detalhe não renderizou elemento válido após refresh ({item.get("numero")}) — item NÃO executado (será retentado)')
+        return resultado_falha('detalhe_nao_carregou')
 
     def execute_item(item):
         """Executa fluxo_pz no processo aberto."""

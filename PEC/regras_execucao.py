@@ -397,7 +397,7 @@ registry.register(r'\bsob\s+chip\b',                                    'xs_sob'
 registry.register(r'\bsobrestamento\s+vencido\b',                       'sobrestamento', _def_sob)
 registry.register(r'\b(?:xs\s+)?sob\s+\d+|\bxs\s+\d+$',                  'xs_sob',   _sob_n)
 # ── COMUNICACOES ──────────────────────────────────────────────────────────────
-registry.register(r'exclu[ei]r?.*(?:convenios?|serasa|cnib)|(?:convenios?|serasa|cnib).*exclu[ei]r?|mandado\s+de\s+exclus',
+registry.register(r'exclu[ei]r?.*(?:convenios?|serasa|cnib)|(?:convenios?|serasa|cnib).*exclu[ei]r?|mandado\s+de\s+exclus|\b(?:xs\s+|pec\s+)?excluiargos\b',
                   'comunicacoes', _w(_a(w, 'pec_excluiargos')))
 registry.register(r'\b(?:xs\s+ordc|c\.ord\.ar)\b',                    'comunicacoes', _w(_a(w, 'pec_arord')))
 registry.register(r'\b(?:xs\s+sumc|c\.sum\.ar)\b',                    'comunicacoes', _w(_a(w, 'pec_arsum')))
@@ -405,7 +405,7 @@ registry.register(r'\b(?:xs\s+ord|c\.ord)\b',                          'comunica
 registry.register(r'\b(?:xs\s+sum|c\.sum)\b',                          'comunicacoes', _xs_sum)
 registry.register(r'\bedital\s+aud\b|\bpec\s+aud\b',                    'comunicacoes', _w(_a(w, 'pec_editalaud')))
 registry.register(r'\bpz\s+idpj\b|\bidpjd\b|\bpzi\b',                 'comunicacoes', _pz_idpj)
-registry.register(r'\bpec\s+cp\b|\bxs\s+pec\s+cp\b',                   'comunicacoes', _w(_a(w, 'pec_cpgeral')))
+registry.register(r'\bpec\s+cp\b|\bxs\s+pec\s+cp\b|\bmdd\s+cp\b|\bcp\s+geral\b',                   'comunicacoes', _w(_a(w, 'pec_cpgeral')))
 registry.register(r'\bmdd\s+pgto\b',                                  'comunicacoes', _w(_a(w, 'pec_mddpg')))
 registry.register(r'\bmdd\s*2\b',                                    'comunicacoes', _w(_a(w, 'pec_mddgeral')))
 registry.register(r'\bmdd\s+id\b|\bmddid\b',                         'comunicacoes', _mddid)

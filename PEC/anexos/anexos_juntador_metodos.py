@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 import os
 import re
+import time
 import types
 from typing import Optional, Dict, Any, Callable, Union, List
 
@@ -319,46 +320,45 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
                 driver.page.keyboard.press('Enter')
             except Exception:
                 pass
-        espera.assentar(driver, 0.6, 'aguardando filtro de modelo ser aplicado na árvore')
+        espera.assentar(driver, 0.3, 'aguardando filtro de modelo ser aplicado na árvore')
 
-        # 3. Aguardar nodo filtrado (buscandoModeloNaArvore gigs L15112) com expansão e spinner check
-        js_buscar_nodo = """() => {
-            var ancora = document.querySelector('pje-arvore-modelo-documento #inputFiltro, #inputFiltro');
-            if (ancora && ancora.parentElement) {
-                var spin = ancora.parentElement.querySelector('i[class*="fa-spinner"], mat-progress-spinner, .fa-spin');
-                if (spin && spin.offsetWidth > 0) return { status: 'pesquisando' };
-            }
-            var nodo = document.querySelector('span.nodo-filtrado, .nodo-filtrado');
-            if (nodo) {
-                var alvo = nodo.closest('mat-tree-node') || nodo.parentElement || nodo;
-                try { alvo.scrollIntoView({block: 'center', behavior: 'instant'}); } catch(e) {}
-                nodo.click();
-                return { status: 'encontrado' };
-            }
-            var fechados = Array.from(document.querySelectorAll('pje-arvore-modelo-documento div[aria-expanded="false"], pje-arvore-modelo-documento mat-tree-node[aria-expanded="false"] button'));
-            if (fechados.length > 0) {
-                fechados[0].click();
-                return { status: 'expandindo' };
-            }
-            return { status: 'aguardando' };
-        }"""
-        limite_nodo = time.time() + 15
+        # 3. Aguardar nodo filtrado e clicar
+        # Caminho primário rápido (comportamento nativo validado): wait_for_clickable encontra o
+        # .nodo-filtrado diretamente assim que o filtro do Angular renderiza (< 500ms).
+        sel_nodo = 'span.nodo-filtrado, .nodo-filtrado'
+        nodo = wait_for_clickable(driver, sel_nodo, timeout=5)
         clicou_nodo = False
-        while time.time() < limite_nodo:
-            try:
-                res = _executar_js(driver, f"return ({js_buscar_nodo})();")
-                if isinstance(res, dict) and res.get('status') == 'encontrado':
-                    clicou_nodo = True
-                    break
-            except Exception:
-                pass
-            espera.assentar(driver, 0.4)
-
-        if not clicou_nodo:
-            nodo = wait_for_clickable(driver, 'span.nodo-filtrado, .nodo-filtrado', timeout=4)
-            if nodo:
-                _executar_js(driver, "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", nodo)
-                clicou_nodo = True
+        if nodo:
+            _executar_js(driver, "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", nodo)
+            clicou_nodo = True
+        else:
+            # Fallback assistido: se galhos da árvore estiverem fechados, expande sob demanda
+            logger.debug('[JUNTADA][MODELO] Nodo filtrado não clicável direto, tentando expansão assistida de galhos')
+            js_expandir_e_buscar = """() => {
+                var nodo = document.querySelector('span.nodo-filtrado, .nodo-filtrado');
+                if (nodo) {
+                    var alvo = nodo.closest('mat-tree-node') || nodo.parentElement || nodo;
+                    try { alvo.scrollIntoView({block: 'center', behavior: 'instant'}); } catch(e) {}
+                    nodo.click();
+                    return { status: 'encontrado' };
+                }
+                var fechados = Array.from(document.querySelectorAll('pje-arvore-modelo-documento div[aria-expanded="false"], pje-arvore-modelo-documento mat-tree-node[aria-expanded="false"] button'));
+                if (fechados.length > 0) {
+                    fechados[0].click();
+                    return { status: 'expandindo' };
+                }
+                return { status: 'aguardando' };
+            }"""
+            limite_nodo = time.time() + 4
+            while time.time() < limite_nodo:
+                try:
+                    res = _executar_js(driver, f"return ({js_expandir_e_buscar})();")
+                    if isinstance(res, dict) and res.get('status') == 'encontrado':
+                        clicou_nodo = True
+                        break
+                except Exception:
+                    pass
+                espera.assentar(driver, 0.3)
 
         if not clicou_nodo:
             logger.error('[JUNTADA][MODELO][ERRO] .nodo-filtrado não encontrado para "%s"', modelo)
@@ -367,19 +367,31 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         logger.debug('[JUNTADA][MODELO] Clique em .nodo-filtrado realizado')
 
         # 4. Aguardar diálogo de preview entrar no DOM
-        if not espera.ate_aparecer(driver, 'pje-dialogo-visualizar-modelo', teto=10):
+        if not espera.ate_aparecer(driver, 'pje-dialogo-visualizar-modelo', teto=8):
             logger.warning('[JUNTADA][MODELO] Diálogo pje-dialogo-visualizar-modelo não detectado')
 
-        # 5. GUARDA ANTI-CORRIDA: 500ms para o teor do preview carregar (aaAnexar gigs L10222)
-        espera.assentar(driver, 0.6, 'aguarda preview/teor carregar no dialogo antes de inserir')
+        # 5. Guarda anti-corrida: aguarda o teor do preview carregar de forma dinâmica
+        # (se carregar rápido, prossegue imediatamente em vez de pausa fixa desnecessária)
+        _JS_TEOR_PREVIEW = """() => {
+            var dlg = document.querySelector('pje-dialogo-visualizar-modelo');
+            if (!dlg) return false;
+            var preview = dlg.querySelector('.div-preview-conteudo, .preview-conteudo, .conteudo-modelo, .ck-content, [class*="preview"]');
+            if (!preview) return false;
+            var clone = preview.cloneNode(true);
+            clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
+            var txt = (clone.innerText || clone.textContent || '').trim();
+            return txt.length > 10 || clone.querySelector('figure') !== null || clone.querySelector('table') !== null;
+        }"""
+        if not espera.ate_js(driver, f"({_JS_TEOR_PREVIEW})()", teto=3):
+            espera.assentar(driver, 0.3, 'aguarda preview/teor carregar no dialogo antes de inserir')
 
-        # 6. Clicar botão Inserir (aria-label estável conforme gigs L10224 e MaisPje)
+        # 6. Clicar botão Inserir (aria-label canônico conforme gigs L10224 e MaisPje)
         seletor_btn_inserir = (
+            'button[aria-label="Inserir modelo de documento"],'
             'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button,'
-            'pje-dialogo-visualizar-modelo button,'
-            'button[aria-label="Inserir modelo de documento"]'
+            'pje-dialogo-visualizar-modelo button'
         )
-        btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=8)
+        btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=6)
         if not btn_inserir:
             logger.error('[JUNTADA][MODELO][ERRO] Botão Inserir não encontrado')
             return False

@@ -1,3 +1,4 @@
+from typing import Optional, Callable, Any, Dict, List
 from Fix.core import safe_click_no_scroll, esperar_elemento, wait_for_clickable, preencher_campo
 from Fix.core import aguardar_renderizacao_nativa
 from Fix.browser_suporte import click_headless_safe
@@ -215,24 +216,59 @@ def _montar_destinatarios_por_observacao(observacao, dados_processo, debug=False
 
 def _clicar_polo_passivo(driver, log):
     try:
-        header = esperar_elemento(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', timeout=10, by=By.XPATH)
+        # 1. Tentar via JS primeiro (mais rápido e checa aria-expanded/classe mat-expanded)
+        if hasattr(driver, 'page') and driver.page:
+            try:
+                res = driver.page.evaluate("""() => {
+                    const headers = Array.from(document.querySelectorAll('mat-expansion-panel-header'));
+                    const headerPP = headers.find(h => (h.textContent || '').trim().toLowerCase().includes('polo passivo'));
+                    if (!headerPP) return { ok: false, motivo: 'header_nao_encontrado' };
+                    const panel = headerPP.closest('mat-expansion-panel');
+                    const isExpanded = (headerPP.getAttribute('aria-expanded') === 'true') || 
+                                       (panel && panel.classList.contains('mat-expanded'));
+                    if (!isExpanded) {
+                        headerPP.click();
+                        return { ok: true, clicou: true };
+                    }
+                    return { ok: true, clicou: false };
+                }""")
+                if res and res.get('ok'):
+                    if res.get('clicou'):
+                        log('[DESTINATARIOS] Painel Polo Passivo expandido via clique no header')
+                        espera.assentar(driver, 0.5)
+                    else:
+                        log('[DESTINATARIOS] Painel Polo Passivo já estava expandido')
+                    return True
+            except Exception as e_js:
+                log(f'[DESTINATARIOS][DEBUG] Tentativa JS expandir Polo Passivo falhou: {e_js}')
+
+        # 2. Fallback via XPath amplo
+        xpath_header = '//mat-expansion-panel-header[contains(., "Polo Passivo")]'
+        header = espera.elemento(driver, xpath_header, teto=3)
+        if not header:
+            header = espera.elemento(
+                driver,
+                '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]',
+                teto=2
+            )
         if not header:
             log('[DESTINATARIOS][ERRO] Header Polo Passivo não encontrado')
-            return
+            return False
 
         aria_expanded = (header.get_attribute('aria-expanded') or '').strip().lower()
-        if aria_expanded == 'true':
-            return
-
-        click_headless_safe(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', by=By.XPATH)
+        if aria_expanded != 'true':
+            safe_click_no_scroll(driver, header)
+            espera.assentar(driver, 0.5)
 
         # aguardar conteúdo do painel (preferir observer nativo)
         try:
             aguardar_renderizacao_nativa(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', modo='aparecer', timeout=5)
         except Exception:
             esperar_elemento(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', timeout=5, by=By.CSS_SELECTOR)
+        return True
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao expandir Polo Passivo: {e}')
+        return False
 
 
 def _clicar_e_aguardar_spinner(driver, btn, timeout_s=15):
@@ -280,6 +316,9 @@ _SELETORES_BTN_ACRESCENTAR = [
     'button.icone-clicavel[aria-label*="acrescentar"]',          # classe + aria-label
     'button[mattooltip*="acrescentar"]',                          # só tooltip
     'button[aria-label*="acrescentar"]',                          # só aria-label
+    'button[mattooltip*="Acrescentar"]',
+    'button[aria-label*="Acrescentar"]',
+    'button.mat-tooltip-trigger.mat-icon-button',                 # Probe PJe
     'button[aria-label="Clique para acrescentar esta parte à lista de destinatários de expedientes e comunicações."]',
     'button.icone-clicavel',                                      # fallback por classe
 ]
@@ -637,53 +676,175 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo: {e}')
             return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
-    if destinatarios == 'terceiros':
-        log('[DESTINATARIOS] OPÇÃO TERCEIROS: Clicando em terceiros interessados')
+    if destinatarios in ('terceiros', 'polo_passivo_e_terceiros', 'polo_passivo_terceiros'):
+        log('[DESTINATARIOS] Modo Polo Passivo (1x) + Terceiros Interessados (pec_cpgeral)')
+        polo_passivo_ok = False
         try:
-            if espera.ate_habilitar(driver, 'button[name="btnIntimarSomenteTerceirosInteressados"]', teto=5):
-                btn_terceiro = espera.elemento(driver, 'button[name="btnIntimarSomenteTerceirosInteressados"]', teto=2)
-            else:
-                espera.ate_aparecer(driver, 'i.fa.fa-user.pec-polo-outros-partes-processo', teto=5)
-                btn_terceiro = espera.elemento(driver, 'i.fa.fa-user.pec-polo-outros-partes-processo', teto=2)
-            _clicar_e_aguardar_spinner(driver, btn_terceiro)
-            return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
-        except Exception as e:
-            log(f'[DESTINATARIOS][ERRO] Falha ao selecionar terceiros: {e}')
-            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
-
-    if destinatarios == 'primeiro':
-        log('[DESTINATARIOS] OPCAO PRIMEIRO: primeiro do Polo Passivo (pec_excluiargos)')
-        try:
-            painel_header_xpath = (
-                '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo")'
-                ' and contains(normalize-space(.), "Polo Passivo")]]'
-            )
-            if not click_headless_safe(driver, painel_header_xpath, by='xpath'):
-                raise RuntimeError('Falha ao expandir painel Polo Passivo')
-
-            aguardar_renderizacao_nativa(
+            # 1. Clicar sempre no Polo Passivo (1x)
+            btn_polo_passivo = wait_for_clickable(
                 driver,
-                '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row',
-                modo='aparecer',
-                timeout=5,
+                'button[name="btnIntimarSomentePoloPassivo"]',
+                timeout=10,
+                by=By.CSS_SELECTOR
             )
+            if btn_polo_passivo:
+                _clicar_e_aguardar_spinner(driver, btn_polo_passivo)
+                polo_passivo_ok = True
+                log('[DESTINATARIOS] Polo passivo (1x) adicionado com sucesso')
+            else:
+                log('[DESTINATARIOS][WARN] Botão polo passivo não clicável')
+        except Exception as e_pp:
+            log(f'[DESTINATARIOS][WARN] Erro ao intimar polo passivo: {e_pp}')
 
-            seta_xpath = (
-                '//mat-expansion-panel[.//*[contains(text(), "Polo Passivo")]]'
-                '//button[@aria-label="Clique para acrescentar esta parte '
-                'à lista de destinatários de expedientes e comunicações."][1]'
+        # 2. Tentar intimar terceiros interessados (se houver; se não houver terceiros, não falha)
+        terceiros_adicionados = False
+        try:
+            btn_terceiro = espera.elemento(
+                driver,
+                'button[name="btnIntimarSomenteTerceirosInteressados"]',
+                teto=2
             )
-            if not click_headless_safe(driver, seta_xpath, by=By.XPATH):
-                raise RuntimeError('Falha ao clicar primeira seta do Polo Passivo')
-            log('[DESTINATARIOS] Primeira seta (primeiro destinatário) clicada')
+            if not btn_terceiro:
+                btn_terceiro = espera.elemento(
+                    driver,
+                    'i.fa.fa-user.pec-polo-outros-partes-processo',
+                    teto=2
+                )
 
-            endereco_ok = _selecionar_endereco_tribunal(driver, log, debug=debug)
-            if not endereco_ok:
-                log('[DESTINATARIOS][WARN] Endereço do tribunal não foi ajustado; a seleção do destinatário foi concluída')
+            if btn_terceiro:
+                is_disabled = False
+                if hasattr(btn_terceiro, '_js'):
+                    is_disabled = bool(btn_terceiro._js("""el => {
+                        return el.disabled || 
+                               el.getAttribute('aria-disabled') === 'true' || 
+                               el.classList.contains('mat-button-disabled');
+                    }"""))
+                else:
+                    aria_dis = btn_terceiro.get_attribute('aria-disabled') or ''
+                    dis_attr = btn_terceiro.get_attribute('disabled')
+                    is_disabled = bool(dis_attr or aria_dis == 'true')
+
+                if not is_disabled:
+                    log('[DESTINATARIOS] Botão terceiros interessados habilitado — clicando...')
+                    _clicar_e_aguardar_spinner(driver, btn_terceiro)
+                    terceiros_adicionados = True
+                    log('[DESTINATARIOS] Terceiros interessados adicionados com sucesso')
+                else:
+                    log('[DESTINATARIOS] Botão terceiros interessados desabilitado (sem terceiros no processo) — prosseguindo com polo passivo')
+            else:
+                log('[DESTINATARIOS] Botão de terceiros interessados não encontrado — prosseguindo com polo passivo')
+        except Exception as e_terc:
+            log(f'[DESTINATARIOS][WARN] Falha ao tentar intimar terceiros (não fatal): {e_terc}')
+
+        if polo_passivo_ok or terceiros_adicionados:
             return ResultadoExecucao(
                 sucesso=True,
-                status='ok' if endereco_ok else 'warning',
-                detalhes={'count': 1, 'endereco_tribunal': endereco_ok}
+                status='geral',
+                detalhes={
+                    'count': 0,
+                    'polo_passivo': polo_passivo_ok,
+                    'terceiros': terceiros_adicionados
+                }
+            )
+        else:
+            log('[DESTINATARIOS][ERRO] Nem polo passivo nem terceiros puderam ser selecionados')
+            return ResultadoExecucao(sucesso=False, status='error', erro='nenhum_destinatario_selecionado', detalhes={'count': 0})
+
+    if destinatarios == 'primeiro':
+        log('[DESTINATARIOS] OPCAO PRIMEIRO: expande Polo Passivo + seleciona primeiro destinatário (pec_excluiargos)')
+        try:
+            # 1. Expandir Polo Passivo de forma robusta
+            _clicar_polo_passivo(driver, log)
+
+            # Aguardar renderização das partes no painel
+            aguardar_renderizacao_nativa(
+                driver,
+                '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row, mat-expansion-panel.mat-expanded button',
+                modo='aparecer',
+                timeout=5
+            )
+
+            # 2. Localizar e clicar no botão de acrescentar do primeiro destinatário do Polo Passivo
+            clicado = False
+            if hasattr(driver, 'page') and driver.page:
+                try:
+                    res_click = driver.page.evaluate("""() => {
+                        const headers = Array.from(document.querySelectorAll('mat-expansion-panel-header'));
+                        const headerPP = headers.find(h => (h.textContent || '').trim().toLowerCase().includes('polo passivo'));
+                        if (!headerPP) return { ok: false, motivo: 'header_nao_encontrado' };
+                        const panel = headerPP.closest('mat-expansion-panel');
+                        if (!panel) return { ok: false, motivo: 'panel_nao_encontrado' };
+
+                        const seletores = [
+                            'button[mattooltip*="acrescentar"]',
+                            'button[aria-label*="acrescentar"]',
+                            'button[mattooltip*="Acrescentar"]',
+                            'button[aria-label*="Acrescentar"]',
+                            'button.mat-tooltip-trigger.mat-icon-button',
+                            'button.icone-clicavel',
+                            'button[mat-icon-button]'
+                        ];
+
+                        for (const sel of seletores) {
+                            const botoes = Array.from(panel.querySelectorAll(sel));
+                            const botoesCorpo = botoes.filter(b => !headerPP.contains(b));
+                            if (botoesCorpo.length > 0) {
+                                const primeiroBtn = botoesCorpo[0];
+                                primeiroBtn.scrollIntoView({ block: 'center' });
+                                primeiroBtn.click();
+                                return { ok: true, seletor: sel };
+                            }
+                        }
+                        return { ok: false, motivo: 'nenhum_botao_acrescentar_encontrado' };
+                    }""")
+                    if res_click and res_click.get('ok'):
+                        clicado = True
+                        log(f"[DESTINATARIOS] Primeira seta (primeiro destinatário) clicada via JS ({res_click.get('seletor')})")
+                except Exception as e_click_js:
+                    log(f'[DESTINATARIOS][DEBUG] Falha ao clicar primeiro destinatário via JS: {e_click_js}')
+
+            if not clicado:
+                # Fallback via seletores e click_headless_safe
+                for sel_btn in _SELETORES_BTN_ACRESCENTAR:
+                    xpath_seta = (
+                        f'(//mat-expansion-panel[.//mat-expansion-panel-header[contains(., "Polo Passivo")]]'
+                        f'//{sel_btn})[1]'
+                    )
+                    if click_headless_safe(driver, xpath_seta, by=By.XPATH):
+                        clicado = True
+                        log(f'[DESTINATARIOS] Primeira seta (primeiro destinatário) clicada via fallback {sel_btn}')
+                        break
+
+            if not clicado:
+                raise RuntimeError('Falha ao clicar primeira seta do Polo Passivo (botão de acrescentar não encontrado)')
+
+            # Aguardar spinner pós-clique
+            seletores_loading = (
+                'mat-dialog-container, mat-progress-spinner, mat-progress-bar, '
+                '.loading-spinner, .cdk-overlay-backdrop, .modal-backdrop'
+            )
+            try:
+                aguardar_renderizacao_nativa(driver, seletores_loading, modo='sumir', timeout=5)
+            except Exception:
+                pass
+
+            # Aguardar destinatário aparecer na tabela de expedientes
+            try:
+                aguardar_renderizacao_nativa(driver, 'tbody.cdk-drop-list tr.cdk-drag, table[name="Expedientes"] tbody tr', modo='aparecer', timeout=5)
+            except Exception:
+                pass
+
+            # Se abrir modal de endereços (ex.: tribunal), tenta selecionar
+            try:
+                if espera.elemento(driver, '.pec-consulta-enderecos', teto=2):
+                    _selecionar_endereco_tribunal(driver, log, debug=debug)
+            except Exception:
+                pass
+
+            return ResultadoExecucao(
+                sucesso=True,
+                status='ok',
+                detalhes={'count': 1}
             )
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao selecionar primeiro destinatário: {e}')
@@ -700,3 +861,111 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo padrão: {e}')
         return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
+
+
+def contar_linhas_destinatarios(driver: Any) -> int:
+    """Retorna quantidade de linhas de expedientes presentes na tabela de destinatários."""
+    js_contar = """() => {
+        var trs = document.querySelectorAll(
+            'table[name="Expedientes"] tbody tr, tbody.cdk-drop-list tr.cdk-drag, .pec-tabela-destinatarios table tbody tr'
+        );
+        return trs ? trs.length : 0;
+    }"""
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            return int(driver.page.evaluate(js_contar) or 0)
+        fn_exec = getattr(driver, 'execute_script', None)
+        if fn_exec:
+            return int(fn_exec(f"return ({js_contar})();") or 0)
+    except Exception:
+        pass
+    return 0
+
+
+def remover_destinatarios_endereco_invalido(
+    driver: Any,
+    log: Optional[Callable] = None,
+    debug: bool = False,
+) -> int:
+    """Verifica a tabela de expedientes e exclui destinatários com endereço inválido.
+
+    Identifica linhas com o ícone '.pec-icone-vermelho-endereco-tabela-destinatarios'
+    (fas fa-times-circle) e clica no botão 'Excluir expediente.' da respectiva linha.
+    Opera independentemente da função de destinatário e mesmo que seja o único da tabela.
+
+    Retorna a quantidade de destinatários removidos.
+    """
+    if log is None:
+        def log(_msg):
+            pass
+
+    _JS_EXCLUIR_PRIMEIRO_INVALIDO = """() => {
+        var selIcone = [
+            '.pec-icone-vermelho-endereco-tabela-destinatarios',
+            'pje-pec-coluna-endereco i.fa-times-circle',
+            'i[class*="pec-icone-vermelho-endereco"]',
+            'i.fa-times-circle[class*="pec-icone-vermelho"]'
+        ].join(', ');
+
+        var icone = document.querySelector(selIcone);
+        if (!icone) return { encontrado: false };
+
+        var tr = icone.closest('tr');
+        if (!tr) return { encontrado: true, erro: 'tr_nao_encontrado' };
+
+        var nomeEl = tr.querySelector('.pec-nome-parte-tabela-destinatarios, .pec-formatacao-padrao-dados-parte');
+        var nome = nomeEl ? (nomeEl.innerText || nomeEl.textContent || '').trim().replace(/\\s+/g, ' ') : '';
+        var endAria = icone.getAttribute('aria-label') || '';
+
+        var btn = tr.querySelector('button[aria-label="Excluir expediente."], button[mattooltip="Excluir expediente."]');
+        if (!btn) {
+            var iconTrash = tr.querySelector('i.fa-trash-alt, .fa-trash-alt');
+            if (iconTrash) btn = iconTrash.closest('button');
+        }
+        if (!btn) {
+            btn = tr.querySelector('.pec-coluna-acoes-usuario-tabela-destinatarios button');
+        }
+
+        if (!btn) {
+            return { encontrado: true, erro: 'btn_excluir_nao_encontrado', nome: nome, endereco: endAria };
+        }
+
+        try { btn.scrollIntoView({ block: 'center', behavior: 'instant' }); } catch(e) {}
+        btn.click();
+        return { encontrado: true, excluido: true, nome: nome, endereco: endAria };
+    }"""
+
+    removidos = 0
+    limite = 20
+    for _ in range(limite):
+        res = None
+        try:
+            if hasattr(driver, 'page') and driver.page:
+                res = driver.page.evaluate(_JS_EXCLUIR_PRIMEIRO_INVALIDO)
+            elif hasattr(driver, 'execute_script'):
+                res = driver.execute_script(f"return ({_JS_EXCLUIR_PRIMEIRO_INVALIDO})();")
+        except Exception as e:
+            if debug:
+                log(f"[COMUNICACAO][DESTINATARIOS][DEBUG] Erro ao executar exclusão de destinatário inválido: {e}")
+            break
+
+        if not isinstance(res, dict) or not res.get('encontrado'):
+            break
+
+        if res.get('excluido'):
+            removidos += 1
+            nome_info = res.get('nome', '')
+            end_info = res.get('endereco', '')
+            log(f"[COMUNICACAO][DESTINATARIOS] Destinatário com endereço inválido excluído: '{nome_info}' ({end_info})")
+            espera.assentar(driver, 0.4, motivo='estabilizacao pos-exclusao destinatario invalido')
+        else:
+            erro_msg = res.get('erro', 'desconhecido')
+            log(f"[COMUNICACAO][DESTINATARIOS][WARN] Falha ao excluir destinatário com endereço inválido: {erro_msg}")
+            break
+
+    if removidos > 0:
+        log(f"[COMUNICACAO][DESTINATARIOS] Total de destinatários com endereço inválido removidos: {removidos}")
+    elif debug:
+        log("[COMUNICACAO][DESTINATARIOS][DEBUG] Nenhum destinatário com endereço inválido detectado na tabela.")
+
+    return removidos

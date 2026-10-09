@@ -434,6 +434,7 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `clipboard` | `Fix/utils.py` (`obter_ultimo_conteudo_clipboard`), `PEC/anexos/anexos_configuracao.py` |
 | `com_retry` | `Fix/core.py` |
 | `comunicacao_judicial`, `make_comunicacao_wrapper` | `atos/comunicacao.py` (IMPLEMENTAÇÃO REAL) |
+| `alterar_meio_expedicao`, `endereco_tipo`, `meios de expedicao` | `atos/comunicacao_finalizacao.py` (`alterar_meio_expedicao`), `atos/comunicacao.py` |
 | `conclusao`, `conclusao_ao_magistrado` | `atos/judicial_navegacao.py` (`navegar_para_conclusao`), `atos/judicial_modelos.py` (`escolher_tipo_conclusao`) |
 | `cookies`, `sessao` | `Fix/core.py` (`salvar_cookies_sessao`, `carregar_cookies_sessao`) |
 | `criar_driver` | `Fix/core.py` (`criar_driver_PC`, `criar_driver_VT`, etc.) |

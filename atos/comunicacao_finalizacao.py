@@ -222,6 +222,230 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
     return True
 
 
+def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, log=None):
+    """Vincula o primeiro endereço disponível da lista para o destinatário na linha informada.
+
+    Acionado após alterar o meio de expedição para Correio, para garantir que o destinatário
+    receba um endereço válido na minuta e não seja indevidamente excluído pela rotina
+    de limpeza de endereços inválidos (ex: pec_exeq).
+
+    Fluxo:
+    1. Clica no ícone de envelope da linha do destinatário (abre modal de endereços).
+    2. Aguarda o diálogo de endereços renderizar.
+    3. Clica na primeira seta para cima ('Selecionar endereço') disponível na tabela.
+    4. Fecha o diálogo de endereços.
+    """
+    if log is None:
+        def log(_msg):
+            pass
+
+    log(f'[COMUNICACAO] Linha {idx}: Vinculando endereço válido via envelope...')
+
+    # 1. Clicar no botão do envelope na linha correspondente
+    _JS_CLICAR_ENVELOPE = """(targetIdx) => {
+        const rows = document.querySelectorAll('tbody.cdk-drop-list tr.cdk-drag');
+        const tr = rows[targetIdx - 1];
+        if (!tr) return { ok: false, motivo: 'linha_nao_encontrada' };
+
+        let btn = tr.querySelector(
+            'button[aria-label="Alterar endereço"], ' +
+            'button[mattooltip="Alterar endereço"], ' +
+            'button[aria-label*="endereço" i], ' +
+            'button[mattooltip*="endereço" i], ' +
+            'pje-pec-coluna-endereco button'
+        );
+        if (!btn) {
+            const icon = tr.querySelector('.fa-envelope, i[class*="fa-envelope"]');
+            if (icon) btn = icon.closest('button') || icon;
+        }
+        if (!btn) return { ok: false, motivo: 'botao_envelope_nao_encontrado' };
+
+        const elClick = btn.closest('button') || btn;
+        try { elClick.scrollIntoView({ block: 'center', behavior: 'instant' }); } catch(e) {}
+        elClick.click();
+        return { ok: true };
+    }"""
+
+    envelope_clicado = False
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            res_env = driver.page.evaluate(_JS_CLICAR_ENVELOPE, idx)
+            envelope_clicado = bool(isinstance(res_env, dict) and res_env.get('ok'))
+        elif hasattr(driver, 'execute_script'):
+            res_env = driver.execute_script(f"return ({_JS_CLICAR_ENVELOPE})({idx});")
+            envelope_clicado = bool(isinstance(res_env, dict) and res_env.get('ok'))
+    except Exception as e_env:
+        if debug:
+            log(f'[COMUNICACAO][DEBUG] Linha {idx}: Falha via JS ao clicar envelope ({e_env})')
+
+    if not envelope_clicado:
+        sel_env = (
+            f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]'
+            f'//button[contains(@aria-label, "endereço") or contains(@aria-label, "Endereço") or '
+            f'contains(@mattooltip, "endereço") or contains(@mattooltip, "Endereço") or '
+            f'.//i[contains(@class, "fa-envelope")]]'
+        )
+        btn_env = espera.elemento(driver, sel_env, teto=2)
+        if not btn_env:
+            sel_env_col = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//pje-pec-coluna-endereco//button'
+            btn_env = espera.elemento(driver, sel_env_col, teto=2)
+        if btn_env:
+            safe_click_no_scroll(driver, btn_env)
+            envelope_clicado = True
+
+    if not envelope_clicado:
+        log(f'[COMUNICACAO][WARN] Linha {idx}: Botão de envelope não encontrado para vincular endereço')
+        return False
+
+    # 2. Aguardar o diálogo de endereços abrir
+    sel_modal = 'pje-pec-dialogo-endereco, .pec-dialogo-endereco, .pec-consulta-enderecos, mat-dialog-container'
+    try:
+        aguardar_renderizacao_nativa(driver, sel_modal, modo='aparecer', timeout=5)
+    except Exception:
+        pass
+
+    modal_visivel = espera.elemento(driver, sel_modal, teto=3)
+    if not modal_visivel:
+        log(f'[COMUNICACAO][WARN] Linha {idx}: Diálogo de endereços não apareceu após clicar no envelope')
+        return False
+
+    # 3. Localizar e clicar na primeira seta para cima ('Selecionar endereço')
+    sel_btn_seta = (
+        'pje-pec-dialogo-endereco button[aria-label="Selecionar endereço"], '
+        'mat-dialog-container button[aria-label="Selecionar endereço"], '
+        'button[aria-label="Selecionar endereço"], '
+        'button[mattooltip="Selecionar endereço"], '
+        'mat-dialog-container button .fa-arrow-up, '
+        'mat-dialog-container .fa-arrow-up, '
+        '.fa-arrow-up'
+    )
+    try:
+        aguardar_renderizacao_nativa(driver, sel_btn_seta, modo='aparecer', timeout=5)
+    except Exception:
+        pass
+
+    _JS_CLICAR_PRIMEIRA_SETA = """() => {
+        const modal = document.querySelector('pje-pec-dialogo-endereco, .pec-dialogo-endereco, .pec-consulta-enderecos, mat-dialog-container');
+        if (!modal) return { ok: false, motivo: 'modal_nao_encontrado' };
+
+        const seletores = [
+            'button[aria-label="Selecionar endereço"]',
+            'button[mattooltip="Selecionar endereço"]',
+            'button[aria-label*="Selecionar" i]',
+            'table[name="Endereços do destinatário no sistema"] tbody tr button',
+            'pje-data-table tbody tr button'
+        ];
+        for (const sel of seletores) {
+            const btn = modal.querySelector(sel);
+            if (btn) {
+                const elClick = btn.closest('button') || btn;
+                try { elClick.scrollIntoView({ block: 'center', behavior: 'instant' }); } catch(e) {}
+                elClick.click();
+                return { ok: true, seletor: sel };
+            }
+        }
+        const iconSeta = modal.querySelector('.fa-arrow-up, i[class*="fa-arrow-up"]');
+        if (iconSeta) {
+            const elClick = iconSeta.closest('button') || iconSeta;
+            try { elClick.scrollIntoView({ block: 'center', behavior: 'instant' }); } catch(e) {}
+            elClick.click();
+            return { ok: true, seletor: 'icon_fa_arrow_up' };
+        }
+        return { ok: false, motivo: 'botao_seta_nao_encontrado' };
+    }"""
+
+    seta_clicada = False
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            res_seta = driver.page.evaluate(_JS_CLICAR_PRIMEIRA_SETA)
+            seta_clicada = bool(isinstance(res_seta, dict) and res_seta.get('ok'))
+        elif hasattr(driver, 'execute_script'):
+            res_seta = driver.execute_script(f"return ({_JS_CLICAR_PRIMEIRA_SETA})();")
+            seta_clicada = bool(isinstance(res_seta, dict) and res_seta.get('ok'))
+    except Exception as e_seta:
+        if debug:
+            log(f'[COMUNICACAO][DEBUG] Linha {idx}: Falha via JS ao clicar seta ({e_seta})')
+
+    if not seta_clicada:
+        btn_seta = espera.elemento(driver, sel_btn_seta, teto=3)
+        if btn_seta:
+            safe_click_no_scroll(driver, btn_seta)
+            seta_clicada = True
+
+    if seta_clicada:
+        log(f'[COMUNICACAO]  Linha {idx}: Primeira seta para cima selecionada com sucesso')
+        espera.assentar(driver, 0.5, motivo='estabilizacao pos-selecao de endereco')
+    else:
+        log(f'[COMUNICACAO][WARN] Linha {idx}: Nenhuma seta de seleção de endereço encontrada no modal')
+
+    # 4. Fechar o diálogo de endereços
+    _JS_FECHAR_MODAL = """() => {
+        const modal = document.querySelector('pje-pec-dialogo-endereco, .pec-dialogo-endereco, .pec-consulta-enderecos, mat-dialog-container');
+        if (!modal) return { ok: true, motivo: 'modal_ja_fechado' };
+
+        const seletoresFechar = [
+            'a[mattooltip="Fechar"]',
+            'button[mattooltip="Fechar"]',
+            'button[aria-label="Fechar"]',
+            'a[aria-label="Fechar"]',
+            'i.fa-window-close',
+            '.btn-fechar',
+            'button.close',
+            '[mat-dialog-close]'
+        ];
+        for (const sel of seletoresFechar) {
+            const btn = modal.querySelector(sel);
+            if (btn) {
+                const elClick = btn.closest('button') || btn.closest('a') || btn;
+                elClick.click();
+                return { ok: true, fechado_via: sel };
+            }
+        }
+        return { ok: false, motivo: 'botao_fechar_nao_encontrado' };
+    }"""
+
+    fechado = False
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            res_fechar = driver.page.evaluate(_JS_FECHAR_MODAL)
+            fechado = bool(isinstance(res_fechar, dict) and res_fechar.get('ok'))
+        elif hasattr(driver, 'execute_script'):
+            res_fechar = driver.execute_script(f"return ({_JS_FECHAR_MODAL})();")
+            fechado = bool(isinstance(res_fechar, dict) and res_fechar.get('ok'))
+    except Exception as e_f:
+        if debug:
+            log(f'[COMUNICACAO][DEBUG] Linha {idx}: Falha via JS ao fechar modal ({e_f})')
+
+    if not fechado:
+        sel_fechar = (
+            'pje-pec-dialogo-endereco a[mattooltip="Fechar"], '
+            'mat-dialog-container i.fa-window-close, '
+            'mat-dialog-container .btn-fechar, '
+            'mat-dialog-container button[aria-label="Fechar"], '
+            'i.fa.fa-window-close.btn-fechar'
+        )
+        btn_fechar = espera.elemento(driver, sel_fechar, teto=2)
+        if btn_fechar:
+            safe_click_no_scroll(driver, btn_fechar)
+            fechado = True
+
+    if hasattr(driver, 'page') and driver.page:
+        try:
+            if driver.page.locator(sel_modal).first.is_visible():
+                driver.page.keyboard.press("Escape")
+        except Exception:
+            pass
+
+    try:
+        aguardar_renderizacao_nativa(driver, sel_modal, modo='sumir', timeout=4)
+    except Exception:
+        pass
+
+    espera.assentar(driver, 0.4, motivo='estabilizacao pos-fechamento modal endereco')
+    log(f'[COMUNICACAO] Linha {idx}: Diálogo de endereços fechado. Expediente com endereço válido.')
+    return seta_clicada
+
+
 def alterar_meio_expedicao(driver, debug=False, log=None):
     if log is None:
         def log(_msg):
@@ -312,36 +536,62 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 meio_atual = ''
                 if hasattr(linha, '_js'):
                     meio_atual = linha._js("""el => {
-                        const s = el.querySelector('.pec-item-coluna-meio-expedicao-tabela-destinatarios .mat-select-value-text .mat-select-min-line');
+                        const s = el.querySelector(
+                            'pje-pec-coluna-meio-expedicao .mat-select-value-text .mat-select-min-line, ' +
+                            '.pec-item-coluna-meio-expedicao-tabela-destinatarios .mat-select-value-text .mat-select-min-line, ' +
+                            'mat-select[placeholder="Meios de Expedição"] .mat-select-min-line, ' +
+                            'mat-select[id*="MeioExpedicao"] .mat-select-min-line'
+                        );
                         return s ? s.innerText.trim() : '';
                     }""") or ''
                 else:
-                    sel_span = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//span[contains(@class,"mat-select-min-line")]'
+                    sel_span = (
+                        f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]'
+                        f'//pje-pec-coluna-meio-expedicao//span[contains(@class,"mat-select-min-line")]'
+                    )
                     sp = espera.elemento(driver, sel_span, teto=1)
+                    if not sp:
+                        sel_span_alt = (
+                            f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]'
+                            f'//mat-select[@placeholder="Meios de Expedição" or contains(@id,"MeioExpedicao")]//span[contains(@class,"mat-select-min-line")]'
+                        )
+                        sp = espera.elemento(driver, sel_span_alt, teto=1)
+                    if not sp:
+                        sel_span_gen = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//span[contains(@class,"mat-select-min-line")]'
+                        sp = espera.elemento(driver, sel_span_gen, teto=1)
                     meio_atual = (getattr(sp, 'text', '') or '').strip()
 
-                if meio_atual == 'Domicílio Eletrônico':
-                    linhas_para_alterar.append((idx, linha))
-                elif debug:
-                    log(f'[COMUNICACAO] Linha {idx}: "{meio_atual}" - não precisa alteração')
-            except Exception:
+                if meio_atual and 'correio' in meio_atual.lower():
+                    if debug:
+                        log(f'[COMUNICACAO] Linha {idx}: "{meio_atual}" já está como Correio - não precisa alteração')
+                else:
+                    linhas_para_alterar.append((idx, linha, meio_atual))
+            except Exception as e_ler:
                 if debug:
-                    log(f'[COMUNICACAO][WARN] Linha {idx}: Erro ao ler meio de expedição')
+                    log(f'[COMUNICACAO][WARN] Linha {idx}: Erro ao ler meio de expedição ({e_ler}) - incluindo para alteração')
+                linhas_para_alterar.append((idx, linha, ''))
 
         log(f'[COMUNICACAO] Encontradas {len(linhas_para_alterar)} linhas para alterar (de {total_linhas} total)')
 
         alterados = 0
         pulados = total_linhas - len(linhas_para_alterar)
 
-        for idx, linha in linhas_para_alterar:
+        for idx, linha, meio_orig in linhas_para_alterar:
             t_linha = time.perf_counter()
             try:
-                log(f'[COMUNICACAO] Linha {idx}: Domicílio Eletrônico encontrado - alterando para Correio...')
+                log(f'[COMUNICACAO] Linha {idx}: meio "{meio_orig or "não identificado"}" detectado — alterando para Correio...')
 
                 sel_drop = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//mat-select[@placeholder="Meios de Expedição"]'
                 dropdown = espera.elemento(driver, sel_drop, teto=2)
                 if not dropdown:
-                    log(f'[COMUNICACAO][WARN] Linha {idx}: Dropdown não encontrado')
+                    sel_drop_alt = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//pje-pec-coluna-meio-expedicao//mat-select'
+                    dropdown = espera.elemento(driver, sel_drop_alt, teto=2)
+                if not dropdown:
+                    sel_drop_alt2 = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//mat-select[contains(@id,"MeioExpedicao")]'
+                    dropdown = espera.elemento(driver, sel_drop_alt2, teto=2)
+
+                if not dropdown:
+                    log(f'[COMUNICACAO][WARN] Linha {idx}: Dropdown "Meios de Expedição" não encontrado')
                     continue
 
                 safe_click_no_scroll(driver, dropdown)
@@ -356,10 +606,13 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 opcoes = espera.elementos(driver, 'mat-option', teto=2)
                 correio_clicado = False
                 for opcao in opcoes:
-                    txt = getattr(opcao, 'text', '') or ''
-                    if 'Correio' in txt:
+                    try:
+                        txt = opcao.text or ''
+                    except Exception:
+                        txt = getattr(opcao, 'text', '') or ''
+                    if 'correio' in txt.lower():
                         safe_click_no_scroll(driver, opcao)
-                        log(f'[COMUNICACAO]  Linha {idx}: Domicílio Eletrônico → Correio')
+                        log(f'[COMUNICACAO]  Linha {idx}: "{meio_orig or "Anterior"}" → "{txt.strip()}"')
                         alterados += 1
                         correio_clicado = True
                         try:
@@ -371,12 +624,18 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 if not correio_clicado:
                     log(f'[COMUNICACAO][WARN] Linha {idx}: Opção "Correio" não encontrada nas opções')
                     try:
-                        if hasattr(driver, 'page'):
+                        if hasattr(driver, 'page') and driver.page:
                             driver.page.keyboard.press("Escape")
                         else:
                             safe_click_no_scroll(driver, 'body')
                     except Exception:
                         pass
+                else:
+                    # Inserção de endereço válido imediata para evitar exclusão indevida por endereço inválido (ex: pec_exeq)
+                    try:
+                        vincular_primeiro_endereco_valido(driver, linha=linha, idx=idx, debug=debug, log=log)
+                    except Exception as e_vinc:
+                        log(f'[COMUNICACAO][WARN] Linha {idx}: Falha ao vincular endereço válido pós-mudança para Correio: {e_vinc}')
 
             except Exception as e_linha:
                 log(f'[COMUNICACAO][WARN] Linha {idx}: Erro ao processar - {str(e_linha)[:60]}')
@@ -403,6 +662,13 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             return None
 
     log_start('COMUNICACAO_SALVAR_MINUTA')
+    # 0. Limpeza preventiva de destinatários com endereço inválido antes do salvamento
+    try:
+        from .comunicacao_destinatarios import remover_destinatarios_endereco_invalido
+        remover_destinatarios_endereco_invalido(driver, log=log, debug=debug)
+    except Exception:
+        pass
+
     # Desfocar campo ativo antes do salvamento (sem blur cego com clique no body)
     try:
         fn_exec = getattr(driver, 'execute_script', None)

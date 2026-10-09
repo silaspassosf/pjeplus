@@ -597,9 +597,15 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
             logger.error(f'[API_TAREFA] Erro ao navegar para tarefa: {e}')
             return False
 
-        # Etapa 5: Aguardar renderização
+        # Etapa 5: Aguardar renderização da tarefa com barreira anti-travamento
         try:
-            aguardar_renderizacao_nativa(driver, 'body', modo='aparecer', timeout=min(6, timeout))
+            from Fix.core import garantir_carregamento_pagina
+            garantir_carregamento_pagina(
+                driver,
+                seletor_esperado='pje-cabecalho-tarefa, pje-botoes-transicao',
+                timeout_refresh=10.0,
+                url_alvo=url_tarefa,
+            )
         except Exception:
             pass  # Fallback: continuar mesmo se renderização falhar
 

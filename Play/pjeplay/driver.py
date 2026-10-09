@@ -5,7 +5,10 @@ O codigo de negocio do PJePlus fala WebDriver em ~1500 pontos
 PWDriver implementa exatamente essa superficie sobre uma Page do Playwright,
 o que permite rodar os modulos atuais — sem fork, sem editar arquivo algum.
 """
+import logging
 import time
+
+logger = logging.getLogger("pjeplus.driver")
 
 from . import script as ponte
 from .element import PWElement
@@ -290,7 +293,8 @@ class PWDriver:
 
     # -- navegacao --------------------------------------------------------
 
-    def get(self, url):
+    def get(self, url, auto_garantir=True):
+        self._ultima_url_navegada = url
         try:
             self.page.goto(
                 url,
@@ -300,6 +304,167 @@ class PWDriver:
         except Exception as e:
             raise traduzir(e) from e
         self._frame = None
+        if auto_garantir and isinstance(url, str) and ('pjekz' in url or '/processo/' in url):
+            t_timeout = 10.0 if ('/tarefa/' in url or '/processo/' in url) else 5.0
+            self.garantir_carregamento(timeout_refresh=t_timeout, url_alvo=url)
+
+    def garantir_carregamento(self, seletor_esperado=None, timeout_refresh=None, timeout_pos_refresh=10.0, log=True, url_alvo=None):
+        """Monitora o carregamento inicial da página com barreira anti-travamento.
+
+        Se o elemento esperado (ou elementos válidos da rota) for detectado,
+        o refresh é abortado imediatamente e a execução prossegue.
+        Se exceder timeout_refresh sem elementos válidos, tenta destravar
+        recarregando a URL alvo ou com refresh controlado sem perder a rota.
+        """
+        target_url = url_alvo or getattr(self, '_ultima_url_navegada', None) or self.current_url
+        is_processo_ou_tarefa = bool(target_url and ('/processo/' in target_url or '/tarefa/' in target_url))
+
+        if timeout_refresh is None:
+            timeout_refresh = 10.0 if is_processo_ou_tarefa else 5.0
+
+        js_verificar = """
+        (args) => {
+            const seletorExtra = args.seletorExtra;
+            const isProcessoOuTarefa = args.isProcessoOuTarefa;
+
+            // Se o chamador especificou um seletor esperado, SÓ ELE define o sucesso
+            if (seletorExtra) {
+                try {
+                    const extraEls = document.querySelectorAll(seletorExtra);
+                    for (let i = 0; i < extraEls.length; i++) {
+                        const el = extraEls[i];
+                        if (el && (el.getClientRects().length > 0 || (el.offsetWidth > 0 && el.offsetHeight > 0))) {
+                            return { ok: true, seletor: seletorExtra, tag: el.tagName.toLowerCase() };
+                        }
+                    }
+                } catch(e) {}
+                return { ok: false, seletor: null, tag: null };
+            }
+
+            // Seletores padrão de conteúdo PJe
+            const seletoresPje = [
+                'pje-cabecalho-processo',
+                'pje-cabecalho-tarefa',
+                'pje-timeline',
+                'pje-botoes-transicao button',
+                'pje-concluso-tarefa-botao button',
+                'pje-arvore-modelo-documento',
+                'input#inputFiltro',
+                'pje-detalhes-processo',
+                'mat-tab-group',
+                'button[aria-label*="Conclusão"]',
+                'button[aria-label*="Análise"]'
+            ];
+
+            // Em páginas de processo ou tarefa, #botao-menu NÃO indica que o conteúdo carregou!
+            if (!isProcessoOuTarefa) {
+                seletoresPje.push('#botao-menu');
+            }
+
+            for (let i = 0; i < seletoresPje.length; i++) {
+                const sel = seletoresPje[i];
+                const el = document.querySelector(sel);
+                if (el && (el.getClientRects().length > 0 || (el.offsetWidth > 0 && el.offsetHeight > 0))) {
+                    return { ok: true, seletor: sel, tag: el.tagName.toLowerCase() };
+                }
+            }
+
+            if (!isProcessoOuTarefa) {
+                const appRoot = document.querySelector('app-root');
+                if (appRoot && appRoot.children.length > 0) {
+                    const filhosReais = Array.from(appRoot.children).filter(c => {
+                        const tag = c.tagName.toLowerCase();
+                        const cls = (c.className || '').toLowerCase();
+                        return !cls.includes('splash') && 
+                               !cls.includes('spinner') && 
+                               !cls.includes('carregando') &&
+                               tag !== 'mat-progress-bar';
+                    });
+                    for (let i = 0; i < filhosReais.length; i++) {
+                        const f = filhosReais[i];
+                        if (f && (f.getClientRects().length > 0 || (f.offsetWidth > 0 && f.offsetHeight > 0))) {
+                            return { ok: true, seletor: 'app-root > ' + f.tagName.toLowerCase(), tag: f.tagName.toLowerCase() };
+                        }
+                    }
+                }
+            }
+            return { ok: false, seletor: null, tag: null };
+        }
+        """
+        payload = {"seletorExtra": seletor_esperado, "isProcessoOuTarefa": is_processo_ou_tarefa}
+
+        t_inicio = time.time()
+        alvo_str = f" [alvo: {seletor_esperado}]" if seletor_esperado else ""
+        if log:
+            logger.info(f"[CARREGAMENTO] ⏳ Monitorando carregamento inicial (barreira de {timeout_refresh:.1f}s){alvo_str}...")
+
+        # Fase 1: até timeout_refresh
+        while time.time() - t_inicio < timeout_refresh:
+            try:
+                res = self.page.evaluate(js_verificar, payload)
+                if res and res.get('ok'):
+                    elapsed = time.time() - t_inicio
+                    sel_achado = res.get('seletor') or res.get('tag')
+                    if log:
+                        logger.info(f"[CARREGAMENTO] ✅ Elemento válido detectado em {elapsed:.2f}s ({sel_achado}) — página viva, refresh abortado.")
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.15)
+
+        # Fase 2: Passou do tempo sem elemento válido detectado
+        elapsed_antes = time.time() - t_inicio
+        if log:
+            logger.warning(
+                f"[CARREGAMENTO] ⚠️ Nenhum elemento válido detectado após {elapsed_antes:.2f}s "
+                f"(lentidão/travamento sistêmico detectado) — tentando destravar..."
+            )
+
+        try:
+            # Em Angular KZ, reload() em rotas de tarefa reseta para o painel global (#botao-menu).
+            # Para evitar desvio indesejado, recarregar a URL alvo diretamente:
+            if target_url and ('/tarefa/' in target_url or '/processo/' in target_url):
+                if log:
+                    logger.info(f"[CARREGAMENTO] 🔄 Re-navegando diretamente para URL alvo para preservar rota: {target_url}")
+                self.page.goto(target_url, wait_until=self.espera_navegacao, timeout=int(self._timeout_pagina * 1000))
+            else:
+                self.refresh()
+        except Exception as e:
+            if log:
+                logger.warning(f"[CARREGAMENTO] Falha ao tentar destravar: {e}")
+
+        # Se após tentativa a página caiu no painel global (fora da rota esperada), re-navegar para target_url
+        if target_url and is_processo_ou_tarefa:
+            curr = (self.current_url or '').lower()
+            if ('/tarefa/' not in curr and '/processo/' not in curr) or ('/painel' in curr):
+                if log:
+                    logger.warning(f"[CARREGAMENTO] ⚠️ Página desviada para {curr} — forçando retorno para {target_url}")
+                try:
+                    self.page.goto(target_url, wait_until=self.espera_navegacao, timeout=int(self._timeout_pagina * 1000))
+                except Exception:
+                    pass
+
+        if log:
+            logger.info(f"[CARREGAMENTO] 🔄 Recuperação executada. Monitorando pós-recuperação (teto de {timeout_pos_refresh:.1f}s)...")
+
+        # Fase 3: monitora recuperação pós-refresh
+        t_pos = time.time()
+        while time.time() - t_pos < timeout_pos_refresh:
+            try:
+                res = self.page.evaluate(js_verificar, payload)
+                if res and res.get('ok'):
+                    elapsed_pos = time.time() - t_pos
+                    sel_achado = res.get('seletor') or res.get('tag')
+                    if log:
+                        logger.info(f"[CARREGAMENTO] ✅ Elemento válido detectado pós-recuperação em {elapsed_pos:.2f}s ({sel_achado}) — página destravada com sucesso.")
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+        if log:
+            logger.error(f"[CARREGAMENTO] ❌ Página não renderizou elemento válido após recuperação ({timeout_pos_refresh:.1f}s).")
+        return False
 
     def refresh(self):
         self.page.reload(wait_until=self.espera_navegacao,

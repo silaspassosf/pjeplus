@@ -234,10 +234,13 @@ def inserir_modelo_no_editor(
             log(f'[MODELO] Campo de filtro não encontrado para "{modelo_nome}"')
             return False
 
-        # 2. Nodo filtrado (com espera de spinner e auto-expansão de galhos)
-        if not _localizar_e_clicar_nodo_filtrado(driver, timeout=15):
-            log(f'[MODELO] Nodo filtrado não encontrado para "{modelo_nome}"')
-            return False
+        # 2. Nodo filtrado: caminho primário = clique nativo (comportamento pré-refactor,
+        #    validado no PEC); fallback = busca com espera de spinner e expansão de galhos.
+        if not aguardar_e_clicar(driver, _SEL_NODO, timeout=10):
+            log(f'[MODELO] Nodo filtrado não clicável via caminho nativo para "{modelo_nome}", tentando fallback com expansão')
+            if not _localizar_e_clicar_nodo_filtrado(driver, timeout=8):
+                log(f'[MODELO] Nodo filtrado não encontrado para "{modelo_nome}"')
+                return False
 
         # 3. Diálogo de visualização
         if not aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='aparecer', timeout=15):

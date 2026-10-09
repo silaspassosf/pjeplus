@@ -251,7 +251,7 @@ def _obter_tarefa_atual(driver: Any, debug: bool = False) -> Optional[str]:
         elif 'nomeTarefa=Arquivo+definitivo' in url:
             return 'Arquivo definitivo'
 
-        el_tarefa = espera.elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1', teto=1)
+        el_tarefa = espera.elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1', teto=4)
         if el_tarefa:
             return (getattr(el_tarefa, 'text', '') or '').strip()
         return None

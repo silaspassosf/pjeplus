@@ -7,12 +7,27 @@ from Play.pjeplay.locators import By
 from Fix.diagnostico_runtime import logger
 
 __all__ = [
-    "ate_aparecer", "ate_sumir", "ate_habilitar", "ate_desabilitar",
+    "ate", "ate_aparecer", "ate_sumir", "ate_habilitar", "ate_desabilitar",
     "ate_js", "ate_texto", "assentar", "pausa",
     "elemento", "elementos", "ate_url", "ate_abas", "ate_obsoleto",
 ]
 
 _INTERVALO_POLL = 0.05
+
+
+def ate(driver, condicao, teto=10, intervalo=_INTERVALO_POLL):
+    """Aguarda até que `condicao(driver)` retorne truthy."""
+    limite = time.monotonic() + float(teto)
+    while True:
+        try:
+            res = condicao(driver)
+            if res:
+                return res
+        except Exception:
+            pass
+        if time.monotonic() >= limite:
+            return False
+        _dormir(intervalo)
 
 
 def _executar_script(driver, script, *args):

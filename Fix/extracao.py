@@ -860,9 +860,23 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
               post-it visível no painel). Antes devolvia True mesmo sem salvar,
               e o fluxo seguinte (GIGS/pec/lixeira) atropelava o modal aberto.
     """
+    def _fechar_dialogo_residual():
+        """Barreira: garante que nenhum diálogo de lembrete fique aberto após falha."""
+        try:
+            if not espera.ate_sumir(driver, '#tituloPostit', teto=0.5):
+                _pressionar_tecla(driver, 'Escape')
+                espera.ate_sumir(driver, '#tituloPostit', teto=3)
+        except Exception:
+            pass
+
     try:
         if debug:
             logger.debug('[LEMBRETE][POSIT] Criando: "%s" / "%s"', titulo, conteudo)
+
+        # Idempotência: retry não deve duplicar um lembrete já salvo.
+        if _verificar_lembrete_presente(driver, titulo, teto=1):
+            logger.info('[LEMBRETE][POSIT] Lembrete "%s" já presente no painel — nada a criar', titulo)
+            return True
 
         # Tenta #botao-menu primeiro (seletor mais confiável no PJe atual);
         # .fa-bars como fallback. Sem isso, uma exceção do Selenium escapava
@@ -909,29 +923,34 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
         aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
         espera.assentar(driver, 0.4)
 
-        # Preencher título com foco
-        titulo_elem = aguardar_e_clicar(driver, '#tituloPostit', timeout=5, log=False)
-        if titulo_elem:
-            preencher_campo(driver, titulo_elem, titulo, log=debug)
-        else:
-            preencher_campo(driver, '#tituloPostit', titulo, log=debug)
-        espera.assentar(driver, 0.3)
+        # Preencher título e conteúdo POR SELETOR (aguardar_e_clicar devolve bool,
+        # nunca elemento — passá-lo ao preencher_campo falhava com
+        # 'dispatchEvent is not a function' e o lembrete era salvo vazio/perdido).
+        for sel_campo, valor_campo in (('#tituloPostit', titulo), ('#conteudoPostit', conteudo)):
+            aguardar_e_clicar(driver, sel_campo, timeout=5, log=False)
+            preencher_campo(driver, sel_campo, valor_campo, log=debug)
+            espera.assentar(driver, 0.3)
 
-        # Preencher conteúdo com foco
-        conteudo_elem = aguardar_e_clicar(driver, '#conteudoPostit', timeout=5, log=False)
-        if conteudo_elem:
-            preencher_campo(driver, conteudo_elem, conteudo, log=debug)
-        else:
-            preencher_campo(driver, '#conteudoPostit', conteudo, log=debug)
-        espera.assentar(driver, 0.5)
+        # Barreira de preenchimento: ambos os campos devem refletir o valor esperado.
+        if not espera.ate_js(
+            driver,
+            "__pjeEls('#tituloPostit').some(el => (el.value || '').trim() !== '')"
+            " && __pjeEls('#conteudoPostit').some(el => (el.value || '').trim() !== '')",
+            teto=3,
+        ):
+            logger.warning('[LEMBRETE][POSIT] Campos título/conteúdo não ficaram preenchidos — abortando sem salvar')
+            _fechar_dialogo_residual()
+            return False
+        espera.assentar(driver, 0.3)
 
         # Botão Salvar (conforme LEGADO.md com prioridade dentro do diálogo)
         seletores_salvar = [
-            '.mat-dialog-container button[type="submit"]',
-            '.mat-dialog-container button[color="primary"]',
-            '.mat-dialog-actions button[color="primary"]',
-            '//mat-dialog-container//button[contains(., "Salvar") or contains(., "Gravar")]',
+            '.mat-dialog-container button[type="submit"]:not([disabled])',
+            '.mat-dialog-container button[color="primary"]:not([disabled])',
+            '.mat-dialog-actions button[color="primary"]:not([disabled])',
+            '//mat-dialog-container//button[not(@disabled) and (contains(., "Salvar") or contains(., "Gravar"))]',
             '.mat-dialog-container .mat-raised-button:not([disabled])',
+            # Fallbacks do LEGADO.md (L12029-12033), que sempre funcionaram:
             'button[color="primary"]',
             '.mat-raised-button:not([disabled])',
             'button[type="submit"]',
@@ -954,9 +973,15 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
 
         if not salvo:
             logger.warning('[LEMBRETE][POSIT] Não foi possível confirmar o fechamento do diálogo do lembrete "%s"', titulo)
+            _fechar_dialogo_residual()
             return False
 
-        logger.info('[LEMBRETE][POSIT] Diálogo fechado com sucesso — lembrete "%s" salvo', titulo)
+        # Barreira final: diálogo fechado NÃO prova gravação — exige o post-it no painel.
+        if not _verificar_lembrete_presente(driver, titulo, teto=6):
+            logger.warning('[LEMBRETE][POSIT] Diálogo fechou mas lembrete "%s" não apareceu no painel', titulo)
+            return False
+
+        logger.info('[LEMBRETE][POSIT] Lembrete "%s" salvo e confirmado no painel', titulo)
         return True
 
     except Exception as e:

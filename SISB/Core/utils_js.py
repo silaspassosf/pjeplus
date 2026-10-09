@@ -117,6 +117,7 @@ def criar_js_otimizado() -> str:
     }
 
     function triggerEvent(elemento, tipo) {
+        if (!elemento || typeof elemento.dispatchEvent !== 'function') return;
         if ('createEvent' in document) {
             const evento = document.createEvent('HTMLEvents');
             evento.initEvent(tipo, false, true);

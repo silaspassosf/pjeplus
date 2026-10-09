@@ -702,32 +702,33 @@ def ato_judicial(
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')
                 return False, False
 
-        # ----- 7. SALVAR FINAL (apenas se houver alterações não salvas no botão Salvar) -----
-        logger.info('[ATO][SALVAR_FINAL] Verificando se há alterações pendentes para salvar...')
+        # ----- 7. SALVAR FINAL (botão canônico primeiro; sem movimento é a única persistência do ato) -----
+        logger.info('[ATO][SALVAR_FINAL] Salvando ato...')
         try:
-            js_salvar_se_ativo = """() => {
-                var btns = Array.from(document.querySelectorAll('button[aria-label="Salvar"], button.mat-raised-button.mat-primary'));
-                var btnSalvar = btns.find(function(b) {
-                    var aria = (b.getAttribute('aria-label') || '').toLowerCase();
-                    var txt = (b.innerText || '').toLowerCase();
-                    return (aria.includes('salvar') || txt.includes('salvar')) && !b.disabled && !b.hasAttribute('disabled');
-                });
-                if (btnSalvar && btnSalvar.offsetWidth > 0 && btnSalvar.offsetHeight > 0) {
-                    btnSalvar.click();
-                    return true;
-                }
-                return false;
-            }"""
             salvou_final = False
-            if hasattr(driver, 'page'):
+            btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=(10 if not movimento else 4))
+            if btn_salvar_final:
+                safe_click_no_scroll(driver, btn_salvar_final)
+                salvou_final = True
+            elif hasattr(driver, 'page'):
+                js_salvar_se_ativo = """() => {
+                    var btns = Array.from(document.querySelectorAll('button[aria-label="Salvar"]'));
+                    var btnSalvar = btns.find(function(b) {
+                        return !b.disabled && !b.hasAttribute('disabled') && b.offsetWidth > 0 && b.offsetHeight > 0;
+                    });
+                    if (btnSalvar) { btnSalvar.click(); return true; }
+                    return false;
+                }"""
                 salvou_final = bool(driver.page.evaluate(js_salvar_se_ativo))
             if salvou_final:
-                logger.info('[ATO][SALVAR_FINAL] Ato salvo (alterações pendentes gravadas)')
-                espera.assentar(driver, 1.0)
+                logger.info('[ATO][SALVAR_FINAL] Ato salvo')
+                espera.assentar(driver, 1.5)
+            elif movimento:
+                logger.debug('[ATO][SALVAR_FINAL] Nenhum botão Salvar ativo (movimento já gravou)')
             else:
-                logger.debug('[ATO][SALVAR_FINAL] Nenhum botão Salvar ativo pendente')
+                logger.warning('[ATO][SALVAR_FINAL] Botão Salvar não encontrado e não há movimento — ato pode não ter sido persistido')
         except Exception as e:
-            logger.debug(f'[ATO][SALVAR_FINAL] {e}')
+            logger.warning(f'[ATO][SALVAR_FINAL] {e}')
 
         # 8. ASSINAR: Clicar em assinar se especificado
         if Assinar:

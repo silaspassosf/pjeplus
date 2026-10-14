@@ -737,7 +737,152 @@ function selecionarProcessosLivres() {
  * 2. Clica no botão tag verde de ações em lote
  * 3. Clica na opção "Atividade" do menu
  * 4. Preenche observação com "xs1"
- * 5. Clica em "Salvar"
+/**
+ * Helper para setar valor nativo em inputs/textareas e disparar eventos Angular
+ */
+function setNativeInputValue(element, value) {
+    if (!element) return;
+    const proto = element instanceof HTMLTextAreaElement
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    if (setter) {
+        setter.call(element, value);
+    } else {
+        element.value = value;
+    }
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new Event('blur', { bubbles: true }));
+}
+
+/**
+ * Seleciona a opção "Prazo" no mat-autocomplete do campo tipoAtividade
+ */
+async function selecionarTipoAtividadePrazo(modalContainer, wait) {
+    const inputTipo = modalContainer.querySelector('input[formcontrolname="tipoAtividade"]') ||
+                      document.querySelector('input[formcontrolname="tipoAtividade"]') ||
+                      modalContainer.querySelector('input[data-placeholder*="Tipo de Atividade"]');
+    if (!inputTipo) {
+        console.warn('[LIVRES_XS1] Campo tipoAtividade não encontrado no modal.');
+        return false;
+    }
+
+    inputTipo.focus();
+    inputTipo.click();
+    await wait(200);
+
+    const buscarOpcaoPrazo = () => {
+        const options = Array.from(document.querySelectorAll('mat-option, .mat-option, [role="option"]'));
+        return options.find(opt => {
+            const txt = (opt.textContent || '').trim().toLowerCase();
+            return txt === 'prazo' || txt.includes('prazo');
+        });
+    };
+
+    let optionPrazo = buscarOpcaoPrazo();
+    if (!optionPrazo) {
+        setNativeInputValue(inputTipo, 'Prazo');
+        inputTipo.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        await wait(300);
+
+        for (let t = 0; t < 25; t++) {
+            optionPrazo = buscarOpcaoPrazo();
+            if (optionPrazo) break;
+            await wait(150);
+        }
+    }
+
+    if (optionPrazo) {
+        if (typeof optionPrazo.scrollIntoView === 'function') {
+            optionPrazo.scrollIntoView({ block: 'nearest' });
+        }
+        optionPrazo.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        optionPrazo.click();
+        console.log('[LIVRES_XS1] Opção "Prazo" selecionada no autocomplete.');
+        await wait(300);
+        return true;
+    } else {
+        console.warn('[LIVRES_XS1] Opção "Prazo" não encontrada no autocomplete.');
+        return false;
+    }
+}
+
+/**
+ * Preenche o campo Dias Úteis (Prazo -1)
+ */
+async function preencherPrazoDias(modalContainer, valor, wait) {
+    const inputDias = modalContainer.querySelector('input[formcontrolname="dias"]') ||
+                      modalContainer.querySelector('input[data-placeholder*="Dias Úteis"]') ||
+                      modalContainer.querySelector('input[formcontrolname="prazo"]') ||
+                      document.querySelector('input[formcontrolname="dias"]');
+    if (inputDias) {
+        inputDias.focus();
+        setNativeInputValue(inputDias, String(valor));
+        console.log(`[LIVRES_XS1] Campo dias preenchido com: ${valor}`);
+        await wait(200);
+        return true;
+    }
+    console.warn('[LIVRES_XS1] Campo dias/prazo não encontrado.');
+    return false;
+}
+
+/**
+ * Preenche o campo de Observação (ex: "xs1")
+ */
+async function preencherObservacao(modalContainer, valor, wait) {
+    const textareaObs = modalContainer.querySelector('textarea[formcontrolname="observacao"]') ||
+                        modalContainer.querySelector('textarea[data-placeholder="Observação"]') ||
+                        document.querySelector('textarea[formcontrolname="observacao"]') ||
+                        modalContainer.querySelector('textarea');
+    if (textareaObs) {
+        textareaObs.focus();
+        setNativeInputValue(textareaObs, valor);
+        console.log(`[LIVRES_XS1] Campo observação preenchido com: ${valor}`);
+        await wait(200);
+        return true;
+    }
+    console.warn('[LIVRES_XS1] Campo observação não encontrado.');
+    return false;
+}
+
+/**
+ * Clica no botão Salvar do modal
+ */
+async function clicarBotaoSalvar(modalContainer, wait) {
+    let btnSalvar = modalContainer.querySelector('button[data-cy="salvar"]') ||
+                    modalContainer.querySelector('button[color="primary"][type="submit"]');
+    if (!btnSalvar) {
+        const botoes = Array.from(modalContainer.querySelectorAll('button'));
+        btnSalvar = botoes.find(b => {
+            const txt = (b.textContent || '').trim().toLowerCase();
+            return txt === 'salvar' || txt.includes('salvar');
+        });
+    }
+    if (!btnSalvar) {
+        console.error('[LIVRES_XS1] Botão Salvar não encontrado no modal.');
+        return false;
+    }
+
+    if (btnSalvar.disabled) {
+        console.warn('[LIVRES_XS1] Botão Salvar desabilitado, aguardando validação...');
+        await wait(500);
+    }
+
+    btnSalvar.click();
+    console.log('[LIVRES_XS1] Botão Salvar clicado.');
+    return true;
+}
+
+/**
+ * Executa o fluxo completo do botão "Livres (xs1)":
+ * 1. Seleciona os processos livres
+ * 2. Clica no botão de tag de ações em lote
+ * 3. Seleciona "Atividade"
+ * 4. Seleciona Tipo de Atividade = "Prazo" via autocomplete
+ * 5. Preenche Dias Úteis com -1
+ * 6. Preenche Observação com "xs1"
+ * 7. Clica em "Salvar"
  */
 async function executarLivresXs1() {
     const notify = (msg, cor, dur) => {
@@ -815,65 +960,46 @@ async function executarLivresXs1() {
         console.log('[LIVRES_XS1] Item Atividade clicado. Aguardando modal...');
         await wait(800);
 
-        // 3. Aguardar modal/formulário de atividade
-        let textareaObs = null;
-        for (let tent = 0; tent < 25; tent++) {
-            textareaObs = document.querySelector("textarea[formcontrolname='observacao']") ||
-                          document.querySelector("textarea[aria-label*='Observa']") ||
-                          document.querySelector(".cdk-overlay-container textarea") ||
-                          document.querySelector("mat-dialog-container textarea") ||
-                          document.querySelector("textarea");
-            if (textareaObs && textareaObs.offsetParent !== null) break;
+        // 3. Aguardar modal/formulário de cadastro de atividades
+        let modalContainer = null;
+        for (let tent = 0; tent < 30; tent++) {
+            modalContainer = document.querySelector('pje-gigs-cadastro-atividades') ||
+                             document.querySelector('mat-dialog-container form') ||
+                             document.querySelector('mat-dialog-container') ||
+                             document.querySelector("textarea[formcontrolname='observacao']")?.closest('.mat-dialog-container');
+            if (modalContainer && modalContainer.offsetParent !== null) break;
             await wait(200);
         }
 
-        if (!textareaObs) {
-            notify('Erro: Campo de observação não apareceu!', '#f44336', 5000);
-            console.error('[LIVRES_XS1] Textarea de observação não encontrado.');
+        if (!modalContainer) {
+            notify('Erro: Formulário de atividade não apareceu!', '#f44336', 5000);
+            console.error('[LIVRES_XS1] Modal de atividade não encontrado.');
             return;
         }
 
-        // 4. Preencher observação com "xs1"
-        textareaObs.focus();
-        textareaObs.value = 'xs1';
-        textareaObs.dispatchEvent(new Event('input', { bubbles: true }));
-        textareaObs.dispatchEvent(new Event('change', { bubbles: true }));
-        console.log('[LIVRES_XS1] Observação preenchida com "xs1".');
-        await wait(400);
+        notify('Configurando Tipo de Atividade = "Prazo"...', '#2196f3', 2000);
+        // 4. Selecionar tipo de atividade = "Prazo" via autocomplete
+        await selecionarTipoAtividadePrazo(modalContainer, wait);
 
-        // 5. Clicar no botão Salvar
-        let btnSalvar = null;
-        const modalContainer = textareaObs.closest('.mat-dialog-container') ||
-                               textareaObs.closest('.cdk-overlay-pane') ||
-                               document.body;
+        // 5. Preencher Dias Úteis = -1
+        await preencherPrazoDias(modalContainer, -1, wait);
 
-        const botoes = modalContainer.querySelectorAll('button');
-        for (const b of botoes) {
-            const txt = (b.textContent || '').trim().toLowerCase();
-            if (txt === 'salvar' || txt.includes('salvar')) {
-                btnSalvar = b;
-                break;
-            }
-        }
+        // 6. Preencher Observação = "xs1"
+        await preencherObservacao(modalContainer, 'xs1', wait);
 
-        if (!btnSalvar) {
-            notify('Erro: Botão Salvar não encontrado!', '#f44336', 5000);
-            console.error('[LIVRES_XS1] Botão Salvar não encontrado no modal.');
+        await wait(300);
+
+        // 7. Clicar no botão Salvar
+        const salvou = await clicarBotaoSalvar(modalContainer, wait);
+        if (!salvou) {
+            notify('Erro: Não foi possível acionar o botão Salvar!', '#f44336', 5000);
             return;
         }
-
-        if (btnSalvar.disabled) {
-            console.warn('[LIVRES_XS1] Botão Salvar desabilitado, aguardando...');
-            await wait(500);
-        }
-
-        btnSalvar.click();
-        console.log('[LIVRES_XS1] Botão Salvar clicado.');
 
         if (typeof playSound === 'function') {
             try { playSound(); } catch (e) {}
         }
-        notify(`✅ ${selecionados} processo(s) livre(s) marcado(s) com atividade xs1!`, '#4caf50', 6000);
+        notify(`✅ ${selecionados} processo(s) livre(s) marcado(s) com atividade xs1 (Prazo: -1)!`, '#4caf50', 6000);
 
     } catch (err) {
         console.error('[LIVRES_XS1] Erro na execução:', err);

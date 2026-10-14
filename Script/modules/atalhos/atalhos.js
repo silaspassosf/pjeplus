@@ -8,6 +8,8 @@ const isWorkerTab = /\/comunicacoesprocessuais\/minutas/.test(window.location.hr
 
 const isMainTab = /\/detalhe/.test(window.location.href);
 
+const isPainelGlobal = /\/painel\/global\//.test(window.location.href);
+
 // ─── INICIALIZAÇÃO ───────────────────────────────────────────────
 window.initAtalhos = function () {
     if (isWorkerTab) {
@@ -24,6 +26,13 @@ window.initAtalhos = function () {
     if (isMainTab) {
         console.log('[MAISPJE_ATALHOS] Modo principal ativado.');
         initMain();
+    }
+
+    if (isPainelGlobal) {
+        console.log('[MAISPJE_ATALHOS] Painel Global detectado.');
+        if (typeof injetarBotaoLivresPainelGlobal === 'function') {
+            injetarBotaoLivresPainelGlobal();
+        }
     }
 }
 
@@ -672,4 +681,312 @@ async function hoverAndClickTarget(menuSelector, buttonLabel) {
         showToast(`Botão não encontrado: ${buttonLabel}`, '#f44336');
     }
 }
+
+// ─── PAINEL GLOBAL: SELEÇÃO LIVRES + ATIVIDADE XS1 (FLUXO PRAZO) ──
+
+/**
+ * Varre a tabela de processos (tr.cdk-drag) e seleciona os processos livres:
+ * - Sem prazo (td:nth-child(9) time vazio ou ausente)
+ * - Sem comentário (sem i.fa-comment)
+ * - Sem campo de texto preenchido (sem input[matinput] com valor)
+ * - Sem lupa de pesquisa na coluna 3 (sem td:nth-child(3) i.fa-search)
+ * 
+ * Marca visualmente a linha com #ffccd2 e clica no checkbox caso desmarcado.
+ * Retorna a quantidade de processos selecionados.
+ */
+function selecionarProcessosLivres() {
+    try {
+        const linhas = document.querySelectorAll('tr.cdk-drag');
+        let selecionados = 0;
+
+        linhas.forEach(function (linha) {
+            const prazo = linha.querySelector('td:nth-child(9) time');
+            const prazoVazio = !prazo || !prazo.textContent.trim();
+            const hasComment = linha.querySelector('i.fa-comment') !== null;
+            const inputField = linha.querySelector('input[matinput]');
+            const campoPreenchido = inputField && inputField.value.trim();
+            const temLupa = linha.querySelector('td:nth-child(3) i.fa-search') !== null;
+
+            if (prazoVazio && !hasComment && !campoPreenchido && !temLupa) {
+                const chkInput = linha.querySelector('mat-checkbox input[type="checkbox"]');
+                const matCheckbox = linha.querySelector('mat-checkbox');
+                const jaMarcado = (chkInput && chkInput.checked) || (matCheckbox && matCheckbox.classList.contains('mat-checkbox-checked'));
+
+                if (!jaMarcado) {
+                    if (chkInput) {
+                        chkInput.click();
+                    } else if (matCheckbox) {
+                        matCheckbox.click();
+                    }
+                }
+                linha.style.backgroundColor = '#ffccd2';
+                selecionados++;
+            }
+        });
+
+        return selecionados;
+    } catch (e) {
+        console.error('[LIVRES_XS1] Erro ao selecionar processos livres:', e);
+        return -1;
+    }
+}
+
+/**
+ * Executa o fluxo completo idêntico ao ciclo de Prazo/loop_orquestrador:
+ * 1. Seleciona processos livres
+ * 2. Clica no botão tag verde de ações em lote
+ * 3. Clica na opção "Atividade" do menu
+ * 4. Preenche observação com "xs1"
+ * 5. Clica em "Salvar"
+ */
+async function executarLivresXs1() {
+    const notify = (msg, cor, dur) => {
+        if (typeof showToast === 'function') {
+            showToast(msg, cor, dur);
+        } else {
+            console.log(`[LIVRES_XS1] ${msg}`);
+        }
+    };
+    const wait = (ms) => typeof sleep === 'function' ? sleep(ms) : new Promise(r => setTimeout(r, ms));
+
+    try {
+        notify('Buscando processos livres na tabela...', '#2196f3', 2000);
+        await wait(300);
+
+        const selecionados = selecionarProcessosLivres();
+        console.log(`[LIVRES_XS1] Total de livres selecionados: ${selecionados}`);
+
+        if (selecionados === 0) {
+            notify('Nenhum processo livre encontrado na página.', '#ff9800', 4000);
+            return;
+        }
+        if (selecionados < 0) {
+            notify('Erro ao inspecionar a tabela de processos.', '#f44336', 4000);
+            return;
+        }
+
+        notify(`${selecionados} processo(s) selecionado(s). Abrindo atividade...`, '#2196f3', 2500);
+        await wait(600);
+
+        // 1. Localizar botão tag verde
+        let tagVerde = document.querySelector('i.fa.fa-tag.icone.texto-verde') ||
+                       document.querySelector('i.fa-tag.texto-verde') ||
+                       document.querySelector('button i.fa-tag')?.closest('button') ||
+                       document.querySelector('i.fa-tag');
+
+        if (!tagVerde) {
+            const icones = Array.from(document.querySelectorAll('i')).filter(i => i.className && i.className.includes('fa-tag'));
+            if (icones.length > 0) tagVerde = icones[0];
+        }
+
+        if (!tagVerde) {
+            notify('Erro: Botão de Tag (Atividade em lote) não encontrado!', '#f44336', 5000);
+            console.error('[LIVRES_XS1] Botão tag verde não encontrado no DOM.');
+            return;
+        }
+
+        const btnTag = tagVerde.closest('button') || tagVerde;
+        btnTag.click();
+        console.log('[LIVRES_XS1] Botão tag clicado.');
+        await wait(600);
+
+        // 2. Localizar item "Atividade" no menu suspenso
+        let btnAtividade = null;
+        for (let tent = 0; tent < 20; tent++) {
+            const itensMenu = document.querySelectorAll('.mat-menu-panel button, button.mat-menu-item, div[role="menu"] button');
+            for (const b of itensMenu) {
+                const txt = (b.textContent || '').trim().toLowerCase();
+                if (txt.includes('atividade')) {
+                    btnAtividade = b;
+                    break;
+                }
+            }
+            if (btnAtividade) break;
+            await wait(200);
+        }
+
+        if (!btnAtividade) {
+            notify('Erro: Item "Atividade" não encontrado no menu!', '#f44336', 5000);
+            console.error('[LIVRES_XS1] Opção Atividade não localizada no menu.');
+            return;
+        }
+
+        btnAtividade.click();
+        console.log('[LIVRES_XS1] Item Atividade clicado. Aguardando modal...');
+        await wait(800);
+
+        // 3. Aguardar modal/formulário de atividade
+        let textareaObs = null;
+        for (let tent = 0; tent < 25; tent++) {
+            textareaObs = document.querySelector("textarea[formcontrolname='observacao']") ||
+                          document.querySelector("textarea[aria-label*='Observa']") ||
+                          document.querySelector(".cdk-overlay-container textarea") ||
+                          document.querySelector("mat-dialog-container textarea") ||
+                          document.querySelector("textarea");
+            if (textareaObs && textareaObs.offsetParent !== null) break;
+            await wait(200);
+        }
+
+        if (!textareaObs) {
+            notify('Erro: Campo de observação não apareceu!', '#f44336', 5000);
+            console.error('[LIVRES_XS1] Textarea de observação não encontrado.');
+            return;
+        }
+
+        // 4. Preencher observação com "xs1"
+        textareaObs.focus();
+        textareaObs.value = 'xs1';
+        textareaObs.dispatchEvent(new Event('input', { bubbles: true }));
+        textareaObs.dispatchEvent(new Event('change', { bubbles: true }));
+        console.log('[LIVRES_XS1] Observação preenchida com "xs1".');
+        await wait(400);
+
+        // 5. Clicar no botão Salvar
+        let btnSalvar = null;
+        const modalContainer = textareaObs.closest('.mat-dialog-container') ||
+                               textareaObs.closest('.cdk-overlay-pane') ||
+                               document.body;
+
+        const botoes = modalContainer.querySelectorAll('button');
+        for (const b of botoes) {
+            const txt = (b.textContent || '').trim().toLowerCase();
+            if (txt === 'salvar' || txt.includes('salvar')) {
+                btnSalvar = b;
+                break;
+            }
+        }
+
+        if (!btnSalvar) {
+            notify('Erro: Botão Salvar não encontrado!', '#f44336', 5000);
+            console.error('[LIVRES_XS1] Botão Salvar não encontrado no modal.');
+            return;
+        }
+
+        if (btnSalvar.disabled) {
+            console.warn('[LIVRES_XS1] Botão Salvar desabilitado, aguardando...');
+            await wait(500);
+        }
+
+        btnSalvar.click();
+        console.log('[LIVRES_XS1] Botão Salvar clicado.');
+
+        if (typeof playSound === 'function') {
+            try { playSound(); } catch (e) {}
+        }
+        notify(`✅ ${selecionados} processo(s) livre(s) marcado(s) com atividade xs1!`, '#4caf50', 6000);
+
+    } catch (err) {
+        console.error('[LIVRES_XS1] Erro na execução:', err);
+        notify(`Erro ao processar: ${err.message || err}`, '#f44336', 6000);
+    }
+}
+
+/**
+ * Injeta o botão "Livres (xs1)" no Painel Global KZ
+ * (ex: https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos)
+ */
+function injetarBotaoLivresPainelGlobal() {
+    const isGlobal = /\/painel\/global\/(?:14|\d+|todos)\/lista-processos/.test(window.location.href) ||
+                     window.location.href.includes('/pjekz/painel/global/');
+    if (!isGlobal) {
+        const btnAntigo = document.getElementById('pjetools-btn-livres-xs1');
+        if (btnAntigo) btnAntigo.remove();
+        return;
+    }
+
+    if (document.getElementById('pjetools-btn-livres-xs1')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'pjetools-btn-livres-xs1';
+    btn.type = 'button';
+    btn.innerHTML = '<span style="margin-right:6px;font-size:14px;">⚡</span><span>Livres (xs1)</span>';
+    btn.title = 'Selecionar processos livres e aplicar atividade xs1 (Fluxo PRAZO)';
+    btn.style.cssText = `
+        position: fixed;
+        top: 65px;
+        right: 25px;
+        z-index: 99999;
+        background: linear-gradient(135deg, #1b5e20, #2e7d32);
+        color: #ffffff;
+        border: 2px solid #a5d6a7;
+        border-radius: 20px;
+        padding: 7px 16px;
+        font-size: 13px;
+        font-weight: bold;
+        font-family: Roboto, "Helvetica Neue", sans-serif;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: all 0.2s ease-in-out;
+        user-select: none;
+        display: flex;
+        align-items: center;
+    `;
+
+    btn.addEventListener('mouseenter', () => {
+        btn.style.transform = 'scale(1.05)';
+        btn.style.boxShadow = '0 6px 16px rgba(0,0,0,0.35)';
+        btn.style.background = 'linear-gradient(135deg, #2e7d32, #388e3c)';
+    });
+    btn.addEventListener('mouseleave', () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+        btn.style.background = 'linear-gradient(135deg, #1b5e20, #2e7d32)';
+    });
+
+    btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.disabled) return;
+
+        btn.disabled = true;
+        const htmlOriginal = btn.innerHTML;
+        btn.innerHTML = '<span style="margin-right:6px;">⏳</span><span>Executando...</span>';
+        btn.style.opacity = '0.85';
+
+        try {
+            await executarLivresXs1();
+        } finally {
+            btn.innerHTML = htmlOriginal;
+            btn.style.opacity = '1';
+            btn.disabled = false;
+        }
+    });
+
+    document.body.appendChild(btn);
+    console.log('[ATALHOS] Botão "Livres (xs1)" inserido no Painel Global.');
+}
+
+/**
+ * Monitora navegação SPA e mutações no DOM para manter o botão presente
+ * apenas nas rotas do painel global de processos.
+ */
+function iniciarMonitorPainelGlobal() {
+    if (window.__pjeAtalhosMonitorIniciado) return;
+    window.__pjeAtalhosMonitorIniciado = true;
+
+    // Tentativa imediata
+    setTimeout(injetarBotaoLivresPainelGlobal, 1000);
+
+    // Observa mutações de rota ou renderização assíncrona do Angular
+    const observer = new MutationObserver(() => {
+        injetarBotaoLivresPainelGlobal();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Observa navegação SPA via histórico
+    window.addEventListener('popstate', () => {
+        setTimeout(injetarBotaoLivresPainelGlobal, 500);
+    });
+    window.addEventListener('hashchange', () => {
+        setTimeout(injetarBotaoLivresPainelGlobal, 500);
+    });
+}
+
+// Inicializa o monitor no carregamento do arquivo
+iniciarMonitorPainelGlobal();
+
+// Exposição pública de APIs
+window.selecionarProcessosLivres = selecionarProcessosLivres;
+window.executarLivresXs1 = executarLivresXs1;
+window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
 

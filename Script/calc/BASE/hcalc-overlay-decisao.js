@@ -366,6 +366,13 @@
                     });
                 }
 
+                const passivoCount = (window.hcalcPartesData?.passivo || []).length;
+                const recJudicialUnica = (passivoCount <= 1 && !!document.getElementById('resp-rec-judicial-unica')?.checked);
+                const temRecJudicial = document.querySelector('#resp-principais-dinamico-container .chk-principal-rec:checked') !== null
+                    || recJudicialUnica
+                    || document.querySelector('#resp-subsidiarias-integral-dinamico-container .chk-subs-int-rec:checked') !== null;
+                const isUnicaRecJudicial = temRecJudicial && passivoCount <= 1;
+
                 if ($('custas-status').value === 'recurso') {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Custas pagas no feito principal, em razão de recurso.</p>`;
                 } else if ($('custas-status').value === 'pagas') {
@@ -375,23 +382,20 @@
                     const origemCustas = $('custas-origem').value;
 
                     if (valC && valC !== '0,00' && valC !== '0') {
+                        const termoCustasResp = isUnicaRecJudicial ? ', isentas, diante da recuperação judicial/falência,' : ' pela reclamada,';
                         if (origemCustas === 'acordao') {
                             const acordaoSel = $('custas-acordao-select').selectedOptions[0];
                             const dataAcordao = acordaoSel?.dataset?.data || '[DATA ACÓRDÃO]';
                             const idAcordao = acordaoSel?.dataset?.id || '';
                             const idTexto = idAcordao ? ` #${bold(idAcordao)}` : '';
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Custas definidas em acórdão${idTexto}, pela reclamada, no valor de ${bold('R$' + valC)} para ${bold(dataAcordao)}.</p>`;
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Custas definidas em acórdão${idTexto}${termoCustasResp} no valor de ${bold('R$' + valC)} para ${bold(dataAcordao)}.</p>`;
                         } else {
                             const dataCustas = $('custas-data-origem').value || valData;
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Custas de ${bold('R$' + valC)} pela reclamada, para ${bold(dataCustas)}.</p>`;
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Custas de ${bold('R$' + valC)}${termoCustasResp} para ${bold(dataCustas)}.</p>`;
                         }
                     }
                 }
 
-                const passivoCount = (window.hcalcPartesData?.passivo || []).length;
-                const temRecJudicial = document.querySelector('#resp-principais-dinamico-container .chk-principal-rec:checked') !== null
-                    || (passivoCount === 1 && document.getElementById('resp-rec-judicial-unica')?.checked)
-                    || document.querySelector('#resp-subsidiarias-integral-dinamico-container .chk-subs-int-rec:checked') !== null;
                 if (temRecJudicial && passivoCount > 1) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Considerando o notório estado de insolvência da devedora principal, direciono a execução neste ato.</p>`;
                 }

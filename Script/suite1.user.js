@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Suite1
 // @namespace    pjetools
-// @version      1.0.1
+// @version      1.0.2
 // @description  Orquestrador enxuto: Elaboração de Alvará + Argos + Homologação de Cálculos (hcalc)
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/suite1.user.js
@@ -116,7 +116,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-depositos.js?v=3179&t=202608290040
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-responsabilidades.js?v=3179&t=202608290040
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-partes.js?v=3181&t=202608290040
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-decisao.js?v=3184&t=202610221530
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-decisao.js?v=3185&t=202610221545
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=3184&t=202610221530
 // ==/UserScript==
 

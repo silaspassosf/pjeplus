@@ -656,8 +656,8 @@
                             <div style="display: flex; flex-direction: column; gap: 8px;">
                                 <div id="fgts-radios" style="display: flex; align-items: center; gap: 12px;">
                                     <label style="font-size: 11px; font-weight: bold; margin: 0; color: #555;">Situação:</label>
-                                    <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="devido"> Devido</label>
-                                    <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="depositado" checked> Já depositado e com guias</label>
+                                    <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
+                                    <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="depositado"> Já depositado e com guias</label>
                                 </div>
                                 <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;">
                                     <input type="checkbox" id="calc-fgts-alvara"> Dispensa imotivada? (Alvará)

@@ -392,7 +392,7 @@
                 const temRecJudicial = document.querySelector('#resp-principais-dinamico-container .chk-principal-rec:checked') !== null
                     || (passivoCount === 1 && document.getElementById('resp-rec-judicial-unica')?.checked)
                     || document.querySelector('#resp-subsidiarias-integral-dinamico-container .chk-subs-int-rec:checked') !== null;
-                if (temRecJudicial) {
+                if (temRecJudicial && passivoCount > 1) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Considerando o notório estado de insolvência da devedora principal, direciono a execução neste ato.</p>`;
                 }
 
@@ -618,65 +618,103 @@
                         return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
                     };
 
-                    const elsOpcoes = document.querySelectorAll('.sel-modo-intimacao');
-                    const grpDiario = [];
-                    const grpMandado = [];
-                    const grpEdital = [];
-                    const isSubsidiaria = $('resp-subsidiarias')?.checked;
-                    const principaisSet = new Set();
+                    const passivoTotal = (window.hcalcPartesData?.passivo || []).length;
+                    const recJudicialUnica = (passivoTotal <= 1 && !!document.getElementById('resp-rec-judicial-unica')?.checked);
+                    const temRecJudicialLocal = document.querySelector('#resp-principais-dinamico-container .chk-principal-rec:checked') !== null
+                        || recJudicialUnica
+                        || document.querySelector('#resp-subsidiarias-integral-dinamico-container .chk-subs-int-rec:checked') !== null;
 
-                    if (isSubsidiaria) {
-                        // Ler do container oficial de principais para não conflitar com intimações
+                    // 2-a: Se ela é a única reclamada e está em falência / recuperação judicial:
+                    if (temRecJudicialLocal && passivoTotal <= 1) {
+                        const selModo = document.querySelector('.sel-modo-intimacao')?.value || $('sel-intimacao-manual')?.value || 'diario';
+                        let meioTexto = 'diário oficial';
+                        if (selModo === 'mandado') meioTexto = 'mandado';
+                        else if (selModo === 'edital') meioTexto = 'edital';
+                        else if (selModo === 'postal') meioTexto = 'via postal';
+                        else if (selModo === 'diario') meioTexto = 'diário oficial';
+
+                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Intime-se as partes para ciência, a reclamada via ${meioTexto}. Após, expeça-se certidão de habilitação de crédito ao reclamante e se sobreste o feito já na execução.</p>`;
+                    } else {
+                        const elsOpcoes = document.querySelectorAll('.sel-modo-intimacao');
+                        const grpDiario = [];
+                        const grpMandado = [];
+                        const grpEdital = [];
+                        const isSubsidiaria = $('resp-subsidiarias')?.checked;
+                        const principaisSet = new Set();
+                        const recJudSet = new Set();
+
                         document.querySelectorAll('#resp-principais-dinamico-container .principal-item').forEach((item) => {
                             const nome = item.getAttribute('data-nome');
-                            if (nome) principaisSet.add(nome);
-                        });
-                    }
-
-                    if (elsOpcoes.length > 0) {
-                        elsOpcoes.forEach((sel) => {
-                            const nome = sel.getAttribute('data-nome');
-                            const v = sel.value;
-
-                            if (isSubsidiaria && !principaisSet.has(nome)) {
-                                return;
+                            if (nome) {
+                                principaisSet.add(nome);
+                                if (item.querySelector('.chk-principal-rec')?.checked) {
+                                    recJudSet.add(nome);
+                                }
                             }
-
-                            if (temRecJudicial && principaisSet.has(nome)) {
-                                return;
-                            }
-
-                            if (v === 'diario') grpDiario.push(nome);
-                            else if (v === 'mandado') grpMandado.push(nome);
-                            else if (v === 'edital') grpEdital.push(nome);
                         });
-                    } else {
-                        const valManual = $('sel-intimacao-manual')?.value || 'diario';
-                        const nomeManual = $('int-nome-parte-manual')?.value || '[RECLAMADA]';
-                        if (valManual === 'diario') grpDiario.push(nomeManual);
-                        else if (valManual === 'mandado') grpMandado.push(nomeManual);
-                        else if (valManual === 'edital') grpEdital.push(nomeManual);
-                    }
+                        document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-int-item').forEach((item) => {
+                            const nome = item.getAttribute('data-nome');
+                            if (nome && item.querySelector('.chk-subs-int-rec')?.checked) {
+                                recJudSet.add(nome);
+                            }
+                        });
 
-                    if (grpDiario.length > 0) {
-                        const alvoComAdv = formatarListaPartes(grpDiario);
-                        const verboComAdv = grpDiario.length > 1 ? 'Intimem-se as reclamadas' : 'Intime-se a reclamada';
-                        const patronoTxt = grpDiario.length > 1 ? 'seus patronos' : 'seu patrono';
-                        const tipoValores = houveDepositoDireto ? 'valores remanescentes' : 'valores acima indicados';
-                        const verboPagamento = $('chk-cumprimento')?.checked ? 'para GARANTIR(em) os' : 'para que pague(m) os';
-                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${houveDepositoDireto ? 'Após referida atualização, ' : ''}${verboComAdv} ${bold(alvoComAdv)}, na pessoa de ${patronoTxt}, ${verboPagamento} ${tipoValores} em 15 dias, na forma do art. 523, caput, do CPC, sob pena de penhora.</p>`;
-                    }
+                        const todasPrincipaisComRecJud = principaisSet.size > 0 && Array.from(principaisSet).every(p => recJudSet.has(p));
 
-                    if (grpMandado.length > 0) {
-                        const alvoMand = formatarListaPartes(grpMandado);
-                        const verboMand = grpMandado.length > 1 ? 'Intimem-se as reclamadas' : 'Intime-se a reclamada';
-                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${verboMand} ${bold(alvoMand)} para pagamento dos valores acima em 48 (quarenta e oito) horas, sob pena de penhora, expedindo-se o competente ${bold('mandado')}.</p>`;
-                    }
+                        if (elsOpcoes.length > 0) {
+                            elsOpcoes.forEach((sel) => {
+                                const nome = sel.getAttribute('data-nome');
+                                const v = sel.value;
 
-                    if (grpEdital.length > 0) {
-                        const alvoEdit = formatarListaPartes(grpEdital);
-                        const verboEdit = grpEdital.length > 1 ? 'Citem-se as reclamadas' : 'Cite-se a reclamada';
-                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${verboEdit} ${bold(alvoEdit)}, por ${bold('edital')}, para pagamento dos valores acima em 48 (quarenta e oito) horas, sob pena de penhora.</p>`;
+                                // Reclamada em recuperação judicial / falência NÃO é intimada para pagar sob pena de penhora
+                                if (recJudSet.has(nome)) {
+                                    return;
+                                }
+
+                                if (isSubsidiaria) {
+                                    // Se todas as principais estão em recuperação judicial, redireciona para as outras (subsidiárias)
+                                    if (todasPrincipaisComRecJud) {
+                                        if (principaisSet.has(nome)) return;
+                                    } else {
+                                        // Caso normal: intima apenas as principais
+                                        if (!principaisSet.has(nome)) return;
+                                    }
+                                }
+
+                                if (v === 'diario') grpDiario.push(nome);
+                                else if (v === 'mandado') grpMandado.push(nome);
+                                else if (v === 'edital') grpEdital.push(nome);
+                            });
+                        } else {
+                            const valManual = $('sel-intimacao-manual')?.value || 'diario';
+                            const nomeManual = $('int-nome-parte-manual')?.value || '[RECLAMADA]';
+                            if (!recJudSet.has(nomeManual)) {
+                                if (valManual === 'diario') grpDiario.push(nomeManual);
+                                else if (valManual === 'mandado') grpMandado.push(nomeManual);
+                                else if (valManual === 'edital') grpEdital.push(nomeManual);
+                            }
+                        }
+
+                        if (grpDiario.length > 0) {
+                            const alvoComAdv = formatarListaPartes(grpDiario);
+                            const verboComAdv = grpDiario.length > 1 ? 'Intimem-se as reclamadas' : 'Intime-se a reclamada';
+                            const patronoTxt = grpDiario.length > 1 ? 'seus patronos' : 'seu patrono';
+                            const tipoValores = houveDepositoDireto ? 'valores remanescentes' : 'valores acima indicados';
+                            const verboPagamento = $('chk-cumprimento')?.checked ? 'para GARANTIR(em) os' : 'para que pague(m) os';
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${houveDepositoDireto ? 'Após referida atualização, ' : ''}${verboComAdv} ${bold(alvoComAdv)}, na pessoa de ${patronoTxt}, ${verboPagamento} ${tipoValores} em 15 dias, na forma do art. 523, caput, do CPC, sob pena de penhora.</p>`;
+                        }
+
+                        if (grpMandado.length > 0) {
+                            const alvoMand = formatarListaPartes(grpMandado);
+                            const verboMand = grpMandado.length > 1 ? 'Intimem-se as reclamadas' : 'Intime-se a reclamada';
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${verboMand} ${bold(alvoMand)} para pagamento dos valores acima em 48 (quarenta e oito) horas, sob pena de penhora, expedindo-se o competente ${bold('mandado')}.</p>`;
+                        }
+
+                        if (grpEdital.length > 0) {
+                            const alvoEdit = formatarListaPartes(grpEdital);
+                            const verboEdit = grpEdital.length > 1 ? 'Citem-se as reclamadas' : 'Cite-se a reclamada';
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${verboEdit} ${bold(alvoEdit)}, por ${bold('edital')}, para pagamento dos valores acima em 48 (quarenta e oito) horas, sob pena de penhora.</p>`;
+                        }
                     }
                 }
             };

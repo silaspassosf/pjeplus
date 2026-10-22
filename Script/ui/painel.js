@@ -33,7 +33,7 @@
             `gap:8px;padding-bottom:0;`;
 
         const textoTitulo = document.createElement('span');
-        textoTitulo.textContent = '🛠️ PJeTools v1.2';
+        textoTitulo.textContent = '🛠️ PJeTools v2.6.22';
 
         const setaToggle = document.createElement('span');
         setaToggle.id = 'pjetools-painel-seta';
@@ -98,7 +98,10 @@
                 setaToggle.textContent = '▲';
                 titulo.title = 'Clique para recolher ferramentas';
             }
+            console.log('[Painel] Estado atualizado. Recolhido:', recolhido);
         }
+
+        atualizarEstado();
 
         titulo.onclick = () => {
             if (moved) return;

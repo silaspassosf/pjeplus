@@ -65,6 +65,13 @@ from .core import (
     driver_sisbajud,
     login_automatico_sisbajud,
     login_manual_sisbajud,
+    salvar_cookies_sisbajud,
+    carregar_cookies_sisbajud,
+    salvar_sessao_sisbajud,
+    restaurar_sessao_sisbajud,
+    verificar_e_aplicar_cookies_sisbajud,
+    USAR_COOKIES_AUTOMATICO,
+    SALVAR_COOKIES_AUTOMATICO,
     processar_bloqueios,  # usado internamente por executar_sisbajud_completo
     minuta_bloqueio,
     minuta_bloqueio_60,
@@ -578,6 +585,13 @@ __all__ = [
     'driver_sisbajud',
     'login_automatico_sisbajud',
     'login_manual_sisbajud',
+    'salvar_cookies_sisbajud',
+    'carregar_cookies_sisbajud',
+    'salvar_sessao_sisbajud',
+    'restaurar_sessao_sisbajud',
+    'verificar_e_aplicar_cookies_sisbajud',
+    'USAR_COOKIES_AUTOMATICO',
+    'SALVAR_COOKIES_AUTOMATICO',
 
     # Utils
     'criar_js_otimizado',

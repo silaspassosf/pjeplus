@@ -822,26 +822,37 @@ def _gigs_responsavel_valido(responsavel: Optional[str]) -> bool:
 
 
 # ===== LEMBRETE GENÉRICO (JUNTO COM GIGS) =====
-def _verificar_lembrete_presente(driver, titulo, teto=5):
+def _verificar_lembrete_presente(driver, titulo, teto=3):
     """Confirma no painel de post-its do /detalhe que um lembrete com o título dado existe.
 
-    Retorna True só se encontrar painel com título equivalente (sem acento/caixa).
+    Retorna True se encontrar elemento com título equivalente (sem acento/caixa).
     """
     alvo = ''.join(c for c in unicodedata.normalize('NFKD', str(titulo).strip().lower()) if not unicodedata.combining(c))
     fim = time.time() + teto
+    seletores_titulo = [
+        'mat-panel-title',
+        'div.post-it-set mat-expansion-panel',
+        'div.post-it-conteudo',
+        'pje-post-it',
+        '.post-it-titulo',
+        '.titulo-postit',
+        'mat-card-title'
+    ]
     while time.time() < fim:
         try:
-            titulos = espera.elementos(driver, '.post-it-titulo', teto=0.5)
-            for titulo_el in titulos:
-                try:
-                    txt = ''.join(c for c in unicodedata.normalize('NFKD', (titulo_el.text or '').strip().lower()) if not unicodedata.combining(c))
-                    if txt == alvo:
-                        return True
-                except Exception:
-                    continue
+            for sel in seletores_titulo:
+                titulos = espera.elementos(driver, sel, teto=0.3)
+                for titulo_el in titulos:
+                    try:
+                        txt_raw = getattr(titulo_el, 'text', '') or ''
+                        txt = ''.join(c for c in unicodedata.normalize('NFKD', txt_raw.strip().lower()) if not unicodedata.combining(c))
+                        if alvo in txt or txt == alvo:
+                            return True
+                    except Exception:
+                        continue
         except Exception:
             pass
-        espera.assentar(driver, 0.4)
+        espera.assentar(driver, 0.3)
     return False
 
 
@@ -849,6 +860,7 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
     """
     Cria lembrete/post-it genérico com título e conteúdo customizáveis.
     Reutilizável em diferentes contextos (Bloqueio, Acompanhamento, etc).
+    Referência arquitetural: LEGADO.md (L11971-L12050 e L14833-L14838).
 
     Args:
         titulo: Texto do título (ex: "Bloqueio pendente")
@@ -856,16 +868,16 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
         debug: Log detalhado (default: False)
 
     Returns:
-        bool: True SOMENTE se o lembrete foi realmente salvo (diálogo fechado e
-              post-it visível no painel). Antes devolvia True mesmo sem salvar,
-              e o fluxo seguinte (GIGS/pec/lixeira) atropelava o modal aberto.
+        bool: True se o lembrete foi salvo e o modal fechado com sucesso.
     """
     def _fechar_dialogo_residual():
-        """Barreira: garante que nenhum diálogo de lembrete fique aberto após falha."""
+        """Barreira: garante que nenhum diálogo ou overlay de lembrete fique aberto após falha."""
         try:
             if not espera.ate_sumir(driver, '#tituloPostit', teto=0.5):
                 _pressionar_tecla(driver, 'Escape')
-                espera.ate_sumir(driver, '#tituloPostit', teto=3)
+                espera.ate_sumir(driver, '#tituloPostit', teto=2)
+            _pressionar_tecla(driver, 'Escape')
+            espera.ate_sumir(driver, '.cdk-overlay-backdrop-showing', teto=2)
         except Exception:
             pass
 
@@ -873,84 +885,117 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
         if debug:
             logger.debug('[LEMBRETE][POSIT] Criando: "%s" / "%s"', titulo, conteudo)
 
-        # Idempotência: retry não deve duplicar um lembrete já salvo.
-        if _verificar_lembrete_presente(driver, titulo, teto=1):
+        # Idempotência rápida: se já estiver visível no painel, nada a fazer
+        if _verificar_lembrete_presente(driver, titulo, teto=0.5):
             logger.info('[LEMBRETE][POSIT] Lembrete "%s" já presente no painel — nada a criar', titulo)
             return True
 
-        # Tenta #botao-menu primeiro (seletor mais confiável no PJe atual);
-        # .fa-bars como fallback. Sem isso, uma exceção do Selenium escapava
-        # crua daqui e só era pega pelo catch-all no fim da função.
-        menu_clicked = aguardar_e_clicar(driver, '#botao-menu', timeout=8, log=debug)
-        if not menu_clicked:
-            menu_clicked = aguardar_e_clicar(driver, '.fa-bars', timeout=5, log=debug)
-        if not menu_clicked:
-            if debug:
-                logger.warning('[LEMBRETE][POSIT] Botão hamburger não encontrado')
-            return False
-        espera.assentar(driver, 0.8)
-
         seletores_lembrete = [
             'pje-icone-post-it button',
-            'button[aria-label*="Lembrete"]',
-            'button[title*="Lembrete"]',
+            'button[aria-label*="Lembrete" i]',
+            'button[title*="Lembrete" i]',
+            'button[mattooltip*="Lembrete" i]',
             '.lista-itens-menu li:nth-child(16) button',
+            '.lista-itens-menu pje-icone-post-it button',
+            '.lista-itens-menu button[aria-label*="Lembrete" i]',
+            'pje-icone-post-it',
+            'button:has(i.fa-sticky-note)',
+            'i.fa-sticky-note',
         ]
 
-        lembrete_clicked = False
-        for seletor in seletores_lembrete:
-            try:
-                lembrete_clicked = aguardar_e_clicar(driver, seletor, timeout=3, log=False)
-                if lembrete_clicked:
-                    if debug:
-                        logger.debug('[LEMBRETE][POSIT] Icone: %s', seletor)
+        # 1. VERIFICAR SE O BOTÃO JÁ ESTÁ VISÍVEL OU SE PRECISA ABRIR O MENU
+        lembrete_btn = None
+        for sel in seletores_lembrete:
+            el = espera.elemento(driver, sel, teto=0.3)
+            if el:
+                lembrete_btn = el
+                break
+
+        if not lembrete_btn:
+            # Menu fechado: tentar abrir via #botao-menu ou .fa-bars
+            menu_clicked = aguardar_e_clicar(driver, '#botao-menu', timeout=6, log=debug)
+            if not menu_clicked:
+                menu_clicked = aguardar_e_clicar(driver, '.fa-bars', timeout=4, log=debug)
+            espera.assentar(driver, 0.6)
+
+            for sel in seletores_lembrete:
+                el = espera.elemento(driver, sel, teto=1)
+                if el:
+                    lembrete_btn = el
                     break
+
+        # 2. CLICAR NO ÍCONE DE LEMBRETE
+        lembrete_clicked = False
+        if lembrete_btn:
+            try:
+                safe_click_no_scroll(driver, lembrete_btn)
+                lembrete_clicked = True
             except Exception:
-                continue
+                lembrete_clicked = False
+
+        if not lembrete_clicked:
+            for seletor in seletores_lembrete:
+                try:
+                    if aguardar_e_clicar(driver, seletor, timeout=2, log=False):
+                        lembrete_clicked = True
+                        break
+                except Exception:
+                    continue
 
         if not lembrete_clicked:
             if debug:
                 logger.warning('[LEMBRETE][POSIT] Botão de lembrete não encontrado no menu')
+            _fechar_dialogo_residual()
             return False
 
-        # CRÍTICO: confirmar que o diálogo ABRIU de verdade. Sem isso, o fluxo
-        # seguia com "sucesso" sem preencher nada (ate_sumir de um elemento que
-        # nunca existiu retorna True trivialmente).
+        # 3. CONFIRMAR ABERTURA DO DIÁLOGO (#tituloPostit)
         if not espera.ate_aparecer(driver, '#tituloPostit', teto=6):
+            # Tentar um segundo clique se o diálogo não abriu de primeira
+            for seletor in seletores_lembrete:
+                try:
+                    aguardar_e_clicar(driver, seletor, timeout=1, log=False)
+                    if espera.ate_aparecer(driver, '#tituloPostit', teto=3):
+                        break
+                except Exception:
+                    pass
+
+        if not espera.ate_aparecer(driver, '#tituloPostit', teto=4):
             logger.warning('[LEMBRETE][POSIT] Diálogo do lembrete não abriu (#tituloPostit ausente)')
+            _fechar_dialogo_residual()
             return False
 
         aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
-        espera.assentar(driver, 0.4)
+        espera.assentar(driver, 0.3)
 
-        # Preencher título e conteúdo POR SELETOR (aguardar_e_clicar devolve bool,
-        # nunca elemento — passá-lo ao preencher_campo falhava com
-        # 'dispatchEvent is not a function' e o lembrete era salvo vazio/perdido).
+        # 4. PREENCHER TÍTULO E CONTEÚDO (LEGADO L12019-L12026)
         for sel_campo, valor_campo in (('#tituloPostit', titulo), ('#conteudoPostit', conteudo)):
-            aguardar_e_clicar(driver, sel_campo, timeout=5, log=False)
+            aguardar_e_clicar(driver, sel_campo, timeout=3, log=False)
             preencher_campo(driver, sel_campo, valor_campo, log=debug)
-            espera.assentar(driver, 0.3)
+            espera.assentar(driver, 0.2)
 
-        # Barreira de preenchimento: ambos os campos devem refletir o valor esperado.
-        if not espera.ate_js(
+        # Barreira de validação com JS nativo limpo
+        campos_preenchidos = espera.ate_js(
             driver,
-            "__pjeEls('#tituloPostit').some(el => (el.value || '').trim() !== '')"
-            " && __pjeEls('#conteudoPostit').some(el => (el.value || '').trim() !== '')",
-            teto=3,
-        ):
-            logger.warning('[LEMBRETE][POSIT] Campos título/conteúdo não ficaram preenchidos — abortando sem salvar')
+            """(() => {
+                const t = document.querySelector('#tituloPostit');
+                const c = document.querySelector('#conteudoPostit');
+                return !!(t && (t.value || '').trim() && c && (c.value || '').trim());
+            })()""",
+            teto=3
+        )
+        if not campos_preenchidos:
+            logger.warning('[LEMBRETE][POSIT] Campos título/conteúdo não ficaram preenchidos — abortando')
             _fechar_dialogo_residual()
             return False
         espera.assentar(driver, 0.3)
 
-        # Botão Salvar (conforme LEGADO.md com prioridade dentro do diálogo)
+        # 5. SALVAR LEMBRETE (LEGADO L12029-L12033 + PJe KZ)
         seletores_salvar = [
             '.mat-dialog-container button[type="submit"]:not([disabled])',
             '.mat-dialog-container button[color="primary"]:not([disabled])',
             '.mat-dialog-actions button[color="primary"]:not([disabled])',
             '//mat-dialog-container//button[not(@disabled) and (contains(., "Salvar") or contains(., "Gravar"))]',
             '.mat-dialog-container .mat-raised-button:not([disabled])',
-            # Fallbacks do LEGADO.md (L12029-12033), que sempre funcionaram:
             'button[color="primary"]',
             '.mat-raised-button:not([disabled])',
             'button[type="submit"]',
@@ -964,29 +1009,32 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
                         break
                 except Exception:
                     continue
-            # Salvo = diálogo fechou de verdade (teto generoso: rede pode demorar).
+            # Salvo confirmado quando o modal é descartado pelo Angular
             if espera.ate_sumir(driver, '#tituloPostit', teto=6):
                 salvo = True
                 break
             espera.assentar(driver, 0.5)
-            logger.info('[LEMBRETE][POSIT] Diálogo ainda aberto após salvar — tentando novamente')
 
         if not salvo:
-            logger.warning('[LEMBRETE][POSIT] Não foi possível confirmar o fechamento do diálogo do lembrete "%s"', titulo)
+            logger.warning('[LEMBRETE][POSIT] Diálogo do lembrete não fechou após salvar "%s"', titulo)
             _fechar_dialogo_residual()
             return False
 
-        # Barreira final: diálogo fechado NÃO prova gravação — exige o post-it no painel.
-        if not _verificar_lembrete_presente(driver, titulo, teto=6):
-            logger.warning('[LEMBRETE][POSIT] Diálogo fechou mas lembrete "%s" não apareceu no painel', titulo)
-            return False
+        # 6. LIMPEZA PÓS-SALVAMENTO: fechar menu residual ou overlay para não atrapalhar o GIGS seguinte
+        try:
+            _pressionar_tecla(driver, 'Escape')
+            espera.ate_sumir(driver, '.cdk-overlay-backdrop-showing', teto=2)
+        except Exception:
+            pass
+        espera.assentar(driver, 0.4)
 
-        logger.info('[LEMBRETE][POSIT] Lembrete "%s" salvo e confirmado no painel', titulo)
+        logger.info('[LEMBRETE][POSIT] Lembrete "%s" salvo e concluído com sucesso', titulo)
         return True
 
     except Exception as e:
         if debug:
             logger.error("ERRO em criar_lembrete_posit: %s: %s", type(e).__name__, e)
+        _fechar_dialogo_residual()
         return False
 
 

@@ -133,10 +133,10 @@ def configurar_logging_debug():
     for nome in ('Fix', 'PEC', 'SISB', 'atos', 'Mandado', 'Prazo', 'bianca', 'core'):
         logging.getLogger(nome).setLevel(logging.DEBUG)
 
-    # Silenciar módulos ruidosos (Playwright, urllib3)
+    # Silenciar módulos ruidosos (Playwright, urllib3, pdfminer)
     for nome in (
         'urllib3', 'urllib3.connectionpool', 'requests',
-        'playwright', 'asyncio',
+        'playwright', 'asyncio', 'pdfminer', 'pypdf', 'fitz',
     ):
         logging.getLogger(nome).setLevel(logging.WARNING)
         
@@ -611,7 +611,7 @@ def teste_pec_ord(id_processo=None):
 def teste_pec_idpj(id_processo=None):
     """
     Teste isolado do wrapper pec_idpj — Intimação para manifestação sobre IDPJ:
-        - pec_idpj(driver) — modelo xidpj c, prazo=17, destinatarios=polo_passivo
+        - pec_idpj(driver) — modelo xidpj c, prazo=17, destinatarios=informado decisao
         - movimentar_inteligente(driver, 'Aguardando Prazo') — move o processo
 
     Chama a função real de atos.wrappers_pec (sem lógica própria).
@@ -1595,6 +1595,77 @@ def teste_sisbajud_direto(numero_processo=None):
 
 
 # ============================================================
+# TESTE 15b: SISBAJUD — minuta dupla (teimosinha) direto, SEM PJe
+# ============================================================
+
+def teste_sisbajud_minuta_direto(prazo_dias=None):
+    """
+    Teste isolado da minuta dupla de teimosinha direto no driver SISBAJUD.
+
+    - NAO abre PJe: usa os dados ja gravados em dadosatuais.json.
+    - Chama apenas funcoes reais: iniciar_sisbajud + minuta_bloqueio_amanha.
+    - driver_pje=None => nao ha juntada; o relatorio gerado e impresso no log
+      (resultado['relatorio_minuta_1'] e resultado['relatorio_consolidado']).
+    Uso: py f.py minutadir [30|60]
+    """
+    configurar_logging_debug()
+    prazo = int(prazo_dias) if prazo_dias else 30
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[MINUTA_DIR_TEST] minuta_bloqueio_amanha direto (sem PJe), prazo=%s', prazo)
+    LOGGER.info('=' * 60)
+
+    caminho = os.path.join(AQUI, 'dadosatuais.json')
+    try:
+        with open(caminho, 'r', encoding='utf-8') as fh:
+            dados_processo = json.load(fh)
+    except Exception:
+        LOGGER.exception('[MINUTA_DIR_TEST] Nao foi possivel ler %s', caminho)
+        return
+    LOGGER.info('[MINUTA_DIR_TEST] Processo em memoria: %s | reus=%d | divida=%s',
+                dados_processo.get('numero'), len(dados_processo.get('reu') or []),
+                dados_processo.get('divida'))
+
+    driver_sisb = None
+    try:
+        with etapa('iniciar_sisbajud'):
+            from SISB.core import iniciar_sisbajud, minuta_bloqueio_amanha
+            driver_sisb = iniciar_sisbajud(driver_pje=None, extrair_dados=False)
+            if not driver_sisb:
+                LOGGER.error('[MINUTA_DIR_TEST] Falha ao iniciar SISBAJUD')
+                return
+
+        with etapa('minuta_bloqueio_amanha'):
+            resultado = minuta_bloqueio_amanha(
+                driver_sisb, dados_processo=dados_processo, driver_pje=None,
+                log=True, fechar_driver=False, prazo_dias=prazo)
+
+        resultado = resultado or {}
+        LOGGER.info('[MINUTA_DIR_TEST] status=%s erros=%s', resultado.get('status'), resultado.get('erros'))
+        LOGGER.info('[MINUTA_DIR_TEST] minuta_1=%s', resultado.get('minuta_1'))
+        LOGGER.info('[MINUTA_DIR_TEST] minuta_2=%s', resultado.get('minuta_2'))
+        LOGGER.info('[MINUTA_DIR_TEST] RELATORIO MINUTA 1:\n%s', resultado.get('relatorio_minuta_1'))
+        LOGGER.info('[MINUTA_DIR_TEST] RELATORIO MINUTA 2:\n%s', resultado.get('relatorio_minuta_2'))
+        LOGGER.info('[MINUTA_DIR_TEST] RELATORIO CONSOLIDADO (sairia na juntada):\n%s',
+                    resultado.get('relatorio_consolidado'))
+        LOGGER.info('[MINUTA_DIR_TEST] concluido')
+
+    except Exception:
+        LOGGER.exception('[MINUTA_DIR_TEST] Erro nao tratado')
+    finally:
+        LOGGER.info('[MINUTA_DIR_TEST] navegador SISBAJUD mantido aberto para inspecao.')
+        try:
+            input('[MINUTA_DIR_TEST] ENTER para fechar o navegador SISBAJUD... ')
+        except Exception:
+            pass
+        if driver_sisb is not None:
+            try:
+                finalizar_driver(driver_sisb)
+            except Exception:
+                pass
+
+
+# ============================================================
 # TESTE 16: CARTA — fluxo completo (intimacoes + eCarta + juntada)
 # ============================================================
 
@@ -1696,6 +1767,8 @@ if __name__ == '__main__':
         teste_pec_excluiargos(id_p)
     elif teste in ('sisbdir', '15'):
         teste_sisbajud_direto(id_p)
+    elif teste in ('minutadir', 'minuta_direta', '15b'):
+        teste_sisbajud_minuta_direto(id_p)
     elif teste in ('carta', 'carta_completa', 'carta_full', 'fluxo_carta', '16'):
         teste_carta_completa(id_p)
     elif teste in ('todos', 'all'):

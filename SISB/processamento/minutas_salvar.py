@@ -22,34 +22,55 @@ def _carregar_js(nome_arquivo, scripts_dir=None):
 
 
 def _salvar_minuta(driver):
-    """Helper para salvar a minuta."""
+    """Helper para salvar a minuta e aguardar confirmação efetiva."""
     try:
         SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
         script_salvar = _carregar_js("salvar_minuta.js", SCRIPTS_DIR)
-        salvou = driver.execute_script(script_salvar)
-        if salvou:
-            # Aguardar confirmação do salvamento: botão "Alterar" reaparece
-            # (mesmo sinal checado logo abaixo por verificar_salvamento_minuta.js)
-            espera.ate_js(
-                driver,
-                "Array.from(document.querySelectorAll('button mat-icon.fa-edit')).some("
-                "el => el.closest('button') && el.closest('button').textContent.includes('Alterar'))",
-                teto=3,
-            )
+        script_verificar = _carregar_js("verificar_salvamento_minuta.js", SCRIPTS_DIR)
 
-            # Verificar se foi salvo
-            script_verificar_salvamento = _carregar_js("verificar_salvamento_minuta.js", SCRIPTS_DIR)
-            status_salvamento = driver.execute_script(script_verificar_salvamento)
-
-            if status_salvamento == 'SALVO_COM_SUCESSO':
-                return True
-            elif status_salvamento == 'AINDA_EDITANDO':
-                return False
-            else:
-                return False
-        else:
+        logger.info('[SISBAJUD] Clicando no botão Salvar da minuta...')
+        salvou = espera._executar_script(driver, script_salvar)
+        if not salvou:
+            logger.error('[SISBAJUD] Botão Salvar não pôde ser acionado')
             return False
 
+        logger.info('[SISBAJUD] Botão Salvar clicado. Aguardando confirmação do salvamento...')
+
+        # Aguardar até 20s confirmação do salvamento (polling a cada 0.5s tolerante a navegação)
+        def _verificar_salvo(drv):
+            try:
+                st = espera._executar_script(drv, script_verificar)
+                if st == 'SALVO_COM_SUCESSO':
+                    return True
+                url = drv.current_url or ''
+                if '/cadastrar' not in url and ('/detalhar' in url or '/detalhe' in url or '/minuta/' in url):
+                    return True
+                return False
+            except Exception:
+                return False
+
+        salvo_confirmado = espera.ate(driver, _verificar_salvo, teto=20, intervalo=0.5)
+
+        url_atual = driver.current_url or ''
+        status_final = 'DESCONHECIDO'
+        try:
+            status_final = espera._executar_script(driver, script_verificar)
+        except Exception:
+            pass
+
+        logger.info(f'[SISBAJUD] Status do salvamento: {status_final} (confirmado={salvo_confirmado}, URL: {url_atual})')
+
+        if salvo_confirmado or status_final == 'SALVO_COM_SUCESSO' or ('/cadastrar' not in url_atual and ('/detalhar' in url_atual or '/detalhe' in url_atual or '/minuta/' in url_atual)):
+            logger.info('[SISBAJUD] Minuta salva com sucesso!')
+            espera.assentar(driver, 1.5, motivo="carregamento de detalhes da minuta salva")
+            return True
+
+        if status_final == 'AINDA_EDITANDO' and '/cadastrar' in url_atual:
+            logger.warning('[SISBAJUD] Formulário de minuta ainda em edição após 20s de espera')
+            return False
+
+        return False
+
     except Exception as e:
-        logger.error(f'[SISBAJUD]  Erro ao salvar minuta: {e}')
+        logger.error(f'[SISBAJUD] Erro ao salvar minuta: {e}')
         return False

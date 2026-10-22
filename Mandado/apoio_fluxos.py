@@ -86,13 +86,13 @@ __all__ = [
 # ════════════════════════════════════════
 
 def lembrete_bloq(driver: Any, debug: bool = False) -> bool:
-    """Wrapper compatível - delegado para criar_lembrete_posit genérico."""
-    return criar_lembrete_posit(
-        driver,
-        titulo="Bloqueio pendente",
-        conteudo="processar após IDPJ",
-        debug=debug
-    )
+    """Cria GIGS de bloqueio com apenas observação 'BLOQUEIO - processar após IDPJ' (sem prazo ou responsável)."""
+    try:
+        from Fix.extracao import criar_gigs
+        return bool(criar_gigs(driver, '', '', 'BLOQUEIO - processar após IDPJ', log=debug))
+    except Exception as e:
+        logger.warning(f'[MANDADO][GIGS_BLOQ] Erro ao criar GIGS de bloqueio: {e}')
+        return False
 
 
 # ════════════════════════════════════════
@@ -315,6 +315,7 @@ def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[s
             return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
 
         id_certidao = None
+        candidatas = []
         for doc in timeline:
             if not isinstance(doc, dict):
                 continue
@@ -325,10 +326,13 @@ def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[s
                 continue
             t = _norm(doc.get('tipo', '')) + ' ' + _norm(doc.get('titulo', ''))
             if 'certid' in t and 'devolu' in t:
-                id_certidao = doc_id
-                if log:
-                    logger.info('[CERTIDAO_API] Certidão encontrada: uid=%s', id_certidao)
-                break
+                candidatas.append((doc_id, str(doc.get('data') or doc.get('dataInclusao') or '')[:19], str(doc.get('titulo') or '')[:60]))
+                if id_certidao is None:
+                    id_certidao = doc_id
+                    if log:
+                        logger.info('[CERTIDAO_API] Certidão encontrada: uid=%s', id_certidao)
+        if log and len(candidatas) > 1:
+            logger.warning('[CERTIDAO_API] %d certidões de devolução na timeline (usando a 1ª): %s', len(candidatas), candidatas[:5])
 
         if not id_certidao:
             if log:
@@ -355,6 +359,14 @@ def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[s
         if texto_total:
             if log:
                 logger.info('[CERTIDAO_API] Texto extraído: %d chars', len(texto_total))
+            try:
+                import os as _os
+                _dir = _os.path.join('logs_execucao', 'certidoes')
+                _os.makedirs(_dir, exist_ok=True)
+                with open(_os.path.join(_dir, f'{id_processo}_{id_certidao}.txt'), 'w', encoding='utf-8') as _f:
+                    _f.write(texto_total)
+            except Exception:
+                pass
             return texto_total
         else:
             if log:
@@ -1198,8 +1210,11 @@ def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=Tr
 # ════════════════════════════════════════
 
 # Controla se o fluxo de "outros" pode automaticamente invocar atos
-# Defina a variável de ambiente PJE_ALLOW_MANDADO_ATOS=1 para permitir
-ALLOW_MANDADO_ATOS = os.environ.get('PJE_ALLOW_MANDADO_ATOS', '0').lower() in ('1', 'true', 'yes', 'y')
+# Defina a variável de ambiente PJE_ALLOW_MANDADO_ATOS=0 para desabilitar
+def _allow_mandado_atos() -> bool:
+    return os.environ.get('PJE_ALLOW_MANDADO_ATOS', '1').lower() in ('1', 'true', 'yes', 'y')
+
+ALLOW_MANDADO_ATOS = _allow_mandado_atos()
 
 # Motor de regras da certidão de Oficial de Justiça (fluxo Outros/não-Argos).
 # Texto de entrada já passa por remover_acentos() antes do match — por isso os
@@ -1212,7 +1227,20 @@ PADRAO_POSITIVO = (
     "citei",
     "intimei",
     "recebeu o mandado",
+    "ficou ciente",
     "de tudo ficou ciente",
+    "onde citei",
+    "onde intimei",
+    "ocasiao em que citei",
+    "ocasiao em que intimei",
+    "ato continuo, citei",
+    "ato continuo citei",
+    "ato continuo, intimei",
+    "ato continuo intimei",
+    "ali, citei",
+    "ali citei",
+    "ali, intimei",
+    "ali intimei",
     "procedi a intimacao",
     "procedi a citacao",
     "procedi a entrega do mandado",
@@ -1229,6 +1257,7 @@ PADRAO_POSITIVO = (
 # _executar_acoes_padrao_negativo / arquivar_mandado_outros_reconhecido).
 PADRAO_HIPOTESE_NEGATIVA_PENHORA = (
     "deixei de proceder a penhora",
+    "deixo de realizar a penhora",
     "penhora negativa",
     "nao encontrei bens",
     "padrao de vida",
@@ -1237,6 +1266,9 @@ PADRAO_HIPOTESE_NEGATIVA_PENHORA = (
 )
 
 PADRAO_NEGATIVO = (
+    "certidao negativa",
+    "citacao negativa",
+    "intimacao negativa",
     "nao localizado",
     "resultado negativo",
     "diligencias negativas",
@@ -1247,8 +1279,12 @@ PADRAO_NEGATIVO = (
     "deixei de comparecer",
     "deixei de intimar",
     "deixei de penhorar",
+    "deixo de realizar",
     "nao logrei exito",
     "desconhecido no local",
+    "desconhecida no local",
+    "nao esta instalada",
+    "nao estava instalada",
     "nao foi possivel efetuar",
     "parou de responder",
     "nao foi possivel localizar",
@@ -1378,20 +1414,35 @@ def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = T
             if log:
                 logger.info(f'[MANDADOS][OUTROS] ato_meios() já executado para esta certidão — pulando novo acionamento ({motivo})')
             return
-        if not ALLOW_MANDADO_ATOS:
+        if not _allow_mandado_atos():
             logger.info(f'[MANDADOS][OUTROS] atos automáticos desabilitados (PJE_ALLOW_MANDADO_ATOS=0) — pulando ato_meios() ({motivo})')
             return
         aba_atual = driver.current_window_handle
+        handles_antes = set(getattr(driver, 'window_handles', []))
         logger.info(f'[MANDADOS][OUTROS] Invocando ato_meios() ({motivo})')
         try:
-            ato_meios(driver)
-            ato_meios_executado = True
-            logger.info(f'[MANDADOS][OUTROS] ato_meios() retornou ({motivo})')
+            res = ato_meios(driver)
+            sucesso = res[0] if isinstance(res, (tuple, list)) else bool(res)
+            if sucesso:
+                ato_meios_executado = True
+                logger.info(f'[MANDADOS][OUTROS] ato_meios() executado com sucesso ({motivo})')
+            else:
+                logger.warning(f'[MANDADOS][OUTROS] ato_meios() retornou falha ({motivo})')
         except Exception as e:
             logger.error(f'[MANDADOS][OUTROS] erro em ato_meios() ({motivo}): {e}')
         finally:
             try:
-                forcar_fechamento_abas_extras(driver, aba_atual)
+                # Fecha APENAS as novas abas abertas pelo ato_meios (ex: aba de minutas/tarefa)
+                # NUNCA fecha o escaninho_handle nem aba_atual
+                for h in list(getattr(driver, 'window_handles', [])):
+                    if h not in handles_antes:
+                        try:
+                            driver.switch_to.window(h)
+                            driver.close()
+                        except Exception:
+                            pass
+                if aba_atual in getattr(driver, 'window_handles', []):
+                    driver.switch_to.window(aba_atual)
             except Exception as e_aba:
                 logger.error(f'[MANDADOS][OUTROS] Falha ao normalizar abas após ato_meios ({motivo}): {e_aba}')
 
@@ -1420,16 +1471,17 @@ def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = T
         _chamar_ato_meios('penhora de bens')
     elif "deixei de penhorar" in texto_lower:
         _chamar_ato_meios('deixei de penhorar')
-    elif texto_mandado_ant and 'silas passos' in texto_mandado_ant.lower():
-        if not ALLOW_MANDADO_ATOS:
-            logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_edital()')
-        else:
-            logger.info('[MANDADOS][OUTROS] Invocando ato_edital()')
-            try:
-                ato_edital(driver)
-                logger.info('[MANDADOS][OUTROS] ato_edital() retornou')
-            except Exception as e:
-                logger.error(f'[MANDADOS][OUTROS] erro em ato_edital(): {e}')
+    # REGRA DESATIVADA TEMPORARIAMENTE:
+    # elif texto_mandado_ant and 'silas passos' in texto_mandado_ant.lower():
+    #     if not _allow_mandado_atos():
+    #         logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_edital()')
+    #     else:
+    #         logger.info('[MANDADOS][OUTROS] Invocando ato_edital()')
+    #         try:
+    #             ato_edital(driver)
+    #             logger.info('[MANDADOS][OUTROS] ato_edital() retornou')
+    #         except Exception as e:
+    #             logger.error(f'[MANDADOS][OUTROS] erro em ato_edital(): {e}')
 
 
 def _classificar_certidao_oficial(texto: str) -> Optional[str]:
@@ -1541,19 +1593,45 @@ def _apagar_mandado_do_escaninho(
     log: bool = True,
 ) -> bool:
     """Fecha a aba /detalhe e remove o mandado da lista do escaninho."""
-    try:
-        driver.close()
-    except Exception:
-        pass
-    driver.switch_to.window(escaninho_handle)
+    # Fecha a aba de detalhe atual apenas se não for o próprio escaninho
+    if getattr(driver, 'current_window_handle', None) != escaninho_handle:
+        try:
+            driver.close()
+        except Exception:
+            pass
+
+    # Garante troca para a aba do escaninho com fallback seguro
+    handles_restantes = list(getattr(driver, 'window_handles', []))
+    if escaninho_handle in handles_restantes:
+        driver.switch_to.window(escaninho_handle)
+    elif handles_restantes:
+        driver.switch_to.window(handles_restantes[0])
+        from Fix.variaveis import url_escaninho
+        if "escaninho/documentos-internos" not in (getattr(driver, 'current_url', '') or ''):
+            try:
+                driver.get(url_escaninho)
+                wait_for_page_load(driver, timeout=10)
+                from Mandado.entrada_api import ativar_filtro_mandados_devolvidos
+                ativar_filtro_mandados_devolvidos(driver)
+            except Exception:
+                pass
 
     try:
+        # Localiza linha do processo no escaninho e botão de exclusão
         lixeira_xpath = (
-            f"//tr[contains(@class, 'cdk-drag') and contains(., '{numero_processo}')]"
+            f"//tr[contains(., '{numero_processo}')]"
             "//button[@aria-label='Remover documento marcados' or @mattooltip='Remover documento' "
-            "or contains(@aria-label, 'Remover documento')]"
+            "or contains(@aria-label, 'Remover documento') or contains(@aria-label, 'Remover')]"
         )
-        lixeiras = espera.elementos(driver, lixeira_xpath, teto=2)
+        lixeiras = espera.elementos(driver, lixeira_xpath, teto=3)
+        if not lixeiras:
+            # Fallback sem restrição de tr
+            lixeiras = espera.elementos(
+                driver,
+                f"//table//tr[contains(., '{numero_processo}')]//button[contains(@aria-label, 'Remover') or contains(@mattooltip, 'Remover')]",
+                teto=2
+            )
+
         if not lixeiras:
             if log:
                 logger.warning(f'[MANDADOS][OUTROS] Lixeira não encontrada no escaninho para #{numero_processo}')
@@ -1565,7 +1643,7 @@ def _apagar_mandado_do_escaninho(
 
         aguardar_renderizacao_nativa(driver, 'mat-dialog-container, .cdk-overlay-pane', modo='aparecer', timeout=3)
         botoes_confirmacao = espera.elementos(
-            driver, "//button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')]", teto=2
+            driver, "//mat-dialog-container//button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')] | //button[contains(., 'Sim') or contains(., 'Confirmar') or contains(., 'Remover')]", teto=2
         )
         for btn in botoes_confirmacao:
             if getattr(btn, 'is_displayed', lambda: True)():
@@ -1573,6 +1651,8 @@ def _apagar_mandado_do_escaninho(
                 if log:
                     logger.info(f'[MANDADOS][OUTROS] Remoção confirmada para #{numero_processo}')
                 break
+
+        aguardar_renderizacao_nativa(driver, 'mat-dialog-container, .cdk-overlay-pane', modo='sumir', timeout=3)
         return True
     except Exception as e:
         if log:
@@ -1613,7 +1693,7 @@ def arquivar_mandado_positivo_reconhecido(
     Mantém a ordem pedida: cria a GIGS xs1 na aba /detalhe, extrai o destinatário da
     própria certidão (padrão 'DESTINATÁRIO: NOME' / 'DESTINATÁRIO NOME'), registra os dados
     do mandado positivo criando GIGS sem prazo:
-        criar_gigs(driver, "", "", f'{nome} - já alterado endereço na autuação.')
+        criar_gigs(driver, "", "", f'Mandado positivo ({nome}) - já alterado endereço na autuação.')
     e só então apaga o mandado do escaninho — tudo ainda na aba /detalhe até o passo final.
     """
     _criar_gigs_xs1_uma_vez(driver, numero_processo, log)
@@ -1626,7 +1706,7 @@ def arquivar_mandado_positivo_reconhecido(
         if log:
             logger.error(f'[MANDADOS][OUTROS][POSITIVO] Falha ao extrair destinatário da certidão de #{numero_processo}: {e}')
 
-    conteudo_gigs = f'{nome} - já alterado endereço na autuação.' if nome else 'já alterado endereço na autuação.'
+    conteudo_gigs = f'Mandado positivo ({nome}) - já alterado endereço na autuação.' if nome else 'Mandado positivo - já alterado endereço na autuação.'
     if log:
         if nome:
             logger.info(f'[MANDADOS][OUTROS][POSITIVO] Destinatário identificado: {nome}')
@@ -1672,23 +1752,25 @@ def _extrair_nome_destinatario_certidao(texto: Optional[str]) -> Optional[str]:
 def _montar_conteudo_lembrete_mdd(existente: Optional[str], novo_nome: str) -> str:
     """Monta o conteúdo do lembrete 'mdd positivo'.
 
-    Formato alvo: '<destinatários separados por vírgula> - já alterado endereço na autuação.'
+    Formato alvo: 'Mandado positivo (<destinatários separados por vírgula>) - já alterado endereço na autuação.'
     Se já existir conteúdo, acrescenta o novo destinatário sem duplicar.
     """
     sufixo = ' - já alterado endereço na autuação.'
     nome = (novo_nome or '').strip()
     if not nome:
-        return sufixo.lstrip()
+        return f'Mandado positivo{sufixo}'
 
     atual = (existente or '').strip()
     if not atual:
-        return f'{nome}{sufixo}'
+        return f'Mandado positivo ({nome}){sufixo}'
 
     padrao_sufixo = re.compile(
         r'\s*-\s*j[aá] alterado endere[cç]o na autua[cç][aã]o\.?\s*$',
         re.IGNORECASE,
     )
     corpo = padrao_sufixo.sub('', atual).strip(' ,-')
+    corpo = re.sub(r'^\s*mandado\s+positivo\s*\(?', '', corpo, flags=re.IGNORECASE)
+    corpo = re.sub(r'\)?\s*$', '', corpo)
     partes = [
         p.strip()
         for p in corpo.split(',')
@@ -1700,8 +1782,8 @@ def _montar_conteudo_lembrete_mdd(existente: Optional[str], novo_nome: str) -> s
         partes.append(nome)
 
     if not partes:
-        return f'{nome}{sufixo}'
-    return ', '.join(partes) + sufixo
+        return f'Mandado positivo ({nome}){sufixo}'
+    return f"Mandado positivo ({', '.join(partes)}){sufixo}"
 
 
 def _localizar_lembrete_mdd(driver: Any, log: bool = True) -> Optional[Any]:

@@ -313,6 +313,7 @@ Valores válidos para `PJEPLUS_FLUXO`: `A` a `H` (ver tabela acima)
 | `waits.py` | `WebDriverWait` compatível com `PWDriver` |
 | `api_resiliencia.py` | `instalar_resiliencia()` — retry automático em falhas de rede |
 | `medicao.py` | `sessao()`, `etapa()`, `salvar()` — relatório de tempo por backend |
+| `headless.py` | `ativar_para_driver()` — camada headless (clipboard virtual, recovery headless); ativada só via `launcher.criar_driver` quando `headless=True` |
 
 ---
 
@@ -553,7 +554,7 @@ x.py: executar_pec()
     │   └─ Buckets: carta, comunicacoes, sobrestamento, sob, outros, sisbajud
     └─ run_batch() por processo:
         ├─ Se "carta": PEC/carta_execucao.py: carta(driver)
-        │   → coletar_intimacoes() → coletar_tabela_ecarta() → formatar_dados_ecarta()
+        │   → coletar_intimacoes() (se fase=conhecimento via API, busca Intimação e Notificação) → coletar_tabela_ecarta() → formatar_dados_ecarta()
         │   → PEC/anexos/anexos_wrappers.py: anex_carta()
         │   → PEC/anexos/anexos_juntador_base.py: wrapper_juntada_geral()
         ├─ Se "comunicacoes": atos/comunicacao.py: comunicacao_judicial()

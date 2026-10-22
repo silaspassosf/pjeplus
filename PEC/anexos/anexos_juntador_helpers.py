@@ -339,11 +339,11 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
         html_antes = _executar_js(driver, "return arguments[0].innerHTML || '';", editable) or ''
         texto_antes = _executar_js(driver, "return arguments[0].innerText || arguments[0].textContent || '';", editable) or ''
 
-        # Se o marcador não estiver de imediato, aguarda até 6s pelo carregamento do modelo no CKEditor
+        # Se o marcador não estiver de imediato, aguarda até 10s pelo carregamento do modelo no CKEditor
         if marcador not in html_antes and marcador not in texto_antes:
             if debug:
                 logger.debug("[SUBST_MARCADOR] Marcador '%s' não detectado de imediato, aguardando carga do editor...", marcador)
-            for _ in range(12):
+            for _ in range(20):
                 espera.assentar(driver, 0.5)
                 html_antes = _executar_js(driver, "return arguments[0].innerHTML || '';", editable) or ''
                 texto_antes = _executar_js(driver, "return arguments[0].innerText || arguments[0].textContent || '';", editable) or ''
@@ -398,42 +398,39 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                 let htmlOriginal = ckInstance.getData();
 
                 if (htmlOriginal.includes(marcador)) {{
-                    if (ckInstance.insertHtml) {{
-                        console.log('[SUBST_MARCADOR] Tentando insertHtml...');
-                        ckInstance.insertHtml(htmlContent, 'unfiltered_html');
-                        console.log('[SUBST_MARCADOR] ✓ insertHtml usado');
+                    let novoHtml = htmlOriginal.replace(marcador, htmlContent);
+                    ckInstance.setData(novoHtml, function() {{
                         try {{
+                            if (ckInstance.fire) ckInstance.fire('change');
                             editor.dispatchEvent(new Event('input', {{ bubbles: true }}));
                             editor.dispatchEvent(new Event('change', {{ bubbles: true }}));
                             editor.focus();
                             editor.blur();
                         }} catch (e) {{}}
-                        return {{ sucesso: true, metodo: 'ckeditor_insertHtml' }};
-                    }}
-
-                    let novoHtml = htmlOriginal.replace(marcador, htmlContent);
-                    ckInstance.setData(novoHtml);
-                    console.log('[SUBST_MARCADOR] ✓ setData() executado');
+                    }});
                     try {{
+                        if (ckInstance.fire) ckInstance.fire('change');
                         editor.dispatchEvent(new Event('input', {{ bubbles: true }}));
                         editor.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                        editor.focus();
-                        editor.blur();
-                    }} catch (e) {{
-                        console.warn('[SUBST_MARCADOR] Erro ao sincronizar DOM/Angular pós-setData:', e);
-                    }}
+                    }} catch (e) {{}}
+                    console.log('[SUBST_MARCADOR] ✓ setData() executado com substituição do marcador');
                     return {{ sucesso: true, metodo: 'ckeditor_api' }};
                 }} else if (htmlOriginal.trim().length > 20) {{
                     // Fallback: modelo tem texto mas não tem o marcador exato -> concatena
                     let novoHtml = htmlOriginal + '<br>' + htmlContent;
-                    ckInstance.setData(novoHtml);
-                    console.log('[SUBST_MARCADOR] ✓ setData() anexado ao final');
+                    ckInstance.setData(novoHtml, function() {{
+                        try {{
+                            if (ckInstance.fire) ckInstance.fire('change');
+                            editor.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                            editor.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        }} catch (e) {{}}
+                    }});
                     try {{
+                        if (ckInstance.fire) ckInstance.fire('change');
                         editor.dispatchEvent(new Event('input', {{ bubbles: true }}));
                         editor.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                        editor.focus();
-                        editor.blur();
                     }} catch (e) {{}}
+                    console.log('[SUBST_MARCADOR] ✓ setData() anexado ao final');
                     return {{ sucesso: true, metodo: 'ckeditor_api_append' }};
                 }} else {{
                     console.error('[SUBST_MARCADOR] Editor vazio ou marcador não encontrado via API');

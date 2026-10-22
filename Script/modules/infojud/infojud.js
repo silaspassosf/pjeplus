@@ -754,45 +754,90 @@
         }
 
         function exibirRelatorioFinal() {
-            const wrapper = document.getElementById('god-btn-wrapper');
+            renderizarPainelRelatorio(dadosRelatorio, {
+                isMinutas: true,
+                onDireto: () => iniciarTrabalho('DIRETO'),
+                onCorrecao: () => iniciarTrabalho('COMPLETO')
+            });
+        }
 
-            const painel = document.createElement('div');
-            painel.id = 'god-relatorio-panel';
-            painel.style.cssText = 'position:fixed;right:20px;top:150px;width:493px;background:#fff;border:2px solid #004d40;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.4);font-family:"Segoe UI",sans-serif;z-index:10000;';
+        function esperarModal(classe) {
+            return new Promise((resolve, reject) => {
+                let k = 0;
+                const i = setInterval(() => {
+                    if (document.querySelector(classe)) { clearInterval(i); resolve(); }
+                    k++; if(k > 50) { clearInterval(i); reject('Timeout Modal'); }
+                }, 200);
+            });
+        }
 
-            // ── Cabeçalho (drag + collapse + fechar)
-            const cab = document.createElement('div');
-            cab.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#004d40;color:#fff;padding:9px 14px;border-radius:8px 8px 0 0;cursor:grab;';
+        // Desenha os botões na tela quando o orquestrador mandar rodar
+        criarBotoesInfojud();
+    };
 
-            const titulo = document.createElement('span');
-            titulo.textContent = 'RELATÓRIO DE ENDEREÇOS';
-            titulo.style.cssText = 'font-size:14px;font-weight:800;letter-spacing:.5px;cursor:pointer;';
+    // =================================================================================
+    // COMPONENTE COMPARTILHADO: RELATÓRIO FINAL DE ENDEREÇOS
+    // =================================================================================
+    function renderizarPainelRelatorio(dadosRelatorio, opts = {}) {
+        document.getElementById('god-relatorio-panel')?.remove();
 
-            const ctrls = document.createElement('span');
-            ctrls.style.cssText = 'display:flex;gap:12px;align-items:center;font-size:13px;font-weight:700;';
+        const painel = document.createElement('div');
+        painel.id = 'god-relatorio-panel';
+        painel.style.cssText = 'position:fixed;right:20px;top:150px;width:493px;max-width:92vw;background:#fff;border:2px solid #004d40;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.4);font-family:"Segoe UI",sans-serif;z-index:10000;';
 
-            const btnToggle = document.createElement('span');
-            btnToggle.textContent = '▲';
-            btnToggle.style.cursor = 'pointer';
+        // ── Cabeçalho (drag + collapse + copiar + fechar)
+        const cab = document.createElement('div');
+        cab.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#004d40;color:#fff;padding:9px 14px;border-radius:8px 8px 0 0;cursor:grab;user-select:none;';
 
-            const btnX = document.createElement('span');
-            btnX.textContent = '✕';
-            btnX.style.cursor = 'pointer';
-            btnX.onclick = () => painel.remove();
+        const titulo = document.createElement('span');
+        titulo.textContent = 'RELATÓRIO DE ENDEREÇOS';
+        titulo.style.cssText = 'font-size:14px;font-weight:800;letter-spacing:.5px;cursor:pointer;';
 
-            ctrls.appendChild(btnToggle);
-            ctrls.appendChild(btnX);
-            cab.appendChild(titulo);
-            cab.appendChild(ctrls);
-            painel.appendChild(cab);
+        const ctrls = document.createElement('span');
+        ctrls.style.cssText = 'display:flex;gap:12px;align-items:center;font-size:13px;font-weight:700;';
 
-            // ── Corpo
-            const corpo = document.createElement('div');
-            corpo.style.cssText = 'padding:12px 14px;max-height:460px;overflow-y:auto;user-select:text;';
+        const btnCopiar = document.createElement('span');
+        btnCopiar.textContent = '📋';
+        btnCopiar.title = 'Copiar todos os endereços';
+        btnCopiar.style.cursor = 'pointer';
+        btnCopiar.onclick = () => {
+            const textoCompleto = (dadosRelatorio || []).join('\n\n---\n\n');
+            if (typeof GM_setClipboard === 'function') {
+                GM_setClipboard(textoCompleto);
+            } else if (navigator.clipboard) {
+                navigator.clipboard.writeText(textoCompleto);
+            }
+            mostrarNotificacao('Endereços copiados!', '#28a745');
+        };
 
-            function escapeHtml(s) { return String(s).replace(/[&<>"]+/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+        const btnToggle = document.createElement('span');
+        btnToggle.textContent = '▲';
+        btnToggle.title = 'Minimizar / Expandir';
+        btnToggle.style.cursor = 'pointer';
 
-            const blocks = dadosRelatorio.slice();
+        const btnX = document.createElement('span');
+        btnX.textContent = '✕';
+        btnX.title = 'Fechar';
+        btnX.style.cursor = 'pointer';
+        btnX.onclick = () => painel.remove();
+
+        ctrls.appendChild(btnCopiar);
+        ctrls.appendChild(btnToggle);
+        ctrls.appendChild(btnX);
+        cab.appendChild(titulo);
+        cab.appendChild(ctrls);
+        painel.appendChild(cab);
+
+        // ── Corpo
+        const corpo = document.createElement('div');
+        corpo.style.cssText = 'padding:12px 14px;max-height:460px;overflow-y:auto;user-select:text;';
+
+        function escapeHtml(s) { return String(s).replace(/[&<>"]+/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+        const blocks = (dadosRelatorio || []).slice();
+        if (blocks.length === 0) {
+            corpo.innerHTML = '<div style="padding:15px;text-align:center;color:#666;font-size:13px;">Nenhum endereço encontrado para os documentos pesquisados.</div>';
+        } else {
             const S = { // estilos inline reutilizados
                 empresa:  'font-size:15px;font-weight:800;color:#01579b;margin-bottom:3px;',
                 endEmp:   'font-size:14px;color:#1a237e;margin-bottom:4px;padding-left:2px;',
@@ -835,69 +880,603 @@
                 });
                 return `<div style="padding:10px 10px 8px;border-radius:6px;background:#f5f5f5;border:1px solid #ddd;margin-bottom:10px;">${parts.join('')}</div>`;
             });
-
             corpo.innerHTML = htmlBlocks.join('');
-            painel.appendChild(corpo);
-            document.body.appendChild(painel);
+        }
 
-            // ── Collapse
-            let recolhido = false;
-            const toggleCorpo = () => {
-                recolhido = !recolhido;
-                corpo.style.display = recolhido ? 'none' : '';
-                btnToggle.textContent = recolhido ? '▼' : '▲';
-            };
-            btnToggle.onclick = toggleCorpo;
-            titulo.onclick = toggleCorpo;
+        painel.appendChild(corpo);
+        document.body.appendChild(painel);
 
-            // ── Drag
-            let dragging = false, ox = 0, oy = 0;
-            cab.addEventListener('mousedown', e => {
-                if (e.target === btnToggle || e.target === btnX) return;
-                dragging = true;
-                const r = painel.getBoundingClientRect();
-                ox = e.clientX - r.left; oy = e.clientY - r.top;
-                cab.style.cursor = 'grabbing';
-                e.preventDefault();
-            });
-            document.addEventListener('mousemove', e => {
-                if (!dragging) return;
-                painel.style.left = (e.clientX - ox) + 'px';
-                painel.style.top  = (e.clientY - oy) + 'px';
-                painel.style.right = 'auto';
-            });
-            document.addEventListener('mouseup', () => { dragging = false; cab.style.cursor = 'grab'; });
+        // ── Collapse
+        let recolhido = false;
+        const toggleCorpo = () => {
+            recolhido = !recolhido;
+            corpo.style.display = recolhido ? 'none' : '';
+            btnToggle.textContent = recolhido ? '▼' : '▲';
+        };
+        btnToggle.onclick = toggleCorpo;
+        titulo.onclick = toggleCorpo;
 
-            // ── Botões no wrapper
+        // ── Drag
+        let dragging = false, ox = 0, oy = 0;
+        cab.addEventListener('mousedown', e => {
+            if (e.target === btnToggle || e.target === btnX || e.target === btnCopiar) return;
+            dragging = true;
+            const r = painel.getBoundingClientRect();
+            ox = e.clientX - r.left; oy = e.clientY - r.top;
+            cab.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            painel.style.left = (e.clientX - ox) + 'px';
+            painel.style.top  = (e.clientY - oy) + 'px';
+            painel.style.right = 'auto';
+        });
+        document.addEventListener('mouseup', () => { dragging = false; cab.style.cursor = 'grab'; });
+
+        // ── Botões no wrapper (apenas no ambiente de minutas)
+        if (opts.isMinutas && (opts.onDireto || opts.onCorrecao)) {
+            const wrapper = document.getElementById('god-btn-wrapper');
             const btnStyle = 'padding:8px 14px;color:white;font-weight:700;cursor:pointer;border-radius:6px;border:none;box-shadow:0 2px 6px rgba(0,0,0,0.18);font-size:13px;';
             const mkBtn = (txt, cb) => { const b = document.createElement('button'); b.textContent = txt; b.style.cssText = btnStyle + 'background:#0288d1;'; b.onclick = cb; return b; };
             if (wrapper) {
                 wrapper.innerHTML = '';
-                wrapper.appendChild(mkBtn('Infojud Direto',   () => iniciarTrabalho('DIRETO')));
-                wrapper.appendChild(mkBtn('Infojud Correção', () => iniciarTrabalho('COMPLETO')));
+                if (opts.onDireto) wrapper.appendChild(mkBtn('Infojud Direto', opts.onDireto));
+                if (opts.onCorrecao) wrapper.appendChild(mkBtn('Infojud Correção', opts.onCorrecao));
             } else {
                 const fallback = document.createElement('div');
                 fallback.id = 'god-btn-wrapper';
                 fallback.style.cssText = 'position:fixed;top:100px;right:20px;display:flex;gap:8px;z-index:9999;';
-                fallback.appendChild(mkBtn('Infojud Direto',   () => iniciarTrabalho('DIRETO')));
-                fallback.appendChild(mkBtn('Infojud Correção', () => iniciarTrabalho('COMPLETO')));
+                if (opts.onDireto) fallback.appendChild(mkBtn('Infojud Direto', opts.onDireto));
+                if (opts.onCorrecao) fallback.appendChild(mkBtn('Infojud Correção', opts.onCorrecao));
                 document.body.appendChild(fallback);
             }
         }
+    }
 
-        function esperarModal(classe) {
-            return new Promise((resolve, reject) => {
-                let k = 0;
-                const i = setInterval(() => {
-                    if (document.querySelector(classe)) { clearInterval(i); resolve(); }
-                    k++; if(k > 50) { clearInterval(i); reject('Timeout Modal'); }
-                }, 200);
+    // =================================================================================
+    // PARTE 1.5: EXECUÇÃO NA ROTA /DETALHE (Via API de Partes + Dialog de Seleção)
+    // =================================================================================
+
+    function _xsrf() {
+        const c = document.cookie.split(';').map(s => s.trim())
+            .find(s => s.toLowerCase().startsWith('xsrf-token='));
+        return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
+    }
+
+    function _headers() {
+        const h = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Grau-Instancia': '1',
+        };
+        const x = _xsrf();
+        if (x) h['X-XSRF-TOKEN'] = x;
+        return h;
+    }
+
+    function _obterIdProcesso() {
+        const m = window.location.pathname.match(/\/processo\/(\d+)/) ||
+                  window.location.search.match(/processo=(\d+)/i);
+        return m ? m[1] : null;
+    }
+
+    async function _fetchPartesProcesso(idProc) {
+        const url = `${window.location.origin}/pje-comum-api/api/processos/id/${idProc}/partes`;
+        const resp = await fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            headers: _headers(),
+        });
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}: Falha ao buscar partes do processo`);
+        }
+        return await resp.json();
+    }
+
+    function _extrairPartesParaDialog(raw) {
+        const parseItem = (p, polo) => {
+            const nome = (p.nome || '').trim();
+            const docBruto = (p.documento || p.documentoPrincipal || p.pessoaFisica?.numeroDocumento || p.pessoaJuridica?.numeroDocumento || '').trim();
+            const docLimpo = apenasNumeros(docBruto);
+            const valido = (docLimpo.length === 11 || docLimpo.length === 14);
+            const tipo = docLimpo.length === 14 ? 'CNPJ' : (docLimpo.length === 11 ? 'CPF' : 'OUTRO');
+            return {
+                id: p.id || p.idPessoa || Math.random().toString(36).slice(2),
+                nome: nome,
+                documento: docLimpo,
+                documentoFormatado: formatarDocumento(docLimpo) || docBruto || '(sem documento)',
+                valido: valido,
+                polo: polo,
+                tipoPessoa: tipo
+            };
+        };
+
+        const passivo = (raw && raw.PASSIVO ? raw.PASSIVO : []).map(p => parseItem(p, 'PASSIVO'));
+        const ativo = (raw && raw.ATIVO ? raw.ATIVO : []).map(p => parseItem(p, 'ATIVO'));
+        const outros = (raw && raw.TERCEIROS ? raw.TERCEIROS : []).map(p => parseItem(p, 'TERCEIROS'));
+
+        return { passivo, ativo, outros };
+    }
+
+    function _removerDuplicados(lista) {
+        const vistos = new Set();
+        return (lista || []).filter(item => {
+            const key = item.documento ? item.documento : (item.nome || '').toUpperCase();
+            if (vistos.has(key)) return false;
+            vistos.add(key);
+            return true;
+        });
+    }
+
+    function abrirDialogSelecaoPartes(grupos, onConfirm) {
+        document.getElementById('pjetools-infojud-modal-backdrop')?.remove();
+
+        const backdrop = document.createElement('div');
+        backdrop.id = 'pjetools-infojud-modal-backdrop';
+        backdrop.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.55); z-index: 100000;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(2px); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        `;
+
+        const modal = document.createElement('div');
+        modal.id = 'pjetools-infojud-modal';
+        modal.style.cssText = `
+            width: 580px; max-width: 95vw; max-height: 85vh;
+            background: #ffffff; border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+            display: flex; flex-direction: column; overflow: hidden;
+        `;
+
+        // ── Cabeçalho
+        const header = document.createElement('div');
+        header.style.cssText = `
+            background: linear-gradient(135deg, #004d40, #00695c);
+            color: #ffffff; padding: 14px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            user-select: none;
+        `;
+        const headerTitle = document.createElement('div');
+        headerTitle.innerHTML = '<span style="font-size:16px;font-weight:700;">🏛️ Infojud — Selecionar Partes</span>';
+
+        const btnFechar = document.createElement('button');
+        btnFechar.innerHTML = '✕';
+        btnFechar.title = 'Fechar';
+        btnFechar.style.cssText = `
+            background: transparent; border: none; color: #fff;
+            font-size: 18px; cursor: pointer; padding: 0 6px; line-height: 1;
+            opacity: 0.85; transition: opacity 0.15s;
+        `;
+        btnFechar.onmouseenter = () => btnFechar.style.opacity = '1';
+        btnFechar.onmouseleave = () => btnFechar.style.opacity = '0.85';
+        btnFechar.onclick = () => backdrop.remove();
+
+        header.appendChild(headerTitle);
+        header.appendChild(btnFechar);
+        modal.appendChild(header);
+
+        // ── Barra de Ações Rápidas
+        const actionBar = document.createElement('div');
+        actionBar.style.cssText = `
+            background: #f8f9fa; border-bottom: 1px solid #e9ecef;
+            padding: 8px 16px; display: flex; align-items: center;
+            justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px;
+        `;
+        const subTitle = document.createElement('span');
+        subTitle.textContent = 'Marque quem deseja pesquisar:';
+        subTitle.style.cssText = 'color: #495057; font-weight: 600;';
+
+        const pillContainer = document.createElement('div');
+        pillContainer.style.cssText = 'display: flex; gap: 6px;';
+
+        const criarPill = (txt, onClick) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = txt;
+            b.style.cssText = `
+                background: #ffffff; border: 1px solid #ced4da;
+                border-radius: 12px; padding: 3px 10px; font-size: 11px;
+                cursor: pointer; font-weight: 600; color: #495057;
+                transition: all 0.15s;
+            `;
+            b.onmouseenter = () => { b.style.background = '#e9ecef'; b.style.borderColor = '#adb5bd'; };
+            b.onmouseleave = () => { b.style.background = '#ffffff'; b.style.borderColor = '#ced4da'; };
+            b.onclick = onClick;
+            return b;
+        };
+
+        const pillPassivo = criarPill('Apenas Polo Passivo', () => setSelecao('PASSIVO'));
+        const pillTodos = criarPill('Todos', () => setSelecao('TODOS'));
+        const pillNenhum = criarPill('Nenhum', () => setSelecao('NENHUM'));
+        pillContainer.appendChild(pillPassivo);
+        pillContainer.appendChild(pillTodos);
+        pillContainer.appendChild(pillNenhum);
+
+        actionBar.appendChild(subTitle);
+        actionBar.appendChild(pillContainer);
+        modal.appendChild(actionBar);
+
+        // ── Corpo da Lista (Scrollable)
+        const body = document.createElement('div');
+        body.style.cssText = `
+            padding: 14px 18px; overflow-y: auto; flex: 1;
+            display: flex; flex-direction: column; gap: 12px;
+            max-height: 55vh;
+        `;
+
+        const checkboxes = [];
+
+        function renderizarSecao(titulo, partes, corPolo) {
+            if (!partes || !partes.length) return;
+
+            const secao = document.createElement('div');
+            secao.style.cssText = 'display: flex; flex-direction: column; gap: 6px;';
+
+            const secHeader = document.createElement('div');
+            secHeader.style.cssText = `
+                font-size: 11px; font-weight: 700; color: ${corPolo};
+                text-transform: uppercase; letter-spacing: 0.5px;
+                padding-bottom: 2px; border-bottom: 1px solid #e0e0e0;
+                display: flex; justify-content: space-between;
+            `;
+            secHeader.innerHTML = `<span>${titulo}</span><span style="color:#888;">${partes.length} parte(s)</span>`;
+            secao.appendChild(secHeader);
+
+            partes.forEach(p => {
+                const row = document.createElement('label');
+                row.style.cssText = `
+                    display: flex; align-items: center; gap: 10px;
+                    padding: 8px 10px; border: 1px solid #dee2e6;
+                    border-radius: 6px; background: #fff;
+                    cursor: ${p.valido ? 'pointer' : 'not-allowed'};
+                    opacity: ${p.valido ? '1' : '0.6'};
+                    transition: background 0.15s, border-color 0.15s;
+                    user-select: none; margin: 0;
+                `;
+
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = p.documento;
+                cb.disabled = !p.valido;
+                cb.dataset.polo = p.polo;
+                cb.style.cssText = 'width: 16px; height: 16px; cursor: inherit; margin: 0;';
+
+                // Pré-seleciona quem tem documento válido no polo passivo
+                if (p.valido && p.polo === 'PASSIVO') {
+                    cb.checked = true;
+                    row.style.background = '#e0f2f1';
+                    row.style.borderColor = '#80cbc4';
+                }
+
+                cb.onchange = () => {
+                    atualizarEstiloRow(row, cb.checked);
+                    atualizarContador();
+                };
+
+                const infoBox = document.createElement('div');
+                infoBox.style.cssText = 'flex: 1; display: flex; flex-direction: column; gap: 2px;';
+
+                const nomeRow = document.createElement('div');
+                nomeRow.style.cssText = 'font-size: 13px; font-weight: 600; color: #212529; line-height: 1.3;';
+                nomeRow.textContent = p.nome || '(sem nome cadastrado)';
+
+                const metaRow = document.createElement('div');
+                metaRow.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 11px;';
+
+                let badgeTipo = '';
+                if (p.tipoPessoa === 'CNPJ') {
+                    badgeTipo = '<span style="background:#fff3e0;color:#e65100;font-weight:700;padding:1px 5px;border-radius:3px;">CNPJ</span>';
+                } else if (p.tipoPessoa === 'CPF') {
+                    badgeTipo = '<span style="background:#e3f2fd;color:#0d47a1;font-weight:700;padding:1px 5px;border-radius:3px;">CPF</span>';
+                } else {
+                    badgeTipo = '<span style="background:#f5f5f5;color:#616161;font-weight:700;padding:1px 5px;border-radius:3px;">SEM DOC</span>';
+                }
+
+                const docSpan = document.createElement('span');
+                docSpan.style.cssText = 'font-family: monospace; color: #495057; font-weight: 500;';
+                docSpan.textContent = p.documentoFormatado;
+
+                metaRow.innerHTML = badgeTipo;
+                metaRow.appendChild(docSpan);
+
+                infoBox.appendChild(nomeRow);
+                infoBox.appendChild(metaRow);
+
+                row.appendChild(cb);
+                row.appendChild(infoBox);
+                secao.appendChild(row);
+
+                checkboxes.push({ cb, row, parte: p });
             });
+
+            body.appendChild(secao);
         }
 
-        // Desenha os botões na tela quando o orquestrador mandar rodar
-        criarBotoesInfojud();
-    };
+        renderizarSecao('Polo Passivo (Réus / Executados)', grupos.passivo, '#c62828');
+        renderizarSecao('Polo Ativo (Autores / Exequentes)', grupos.ativo, '#1565c0');
+        renderizarSecao('Outros / Terceiros', grupos.outros, '#6a1b9a');
+
+        modal.appendChild(body);
+
+        function atualizarEstiloRow(row, checked) {
+            if (checked) {
+                row.style.background = '#e0f2f1';
+                row.style.borderColor = '#80cbc4';
+            } else {
+                row.style.background = '#ffffff';
+                row.style.borderColor = '#dee2e6';
+            }
+        }
+
+        function setSelecao(modo) {
+            checkboxes.forEach(({ cb, row, parte }) => {
+                if (!parte.valido) return;
+                if (modo === 'TODOS') cb.checked = true;
+                else if (modo === 'NENHUM') cb.checked = false;
+                else if (modo === 'PASSIVO') cb.checked = (parte.polo === 'PASSIVO');
+                atualizarEstiloRow(row, cb.checked);
+            });
+            atualizarContador();
+        }
+
+        // ── Rodapé
+        const footer = document.createElement('div');
+        footer.style.cssText = `
+            background: #fafafa; border-top: 1px solid #e9ecef;
+            padding: 12px 18px; display: flex; align-items: center;
+            justify-content: space-between; user-select: none;
+        `;
+
+        const contador = document.createElement('span');
+        contador.id = 'infojud-dialog-contador';
+        contador.style.cssText = 'font-size: 13px; color: #495057; font-weight: 600;';
+
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'display: flex; gap: 8px;';
+
+        const btnCancelar = document.createElement('button');
+        btnCancelar.type = 'button';
+        btnCancelar.textContent = 'Cancelar';
+        btnCancelar.style.cssText = `
+            padding: 8px 14px; background: #e9ecef; color: #495057;
+            border: none; border-radius: 5px; font-weight: 600;
+            font-size: 13px; cursor: pointer; transition: background 0.15s;
+        `;
+        btnCancelar.onmouseenter = () => btnCancelar.style.background = '#dee2e6';
+        btnCancelar.onmouseleave = () => btnCancelar.style.background = '#e9ecef';
+        btnCancelar.onclick = () => backdrop.remove();
+
+        const btnOk = document.createElement('button');
+        btnOk.type = 'button';
+        btnOk.id = 'infojud-dialog-btn-ok';
+        btnOk.textContent = '🔍 Pesquisar';
+        btnOk.style.cssText = `
+            padding: 8px 18px; background: #004d40; color: #ffffff;
+            border: none; border-radius: 5px; font-weight: 700;
+            font-size: 13px; cursor: pointer; transition: background 0.15s, opacity 0.15s;
+            box-shadow: 0 2px 6px rgba(0,77,64,0.3);
+        `;
+        btnOk.onmouseenter = () => { if (!btnOk.disabled) btnOk.style.background = '#00695c'; };
+        btnOk.onmouseleave = () => { if (!btnOk.disabled) btnOk.style.background = '#004d40'; };
+
+        btnOk.onclick = () => {
+            const selecionados = checkboxes
+                .filter(({ cb }) => cb.checked)
+                .map(({ parte }) => parte);
+
+            if (!selecionados.length) {
+                alert('Selecione pelo menos uma parte com CPF ou CNPJ para pesquisar.');
+                return;
+            }
+
+            backdrop.remove();
+            if (typeof onConfirm === 'function') {
+                onConfirm(selecionados);
+            }
+        };
+
+        btnContainer.appendChild(btnCancelar);
+        btnContainer.appendChild(btnOk);
+        footer.appendChild(contador);
+        footer.appendChild(btnContainer);
+        modal.appendChild(footer);
+
+        backdrop.appendChild(modal);
+        document.body.appendChild(backdrop);
+
+        function atualizarContador() {
+            const count = checkboxes.filter(({ cb }) => cb.checked).length;
+            contador.textContent = `${count} parte(s) selecionada(s)`;
+            btnOk.disabled = (count === 0);
+            btnOk.style.opacity = (count === 0) ? '0.5' : '1';
+            btnOk.style.cursor = (count === 0) ? 'not-allowed' : 'pointer';
+        }
+
+        atualizarContador();
+
+        // Fechar com Esc ou clique no backdrop
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                backdrop.remove();
+                document.removeEventListener('keydown', onKeyDown);
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        backdrop.onclick = (e) => {
+            if (e.target === backdrop) {
+                backdrop.remove();
+                document.removeEventListener('keydown', onKeyDown);
+            }
+        };
+    }
+
+    function consultarDocInfojud(doc, nome) {
+        return new Promise((resolve) => {
+            const docNumerico = apenasNumeros(doc);
+            if (docNumerico.length !== 11 && docNumerico.length !== 14) {
+                resolve({ sucesso: false, erro: 'Documento inválido' });
+                return;
+            }
+
+            const tipoOrigem = docNumerico.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL';
+            const url = (docNumerico.length === 11 ? URL_BASE_CPF : URL_BASE_CNPJ) + encodeURIComponent(docNumerico);
+
+            const agora = Date.now();
+            _gmSet('GOD_STATUS', 'STANDBY_' + agora);
+            _gmSet('GOD_DADOS_CAPTURA', '{}');
+            _gmSet('GOD_TIPO_ORIGEM', tipoOrigem);
+
+            console.log('[Infojud Detalhe] Abrindo consulta em segundo plano:', url, 'para:', nome || docNumerico);
+            _gmOpenTab(url, { active: false, insert: true });
+
+            const timer = setInterval(() => {
+                const status = _gmGet('GOD_STATUS', '') || '';
+                const decorrido = Date.now() - agora;
+
+                if (status.startsWith('DADOS_PRONTOS_')) {
+                    const ts = parseInt(status.split('_')[2] || '0', 10);
+                    if (ts >= (agora - 1000)) {
+                        clearInterval(timer);
+                        try {
+                            const raw = _gmGet('GOD_DADOS_CAPTURA', '{}') || '{}';
+                            const dados = JSON.parse(raw);
+                            try { _gmSet('GOD_DADOS_' + docNumerico, JSON.stringify(dados)); } catch (e) {}
+                            resolve({ sucesso: true, dados: dados });
+                        } catch (e) {
+                            resolve({ sucesso: false, erro: 'Erro ao interpretar resposta da Receita' });
+                        }
+                    }
+                } else if (status.startsWith('PULAR_')) {
+                    const ts = parseInt(status.split('_')[1] || '0', 10);
+                    if (ts >= (agora - 1000)) {
+                        clearInterval(timer);
+                        resolve({ sucesso: false, erro: 'Receita sinalizou sem dados ou erro' });
+                    }
+                } else if (decorrido > 35000) {
+                    clearInterval(timer);
+                    console.warn('[Infojud Detalhe] Watchdog: timeout aguardando Receita para doc:', docNumerico);
+                    resolve({ sucesso: false, erro: 'Tempo limite esgotado' });
+                }
+            }, 400);
+        });
+    }
+
+    async function executarPesquisaInfojudPartes(partesSelecionadas) {
+        if (!partesSelecionadas || !partesSelecionadas.length) {
+            mostrarNotificacao('Nenhuma parte selecionada para consulta.', '#dc3545');
+            return;
+        }
+
+        document.getElementById('god-relatorio-panel')?.remove();
+
+        const dadosRelatorio = [];
+        const dadosRelatorioKeys = new Set();
+        const total = partesSelecionadas.length;
+
+        mostrarNotificacao(`Iniciando pesquisa Infojud para ${total} parte(s)...`, '#0288d1');
+
+        for (let i = 0; i < total; i++) {
+            const parte = partesSelecionadas[i];
+            const doc = apenasNumeros(parte.documento);
+            const nome = parte.nome || '';
+
+            mostrarNotificacao(`Infojud (${i + 1}/${total}): Consultando ${nome || formatarDocumento(doc)}...`, '#0288d1', true);
+
+            if (i > 0) {
+                const jitter = 1000 + Math.floor(Math.random() * 1200);
+                await wait(jitter);
+            }
+
+            const res = await consultarDocInfojud(doc, nome);
+            const docKey = doc;
+
+            if (res.sucesso && res.dados) {
+                const d = res.dados;
+                if (!dadosRelatorioKeys.has(docKey)) {
+                    dadosRelatorioKeys.add(docKey);
+                    if (doc.length === 11) {
+                        const pf = {
+                            nome: d.nome || nome || '',
+                            cpf: d.cpf || doc,
+                            rua: d.rua || '',
+                            numero: d.numero || '',
+                            complemento: d.complemento || '',
+                            cep: d.cep || ''
+                        };
+                        dadosRelatorio.push(montarRelatorio(pf));
+                    } else {
+                        const empresaEntry = {
+                            empresaNome: d.empresaNome || nome || '',
+                            empresaEnderecoRaw: d.empresaEnderecoRaw || '',
+                            empresaEndereco: d.empresaEndereco || null,
+                            empresaCep: d.empresaCep || '',
+                            nome: d.nome || d.cpfResponsavel || '',
+                            cpf: d.cpf || d.cpfResponsavel || '',
+                            rua: d.rua || '',
+                            numero: d.numero || '',
+                            complemento: d.complemento || '',
+                            cep: d.cep || ''
+                        };
+                        dadosRelatorio.push(montarRelatorio(empresaEntry));
+                    }
+                }
+            } else {
+                if (!dadosRelatorioKeys.has(docKey)) {
+                    dadosRelatorioKeys.add(docKey);
+                    if (doc.length === 11) {
+                        dadosRelatorio.push(`Nome: ${nome || 'Pessoa Física'}\nCPF: ${formatarDocumento(doc)}\nEndereço: (Não localizado ou sem retorno na Receita Federal)`);
+                    } else {
+                        dadosRelatorio.push(`Empresa: ${nome || 'Pessoa Jurídica'}\nEndereço: (CNPJ ${formatarDocumento(doc)}: Não localizado ou sem retorno na Receita Federal)`);
+                    }
+                }
+            }
+        }
+
+        mostrarNotificacao(`Pesquisa Infojud finalizada! (${total} partes processadas)`, '#28a745', false);
+        renderizarPainelRelatorio(dadosRelatorio, { isMinutas: false });
+    }
+
+    async function executarInfojudDetalhe() {
+        const idProc = _obterIdProcesso();
+        if (!idProc) {
+            mostrarNotificacao('Abra os detalhes de um processo para consultar o Infojud.', '#dc3545');
+            return;
+        }
+
+        mostrarNotificacao('Buscando partes do processo...', '#0288d1', true);
+
+        let raw;
+        try {
+            raw = await _fetchPartesProcesso(idProc);
+        } catch (e) {
+            console.error('[Infojud Detalhe] Falha ao consultar partes:', e);
+            mostrarNotificacao('Erro ao buscar partes: ' + e.message, '#dc3545');
+            return;
+        }
+
+        const grupos = _extrairPartesParaDialog(raw);
+        grupos.passivo = _removerDuplicados(grupos.passivo);
+        grupos.ativo = _removerDuplicados(grupos.ativo);
+        grupos.outros = _removerDuplicados(grupos.outros);
+
+        const totalPartes = grupos.passivo.length + grupos.ativo.length + grupos.outros.length;
+        if (totalPartes === 0) {
+            mostrarNotificacao('Nenhuma parte encontrada no processo.', '#ff9800');
+            return;
+        }
+
+        abrirDialogSelecaoPartes(grupos, async (selecionados) => {
+            await executarPesquisaInfojudPartes(selecionados);
+        });
+    }
+
+    // Exportação para o contexto global / PJeTools
+    _win.executarInfojudDetalhe = window.executarInfojudDetalhe = executarInfojudDetalhe;
+    _win.consultarDocInfojud = window.consultarDocInfojud = consultarDocInfojud;
+    _win.renderizarPainelRelatorio = window.renderizarPainelRelatorio = renderizarPainelRelatorio;
+    _win.abrirDialogSelecaoPartes = window.abrirDialogSelecaoPartes = abrirDialogSelecaoPartes;
 
     // =================================================================================
     // PARTE 2: AUTO-EXECUÇÃO RECEITA FEDERAL (e-CAC)

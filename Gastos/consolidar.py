@@ -27,8 +27,10 @@ from PIL import Image
 
 import classificador
 import comum
-from comum import (BLOCO_A, BLOCO_B, MES_ALVO_PADRAO, ID_PLANILHA, DriveIndex,
-                   gerar_prefixo_mes, normalizar, RE_CONSOLIDADO, obter_letra_mes)
+from comum import (BLOCO_A, BLOCO_B, BLOCO_I, BLOCO_II, MES_ALVO_PADRAO, ID_PLANILHA, DriveIndex,
+                   gerar_prefixo_mes, normalizar, RE_CONSOLIDADO, obter_letra_mes,
+                   eh_mes_no_periodo, PERIODO_ATIVO_INICIO, PERIODO_ATIVO_FIM)
+from extrato import extrato_geral, parse_extrato_pdf, obter_arquivo_extrato_drive
 
 
 class LoggerTee:
@@ -76,7 +78,7 @@ def higienizar_nome(nome):
 
 def formatar_nome_consolidado(rubrica, bloco, mes_nome, doc_str):
     """Padrão: Doc A2 - Comprovantes - (nome da despesa/Individual ou geral) - mes/ano"""
-    tipo_bloco = 'Individual' if bloco == 'A' else 'Geral'
+    tipo_bloco = 'Individual' if bloco in ('I', 'A') else 'Geral'
     rubrica_limpa = higienizar_nome(rubrica)
     if f'({tipo_bloco})' in rubrica_limpa:
         return f'{doc_str} - Comprovantes - {rubrica_limpa} - {mes_nome}.pdf'
@@ -98,11 +100,14 @@ def fmt_br(v):
     return f'{v:.2f}'.replace('.', ',')
 
 
-def gerar_hash_estado(arquivos_fonte):
+VERSAO_BANNER = 'v2_banner'
+
+
+def gerar_hash_estado(arquivos_fonte, versao=VERSAO_BANNER):
     if not arquivos_fonte:
         return 'VAZIO'
     assinaturas = sorted(f"{a['id']}-{a.get('md5Checksum', a.get('modifiedTime', ''))}" for a in arquivos_fonte)
-    return hashlib.md5('|'.join(assinaturas).encode('utf-8')).hexdigest()
+    return hashlib.md5(f"{versao}|{'|'.join(assinaturas)}".encode('utf-8')).hexdigest()
 
 
 def eh_comprovante(f):
@@ -220,29 +225,94 @@ def baixar(drive, id_arquivo):
     return buf
 
 
-def montar_pdf(drive, arquivos):
-    doc_final = fitz.open()
+def formatar_titulo_cabecalho(str_doc, mes_nome, rubrica):
+    partes = mes_nome.split()
+    if len(partes) >= 2:
+        m_txt = partes[0]
+        ano_txt = partes[1][-2:] if len(partes[1]) >= 2 else partes[1]
+        mes_ano = f"{m_txt}/{ano_txt}"
+    else:
+        mes_ano = mes_nome
+    return f"{str_doc.upper()} — {mes_ano.upper()} — {rubrica.upper()}"
+
+
+def montar_pdf(drive, arquivos, str_doc=None, mes_nome=None, rubrica=None, bloco=None, nota_extrato=None):
+    paginas_fonte = []  # tuplas: ('pdf', doc_fitz, pno) ou ('img', raw_bytes, 0)
+    docs_abertos = []
+
     for arq in arquivos:
         dados = baixar(drive, arq['id'])
         raw = dados.getvalue()
         if arq.get('mimeType') == 'application/pdf' or raw[:4] == b'%PDF':
             try:
                 sub_doc = fitz.open(stream=raw, filetype="pdf")
-                doc_final.insert_pdf(sub_doc)
-                sub_doc.close()
+                docs_abertos.append(sub_doc)
+                for pno in range(len(sub_doc)):
+                    paginas_fonte.append(('pdf', sub_doc, pno))
             except Exception as e:
-                print(f"     ⚠️  Aviso ao mesclar PDF {arq['name']}: {e}")
+                print(f"     ⚠️  Aviso ao ler PDF {arq['name']}: {e}")
+        else:
+            paginas_fonte.append(('img', raw, 0))
+
+    if not paginas_fonte:
+        doc_vazio = fitz.open()
+        out = io.BytesIO(doc_vazio.tobytes())
+        doc_vazio.close()
+        return out
+
+    doc_final = fitz.open()
+    total_pags = len(paginas_fonte)
+    tem_cabecalho = bool(str_doc and mes_nome and rubrica)
+
+    if tem_cabecalho:
+        titulo = formatar_titulo_cabecalho(str_doc, mes_nome, rubrica)
+        tipo_desc = 'Despesa Individual da Alimentanda (100%)' if bloco in ('I', 'A') else 'Despesa Geral da Casa (Rateio 1/3)'
+
+    for idx, (tipo_src, obj, pno) in enumerate(paginas_fonte):
+        page = doc_final.new_page(width=595.32, height=841.92)
+
+        if tem_cabecalho:
+            # 1. Banner de Cabeçalho (Marinho Nobre + Linha Dourada)
+            altura_banner = 68 if nota_extrato else 55
+            banner_rect = fitz.Rect(0, 0, 595.32, altura_banner)
+            page.draw_rect(banner_rect, color=(0.10, 0.22, 0.45), fill=(0.10, 0.22, 0.45))
+            page.draw_line(fitz.Point(0, altura_banner - 1), fitz.Point(595.32, altura_banner - 1), color=(0.85, 0.65, 0.15), width=2)
+
+            subtitulo = tipo_desc
+            if total_pags > 1:
+                subtitulo += f"  |  Página {idx+1} de {total_pags}"
+
+            if nota_extrato:
+                page.insert_text(fitz.Point(20, 22), titulo, fontname="helv", fontsize=11, color=(1, 1, 1))
+                page.insert_text(fitz.Point(20, 38), subtitulo, fontname="helv", fontsize=8.5, color=(0.85, 0.90, 1.0))
+                page.insert_text(fitz.Point(20, 55), f"(*) {nota_extrato}", fontname="helv", fontsize=8, color=(1.0, 0.90, 0.50))
+                conteudo_rect = fitz.Rect(20, altura_banner + 10, 575.32, 825)
+            else:
+                page.insert_text(fitz.Point(20, 26), titulo, fontname="helv", fontsize=12, color=(1, 1, 1))
+                page.insert_text(fitz.Point(20, 44), subtitulo, fontname="helv", fontsize=9, color=(0.85, 0.90, 1.0))
+                conteudo_rect = fitz.Rect(20, 65, 575.32, 825)
+        else:
+            conteudo_rect = fitz.Rect(20, 20, 575.32, 822)
+
+        if tipo_src == 'pdf':
+            page.show_pdf_page(conteudo_rect, obj, pno)
         else:
             try:
-                imagem = Image.open(io.BytesIO(raw)).convert('RGB')
-                imagem.thumbnail((1200, 1600), Image.Resampling.LANCZOS)
-                pdf_bytes = io.BytesIO()
-                imagem.save(pdf_bytes, format='PDF', resolution=72, optimize=True, quality=50)
-                sub_doc = fitz.open(stream=pdf_bytes.getvalue(), filetype="pdf")
-                doc_final.insert_pdf(sub_doc)
-                sub_doc.close()
-            except Exception as e:
-                print(f"     ⚠️  Aviso ao converter imagem {arq['name']}: {e}")
+                page.insert_image(conteudo_rect, stream=obj, keep_proportion=True)
+            except Exception:
+                try:
+                    img_pil = Image.open(io.BytesIO(obj)).convert('RGB')
+                    buf_temp = io.BytesIO()
+                    img_pil.save(buf_temp, format='JPEG', quality=90)
+                    page.insert_image(conteudo_rect, stream=buf_temp.getvalue(), keep_proportion=True)
+                except Exception as e_img:
+                    print(f"     ⚠️  Aviso ao inserir imagem: {e_img}")
+
+    for d in docs_abertos:
+        try:
+            d.close()
+        except Exception:
+            pass
 
     out = io.BytesIO(doc_final.tobytes(garbage=4, deflate=True))
     doc_final.close()
@@ -266,7 +336,30 @@ def upload_consolidado(drive, nome_arquivo, pdf_bytes, id_pasta, hash_pasta, exi
     return f
 
 
-def consolidar_aba(drive_idx, aba, dry_run=False):
+def carregar_mapa_extratos_gerais(drive, drive_idx):
+    """Carrega extratos gerais consolidados (ex: pasta Janeiro 2026 - RAIZ)."""
+    mapa = {}
+    arq = obter_arquivo_extrato_drive(drive, drive_idx, 'Janeiro 2026')
+    if arq:
+        try:
+            from extrato import baixar_arquivo_drive, parse_extrato_pdf
+            dados = baixar_arquivo_drive(drive, arq['id'])
+            txs, totais, total_geral = parse_extrato_pdf(dados)
+            totais_por_nome = {}
+            for (ano, mes), v in totais.items():
+                totais_por_nome[f"{comum.MESES[mes - 1]} {ano}"] = v
+            mapa[normalizar('Mercado/Açougue/Padaria')] = {
+                'arquivo': arq,
+                'link': arq.get('webViewLink', ''),
+                'totais_por_mes_nome': totais_por_nome,
+                'total_geral': total_geral
+            }
+        except Exception as e:
+            print(f"⚠️  Aviso ao carregar extrato geral: {e}")
+    return mapa
+
+
+def consolidar_aba(drive_idx, aba, dry_run=False, mapa_extrato_geral=None):
     drive = drive_idx.drive
     mes_nome = aba.title.strip()
     id_mes = drive_idx.pasta_do_mes(mes_nome)
@@ -274,8 +367,13 @@ def consolidar_aba(drive_idx, aba, dry_run=False):
         return []
 
     pastas = {}
-    for bloco_nome, chave in ((BLOCO_A, 'A'), (BLOCO_B, 'B')):
-        blocos = [f for f in drive_idx.listar_filhos(id_mes, apenas_pastas=True) if f['name'] == bloco_nome]
+    for bloco_nome, chave in ((BLOCO_I, 'I'), (BLOCO_II, 'II')):
+        nomes_comp = [bloco_nome]
+        if chave == 'I':
+            nomes_comp += ['Bloco I - Individuais', 'Bloco A - Individuais', 'Grupo I - Individuais']
+        else:
+            nomes_comp += ['Bloco II - Gerais', 'Bloco B - Gerais', 'Grupo II - Gerais']
+        blocos = [f for f in drive_idx.listar_filhos(id_mes, apenas_pastas=True) if f['name'] in nomes_comp]
         if blocos:
             pastas[chave] = {normalizar(f['name']): f['id']
                              for f in drive_idx.listar_filhos(blocos[0]['id'], apenas_pastas=True)
@@ -292,11 +390,11 @@ def consolidar_aba(drive_idx, aba, dry_run=False):
         ln = i + 1
         c0 = linha[0].strip() if len(linha) > 0 else ''
         rubrica = linha[1].strip() if len(linha) > 1 else ''
-        if 'A - DESPESAS INDIVIDUAIS' in c0:
-            bloco = 'A'
+        if 'DESPESAS INDIVIDUAIS' in c0:
+            bloco = 'I'
             continue
-        if 'B - DESPESAS GERAIS' in c0:
-            bloco = 'B'
+        if 'DESPESAS GERAIS' in c0:
+            bloco = 'II'
             continue
         if rubrica.startswith('Subtotal') or rubrica.startswith('TOTAL'):
             bloco = None
@@ -308,13 +406,22 @@ def consolidar_aba(drive_idx, aba, dry_run=False):
         if not id_pasta:
             continue
         rotulo = f'[{mes_nome}] {rubrica}'
-        tipo_bloco = 'Individual' if bloco == 'A' else 'Geral'
+        tipo_bloco = 'Individual' if bloco in ('I', 'A') else 'Geral'
         str_doc = f'Doc {letra_mes}{doc}'
         nome_cons = formatar_nome_consolidado(rubrica, bloco, mes_nome, str_doc)
         fontes, consolidado = classificar_arquivos_da_pasta(
             drive_idx, id_pasta, nome_cons, rotulo, rubrica=rubrica, dry_run=dry_run
         )
-        if not fontes:
+
+        # Suporte a Extrato Geral Consolidado (ex: Mercado/Açougue/Padaria)
+        val_extrato = 0.0
+        link_extrato = ""
+        if mapa_extrato_geral and normalizar(rubrica) in mapa_extrato_geral:
+            info_ext = mapa_extrato_geral[normalizar(rubrica)]
+            val_extrato = info_ext.get('totais_por_mes_nome', {}).get(mes_nome, 0.0)
+            link_extrato = info_ext.get('link', '')
+
+        if not fontes and val_extrato <= 0:
             continue
 
         doc += 1
@@ -325,17 +432,25 @@ def consolidar_aba(drive_idx, aba, dry_run=False):
             (com_valor if v else sem_valor).append(a)
         for a in sem_valor:
             relatorio['sem_valor'].append(f"{rotulo}: '{a['name']}'")
-        soma = round(soma, 2)
-        individual = soma if bloco == 'A' else round(soma / 3, 2)
+        soma = round(soma + val_extrato, 2)
+        individual = soma if bloco in ('I', 'A') else round(soma / 3, 2)
 
-        hash_atual = gerar_hash_estado(fontes)
+        nota_extrato = None
+        if val_extrato > 0:
+            nota_extrato = f"Há no mês o valor de R$ {fmt_br(val_extrato)} a partir do extrato consolidado de Janeiro/26"
+
+        hash_atual = gerar_hash_estado(fontes, versao=f"{VERSAO_BANNER}_ext{val_extrato}")
         hash_salvo = (consolidado or {}).get('appProperties', {}).get('hash_estado', '')
         valores = [[fmt_br(soma) if soma else '', fmt_br(individual) if soma else '']]
 
         id_cons_final = None
         pdf_bytes_final = None
 
-        if consolidado and hash_atual == hash_salvo:
+        if not fontes:
+            link = link_extrato
+            id_cons_final = (mapa_extrato_geral.get(normalizar(rubrica), {}).get('arquivo') or {}).get('id', '')
+            print(f"  📄 {rotulo} -> {str_doc} | Extrato Geral (Janeiro 2026 - RAIZ) | R$ {fmt_br(soma)}")
+        elif consolidado and hash_atual == hash_salvo:
             relatorio['ignorados'] += 1
             link = consolidado.get('webViewLink', '')
             id_cons_final = consolidado['id']
@@ -348,7 +463,7 @@ def consolidar_aba(drive_idx, aba, dry_run=False):
                 id_cons_final = (consolidado or {}).get('id', '')
             else:
                 try:
-                    pdf = montar_pdf(drive, sem_valor + com_valor)
+                    pdf = montar_pdf(drive, sem_valor + com_valor, str_doc=str_doc, mes_nome=mes_nome, rubrica=rubrica, bloco=bloco, nota_extrato=nota_extrato)
                     pdf_bytes_final = pdf.getvalue()
                     f_salvo = upload_consolidado(drive, nome_cons, io.BytesIO(pdf_bytes_final), id_pasta, hash_atual, consolidado)
                     link = f_salvo.get('webViewLink', '')
@@ -498,22 +613,25 @@ def compilar_mes_final(sheets_client, drive_idx, aba, docs_compilacao, dry_run=F
     # 4. Upload para o Google Drive na pasta raiz do mês
     media = MediaIoBaseUpload(io.BytesIO(out_bytes), mimetype='application/pdf', resumable=True)
     props = {'appProperties': {'hash_compilacao': hash_compilacao}}
-    if existente:
-        f_drive = drive_idx.drive.files().update(
-            fileId=existente['id'], body=props, media_body=media, fields='id, name, webViewLink, appProperties'
-        ).execute()
-    else:
-        f_drive = drive_idx.drive.files().create(
-            body={'name': nome_compilado, 'parents': [id_mes], **props},
-            media_body=media, fields='id, name, webViewLink, appProperties'
-        ).execute()
-        try:
-            drive_idx.drive.permissions().create(fileId=f_drive['id'], body={'type': 'anyone', 'role': 'reader'}).execute()
-        except Exception:
-            pass
-
-    link_compilado = f_drive.get('webViewLink', '')
-    drive_idx.adicionar_arquivo(f_drive)
+    link_compilado = (existente or {}).get('webViewLink', '')
+    try:
+        if existente:
+            f_drive = drive_idx.drive.files().update(
+                fileId=existente['id'], body=props, media_body=media, fields='id, name, webViewLink, appProperties'
+            ).execute()
+        else:
+            f_drive = drive_idx.drive.files().create(
+                body={'name': nome_compilado, 'parents': [id_mes], **props},
+                media_body=media, fields='id, name, webViewLink, appProperties'
+            ).execute()
+            try:
+                drive_idx.drive.permissions().create(fileId=f_drive['id'], body={'type': 'anyone', 'role': 'reader'}).execute()
+            except Exception:
+                pass
+        link_compilado = f_drive.get('webViewLink', '')
+        drive_idx.adicionar_arquivo(f_drive)
+    except Exception as e_up:
+        print(f"     ⚠️  Não foi possível fazer upload do compilado final no Drive ({e_up}); preservando cópia local e link anterior.")
 
     # 5. Atualizar célula G1 da planilha com o link direto da compilação completa
     try:
@@ -529,13 +647,22 @@ def compilar_mes_final(sheets_client, drive_idx, aba, docs_compilacao, dry_run=F
     return link_compilado
 
 
-def consolidar_tudo(sheets_client, drive_idx, so_mes=None, dry_run=False, triagem=None, compilar=True):
+def consolidar_tudo(sheets_client, drive_idx, so_mes=None, dry_run=False, triagem=None, compilar=True, todos_meses=False):
     planilha = sheets_client.open_by_key(ID_PLANILHA)
     print(f"\n🚀 CONSOLIDAÇÃO {'(DRY-RUN) ' if dry_run else ''}...")
+    if not so_mes and not todos_meses:
+        print(f"📌 Período ativo selecionado: {comum.MESES[PERIODO_ATIVO_INICIO[1]-1]}/{PERIODO_ATIVO_INICIO[0]} até {comum.MESES[PERIODO_ATIVO_FIM[1]-1]}/{PERIODO_ATIVO_FIM[0]}")
+    mapa_extratos = carregar_mapa_extratos_gerais(drive_idx.drive, drive_idx)
+    if mapa_extratos:
+        for r_norm, inf in mapa_extratos.items():
+            print(f"📊 Extrato Geral ativo: {inf['arquivo']['name']} (R$ {inf['total_geral']:.2f})")
     for aba in planilha.worksheets():
-        if so_mes and aba.title.strip() != so_mes:
+        m_nome = aba.title.strip()
+        if so_mes and m_nome != so_mes:
             continue
-        docs_mes = consolidar_aba(drive_idx, aba, dry_run=dry_run)
+        if not so_mes and not todos_meses and not eh_mes_no_periodo(m_nome):
+            continue
+        docs_mes = consolidar_aba(drive_idx, aba, dry_run=dry_run, mapa_extrato_geral=mapa_extratos)
         if compilar and docs_mes:
             compilar_mes_final(sheets_client, drive_idx, aba, docs_mes, dry_run=dry_run)
 
@@ -567,10 +694,12 @@ def consolidar_tudo(sheets_client, drive_idx, so_mes=None, dry_run=False, triage
     print('\n' + '=' * 60)
     print('📋 MAPA DE STATUS POR MÊS (DOCUMENTADOS vs PENDENTES)')
     print('=' * 60)
-    rubricas_conferir = ['Aluguel', 'Luz', 'Água', 'Internet', 'Faxina/Limpeza', 'Mercado/Açougue/Padaria', 'Transporte', 'Escola']
+    rubricas_conferir = ['Aluguel', 'Luz', 'Água', 'Internet', 'Faxina/Limpeza', 'Mercado/Açougue/Padaria', 'Transporte', 'Escola', 'Psicoterapia', 'Psicopedagoga', 'Farmácia e Higiene']
     for aba in planilha.worksheets():
         m_nome = aba.title.strip()
         if not any(m_nome.startswith(m) for m in comum.MESES):
+            continue
+        if not so_mes and not todos_meses and not eh_mes_no_periodo(m_nome):
             continue
         dados = aba.get_all_values()
         valores_mes = {}
@@ -604,8 +733,11 @@ def main():
     ap.add_argument('--oauth', action='store_true', help='abrir navegador para renovar OAuth do usuário')
     ap.add_argument('--ate', default=f'{MES_ALVO_PADRAO[0]}-{MES_ALVO_PADRAO[1]:02d}', help='AAAA-MM')
     ap.add_argument('--mes', help='consolidar só esta aba, ex: "Maio 2026"')
+    ap.add_argument('--todos-meses', action='store_true', help='consolidar todo o histórico (desde Maio 2025) em vez de apenas o período ativo 2026')
     ap.add_argument('--sem-meses', action='store_true', help='não gerar meses faltantes')
     ap.add_argument('--sem-compilar', action='store_true', help='não gerar o PDF compilado final do mês')
+    ap.add_argument('--extrato-geral', action='store_true', help='processar extrato geral consolidado multimês')
+    ap.add_argument('--farmacia', action='store_true', help='processar prints de gastos de Farmácia e Higiene')
     args = ap.parse_args()
     ate = tuple(int(x) for x in args.ate.split('-'))
 
@@ -614,6 +746,14 @@ def main():
     print('⚡ Carregando índice do Drive...')
     drive_idx = DriveIndex(drive)
     print(f'   {len(drive_idx.by_id)} objetos indexados.')
+
+    if args.farmacia:
+        classificador.processar_pasta_farmacia(drive=drive, drive_idx=drive_idx, dry_run=args.dry_run)
+        drive_idx.recarregar()
+
+    if args.extrato_geral:
+        extrato_geral(aplicar_planilha=True, sheets_client=sheets_client, drive=drive, drive_idx=drive_idx, dry_run=args.dry_run)
+        drive_idx.recarregar()
 
     if not args.sem_meses:
         comum.garantir_meses(sheets_client, drive_idx, ate=ate, dry_run=args.dry_run)
@@ -625,7 +765,8 @@ def main():
         drive_idx.recarregar()
 
     consolidar_tudo(
-        sheets_client, drive_idx, so_mes=args.mes, dry_run=args.dry_run, triagem=triagem, compilar=not args.sem_compilar
+        sheets_client, drive_idx, so_mes=args.mes, dry_run=args.dry_run, triagem=triagem, compilar=not args.sem_compilar,
+        todos_meses=args.todos_meses
     )
 
 

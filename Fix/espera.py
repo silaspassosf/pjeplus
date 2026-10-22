@@ -117,15 +117,15 @@ def ate_js(driver, expressao, teto=2.0):
     """
     script = "%s return !!(%s);" % (_JS_ELEMENTOS, expressao)
     limite = time.monotonic() + float(teto)
+    ultimo_erro = None
     while True:
         try:
             if _executar_script(driver, script):
                 return True
         except Exception as e:
-            _log_falha(expressao, teto, str(e))
-            return False
+            ultimo_erro = str(e)
         if time.monotonic() >= limite:
-            _log_falha(expressao, teto, "timeout")
+            _log_falha(expressao, teto, ultimo_erro or "timeout")
             return False
         _dormir(_INTERVALO_POLL)
 

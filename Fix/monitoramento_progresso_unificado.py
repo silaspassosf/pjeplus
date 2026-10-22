@@ -115,7 +115,7 @@ def _validar_e_limpar_progresso(progresso: Dict[str, Any]) -> Dict[str, Any]:
     progresso_limpo = progresso.copy()
 
     # Validar e limpar listas
-    for campo in ["processos_executados", "processos_com_erro"]:
+    for campo in ["processos_executados", "processos_com_erro", "tarefas_executadas", "tarefas_com_erro"]:
         if campo not in progresso_limpo:
             progresso_limpo[campo] = []
         elif not isinstance(progresso_limpo[campo], list):
@@ -350,7 +350,7 @@ def limpar_progresso_antigos(dias: int = 2) -> Dict[str, int]:
             datas = datas if isinstance(datas, dict) else {}
 
             removidos = 0
-            for campo in ["processos_executados", "processos_com_erro"]:
+            for campo in ["processos_executados", "processos_com_erro", "tarefas_executadas", "tarefas_com_erro"]:
                 lista = secao.get(campo)
                 if not isinstance(lista, list):
                     continue
@@ -367,10 +367,14 @@ def limpar_progresso_antigos(dias: int = 2) -> Dict[str, int]:
                         nova_lista.append(numero)
                 secao[campo] = nova_lista
 
-            # Limpar datas órfãs (número que saiu das listas)
+            # Limpar datas órfãs (número/tarefa que saiu das listas)
             if isinstance(datas, dict) and datas:
-                numeros_restantes = set(secao.get("processos_executados", [])) | set(
-                    secao.get("processos_com_erro", []))
+                numeros_restantes = (
+                    set(secao.get("processos_executados", [])) |
+                    set(secao.get("processos_com_erro", [])) |
+                    set(secao.get("tarefas_executadas", [])) |
+                    set(secao.get("tarefas_com_erro", []))
+                )
                 datas_filtradas = {
                     numero: data for numero, data in datas.items()
                     if numero in numeros_restantes
@@ -563,6 +567,9 @@ def _formatar_numero_cnj(numero: str) -> Optional[str]:
         return None
     return (f"{digitos[:7]}-{digitos[7:9]}.{digitos[9:13]}."
             f"{digitos[13:14]}.{digitos[14:16]}.{digitos[16:]}")
+
+
+formatar_numero_cnj = _formatar_numero_cnj
 
 
 def _numero_em_lista(numero_canonico: str, lista) -> bool:

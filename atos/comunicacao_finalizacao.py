@@ -243,7 +243,7 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
 
     # 1. Clicar no botão do envelope na linha correspondente
     _JS_CLICAR_ENVELOPE = """(targetIdx) => {
-        const rows = document.querySelectorAll('tbody.cdk-drop-list tr.cdk-drag');
+        const rows = document.querySelectorAll('tbody.cdk-drop-list tr.cdk-drag, pje-pec-tabela-destinatarios tbody tr, mat-table tbody tr');
         const tr = rows[targetIdx - 1];
         if (!tr) return { ok: false, motivo: 'linha_nao_encontrada' };
 
@@ -252,10 +252,14 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
             'button[mattooltip="Alterar endereço"], ' +
             'button[aria-label*="endereço" i], ' +
             'button[mattooltip*="endereço" i], ' +
-            'pje-pec-coluna-endereco button'
+            'button[aria-label*="endereco" i], ' +
+            'button[mattooltip*="endereco" i], ' +
+            'pje-pec-coluna-endereco button, ' +
+            '.pec-item-coluna-endereco-tabela-destinatarios button, ' +
+            'td.mat-column-endereco button'
         );
         if (!btn) {
-            const icon = tr.querySelector('.fa-envelope, i[class*="fa-envelope"]');
+            const icon = tr.querySelector('.fa-envelope, i[class*="fa-envelope"], i[class*="envelope"]');
             if (icon) btn = icon.closest('button') || icon;
         }
         if (!btn) return { ok: false, motivo: 'botao_envelope_nao_encontrado' };
@@ -271,8 +275,8 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
         if hasattr(driver, 'page') and driver.page:
             res_env = driver.page.evaluate(_JS_CLICAR_ENVELOPE, idx)
             envelope_clicado = bool(isinstance(res_env, dict) and res_env.get('ok'))
-        elif hasattr(driver, 'execute_script'):
-            res_env = driver.execute_script(f"return ({_JS_CLICAR_ENVELOPE})({idx});")
+        else:
+            res_env = espera._executar_script(driver, f"return ({_JS_CLICAR_ENVELOPE})({idx});")
             envelope_clicado = bool(isinstance(res_env, dict) and res_env.get('ok'))
     except Exception as e_env:
         if debug:
@@ -359,8 +363,8 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
         if hasattr(driver, 'page') and driver.page:
             res_seta = driver.page.evaluate(_JS_CLICAR_PRIMEIRA_SETA)
             seta_clicada = bool(isinstance(res_seta, dict) and res_seta.get('ok'))
-        elif hasattr(driver, 'execute_script'):
-            res_seta = driver.execute_script(f"return ({_JS_CLICAR_PRIMEIRA_SETA})();")
+        else:
+            res_seta = espera._executar_script(driver, f"return ({_JS_CLICAR_PRIMEIRA_SETA})();")
             seta_clicada = bool(isinstance(res_seta, dict) and res_seta.get('ok'))
     except Exception as e_seta:
         if debug:
@@ -409,8 +413,8 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
         if hasattr(driver, 'page') and driver.page:
             res_fechar = driver.page.evaluate(_JS_FECHAR_MODAL)
             fechado = bool(isinstance(res_fechar, dict) and res_fechar.get('ok'))
-        elif hasattr(driver, 'execute_script'):
-            res_fechar = driver.execute_script(f"return ({_JS_FECHAR_MODAL})();")
+        else:
+            res_fechar = espera._executar_script(driver, f"return ({_JS_FECHAR_MODAL})();")
             fechado = bool(isinstance(res_fechar, dict) and res_fechar.get('ok'))
     except Exception as e_f:
         if debug:
@@ -563,7 +567,12 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
 
                 if meio_atual and 'correio' in meio_atual.lower():
                     if debug:
-                        log(f'[COMUNICACAO] Linha {idx}: "{meio_atual}" já está como Correio - não precisa alteração')
+                        log(f'[COMUNICACAO] Linha {idx}: "{meio_atual}" já está como Correio - garantindo vínculo de endereço...')
+                    try:
+                        vincular_primeiro_endereco_valido(driver, linha=linha, idx=idx, debug=debug, log=log)
+                    except Exception as e_vinc:
+                        if debug:
+                            log(f'[COMUNICACAO][DEBUG] Linha {idx}: Vínculo de endereço pré-existente: {e_vinc}')
                 else:
                     linhas_para_alterar.append((idx, linha, meio_atual))
             except Exception as e_ler:
@@ -656,18 +665,19 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
         raise NavegacaoError(f'alterar_meio_expedicao_para_correio: {e}')
 
 
-def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, executar_visibilidade=False, assinar=False):
+def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, executar_visibilidade=False, assinar=False, remover_endereco_invalido=True):
     if log is None:
         def log(_msg):
             return None
 
     log_start('COMUNICACAO_SALVAR_MINUTA')
-    # 0. Limpeza preventiva de destinatários com endereço inválido antes do salvamento
-    try:
-        from .comunicacao_destinatarios import remover_destinatarios_endereco_invalido
-        remover_destinatarios_endereco_invalido(driver, log=log, debug=debug)
-    except Exception:
-        pass
+    # 0. Limpeza preventiva de destinatários com endereço inválido antes do salvamento (se habilitada)
+    if remover_endereco_invalido:
+        try:
+            from .comunicacao_destinatarios import remover_destinatarios_endereco_invalido
+            remover_destinatarios_endereco_invalido(driver, log=log, debug=debug)
+        except Exception:
+            pass
 
     # Desfocar campo ativo antes do salvamento (sem blur cego com clique no body)
     try:

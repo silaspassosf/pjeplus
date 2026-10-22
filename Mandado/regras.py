@@ -262,42 +262,41 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
         _persistir_destinatarios_idpj()
 
         # Sequência obrigatória no fluxo IDPJ:
-        #   1) lembrete de bloqueio (se SISBAJUD positivo) — browser está limpo em /detalhe;
-        #      criar_lembrete_posit retorna False silenciosamente se o DOM estiver sujo
-        #      (ex: formulário GIGS residual), por isso o lembrete DEVE vir antes do GIGS.
+        #   1) GIGS de bloqueio (se SISBAJUD positivo ou valores bloqueados na decisão):
+        #      apenas observação "processar após IDPJ", sem prazo ou responsável.
         #   2) GIGS xs carta — criar_gigs aguarda "Atividade salva com sucesso"
         #   3) pec_idpj — com gigs_extra=False para NÃO recriar o GIGS
-        if resultado_sisbajud == 'positivo':
-            logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio')
-            # Conforme LEGADO.md (~46374): título "Bloqueio pendente", conteúdo "processar após IDPJ"
-            titulo_lembrete = 'Bloqueio pendente'
-            conteudo_lembrete = 'processar após IDPJ'
-            lembrete_ok = False
+        tem_bloqueio_decisao = any(termo in texto_documento.lower() for termo in [
+            'valores bloqueados', 'bloqueio positivo', 'bloqueio de valores positivo', 'saldo bloqueado'
+        ])
+        if resultado_sisbajud == 'positivo' or tem_bloqueio_decisao:
+            logger.info('[ARGOS][REGRAS] Bloqueio identificado (SISBAJUD=%s, decisao_bloq=%s): criando GIGS de bloqueio', resultado_sisbajud, tem_bloqueio_decisao)
+            obs_bloqueio = 'BLOQUEIO - processar após IDPJ'
+            gigs_bloq_ok = False
             for tentativa in range(1, 4):
                 try:
-                    lembrete_ok = bool(criar_lembrete_posit(driver, titulo_lembrete, conteudo_lembrete, debug=debug))
+                    logger.info(f'[ARGOS][REGRAS] Criando GIGS de bloqueio "{obs_bloqueio}" (tentativa {tentativa}/3)')
+                    gigs_bloq_ok = bool(criar_gigs(driver, '', '', obs_bloqueio))
                 except Exception as e:
-                    logger.warning(f'[ARGOS][REGRAS][WARN] lembrete tentativa {tentativa}/3 falhou: {type(e).__name__}: {e}')
-                if lembrete_ok:
-                    logger.info('[ARGOS][REGRAS] Lembrete de bloqueio confirmado')
+                    logger.warning(f'[ARGOS][REGRAS][WARN] GIGS de bloqueio tentativa {tentativa}/3 falhou: {type(e).__name__}: {e}')
+                if gigs_bloq_ok:
+                    logger.info('[ARGOS][REGRAS] GIGS de bloqueio confirmado com sucesso')
                     break
-                logger.warning(f'[ARGOS][REGRAS][WARN] lembrete nao confirmado (tentativa {tentativa}/3) — reassentando e tentando de novo')
-                espera.assentar(driver, 1.5, motivo='[LEMBRETE] retry apos falha')
-            if not lembrete_ok:
-                logger.error('[ARGOS][REGRAS][ERRO] Lembrete de bloqueio nao criado apos 3 tentativas — prosseguindo com pec_idpj mesmo assim')
-            # Barreira: garante que nenhum overlay do diálogo do post-it sobreviva
-            # antes do GIGS — clicar por cima do modal era o que perdia o lembrete
-            # (e às vezes travava o GIGS também).
-            espera.assentar(driver, 1.0, motivo='[IDPJ] barreira pos-lembrete antes do GIGS')
-        elif debug:
-            logger.info('[ARGOS][REGRAS] SISBAJUD não positivo: sem lembrete, seguindo com pec_idpj')
+                logger.warning(f'[ARGOS][REGRAS][WARN] GIGS de bloqueio nao confirmado (tentativa {tentativa}/3) — reassentando')
+                espera.assentar(driver, 1.2, motivo='[GIGS_BLOQ] retry apos falha')
 
-        # BARREIRA 1: nada do lembrete (diálogo/overlay) pode sobreviver antes do GIGS.
+            if not gigs_bloq_ok:
+                logger.error('[ARGOS][REGRAS][ERRO] GIGS de bloqueio nao criado apos 3 tentativas — prosseguindo com GIGS e pec_idpj')
+            espera.assentar(driver, 1.0, motivo='[IDPJ] barreira pos-gigs-bloqueio')
+        elif debug:
+            logger.info('[ARGOS][REGRAS] SISBAJUD não positivo: sem GIGS de bloqueio, seguindo com GIGS xs carta e pec_idpj')
+
+        # BARREIRA 1: formulário do GIGS e overlays precisam ter sumido antes do próximo GIGS.
         try:
-            espera.ate_sumir(driver, '#tituloPostit', teto=5)
-            aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=5)
+            espera.ate_sumir(driver, 'textarea[formcontrolname="observacao"]', teto=4)
+            espera.ate_sumir(driver, '.cdk-overlay-backdrop-showing', teto=4)
         except Exception as e:
-            logger.warning(f'[ARGOS][IDPJ] barreira pos-lembrete: {type(e).__name__}: {e}')
+            logger.warning(f'[ARGOS][IDPJ] barreira pos-gigs-bloqueio: {type(e).__name__}: {e}')
 
         # Passo 2/3: GIGS xs carta — retorno verificado (antes era ignorado) com retry.
         gigs_ok = False

@@ -37,6 +37,7 @@ from Fix.core import (
     wait_for_clickable,
     wait_for_visible,
 )
+from Fix.browser_suporte import click_headless_safe
 from Fix.utils import (
     inserir_html_no_editor_apos_marcador,
     obter_ultimo_conteudo_clipboard,
@@ -549,21 +550,33 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
                 logger.warning(f'[JUNTADA][INSERIR][WARN] Usando ID da URL como fallback: {numero_processo_atual}')
 
             # Gate anti-atropelo: se já existe editor na página, só cola quando
-            # o modelo estiver realmente presente no editor.
+            # o modelo estiver realmente presente no editor com seu marcador '--' ou conteúdo substancial.
+            _SEL_EDITOR = (
+                'div[class*="area-conteudo"][contenteditable="true"], '
+                '.ck-editor__editable[contenteditable="true"], '
+                '.ck-content[contenteditable="true"], '
+                'div[role="textbox"][contenteditable="true"]'
+            )
             editor_presente = espera.ate_aparecer(
-                self.driver, '.ck-editor__editable[contenteditable=true]', teto=4
+                self.driver, _SEL_EDITOR, teto=6
             )
             if editor_presente:
                 conteudo_no_editor = (
-                    "__pjeEls('.ck-editor__editable[contenteditable=true]').some("
-                    "el => (el.innerHTML || '').includes('--') || ((el.textContent || '').trim().length > 20))"
+                    f"__pjeEls({_SEL_EDITOR!r}).some("
+                    "el => (el.innerHTML || '').includes('--') || (el.textContent || '').includes('--'))"
                 )
                 if not espera.ate_js(self.driver, conteudo_no_editor, teto=10):
-                    logger.error(
-                        "[JUNTADA][INSERIR][ERRO] Conteúdo do modelo não chegou ao editor em 10s — "
-                        "colagem abortada para não salvar documento incompleto."
+                    # Se não encontrou o marcador '--', verifica se pelo menos tem texto substancial (> 25 chars)
+                    conteudo_fallback = (
+                        f"__pjeEls({_SEL_EDITOR!r}).some("
+                        "el => ((el.textContent || '').trim().length > 25))"
                     )
-                    return False
+                    if not espera.ate_js(self.driver, conteudo_fallback, teto=5):
+                        logger.error(
+                            "[JUNTADA][INSERIR][ERRO] Conteúdo do modelo não chegou ao editor em 15s — "
+                            "colagem abortada para não salvar documento incompleto."
+                        )
+                        return False
 
             ok = False
             try:
@@ -579,7 +592,15 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
                         return False
 
             if ok:
-                espera.assentar(self.driver, 0.5, 'assentamento pos-insercao')
+                # Sincroniza eventos DOM e aguarda estabilização pós-inserção
+                _executar_js(self.driver, f"""
+                    const ed = document.querySelector({_SEL_EDITOR!r});
+                    if (ed) {{
+                        ed.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        ed.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    }}
+                """)
+                espera.assentar(self.driver, 0.8, 'assentamento pos-insercao e sincronizacao do editor')
             return ok
 
         elif substituir_link:
@@ -606,95 +627,131 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
 def _salvar_documento(self) -> bool:
     """Salva documento com confirmação efetiva no PJe.
 
-    Inspirado no comportamento histórico do branch main (core.py.backup_final)
-    e adaptado para Playwright nativo sem dependências de Selenium:
-    1. Sincroniza editor (blur + eventos) e descarta snackbar residual de inserção de modelo.
-    2. Clica no botão Salvar com fallback robusto.
-    3. Aguarda confirmação real de salvamento:
-       - snackbar específico de salvamento (excluindo 'modelo')
-       - OU botão Salvar desabilitado + botão Assinar liberado.
-    4. Retry de clique caso o documento não tenha persistido e o botão Salvar continue ativo.
-    5. Assentamento seguro antes de liberar o fechamento da aba.
+    Segue o padrão canônico do projeto (atos/judicial_fluxo e atos/comunicacao_finalizacao):
+    1. Sincroniza editor (blur + eventos Angular) e garante que o botão Salvar está pronto/habilitado.
+    2. Clica no botão Salvar (via _clicar_elemento_gigs ou click_headless_safe).
+    3. Aguarda spinner/progresso sumir (mat-progress-bar, mat-progress-spinner).
+    4. Confirmação positiva:
+       - snackbar explícita de documento salvo / sucesso
+       - rejeição imediata se houver snackbar de erro/falha
+    5. Retry caso o botão Salvar continue ativo.
+    6. Confirmação de transição observável (Salvar desabilitado + Assinar habilitado APÓS clique).
+    7. Retorna False se o salvamento não foi confirmado (nunca mascara falha).
     """
     driver = self.driver
-    logger.debug('[JUNTADA] Salvando documento final...')
+    logger.info('[JUNTADA][SALVAR] Iniciando salvamento do documento...')
 
-    # 1. Sincronização do editor e descarte de notificações de etapas anteriores (ex: inserção de modelo)
-    _executar_js(driver, """
-        const ed = document.querySelector('.ck-editor__editable[contenteditable="true"], [contenteditable="true"]');
-        if (ed) {
-            ed.dispatchEvent(new Event('input', { bubbles: true }));
-            ed.dispatchEvent(new Event('change', { bubbles: true }));
-            ed.blur();
-        }
-        // Fecha ou descarta qualquer snackbar anterior para evitar falsos positivos
+    # 1. Sincronização do editor com o Angular
+    _SEL_EDITOR = (
+        'div[class*="area-conteudo"][contenteditable="true"], '
+        '.ck-editor__editable[contenteditable="true"], '
+        '.ck-content[contenteditable="true"], '
+        'div[contenteditable="true"]'
+    )
+    _executar_js(driver, f"""
+        const ed = document.querySelector({_SEL_EDITOR!r});
+        if (ed) {{
+            ed.dispatchEvent(new Event('input', {{ bubbles: true }}));
+            ed.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            if (document.activeElement === ed) ed.blur();
+        }}
+        // Descarta snackbars anteriores para evitar falso positivo
         const oldSnacks = document.querySelectorAll('simple-snack-bar, snack-bar-container');
-        oldSnacks.forEach(snack => {
+        oldSnacks.forEach(snack => {{
             const btn = snack.querySelector('button');
             if (btn) btn.click();
             else snack.remove();
-        });
+        }});
     """)
-    espera.assentar(driver, 0.4, 'sincronizacao do editor e descarte de snackbar residual')
+    espera.assentar(driver, 0.5, 'sincronizacao do editor antes de salvar')
 
-    # 2. Clique no botão Salvar
-    clicou = self._clicar_elemento_gigs('button[aria-label="Salvar"]', 'Salvar documento')
+    # 2. Aguarda botão Salvar estar presente e habilitado
+    _SEL_SALVAR = 'button[aria-label="Salvar"]'
+    espera.ate_habilitar(driver, _SEL_SALVAR, teto=8)
+
+    # 3. Clique no botão Salvar
+    clicou = self._clicar_elemento_gigs(_SEL_SALVAR, 'Salvar documento')
     if not clicou:
-        # Fallback via JS nativo se _clicar_elemento_gigs não conseguiu
-        clicou = bool(_executar_js(driver, """
-            const btn = document.querySelector('button[aria-label="Salvar"], button.mat-primary[aria-label="Salvar"]');
-            if (btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true') {
-                btn.click();
-                return true;
-            }
-            return false;
-        """))
+        clicou = click_headless_safe(driver, _SEL_SALVAR, timeout=5)
+
     if not clicou:
-        logger.error('[JUNTADA] Falha no salvamento principal!')
+        logger.error('[JUNTADA][SALVAR][ERRO] Falha ao clicar no botão Salvar!')
         return False
 
-    logger.debug('[JUNTADA] Aguardando processamento do salvamento...')
+    logger.info('[JUNTADA][SALVAR] Clique no botão Salvar realizado, aguardando processamento...')
 
-    # 3. Confirmação objetiva do salvamento
-    js_salvamento_confirmado = """
-        // A. Snackbar específico de salvamento (descarta explicitamente mensagens de modelo)
-        var snack = document.querySelector('simple-snack-bar, snack-bar-container');
-        if (snack) {
-            var t = (snack.innerText || snack.textContent || '').toLowerCase();
-            if (!t.includes('modelo') && (t.includes('salv') || t.includes('gravad') || (t.includes('documento') && t.includes('sucesso')))) {
-                return true;
+    # 4. Monitoramento ativo de processamento (padrão canônico)
+    # Aguarda sumir qualquer barra ou spinner de progresso
+    espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=15)
+
+    # 5. Confirmação positiva via snackbar
+    js_verificar_salvamento = """() => {
+        var snacks = Array.from(document.querySelectorAll('simple-snack-bar, snack-bar-container'));
+        for (var s of snacks) {
+            var txt = (s.innerText || s.textContent || '').toLowerCase();
+            if (txt.includes('erro') || txt.includes('falha') || txt.includes('obrigat') || txt.includes('inválid') || txt.includes('preencha')) {
+                return { status: 'erro', msg: txt };
+            }
+            if (!txt.includes('modelo') && (txt.includes('salv') || txt.includes('gravad') || txt.includes('sucesso') || txt.includes('documento'))) {
+                return { status: 'sucesso', msg: txt };
             }
         }
-        // B. Botão Salvar desabilitado + Botão Assinar liberado indica minuta gravada com sucesso
-        var btnSalvar = document.querySelector('button[aria-label="Salvar"]');
-        var btnAssinar = document.querySelector('button[aria-label="Assinar documento e juntar ao processo"], button[aria-label*="Assinar"]');
-        var salvarDesabilitado = btnSalvar && (btnSalvar.disabled || btnSalvar.getAttribute('aria-disabled') === 'true' || btnSalvar.classList.contains('mat-button-disabled'));
-        var assinarPronto = btnAssinar && !btnAssinar.disabled && btnAssinar.getAttribute('aria-disabled') !== 'true';
-        if (salvarDesabilitado && assinarPronto) {
-            return true;
-        }
-        return false;
-    """
+        return { status: 'pendente' };
+    }"""
 
-    salvo = bool(espera.ate_js(driver, js_salvamento_confirmado, teto=4))
+    limite_confirmacao = time.monotonic() + 10.0
+    salvo = False
+    while time.monotonic() < limite_confirmacao:
+        res = _executar_js(driver, f"return ({js_verificar_salvamento})();")
+        if isinstance(res, dict):
+            if res.get('status') == 'erro':
+                logger.error('[JUNTADA][SALVAR][ERRO] Salvamento rejeitado pelo PJe: %s', res.get('msg'))
+                return False
+            if res.get('status') == 'sucesso':
+                logger.info('[JUNTADA][SALVAR] Sucesso confirmado via snackbar: "%s"', res.get('msg', '').strip().replace('\\n', ' '))
+                salvo = True
+                break
+        espera.assentar(driver, 0.4)
 
-    # 4. Retry de segurança como no main (core.py.backup_final) caso ainda não tenha persistido
+    # 6. Retry caso o botão Salvar ainda permaneça ativo e não tenha confirmado
     if not salvo:
         btn_ainda_ativo = _executar_js(driver, """
             const btn = document.querySelector('button[aria-label="Salvar"]');
             return !!(btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true');
         """)
         if btn_ainda_ativo:
-            logger.debug('[JUNTADA] Documento ainda não salvo após 4s, tentando retry do clique...')
-            _executar_js(driver, """
-                const btn = document.querySelector('button[aria-label="Salvar"]');
-                if (btn) btn.click();
-            """)
-            salvo = bool(espera.ate_js(driver, js_salvamento_confirmado, teto=4))
+            logger.warning('[JUNTADA][SALVAR] Documento ainda não salvo após 10s, executando retry do clique...')
+            click_headless_safe(driver, _SEL_SALVAR, timeout=4)
+            espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner', teto=10)
+            limite_retry = time.monotonic() + 6.0
+            while time.monotonic() < limite_retry:
+                res = _executar_js(driver, f"return ({js_verificar_salvamento})();")
+                if isinstance(res, dict) and res.get('status') == 'sucesso':
+                    logger.info('[JUNTADA][SALVAR] Sucesso confirmado após retry: "%s"', res.get('msg'))
+                    salvo = True
+                    break
+                espera.assentar(driver, 0.4)
 
-    # Assentamento final de segurança antes de prosseguir (evita fechar a aba com requisição de rede pendente)
-    espera.assentar(driver, 1.2, 'pos-salvar juntada')
-    logger.debug('[JUNTADA] Salvamento confirmado com sucesso.')
+    # 7. Confirmação alternativa canônica: transição observável de estado pós-clique
+    if not salvo:
+        js_estado_pos_salvar = """() => {
+            var btnSalvar = document.querySelector('button[aria-label="Salvar"]');
+            var btnAssinar = document.querySelector('button[aria-label="Assinar documento e juntar ao processo"], button[aria-label*="Assinar"]');
+            var salvarDesab = !btnSalvar || btnSalvar.disabled || btnSalvar.getAttribute('aria-disabled') === 'true';
+            var assinarHabil = btnAssinar && !btnAssinar.disabled && btnAssinar.getAttribute('aria-disabled') !== 'true';
+            return salvarDesab && assinarHabil;
+        }"""
+        if bool(_executar_js(driver, f"return ({js_estado_pos_salvar})();")):
+            logger.info('[JUNTADA][SALVAR] Salvo confirmado via estado de transição (Salvar inativo + Assinar habilitado)')
+            salvo = True
+
+    if not salvo:
+        logger.error('[JUNTADA][SALVAR][ERRO] Não houve confirmação de salvamento do documento — abortando juntada')
+        return False
+
+    # Assentamento pós-salvamento para garantir que requisições HTTP da API PJe finalizaram
+    espera.assentar(driver, 1.5, 'estabilizacao pos-salvamento da juntada')
+    logger.info('[JUNTADA][SALVAR] Documento salvo com sucesso e persistido')
     return True
 
 

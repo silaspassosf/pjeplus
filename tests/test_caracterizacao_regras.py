@@ -74,6 +74,21 @@ class TestCaracterizacaoPEC(unittest.TestCase):
         self.assertIsNotNone(match_chip)
         self.assertEqual(match_chip[1], "xs_sob")
 
+    def test_determinar_regra_xs_pesq_e_xs_pesquisa(self):
+        from PEC.regras_execucao import determinar_regra
+        # Aceita estritamente 'xs pesq' ou 'xs pesquisa'
+        match_pesq = determinar_regra("xs pesq")
+        self.assertIsNotNone(match_pesq)
+        self.assertEqual(match_pesq[1], "outros")
+
+        match_pesquisa = determinar_regra("xs pesquisa")
+        self.assertIsNotNone(match_pesquisa)
+        self.assertEqual(match_pesquisa[1], "outros")
+
+        # Não aceita sem o prefixo 'xs'
+        self.assertIsNone(determinar_regra("pesq"))
+        self.assertIsNone(determinar_regra("pesquisa"))
+
     def test_calculo_dias_uteis_ecarta(self):
         from PEC.runtime_pec import _parse_data_ecarta, _somar_dias_uteis
         dt = _parse_data_ecarta("15/05/2025")
@@ -187,10 +202,52 @@ class TestCaracterizacaoMandado(unittest.TestCase):
                 driver_mock,
                 "",
                 "",
-                "EMPRESA TESTE LTDA - já alterado endereço na autuação.",
+                "Mandado positivo (EMPRESA TESTE LTDA) - já alterado endereço na autuação.",
                 log=False,
             )
             mock_apagar.assert_called_once_with(driver_mock, "1000397-80.2026.5.02.0703", "h1", False)
+
+    def test_classificar_certidao_oficial_negativo_padroes(self):
+        from Mandado.apoio_fluxos import _classificar_certidao_oficial
+
+        # Caso real do processo 1001090-35.2024.5.02.0703
+        texto_real = (
+            "CERTIDÃO NEGATIVA\n"
+            "Certifico e dou fé que compareci ao endereço... "
+            "Esta afirmou que a empresa não estava instalada naquele centro comercial. "
+            "Por todo o exposto, DEIXO DE REALIZAR A PENHORA e submeto a certidão."
+        )
+        self.assertEqual(_classificar_certidao_oficial(texto_real), "negativo")
+
+        # Teste com padrões individuais
+        self.assertEqual(_classificar_certidao_oficial("deixo de realizar a diligencia"), "negativo")
+        self.assertEqual(_classificar_certidao_oficial("empresa nao esta instalada no local"), "negativo")
+        self.assertEqual(_classificar_certidao_oficial("pessoa desconhecida no local"), "negativo")
+        self.assertEqual(_classificar_certidao_oficial("certidao de intimacao negativa"), "negativo")
+
+    def test_classificar_certidao_oficial_positivo_padroes(self):
+        from Mandado.apoio_fluxos import _classificar_certidao_oficial, _extrair_nome_destinatario_certidao
+
+        texto_exemplo = (
+            "CERTIDÃO DE DEVOLUÇÃO DE MANDADO\n\n"
+            "ID do mandado: 84f3bd5\n\n"
+            "Destinatário: FABIO BRITO DE ALMEIDA\n\n"
+            "Certifico e dou fé que, no dia 16/10/2026 às 7:50h, me dirigi à Rua dos Buritis, nº 925, apto 2153, "
+            "São Paulo, onde CITEI, o destinatário, FABIO BRITO DE ALMEIDA, que de tudo ficou ciente e recebeu o mandado. "
+            "Diante do exposto, devolvo o presente mandado e submeto à apreciação de V. Exa"
+        )
+        self.assertEqual(_classificar_certidao_oficial(texto_exemplo), "positivo")
+        self.assertEqual(_extrair_nome_destinatario_certidao(texto_exemplo), "FABIO BRITO DE ALMEIDA")
+
+        # Testar cada novo padrão positivo individualmente
+        self.assertEqual(_classificar_certidao_oficial("... onde citei o reclamado ..."), "positivo")
+        self.assertEqual(_classificar_certidao_oficial("... onde intimei o reclamado ..."), "positivo")
+        self.assertEqual(_classificar_certidao_oficial("... ocasião em que citei a executada ..."), "positivo")
+        self.assertEqual(_classificar_certidao_oficial("... ato contínuo, citei o sócio ..."), "positivo")
+        self.assertEqual(_classificar_certidao_oficial("... ali, citei a ré ..."), "positivo")
+        self.assertEqual(_classificar_certidao_oficial("... que ficou ciente dos termos ..."), "positivo")
+        self.assertEqual(_classificar_certidao_oficial("... recebeu o mandado em mãos ..."), "positivo")
+
 
 
 
@@ -279,8 +336,33 @@ class TestCaracterizacaoP2B(unittest.TestCase):
             return len(chamadas) >= 2
         res = espera.ate(None, cond, teto=2, intervalo=0.01)
         self.assertTrue(res)
-        self.assertGreaterEqual(len(chamadas), 2)
+    def test_p2b_admito_parcelamento_prevalencia_sobre_iniciar_exec(self):
+        """Valida que 'admito o parcelamento' cai no grupo 'xs saldo' e tem prevalência sobre iniciar_exec."""
+        from Prazo.p2b_documentos import _definir_regras_processamento
+        from Prazo.p2b_regras_execucao import gerar_regex_geral
+
+        regras = _definir_regras_processamento()
+
+        # Texto que contém tanto 'admito o parcelamento' quanto termos do grupo iniciar_exec ('sob pena de bloqueio', 'comprovar o pagamento')
+        texto = (
+            "Vistos etc. Admito o parcelamento do débito exequendo nos termos do art. 916 do CPC. "
+            "Deverá a reclamada comprovar o pagamento das parcelas subsequentes, sob pena de bloqueio."
+        )
+
+        regra_casada = None
+        for trechos, tipo_acao in regras:
+            for trecho in trechos:
+                padrao = trecho if hasattr(trecho, 'search') else gerar_regex_geral(trecho)
+                if padrao.search(texto):
+                    regra_casada = tipo_acao
+                    break
+            if regra_casada:
+                break
+
+        self.assertIsNotNone(regra_casada)
+        self.assertEqual(regra_casada, ("criar_gigs[1//xs saldo]",))
 
 
 if __name__ == "__main__":
     unittest.main()
+

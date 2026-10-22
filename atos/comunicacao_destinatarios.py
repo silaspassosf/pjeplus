@@ -15,15 +15,104 @@ def _normalizar_nome_para_match(nome):
     return re.sub(r'\s+', ' ', nome_norm).strip()
 
 
-def _partial_name_match(nome_norm, texto_norm, min_tokens=2):
-    try:
-        tokens = [t for t in re.findall(r'[a-z0-9]+', nome_norm) if len(t) >= 3]
-        if len(tokens) < min_tokens:
-            return False
-        found = sum(1 for t in tokens if t in texto_norm)
-        return found >= min_tokens
-    except Exception:
+STOPWORDS_NOMES = {
+    'de', 'da', 'do', 'dos', 'das', 'e', 'em', 'para', 'com', 'sem',
+    'ltda', 'me', 'epp', 'sa', 's/a', 'eireli', 'cia'
+}
+
+
+def extrair_primeiro_nome_e_sobrenome(nome: str):
+    """Extrai (primeiro_nome, proximo_sobrenome) do nome normalizado."""
+    if not nome:
+        return None, None
+    nome_norm = _normalizar_nome_para_match(nome).lower()
+    tokens = [t for t in re.findall(r'[a-z]+', nome_norm) if len(t) >= 2]
+    if not tokens:
+        return None, None
+    primeiro = tokens[0]
+    sobrenome = None
+    for t in tokens[1:]:
+        if t not in STOPWORDS_NOMES and len(t) >= 2:
+            sobrenome = t
+            break
+    return primeiro, sobrenome
+
+
+def casar_nome_destinatario(nome_alvo: str, texto_linha: str) -> bool:
+    """Verifica se o nome da linha corresponde estritamente ao destinatário alvo.
+    
+    Regras:
+    1. Match exato (nome_alvo == texto_linha ou contido como substring completa).
+    2. Se não exato, o primeiro nome DEVE ser igual (se é Bruno, tem que ser Bruno).
+    3. Se houver próximo sobrenome no alvo, ele deve casar contiguamente com o primeiro nome
+       (ex.: 'BRUNO DOS SANTOS' ou 'BRUNO SANTOS').
+    4. Rejeita tokens isolados dispersos (ex.: 'GOMES' e 'MIRANDA' espalhados entre réu e advogado).
+    """
+    if not nome_alvo or not texto_linha:
         return False
+
+    alvo_norm = _normalizar_nome_para_match(nome_alvo).lower()
+    linha_norm = _normalizar_nome_para_match(texto_linha).lower()
+
+    if not alvo_norm or not linha_norm:
+        return False
+
+    # 1. Match exato ou substring completa direta
+    if alvo_norm == linha_norm or alvo_norm in linha_norm or linha_norm in alvo_norm:
+        return True
+
+    p_alvo, s_alvo = extrair_primeiro_nome_e_sobrenome(nome_alvo)
+    if not p_alvo:
+        return False
+
+    p_linha, s_linha = extrair_primeiro_nome_e_sobrenome(texto_linha)
+    if p_linha and p_linha != p_alvo:
+        prefixos_tipo = {
+            'reclamado', 'reclamada', 'reu', 're', 'autor', 'autora',
+            'reclamante', 'executado', 'executada', 'exequente', 'terceiro',
+            'suscitado', 'suscitada'
+        }
+        if p_linha not in prefixos_tipo:
+            return False
+
+    padrao_primeiro = rf'\b{re.escape(p_alvo)}\b'
+    if not re.search(padrao_primeiro, linha_norm):
+        return False
+
+    if s_alvo:
+        padrao_primeiro_e_sobrenome = (
+            rf'\b{re.escape(p_alvo)}\b(?:\s+(?:de|da|do|dos|das|e)\b)*\s+\b{re.escape(s_alvo)}\b'
+        )
+        return bool(re.search(padrao_primeiro_e_sobrenome, linha_norm))
+
+    return True
+
+
+def _partial_name_match(nome_norm, texto_norm, min_tokens=2):
+    """Compat shim que delega para casar_nome_destinatario."""
+    return casar_nome_destinatario(nome_norm, texto_norm)
+
+
+def _extrair_nome_linha_pje(linha):
+    """Extrai o nome da parte na linha do PJe, isolando advogados/representantes."""
+    try:
+        if hasattr(linha, '_js'):
+            res = linha._js("""el => {
+                const sel = '.nome-parte, .pec-formatacao-padrao-dados-parte.nome-parte, .nome-tipo-parte, pje-nome-parte';
+                const elNome = el.querySelector(sel);
+                if (elNome && elNome.textContent && elNome.textContent.trim()) {
+                    return elNome.textContent.trim();
+                }
+                const clone = el.cloneNode(true);
+                const reps = clone.querySelectorAll('.partes-representante, .pec-representante, [mattooltip*="advogado" i]');
+                reps.forEach(r => r.remove());
+                return clone.textContent.trim();
+            }""")
+            if res:
+                return res
+    except Exception:
+        pass
+    return getattr(linha, 'text', '') or ''
 
 
 def _carregar_dadosatuais_local(caminho='dadosatuais.json'):
@@ -150,40 +239,101 @@ def _resolver_candidatos_via_api(driver, nomes_alvo, numero_processo=None, debug
         return []
 
 
-def _montar_destinatarios_por_observacao(observacao, dados_processo, debug=False):
-    if not observacao or not isinstance(dados_processo, dict):
+def _extrair_reus_mencionados_no_texto(
+    texto: str,
+    reus: List[Dict[str, Any]],
+    padrao_proximidade: Optional[str] = None,
+    debug: bool = False,
+    log: Any = None
+) -> List[Dict[str, Any]]:
+    """Compara o texto do documento com a lista de réus (dados_processo['reu']).
+    
+    Se `padrao_proximidade` for fornecido (ou se for detectado padrão de 'suscitado(s)/suscitada(s)'),
+    restringe a busca ao trecho de proximidade logo após o padrão (ex: até 500 caracteres ou fim de período),
+    evitando que réus fora desse contexto específico (ex: a empresa ré principal) sejam indevidamente incluídos.
+
+    Para cada réu, extrai tokens significativos do nome (tamanho >= 3, ignorando stopwords).
+    Se ao menos 2 tokens significativos (ou todos se o nome for curto) estiverem no texto,
+    ou se houver match exato do nome normalizado, o réu é considerado destinatário.
+    """
+    if not texto or not reus:
         return []
 
-    texto_obs = _normalizar_nome_para_match(observacao)
-    if not texto_obs:
-        return []
+    texto_alvo = texto
 
-    texto_limpo = re.sub(r'^\s*prazo\s*:\s*', '', texto_obs, flags=re.I).strip()
-    texto_limpo = re.sub(r'^\s*xs\s+pec\b', '', texto_limpo, flags=re.I).strip()
+    # Se houver padrão de proximidade especificado explicitamente (ex.: via 'informado sentenca suscitados')
+    regex_prox = padrao_proximidade
 
+    if regex_prox:
+        trechos_encontrados = []
+        # Localiza todas as ocorrências do padrão e extrai a janela seguinte (até 600 chars ou ponto final de parágrafo)
+        for m in re.finditer(regex_prox, texto, re.I):
+            inicio = m.end()
+            janela = texto[inicio:inicio + 600]
+            # Cortar no final de sentença/parágrafo duplo se houver
+            m_fim = re.search(r'(\n\s*\n|\.\s+[A-Z])', janela)
+            if m_fim:
+                janela = janela[:m_fim.start() + 1]
+            trechos_encontrados.append(janela)
+
+        if trechos_encontrados:
+            texto_alvo = " ... ".join(trechos_encontrados)
+            if log:
+                log(f'[DESTINATARIOS] Contexto de proximidade ativado ({regex_prox}): avaliando {len(trechos_encontrados)} trecho(s)')
+        else:
+            if padrao_proximidade:
+                if log:
+                    log(f'[DESTINATARIOS][WARN] Padrão de proximidade "{padrao_proximidade}" não localizado no documento')
+                return []
+
+    # 1. Match prioritário por CPF / CNPJ mencionado no documento
+    # Se algum réu tiver seu CPF ou CNPJ mencionado explicitamente no texto,
+    # ele é identificado com certeza absoluta e prevalece sobre matches nominais gerais (ex.: empresa no cabeçalho).
+    texto_digitos = re.sub(r'\D', '', texto_alvo)
+    candidatos_documento = []
+    vistos = set()
+
+    for parte in reus:
+        nome = (parte.get('nome') or parte.get('nomeParte') or '').strip()
+        doc = (parte.get('cpfcnpj') or parte.get('cpfCnpj') or parte.get('documento') or '').strip()
+        doc_digits = re.sub(r'\D', '', str(doc))
+        if not doc_digits or len(doc_digits) not in (11, 14):
+            continue
+
+        doc_no_texto = (doc and doc in texto_alvo) or (doc_digits in texto_digitos)
+        if doc_no_texto:
+            chave = (_normalizar_nome_para_match(nome), doc_digits)
+            if chave not in vistos:
+                vistos.add(chave)
+                candidatos_documento.append({
+                    'nome_oficial': nome,
+                    'nome_identificado': nome,
+                    'documento': doc,
+                    'documento_normalizado': doc_digits,
+                    'polo': 'reu',
+                    'tipo_doc': 'cpf' if len(doc_digits) == 11 else 'cnpj'
+                })
+                if log:
+                    tipo_doc_str = 'CPF' if len(doc_digits) == 11 else 'CNPJ'
+                    log(f'[DESTINATARIOS] Match exato de {tipo_doc_str} ({doc}) do réu "{nome}" no texto do documento')
+
+    candidatos_cpf = [c for c in candidatos_documento if c.get('tipo_doc') == 'cpf']
+    if candidatos_cpf:
+        return candidatos_cpf
+    if candidatos_documento:
+        return candidatos_documento
+
+    texto_norm = _normalizar_nome_para_match(texto_alvo)
     stopwords = {
-        'xs', 'pec', 'prazo', 'para', 'sobre', 'com', 'sem', 'de', 'da', 'do',
-        'dos', 'das', 'e', 'ou', 'manifestacao', 'manifestação', 'idpj'
+        'de', 'da', 'do', 'dos', 'das', 'e', 'ou', 'em', 'para', 'com', 'sem',
+        'ltda', 'me', 'epp', 'sa', 's/a', 'eireli', 'cia', 'advogado', 'advogados'
     }
-    tokens_alvo = [
-        t for t in re.findall(r'[a-z0-9]+', texto_limpo)
-        if len(t) >= 3 and t not in stopwords
-    ]
-
-    if debug:
-        try:
-            logger.info(f"[DESTINATARIOS][DEBUG] Tokens alvo extraídos da observação: {tokens_alvo}")
-        except Exception:
-            pass
-
-    if not tokens_alvo:
-        return []
 
     destinatarios = []
-    vistos = set()
-    for parte in dados_processo.get('reu', []) or []:
-        nome = (parte.get('nome') or '').strip()
-        doc = (parte.get('cpfcnpj') or parte.get('cpfCnpj') or '').strip()
+
+    for parte in reus:
+        nome = (parte.get('nome') or parte.get('nomeParte') or '').strip()
+        doc = (parte.get('cpfcnpj') or parte.get('cpfCnpj') or parte.get('documento') or '').strip()
         if not nome:
             continue
 
@@ -191,27 +341,193 @@ def _montar_destinatarios_por_observacao(observacao, dados_processo, debug=False
         if not nome_norm:
             continue
 
-        tokens_nome = set(re.findall(r'[a-z0-9]+', nome_norm))
-        match_found = any(token in tokens_nome for token in tokens_alvo)
-        if debug:
-            try:
-                logger.info(f"[DESTINATARIOS][DEBUG] Comparando parte='{nome}' tokens_nome={list(tokens_nome)} match={match_found}")
-            except Exception:
-                pass
+        chave = (nome_norm, re.sub(r'\D', '', doc))
+        if chave in vistos:
+            continue
 
-        if match_found:
-            chave = (nome_norm, re.sub(r'\D', '', doc or ''))
-            if chave in vistos:
-                continue
+        # 1. Match direto como substring exata
+        if len(nome_norm) >= 5 and nome_norm in texto_norm:
             vistos.add(chave)
             destinatarios.append({
                 'nome_oficial': nome,
                 'nome_identificado': nome,
                 'documento': doc,
-                'documento_normalizado': re.sub(r'\D', '', doc or ''),
+                'documento_normalizado': re.sub(r'\D', '', doc),
                 'polo': 'reu'
             })
+            if log:
+                log(f'[DESTINATARIOS] Match direto do réu "{nome}" no trecho do documento')
+            continue
+
+        # 2. Match por primeiro nome e próximo sobrenome contíguos (se é Bruno, tem que ser Bruno + sobrenome)
+        if casar_nome_destinatario(nome, texto_norm):
+            vistos.add(chave)
+            destinatarios.append({
+                'nome_oficial': nome,
+                'nome_identificado': nome,
+                'documento': doc,
+                'documento_normalizado': re.sub(r'\D', '', doc),
+                'polo': 'reu'
+            })
+            if log:
+                log(f'[DESTINATARIOS] Match por primeiro nome + sobrenome do réu "{nome}" no trecho do documento')
+
     return destinatarios
+
+
+def _resolver_destinatarios_por_documento_api(
+    driver: Any,
+    tipo_alvo: str,
+    dados_processo: Optional[Dict[str, Any]] = None,
+    numero_processo: Optional[str] = None,
+    padrao_proximidade: Optional[str] = None,
+    debug: bool = False,
+    log: Any = None
+) -> List[Dict[str, Any]]:
+    """Busca o documento respectivo mais recente (e o anterior como fallback) via API
+    e cruza seu conteúdo com dados_processo['reu'] para definir os destinatários.
+
+    Args:
+        driver: driver PJe / Playwright
+        tipo_alvo: 'despacho', 'decisao' ou 'sentenca' (ou lista correspondente)
+        dados_processo: dict com dados do processo contendo 'reu'
+        numero_processo: número do processo (opcional)
+        padrao_proximidade: regex ou termo de proximidade (ex: r'suscitad[oas]{1,2}')
+        debug: flag de depuração
+        log: logger callback
+    """
+    if log is None:
+        def log(_msg): return None
+
+    # Normalizar tipos procurados para a timeline
+    mapa_tipos = {
+        'despacho': ['Despacho'],
+        'decisao': ['Decisão', 'Decisao'],
+        'sentenca': ['Sentença', 'Sentenca'],
+    }
+    tipos_busca = mapa_tipos.get(tipo_alvo.lower(), [tipo_alvo.capitalize()])
+
+    try:
+        from Fix.variaveis import cliente_para, obter_texto_documento
+        from Fix.core import extrair_id_processo
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Erro ao importar Fix.variaveis/core: {e}')
+        return []
+
+    client = None
+    try:
+        client = cliente_para(driver)
+    except Exception as e:
+        log(f'[DESTINATARIOS][WARN] Falha ao instanciar cliente_para: {e}')
+        return []
+
+    id_processo = extrair_id_processo(driver)
+    if not id_processo and numero_processo:
+        try:
+            id_processo = client.id_processo_por_numero(str(numero_processo))
+        except Exception as e:
+            log(f'[DESTINATARIOS][WARN] Falha ao resolver id_processo pelo número {numero_processo}: {e}')
+
+    if not id_processo:
+        log('[DESTINATARIOS][WARN] id_processo não disponível para leitura de documento via API')
+        return []
+
+    # Obter réus a partir de dados_processo ou via API /partes
+    reus = []
+    if isinstance(dados_processo, dict) and dados_processo.get('reu'):
+        reus = dados_processo['reu']
+    else:
+        try:
+            partes_raw = client.partes(str(id_processo))
+            if isinstance(partes_raw, dict):
+                # Formato padrão PJe /partes: {'PASSIVO': [...]}
+                passivos = partes_raw.get('PASSIVO') or partes_raw.get('passivo') or partes_raw.get('reu') or []
+                for p in passivos:
+                    if isinstance(p, dict):
+                        reus.append(p)
+            elif isinstance(partes_raw, list):
+                # Formato lista plana: filtrar estritamente polo passivo/reu
+                for p in partes_raw:
+                    if isinstance(p, dict):
+                        polo = (p.get('polo') or p.get('tipoPolo') or '').lower()
+                        if polo in ('passivo', 'reu', 'r'):
+                            reus.append(p)
+        except Exception as e:
+            log(f'[DESTINATARIOS][WARN] Falha ao obter partes via API: {e}')
+
+    if not reus:
+        log('[DESTINATARIOS][WARN] Nenhum réu encontrado para match com documento')
+        return []
+
+    # Buscar itens da timeline via API
+    try:
+        timeline_dados = client.timeline(str(id_processo), buscarDocumentos=True, buscarMovimentos=False) or []
+    except Exception as e:
+        log(f'[DESTINATARIOS][ERRO] Falha ao obter timeline via API: {e}')
+        return []
+
+    # Flatten documentos + anexos
+    documentos_candidatos = []
+    for item in timeline_dados:
+        documentos_candidatos.append(item)
+        for anexo in item.get('anexos') or []:
+            documentos_candidatos.append(anexo)
+
+    # Filtrar documentos que correspondam ao tipo solicitado (ordem decrescente da timeline = mais recente primeiro)
+    docs_alvo = []
+    tipos_busca_lower = [t.lower() for t in tipos_busca]
+    for d in documentos_candidatos:
+        tipo_doc = (d.get('tipo') or '').strip().lower()
+        if not tipo_doc:
+            continue
+        if any(t in tipo_doc for t in tipos_busca_lower):
+            doc_id = d.get('id') or d.get('idDocumento') or d.get('idUnicoDocumento')
+            if doc_id:
+                docs_alvo.append({
+                    'id': str(doc_id),
+                    'tipo': d.get('tipo'),
+                    'titulo': d.get('titulo') or d.get('tipo')
+                })
+
+    if not docs_alvo:
+        log(f'[DESTINATARIOS][WARN] Nenhum documento do tipo "{tipo_alvo}" ({tipos_busca}) encontrado na timeline')
+        return []
+
+    # Ler no máximo o último (mais recente) e o anterior se não encontrar no mais recente
+    limite_docs = docs_alvo[:2]
+    log(f'[DESTINATARIOS] Encontrados {len(docs_alvo)} documento(s) de tipo {tipos_busca}; avaliando até {len(limite_docs)} mais recente(s)')
+
+    for idx, doc_info in enumerate(limite_docs):
+        doc_id = doc_info['id']
+        rotulo = 'mais recente' if idx == 0 else 'anterior'
+        log(f'[DESTINATARIOS] Lendo documento ({rotulo}): ID={doc_id} tipo="{doc_info["tipo"]}"')
+
+        texto_doc = None
+        try:
+            texto_doc = obter_texto_documento(client, str(id_processo), str(doc_id))
+        except Exception as e_ler:
+            log(f'[DESTINATARIOS][WARN] Falha ao extrair texto do doc {doc_id}: {e_ler}')
+
+        if not texto_doc:
+            log(f'[DESTINATARIOS] Documento {doc_id} sem conteúdo textual legível via API')
+            continue
+
+        candidatos = _extrair_reus_mencionados_no_texto(
+            texto_doc,
+            reus,
+            padrao_proximidade=padrao_proximidade,
+            debug=debug,
+            log=log
+        )
+        if candidatos:
+            log(f'[DESTINATARIOS] Encontrado(s) {len(candidatos)} destinatário(s) no documento {rotulo} (ID={doc_id})')
+            return candidatos
+        else:
+            log(f'[DESTINATARIOS] Nenhum réu encontrado no texto do documento {rotulo}')
+
+    log('[DESTINATARIOS][WARN] Nenhum réu deu match nos documentos avaliados via API')
+    return []
+
 
 
 def _clicar_polo_passivo(driver, log):
@@ -426,16 +742,33 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                             logger.info(f"[DESTINATARIOS] Parte selecionada via documento: {documento_alvo}")
                         return {'status': 'ok', 'count': 1}
 
-        # --- tentativa por nome ---
+        # --- tentativa por nome (Two-pass: exato primeiro, depois primeiro nome + próximo sobrenome) ---
         if nome_alvo:
-            nome_alvo_norm = normalizar_string(nome_alvo)
+            nome_alvo_norm = _normalizar_nome_para_match(nome_alvo).lower()
+
+            # Passada 1: Procura match exato do nome alvo entre todas as linhas
             for linha in linhas:
                 try:
-                    texto_norm = normalizar_string(linha.text or '')
-                    if nome_alvo_norm and (nome_alvo_norm in texto_norm or _partial_name_match(nome_alvo_norm, texto_norm)):
+                    nome_linha = _extrair_nome_linha_pje(linha)
+                    nome_linha_norm = _normalizar_nome_para_match(nome_linha).lower()
+                    texto_linha_norm = _normalizar_nome_para_match(linha.text or '').lower()
+
+                    if nome_alvo_norm and (nome_alvo_norm == nome_linha_norm or nome_alvo_norm in nome_linha_norm or nome_alvo_norm in texto_linha_norm):
                         if _clicar_btn_acrescentar(driver, linha, qtd_cliques, debug=debug):
                             if debug:
-                                logger.info(f"[DESTINATARIOS] Parte selecionada via nome: {nome_alvo}")
+                                logger.info(f"[DESTINATARIOS] Parte selecionada via nome (match exato): {nome_alvo}")
+                            return {'status': 'ok', 'count': 1}
+                except Exception:
+                    continue
+
+            # Passada 2: Procura match estrito (primeiro nome + próximo sobrenome, nunca tokens isolados)
+            for linha in linhas:
+                try:
+                    nome_linha = _extrair_nome_linha_pje(linha)
+                    if casar_nome_destinatario(nome_alvo, nome_linha):
+                        if _clicar_btn_acrescentar(driver, linha, qtd_cliques, debug=debug):
+                            if debug:
+                                logger.info(f"[DESTINATARIOS] Parte selecionada via nome (primeiro nome + sobrenome): {nome_alvo}")
                             return {'status': 'ok', 'count': 1}
                 except Exception:
                     continue
@@ -586,10 +919,37 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     qtd_informado = 2 if str(cliques_informado).strip().lower() in ('2', '2x') else 1
     qtd_cliques_fallback = 2 if str(cliques_polo_passivo).strip().lower() in ('2', '2x') else 1
 
-    # Variante 'informado_2' ou 'informado 2' → 2 cliques; normaliza para 'informado'
-    if isinstance(destinatarios, str) and re.match(r'^informado[\s_]2$', destinatarios.strip(), re.I):
-        destinatarios = 'informado'
-        qtd_informado = 2
+    # Normalização de 'informado [tipo]' (ex: 'informado despacho', 'informado_decisao', 'informado sentenca', 'informado decisao suscitados')
+    tipo_informado_doc = None
+    padrao_proximidade_informado = None
+    if isinstance(destinatarios, str):
+        dest_str = destinatarios.strip().lower()
+        # Verificar se especifica cliques no final (ex: informado despacho 2, informado_2)
+        m_cliques = re.search(r'[\s_]([12])x?$', dest_str)
+        if m_cliques and not re.search(r'(despacho|decis|senten)', m_cliques.group(0)):
+            qtd_informado = int(m_cliques.group(1))
+
+        # Identificar padrão de proximidade se especificado (ex: após/depois de X ou suscitad...)
+        m_apos = re.search(r'(?:ap[oó]s|depois\s+de)\s+([a-z0-9_]+)', dest_str)
+        if m_apos:
+            termo = m_apos.group(1).strip()
+            padrao_proximidade_informado = rf'\b{termo}[a-z]*\b'
+        elif re.search(r'\b(suscitad[oas]{1,2})\b', dest_str):
+            padrao_proximidade_informado = r'\b(?:suscitad[oas]{1,2})\b'
+
+        # Identificar tipo de documento informado
+        if re.search(r'\b(despacho)\b', dest_str):
+            tipo_informado_doc = 'despacho'
+            destinatarios = 'informado'
+        elif re.search(r'\b(decis[aã]o|decisao)\b', dest_str):
+            tipo_informado_doc = 'decisao'
+            destinatarios = 'informado'
+        elif re.search(r'\b(senten[cç]a|sentenca)\b', dest_str):
+            tipo_informado_doc = 'sentenca'
+            destinatarios = 'informado'
+        elif re.match(r'^informado', dest_str):
+            destinatarios = 'informado'
+            tipo_informado_doc = 'decisao'  # padrão quando vem 'informado'
 
     # Roteamento principal
     if destinatarios is None:
@@ -612,40 +972,29 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
     if destinatarios == 'informado':
-        log('[DESTINATARIOS] OPÇÃO INFORMADO: extraindo nomes via separador ">" e confirmando via API')
+        tipo_alvo = tipo_informado_doc or 'decisao'
+        msg_prox = f' (proximidade: {padrao_proximidade_informado})' if padrao_proximidade_informado else ''
+        log(f'[DESTINATARIOS] OPÇÃO INFORMADO ({tipo_alvo}{msg_prox}): lendo documento respectivo mais recente via API e cruzando com réus')
         try:
-            # 1. Tentar extração precisa pelo separador '>'
-            nomes_separador = _extrair_nomes_por_separador(observacao or '')
-
-            if nomes_separador:
-                log(f'[DESTINATARIOS] Nomes extraídos via ">": {nomes_separador}')
-                candidatos = _resolver_candidatos_via_api(
-                    driver,
-                    nomes_separador,
-                    numero_processo=numero_processo,
-                    debug=debug,
-                    log=log,
-                )
-            else:
-                # 2. Fallback: modo tokens livres (comportamento legado) sobre dados_processo
-                log('[DESTINATARIOS] Sem separador ">" — modo tokens livres (legado)')
-                if not dados_processo:
-                    try:
-                        from Fix.extracao_processo import extrair_dados_processo
-                        dados_processo = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
-                    except Exception:
-                        dados_processo = _carregar_dadosatuais_local('dadosatuais.json')
-                candidatos = _montar_destinatarios_por_observacao(observacao, dados_processo, debug=debug)
+            candidatos = _resolver_destinatarios_por_documento_api(
+                driver,
+                tipo_alvo=tipo_alvo,
+                dados_processo=dados_processo,
+                numero_processo=numero_processo,
+                padrao_proximidade=padrao_proximidade_informado,
+                debug=debug,
+                log=log,
+            )
 
             return _selecionar_por_lista(
-                driver, candidatos, 'informado/api', log,
+                driver, candidatos, f'informado/{tipo_alvo}', log,
                 fallback_polo_passivo=True,
                 qtd_seta_override=qtd_informado,
                 debug=debug,
                 qtd_cliques_fallback=qtd_cliques_fallback,
             )
         except Exception as e:
-            log(f'[DESTINATARIOS][ERRO] Falha no modo informado: {e}')
+            log(f'[DESTINATARIOS][ERRO] Falha no modo informado ({tipo_alvo}): {e}')
             return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
     if destinatarios == 'polo_ativo':
@@ -942,8 +1291,8 @@ def remover_destinatarios_endereco_invalido(
         try:
             if hasattr(driver, 'page') and driver.page:
                 res = driver.page.evaluate(_JS_EXCLUIR_PRIMEIRO_INVALIDO)
-            elif hasattr(driver, 'execute_script'):
-                res = driver.execute_script(f"return ({_JS_EXCLUIR_PRIMEIRO_INVALIDO})();")
+            elif hasattr(driver, 'evaluate'):
+                res = driver.evaluate(_JS_EXCLUIR_PRIMEIRO_INVALIDO)
         except Exception as e:
             if debug:
                 log(f"[COMUNICACAO][DESTINATARIOS][DEBUG] Erro ao executar exclusão de destinatário inválido: {e}")

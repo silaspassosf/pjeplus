@@ -63,7 +63,7 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
         _ag_ano = _amanha.year
         _ag_mes = _amanha.month - 1   # 0-based para JS
         _ag_dia = _amanha.day
-        _meses_js = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho",
+        _meses_js = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
                      "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
         _meses_js_str = str(_meses_js)
 
@@ -72,8 +72,8 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
             # Quando esse valor for injetado no script_unico_campos via {js_agendamento},
             # o f-string externo insere o valor como está — sem reinterpretar as chaves.
             js_agendamento = f"""
-                // 9. AGENDAR PROTOCOLO PARA AMANHÃ (2ª minuta — portado do maispje)
-                log.push('9. Selecionando agendamento para amanha (dia seguinte)...');
+                // 9. AGENDAR PROTOCOLO PARA AMANHÃ (2ª minuta)
+                log.push('9. Selecionando agendamento de protocolo (Sim)...');
                 let agendado = false;
                 let todosRowsAg = Array.from(document.querySelectorAll('div.row, sisbajud-cadastro-minuta .row'));
                 for (let rwAg of todosRowsAg) {{
@@ -81,61 +81,63 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
                         let radsAg = rwAg.parentElement.querySelectorAll('mat-radio-button');
                         for (let rAg of radsAg) {{
                             if (rAg.innerText.includes('Sim')) {{
-                                rAg.querySelector('label').click();
+                                let lblAg = rAg.querySelector('label') || rAg;
+                                lblAg.click();
                                 agendado = true;
-                                log.push('Agendamento: Sim clicado');
+                                log.push('Agendamento: Sim clicado com sucesso');
                                 break;
                             }}
                         }}
                         break;
                     }}
                 }}
+                if (!agendado) {{
+                    let allRadios = Array.from(document.querySelectorAll('mat-radio-button'));
+                    for (let r of allRadios) {{
+                        let parentText = (r.closest('.row') || r.parentElement || {{}}).textContent || '';
+                        if (parentText.includes('Agendar') && (r.textContent || '').includes('Sim')) {{
+                            let lbl = r.querySelector('label') || r;
+                            lbl.click();
+                            agendado = true;
+                            log.push('Agendamento: Sim clicado via fallback');
+                            break;
+                        }}
+                    }}
+                }}
                 await new Promise(r => setTimeout(r, 1000));
 
-                // 10. CALENDÁRIO DO AGENDAMENTO (amanhã)
-                // Lógica maispje escolherDataNocalendario(i=1): numdias=-1, data=hoje+1
+                // 10. CALENDÁRIO DO AGENDAMENTO (amanhã / próxima data útil)
                 if (agendado) {{
-                    log.push('10. Calendario agendamento (amanha)...');
-                    let agAno = {_ag_ano};
-                    let agMes = {_ag_mes};
-                    let agDia = {_ag_dia};
-                    let mesesAg = {_meses_js_str};
-
-                    let inputDataProt = await esperarElemento('input[placeholder="Data do protocolo:"]', 5000);
+                    log.push('10. Configurando calendario do agendamento ({_ag_dia:02d}/{_ag_mes+1:02d}/{_ag_ano})...');
+                    let inputDataProt = await esperarElemento('input[placeholder="Data do protocolo:"], input[formcontrolname="dataProtocolo"]', 5000);
                     if (inputDataProt) {{
-                        let paiDp = inputDataProt.parentElement.parentElement;
-                        let btnCalAg = paiDp.querySelector('button[aria-label="Open calendar"]');
+                        let paiDp = inputDataProt.closest('mat-form-field') || inputDataProt.parentElement.parentElement;
+                        let btnCalAg = paiDp ? paiDp.querySelector('button[aria-label="Open calendar"]') : document.querySelector('button[aria-label="Open calendar"]');
                         if (btnCalAg) {{
                             btnCalAg.click();
-                            await new Promise(r => setTimeout(r, 1000));
-                            let btnMAAg = await esperarElemento('mat-calendar button[aria-label="Choose month and year"]', 3000);
-                            if (btnMAAg) {{
-                                btnMAAg.click();
-                                await new Promise(r => setTimeout(r, 1000));
-                                let anoCellAg = await esperarElemento('mat-calendar td[aria-label="' + agAno + '"]', 3000);
-                                if (anoCellAg) {{ anoCellAg.click(); await new Promise(r => setTimeout(r, 1000)); }}
-                                let mesAtAg = agMes;
-                                let diaDag = agDia;
-                                while (mesAtAg >= 0) {{
-                                    let msAg = mesesAg[mesAtAg] + ' de ' + agAno;
-                                    let msCellAg = document.querySelector('mat-calendar td[aria-label="' + msAg + '"]');
-                                    if (msCellAg && !msCellAg.getAttribute('aria-disabled')) {{ msCellAg.click(); break; }}
-                                    mesAtAg--; diaDag = 31;
-                                }}
-                                await new Promise(r => setTimeout(r, 1000));
-                                let mfAg = mesesAg[mesAtAg] + ' de ' + agAno;
-                                while (diaDag > 0) {{
-                                    let dStrAg = diaDag + ' de ' + mfAg;
-                                    let dCellAg = document.querySelector('mat-calendar td[aria-label="' + dStrAg + '"]');
-                                    if (dCellAg && !dCellAg.getAttribute('aria-disabled')) {{
-                                        dCellAg.click();
-                                        log.push('Data agendamento: ' + diaDag + '/' + (mesAtAg+1) + '/' + agAno);
-                                        break;
-                                    }}
-                                    diaDag--;
-                                }}
+                            await new Promise(r => setTimeout(r, 800));
+                            let calAgOk = await selecionarDataCalendario({_ag_ano}, {_ag_mes}, {_ag_dia}, log, 'Agendamento Protocolo');
+                            if (!calAgOk) {{
+                                log.push('[CAL] Falha ao clicar calendário agendamento; preenchendo input diretamente...');
+                                let dataAgFormatada = '{_ag_dia:02d}/{_ag_mes+1:02d}/{_ag_ano}';
+                                inputDataProt.focus();
+                                inputDataProt.value = dataAgFormatada;
+                                triggerEvent(inputDataProt, 'input');
+                                triggerEvent(inputDataProt, 'change');
+                                inputDataProt.blur();
+                                log.push('[CAL] Input Data do protocolo preenchido: ' + dataAgFormatada);
                             }}
+                        }} else {{
+                            log.push('[CAL] Botão calendário agendamento não encontrado; preenchendo input...');
+                            let dataAgFormatada = '{_ag_dia:02d}/{_ag_mes+1:02d}/{_ag_ano}';
+                            inputDataProt.focus();
+                            inputDataProt.value = dataAgFormatada;
+                            triggerEvent(inputDataProt, 'input');
+                            triggerEvent(inputDataProt, 'change');
+                            inputDataProt.blur();
                         }}
+                    }} else {{
+                        log.push('[AVISO] Input Data do protocolo não encontrado');
                     }}
                 }}
 """
@@ -150,11 +152,143 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
         mes_d = data_fim.month - 1
         dia_d = data_fim.day
 
-        meses = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho",
+        meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
                  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
 
         script_unico_campos = f"""
         {criar_js_otimizado()}
+
+        async function digitarTexto(el, texto, atrasoMs) {{
+            // Equivalente a simularDigitacaoDeTexto do +pje: eventos de teclado por caractere
+            // (necessario para inputs com mascara CPF/CNPJ e para campos reativos do Angular).
+            el.focus();
+            el.value = '';
+            triggerEvent(el, 'input');
+            for (const ch of String(texto).split('')) {{
+                el.dispatchEvent(new KeyboardEvent('keydown', {{ key: ch, bubbles: true, cancelable: true }}));
+                el.dispatchEvent(new KeyboardEvent('keypress', {{ key: ch, bubbles: true, cancelable: true }}));
+                el.value += ch;
+                triggerEvent(el, 'input');
+                el.dispatchEvent(new KeyboardEvent('keyup', {{ key: ch, bubbles: true, cancelable: true }}));
+                if (atrasoMs) await new Promise(r => setTimeout(r, atrasoMs));
+            }}
+            triggerEvent(el, 'change');
+        }}
+
+        async function selecionarDataCalendario(anoAlvo, mesIndexAlvo, diaAlvo, log, descricao) {{
+            let desc = descricao || 'Data';
+            log.push('[CAL][' + desc + '] Iniciando selecao: dia=' + diaAlvo + ', mes=' + (mesIndexAlvo + 1) + ', ano=' + anoAlvo);
+
+            let mesesExt = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+            let mesesAbrev = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+            let cal = null;
+            for (let w = 0; w < 10; w++) {{
+                cal = document.querySelector('mat-calendar');
+                if (cal) break;
+                await new Promise(r => setTimeout(r, 200));
+            }}
+            if (!cal) {{
+                log.push('[CAL][' + desc + '] ERRO: mat-calendar nao encontrado');
+                return false;
+            }}
+
+            let btnMesAno = cal.querySelector('button[aria-label="Choose month and year"], .mat-calendar-period-button');
+            if (btnMesAno) {{
+                log.push('[CAL][' + desc + '] Clicando periodo: ' + (btnMesAno.textContent || '').trim());
+                btnMesAno.click();
+                await new Promise(r => setTimeout(r, 700));
+            }}
+
+            let anoSel = 'mat-calendar td[aria-label="' + anoAlvo + '"], mat-calendar button[aria-label="' + anoAlvo + '"], mat-calendar .mat-calendar-body-cell[aria-label="' + anoAlvo + '"]';
+            let anoCell = document.querySelector(anoSel);
+            if (!anoCell) {{
+                let celulas = Array.from(document.querySelectorAll('mat-calendar .mat-calendar-body-cell'));
+                anoCell = celulas.find(c => (c.textContent || '').trim() === String(anoAlvo));
+            }}
+            if (anoCell) {{
+                log.push('[CAL][' + desc + '] Ano ' + anoAlvo + ' encontrado. Clicando...');
+                anoCell.click();
+                await new Promise(r => setTimeout(r, 700));
+            }} else {{
+                log.push('[CAL][' + desc + '] Celula do ano ' + anoAlvo + ' nao visivel (ja na visao do ano).');
+            }}
+
+            let mesAtual = mesIndexAlvo;
+            let diaD = diaAlvo;
+            let mesClicado = false;
+
+            while (mesAtual >= 0) {{
+                let mesNome = mesesExt[mesAtual];
+                let mesAbr = mesesAbrev[mesAtual];
+                let mesLabel = mesNome + ' de ' + anoAlvo;
+
+                let selMes = 'mat-calendar td[aria-label="' + mesLabel + '"], mat-calendar button[aria-label="' + mesLabel + '"], mat-calendar .mat-calendar-body-cell[aria-label="' + mesLabel + '"]';
+                let mesCell = document.querySelector(selMes);
+
+                if (!mesCell) {{
+                    let todasMes = Array.from(document.querySelectorAll('mat-calendar .mat-calendar-body-cell'));
+                    mesCell = todasMes.find(c => {{
+                        let lbl = (c.getAttribute('aria-label') || '').toLowerCase();
+                        let txt = (c.textContent || '').trim().toLowerCase();
+                        return (lbl.includes(mesNome) || lbl.includes(mesAbr) || txt === mesAbr || txt === mesNome);
+                    }});
+                }}
+
+                if (mesCell && !mesCell.getAttribute('aria-disabled') && !mesCell.classList.contains('mat-calendar-body-disabled')) {{
+                    log.push('[CAL][' + desc + '] Mes encontrado: ' + mesNome + ' (' + (mesAtual + 1) + ')');
+                    mesCell.click();
+                    mesClicado = true;
+                    break;
+                }}
+                mesAtual--;
+                diaD = 31;
+            }}
+
+            if (!mesClicado) {{
+                log.push('[CAL][' + desc + '] ERRO: Nenhum mes habilitado encontrado');
+                return false;
+            }}
+            await new Promise(r => setTimeout(r, 700));
+
+            let mesFinalNome = mesesExt[mesAtual];
+            let diaClicado = false;
+
+            while (diaD > 0) {{
+                let diaLabel = diaD + ' de ' + mesFinalNome + ' de ' + anoAlvo;
+                let diaLabelCurto = diaD + ' de ' + mesFinalNome;
+
+                let selDia = 'mat-calendar td[aria-label="' + diaLabel + '"], mat-calendar button[aria-label="' + diaLabel + '"], ' +
+                             'mat-calendar td[aria-label="' + diaLabelCurto + '"], mat-calendar button[aria-label="' + diaLabelCurto + '"], ' +
+                             'mat-calendar .mat-calendar-body-cell[aria-label*="' + diaD + ' de ' + mesFinalNome + '"]';
+                let diaCell = document.querySelector(selDia);
+
+                if (!diaCell) {{
+                    let todasDia = Array.from(document.querySelectorAll('mat-calendar .mat-calendar-body-cell'));
+                    diaCell = todasDia.find(c => {{
+                        let content = c.querySelector('.mat-calendar-body-cell-content') || c;
+                        return (content.textContent || '').trim() === String(diaD);
+                    }});
+                }}
+
+                if (diaCell && !diaCell.getAttribute('aria-disabled') && !diaCell.classList.contains('mat-calendar-body-disabled')) {{
+                    log.push('[CAL][' + desc + '] Dia encontrado: ' + diaD + ' de ' + mesFinalNome + '. Clicando...');
+                    diaCell.click();
+                    diaClicado = true;
+                    break;
+                }}
+                diaD--;
+            }}
+
+            if (!diaClicado) {{
+                log.push('[CAL][' + desc + '] ERRO: Nenhum dia habilitado encontrado em ' + mesFinalNome);
+                return false;
+            }}
+
+            await new Promise(r => setTimeout(r, 500));
+            log.push('[CAL][' + desc + '] Sucesso: data definida para ' + diaD + '/' + (mesAtual + 1) + '/' + anoAlvo);
+            return {{ano: anoAlvo, mes: mesAtual + 1, dia: diaD}};
+        }}
 
         async function preencherMinutaCompleta() {{
             let log = [];
@@ -187,16 +321,8 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
 
                     let campoPesquisaVara = await esperarElemento('.mat-select-panel input[placeholder="Pesquisar Vara/Juízo..."]', 3000);
                     if (campoPesquisaVara) {{
-                        // Buffer identico ao original (esperarElemento -> sleep(1000) -> digitar):
-                        // o painel de busca ainda esta se estabilizando (Angular) no instante em
-                        // que o input aparece no DOM. Digitar cedo demais faz os primeiros
-                        // caracteres serem descartados (ex.: "30006" virava "006").
                         await new Promise(resolve => setTimeout(resolve, 1000));
 
-                        // Digitacao caractere-a-caractere (identico a simularDigitacaoDeTexto do
-                        // maispje/comum/mini-selenium.js): o painel de busca da Vara/Juizo filtra
-                        // a lista via evento de teclado por caractere, nao via um unico 'input' em
-                        // bloco.
                         campoPesquisaVara.focus();
                         campoPesquisaVara.value = '';
                         for (const letraVara of '{vara}'.split('')) {{
@@ -208,10 +334,6 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
                             campoPesquisaVara.dispatchEvent(new KeyboardEvent('keyup', {{ key: letraVara, bubbles: true, cancelable: true }}));
                             await new Promise(resolve => setTimeout(resolve, 100));
                         }}
-                        // Selecao explicita por texto (formato real da opcao filtrada:
-                        // "30006 - 3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO") — clicar
-                        // direto na mat-option correta em vez de confiar no Enter para
-                        // confirmar o item destacado, que nao e o item filtrado nesse painel.
                         let opcoesVara = await esperarOpcoes('mat-option[role="option"]', 3000);
                         let varaSelecionada = false;
                         for (let opcaoVara of opcoesVara) {{
@@ -249,12 +371,22 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
 
                     await new Promise(resolve => setTimeout(resolve, 500));
                     let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    // +pje: opcao exata 'Ação Trabalhista'. Fallback: qualquer variante trabalhista.
+                    let opcaoAcao = null;
                     for (let opcao of opcoes) {{
-                        if (opcao.textContent.includes('Execucao Trabalhista') || opcao.textContent.includes('Acao Trabalhista') || opcao.textContent.includes('Execução Trabalhista') || opcao.textContent.includes('Ação Trabalhista')) {{
-                            opcao.click();
-                            log.push('Acao: ' + opcao.textContent.trim());
-                            break;
+                        if ((opcao.innerText || opcao.textContent || '').trim() === 'Ação Trabalhista') {{ opcaoAcao = opcao; break; }}
+                    }}
+                    if (!opcaoAcao) {{
+                        for (let opcao of opcoes) {{
+                            let t = (opcao.textContent || '');
+                            if (t.includes('Ação Trabalhista') || t.includes('Acao Trabalhista') || t.includes('Execução Trabalhista') || t.includes('Execucao Trabalhista')) {{ opcaoAcao = opcao; break; }}
                         }}
+                    }}
+                    if (opcaoAcao) {{
+                        opcaoAcao.click();
+                        log.push('Acao: ' + opcaoAcao.textContent.trim());
+                    }} else {{
+                        log.push('[AVISO] Opcao de Tipo de Acao trabalhista nao encontrada');
                     }}
                     await new Promise(resolve => setTimeout(resolve, 800));
                 }}
@@ -262,10 +394,7 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
                 log.push('5. Preenchendo CPF/CNPJ Autor...');
                 let cpfInput = await esperarElemento('input[placeholder*="CPF"]', 3000);
                 if (cpfInput) {{
-                    cpfInput.focus();
-                    await new Promise(resolve => setTimeout(resolve, 250));
-                    cpfInput.value = '{cpf_cnpj_limpo}';
-                    triggerEvent(cpfInput, 'input');
+                    await digitarTexto(cpfInput, '{cpf_cnpj_limpo}', 30);
                     cpfInput.blur();
                     log.push('CPF/CNPJ Autor: {cpf_cnpj_limpo}');
                     await new Promise(resolve => setTimeout(resolve, 500));
@@ -274,10 +403,7 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
                 log.push('6. Preenchendo Nome Autor...');
                 let nomeInput = await esperarElemento('input[placeholder="Nome do autor/exequente da ação"]', 3000);
                 if (nomeInput) {{
-                    nomeInput.focus();
-                    await new Promise(resolve => setTimeout(resolve, 250));
-                    nomeInput.value = '{nome_autor}';
-                    triggerEvent(nomeInput, 'input');
+                    await digitarTexto(nomeInput, '{nome_autor}', 10);
                     nomeInput.blur();
                     log.push('Nome Autor: {nome_autor}');
                     await new Promise(resolve => setTimeout(resolve, 500));
@@ -287,80 +413,46 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
                 let radios = document.querySelectorAll('mat-radio-button');
                 for (let radio of radios) {{
                     if (radio.textContent.includes('Repetir a ordem')) {{
-                        let label = radio.querySelector('label');
+                        let label = radio.querySelector('label') || radio;
                         if (label) {{
                             label.click();
-                            log.push('Teimosinha: Repetir ordem');
+                            log.push('Teimosinha: Repetir ordem selecionada');
                             break;
                         }}
                     }}
                 }}
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 600));
 
-                log.push('8. Configurando Calendario...');
-                let btnCalendario = await esperarElemento('button[aria-label="Open calendar"]', 3000);
+                log.push('8. Configurando Calendario de repeticao (prazo {prazo_dias} dias)...');
+                let inputDataLimite = document.querySelector('input[placeholder="Data limite:"], input[formcontrolname="dataLimite"]');
+                let paiDataLimite = inputDataLimite ? (inputDataLimite.closest('mat-form-field') || inputDataLimite.parentElement.parentElement) : null;
+                let btnCalendario = paiDataLimite ? paiDataLimite.querySelector('button[aria-label="Open calendar"]') : document.querySelector('button[aria-label="Open calendar"]');
+
                 if (!btnCalendario) {{
                     return {{sucesso: false, msg: 'Botao calendario nao encontrado', log: log}};
                 }}
                 btnCalendario.click();
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 800));
 
-                let btnMesAno = await esperarElemento('mat-calendar button[aria-label="Choose month and year"]', 3000);
-                if (!btnMesAno) {{
-                    return {{sucesso: false, msg: 'Selecao mes/ano nao encontrada', log: log}};
-                }}
-                btnMesAno.click();
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                let anoCell = await esperarElemento('mat-calendar td[aria-label="{ano}"]', 3000);
-                if (!anoCell) {{
-                    return {{sucesso: false, msg: 'Ano {ano} nao encontrado', log: log}};
-                }}
-                anoCell.click();
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                let meses = {meses};
-                let mesAtual = {mes_d};
-                let diaD = {dia_d};
-                let mesEncontrado = false;
-
-                while (mesAtual >= 0) {{
-                    let mesStr = meses[mesAtual] + ' de {ano}';
-                    let mesCell = document.querySelector('mat-calendar td[aria-label="' + mesStr + '"]');
-                    if (mesCell && !mesCell.getAttribute('aria-disabled')) {{
-                        mesCell.click();
-                        mesEncontrado = true;
-                        break;
+                let calRes = await selecionarDataCalendario({ano}, {mes_d}, {dia_d}, log, 'Repetição {prazo_dias}d');
+                if (!calRes) {{
+                    if (inputDataLimite) {{
+                        let fallbackData = '{dia_d:02d}/{mes_d + 1:02d}/{ano}';
+                        inputDataLimite.focus();
+                        inputDataLimite.value = fallbackData;
+                        triggerEvent(inputDataLimite, 'input');
+                        triggerEvent(inputDataLimite, 'change');
+                        inputDataLimite.blur();
+                        log.push('[CAL] Fallback no input Data limite preenchido: ' + fallbackData);
+                        calRes = {{ano: {ano}, mes: {mes_d + 1}, dia: {dia_d}}};
+                    }} else {{
+                        return {{sucesso: false, msg: 'Falha ao selecionar data no calendario', log: log}};
                     }}
-                    mesAtual--;
-                    diaD = 31;
                 }}
 
-                if (!mesEncontrado) {{
-                    return {{sucesso: false, msg: 'Nenhum mes disponivel', log: log}};
-                }}
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                let mesFinalStr = meses[mesAtual] + ' de {ano}';
-                let diaEncontrado = false;
-
-                while (diaD > 0) {{
-                    let diaStr = diaD + ' de ' + mesFinalStr;
-                    let diaCell = document.querySelector('mat-calendar td[aria-label="' + diaStr + '"]');
-                    if (diaCell && !diaCell.getAttribute('aria-disabled')) {{
-                        diaCell.click();
-                        diaEncontrado = true;
-                        break;
-                    }}
-                    diaD--;
-                }}
-
-                if (!diaEncontrado) {{
-                    return {{sucesso: false, msg: 'Nenhum dia disponivel', log: log}};
-                }}
-
-                let dataFinal = diaD + '/' + (mesAtual + 1) + '/{ano}';
-                log.push('Data final: ' + dataFinal);
+                let dataFinal = (calRes.dia < 10 ? '0' + calRes.dia : calRes.dia) + '/' +
+                                (calRes.mes < 10 ? '0' + calRes.mes : calRes.mes) + '/' + calRes.ano;
+                log.push('Data final configurada: ' + dataFinal);
 
 {js_agendamento}
                 return {{sucesso: true, msg: 'Campos preenchidos com sucesso', log: log, data_final: dataFinal}};
@@ -370,23 +462,32 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
             }}
         }}
 
-        return preencherMinutaCompleta().then(arguments[arguments.length - 1]);
+        return preencherMinutaCompleta().then(arguments[arguments.length - 1]).catch(e => arguments[arguments.length - 1]({{sucesso: false, msg: 'Excecao assincrona: ' + (e && e.message ? e.message : e), log: []}}));
         """
 
         resultado_campos = driver.execute_async_script(script_unico_campos)
 
-        if resultado_campos and resultado_campos.get('sucesso'):
-            if resultado_campos.get('log'):
-                for msg in resultado_campos['log']:
-                    _ = msg
+        # Logar detalhadamente TODAS as mensagens do script JS no log da execução:
+        if resultado_campos and isinstance(resultado_campos, dict) and resultado_campos.get('log'):
+            for msg in resultado_campos['log']:
+                logger.info(f'[SISBAJUD][CAMPOS] {msg}')
+
+        if resultado_campos and isinstance(resultado_campos, dict) and resultado_campos.get('sucesso'):
             data_limite_str = resultado_campos.get('data_final', data_fim.strftime('%d/%m/%Y'))
+            logger.info(f'[SISBAJUD] Campos iniciais preenchidos com sucesso (data limite: {data_limite_str})')
             return data_limite_str
 
-        msg_erro = resultado_campos.get('msg') if resultado_campos else 'Erro desconhecido'
+        msg_erro = None
+        if isinstance(resultado_campos, dict):
+            msg_erro = resultado_campos.get('msg') or resultado_campos.get('erro')
+        if not msg_erro:
+            msg_erro = str(resultado_campos) if resultado_campos else 'Erro desconhecido (retorno vazio/None)'
+
         logger.error(f'[SISBAJUD]  Falha no preenchimento: {msg_erro}')
-        if resultado_campos and resultado_campos.get('log'):
-            for msg in resultado_campos['log']:
-                _ = msg
+        return None
+
+    except Exception as e:
+        logger.error(f'[SISBAJUD]  Erro ao preencher campos iniciais: {e}')
         return None
 
     except Exception as e:

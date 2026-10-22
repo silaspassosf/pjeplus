@@ -410,7 +410,7 @@ class PWDriver:
                     return True
             except Exception:
                 pass
-            time.sleep(0.15)
+            self.page.wait_for_timeout(150)
 
         # Fase 2: Passou do tempo sem elemento válido detectado
         elapsed_antes = time.time() - t_inicio
@@ -460,7 +460,7 @@ class PWDriver:
                     return True
             except Exception:
                 pass
-            time.sleep(0.2)
+            self.page.wait_for_timeout(200)
 
         if log:
             logger.error(f"[CARREGAMENTO] ❌ Página não renderizou elemento válido após recuperação ({timeout_pos_refresh:.1f}s).")

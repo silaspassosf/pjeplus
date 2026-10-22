@@ -134,91 +134,57 @@ def _aguardar_sessao_ativa(driver, timeout: int = 60) -> bool:
     return False
 
 
-def _criar_driver_headless_com_login_visivel(driver_type: DriverType, vt_mode: bool) -> Optional[Any]:
-    """Headless login: tenta cookies existentes; se inválidos, abre janela visível
-    para o usuário fazer login manual, salva cookies e inicia o driver headless.
-
-    Fluxo:
-      1. Cria driver headless e tenta restaurar sessão via cookies salvos.
-      2. Se OK → retorna driver headless diretamente.
-      3. Se não → abre driver VISÍVEL, aguarda URL de painel/avisos (login manual).
-      4. Salva cookies → fecha janela visível.
-      5. Cria novo driver headless, aplica cookies → retorna.
+def _criar_driver_headless(driver_type: DriverType, vt_mode: bool) -> Optional[Any]:
+    """Cria driver headless e realiza login 100% sem abrir janela gráfica.
+    Tenta cookies; se inválidos/ausentes, executa login_cpf diretamente no driver headless,
+    solicitando OTP no terminal caso o PDPJ/Keycloak exija.
     """
-    from Fix.utils import verificar_e_aplicar_cookies, salvar_cookies_sessao
+    from Fix.utils import verificar_e_aplicar_cookies, salvar_cookies_sessao, login_cpf
 
-    # ── Tentativa 1: headless com cookies existentes ──────────────────────────
     driver_hl = None
     try:
         driver_hl = criar_driver_vt(headless=True) if vt_mode else criar_driver_pc(headless=True)
-        if driver_hl and verificar_e_aplicar_cookies(driver_hl):
+        if not driver_hl:
+            logger.error("[HEADLESS] Falha ao criar driver headless.")
+            return None
+
+        # 1. Tentar restaurar cookies existentes
+        if verificar_e_aplicar_cookies(driver_hl):
             if _aguardar_sessao_ativa(driver_hl, timeout=10):
                 logger.info("[HEADLESS] Sessao restaurada via cookies — sem login manual necessario.")
                 return driver_hl
-        if driver_hl:
-            try:
-                finalizar_driver_fix(driver_hl)
-            except Exception:
-                pass
-            driver_hl = None
-    except Exception as e:
-        logger.warning("[HEADLESS] Falha ao tentar cookies: %s", e)
-        if driver_hl:
-            try:
-                finalizar_driver_fix(driver_hl)
-            except Exception:
-                pass
+            logger.info("[HEADLESS] Cookies existentes expirados. Prosseguindo com login automatico headless...")
 
-    # ── Tentativa 2: janela visível → login manual → cookies → headless ───────
-    logger.info("[HEADLESS] Cookies invalidos/expirados — abrindo janela visivel para login manual.")
-    logger.info("[HEADLESS] Faca o login na janela que sera aberta. "
-                "O headless iniciara automaticamente apos a deteccao da URL de painel.")
-    driver_vis = None
-    try:
-        driver_vis = criar_driver_vt(headless=False) if vt_mode else criar_driver_pc(headless=False)
-        if not driver_vis:
-            logger.error("[HEADLESS] Nao foi possivel abrir janela visivel para login.")
+        # 2. Login direto no driver headless (com preenchimento de CPF/senha e OTP no terminal)
+        if not login_cpf(driver_hl):
+            logger.error("[HEADLESS] Falha no login_cpf.")
+            finalizar_driver_fix(driver_hl)
             return None
 
-        login_cpf(driver_vis)  # login automático via CPF com fallback manual
-
-        if not _aguardar_sessao_ativa(driver_vis, timeout=30):
-            logger.error("[HEADLESS] Sessao OAuth nao completou apos login manual.")
-            finalizar_driver_fix(driver_vis)
+        # 3. Confirmar que a sessão OAuth completou
+        if not _aguardar_sessao_ativa(driver_hl, timeout=30):
+            logger.error("[HEADLESS] Sessao OAuth nao completou apos login.")
+            finalizar_driver_fix(driver_hl)
             return None
 
-        salvar_cookies_sessao(driver_vis, info_extra='login_manual_para_headless')
-        logger.info("[HEADLESS] Login concluido — fechando janela visivel e iniciando modo headless.")
-        finalizar_driver_fix(driver_vis)
-        driver_vis = None
-    except Exception as e:
-        logger.error("[HEADLESS] Erro no login via janela visivel: %s: %s", type(e).__name__, e)
-        if driver_vis:
-            try:
-                finalizar_driver_fix(driver_vis)
-            except Exception:
-                pass
-        return None
-
-    # ── Criar driver headless final com cookies recém-salvos ──────────────────
-    try:
-        driver_hl = criar_driver_vt(headless=True) if vt_mode else criar_driver_pc(headless=True)
-        if not driver_hl:
-            logger.error("[HEADLESS] Falha ao criar driver headless apos login.")
-            return None
-        verificar_e_aplicar_cookies(driver_hl)
+        salvar_cookies_sessao(driver_hl, info_extra='login_headless')
         logger.info("[HEADLESS] Driver headless pronto com sessao autenticada.")
         return driver_hl
     except Exception as e:
-        logger.error("[HEADLESS] Erro ao criar driver headless final: %s: %s", type(e).__name__, e)
+        logger.error("[HEADLESS] Erro ao criar/autenticar driver headless: %s: %s", type(e).__name__, e)
+        if driver_hl:
+            try:
+                finalizar_driver_fix(driver_hl)
+            except Exception:
+                pass
         return None
 
 
 def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
     """Cria driver e faz login.
 
-    Para modo headless: tenta cookies existentes; se inválidos, abre janela
-    visível para login manual, salva cookies e inicia o headless com a sessão.
+    Para modo headless: cria diretamente o driver headless, tenta cookies e se
+    necessário faz login_cpf com OTP no terminal.
     Para modo visível: fluxo original (cookies → login manual no browser).
     """
     headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
@@ -227,7 +193,7 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
     logger.debug("criando driver: %s", driver_type.value)
 
     if headless:
-        return _criar_driver_headless_com_login_visivel(driver_type, vt_mode)
+        return _criar_driver_headless(driver_type, vt_mode)
 
     # ── Modo visível: fluxo original ─────────────────────────────────────────
     try:

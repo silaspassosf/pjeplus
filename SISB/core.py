@@ -28,15 +28,6 @@ import base64
 import unicodedata
 from datetime import datetime, timedelta
 
-# Selenium imports
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.action_chains import ActionChains
-
 # Imports do projeto
 from Fix.driver_factory import criar_driver_sisb_pc as criar_driver_sisb  # referência canônica
 from Fix.driver_factory import criar_driver_sisb_vt  # referência canônica
@@ -48,26 +39,13 @@ from . import utils
 from Fix import espera
 
 # Função auxiliar para simulação humana (extraída de sisb.py)
-def simular_movimento_humano(driver, elemento):
+def simular_movimento_humano(driver, elemento=None):
     """
     Simula movimento de mouse humano antes de clicar em elemento
     """
     try:
-        actions = ActionChains(driver)
-        
-        # Movimento com curva (não linear)
-        if random.random() < 0.7:  # 70% chance de movimento curvo
-            # Primeiro move para uma posição próxima (não exata)
-            offset_x = random.randint(-10, 10)
-            offset_y = random.randint(-10, 10)
-            actions.move_to_element_with_offset(elemento, offset_x, offset_y)
-            actions.pause(random.uniform(0.1, 0.3))
-        
-        # Move para o elemento final
-        actions.move_to_element(elemento)
-        actions.pause(random.uniform(0.1, 0.5))
-        actions.perform()
-        
+        if hasattr(driver, 'page') and hasattr(driver.page, 'mouse'):
+            driver.page.mouse.move(random.randint(100, 700), random.randint(100, 500))
     except Exception as e:
         _ = e
 
@@ -210,6 +188,220 @@ def injetar_tokens_sisbajud(driver, access_token: str, refresh_token: str = None
         return False
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Sessão / Cookies SISBAJUD — evita novo OTP entre execuções
+# Padrão idêntico ao driver PJe (cookies_sessoes/ + storage_state)
+# ═══════════════════════════════════════════════════════════════════════════
+
+USAR_COOKIES_AUTOMATICO = True
+SALVAR_COOKIES_AUTOMATICO = True
+
+
+def _arquivo_sessao_sisbajud() -> str:
+    config_dir = os.path.join(os.path.expanduser('~'), '.pjeplus')
+    os.makedirs(config_dir, exist_ok=True)
+    return os.path.join(config_dir, 'sisbajud_sessao.json')
+
+
+def salvar_cookies_sisbajud(driver, caminho_arquivo=None, info_extra=None) -> bool:
+    """
+    Salva todos os cookies e localStorage da sessão SISBAJUD em arquivo JSON.
+    Mesmo padrão de salvar_cookies_sessao do driver PJe.
+    """
+    try:
+        cookies = []
+        if hasattr(driver, 'get_cookies'):
+            try:
+                cookies = driver.get_cookies()
+            except Exception:
+                pass
+        contexto = getattr(driver, '_context', None)
+        estado = {}
+        if contexto and hasattr(contexto, 'storage_state'):
+            try:
+                estado = contexto.storage_state()
+            except Exception:
+                pass
+
+        if not cookies and not estado.get('cookies'):
+            logger.debug('[SISBAJUD][COOKIES] Nenhum cookie encontrado para salvar')
+            return False
+
+        pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
+        os.makedirs(pasta, exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        info = f'_{info_extra}' if info_extra else ''
+        if not caminho_arquivo:
+            caminho_arquivo = os.path.join(pasta, f'cookies_sisbajud{info}_{timestamp}.json')
+
+        dados = {
+            'timestamp': datetime.now().isoformat(),
+            'url_base': getattr(driver, 'current_url', 'https://sisbajud.pdpj.jus.br/'),
+            'cookies': cookies or estado.get('cookies', []),
+            'origins': estado.get('origins', [])
+        }
+
+        with open(caminho_arquivo, 'w', encoding='utf-8') as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+
+        # Também salvar cópia no arquivo fixo ~/.pjeplus/sisbajud_sessao.json
+        try:
+            with open(_arquivo_sessao_sisbajud(), 'w', encoding='utf-8') as f:
+                json.dump(dados, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+        logger.info(f'[SISBAJUD][COOKIES] Cookies salvos em: {caminho_arquivo} ({len(dados["cookies"])} cookies)')
+        return True
+    except Exception as e:
+        logger.error(f"[SISBAJUD][COOKIES] Erro ao salvar cookies: {e}")
+        return False
+
+
+def carregar_cookies_sisbajud(driver, max_idade_horas=24) -> bool:
+    """
+    Carrega cookies e sessão SISBAJUD mais recentes e válidos automaticamente.
+    Mesmo padrão de carregar_cookies_sessao do driver PJe.
+    """
+    try:
+        pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
+        import glob
+        arquivos = []
+        if os.path.exists(pasta):
+            arquivos = glob.glob(os.path.join(pasta, 'cookies_sisbajud*.json'))
+            if not arquivos:
+                arquivos = glob.glob(os.path.join(pasta, '*sisbajud*.json'))
+
+        caminho_fixo = _arquivo_sessao_sisbajud()
+        if not arquivos and os.path.exists(caminho_fixo):
+            arquivos = [caminho_fixo]
+
+        if not arquivos:
+            logger.info('[SISBAJUD][COOKIES] Nenhum arquivo de cookies do SISBAJUD encontrado')
+            return False
+
+        arquivo_mais_recente = max(arquivos, key=os.path.getmtime)
+        with open(arquivo_mais_recente, 'r', encoding='utf-8') as f:
+            dados = json.load(f)
+
+        if 'timestamp' in dados:
+            timestamp_str = dados['timestamp']
+            cookies = dados.get('cookies', [])
+        else:
+            timestamp_str = datetime.fromtimestamp(os.path.getmtime(arquivo_mais_recente)).isoformat()
+            cookies = dados.get('cookies', dados if isinstance(dados, list) else [])
+
+        # Validar idade do arquivo
+        try:
+            timestamp_cookies = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00').replace('+00:00', ''))
+            idade = datetime.now() - timestamp_cookies
+            if idade > timedelta(hours=max_idade_horas):
+                logger.info('[SISBAJUD][COOKIES] Cookies muito antigos (%.1fh). Pulando.', idade.total_seconds() / 3600)
+                return False
+        except Exception:
+            pass
+
+        # Navega para o domínio do SISBAJUD antes de injetar
+        driver.get('https://sisbajud.pdpj.jus.br/')
+
+        contexto = getattr(driver, '_context', None)
+        agora = time.time()
+        cookies_validos = []
+        for c in cookies:
+            exp = c.get('expires') or c.get('expiry') or -1
+            if exp and exp > 0 and exp < agora:
+                continue
+            cookies_validos.append(c)
+
+        if not cookies_validos:
+            logger.info('[SISBAJUD][COOKIES] Sessao salva sem cookies validos')
+            return False
+
+        if contexto and hasattr(contexto, 'add_cookies'):
+            try:
+                pw_cookies = []
+                for c in cookies_validos:
+                    item = dict(c)
+                    if 'expiry' in item and 'expires' not in item:
+                        item['expires'] = float(item.pop('expiry'))
+                    item.setdefault('domain', '.pdpj.jus.br')
+                    item.setdefault('path', '/')
+                    pw_cookies.append(item)
+                contexto.add_cookies(pw_cookies)
+            except Exception as e:
+                logger.debug(f'[SISBAJUD][COOKIES] contexto.add_cookies: {e}')
+
+        for c in cookies_validos:
+            try:
+                campos_remover = {'httpOnly', 'secure', 'sameSite'}
+                cookie_limpo = {k: v for k, v in c.items() if k not in campos_remover}
+                driver.add_cookie(cookie_limpo)
+            except Exception:
+                pass
+
+        # Restaurar localStorage se presente
+        origins = dados.get('origins', [])
+        for origem in origins:
+            itens = origem.get('localStorage') or []
+            if not itens:
+                continue
+            try:
+                driver.get(origem['origin'])
+                for item in itens:
+                    driver.execute_script(
+                        "localStorage.setItem(arguments[0], arguments[1]);",
+                        item['name'], item['value']
+                    )
+            except Exception:
+                pass
+
+        # Navega para a página principal do SISBAJUD
+        driver.get('https://sisbajud.pdpj.jus.br/')
+        indicadores = ('login', 'auth', 'realms', 'sso.cloud')
+
+        def _logado(d):
+            url = (getattr(d, 'current_url', '') or '').lower()
+            return 'sisbajud' in url and not any(i in url for i in indicadores)
+
+        try:
+            espera.ate(driver, _logado, teto=12)
+        except Exception:
+            pass
+        espera.assentar(driver, 2)
+
+        if _logado(driver):
+            logger.info(f'[SISBAJUD][COOKIES] Cookies validos de {os.path.basename(arquivo_mais_recente)}! Login reaproveitado.')
+            return True
+
+        logger.info(f'[SISBAJUD][COOKIES] Cookies invalidos ou expirados (url={driver.current_url}).')
+        try:
+            driver.delete_all_cookies()
+        except Exception:
+            pass
+        return False
+    except Exception as e:
+        logger.error(f"[SISBAJUD][COOKIES] Falha ao carregar cookies: {e}")
+        return False
+
+
+def verificar_e_aplicar_cookies_sisbajud(driver) -> bool:
+    """Função integrada que verifica e aplica cookies do SISBAJUD automaticamente."""
+    if not USAR_COOKIES_AUTOMATICO:
+        return False
+    logger.debug('[SISBAJUD][COOKIES] Tentando login automatico via cookies salvos...')
+    return carregar_cookies_sisbajud(driver)
+
+
+def salvar_sessao_sisbajud(driver) -> bool:
+    """Alias para salvar_cookies_sisbajud."""
+    return salvar_cookies_sisbajud(driver)
+
+
+def restaurar_sessao_sisbajud(driver) -> bool:
+    """Alias para carregar_cookies_sisbajud."""
+    return carregar_cookies_sisbajud(driver)
+
+
 def driver_sisbajud(headless=False):
     """Cria o driver para SISBAJUD usando a fábrica definida em driver_config.
 
@@ -249,142 +441,138 @@ def driver_sisbajud(headless=False):
 
 def login_automatico_sisbajud(driver):
     """
-    Login automatizado humanizado no SISBAJUD com simulação de comportamento humano
+    Login automatizado no SISBAJUD com credenciais do Windows Credential Manager.
+    Detecta a dialog de ordens pendentes (<mat-dialog-container> / <sisbajud-dialog-aviso-ordem-pendente>)
+    para confirmar login valido e fecha via ESC.
     """
     try:
-        logger.info('[SISBAJUD][LOGIN] Navegando para SISBAJUD...')
+        from Fix import espera
+        from Fix.utils import obter_credencial, _is_driver_headless
+
+        cpf = obter_credencial('SISB_CPF', servicos=('sisbajud', 'pjeplus', 'SISB'), aliases=('BP_SISB', 'PJE_USER', 'PJE_CPF'))
+        senha = obter_credencial('SISB_SENHA', servicos=('sisbajud', 'pjeplus', 'SISB'), aliases=('BP_PASS', 'PJE_SENHA', 'PJE_PASSWORD'))
+
+        if not cpf or not senha:
+            logger.warning('[SISBAJUD][LOGIN] Credenciais SISB_CPF / SISB_SENHA não encontradas no Windows Credential Manager.')
+            return False
+
+        logger.info('[SISBAJUD][LOGIN] Navegando para SISBAJUD (https://sisbajud.cnj.jus.br/)...')
         driver.get('https://sisbajud.cnj.jus.br/')
 
-        # Aguardar carregamento com wait condicional (time.sleep substituído)
-        try:
-            WebDriverWait(driver, 5).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-        except TimeoutException:
-            logger.info('[SISBAJUD][LOGIN] Timeout aguardando readyState - continuando')
-        except Exception:
-            pass
-
-        # Verificar se já está logado: se o campo CPF (#username) não aparece
-        # após a navegação, está logado. Checagem por URL é frágil no Playwright
-        # (wait_until=domcontentloaded retorna antes do redirect Keycloak).
-        try:
-            from Fix import espera
-            if not espera.elemento(driver, '#username, input[name="username"]', teto=3):
-                logger.info('[SISBAJUD][LOGIN]  Já está logado! (campo CPF não encontrado)')
+        # Aguardar campo de usuário (#username) ou verificar se já está logado
+        if not espera.ate_aparecer(driver, '#username, input[name="username"]', teto=10):
+            cur = (getattr(driver, 'current_url', '') or '').lower()
+            if ('sisbajud.cnj.jus.br' in cur or 'sisbajud.pdpj.jus.br' in cur) and not any(ind in cur for ind in ['login', 'auth', 'realms', 'sso.cloud']):
+                logger.info('[SISBAJUD][LOGIN] Sessão já ativa detectada!')
                 return True
-        except Exception:
-            pass
-
-        # 1. Clicar no campo de login e digitar CPF como humano
-        logger.info('[SISBAJUD][LOGIN] 1. Clicando no campo de login e digitando CPF como humano...')
-        try:
-            username_field = driver.find_element(By.ID, "username")
-            simular_movimento_humano(driver, username_field)
-            username_field.click()
-            from Fix.utils import obter_credencial
-            cpf = obter_credencial('SISB_CPF', aliases=('BP_SISB', 'PJE_USER', 'PJE_CPF'))
-            if not cpf:
-                raise RuntimeError(
-                    'Credencial SISB_CPF nao definida. '
-                    'Defina a variavel de ambiente SISB_CPF ou adicione no Gerenciador de Credenciais do Windows (keyring - servico "sisbajud" ou "pjeplus").'
-                )
-            for i, char in enumerate(cpf):
-                # Simular erro de digitação (5% chance)
-                if random.random() < 0.05:
-                    erro_char = str(random.randint(0,9))
-                    username_field.send_keys(erro_char)
-                    time.sleep(random.uniform(0.08, 0.18))
-                    username_field.send_keys(Keys.BACKSPACE)
-                    time.sleep(random.uniform(0.08, 0.18))
-                username_field.send_keys(char)
-                time.sleep(random.uniform(0.09, 0.22))
-            logger.info('[SISBAJUD][LOGIN]  CPF digitado como humano')
-        except Exception as e:
-            logger.info(f'[SISBAJUD][LOGIN]  Erro ao digitar CPF: {e}')
+            logger.warning('[SISBAJUD][LOGIN] Campo #username não localizado.')
             return False
 
-        # 2. Clicar no campo de senha e digitar senha como humano
-        logger.info('[SISBAJUD][LOGIN] 2. Clicando no campo de senha e digitando senha como humano...')
+        # Preencher CPF e Senha imediatamente
+        logger.info('[SISBAJUD][LOGIN] Preenchendo credenciais do SISBAJUD via Windows Credential Manager...')
         try:
-            password_field = driver.find_element(By.ID, "password")
-            simular_movimento_humano(driver, password_field)
-            password_field.click()
-            time.sleep(random.uniform(0.3, 0.7))
-            from Fix.utils import obter_credencial
-            senha = obter_credencial('SISB_SENHA', aliases=('BP_PASS', 'PJE_SENHA', 'PJE_PASSWORD'))
-            if not senha:
-                raise RuntimeError(
-                    'Credencial SISB_SENHA nao definida. '
-                    'Defina a variavel de ambiente SISB_SENHA ou adicione no Gerenciador de Credenciais do Windows (keyring - servico "sisbajud" ou "pjeplus").'
-                )
-            for i, char in enumerate(senha):
-                # Simular erro de digitação (5% chance)
-                if random.random() < 0.05:
-                    erro_char = chr(random.randint(33,126))
-                    password_field.send_keys(erro_char)
-                    time.sleep(random.uniform(0.08, 0.18))
-                    password_field.send_keys(Keys.BACKSPACE)
-                    time.sleep(random.uniform(0.08, 0.18))
-                password_field.send_keys(char)
-                time.sleep(random.uniform(0.09, 0.22))
-            logger.info('[SISBAJUD][LOGIN]  Senha digitada como humano')
-        except Exception as e:
-            logger.info(f'[SISBAJUD][LOGIN]  Erro ao digitar senha: {e}')
+            if hasattr(driver, 'page') and driver.page:
+                driver.page.fill('#username, input[name="username"]', str(cpf))
+                driver.page.fill('#password, input[name="password"]', str(senha))
+            else:
+                from Fix.core import preencher_campo
+                preencher_campo(driver, '#username', cpf)
+                preencher_campo(driver, '#password', senha)
+        except Exception as e_fill:
+            logger.error('[SISBAJUD][LOGIN] Falha ao preencher credenciais: %s', e_fill)
             return False
 
-        # 3. Clicar no botão de login "Entrar"
-        logger.info('[SISBAJUD][LOGIN] 3. Clicando no botão de login "Entrar"...')
+        # Clicar em #kc-login
+        logger.info('[SISBAJUD][LOGIN] Clicando no botão de login (#kc-login)...')
         try:
-            btn_entrar = driver.find_element(By.ID, "kc-login")
-            simular_movimento_humano(driver, btn_entrar)
-            btn_entrar.click()
-            logger.info('[SISBAJUD][LOGIN]  Botão "Entrar" clicado')
-        except Exception as e:
-            logger.info(f'[SISBAJUD][LOGIN]  Erro ao clicar no botão de login: {e}')
+            if hasattr(driver, 'page') and driver.page:
+                driver.page.click('#kc-login')
+            else:
+                from Fix.core import safe_click_no_scroll
+                safe_click_no_scroll(driver, '#kc-login')
+        except Exception as e_btn:
+            logger.error('[SISBAJUD][LOGIN] Falha ao clicar no botão de login: %s', e_btn)
             return False
 
-        # Aguardar redirecionamento com verificação inteligente
-        logger.info('[SISBAJUD][LOGIN] Aguardando redirecionamento...')
-        max_tentativas = 20  # 20 tentativas x 0.5s = 10 segundos máximo
-        for tentativa in range(max_tentativas):
-            time.sleep(0.5)
-            try:
-                current_url = driver.current_url.lower()
-                
-                # Sucesso: redirecionou para SISBAJUD sem indicadores de login
-                if 'sisbajud.cnj.jus.br' in current_url and not any(ind in current_url for ind in ['login', 'auth', 'realms']):
-                    logger.info('[SISBAJUD][LOGIN]  Login realizado com sucesso!')
-                    
-                    # Maximizar a janela imediatamente após o login para garantir visibilidade dos elementos
+        # Verificar se surgiu tela de OTP (código de verificação em duas etapas)
+        otp_detectado = False
+        if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=3):
+            otp_detectado = True
+            if _is_driver_headless(driver):
+                logger.info('[SISBAJUD][LOGIN] Tela de validação em duas etapas (OTP) detectada (modo headless).')
+                codigo = input("\n[SISBAJUD] Digite o código de validação (OTP): ").strip()
+                if hasattr(driver, 'page') and driver.page:
+                    driver.page.fill('#otp, input[name="otp"]', codigo)
                     try:
-                        driver.maximize_window()
-                        logger.info('[SISBAJUD][LOGIN]  Janela maximizada após login automático')
-                    except Exception as e:
-                        _ = e
-                    return True
-                
-                # Verificação manual necessária: ainda em página de auth mas não na tela inicial de login
-                if any(ind in current_url for ind in ['auth', 'realms']) and 'kc-login' not in driver.page_source:
-                    logger.info('[SISBAJUD][LOGIN]  Login automático não concluído - pode necessitar verificação manual')
-                    logger.info('[SISBAJUD][LOGIN]  URL atual:', driver.current_url)
-                    return 'manual_needed'
-                    
-            except Exception as e:
-                _ = e
-        
-        # Timeout: verificar estado final
-        current_url = driver.current_url.lower()
-        if 'sisbajud.cnj.jus.br' in current_url and not any(ind in current_url for ind in ['login', 'auth', 'realms']):
-            logger.info('[SISBAJUD][LOGIN]  Login realizado com sucesso (após timeout)')
+                        driver.page.locator('input[type="submit"], button[type="submit"], #kc-login').first.click()
+                    except Exception:
+                        driver.page.keyboard.press('Enter')
+                else:
+                    from Fix.core import preencher_campo, safe_click_no_scroll
+                    preencher_campo(driver, '#otp', codigo)
+                    safe_click_no_scroll(driver, 'input[type="submit"], button[type="submit"], #kc-login')
+            else:
+                logger.info('[SISBAJUD][LOGIN] Tela de validação em duas etapas (OTP) detectada. Digite o código no navegador e confirme...')
+
+        # Validação pós-login via Dialog de ordens pendentes
+        logger.info('[SISBAJUD][LOGIN] Aguardando confirmação de login válido via dialog de ordens pendentes...')
+        seletor_dialog = 'sisbajud-dialog-aviso-ordem-pendente, mat-dialog-container:has(sisbajud-dialog-aviso-ordem-pendente), mat-dialog-container'
+
+        login_confirmado = False
+        inicio = time.time()
+        timeout_dialog = 120.0 if otp_detectado else 45.0
+
+        while (time.time() - inicio) < timeout_dialog:
+            # 1. Dialog de aviso de ordens pendentes detectada
+            if espera.ate_aparecer(driver, seletor_dialog, teto=1):
+                logger.info('[SISBAJUD][LOGIN] Dialog <sisbajud-dialog-aviso-ordem-pendente> detectada! Login confirmado com sucesso.')
+                login_confirmado = True
+
+                # Pressionar ESC para fechar a dialog
+                logger.info('[SISBAJUD][LOGIN] Pressionando ESC para fechar a dialog...')
+                try:
+                    if hasattr(driver, 'page') and driver.page:
+                        driver.page.keyboard.press('Escape')
+                    else:
+                        _executar_js = getattr(driver, '_executar_js', getattr(driver, 'execute_script', None))
+                        if _executar_js:
+                            _executar_js("document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape', 'code': 'Escape', 'keyCode': 27, 'which': 27, bubbles: true}));")
+                except Exception as e_esc:
+                    logger.debug('[SISBAJUD][LOGIN] Aviso ao enviar tecla ESC: %s', e_esc)
+
+                # Esperar dialog sumir (Fix.espera.ate_sumir)
+                espera.ate_sumir(driver, 'sisbajud-dialog-aviso-ordem-pendente', teto=4)
+
+                # Garantia caso ESC não feche o mat-dialog
+                try:
+                    from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
+                    dispensar_dialog_ordem_pendente(driver, log=False, timeout=1.5)
+                except Exception:
+                    pass
+                break
+
+            # 2. Caso sem ordens pendentes: página do SISBAJUD carregada sem login/auth
+            cur = (getattr(driver, 'current_url', '') or '').lower()
+            if ('sisbajud.cnj.jus.br' in cur or 'sisbajud.pdpj.jus.br' in cur) and not any(ind in cur for ind in ['login', 'auth', 'realms', 'sso.cloud']):
+                if espera.ate_aparecer(driver, 'mat-toolbar, .navbar, .menu-item, mat-sidenav, app-root', teto=1):
+                    logger.info('[SISBAJUD][LOGIN] Interface principal do SISBAJUD carregada (sem dialog pendente). Login confirmado.')
+                    login_confirmado = True
+                    break
+
+            espera.pausa(driver, 0.5)
+
+        if login_confirmado:
+            try:
+                driver.maximize_window()
+            except Exception:
+                pass
             return True
-        else:
-            logger.info('[SISBAJUD][LOGIN]  Login não concluído automaticamente - pode precisar de verificação')
-            logger.info('[SISBAJUD][LOGIN]  URL final:', driver.current_url)
-            return 'manual_needed'
+
+        logger.warning('[SISBAJUD][LOGIN] Login automático não confirmado no tempo limite.')
+        return False
 
     except Exception as e:
-        logger.info(f'[SISBAJUD][LOGIN]  Erro durante login: {e}')
+        logger.info(f'[SISBAJUD][LOGIN] Erro durante login automático: {e}')
         logger.exception("Erro detectado")
         return False
 
@@ -414,18 +602,13 @@ def login_manual_sisbajud(driver, aguardar_url_final=True):
                 if any(host in current for host in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br', 'sisbajud']) and not any(ind in current for ind in ['login', 'auth', 'realms', 'sso.cloud']):
                     logger.info('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou: %s).', driver.current_url)
                     
-                    # Tentar salvar cookies via driver_config helper para persistência
-                    try:
-                        from driver_config import salvar_cookies_sessao, salvar_cookies_sisbajud, SALVAR_COOKIES_AUTOMATICO
-                        if SALVAR_COOKIES_AUTOMATICO:
-                            try:
-                                salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
-                                logger.info('[SISBAJUD][LOGIN_MANUAL] Cookies salvos após login manual SISBAJUD')
-                            except Exception as e:
-                                logger.info(f"[SISBAJUD][LOGIN_MANUAL] Falha ao salvar cookies: {e}")
-                    except Exception:
-                        # driver_config pode não estar disponível neste contexto
-                        _ = None
+                    # Salvar cookies da sessão SISBAJUD
+                    if SALVAR_COOKIES_AUTOMATICO:
+                        try:
+                            salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
+                            logger.info('[SISBAJUD][LOGIN_MANUAL] Cookies salvos após login manual SISBAJUD')
+                        except Exception as e:
+                            logger.info(f"[SISBAJUD][LOGIN_MANUAL] Falha ao salvar cookies: {e}")
                     return True
             except Exception as e:
                 _ = e
@@ -515,54 +698,52 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
             return None
         
         logger.info(f'[SISBAJUD][DEBUG] Driver criado com sucesso: {type(driver)}')
-        # Tentativa: recarregar cookies específicos do SISBAJUD (implementado em bacen.py)
+
+        # 1. Tentar reutilizar sessão via cookies (mesmo padrão PJe)
         cookie_restored = False
-        try:
-            from bacen import carregar_cookies_sisbajud
+        if USAR_COOKIES_AUTOMATICO:
             try:
                 if carregar_cookies_sisbajud(driver):
-                    logger.info('[SISBAJUD]  Cookies SISBAJUD carregados com sucesso; pulando etapa de login.')
+                    logger.info('[SISBAJUD] Cookies SISBAJUD carregados com sucesso; pulando etapa de login.')
                     cookie_restored = True
-            except Exception:
-                # falha ao carregar cookies SISBAJUD - continuar para o fluxo de login
-                cookie_restored = False
-        except Exception:
-            # módulo bacen pode não existir em todos os contextos; ignorar
-            cookie_restored = False
-
-        if not driver:
-            logger.info('[SISBAJUD]  Falha ao criar driver')
-            return None
-
-        # Realizar login: login MANUAL (login automatico desativado)
-        # O usuario deve fazer login manualmente no browser e confirmar no terminal.
-        try:
-            from driver_config import salvar_cookies_sisbajud, SALVAR_COOKIES_AUTOMATICO
-        except Exception:
-            salvar_cookies_sisbajud = None
-            SALVAR_COOKIES_AUTOMATICO = False
-        login_ok = False
-
-        # Verificar se ja esta logado (token valido no localStorage)
-        try:
-            result_token = carregar_tokens_sisbajud()
-            if result_token.get('sucesso'):
-                at = result_token['access_token']
-                rt = result_token.get('refresh_token')
-                if injetar_tokens_sisbajud(driver, at, rt):
-                    logger.info('[SISBAJUD]  Tokens salvos injetados com sucesso; pulando login.')
-                    login_ok = True
-        except Exception as e:
-            logger.debug('[SISBAJUD] Nao foi possivel reutilizar tokens: %s', e)
-
-        if not login_ok:
-            # Navegar para SISBAJUD e pedir login manual
-            try:
-                logger.info('[SISBAJUD] Navegando para SISBAJUD para login manual...')
-                driver.get('https://sisbajud.cnj.jus.br/')
             except Exception as e:
-                logger.warning('[SISBAJUD] Erro ao navegar para SISBAJUD: %s', e)
+                logger.debug(f'[SISBAJUD] Falha ao carregar cookies SISBAJUD: {e}')
+                cookie_restored = False
 
+        login_ok = cookie_restored
+
+        # 2. Se cookies não restauraram, tentar tokens do localStorage
+        if not login_ok:
+            try:
+                result_token = carregar_tokens_sisbajud()
+                if result_token.get('sucesso'):
+                    at = result_token['access_token']
+                    rt = result_token.get('refresh_token')
+                    if injetar_tokens_sisbajud(driver, at, rt):
+                        logger.info('[SISBAJUD] Tokens salvos injetados com sucesso; pulando login.')
+                        login_ok = True
+            except Exception as e:
+                logger.debug('[SISBAJUD] Nao foi possivel reutilizar tokens: %s', e)
+
+        # 3. Login automático com CPF/Senha do Windows Credential Manager
+        if not login_ok:
+            logger.info('[SISBAJUD] Executando login automático via CPF...')
+            login_ok = login_automatico_sisbajud(driver)
+            if login_ok:
+                logger.info('[SISBAJUD] Login automático concluído com sucesso!')
+                try:
+                    salvar_tokens_sisbajud(driver)
+                except Exception:
+                    pass
+                if SALVAR_COOKIES_AUTOMATICO:
+                    try:
+                        salvar_cookies_sisbajud(driver, info_extra='login_automatico_sisbajud')
+                    except Exception as e:
+                        logger.debug(f'[SISBAJUD] Falha ao salvar cookies: {e}')
+
+        # 4. Fallback: solicitar login manual apenas se o automático falhar (ex: MFA/Captcha)
+        if not login_ok:
+            logger.warning('[SISBAJUD] Login automático não concluído. Solicitando login manual...')
             print('\n' + '=' * 60)
             print('  LOGIN SISBAJUD MANUAL NECESSARIO')
             print('=' * 60)
@@ -577,18 +758,18 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
             # Aguardar confirmacao de sessao ativa
             if login_manual_sisbajud(driver, aguardar_url_final=True):
                 login_ok = True
-                logger.info('[SISBAJUD]  Login manual SISBAJUD concluido com sucesso')
+                logger.info('[SISBAJUD] Login manual SISBAJUD concluido com sucesso')
                 try:
                     salvar_tokens_sisbajud(driver)
                 except Exception:
                     pass
-                try:
-                    if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sisbajud:
+                if SALVAR_COOKIES_AUTOMATICO:
+                    try:
                         salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
-                except Exception:
-                    pass
+                    except Exception as e:
+                        logger.debug(f'[SISBAJUD] Falha ao salvar cookies: {e}')
             else:
-                logger.error('[SISBAJUD]  Login manual SISBAJUD nao foi confirmado')
+                logger.error('[SISBAJUD] Login manual SISBAJUD nao foi confirmado')
 
         if not login_ok:
             logger.info('[SISBAJUD]  Nao foi possivel autenticar no SISBAJUD')
@@ -599,13 +780,12 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
             return None
 
         # Aguardar carregamento da página do SISBAJUD após login
-        try:
-            WebDriverWait(driver, 15).until(
-                lambda d: any(h in (d.current_url or '').lower() for h in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br'])
-                and not any(ind in (d.current_url or '').lower() for ind in ['login', 'auth', 'realms', 'sso.cloud'])
-            )
-        except Exception:
-            pass
+        espera.ate(
+            driver,
+            lambda d: any(h in (getattr(d, 'current_url', '') or '').lower() for h in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br'])
+            and not any(ind in (getattr(d, 'current_url', '') or '').lower() for ind in ['login', 'auth', 'realms', 'sso.cloud']),
+            teto=15
+        )
 
         # Maximizar janela rapidamente
         try:
@@ -614,11 +794,11 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
         except Exception as e:
             logger.info(f'[SISBAJUD]  Não foi possível maximizar a janela: {e}')
 
-        # Detectar e dispensar dialog de ordens pendentes clicando em "Não"
+        # Garantia final: dispensar dialog de ordens pendentes se ainda estiver aberta
         logger.info('[SISBAJUD] Verificando e dispensando dialog inicial (ordens pendentes)...')
         try:
             from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
-            dispensar_dialog_ordem_pendente(driver, log=True, timeout=8.0)
+            dispensar_dialog_ordem_pendente(driver, log=True, timeout=2.0)
         except Exception as e_dlg:
             logger.debug(f'[SISBAJUD] Erro ao verificar dialog: {e_dlg}')
 
@@ -760,13 +940,9 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
             logger.info('[SISBAJUD]  Botão "Nova Minuta" clicado automaticamente')
             # Aguardar navegação com wait condicional (time.sleep(2) substituído)
             try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder*="Juiz"], .mat-form-field, form'))
-                )
-            except TimeoutException:
-                logger.info('[SISBAJUD] Timeout aguardando formulário da minuta - continuando')
+                espera.ate_aparecer(driver, 'input[placeholder*="Juiz"], .mat-form-field, form', teto=10)
             except Exception:
-                pass
+                logger.info('[SISBAJUD] Timeout aguardando formulário da minuta - continuando')
         else:
             logger.info('[SISBAJUD]  Botão "Nova Minuta" não encontrado')
             return {
@@ -1048,13 +1224,14 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                     logger.info('[SISBAJUD]  Navegação para teimosinha realizada')
 
                 # Aguardar carregamento da página e campo de processo
-                campo_processo = WebDriverWait(driver, 15).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Número do Processo"]'))
-                )
-
-                # Limpar, inserir o número do processo e pressionar ENTER
-                campo_processo.clear()
-                campo_processo.send_keys(numero_processo + Keys.RETURN)
+                campo_processo = espera.ate_aparecer(driver, 'input[placeholder="Número do Processo"]', teto=15)
+                if campo_processo:
+                    try:
+                        campo_processo.fill(numero_processo)
+                        campo_processo.press('Enter')
+                    except Exception:
+                        campo_processo.clear()
+                        campo_processo.send_keys(numero_processo)
 
                 if log:
                     logger.info('[SISBAJUD]  Processo inserido e ENTER pressionado')
@@ -1332,94 +1509,227 @@ def processar_bloqueios(driver_pje=None):
         return None
 
 
-def coletar_dados_minuta_sisbajud(driver):
+def coletar_dados_minuta_sisbajud(driver, dados_processo=None, numero_processo=None):
     """
-    Executa JavaScript para coletar dados da minuta SISBAJUD e retorna o texto formatado
-    Baseado na implementação do 123.py, adaptado para o módulo SISB
+    Executa JavaScript para coletar dados da minuta SISBAJUD e retorna o texto formatado.
+    Combina seletores robustos (.sisbajud-label, labels flexíveis, TreeWalker)
+    com fallbacks para dados_processo/numero_processo garantindo que nenhum campo fique vazio.
     """
     try:
         logger.info('[SISBAJUD] Executando script de coleta de dados da minuta...')
 
-        # JavaScript fornecido pelo usuário (decodificado) - versão adaptada para SISB
-        script_coleta = """
-        function getCleanText(selector) {
-            const element = document.querySelector(selector);
-            if (element) {
-                return element.textContent.trim();
-            }
-            return null;
-        }
+        proc_fallback = str(numero_processo or (dados_processo or {}).get('numero') or '')
+        divida_obj = (dados_processo or {}).get('divida') if isinstance(dados_processo, dict) else {}
+        valor_fallback = (divida_obj or {}).get('valor', '') if isinstance(divida_obj, dict) else ''
 
-        function getValueByLabel(labelText) {
-            // Buscar no novo formato HTML do SISBAJUD
+        reus_fallback = []
+        if isinstance(dados_processo, dict) and dados_processo.get('reu'):
+            for r in dados_processo['reu']:
+                nome = r.get('nome', '')
+                doc = r.get('cpfcnpj', '')
+                if nome and doc:
+                    reus_fallback.append(f"{nome} - [{doc}]")
+                elif nome:
+                    reus_fallback.append(nome)
+
+        import json
+        payload_fallback = json.dumps({
+            'processo': proc_fallback,
+            'valor': valor_fallback,
+            'reus': reus_fallback
+        }, ensure_ascii=False)
+
+        script_coleta = f"""
+        const fb = {payload_fallback};
+
+        function getValueByLabel(targetText) {{
+            if (!targetText) return null;
+            const cleanTarget = targetText.replace(/[:\\s]+/g, ' ').trim().toLowerCase();
+
+            // 1. .sisbajud-label
             const labels = Array.from(document.querySelectorAll('.sisbajud-label'));
-            const targetLabel = labels.find(label => label.textContent.trim().includes(labelText));
-            if (targetLabel) {
-                // Buscar o valor na mesma div pai usando o novo formato
+            const targetLabel = labels.find(label => {{
+                const txt = (label.textContent || '').replace(/[:\\s]+/g, ' ').trim().toLowerCase();
+                return txt.includes(cleanTarget);
+            }});
+            if (targetLabel) {{
                 const parentDiv = targetLabel.closest('.col-md-3') || targetLabel.parentElement;
-                if (parentDiv) {
-                    const valueElement = parentDiv.querySelector('.sisbajud-label-valor');
-                    if (valueElement) {
-                        return valueElement.textContent.trim();
-                    }
-                }
-            }
+                const valueElement = (parentDiv && parentDiv.querySelector('.sisbajud-label-valor'))
+                    || targetLabel.parentElement.querySelector('.sisbajud-label-valor')
+                    || targetLabel.nextElementSibling;
+                if (valueElement && valueElement.textContent.trim()) {{
+                    return valueElement.textContent.trim();
+                }}
+            }}
+
+            // 2. Qualquer elemento label/span/strong contendo o texto
+            const allSpans = Array.from(document.querySelectorAll('label, span, strong, dt, div'));
+            for (let i = 0; i < allSpans.length; i++) {{
+                const el = allSpans[i];
+                const txt = (el.textContent || '').replace(/[:\\s]+/g, ' ').trim().toLowerCase();
+                if (txt === cleanTarget || (txt.startsWith(cleanTarget) && txt.length < cleanTarget.length + 5)) {{
+                    const nextVal = el.nextElementSibling || (el.parentElement && el.parentElement.querySelector('.sisbajud-label-valor'));
+                    if (nextVal && nextVal.textContent.trim()) return nextVal.textContent.trim();
+                }}
+            }}
             return null;
-        }
+        }}
 
-        try {
-            // Extrair dados usando o novo formato HTML
-            const numeroProcesso = getValueByLabel('Número do processo:');
-            const numeroProtocolo = getValueByLabel('Número do protocolo:');
-            const repeticaoProgramada = getValueByLabel('Repetição programada?');
-            const limiteRepeticao = getValueByLabel('Data limite da repetição:');
-            const valorBloqueio = getCleanText('td[data-label="valorBloquear:"]');
+        function extrairNumeroProcesso() {{
+            const porLabel = getValueByLabel('Número do Processo')
+                          || getValueByLabel('Número do processo')
+                          || getValueByLabel('Processo');
+            if (porLabel) {{
+                const m = porLabel.match(/\\d{{7}}-\\d{{2}}\\.\\d{{4}}\\.\\d\\.\\d{{2}}\\.\\d{{4}}/);
+                if (m) return m[0];
+                const digits = porLabel.replace(/\\D/g, '');
+                if (digits.length === 20) return porLabel.trim();
+            }}
 
+            try {{
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                let node;
+                while ((node = walker.nextNode())) {{
+                    const m = node.nodeValue && node.nodeValue.match(/\\b\\d{{7}}-\\d{{2}}\\.\\d{{4}}\\.\\d\\.\\d{{2}}\\.\\d{{4}}\\b/);
+                    if (m) return m[0];
+                }}
+            }} catch(e) {{}}
+
+            const inp = document.querySelector('input[placeholder*="Processo"], input[formcontrolname*="processo"]');
+            if (inp && inp.value) {{
+                const m = inp.value.match(/\\d{{7}}-\\d{{2}}\\.\\d{{4}}\\.\\d\\.\\d{{2}}\\.\\d{{4}}/);
+                if (m) return m[0];
+                return inp.value.trim();
+            }}
+
+            return fb.processo || null;
+        }}
+
+        function extrairNumeroProtocolo() {{
+            const porLabel = getValueByLabel('Número do Protocolo')
+                          || getValueByLabel('Número do protocolo')
+                          || getValueByLabel('Protocolo')
+                          || getValueByLabel('Número da Ordem')
+                          || getValueByLabel('Número da ordem')
+                          || getValueByLabel('Número da Minuta')
+                          || getValueByLabel('Número da minuta')
+                          || getValueByLabel('Ordem')
+                          || getValueByLabel('Minuta')
+                          || getValueByLabel('ID');
+            if (porLabel) {{
+                const m = porLabel.match(/\\d{{6,25}}/);
+                if (m) return m[0];
+            }}
+
+            const elProto = document.querySelector('.col-protocolo, [data-label*="protocolo"], [data-label*="Protocolo"]');
+            if (elProto && elProto.textContent) {{
+                const m = elProto.textContent.match(/\\d{{6,25}}/);
+                if (m) return m[0];
+            }}
+
+            try {{
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                let node;
+                while ((node = walker.nextNode())) {{
+                    const text = node.nodeValue || '';
+                    const m = text.match(/(?:[Pp]rotocolo|[Nn]úmero da [Oo]rdem|[Mm]inuta)[\\s:]+(\\d{{6,25}})/);
+                    if (m) return m[1];
+                }}
+            }} catch(e) {{}}
+
+            const mUrl = window.location.href.match(/\\/(\\d{{6,}})/);
+            if (mUrl) return mUrl[1];
+
+            return porLabel ? porLabel.replace(/\\D/g, '') : null;
+        }}
+
+        function extrairValor() {{
+            const elValor = document.querySelector('td[data-label="valorBloquear:"], td[data-label*="valor"], td.mat-column-valorBloquear');
+            if (elValor && elValor.textContent.trim()) {{
+                return elValor.textContent.trim().split('\\n')[0];
+            }}
+            const porLabel = getValueByLabel('Valor a ser bloqueado')
+                          || getValueByLabel('Valor do bloqueio')
+                          || getValueByLabel('Valor da dívida');
+            if (porLabel) return porLabel;
+            return fb.valor || null;
+        }}
+
+        function extrairExecutados() {{
             const executados = [];
-            const rowsExecutados = document.querySelectorAll('tr.element-row');
-            rowsExecutados.forEach(row => {
-                const nomeElement = row.querySelector('.col-reu-dados-nome-pessoa');
-                const documentoElement = row.querySelector('.col-reu-dados a');
-                if (nomeElement && documentoElement) {
+            const rows = document.querySelectorAll('tr.element-row, tr.mat-row, mat-row');
+            rows.forEach(row => {{
+                const nomeElement = row.querySelector('.col-reu-dados-nome-pessoa, td.mat-column-identificacao, .mat-column-nome');
+                const documentoElement = row.querySelector('.col-reu-dados a, a[href*="receita"], td.mat-column-cpfCnpj');
+                if (nomeElement) {{
                     const nome = nomeElement.textContent.trim();
-                    const documento = documentoElement.textContent.trim();
-                    executados.push(`${nome} - [${documento}]`);
-                }
-            });
+                    const documento = documentoElement ? documentoElement.textContent.trim() : '';
+                    if (documento && !nome.includes('Qtde')) {{
+                        executados.push(`${{nome}} - [${{documento}}]`);
+                    }} else if (nome && !nome.includes('Qtde') && !nome.includes('Identificação')) {{
+                        executados.push(nome);
+                    }}
+                }}
+            }});
+            if (executados.length > 0) return executados;
+            return (fb.reus && fb.reus.length > 0) ? fb.reus : [];
+        }}
+
+        try {{
+            const numeroProcesso = extrairNumeroProcesso();
+            const numeroProtocolo = extrairNumeroProtocolo();
+            const repeticaoProgramada = getValueByLabel('Repetição programada?') || getValueByLabel('Repetir ordem?') || 'Sim';
+
+            let limiteRepeticao = null;
+            const labelsData = Array.from(document.querySelectorAll('.sisbajud-label'));
+            for (const lbl of labelsData) {{
+                if ((lbl.textContent || '').toLowerCase().includes('data limite da repetição')) {{
+                    const cont = lbl.closest('.col-md-3') || lbl.parentElement;
+                    const v = cont ? cont.querySelector('.sisbajud-label-valor') : null;
+                    if (v && v.textContent.trim()) {{
+                        limiteRepeticao = v.textContent.trim();
+                        break;
+                    }}
+                }}
+            }}
+            if (!limiteRepeticao) {{
+                limiteRepeticao = getValueByLabel('Data limite da repetição:') || 'Não informado';
+            }}
+
+            const valorBloqueio = extrairValor();
+            const executados = extrairExecutados();
 
             const pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"';
 
-            let resultado = `<p ${pStyle}><strong>Dados da Teimosinha protocolada:</strong></p>`;
-            resultado += `<p ${pStyle}>Número do processo: <strong>${numeroProcesso || 'Não encontrado'}</strong></p>`;
-            resultado += `<p ${pStyle}>Número do protocolo: <strong>${numeroProtocolo || 'Não encontrado'}</strong></p>`;
-            resultado += `<p ${pStyle}>Repetição programada? <strong>${repeticaoProgramada || 'Não encontrado'}</strong></p>`;
-            resultado += `<p ${pStyle}>Limite da repetição: <strong>${limiteRepeticao || 'Não encontrado'}</strong></p>`;
-            resultado += `<p ${pStyle}>Valor do bloqueio: <strong>${valorBloqueio ? valorBloqueio.split('\\n')[0] : 'Não encontrado'}</strong></p>`;
-            resultado += `<p ${pStyle}><strong>Partes alvo do bloqueio:</strong></p>`;
+            let resultado = `<p ${{pStyle}}><strong>Dados da Teimosinha protocolada:</strong></p>`;
+            resultado += `<p ${{pStyle}}>Número do processo: <strong>${{numeroProcesso || ''}}</strong></p>`;
+            resultado += `<p ${{pStyle}}>Protocolo: <strong></strong></p>`;
+            resultado += `<p ${{pStyle}}>Data limite da repetição: <strong>${{limiteRepeticao || ''}}</strong></p>`;
+            resultado += `<p ${{pStyle}}>Valor do bloqueio: <strong>${{valorBloqueio || ''}}</strong></p>`;
+            resultado += `<p ${{pStyle}}><strong>Partes alvo do bloqueio:</strong></p>`;
 
-            if (executados.length > 0) {
-                executados.forEach(executado => {
-                    resultado += `<p ${pStyle}><strong>${executado}</strong></p>`;
-                });
-            } else {
-                resultado += `<p ${pStyle}><strong>Nenhum executado encontrado</strong></p>`;
-            }
+            if (executados.length > 0) {{
+                executados.forEach(executado => {{
+                    resultado += `<p ${{pStyle}}><strong>${{executado}}</strong></p>`;
+                }});
+            }} else {{
+                resultado += `<p ${{pStyle}}><strong>Nenhum executado encontrado</strong></p>`;
+            }}
 
-            resultado += `<p ${pStyle}>Notas:</p>`;
-            resultado += `<p ${pStyle}>-Por padrão é consultado CNPJ raiz.</p>`;
-            resultado += `<p ${pStyle}>-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>`;
+            resultado += `<p ${{pStyle}}>Notas:</p>`;
+            resultado += `<p ${{pStyle}}>-Por padrão é consultado CNPJ raiz.</p>`;
+            resultado += `<p ${{pStyle}}>-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>`;
 
             return resultado;
 
-        } catch (error) {
+        }} catch (error) {{
             return 'ERRO: ' + error.message;
-        }
+        }}
         """
 
-        # Executar o script e obter o resultado
         resultado = driver.execute_script(script_coleta)
 
-        if resultado and not resultado.startswith('ERRO:'):
+        if resultado and not str(resultado).startswith('ERRO:'):
             logger.info('[SISBAJUD]  Dados da minuta coletados com sucesso')
             return resultado
         else:
@@ -1550,25 +1860,27 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         # =====================================================================
         logger.info(f'[SISBAJUD] === CRIANDO 1ª MINUTA (prazo {prazo_dias} dias) ===')
 
-        # 3a. Navegar para listagem de minutas (resetar estado do driver)
-        URL_MINUTA = "https://sisbajud.pdpj.jus.br/minuta"
+        # 3a. Navegar diretamente para /minuta/cadastrar (evita delay e refresh de listagem)
+        URL_CADASTRAR = "https://sisbajud.pdpj.jus.br/minuta/cadastrar"
         try:
-            driver.get(URL_MINUTA)
+            logger.info(f'[SISBAJUD] Navegando diretamente para cadastro de minuta: {URL_CADASTRAR}')
+            driver.get(URL_CADASTRAR)
             from Fix.core import aguardar_renderizacao_nativa
             aguardar_renderizacao_nativa(driver, timeout=3)
         except Exception as e_nav:
             if log:
-                logger.info(f'[SISBAJUD]  Erro ao navegar para listagem de minutas: {e_nav}')
+                logger.info(f'[SISBAJUD]  Erro ao navegar para /minuta/cadastrar: {e_nav}')
 
-        # 3b. Clicar em "Nova Minuta" a partir do menu principal ou dashboard
-        sucesso_nova = _clicar_nova_minuta(driver, log)
-        if not sucesso_nova:
-            resultado['status'] = 'erro'
-            resultado['erros'].append('1ª minuta: Botão "Nova Minuta" não encontrado')
-            return resultado
+        # Fallback caso a rota direta não abra o formulário: clica em Nova Minuta
+        if '/cadastrar' not in (driver.current_url or ''):
+            sucesso_nova = _clicar_nova_minuta(driver, log)
+            if not sucesso_nova:
+                resultado['status'] = 'erro'
+                resultado['erros'].append('1ª minuta: Botão "Nova Minuta" não encontrado')
+                return resultado
 
-        # 3b. Preencher campos iniciais
-        agendar_m1 = (pendencia == 'sem_calculo')
+        # 3b. Preencher campos iniciais (1ª minuta: prazo teimosinha, SEM agendar protocolo)
+        agendar_m1 = False
         campos_ok = helpers._preencher_campos_iniciais(
             driver, dados_processo, prazo_dias,
             agendar_amanha=agendar_m1, agendar_offset=1
@@ -1604,34 +1916,19 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
 
         logger.info('[SISBAJUD]  1ª minuta salva com sucesso')
 
-        # 3f. PROTOColar 1ª minuta (apenas se sem pendencia)
-        protocolo_1 = None
-        if pendencia is None:
-            if log:
-                logger.info('[SISBAJUD]  Protocolando 1ª minuta...')
-            protocolo_1 = helpers._protocolar_minuta(driver, log=log)
-            if protocolo_1:
-                logger.info('[SISBAJUD]  1ª minuta protocolada: %s', protocolo_1)
-                resultado['minuta_1_protocolada'] = True
-            else:
-                logger.info('[SISBAJUD]  1ª minuta nao protocolada — prosseguindo')
-        else:
-            if log:
-                logger.info('[SISBAJUD]  Pulando protocolo — pendencia: %s', pendencia)
+        # 3f. PROTOColar 1ª minuta: desativado (teimosinhas são salvas sem protocolar direto no SISBAJUD)
+        protocolo_1 = ""
+        if log:
+            logger.info('[SISBAJUD]  1ª minuta salva (sem protocolar — aguarda assinatura do magistrado)')
 
-        # 3g. Coletar dados da 1ª minuta (protocolo e relatório)
-        if not protocolo_1:
-            try:
-                import re as _re
-                m = _re.search(r'/(\d{10,})/', driver.current_url)
-                if m:
-                    protocolo_1 = m.group(1)
-            except Exception:
-                pass
-        dados_rel_1 = helpers._gerar_relatorio_minuta(driver, numero_processo)
+        # 3g. Coletar dados da 1ª minuta (relatório em memória, sem salvar clipboard)
+        dados_rel_1 = helpers._gerar_relatorio_minuta(
+            driver, numero_processo, dados_processo=dados_processo, salvar_clipboard=False
+        )
+        resultado['relatorio_minuta_1'] = (dados_rel_1 or {}).get('conteudo') if isinstance(dados_rel_1, dict) else None
         resultado['minuta_1'] = {
             'prazo_dias': prazo_dias,
-            'protocolo': protocolo_1,
+            'protocolo': "",
             'relatorio_gerado': bool(dados_rel_1)
         }
 
@@ -1643,134 +1940,156 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         # Navegar diretamente para /minuta/cadastrar
         URL_CADASTRAR = "https://sisbajud.pdpj.jus.br/minuta/cadastrar"
         try:
+            logger.info(f'[SISBAJUD] Navegando diretamente para cadastro da 2ª minuta: {URL_CADASTRAR}')
             driver.get(URL_CADASTRAR)
             from Fix.core import aguardar_renderizacao_nativa
             aguardar_renderizacao_nativa(driver, timeout=3)
+            espera.ate_aparecer(driver, 'input[formcontrolname="numeroProcesso"], input[placeholder*="processo"]', teto=10)
         except Exception as e_nav:
             if log:
                 logger.info(f'[SISBAJUD]  Erro ao navegar para /minuta/cadastrar: {e_nav}')
             resultado['erros'].append(f'2ª minuta: erro ao navegar: {e_nav}')
+
+        # Fallback caso a rota direta não abra o formulário: clica em Nova Minuta
+        if '/cadastrar' not in (driver.current_url or ''):
+            sucesso_nova = _clicar_nova_minuta(driver, log)
+            if not sucesso_nova:
+                resultado['erros'].append('2ª minuta: Botão "Nova Minuta" não encontrado')
+
+        # 4b. Preencher campos (mesmo prazo, MAS com agendar_amanha=True)
+        campos_ok_2 = False
+        try:
+            from .processamento.minutas_campos import _preencher_campos_iniciais as preencher_campos_atualizado
+            agendar_m2 = True  # sempre agenda a 2ª minuta; offset depende de pendencia
+            offset_m2 = 2 if pendencia == 'sem_calculo' else 1
+            campos_ok_2 = preencher_campos_atualizado(
+                driver, dados_processo, prazo_dias=prazo_dias,
+                agendar_amanha=agendar_m2, agendar_offset=offset_m2
+            )
+        except Exception as e_kwargs:
+            if log:
+                logger.info(f'[SISBAJUD] Erro ao preencher campos da 2ª minuta com agendar_amanha: {e_kwargs}')
+
+        if not campos_ok_2:
+            if log:
+                logger.info('[SISBAJUD]  2ª minuta: Falha ao preencher campos — pulando')
+            resultado['erros'].append('2ª minuta: Falha ao preencher campos')
         else:
-            # 4b. Preencher campos (mesmo prazo, MAS com agendar_amanha=True)
-            # Como a assinatura da função em minutas_campos.py foi modificada, ela aceita kwargs
-            campos_ok_2 = False
-            try:
-                # O Helper re-exporta a função. Vamos chamar diretamente a implementação atualizada se o wrapper não expor kwargs:
-                from .processamento.minutas_campos import _preencher_campos_iniciais as preencher_campos_atualizado
-                agendar_m2 = True  # sempre agenda a 2ª minuta; offset depende de pendencia
-                offset_m2 = 2 if pendencia == 'sem_calculo' else 1
-                campos_ok_2 = preencher_campos_atualizado(
-                    driver, dados_processo, prazo_dias=prazo_dias,
-                    agendar_amanha=agendar_m2, agendar_offset=offset_m2
-                )
-            except Exception as e_kwargs:
-                # Fallback caso dê erro de assinatura
+            # 4c. Processar réus restantes (se houver)
+            if reus_restantes:
                 if log:
-                    logger.info(f'[SISBAJUD] Erro ao preencher campos da 2ª minuta com agendar_amanha: {e_kwargs}')
-
-            if not campos_ok_2:
-                if log:
-                    logger.info('[SISBAJUD]  2ª minuta: Falha ao preencher campos — pulando')
-                resultado['erros'].append('2ª minuta: Falha ao preencher campos')
+                    logger.info(
+                        '[SISBAJUD] Processando %d reus restantes na 2ª minuta',
+                        len(reus_restantes)
+                    )
+                helpers._processar_reus_otimizado(driver, reus_restantes, max_validos=10)
             else:
-                # 4c. Processar réus restantes (se houver)
-                if reus_restantes:
-                    if log:
-                        logger.info(
-                            '[SISBAJUD] Processando %d reus restantes na 2ª minuta',
-                            len(reus_restantes)
-                        )
-                    helpers._processar_reus_otimizado(driver, reus_restantes, max_validos=10)
-                else:
-                    helpers._processar_reus_otimizado(driver, todos_reus, max_validos=10)
+                helpers._processar_reus_otimizado(driver, todos_reus, max_validos=10)
 
-                # 4d. Configurar valor
-                _configurar_valor(driver, dados_processo)
+            # 4d. Configurar valor
+            _configurar_valor(driver, dados_processo)
 
-                # 4e. Salvar
-                minuta_2_salva = helpers._salvar_minuta(driver)
-                if minuta_2_salva:
-                    logger.info('[SISBAJUD]  2ª minuta salva com sucesso')
+            # 4e. Salvar
+            minuta_2_salva = helpers._salvar_minuta(driver)
+            if minuta_2_salva:
+                logger.info('[SISBAJUD]  2ª minuta salva com sucesso')
 
-                    # 4f. PROTOColar 2ª minuta (apenas se sem pendencia)
-                    protocolo_2 = None
-                    if pendencia is None:
-                        if log:
-                            logger.info('[SISBAJUD]  Protocolando 2ª minuta...')
-                        protocolo_2 = helpers._protocolar_minuta(driver, log=log)
-                        if protocolo_2:
-                            logger.info('[SISBAJUD]  2ª minuta protocolada: %s', protocolo_2)
-                            resultado['minuta_2_protocolada'] = True
-                        else:
-                            logger.info('[SISBAJUD]  2ª minuta nao protocolada — prosseguindo')
+                # 4f. PROTOColar 2ª minuta: desativado (teimosinhas são salvas sem protocolar direto no SISBAJUD)
+                protocolo_2 = ""
+                if log:
+                    logger.info('[SISBAJUD]  2ª minuta salva (sem protocolar — aguarda assinatura do magistrado)')
 
-                    # Extrair protocolo da URL se nao obtido via protocolo
-                    if not protocolo_2:
-                        try:
-                            url_2 = driver.current_url
-                            import re as _re
-                            match_2 = _re.search(r'/(\d{10,})/', url_2)
-                            if match_2:
-                                protocolo_2 = match_2.group(1)
-                        except Exception:
-                            pass
+                dados_rel_2 = helpers._gerar_relatorio_minuta(
+                    driver, numero_processo, dados_processo=dados_processo, salvar_clipboard=False
+                )
+                resultado['relatorio_minuta_2'] = (dados_rel_2 or {}).get('conteudo') if isinstance(dados_rel_2, dict) else None
 
-                    resultado['minuta_2'] = {
-                        'prazo_dias': prazo_dias,
-                        'protocolo': protocolo_2,
-                        'salva': True
+                resultado['minuta_2'] = {
+                    'prazo_dias': prazo_dias,
+                    'protocolo': "",
+                    'salva': True
+                }
+            else:
+                if log:
+                    logger.info('[SISBAJUD]  2ª minuta: falha ao salvar — prosseguindo para juntada')
+                resultado['erros'].append('2ª minuta: falha ao salvar')
+                resultado['minuta_2'] = {'prazo_dias': prazo_dias, 'salva': False}
+
+        # =====================================================================
+        # === CONSOLIDAR RELATÓRIO COM TODOS OS RÉUS (após a 2ª minuta) ===
+        # =====================================================================
+        # Gera o relatório consolidado e salva no clipboard após a 2ª minuta.
+        # Os campos de protocolo ficam vazios (<strong></strong>), pois são minutas ainda não protocoladas.
+        if todos_reus and (dados_rel_1 or minuta_1_salva or resultado.get('minuta_2', {}).get('salva')):
+            # Determinar data limite da repetição da 2ª minuta na página final pós-salvamento
+            data_limite_calc = None
+            try:
+                val_limite = driver.execute_script("""
+                    const labels = Array.from(document.querySelectorAll('.sisbajud-label'));
+                    for (const lbl of labels) {
+                        const txt = (lbl.textContent || '').trim().toLowerCase();
+                        if (txt.includes('data limite da repetição') || txt.includes('data limite')) {
+                            const container = lbl.closest('.col-md-3') || lbl.parentElement;
+                            const val = container ? container.querySelector('.sisbajud-label-valor') : null;
+                            if (val && val.textContent.trim()) {
+                                return val.textContent.trim();
+                            }
+                        }
                     }
+                    const todosValores = Array.from(document.querySelectorAll('.sisbajud-label-valor'));
+                    for (const v of todosValores) {
+                        const t = (v.textContent || '').trim();
+                        if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(t)) {
+                            return t;
+                        }
+                    }
+                    return null;
+                """)
+                if val_limite:
+                    data_limite_calc = str(val_limite).strip()
+            except Exception:
+                pass
 
-                    # 4g. Atualizar relatório com o 2º protocolo
-                    if protocolo_1 and protocolo_2:
-                        try:
-                            from .relatorios_integracao import _atualizar_relatorio_com_segundo_protocolo
-                            _atualizar_relatorio_com_segundo_protocolo(
-                                numero_processo, protocolo_1, protocolo_2, log=log
-                            )
-                            if log:
-                                logger.info('[SISBAJUD]  Relatório atualizado com ambos os protocolos')
-                        except Exception as e_rel:
-                            if log:
-                                logger.info(f'[SISBAJUD]  Aviso: erro ao atualizar relatório: {e_rel}')
-                else:
-                    if log:
-                        logger.info('[SISBAJUD]  2ª minuta: falha ao salvar — prosseguindo para juntada')
-                    resultado['erros'].append('2ª minuta: falha ao salvar')
-                    resultado['minuta_2'] = {'prazo_dias': prazo_dias, 'salva': False}
+            if not data_limite_calc:
+                prazo_base = prazo_dias if prazo_dias in (30, 60) else 30
+                data_limite_calc = (datetime.now() + timedelta(days=prazo_base + 1)).strftime('%d/%m/%Y')
 
-        # =====================================================================
-        # === CONSOLIDAR RELATÓRIO COM TODOS OS RÉUS (antes da juntada) ===
-        # =====================================================================
-        # O relatório da 1ª minuta (dados_rel_1) só contém os réus da página
-        # atual. Se houve loteamento, reconstruímos com a lista completa.
-        if todos_reus and dados_rel_1:
+            def _fmt_doc(doc_str):
+                nums = ''.join(filter(str.isdigit, str(doc_str or '')))
+                if len(nums) == 11:
+                    return f"{nums[:3]}.{nums[3:6]}.{nums[6:9]}-{nums[9:]}"
+                elif len(nums) == 14:
+                    return f"{nums[:2]}.{nums[2:5]}.{nums[5:8]}/{nums[8:12]}-{nums[12:]}"
+                return str(doc_str or '').strip()
+
             pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"'
-            consolidado = f'<p {pStyle}><strong>Dados das Teimosinhas protocoladas:</strong></p>'
+            consolidado = f'<p {pStyle}><strong>Dados da Teimosinha protocolada:</strong></p>'
             consolidado += f'<p {pStyle}>Número do processo: <strong>{numero_processo}</strong></p>'
-            consolidado += f'<p {pStyle}>Protocolo 1ª minuta: <strong>{protocolo_1 or "N/A"}</strong></p>'
-            consolidado += f'<p {pStyle}>Protocolo 2ª minuta: <strong>{protocolo_2 or "N/A"}</strong></p>'
+            consolidado += f'<p {pStyle}>Protocolo: <strong></strong></p>'
+            consolidado += f'<p {pStyle}>Data limite da repetição: <strong>{data_limite_calc}</strong></p>'
 
             valor_exibicao = valor
             if pendencia == 'sem_calculo':
                 valor_exibicao = '(ver planilha mais recente)'
             consolidado += f'<p {pStyle}>Valor do bloqueio: <strong>{valor_exibicao}</strong></p>'
-
-            consolidado += f'<p {pStyle}>Total de reclamadas: <strong>{len(todos_reus)}</strong> '
-            consolidado += f'(10 por minuta, apenas válidas com contas)</p>'
             consolidado += f'<p {pStyle}><strong>Partes alvo do bloqueio:</strong></p>'
 
             for reu in todos_reus:
                 nome = reu.get('nome', '')
                 doc = reu.get('cpfcnpj', '')
                 if nome:
-                    consolidado += f'<p {pStyle}><strong>{nome} - [{doc}]</strong></p>'
+                    doc_formatado = _fmt_doc(doc)
+                    if doc_formatado:
+                        consolidado += f'<p {pStyle}><strong>{nome} - {doc_formatado}</strong></p>'
+                    else:
+                        consolidado += f'<p {pStyle}><strong>{nome}</strong></p>'
 
             consolidado += f'<p {pStyle}>Notas:</p>'
             consolidado += f'<p {pStyle}>-Por padrão é consultado CNPJ raiz.</p>'
             consolidado += f'<p {pStyle}>-Partes sem relacionamento bancário são '
             consolidado += f'automaticamente removidas pelo sistema (0 contas/recuperação judicial).</p>'
 
+            resultado['relatorio_consolidado'] = consolidado
             try:
                 from PEC.anexos import salvar_conteudo_clipboard
                 salvar_conteudo_clipboard(
@@ -1780,16 +2099,28 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     debug=log
                 )
                 if log:
-                    logger.info('[SISBAJUD]  Relatório consolidado salvo com %d reclamadas', len(todos_reus))
+                    logger.info('[SISBAJUD]  Relatório consolidado salvo no clipboard com %d reclamadas (apenas na 2ª minuta)', len(todos_reus))
             except Exception as e_cons:
                 if log:
-                    logger.info(f'[SISBAJUD]  Aviso: erro ao gerar relatório consolidado: {e_cons}')
+                    logger.info(f'[SISBAJUD]  Aviso: erro ao salvar relatório consolidado no clipboard: {e_cons}')
+        elif dados_rel_1 and isinstance(dados_rel_1, dict) and dados_rel_1.get('conteudo'):
+            # Fallback caso a 2ª minuta não tenha executado
+            try:
+                from PEC.anexos import salvar_conteudo_clipboard
+                salvar_conteudo_clipboard(
+                    conteudo=dados_rel_1['conteudo'],
+                    numero_processo=numero_processo,
+                    tipo_conteudo="sisbajud_minuta",
+                    debug=log
+                )
+            except Exception:
+                pass
 
         # =====================================================================
         # === JUNTADA NO PJe (única, ao final de ambas as minutas) ===
         # =====================================================================
         juntada_executada = False
-        if dados_rel_1 and driver_pje:
+        if (dados_rel_1 or minuta_1_salva or resultado.get('minuta_2', {}).get('salva')) and driver_pje:
             try:
                 # Garantir foco na aba /detalhe do PJe
                 aba_detalhe = None
@@ -1900,9 +2231,7 @@ def _clicar_nova_minuta(driver, log=True):
     sucesso = driver.execute_script(script_nova_minuta)
     if sucesso:
         try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder*="Juiz"], .mat-form-field, form'))
-            )
+            espera.ate_aparecer(driver, 'input[placeholder*="Juiz"], .mat-form-field, form', teto=10)
         except Exception:
             pass
     return bool(sucesso)

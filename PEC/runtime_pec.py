@@ -24,6 +24,7 @@ from Fix.monitoramento_progresso_unificado import (
     marcar_processo_executado_unificado,
     extrair_numero_processo_unificado,
     verificar_acesso_negado_unificado,
+    formatar_numero_cnj,
 )
 from utilitarios_processamento import run_batch, resultado_ok, resultado_falha
 from .regras_execucao import BUCKET_ORDEM, determinar_regra
@@ -40,13 +41,14 @@ from Fix.browser_suporte import is_browsing_context_discarded_error
 # ═══════════════════════════════════════════════════
 
 class AtividadePEC:
-    def __init__(self, numero_processo, observacao, status, data_prazo, tipo_gigs, id_processo=None):
+    def __init__(self, numero_processo, observacao, status, data_prazo, tipo_gigs, id_processo=None, id_atividade=None):
         self.numero_processo = numero_processo
         self.id_processo = id_processo
         self.observacao = observacao
         self.status = status
         self.data_prazo = data_prazo
         self.tipo_gigs = tipo_gigs
+        self.id_atividade = id_atividade
 
 
 class PECAPIClient:
@@ -96,7 +98,8 @@ class PECAPIClient:
                 status=(item.get("statusAtividade") or "").upper(),
                 data_prazo=(item.get("dataPrazo") or "")[:10],
                 tipo_gigs=(item.get("tipoAtividade") or {}).get("descricao") or (item.get("tipoAtividade") or {}).get("nome") or "",
-                id_processo=(item.get("processo") or {}).get("id") or item.get("idProcesso")
+                id_processo=(item.get("processo") or {}).get("id") or item.get("idProcesso"),
+                id_atividade=item.get("id") or item.get("idAtividade"),
             )
             for item in dados
         ]
@@ -221,6 +224,102 @@ def verificar_acesso_negado_pec(driver: Any) -> bool:
         return False
 
 
+def obter_chave_tarefa_pec(atv: Any, observacao: Optional[str] = None) -> str:
+    """Gera chave identificadora única para a tarefa no fluxo PEC.
+
+    Combina o número do processo (formatado CNJ) e a observação da atividade no GIGS.
+    Exemplo: '1000886-64.2019.5.02.0703::xs pec exequente pessoal'
+    """
+    if hasattr(atv, 'numero_processo'):
+        numero = atv.numero_processo or ""
+        obs = normalizar_texto(getattr(atv, 'observacao', '') or '')
+        id_atv = getattr(atv, 'id_atividade', None)
+    elif isinstance(atv, dict):
+        numero = atv.get('numero_processo') or atv.get('numero') or ""
+        obs = normalizar_texto(atv.get('observacao') or '')
+        id_atv = atv.get('id_atividade') or atv.get('id')
+    else:
+        numero = str(atv or "")
+        obs = normalizar_texto(observacao or "")
+        id_atv = None
+
+    num_norm = formatar_numero_cnj(numero) or numero.strip()
+    partes = [num_norm]
+    if id_atv:
+        partes.append(f"id:{id_atv}")
+    if obs:
+        partes.append(obs)
+    return "::".join(partes)
+
+
+def tarefa_ja_executada_pec(atv: Any, progresso: Optional[Dict[str, Any]] = None) -> bool:
+    """Verifica se uma tarefa específica do PEC já foi executada.
+    
+    A checagem é por tarefa (processo + observação/atividade), permitindo que um
+    mesmo processo execute múltiplas tarefas distintas no GIGS sem pular.
+    """
+    if not atv:
+        return False
+    if progresso is None:
+        progresso = carregar_progresso_pec()
+
+    chave = obter_chave_tarefa_pec(atv)
+    tarefas_executadas = progresso.get("tarefas_executadas", [])
+    if chave in tarefas_executadas:
+        return True
+
+    # Fallback caso a chave tenha sido gravada sem id_atividade (ou com variação de id)
+    if hasattr(atv, 'numero_processo') and getattr(atv, 'observacao', None):
+        num_norm = formatar_numero_cnj(atv.numero_processo) or atv.numero_processo.strip()
+        chave_simples = f"{num_norm}::{normalizar_texto(atv.observacao)}"
+        if chave_simples in tarefas_executadas:
+            return True
+
+    return False
+
+
+def marcar_tarefa_executada_pec(
+    atv: Any,
+    progresso: Optional[Dict[str, Any]] = None,
+    status: str = "SUCESSO",
+    detalhes: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Marca tarefa como executada (ou com erro) no fluxo PEC usando sistema unificado."""
+    if not atv:
+        return progresso
+    if progresso is None:
+        progresso = carregar_progresso_pec()
+
+    chave = obter_chave_tarefa_pec(atv)
+    sucesso = True if (status or "").upper() == "SUCESSO" else False
+    hoje = datetime.now().strftime("%Y-%m-%d")
+
+    tarefas_exec = progresso.setdefault("tarefas_executadas", [])
+    tarefas_err = progresso.setdefault("tarefas_com_erro", [])
+    datas = progresso.setdefault("datas_execucao", {})
+
+    if sucesso:
+        if chave not in tarefas_exec:
+            tarefas_exec.append(chave)
+        if chave in tarefas_err:
+            tarefas_err.remove(chave)
+        datas[chave] = hoje
+        logger.info(f"[PROGRESSO_PEC] ✅ Tarefa marcada como executada: {chave}")
+    else:
+        if chave not in tarefas_err and chave not in tarefas_exec:
+            tarefas_err.append(chave)
+        datas[chave] = hoje
+        logger.info(f"[PROGRESSO_PEC] ❌ Tarefa marcada com erro: {chave}")
+
+    # Para rastreabilidade global, também marca processo em processos_executados
+    num = getattr(atv, 'numero_processo', str(atv) if not isinstance(atv, dict) else atv.get('numero_processo', ''))
+    if num:
+        marcar_processo_executado_unificado('pec', num, progresso, sucesso=sucesso, motivo=detalhes)
+
+    salvar_progresso_pec(progresso)
+    return progresso
+
+
 def processo_ja_executado_pec(numero_processo: str, progresso: Optional[Dict[str, Any]] = None) -> bool:
     """Verifica se o processo ja foi executado no fluxo PEC usando sistema unificado."""
     if not numero_processo:
@@ -231,12 +330,14 @@ def processo_ja_executado_pec(numero_processo: str, progresso: Optional[Dict[str
 
 
 def marcar_processo_executado_pec(
-    numero_processo: str,
+    numero_processo: Any,
     progresso: Optional[Dict[str, Any]] = None,
     status: str = "SUCESSO",
     detalhes: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Marca processo como executado no fluxo PEC usando sistema unificado."""
+    if hasattr(numero_processo, 'numero_processo') or (isinstance(numero_processo, dict) and ('observacao' in numero_processo or 'id_atividade' in numero_processo)):
+        return marcar_tarefa_executada_pec(numero_processo, progresso, status=status, detalhes=detalhes)
     if not numero_processo:
         return progresso
     if progresso is None:
@@ -245,10 +346,10 @@ def marcar_processo_executado_pec(
     # Sucesso vence erro: processo já executado com sucesso nunca é re-marcado
     # como erro — evita duplicação de estado (processo em executados E em erros)
     # que causava re-execução indevida. O skip se apoia só em processos_executados.
-    if not sucesso and processo_ja_executado_pec(numero_processo, progresso):
+    if not sucesso and processo_ja_executado_pec(str(numero_processo), progresso):
         logger.info(f'[PROGRESSO_PEC] Já executado com sucesso — ignorando erro: {numero_processo}')
         return progresso
-    marcar_processo_executado_unificado('pec', numero_processo, progresso, sucesso=sucesso, motivo=detalhes)
+    marcar_processo_executado_unificado('pec', str(numero_processo), progresso, sucesso=sucesso, motivo=detalhes)
     return progresso
 
 
@@ -609,10 +710,10 @@ class PECOrquestrador:
 
         def should_skip(item):
             atv, _ = item
-            # progresso é mutado in-place por persist_result — não precisa recarregar do disco
-            ja_executado = processo_ja_executado_pec(atv.numero_processo, progresso)
+            # Controle por tarefa: um mesmo processo com múltiplas tarefas executa todas
+            ja_executado = tarefa_ja_executada_pec(atv, progresso)
             if ja_executado:
-                logger.info(f'[PEC] Skip já executado: {atv.numero_processo}')
+                logger.info(f'[PEC] Skip já executado: {atv.numero_processo} ({atv.observacao})')
             return ja_executado
 
         def open_item(item):
@@ -677,7 +778,7 @@ class PECOrquestrador:
                 # exceção é engolida em executar_fluxo_novo_simplificado.
                 _critical_exc = RuntimeError(f'RESTART_PEC: {causa}')
             status = 'SUCESSO' if result.get('ok') else 'ERRO'
-            marcar_processo_executado_pec(atv.numero_processo, progresso, status=status, detalhes=result.get('erro'))
+            marcar_tarefa_executada_pec(atv, progresso, status=status, detalhes=result.get('erro'))
 
         batch_result = run_batch(
             items=items,

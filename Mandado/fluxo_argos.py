@@ -14,7 +14,7 @@ Sequencia obrigatoria: ETAPA 0 (fechar intimacao) -> ETAPA 1 (documentos sequenc
 import time
 from typing import Any
 
-from Fix.core import buscar_documento_argos
+from Fix.core import buscar_documento_argos, wait_for_page_load
 from Fix.core import buscar_documentos_sequenciais
 from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, extrair_direto, salvar_destinatarios_cache
 from Fix.log import logger
@@ -78,18 +78,34 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
             documentos_sequenciais = buscar_documentos_sequenciais(driver, log=log)
             uids_sigilosos_hint = None
         if not documentos_sequenciais:
-            logger.info('[ARGOS][ETAPA 1][ERRO] Nenhum documento sequencial encontrado - abortando fluxo')
-            return False
-        logger.info(f'[ARGOS][ETAPA 1]  Encontrados {len(documentos_sequenciais)} documentos sequenciais')
+            # Retry unico: recarrega o detalhe (timeline pode nao ter renderizado no DOM)
+            logger.warning('[ARGOS][ETAPA 1] Timeline nao localizada no DOM — recarregando detalhe e tentando de novo')
+            try:
+                driver.get(driver.current_url)
+                wait_for_page_load(driver, timeout=15)
+                documentos_sequenciais, uids_sigilosos_hint = buscar_documentos_sequenciais_via_api(driver, log=log)
+            except Exception as e_retry:
+                logger.warning('[ARGOS][ETAPA 1] Retry falhou: %s', e_retry)
+                documentos_sequenciais = []
+
+        modo_degradado_dom = not documentos_sequenciais
+        if modo_degradado_dom:
+            # Leitura SISBAJUD e regras (ETAPA 3/4) sao 100% via API e nao dependem do DOM:
+            # segue sem sigilo/anexos em vez de abortar o processo inteiro.
+            logger.warning('[ARGOS][ETAPA 1][DEGRADADO] Sem elementos de timeline no DOM — pulando ETAPAS 1.5/2 e seguindo via API (SISBAJUD + regras)')
+            uids_sigilosos_hint = None
+        else:
+            logger.info(f'[ARGOS][ETAPA 1]  Encontrados {len(documentos_sequenciais)} documentos sequenciais')
 
         # ════════════════════════════════════════
         # === ETAPA 1.5: RETIRAR SIGILO DOS DOCUMENTOS SEQUENCIAIS ===
-        logger.info('[ARGOS][ETAPA 1.5] Removendo sigilo dos documentos sequenciais (se houver)...')
-        resultado_sigilo = retirar_sigilo_fluxo_argos(driver, documentos_sequenciais, log=log, uids_sigilosos_hint=uids_sigilosos_hint)
-        if resultado_sigilo.get('total_processados', 0) > 0:
-            logger.info(f'[ARGOS][ETAPA 1.5]  {resultado_sigilo["total_processados"]} documento(s) tiveram sigilo removido')
-        else:
-            logger.info('[ARGOS][ETAPA 1.5]  Todos os documentos sequenciais sem sigilo')
+        if not modo_degradado_dom:
+            logger.info('[ARGOS][ETAPA 1.5] Removendo sigilo dos documentos sequenciais (se houver)...')
+            resultado_sigilo = retirar_sigilo_fluxo_argos(driver, documentos_sequenciais, log=log, uids_sigilosos_hint=uids_sigilosos_hint)
+            if resultado_sigilo.get('total_processados', 0) > 0:
+                logger.info(f'[ARGOS][ETAPA 1.5]  {resultado_sigilo["total_processados"]} documento(s) tiveram sigilo removido')
+            else:
+                logger.info('[ARGOS][ETAPA 1.5]  Todos os documentos sequenciais sem sigilo')
 
         # ════════════════════════════════════════
         # === ETAPA 1.6: VERIFICAR FASE PARA GIGS (LIQUIDACAO) ===
@@ -121,15 +137,20 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
         # ════════════════════════════════════════
         # === ETAPA 2: TRATAR ANEXOS ESPECIAIS INFOJUD (SIGILO + VISIBILIDADE) ===
         logger.info('[ARGOS][ETAPA 2] Tratando anexos especiais infojud (sigilo + visibilidade)...')
-        anexos_info = tratar_anexos_argos(driver, documentos_sequenciais, log=log)
-        if not anexos_info:
-            logger.info('[ARGOS][ETAPA 2][AVISO] Nenhum anexo especial encontrado ou processamento não crítico; prosseguindo sem anexos')
-            anexos_info = {
-                'tem_anexos': False,
-                'sigilo_anexos': {}
-            }
+        if modo_degradado_dom:
+            logger.warning('[ARGOS][ETAPA 2][DEGRADADO] Sem DOM da timeline — anexos nao tratados; seguindo para SISBAJUD via API')
+            sigilo_anexos = {}
+            tem_anexos = True  # desconhecido: nunca assumir 'sem anexos' (evitaria ler o SISBAJUD)
         else:
-            logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
+            anexos_info = tratar_anexos_argos(driver, documentos_sequenciais, log=log)
+            if not anexos_info:
+                logger.info('[ARGOS][ETAPA 2][AVISO] Nenhum anexo especial encontrado ou processamento não crítico; prosseguindo sem anexos')
+                anexos_info = {
+                    'tem_anexos': False,
+                    'sigilo_anexos': {}
+                }
+            else:
+                logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
 
         # Garantir término completo da visibilidade e ausência de modal/spinner antes de prosseguir
         from Fix import espera
@@ -140,7 +161,9 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
         )
 
         # Extrair dados de anexos para decisão de rota
-        if hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
+        if modo_degradado_dom:
+            pass
+        elif hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
             sigilo_anexos = anexos_info.detalhes.get('sigilo_anexos', {})
             tem_anexos = anexos_info.detalhes.get('tem_anexos', False)
         else:

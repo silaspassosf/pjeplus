@@ -172,6 +172,12 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
     context.add_init_script(
         "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     )
+    if headless:
+        try:
+            from . import headless as _headless_layer
+            _headless_layer.ativar_para_driver(driver)
+        except Exception as e:
+            logger.warning("camada headless nao ativada: %s", e)
     return driver
 
 

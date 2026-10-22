@@ -8,33 +8,27 @@ SISB Minutas - Relatorio
 """
 
 
-def _gerar_relatorio_minuta(driver, numero_processo):
-    """Helper para gerar relatorio da minuta."""
+def _gerar_relatorio_minuta(driver, numero_processo, dados_processo=None, salvar_clipboard=True):
+    """Helper para gerar relatorio da minuta. Minutas não possuem protocolo gerado na criação (campo em branco)."""
     try:
         from ..core import coletar_dados_minuta_sisbajud
-        dados_relatorio = coletar_dados_minuta_sisbajud(driver)
+        dados_relatorio = coletar_dados_minuta_sisbajud(
+            driver, dados_processo=dados_processo, numero_processo=numero_processo
+        )
         if dados_relatorio:
             try:
-                from PEC.anexos import salvar_conteudo_clipboard
+                if salvar_clipboard:
+                    from PEC.anexos import salvar_conteudo_clipboard
 
-                sucesso = salvar_conteudo_clipboard(
-                    conteudo=dados_relatorio,
-                    numero_processo=numero_processo or "SISBAJUD",
-                    tipo_conteudo="sisbajud_minuta",
-                    debug=True
-                )
+                    salvar_conteudo_clipboard(
+                        conteudo=dados_relatorio,
+                        numero_processo=numero_processo or "SISBAJUD",
+                        tipo_conteudo="sisbajud_minuta",
+                        debug=True
+                    )
 
-                _ = sucesso
-
-                protocolo = None
-                try:
-                    url = driver.current_url
-                    import re
-                    match = re.search(r'/(\d{10,})/', url)
-                    if match:
-                        protocolo = match.group(1)
-                except Exception:
-                    pass
+                # Minutas criadas aguardam assinatura/protocolo do juiz: protocolo fica em branco
+                protocolo = ""
 
                 return {
                     'protocolo': protocolo,

@@ -317,7 +317,7 @@ def _audx_mov_int(driver, atv):
 def _carta_exec(driver, atv):
     """xs carta: carrega a implementação real sob demanda."""
     from PEC.carta_execucao import carta
-    return carta(driver)
+    return bool(carta(driver))
 
 
 def _xs_parcial(driver, atv):
@@ -425,7 +425,7 @@ registry.register(r'\bxs\s+socio\b',                                    'outros'
 registry.register(r'\bsociot\b',                                       'outros',   _xs_socio)
 registry.register(r'\bempresa\s*termo\b|\btermoempresa\b',              'outros',   _empresa_termo)
 registry.register(r'\bmov\s+exec\b',                                    'outros',   _mov_exec)
-registry.register(r'\bxs\s+pesq\b',                                    'outros',   _xs_pesq)
+registry.register(r'\bxs\s+(?:pesq|pesquisa)\b',                        'outros',   _xs_pesq)
 
 REGRAS = registry.all_rules()
 

@@ -138,15 +138,79 @@ def _extrair_texto_via_api(driver, item, log) -> Optional[str]:
     return None
 
 
-def _processar_item(driver, item, contexto, log):
+def _obter_fase_processo(driver, log: bool = True) -> str:
+    """Obtém a fase processual via chamada simples de API ao PJe."""
+    try:
+        from Fix.core import extrair_id_processo
+        from Fix.variaveis import cliente_para
+
+        id_proc = extrair_id_processo(driver)
+        if not id_proc:
+            m = re.search(r'/processo/(\d+)', getattr(driver, 'current_url', '') or '')
+            if m:
+                id_proc = m.group(1)
+
+        if id_proc:
+            client = cliente_para(driver)
+            dados = client.processo_por_id(id_proc) or {}
+            fase = str(dados.get('labelFaseProcessual') or dados.get('faseProcessual') or '').strip()
+            if fase:
+                if log:
+                    logger.info(f"[CARTA][API] Fase processual obtida via API: '{fase}'")
+                return fase
+    except Exception as e:
+        if log:
+            logger.warning(f"[CARTA][API] Falha ao obter fase processual via API: {e}")
+
+    # Fallback se a API falhar mas dadosatuais.json existir
+    try:
+        from pathlib import Path
+        import json as _json
+        p = Path('dadosatuais.json')
+        if p.exists():
+            j = _json.loads(p.read_text(encoding='utf-8'))
+            fase = str(j.get('labelFaseProcessual') or '').strip()
+            if fase:
+                if log:
+                    logger.info(f"[CARTA] Fase processual obtida de dadosatuais.json: '{fase}'")
+                return fase
+    except Exception:
+        pass
+
+    return ''
+
+
+def _eh_fase_conhecimento(driver, log: bool = True) -> bool:
+    """Retorna True se o processo estiver na fase de Conhecimento."""
+    fase = _obter_fase_processo(driver, log=log)
+    if not fase:
+        return False
+    from Fix.utils import normalizar_texto
+    return 'conhec' in normalizar_texto(fase)
+
+
+def _eh_documento_alvo(link_text: str, buscar_notificacao: bool = False) -> bool:
+    """Valida se o texto do link é Intimação ou (em fase de conhecimento) Notificação."""
+    if not link_text:
+        return False
+    from Fix.utils import normalizar_texto
+    norm = normalizar_texto(link_text)
+    if norm.startswith('intimacao'):
+        return True
+    if buscar_notificacao and norm.startswith('notificacao'):
+        return True
+    return False
+
+
+def _processar_item(driver, item, contexto, log, buscar_notificacao: bool = False):
     try:
         link = _sub_elemento(item, 'a.tl-documento:not([target="_blank"])')
         if not link:
             return None
         link_text = ((getattr(link, 'text_content', None) and link.text_content()) or getattr(link, 'text', '') or '').strip()
 
-        # Filtrar apenas documentos do tipo "Intimação("
-        if not link_text.startswith('Intimação('):
+        # Filtrar apenas documentos alvo (Intimação e, se fase de conhecimento, Notificação)
+        if not _eh_documento_alvo(link_text, buscar_notificacao=buscar_notificacao):
             return None
 
         aria = getattr(link, 'get_attribute', lambda a: '')('aria-label') or ''
@@ -282,11 +346,17 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
         # continuar sem bloquear o fluxo
         pass
 
+    # Regra: se fase = conhecimento (via chamada simples de API), buscar também tipo Notificação
+    buscar_notificacao = _eh_fase_conhecimento(driver, log=log)
+    if log:
+        alvo_str = "Intimação e Notificação" if buscar_notificacao else "Intimação"
+        logger.info(f"[CARTA] Documentos alvo da busca na timeline: {alvo_str}")
+
     intimation_ids = []
     intimacoes_info = []
     data_referencia = ''
     limite = limite_intimacoes if limite_intimacoes is not None else float('inf')
-    max_busca = 3  # limita a busca por correio a 3 documentos de intimação
+    max_busca = 3  # limita a busca por correio a 3 documentos de intimação/notificação
     count_intimacoes = 0
     tentativas_busca = 0
     primeiro_ja_processado = False
@@ -299,10 +369,10 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
             link_primeiro = _sub_elemento(primeiro_item, 'a.tl-documento:not([target="_blank"])')
             if link_primeiro:
                 texto_link = ((getattr(link_primeiro, 'text_content', None) and link_primeiro.text_content()) or getattr(link_primeiro, 'text', '') or '').strip()
-                if texto_link.startswith('Intimação('):
+                if _eh_documento_alvo(texto_link, buscar_notificacao=buscar_notificacao):
                     primeiro_ja_processado = True
                     tentativas_busca += 1
-                    resultado = _processar_item(driver, primeiro_item, 'primeiro item', log)
+                    resultado = _processar_item(driver, primeiro_item, 'primeiro item', log, buscar_notificacao=buscar_notificacao)
                     if resultado:
                         id_curto, tem_desconsideracao, data_intimacao = resultado
                         intimation_ids.append(id_curto)
@@ -323,23 +393,24 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
                 break
             if tentativas_busca >= max_busca:
                 if log:
+                    alvo_nome = "intimação/notificação" if buscar_notificacao else "intimação"
                     logger.warning(
                         f'[CARTA] Busca por correio limitada a {max_busca} '
-                        'documentos de intimação — encerrando a procura.'
+                        f'documentos de {alvo_nome} — encerrando a procura.'
                     )
                 break
             if idx == 0 and primeiro_ja_processado:
                 continue
-            # Só conta como tentativa um documento do tipo "Intimação("
+            # Só conta como tentativa um documento do tipo alvo (Intimação ou Notificação)
             link_item = _sub_elemento(item, 'a.tl-documento:not([target="_blank"])')
             if not link_item:
                 continue
             texto_link_item = ((getattr(link_item, 'text_content', None) and link_item.text_content()) or getattr(link_item, 'text', '') or '').strip()
-            if not texto_link_item.startswith('Intimação('):
+            if not _eh_documento_alvo(texto_link_item, buscar_notificacao=buscar_notificacao):
                 continue
 
             tentativas_busca += 1
-            resultado = _processar_item(driver, item, f'item {idx + 1}', log)
+            resultado = _processar_item(driver, item, f'item {idx + 1}', log, buscar_notificacao=buscar_notificacao)
             if resultado:
                 id_curto, tem_desconsideracao, data_intimacao = resultado
                 intimation_ids.append(id_curto)
@@ -752,7 +823,7 @@ def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None
     if not intimation_ids:
         if log:
             logger.error("[CARTA] Nenhuma intimacao de correio encontrada.")
-        return ""
+        return False
 
     if not process_number:
         process_number = _obter_numero_processo(driver, log)
@@ -761,7 +832,7 @@ def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None
                 logger.error(
                     "[CARTA][ERRO] Nao foi possivel obter o numero do processo via dadosatuais.json."
                 )
-            return ""
+            return False
 
     t_ct = time.time()
     table_data = coletar_tabela_ecarta_api(
@@ -781,7 +852,7 @@ def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None
     if not table_data:
         if log:
             logger.error("[CARTA] Nenhuma correlacao encontrada no eCarta.")
-        return ""
+        return False
 
     conteudo_final, html_para_juntada, _prazo_texto = formatar_dados_ecarta(
         table_data, intimacoes_info, log=log
@@ -789,7 +860,7 @@ def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None
     if not conteudo_final:
         if log:
             logger.error("[CARTA] Falha ao formatar dados do eCarta.")
-        return ""
+        return False
 
     try:
         sucesso = salvar_conteudo_clipboard(

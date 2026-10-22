@@ -55,8 +55,8 @@ pec_idpj = make_comunicacao_wrapper(
     descricao="Intimação para manifestação sobre IDPJ",
     tipo_prazo='dias uteis',
     gigs_extra=(7, 'xs carta'),
-    destinatarios='polo_passivo',  # clica em btnIntimarSomentePoloPassivo 2x — sem alterar meio de expedição
-    cliques_polo_passivo=2,
+    destinatarios='informado decisao',  # lê a última decisão via API e cruza com os réus
+    cliques_informado=2,
     wrapper_name='pec_idpj'
 )
 
@@ -68,7 +68,8 @@ pec_editalidpj = make_comunicacao_wrapper(
     modelo_nome='IDPJ (edital)',
     subtipo='Edital',
     gigs_extra=None,
-    destinatarios='polo_passivo',  # Clique no botão polo passivo 1x
+    destinatarios='informado despacho',
+    cliques_informado=1,  
     wrapper_name='pec_editalidpj'
 )
 
@@ -141,8 +142,9 @@ pec_mddsent = make_comunicacao_wrapper(
     modelo_nome='mandadosent',
     subtipo='Mandado',
     gigs_extra=None,
-    cliques_polo_passivo=2,
-    destinatarios='polo_passivo'
+    cliques_informado=2,
+    destinatarios='informado sentenca suscitados',
+    wrapper_name='pec_mddsent'
 )
 
 pec_mddaud = make_comunicacao_wrapper(
@@ -188,8 +190,9 @@ pec_editalsent = make_comunicacao_wrapper(
     modelo_nome='editalsent',
     subtipo='Edital',
     gigs_extra=None,
-    cliques_polo_passivo=1,
-    destinatarios='polo_passivo'
+    cliques_informado=1,
+    destinatarios='informado sentenca suscitados',
+    wrapper_name='pec_editalsent'
 )
 
 pec_sigilo = make_comunicacao_wrapper(
@@ -296,7 +299,8 @@ pec_exeq = make_comunicacao_wrapper(
     destinatarios='polo_ativo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
     cliques_polo_passivo=1,  # Notificação Inicial já adiciona 1x automaticamente
     endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
-    wrapper_name='pec_exeq'
+    wrapper_name='pec_exeq',
+    remover_endereco_invalido=False  # Não apaga linha de endereço inválido na execução de pec_exeq
 )
 
 # ====================================================

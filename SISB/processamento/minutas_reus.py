@@ -92,7 +92,20 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                     btnAdicionar.click();
                     log.push('Reu adicionado, aguardando processamento...');
 
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    // Aguardar retorno das contas na tabela (max 3000ms, checando a cada 100ms)
+                    let tWait = Date.now();
+                    while (Date.now() - tWait < 3000) {{
+                        let tbl = document.querySelectorAll('tr.mat-row');
+                        if (tbl.length > 0) {{
+                            let cel = tbl[tbl.length - 1].querySelector('td.mat-column-qtdeRelacionamentos');
+                            if (cel) {{
+                                let btn = cel.querySelector('button .mat-button-wrapper');
+                                let txt = btn ? btn.textContent.trim() : cel.textContent.trim();
+                                if (txt && !txt.includes('...') && /\\d+/.test(txt)) break;
+                            }}
+                        }}
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }}
 
                     let tabelaLinhas = document.querySelectorAll('tr.mat-row');
                     if (tabelaLinhas.length > 0) {{
@@ -144,7 +157,7 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                     }}
 
                     if (i < reus.length - 1) {{
-                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await new Promise(resolve => setTimeout(resolve, 800));
                     }}
                 }}
 
@@ -187,7 +200,9 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
         if resultado_reus:
             if resultado_reus.get('log'):
                 for msg in resultado_reus['log']:
-                    _ = msg
+                    if str(msg).strip():
+                        print(f'[SISBAJUD][REUS] {str(msg).strip()}', flush=True)
+                        logger.info(f'[SISBAJUD][REUS] {str(msg).strip()}')
 
             adicionados = resultado_reus.get('adicionados', 0)
             removidos = resultado_reus.get('removidos', 0)

@@ -20,22 +20,34 @@ from Fix.core import (
 from Fix.log import logger
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix import espera
+from atos.movimentos_navegacao import (
+    clicar_botao_por_texto,
+    movimentar_analise,
+    esperar_transicao_tarefa,
+    _normalizar_texto,
+)
 
 
 def _localizar_botao_navegacao(driver: Any, label: str):
-    """Localiza botão de navegação de tarefa via estratégias combinadas."""
+    """Localiza botão de navegação de tarefa via estratégias combinadas (case/accent-insensitive)."""
     el = espera.elemento(
         driver,
-        f"button[aria-label='{label}'], button[aria-label*='{label}']",
+        f"button[aria-label*='{label}' i], pje-botoes-transicao button[aria-label*='{label}' i]",
         teto=2,
     )
     if el:
         return el
-    return espera.elemento(
-        driver,
-        f"//button[.//span[normalize-space(text())='{label}']]",
-        teto=2,
-    )
+    label_norm = _normalizar_texto(label)
+    try:
+        for b in espera.elementos(driver, 'pje-botoes-transicao button, button', teto=2):
+            txt = _normalizar_texto(getattr(b, 'text', '') or '')
+            aria = _normalizar_texto(b.get_attribute('aria-label') or '')
+            title = _normalizar_texto(b.get_attribute('title') or '')
+            if label_norm in txt or label_norm in aria or label_norm in title:
+                return b
+    except Exception:
+        pass
+    return None
 
 
 def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:
@@ -134,12 +146,18 @@ def limpar_overlays(driver: Any) -> None:
 def navegar_para_conclusao(driver: Any) -> bool:
     """
     Navega da tarefa atual para "Conclusão ao Magistrado".
+    Espelha fielmente a lógica comprovada do gigs-plugin.js (aaDespacho / movimentar_destino / movimentar_analise).
 
     Estratégia:
-    1. Tenta clicar diretamente em "Conclusão ao Magistrado"
-    2. Se não disponível, clica em "Análise" primeiro, remove overlays, depois clica em "Conclusão ao Magistrado"
-    3. Aguarda o elemento da próxima tela (botões de tipo de conclusão) — não a URL,
-       que não é um sinal confiável dessa transição (mesmo padrão do gigs-plugin.js)
+    1. Verifica se já está em Conclusão (/conclusao na URL ou na tarefa).
+    2. Aguarda a renderização dos botões de transição ('pje-botoes-transicao button').
+    3. Tenta clique direto em "Conclusão ao Magistrado" usando clicar_botao_por_texto()
+       (busca insensível a maiúsculas/minúsculas e acentos em textContent, aria-label, title, mattooltip).
+    4. Se não estiver disponível diretamente, utiliza movimentar_analise() (padrão gigs-plugin)
+       para transicionar para a tarefa Análise (ou botão correspondente da tarefa atual).
+    5. Aguarda transição para Análise e clica em "Conclusão ao Magistrado".
+    6. Aguarda o aparecimento dos botões de conclusão (pje-concluso-tarefa-botao button)
+       ou transição para /minutar.
 
     Returns:
         bool: True se conseguiu navegar para conclusão
@@ -147,78 +165,94 @@ def navegar_para_conclusao(driver: Any) -> bool:
     try:
         logger.info('[NAVEGAÇÃO] Navegando para Conclusão ao Magistrado...')
 
+        current_url = (getattr(driver, 'current_url', '') or '').lower()
+        if '/conclusao' in current_url:
+            logger.info('[NAVEGAÇÃO] Já em /conclusao — pulando navegação')
+            return True
+        if '/minutar' in current_url:
+            logger.info('[NAVEGAÇÃO] Já em /minutar — pulando navegação')
+            return True
+
         # Obter nome da tarefa se disponível (do DOM ou do driver salvo anteriormente)
-        nome_tarefa = getattr(driver, 'pje_tarefa_atual', '').lower()
+        nome_tarefa = getattr(driver, 'pje_tarefa_atual', '') or ''
         if not nome_tarefa:
             try:
-                h1 = espera.elementos(driver, "pje-cabecalho-tarefa h1.titulo-tarefa, span.texto-tarefa-processo", teto=1)
+                h1 = espera.elementos(driver, "pje-cabecalho-tarefa h1.titulo-tarefa, span.texto-tarefa-processo, pje-cabecalho-tarefa h1", teto=2)
                 if h1:
-                    nome_tarefa = (getattr(h1[0], 'text', '') or '').strip().lower()
+                    nome_tarefa = (getattr(h1[0], 'text', '') or '').strip()
             except Exception:
                 pass
 
         logger.info(f'[NAVEGAÇÃO] Nome da Tarefa Detectado: "{nome_tarefa}"')
 
-        if not (
-            espera.elemento(driver, "button[aria-label='Análise'], button[aria-label*='Análise']", teto=5)
-            or espera.elemento(driver, "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado']", teto=5)
-        ):
-            logger.error('[NAVEGAÇÃO] Botões de navegação não apareceram no DOM')
-            return False
+        tarefa_norm = _normalizar_texto(nome_tarefa)
+        if 'conclusao ao magistrado' in tarefa_norm or (tarefa_norm.startswith('conclusao') and 'cancelar' not in tarefa_norm):
+            logger.info('[NAVEGAÇÃO] Tarefa atual já é Conclusão ao Magistrado')
+            return True
+
+        # Aguarda botões de transição renderizarem (padrão esperarColecao('pje-botoes-transicao button', 15) do gigs-plugin)
+        aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=6)
 
         btn_conclusao_encontrado = False
 
-        # Tentar clique direto em "Conclusão ao magistrado" independente do tipo de tarefa.
-        btn_conclusao_direto = _localizar_botao_navegacao(driver, 'Conclusão ao magistrado')
-        if btn_conclusao_direto and getattr(btn_conclusao_direto, 'is_displayed', lambda: True)() and safe_click_no_scroll(driver, btn_conclusao_direto):
+        # 1. Tentar clique direto em "Conclusão ao magistrado" (independente da tarefa)
+        logger.info('[NAVEGAÇÃO] Tentando clique direto em "Conclusão ao magistrado"...')
+        if clicar_botao_por_texto(driver, 'conclusao ao magistrado', timeout=3, debug=True) or clicar_botao_por_texto(driver, 'conclusao', timeout=1, debug=True):
             btn_conclusao_encontrado = True
-            logger.info('[NAVEGAÇÃO] Clique direto em "Conclusão ao magistrado" realizado')
+            logger.info('[NAVEGAÇÃO] ✅ Clique direto em "Conclusão ao magistrado" realizado')
         else:
-            logger.info('[NAVEGAÇÃO] Conclusão não disponível diretamente, tentando via "Análise"...')
+            # Fallback com _localizar_botao_navegacao + safe_click_no_scroll
+            btn_dir = _localizar_botao_navegacao(driver, 'Conclusão ao magistrado')
+            if btn_dir and getattr(btn_dir, 'is_displayed', lambda: True)() and safe_click_no_scroll(driver, btn_dir):
+                btn_conclusao_encontrado = True
+                logger.info('[NAVEGAÇÃO] ✅ Clique direto em "Conclusão ao magistrado" realizado (via elemento)')
 
-        # Se não encontrou, usar estratégia via "Análise"
+        # 2. Se não encontrou direto, usar transição via "Análise" (padrão gigs-plugin aaDespacho)
         if not btn_conclusao_encontrado:
-            logger.info('[NAVEGAÇÃO] Tentando via "Análise"...')
-            btn_analise = _localizar_botao_navegacao(driver, 'Análise')
-            if btn_analise and safe_click_no_scroll(driver, btn_analise):
-                logger.info('[NAVEGAÇÃO] Clique em "Análise" realizado')
-            else:
-                logger.error('[NAVEGAÇÃO] Falha ao clicar em "Análise": botão não encontrado no DOM')
+            logger.info('[NAVEGAÇÃO] Conclusão não disponível diretamente na tarefa "%s", movimentando via Análise (padrão gigs-plugin)...', nome_tarefa)
+            movimentou = movimentar_analise(driver, nome_tarefa, debug=True)
+            if not movimentou:
+                movimentou = clicar_botao_por_texto(driver, 'analise', timeout=4, debug=True)
 
-        # Remover overlays após Análise se houver
-        logger.info('[NAVEGAÇÃO] Verificando overlays...')
-        try:
-            overlays = espera.elementos(driver, '.cdk-overlay-backdrop-showing', teto=1)
-            if overlays:
-                if hasattr(driver, 'page'):
-                    driver.page.keyboard.press("Escape")
+            if movimentou:
+                logger.info('[NAVEGAÇÃO] Transição para Análise acionada — aguardando botões...')
+                limpar_overlays(driver)
+                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=8)
+
+                if clicar_botao_por_texto(driver, 'conclusao ao magistrado', timeout=6, debug=True) or clicar_botao_por_texto(driver, 'conclusao', timeout=2, debug=True):
+                    btn_conclusao_encontrado = True
+                    logger.info('[NAVEGAÇÃO] ✅ Clique em "Conclusão ao magistrado" realizado após Análise')
                 else:
-                    safe_click_no_scroll(driver, 'body')
-                aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=2)
-        except Exception:
-            pass
+                    btn_pos = _localizar_botao_navegacao(driver, 'Conclusão ao magistrado')
+                    if btn_pos and safe_click_no_scroll(driver, btn_pos):
+                        btn_conclusao_encontrado = True
+                        logger.info('[NAVEGAÇÃO] ✅ Clique em "Conclusão ao magistrado" realizado após Análise (via elemento)')
 
-        # Aguardar renderização e clicar na conclusão
-        if not btn_conclusao_encontrado:
-            seletor_conclusao = "button[aria-label='Conclusão ao magistrado'], button[aria-label*='Conclusão ao magistrado']"
-            aguardar_renderizacao_nativa(driver, seletor_conclusao, 'aparecer', timeout=8)
-            btn_conclusao = _localizar_botao_navegacao(driver, 'Conclusão ao magistrado')
-            if not btn_conclusao or not safe_click_no_scroll(driver, btn_conclusao):
-                logger.error('[NAVEGAÇÃO] Falha na navegação via Análise: botão "Conclusão ao magistrado" não encontrado após aguardar renderização')
-                return False
-            logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise')
+        # 3. Remover overlays pós-clique se houver
+        limpar_overlays(driver)
 
-        current_after = (driver.current_url or '').lower()
+        # 4. Validar chegada ao destino
+        current_after = (getattr(driver, 'current_url', '') or '').lower()
         if '/minutar' in current_after:
             logger.info('[NAVEGAÇÃO] Processo foi direto para /minutar')
             return True
 
-        if not aguardar_renderizacao_nativa(driver, 'pje-concluso-tarefa-botao button', 'aparecer', timeout=10):
-            logger.error(f'[NAVEGAÇÃO] Botões de conclusão não apareceram. URL atual: {driver.current_url}')
-            return False
+        if aguardar_renderizacao_nativa(driver, 'pje-concluso-tarefa-botao button', 'aparecer', timeout=10):
+            logger.info('[NAVEGAÇÃO] ✅ Navegação para conclusão concluída com sucesso (botões de conclusão ativos)')
+            return True
 
-        logger.info('[NAVEGAÇÃO] Navegação para conclusão concluída com sucesso')
-        return True
+        if '/conclusao' in (getattr(driver, 'current_url', '') or '').lower():
+            logger.info('[NAVEGAÇÃO] ✅ Em /conclusao')
+            return True
+
+        if btn_conclusao_encontrado:
+            espera.assentar(driver, 1.0)
+            current_check = (getattr(driver, 'current_url', '') or '').lower()
+            if '/conclusao' in current_check or '/minutar' in current_check:
+                return True
+
+        logger.error(f'[NAVEGAÇÃO] Falha ao confirmar conclusão. URL atual: {driver.current_url}')
+        return False
 
     except Exception as e:
         logger.error(f'[NAVEGAÇÃO] Erro na navegação para conclusão: {e}')
@@ -395,7 +429,7 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
                         break
             except Exception:
                 pass
-            time.sleep(0.15)
+            espera.assentar(driver, 0.15)
 
         if not transicionou:
             transicionou = bool(espera.elemento(driver, seletor_exclusivo_minutar, teto=3))

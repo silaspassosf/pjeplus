@@ -338,14 +338,23 @@ def abrir_url_nova_aba(driver, url: str, timeout: float = 15) -> Optional[str]:
 def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
     """Fecha todas as abas extras, mantendo apenas aba_lista_original."""
     try:
-        for aba in _obter_window_handles(driver):
+        handles = _obter_window_handles(driver)
+        if not handles:
+            return
+        if aba_lista_original not in handles:
+            aba_lista_original = handles[0]
+        for aba in handles:
             if aba != aba_lista_original:
                 try:
                     driver.switch_to.window(aba)
                     driver.close()
                 except Exception:
                     pass
-        driver.switch_to.window(aba_lista_original)
+        handles_restantes = _obter_window_handles(driver)
+        if aba_lista_original in handles_restantes:
+            driver.switch_to.window(aba_lista_original)
+        elif handles_restantes:
+            driver.switch_to.window(handles_restantes[0])
     except Exception:
         pass
 
@@ -520,8 +529,8 @@ def is_headless_mode(driver: Any) -> bool:
     Returns:
         bool: True se headless
     """
-    # Atributo deterministico setado na criacao do driver (caminho Selenium).
-    if getattr(driver, '_headless', False):
+    # Atributo deterministico setado na criacao do driver (Playwright ou Selenium).
+    if getattr(driver, 'headless', False) or getattr(driver, '_headless', False):
         return True
     try:
         # Heuristica: headless geralmente tem window.outerWidth == 0.

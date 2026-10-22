@@ -287,6 +287,15 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         # REGRA DE RECURSAL - executar gigs1
         (['Libere-se o depósito recursal'], ("criar_gigs[-1/Ana Lucia/Alvará recursal]",)),
 
+        # REGRA DE SALDO / PARCELAMENTO (xs saldo) - PREVALÊNCIA SOBRE INICIAR EXECUÇÃO
+        ([
+            'saldo devedor',
+            'admito o parcelamento',
+        ], ("criar_gigs[1//xs saldo]",)),
+
+        # REGRA ESPECIAL: pagamento da próxima parcela -> criar gigs saldo
+        (['pagamento da próxima parcela'], ("criar_gigs[5//xs saldo]",)),
+
         # REGRA DE BLOQUEIO / IMPUGNAÇÕES - DEVE VIR ANTES PARA TER PRIORIDADE
         ([
             'sob pena de bloqueio',
@@ -350,9 +359,6 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         # REGRA DE EMBARGOS - quando decidido procedentes os embargos -> executar ato_meios
         (['procedentes os embargos', 'procedente os embargos'], (ato_meios,)),
 
-        # REGRA DE PEC
-        (['saldo devedor'], ("criar_gigs[1//xs saldo]",)),
-
         # REGRA DE DESIGNAÇÃO DE PERITO ROGÉRIO
         (['designo o expert rogerio'], ("criar_gigs[6//xs prazo]",)),
 
@@ -401,9 +407,6 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
 
         # REGRA DE AGRAVO EXEQUENTE E INTERLOCUTÓRIA (regex exato — não é trecho literal)
         ([re.compile(r'(?=[\s\S]*interlocutoria)(?=[\s\S]*interposto[\s\n\r]*agravo[\s\n\r]*de[\s\n\r]*peticao[\s\n\r]*pela[\s\n\r]*parte[\s\n\r]*exequente)', re.IGNORECASE)], (ato_meios,)),
-
-        # REGRA ESPECIAL: pagamento da próxima parcela -> criar gigs saldo
-        (['pagamento da próxima parcela'], ("criar_gigs[5//xs saldo]",)),
 
         # REGRA: INDEFIRO o pedido de desconsideração -> juntada retificação + exclusão Argos + ato_meios
         (['INDEFIRO o pedido de desconsideração'], (anex_retifidpj, pec_excluiargos, ato_meios)),

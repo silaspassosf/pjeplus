@@ -153,42 +153,49 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
             break
     if bloqueio_idx == -1:
         return 'negativo', 'Bloqueio de valores não encontrado, sem SISBAJUD', executados
-    for offset in range(1, 15):
-        if bloqueio_idx + offset >= len(lines):
-            break
-        sisbajud_line = lines[bloqueio_idx + offset].strip().lower()
-        if not sisbajud_line:
+
+    # Analisar janela da seção Bloqueio de Valores (até 25 linhas após bloqueio_idx)
+    max_linhas = min(len(lines), bloqueio_idx + 25)
+    secao_linhas = []
+    for idx_l in range(bloqueio_idx, max_linhas):
+        l_txt = lines[idx_l].strip().lower()
+        if not l_txt:
             continue
-        if 'sisbajud' in sisbajud_line:
-            for sib_offset in range(1, 5):
-                if bloqueio_idx + offset + sib_offset >= len(lines):
-                    break
-                resultado_line = lines[bloqueio_idx + offset + sib_offset].strip().lower()
-                if not resultado_line:
-                    continue
-                if 'negativo' in resultado_line:
-                    return 'negativo', 'SISBAJUD Negativo na seção Bloqueio de valores', executados
-                elif 'positivo' in resultado_line:
-                    return 'positivo', 'SISBAJUD Positivo na seção Bloqueio de valores', executados
-            valor_encontrado = 0
-            for check_offset in range(1, 10):
-                if bloqueio_idx + offset + check_offset >= len(lines):
-                    break
-                check_line = lines[bloqueio_idx + offset + check_offset].strip().lower()
-                if not check_line:
-                    continue
-                valor_match = re.search(r'r\$\s*([\d.,]+)', check_line)
-                if valor_match:
-                    valor_str = valor_match.group(1).replace('.', '').replace(',', '.')
-                    try:
-                        valor_encontrado = float(valor_str)
-                        break
-                    except ValueError:
-                        continue
-            if valor_encontrado > 0:
-                return 'positivo', f'SISBAJUD com valor positivo: R$ {valor_encontrado:.2f}', executados
-            else:
-                return 'negativo', f'SISBAJUD sem valor ou valor zero encontrado', executados
+        # Se entrar na próxima seção da certidão, encerra a leitura
+        if idx_l > bloqueio_idx and any(sec in l_txt for sec in [
+            'pesquisa de bens', 'renajud', 'infojud', 'certifico finalmente', 'conclusao', 'registro de veiculos'
+        ]):
+            break
+        secao_linhas.append(l_txt)
+
+    texto_secao = ' '.join(secao_linhas)
+    logger.info('[SISBAJUD][SECAO] det_idx=%s bloqueio_idx=%s linhas=%d texto=%r',
+                det_idx, bloqueio_idx, len(secao_linhas), texto_secao[:500])
+
+    # 1. Checar se há valores em R$ bloqueados maiores que zero
+    valores_encontrados = []
+    for match in re.finditer(r'r\$\s*([\d.,]+)', texto_secao):
+        valor_str = match.group(1).replace('.', '').replace(',', '.')
+        try:
+            val_f = float(valor_str)
+            valores_encontrados.append(val_f)
+        except ValueError:
+            pass
+
+    maior_valor = max(valores_encontrados) if valores_encontrados else 0.0
+    if maior_valor > 0:
+        return 'positivo', f'SISBAJUD com valor positivo: R$ {maior_valor:.2f}', executados
+
+    # 2. Checar menções a positivo/negativo na seção (positivo tem precedência sobre negativo)
+    tem_positivo = any('positivo' in l for l in secao_linhas)
+    tem_negativo = any('negativo' in l for l in secao_linhas)
+
+    if tem_positivo:
+        return 'positivo', 'SISBAJUD Positivo na seção Bloqueio de valores', executados
+
+    if tem_negativo:
+        return 'negativo', 'SISBAJUD Negativo na seção Bloqueio de valores', executados
+
     return 'negativo', 'SISBAJUD não encontrado na seção Bloqueio de valores', executados
 
 

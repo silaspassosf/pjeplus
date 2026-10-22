@@ -35,11 +35,17 @@ MIME_PASTA = 'application/vnd.google-apps.folder'
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-INICIO = (2025, 5)          # Maio/2025 -> pasta "01 - Maio 2025"
-MES_ALVO_PADRAO = (2026, 9)  # gerar até Setembro/2026
+INICIO = (2026, 1)          # Janeiro/2026 -> pasta "01 - Janeiro 2026" e letra "A"
+MES_ALVO_PADRAO = (2026, 10)  # Outubro/2026 -> pasta "10 - Outubro 2026" e letra "J"
 
-BLOCO_A = 'Bloco A - Individuais'
-BLOCO_B = 'Bloco B - Gerais'
+# Período ativo da Prestação de Contas (Janeiro/2026 a Outubro/2026)
+PERIODO_ATIVO_INICIO = (2026, 1)
+PERIODO_ATIVO_FIM = (2026, 10)
+
+BLOCO_I = 'Bloco I - Individuais'
+BLOCO_II = 'Bloco II - Gerais'
+BLOCO_A = BLOCO_I  # Alias retrocompatível
+BLOCO_B = BLOCO_II # Alias retrocompatível
 
 RUBRICAS_A = ['Escola', 'Psicoterapia', 'Psicopedagoga', 'Farmácia e Higiene',
               'Plano de Saúde e Odontológico', 'Médicos e Exames',
@@ -83,6 +89,19 @@ def obter_letra_mes(mes_nome):
         if idx >= 1:
             return numero_para_letras(idx)
     return 'A'
+
+
+def eh_mes_no_periodo(mes_nome, inicio=PERIODO_ATIVO_INICIO, fim=PERIODO_ATIVO_FIM):
+    """Verifica se um nome de mês (ex: 'Janeiro 2026', 'Outubro 2026') está dentro do período ativo."""
+    partes = mes_nome.strip().split()
+    if len(partes) >= 2 and partes[0] in MESES:
+        mes_num = MESES.index(partes[0]) + 1
+        try:
+            ano_num = int(partes[1])
+            return (inicio[0], inicio[1]) <= (ano_num, mes_num) <= (fim[0], fim[1])
+        except ValueError:
+            return False
+    return False
 
 
 def eh_rubrica_conta_unica(rubrica):
@@ -363,7 +382,7 @@ def garantir_meses(sheets_client, drive_idx, ate=MES_ALVO_PADRAO, dry_run=False)
             pastas_raiz[nome_pasta] = id_mes
             criadas += nova
 
-        for bloco, rubricas in ((BLOCO_A, RUBRICAS_A), (BLOCO_B, RUBRICAS_B)):
+        for bloco, rubricas in ((BLOCO_I, RUBRICAS_A), (BLOCO_II, RUBRICAS_B)):
             if id_mes.startswith('<nova:'):
                 criadas += 1 + len(nomes_pastas_bloco(rubricas))
                 continue

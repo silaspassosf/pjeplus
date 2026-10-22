@@ -7,24 +7,46 @@
     .pjetools-destaque        { outline:3px solid #007bff!important; background:#e7f3ff!important; transition:.3s; }
     .pjetools-destaque-edital { outline:3px solid #28a745!important; background:#e8f5e8!important; transition:.3s; }
     #pjetools-painel button:hover { opacity:.85; }
+    #pjetools-painel-titulo:hover { color: #007bff!important; }
+    #pjetools-painel-titulo:hover #pjetools-painel-seta { color: #007bff!important; }
     `;
 
     window.criarPainel = function (botoes) {
         document.getElementById('pjetools-painel')?.remove();
         addStyles(CSS_PAINEL, 'pjetools-styles');
 
+        let recolhido = true;
+        let moved = false;
+
         const painel = document.createElement('div');
         painel.id = 'pjetools-painel';
         painel.style.cssText = `position:fixed;bottom:170px;right:20px;z-index:99999;` +
             `background:#fff;border:2px solid #333;border-radius:8px;` +
-            `box-shadow:0 8px 32px rgba(0,0,0,.25);padding:10px 12px;font-family:sans-serif;` +
-            `min-width:190px;user-select:none;`;
+            `box-shadow:0 4px 16px rgba(0,0,0,.2);padding:6px 10px;font-family:sans-serif;` +
+            `min-width:140px;user-select:none;transition:padding .15s ease, min-width .15s ease;`;
 
         const titulo = document.createElement('div');
-        titulo.textContent = 'PJeTools v1.2';
-        titulo.style.cssText = `font-weight:bold;margin-bottom:8px;color:#333;font-size:12px;` +
-            `text-align:center;border-bottom:1px solid #ddd;padding-bottom:6px;`;
+        titulo.id = 'pjetools-painel-titulo';
+        titulo.title = 'Clique para expandir ferramentas';
+        titulo.style.cssText = `font-weight:bold;color:#333;font-size:12px;` +
+            `cursor:pointer;display:flex;align-items:center;justify-content:space-between;` +
+            `gap:8px;padding-bottom:0;`;
+
+        const textoTitulo = document.createElement('span');
+        textoTitulo.textContent = '🛠️ PJeTools v1.2';
+
+        const setaToggle = document.createElement('span');
+        setaToggle.id = 'pjetools-painel-seta';
+        setaToggle.textContent = '▼';
+        setaToggle.style.cssText = 'font-size:10px;color:#666;transition:transform .15s;';
+
+        titulo.appendChild(textoTitulo);
+        titulo.appendChild(setaToggle);
         painel.appendChild(titulo);
+
+        const conteudo = document.createElement('div');
+        conteudo.id = 'pjetools-painel-conteudo';
+        conteudo.style.cssText = 'display:none;margin-top:8px;';
 
         const grid = document.createElement('div');
         grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;';
@@ -42,7 +64,7 @@
             grid.appendChild(b);
         });
 
-        painel.appendChild(grid);
+        conteudo.appendChild(grid);
 
         const limparBtn = document.createElement('button');
         limparBtn.textContent = '🔄 Limpar Cache';
@@ -52,27 +74,74 @@
             invalidarCacheTimeline();
             showToast('Cache da timeline limpo', '#6c757d', 2000);
         };
-        painel.appendChild(limparBtn);
+        conteudo.appendChild(limparBtn);
 
-        _tornaPainelArrastavel(painel);
+        painel.appendChild(conteudo);
+
+        function atualizarEstado() {
+            if (recolhido) {
+                conteudo.style.display = 'none';
+                painel.style.minWidth = '140px';
+                painel.style.padding = '6px 10px';
+                painel.style.boxShadow = '0 4px 16px rgba(0,0,0,.2)';
+                titulo.style.borderBottom = 'none';
+                titulo.style.paddingBottom = '0';
+                setaToggle.textContent = '▼';
+                titulo.title = 'Clique para expandir ferramentas';
+            } else {
+                conteudo.style.display = 'block';
+                painel.style.minWidth = '190px';
+                painel.style.padding = '10px 12px';
+                painel.style.boxShadow = '0 8px 32px rgba(0,0,0,.25)';
+                titulo.style.borderBottom = '1px solid #ddd';
+                titulo.style.paddingBottom = '6px';
+                setaToggle.textContent = '▲';
+                titulo.title = 'Clique para recolher ferramentas';
+            }
+        }
+
+        titulo.onclick = () => {
+            if (moved) return;
+            recolhido = !recolhido;
+            atualizarEstado();
+        };
+
+        _tornaPainelArrastavel(painel, m => { moved = m; });
         document.body.appendChild(painel);
         PJeState.registry.add(() => painel.remove());
     };
 
-    window._tornaPainelArrastavel = function (el) {
-        let ox = 0, oy = 0, drag = false;
+    window._tornaPainelArrastavel = function (el, onDragChange) {
+        let ox = 0, oy = 0, startX = 0, startY = 0, drag = false, moved = false;
         const onDown = e => {
             if (e.target.tagName === 'BUTTON') return;
-            drag = true; ox = e.clientX - el.offsetLeft; oy = e.clientY - el.offsetTop;
-            e.preventDefault();
+            drag = true;
+            moved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            ox = e.clientX - el.offsetLeft;
+            oy = e.clientY - el.offsetTop;
+            if (onDragChange) onDragChange(false);
         };
         const onMove = e => {
             if (!drag) return;
+            if (!moved && (Math.abs(e.clientX - startX) > 4 || Math.abs(e.clientY - startY) > 4)) {
+                moved = true;
+                if (onDragChange) onDragChange(true);
+            }
+            if (!moved) return;
             el.style.left = (e.clientX - ox) + 'px';
             el.style.top = (e.clientY - oy) + 'px';
-            el.style.right = 'auto'; el.style.bottom = 'auto';
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
         };
-        const onUp = () => { drag = false; };
+        const onUp = () => {
+            drag = false;
+            setTimeout(() => {
+                moved = false;
+                if (onDragChange) onDragChange(false);
+            }, 50);
+        };
         el.addEventListener('mousedown', onDown);
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
@@ -105,6 +174,13 @@
                         showToast('Módulo Simba não carregado', '#dc3545', 3000);
                     }
                 }, titulo: 'Salvar dados e pesquisar Iniciada execução' },
+            { id: 'btnInfojud', texto: '🏛️ Infojud', bg: '#c62828', fn: function() {
+                    if (typeof window.executarInfojudDetalhe === 'function') {
+                        window.executarInfojudDetalhe();
+                    } else {
+                        showToast('Módulo Infojud não carregado', '#dc3545', 3000);
+                    }
+                }, titulo: 'Consultar Infojud das partes do processo' },
             { id: 'btnSisbajud', texto: '💸 Sisbajud', bg: '#1e88e5', fn: function (e) {
                     const btn = e.target.closest('button');
                     if (btn.dataset.expanded === "true") return;

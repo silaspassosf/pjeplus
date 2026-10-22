@@ -69,7 +69,9 @@ def comunicacao_judicial(
         checar_sp=kwargs.get('checar_sp'),
         endereco_tipo=kwargs.get('endereco_tipo'),
         trocar_modelo=trocar_modelo,
-        assinar=kwargs.get('assinar', assinar)
+        assinar=kwargs.get('assinar', assinar),
+        remover_endereco_invalido=kwargs.get('remover_endereco_invalido'),
+        wrapper_name=kwargs.get('wrapper_name')
     )
     debug_value = kwargs.pop('debug', False)
     terceiro_value = kwargs.pop('terceiro', False)
@@ -97,7 +99,8 @@ def make_comunicacao_wrapper(
     wrapper_name: Optional[str] = None,  # Nome específico para __name__
     terceiro_default: bool = False,
     assinar: bool = False,
-    modelo_troca_correios: Optional[str] = None
+    modelo_troca_correios: Optional[str] = None,
+    remover_endereco_invalido: Optional[bool] = None
 ) -> Callable[[Any, bool, Any], bool]:
     def wrapper(
         driver: Any,
@@ -176,7 +179,14 @@ def make_comunicacao_wrapper(
             'debug': debug,
             'terceiro': overrides.get('terceiro', terceiro_default),
             'trocar_modelo': overrides.get('trocar_modelo', trocar_modelo),
-            'modelo_troca_correios': overrides.get('modelo_troca_correios', modelo_troca_correios)
+            'modelo_troca_correios': overrides.get('modelo_troca_correios', modelo_troca_correios),
+            'remover_endereco_invalido': overrides.get(
+                'remover_endereco_invalido',
+                remover_endereco_invalido if remover_endereco_invalido is not None else (
+                    False if (wrapper_name == 'pec_exeq' or modelo_nome == 'xsexeq') else True
+                )
+            ),
+            'wrapper_name': wrapper_name
         }
 
         # Log function: usa print quando passado via log=print no override (ex: f.py)
@@ -216,11 +226,8 @@ def make_comunicacao_wrapper(
                 log=log_fn
             )
 
-            # 2.5. Modo 'informado': observacao já vem do wrapper (parâmetro).
-            # A resolução dos destinatários via API ocorre em selecionar_destinatarios.
-            if destinatarios_param == 'informado' and not (observacao and isinstance(observacao, str) and observacao.strip()):
-                log_fn('[COMUNICACAO][GIGS][WARN] Modo informado sem observacao — fallback polo passivo 2x')
-                destinatarios_param = 'polo_passivo_2x'
+            # 2.5. Modo 'informado' (despacho, decisao ou sentenca):
+            # A resolução dos destinatários ocorre em selecionar_destinatarios via API (lendo o documento correspondente e cruzando com réus).
 
             # 2.8. Barreira geral: dialog de modelo fechado + UI estável
             #      antes de escolher destinatários (evita corrida de cliques).
@@ -333,9 +340,13 @@ def make_comunicacao_wrapper(
                 )
 
             # Requisito obrigatório: verificar a tabela após destinatários/meio de expedição e antes de salvar,
-            # excluindo destinatários com endereço inválido independente da função (mesmo que seja o único).
-            log_fn("[COMUNICACAO][ORQUESTRA] Verificando e removendo destinatários com endereço inválido...")
-            remover_destinatarios_endereco_invalido(driver, log=log_fn, debug=debug)
+            # excluindo destinatários com endereço inválido quando habilitado (desativado para pec_exeq).
+            remover_invalido = call_kwargs.get('remover_endereco_invalido', True)
+            if remover_invalido:
+                log_fn("[COMUNICACAO][ORQUESTRA] Verificando e removendo destinatários com endereço inválido...")
+                remover_destinatarios_endereco_invalido(driver, log=log_fn, debug=debug)
+            else:
+                log_fn(f"[COMUNICACAO][ORQUESTRA] Exclusão de endereço inválido desativada para {wrapper_name or nome_comunicacao} (remover_endereco_invalido=False)")
 
             # 4.5. Trocar modelo se necessário (fluxo 2: pec_ord, pec_sum, etc)
             if call_kwargs.get('trocar_modelo'):
@@ -360,21 +371,30 @@ def make_comunicacao_wrapper(
                 if not finalizar_minuta(driver, log=log_fn):
                     raise Exception('finalizar_minuta falhou após troca de modelo — ato não finalizado')
 
-            # 4.9. Guarda final pré-salvamento: garantir que não restou destinatário com endereço inválido
-            removidos_finais = remover_destinatarios_endereco_invalido(driver, log=log_fn, debug=debug)
-            if removidos_finais > 0:
-                log_fn(f"[COMUNICACAO][ORQUESTRA] {removidos_finais} destinatário(s) adicional(is) com endereço inválido removido(s)")
+            # 4.9. Guarda final pré-salvamento: garantir que não restou destinatário com endereço inválido (se habilitado)
+            if remover_invalido:
+                removidos_finais = remover_destinatarios_endereco_invalido(driver, log=log_fn, debug=debug)
+                if removidos_finais > 0:
+                    log_fn(f"[COMUNICACAO][ORQUESTRA] {removidos_finais} destinatário(s) adicional(is) com endereço inválido removido(s)")
 
             # Validação: verificar se restou ao menos um destinatário válido na tabela
             total_destinatarios_restantes = contar_linhas_destinatarios(driver)
             if total_destinatarios_restantes == 0:
-                log_fn("[COMUNICACAO][ORQUESTRA][WARN] Tabela de destinatários vazia após exclusão de endereços inválidos — salvamento não pode prosseguir")
+                log_fn("[COMUNICACAO][ORQUESTRA][WARN] Tabela de destinatários vazia — salvamento não pode prosseguir")
                 return False
 
             # 5. Salvar minuta final
             log_fn("[COMUNICACAO][ORQUESTRA] Salvando minuta final")
             _assinar_efetivo = bool(overrides.get('assinar', assinar))
-            salvou_ok = salvar_minuta_final(driver, sigilo, debug=debug, log=log_fn, executar_visibilidade=False, assinar=_assinar_efetivo)
+            salvou_ok = salvar_minuta_final(
+                driver,
+                sigilo,
+                debug=debug,
+                log=log_fn,
+                executar_visibilidade=False,
+                assinar=_assinar_efetivo,
+                remover_endereco_invalido=remover_invalido
+            )
             if not salvou_ok:
                 log_fn("[COMUNICACAO][ORQUESTRA][ERRO] Falha ao salvar/assinar minuta final.")
                 return False
@@ -408,6 +428,9 @@ def make_comunicacao_wrapper(
                     _fechar_abas_tabs(driver, _aba_original)
             except Exception:
                 pass
+
+    if wrapper_name:
+        wrapper.__name__ = wrapper_name
 
     return wrapper
 

@@ -11,7 +11,7 @@ from .errors import traduzir
 
 _SYNC = "(__a) => (function(){ %s }).apply(null, __a)"
 _ASYNC = (
-    "(__a) => new Promise((__resolve, __reject) => {"
+    "(__a) => new (window.__zone_symbol__Promise || Promise)((__resolve, __reject) => {"
     " try { (function(){ %s }).apply(null, __a.concat([__resolve])); }"
     " catch (e) { __reject(e); } })"
 )

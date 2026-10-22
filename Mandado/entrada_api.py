@@ -500,10 +500,11 @@ def testar_api_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> list:
 
 _TERMOS_ARGOS = (
     'pesquisa patrimonial', 'argos', 'devolucao de ordem de pesquisa',
-    'certidao de devolucao', 'devolucao de ordem',
+    'devolucao de ordem',
 )
 _TERMOS_OUTROS = (
     'certidao de oficial de justica', 'certidao de oficial', 'oficial de justica',
+    'certidao de devolucao de mandado', 'devolucao de mandado',
 )
 
 
@@ -526,10 +527,10 @@ def _classificar_tipo_timeline_api(client, id_processo):
 
     for doc in itens:
         titulo = normalizar_texto(doc.get('titulo') or doc.get('tipo') or '')
-        if any(t in titulo for t in _TERMOS_ARGOS):
-            return 'argos'
         if any(t in titulo for t in _TERMOS_OUTROS):
             return 'outros'
+        if any(t in titulo for t in _TERMOS_ARGOS):
+            return 'argos'
 
     return None
 
@@ -545,10 +546,10 @@ def _selecionar_doc_via_timeline(driver, log=True):
     for link in links:
         norm = normalizar_texto(link.text or '')
 
-        if any(t in norm for t in _TERMOS_ARGOS):
-            tipo = 'argos'
-        elif any(t in norm for t in _TERMOS_OUTROS):
+        if any(t in norm for t in _TERMOS_OUTROS):
             tipo = 'outros'
+        elif any(t in norm for t in _TERMOS_ARGOS):
+            tipo = 'argos'
         else:
             continue
 

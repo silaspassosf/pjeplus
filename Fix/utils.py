@@ -433,6 +433,17 @@ def sessao_oauth_completa(driver) -> bool:
     return bool(nomes & {'access_token', 'sso_refresh_token'})
 
 
+def _is_driver_headless(driver) -> bool:
+    """Verifica se o driver está em modo headless (Playwright ou legado)."""
+    if getattr(driver, 'headless', False) or getattr(driver, '_headless', False):
+        return True
+    try:
+        from Fix.browser_suporte import is_headless_mode
+        return is_headless_mode(driver)
+    except Exception:
+        return False
+
+
 def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True, forcar=False):
     """Login automático por CPF/senha alimentado pelo Gerenciador de Credenciais do Windows.
 
@@ -508,57 +519,126 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
             except Exception as e:
                 logger.debug('[LOGIN_CPF] Aviso ao clicar no botao SSO PDPJ: %s', e)
 
-        # Aguardar campo de usuario do Keycloak (#username)
+        # Aguardar campo de usuario do Keycloak (#username) ou campo OTP direto
         if not espera.ate_aparecer(driver, '#username', teto=10):
-            logger.warning('[LOGIN_CPF] Campo #username nao localizado. Redirecionando para login manual...')
-            return login_manual(driver, aguardar_url_painel=aguardar_url_final)
-
-        # Preencher CPF e senha
-        try:
-            from Fix.core import preencher_campo
-            if hasattr(driver, 'page') and driver.page:
-                driver.page.fill('#username', str(cpf))
-                driver.page.fill('#password', str(senha))
+            if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=2):
+                logger.info('[LOGIN_CPF] Tela de OTP detectada diretamente sem #username')
             else:
-                preencher_campo(driver, '#username', cpf)
-                preencher_campo(driver, '#password', senha)
-            logger.info('[LOGIN_CPF] Credenciais preenchidas via Windows Credential Manager')
-        except Exception as e:
-            logger.error('[LOGIN_CPF] Falha ao preencher credenciais: %s', e)
-            return login_manual(driver, aguardar_url_painel=aguardar_url_final)
+                logger.warning('[LOGIN_CPF] Campo #username nao localizado. Redirecionando para login manual...')
+                if _is_driver_headless(driver):
+                    logger.error('[LOGIN_CPF] Driver em modo headless — login manual na tela nao suportado.')
+                    return False
+                return login_manual(driver, aguardar_url_painel=aguardar_url_final)
+        else:
+            # Preencher CPF e senha
+            try:
+                from Fix.core import preencher_campo
+                if hasattr(driver, 'page') and driver.page:
+                    driver.page.fill('#username', str(cpf))
+                    driver.page.fill('#password', str(senha))
+                else:
+                    preencher_campo(driver, '#username', cpf)
+                    preencher_campo(driver, '#password', senha)
+                logger.info('[LOGIN_CPF] Credenciais preenchidas via Windows Credential Manager')
+            except Exception as e:
+                logger.error('[LOGIN_CPF] Falha ao preencher credenciais: %s', e)
+                if _is_driver_headless(driver):
+                    return False
+                return login_manual(driver, aguardar_url_painel=aguardar_url_final)
 
-        # Clicar no botao de login (#kc-login - LEGADO.md ~15390)
-        try:
-            if hasattr(driver, 'page') and driver.page:
-                driver.page.click('#kc-login')
-            else:
-                safe_click_no_scroll(driver, '#kc-login')
-            logger.info('[LOGIN_CPF] Botao de login clicado (#kc-login)')
-        except Exception as e:
-            logger.error('[LOGIN_CPF] Falha ao clicar no botao de login: %s', e)
-            return login_manual(driver, aguardar_url_painel=aguardar_url_final)
+            # Clicar no botao de login (#kc-login - LEGADO.md ~15390)
+            try:
+                if hasattr(driver, 'page') and driver.page:
+                    driver.page.click('#kc-login')
+                else:
+                    safe_click_no_scroll(driver, '#kc-login')
+                logger.info('[LOGIN_CPF] Botao de login clicado (#kc-login)')
+            except Exception as e:
+                logger.error('[LOGIN_CPF] Falha ao clicar no botao de login: %s', e)
+                if _is_driver_headless(driver):
+                    return False
+                return login_manual(driver, aguardar_url_painel=aguardar_url_final)
 
-        # Aguardar redirecionamento / conclusao do login
+        # Aguardar redirecionamento / conclusao do login / tela de OTP
         if aguardar_url_final:
-            timeout_login = 45
+            is_hl = _is_driver_headless(driver)
+            timeout_login = 90 if is_hl else 240
             inicio = time.time()
-            _urls_pos_login = ('gigs/meu-painel', 'quadro-avisos/visualizar', 'pjekz')
+            _urls_pos_login = ('gigs/meu-painel', 'meu-painel', 'quadro-avisos/visualizar', 'pjekz')
+            otp_processado = False
             while time.time() - inicio < timeout_login:
                 try:
                     cur = (getattr(driver, 'current_url', '') or '').lower()
                     if any(u in cur for u in _urls_pos_login) or (not any(k in cur for k in ['login', 'auth', 'realms']) and sessao_oauth_completa(driver)):
-                        logger.info('[LOGIN_CPF] Login realizado com sucesso (URL: %s)', cur)
+                        if not any(u in cur for u in _urls_pos_login):
+                            try:
+                                logger.info('[LOGIN_CPF] Sessão ativa detectada. Carregando meu painel...')
+                                driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
+                                espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
+                            except Exception:
+                                pass
+                        logger.info('[LOGIN_CPF] Login realizado com sucesso (URL: %s)', getattr(driver, 'current_url', cur))
                         if SALVAR_COOKIES_AUTOMATICO:
                             try:
                                 salvar_cookies_sessao(driver, info_extra='login_cpf')
                             except Exception:
                                 pass
                         return True
+
+                    # Verificar se apareceu tela de OTP / validação em 2 etapas
+                    if not otp_processado:
+                        tem_otp = False
+                        if hasattr(driver, 'page') and driver.page:
+                            try:
+                                loc = driver.page.locator('#otp, input[name="otp"]')
+                                if loc.count() > 0 and loc.first.is_visible():
+                                    tem_otp = True
+                            except Exception:
+                                pass
+                        elif espera.elemento(driver, '#otp, input[name="otp"]', teto=0.3):
+                            tem_otp = True
+
+                        if tem_otp:
+                            otp_processado = True
+                            if is_hl:
+                                logger.info('[LOGIN_CPF] Tela de validação em duas etapas (OTP) detectada (modo headless).')
+                                codigo = input("\n[LOGIN] Digite o código de validação (OTP): ").strip()
+                                if hasattr(driver, 'page') and driver.page:
+                                    driver.page.fill('#otp, input[name="otp"]', codigo)
+                                    submetido = False
+                                    try:
+                                        btn_sub = driver.page.locator('input[type="submit"], button[type="submit"], #kc-login')
+                                        if btn_sub.count() > 0 and btn_sub.first.is_visible():
+                                            btn_sub.first.click()
+                                            submetido = True
+                                    except Exception:
+                                        pass
+                                    if not submetido:
+                                        try:
+                                            driver.page.locator('#otp, input[name="otp"]').first.press('Enter')
+                                        except Exception:
+                                            driver.page.keyboard.press('Enter')
+                                else:
+                                    from Fix.core import preencher_campo
+                                    preencher_campo(driver, '#otp', codigo)
+                                    safe_click_no_scroll(driver, 'input[type="submit"], button[type="submit"], #kc-login')
+                                logger.info('[LOGIN_CPF] Código OTP enviado. Aguardando conclusão do login...')
+                                inicio = time.time()
+                            else:
+                                logger.info(
+                                    '[LOGIN_CPF] Tela de validação em duas etapas (OTP) detectada no navegador. '
+                                    'Aguardando conclusão do login e carregamento de meu painel...'
+                                )
                 except Exception:
                     pass
                 espera.pausa(driver, 0.5)
 
             logger.warning('[LOGIN_CPF] Timeout no login automatico por CPF (pode requerer MFA/captcha).')
+            if is_hl:
+                logger.error('[LOGIN_CPF] Driver em modo headless — login manual na tela nao suportado.')
+                return False
+            if sessao_oauth_completa(driver):
+                return True
             return login_manual(driver, aguardar_url_painel=True)
 
         return True

@@ -65,7 +65,9 @@
         return new Promise((resolve, reject) => {
             const inicio = Date.now();
             const fecharAba = () => {
-                    // Durante a depuração, manter a aba aberta para preservar os logs da Receita.
+                if (aba && typeof aba.close === 'function') {
+                    try { aba.close(); } catch (e) {}
+                }
             };
             const timer = setInterval(() => {
                 const status = _gmGet('GOD_STATUS', '') || '';
@@ -95,6 +97,16 @@
     const wait = (ms) => new Promise(r => setTimeout(r, ms));
     const normalizar = (txt) => (txt || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, ' ').trim();
     const apenasNumeros = (txt) => (txt || '').replace(/\D/g, '');
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[c]));
+    }
 
     function mostrarNotificacao(msg, cor = '#28a745', persistente = false) {
         const id = 'pje-tools-notif';
@@ -181,12 +193,22 @@
     }
 
     function formatarEnderecoRelatorio(end) {
+        if (!end) return '';
         const parts = [];
-        if (end.rua) parts.push(normalizar(end.rua));
-        if (end.numero) parts.push(normalizar(end.numero));
-        if (end.complemento) parts.push(normalizar(end.complemento));
-        if (end.cep) parts.push(end.cep);
-        return parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+        if (end.rua) parts.push(end.rua);
+        if (end.numero && end.numero !== 'S/N') parts.push(end.numero);
+        else if (end.numero === 'S/N') parts.push('S/N');
+        if (end.complemento) parts.push(end.complemento);
+        if (end.bairro) parts.push(end.bairro);
+        let txt = parts.filter(Boolean).join(', ').trim();
+        const cidUf = [end.municipio, end.uf].filter(Boolean).join('/');
+        if (cidUf) txt += (txt ? ' - ' : '') + cidUf;
+        if (end.cep) {
+            const numCep = apenasNumeros(end.cep);
+            const cepFmt = numCep.length === 8 ? `${numCep.slice(0, 5)}-${numCep.slice(5)}` : end.cep;
+            txt += (txt ? ' - CEP: ' : 'CEP: ') + cepFmt;
+        }
+        return txt || end.raw || '';
     }
 
     function formatarDocumento(doc) {
@@ -200,6 +222,7 @@
         const linhas = [];
         if (d.empresaNome) {
             linhas.push(`Empresa: ${d.empresaNome}`);
+            if (d.cnpj) linhas.push(`CNPJ: ${formatarDocumento(d.cnpj)}`);
             if (d.empresaEnderecoRaw || d.empresaCep) {
                 const empresaEnd = d.empresaEndereco || parseEndereco(d.empresaEnderecoRaw || '');
                 empresaEnd.cep = d.empresaCep || empresaEnd.cep || '';
@@ -208,14 +231,14 @@
             }
             if (d.nome) {
                 linhas.push(`Sócio desta empresa: ${d.nome}${d.cpf ? ` (${formatarDocumento(d.cpf)})` : ''}`);
-                const socioEnd = { rua: d.rua, numero: d.numero, complemento: d.complemento, cep: d.cep };
+                const socioEnd = { rua: d.rua, numero: d.numero, complemento: d.complemento, bairro: d.bairro, municipio: d.municipio, uf: d.uf, cep: d.cep };
                 const textoSocio = formatarEnderecoRelatorio(socioEnd);
                 if (textoSocio) linhas.push(`Endereço: ${textoSocio}`);
             }
         } else {
             if (d.nome) linhas.push(`Nome: ${d.nome}`);
             if (d.cpf) linhas.push(`CPF: ${formatarDocumento(d.cpf)}`);
-            const endereco = { rua: d.rua, numero: d.numero, complemento: d.complemento, cep: d.cep };
+            const endereco = { rua: d.rua, numero: d.numero, complemento: d.complemento, bairro: d.bairro, municipio: d.municipio, uf: d.uf, cep: d.cep };
             const texto = formatarEnderecoRelatorio(endereco);
             if (texto) linhas.push(`Endereço: ${texto}`);
         }
@@ -777,15 +800,301 @@
 
     // =================================================================================
     // COMPONENTE COMPARTILHADO: RELATÓRIO FINAL DE ENDEREÇOS
+    // ── Formatação de Certidão de Juntada INFOJUD ─────────────────────────────
+    function formatarEnderecoCertidao(d) {
+        const partesLogr = [];
+        if (d.rua) partesLogr.push(normalizar(d.rua));
+        if (d.numero && d.numero !== 'S/N') partesLogr.push(normalizar(d.numero));
+        else if (d.numero === 'S/N') partesLogr.push('S/N');
+        if (d.complemento) partesLogr.push(normalizar(d.complemento));
+        if (d.bairro) partesLogr.push(normalizar(d.bairro));
+
+        let endereco = partesLogr.filter(Boolean).join(', ');
+        const cidadeUf = [normalizar(d.municipio), normalizar(d.uf)].filter(Boolean).join('/');
+        if (cidadeUf) endereco += (endereco ? ' - ' : '') + cidadeUf;
+        if (d.cep) {
+            const numCep = apenasNumeros(d.cep);
+            const cepFmt = numCep.length === 8 ? `${numCep.slice(0, 5)}-${numCep.slice(5)}` : d.cep;
+            endereco += (endereco ? ' - CEP: ' : 'CEP: ') + cepFmt;
+        }
+        return endereco.trim() || 'Endereço não informado';
+    }
+
+    function formatarEnderecoCertidaoEmpresa(d) {
+        if (d.empresaEnderecoRaw) {
+            let end = d.empresaEnderecoRaw.trim();
+            if (d.empresaCep) {
+                const numCep = apenasNumeros(d.empresaCep);
+                const cepFmt = numCep.length === 8 ? `${numCep.slice(0, 5)}-${numCep.slice(5)}` : d.empresaCep;
+                if (!end.includes(cepFmt) && !end.includes(numCep)) {
+                    end += ' - CEP: ' + cepFmt;
+                }
+            }
+            return end;
+        }
+        return formatarEnderecoCertidao(d);
+    }
+
+    function extrairItensDeBlocoTexto(b) {
+        const lines = String(b).split('\n').map(l => l.trim()).filter(Boolean);
+        const itens = [];
+
+        if (lines.some(l => l.startsWith('Empresa:'))) {
+            const empNome = (lines.find(l => l.startsWith('Empresa:')) || '').replace(/^Empresa:\s*/, '').trim();
+            const allEnd = lines.filter(l => l.startsWith('Endereço:'));
+            const empEnd = allEnd.length > 0 ? allEnd[0].replace(/^Endereço:\s*/, '').trim() : '';
+            const cnpjLine = lines.find(l => l.startsWith('CNPJ:'));
+            const cnpj = cnpjLine ? cnpjLine.replace(/^CNPJ:\s*/, '').trim() : '';
+
+            itens.push({
+                identificacao: `${empNome}${cnpj ? ` - CNPJ ${cnpj}` : ''}`,
+                endereco: empEnd
+            });
+
+            const socioLine = lines.find(l => l.startsWith('Sócio desta empresa:'));
+            if (socioLine) {
+                const socioRaw = socioLine.replace(/^Sócio desta empresa:\s*/, '').trim();
+                const socioEnd = allEnd.length > 1 ? allEnd[1].replace(/^Endereço:\s*/, '').trim() : '';
+                itens.push({
+                    identificacao: `Sócio: ${socioRaw}`,
+                    endereco: socioEnd
+                });
+            }
+        } else {
+            const nome = (lines.find(l => l.startsWith('Nome:')) || lines.find(l => l.startsWith('PESSOA FÍSICA:')) || '').replace(/^(Nome|PESSOA FÍSICA):\s*/, '').trim();
+            const cpf = (lines.find(l => l.startsWith('CPF:')) || '').replace(/^CPF:\s*/, '').trim();
+            const end = (lines.find(l => l.startsWith('Endereço:')) || '').replace(/^Endereço:\s*/, '').trim();
+
+            itens.push({
+                identificacao: `${nome}${cpf ? ` - CPF ${cpf}` : ''}`,
+                endereco: end
+            });
+        }
+        return itens;
+    }
+
+    function construirHtmlCertidao(itens) {
+        const styleTitulo = 'font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:center;text-indent:4.5cm;';
+        const styleCorpo = 'font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify;text-indent:4.5cm;';
+
+        let inner = `<p style="${styleTitulo}" class="corpo"><strong>JUNTADA - pesquisa INFOJUD</strong></p>`;
+        inner += `<p class="corpo" style="${styleCorpo}">Nessa data, procedo à juntada de pesquisa INFOJUD de endereços:</p>`;
+
+        for (const item of (itens || [])) {
+            inner += `<p class="corpo" style="${styleCorpo}">${escapeHtml(item.identificacao)}</p>`;
+            inner += `<p class="corpo" style="${styleCorpo}">${escapeHtml(item.endereco)}<br><br><br data-cke-filler="true"></p>`;
+        }
+
+        inner += `<p class="corpo" style="${styleCorpo}"><br data-cke-filler="true"></p>`;
+
+        return `<div _ngcontent-epf-c262="" aria-label="Conteúdo principal. Alt+F10 para acessar a barra de tarefas" class="area-conteudo ck ck-content ck-editor__editable ck-rounded-corners ck-editor__editable_inline ck-blurred" lang="pt-br" dir="ltr" role="textbox" contenteditable="true">${inner}</div>`;
+    }
+
+    function construirTextoCertidao(itens) {
+        let txt = 'JUNTADA - pesquisa INFOJUD\n\n';
+        txt += 'Nessa data, procedo à juntada de pesquisa INFOJUD de endereços:\n\n';
+        for (const item of (itens || [])) {
+            txt += `${item.identificacao}\n${item.endereco}\n\n`;
+        }
+        return txt.trim();
+    }
+
+    async function copiarCertidaoParaClipboard(html, plainText) {
+        let copiado = false;
+        if (navigator.clipboard && window.ClipboardItem) {
+            try {
+                const blobHtml = new Blob([html], { type: 'text/html' });
+                const blobText = new Blob([plainText], { type: 'text/plain' });
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': blobHtml,
+                        'text/plain': blobText
+                    })
+                ]);
+                copiado = true;
+            } catch (e) {
+                console.warn('[Infojud] Falha ClipboardItem write:', e);
+            }
+        }
+        if (!copiado) {
+            try {
+                const listener = (evt) => {
+                    evt.clipboardData.setData('text/html', html);
+                    evt.clipboardData.setData('text/plain', plainText);
+                    evt.preventDefault();
+                };
+                document.addEventListener('copy', listener);
+                document.execCommand('copy');
+                document.removeEventListener('copy', listener);
+                copiado = true;
+            } catch (e2) {
+                console.warn('[Infojud] Falha execCommand copy:', e2);
+            }
+        }
+        if (!copiado && typeof GM_setClipboard === 'function') {
+            try {
+                GM_setClipboard(html, 'html');
+                copiado = true;
+            } catch (e3) {
+                GM_setClipboard(plainText, 'text');
+                copiado = true;
+            }
+        }
+        return copiado;
+    }
+
+    function tentarInserirNoCKEditor(html) {
+        try {
+            const editorEl = document.querySelector('.ck-editor__editable[contenteditable="true"], .ck-editor__editable, [contenteditable="true"]');
+            if (!editorEl) return false;
+
+            const ck = editorEl.ckeditorInstance
+                || editorEl.closest('.ck-editor')?.ckeditorInstance
+                || Array.from(document.querySelectorAll('.ck-editor__editable, [contenteditable="true"]')).find(x => x.ckeditorInstance)?.ckeditorInstance;
+
+            if (ck) {
+                let htmlParaInserir = html;
+                if (html.includes('<div') && html.includes('</div>')) {
+                    const match = html.match(/<div[^>]*>([\s\S]*?)<\/div>/i);
+                    if (match && match[1]) {
+                        htmlParaInserir = match[1];
+                    }
+                }
+
+                if (typeof ck.setData === 'function') {
+                    const atual = (ck.getData() || '').trim();
+                    if (!atual || atual === '<p>&nbsp;</p>' || atual === '<p></p>') {
+                        ck.setData(htmlParaInserir);
+                        return true;
+                    }
+                }
+                if (ck.model && typeof ck.model.change === 'function') {
+                    const viewFragment = ck.data.processor.toView(htmlParaInserir);
+                    const modelFragment = ck.data.toModel(viewFragment);
+                    ck.model.insertContent(modelFragment);
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.warn('[Infojud] Não foi possível inserir direto no editor:', e);
+        }
+        return false;
+    }
+
+    function abrirModalCertidao(htmlCertidao, textoCertidao) {
+        document.getElementById('pje-certidao-infojud-modal')?.remove();
+
+        const backdrop = document.createElement('div');
+        backdrop.id = 'pje-certidao-infojud-modal';
+        backdrop.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.55); z-index: 2147483647;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        `;
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: #ffffff; border-radius: 10px; width: 680px; max-width: 95vw;
+            max-height: 90vh; display: flex; flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); overflow: hidden;
+        `;
+
+        const header = document.createElement('div');
+        header.style.cssText = `
+            background: #2e7d32; color: #ffffff; padding: 12px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+        `;
+        header.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:18px;">📜</span>
+                <span style="font-size:15px;font-weight:700;">Certidão de Juntada — Pesquisa INFOJUD</span>
+            </div>
+        `;
+        const btnClose = document.createElement('button');
+        btnClose.innerHTML = '✕';
+        btnClose.title = 'Fechar';
+        btnClose.style.cssText = 'background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;';
+        btnClose.onclick = () => backdrop.remove();
+        header.appendChild(btnClose);
+        modal.appendChild(header);
+
+        const infoBar = document.createElement('div');
+        infoBar.style.cssText = 'background:#e8f5e9;padding:8px 18px;font-size:12px;color:#1b5e20;border-bottom:1px solid #c8e6c9;display:flex;align-items:center;gap:6px;';
+        infoBar.innerHTML = '<span>✅ <strong>Certidão copiada para a área de transferência!</strong> Pressione Ctrl+V em qualquer documento do PJe para colar.</span>';
+        modal.appendChild(infoBar);
+
+        const body = document.createElement('div');
+        body.style.cssText = 'padding: 20px; overflow-y: auto; flex: 1; background: #fafafa;';
+
+        const paper = document.createElement('div');
+        paper.style.cssText = `
+            background: #ffffff; border: 1px solid #ddd; border-radius: 4px;
+            padding: 26px 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); font-family: "Times New Roman", Times, serif;
+            color: #000; line-height: 1.5; font-size: 12pt;
+        `;
+        paper.innerHTML = htmlCertidao;
+        body.appendChild(paper);
+        modal.appendChild(body);
+
+        const footer = document.createElement('div');
+        footer.style.cssText = `
+            background: #f8f9fa; border-top: 1px solid #e9ecef; padding: 10px 18px;
+            display: flex; justify-content: space-between; align-items: center;
+        `;
+
+        const btnInserir = document.createElement('button');
+        btnInserir.textContent = '📝 Inserir no Editor PJe';
+        btnInserir.title = 'Tenta inserir a certidão no editor CKEditor do PJe se estiver aberto na página';
+        btnInserir.style.cssText = 'background:#1565c0;color:#fff;border:none;border-radius:4px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;';
+        btnInserir.onclick = () => {
+            const inseriu = tentarInserirNoCKEditor(htmlCertidao);
+            if (inseriu) {
+                mostrarNotificacao('Certidão inserida no editor do PJe!', '#28a745');
+                backdrop.remove();
+            } else {
+                mostrarNotificacao('Editor CKEditor não encontrado na página aberta. Use Ctrl+V.', '#ff9800');
+            }
+        };
+
+        const rightBtns = document.createElement('div');
+        rightBtns.style.cssText = 'display:flex;gap:8px;';
+
+        const btnCopiarDeNovo = document.createElement('button');
+        btnCopiarDeNovo.textContent = '📋 Copiar Novamente';
+        btnCopiarDeNovo.style.cssText = 'background:#2e7d32;color:#fff;border:none;border-radius:4px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;';
+        btnCopiarDeNovo.onclick = async () => {
+            await copiarCertidaoParaClipboard(htmlCertidao, textoCertidao);
+            btnCopiarDeNovo.textContent = '✅ Copiado!';
+            setTimeout(() => { btnCopiarDeNovo.textContent = '📋 Copiar Novamente'; }, 2000);
+            mostrarNotificacao('Certidão copiada para a área de transferência!', '#28a745');
+        };
+
+        const btnFecharModal = document.createElement('button');
+        btnFecharModal.textContent = 'Fechar';
+        btnFecharModal.style.cssText = 'background:#e0e0e0;color:#333;border:none;border-radius:4px;padding:8px 14px;font-size:12px;cursor:pointer;';
+        btnFecharModal.onclick = () => backdrop.remove();
+
+        rightBtns.appendChild(btnCopiarDeNovo);
+        rightBtns.appendChild(btnFecharModal);
+
+        footer.appendChild(btnInserir);
+        footer.appendChild(rightBtns);
+        modal.appendChild(footer);
+
+        backdrop.appendChild(modal);
+        document.body.appendChild(backdrop);
+    }
+
     // =================================================================================
     function renderizarPainelRelatorio(dadosRelatorio, opts = {}) {
         document.getElementById('god-relatorio-panel')?.remove();
 
         const painel = document.createElement('div');
         painel.id = 'god-relatorio-panel';
-        painel.style.cssText = 'position:fixed;right:20px;top:150px;width:493px;max-width:92vw;background:#fff;border:2px solid #004d40;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.4);font-family:"Segoe UI",sans-serif;z-index:10000;';
+        painel.style.cssText = 'position:fixed;right:20px;top:150px;width:500px;max-width:92vw;background:#fff;border:2px solid #004d40;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.4);font-family:"Segoe UI",sans-serif;z-index:10000;';
 
-        // ── Cabeçalho (drag + collapse + copiar + fechar)
+        // ── Cabeçalho (drag + collapse + certidão + copiar + fechar)
         const cab = document.createElement('div');
         cab.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#004d40;color:#fff;padding:9px 14px;border-radius:8px 8px 0 0;cursor:grab;user-select:none;';
 
@@ -794,7 +1103,18 @@
         titulo.style.cssText = 'font-size:14px;font-weight:800;letter-spacing:.5px;cursor:pointer;';
 
         const ctrls = document.createElement('span');
-        ctrls.style.cssText = 'display:flex;gap:12px;align-items:center;font-size:13px;font-weight:700;';
+        ctrls.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;';
+
+        const btnCertidao = document.createElement('button');
+        btnCertidao.textContent = '📜 Gerar Certidão';
+        btnCertidao.title = 'Gerar certidão padronizada de juntada e copiar para a área de transferência';
+        btnCertidao.style.cssText = `
+            background: #2e7d32; color: #fff; border: 1px solid #81c784;
+            border-radius: 4px; padding: 3px 8px; font-size: 11px;
+            font-weight: 700; cursor: pointer; transition: background 0.15s;
+        `;
+        btnCertidao.onmouseenter = () => btnCertidao.style.background = '#1b5e20';
+        btnCertidao.onmouseleave = () => btnCertidao.style.background = '#2e7d32';
 
         const btnCopiar = document.createElement('span');
         btnCopiar.textContent = '📋';
@@ -821,6 +1141,7 @@
         btnX.style.cursor = 'pointer';
         btnX.onclick = () => painel.remove();
 
+        ctrls.appendChild(btnCertidao);
         ctrls.appendChild(btnCopiar);
         ctrls.appendChild(btnToggle);
         ctrls.appendChild(btnX);
@@ -830,9 +1151,7 @@
 
         // ── Corpo
         const corpo = document.createElement('div');
-        corpo.style.cssText = 'padding:12px 14px;max-height:460px;overflow-y:auto;user-select:text;';
-
-        function escapeHtml(s) { return String(s).replace(/[&<>"]+/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+        corpo.style.cssText = 'padding:12px 14px;max-height:440px;overflow-y:auto;user-select:text;';
 
         const blocks = (dadosRelatorio || []).slice();
         if (blocks.length === 0) {
@@ -884,6 +1203,52 @@
         }
 
         painel.appendChild(corpo);
+
+        // ── Rodapé com botão Gerar Certidão
+        const rodape = document.createElement('div');
+        rodape.style.cssText = 'padding:8px 14px;background:#f1f8e9;border-top:1px solid #c8e6c9;border-radius:0 0 8px 8px;display:flex;justify-content:flex-end;align-items:center;';
+
+        const btnGerarCertRodape = document.createElement('button');
+        btnGerarCertRodape.textContent = '📜 Gerar Certidão de Juntada';
+        btnGerarCertRodape.title = 'Gerar certidão padronizada de pesquisa INFOJUD';
+        btnGerarCertRodape.style.cssText = `
+            background: #2e7d32; color: #fff; border: none; border-radius: 4px;
+            padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background 0.15s;
+        `;
+        btnGerarCertRodape.onmouseenter = () => btnGerarCertRodape.style.background = '#1b5e20';
+        btnGerarCertRodape.onmouseleave = () => btnGerarCertRodape.style.background = '#2e7d32';
+
+        const acaoGerarCertidao = async () => {
+            let itens = [];
+            if (opts.itensCertidao && opts.itensCertidao.length) {
+                itens = opts.itensCertidao;
+            } else {
+                for (const b of blocks) {
+                    itens.push(...extrairItensDeBlocoTexto(b));
+                }
+            }
+
+            if (!itens.length) {
+                mostrarNotificacao('Nenhum dado de endereço para gerar certidão.', '#ff9800');
+                return;
+            }
+
+            const htmlCertidao = construirHtmlCertidao(itens);
+            const textoCertidao = construirTextoCertidao(itens);
+
+            await copiarCertidaoParaClipboard(htmlCertidao, textoCertidao);
+            mostrarNotificacao('📜 Certidão gerada e copiada para a área de transferência!', '#2e7d32');
+
+            tentarInserirNoCKEditor(htmlCertidao);
+            abrirModalCertidao(htmlCertidao, textoCertidao);
+        };
+
+        btnCertidao.onclick = acaoGerarCertidao;
+        btnGerarCertRodape.onclick = acaoGerarCertidao;
+        rodape.appendChild(btnGerarCertRodape);
+        painel.appendChild(rodape);
+
         document.body.appendChild(painel);
 
         // ── Collapse
@@ -891,6 +1256,7 @@
         const toggleCorpo = () => {
             recolhido = !recolhido;
             corpo.style.display = recolhido ? 'none' : '';
+            rodape.style.display = recolhido ? 'none' : 'flex';
             btnToggle.textContent = recolhido ? '▼' : '▲';
         };
         btnToggle.onclick = toggleCorpo;
@@ -1329,7 +1695,13 @@
             _gmSet('GOD_TIPO_ORIGEM', tipoOrigem);
 
             console.log('[Infojud Detalhe] Abrindo consulta em segundo plano:', url, 'para:', nome || docNumerico);
-            _gmOpenTab(url, { active: false, insert: true });
+            const tabAba = _gmOpenTab(url, { active: false, insert: true });
+
+            const fecharAba = () => {
+                if (tabAba && typeof tabAba.close === 'function') {
+                    try { tabAba.close(); } catch (e) {}
+                }
+            };
 
             const timer = setInterval(() => {
                 const status = _gmGet('GOD_STATUS', '') || '';
@@ -1339,6 +1711,7 @@
                     const ts = parseInt(status.split('_')[2] || '0', 10);
                     if (ts >= (agora - 1000)) {
                         clearInterval(timer);
+                        fecharAba();
                         try {
                             const raw = _gmGet('GOD_DADOS_CAPTURA', '{}') || '{}';
                             const dados = JSON.parse(raw);
@@ -1352,10 +1725,12 @@
                     const ts = parseInt(status.split('_')[1] || '0', 10);
                     if (ts >= (agora - 1000)) {
                         clearInterval(timer);
+                        fecharAba();
                         resolve({ sucesso: false, erro: 'Receita sinalizou sem dados ou erro' });
                     }
                 } else if (decorrido > 35000) {
                     clearInterval(timer);
+                    fecharAba();
                     console.warn('[Infojud Detalhe] Watchdog: timeout aguardando Receita para doc:', docNumerico);
                     resolve({ sucesso: false, erro: 'Tempo limite esgotado' });
                 }
@@ -1372,6 +1747,7 @@
         document.getElementById('god-relatorio-panel')?.remove();
 
         const dadosRelatorio = [];
+        const itensCertidao = [];
         const dadosRelatorioKeys = new Set();
         const total = partesSelecionadas.length;
 
@@ -1403,12 +1779,23 @@
                             rua: d.rua || '',
                             numero: d.numero || '',
                             complemento: d.complemento || '',
+                            bairro: d.bairro || '',
+                            municipio: d.municipio || '',
+                            uf: d.uf || '',
                             cep: d.cep || ''
                         };
                         dadosRelatorio.push(montarRelatorio(pf));
+                        itensCertidao.push({
+                            nome: pf.nome,
+                            documento: formatarDocumento(pf.cpf),
+                            tipoDoc: 'CPF',
+                            identificacao: `${(pf.nome || 'Parte').trim()} - CPF ${formatarDocumento(pf.cpf)}`,
+                            endereco: formatarEnderecoCertidao(pf)
+                        });
                     } else {
                         const empresaEntry = {
                             empresaNome: d.empresaNome || nome || '',
+                            cnpj: d.cnpj || doc,
                             empresaEnderecoRaw: d.empresaEnderecoRaw || '',
                             empresaEndereco: d.empresaEndereco || null,
                             empresaCep: d.empresaCep || '',
@@ -1417,25 +1804,60 @@
                             rua: d.rua || '',
                             numero: d.numero || '',
                             complemento: d.complemento || '',
+                            bairro: d.bairro || '',
+                            municipio: d.municipio || '',
+                            uf: d.uf || '',
                             cep: d.cep || ''
                         };
                         dadosRelatorio.push(montarRelatorio(empresaEntry));
+                        itensCertidao.push({
+                            nome: empresaEntry.empresaNome,
+                            documento: formatarDocumento(empresaEntry.cnpj),
+                            tipoDoc: 'CNPJ',
+                            identificacao: `${(empresaEntry.empresaNome || 'Empresa').trim()} - CNPJ ${formatarDocumento(empresaEntry.cnpj)}`,
+                            endereco: formatarEnderecoCertidaoEmpresa(empresaEntry)
+                        });
+                        if (d.nome && d.cpf) {
+                            itensCertidao.push({
+                                nome: d.nome,
+                                documento: formatarDocumento(d.cpf),
+                                tipoDoc: 'CPF',
+                                identificacao: `${d.nome.trim()} (sócio) - CPF ${formatarDocumento(d.cpf)}`,
+                                endereco: formatarEnderecoCertidao(d)
+                            });
+                        }
                     }
                 }
             } else {
                 if (!dadosRelatorioKeys.has(docKey)) {
                     dadosRelatorioKeys.add(docKey);
                     if (doc.length === 11) {
-                        dadosRelatorio.push(`Nome: ${nome || 'Pessoa Física'}\nCPF: ${formatarDocumento(doc)}\nEndereço: (Não localizado ou sem retorno na Receita Federal)`);
+                        const pfNome = nome || 'Pessoa Física';
+                        dadosRelatorio.push(`Nome: ${pfNome}\nCPF: ${formatarDocumento(doc)}\nEndereço: (Não localizado ou sem retorno na Receita Federal)`);
+                        itensCertidao.push({
+                            nome: pfNome,
+                            documento: formatarDocumento(doc),
+                            tipoDoc: 'CPF',
+                            identificacao: `${pfNome.trim()} - CPF ${formatarDocumento(doc)}`,
+                            endereco: 'Endereço não localizado na pesquisa INFOJUD'
+                        });
                     } else {
-                        dadosRelatorio.push(`Empresa: ${nome || 'Pessoa Jurídica'}\nEndereço: (CNPJ ${formatarDocumento(doc)}: Não localizado ou sem retorno na Receita Federal)`);
+                        const pjNome = nome || 'Pessoa Jurídica';
+                        dadosRelatorio.push(`Empresa: ${pjNome}\nCNPJ: ${formatarDocumento(doc)}\nEndereço: (Não localizado ou sem retorno na Receita Federal)`);
+                        itensCertidao.push({
+                            nome: pjNome,
+                            documento: formatarDocumento(doc),
+                            tipoDoc: 'CNPJ',
+                            identificacao: `${pjNome.trim()} - CNPJ ${formatarDocumento(doc)}`,
+                            endereco: 'Endereço não localizado na pesquisa INFOJUD'
+                        });
                     }
                 }
             }
         }
 
         mostrarNotificacao(`Pesquisa Infojud finalizada! (${total} partes processadas)`, '#28a745', false);
-        renderizarPainelRelatorio(dadosRelatorio, { isMinutas: false });
+        renderizarPainelRelatorio(dadosRelatorio, { isMinutas: false, itensCertidao: itensCertidao });
     }
 
     async function executarInfojudDetalhe() {
@@ -1490,9 +1912,9 @@
     if (URL_ATUAL.includes('detalheNICNPJ.asp')) {
         if (document.body.innerText.includes('Nenhum registro') || document.body.innerText.includes('Erro')) {
             _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
-            mostrarNotificacao('Falha: Nenhum registro. Aguarde ou feche manualmente.', '#dc3545', true);
-            // tenta devolver foco ao PJe para que ele prossiga
+            mostrarNotificacao('Falha: Nenhum registro. Fechando aba...', '#dc3545', false);
             try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}
+            setTimeout(() => { try { window.close(); } catch (e) {} }, 400);
             return;
         }
         setTimeout(() => {
@@ -1502,12 +1924,19 @@
                 _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(cnpjDados));
             }
             if (cpf && cpf.length === 11) {
-                mostrarNotificacao('CNPJ Direcionando para CPF...', '#0288d1');
+                mostrarNotificacao('CNPJ Direcionando para CPF...', '#0288d1', false);
                 _gmOpenTab(URL_BASE_CPF + cpf, { active: false, insert: true });
+                setTimeout(() => { try { window.close(); } catch (e) {} }, 500);
+            } else if (cnpjDados.empresaNome && (cnpjDados.empresaEnderecoRaw || cnpjDados.empresaCep)) {
+                _gmSet('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
+                mostrarNotificacao('DADOS CNPJ OK! Retornando ao PJe...', '#28a745', false);
+                _devolverFocoPJe();
+                setTimeout(() => { try { window.close(); } catch (e) {} }, 400);
             } else {
                 _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
-                mostrarNotificacao('Nenhum CPF Elegível Encontrado.', '#ffc107', true);
+                mostrarNotificacao('Nenhum dado ou CPF elegível encontrado. Fechando...', '#ffc107', false);
                 try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}
+                setTimeout(() => { try { window.close(); } catch (e) {} }, 400);
             }
         }, 800);
     } 
@@ -1521,20 +1950,22 @@
                     tipoOrigem: _gmGet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL')
                 });
 
-                if (merged.cep) {
+                if (merged.cep || merged.rua || merged.endRaw) {
                     _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(merged));
                     _gmSet('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
                     console.log('[Infojud Receita] Dados extraídos e enviados ao AUD:', merged);
-                    mostrarNotificacao('DADOS OK! Retornando ao PJe...', '#28a745', true);
+                    mostrarNotificacao('DADOS OK! Retornando ao PJe...', '#28a745', false);
                     _devolverFocoPJe();
+                    setTimeout(() => { try { window.close(); } catch (e) {} }, 400);
                 } else {
                     throw new Error('Dados incompletos');
                 }
             } catch (e) {
                 console.error(e);
                 _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
-                mostrarNotificacao('Erro na Leitura da Receita. Pulando no PJe.', '#dc3545', true);
+                mostrarNotificacao('Erro na Leitura da Receita. Fechando...', '#dc3545', false);
                 _devolverFocoPJe();
+                setTimeout(() => { try { window.close(); } catch (e) {} }, 400);
             }
         }, 1000);
     }

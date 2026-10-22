@@ -80,9 +80,9 @@ verificável. Onde não houver substituição segura, o agente **para e registra
 - **`Andrei/` fica.** Mantido para execução isolada e testes (DEAD-001: "NÃO DELETAR", decisão do usuário).
 - A execução do bot continua **isolada** (mandado sozinho → pec sozinho → vencimento de prazo manual + p2b sozinho) — fora do escopo desta migração.
 
-### Bug de código conhecido (NÃO é trabalho de migração — registrar, não corrigir)
+### Bug de código conhecido (RESOLVIDO)
 
-- `Fix/core.py:2551` — import quebrado (`obter_sessao_do_driver` não existe em `Fix/variaveis.py`; os reais são `session_from_driver` e `cliente_para`) → `baixarCP()` sempre falha e cai no fallback DOM vazio.
+- `Fix/core.py` — `baixarCP()` e `contar_mandados_e_certidoes_oficial` refatorados com suporte nativo Playwright, API-first (`id_processo` + `/timeline` com UIDs `#doc_<hash>`), fallback de DOM resiliente a `mat-checkbox[aria-label]` e extração consolidada.
 
 ---
 
@@ -436,7 +436,7 @@ Arquivo listado como migrado em `tools/pw_baseline.json` não pode regredir.
 | Clique em polo ativo | exige escada: limpar overlay → clique real → fallback sintético. `dispatchEvent` sozinho não efetiva em `mat-icon-button`. |
 | `mov_sob` | valida por snackbar efêmera → falso-negativo (marca falha sem confirmar). Trocar por condição observável é mudança de comportamento: **registrar, não migrar**. |
 | Cascata "Nenhuma janela aberta" | dezenas de processos morrem em cadeia após a janela fechar. Não é regressão de migração; é ausência de health-check. |
-| `Fix/core.py:2551` | import quebrado (`obter_sessao_do_driver`) → `baixarCP()` sempre falha. Bug de código: registrar. |
+| `Fix/core.py` | `baixarCP()` e contagem CP refatorados e corrigidos (API + DOM robusto com seletores `#doc_*`). |
 | `pdfplumber` | ausente no `.venv` (3.13) — não é problema de migração. |
 | Duplicação de log | `TeeOutput` + FileHandler → cada linha 2×. Só corrigir na F1. |
 

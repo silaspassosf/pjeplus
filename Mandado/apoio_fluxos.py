@@ -1958,7 +1958,9 @@ def fluxo_mandados_cp(
             return _incompleto('penhora positiva — sem padrao negativo')
 
     try:
-        qtd_mandados, qtd_certidoes = contar_mandados_e_certidoes_oficial(driver, log=log)
+        qtd_mandados, qtd_certidoes = contar_mandados_e_certidoes_oficial(
+            driver, log=log, numero_processo=numero_processo
+        )
     except ElementoNaoEncontradoError as e:
         logger.error(f'[MANDADOS][CP] #{numero_processo}: falha ao contar mandados/certidoes: {e}')
         return None
@@ -1969,7 +1971,7 @@ def fluxo_mandados_cp(
 
     logger.info(f'[MANDADOS][CP] #{numero_processo}: fluxo completo — baixarCP + juntada devcp + mov arquivar')
     try:
-        if not baixarCP(driver, log=log):
+        if not baixarCP(driver, log=log, numero_processo=numero_processo):
             logger.error(f'[MANDADOS][CP] #{numero_processo}: baixarCP() retornou False — abortando')
             return None
     except ElementoNaoEncontradoError as e:

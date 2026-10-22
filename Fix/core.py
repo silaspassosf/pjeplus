@@ -679,7 +679,7 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             if hasattr(elemento, "_handle") and elemento._handle:
                 p_handle = elemento._handle.evaluate_handle("el => el.closest('button')")
                 if p_handle:
-                    from play.pjeplay.pwelement import PWElement
+                    from Play.pjeplay.element import PWElement
                     parent = PWElement(p_handle.as_element(), getattr(driver, "page", None))
             elif hasattr(elemento, "find_element"):
                 parent = getattr(elemento, "find_element")(By.XPATH, "./ancestor::button[1]")
@@ -2504,21 +2504,31 @@ def _buscar_filho(elem, seletor):
     if hasattr(elem, "_handle") and elem._handle:
         handle = elem._handle.query_selector(seletor)
         if handle:
-            from play.pjeplay.pwelement import PWElement
-            return PWElement(handle)
+            from Play.pjeplay.element import PWElement
+            return PWElement(handle, getattr(elem, "_page", None))
         return None
-    fn = getattr(elem, "find" + "_element", None)
-    return fn(By.CSS_SELECTOR, seletor) if fn else None
+    if hasattr(elem, "query_selector"):
+        try:
+            return elem.query_selector(seletor)
+        except Exception:
+            return None
+    fn = getattr(elem, "locator", None)
+    return fn(seletor) if fn else None
 
 
 def _buscar_filhos(elem, seletor):
     """Busca elementos filhos suportando PWElement e compatibilidade."""
     if hasattr(elem, "_handle") and elem._handle:
         handles = elem._handle.query_selector_all(seletor)
-        from play.pjeplay.pwelement import PWElement
-        return [PWElement(h) for h in handles]
-    fn = getattr(elem, "find" + "_elements", None)
-    return fn(By.CSS_SELECTOR, seletor) if fn else []
+        from Play.pjeplay.element import PWElement
+        return [PWElement(h, getattr(elem, "_page", None)) for h in handles]
+    if hasattr(elem, "query_selector_all"):
+        try:
+            return elem.query_selector_all(seletor)
+        except Exception:
+            return []
+    fn = getattr(elem, "all", None)
+    return fn() if fn else []
 
 
 def buscar_documentos_sequenciais(driver, log=True):
@@ -2614,44 +2624,15 @@ _CP_MANDADO = 'mandado'
 _CP_CERTIDAO_OJ = 'certidao de oficial de justica'
 
 
-def _obter_timeline_via_api(driver, log=True):
-    """Obtem timeline via API REST (mais confiavel que DOM parsing).
-    
-    Returns:
-        list[dict] ou None se falhar
-    """
-    try:
-        from Fix.variaveis import cliente_para
-        from Fix.extracao import extrair_numero_processo_url
-        
-        url_atual = driver.current_url
-        numero_processo = extrair_numero_processo_url(url_atual)
-        if not numero_processo:
-            if log:
-                logger.warning('[TIMELINE_API] Nao conseguiu extrair numero_processo da URL: %s', url_atual)
-            return None
-        
-        client = cliente_para(driver)
-        if not client:
-            if log:
-                logger.warning('[TIMELINE_API] Nao conseguiu extrair sessao do driver')
-            return None
-        
-        # Chamar endpoint /timeline
-        timeline = client.timeline(numero_processo, buscarDocumentos=True, buscarMovimentos=False)
-        if timeline:
-            if log:
-                logger.info('[TIMELINE_API] ✓ Obtido timeline com %d itens via API', len(timeline))
-        else:
-            if log:
-                logger.warning('[TIMELINE_API] API retornou timeline vazia/None')
-        
-        return timeline
-    
-    except Exception as e:
-        if log:
-            logger.error('[TIMELINE_API] Erro ao chamar /timeline: %s', str(e))
-        return None
+def _executar_js(driver: Any, script: str, *args):
+    """Executa script JS via driver (PWDriver/Playwright) de forma compatível."""
+    fn = getattr(driver, 'execute_script', None)
+    if fn is not None:
+        return fn(script, *args)
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        return page.evaluate(script, *args)
+    return None
 
 
 def _normalizar_para_cp(texto):
@@ -2660,6 +2641,107 @@ def _normalizar_para_cp(texto):
         return ''
     from Fix.utils import normalizar_texto
     return normalizar_texto(texto).strip()
+
+
+def _extrair_texto_item_api(doc):
+    """Extrai texto consolidado (titulo, tipo, descricao, nomeDocumento) de item da API timeline."""
+    if not isinstance(doc, dict):
+        return ''
+    titulo = _normalizar_para_cp(doc.get('titulo') or '')
+    tipo = _normalizar_para_cp(doc.get('tipo') or '')
+    descricao = _normalizar_para_cp(doc.get('descricao') or '')
+    nome_doc = _normalizar_para_cp(doc.get('nomeDocumento') or '')
+    return f"{titulo} {tipo} {descricao} {nome_doc}".strip()
+
+
+def _cp_eh_cdist(texto: str) -> bool:
+    """Verifica se texto corresponde a Certidão de Distribuição (âncora primária de CP)."""
+    return ('certidao' in texto and 'distribuicao' in texto) or 'certidao de distribuicao' in texto
+
+
+def _cp_eh_despacho(texto: str) -> bool:
+    """Verifica se texto corresponde a Despacho."""
+    return bool(_CP_DESPACHO.search(texto))
+
+
+def _cp_eh_mandado(texto: str) -> bool:
+    """Verifica se texto corresponde a Mandado."""
+    return 'mandado' in texto and 'mandado de pagamento' not in texto and 'mandado de seguranca' not in texto
+
+
+def _cp_eh_certidao_oj(texto: str) -> bool:
+    """Verifica se texto corresponde a Certidão de Oficial de Justiça."""
+    return (
+        'certidao de oficial de justica' in texto
+        or 'certidao de oficial' in texto
+        or ('certidao' in texto and 'oficial de justica' in texto)
+    )
+
+
+def _cp_eh_certidao_geral(texto: str) -> bool:
+    """Verifica se texto corresponde a Certidão em geral (ex.: certidão de ciência ao deprecante)."""
+    return 'certidao' in texto
+
+
+def _obter_timeline_via_api(driver, log=True, numero_processo=None):
+    """Obtem timeline via API REST (mais confiavel que DOM parsing).
+    
+    Returns:
+        list[dict] ou None se falhar
+    """
+    try:
+        from Fix.variaveis import cliente_para
+        url_atual = getattr(driver, 'current_url', '') or ''
+        
+        # 1. Tentar extrair id_processo da URL (/processo/123456)
+        id_processo = None
+        m = re.search(r'/processo/(\d+)', url_atual)
+        if m:
+            id_processo = m.group(1)
+            
+        client = cliente_para(driver)
+        if not client:
+            if log:
+                logger.warning('[TIMELINE_API] Nao conseguiu extrair sessao do driver')
+            return None
+            
+        # 2. Se não extraiu da URL, tentar obter ID via numero_processo se disponível
+        if not id_processo:
+            num = numero_processo
+            if not num:
+                from Fix.extracao import extrair_numero_processo_url
+                try:
+                    num = extrair_numero_processo_url(driver)
+                except Exception:
+                    num = None
+            if num:
+                try:
+                    url_agrup = client._url(f"/pje-comum-api/api/agrupamentotarefas/processos?numero={num}")
+                    r = client.sess.get(url_agrup, timeout=10)
+                    if r.ok and r.json():
+                        id_processo = str(r.json()[0].get('idProcesso') or '')
+                except Exception as e:
+                    if log:
+                        logger.debug('[TIMELINE_API] Falha ao obter idProcesso por numero: %s', e)
+                        
+        if not id_processo:
+            if log:
+                logger.warning('[TIMELINE_API] Nao conseguiu extrair id_processo da URL: %s', url_atual)
+            return None
+            
+        timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
+        if timeline:
+            if log:
+                logger.info('[TIMELINE_API] ✓ Obtido timeline com %d itens via API (id_processo=%s)', len(timeline), id_processo)
+            return timeline
+        else:
+            if log:
+                logger.warning('[TIMELINE_API] API retornou timeline vazia/None para id_processo=%s', id_processo)
+            return None
+    except Exception as e:
+        if log:
+            logger.error('[TIMELINE_API] Erro ao chamar /timeline: %s', str(e))
+        return None
 
 
 def _encontrar_documento_na_timeline_api(timeline, padrao_normalize, padrao_regex=None):
@@ -2680,9 +2762,7 @@ def _encontrar_documento_na_timeline_api(timeline, padrao_normalize, padrao_rege
         if not isinstance(doc, dict):
             continue
         
-        titulo = _normalizar_para_cp(doc.get('titulo') or '')
-        tipo = _normalizar_para_cp(doc.get('tipo') or '')
-        texto_completo = titulo + ' ' + tipo
+        texto_completo = _extrair_texto_item_api(doc)
         
         # Tentar matching por string normalizada
         if padrao_normalize and padrao_normalize in texto_completo:
@@ -2709,9 +2789,7 @@ def _contar_documentos_na_timeline_api(timeline, padrao_normalize, padrao_regex=
         if not isinstance(doc, dict):
             continue
         
-        titulo = _normalizar_para_cp(doc.get('titulo') or '')
-        tipo = _normalizar_para_cp(doc.get('tipo') or '')
-        texto_completo = titulo + ' ' + tipo
+        texto_completo = _extrair_texto_item_api(doc)
         
         # Tentar matching por string normalizada
         if padrao_normalize and padrao_normalize in texto_completo:
@@ -2724,136 +2802,154 @@ def _contar_documentos_na_timeline_api(timeline, padrao_normalize, padrao_regex=
 
 
 def _cp_texto_documento(elem, debug=False):
-    """Le o texto do link a.tl-documento de um <li class="tl-item-container">.
-    Usa normalizar_texto (Remove acentos corretamente, sem .encode('ascii').
+    """Lê o texto do item da timeline ou checkbox mat-checkbox.
+    Busca em múltiplos atributos (aria-label, title, link a.tl-documento, innerText).
+    Usa normalizar_texto (remove acentos corretamente).
     """
     from Fix.utils import normalizar_texto
-    
-    texto_bruto = ''
-    
+
+    if elem is None:
+        return ''
+
+    partes = []
+
+    # 1. Se for mat-checkbox ou contiver mat-checkbox, pegar aria-label e title
     try:
-        # Diagnostic 1: Check element properties
-        if debug:
-            try:
-                elem_id = elem.get_attribute('id')
-                elem_class = elem.get_attribute('class')
-                elem_tag = elem.tag_name
-                logger.debug(f'[_CP_TEXTO] elem: tag={elem_tag} id={elem_id} class={elem_class}')
-            except Exception as e:
-                logger.debug(f'[_CP_TEXTO] Falha ao ler propriedades elem: {e}')
-        
-        # Tentativa 1: Buscar <a class="tl-documento">
-        try:
-            link = _buscar_filho(elem, 'a.tl-documento')
-            if link:
-                if debug:
-                    logger.debug(f'[_CP_TEXTO] Encontrou a.tl-documento')
-                texto_bruto = link.text.strip()
-                if debug:
-                    logger.debug(f'[_CP_TEXTO] text do link: "{texto_bruto[:100]}"')
-            else:
-                raise NoSuchElementException("a.tl-documento nao encontrado")
-        except NoSuchElementException as nse:
-            if debug:
-                logger.debug(f'[_CP_TEXTO] a.tl-documento NAO ENCONTRADO (NoSuchElementException)')
-                # Tentar diagnosticar quais elementos estão dentro
-                try:
-                    all_children = _buscar_filhos(elem, '*')
-                    logger.debug(f'[_CP_TEXTO] Total de elementos filhos: {len(all_children)}')
-                    for i, child in enumerate(all_children[:5]):  # Primeiros 5
-                        try:
-                            logger.debug(f'  [{i}] {child.tag_name}.{child.get_attribute("class")} => "{child.text[:50]}"')
-                        except:
-                            pass
-                except Exception as e2:
-                    logger.debug(f'[_CP_TEXTO] Falha ao listar filhos: {e2}')
-            
-            # Tentativa 2: Pegar text do elemento pai
-            try:
-                texto_bruto = elem.text.strip()
-                if debug:
-                    logger.debug(f'[_CP_TEXTO] Recuperado text() do li.tl-item-container: "{texto_bruto[:100]}"')
-            except Exception as e:
-                if debug:
-                    logger.debug(f'[_CP_TEXTO] Falha ao ler elem.text: {e}')
-                return ''
-        
-        except StaleElementReferenceException as sre:
-            if debug:
-                logger.debug(f'[_CP_TEXTO] StaleElementReferenceException (elemento foi removido do DOM)')
-            return ''
-        
-        except Exception as e:
-            if debug:
-                logger.debug(f'[_CP_TEXTO] Exceção inesperada ao buscar a.tl-documento: {type(e).__name__}: {e}')
-            return ''
-    
+        chk = None
+        if hasattr(elem, 'tag_name') and elem.tag_name == 'mat-checkbox':
+            chk = elem
+        else:
+            chk = _buscar_filho(elem, 'mat-checkbox')
+
+        if chk:
+            aria_label = chk.get_attribute('aria-label')
+            if aria_label and isinstance(aria_label, str):
+                partes.append(aria_label)
+            title = chk.get_attribute('title')
+            if title and isinstance(title, str):
+                partes.append(title)
     except Exception as e:
         if debug:
-            logger.debug(f'[_CP_TEXTO] Exceção em bloco externo: {type(e).__name__}: {e}')
-        return ''
-    
-    # Normalizar texto
-    texto_normalizado = normalizar_texto(texto_bruto)
-    
+            logger.debug(f'[_CP_TEXTO] Falha ao ler mat-checkbox: {e}')
+
+    # 2. Buscar link a.tl-documento
+    try:
+        link = _buscar_filho(elem, 'a.tl-documento')
+        if link:
+            l_txt = getattr(link, 'text', '')
+            if l_txt and isinstance(l_txt, str):
+                partes.append(l_txt.strip())
+    except Exception as e:
+        if debug:
+            logger.debug(f'[_CP_TEXTO] Falha ao ler a.tl-documento: {e}')
+
+    # 3. Buscar texto geral do elemento pai (inner_text)
+    try:
+        txt = getattr(elem, 'text', '')
+        if txt and isinstance(txt, str):
+            partes.append(txt.strip())
+    except Exception as e:
+        if debug:
+            logger.debug(f'[_CP_TEXTO] Falha ao ler elem.text: {e}')
+
+    texto_bruto = ' '.join(str(p) for p in partes).strip()
+    texto_norm = normalizar_texto(texto_bruto)
+
     if debug:
-        logger.debug(f'[_CP_TEXTO] FINAL => Bruto: "{texto_bruto[:80]}" | Normalizado: "{texto_normalizado[:80]}"')
-    
-    return texto_normalizado
+        logger.debug(f'[_CP_TEXTO] Bruto: "{texto_bruto[:100]}" | Norm: "{texto_norm[:100]}"')
+
+    return texto_norm
 
 
-def _cp_marcar_checkbox(driver, elem, timeout):
+def _cp_marcar_checkbox(driver, elem, timeout=10):
     """Marca o checkbox mat-checkbox de um item da timeline (idempotente).
-
-    Localiza o checkbox DENTRO do elemento da timeline (padrão do fluxo Argos —
-    Mandado/anexos_argos.py) e clica direto no span.mat-checkbox-inner-container,
-    sem depender do id do <li> (que pode não existir no DOM atual do PJe).
+    Suporta PWElement de mat-checkbox, PWElement de li.tl-item-container,
+    ou seletor string (ex: '#doc_47c03da').
     """
     from Fix.browser_suporte import click_headless_safe
 
     try:
-        # Já marcado? (idempotência)
+        # Se elem for string (ex: seletor '#doc_12345')
+        if isinstance(elem, str):
+            sel = elem
+            el = espera.elemento(driver, sel, teto=timeout)
+            if not el and sel.startswith('#doc_'):
+                # Fallback: procurar elemento cujo link contenha o UID
+                uid = sel.replace('#doc_', '')
+                try:
+                    el = espera.elemento(driver, f"a[href*='{uid}'], a[id*='{uid}']", teto=2)
+                except Exception:
+                    el = None
+            if not el:
+                return click_headless_safe(driver, sel, timeout=timeout)
+            elem = el
+
+        # 1. Verificar se já está marcado (idempotência)
         try:
-            input_cb = _buscar_filho(elem, 'input.mat-checkbox-input')
-            if input_cb and input_cb.get_attribute('aria-checked') == 'true':
+            input_cb = _buscar_filho(elem, 'input.mat-checkbox-input, input[type="checkbox"]')
+            if input_cb:
+                if input_cb.get_attribute('aria-checked') == 'true' or input_cb.is_selected():
+                    return True
+            cls = elem.get_attribute('class') or ''
+            if 'mat-checkbox-checked' in cls:
                 return True
-        except NoSuchElementException:
+        except Exception:
             pass
 
-        # Padrão Argos: achar o container do checkbox dentro do item e clicar direto
+        # 2. Tentar clicar no span.mat-checkbox-inner-container
         try:
-            chk = _buscar_filho(elem, 'span.mat-checkbox-inner-container')
-            if chk and safe_click_no_scroll(driver, chk):
+            chk_inner = _buscar_filho(elem, 'span.mat-checkbox-inner-container, label.mat-checkbox-layout')
+            if chk_inner and safe_click_no_scroll(driver, chk_inner):
                 return True
-        except NoSuchElementException:
+        except Exception:
             pass
 
-        # Fallback: usar o id do li (caso exista) + click_headless_safe
+        # 3. Tentar clicar no próprio mat-checkbox
         try:
-            li_id = elem.get_attribute('id')
-        except StaleElementReferenceException:
-            return False
-        if li_id:
-            return click_headless_safe(driver, f'#{li_id} span.mat-checkbox-inner-container', timeout=timeout)
+            chk_mat = elem if getattr(elem, 'tag_name', '') == 'mat-checkbox' else _buscar_filho(elem, 'mat-checkbox')
+            if chk_mat and safe_click_no_scroll(driver, chk_mat):
+                return True
+        except Exception:
+            pass
+
+        # 4. Fallback por seletor de ID (se tiver id com doc_ ou outro)
+        try:
+            elem_id = elem.get_attribute('id')
+            if elem_id:
+                if click_headless_safe(driver, f'#{elem_id} span.mat-checkbox-inner-container', timeout=timeout):
+                    return True
+                if click_headless_safe(driver, f'#{elem_id}', timeout=timeout):
+                    return True
+        except Exception:
+            pass
+
+        # 5. Fallback via JS click
+        try:
+            clicou = _executar_js(driver, """
+                const el = arguments[0];
+                if (!el) return false;
+                const cb = el.matches && el.matches('mat-checkbox') ? el : el.querySelector('mat-checkbox');
+                const target = cb ? (cb.querySelector('.mat-checkbox-inner-container') || cb.querySelector('input') || cb) : el;
+                target.click();
+                return true;
+            """, elem)
+            if clicou:
+                return True
+        except Exception:
+            pass
 
         return False
-    except StaleElementReferenceException:
+    except Exception:
         return False
 
 
-def contar_mandados_e_certidoes_oficial(driver, log=True):
+def contar_mandados_e_certidoes_oficial(driver, log=True, numero_processo=None):
     """Conta, na timeline atual, quantos itens sao 'Mandado' e 'Certidao de Oficial de Justica'.
     
     ESTRATÉGIA:
-    1. Tentar obter via API /timeline (confiavel, sem problemas de DOM)
-    2. Se falhar, fallback para parsing do DOM (legacy)
+    1. Tentar obter via API /timeline (confiável, sem problemas de DOM)
+    2. Se falhar, fallback para parsing do DOM
     
-    Nao clica em nada — apenas le a timeline ja renderizada.
-    Deve ser chamada ANTES de decidir se baixarCP() sera acionado.
-
-    Raises:
-        ElementoNaoEncontradoError: timeline vazia.
-
     Returns:
         tuple[int, int]: (qtd_mandados, qtd_certidoes_oficial)
     """
@@ -2865,46 +2961,47 @@ def contar_mandados_e_certidoes_oficial(driver, log=True):
     if log:
         logger.info('[CONTAR_CP] Tentando obter timeline via API /timeline...')
     
-    timeline_api = _obter_timeline_via_api(driver, log=log)
+    timeline_api = _obter_timeline_via_api(driver, log=log, numero_processo=numero_processo)
     if timeline_api is not None:
-        qtd_mandados = _contar_documentos_na_timeline_api(timeline_api, _CP_MANDADO)
-        qtd_certidoes = _contar_documentos_na_timeline_api(timeline_api, _CP_CERTIDAO_OJ)
-        
+        qtd_mandados = 0
+        qtd_certidoes = 0
+        for doc in timeline_api:
+            if not isinstance(doc, dict):
+                continue
+            texto = _extrair_texto_item_api(doc)
+            if _cp_eh_mandado(texto):
+                qtd_mandados += 1
+            elif _cp_eh_certidao_oj(texto):
+                qtd_certidoes += 1
+                
         if log:
             logger.info('[CONTAR_CP] ✅ Via API: mandados=%d certidoes_oficial=%d', 
                        qtd_mandados, qtd_certidoes)
         
         return qtd_mandados, qtd_certidoes
-    
+
     if log:
         logger.warning('[CONTAR_CP] ⚠️ Falha na API; usando fallback DOM parsing...')
-    
+
     # ========================================================================
-    # FALLBACK: Via DOM (legacy, menos confiavel)
+    # FALLBACK: Via DOM
     # ========================================================================
-    elementos = espera.elementos(driver, 'li.tl-item-container')
+    elementos = espera.elementos(driver, 'li.tl-item-container, mat-checkbox[id^="doc_"]')
     if not elementos:
-        raise ElementoNaoEncontradoError('[CONTAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
+        raise ElementoNaoEncontradoError('[CONTAR_CP] Timeline vazia (li.tl-item-container ou mat-checkbox nao encontrado)')
 
     qtd_mandados = 0
     qtd_certidoes = 0
     if log:
         logger.info('[CONTAR_CP] [FALLBACK-DOM] Lendo %d elementos da timeline...', len(elementos))
-    
+
     for idx, elem in enumerate(elementos):
-        # SEMPRE usar debug=True durante fallback; ativa logging detalhado
         texto = _cp_texto_documento(elem, debug=True if log else False)
-        
-        # Logar SEMPRE, mesmo que texto seja vazio (para diagnosticar por quê)
-        if log:
-            status = "OK" if texto else "VAZIO/FALHA"
-            logger.info(f'[CONTAR_CP] [FALLBACK] Item {idx}: {status} => "{texto[:100] if texto else "(sem conteúdo)"}"')
-        
-        if _CP_MANDADO in texto:
+        if _cp_eh_mandado(texto):
             qtd_mandados += 1
             if log:
                 logger.info(f'[CONTAR_CP] Item {idx}: ✓ MANDADO encontrado')
-        elif _CP_CERTIDAO_OJ in texto:
+        elif _cp_eh_certidao_oj(texto):
             qtd_certidoes += 1
             if log:
                 logger.info(f'[CONTAR_CP] Item {idx}: ✓ CERTIDAO_OJ encontrada')
@@ -2916,13 +3013,12 @@ def contar_mandados_e_certidoes_oficial(driver, log=True):
     return qtd_mandados, qtd_certidoes
 
 
-
-def baixarCP(driver, timeout=15, log=True):
+def baixarCP(driver, timeout=15, log=True, numero_processo=None):
     """
     Seleciona na timeline (ul.pje-timeline) documentos CP (Carta Precatória):
     - Tenta usar Certidão de Distribuição como âncora (se existir)
     - Se não houver CDist, usa o primeiro Despacho encontrado (mais antigo)
-    - Depois marca todos os Mandados/Certidões de Oficial de Justiça até o topo
+    - Depois marca todos os Mandados/Certidões até o topo
     - Baixa a seleção como PDF único
 
     Raises:
@@ -2933,130 +3029,169 @@ def baixarCP(driver, timeout=15, log=True):
         bool: True quando o download "PDF único" foi iniciado com sucesso.
     """
     from Fix.browser_suporte import click_headless_safe
+    from atos.movimentos_navegacao import clicar_botao_por_texto
     from Fix.facade_publica import ElementoNaoEncontradoError
 
     if log:
-        logger.info('[BAIXAR_CP] Iniciando selecao de Certidao de Distribuicao + anexos')
+        logger.info('[BAIXAR_CP] Iniciando selecao de Carta Precatoria (CDist + anexos)')
 
-    if not click_headless_safe(driver, '#exibirOcultarMultiplaSelecao', timeout=timeout):
-        raise ElementoNaoEncontradoError('[BAIXAR_CP] Botao "Exibir multipla selecao" nao encontrado/clicavel')
+    # 1. Ativar múltipla seleção se ainda não estiver ativa
+    btn_baixar_visivel = False
+    try:
+        el_baixar = espera.elemento(driver, '#baixar-docs-selecionados', teto=1)
+        if el_baixar and el_baixar.is_displayed():
+            btn_baixar_visivel = True
+    except Exception:
+        btn_baixar_visivel = False
 
-    aguardar_renderizacao_nativa(driver, 'li.tl-item-container mat-checkbox', modo='aparecer', timeout=timeout)
+    if not btn_baixar_visivel:
+        if not click_headless_safe(driver, '#exibirOcultarMultiplaSelecao', timeout=timeout):
+            raise ElementoNaoEncontradoError('[BAIXAR_CP] Botao "Exibir multipla selecao" (#exibirOcultarMultiplaSelecao) nao encontrado/clicavel')
 
-    elementos = espera.elementos(driver, 'li.tl-item-container')
-    if not elementos:
-        raise ElementoNaoEncontradoError('[BAIXAR_CP] Timeline vazia (li.tl-item-container nao encontrado)')
+    # Aguardar renderização dos checkboxes na timeline
+    aguardar_renderizacao_nativa(driver, 'mat-checkbox[id^="doc_"], li.tl-item-container mat-checkbox', modo='aparecer', timeout=timeout)
 
-    if log:
-        logger.info('[BAIXAR_CP] Lendo %d elementos da timeline para localizar âncora...', len(elementos))
+    # 2. Tentar estratégia via API para identificar os UIDs exatos
+    timeline_api = _obter_timeline_via_api(driver, log=log, numero_processo=numero_processo)
+    uids_para_marcar = []
 
-    # Estratégia de âncora: tentar Certidão de Distribuição; se não existir, usar Despacho
-    idx_ancora = None
-    eh_cdist = False
-    
-    if log:
-        logger.info('[BAIXAR_CP] BUSCANDO ÂNCORA — Estratégia: 1º CDist, 2º Despacho')
-    
-    for idx, elem in enumerate(elementos):
-        texto = _cp_texto_documento(elem, debug=True)  # SEMPRE debug=True para diagnosticar
-        
-        # Logar SEMPRE o resultado, mesmo se vazio
+    if timeline_api:
         if log:
-            status = "OK" if texto else "VAZIO"
-            logger.info(f'[BAIXAR_CP] Item {idx}: {status} | "{texto[:80] if texto else "(sem conteúdo)"}"')
-            # Verificar padrões explicitamente
-            if _CP_ANCORA in texto:
-                logger.info(f'  ✓ Padrão _CP_ANCORA ("{_CP_ANCORA}") ENCONTRADO')
-            if _CP_DESPACHO.search(texto):
-                logger.info(f'  ✓ Padrão _CP_DESPACHO (regex) ENCONTRADO')
-        
-        if _CP_ANCORA in texto:
-            idx_ancora = idx
-            eh_cdist = True
-            if log:
-                logger.info(f'[BAIXAR_CP] ✅ Item {idx}: CERTIDAO_DISTRIBUICAO é a ÂNCORA PRIMÁRIA')
-            break
-    
-    # Se não houver CDist, procura pelo primeiro Despacho (item mais antigo com Despacho)
-    if idx_ancora is None:
-        if log:
-            logger.info('[BAIXAR_CP] 🔄 CDist não encontrada; procurando DESPACHO como fallback...')
-        
-        for idx in range(len(elementos) - 1, -1, -1):  # varredura de baixo para cima = antigo para recente
-            texto = _cp_texto_documento(elementos[idx], debug=True if log else False)
-            
-            if log:
-                status = "OK" if texto else "VAZIO"
-                logger.info(f'[BAIXAR_CP] Item {idx} (fallback Despacho): {status} | "{texto[:80] if texto else "(sem conteúdo)"}"')
-            
-            if _CP_DESPACHO.search(texto):
+            logger.info('[BAIXAR_CP] Identificando documentos via API (/timeline)...')
+        idx_ancora = None
+        eh_cdist = False
+
+        # 1º procurar CDist
+        for idx, doc in enumerate(timeline_api):
+            texto = _extrair_texto_item_api(doc)
+            if _cp_eh_cdist(texto):
                 idx_ancora = idx
-                eh_cdist = False
+                eh_cdist = True
                 if log:
-                    logger.info(f'[BAIXAR_CP] ✅ Item {idx}: DESPACHO encontrado (âncora secundária)')
+                    logger.info('[BAIXAR_CP] [API] Âncora CDist encontrada no índice %d (uid=%s)', idx, doc.get('idUnicoDocumento'))
                 break
-        
-        if idx_ancora is not None and log:
-            logger.info(f'[BAIXAR_CP] Usando Despacho no índice {idx_ancora} como âncora')
-    
-    if idx_ancora is None:
-        if log:
-            logger.error('[BAIXAR_CP] ❌ FALHA: Nem CDist nem Despacho encontrados na timeline (DOM).')
-            logger.error('[BAIXAR_CP] Documentos lidos do DOM:')
-            for idx, elem in enumerate(elementos):
-                texto = _cp_texto_documento(elem, debug=False)
-                logger.error(f'  [Item {idx}] "{texto[:120] if texto else "(sem conteúdo)"}"')
-        
-        # Último recurso: mostrar diagnóstico da API também
-        timeline_api = _obter_timeline_via_api(driver, log=False)
-        if timeline_api:
+
+        # 2º se não houver CDist, procurar despacho mais antigo (do final para o início)
+        if idx_ancora is None:
+            for idx in range(len(timeline_api) - 1, -1, -1):
+                texto = _extrair_texto_item_api(timeline_api[idx])
+                if _cp_eh_despacho(texto):
+                    idx_ancora = idx
+                    eh_cdist = False
+                    if log:
+                        logger.info('[BAIXAR_CP] [API] Âncora Despacho encontrada no índice %d (uid=%s)', idx, timeline_api[idx].get('idUnicoDocumento'))
+                    break
+
+        if idx_ancora is not None:
+            # Documentos a marcar: a âncora e todos os documentos relevantes entre a âncora e o topo (index 0)
+            for idx in range(idx_ancora, -1, -1):
+                doc = timeline_api[idx]
+                uid = doc.get('idUnicoDocumento')
+                if not uid:
+                    continue
+                texto = _extrair_texto_item_api(doc)
+                if idx == idx_ancora:
+                    uids_para_marcar.append(uid)
+                elif _cp_eh_mandado(texto) or _cp_eh_certidao_geral(texto) or _cp_eh_despacho(texto):
+                    uids_para_marcar.append(uid)
             if log:
-                logger.error('[BAIXAR_CP] Documentos na API /timeline:')
-                for idx, doc in enumerate(timeline_api):
-                    titulo = doc.get('titulo', '(sem titulo)')
-                    tipo = doc.get('tipo', '(sem tipo)')
-                    logger.error(f'  [API {idx}] tipo="{tipo}" titulo="{titulo}"')
-        
-        raise ElementoNaoEncontradoError('[BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados')
+                logger.info('[BAIXAR_CP] [API] %d UIDs identificados para marcar: %s', len(uids_para_marcar), uids_para_marcar)
 
-    # Marca o item âncora (CDist ou Despacho)
-    if not _cp_marcar_checkbox(driver, elementos[idx_ancora], timeout):
-        raise ElementoNaoEncontradoError('[BAIXAR_CP] Falha ao marcar checkbox da ancora (CDist ou Despacho)')
-
-    marcados = 1
-    idx_imediato = idx_ancora - 1
-
-    # Se a âncora foi CDist, procura por Despacho imediatamente anterior
-    if eh_cdist:
-        if idx_imediato >= 0 and _CP_DESPACHO.search(_cp_texto_documento(elementos[idx_imediato])):
-            if _cp_marcar_checkbox(driver, elementos[idx_imediato], timeout):
+    marcados = 0
+    # 3. Marcar via UIDs da API (se obtidos)
+    if uids_para_marcar:
+        for uid in uids_para_marcar:
+            sel_cb = f"#doc_{uid}"
+            if _cp_marcar_checkbox(driver, sel_cb, timeout=timeout):
                 marcados += 1
-            elif log:
-                logger.warning('[BAIXAR_CP] Despacho seguinte encontrado mas falhou ao marcar')
+                if log:
+                    logger.info('[BAIXAR_CP] ✓ Marcado checkbox: %s', sel_cb)
+            else:
+                if log:
+                    logger.warning('[BAIXAR_CP] Falha ao marcar checkbox por UID: %s', sel_cb)
 
-    # Marca todos os Mandados e Certidões de Oficial posteriores
-    for idx in range(idx_imediato - 1, -1, -1):
-        texto = _cp_texto_documento(elementos[idx])
-        if _CP_MANDADO in texto or _CP_CERTIDAO_OJ in texto:
-            if _cp_marcar_checkbox(driver, elementos[idx], timeout):
-                marcados += 1
-            elif log:
-                logger.warning('[BAIXAR_CP] Mandado/Certidao OJ (idx=%d) falhou ao marcar', idx)
+    # 4. Se não marcou nada via API (ou API não retornou âncora), usar Fallback DOM
+    if marcados == 0:
+        if log:
+            logger.info('[BAIXAR_CP] Executando marcação via DOM fallback...')
+        elementos = espera.elementos(driver, 'li.tl-item-container')
+        if not elementos:
+            elementos = espera.elementos(driver, 'mat-checkbox[id^="doc_"]')
+        if not elementos:
+            raise ElementoNaoEncontradoError('[BAIXAR_CP] Timeline vazia (li.tl-item-container ou mat-checkbox nao encontrado)')
+
+        idx_ancora = None
+        eh_cdist = False
+
+        for idx, elem in enumerate(elementos):
+            texto = _cp_texto_documento(elem, debug=True if log else False)
+            if _cp_eh_cdist(texto):
+                idx_ancora = idx
+                eh_cdist = True
+                if log:
+                    logger.info('[BAIXAR_CP] [DOM] ✅ Item %d: CDist encontrada como âncora', idx)
+                break
+
+        if idx_ancora is None:
+            for idx in range(len(elementos) - 1, -1, -1):
+                texto = _cp_texto_documento(elementos[idx], debug=False)
+                if _cp_eh_despacho(texto):
+                    idx_ancora = idx
+                    eh_cdist = False
+                    if log:
+                        logger.info('[BAIXAR_CP] [DOM] ✅ Item %d: Despacho encontrado como âncora', idx)
+                    break
+
+        if idx_ancora is None:
+            raise ElementoNaoEncontradoError('[BAIXAR_CP] Nem Certidao de Distribuicao nem Despacho encontrados no DOM')
+
+        if _cp_marcar_checkbox(driver, elementos[idx_ancora], timeout):
+            marcados += 1
+
+        for idx in range(idx_ancora - 1, -1, -1):
+            texto = _cp_texto_documento(elementos[idx], debug=False)
+            if _cp_eh_mandado(texto) or _cp_eh_certidao_geral(texto) or _cp_eh_despacho(texto):
+                if _cp_marcar_checkbox(driver, elementos[idx], timeout):
+                    marcados += 1
+                elif log:
+                    logger.warning('[BAIXAR_CP] Item idx=%d falhou ao marcar', idx)
+
+    if marcados == 0:
+        raise ElementoNaoEncontradoError('[BAIXAR_CP] Nenhum documento foi marcado para download')
 
     if log:
-        logger.info('[BAIXAR_CP] %d item(ns) marcado(s)', marcados)
+        logger.info('[BAIXAR_CP] Total de itens marcados: %d', marcados)
 
+    # 5. Clicar no botão #baixar-docs-selecionados
     if not click_headless_safe(driver, '#baixar-docs-selecionados', timeout=timeout):
         raise ElementoNaoEncontradoError('[BAIXAR_CP] Botao "#baixar-docs-selecionados" nao encontrado/clicavel')
 
-    aguardar_renderizacao_nativa(driver, 'button[role="menuitem"].mat-focus-indicator', modo='aparecer', timeout=timeout)
+    aguardar_renderizacao_nativa(driver, 'button[role="menuitem"]', modo='aparecer', timeout=timeout)
 
-    xpath_pdf_unico = "//button[@role='menuitem' and contains(@class,'mat-focus-indicator')][normalize-space()='PDF único']"
-    if not click_headless_safe(driver, xpath_pdf_unico, by=By.XPATH, timeout=timeout):
+    # 6. Selecionar "PDF único"
+    clicou_pdf = False
+    xpath_pdf_unico = "//button[@role='menuitem'][contains(., 'PDF') and (contains(., 'único') or contains(., 'unico'))]"
+    if click_headless_safe(driver, xpath_pdf_unico, by=By.XPATH, timeout=timeout):
+        clicou_pdf = True
+    elif clicar_botao_por_texto(driver, 'PDF único', timeout=timeout):
+        clicou_pdf = True
+    else:
+        clicou_pdf = bool(_executar_js(driver, """
+            const items = Array.from(document.querySelectorAll('button[role="menuitem"]'));
+            const target = items.find(b => /pdf\\s*(único|unico)/i.test(b.innerText || ''));
+            if (target) {
+                target.click();
+                return true;
+            }
+            return false;
+        """))
+
+    if not clicou_pdf:
         raise ElementoNaoEncontradoError('[BAIXAR_CP] Opcao "PDF unico" nao encontrada no menu de download')
 
-    aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='aparecer', timeout=5)
-    aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='sumir', timeout=timeout)
+    # 7. Aguardar diálogo de download aparecer e sumir
+    if aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='aparecer', timeout=5):
+        aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='sumir', timeout=timeout)
 
     if log:
         logger.info('[BAIXAR_CP] Download "PDF unico" iniciado com sucesso')

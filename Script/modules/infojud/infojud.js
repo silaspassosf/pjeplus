@@ -837,7 +837,6 @@
 
     function extrairItensDeBlocoTexto(b) {
         const lines = String(b).split('\n').map(l => l.trim()).filter(Boolean);
-        const itens = [];
 
         if (lines.some(l => l.startsWith('Empresa:'))) {
             const empNome = (lines.find(l => l.startsWith('Empresa:')) || '').replace(/^Empresa:\s*/, '').trim();
@@ -846,43 +845,92 @@
             const cnpjLine = lines.find(l => l.startsWith('CNPJ:'));
             const cnpj = cnpjLine ? cnpjLine.replace(/^CNPJ:\s*/, '').trim() : '';
 
-            itens.push({
-                identificacao: `${empNome}${cnpj ? ` - CNPJ ${cnpj}` : ''}`,
-                endereco: empEnd
-            });
-
             const socioLine = lines.find(l => l.startsWith('Sócio desta empresa:'));
+            let socio = null;
             if (socioLine) {
                 const socioRaw = socioLine.replace(/^Sócio desta empresa:\s*/, '').trim();
                 const socioEnd = allEnd.length > 1 ? allEnd[1].replace(/^Endereço:\s*/, '').trim() : '';
-                itens.push({
-                    identificacao: `Sócio: ${socioRaw}`,
+                const idxSocio = lines.indexOf(socioLine);
+                const cpfSocioLine = lines.find((l, idx) => l.startsWith('CPF:') && idx > idxSocio);
+                const socioCpf = cpfSocioLine ? cpfSocioLine.replace(/^CPF:\s*/, '').trim() : '';
+                socio = {
+                    nome: socioRaw,
+                    cpf: socioCpf,
                     endereco: socioEnd
-                });
+                };
             }
+
+            return [{
+                tipo: 'EMPRESA',
+                tipoDoc: 'CNPJ',
+                nome: empNome,
+                documento: cnpj,
+                cnpj: cnpj,
+                endereco: empEnd,
+                socio: socio
+            }];
         } else {
             const nome = (lines.find(l => l.startsWith('Nome:')) || lines.find(l => l.startsWith('PESSOA FÍSICA:')) || '').replace(/^(Nome|PESSOA FÍSICA):\s*/, '').trim();
             const cpf = (lines.find(l => l.startsWith('CPF:')) || '').replace(/^CPF:\s*/, '').trim();
             const end = (lines.find(l => l.startsWith('Endereço:')) || '').replace(/^Endereço:\s*/, '').trim();
 
-            itens.push({
-                identificacao: `${nome}${cpf ? ` - CPF ${cpf}` : ''}`,
-                endereco: end
-            });
+            return [{
+                tipo: 'PF',
+                tipoDoc: 'CPF',
+                nome: nome,
+                documento: cpf,
+                cpf: cpf,
+                endereco: end,
+                socio: null
+            }];
         }
-        return itens;
     }
 
     function construirHtmlCertidao(itens) {
         const styleTitulo = 'font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:center;text-indent:4.5cm;';
-        const styleCorpo = 'font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify;text-indent:4.5cm;';
+        const styleCorpo  = 'font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify;text-indent:4.5cm;';
+        const styleSocio  = 'font-size:12pt;line-height:1.5;margin-left:1cm;text-align:justify;text-indent:4.5cm;';
 
         let inner = `<p style="${styleTitulo}" class="corpo"><strong>JUNTADA - pesquisa INFOJUD</strong></p>`;
         inner += `<p class="corpo" style="${styleCorpo}">Nessa data, procedo à juntada de pesquisa INFOJUD de endereços:</p>`;
 
-        for (const item of (itens || [])) {
-            inner += `<p class="corpo" style="${styleCorpo}">${escapeHtml(item.identificacao)}</p>`;
-            inner += `<p class="corpo" style="${styleCorpo}">${escapeHtml(item.endereco)}<br><br><br data-cke-filler="true"></p>`;
+        const blocos = itens || [];
+        for (let i = 0; i < blocos.length; i++) {
+            const bloco = blocos[i];
+            const num = `${i + 1}. `;
+
+            if (bloco.tipo === 'EMPRESA' || bloco.tipoDoc === 'CNPJ') {
+                const nomeEmpresa = escapeHtml((bloco.nome || 'Empresa').trim());
+                const cnpj = escapeHtml(bloco.documento || bloco.cnpj || '');
+                const endEmpresa = escapeHtml(bloco.endereco || 'Endereço não informado');
+
+                inner += `<p class="corpo" style="${styleCorpo}"><strong>${num}${nomeEmpresa} - CNPJ ${cnpj}</strong></p>`;
+
+                const socios = Array.isArray(bloco.socio) ? bloco.socio : (bloco.socio ? [bloco.socio] : []);
+                if (socios.length > 0) {
+                    inner += `<p class="corpo" style="${styleCorpo}">${endEmpresa}</p>`;
+                    for (let s = 0; s < socios.length; s++) {
+                        const sc = socios[s];
+                        const socioNome = escapeHtml((sc.nome || '').trim());
+                        const socioCpf = escapeHtml(sc.cpf || sc.documento || '');
+                        const socioEnd = escapeHtml(sc.endereco || 'Endereço não informado');
+                        const isLastSocio = (s === socios.length - 1);
+                        const filler = isLastSocio ? '<br><br><br><br data-cke-filler="true">' : '';
+
+                        inner += `<p class="corpo" style="${styleSocio}"><u>${socioNome} (sócio desta empresa) - CPF ${socioCpf}</u></p>`;
+                        inner += `<p class="corpo" style="${styleSocio}">${socioEnd}${filler}</p>`;
+                    }
+                } else {
+                    inner += `<p class="corpo" style="${styleCorpo}">${endEmpresa}<br><br><br><br data-cke-filler="true"></p>`;
+                }
+            } else {
+                const nomePf = escapeHtml((bloco.nome || 'Parte').trim());
+                const cpf = escapeHtml(bloco.documento || bloco.cpf || '');
+                const endPf = escapeHtml(bloco.endereco || 'Endereço não informado');
+
+                inner += `<p class="corpo" style="${styleCorpo}"><strong>${num}${nomePf} - CPF ${cpf}</strong></p>`;
+                inner += `<p class="corpo" style="${styleCorpo}">${endPf}<br><br><br><br data-cke-filler="true"></p>`;
+            }
         }
 
         inner += `<p class="corpo" style="${styleCorpo}"><br data-cke-filler="true"></p>`;
@@ -893,8 +941,37 @@
     function construirTextoCertidao(itens) {
         let txt = 'JUNTADA - pesquisa INFOJUD\n\n';
         txt += 'Nessa data, procedo à juntada de pesquisa INFOJUD de endereços:\n\n';
-        for (const item of (itens || [])) {
-            txt += `${item.identificacao}\n${item.endereco}\n\n`;
+
+        const blocos = itens || [];
+        for (let i = 0; i < blocos.length; i++) {
+            const bloco = blocos[i];
+            const num = `${i + 1}. `;
+
+            if (bloco.tipo === 'EMPRESA' || bloco.tipoDoc === 'CNPJ') {
+                const nomeEmpresa = (bloco.nome || 'Empresa').trim();
+                const cnpj = bloco.documento || bloco.cnpj || '';
+                const endEmpresa = bloco.endereco || 'Endereço não informado';
+
+                txt += `${num}${nomeEmpresa} - CNPJ ${cnpj}\n${endEmpresa}\n`;
+
+                const socios = Array.isArray(bloco.socio) ? bloco.socio : (bloco.socio ? [bloco.socio] : []);
+                if (socios.length > 0) {
+                    for (const sc of socios) {
+                        const socioNome = (sc.nome || '').trim();
+                        const socioCpf = sc.cpf || sc.documento || '';
+                        const socioEnd = sc.endereco || 'Endereço não informado';
+                        txt += `    ${socioNome} (sócio desta empresa) - CPF ${socioCpf}\n`;
+                        txt += `    ${socioEnd}\n`;
+                    }
+                }
+                txt += '\n';
+            } else {
+                const nomePf = (bloco.nome || 'Parte').trim();
+                const cpf = bloco.documento || bloco.cpf || '';
+                const endPf = bloco.endereco || 'Endereço não informado';
+
+                txt += `${num}${nomePf} - CPF ${cpf}\n${endPf}\n\n`;
+            }
         }
         return txt.trim();
     }
@@ -1683,11 +1760,13 @@
                         };
                         dadosRelatorio.push(montarRelatorio(pf));
                         itensCertidao.push({
-                            nome: pf.nome,
-                            documento: formatarDocumento(pf.cpf),
+                            tipo: 'PF',
                             tipoDoc: 'CPF',
-                            identificacao: `${(pf.nome || 'Parte').trim()} - CPF ${formatarDocumento(pf.cpf)}`,
-                            endereco: formatarEnderecoCertidao(pf)
+                            nome: (pf.nome || 'Parte').trim(),
+                            documento: formatarDocumento(pf.cpf),
+                            cpf: formatarDocumento(pf.cpf),
+                            endereco: formatarEnderecoCertidao(pf),
+                            socio: null
                         });
                     } else {
                         const empresaEntry = {
@@ -1707,46 +1786,53 @@
                             cep: d.cep || ''
                         };
                         dadosRelatorio.push(montarRelatorio(empresaEntry));
-                        itensCertidao.push({
-                            nome: empresaEntry.empresaNome,
-                            documento: formatarDocumento(empresaEntry.cnpj),
-                            tipoDoc: 'CNPJ',
-                            identificacao: `${(empresaEntry.empresaNome || 'Empresa').trim()} - CNPJ ${formatarDocumento(empresaEntry.cnpj)}`,
-                            endereco: formatarEnderecoCertidaoEmpresa(empresaEntry)
-                        });
+
+                        let socioObj = null;
                         if (d.nome && d.cpf) {
-                            itensCertidao.push({
-                                nome: d.nome,
-                                documento: formatarDocumento(d.cpf),
-                                tipoDoc: 'CPF',
-                                identificacao: `${d.nome.trim()} (sócio) - CPF ${formatarDocumento(d.cpf)}`,
+                            socioObj = {
+                                nome: d.nome.trim(),
+                                cpf: formatarDocumento(d.cpf),
                                 endereco: formatarEnderecoCertidao(d)
-                            });
+                            };
                         }
+
+                        itensCertidao.push({
+                            tipo: 'EMPRESA',
+                            tipoDoc: 'CNPJ',
+                            nome: (empresaEntry.empresaNome || 'Empresa').trim(),
+                            documento: formatarDocumento(empresaEntry.cnpj),
+                            cnpj: formatarDocumento(empresaEntry.cnpj),
+                            endereco: formatarEnderecoCertidaoEmpresa(empresaEntry),
+                            socio: socioObj
+                        });
                     }
                 }
             } else {
                 if (!dadosRelatorioKeys.has(docKey)) {
                     dadosRelatorioKeys.add(docKey);
                     if (doc.length === 11) {
-                        const pfNome = nome || 'Pessoa Física';
+                        const pfNome = (nome || 'Pessoa Física').trim();
                         dadosRelatorio.push(`Nome: ${pfNome}\nCPF: ${formatarDocumento(doc)}\nEndereço: (Não localizado ou sem retorno na Receita Federal)`);
                         itensCertidao.push({
+                            tipo: 'PF',
+                            tipoDoc: 'CPF',
                             nome: pfNome,
                             documento: formatarDocumento(doc),
-                            tipoDoc: 'CPF',
-                            identificacao: `${pfNome.trim()} - CPF ${formatarDocumento(doc)}`,
-                            endereco: 'Endereço não localizado na pesquisa INFOJUD'
+                            cpf: formatarDocumento(doc),
+                            endereco: 'Endereço não localizado na pesquisa INFOJUD',
+                            socio: null
                         });
                     } else {
-                        const pjNome = nome || 'Pessoa Jurídica';
+                        const pjNome = (nome || 'Pessoa Jurídica').trim();
                         dadosRelatorio.push(`Empresa: ${pjNome}\nCNPJ: ${formatarDocumento(doc)}\nEndereço: (Não localizado ou sem retorno na Receita Federal)`);
                         itensCertidao.push({
+                            tipo: 'EMPRESA',
+                            tipoDoc: 'CNPJ',
                             nome: pjNome,
                             documento: formatarDocumento(doc),
-                            tipoDoc: 'CNPJ',
-                            identificacao: `${pjNome.trim()} - CNPJ ${formatarDocumento(doc)}`,
-                            endereco: 'Endereço não localizado na pesquisa INFOJUD'
+                            cnpj: formatarDocumento(doc),
+                            endereco: 'Endereço não localizado na pesquisa INFOJUD',
+                            socio: null
                         });
                     }
                 }

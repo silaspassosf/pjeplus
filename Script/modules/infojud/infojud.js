@@ -981,111 +981,6 @@
         return false;
     }
 
-    function abrirModalCertidao(htmlCertidao, textoCertidao) {
-        document.getElementById('pje-certidao-infojud-modal')?.remove();
-
-        const backdrop = document.createElement('div');
-        backdrop.id = 'pje-certidao-infojud-modal';
-        backdrop.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.55); z-index: 2147483647;
-            display: flex; align-items: center; justify-content: center;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-        `;
-
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            background: #ffffff; border-radius: 10px; width: 680px; max-width: 95vw;
-            max-height: 90vh; display: flex; flex-direction: column;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); overflow: hidden;
-        `;
-
-        const header = document.createElement('div');
-        header.style.cssText = `
-            background: #2e7d32; color: #ffffff; padding: 12px 18px;
-            display: flex; align-items: center; justify-content: space-between;
-        `;
-        header.innerHTML = `
-            <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:18px;">📜</span>
-                <span style="font-size:15px;font-weight:700;">Certidão de Juntada — Pesquisa INFOJUD</span>
-            </div>
-        `;
-        const btnClose = document.createElement('button');
-        btnClose.innerHTML = '✕';
-        btnClose.title = 'Fechar';
-        btnClose.style.cssText = 'background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;';
-        btnClose.onclick = () => backdrop.remove();
-        header.appendChild(btnClose);
-        modal.appendChild(header);
-
-        const infoBar = document.createElement('div');
-        infoBar.style.cssText = 'background:#e8f5e9;padding:8px 18px;font-size:12px;color:#1b5e20;border-bottom:1px solid #c8e6c9;display:flex;align-items:center;gap:6px;';
-        infoBar.innerHTML = '<span>✅ <strong>Certidão copiada para a área de transferência!</strong> Pressione Ctrl+V em qualquer documento do PJe para colar.</span>';
-        modal.appendChild(infoBar);
-
-        const body = document.createElement('div');
-        body.style.cssText = 'padding: 20px; overflow-y: auto; flex: 1; background: #fafafa;';
-
-        const paper = document.createElement('div');
-        paper.style.cssText = `
-            background: #ffffff; border: 1px solid #ddd; border-radius: 4px;
-            padding: 26px 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); font-family: "Times New Roman", Times, serif;
-            color: #000; line-height: 1.5; font-size: 12pt;
-        `;
-        paper.innerHTML = htmlCertidao;
-        body.appendChild(paper);
-        modal.appendChild(body);
-
-        const footer = document.createElement('div');
-        footer.style.cssText = `
-            background: #f8f9fa; border-top: 1px solid #e9ecef; padding: 10px 18px;
-            display: flex; justify-content: space-between; align-items: center;
-        `;
-
-        const btnInserir = document.createElement('button');
-        btnInserir.textContent = '📝 Inserir no Editor PJe';
-        btnInserir.title = 'Tenta inserir a certidão no editor CKEditor do PJe se estiver aberto na página';
-        btnInserir.style.cssText = 'background:#1565c0;color:#fff;border:none;border-radius:4px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;';
-        btnInserir.onclick = () => {
-            const inseriu = tentarInserirNoCKEditor(htmlCertidao);
-            if (inseriu) {
-                mostrarNotificacao('Certidão inserida no editor do PJe!', '#28a745');
-                backdrop.remove();
-            } else {
-                mostrarNotificacao('Editor CKEditor não encontrado na página aberta. Use Ctrl+V.', '#ff9800');
-            }
-        };
-
-        const rightBtns = document.createElement('div');
-        rightBtns.style.cssText = 'display:flex;gap:8px;';
-
-        const btnCopiarDeNovo = document.createElement('button');
-        btnCopiarDeNovo.textContent = '📋 Copiar Novamente';
-        btnCopiarDeNovo.style.cssText = 'background:#2e7d32;color:#fff;border:none;border-radius:4px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;';
-        btnCopiarDeNovo.onclick = async () => {
-            await copiarCertidaoParaClipboard(htmlCertidao, textoCertidao);
-            btnCopiarDeNovo.textContent = '✅ Copiado!';
-            setTimeout(() => { btnCopiarDeNovo.textContent = '📋 Copiar Novamente'; }, 2000);
-            mostrarNotificacao('Certidão copiada para a área de transferência!', '#28a745');
-        };
-
-        const btnFecharModal = document.createElement('button');
-        btnFecharModal.textContent = 'Fechar';
-        btnFecharModal.style.cssText = 'background:#e0e0e0;color:#333;border:none;border-radius:4px;padding:8px 14px;font-size:12px;cursor:pointer;';
-        btnFecharModal.onclick = () => backdrop.remove();
-
-        rightBtns.appendChild(btnCopiarDeNovo);
-        rightBtns.appendChild(btnFecharModal);
-
-        footer.appendChild(btnInserir);
-        footer.appendChild(rightBtns);
-        modal.appendChild(footer);
-
-        backdrop.appendChild(modal);
-        document.body.appendChild(backdrop);
-    }
-
     // =================================================================================
     function renderizarPainelRelatorio(dadosRelatorio, opts = {}) {
         document.getElementById('god-relatorio-panel')?.remove();
@@ -1094,7 +989,7 @@
         painel.id = 'god-relatorio-panel';
         painel.style.cssText = 'position:fixed;right:20px;top:150px;width:500px;max-width:92vw;background:#fff;border:2px solid #004d40;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.4);font-family:"Segoe UI",sans-serif;z-index:10000;';
 
-        // ── Cabeçalho (drag + collapse + certidão + copiar + fechar)
+        // ── Cabeçalho (drag + collapse + copiar + fechar)
         const cab = document.createElement('div');
         cab.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#004d40;color:#fff;padding:9px 14px;border-radius:8px 8px 0 0;cursor:grab;user-select:none;';
 
@@ -1104,17 +999,6 @@
 
         const ctrls = document.createElement('span');
         ctrls.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;';
-
-        const btnCertidao = document.createElement('button');
-        btnCertidao.textContent = '📜 Gerar Certidão';
-        btnCertidao.title = 'Gerar certidão padronizada de juntada e copiar para a área de transferência';
-        btnCertidao.style.cssText = `
-            background: #2e7d32; color: #fff; border: 1px solid #81c784;
-            border-radius: 4px; padding: 3px 8px; font-size: 11px;
-            font-weight: 700; cursor: pointer; transition: background 0.15s;
-        `;
-        btnCertidao.onmouseenter = () => btnCertidao.style.background = '#1b5e20';
-        btnCertidao.onmouseleave = () => btnCertidao.style.background = '#2e7d32';
 
         const btnCopiar = document.createElement('span');
         btnCopiar.textContent = '📋';
@@ -1141,7 +1025,6 @@
         btnX.style.cursor = 'pointer';
         btnX.onclick = () => painel.remove();
 
-        ctrls.appendChild(btnCertidao);
         ctrls.appendChild(btnCopiar);
         ctrls.appendChild(btnToggle);
         ctrls.appendChild(btnX);
@@ -1204,21 +1087,26 @@
 
         painel.appendChild(corpo);
 
-        // ── Rodapé com botão Gerar Certidão
+        // ── Rodapé com botão único: Gerar e Copiar Certidão
         const rodape = document.createElement('div');
-        rodape.style.cssText = 'padding:8px 14px;background:#f1f8e9;border-top:1px solid #c8e6c9;border-radius:0 0 8px 8px;display:flex;justify-content:flex-end;align-items:center;';
+        rodape.style.cssText = 'padding:10px 14px;background:#f1f8e9;border-top:1px solid #c8e6c9;border-radius:0 0 8px 8px;display:flex;justify-content:flex-end;align-items:center;';
 
         const btnGerarCertRodape = document.createElement('button');
-        btnGerarCertRodape.textContent = '📜 Gerar Certidão de Juntada';
-        btnGerarCertRodape.title = 'Gerar certidão padronizada de pesquisa INFOJUD';
+        btnGerarCertRodape.textContent = '📜 Gerar e Copiar Certidão';
+        btnGerarCertRodape.title = 'Gera e copia a certidão padronizada de pesquisa INFOJUD para colar no modelo';
         btnGerarCertRodape.style.cssText = `
             background: #2e7d32; color: #fff; border: none; border-radius: 4px;
-            padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background 0.15s;
+            padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background 0.15s, transform 0.05s;
         `;
-        btnGerarCertRodape.onmouseenter = () => btnGerarCertRodape.style.background = '#1b5e20';
-        btnGerarCertRodape.onmouseleave = () => btnGerarCertRodape.style.background = '#2e7d32';
+        btnGerarCertRodape.onmouseenter = () => {
+            if (!btnGerarCertRodape.dataset.copiado) btnGerarCertRodape.style.background = '#1b5e20';
+        };
+        btnGerarCertRodape.onmouseleave = () => {
+            if (!btnGerarCertRodape.dataset.copiado) btnGerarCertRodape.style.background = '#2e7d32';
+        };
 
+        let timerFeedbackBtn = null;
         const acaoGerarCertidao = async () => {
             let itens = [];
             if (opts.itensCertidao && opts.itensCertidao.length) {
@@ -1238,13 +1126,22 @@
             const textoCertidao = construirTextoCertidao(itens);
 
             await copiarCertidaoParaClipboard(htmlCertidao, textoCertidao);
-            mostrarNotificacao('📜 Certidão gerada e copiada para a área de transferência!', '#2e7d32');
-
             tentarInserirNoCKEditor(htmlCertidao);
-            abrirModalCertidao(htmlCertidao, textoCertidao);
+
+            btnGerarCertRodape.dataset.copiado = 'true';
+            btnGerarCertRodape.textContent = 'certidão copiada, basta colar no modelo';
+            btnGerarCertRodape.style.background = '#1b5e20';
+
+            mostrarNotificacao('✅ Certidão copiada, basta colar no modelo', '#2e7d32');
+
+            if (timerFeedbackBtn) clearTimeout(timerFeedbackBtn);
+            timerFeedbackBtn = setTimeout(() => {
+                delete btnGerarCertRodape.dataset.copiado;
+                btnGerarCertRodape.textContent = '📜 Gerar e Copiar Certidão';
+                btnGerarCertRodape.style.background = '#2e7d32';
+            }, 6000);
         };
 
-        btnCertidao.onclick = acaoGerarCertidao;
         btnGerarCertRodape.onclick = acaoGerarCertidao;
         rodape.appendChild(btnGerarCertRodape);
         painel.appendChild(rodape);

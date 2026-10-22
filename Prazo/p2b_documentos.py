@@ -279,7 +279,11 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         (['A pronúncia da'], (prescreve,)),
 
         # REGRA DE ARQUIVAMENTO - MÁXIMA PRIORIDADE (logo após prescrição)
-        (['julgo extinta a presente execução, nos termos do art. 924', 'autos ao arquivo'], (mov_arquivar,)),
+        ([
+            'julgo extinta a presente execução, nos termos do art. 924',
+            'autos ao arquivo',
+            'devendo diligenciar junto ao cartório',
+        ], (mov_arquivar,)),
 
         # REGRA DE DESCUMPRIMENTO - executar gigs1, gigs2, ato_pesqliq (sem tentar mov_exec)
         (['Ante a notícia de descumprimento'], ("criar_gigs[1/Ana Lucia/Argos]", "criar_gigs[1//xs sigilo]", ato_pesqliq)),
@@ -300,9 +304,11 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         ([
             'sob pena de bloqueio',
             'sob pena de penhora',
+            'sob pena de execução', 'sob pena de execucao',
             'impugnações apresentadas', 'impugnacoes apresentadas', 'homologo estes',
             'fixando o crédito do autor em', 'referente ao principal', 'sob pena de sequestro',
-            'atestar a quitação', 'comprovar o pagamento', 'comprovar recolhimento', 'comprovar recolhimentos',
+            'atestar a quitação', 'comprovar o pagamento',
+            'comprovar recolhimento', 'comprovar recolhimentos', 'comprovar o recolhimento',
             'a reclamada para pagamento da parcela pendente',
             'intime-se a reclamada para pagamento das', 'homologo os calculos',
             'sob pena de prosseguimento da execução',

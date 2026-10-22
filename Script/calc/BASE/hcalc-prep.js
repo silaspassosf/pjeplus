@@ -766,6 +766,39 @@
     }
 
     // ==========================================
+    // DETECCAO DE PLANILHA/CALCULOS VIA API DO PJE
+    // ==========================================
+
+    async function _verificarCalculosProcesso() {
+        const id = _idProcesso();
+        if (!id) return false;
+        try {
+            const url = `${location.origin}/pje-comum-api/api/calculos/processo?pagina=1&tamanhoPagina=10&ordenacaoCrescente=true&idProcesso=${id}&incluirCalculosHomologados=true`;
+            const res = await _get(url);
+            if (!res) return false;
+            if (typeof res.totalRegistros === 'number') {
+                return res.totalRegistros > 0;
+            }
+            if (Array.isArray(res.calculos)) {
+                return res.calculos.length > 0;
+            }
+            if (Array.isArray(res.itens)) {
+                return res.itens.length > 0;
+            }
+            if (Array.isArray(res.resultado)) {
+                return res.resultado.length > 0;
+            }
+            if (Array.isArray(res)) {
+                return res.length > 0;
+            }
+            return false;
+        } catch (e) {
+            warn('[prep] _verificarCalculosProcesso falhou:', e.message);
+            return false;
+        }
+    }
+
+    // ==========================================
     // DETECCAO DE PARTES EM EDITAL
     // ==========================================
 
@@ -1064,6 +1097,7 @@
 
         try {
             console.log('[prep.js] Iniciando preparacao via API...');
+            const promCalculos = _verificarCalculosProcesso();
 
             // 1. Partes - buscar raw para construir mapa de advogados
             const partesRaw = await _get(_base() + '/partes');
@@ -1250,7 +1284,17 @@
                 conferenciaAcordao = { ok: false, erro: e.message };
             }
 
-            // 9. Montar prepResult - shape 100% compativel com overlay (+ conferenciaAcordao)
+            // 8.1 Verificacao de calculos no PJe (/pje-comum-api/api/calculos/processo)
+            let temCalculoPje = false;
+            try {
+                temCalculoPje = await promCalculos;
+            } catch (e) {
+                warn('[prep] _verificarCalculosProcesso falhou:', e.message);
+                temCalculoPje = false;
+            }
+            window.hcalcTemCalculoPje = temCalculoPje;
+
+            // 9. Montar prepResult - shape 100% compativel com overlay (+ conferenciaAcordao + temCalculoPje)
             const prepResult = {
                 sentenca: {
                     data: sentencaAlvo ? sentencaAlvo.data : null,
@@ -1273,6 +1317,7 @@
                 editais: editais.map(function(e) { return { data: e.data, href: _montarHref(e.uid) }; }),
                 partesIntimadasEdital,
                 conferenciaAcordao,
+                temCalculoPje,
             };
 
             console.log('[prep.js] prepResult montado:', {
@@ -1282,6 +1327,7 @@
                 editais: prepResult.editais.length,
                 partesIntimadasEdital: prepResult.partesIntimadasEdital.length,
                 conferenciaOk: prepResult.conferenciaAcordao ? prepResult.conferenciaAcordao.ok : null,
+                temCalculoPje: prepResult.temCalculoPje,
             });
 
             window.hcalcPrepResult = prepResult;
@@ -1298,5 +1344,6 @@
     window.destacarElementoNaTimeline = destacarElementoNaTimeline;
     window.encontrarItemTimeline = encontrarItemTimeline;
     window.expandirAnexos = expandirAnexos;
+    window.hcalcVerificarCalculosProcesso = _verificarCalculosProcesso;
 
 })();

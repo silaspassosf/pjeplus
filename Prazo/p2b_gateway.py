@@ -50,6 +50,31 @@ class SessaoExpiradaError(Exception):
 
 _TIPOS_RELEVANTES = re.compile(r'^(despacho|decis[aã]o|senten[cç]a|conclus[aã]o)', re.IGNORECASE)
 
+_RE_PRAZO_CURTO_2D = re.compile(
+    r'\b(0?2\s*(?:\(dois\)\s*)?dias?|dois\s*dias?|48\s*(?:\(quarenta\s+e\s+oito\)\s*)?h(?:oras?|s)?)\b',
+    re.IGNORECASE,
+)
+_RE_EXECUCAO_P2B = re.compile(
+    r'sob\s+pena\s+de\s+(?:prosseguimento\s+da\s+)?execu[cç][aã]o',
+    re.IGNORECASE,
+)
+
+
+def _eh_despacho_2_dias_execucao(texto: str) -> bool:
+    """Verifica se o despacho é o caso específico de prazo curto (2 dias / 48h) com execução.
+
+    Exceção solicitada à regra dos 5 dias úteis: despachos que determinam comprovação
+    de recolhimento / pagamento / custas sob pena de execução com prazo de 2 dias ou 48h.
+    """
+    if not texto:
+        return False
+    from Fix.utils import normalizar_texto
+    norm = normalizar_texto(texto)
+    tem_prazo = bool(_RE_PRAZO_CURTO_2D.search(norm))
+    tem_exec = bool(_RE_EXECUCAO_P2B.search(norm))
+    tem_recolhimento = any(k in norm for k in ['recolhimento', 'custas', 'honorarios', 'comprovar', 'pagamento'])
+    return tem_prazo and tem_exec and tem_recolhimento
+
 
 def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
     """Extrai o primeiro documento relevante via API (/timeline + /documentos/.../conteudo).
@@ -97,7 +122,7 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
     tipo = doc.get('tipo', '')
     titulo = doc.get('titulo', '')
     
-    # 2.5) Verifica a data do documento (se for < 5 dias, pular)
+    # 2.5) Calcula a data do documento e idade em dias úteis
     data_str = doc.get('dataJuntada') or doc.get('dataCadastro') or doc.get('data')
     dias_idade = None
     if data_str:
@@ -128,10 +153,6 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
                         
             dias_idade = dias_uteis
             logger.info(f'[p2b_api] Data documento: {data_str} -> {dt_doc.isoformat()} (Idade: {dias_idade} dias úteis)')
-            
-            if dias_idade <= 5:
-                logger.info(f'[p2b_api] doc relevante ({tipo}) tem data recente ({data_str}), pulando (<= 5 dias úteis).')
-                return _falha('decisao_recente_menos_5_dias', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo, decisao_recente=True, data_extraida=data_str, idade_dias=dias_idade)
         except Exception as e:
             logger.warning(f'[p2b_api] erro ao calcular data do doc {data_str}: {e}')
             
@@ -144,9 +165,13 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
         r.raise_for_status()
         pdf_bytes = r.content
     except Exception as e:
+        if dias_idade is not None and dias_idade <= 5:
+            return _falha('decisao_recente_menos_5_dias', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo, decisao_recente=True, data_extraida=data_str, idade_dias=dias_idade)
         return _falha(f'/conteudo download error: {e}', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo)
 
     if not pdf_bytes or not pdf_bytes.startswith(b'%PDF'):
+        if dias_idade is not None and dias_idade <= 5:
+            return _falha('decisao_recente_menos_5_dias', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo, decisao_recente=True, data_extraida=data_str, idade_dias=dias_idade)
         return _falha(
             f'/conteudo não é PDF. Content-Type={r.headers.get("content-type")} primeiros bytes={pdf_bytes[:20]!r}',
             id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo,
@@ -157,9 +182,30 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
     texto = _extrair_texto_pdf_bytes(pdf_bytes, log=True)
 
     if not texto or len(texto) < 20:
+        if dias_idade is not None and dias_idade <= 5:
+            return _falha('decisao_recente_menos_5_dias', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo, decisao_recente=True, data_extraida=data_str, idade_dias=dias_idade)
         return _falha('PDF sem texto extraível (possivelmente escaneado)', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo)
 
     logger.info(f'[p2b_api] texto extraído: {len(texto)} chars')
+
+    # 5) Verifica a data do documento (se for <= 5 dias, pular — EXCETO se for despacho específico de 2 dias/48h)
+    if dias_idade is not None and dias_idade <= 5:
+        if _eh_despacho_2_dias_execucao(texto):
+            if dias_idade >= 2:
+                logger.info(
+                    f'[p2b_api] doc relevante ({tipo}) tem data recente ({dias_idade} dias úteis <= 5), '
+                    f'mas é despacho específico com prazo de 2 dias/48h já decorrido — processando.'
+                )
+            else:
+                logger.info(
+                    f'[p2b_api] doc relevante ({tipo}) é despacho com prazo de 2 dias/48h, '
+                    f'mas data é muito recente ({dias_idade} dias úteis < 2), pulando (<= 5 dias úteis).'
+                )
+                return _falha('decisao_recente_menos_5_dias', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo, decisao_recente=True, data_extraida=data_str, idade_dias=dias_idade)
+        else:
+            logger.info(f'[p2b_api] doc relevante ({tipo}) tem data recente ({data_str}), pulando (<= 5 dias úteis).')
+            return _falha('decisao_recente_menos_5_dias', id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo, decisao_recente=True, data_extraida=data_str, idade_dias=dias_idade)
+
     return {
         'sucesso': True,
         'conteudo': texto,
@@ -171,6 +217,7 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
         'data_extraida': data_str,
         'idade_dias': dias_idade,
     }
+
 
 
 def _falha(msg: str, **extra) -> Dict[str, Any]:

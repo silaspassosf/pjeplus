@@ -362,7 +362,159 @@ class TestCaracterizacaoP2B(unittest.TestCase):
         self.assertIsNotNone(regra_casada)
         self.assertEqual(regra_casada, ("criar_gigs[1//xs saldo]",))
 
+    def test_p2b_regra_arquivar_devendo_diligenciar_cartorio(self):
+        """Valida que o trecho 'devendo diligenciar junto ao cartório' aciona a ação mov_arquivar."""
+        from Prazo.p2b_documentos import _definir_regras_processamento
+        from Prazo.p2b_regras_execucao import gerar_regex_geral
+        from Fix.utils import normalizar_texto
+
+        regras = _definir_regras_processamento()
+        texto = normalizar_texto(
+            "Intime-se o autor, devendo diligenciar junto ao cartório para levantamento da certidão. "
+            "Cumpridas as determinações, arquivem-se."
+        )
+
+        regra_casada = None
+        for trechos, tipo_acao in regras:
+            for trecho in trechos:
+                padrao = trecho if hasattr(trecho, 'search') else gerar_regex_geral(trecho)
+                if padrao.search(texto):
+                    regra_casada = tipo_acao
+                    break
+            if regra_casada:
+                break
+
+        self.assertIsNotNone(regra_casada)
+        # O callable deve ser mov_arquivar
+        acao = regra_casada[0]
+        self.assertEqual(getattr(acao, '__name__', str(acao)), 'mov_arquivar')
+
+    def test_p2b_regra_iniciar_exec_comprovar_recolhimento_sob_pena_execucao(self):
+        """Valida que intimação com comprovação de recolhimento sob pena de execução dispara _inicar_exec."""
+        from Prazo.p2b_documentos import _definir_regras_processamento
+        from Prazo.p2b_regras_execucao import gerar_regex_geral
+        from Fix.utils import normalizar_texto
+
+        regras = _definir_regras_processamento()
+        texto = normalizar_texto(
+            "Vistos, etc. Vencido o prazo estipulado para pagamento do acordo e ausente manifestação "
+            "da parte reclamante em sentido contrário, presumo quitado o seu crédito. "
+            "Intime-se a reclamada para, em 2 (dois) dias, comprovar o recolhimento das custas e o "
+            "pagamento dos honorários periciais, conforme determinado em ID #id:41d8e6d, sob pena de execução. "
+            "Cumprido, registrem-se os valores pagos e tornem conclusos para extinção do feito."
+        )
+
+        regra_casada = None
+        for trechos, tipo_acao in regras:
+            for trecho in trechos:
+                padrao = trecho if hasattr(trecho, 'search') else gerar_regex_geral(trecho)
+                if padrao.search(texto):
+                    regra_casada = tipo_acao
+                    break
+            if regra_casada:
+                break
+
+        self.assertIsNotNone(regra_casada)
+        acao = regra_casada[0]
+        self.assertEqual(getattr(acao, '__name__', str(acao)), 'inicar_exec')
+
+    def test_p2b_eh_despacho_2_dias_execucao_casos(self):
+        """Valida que _eh_despacho_2_dias_execucao detecta apenas despachos de 2 dias/48h com execução."""
+        from Prazo.p2b_gateway import _eh_despacho_2_dias_execucao
+
+        texto_real = (
+            "Vistos, etc. Vencido o prazo estipulado para pagamento do acordo e ausente manifestação "
+            "da parte reclamante em sentido contrário, presumo quitado o seu crédito. "
+            "Intime-se a reclamada para, em 2 (dois) dias, comprovar o recolhimento das custas e o "
+            "pagamento dos honorários periciais, conforme determinado em ID #id:41d8e6d, sob pena de execução. "
+            "Cumprido, registrem-se os valores pagos e tornem conclusos para extinção do feito."
+        )
+        self.assertTrue(_eh_despacho_2_dias_execucao(texto_real))
+
+        texto_48h = (
+            "Intime-se a executada para, no prazo de 48 horas, comprovar o recolhimento sob pena de execução."
+        )
+        self.assertTrue(_eh_despacho_2_dias_execucao(texto_48h))
+
+        texto_48h_extenso = (
+            "Intime-se para que em 48 (quarenta e oito) horas realize o pagamento das custas, sob pena de prosseguimento da execução."
+        )
+        self.assertTrue(_eh_despacho_2_dias_execucao(texto_48h_extenso))
+
+        # Casos negativos:
+        # Prazo de 5 ou 8 dias
+        self.assertFalse(_eh_despacho_2_dias_execucao(
+            "Intime-se a reclamada para, em 5 dias, comprovar o recolhimento sob pena de execução."
+        ))
+        self.assertFalse(_eh_despacho_2_dias_execucao(
+            "Intime-se a reclamada para, em 8 dias, comprovar o recolhimento sob pena de execução."
+        ))
+        # Prazo de 2 dias mas sem cominação de execução
+        self.assertFalse(_eh_despacho_2_dias_execucao(
+            "Intime-se o perito para que em 2 dias apresente os esclarecimentos periciais."
+        ))
+        # Prazo de 48h genérico
+        self.assertFalse(_eh_despacho_2_dias_execucao(
+            "Intime-se o reclamante para que em 48 horas informe o endereço atualizado."
+        ))
+
+    def test_p2b_extrair_documento_relevante_excecao_2_dias(self):
+        """Valida que extrair_documento_relevante abre exceção para despacho de 2 dias/48h sob pena de execução."""
+        from unittest.mock import MagicMock, patch
+        from Prazo.p2b_gateway import extrair_documento_relevante
+
+        driver = MagicMock()
+        driver.current_url = 'https://pje.trt2.jus.br/pjekz/processo/5023436/detalhe/'
+
+        mock_sess = MagicMock()
+        mock_resp_timeline = MagicMock()
+        mock_resp_timeline.status_code = 200
+        mock_resp_timeline.json.return_value = [
+            {
+                'tipo': 'Despacho',
+                'id': 1234,
+                'dataJuntada': '2026-10-15T07:38:15.011603',
+                'titulo': 'Despacho'
+            }
+        ]
+
+        mock_resp_conteudo = MagicMock()
+        mock_resp_conteudo.status_code = 200
+        mock_resp_conteudo.content = b'%PDF-1.4 mock content'
+
+        def get_side_effect(url, **kwargs):
+            if 'timeline' in url:
+                return mock_resp_timeline
+            return mock_resp_conteudo
+
+        mock_sess.get.side_effect = get_side_effect
+
+        texto_2d = (
+            "Vistos, etc. Vencido o prazo estipulado para pagamento do acordo, presumo quitado. "
+            "Intime-se a reclamada para, em 2 (dois) dias, comprovar o recolhimento das custas sob pena de execução."
+        )
+        texto_comum = (
+            "Vistos, etc. Intime-se a reclamada para manifestar sobre os calculos no prazo de 8 dias."
+        )
+
+        # Caso 1: Despacho de 2 dias com 5 dias de idade -> DEVE PROCESSAR (sucesso = True)
+        with patch('Prazo.p2b_gateway.session_from_driver', return_value=(mock_sess, 'pje.trt2.jus.br')), \
+             patch('Mandado.apoio_fluxos._extrair_texto_pdf_bytes', return_value=texto_2d):
+            res1 = extrair_documento_relevante(driver)
+            self.assertTrue(res1.get('sucesso'))
+            self.assertEqual(res1.get('conteudo'), texto_2d)
+
+        # Caso 2: Despacho comum com 5 dias de idade -> DEVE PULAR (decisao_recente_menos_5_dias)
+        with patch('Prazo.p2b_gateway.session_from_driver', return_value=(mock_sess, 'pje.trt2.jus.br')), \
+             patch('Mandado.apoio_fluxos._extrair_texto_pdf_bytes', return_value=texto_comum):
+            res2 = extrair_documento_relevante(driver)
+            self.assertFalse(res2.get('sucesso'))
+            self.assertEqual(res2.get('erro'), 'decisao_recente_menos_5_dias')
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
 

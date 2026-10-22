@@ -590,7 +590,7 @@
                         </select>
                     </div>
                     <div class="col" id="col-pjc">
-                        <label><input type="checkbox" id="calc-pjc" checked> Acompanha arquivo .PJC?</label>
+                        <label><input type="checkbox" id="calc-pjc"> Acompanha arquivo .PJC?</label>
                     </div>
                     <div class="col">
                         <label>Autor do Cálculo</label>
@@ -1724,6 +1724,13 @@
                 if (radSusp) radSusp.checked = true;
             }
             // else: manter default do HTML (chk-hon-reu desmarcado = campos visíveis)
+
+                // REGRA 7: Arquivo .PJC acompanha cálculo (detectado via API de cálculos do processo)
+                const pjcEl = $('calc-pjc');
+                if (pjcEl && !pjcEl.disabled) {
+                    pjcEl.checked = !!prep.temCalculoPje;
+                    console.log('[hcalc] .PJC detectado via API de cálculos:', prep.temCalculoPje, '-> calc-pjc.checked =', pjcEl.checked);
+                }
                 // ==========================================
                 // PREENCHER COM DADOS DA PLANILHA (PRIORIDADE)
                 // ==========================================
@@ -1852,6 +1859,13 @@
                 }
 
                 restoreOverlayDraft();
+
+                // Garante que calc-pjc reflita a detecção da API caso não esteja bloqueado pelo perito Rogério
+                const pjcElFinal = $('calc-pjc');
+                if (pjcElFinal && !pjcElFinal.disabled) {
+                    pjcElFinal.checked = !!prep.temCalculoPje;
+                }
+
                 $('homologacao-overlay').style.display = 'flex';
                 dbg('Overlay exibido para o usuario.');
 

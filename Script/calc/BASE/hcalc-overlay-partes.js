@@ -65,6 +65,9 @@
                 origemEl.disabled = false;
                 pjcEl.disabled = false;
                 autorEl.disabled = false;
+                if (window.hcalcPrepResult && typeof window.hcalcPrepResult.temCalculoPje === 'boolean') {
+                    pjcEl.checked = window.hcalcPrepResult.temCalculoPje;
+                }
                 rowPeritoContabilEl.classList.add('hidden');
                 if (valPeritoContabilValorEl) {
                     valPeritoContabilValorEl.value = '';

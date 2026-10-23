@@ -296,11 +296,12 @@ pec_exeq = make_comunicacao_wrapper(
     modelo_nome='xsexeq',
     subtipo="Intimação",
     gigs_extra=None,
-    destinatarios='polo_ativo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
-    cliques_polo_passivo=1,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    destinatarios='polo_ativo',
+    cliques_polo_passivo=1,
+    assinar=True,
+    endereco_tipo='correios',
     wrapper_name='pec_exeq',
-    remover_endereco_invalido=False  # Não apaga linha de endereço inválido na execução de pec_exeq
+    remover_endereco_invalido=False 
 )
 
 # ====================================================

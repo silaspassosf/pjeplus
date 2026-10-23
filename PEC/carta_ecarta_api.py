@@ -103,16 +103,21 @@ def _parse_data(texto: str) -> Optional[_date]:
 # ═══════════════════════════════════════════════════════════════════
 
 def _obter_credenciais_ecarta() -> tuple[str, str]:
-    """Recupera credenciais do eCarta via keyring do Windows, com fallback seguro."""
-    user, pwd = "s164283", "SpFintra861!"
-    try:
-        import keyring
-        u = keyring.get_password("pjeplus_ecarta", "username")
-        p = keyring.get_password("pjeplus_ecarta", "password")
-        if u and p:
-            user, pwd = u, p
-    except Exception:
-        pass
+    """Recupera credenciais do eCarta via keyring do Windows (Credential Manager).
+
+    F0/limpeza: o fallback hardcoded foi removido — a credencial DEVE estar no
+    Gerenciador de Credenciais (entradas genericas 'username@pjeplus_ecarta' e
+    'password@pjeplus_ecarta'). Sem ela, erro claro (o segredo nao vive no codigo).
+    """
+    import keyring
+    user = keyring.get_password("pjeplus_ecarta", "username")
+    pwd = keyring.get_password("pjeplus_ecarta", "password")
+    if not user or not pwd:
+        raise RuntimeError(
+            "Credencial eCarta ausente no Windows Credential Manager. "
+            'Salve com: cmdkey /generic:"username@pjeplus_ecarta" /user:s164283 /pass:<login> '
+            'e cmdkey /generic:"password@pjeplus_ecarta" /user:password /pass:<senha>'
+        )
     return user, pwd
 
 

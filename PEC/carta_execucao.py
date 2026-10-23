@@ -891,4 +891,23 @@ def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None
             logger.error(f"[CARTA] Erro na juntada automatica: {e}")
         return False
 
+    # GIGS de prazo alinhado a data certificada na certidao ('xs pzi' quando o
+    # prazo contado e de 15 dias uteis). Falha aqui nao derruba o resultado da carta.
+    if _prazo_texto:
+        try:
+            from PEC.runtime_pec import criar_gigs_prazo_certidao
+            criar_gigs_prazo_certidao(driver, _prazo_texto, log=log)
+        except Exception as e:
+            if log:
+                logger.error(f"[CARTA] Falha ao criar GIGS de prazo da certidao: {e}")
+
+    # Intimação de desconsideração (IDPJ/15 dias) com resultado negativo dos
+    # Correios -> GIGS 'xs pec idpj' + ato_edidpj (edital do IDPJ).
+    try:
+        from PEC.runtime_pec import executar_edital_idpj_negativo
+        executar_edital_idpj_negativo(driver, table_data, intimacoes_info, log=log)
+    except Exception as e:
+        if log:
+            logger.error(f"[CARTA] Falha no fluxo edital IDPJ (resultado negativo): {e}")
+
     return True

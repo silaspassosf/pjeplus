@@ -630,6 +630,211 @@ def formatar_dados_ecarta(dados_mais_recentes, intimacoes_info, log=True):
 
 
 # ═══════════════════════════════════════════════════
+# GIGS DE PRAZO A PARTIR DA CERTIDAO (complemento do fluxo carta)
+# ═══════════════════════════════════════════════════
+
+_RE_PRAZO_15 = re.compile(r'15\s*(?:dias?\s*)?\((\d{2}/\d{2}/\d{4})\)', re.IGNORECASE)
+_RE_PRAZO_8 = re.compile(r'0?8\s*(?:dias?\s*)?\((\d{2}/\d{2}/\d{4})\)', re.IGNORECASE)
+
+
+def _contar_dias_uteis_ate(data_base, data_alvo):
+    """Dias uteis (mesmo calendario de _somar_dias_uteis) de data_base ate data_alvo.
+
+    Garante a propriedade _somar_dias_uteis(data_base, retorno) == data_alvo.
+    Retorna None se data_alvo <= data_base ou se o alvo nao e alcancavel.
+    """
+    if not data_base or not data_alvo or data_alvo <= data_base:
+        return None
+    dias_calendario, intervalo = _carregar_calendario_dias_uteis()
+    data_atual = data_base
+    acumulado = 0
+    seguranca = 0
+    while data_atual < data_alvo and seguranca < 1000:
+        data_atual += timedelta(days=1)
+        seguranca += 1
+        dentro_intervalo = intervalo and intervalo[0] <= data_atual <= intervalo[1]
+        if dias_calendario and dentro_intervalo:
+            if data_atual in dias_calendario:
+                acumulado += 1
+        else:
+            if data_atual.weekday() < 5:
+                acumulado += 1
+    if data_atual != data_alvo:
+        return None
+    return acumulado
+
+
+def criar_gigs_prazo_certidao(driver, prazo_texto, obs_15='xs pzi', obs_8=None, log=True):
+    """Complemento do fluxo carta: cria GIGS de prazo alinhado a data certificada.
+
+    A certidao juntada pelo fluxo carta traz o prazo contado (15 ou 8 dias uteis
+    a partir da entrega da carta) com a data exata, ex.:
+      - "Prazo: 15 dias (13/11/2026)"   (caso desconsideracao)
+      - "Prazo: 8 dias (05/11/2026)"
+      - "Prazos: 15 (13/11/2026) - 08 (05/11/2026)"
+
+    O GIGS do PJe vence em HOJE + N dias uteis. Esta funcao recalcula N com o
+    mesmo calendario do projeto ate que hoje + N dias uteis == a data certificada,
+    e chama criar_gigs com esse N e a observacao correspondente:
+      - prazo de 15 dias -> obs_15 (padrao 'xs pzi')
+      - prazo de 8 dias  -> obs_8 (padrao None: nao cria)
+
+    Nao levanta excecao; falhas sao logadas. Retorna True se criou ao menos um GIGS.
+    """
+    if not prazo_texto:
+        if log:
+            logger.info('[CARTA][GIGS] Sem prazo na certidao — nenhum GIGS de prazo.')
+        return False
+
+    m15 = _RE_PRAZO_15.search(prazo_texto)
+    m8 = _RE_PRAZO_8.search(prazo_texto)
+    if not m15 and not m8:
+        if log:
+            logger.info('[CARTA][GIGS] prazo_texto sem data reconhecivel: %r', prazo_texto[:80])
+        return False
+
+    hoje = datetime.now().date()
+    alvos = []
+    if m15 and obs_15:
+        alvos.append((15, obs_15, _parse_data_ecarta(m15.group(1))))
+    if m8 and obs_8:
+        alvos.append((8, obs_8, _parse_data_ecarta(m8.group(1))))
+
+    criados = 0
+    for dias_certidao, observacao, data_certificada in alvos:
+        if not data_certificada:
+            if log:
+                logger.warning('[CARTA][GIGS] Data do prazo de %s dias invalida.', dias_certidao)
+            continue
+        if data_certificada <= hoje:
+            if log:
+                logger.info(
+                    '[CARTA][GIGS] Prazo de %s dias (%s) vencido ou hoje — GIGS nao criado.',
+                    dias_certidao, data_certificada.strftime('%d/%m/%Y'),
+                )
+            continue
+        dias = _contar_dias_uteis_ate(hoje, data_certificada)
+        if dias is None:
+            if log:
+                logger.warning(
+                    '[CARTA][GIGS] Nao consegui contar dias uteis ate %s — GIGS nao criado.',
+                    data_certificada.strftime('%d/%m/%Y'),
+                )
+            continue
+        try:
+            from Fix.extracao import criar_gigs
+            if criar_gigs(driver, dias, '', observacao, log=log):
+                criados += 1
+                if log:
+                    logger.info(
+                        '[CARTA][GIGS] GIGS criado: %r com %s dias uteis — hoje + %s DU == %s '
+                        '(data certificada).',
+                        observacao, dias, dias, data_certificada.strftime('%d/%m/%Y'),
+                    )
+            elif log:
+                logger.error('[CARTA][GIGS] criar_gigs falhou para %r.', observacao)
+        except Exception as e:
+            if log:
+                logger.error('[CARTA][GIGS] Erro ao criar GIGS: %s', e)
+
+    return criados > 0
+
+
+# ═══════════════════════════════════════════════════
+# EDITAL IDPJ POR RESULTADO NEGATIVO (complemento do fluxo carta)
+# ═══════════════════════════════════════════════════
+
+
+def _tem_resultado_negativo_por_destinatario(dados_mais_recentes):
+    """True se pelo menos um destinatario tem APENAS resultados devolvidos.
+
+    Agrupamento por DESTINATARIO: se o mesmo destinatario tem 2 cartas e uma
+    delas foi entregue (positiva), ele NAO conta como negativo. So vale o
+    destinatario cujo conjunto inteiro de resultados e de devolucoes
+    (status devolvido ou falso positivo corrigido).
+    """
+    if not dados_mais_recentes:
+        return False
+    grupos = {}
+    for item in dados_mais_recentes:
+        destinatario = (item.get('DESTINATARIO') or '').strip().upper()
+        if not destinatario:
+            continue
+        status = item.get('STATUS', '') or ''
+        devolvido = bool(
+            re.search(r'devolvid[oa]', status, re.IGNORECASE) or item.get('FALSO_POSITIVO')
+        )
+        grupos.setdefault(destinatario, []).append(devolvido)
+    return any(todos and all(todos) for todos in grupos.values())
+
+
+def executar_edital_idpj_negativo(driver, dados_mais_recentes, intimacoes_info, log=True):
+    """Complemento do fluxo carta: intimação de desconsideração (IDPJ, prazo de
+    15 dias) com resultado NEGATIVO dos Correios -> intimação por edital.
+
+    Detecção (mesma lógica do prazo de 15 dias):
+      - intimacoes_info com tem_desconsideracao (texto da intimação menciona
+        "desconsideração" — carta_execucao._ler_intimacao_correio);
+      - resultado negativo: existe pelo menos um destinatario cujas cartas no
+        lote foram TODAS devolvidas (status 'devolvido' ou falso positivo).
+        Destinatario com entrega positiva entre as cartas nao conta.
+
+    Ação: criar_gigs(driver, 1, '', 'xs pec idpj') e depois o ato de edital
+    do IDPJ (atos.ato_edidpj — Despacho, modelo 'xseditid', prazo 1).
+
+    Nao levanta excecao; falhas sao logadas. Retorna True se o edital executou.
+    """
+    tem_desconsideracao = any(
+        info.get('tem_desconsideracao') for info in (intimacoes_info or [])
+    )
+    if not tem_desconsideracao:
+        if log:
+            logger.info(
+                '[CARTA][EDITAL] Sem intimacao de desconsideracao (IDPJ/15 dias) '
+                '— fluxo edital nao se aplica.'
+            )
+        return False
+
+    if not _tem_resultado_negativo_por_destinatario(dados_mais_recentes):
+        if log:
+            logger.info(
+                '[CARTA][EDITAL] Nenhum destinatario com resultado apenas devolvido '
+                '— fluxo edital nao se aplica.'
+            )
+        return False
+
+    if log:
+        logger.info('[CARTA][EDITAL] IDPJ + resultado negativo — criando GIGS "xs pec idpj"...')
+
+    try:
+        from Fix.extracao import criar_gigs
+        ok_gigs = criar_gigs(driver, 1, '', 'xs pec idpj', log=log)
+        if log:
+            if ok_gigs:
+                logger.info('[CARTA][EDITAL] GIGS "xs pec idpj" criado (1 dia).')
+            else:
+                logger.error('[CARTA][EDITAL] criar_gigs "xs pec idpj" falhou.')
+    except Exception as e:
+        ok_gigs = False
+        if log:
+            logger.error('[CARTA][EDITAL] Erro ao criar GIGS "xs pec idpj": %s', e)
+
+    try:
+        from atos import ato_edidpj
+        ok_edital = bool(ato_edidpj(driver, debug=log))
+        if log:
+            if ok_edital:
+                logger.info('[CARTA][EDITAL] ato_edidpj (edital IDPJ) executado com sucesso.')
+            else:
+                logger.error('[CARTA][EDITAL] ato_edidpj retornou falha.')
+        return ok_edital
+    except Exception as e:
+        if log:
+            logger.error('[CARTA][EDITAL] Erro ao executar ato_edidpj: %s', e)
+        return False
+
+
+# ═══════════════════════════════════════════════════
 # ORQUESTRADOR
 # ═══════════════════════════════════════════════════
 

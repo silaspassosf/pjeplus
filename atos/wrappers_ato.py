@@ -195,6 +195,17 @@ ato_edital = make_ato_wrapper(
     marcar_primeiro_destinatario=True
 )
 
+ato_edidpj = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='xseditid',
+    prazo=1,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True
+)
+
+
 ato_sobrestamento = make_ato_wrapper(
     conclusao_tipo='Suspensão',
     modelo_nome='suspf',

@@ -161,9 +161,14 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
         l_txt = lines[idx_l].strip().lower()
         if not l_txt:
             continue
-        # Se entrar na próxima seção da certidão, encerra a leitura
+        # Se entrar na próxima seção da certidão, encerra a leitura.
+        # 'pesquisa patrimonial' é o cabeçalho real que sucede Bloqueio de valores
+        # nas certidões do TRT: sem ele, o bloco ARISP seguinte vazava para cá e o
+        # 'positivo' do ARISP contaminava o veredito do SISBAJUD.
         if idx_l > bloqueio_idx and any(sec in l_txt for sec in [
-            'pesquisa de bens', 'renajud', 'infojud', 'certifico finalmente', 'conclusao', 'registro de veiculos'
+            'pesquisa de bens', 'pesquisa patrimonial', 'renajud', 'infojud',
+            'certifico finalmente', 'conclusao', 'registro de veiculos',
+            'arisp', 'cnib', 'sniper',
         ]):
             break
         secao_linhas.append(l_txt)
@@ -186,15 +191,28 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
     if maior_valor > 0:
         return 'positivo', f'SISBAJUD com valor positivo: R$ {maior_valor:.2f}', executados
 
-    # 2. Checar menções a positivo/negativo na seção (positivo tem precedência sobre negativo)
-    tem_positivo = any('positivo' in l for l in secao_linhas)
-    tem_negativo = any('negativo' in l for l in secao_linhas)
+    # 2. Veredito declarado pelo próprio SISBAJUD tem precedência.
+    # A certidão traz "sisbajud negativo" / "sisbajud positivo" logo após o
+    # cabeçalho; procurar só 'positivo'/'negativo' soltos pega palavras de
+    # outros sistemas (ex.: "arisp consulta positivo") e inverte o resultado.
+    for l in secao_linhas:
+        compacto = l.replace(' ', '')
+        if 'sisbajudnegativo' in compacto:
+            return 'negativo', 'SISBAJUD Negativo declarado na seção', executados
+        if 'sisbajudpositivo' in compacto:
+            return 'positivo', 'SISBAJUD Positivo declarado na seção', executados
 
-    if tem_positivo:
-        return 'positivo', 'SISBAJUD Positivo na seção Bloqueio de valores', executados
+    # 3. Último recurso: menções soltas (sem veredito explícito do SISBAJUD).
+    # Negativo tem precedência: falso-negativo apenas adia, falso-positivo
+    # faz o fluxo pular um mandado que precisava de ato.
+    tem_negativo = any('negativo' in l for l in secao_linhas)
+    tem_positivo = any('positivo' in l for l in secao_linhas)
 
     if tem_negativo:
         return 'negativo', 'SISBAJUD Negativo na seção Bloqueio de valores', executados
+
+    if tem_positivo:
+        return 'positivo', 'SISBAJUD Positivo na seção Bloqueio de valores', executados
 
     return 'negativo', 'SISBAJUD não encontrado na seção Bloqueio de valores', executados
 

@@ -768,6 +768,37 @@ def _selecionar_checkbox_intimacao(driver: Any, linha: Any, log: bool = True) ->
     return False
 
 
+def _colunas_expedientes(driver: Any):
+    """Descobre os índices das colunas 'Prazo' e 'Fechado' pelo cabeçalho.
+
+    O modal de Expedientes do PJe já mudou de layout: usar índice fixo
+    (cells[8]/cells[10]) fazia nenhuma linha casar com prazo 30 mesmo com a
+    intimação presente. Lê o <thead> e devolve (idx_prazo, idx_fechado);
+    qualquer um pode ser None quando o cabeçalho não é identificável, e o
+    chamador cai na varredura por texto.
+    """
+    try:
+        cabecalhos = espera.elementos(driver, 'thead th, tbody tr:first-child th', teto=1)
+    except Exception:
+        return (None, None)
+    if not cabecalhos:
+        return (None, None)
+
+    idx_prazo = idx_fechado = None
+    for i, th in enumerate(cabecalhos):
+        try:
+            txt = (th.text or '').strip().lower()
+        except Exception:
+            continue
+        if not txt:
+            continue
+        if idx_prazo is None and 'prazo' in txt:
+            idx_prazo = i
+        elif idx_fechado is None and ('fechado' in txt or 'situa' in txt):
+            idx_fechado = i
+    return (idx_prazo, idx_fechado)
+
+
 def fechar_intimacao(driver: Any, log: bool = True) -> bool:
     """Fecha a intimacao do processo."""
     logger.info('[INTIMACAO] === INICIO ===')
@@ -806,23 +837,38 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
         rows = espera.elementos(driver, 'tbody tr', teto=2)
         logger.info(f'[INTIMACAO] [4] Total de linhas encontradas: {len(rows)}')
 
+        # Índices das colunas vêm do cabeçalho; o layout do modal de Expedientes
+        # muda entre versões do PJe e o índice fixo (8/10) deixava de casar.
+        idx_prazo, idx_fechado = _colunas_expedientes(driver)
+        logger.info(f'[INTIMACAO] [4] colunas: prazo={idx_prazo} fechado={idx_fechado}')
+
         linha_prazo_30 = None
 
         for i, row in enumerate(rows):
             try:
                 cells = espera.elementos(row, 'td', teto=0.5)
-                if len(cells) >= 11:
-                    prazo = cells[8].text.strip()
-                    fechado = cells[10].text.strip().lower()
+                if not cells:
+                    continue
 
-                    if prazo == '30' and fechado != "sim":
-                        linha_prazo_30 = row
-                        assinatura_linha = tuple(
-                            cell.text.strip().lower()
-                            for cell in cells[:10]
-                        )
-                        logger.info(f'[INTIMACAO] [4]  Linha {i+1} selecionada (prazo 30, nao fechado)')
-                        break
+                textos = [(c.text or '').strip() for c in cells]
+
+                if idx_prazo is not None and idx_prazo < len(textos):
+                    prazo = textos[idx_prazo]
+                    fechado = textos[idx_fechado].lower() if (idx_fechado is not None
+                                                              and idx_fechado < len(textos)) else ''
+                else:
+                    # sem cabeçalho: casa célula cujo texto é exatamente 30 e
+                    # confirma 'fechado' em qualquer outra célula
+                    prazo = next((t for t in textos if t == '30'), '')
+                    fechado = 'sim' if any(t.lower() == 'sim'
+                                           for t in textos) else ''
+
+                if prazo == '30' and fechado != "sim":
+                    linha_prazo_30 = row
+                    logger.info(f'[INTIMACAO] [4]  Linha {i+1} selecionada (prazo 30, nao fechado)')
+                    break
+                if prazo:
+                    logger.info(f'[INTIMACAO] [4]  Linha {i+1}: prazo={prazo!r} fechado={fechado!r}')
             except Exception as e:
                 logger.info(f'[INTIMACAO] [4] Erro na linha {i+1}: {str(e)[:40]}')
                 continue

@@ -30,7 +30,7 @@ from bianca.triagem.api import (
 )
 from bianca.triagem.progress import ProgressoTriagem
 from bianca.triagem.service import triagem_peticao
-from bianca.utils import resultado_falha, resultado_ok, run_batch
+from utilitarios_processamento import resultado_falha, resultado_ok, run_batch
 
 
 def _fechar_tabs_acesso_negado(drv, handle_principal: str, numero: str = "?") -> int:
@@ -166,7 +166,7 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
             except Exception as e:
                 return resultado_falha(str(e))
 
-        def execute_item(proc, open_result):
+        def execute_item(proc):
             numero = proc.get("numero", "?")
             try:
                 print("[TRIAGEM][%s] Processando..." % numero)
@@ -269,7 +269,6 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
             open_item=open_item,
             execute_item=execute_item,
             persist_result=persist_result,
-            label="TRIAGEM",
             stop_on_critical=True,
         )
 

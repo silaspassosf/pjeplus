@@ -133,10 +133,10 @@ def fluxo_cls(
                     logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (ato já assinado)')
                     return True, True
 
-                # Tarefa "Elaborar ..." = a tarefa já está na tela de minuta.
-                # Não movimenta o processo: segue direto para as ações da URL
-                # /minutar (descrição, modelo, etc.), que o wrapper executa
-                # quando ja_estava_final é False.
+                # Tarefa "Elaborar ..." = a tarefa foi aberta e a aba carregou
+                # na tela de minuta. Não movimenta o processo: segue direto
+                # para as ações da URL /minutar (descrição, modelo, etc.), que
+                # o wrapper executa quando ja_estava_final é False.
                 if getattr(driver, 'pje_tarefa_pronta', None) == 'elaborar':
                     logger.info('[CLS] Tarefa de elaboração — seguindo direto para as ações de minuta')
                     timing_total = time.time() - timing_inicio

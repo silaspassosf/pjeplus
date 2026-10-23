@@ -69,6 +69,13 @@ PEC/clipboard.txt
 **/sisbajud_conciso*.txt
 
 
+# Backups e artefatos de execução versionados por engano (F0 2026-10-23)
+*.bak
+*.backup*
+backup_aud_pre_merge/
+progresso*.json
+Script/atalhos_backup.js
+
 # Large binaries
 *.exe
 *.dmg

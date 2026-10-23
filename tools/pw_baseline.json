@@ -1,9 +1,9 @@
 {
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
-  "total_files": 304,
-  "files_with_patterns": 50,
-  "total_patterns": 965,
+  "total_files": 326,
+  "files_with_patterns": 49,
+  "total_patterns": 911,
   "migrados": [
     "Fix/browser_suporte.py",
     "Fix/core.py",
@@ -50,6 +50,8 @@
     "Prazo/p2b_fluxo_prescricao.py",
     "Prazo/p2b_gateway.py",
     "Prazo/p2b_regras_execucao.py",
+    "SISB/Core/login.py",
+    "SISB/processamento/minutas_salvar.py",
     "atos/anexos/anexos_extracao.py",
     "atos/anexos/anexos_wrappers.py",
     "atos/anexos_sigilo.py",
@@ -253,16 +255,6 @@
         "expected_conditions": 9
       }
     },
-    "SISB/Core/login.py": {
-      "total": 25,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 3,
-        "send_keys": 6,
-        "webdriver_wait": 3,
-        "time_sleep": 9
-      }
-    },
     "SISB/Core/sessao_helpers.py": {
       "total": 4,
       "breakdown": {
@@ -291,16 +283,10 @@
       }
     },
     "SISB/core.py": {
-      "total": 49,
+      "total": 18,
       "breakdown": {
-        "from_selenium": 7,
-        "find_element": 3,
-        "execute_script": 8,
-        "send_keys": 7,
-        "window_handles": 5,
-        "webdriver_wait": 6,
-        "expected_conditions": 4,
-        "time_sleep": 9
+        "execute_script": 13,
+        "window_handles": 5
       }
     },
     "SISB/ordens_dados_navegacao.py": {
@@ -356,12 +342,6 @@
       "total": 1,
       "breakdown": {
         "webdriver_type": 1
-      }
-    },
-    "SISB/processamento/minutas_salvar.py": {
-      "total": 2,
-      "breakdown": {
-        "execute_script": 2
       }
     },
     "SISB/processamento/navegacao.py": {
@@ -498,6 +478,12 @@
       "breakdown": {
         "from_selenium": 2,
         "webdriver_type": 9
+      }
+    },
+    "tests/test_sisbajud_autenticacao.py": {
+      "total": 4,
+      "breakdown": {
+        "execute_script": 4
       }
     },
     "tools/grab.py": {

@@ -12,7 +12,7 @@ trigger: always_on
 > - **Branch de trabalho exclusiva: `main`** — Confirme sempre com `git branch --show-current`. Edite somente em `main`; não troque de branch automaticamente.
 > - `.agents/rules/anti-selenium.md` — Playwright é a única via. Proibido reintroduzir Selenium em qualquer arquivo.
 > - `.agents/rules/comparacao-historica.md` — em caso de dúvida, falha ou regressão, compare com `968047a^` (estado imediatamente anterior ao commit `968047a`). Não consulte branches anteriores e não restaure/copie código automaticamente.
-> - `gigs-plugin.js`, `LEGADO.md`, `legado.md` e outras fontes legadas só podem ser consultadas se o prompt as mencionar expressamente.
+> - `gigs-plugin.js` e outras fontes legadas só podem ser consultadas se o prompt as mencionar expressamente. (`LEGADO.md` removido em 2026-10-23 — destilado em `docs/HISTORICO_LEGADO.md`.)
 
 ---
 
@@ -129,8 +129,8 @@ Q13: X envolve anexos/juntada de documentos?
 - **Regra de arquitetura (Playwright é a única via):** Todo código que roda em `py pw.py` fala o vocabulário nativo do projeto (`Fix/espera.py`, `Play/pjeplay/nativo.py`) ou `Page`/`Locator`. É proibido introduzir: `import selenium`, `driver.find_element`, `driver.find_elements`, `driver.execute_script`, `driver.send_keys`, `driver.window_handles`, `WebDriverWait`, `expected_conditions`, tipagem `WebDriver`, `time.sleep`. Espera é sempre condição observável (`espera.ate_*`), nunca pausa cega. JS só existe dentro de helper nomeado — nunca solto no fluxo de negócio. Arquivo listado como migrado em `tools/pw_baseline.json` não pode regredir.
 - **P9 — Import de interação:** funções de interação (`safe_click_no_scroll`, `wait_for_clickable`, `safe_click`, `esperar_elemento`, `aguardar_renderizacao_nativa`) DEVEM vir de `Fix.core`, nunca de `Fix.selenium_base` (cópia congelada, quebra com backend Playwright). Ver `@idx.md` Seção 8-D para detalhe completo.
 - **Nunca editar SHIMS** (`Fix/abas.py`, `Fix/headless_helpers.py`, `Fix/element_wait.py`, etc. — lista completa em `@idx.md` Seção 4) — redirecionam para implementações reais.
-- **Nunca editar fontes legadas** (`leg/`, `Mandado/core.py`, `Mandado/processamento.py`, `_archive/`, `LEGADO.md`). Consulta somente quando o prompt mencionar expressamente a fonte.
-- **Diretórios duplicados:** usar `bianca/` (não `Triagem/`) para Triagem e DOM; usar `Fix/variaveis.py` (não `api/` na raiz) para PjeApiClient.
+- **Nunca editar fontes legadas** (`leg/`, `Mandado/core.py`, `Mandado/processamento.py`, `_archive/`). Consulta somente quando o prompt mencionar expressamente a fonte.
+- **Diretórios duplicados:** usar `bianca/` (não `Triagem/`) para Triagem e DOM. **API (split canônico, idx §4):** `Fix/variaveis.py` para helpers/`cliente_para` e `api/variaveis_client.py` para gateway POST/PATCH/paginação — nada fora de `bianca/` deve importar `bianca.api_client`.
 - **Proibido:** `WebDriverWait`, `ActionChains`, `time.sleep()` ou `.click()` direto em módulos de negócio — ver API de Interação Obrigatória em `@idx.md` Seção 7.
 
 **INSTRUÇÃO FINAL:** este core é o filtro de escopo primário. Se a tarefa não for coberta aqui, leia `@idx.md` para o índice de palavras-chave completo, cadeias de chamada por fluxo, e catálogo detalhado de `atos/`. Se nada cobrir o termo buscado, o grep é permitido — mas atualize `idx.md` em seguida.

@@ -14,17 +14,6 @@ import types
 from typing import Optional, Dict, Any, Callable, Union, List
 
 
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS de forma compatível sem invocar padrão regex."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
-
 # Imports do Fix
 from Fix.core import (
     aguardar_e_clicar,
@@ -44,7 +33,7 @@ from Fix.utils import (
     inserir_link_ato_validacao,
 )
 from Fix import espera
-# NOTA: substituir_marcador_por_conteudo NÃO é importado de Fix.utils
+from Fix.core import _executar_js
 # (causaria recursão infinita: Fix.utils → helpers → Fix.utils).
 # A implementação real está definida localmente abaixo.
 

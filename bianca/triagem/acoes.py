@@ -24,18 +24,7 @@ from Fix.core import esperar_elemento, preencher_campo, safe_click
 from Fix.headless_helpers import limpar_overlays_headless
 from bianca.extracao import criar_comentario, criar_gigs
 from bianca.triagem.citacao import def_citacao
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS de forma compatível sem invocar padrão regex."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
+from Fix.core import _executar_js
 
 def _print_saida_funcao(rotulo: str, valor: Any) -> None:
     if isinstance(valor, str):

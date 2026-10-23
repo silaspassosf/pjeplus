@@ -15,18 +15,7 @@ from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
 from Fix.log import logger
 from Fix.utils import normalizar_texto as normalizar_string
 from Fix import espera
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa JavaScript de forma compativel entre Selenium e Playwright."""
-    fn = getattr(driver, "execute_" + "script", None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
+from Fix.core import _executar_js
 
 def preencher_input_js(driver: Any, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
     for tentativa in range(1, max_tentativas + 1):

@@ -15,17 +15,6 @@ import types
 from typing import Optional, Dict, Any, Callable, Union, List
 
 
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS de forma compatível sem invocar padrão regex."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
-
 # Imports do Fix
 from Fix import espera
 from Fix.core import (
@@ -49,7 +38,7 @@ from Fix.utils import (
 from .anexos_extracao import extrair_numero_processo_da_url
 from .anexos_formatacao import formatar_conteudo_ecarta
 from .anexos_juntador_helpers import substituir_marcador_por_conteudo
-
+from Fix.core import _executar_js
 
 def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> bool:
     """Implementa escolherOpcaoTeste/escolherOpcaoTeste2 do gigs-plugin.js com suporte a autocomplete."""

@@ -1199,67 +1199,6 @@ def _place_selection_at_marker(driver, editable, marcador: str = "--", modo: str
     return result and result.get('ok', False)
 
 
-def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: str = "replace", debug: bool = False) -> bool:
-    """Insere conteúdo HTML no editor CKEditor"""
-    try:
-        if debug:
-            logger.debug('[EDITOR] Iniciando insercao HTML')
-            logger.debug('[EDITOR] Marcador: "%s"', marcador)
-
-        editable = _get_editable(driver, debug)
-
-        _executar_script(driver, 'arguments[0].scrollIntoView({block:"center"});', editable)
-        espera.assentar(driver, 0.2)
-        try:
-            editable.click()
-        except Exception:
-            _executar_script(driver, 'arguments[0].focus();', editable)
-        espera.assentar(driver, 0.1)
-
-        if not _place_selection_at_marker(driver, editable, marcador, modo, debug):
-            if debug:
-                logger.debug('[EDITOR] Marcador "%s" nao encontrado', marcador)
-            return False
-
-        html_content_clean = (html_content.replace('\x00', '').replace('\r', '').strip())
-        html_escaped = (html_content_clean
-                       .replace('\\', '\\\\')
-                       .replace('`', '\\`')
-                       .replace('$', '\\$')
-                       .replace('"', '\\"')
-                       .replace('\n', '\\n')
-                       .replace('\t', '\\t'))
-
-        js_insert = f"""
-        const sel = window.getSelection();
-        if (sel.rangeCount > 0) {{
-            const range = sel.getRangeAt(0);
-            const html = `{html_escaped}`;
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const fragment = document.createDocumentFragment();
-            while (tempDiv.firstChild) {{
-                fragment.appendChild(tempDiv.firstChild);
-            }}
-            range.deleteContents();
-            range.insertNode(fragment);
-            return true;
-        }}
-        return false;
-        """
-
-        sucesso = _executar_script(driver, js_insert)
-        if sucesso and debug:
-            logger.info('HTML inserido com sucesso')
-
-        return bool(sucesso)
-
-    except Exception as e:
-        if debug:
-            logger.error(f'Erro na inserção: {e}')
-        return False
-
-
 def inserir_texto_editor(driver, texto: str, marcador: str = "--", modo: str = "replace", debug: bool = False) -> bool:
     """Insere texto simples no editor CKEditor"""
     try:

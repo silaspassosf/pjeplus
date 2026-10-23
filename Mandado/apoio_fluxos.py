@@ -23,6 +23,7 @@ from Fix import espera
 from Fix.abas import validar_conexao_driver
 from Fix.browser_suporte import forcar_fechamento_abas_extras
 from Fix.core import (
+    _norm,
     aguardar_e_clicar,
     aguardar_renderizacao_nativa,
     baixarCP,
@@ -51,7 +52,6 @@ from atos import (
     ato_meiosub,
 )
 from Fix import espera
-
 
 # ════════════════════════════════════════
 # 0. Controle de GIGS por processo (evita duplicidade)
@@ -311,8 +311,6 @@ def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[s
             return None
 
         import unicodedata
-        def _norm(t):
-            return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
 
         id_certidao = None
         candidatas = []
@@ -395,9 +393,6 @@ def _extrair_texto_documento_timeline_api(driver: Any, match_fn, log: bool = Tru
     """
     import io as _io
     import unicodedata
-
-    def _norm(t):
-        return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
 
     id_processo = _extrair_id_processo_da_url(driver)
     if not id_processo:
@@ -496,9 +491,6 @@ def _localizar_mandado_anterior_timeline_api(driver: Any, log: bool = True) -> O
     """
     import unicodedata
 
-    def _norm(t):
-        return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
-
     id_processo = _extrair_id_processo_da_url(driver)
     if not id_processo:
         if log:
@@ -549,9 +541,6 @@ def _mandado_contem_penhora(doc_mandado: Dict[str, Any]) -> bool:
     if not isinstance(doc_mandado, dict):
         return False
     import unicodedata
-
-    def _norm(t):
-        return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
 
     texto_combinado = " ".join([
         str(doc_mandado.get('tipo') or ''),
@@ -604,9 +593,6 @@ def _extrair_documentos_decisao_despacho_api(driver: Any, log: bool = True) -> L
 		r'^(despacho|decis[aã]o|senten[cç]a|conclus[aã]o)',
 		re.IGNORECASE,
 	)
-
-	def _norm(t):
-		return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
 
 	id_processo = _extrair_id_processo_da_url(driver)
 	if not id_processo:
@@ -817,9 +803,6 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
     Retorna ([], []) em caso de falha — caller deve usar fallback DOM.
     """
     import unicodedata
-
-    def _norm(t: str) -> str:
-        return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
 
     id_processo = _extrair_id_processo_da_url(driver)
     if not id_processo:

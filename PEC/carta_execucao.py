@@ -16,17 +16,6 @@ import time
 from typing import Optional, Dict, Any, List, Tuple
 
 
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS de forma compatível sem invocar padrão regex."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
-
 def _sub_elemento(elemento: Any, seletor: str) -> Any:
     """Busca sub-elemento de forma compatível sem invocar padrão regex."""
     if elemento is None:
@@ -47,7 +36,7 @@ from PEC.anexos.core import anex_carta, salvar_conteudo_clipboard
 from PEC.carta_formatacao import formatar_dados_ecarta
 from PEC.carta_utils import _obter_numero_processo
 from PEC.carta_ecarta_api import coletar_tabela_ecarta_api  # API-based (substitui DOM)
-
+from Fix.core import _executar_js
 logger = logging.getLogger(__name__)
 
 # ════════════════════════════════════════

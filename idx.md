@@ -403,7 +403,9 @@ Arquivos agrupados pelo QUE fazem, independente de ONDE estão:
 | Função | Arquivo | Nota |
 |---|---|---|
 | Remover acentos | `Fix/utils.py` | `remover_acentos` |
-| Normalizar texto | `Fix/utils.py` | `normalizar_texto` |
+| Normalizar texto | `Fix/utils.py` | `normalizar_texto` (filtro por categoria — preserva `º`/`ª`) |
+| Normalizar p/ match (ascii) | `Fix/core.py` | `_norm` (NFD→ascii descarta `º`/`ª`; canônica das cópias apoio_fluxos/PEC — NÃO trocar por `normalizar_texto`) |
+| Executar JS compatível (PW/Selenium) | `Fix/core.py` | `_executar_js` (fallback `page.evaluate`; única cópia desde a F2) |
 | Formatar moeda (R$) | `Fix/utils.py` | `formatar_moeda_brasileira` |
 | Formatar data (dd/mm/aaaa) | `Fix/utils.py` | `formatar_data_brasileira` |
 | Normalizar CPF/CNPJ | `Fix/utils.py` | `normalizar_cpf_cnpj` |

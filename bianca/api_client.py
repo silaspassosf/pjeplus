@@ -8,19 +8,8 @@ from urllib.parse import urlparse, unquote
 import requests
 
 
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS de forma compatível sem invocar padrão regex."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
-
 from bianca.utils import logger
-
+from Fix.core import _executar_js
 # =============================================================================
 # PjeApiClient — cliente HTTP para API REST do PJe
 # =============================================================================

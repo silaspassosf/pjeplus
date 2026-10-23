@@ -13,18 +13,7 @@ from typing import Any
 
 from Fix.core import logger, safe_click_no_scroll, preencher_campo
 from Fix import espera
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa JavaScript de forma compativel entre Selenium e Playwright."""
-    fn = getattr(driver, "execute_" + "script", None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
-
+from Fix.core import _executar_js
 
 def _aguardar_painel_destinatarios_assentar(driver: Any, teto_linhas: int = 10) -> int:
     """Espera o painel de destinatários terminar de renderizar/hidratar.

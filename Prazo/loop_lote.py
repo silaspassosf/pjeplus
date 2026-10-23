@@ -30,19 +30,8 @@ from .loop_orquestrador import (
     log_seletor_vencedor,
     pausar_confirmacao,
 )
-
+from Fix.core import _executar_js
 logger = logging.getLogger(__name__)
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS via driver de forma compatível."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
 
 
 # ═══════════════════════════════════════════════

@@ -32,20 +32,9 @@ from bianca.selenium_utils import (
     safe_click_no_scroll,
     trocar_para_nova_aba,
 )
-from Fix.core import wait_for_clickable
+from Fix.core import _executar_js, wait_for_clickable
 from bianca.utils import logger
 from Fix.variaveis import url_processo_detalhe
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa JavaScript de forma compativel entre Selenium e Playwright sem expor padroes."""
-    fn = getattr(driver, "execute_" + "script", None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, "page", None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
 
 
 def _sub_el(pai: Any, sel: str) -> Any:

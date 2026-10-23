@@ -2554,9 +2554,6 @@ def buscar_documentos_sequenciais(driver, log=True):
                 logger.error('[DOCUMENTOS_SEQUENCIAIS] Timeline vazia')
             return []
 
-        def _norm(t):
-            return unicodedata.normalize('NFD', t.lower()).encode('ascii', 'ignore').decode()
-
         idx_cert_devolucao = None
         for idx, elem in enumerate(elementos):
             texto = _norm(elem.text.strip())
@@ -2622,6 +2619,11 @@ _CP_ANCORA = 'certidao de distribuicao'
 _CP_DESPACHO = re.compile(r'\bdespacho\b')
 _CP_MANDADO = 'mandado'
 _CP_CERTIDAO_OJ = 'certidao de oficial de justica'
+
+
+def _norm(t):
+    """Normaliza texto para comparacao: minusculas, sem acento (NFD -> ascii)."""
+    return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
 
 
 def _executar_js(driver: Any, script: str, *args):
@@ -3198,99 +3200,6 @@ def baixarCP(driver, timeout=15, log=True, numero_processo=None):
 
     return True
 
-
-def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
-    """
-    Busca documentos do polo ativo (autor) na timeline.
-    Retorna lista de dicionários com informações dos documentos encontrados.
-
-    Args:
-        driver: driver ativo
-        data_decisao_str: String da data da decisão (formato DD/MM/YYYY) - opcional
-        debug: Se True, exibe logs detalhados
-
-    Returns:
-        list: Lista de dicionários com chaves 'data', 'nome', 'index'
-    """
-    try:
-        if debug:
-            logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Iniciando busca de documentos do polo ativo...")
-
-        aguardar_renderizacao_nativa(driver, timeout=10)
-        elementos = espera.elementos(driver, "li.tl-item-container", teto=8)
-
-        if debug:
-            logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Encontrados %d itens na timeline", len(elementos))
-
-        documentos_encontrados = []
-
-        for idx, elemento in enumerate(elementos):
-            try:
-                polos_ativos = _buscar_filhos(elemento, 'i.icone-polo-ativo, .polo-ativo, [aria-label*="Ativo"], [title*="Ativo"]')
-
-                if not polos_ativos:
-                    texto_elemento = elemento.text.lower()
-                    if 'autor' in texto_elemento or 'ativo' in texto_elemento:
-                        pass
-                    else:
-                        continue
-
-                try:
-                    link_doc = _buscar_filho(elemento, 'a.tl-documento')
-                    nome_doc = link_doc.text.strip() if link_doc else elemento.text.split('\n')[0].strip()
-                except Exception:
-                    nome_doc = elemento.text.split('\n')[0].strip()
-
-                data_doc = ""
-                try:
-                    data_elements = _buscar_filhos(elemento, '.tl-data, .data-documento, time, [datetime]')
-                    if data_elements:
-                        data_doc = data_elements[0].text.strip() or data_elements[0].get_attribute('datetime') or ""
-
-                    if not data_doc:
-                        texto_completo = elemento.text
-                        import re
-                        padroes_data = [
-                            r'(\d{1,2}/\d{1,2}/\d{4})',
-                            r'(\d{1,2}\s+\w{3}\.?\s+\d{4})',
-                            r'(\d{4}-\d{2}-\d{2})'
-                        ]
-
-                        for padrao in padroes_data:
-                            match = re.search(padrao, texto_completo)
-                            if match:
-                                data_doc = match.group(1)
-                                break
-
-                except Exception as e:
-                    if debug:
-                        logger.warning("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro ao extrair data do documento %d: %s", idx, e)
-
-                if nome_doc:
-                    doc_info = {
-                        'data': data_doc,
-                        'nome': nome_doc,
-                        'index': idx
-                    }
-                    documentos_encontrados.append(doc_info)
-
-                    if debug:
-                        logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Documento encontrado: %s (%s)", nome_doc, data_doc)
-
-            except Exception as e:
-                if debug:
-                    logger.warning("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro ao processar item %d: %s", idx, e)
-                continue
-
-        if debug:
-            logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Total de documentos do polo ativo encontrados: %d", len(documentos_encontrados))
-
-        return documentos_encontrados
-
-    except Exception as e:
-        if debug:
-            logger.error("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro geral: %s", e)
-        return []
 
 def _tentar_click_padrao(driver, element, log, attempt):
     """Estrategia 1: Click padrao."""

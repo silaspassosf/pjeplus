@@ -45,7 +45,7 @@ from bianca.selenium_utils import (
     filtrofases,
 )
 from bianca.utils import logger
-
+from Fix.core import _executar_js
 # =============================================================================
 # Constantes
 # =============================================================================
@@ -54,17 +54,6 @@ LIST_URL = "https://pje.trt2.jus.br/pjekz/painel/global/todos/lista-processos"
 URL_ATIVIDADES = "https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades"
 
 _KEY_ENTER = '\ue007'
-
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa JavaScript de forma compativel entre Selenium e Playwright sem expor padroes."""
-    fn = getattr(driver, "execute_" + "script", None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, "page", None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
 
 
 def _sub_el(pai: Any, sel: str) -> Any:

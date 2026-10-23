@@ -25,19 +25,9 @@ from Fix.core import (
 from Fix.variaveis import PjeApiClient, obter_gigs_com_fase, session_from_driver
 
 from core.resultado_execucao import ResultadoExecucao
-
+from Fix.core import _executar_js
 logger = logging.getLogger(__name__)
 
-
-def _executar_js(driver: Any, script: str, *args):
-    """Executa script JS via driver de forma compatível."""
-    fn = getattr(driver, 'execute_script', None)
-    if fn is not None:
-        return fn(script, *args)
-    page = getattr(driver, 'page', None)
-    if page is not None:
-        return page.evaluate(script, *args)
-    return None
 
 # ═══════════════════════════════════════════════
 # ── 1. loop_base.py ──

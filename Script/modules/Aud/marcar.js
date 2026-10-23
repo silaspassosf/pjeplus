@@ -33,6 +33,29 @@
         });
     }
 
+    // ── Dia da semana da audiência ──────────────────────────────────────────────
+    const DIAS_SEMANA = [
+        'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
+        'Quinta-feira', 'Sexta-feira', 'Sábado'
+    ];
+
+    /** Extrai dd/mm/aaaa (ou aaaa-mm-dd) de um texto e devolve o dia da semana. */
+    function diaDaSemana(texto) {
+        if (!texto) return null;
+        let d = null, m = null, y = null;
+        let hit = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(texto);
+        if (hit) {
+            d = +hit[1]; m = +hit[2]; y = +hit[3];
+        } else {
+            hit = /(\d{4})-(\d{2})-(\d{2})/.exec(texto);
+            if (hit) { y = +hit[1]; m = +hit[2]; d = +hit[3]; }
+        }
+        if (!y) return null;
+        const dt = new Date(y, m - 1, d);
+        if (isNaN(dt.getTime()) || dt.getDate() !== d) return null;
+        return { nome: DIAS_SEMANA[dt.getDay()], data: dt };
+    }
+
     function overlay(msg, color = '#2e7d32', duration = 0) {
         document.getElementById('_mau_ov')?.remove();
         const el = document.createElement('div');
@@ -673,8 +696,11 @@
                 "//dd[contains(normalize-space(.), ' às ') and contains(normalize-space(.), 'Una')]",
                 8000
             );
+            const texto = dd ? dd.textContent.trim() : '';
+            const dia = diaDaSemana(texto);
             overlay(
-                `✅ Audiência marcada:\n${dd ? dd.textContent.trim() : '(sem dados na página)'}`,
+                `✅ Audiência marcada:\n${texto || '(sem dados na página)'}` +
+                (dia ? `\n\n📅 ${dia.nome}` : ''),
                 '#2e7d32',
                 0
             );

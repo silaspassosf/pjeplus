@@ -103,4 +103,12 @@ Gastos/token.json
 Gastos/client_secret.json
 Gastos/credenciais.json
 Gastos/compilados_finais/
+# Dados financeiros pessoais (comprovantes, extratos, notas): NUNCA versionar.
+# O repo e publico e estes arquivos ficariam no historico de forma irreversivel.
+Gastos/
+llmb.md
+
+# Logs de execucao e saidas de processo (dados reais de partes)
+logs_execucao/
+sentenca_IDPJ_*.html
 

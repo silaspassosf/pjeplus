@@ -50,6 +50,28 @@ ato_100 = make_ato_wrapper(
     Assinar=False
 )
 
+ato_v100 = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='Dr. Victor -Aud p',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    Assinar=False
+)
+
+ato_vpp = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='Dr. Victor -Aud u',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    Assinar=False
+)
+
 ato_ratif = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='xratif',

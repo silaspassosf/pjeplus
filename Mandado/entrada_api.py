@@ -15,6 +15,7 @@ Cadeia: processar_mandados_devolvidos_api -> processar_mandado_detalhe
 import importlib.util
 import logging
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -204,6 +205,96 @@ def _marcar_concluido_mandado(numero: str) -> None:
         mark_done('mandado', str(numero), sucesso=True)
 
 
+def _url_invalida(driver):
+    """True quando a aba atual não está numa página utilizável de processo.
+
+    Detecção é por URL, pura e simples: sessão caída se manifesta na URL
+    (/acesso-negado, /login), não no DOM. Nada aqui olha o conteúdo da página.
+
+    Caso real (23/10 17:04:41): o processo #1001351-29 abriu em /acesso-negado e
+    o fluxo seguiu às cegas — a API não achava o id_processo na URL, caía no
+    fallback DOM e gastava ~30s antes de falhar.
+    """
+    try:
+        url = (getattr(driver, 'current_url', '') or '').lower()
+    except Exception:
+        return True
+    if not url:
+        return True
+    if 'acesso-negado' in url or 'access-denied' in url or 'login.seam' in url or 'login.jsp' in url:
+        return True
+    return False
+
+
+def _recuperar_sessao(driver, tentativas=1):
+    """Recupera a sessão quando a aba caiu em /acesso-negado.
+
+    Reaproveita os cookies salvos (Fix.sessao) antes de partir para o login CPF
+    completo, que é o caminho caro. Devolve True se a aba voltou a responder
+    num processo.
+    """
+    for n in range(1, tentativas + 1):
+        try:
+            logger.warning('[MANDADOS_API][SESSAO] Aba inválida (%s) — tentativa %d/%d de recuperar',
+                           (getattr(driver, 'current_url', '') or '')[:90], n, tentativas)
+        except Exception:
+            pass
+
+        # 1. Recarregar a página: sessão viva resolve a maior parte dos casos
+        try:
+            driver.refresh()
+            wait_for_page_load(driver, timeout=15)
+        except Exception:
+            pass
+        if not _url_invalida(driver):
+            logger.info('[MANDADOS_API][SESSAO] Recuperado com refresh')
+            return True
+
+        # 2. Cookies salvos (login automático sem interação)
+        try:
+            from Fix.sessao import carregar_cookies_sessao
+            if carregar_cookies_sessao(driver):
+                logger.info('[MANDADOS_API][SESSAO] Recuperado via cookies salvos')
+                return True
+        except Exception as e:
+            logger.warning('[MANDADOS_API][SESSAO] Cookies falharam: %s', str(e)[:80])
+
+        # 3. Navegar ao painel e voltar: revalida o OAuth
+        try:
+            driver.get('https://pje.trt2.jus.br/pjekz/')
+            wait_for_page_load(driver, timeout=15)
+            if not _url_invalida(driver):
+                logger.info('[MANDADOS_API][SESSAO] Recuperado voltando ao painel')
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def _garantir_processo_aberto(driver, detalhe_url, num=''):
+    """Abre `detalhe_url` e garante que a aba está mesmo no processo.
+
+    Abre, confere a URL e, se caiu em acesso-negado/login, tenta recuperar a
+    sessão e reabre. Devolve True só quando a aba está num /processo/{id}.
+    """
+    for tentativa in range(1, 3):
+        try:
+            driver.get(detalhe_url)
+            wait_for_page_load(driver, timeout=15)
+        except Exception as e:
+            logger.warning('[MANDADOS_API] Falha ao abrir #%s (tentativa %d): %s', num, tentativa, str(e)[:80])
+
+        if not _url_invalida(driver):
+            return True
+
+        logger.warning('[MANDADOS_API] #%s abriu em %s', num, (getattr(driver, 'current_url', '') or '')[:100])
+        if tentativa == 1 and _recuperar_sessao(driver):
+            continue
+
+    logger.error('[MANDADOS_API] #%s: sessão inválida — não foi possível recuperar, pulando', num)
+    return False
+
+
 def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
     """Fluxo completo: consulta API + lista fila + processa certidões na UI + depois o resto via engine run_batch."""
     mandados = obter_mandados_devolvidos(driver, pagina=pagina, tamanho_pagina=tamanho_pagina, ordenacao_crescente=ordenacao_crescente)
@@ -279,8 +370,16 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                 # Navega na aba do escaninho (sem abrir nova aba).
                 # Isso garante que _aba_original no wrapper pec_idpj seja o escaninho,
                 # e não o processo, evitando que o wrapper feche o escaninho como "extra".
-                driver.get(detalhe_url)
-                wait_for_page_load(driver, timeout=15)
+                # Confere a URL: se a aba caiu em /acesso-negado, recupera a sessão
+                # antes de processar, senão o fluxo roda às cegas e falha lá na frente.
+                if not _garantir_processo_aberto(driver, detalhe_url, num):
+                    _fechar_abas_extras(driver, escaninho_handle)
+                    try:
+                        driver.get(url_escaninho)
+                        wait_for_page_load(driver, timeout=10)
+                    except Exception:
+                        pass
+                    continue
                 from Mandado.fluxo_argos import processar_argos
                 result = processar_argos(driver, log=True)
                 if result:
@@ -327,6 +426,27 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
         
         try:
             wait_for_page_load(driver, timeout=8)
+            # Sessão caiu (acesso-negado/login)? Recupera antes de qualquer leitura.
+            # Sem esta checagem o fluxo seguia com a aba inválida: a API não achava
+            # o id_processo, caía no fallback DOM e só falhava ~30s depois.
+            if _url_invalida(driver):
+                logger.warning('[MANDADOS_API] #%s abriu em %s', num,
+                               (getattr(driver, 'current_url', '') or '')[:100])
+                if _recuperar_sessao(driver):
+                    driver.get(detalhe_url)
+                    wait_for_page_load(driver, timeout=15)
+                if _url_invalida(driver):
+                    logger.error('[MANDADOS_API] #%s: sessão inválida — pulando este processo', num)
+                    try:
+                        driver.close()
+                    except Exception:
+                        pass
+                    try:
+                        driver.switch_to.window(escaninho_handle)
+                    except Exception:
+                        pass
+                    continue
+
             # Aguardar timeline renderizar (substitui time.sleep(2) por espera direcionada)
             aguardar_renderizacao_nativa(driver, "li.tl-item-container", timeout=5)
             
@@ -768,10 +888,78 @@ def _selecionar_checkbox_intimacao(driver: Any, linha: Any, log: bool = True) ->
     return False
 
 
+def _expediente_prazo30_aberto(driver, log: bool = True):
+    """Consulta a API de expedientes e diz se há intimação de prazo 30 em aberto.
+
+    Espelha exatamente a regra que o DOM usava (coluna 8 == '30' e coluna 10 !=
+    'sim'), só que lida do JSON: prazoLegal == 30 e fechado == False.
+
+    Devolve True / False quando a API respondeu, ou None quando não foi possível
+    consultar — nesse caso o chamador segue pelo caminho antigo (abrir a dialog).
+    Nada aqui depende de DOM, então roda antes de qualquer clique.
+    """
+    id_processo = None
+    try:
+        m = re.search(r'/processo/(\d+)', getattr(driver, 'current_url', '') or '')
+        id_processo = m.group(1) if m else None
+    except Exception:
+        pass
+    if not id_processo:
+        if log:
+            logger.info('[INTIMACAO][API] id do processo ausente na URL — usando dialog')
+        return None
+
+    try:
+        client = _criar_api_client(driver)
+    except Exception as e:
+        if log:
+            logger.info('[INTIMACAO][API] Sem client de API (%s) — usando dialog', str(e)[:60])
+        return None
+
+    itens = []
+    try:
+        for pagina in range(1, 21):
+            res = client.gateway_get(
+                f'/pje-comum-api/api/processos/id/{id_processo}/expedientes',
+                params={'pagina': pagina, 'tamanhoPagina': 50, 'instancia': 1},
+                timeout=15,
+            )
+            if not res.get('ok'):
+                if log:
+                    logger.info('[INTIMACAO][API] Consulta falhou (%s) — usando dialog',
+                                str(res.get('error'))[:80])
+                return None
+            dados = res.get('data') or {}
+            lista = dados.get('resultado') or []
+            itens.extend(lista)
+            if len(lista) < 50:
+                break
+    except Exception as e:
+        if log:
+            logger.info('[INTIMACAO][API] Erro na consulta (%s) — usando dialog', str(e)[:60])
+        return None
+
+    abertos_30 = [it for it in itens
+                  if str(it.get('prazoLegal')) == '30' and not it.get('fechado')]
+
+    if log:
+        logger.info('[INTIMACAO][API] %d expediente(s) consultados; %d com prazo 30 em aberto',
+                    len(itens), len(abertos_30))
+    return bool(abertos_30)
+
+
 def fechar_intimacao(driver: Any, log: bool = True) -> bool:
     """Fecha a intimacao do processo."""
     logger.info('[INTIMACAO] === INICIO ===')
     try:
+        # 0. Atalho por API: só abre a dialog se houver prazo 30 em aberto.
+        # A consulta não usa DOM, então evita o trecho mais frágil da função
+        # (abrir modal, esperar tabela popular, ler colunas por índice).
+        tem_30 = _expediente_prazo30_aberto(driver, log=log)
+        if tem_30 is False:
+            logger.info('[INTIMACAO] [0] Nenhuma intimação de prazo 30 em aberto (API) — nada a fazer')
+            return True
+
         # 1. Abrir menu
         logger.info('[INTIMACAO] [1] Tentando abrir menu #botao-menu...')
         try:

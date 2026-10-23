@@ -308,6 +308,36 @@ class PWDriver:
             t_timeout = 10.0 if ('/tarefa/' in url or '/processo/' in url) else 5.0
             self.garantir_carregamento(timeout_refresh=t_timeout, url_alvo=url)
 
+    # Trechos de URL que indicam que a aba não está na página pedida: sessão
+    # caída, login pendente ou erro do servidor. Checagem por URL apenas — o
+    # DOM dessas telas mantém a casca Angular e engana qualquer verificação
+    # baseada em elemento.
+    _URL_INVALIDA = (
+        'acesso-negado', 'access-denied', 'login.seam', 'login.jsp',
+        '/realms/', 'error.jsp', 'sessao-expirada',
+    )
+
+    def _pagina_desviada(self, target_url=None):
+        """True se a URL atual não corresponde à página esperada.
+
+        Só olha a URL. Usado antes de declarar a página carregada.
+        """
+        try:
+            curr = (self.current_url or '').lower()
+        except Exception:
+            return True
+        if not curr:
+            return True
+        if any(k in curr for k in self._URL_INVALIDA):
+            return True
+        if target_url:
+            alvo = target_url.lower()
+            if '/processo/' in alvo and '/processo/' not in curr:
+                return True
+            if '/tarefa/' in alvo and '/tarefa/' not in curr:
+                return True
+        return False
+
     def garantir_carregamento(self, seletor_esperado=None, timeout_refresh=None, timeout_pos_refresh=10.0, log=True, url_alvo=None):
         """Monitora o carregamento inicial da página com barreira anti-travamento.
 
@@ -403,6 +433,16 @@ class PWDriver:
             try:
                 res = self.page.evaluate(js_verificar, payload)
                 if res and res.get('ok'):
+                    # Elemento de conteúdo presente NÃO garante página certa: o
+                    # veredito desta fase era baseado só no DOM e declarava
+                    # "página viva" em tela de onde o processo não carregou —
+                    # o fluxo seguia e só falhava adiante. A URL é a fonte da
+                    # verdade para sessão caída/desvio.
+                    if self._pagina_desviada(target_url):
+                        if log:
+                            logger.warning(
+                                f"[CARREGAMENTO] ⚠️ Conteúdo presente, mas URL inválida ({self.current_url}) — não considerando carregada")
+                        break
                     elapsed = time.time() - t_inicio
                     sel_achado = res.get('seletor') or res.get('tag')
                     if log:
@@ -436,7 +476,7 @@ class PWDriver:
         # Se após tentativa a página caiu no painel global (fora da rota esperada), re-navegar para target_url
         if target_url and is_processo_ou_tarefa:
             curr = (self.current_url or '').lower()
-            if ('/tarefa/' not in curr and '/processo/' not in curr) or ('/painel' in curr):
+            if self._pagina_desviada(target_url) or ('/painel' in curr):
                 if log:
                     logger.warning(f"[CARREGAMENTO] ⚠️ Página desviada para {curr} — forçando retorno para {target_url}")
                 try:
@@ -451,6 +491,9 @@ class PWDriver:
         t_pos = time.time()
         while time.time() - t_pos < timeout_pos_refresh:
             try:
+                if self._pagina_desviada(target_url):
+                    self.page.wait_for_timeout(200)
+                    continue
                 res = self.page.evaluate(js_verificar, payload)
                 if res and res.get('ok'):
                     elapsed_pos = time.time() - t_pos

@@ -275,6 +275,10 @@ def enriquecer_processo(item: Dict) -> Optional[Dict]:
         'digital': digital,
         'tem_audiencia': tem_aud,
         'bucket': bucket,
+        # Data da audiencia para decidir o despacho pelo dia da semana.
+        # Quando o processo ja vem marcado, esta e a fonte; quando a audiencia e
+        # marcada durante a triagem, acao_bucket_a sobrescreve com a data da pauta.
+        'dataProximaAudiencia': item.get('dataProximaAudiencia'),
     }
 
 

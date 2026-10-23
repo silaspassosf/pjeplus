@@ -5,6 +5,7 @@ Originado da fusão de: service.py, acoes.py, preprocess.py, citacao.py, utils.p
 """
 
 # ── Imports consolidados ──
+import datetime
 import re
 import time
 import traceback
@@ -659,8 +660,35 @@ def remarcar_100_pos_aud(driver: WebDriver):
         logger.error("ERRO em remarcar_100_pos_aud: %s: %s", type(e).__name__, e)
 
 
+def _extrair_data_audiencia(texto: str):
+    """Extrai a data (dd/mm/aaaa ou aaaa-mm-dd) de um texto da pauta/modal."""
+    if not texto:
+        return None
+    m = re.search(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', texto)
+    if m:
+        d, mth, y = (int(g) for g in m.groups())
+        try:
+            return datetime.date(y, mth, d)
+        except ValueError:
+            return None
+    m = re.search(r'(\d{4})-(\d{2})-(\d{2})', texto)
+    if m:
+        y, mth, d = (int(g) for g in m.groups())
+        try:
+            return datetime.date(y, mth, d)
+        except ValueError:
+            return None
+    return None
+
+
 def marcar_aud(driver: WebDriver, numero_processo: str, rito: str, aba_retorno: str):
+    """Marca audiencia na pauta e devolve a data designada (ou None).
+
+    O retorno e a data que o PJe exibiu na confirmacao — o chamador usa isso
+    para decidir o despacho pelo dia da semana, sem precisar de nova consulta.
+    """
     aba_origem = driver.current_window_handle
+    data_designada = None
     url_pauta = f"https://pje.trt2.jus.br/pjekz/pauta-audiencias?maisPje=true&numero={numero_processo}&rito={rito}&fase=Conhecimento"
     aba_aud = _abrir_nova_aba(driver, url_pauta, aba_origem, url_fragmento="/pauta-audiencias")
     if not aba_aud:
@@ -728,7 +756,18 @@ def marcar_aud(driver: WebDriver, numero_processo: str, rito: str, aba_retorno: 
         )
         if not modal_confirmado:
             raise Exception("Confirmacao de designacao de audiencia nao encontrada no dialogo")
-        
+
+        # A data designada aparece neste dialogo de confirmacao; guardamos antes
+        # de fechar porque e ela que define qual despacho sera usado adiante.
+        try:
+            data_designada = _extrair_data_audiencia(modal_confirmado.text)
+            if data_designada:
+                logger.info("[TRIAGEM] Audiencia designada para %s (%s)",
+                            data_designada.strftime('%d/%m/%Y'),
+                            _NOMES_DIA[data_designada.weekday()])
+        except Exception:
+            pass
+
         btn_fechar = esperar_elemento(
             driver,
             "//mat-dialog-container//button[.//span[normalize-space(.)='Fechar']]",
@@ -753,6 +792,47 @@ def marcar_aud(driver: WebDriver, numero_processo: str, rito: str, aba_retorno: 
                     driver.switch_to.window(aba_retorno)
             except Exception:
                 pass
+
+    return data_designada
+
+
+def _dia_semana_audiencia(processo_info: Dict):
+    """Dia da semana (0=segunda) da audiencia do processo, ou None.
+
+    Usa primeiro a data que o codigo ja conhece (`data_audiencia` preenchida ao
+    marcar); se ausente, cai em `dataProximaAudiencia` da API para processos que
+    ja vieram com audiencia marcada.
+    """
+    data = processo_info.get('data_audiencia')
+    if data is None:
+        bruto = processo_info.get('dataProximaAudiencia') or processo_info.get('data_proxima_audiencia')
+        if isinstance(bruto, str) and bruto:
+            data = _extrair_data_audiencia(bruto)
+    return data.weekday() if hasattr(data, 'weekday') else None
+
+
+_NOMES_DIA = ('segunda-feira', 'terca-feira', 'quarta-feira',
+              'quinta-feira', 'sexta-feira', 'sabado', 'domingo')
+
+# Dias cujo despacho usa o modelo novo (ato_v100 / ato_vpp).
+# Segunda, terca e sexta; quarta e quinta seguem o padrao atual.
+_DIAS_DESPACHO_NOVO = (0, 1, 4)
+
+
+def _usa_padrao_novo(processo_info: Dict, numero_processo: str) -> bool:
+    """Decide se o despacho deste processo usa ato_v100/ato_vpp (seg/ter/sex)."""
+    dia = _dia_semana_audiencia(processo_info)
+    if dia is None:
+        logger.info('[TRIAGEM] %s: dia da audiencia desconhecido — usando despacho padrao', numero_processo)
+        return False
+    nome = _NOMES_DIA[dia]
+    novo = dia in _DIAS_DESPACHO_NOVO
+    logger.info('[TRIAGEM] %s: audiencia em %s (%s) — despacho %s',
+                numero_processo, nome,
+                processo_info['data_audiencia'].strftime('%d/%m/%Y')
+                if hasattr(processo_info.get('data_audiencia'), 'strftime') else 'data da API',
+                'ato_v100/ato_vpp' if novo else 'padrao (ato_100/ato_unap/PEC)')
+    return novo
 
 
 def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) -> bool:
@@ -783,8 +863,19 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
                 except Exception as e:
                     logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS (%s): %s", obs, e)
 
-            marcar_aud(driver, numero_formatado, rito, driver.current_window_handle)
+            data_designada = marcar_aud(driver, numero_formatado, rito, driver.current_window_handle)
+            if data_designada:
+                processo_info['data_audiencia'] = data_designada
             limpar_overlays_headless(driver)
+
+            # Segunda/terca/sexta: mesmo fluxo, so troca o ato despachado.
+            if _usa_padrao_novo(processo_info, numero_processo):
+                try:
+                    from atos.wrappers_ato import ato_v100
+                    return bool(ato_v100(driver, debug=True))
+                except Exception as e:
+                    logger.error("ERRO em acao_bucket_a: Erro ao executar ato_v100: %s", e)
+                    return False
 
             try:
                 from atos import ato_unap
@@ -802,7 +893,9 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
             logger.error("ERRO em acao_bucket_a: Nao foi possivel abrir/usar aba retificar")
             return False
 
-        marcar_aud(driver, numero_formatado, rito, aba_retificar)
+        data_designada = marcar_aud(driver, numero_formatado, rito, aba_retificar)
+        if data_designada:
+            processo_info['data_audiencia'] = data_designada
 
         try:
             if aba_retificar in driver.window_handles:
@@ -833,6 +926,15 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
             except Exception as e:
                 logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS (%s): %s", obs, e)
 
+        # Segunda/terca/sexta: mesmo fluxo, so troca o ato despachado.
+        if _usa_padrao_novo(processo_info, numero_processo):
+            try:
+                from atos.wrappers_ato import ato_v100
+                return bool(ato_v100(driver, debug=True))
+            except Exception as e:
+                logger.error("ERRO em acao_bucket_a: Erro ao executar ato_v100: %s", e)
+                return False
+
         try:
             from atos import ato_100
             ato_100(driver, debug=True)
@@ -861,6 +963,16 @@ def acao_bucket_b(driver: WebDriver, numero_processo: str, processo_info: Dict) 
             logger.debug("[TRIAGEM/B] Criando GIGS para %s (prazo: 1, observacao: %s)", numero_processo, obs)
             criar_gigs(driver, "1", "", obs)
 
+        # Segunda/terca/sexta: o despacho muda de modelo (ato_v100).
+        # Dentro da faixa digital a audiencia marcada nunca e cancelada.
+        if _usa_padrao_novo(processo_info, numero_processo):
+            try:
+                from atos.wrappers_ato import ato_v100
+                return bool(ato_v100(driver, debug=True))
+            except Exception as e:
+                logger.error("ERRO em acao_bucket_b: Erro ao executar ato_v100: %s", e)
+                return False
+
         try:
             from atos import ato_100
             ato_100(driver, debug=True)
@@ -885,6 +997,21 @@ def acao_bucket_c(driver: WebDriver, numero_processo: str, processo_info: Dict) 
         if not citacao_c.get('sucesso', True):
             logger.warning("[TRIAGEM/C] Polo passivo vazio — abortando PEC para %s", numero_processo)
             return False
+
+        # Segunda/terca/sexta: em vez de apenas PEC direto, despacha com
+        # ato_vpp e mantem o GIGS de citacao do mesmo jeito dos outros casos.
+        if _usa_padrao_novo(processo_info, numero_processo):
+            for obs in citacao_c.get('gigs_obs') or []:
+                try:
+                    criar_gigs(driver, "1", "", obs)
+                except Exception as e:
+                    logger.error("ERRO em acao_bucket_c: Erro ao criar GIGS (%s): %s", obs, e)
+            try:
+                from atos.wrappers_ato import ato_vpp
+                return bool(ato_vpp(driver, debug=True))
+            except Exception as e:
+                logger.error("ERRO em acao_bucket_c: Erro ao executar ato_vpp: %s", e)
+                return False
 
         ok = False
         for pec_nome in citacao_c['pec_wrappers']:

@@ -23,6 +23,29 @@
         return href.indexOf('/detalhe') !== -1 || /\/processo\/\d+\/detalhe/.test(href);
     }
 
+    // ── Dia da semana da audiência ──────────────────────────────────────────
+    var DIAS_SEMANA_AUD = [
+        'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
+        'Quinta-feira', 'Sexta-feira', 'Sábado'
+    ];
+
+    /** Extrai a data de um texto ("Dia 01/02/2027 às 08:05...") e devolve o dia da semana. */
+    function diaDaSemanaAud(texto) {
+        if (!texto) return null;
+        var d = null, m = null, y = null;
+        var hit = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(texto);
+        if (hit) {
+            d = +hit[1]; m = +hit[2]; y = +hit[3];
+        } else {
+            hit = /(\d{4})-(\d{2})-(\d{2})/.exec(texto);
+            if (hit) { y = +hit[1]; m = +hit[2]; d = +hit[3]; }
+        }
+        if (!y) return null;
+        var dt = new Date(y, m - 1, d);
+        if (isNaN(dt.getTime()) || dt.getDate() !== d) return null;
+        return { nome: DIAS_SEMANA_AUD[dt.getDay()], data: dt };
+    }
+
     function init(force) {
         console.log('[Aud.core.js] init() chamado. force:', force, '| Rota /aud:', isRouteAud());
         if (!force && !isRouteAud()) {
@@ -442,6 +465,47 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
             hdr.appendChild(titleBox);
             hdr.appendChild(rightControls);
             P.appendChild(hdr);
+
+            // ── Dia da semana da audiência em /detalhe ──────────────────────
+            // Lê o <dd> do cabeçalho do processo:
+            //   "Dia 01/02/2027 às 08:05 - Una (rito sumaríssimo) - Sala Principal"
+            // e mostra o dia da semana acima dele. Só aparece se a audiência
+            // existir; reavalia sozinho quando o Angular renderiza/troca o processo.
+            if (isRouteDetalhe()) {
+                var etiquetaDia = E('div',
+                    'margin:-4px -12px 8px -12px;padding:6px 12px;background:#eef4ff;' +
+                    'border-bottom:1px solid #dbe6ff;font-size:13px;color:#1e40af;' +
+                    'font-weight:bold;display:none;');
+                P.appendChild(etiquetaDia);
+
+                var _ultimoTextoAud = null;
+                var _atualizarDiaAud = function () {
+                    var dds = document.querySelectorAll('dd.campo-informacao-icone');
+                    var texto = null;
+                    for (var i = 0; i < dds.length; i++) {
+                        var t = dds[i].textContent || '';
+                        if (/Dia\s+\d{1,2}\/\d{1,2}\/\d{4}/.test(t)) { texto = t; break; }
+                    }
+                    if (texto === _ultimoTextoAud) return;
+                    _ultimoTextoAud = texto;
+                    var dia = texto ? diaDaSemanaAud(texto) : null;
+                    if (!dia) { etiquetaDia.style.display = 'none'; return; }
+                    etiquetaDia.textContent = '📅 Audiência: ' + dia.nome;
+                    etiquetaDia.style.display = 'block';
+                };
+
+                _atualizarDiaAud();
+                // O processo pode ainda estar carregando quando o painel abre:
+                // acompanha por um tempo curto e para (sem observador permanente).
+                var _tentativas = 0;
+                var _timerDia = setInterval(function () {
+                    _atualizarDiaAud();
+                    if (++_tentativas >= 20 || etiquetaDia.style.display === 'block') {
+                        clearInterval(_timerDia);
+                    }
+                }, 500);
+            }
+
             P.appendChild(bodyDiv);
 
             function aplicarRetracao(retraido) {

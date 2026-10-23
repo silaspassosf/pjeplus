@@ -1,4 +1,5 @@
 """Módulo de espera explícita com condição."""
+import re
 import time
 import traceback
 
@@ -154,40 +155,50 @@ def assentar(driver, teto=2.0, motivo=""):
     return True
 
 
-def _fluxo_do_chamador():
-    """Deduz o fluxo (mandado/p2b/pec/...) do módulo que chamou a busca.
+def _fluxo_do_chamador(detalhado=False):
+    """Deduz o fluxo (mandado/p2b/pec/...) e o módulo que chamou a busca.
 
     A telemetria precisa saber ONDE o seletor foi usado; inspecionar um frame
     acima é barato e evita passar o fluxo por 285 chamadores.
+
+    Com `detalhado=True` devolve (fluxo, módulo), e o módulo vai para o campo
+    `contexto` — é ele que diz qual arquivo usa o seletor, informação que o
+    catálogo precisa e que antes saía sempre como "geral".
     """
     try:
         import sys
-        f = sys._getframe(3)
+        # Percorre a pilha até o primeiro módulo de fluxo conhecido. Não para no
+        # primeiro frame estranho: o caminho real passa por Fix/*, Play/*, atos/*
+        # e o topo costuma ser o Play — parar ali rotulava tudo como "pjeplay".
+        ignorar = ("Fix.", "Play.", "pjeplay")
+        f = sys._getframe(1)
         while f:
             nome = f.f_globals.get("__name__", "")
-            if nome and not nome.startswith(("Fix.espera", "Fix.telemetria")):
+            if nome and not nome.startswith(ignorar):
+                fluxo = None
                 if nome.startswith(("Mandado",)):
-                    return "mandado"
-                if nome.startswith(("Prazo",)):
-                    return "p2b"
-                if nome.startswith(("PEC", "atos")):
-                    return "pec"
-                if nome.startswith(("SISB",)):
-                    return "sisb"
-                if nome.startswith(("bianca",)):
-                    return "bianca"
-                if nome.startswith(("Triagem",)):
-                    return "triagem"
-                if nome.startswith(("Peticao",)):
-                    return "peticao"
-                return nome.split(".")[0].lower()
+                    fluxo = "mandado"
+                elif nome.startswith(("Prazo",)):
+                    fluxo = "p2b"
+                elif nome.startswith(("PEC", "atos")):
+                    fluxo = "pec"
+                elif nome.startswith(("SISB",)):
+                    fluxo = "sisb"
+                elif nome.startswith(("bianca",)):
+                    fluxo = "bianca"
+                elif nome.startswith(("Triagem",)):
+                    fluxo = "triagem"
+                elif nome.startswith(("Peticao",)):
+                    fluxo = "peticao"
+                if fluxo:
+                    return (fluxo, nome) if detalhado else fluxo
             f = f.f_back
     except Exception:
         pass
-    return "desconhecido"
+    return ("desconhecido", "") if detalhado else "desconhecido"
 
 
-_VISTOS = set()  # dedup: seletor+resultado já registrado nesta execução
+_CONTADORES = {}  # (fluxo, seletor, ok) -> [usos, tentativas, ms_total]
 
 
 def _telemetria_busca(seletor, ok, tentativas=1, ms=0.0):
@@ -197,21 +208,67 @@ def _telemetria_busca(seletor, ok, tentativas=1, ms=0.0):
     porta única de busca no DOM — assim todo o código passa a emitir o seletor
     que de fato venceu, sem nenhuma alteração nos fluxos.
 
-    Deduplica por (seletor, ok): o que consolida catálogo é QUAIS seletores
-    existem e em que fluxo — repetir a mesma busca centenas de vezes só
-    engordaria o JSONL.
+    Agrupa por (fluxo, seletor, ok): uma linha por seletor E por fluxo, não uma
+    por busca. A primeira gravação já basta para o catálogo saber que aquele
+    seletor existe naquele fluxo; as repetições só somam no contador `usos`.
+    Antes a chave ignorava o fluxo, então o primeiro `tbody tr` do mandado
+    silenciava todo o resto da execução.
     """
     try:
-        chave = (seletor, bool(ok))
-        if chave in _VISTOS:
+        if not seletor:
             return
-        _VISTOS.add(chave)
+        fluxo, modulo = _fluxo_do_chamador(detalhado=True)
+        chave = (fluxo, seletor, bool(ok))
+        reg = _CONTADORES.get(chave)
+        if reg is not None:
+            reg[0] += 1
+            reg[1] += int(tentativas)
+            reg[2] += float(ms)
+            return
+        _CONTADORES[chave] = [1, int(tentativas), float(ms)]
         from Fix.telemetria_seletores import registrar_resolucao
-        registrar_resolucao("busca_dom", seletor if ok else None,
-                            fluxo=_fluxo_do_chamador(), origem="espera",
-                            ok=ok, tentativas=tentativas, ms=ms)
+        # Grava o seletor também quando falha: saber QUAL seletor não achou é o
+        # que alimenta a consolidação do catálogo. Antes ia None e virava "".
+        registrar_resolucao("busca_dom", seletor,
+                            fluxo=fluxo, origem="espera",
+                            ok=ok, tentativas=tentativas, ms=ms,
+                            contexto=modulo,
+                            processo=_processo_do_driver(),
+                            erro="" if ok else "elemento não encontrado")
     except Exception:
         pass
+
+
+_ULTIMO_DRIVER = None
+
+
+def _processo_do_driver():
+    """Número do processo em execução, lido da URL (vazio se não houver).
+
+    Usa o driver visto na última busca: subir a pilha atrás de `driver` falhava
+    porque `_telemetria_busca` é chamada de dentro de `elemento`/`elementos`,
+    onde a variável já não está no escopo alcançado — e o campo saía sempre "".
+    """
+    try:
+        drv = _ULTIMO_DRIVER
+        if drv is None:
+            return ""
+        url = getattr(drv, "current_url", "") or ""
+        m = re.search(r"/processo/(\d+)", url)
+        if m:
+            return _numero_do_processo(url) or m.group(1)
+    except Exception:
+        pass
+    return ""
+
+
+def _numero_do_processo(url):
+    """Número formatado (NNNNNNN-DD.AAAA.J.TR.OOOO) presente na URL, se houver."""
+    try:
+        m = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", url or "")
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
 
 
 def elemento(driver, seletor, teto=10, visivel=True):
@@ -219,6 +276,8 @@ def elemento(driver, seletor, teto=10, visivel=True):
 
     Use o retorno imediatamente: fica obsoleto se a tela re-renderizar.
     """
+    global _ULTIMO_DRIVER
+    _ULTIMO_DRIVER = driver
     by = By.XPATH if e_xpath(seletor) else By.CSS_SELECTOR
     limite = time.monotonic() + float(teto)
     inicio = time.monotonic()
@@ -243,6 +302,8 @@ def elemento(driver, seletor, teto=10, visivel=True):
 def elementos(driver, seletor, teto=10):
     """Espera aparecer ao menos um elemento de `seletor`; devolve a lista
     (vazia se nada aparecer dentro do teto)."""
+    global _ULTIMO_DRIVER
+    _ULTIMO_DRIVER = driver
     by = By.XPATH if e_xpath(seletor) else By.CSS_SELECTOR
     limite = time.monotonic() + float(teto)
     inicio = time.monotonic()

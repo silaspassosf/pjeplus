@@ -402,21 +402,15 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
 
         seletor_exclusivo_minutar = (
             'input#inputFiltro, input[id="inputFiltro"], '
-            'pje-arvore-modelo-documento, pje-arvore-modelos, pje-arvore-documento, '
-            'div.ck-content[contenteditable="true"], '
-            'div[contenteditable="true"], '
-            'iframe[id*="editor"], iframe[id*="minuta"], '
-            'div[class*="area-conteudo"], div[class*="editor"], '
-            'pje-editor, pje-editor-documento'
+            'pje-arvore-modelo-documento, div.ck-content[contenteditable="true"], '
+            'div[class*="area-conteudo"]'
         )
 
         limite = time.monotonic() + float(timeout)
         transicionou = False
-        ultimo_erro_js = ''
         while time.monotonic() < limite:
             url = (getattr(driver, 'current_url', '') or '').lower()
-            # a rota de minutar varia por instalação (minutar, minuta, elaborar)
-            if any(rota in url for rota in ('/minutar', 'minuta', 'elaborar', '/atos/')):
+            if '/minutar' in url:
                 transicionou = True
                 break
             try:
@@ -433,17 +427,14 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
                     }}"""):
                         transicionou = True
                         break
-            except Exception as e:
-                # guarda o motivo: falha silenciosa aqui mascarava a transição
-                ultimo_erro_js = f'{type(e).__name__}: {str(e)[:120]}'
+            except Exception:
+                pass
             espera.assentar(driver, 0.15)
 
         if not transicionou:
             transicionou = bool(espera.elemento(driver, seletor_exclusivo_minutar, teto=3))
 
         if not transicionou:
-            if ultimo_erro_js:
-                logger.warning('[CONCLUSÃO] evaluate da tela de minutar falhou: %s', ultimo_erro_js)
             logger.error(f'[CONCLUSÃO] Falha na transição para minutar após {timeout}s: URL={getattr(driver, "current_url", "")}')
             return False
 

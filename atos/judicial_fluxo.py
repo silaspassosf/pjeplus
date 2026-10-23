@@ -93,10 +93,13 @@ def fluxo_cls(
             logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
             return True, True  # (sucesso, ja_estava_estado_final=True)
         elif estado_atual == 'minutar':
-            logger.info('[CLS]  Processo ja em /minutar — marcando como concluido')
+            # Já na tela de minuta: não movimenta o processo, segue direto para
+            # as ações da URL /minutar (descrição, modelo...). Retornar
+            # ja_estava_estado_final=True aqui abortaria justamente esse trabalho.
+            logger.info('[CLS] Processo já em /minutar — seguindo para as ações de minuta')
             timing_total = time.time() - timing_inicio
             logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar)')
-            return True, True  # (sucesso, ja_estava_estado_final=True)
+            return True, False
         elif estado_atual == 'conclusao':
             logger.info('[CLS] Já estamos em /conclusao - pulando navegação')
             ja_em_conclusao = True
@@ -130,13 +133,15 @@ def fluxo_cls(
                     logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (ato já assinado)')
                     return True, True
 
-                # Tarefa "Elaborar ..." = minuta em andamento; a tarefa leva ao
-                # fluxo de /minutar. Não é caso de movimentar o processo.
+                # Tarefa "Elaborar ..." = a tarefa já está na tela de minuta.
+                # Não movimenta o processo: segue direto para as ações da URL
+                # /minutar (descrição, modelo, etc.), que o wrapper executa
+                # quando ja_estava_final é False.
                 if getattr(driver, 'pje_tarefa_pronta', None) == 'elaborar':
-                    logger.info('[CLS] Tarefa de elaboração — seguindo para o fluxo de minuta, sem movimentar')
+                    logger.info('[CLS] Tarefa de elaboração — seguindo direto para as ações de minuta')
                     timing_total = time.time() - timing_inicio
                     logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (tarefa de elaboração)')
-                    return True, True
+                    return True, False
 
                 # Se já está em estado final após abrir tarefa (/assinar ou /minutar)
                 if ja_em_minutar:
@@ -147,10 +152,12 @@ def fluxo_cls(
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
                         return True, True
                     elif '/minutar' in current_after:
-                        logger.info('[CLS] Já em /minutar após abrir tarefa — seguindo para minutar')
+                        # idem: /minutar é ponto de partida para as ações de
+                        # minuta, não um estado final que dispensa trabalho
+                        logger.info('[CLS] Já em /minutar após abrir tarefa — seguindo para as ações de minuta')
                         timing_total = time.time() - timing_inicio
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
-                        return True, True
+                        return True, False
                     else:
                         # a tarefa não levou a nenhuma tela de ato: sem este ramo
                         # o fluxo seguia para Conclusão e ficava tentando clicar

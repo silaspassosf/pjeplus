@@ -1,4 +1,4 @@
-"""Regressão: leitura da tarefa em /detalhe e o caminho que ela define.
+"""Regressão: caminho definido pela tarefa lida em /detalhe.
 
 Caso real (log x_PC_Visible_20261023_160419.log): em /detalhe o botão de tarefa
 mostrava "Assinar despacho". abrir_tarefa_processo devolvia (True, True), mas o
@@ -6,14 +6,17 @@ chamador só encerrava se a URL tivesse mudado — como seguia em /detalhe, o CL
 ia para "Navegação para Conclusão ao Magistrado" e ficava ~28s tentando clicar
 em telas que não abriram.
 
-Regra (mesma do gigs-plugin.js:12030, movimentar_destino):
-  tarefa "Assinar <ato>"  -> ato já concluído; finaliza, não movimenta.
-  tarefa "Elaborar <ato>" -> minuta em elaboração; NÃO movimentar o processo
-                             (a URL /minutar é consequência dessa tarefa).
-  outra tarefa            -> caminho normal: abrir e concluir.
+REGRA DO PROJETO (o gigs-plugin é só referência de leitura, não a regra):
+  tarefa "Assinar <ato>"  -> FINALIZA. Não movimenta, não minuta.
+  tarefa "Elaborar <ato>" -> PROSSEGUE a partir das ações da URL /minutar:
+                             modelo, descrição, sigilo... sem movimentar.
+  outra tarefa            -> caminho normal (abrir e concluir).
 
-Tarefa é o nome do botão em /detalhe; /minutar e /assinar são URLs. Não existe
-tarefa chamada "Minutar".
+Tarefa é o nome do botão em /detalhe; /minutar e /assinar são URLs.
+Não existe tarefa chamada "Minutar" — em /detalhe ela nunca seria detectada.
+
+Para o wrapper (atos/judicial_fluxo.py:356), ja_estava_estado_final=True
+encerra o ato; False faz seguir para descrição e modelo.
 """
 import os
 import sys
@@ -22,6 +25,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import atos.judicial_navegacao as navegacao
+import atos.judicial_fluxo as fluxo
 
 
 class El:
@@ -79,6 +83,8 @@ class BaseTarefa(unittest.TestCase):
 
 
 class TestTarefaAssinar(BaseTarefa):
+    """Assinar = finaliza."""
+
     def test_assinar_finaliza_sem_clicar(self):
         self._montar("Assinar despacho")
         d = Driver()
@@ -105,12 +111,16 @@ class TestTarefaAssinar(BaseTarefa):
 
 
 class TestTarefaElaborar(BaseTarefa):
-    def test_elaborar_marca_sem_movimentar(self):
+    """Elaborar = prossegue nas ações da URL /minutar, sem movimentar."""
+
+    def test_elaborar_marca_sem_finalizar(self):
         self._montar("Elaborar decisão",
                      url_apos_clique="https://pje.trt2.jus.br/pjekz/processo/1/minutar")
         d = Driver()
-        navegacao.abrir_tarefa_processo(d)
-        self.assertEqual(d.pje_tarefa_pronta, "elaborar")
+        sucesso, estado_final = navegacao.abrir_tarefa_processo(d)
+        self.assertTrue(sucesso)
+        self.assertEqual(d.pje_tarefa_pronta, "elaborar",
+                         "elaborar NÃO é estado final: precisa seguir para modelo/descrição")
         self.assertIn("/minutar", d.current_url)
 
     def test_elaborar_variantes(self):
@@ -147,6 +157,36 @@ class TestTarefaComum(BaseTarefa):
         navegacao.abrir_tarefa_processo(d)
         self.assertIsNone(d.pje_tarefa_pronta,
                           "'minutar' não é tarefa — não deve marcar ato pronto")
+
+
+class TestEstadoUrlMinutar(unittest.TestCase):
+    """Em /minutar o CLS deve SEGUIR para as ações de minuta, não encerrar."""
+
+    def test_estado_minutar_nao_finaliza(self):
+        orig = fluxo.verificar_estado_atual
+        try:
+            fluxo.verificar_estado_atual = lambda drv: 'minutar'
+            d = Driver("https://pje.trt2.jus.br/pjekz/processo/1/minutar")
+            res = fluxo.fluxo_cls(d, 'Despacho')
+            sucesso, ja_final = res if isinstance(res, tuple) else (res, None)
+            self.assertTrue(sucesso)
+            self.assertFalse(ja_final,
+                             "/minutar não é estado final: o wrapper precisa "
+                             "preencher descrição e modelo")
+        finally:
+            fluxo.verificar_estado_atual = orig
+
+    def test_estado_assinar_finaliza(self):
+        orig = fluxo.verificar_estado_atual
+        try:
+            fluxo.verificar_estado_atual = lambda drv: 'assinar'
+            d = Driver("https://pje.trt2.jus.br/pjekz/processo/1/assinar")
+            res = fluxo.fluxo_cls(d, 'Despacho')
+            sucesso, ja_final = res if isinstance(res, tuple) else (res, None)
+            self.assertTrue(sucesso)
+            self.assertTrue(ja_final, "/assinar encerra o ato")
+        finally:
+            fluxo.verificar_estado_atual = orig
 
 
 if __name__ == "__main__":

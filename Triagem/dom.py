@@ -56,6 +56,7 @@ from Fix.monitoramento_progresso_unificado import (
     processo_ja_executado_unificado,
     marcar_processo_executado_unificado,
 )
+from Fix.extracao import criar_gigs
 
 LIST_URL = 'https://pje.trt2.jus.br/pjekz/painel/global/todos/lista-processos'
 
@@ -420,7 +421,6 @@ def callback_bucket2(driver_detalhes, tipo_processo='desconhecido'):
     logger.info(f'[DOM][B2][CALLBACK] def_chip result: {result_def_chip}')
 
     # Criar/atualizar GIGS dom.e no detalhe do processo
-    from Fix.extracao import criar_gigs
     logger.info(f'[DOM][B2][CALLBACK] Gerando GIGS dom.e para {numero}')
     gigs_result = criar_gigs(driver_detalhes, observacao='dom.e')
     logger.info(f'[DOM][B2][CALLBACK] GIGS dom.e result: {gigs_result}')

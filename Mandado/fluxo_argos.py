@@ -16,7 +16,7 @@ from typing import Any
 
 from Fix.core import buscar_documento_argos, wait_for_page_load
 from Fix.core import buscar_documentos_sequenciais
-from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, extrair_direto, salvar_destinatarios_cache
+from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, extrair_direto, salvar_destinatarios_cache, criar_gigs
 from Fix.log import logger
 
 from PEC.core_progresso import extrair_numero_processo_pec as extrair_numero_processo
@@ -125,7 +125,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                 
                 if 'liquidacao' in fase or 'liquidação' in fase or 'liquid' in fase:
                     logger.info('[ARGOS][ETAPA 1.6] Fase de liquidacao detectada. Criando GIGS 2 / xs mov exec.')
-                    from Fix.extracao import criar_gigs
                     criar_gigs(driver, dias_uteis=2, responsavel='xs mov exec', log=log)
                 else:
                     logger.info(f'[ARGOS][ETAPA 1.6] Fase atual: {fase}. GIGS nao criado.')

@@ -38,6 +38,7 @@ from .processamento_campos import _configurar_valor
 from . import utils
 from Fix import espera
 from Fix.core import aguardar_renderizacao_nativa, preencher_campo, safe_click_no_scroll
+from Fix.extracao import criar_comentario, criar_gigs, extrair_dados_processo
 
 # Função auxiliar para simulação humana (extraída de sisb.py)
 def simular_movimento_humano(driver, elemento=None):
@@ -837,7 +838,6 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
         # 1. Extrair dados do processo PJe (SOMENTE se solicitado explicitamente E driver fornecido)
         if extrair_dados and driver_pje:
             logger.info('[SISBAJUD] Extraindo dados do processo PJe...')
-            from Fix.extracao import extrair_dados_processo
             processo_dados_extraidos = extrair_dados_processo(driver_pje)
             if processo_dados_extraidos:
                 # Corrigir para usar o campo correto do dadosatuais.json
@@ -1030,7 +1030,6 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
             if log:
                 logger.info('[SISBAJUD] Extraindo dados do processo do PJe...')
             try:
-                from Fix.extracao import extrair_dados_processo
                 if driver_pje:
                     dados_processo = extrair_dados_processo(driver_pje)
                 else:
@@ -1282,7 +1281,6 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                         logger.info('[SISBAJUD]  Falha ao aplicar visibilidade para certidão sigilosa')
 
                     # Criar GIGS (após visibilidade, ainda em /detalhe)
-                    from Fix.extracao import criar_gigs, criar_comentario
                     gigs_prazo = '60' if prazo_dias == 60 else '22'
                     if pendencia == 'calculo_antigo':
                         gigs_str = f'{gigs_prazo}/xs resultado CALC'
@@ -1589,7 +1587,6 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                         try:
                             if log:
                                 logger.info('[SISBAJUD] Criando GIGS "1/xs pec dec"...')
-                            from Fix.extracao import criar_gigs
                             criar_gigs(driver_pje, "1/xs pec dec", log=log)
                             if log:
                                 logger.info('[SISBAJUD]  GIGS criado com sucesso')
@@ -1982,7 +1979,6 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
             if log:
                 logger.info('[SISBAJUD] Extraindo dados do processo do PJe...')
             try:
-                from Fix.extracao import extrair_dados_processo
                 if driver_pje:
                     dados_processo = extrair_dados_processo(driver_pje)
                 else:
@@ -2344,7 +2340,6 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     vis_ok = executar_visibilidade_sigilosos_se_necessario(driver_pje, True, debug=log)
                     resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
 
-                    from Fix.extracao import criar_gigs, criar_comentario
                     gigs_prazo = '60' if prazo_dias == 60 else '22'
                     if pendencia == 'calculo_antigo':
                         gigs_str = f'{gigs_prazo}/xs resultado CALC'

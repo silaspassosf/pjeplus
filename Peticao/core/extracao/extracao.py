@@ -22,7 +22,6 @@ else:
     import logging
     logger = logging.getLogger(__name__)
 
-
 # JavaScript que detecta se o object.conteudo-pdf contém viewer PDF.js ou HTML
 _JS_EXTRAIR_OBJECT = r"""
 var callback = arguments[arguments.length - 1];
@@ -85,7 +84,6 @@ try {
 } catch(e) { callback({tipo: null, texto: null, erro: e.message}); }
 """
 
-
 def _extrair_objeto_pje(driver: Any, timeout: int = 8, debug: bool = False) -> Dict[str, Optional[str]]:
     try:
         if not aguardar_renderizacao_nativa(driver, "object.conteudo-pdf", 'aparecer', timeout):
@@ -105,7 +103,6 @@ def _extrair_objeto_pje(driver: Any, timeout: int = 8, debug: bool = False) -> D
         if debug:
             logger.exception(f'[EXTRACAO_OBJ] erro exec js: {e}')
         return {'sucesso': False, 'status': 'FALHA', 'erro': str(e), 'detalhes': {'tipo': None, 'texto': None}}
-
 
 def _formatar_html(texto: str) -> str:
     if not texto:
@@ -134,7 +131,6 @@ def _formatar_html(texto: str) -> str:
     res = '\n'.join(out)
     res = re.sub(r'\n{3,}', '\n\n', res)
     return res.strip()
-
 
 def _formatar_pdf(texto: str) -> str:
     if not texto:
@@ -184,7 +180,6 @@ def _formatar_pdf(texto: str) -> str:
         blocos.append('\n'.join(out_lines))
     return '\n\n--- PÁGINA ---\n\n'.join(blocos).strip()
 
-
 def _formatar_texto(texto: str, tipo_doc: Optional[str]) -> str:
     if not texto:
         return ''
@@ -193,7 +188,6 @@ def _formatar_texto(texto: str, tipo_doc: Optional[str]) -> str:
     if tipo_doc == 'pdf':
         return _formatar_pdf(texto)
     return texto.strip()
-
 
 def _extrair_info_documento(driver: Any, debug: bool = False) -> Dict[str, Any]:
     info: Dict[str, Any] = {'titulo': '', 'subtitulos': [], 'documento_id': ''}
@@ -218,7 +212,6 @@ def _extrair_info_documento(driver: Any, debug: bool = False) -> Dict[str, Any]:
         if debug:
             logger.exception('[EXTRACAO_INFO] erro')
     return info
-
 
 def extrair_direto(driver: Any, timeout: int = 10, debug: bool = False, formatar: bool = True) -> Dict[str, Any]:
     resultado: Dict[str, Any] = {
@@ -257,7 +250,6 @@ def extrair_direto(driver: Any, timeout: int = 10, debug: bool = False, formatar
         resultado['info'] = _extrair_info_documento(driver, debug=debug)
         return resultado
 
-
 def extrair_documento(driver: Any, regras_analise=None, timeout: int = 15, log: bool = False) -> Optional[str]:
     """Compat shim: manter assinatura antiga `extrair_documento`.
     Retorna o texto formatado (str) ou None se falhar.
@@ -266,7 +258,6 @@ def extrair_documento(driver: Any, regras_analise=None, timeout: int = 15, log: 
     if not res or not res.get('sucesso'):
         return None
     return res.get('conteudo')
-
 
 def _extrair_formatar_texto(texto_bruto: str, debug: bool = False) -> str:
     """Compat shim: manter nome antigo esperado por outros módulos."""
@@ -277,7 +268,6 @@ def _extrair_formatar_texto(texto_bruto: str, debug: bool = False) -> str:
         if debug:
             logger.exception('[_extrair_formatar_texto] erro')
         return texto_bruto or ''
-
 
 def extrair_pdf(driver: Any, timeout: int = 15, debug: bool = False, log: bool = False) -> Optional[str]:
     """Compat shim: extrai especificamente PDF (retorna texto formatado).
@@ -291,214 +281,6 @@ def extrair_pdf(driver: Any, timeout: int = 15, debug: bool = False, log: bool =
         return None
     return res.get('conteudo')
 
-
-def criar_gigs(driver: Any, dias: str, resposta: str, observacao: str) -> bool:
-    """
-    Função para criar GIGS - Guia de Informações Gerenciais Simplificada.
-    Esta é uma implementação simplificada que pode ser expandida conforme necessário.
-    """
-    try:
-        # Esta função seria implementada com base nas necessidades específicas do módulo Peticao
-        logger.info(f"[GIGS] Criando GIGS: Dias={dias}, Resposta='{resposta}', Obs='{observacao}'")
-
-        # Aqui iria a implementação específica para criar GIGS no contexto do módulo Peticao
-        # Por enquanto, apenas simulando o comportamento
-
-        return True  # Indicando sucesso
-    except Exception as e:
-        logger.error(f"[GIGS] Erro ao criar GIGS: {e}")
-        return False
-
-
-def extrair_dados_processo(driver: Any, caminho_json: str = 'dadosatuais.json', debug: bool = False) -> Dict[str, Any]:
-    """
-    Extrai dados do processo via API do PJe (TRT2), seguindo a mesma lógica da extensão MaisPje.
-    Função completa auto-contida.
-    """
-    def get_cookies_dict(driver: Any) -> Dict[str, str]:
-        try:
-            cookies = driver.get_cookies()
-            return {c['name']: c['value'] for c in cookies}
-        except Exception as e:
-            logger.info(f"[ERRO] Falha ao obter cookies: {e}")
-            return {}
-
-    def extrair_numero_processo_url(driver: Any) -> Optional[str]:
-        import re
-        from urllib.parse import urlparse
-
-        url = driver.current_url
-        m = re.search(r'processo/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', url)
-        if m:
-            return m.group(1)
-
-        try:
-            xpath_clipboard = "//pje-icone-clipboard//span[contains(@aria-label, 'Copia o número do processo')]"
-            elemento_clipboard = espera.elemento(driver, xpath_clipboard, teto=1)
-            if elemento_clipboard:
-                aria_label = elemento_clipboard.get_attribute("aria-label")
-                if aria_label:
-                    match_clipboard = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", aria_label)
-                    if match_clipboard:
-                        return match_clipboard.group(1)
-        except Exception:
-            pass
-
-        return None
-
-    def extrair_trt_host(driver: Any) -> str:
-        from urllib.parse import urlparse
-        url = driver.current_url
-        parsed = urlparse(url)
-        return parsed.netloc
-
-    def obter_id_processo_via_api(numero_processo: str, sess, trt_host: str) -> Optional[int]:
-        import requests
-        url = f'https://{trt_host}/pje-comum-api/api/agrupamentotarefas/processos?numero={numero_processo}'
-        try:
-            resp = sess.get(url, timeout=10)
-            if resp.ok:
-                data = resp.json()
-                if data and len(data) > 0:
-                    return data[0].get('idProcesso')
-        except Exception as e:
-            if debug:
-                logger.info(f'[extrair.py] Erro ao obter ID via API: {e}')
-        return None
-
-    def obter_dados_processo_via_api(id_processo: int, sess, trt_host: str) -> Optional[Dict[str, Any]]:
-        import requests
-        url = f'https://{trt_host}/pje-comum-api/api/processos/id/{id_processo}'
-        try:
-            resp = sess.get(url, timeout=10)
-            if resp.ok:
-                return resp.json()
-        except Exception as e:
-            if debug:
-                logger.info(f'[extrair.py] Erro ao obter dados via API: {e}')
-        return None
-
-    cookies = get_cookies_dict(driver)
-    numero_processo = extrair_numero_processo_url(driver)
-    trt_host = extrair_trt_host(driver)
-
-    import requests
-    sess = requests.Session()
-    for k, v in cookies.items():
-        sess.cookies.set(k, v)
-    sess.headers.update({
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json",
-        "X-Grau-Instancia": "1"
-    })
-
-    if not numero_processo:
-        if debug:
-            logger.info('[extrair.py] Não foi possível extrair o número do processo.')
-        return {}
-
-    id_processo = obter_id_processo_via_api(numero_processo, sess, trt_host)
-    if not id_processo:
-        if debug:
-            logger.info('[extrair.py] Não foi possível obter o ID do processo via API.')
-        return {}
-
-    dados_processo = obter_dados_processo_via_api(id_processo, sess, trt_host)
-    if not dados_processo:
-        if debug:
-            logger.info('[extrair.py] Não foi possível obter dados do processo via API.')
-        return {}
-
-    processo_memoria = {
-        "numero": [dados_processo.get("numero", numero_processo)],
-        "id": id_processo,
-        "autor": [],
-        "reu": [],
-        "terceiro": [],
-        "divida": {},
-        "justicaGratuita": [],
-        "transito": "",
-        "custas": "",
-        "dtAutuacao": "",
-        "classeJudicial": dados_processo.get("classeJudicial", {}),
-        "labelFaseProcessual": dados_processo.get("labelFaseProcessual", ""),
-        "orgaoJuizo": dados_processo.get("orgaoJuizo", {}),
-        "dataUltimo": dados_processo.get("dataUltimo", "")
-    }
-
-    dt = dados_processo.get("autuadoEm")
-    if dt:
-        from datetime import datetime
-        try:
-            dtobj = datetime.fromisoformat(dt.replace('Z', '+00:00'))
-            processo_memoria["dtAutuacao"] = dtobj.strftime('%d/%m/%Y')
-        except Exception:
-            processo_memoria["dtAutuacao"] = dt
-
-    def criar_pessoa_limpa(parte: Dict[str, Any]) -> Dict[str, Any]:
-        """Cria um dicionário limpo com os dados da parte e seu advogado."""
-        nome = parte.get("nome", "").strip()
-        doc_original = parte.get("documento", "")
-        doc_normalizado = normalizar_cpf_cnpj(doc_original)
-        pessoa = {"nome": nome, "cpfcnpj": doc_normalizado}
-
-        reps = parte.get("representantes", [])
-        if reps:
-            adv = reps[0]
-            cpf_advogado = normalizar_cpf_cnpj(adv.get("documento", ""))
-            pessoa["advogado"] = {
-                "nome": adv.get("nome", "").strip(),
-                "cpf": cpf_advogado,
-                "oab": adv.get("numeroOab", "")
-            }
-        return pessoa
-
-    try:
-        url_partes = f"https://{trt_host}/pje-comum-api/api/processos/id/{id_processo}/partes"
-        resp = sess.get(url_partes, timeout=10)
-        if resp.ok:
-            j = resp.json()
-            for parte in j.get("ATIVO", []):
-                processo_memoria["autor"].append(criar_pessoa_limpa(parte))
-            for parte in j.get("PASSIVO", []):
-                processo_memoria["reu"].append(criar_pessoa_limpa(parte))
-            for parte in j.get("TERCEIROS", []):
-                processo_memoria["terceiro"].append({"nome": parte.get("nome", "").strip()})
-    except Exception as e:
-        if debug:
-            logger.info('[extrair.py] Erro ao buscar partes:', e)
-
-    try:
-        url_divida = f"https://{trt_host}/pje-comum-api/api/calculos/processo?pagina=1&tamanhoPagina=10&ordenacaoCrescente=false&idProcesso={id_processo}"
-        resp = sess.get(url_divida, timeout=10)
-        if resp.ok:
-            j = resp.json()
-            if j and j.get("resultado"):
-                mais_recente = j["resultado"][0]
-                valor_raw = mais_recente.get("total", 0)
-                data_raw = mais_recente.get("dataLiquidacao", "")
-                processo_memoria["divida"] = {
-                    "valor": formatar_moeda_brasileira(valor_raw),
-                    "data": formatar_data_brasileira(data_raw)
-                }
-    except Exception as e:
-        if debug:
-            logger.info('[extrair.py] Erro ao buscar divida:', e)
-
-    import json
-    from pathlib import Path
-    with open(caminho_json, 'w', encoding='utf-8') as f:
-        json.dump(processo_memoria, f, ensure_ascii=False, indent=2)
-
-    # Confirmação de gravação (útil para debug e paridade com o legado)
-    try:
-        logger.info(f"[extrair_dados_processo] dadosatuais.json salvo (numero={processo_memoria.get('numero')})")
-    except Exception:
-        pass
-
-    return processo_memoria
-
-
 def normalizar_cpf_cnpj(documento: Union[str, int, None]) -> str:
     """
     Remove pontuação de CPF/CNPJ, mantendo apenas números
@@ -510,7 +292,6 @@ def normalizar_cpf_cnpj(documento: Union[str, int, None]) -> str:
     import re
     documento_limpo = re.sub(r'\D', '', str(documento))
     return documento_limpo
-
 
 def formatar_moeda_brasileira(valor: Union[float, int, str]) -> str:
     """
@@ -549,7 +330,6 @@ def formatar_moeda_brasileira(valor: Union[float, int, str]) -> str:
 
     except (ValueError, TypeError):
         return "R$ 0,00"
-
 
 def formatar_data_brasileira(data_str: Optional[str]) -> str:
     """

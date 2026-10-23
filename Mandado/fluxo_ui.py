@@ -12,8 +12,7 @@ from Fix.core import (
 )
 from Fix.browser_suporte import aguardar_nova_aba
 from Fix.utils import normalizar_texto
-from Fix.extracao import extrair_direto
-from Peticao.core.extracao.extracao import criar_gigs
+from Fix.extracao import extrair_direto, criar_gigs
 from Fix import espera
 
 

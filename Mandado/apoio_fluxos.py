@@ -88,7 +88,6 @@ __all__ = [
 def lembrete_bloq(driver: Any, debug: bool = False) -> bool:
     """Cria GIGS de bloqueio com apenas observação 'BLOQUEIO - processar após IDPJ' (sem prazo ou responsável)."""
     try:
-        from Fix.extracao import criar_gigs
         return bool(criar_gigs(driver, '', '', 'BLOQUEIO - processar após IDPJ', log=debug))
     except Exception as e:
         logger.warning(f'[MANDADO][GIGS_BLOQ] Erro ao criar GIGS de bloqueio: {e}')
@@ -1549,7 +1548,6 @@ def fluxo_mandados_outros(driver: Any, log: bool = True) -> Optional[str]:
 
 def _criar_gigs_xs1_uma_vez(driver: Any, numero_processo: str, log: bool = True) -> None:
     """Cria a GIGS sem prazo (xs1) na aba /detalhe, uma única vez por processo."""
-    from Fix.extracao import criar_gigs
 
     if numero_processo in _GIGS_CRIADO_PARA_PROCESSO:
         if log:
@@ -1697,7 +1695,6 @@ def arquivar_mandado_positivo_reconhecido(
             logger.warning(f'[MANDADOS][OUTROS][POSITIVO] Destinatário não identificado na certidão de #{numero_processo} — usando texto padrão.')
 
     try:
-        from Fix.extracao import criar_gigs
         if log:
             logger.info(f'[MANDADOS][OUTROS][POSITIVO] Registrando GIGS sem prazo com dados: "{conteudo_gigs}"')
         gigs_ok = bool(criar_gigs(driver, "", "", conteudo_gigs, log=log))

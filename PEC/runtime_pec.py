@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 from Fix import espera
 
 from api import PjeApiClient, buscar_todas_paginas, session_from_driver
-from Fix.extracao import extrair_dados_processo
+from Fix.extracao import extrair_dados_processo, criar_gigs
 from Fix.monitoramento_progresso_unificado import (
     carregar_progresso_unificado,
     salvar_progresso_unificado,
@@ -722,7 +722,6 @@ def criar_gigs_prazo_certidao(driver, prazo_texto, obs_15='xs pzi', obs_8=None, 
                 )
             continue
         try:
-            from Fix.extracao import criar_gigs
             if criar_gigs(driver, dias, '', observacao, log=log):
                 criados += 1
                 if log:
@@ -807,7 +806,6 @@ def executar_edital_idpj_negativo(driver, dados_mais_recentes, intimacoes_info, 
         logger.info('[CARTA][EDITAL] IDPJ + resultado negativo — criando GIGS "xs pec idpj"...')
 
     try:
-        from Fix.extracao import criar_gigs
         ok_gigs = criar_gigs(driver, 1, '', 'xs pec idpj', log=log)
         if log:
             if ok_gigs:

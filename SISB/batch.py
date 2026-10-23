@@ -11,6 +11,7 @@ usando um único driver compartilhado, otimizando o tempo de execução.
 
 from typing import Any, Dict, List, Optional, Callable, Tuple
 from Fix.core import aguardar_renderizacao_nativa
+from Fix.extracao import criar_gigs, extrair_dados_processo
 
 # URL base para navegação entre processos
 URL_MINUTA = "https://sisbajud.cnj.jus.br/minuta"
@@ -48,7 +49,6 @@ def processar_lote_sisbajud(
         dict: {'sucesso': int, 'erro': int}
     """
     from .core import iniciar_sisbajud, minuta_bloqueio, processar_ordem_sisbajud
-    from Fix.extracao import extrair_dados_processo
     
     resultados = {'sucesso': 0, 'erro': 0}
     
@@ -182,7 +182,6 @@ def _processar_grupo(
     Returns:
         dict: {'sucesso': int, 'erro': int}
     """
-    from Fix.extracao import extrair_dados_processo
     
     resultados = {'sucesso': 0, 'erro': 0}
     
@@ -277,7 +276,6 @@ def _processar_grupo(
             
             if not valor:
                 try:
-                    from Fix.extracao import criar_gigs
                     criar_gigs(driver_pje, 'Bruna Atualização', log=log)
                     try:
                         if aba_lista_pje in driver_pje.window_handles:

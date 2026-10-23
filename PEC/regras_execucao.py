@@ -144,7 +144,6 @@ def _def_sob(driver, atv):
 
 def _pz_idpj(driver, atv):
     """pz idpj: cria gigs xs mddid + ato IDPJ."""
-    from Fix.extracao import criar_gigs
     from atos.judicial import ato_idpj
     def _run_idpj():
         r = ato_idpj(driver)
@@ -178,7 +177,6 @@ def _mddid(driver, atv):
 
 def _xs_meios(driver, atv):
     """xs meios: ato meios + inclusao BNDT."""
-    from Fix.extracao import bndt
     from atos.judicial import ato_meios
     return _executar_passos(
         lambda: ato_meios(driver),
@@ -188,7 +186,6 @@ def _xs_meios(driver, atv):
 
 def _xs_socio(driver, atv):
     """xs socio: termo socio + inclusao BNDT."""
-    from Fix.extracao import bndt
     from atos.wrappers_ato import ato_termoS
     return _executar_passos(
         lambda: ato_termoS(driver),
@@ -198,7 +195,6 @@ def _xs_socio(driver, atv):
 
 def _empresa_termo(driver, atv):
     """empresa termo: termo empresa + inclusao BNDT."""
-    from Fix.extracao import bndt
     from atos.wrappers_ato import ato_termoE
     return _executar_passos(
         lambda: ato_termoE(driver),
@@ -234,7 +230,6 @@ _shared_driver_sisb = None
 def _executar_sisbajud(driver, atv, fn_sisb):
     """Executa o fluxo completo PJE -> SISBAJUD para acoes SISBAJUD usando driver compartilhado."""
     global _shared_driver_sisb
-    from Fix.extracao import extrair_dados_processo
     from SISB.core import iniciar_sisbajud
 
     dados_processo = extrair_dados_processo(driver)

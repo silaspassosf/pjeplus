@@ -50,9 +50,6 @@ from .core import (
     criar_driver_sisb_pc,
     criar_driver_sisb_notebook,
     finalizar_driver,
-    salvar_cookies_sessao,
-    carregar_cookies_sessao,
-    verificar_e_aplicar_cookies,
     aplicar_filtro_100,
     filtro_fase,
     verificar_documento_decisao_sentenca,
@@ -105,6 +102,11 @@ from .utils import (
     login_automatico_direto,
     login_cpf,
     login_pc,
+    # F3: canônicos de sessão em Fix/sessao.py (utils re-exporta; trio de cookies
+    # saiu do .core, cuja cópia divergente foi removida por não ter chamadores)
+    salvar_cookies_sessao,
+    carregar_cookies_sessao,
+    verificar_e_aplicar_cookies,
     coletar_link_ato_timeline,
     coletar_conteudo_js,
     coletar_elemento_css,

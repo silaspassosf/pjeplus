@@ -40,9 +40,9 @@ Atualizado: 2026-10-01 (regras de referência histórica e branch de trabalho)
 | Tarefa | Arquivo | Função/Símbolo |
 |---|---|---|
 | Criar driver (PC/VT/headless) | `Fix/core.py` | `criar_driver_PC`, `criar_driver_VT`, `criar_driver_notebook` |
-| Login (CPF/auto/manual) | `Fix/utils.py` | `login_cpf`, `login_automatico`, `login_manual` |
+| Login (CPF/auto/manual) | `Fix/sessao.py` | `login_cpf`, `login_automatico`, `login_manual` (F3: canônico; `Fix.utils` re-exporta) |
 | Finalizar driver | `Fix/core.py` | `finalizar_driver` |
-| Cookies sessão | `Fix/core.py` | `salvar_cookies_sessao`, `carregar_cookies_sessao` |
+| Cookies sessão | `Fix/sessao.py` | `salvar_cookies_sessao`, `carregar_cookies_sessao`, `verificar_e_aplicar_cookies` (F3: cópia divergente do core removida) |
 | Validar conexão | `Fix/browser_suporte.py` | `validar_conexao_driver` |
 | Trocar/fechar abas | `Fix/browser_suporte.py` | `trocar_para_nova_aba`, `forcar_fechamento_abas_extras` |
 | Resetar driver | `x.py` | `resetar_driver()` |
@@ -156,7 +156,7 @@ Para qualquer tarefa, responda em sequência para encontrar os arquivos exatos:
 TAREFA: "preciso fazer X"
 
 Q1: X envolve driver/login/sessão?
-  → SIM: Fix/core.py (driver factory), Fix/utils.py (login_cpf), Fix/browser_suporte.py (validação)
+  → SIM: Fix/core.py (driver factory), Fix/sessao.py (login_cpf/cookies), Fix/browser_suporte.py (validação)
   → NÃO: continue
 
 Q2: X envolve API REST do PJe (GIGS, timeline, documentos, partes)?
@@ -325,9 +325,9 @@ Arquivos agrupados pelo QUE fazem, independente de ONDE estão:
 | Função | Arquivo | Nota |
 |---|---|---|
 | Criar driver Firefox (PC/VT, visible/headless) | `Fix/core.py` | `criar_driver_PC`, `criar_driver_VT`, `criar_driver_notebook`, `criar_driver_sisb_*` |
-| Login (CPF, automático, manual) | `Fix/utils.py` | `login_cpf`, `login_automatico`, `login_manual` |
+| Login (CPF, automático, manual) | `Fix/sessao.py` | `login_cpf`, `login_automatico`, `login_manual` (F3: canônico) |
 | Finalizar driver | `Fix/core.py` | `finalizar_driver` |
-| Cookies (salvar/carregar) | `Fix/core.py` | `salvar_cookies_sessao`, `carregar_cookies_sessao` |
+| Cookies (salvar/carregar) | `Fix/sessao.py` | `salvar_cookies_sessao`, `carregar_cookies_sessao` (F3: canônico) |
 | Validação de conexão | `Fix/browser_suporte.py` | `validar_conexao_driver`, `is_browsing_context_discarded_error` |
 | Otimizações (iniciar/finalizar) | `Fix/browser_suporte.py` | `inicializar_otimizacoes`, `finalizar_otimizacoes` |
 | Abas (trocar, fechar, aguardar) | `Fix/browser_suporte.py` | `trocar_para_nova_aba`, `forcar_fechamento_abas_extras` |
@@ -439,7 +439,7 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `comunicacao_judicial`, `make_comunicacao_wrapper` | `atos/comunicacao.py` (IMPLEMENTAÇÃO REAL) |
 | `alterar_meio_expedicao`, `endereco_tipo`, `meios de expedicao` | `atos/comunicacao_finalizacao.py` (`alterar_meio_expedicao`), `atos/comunicacao.py` |
 | `conclusao`, `conclusao_ao_magistrado` | `atos/judicial_navegacao.py` (`navegar_para_conclusao`), `atos/judicial_modelos.py` (`escolher_tipo_conclusao`) |
-| `cookies`, `sessao` | `Fix/core.py` (`salvar_cookies_sessao`, `carregar_cookies_sessao`) |
+| `cookies`, `sessao` | `Fix/sessao.py` (`salvar_cookies_sessao`, `carregar_cookies_sessao`) |
 | `criar_driver` | `Fix/core.py` (`criar_driver_PC`, `criar_driver_VT`, etc.) |
 | `destinatarios`, `selecionar_destinatarios` | `atos/comunicacao_destinatarios.py` |
 | `domicilio_eletronico` | `Fix/variaveis.py` (`obter_domicilio_eletronico_parte`, `verificar_domicilio_eletronico_partes`) |
@@ -453,7 +453,7 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `indexar`, `indexar_processos` | `Fix/extracao.py` |
 | `juntada`, `juntar`, `wrapper_juntada` | `PEC/anexos/anexos_juntador_base.py` |
 | `abrir_interface_anexacao`, `menu anexar`, `hamburguer` | `PEC/anexos/anexos_juntador_helpers.py` (`_abrir_interface_anexacao` — clique no menu hambúrguer → "Anexar Documentos" → troca de aba) |
-| `login`, `login_cpf`, `login_manual` | `Fix/utils.py` |
+| `login`, `login_cpf`, `login_manual` | `Fix/sessao.py` |
 | `link_ato_validacao`, `link de validacao`, `obter_chave_ultimo_despacho_decisao_sentenca` | `atos/comunicacao_coleta.py::executar_coleta_conteudo` (chama a API e salva no clipboard interno) → `Fix/variaveis.py::obter_chave_ultimo_despacho_decisao_sentenca` (seleciona o Sentença/Decisão/Despacho mais recente via API, filtra edital/concomitância) → `Fix/utils.py::inserir_link_ato`/`inserir_link_ato_validacao` (lê o clipboard e cola no modelo, link + conteúdo condensado junto). ⚠️ NÃO CONFUNDIR com `Andrei/helpers.py::obter_chave_ultimo_despacho_decisao_sentenca` — mesmo nome, porém cópia standalone isolada usada apenas pelo módulo Petição (`Andrei/`), nunca chamada pelo fluxo PEC/comunicação |
 | `condensar_conteudo_documento`, `conteudo_formatado`, `transcricao` | `Fix/variaveis.py::condensar_conteudo_documento` (formata texto já lido via API no padrão "Transcrição do(a) X (ID Y): "..."", igual ao botão Copiar do maispje — `maispje/PJe-Atual/gigs-plugin.js::copiarDocumentoProcesso`, linha ~10602) — salvo no clipboard com `tipo_conteudo="conteudo_formatado"`, consumido por `Fix/utils.py::inserir_conteudo_formatado` |
 | `mandado`, `mandados_devolvidos` | `Mandado/entrada_api.py` |

@@ -77,7 +77,7 @@ import requests
 import re
 import html as _html
 import unicodedata
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 from Fix.log import logger
 
 
@@ -421,15 +421,22 @@ def obter_gigs_com_fase(client: PjeApiClient, id_processo: str) -> Optional[Dict
 
 
 def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
-    """Cria um `requests.Session` a partir de um Selenium `driver`.
+    """Cria um `requests.Session` a partir de um driver ativo (Selenium ou PWDriver).
 
     Retorna (session, trt_host).
+
+    F4: headers endurecidos absorvidos do cliente bianca — X-XSRF-TOKEN evita
+    403 CSRF em POST/PATCH e User-Agent real do driver evita bloqueio de WAF
+    (Cloudflare/F5) contra UA de biblioteca. Aditivo: nao altera o resto.
     """
     sess = requests.Session()
     try:
         cookies = driver.get_cookies()
+        xsrf_token = None
         for c in cookies:
             sess.cookies.set(c['name'], c['value'])
+            if c['name'].upper() in ('XSRF-TOKEN', 'XSRF_TOKEN'):
+                xsrf_token = unquote(c['value'])
         parsed = urlparse(driver.current_url)
         trt_host = parsed.netloc or 'pje.trt2.jus.br'
         # Se o browser estiver fora do PJe (tela de SSO/login em outro host),
@@ -438,11 +445,27 @@ def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
             trt_host = 'pje.trt2.jus.br'
     except Exception:
         raise
+    # UA real do driver (sem padrao selenium; fallback defensivo)
+    user_agent = None
+    try:
+        fn_js = getattr(driver, 'execute_' + 'script', None)
+        if fn_js is None:
+            fn_js = getattr(driver, 'evaluate', None)
+        if fn_js is not None:
+            user_agent = fn_js('return navigator.userAgent;')
+    except Exception:
+        user_agent = None
+    if not user_agent:
+        user_agent = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                      '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
     sess.headers.update({
         'Accept': 'application/json, text/plain, */*',
         'Content-Type': 'application/json',
-        'X-Grau-Instancia': str(grau)
+        'X-Grau-Instancia': str(grau),
+        'User-Agent': user_agent,
     })
+    if xsrf_token:
+        sess.headers['X-XSRF-TOKEN'] = xsrf_token
     return sess, trt_host
 
 

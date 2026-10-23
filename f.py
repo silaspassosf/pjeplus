@@ -1088,7 +1088,7 @@ def teste_triagem_debug(url_processo: str = None):
     Uso: py f.py tdbg [url_ou_id_processo]
     """
     import io as _io
-    from bianca.api_client import PjeApiClient, session_from_driver
+    from api.variaveis_client import PjeApiClient, session_from_driver
     from bianca.triagem.coleta import _extrair_id_processo_da_url, _norm
     configurar_logging_debug()
 

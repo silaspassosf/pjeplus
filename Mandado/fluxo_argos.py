@@ -112,14 +112,14 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
         logger.info('[ARGOS][ETAPA 1.6] Verificando fase do processo para possivel GIGS...')
         try:
             import re
-            from bianca.api_client import session_from_driver, PjeApiClient, obter_gigs_com_fase
-            
+            # F4: par canônico (Fix.variaveis) — nada fora de bianca depende de bianca
+            from Fix.variaveis import cliente_para, obter_gigs_com_fase
+
             m = re.search(r'processo/(\d+)', driver.current_url)
             id_proc = m.group(1) if m else None
-            
+
             if id_proc:
-                sess, host = session_from_driver(driver)
-                client = PjeApiClient(sess, host)
+                client = cliente_para(driver)
                 info_fase = obter_gigs_com_fase(client, id_proc)
                 fase = info_fase.get('fase', '').lower() if info_fase else ''
                 

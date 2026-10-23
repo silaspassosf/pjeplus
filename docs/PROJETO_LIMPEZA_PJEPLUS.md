@@ -148,6 +148,26 @@ Cada fase = um commit verificável. Estado do repo é a fonte da verdade (`git l
 | `6b41e76` | F5 | stub `criar_gigs` do Peticao removido; `extrair_dados_processo` único; 14 lazy → topo | +12/−249 |
 | `6ae1aa9` | F4 | consumidores fora de bianca no par canônico; `session_from_driver` com XSRF+UA | +65/−222 |
 | `1905cba` | F6 | `run_batch` único; cópia de `bianca/utils.py` aposentada | +3/−187 |
+| `d880821` | F7 (core) | `Fix/core.py` 3.341→244 l; 64 funções verbatim → 6 módulos; re-export no topo | +3220/−3139 |
+| *(este)* | F7-a (telemetria) | camada de telemetria de seletores: registra o seletor **vencedor** na execução real | +~460 |
+
+### F7-a — Telemetria de seletores (base empírica do catálogo)
+
+**Problema medido:** o `CatalogoSeletores` já calculava o vencedor, mas ele morria em memória — **`seletor=` aparecia 0 vezes em 16 logs reais** de mandado/p2b/pec. `log_erro_estruturado` só dispara em falha, que é o inverso do que a consolidação precisa. Sem esse dado, catalogar seria adivinhar.
+
+**Entregue:**
+- `Fix/telemetria_seletores.py` (novo): grava `logs_execucao/seletores_<ts>.jsonl`, uma linha por resolução (`fluxo`, `acao`, `seletor`, `origem`, `ok`, `tentativas`, `ms`). Desligável por `PJEPLUS_TELEMETRIA_SELETORES=0`; **nunca levanta** (falha de escrita é engolida).
+- `CatalogoSeletores.executar_busca` instrumentado nos **3 pontos de retorno** (vencedor em cache, novo vencedor, falha total) com `origem=catalogo`.
+- `Fix/espera.py`: `elemento`/`elementos` — a **porta única de busca no DOM** — emitem telemetria com o **fluxo do chamador deduzido da pilha** (mandado/p2b/pec/sisb/triagem), então os 285 seletores crus passam a produzir o dado **sem tocar em nenhum chamador**.
+- `resolver()` para chamadas ad-hoc: testa candidatos em ordem e registra qual venceu (com fallback de aridade para testadores `(driver, seletor)`).
+- **Dedup** por `(seletor, ok)`: o que consolida catálogo é *quais* seletores existem por fluxo; repetir a mesma busca centenas de vezes só engordaria o JSONL.
+- `tests/test_telemetria_seletores.py`: **11 testes** (unittest, padrão do projeto) — campos canônicos, vencedor, falha com candidatos, captura de fluxo mandado/p2b/pec, dedup, kill-switch, robustez a caminho inválido.
+
+**Desempenho:** overhead medido de **+0,6%** (0,002 ms/chamada em 2.000 buscas) — irrelevante frente à latência real do DOM. ~406 bytes/registro.
+
+**Estado do catálogo (o que já existe):** 16 ações registradas (`abrir_timeline`, `fechar_expedientes`, `campo_prazo_*`, `assinar_documento_anexo`...), mas **apenas 1 consumidor no fluxo** (`atos/comunicacao_preenchimento.py:455`, campos de prazo da PEC). Seletores crus por fluxo (medido com filtro estrito, sem falsos positivos): **pec 135, extracao 41, mandado 37, p2b 37, documentos 23, filtros 6, entrada 4** (285 total).
+
+**Próximo passo (F7-b, depende de rodagem real):** rodar PEC + Mandado + p2b, ler o JSONL e registrar no catálogo **só os seletores comprovadamente vencedores**, com os fallbacks realmente exercitados. Depois disso a limpeza (seletores, parâmetros mortos, `except: pass`) passa a ter base factual.
 
 **Pendências transversais registradas:** F8b (307 `print` de fluxo + `normalizar_resultado`); teste ao vivo de login/cookies da F3 e de GIGs da F5 na próxima rodagem real; dedup do 3º `PjeApiClient` (read-only) do `Fix/variaveis` e do fork de 20 métodos bianca↔api (F7/F10); `bianca.utils.RuleRegistry` órfão (F10); lazy restantes de `Fix.extracao` não-criar_gigs (~10).
 

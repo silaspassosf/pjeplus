@@ -154,6 +154,66 @@ def assentar(driver, teto=2.0, motivo=""):
     return True
 
 
+def _fluxo_do_chamador():
+    """Deduz o fluxo (mandado/p2b/pec/...) do módulo que chamou a busca.
+
+    A telemetria precisa saber ONDE o seletor foi usado; inspecionar um frame
+    acima é barato e evita passar o fluxo por 285 chamadores.
+    """
+    try:
+        import sys
+        f = sys._getframe(3)
+        while f:
+            nome = f.f_globals.get("__name__", "")
+            if nome and not nome.startswith(("Fix.espera", "Fix.telemetria")):
+                if nome.startswith(("Mandado",)):
+                    return "mandado"
+                if nome.startswith(("Prazo",)):
+                    return "p2b"
+                if nome.startswith(("PEC", "atos")):
+                    return "pec"
+                if nome.startswith(("SISB",)):
+                    return "sisb"
+                if nome.startswith(("bianca",)):
+                    return "bianca"
+                if nome.startswith(("Triagem",)):
+                    return "triagem"
+                if nome.startswith(("Peticao",)):
+                    return "peticao"
+                return nome.split(".")[0].lower()
+            f = f.f_back
+    except Exception:
+        pass
+    return "desconhecido"
+
+
+_VISTOS = set()  # dedup: seletor+resultado já registrado nesta execução
+
+
+def _telemetria_busca(seletor, ok, tentativas=1, ms=0.0):
+    """Registra a resolução do seletor na telemetria (nunca levanta).
+
+    Fica aqui, em vez de em cada chamador, porque `elemento`/`elementos` são a
+    porta única de busca no DOM — assim todo o código passa a emitir o seletor
+    que de fato venceu, sem nenhuma alteração nos fluxos.
+
+    Deduplica por (seletor, ok): o que consolida catálogo é QUAIS seletores
+    existem e em que fluxo — repetir a mesma busca centenas de vezes só
+    engordaria o JSONL.
+    """
+    try:
+        chave = (seletor, bool(ok))
+        if chave in _VISTOS:
+            return
+        _VISTOS.add(chave)
+        from Fix.telemetria_seletores import registrar_resolucao
+        registrar_resolucao("busca_dom", seletor if ok else None,
+                            fluxo=_fluxo_do_chamador(), origem="espera",
+                            ok=ok, tentativas=tentativas, ms=ms)
+    except Exception:
+        pass
+
+
 def elemento(driver, seletor, teto=10, visivel=True):
     """Espera aparecer elemento de `seletor`; devolve o elemento ou `None`.
 
@@ -161,15 +221,21 @@ def elemento(driver, seletor, teto=10, visivel=True):
     """
     by = By.XPATH if e_xpath(seletor) else By.CSS_SELECTOR
     limite = time.monotonic() + float(teto)
+    inicio = time.monotonic()
+    tentativas = 0
     while True:
+        tentativas += 1
         try:
             for el in _find_elements(driver, by, seletor):
                 if not visivel or el.is_displayed():
+                    _telemetria_busca(seletor, True, tentativas, (time.monotonic() - inicio) * 1000)
                     return el
         except Exception as e:
             logger.debug("elemento: %s", e)
+            _telemetria_busca(seletor, False, tentativas, (time.monotonic() - inicio) * 1000)
             return None
         if time.monotonic() >= limite:
+            _telemetria_busca(seletor, False, tentativas, (time.monotonic() - inicio) * 1000)
             return None
         _dormir(_INTERVALO_POLL)
 
@@ -179,15 +245,21 @@ def elementos(driver, seletor, teto=10):
     (vazia se nada aparecer dentro do teto)."""
     by = By.XPATH if e_xpath(seletor) else By.CSS_SELECTOR
     limite = time.monotonic() + float(teto)
+    inicio = time.monotonic()
+    tentativas = 0
     while True:
+        tentativas += 1
         try:
             els = _find_elements(driver, by, seletor)
             if els:
+                _telemetria_busca(seletor, True, tentativas, (time.monotonic() - inicio) * 1000)
                 return els
         except Exception as e:
             logger.debug("elementos: %s", e)
+            _telemetria_busca(seletor, False, tentativas, (time.monotonic() - inicio) * 1000)
             return []
         if time.monotonic() >= limite:
+            _telemetria_busca(seletor, False, tentativas, (time.monotonic() - inicio) * 1000)
             return []
         _dormir(_INTERVALO_POLL)
 

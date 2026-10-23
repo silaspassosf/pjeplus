@@ -11,6 +11,7 @@ com suporte a:
 """
 
 import logging
+import time as _time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -19,6 +20,21 @@ from Fix import espera
 from Fix.diagnostico_runtime import log_erro_estruturado
 
 logger = logging.getLogger("Fix.seletores")
+
+
+def _telemetria(acao: str, seletor: Optional[str], contexto: str, processo: str,
+                *, tentativas: int, inicio: float, ok: bool,
+                candidatos: Optional[List[str]] = None) -> None:
+    """Grava a resolução na telemetria de seletores (nunca levanta)."""
+    try:
+        from Fix.telemetria_seletores import registrar_resolucao
+        registrar_resolucao(
+            acao, seletor, fluxo=contexto, origem="catalogo", ok=ok,
+            tentativas=tentativas, ms=(_time.perf_counter() - inicio) * 1000,
+            contexto=contexto, processo=processo, candidatos=candidatos,
+        )
+    except Exception:
+        pass
 
 
 @dataclass
@@ -87,7 +103,11 @@ class CatalogoSeletores:
         6. Encerra no primeiro sucesso e registra novo vencedor.
         7. Não testa seletores restantes após o sucesso.
         8. Se todos falharem, emite erro estruturado padronizado.
+
+        Toda resolução (sucesso ou falha) é gravada em telemetria
+        (`Fix.telemetria_seletores`) para consolidar o catálogo com evidência.
         """
+        _t0 = _time.perf_counter()
         reg = self.obter(acao, contexto, ambiente)
         if not reg:
             log_erro_estruturado(
@@ -129,6 +149,8 @@ class CatalogoSeletores:
             if el_vencedor:
                 reg.quantidade_sucessos += 1
                 reg.data_ultima_confirmacao = datetime.now().isoformat()
+                _telemetria(acao, reg.seletor_vencedor, contexto, processo,
+                            tentativas=1, inicio=_t0, ok=True)
                 return el_vencedor
             # 4. Falha do vencedor -> invalidar para esta execução
             reg.quantidade_falhas += 1
@@ -143,13 +165,17 @@ class CatalogoSeletores:
         if vencedor_antigo in cadeia:
             cadeia.remove(vencedor_antigo)
 
+        tentativas = 1 if vencedor_antigo else 0
         for sel in cadeia:
+            tentativas += 1
             el = _testar(sel, teto)
             if el:
                 # 6 & 7. Encerra no primeiro sucesso e registra novo vencedor
                 reg.seletor_vencedor = sel
                 reg.quantidade_sucessos += 1
                 reg.data_ultima_confirmacao = datetime.now().isoformat()
+                _telemetria(acao, sel, contexto, processo,
+                            tentativas=tentativas, inicio=_t0, ok=True)
                 return el
 
         # 8. Se todos falharem, log estruturado canônico
@@ -167,6 +193,8 @@ class CatalogoSeletores:
             retry=False,
             consequencia="Ação semântica interrompida por falta de elemento no DOM",
         )
+        _telemetria(acao, None, contexto, processo, tentativas=tentativas,
+                    inicio=_t0, ok=False, candidatos=cadeia)
         return None
 
     def _inicializar_padroes(self) -> None:

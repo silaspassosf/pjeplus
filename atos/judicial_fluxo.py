@@ -191,10 +191,6 @@ def fluxo_cls(
 
         # ===== PASSO 5: AGUARDAR TRANSIÇÃO PARA MINUTAR =====
         logger.info('[CLS] Passo 5: Aguardando transição para minutar...')
-        # O clique em Despacho dispara a navegação; sem assentar, o laço começa
-        # antes de a tela de minutar montar e consome o teto inteiro sem ver a
-        # transição (log de 23/10: 15s sem detectar; em 19/10, 4s com sucesso).
-        espera.assentar(driver, 1, motivo='[CLS] transição de conclusão para minutar')
         timing_transicao_inicio = time.time()
         try:
             if not aguardar_transicao_minutar(driver):

@@ -207,6 +207,12 @@ def navegar_para_conclusao(driver: Any) -> bool:
             return True
 
         # Aguarda botões de transição renderizarem (padrão esperarColecao('pje-botoes-transicao button', 15) do gigs-plugin)
+        # A só existência de um botão de transição não prova que a página da
+        # tarefa carregou: o esqueleto da nova aba já traz os botões antes de a
+        # tarefa montar, e a busca por "Conclusão" saía antes disso. Esperar o
+        # cabeçalho da tarefa (que só aparece com ela carregada) estabiliza a
+        # tela antes de procurar o destino.
+        aguardar_renderizacao_nativa(driver, 'pje-cabecalho-tarefa', modo='aparecer', timeout=6)
         aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=6)
 
         btn_conclusao_encontrado = False

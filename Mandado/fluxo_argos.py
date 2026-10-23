@@ -152,10 +152,15 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                 logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
 
         # Garantir término completo da visibilidade e ausência de modal/spinner antes de prosseguir
+        # pje-dialogo-status-progresso é o "Aguarde" do PJe: sem ele nesta lista
+        # a espera não enxergava o spinner que a visibilidade em lote detecta
+        # (atos/anexos_sigilo.py:230 usa exatamente esse seletor) e o SISBAJUD
+        # começava com a atribuição de visibilidade ainda em curso.
         from Fix import espera
         espera.ate_sumir(
             driver,
-            'mat-dialog-container, mat-progress-spinner, mat-spinner, mat-progress-bar, .loading-spinner, .loading-overlay',
+            'pje-dialogo-status-progresso, mat-dialog-container, mat-progress-spinner, '
+            'mat-spinner, mat-progress-bar, .loading-spinner, .loading-overlay',
             teto=10
         )
 

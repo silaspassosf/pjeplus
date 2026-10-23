@@ -85,10 +85,12 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
 
         safe_click_no_scroll(driver, btn_sigilo)
 
+        # Verifica antes de dormir: quando o PJe já aplicou o sigilo no próprio
+        # clique, o laço sai na primeira iteração em vez de pagar 250ms fixos.
         for _ in range(8):
-            espera.assentar(driver, 0.25)
             if _tem_sigilo():
                 return True
+            espera.assentar(driver, 0.25)
 
         # Se clicou sem erro e o botão de inserir sumiu/mudou, considerar inserido
         try:

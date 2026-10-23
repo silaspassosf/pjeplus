@@ -162,6 +162,10 @@ class PJePlusLogger:
             validate_emoji=self.validate_emoji
         )
         console_handler.setFormatter(formatter)
+        # F8: nao reimprimir linhas da familia 'pjeplus' (handler proprio no Fix.diagnostico_runtime);
+        # import local para o motor Peticao continuar importavel sem Fix no topo do modulo.
+        from Fix.diagnostico_runtime import handler_console_sem_pjeplus
+        handler_console_sem_pjeplus(console_handler)
         root_logger.addHandler(console_handler)
 
         if self.log_file:

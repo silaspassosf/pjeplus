@@ -99,6 +99,18 @@ _instancia = PJELogger('pjeplus')
 logger = _instancia.logger
 
 
+def handler_console_sem_pjeplus(handler) -> None:
+    """Politica de log unico no console (F8).
+
+    O logger 'pjeplus' tem handler proprio de console (PJELogger acima).
+    Handlers de console adicionados a raiz pelos orquestradores (x.py,
+    f.py, Peticao.suporte_pet) devem registrar este filtro para nao
+    reimprimir as mesmas linhas. File log e erro.md continuam recebendo
+    os registros da familia 'pjeplus' via propagate.
+    """
+    handler.addFilter(lambda r: not r.name.startswith('pjeplus'))
+
+
 # ══════════════════════════════════════════════════════
 # Funcoes padronizadas de evento
 # ══════════════════════════════════════════════════════

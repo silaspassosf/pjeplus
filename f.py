@@ -47,6 +47,7 @@ os.chdir(AQUI)
 from Fix.core import criar_driver_vt, criar_driver_pc, finalizar_driver  # noqa: E402
 from Fix.utils import login_manual, login_cpf, navegar_para_tela  # noqa: E402
 from Fix import espera  # noqa: E402
+from Fix.diagnostico_runtime import handler_console_sem_pjeplus  # noqa: E402
 
 # ============================================================
 # URLs de processos para testes (valores padrão)
@@ -103,6 +104,8 @@ def configurar_logging_debug():
     """
     handler = logging.StreamHandler()
     handler.setFormatter(_DestaquFormatter())
+    # F8: nao reimprimir linhas da familia 'pjeplus' (handler proprio no Fix.diagnostico_runtime)
+    handler_console_sem_pjeplus(handler)
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     if not root.handlers:

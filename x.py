@@ -47,6 +47,7 @@ from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api
 from Mandado.entrada_api import processar_mandados_devolvidos_api
 
 from Fix.log import logger
+from Fix.diagnostico_runtime import handler_console_sem_pjeplus
 
 # Imports de fluxos orquestrados — movidos para o topo (Task 9)
 from bianca.triagem_engine import run_triagem
@@ -910,6 +911,9 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
             return base
 
     console_handler.setFormatter(_DestaqueConsoleFormatter())
+    # F8: 'pjeplus' ja imprime via handler proprio (Fix.diagnostico_runtime);
+    # sem este filtro cada linha sai 2x no console. File log e erro.md seguem via propagate.
+    handler_console_sem_pjeplus(console_handler)
     root_logger.addHandler(console_handler)
 
     # Handler exclusivo para erros → erro.md na raiz (com rotação por tamanho)

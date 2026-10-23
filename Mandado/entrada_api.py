@@ -800,6 +800,10 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
         # 3. Aguardar modal
         logger.info('[INTIMACAO] [3] Aguardando modal abrir...')
         espera.elemento(driver, 'tbody tr', teto=5, visivel=False)
+        # O primeiro <tr> aparece antes de a tabela popular: sem esta pausa o
+        # passo [4] lia só parte das linhas (4 de 10 no log de 23/10) e nenhuma
+        # delas casava com prazo 30, embora a intimação estivesse aberta.
+        espera.assentar(driver, 1, motivo='[INTIMACAO] tabela de expedientes popular')
 
         # 4. Buscar linha prazo 30
         logger.info('[INTIMACAO] [4] Buscando linhas com prazo 30...')

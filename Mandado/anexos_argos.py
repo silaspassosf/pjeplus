@@ -225,7 +225,10 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
     btn_anexos_encontrado = None
     for sel in seletores_teste:
         try:
-            elementos = espera.elementos(doc, sel, teto=0.5)
+            # A ETAPA 1.5 (sigilo) pode deixar a timeline re-renderizando; com
+            # teto=0.5 o botão era perdido em metade dos processos — no log de
+            # 23/10 o mesmo seletor funcionou num processo e falhou no seguinte.
+            elementos = espera.elementos(doc, sel, teto=3)
             if elementos:
                 btn_anexos_encontrado = elementos[0]
                 if log:

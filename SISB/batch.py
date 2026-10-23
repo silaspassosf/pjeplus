@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Callable, Tuple
 from Fix.core import aguardar_renderizacao_nativa
 
 # URL base para navegação entre processos
-URL_MINUTA = "https://sisbajud.pdpj.jus.br/minuta"
+URL_MINUTA = "https://sisbajud.cnj.jus.br/minuta"
 
 
 def processar_lote_sisbajud(

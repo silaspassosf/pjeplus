@@ -13,6 +13,8 @@ from SISB.facades_contratos import (  # noqa: E402, F401
     driver_sisbajud,
     login_automatico_sisbajud,
     login_manual_sisbajud,
+    is_tela_login_sisbajud,
+    is_sessao_ativa_sisbajud,
     salvar_cookies_sisbajud,
     carregar_cookies_sisbajud,
     salvar_sessao_sisbajud,
@@ -60,6 +62,7 @@ from SISB.facades_contratos import (  # noqa: E402, F401
 
 __all__ = [
     'iniciar_sisbajud', 'driver_sisbajud', 'login_automatico_sisbajud', 'login_manual_sisbajud',
+    'is_tela_login_sisbajud', 'is_sessao_ativa_sisbajud',
     'salvar_cookies_sisbajud', 'carregar_cookies_sisbajud', 'salvar_sessao_sisbajud', 'restaurar_sessao_sisbajud',
     'verificar_e_aplicar_cookies_sisbajud', 'USAR_COOKIES_AUTOMATICO', 'SALVAR_COOKIES_AUTOMATICO',
     'minuta_bloqueio_refatorada',

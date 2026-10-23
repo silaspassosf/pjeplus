@@ -37,6 +37,7 @@ from . import helpers
 from .processamento_campos import _configurar_valor
 from . import utils
 from Fix import espera
+from Fix.core import aguardar_renderizacao_nativa, preencher_campo, safe_click_no_scroll
 
 # Função auxiliar para simulação humana (extraída de sisb.py)
 def simular_movimento_humano(driver, elemento=None):
@@ -81,13 +82,17 @@ def _extrair_jwt_exp_sisbajud(token_value: str) -> int:
 def salvar_tokens_sisbajud(driver) -> bool:
     """Salva tokens SISBAJUD do localStorage para arquivo JSON.
     
-    Extracts: LS.sisbajud-token (access_token), LS.sisbajud-refresh-token
+    Extracts: sisbajud-token (access_token), sisbajud-refresh-token
     Saves to: ~/.pjeplus/sisbajud_tokens.json com expiry de access_token
     """
     try:
-        # Leitura de localStorage via JavaScript
-        access_token = driver.execute_script("return localStorage.getItem('LS.sisbajud-token');")
-        refresh_token = driver.execute_script("return localStorage.getItem('LS.sisbajud-refresh-token');")
+        # Leitura de localStorage via JavaScript (suporta formato com ou sem prefixo LS.)
+        access_token = driver.execute_script(
+            "return localStorage.getItem('sisbajud-token') || localStorage.getItem('LS.sisbajud-token');"
+        )
+        refresh_token = driver.execute_script(
+            "return localStorage.getItem('sisbajud-refresh-token') || localStorage.getItem('LS.sisbajud-refresh-token');"
+        )
         
         if not access_token:
             logger.debug('[SISBAJUD][TOKEN] Nenhum access_token encontrado em localStorage')
@@ -112,8 +117,8 @@ def salvar_tokens_sisbajud(driver) -> bool:
             'refresh_token': refresh_token or None,
             'salvo_em': time.time(),
         }
-        with open(token_file, 'w') as f:
-            json.dump(dados, f)
+        with open(token_file, 'w', encoding='utf-8') as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
         
         logger.info(f'[SISBAJUD][TOKEN] Tokens salvos em {token_file}')
         return True
@@ -136,7 +141,7 @@ def carregar_tokens_sisbajud() -> dict:
             logger.debug('[SISBAJUD][TOKEN] Arquivo de tokens nao encontrado')
             return {'sucesso': False, 'access_token': None, 'refresh_token': None}
         
-        with open(token_file, 'r') as f:
+        with open(token_file, 'r', encoding='utf-8') as f:
             dados = json.load(f)
         
         access_token = dados.get('access_token')
@@ -161,30 +166,146 @@ def carregar_tokens_sisbajud() -> dict:
 def injetar_tokens_sisbajud(driver, access_token: str, refresh_token: str = None) -> bool:
     """Injeta tokens SISBAJUD em localStorage do driver.
     
-    Navegaattive para https://sisbajud.cnj.jus.br/ antes de injetar.
+    Aplica em https://sisbajud.cnj.jus.br/ e https://sisbajud.pdpj.jus.br/.
     """
     try:
-        # Navegar para o domínio SISBAJUD para permissão de localStorage
-        driver.get('https://sisbajud.cnj.jus.br/')
-        espera.assentar(driver, 1)
-        
-        # Injetar access_token
-        driver.execute_script(
-            "localStorage.setItem('LS.sisbajud-token', arguments[0]);",
-            access_token
-        )
-        
-        # Injetar refresh_token se fornecido
-        if refresh_token:
-            driver.execute_script(
-                "localStorage.setItem('LS.sisbajud-refresh-token', arguments[0]);",
-                refresh_token
-            )
+        for dom in ['https://sisbajud.cnj.jus.br/', 'https://sisbajud.pdpj.jus.br/']:
+            try:
+                driver.get(dom)
+                espera.assentar(driver, 0.5)
+                driver.execute_script("""
+                    localStorage.setItem('sisbajud-token', arguments[0]);
+                    localStorage.setItem('LS.sisbajud-token', arguments[0]);
+                    if (arguments[1]) {
+                        localStorage.setItem('sisbajud-refresh-token', arguments[1]);
+                        localStorage.setItem('LS.sisbajud-refresh-token', arguments[1]);
+                    }
+                """, access_token, refresh_token)
+            except Exception:
+                pass
         
         logger.info('[SISBAJUD][TOKEN] Tokens injetados em localStorage')
         return True
     except Exception as e:
         logger.warning(f'[SISBAJUD][TOKEN] Erro ao injetar tokens: {e}')
+        return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Verificação de Autenticação e Sessão SISBAJUD
+# ═══════════════════════════════════════════════════════════════════════════
+
+def is_tela_login_sisbajud(driver) -> bool:
+    """
+    Identifica de forma conclusiva se o driver SISBAJUD está na tela de login
+    (Keycloak SSO PDPJ, formulário de credenciais, OTP ou página de autenticação).
+    NUNCA deduz que está logado só pela URL.
+    """
+    try:
+        cur_url = (getattr(driver, 'current_url', '') or '').lower()
+
+        # 1. URL explícita de autenticação / SSO / Keycloak / login
+        indicadores_url_login = (
+            'sso.cloud.pje.jus.br',
+            '/auth/realms/',
+            'protocol/openid-connect',
+            '/login',
+            '/autenticacao',
+            'auth_session_id',
+        )
+        if any(ind in cur_url for ind in indicadores_url_login):
+            return True
+
+        # 2. Elementos DOM de formulário de login / SSO
+        seletores_login = (
+            '#username, input[name="username"], '
+            '#password, input[name="password"], '
+            '#kc-login, #kc-form-login, #kc-page-title, '
+            '#otp, input[name="otp"], '
+            'form[action*="/auth/realms/"]'
+        )
+        if espera.ate_aparecer(driver, seletores_login, teto=0.5):
+            return True
+
+        # 3. Botão ou link explícito de chamada para login em landing page
+        try:
+            is_landing_login = driver.execute_script("""
+                const botoes = Array.from(document.querySelectorAll('button, a, .btn'));
+                return botoes.some(b => {
+                    const txt = (b.textContent || '').trim().toLowerCase();
+                    return (
+                        txt === 'entrar' ||
+                        txt.includes('entrar com') ||
+                        txt.includes('login') ||
+                        txt === 'acessar' ||
+                        txt.includes('autenticar')
+                    ) && b.offsetParent !== null;
+                });
+            """)
+            if is_landing_login:
+                return True
+        except Exception:
+            pass
+
+        return False
+    except Exception as e:
+        logger.debug(f'[SISBAJUD][LOGIN_CHECK] Erro ao checar tela de login: {e}')
+        return False
+
+
+def is_sessao_ativa_sisbajud(driver) -> bool:
+    """
+    Verifica se há uma sessão autenticada REAL e ATIVA no SISBAJUD.
+    Critérios estritos:
+    1. Se estiver na tela de login (is_tela_login_sisbajud), retorna False imediatamente.
+    2. URL deve ser de domínio do SISBAJUD (sisbajud.cnj.jus.br ou sisbajud.pdpj.jus.br).
+    3. Prova positiva 1: JWT token válido no localStorage (exp > agora + 15s).
+    4. Prova positiva 2: Componentes Angular autenticados no DOM (dialog de ordens, menus internos, toolbar autenticada).
+    NUNCA assume que está logado apenas porque a URL tem 'sisbajud' e não tem 'login'.
+    """
+    try:
+        if is_tela_login_sisbajud(driver):
+            return False
+
+        cur_url = (getattr(driver, 'current_url', '') or '').lower()
+        if not any(h in cur_url for h in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br']):
+            return False
+
+        # Prova Positiva A: Token JWT válido no localStorage
+        try:
+            token_valido = driver.execute_script("""
+                try {
+                    const token = localStorage.getItem('sisbajud-token') || localStorage.getItem('LS.sisbajud-token');
+                    if (!token) return false;
+                    const partes = token.split('.');
+                    if (partes.length < 2) return false;
+                    const payload = JSON.parse(atob(partes[1].replace(/-/g, '+').replace(/_/g, '/')));
+                    const exp = payload.exp || 0;
+                    return exp > ((Date.now() / 1000) + 15);
+                } catch(e) {
+                    return false;
+                }
+            """)
+            if token_valido:
+                return True
+        except Exception:
+            pass
+
+        # Prova Positiva B: Elementos do sistema autenticado no DOM
+        seletores_autenticado = (
+            'sisbajud-dialog-aviso-ordem-pendente, '
+            'sisbajud-cadastro-minuta, '
+            'sisbajud-detalhes-teimosinha, '
+            'a[href*="/minuta"], a[routerlink*="/minuta"], '
+            'a[href*="/teimosinha"], a[routerlink*="/teimosinha"], '
+            'button[mat-menu-item]'
+        )
+        if espera.ate_aparecer(driver, seletores_autenticado, teto=0.5):
+            return True
+
+        return False
+    except Exception as e:
+        logger.debug(f'[SISBAJUD][SESSION_CHECK] Erro ao checar sessão ativa: {e}')
         return False
 
 
@@ -241,6 +362,19 @@ def salvar_cookies_sisbajud(driver, caminho_arquivo=None, info_extra=None) -> bo
             'origins': estado.get('origins', [])
         }
 
+        # Garantir persistência dos tokens em origins se storage_state não os incluiu
+        if not dados['origins']:
+            try:
+                cur_token = driver.execute_script("return localStorage.getItem('sisbajud-token') || localStorage.getItem('LS.sisbajud-token');")
+                cur_refresh = driver.execute_script("return localStorage.getItem('sisbajud-refresh-token') || localStorage.getItem('LS.sisbajud-refresh-token');")
+                if cur_token:
+                    ls_items = [{'name': 'sisbajud-token', 'value': cur_token}]
+                    if cur_refresh:
+                        ls_items.append({'name': 'sisbajud-refresh-token', 'value': cur_refresh})
+                    dados['origins'] = [{'origin': 'https://sisbajud.pdpj.jus.br', 'localStorage': ls_items}]
+            except Exception:
+                pass
+
         with open(caminho_arquivo, 'w', encoding='utf-8') as f:
             json.dump(dados, f, ensure_ascii=False, indent=2)
 
@@ -258,10 +392,14 @@ def salvar_cookies_sisbajud(driver, caminho_arquivo=None, info_extra=None) -> bo
         return False
 
 
-def carregar_cookies_sisbajud(driver, max_idade_horas=24) -> bool:
+def carregar_cookies_sisbajud(driver, max_idade_horas=12) -> bool:
     """
     Carrega cookies e sessão SISBAJUD mais recentes e válidos automaticamente.
-    Mesmo padrão de carregar_cookies_sessao do driver PJe.
+    Valida rigorosamente:
+    1. Verifica idade e integridade do token no arquivo antes de injetar.
+    2. Injeta cookies e localStorage nos domínios do SISBAJUD.
+    3. Confirma se a sessão realmente ficou ativa (is_sessao_ativa_sisbajud).
+    4. Se a tela de login for detectada ou a sessão não for confirmada, descarta os cookies e retorna False.
     """
     try:
         pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
@@ -291,18 +429,24 @@ def carregar_cookies_sisbajud(driver, max_idade_horas=24) -> bool:
             timestamp_str = datetime.fromtimestamp(os.path.getmtime(arquivo_mais_recente)).isoformat()
             cookies = dados.get('cookies', dados if isinstance(dados, list) else [])
 
-        # Validar idade do arquivo
+        # Validar idade do arquivo (sessões SSO de SISBAJUD expiram em 8-12h)
         try:
             timestamp_cookies = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00').replace('+00:00', ''))
             idade = datetime.now() - timestamp_cookies
             if idade > timedelta(hours=max_idade_horas):
-                logger.info('[SISBAJUD][COOKIES] Cookies muito antigos (%.1fh). Pulando.', idade.total_seconds() / 3600)
+                logger.info(f'[SISBAJUD][COOKIES] Cookies muito antigos ({idade.total_seconds() / 3600:.1f}h > {max_idade_horas}h). Pulando.')
                 return False
         except Exception:
             pass
 
-        # Navega para o domínio do SISBAJUD antes de injetar
-        driver.get('https://sisbajud.pdpj.jus.br/')
+        # Pré-validação do token JWT dentro do arquivo: se já expirou, rejeitar
+        for origem in dados.get('origins', []):
+            for item in origem.get('localStorage', []):
+                if item.get('name') in ('sisbajud-token', 'LS.sisbajud-token'):
+                    exp = _extrair_jwt_exp_sisbajud(item.get('value', ''))
+                    if exp > 0 and exp < time.time():
+                        logger.info(f'[SISBAJUD][COOKIES] Token JWT no arquivo {os.path.basename(arquivo_mais_recente)} já expirou. Pulando restauração.')
+                        return False
 
         contexto = getattr(driver, '_context', None)
         agora = time.time()
@@ -314,9 +458,10 @@ def carregar_cookies_sisbajud(driver, max_idade_horas=24) -> bool:
             cookies_validos.append(c)
 
         if not cookies_validos:
-            logger.info('[SISBAJUD][COOKIES] Sessao salva sem cookies validos')
+            logger.info('[SISBAJUD][COOKIES] Sessão salva sem cookies válidos')
             return False
 
+        # Injetar cookies via contexto Playwright
         if contexto and hasattr(contexto, 'add_cookies'):
             try:
                 pw_cookies = []
@@ -324,56 +469,46 @@ def carregar_cookies_sisbajud(driver, max_idade_horas=24) -> bool:
                     item = dict(c)
                     if 'expiry' in item and 'expires' not in item:
                         item['expires'] = float(item.pop('expiry'))
-                    item.setdefault('domain', '.pdpj.jus.br')
+                    if not item.get('domain'):
+                        item['domain'] = '.pdpj.jus.br'
                     item.setdefault('path', '/')
                     pw_cookies.append(item)
                 contexto.add_cookies(pw_cookies)
             except Exception as e:
                 logger.debug(f'[SISBAJUD][COOKIES] contexto.add_cookies: {e}')
 
-        for c in cookies_validos:
-            try:
-                campos_remover = {'httpOnly', 'secure', 'sameSite'}
-                cookie_limpo = {k: v for k, v in c.items() if k not in campos_remover}
-                driver.add_cookie(cookie_limpo)
-            except Exception:
-                pass
-
-        # Restaurar localStorage se presente
+        # Restaurar localStorage se presente em ambas as origens
         origins = dados.get('origins', [])
+        itens_restaurar = []
         for origem in origins:
-            itens = origem.get('localStorage') or []
-            if not itens:
-                continue
-            try:
-                driver.get(origem['origin'])
-                for item in itens:
-                    driver.execute_script(
-                        "localStorage.setItem(arguments[0], arguments[1]);",
-                        item['name'], item['value']
-                    )
-            except Exception:
-                pass
+            itens_restaurar.extend(origem.get('localStorage') or [])
 
-        # Navega para a página principal do SISBAJUD
-        driver.get('https://sisbajud.pdpj.jus.br/')
-        indicadores = ('login', 'auth', 'realms', 'sso.cloud')
+        if itens_restaurar:
+            for dominio_alvo in ['https://sisbajud.cnj.jus.br/', 'https://sisbajud.pdpj.jus.br/']:
+                try:
+                    driver.get(dominio_alvo)
+                    for item in itens_restaurar:
+                        driver.execute_script(
+                            "localStorage.setItem(arguments[0], arguments[1]);",
+                            item['name'], item['value']
+                        )
+                except Exception:
+                    pass
 
-        def _logado(d):
-            url = (getattr(d, 'current_url', '') or '').lower()
-            return 'sisbajud' in url and not any(i in url for i in indicadores)
-
-        try:
-            espera.ate(driver, _logado, teto=12)
-        except Exception:
-            pass
+        # Navega para a página principal do SISBAJUD (dominio CNJ — pdpj nao carrega)
+        driver.get('https://sisbajud.cnj.jus.br/')
         espera.assentar(driver, 2)
 
-        if _logado(driver):
-            logger.info(f'[SISBAJUD][COOKIES] Cookies validos de {os.path.basename(arquivo_mais_recente)}! Login reaproveitado.')
+        # Checagem conclusiva de sessão ativa vs tela de login
+        if is_sessao_ativa_sisbajud(driver):
+            logger.info(f'[SISBAJUD][COOKIES] Sessão ativa confirmada a partir de {os.path.basename(arquivo_mais_recente)}! Login reaproveitado.')
             return True
 
-        logger.info(f'[SISBAJUD][COOKIES] Cookies invalidos ou expirados (url={driver.current_url}).')
+        if is_tela_login_sisbajud(driver):
+            logger.info(f'[SISBAJUD][COOKIES] Tela de login detectada após carregar cookies de {os.path.basename(arquivo_mais_recente)} (cookies inválidos/expirados).')
+        else:
+            logger.info(f'[SISBAJUD][COOKIES] Sessão não autenticada após carregar cookies (url={getattr(driver, "current_url", "")}).')
+
         try:
             driver.delete_all_cookies()
         except Exception:
@@ -458,24 +593,56 @@ def login_automatico_sisbajud(driver):
 
         logger.info('[SISBAJUD][LOGIN] Navegando para SISBAJUD (https://sisbajud.cnj.jus.br/)...')
         driver.get('https://sisbajud.cnj.jus.br/')
+        espera.assentar(driver, 1)
 
-        # Aguardar campo de usuário (#username) ou verificar se já está logado
-        if not espera.ate_aparecer(driver, '#username, input[name="username"]', teto=10):
-            cur = (getattr(driver, 'current_url', '') or '').lower()
-            if ('sisbajud.cnj.jus.br' in cur or 'sisbajud.pdpj.jus.br' in cur) and not any(ind in cur for ind in ['login', 'auth', 'realms', 'sso.cloud']):
-                logger.info('[SISBAJUD][LOGIN] Sessão já ativa detectada!')
+        # 1. Verificar se já tem sessão ativa no SISBAJUD
+        if is_sessao_ativa_sisbajud(driver):
+            logger.info('[SISBAJUD][LOGIN] Sessão já ativa detectada!')
+            return True
+
+        # 2. Aguardar tela de login (Keycloak SSO / campos de usuário)
+        logger.info('[SISBAJUD][LOGIN] Aguardando tela de autenticação do SISBAJUD...')
+        if not is_tela_login_sisbajud(driver):
+            espera.ate(driver, lambda d: is_tela_login_sisbajud(d) or is_sessao_ativa_sisbajud(d), teto=10)
+
+        if is_sessao_ativa_sisbajud(driver):
+            logger.info('[SISBAJUD][LOGIN] Sessão ativa confirmada!')
+            return True
+
+        # Se não aparecer campo de login diretamente, tentar clicar no botão de entrada da landing page se houver
+        if not espera.ate_aparecer(driver, '#username, input[name="username"]', teto=3):
+            try:
+                clicou_entrar = driver.execute_script("""
+                    const botoes = Array.from(document.querySelectorAll('button, a, .btn'));
+                    for (const b of botoes) {
+                        const txt = (b.textContent || '').trim().toLowerCase();
+                        if (txt === 'entrar' || txt.includes('entrar com') || txt.includes('login') || txt === 'acessar') {
+                            b.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                """)
+                if clicou_entrar:
+                    logger.info('[SISBAJUD][LOGIN] Botão de entrada acionado na landing page')
+                    espera.ate_aparecer(driver, '#username, input[name="username"]', teto=8)
+            except Exception:
+                pass
+
+        if not espera.ate_aparecer(driver, '#username, input[name="username"]', teto=5):
+            if is_sessao_ativa_sisbajud(driver):
+                logger.info('[SISBAJUD][LOGIN] Sessão ativa detectada!')
                 return True
-            logger.warning('[SISBAJUD][LOGIN] Campo #username não localizado.')
+            logger.warning('[SISBAJUD][LOGIN] Campo #username não localizado e sessão não está ativa.')
             return False
 
-        # Preencher CPF e Senha imediatamente
+        # Preencher CPF e Senha
         logger.info('[SISBAJUD][LOGIN] Preenchendo credenciais do SISBAJUD via Windows Credential Manager...')
         try:
             if hasattr(driver, 'page') and driver.page:
                 driver.page.fill('#username, input[name="username"]', str(cpf))
                 driver.page.fill('#password, input[name="password"]', str(senha))
             else:
-                from Fix.core import preencher_campo
                 preencher_campo(driver, '#username', cpf)
                 preencher_campo(driver, '#password', senha)
         except Exception as e_fill:
@@ -488,7 +655,6 @@ def login_automatico_sisbajud(driver):
             if hasattr(driver, 'page') and driver.page:
                 driver.page.click('#kc-login')
             else:
-                from Fix.core import safe_click_no_scroll
                 safe_click_no_scroll(driver, '#kc-login')
         except Exception as e_btn:
             logger.error('[SISBAJUD][LOGIN] Falha ao clicar no botão de login: %s', e_btn)
@@ -508,14 +674,13 @@ def login_automatico_sisbajud(driver):
                     except Exception:
                         driver.page.keyboard.press('Enter')
                 else:
-                    from Fix.core import preencher_campo, safe_click_no_scroll
                     preencher_campo(driver, '#otp', codigo)
                     safe_click_no_scroll(driver, 'input[type="submit"], button[type="submit"], #kc-login')
             else:
                 logger.info('[SISBAJUD][LOGIN] Tela de validação em duas etapas (OTP) detectada. Digite o código no navegador e confirme...')
 
-        # Validação pós-login via Dialog de ordens pendentes
-        logger.info('[SISBAJUD][LOGIN] Aguardando confirmação de login válido via dialog de ordens pendentes...')
+        # Validação pós-login via Dialog de ordens pendentes ou sessão ativa
+        logger.info('[SISBAJUD][LOGIN] Aguardando confirmação de login válido via dialog de ordens pendentes ou sessão ativa...')
         seletor_dialog = 'sisbajud-dialog-aviso-ordem-pendente, mat-dialog-container:has(sisbajud-dialog-aviso-ordem-pendente), mat-dialog-container'
 
         login_confirmado = False
@@ -551,13 +716,11 @@ def login_automatico_sisbajud(driver):
                     pass
                 break
 
-            # 2. Caso sem ordens pendentes: página do SISBAJUD carregada sem login/auth
-            cur = (getattr(driver, 'current_url', '') or '').lower()
-            if ('sisbajud.cnj.jus.br' in cur or 'sisbajud.pdpj.jus.br' in cur) and not any(ind in cur for ind in ['login', 'auth', 'realms', 'sso.cloud']):
-                if espera.ate_aparecer(driver, 'mat-toolbar, .navbar, .menu-item, mat-sidenav, app-root', teto=1):
-                    logger.info('[SISBAJUD][LOGIN] Interface principal do SISBAJUD carregada (sem dialog pendente). Login confirmado.')
-                    login_confirmado = True
-                    break
+            # 2. Sessão ativa comprovada (JWT válido ou DOM autenticado)
+            if is_sessao_ativa_sisbajud(driver):
+                logger.info('[SISBAJUD][LOGIN] Interface e sessão ativa do SISBAJUD confirmadas. Login concluído com sucesso.')
+                login_confirmado = True
+                break
 
             espera.pausa(driver, 0.5)
 
@@ -580,27 +743,30 @@ def login_automatico_sisbajud(driver):
 def login_manual_sisbajud(driver, aguardar_url_final=True):
     """
     Login manual para SISBAJUD: navega até a página de login e aguarda o usuário completar o login.
+    Detecta conclusão através de is_sessao_ativa_sisbajud(driver).
+    NUNCA assume que está logado apenas por ausência de 'login' na URL.
     """
     try:
         logger.info('[SISBAJUD][LOGIN_MANUAL] Navegando para SISBAJUD e aguardando login manual...')
         
-        # Verificar se já está na página de login/auth (não navegar de novo se já estiver)
-        current_url = driver.current_url
-        if not any(ind in current_url.lower() for ind in ['sisbajud', 'login', 'auth', 'realms']):
+        # Verificar se já está com sessão ativa
+        if is_sessao_ativa_sisbajud(driver):
+            logger.info('[SISBAJUD][LOGIN_MANUAL] Sessão já está ativa no SISBAJUD!')
+            return True
+
+        # Se não estiver na tela de login nem no SISBAJUD, navegar
+        if not is_tela_login_sisbajud(driver):
             driver.get('https://sisbajud.cnj.jus.br/')
         else:
             logger.info('[SISBAJUD][LOGIN_MANUAL] Já está na página de autenticação, aguardando conclusão...')
         
         # Aguarda o usuário completar o login
-        import time
-        timeout = 300  # ⏰ 5 minutos para login manual (tempo suficiente para código de verificação)
+        timeout = 300  # 5 minutos para login manual
         inicio = time.time()
         while True:
             try:
-                current = driver.current_url.lower()
-                # Verificar se está em SISBAJUD E não está em página de autenticação
-                if any(host in current for host in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br', 'sisbajud']) and not any(ind in current for ind in ['login', 'auth', 'realms', 'sso.cloud']):
-                    logger.info('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou: %s).', driver.current_url)
+                if is_sessao_ativa_sisbajud(driver):
+                    logger.info('[SISBAJUD][LOGIN_MANUAL] Login manual detectado com sucesso (URL: %s).', getattr(driver, 'current_url', ''))
                     
                     # Salvar cookies da sessão SISBAJUD
                     if SALVAR_COOKIES_AUTOMATICO:
@@ -612,12 +778,15 @@ def login_manual_sisbajud(driver, aguardar_url_final=True):
                     return True
             except Exception as e:
                 _ = e
+
             if not aguardar_url_final:
                 return False
+
             if time.time() - inicio > timeout:
-                logger.info('[SISBAJUD][LOGIN_MANUAL] Timeout aguardando login manual.')
+                logger.warning('[SISBAJUD][LOGIN_MANUAL] Timeout aguardando login manual.')
                 return False
-            time.sleep(0.5)  # 0.5s resposta rápida ao login manual
+
+            espera.pausa(driver, 0.5)
     except Exception as e:
         logger.info(f'[SISBAJUD][LOGIN_MANUAL] Erro durante login manual: {e}')
         return False
@@ -704,8 +873,11 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
         if USAR_COOKIES_AUTOMATICO:
             try:
                 if carregar_cookies_sisbajud(driver):
-                    logger.info('[SISBAJUD] Cookies SISBAJUD carregados com sucesso; pulando etapa de login.')
-                    cookie_restored = True
+                    if is_sessao_ativa_sisbajud(driver):
+                        logger.info('[SISBAJUD] Cookies SISBAJUD carregados com sucesso e sessão ativa confirmada; pulando etapa de login.')
+                        cookie_restored = True
+                    else:
+                        logger.warning('[SISBAJUD] Cookies foram carregados mas sessão não está ativa.')
             except Exception as e:
                 logger.debug(f'[SISBAJUD] Falha ao carregar cookies SISBAJUD: {e}')
                 cookie_restored = False
@@ -720,8 +892,13 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
                     at = result_token['access_token']
                     rt = result_token.get('refresh_token')
                     if injetar_tokens_sisbajud(driver, at, rt):
-                        logger.info('[SISBAJUD] Tokens salvos injetados com sucesso; pulando login.')
-                        login_ok = True
+                        driver.get('https://sisbajud.cnj.jus.br/')
+                        espera.assentar(driver, 2)
+                        if is_sessao_ativa_sisbajud(driver):
+                            logger.info('[SISBAJUD] Tokens salvos injetados com sucesso e sessão ativa confirmada; pulando login.')
+                            login_ok = True
+                        else:
+                            logger.info('[SISBAJUD] Tokens injetados mas sessão não confirmada como ativa.')
             except Exception as e:
                 logger.debug('[SISBAJUD] Nao foi possivel reutilizar tokens: %s', e)
 
@@ -779,13 +956,17 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
                 _ = e
             return None
 
-        # Aguardar carregamento da página do SISBAJUD após login
-        espera.ate(
-            driver,
-            lambda d: any(h in (getattr(d, 'current_url', '') or '').lower() for h in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br'])
-            and not any(ind in (getattr(d, 'current_url', '') or '').lower() for ind in ['login', 'auth', 'realms', 'sso.cloud']),
-            teto=15
-        )
+        # Aguardar confirmação de sessão ativa do SISBAJUD após login
+        if not is_sessao_ativa_sisbajud(driver):
+            espera.ate(driver, is_sessao_ativa_sisbajud, teto=10)
+
+        if not is_sessao_ativa_sisbajud(driver):
+            logger.error('[SISBAJUD] Sessão ativa não confirmada após fluxo de autenticação')
+            try:
+                driver.quit()
+            except Exception:
+                pass
+            return None
 
         # Maximizar janela rapidamente
         try:
@@ -1216,8 +1397,8 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                     driver.get("about:blank")
                     aguardar_renderizacao_nativa(driver, timeout=2)
 
-                # Navegar para a URL da teimosinha
-                driver.get("https://sisbajud.pdpj.jus.br/teimosinha")
+                # Navegar para a URL da teimosinha (dominio CNJ — pdpj nao carrega)
+                driver.get("https://sisbajud.cnj.jus.br/teimosinha")
                 # Aguardar carregamento completo da página antes de buscar elemento
                 aguardar_renderizacao_nativa(driver, timeout=10)
                 if log:
@@ -1225,13 +1406,23 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
 
                 # Aguardar carregamento da página e campo de processo
                 campo_processo = espera.ate_aparecer(driver, 'input[placeholder="Número do Processo"]', teto=15)
+                if not campo_processo:
+                    # Formulario nao carregou (SPA lenta/travada) — refresh automatico
+                    # evita depender de refresh manual, quando o fluxo perde o fio por timeout.
+                    if log:
+                        logger.info('[SISBAJUD]  Campo de processo não apareceu — refresh automático da página...')
+                    driver.get("https://sisbajud.cnj.jus.br/teimosinha")
+                    aguardar_renderizacao_nativa(driver, timeout=10)
+                    campo_processo = espera.ate_aparecer(driver, 'input[placeholder="Número do Processo"]', teto=15)
                 if campo_processo:
                     try:
-                        campo_processo.fill(numero_processo)
-                        campo_processo.press('Enter')
-                    except Exception:
-                        campo_processo.clear()
-                        campo_processo.send_keys(numero_processo)
+                        preencher_campo(driver, 'input[placeholder="Número do Processo"]', numero_processo)
+                        if hasattr(driver, 'page') and driver.page:
+                            driver.page.keyboard.press('Enter')
+                        elif hasattr(campo_processo, 'press'):
+                            campo_processo.press('Enter')
+                    except Exception as e_proc:
+                        logger.debug(f'[SISBAJUD] Aviso ao preencher processo: {e_proc}')
 
                 if log:
                     logger.info('[SISBAJUD]  Processo inserido e ENTER pressionado')
@@ -1861,7 +2052,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         logger.info(f'[SISBAJUD] === CRIANDO 1ª MINUTA (prazo {prazo_dias} dias) ===')
 
         # 3a. Navegar diretamente para /minuta/cadastrar (evita delay e refresh de listagem)
-        URL_CADASTRAR = "https://sisbajud.pdpj.jus.br/minuta/cadastrar"
+        URL_CADASTRAR = "https://sisbajud.cnj.jus.br/minuta/cadastrar"
         try:
             logger.info(f'[SISBAJUD] Navegando diretamente para cadastro de minuta: {URL_CADASTRAR}')
             driver.get(URL_CADASTRAR)
@@ -1938,7 +2129,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         logger.info('[SISBAJUD] === CRIANDO 2ª MINUTA (agendamento dia seguinte) ===')
 
         # Navegar diretamente para /minuta/cadastrar
-        URL_CADASTRAR = "https://sisbajud.pdpj.jus.br/minuta/cadastrar"
+        URL_CADASTRAR = "https://sisbajud.cnj.jus.br/minuta/cadastrar"
         try:
             logger.info(f'[SISBAJUD] Navegando diretamente para cadastro da 2ª minuta: {URL_CADASTRAR}')
             driver.get(URL_CADASTRAR)

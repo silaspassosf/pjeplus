@@ -61,6 +61,12 @@ def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:
     """
     try:
         logger.info('[NAVEGAÇÃO] Abrindo tarefa do processo...')
+        # zera a marca do item anterior: sem isto um processo assinado deixaria
+        # a flag ligada e o seguinte seria encerrado por engano
+        try:
+            driver.pje_tarefa_pronta = None
+        except Exception:
+            pass
         handle_original = getattr(driver, 'current_window_handle', None)
 
         # Obter botão da tarefa
@@ -83,10 +89,20 @@ def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:
 
         if tarefa_do_botao:
             driver.pje_tarefa_atual = tarefa_do_botao
-            tarefa_lower = tarefa_do_botao.lower()
-            if 'assinar' in tarefa_lower or 'minutar' in tarefa_lower:
-                logger.info(f'[NAVEGAÇÃO] ⏭ Tarefa "{tarefa_do_botao}" em minutar/assinar — ato pronto, sem ação')
+            tarefa_lower = _normalizar_texto(tarefa_do_botao).lower()
+            # A tarefa é lida aqui, ainda em /detalhe, e o nome define o caminho
+            # (mesma regra do gigs-plugin.js:12030 — movimentar_destino):
+            #   "Assinar <ato>"  -> ato já concluído, falta só assinar: nada a fazer;
+            #   "Elaborar <ato>" -> minuta em elaboração: NÃO movimentar o processo,
+            #                       a URL /minutar é consequência dessa tarefa.
+            if 'assinar' in tarefa_lower:
+                logger.info(f'[NAVEGAÇÃO] Tarefa "{tarefa_do_botao}" — ato já assinado, nada a fazer')
+                driver.pje_tarefa_pronta = 'assinar'
                 return True, True
+
+            if 'elaborar' in tarefa_lower:
+                logger.info(f'[NAVEGAÇÃO] Tarefa "{tarefa_do_botao}" — minuta em elaboração, abrindo sem movimentar')
+                driver.pje_tarefa_pronta = 'elaborar'
 
         # Clicar para abrir tarefa
         if not safe_click(driver, btn_abrir_tarefa):

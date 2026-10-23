@@ -120,6 +120,24 @@ def fluxo_cls(
                     logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao abrir tarefa')
                     return False, False
 
+                # Tarefa "Assinar ..." = ato já cumprido: encerra o CLS aqui,
+                # sem navegar. A URL ainda é /detalhe nesse caso, então decidir
+                # pela URL (como antes) deixava o fluxo seguir tentando
+                # movimentar um processo que já estava pronto.
+                if getattr(driver, 'pje_tarefa_pronta', None) == 'assinar':
+                    logger.info('[CLS] Tarefa de assinatura — ato já cumprido, encerrando CLS')
+                    timing_total = time.time() - timing_inicio
+                    logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (ato já assinado)')
+                    return True, True
+
+                # Tarefa "Elaborar ..." = minuta em andamento; a tarefa leva ao
+                # fluxo de /minutar. Não é caso de movimentar o processo.
+                if getattr(driver, 'pje_tarefa_pronta', None) == 'elaborar':
+                    logger.info('[CLS] Tarefa de elaboração — seguindo para o fluxo de minuta, sem movimentar')
+                    timing_total = time.time() - timing_inicio
+                    logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (tarefa de elaboração)')
+                    return True, True
+
                 # Se já está em estado final após abrir tarefa (/assinar ou /minutar)
                 if ja_em_minutar:
                     current_after = (driver.current_url or '').lower()
@@ -129,10 +147,20 @@ def fluxo_cls(
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
                         return True, True
                     elif '/minutar' in current_after:
-                        logger.info('[CLS] Já em /minutar após abrir tarefa — marcando como concluído')
+                        logger.info('[CLS] Já em /minutar após abrir tarefa — seguindo para minutar')
                         timing_total = time.time() - timing_inicio
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
                         return True, True
+                    else:
+                        # a tarefa não levou a nenhuma tela de ato: sem este ramo
+                        # o fluxo seguia para Conclusão e ficava tentando clicar
+                        # em botões de uma tela que não abriu.
+                        logger.warning(
+                            '[CLS] Tarefa "%s" não abriu tela de ato (URL=%s) — abortando CLS',
+                            getattr(driver, 'pje_tarefa_atual', ''), current_after)
+                        timing_total = time.time() - timing_inicio
+                        logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s tarefa não abriu')
+                        return False, False
 
                 # Se abriu direto em /conclusao, marca para pular a navegação (mas segue para escolher o tipo)
                 current_after = (driver.current_url or '').lower()

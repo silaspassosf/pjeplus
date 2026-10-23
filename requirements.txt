@@ -1,6 +1,6 @@
 attrs==26.1.0
 beautifulsoup4==4.15.0
-certifi==2026.4.22
+certifi==2026.10.19
 cffi==2.0.0
 charset-normalizer==3.4.7
 cryptography==50.0.0

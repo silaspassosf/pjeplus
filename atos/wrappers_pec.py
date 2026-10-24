@@ -218,6 +218,7 @@ pec_ord = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios=None,
     trocar_modelo=True,
+    modelo_troca_correios='ar-ord',
     wrapper_name='pec_ord'
 )
 
@@ -231,6 +232,7 @@ pec_sum = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios=None,
     trocar_modelo=True,
+    modelo_troca_correios='ar-sum',
     wrapper_name='pec_sum'
 )
 
@@ -244,6 +246,7 @@ pec_ordc = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios=None,
     mudar_expediente=True,
+    trocar_modelo=True,
     wrapper_name='pec_ordc'
 )
 
@@ -257,6 +260,7 @@ pec_sumc = make_comunicacao_wrapper(
     gigs_extra=None,
     destinatarios=None,
     mudar_expediente=True,
+    trocar_modelo=True,
     wrapper_name='pec_sumc'
 )
 
@@ -271,6 +275,8 @@ pec_arsum = make_comunicacao_wrapper(
     destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
     cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
     endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    trocar_modelo=True,
+    modelo_troca_correios='ar-sum',
     wrapper_name='pec_arsum'
 )
 
@@ -285,6 +291,8 @@ pec_arord = make_comunicacao_wrapper(
     destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
     cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
     endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    trocar_modelo=True,
+    modelo_troca_correios='ar-ord',
     wrapper_name='pec_arord'
 )
 

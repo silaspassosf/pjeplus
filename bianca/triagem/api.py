@@ -162,8 +162,46 @@ def _numero_cnj(item: Dict) -> str:
     return str(item.get('numeroProcesso') or item.get('numero') or item.get('id') or '')
 
 
-def enriquecer_processo(item: Dict) -> Optional[Dict]:
+# Movimento que marca o processo como Juizo 100% Digital na timeline.
+MOV_100_DIGITAL_TITULO = 'incluidos os autos no juizo 100% digital'
+
+
+def processo_e_100_digital(client: Any, id_processo: str) -> bool:
+    """True se a timeline do processo tem o movimento de Juizo 100% Digital.
+
+    Le a timeline pela API de movimentos (mesmo caminho de
+    Prazo/p2b_gateway._tem_homologacao_liquidacao), que e a fonte de verdade:
+    o campo juizoDigital da lista pode vir nulo mesmo em processo digital.
+
+    Retorna False quando a API nao responde -- o chamador deve tratar esse
+    caso como "nao confirmado", nao como "nao e digital".
+    """
+    if not client or not id_processo:
+        return False
+    try:
+        from Fix.utils import normalizar_texto
+        itens = client.timeline(
+            str(id_processo), buscarDocumentos=False, buscarMovimentos=True
+        ) or []
+        for item in itens:
+            titulo = normalizar_texto(str(item.get('titulo') or ''))
+            if MOV_100_DIGITAL_TITULO in titulo:
+                return True
+    except Exception as e:
+        logger.warning(
+            "[TRIAGEM][API] Falha ao ler movimentos de %s: %s", id_processo, e
+        )
+    return False
+
+
+def enriquecer_processo(item: Dict, client: Any = None) -> Optional[Dict]:
     """Enriquece um item bruto da lista com metadados processados.
+
+    Args:
+        item: item bruto da lista de triagem.
+        client: PjeApiClient autenticado. Quando informado, o 100% digital e
+            confirmado pela timeline de movimentos; sem ele, usa o campo
+            juizoDigital da lista.
 
     Retorna dict com:
         numero, id_processo, tipo, digital, tem_audiencia, bucket
@@ -175,6 +213,8 @@ def enriquecer_processo(item: Dict) -> Optional[Dict]:
 
     tipo = str(item.get('classeJudicial') or '').upper()
     digital = item.get('juizoDigital') is True or item.get('juizoDigital') == 'true'
+    if not digital and client is not None:
+        digital = processo_e_100_digital(client, id_proc)
     tem_aud = bool(item.get('dataProximaAudiencia'))
 
     if _is_carta_precatoria(item):

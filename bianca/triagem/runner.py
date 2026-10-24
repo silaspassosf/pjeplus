@@ -117,8 +117,17 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
             print("[TRIAGEM] Campo tarefa nao identificou Triagem Inicial -- usando todos")
             triagem_itens = itens_brutos
 
-        # Enriquecer
-        lista = [p for p in (enriquecer_processo(i) for i in triagem_itens) if p]
+        # Enriquecer. O 100% digital e confirmado pela timeline de movimentos
+        # (API), com o campo juizoDigital da lista como atalho.
+        try:
+            from Fix.variaveis import PjeApiClient, session_from_driver
+            sess, host = session_from_driver(drv)
+            _client = PjeApiClient(sess, host)
+        except Exception as e:
+            print("[TRIAGEM] Sem cliente de API (%s) -- usando juizoDigital da lista" % e)
+            _client = None
+
+        lista = [p for p in (enriquecer_processo(i, _client) for i in triagem_itens) if p]
         if not lista:
             print("[TRIAGEM] Nenhum processo enriquecido")
             return {"sucesso": False, "erro": "Nenhum processo enriquecido"}

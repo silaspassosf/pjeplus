@@ -32,7 +32,7 @@ from Fix.browser_suporte import (
     limpar_overlays_headless as _fix_limpar_overlays_headless,
     trocar_para_nova_aba as _fix_trocar_para_nova_aba,
 )
-from bianca.utils import logger
+from Fix.log import logger
 from Fix.core import _executar_js
 
 _KEY_ARROW_DOWN = '\ue015'

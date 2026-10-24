@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from Fix import espera
 from Fix.core import safe_click_no_scroll, safe_click, preencher_campo
-from bianca.utils import logger
+from Fix.log import logger
 from bianca.selenium_utils import aguardar_e_clicar, esperar_elemento
 from Fix.core import _executar_js
 

@@ -33,7 +33,7 @@ from bianca.selenium_utils import (
     trocar_para_nova_aba,
 )
 from Fix.core import _executar_js, wait_for_clickable
-from bianca.utils import logger
+from Fix.log import logger
 from Fix.variaveis import url_processo_detalhe
 
 

@@ -26,7 +26,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from bianca.triagem.constants import (
+from bianca.config import (
     ZONA_SUL_CEPS,
     ZONA_LESTE_CEPS,
     RUI_BARBOSA_CEPS,

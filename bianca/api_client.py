@@ -8,7 +8,7 @@ from urllib.parse import urlparse, unquote
 import requests
 
 
-from bianca.utils import logger
+from Fix.log import logger
 from Fix.core import _executar_js
 # =============================================================================
 # PjeApiClient — cliente HTTP para API REST do PJe

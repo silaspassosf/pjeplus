@@ -44,7 +44,7 @@ from bianca.selenium_utils import (
     aplicar_filtro_100,
     filtrofases,
 )
-from bianca.utils import logger
+from Fix.log import logger
 from Fix.core import _executar_js
 # =============================================================================
 # Constantes

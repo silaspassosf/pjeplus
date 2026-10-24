@@ -9,7 +9,7 @@ Funcoes:
 import re
 from typing import Dict, Any
 
-from bianca.api_client import PjeApiClient, session_from_driver
+from Fix.variaveis import PjeApiClient, session_from_driver
 
 _FALHA_CITACAO = {
     'gigs_obs': [],

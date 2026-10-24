@@ -288,7 +288,7 @@ def _checar_empresas_api(id_processo: str, driver: Any) -> str:
         String com nomes separados por virgula, ou string vazia em caso de erro.
     """
     try:
-        from bianca.api_client import PjeApiClient, session_from_driver as _sfp
+        from Fix.variaveis import PjeApiClient, session_from_driver as _sfp
         _sess, _base = _sfp(driver)
         _client = PjeApiClient(_sess, _base)
         expedientes = _client.expedientes_processo(id_processo)
@@ -329,7 +329,7 @@ def _tem_ata_audiencia(id_processo: str, driver: Any) -> bool:
         return unicodedata.normalize('NFKD', (s or '').lower()).encode('ascii', 'ignore').decode()
 
     try:
-        from bianca.api_client import PjeApiClient, session_from_driver as _sfp
+        from Fix.variaveis import PjeApiClient, session_from_driver as _sfp
         _sess, _base = _sfp(driver)
         _client = PjeApiClient(_sess, _base)
         _tl = _client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=True)
@@ -1488,7 +1488,7 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
     Returns:
         Dict com sucesso, processados, total.
     """
-    from bianca.api_client import PjeApiClient, session_from_driver
+    from Fix.variaveis import PjeApiClient, session_from_driver
     from bianca.config import URL_PJE_BASE
 
     logger.info("[DOMICILIO_ELETRONICO] === INICIANDO DOM ENGINE (API) ===")

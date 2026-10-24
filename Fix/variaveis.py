@@ -324,6 +324,155 @@ class PjeApiClient:
                 'error': {'type': type(exc).__name__, 'message': str(exc), 'method': 'GET', 'path': path, 'status': None},
             }
 
+    def request_gateway(self, method: str, path: str, *, params: Optional[Dict] = None,
+                        json_data: Optional[Any] = None, headers: Optional[Dict[str, str]] = None,
+                        timeout: int = 15) -> Dict[str, Any]:
+        """Request HTTP generico contra o gateway PJe, com XSRF quando disponivel.
+
+        Mesmo envelope de gateway_get:
+            {'ok': bool, 'status': Optional[int], 'data': Any, 'error': Optional[dict]}
+        """
+        request_headers: Dict[str, str] = {}
+        if headers:
+            request_headers.update(headers)
+        if 'X-XSRF-TOKEN' not in request_headers:
+            for nome_cookie in ('XSRF-TOKEN', 'xsrf-token', 'csrf-token', 'X-CSRF-TOKEN'):
+                try:
+                    token = self.sess.cookies.get(nome_cookie)
+                except Exception:
+                    token = None
+                if token:
+                    request_headers['X-XSRF-TOKEN'] = unquote(token)
+                    break
+
+        try:
+            r = self.sess.request(method=method.upper(), url=self._url(path), params=params,
+                                  json=json_data, headers=request_headers, timeout=timeout)
+            if r.ok:
+                try:
+                    data = r.json()
+                except Exception:
+                    data = r.text
+                return {'ok': True, 'status': r.status_code, 'data': data, 'error': None}
+            try:
+                msg = r.text[:300] if r.text else f'HTTP {r.status_code}'
+            except Exception:
+                msg = str(r.status_code)
+            return {
+                'ok': False, 'status': r.status_code, 'data': None,
+                'error': {'type': 'http_error', 'message': msg, 'method': method.upper(),
+                          'path': path, 'status': r.status_code},
+            }
+        except Exception as exc:
+            return {
+                'ok': False, 'status': None, 'data': None,
+                'error': {'type': 'request_error', 'message': str(exc), 'method': method.upper(),
+                          'path': path, 'status': None},
+            }
+
+    def gateway_post(self, path: str, *, json_data: Optional[Any] = None,
+                     params: Optional[Dict] = None, headers: Optional[Dict[str, str]] = None,
+                     timeout: int = 15) -> Dict[str, Any]:
+        """POST via gateway."""
+        return self.request_gateway('POST', path, params=params, json_data=json_data,
+                                    headers=headers, timeout=timeout)
+
+    def gateway_patch(self, path: str, *, json_data: Optional[Any] = None,
+                      params: Optional[Dict] = None, headers: Optional[Dict[str, str]] = None,
+                      timeout: int = 15) -> Dict[str, Any]:
+        """PATCH via gateway."""
+        return self.request_gateway('PATCH', path, params=params, json_data=json_data,
+                                    headers=headers, timeout=timeout)
+
+    _DOM_CHIP_IDS = (274, 275, 302)  # Resposta Excedido, Ciencia Expirado, Ciencia Automatica
+
+    def buscar_processos_conhecimento_dom(self, chip_ids: Optional[tuple] = None,
+                                          tamanho_pagina: int = 100) -> List[Dict[str, Any]]:
+        """Processos da fase Conhecimento com chips de Domicilio Eletronico.
+
+        Estrategia confirmada pelo API Spy:
+          1. PATCH /pje-comum-api/api/agrupamentotarefas/processos/todos
+             body: {faseProcessualString:['Conhecimento'], subCaixa:null, ...}
+          2. POST /pje-etiquetas-api/api/etiquetas/etiquetasprocessos em lotes de 100
+          3. Filtro client-side: manter processos com etiqueta.id in chip_ids
+        """
+        ids_alvo = set(chip_ids if chip_ids is not None else self._DOM_CHIP_IDS)
+
+        todos: List[Dict[str, Any]] = []
+        for pagina in range(1, 201):
+            body = {
+                'pagina': pagina,
+                'tamanhoPagina': tamanho_pagina,
+                'subCaixa': None,
+                'tipoAtividade': None,
+                'processos': None,
+                'nomeConclusoMagistrado': None,
+                'usuarioResponsavel': None,
+                'faseProcessualString': ['Conhecimento'],
+                'numeroProcesso': None,
+            }
+            res = self.gateway_patch(
+                '/pje-comum-api/api/agrupamentotarefas/processos/todos',
+                json_data=body, timeout=30,
+            )
+            if not res['ok']:
+                logger.error('[API] buscar_processos_conhecimento_dom p%d: %s',
+                             pagina, res.get('error'))
+                break
+            lista = (res['data'] or {}).get('resultado') or []
+            todos.extend(lista)
+            logger.debug('[API] p%d: %d processos', pagina, len(lista))
+            if len(lista) < tamanho_pagina:
+                break
+
+        if not todos:
+            return []
+
+        mapa: Dict[int, List[int]] = {}
+        lote_tam = 100
+        for i in range(0, len(todos), lote_tam):
+            lote = todos[i:i + lote_tam]
+            ids_proc = [p['id'] for p in lote if p.get('id')]
+            if not ids_proc:
+                continue
+            res_et = self.gateway_post(
+                '/pje-etiquetas-api/api/etiquetas/etiquetasprocessos',
+                json_data={'idsProcesso': ids_proc}, timeout=20,
+            )
+            if not res_et['ok']:
+                logger.warning('[API] etiquetas lote %d: %s', i // lote_tam + 1, res_et.get('error'))
+                continue
+            for item in (res_et['data'] or []):
+                pid = item.get('idProcesso')
+                etiquetas = [e['id'] for e in (item.get('etiquetas') or []) if e.get('id')]
+                if pid is not None:
+                    mapa[pid] = etiquetas
+
+        filtrados = [p for p in todos if ids_alvo.intersection(mapa.get(p.get('id'), []))]
+        logger.info('[API] buscar_processos_conhecimento_dom: %d/%d com chips %s',
+                    len(filtrados), len(todos), sorted(ids_alvo))
+        return filtrados
+
+    def expedientes_processo(self, id_processo: str,
+                             tamanho_pagina: int = 100) -> List[Dict[str, Any]]:
+        """Todos os expedientes de um processo, paginando ate esgotar."""
+        todos: List[Dict[str, Any]] = []
+        for pagina in range(1, 51):
+            res = self.gateway_get(
+                f'/pje-comum-api/api/processos/id/{id_processo}/expedientes',
+                params={'pagina': pagina, 'tamanhoPagina': tamanho_pagina, 'instancia': 1},
+                timeout=15,
+            )
+            if not res['ok']:
+                logger.warning('[API] expedientes_processo %s p%d: %s',
+                               id_processo, pagina, res.get('error'))
+                break
+            lista = (res['data'] or {}).get('resultado') or []
+            todos.extend(lista)
+            if len(lista) < tamanho_pagina:
+                break
+        return todos
+
     def domicilio_eletronico(self, id_parte: str) -> Optional[bool]:
         """Verifica se uma parte está habilitada no domicílio eletrônico.
         

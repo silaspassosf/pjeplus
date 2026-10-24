@@ -18,7 +18,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from bianca.api_client import PjeApiClient, session_from_driver
+from Fix.variaveis import PjeApiClient, session_from_driver
 from bianca.triagem.preprocess import _strip_cabecalho_rodape
 from bianca.triagem.utils import _norm, logger as _parent_logger
 from Fix.variaveis import obter_texto_documento

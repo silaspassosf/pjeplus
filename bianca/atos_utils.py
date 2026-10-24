@@ -549,140 +549,21 @@ def retificar_autuacao_inserir_uniao(
 
 
 # =============================================================================
-# ato_100 — Ato 100% digital (modelo aud100)
-# Wrapper local para o fluxo Bianca (NAO importa wrappers de atos/)
+# Wrappers canonicos de atos/ (sem re-declaracao local)
 # =============================================================================
+# Os wrappers de ato/PEC vem de atos/, que e a fonte unica usada tambem por
+# Mandado, PEC e Prazo. atos/__init__.py resolve ato_100/ato_unap a partir de
+# wrappers_ato (modelos aud100 / aud una presenc), que e o que a triagem usa.
 
-from atos.judicial_fluxo import make_ato_wrapper
-
-ato_100 = make_ato_wrapper(
-    conclusao_tipo='Despacho',
-    modelo_nome='aud100',
-    prazo=5,
-    marcar_pec=False,
-    movimento=None,
-    gigs=None,
-    marcar_primeiro_destinatario=True,
-    Assinar=False
-)
-
-
-# =============================================================================
-# PEC wrappers — Notificacoes Iniciais (pec_ord, pec_sum, pec_ordc, pec_sumc)
-# Wrappers locais para o fluxo Bianca (NAO importa wrappers de atos/)
-# =============================================================================
-
-from atos.comunicacao import make_comunicacao_wrapper
-
-pec_ord = make_comunicacao_wrapper(
-    tipo_expediente='Notificação Inicial',
-    prazo=5,
-    nome_comunicacao='Notificação',
-    sigilo=False,
-    modelo_nome='ordd',
-    subtipo="Notificação",
-    gigs_extra=None,
-    destinatarios=None,
-    trocar_modelo=True,
-    wrapper_name='pec_ord',
-    modelo_troca_correios='ar-ord'
-)
-
-pec_sum = make_comunicacao_wrapper(
-    tipo_expediente='Notificação Inicial',
-    prazo=5,
-    nome_comunicacao='Notificação',
-    sigilo=False,
-    modelo_nome='sumd',
-    subtipo="Notificação",
-    gigs_extra=None,
-    destinatarios=None,
-    trocar_modelo=True,
-    wrapper_name='pec_sum',
-    modelo_troca_correios='ar-sum'
-)
-
-pec_ordc = make_comunicacao_wrapper(
-    tipo_expediente='Notificação Inicial',
-    prazo=5,
-    nome_comunicacao='Notificação',
-    sigilo=False,
-    modelo_nome='zordc',
-    subtipo="Notificação",
-    gigs_extra=None,
-    destinatarios=None,
-    mudar_expediente=True,
-)
-
-pec_sumc = make_comunicacao_wrapper(
-    tipo_expediente='Notificação Inicial',
-    prazo=5,
-    nome_comunicacao='Notificação',
-    sigilo=False,
-    modelo_nome='zsumc',
-    subtipo="Notificação",
-    gigs_extra=None,
-    destinatarios=None,
-    mudar_expediente=True,
-)
-
-pec_arord = make_comunicacao_wrapper(
-    tipo_expediente='Notificação Inicial',
-    prazo=5,
-    nome_comunicacao='Notificação',
-    sigilo=False,
-    modelo_nome='AR-Or',
-    subtipo="Notificação",
-    gigs_extra=None,
-    destinatarios='polo_passivo',
-    cliques_polo_passivo=0,
-    endereco_tipo='correios',
-)
-
-pec_arsum = make_comunicacao_wrapper(
-    tipo_expediente='Notificação Inicial',
-    prazo=5,
-    nome_comunicacao='Notificação',
-    sigilo=False,
-    modelo_nome='AR-Su',
-    subtipo="Notificação",
-    gigs_extra=None,
-    destinatarios='polo_passivo',
-    cliques_polo_passivo=0,
-    endereco_tipo='correios',
-)
-
-ato_unap = make_ato_wrapper(
-    conclusao_tipo='Despacho',
-    modelo_nome='aud una presenc',
-    prazo=5,
-    marcar_pec=False,
-    movimento=None,
-    gigs=None,
-    marcar_primeiro_destinatario=True,
-    Assinar=False
-)
-
-
-# =============================================================================
-# mov_aud — Movimentar para Aguardando audiência
-# Wrapper local para o fluxo Bianca (NAO importa wrappers de atos/)
-# =============================================================================
-
+from atos import ato_100, ato_unap, pec_ord, pec_sum
+from atos.wrappers_pec import pec_arord, pec_arsum, pec_ordc, pec_sumc
 from atos.movimentos_fluxo import movimentar_inteligente
 
 
 def mov_aud(driver: Any, debug: bool = False) -> bool:
-    """Movimenta o processo para 'Aguardando audiência'.
+    """Movimenta o processo para 'Aguardando audiencia'.
 
     Encapsula ``movimentar_inteligente`` com destino fixo.
     Usada apos execucao de pec_ord/pec_sum no fluxo de triagem (bucket C).
-
-    Args:
-        driver: Instancia do navegador.
-        debug: Se True, exibe logs detalhados.
-
-    Returns:
-        True se o movimento foi executado com sucesso.
     """
     return bool(movimentar_inteligente(driver, 'Aguardando audiência', timeout=8))

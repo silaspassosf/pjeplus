@@ -23,7 +23,7 @@ from Fix.abas import trocar_para_nova_aba
 from Fix.browser_suporte import abrir_url_nova_aba, _sub_elemento
 from Fix.core import esperar_elemento, preencher_campo, safe_click
 from Fix.headless_helpers import limpar_overlays_headless
-from bianca.extracao import criar_comentario, criar_gigs
+from Fix.extracao import criar_comentario, criar_gigs
 from bianca.triagem.citacao import def_citacao
 from Fix.core import _executar_js
 
@@ -685,6 +685,67 @@ def _closest_button(driver: Any, elemento: Any) -> Any:
         return None
 
 
+def _texto_modal_audiencia(driver: Any) -> str:
+    """Texto (minusculo) do conteudo atual do modal de audiencia.
+
+    Le o mat-dialog-container inteiro: serve tanto para o formulario quanto
+    para o painel de confirmacao, sem depender de qual div esta ativa.
+    """
+    script = (
+        "(function(){var d=document.querySelector('mat-dialog-container');"
+        "return d ? (d.textContent || '') : '';})()"
+    )
+    try:
+        bruto = _executar_js(driver, script) or ""
+        # Normaliza do lado Python: independe de o driver/devtools aplicar regex.
+        return " ".join(str(bruto).split()).lower()
+    except Exception as e:
+        print(f"[MARCAR_AUD] Falha ao ler texto do modal: {e}")
+        return ""
+
+
+def _capturar_toast(driver: Any) -> str:
+    """Texto do toast/snackbar de erro, se houver (aguarda ~2s)."""
+    for seletor in ("simple-snack-bar", ".snack-bar-container", "mat-snack-bar-container"):
+        try:
+            el = espera.elemento(driver, seletor, teto=2)
+            if el is None:
+                continue
+            txt = (
+                (getattr(el, "text_content", None) and el.text_content())
+                or getattr(el, "text", "")
+                or ""
+            )
+            txt = " ".join(str(txt).split())
+            if txt:
+                print(f"[MARCAR_AUD] Toast capturado: '{txt}'")
+                return txt
+        except Exception:
+            continue
+    return ""
+
+
+def _fechar_modal_audiencia(driver: Any) -> None:
+    """Fecha o modal de audiencia (Cancelar/Fechar) para nao travar a tela."""
+    for xpath in (
+        "//mat-dialog-container//button[.//span[normalize-space(.)='Cancelar']]",
+        "//mat-dialog-container//button[.//span[normalize-space(.)='Fechar']]",
+    ):
+        try:
+            btn = esperar_elemento(driver, xpath, timeout=2)
+            if btn:
+                print(f"[MARCAR_AUD] Fechando modal via: {xpath[-40:]}")
+                safe_click(driver, btn)
+                espera.assentar(driver, 0.5)
+                return
+        except Exception:
+            continue
+    try:
+        espera.ate_sumir(driver, "mat-dialog-container", teto=2)
+    except Exception:
+        pass
+
+
 def _marcar_aud(
     driver: Any,
     numero_processo: str,
@@ -694,13 +755,19 @@ def _marcar_aud(
     """Marca audiencia no sistema de pauta do PJe."""
     aba_origem = driver.current_window_handle
     url_pauta = f"https://pje.trt2.jus.br/pjekz/pauta-audiencias?maisPje=true&numero={numero_processo}&rito={rito}&fase=Conhecimento"
+    print(f"[MARCAR_AUD] 1/7 Abrindo pauta: rito={rito} numero={numero_processo}")
+    print(f"[MARCAR_AUD]     url={url_pauta}")
     aba_aud = _abrir_nova_aba(driver, url_pauta, aba_origem, url_fragmento="/pauta-audiencias")
     if not aba_aud:
+        print("[MARCAR_AUD] ❌ Aba de pauta nao abriu")
         return False
+    print(f"[MARCAR_AUD] 2/7 Aba de pauta aberta: {aba_aud}")
 
     sucesso = False
     try:
-        esperar_elemento(driver, "mat-card.card-pauta", by=By.CSS_SELECTOR, timeout=15)
+        if not esperar_elemento(driver, "mat-card.card-pauta", by=By.CSS_SELECTOR, timeout=15):
+            raise Exception("Tabela de pauta (mat-card.card-pauta) nao carregou")
+        print("[MARCAR_AUD] 3/7 Tabela de pauta carregada")
 
         # Determina o nome do rito para buscar na primeira coluna
         rito_texto = "Una (rito sumaríssimo)" if rito.upper() == 'ATSUM' else "Una"
@@ -718,17 +785,19 @@ def _marcar_aud(
         if not linha:
             raise Exception("Linha de pauta não encontrada para o rito especificado")
 
-        print(f"[TRIAGEM/ACOES] Linha encontrada: {linha.text[:200]}...")
-        print(f"[TRIAGEM/ACOES] Extraindo data/hora...")
+        print(f"[MARCAR_AUD] 4/7 Linha da pauta (rito '{rito_texto}'): {linha.text[:160].strip()}")
 
         data_str, hora_str = _extrair_data_hora_pauta(linha)
-        print(f"[MARCAR_AUD] Dados extraídos: data={data_str}, hora={hora_str}")
+        print(f"[MARCAR_AUD]     data={data_str} hora={hora_str}")
         _navegar_calendario_para_data(driver, data_str)
+        print(f"[MARCAR_AUD] 5/7 Calendario posicionado em {data_str}")
         _encontrar_slot_dia(driver, hora_str)
+        print(f"[MARCAR_AUD] 6/7 Slot {hora_str} clicado")
 
         modal = esperar_elemento(driver, "mat-dialog-container", timeout=10)
         if not modal:
             raise Exception("Modal de audiencia nao encontrado")
+        print("[MARCAR_AUD]     Modal aberto")
 
         # Preenchimento manual do numero do processo (decisao do usuario: a
         # estrategia de "aguardar o PJe pre-preencher" usada no modulo Aud de
@@ -745,6 +814,7 @@ def _marcar_aud(
         numero_limpo = "".join(filter(str.isdigit, numero_processo))
         preencher_campo(driver, "#inputNumeroProcesso", numero_limpo)
         espera.assentar(driver, 0.8)
+        print(f"[MARCAR_AUD] 7/7 Numero preenchido no modal: {numero_limpo}")
 
         btn_confirmar = esperar_elemento(
             driver,
@@ -753,42 +823,31 @@ def _marcar_aud(
         )
         if not btn_confirmar:
             raise Exception("Botao Confirmar nao encontrado")
+        print("[MARCAR_AUD] Clique em Confirmar...")
         safe_click(driver, btn_confirmar)
-        # marcar.js:1000ms apos Confirmar antes de validar a resposta do modal.
         espera.assentar(driver, 1.0)
 
-        modal_confirmado = esperar_elemento(
-            driver,
-            "div.container-conteudo",
-            timeout=10,
-        )
-        if not modal_confirmado:
-            raise Exception("Confirmacao de designacao de audiencia nao encontrada no dialogo")
+        # Le a resposta do modal logo apos Confirmar: pode ser o painel de
+        # sucesso OU o proprio formulario ainda aberto (caso de recusa).
+        texto_modal = _texto_modal_audiencia(driver)
+        print(f"[MARCAR_AUD] Modal apos Confirmar: '{texto_modal[:400]}'")
 
-        # Usa textContent para ler o texto mesmo durante a animação do modal (onde .text retorna vazio)
-        texto_confirmacao = (_executar_js(driver, "return arguments[0].textContent;", modal_confirmado) or '').strip().lower()
-        print(f"[MARCAR_AUD] Texto do modal retornado: '{texto_confirmacao}'")
-
-        if "sucesso" not in texto_confirmacao and "confirmada" not in texto_confirmacao:
-            # Tentar capturar toast de erro
+        if "sucesso" not in texto_modal and "confirmad" not in texto_modal:
+            # Recusa do PJe: o texto do modal/formulario + toast trazem o motivo.
             erro_msg = "Modal nao indicou sucesso."
-            try:
-                snack = espera.elemento(driver, "simple-snack-bar", teto=1)
-                if snack:
-                    snack_txt = ((getattr(snack, 'text_content', None) and snack.text_content()) or getattr(snack, 'text', '') or '').strip()
-                    erro_msg = f"Erro do PJe: {snack_txt}"
-            except:
-                pass
-            
-            # Clica no botao Fechar/Cancelar para não travar a tela
-            try:
-                btn_fechar_erro = espera.elemento(driver, "div.container-botoes button", teto=2)
-                if btn_fechar_erro:
-                    safe_click(driver, btn_fechar_erro)
-            except:
-                pass
-            
+            snack_txt = _capturar_toast(driver)
+            if snack_txt:
+                erro_msg = f"Erro do PJe: {snack_txt}"
+            elif "consulte o processo" in texto_modal:
+                erro_msg = (
+                    "PJe recusou a designacao ('Consulte o processo para designar "
+                    "audiencia') -- provavel rito/numero invalido na URL de pauta"
+                )
+            # Fecha o formulario para nao travar a tela
+            _fechar_modal_audiencia(driver)
             raise Exception(erro_msg)
+
+        print("[MARCAR_AUD] Designacao confirmada pelo PJe")
 
         btn_fechar = esperar_elemento(
             driver,
@@ -860,7 +919,13 @@ def acao_bucket_a(
             print(f"[TRIAGEM/A] ❌ Falha ao extrair numero/ID do processo {numero_processo}")
             return False, None
 
-        rito = 'ATSum' if tipo == 'ATSUM' else 'ATOrd'
+        # O PJe so reconhece ATSUM (sumarissimo) e ATVARI (rito variavel) no
+        # parametro `rito` de pauta-audiencias. "ATOrd" -- valor usado antes
+        # aqui e herdado de Triagem/analise_execucao.py -- nao existe na API:
+        # a pagina abre, o slot aceita o clique, mas o modal recusa no
+        # Confirmar com "Consulte o processo para designar audiencia".
+        rito = 'ATSUM' if tipo == 'ATSUM' else 'ATVARI'
+        print(f"[TRIAGEM/A] rito do processo={tipo!r} -> rito de pauta={rito}")
 
         if not tem_100:
             print(f"[TRIAGEM/A] Processo {numero_processo} sem 100% digital. Desmarcando 100% (se houver), marcando audiencia, ativando 100% e despachando.")

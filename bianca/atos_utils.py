@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from Fix import espera
 from atos.movimentos_chips import def_chip
-from bianca.extracao import criar_gigs
+from Fix.extracao import criar_gigs
 from bianca.selenium_utils import (
     aguardar_e_clicar,
     aguardar_renderizacao_nativa,

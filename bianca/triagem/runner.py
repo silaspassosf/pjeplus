@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 
 
 from bianca.config import URL_LISTA_TRIAGEM, URL_PJE_BASE
-from bianca.extracao import criar_comentario, criar_gigs
+from Fix.extracao import criar_comentario, criar_gigs
 from bianca.selenium_utils import aguardar_renderizacao_nativa, esperar_elemento
 from bianca.triagem.acoes import _aplicar_acao_pos_triagem
 from bianca.triagem.api import (

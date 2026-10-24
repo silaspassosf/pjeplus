@@ -809,7 +809,7 @@ def teste_triagem_peticao(id_processo=None):
         _RE_BUCKET_C,
         _RE_BUCKET_D,
     )
-    from bianca.extracao import criar_comentario
+    from Fix.extracao import criar_comentario
 
     configurar_logging_debug()
     logging.getLogger('bianca').setLevel(logging.DEBUG)

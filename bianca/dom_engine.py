@@ -31,7 +31,7 @@ from Fix.browser_suporte import (
     trocar_para_nova_aba,
 )
 from bianca.atos_utils import def_chip, pec_arord, pec_arsum
-from bianca.extracao import (
+from Fix.extracao import (
     abrir_detalhes_processo,
     criar_comentario,
     criar_gigs,

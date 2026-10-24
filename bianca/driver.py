@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-bianca/driver.py - Gerenciamento do driver e login para o fluxo Bianca.
+bianca/driver.py - Driver e login do fluxo Bianca.
+
+O driver vem do mesmo criador usado por pw.py (Fix.driver_factory.criar_driver_PC)
+e o login usa a sessao canonica (Fix.sessao), com credenciais do Gerenciador de
+Credenciais do Windows. Nao ha caminho de login por input() no terminal.
 """
 
-import logging
 from typing import Optional, Any
 
-from Fix import espera
-from Fix.core import aguardar_e_clicar, preencher_campo, criar_driver_PC
-
-logger = logging.getLogger(__name__)
+from Fix.log import logger
 
 
 # =============================================================================
@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 def criar_driver() -> Any:
-    """Cria um driver configurado para o ambiente."""
+    """Cria o driver Playwright (mesmo criador de pw.py/x.py)."""
+    from Fix.driver_factory import criar_driver_PC
     return criar_driver_PC()
 
 
@@ -26,92 +27,14 @@ def criar_driver() -> Any:
 # =============================================================================
 
 def fazer_login_manual(driver: Any) -> None:
-    """Faz login no PJe com CPF e senha fornecidos pelo usuario.
+    """Autentica no PJe com a sessao canonica.
 
-    Etapas:
-      1. Le CPF e senha via terminal (input())
-      2. Navega para pagina de login do PJe
-      3. Tenta preencher campos automaticamente (opcao A)
-      4. Se falhar, permite login manual (opcao B)
-
-    Nunca le credenciais de variaveis de ambiente ou arquivos.
+    Mantem o nome historico (chamado por bianca/triagem/runner.py), mas delega
+    para Fix.sessao.login_cpf, que le as credenciais do Gerenciador de
+    Credenciais do Windows e trata SSO, OTP e o fallback manual no navegador.
     """
-    cpf = input("Digite o CPF (somente numeros): ").strip()
-    senha = input("Digite a senha: ").strip()
-
-    if not cpf or not senha:
-        logger.error("CPF ou senha nao informados. Abortando login.")
-        return
-
-    url_login = "https://pje.trt2.jus.br/primeirograu/login.seam"
-    logger.info("Navegando para %s", url_login)
-    driver.get(url_login)
-
-    # Aguarda carregamento
-    espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
-
-    # Se ja estiver logado, retorna
-    try:
-        cur = (driver.current_url or '').lower()
-        if not any(k in cur for k in ["login", "auth", "realms"]):
-            logger.info("Ja autenticado.")
-            return
-    except Exception:
-        pass
-
-    # ---- Opcao A: preenchimento automatico ----
-    try:
-        # Clicar no botao SSO PDPJ
-        if aguardar_e_clicar(driver, "#btnSsoPdpj", "Botão SSO PDPJ"):
-            logger.info("Botao SSO PDPJ clicado")
-            espera.assentar(driver, 1.0)
-
-        # Preencher CPF
-        preencher_campo(driver, "#username", str(cpf))
-        logger.info("CPF digitado no campo username")
-
-        # Preencher senha
-        preencher_campo(driver, "#password", str(senha))
-        logger.info("Senha digitada no campo password")
-
-        # Clicar em Entrar
-        aguardar_e_clicar(driver, "button[type='submit'], input[type='submit']", "Entrar")
-
-        # Aguarda redirecionamento
-        for _ in range(30):
-            try:
-                cur = (driver.current_url or '').lower()
-                if not any(k in cur for k in ["login", "auth", "realms"]):
-                    logger.info("Login automatico bem-sucedido!")
-                    return
-            except Exception:
-                pass
-            espera.assentar(driver, 1.0)
-
-        logger.warning(
-            "Preenchimento automatico concluido, mas nao foi possivel "
-            "confirmar redirecionamento. Prosseguindo..."
-        )
-
-    except Exception as e:
-        logger.warning(
-            "Preenchimento automatico falhou (%s). "
-            "Usando opcao B - login manual.",
-            e,
-        )
-        _login_manual_fallback(driver)
-
-
-def _login_manual_fallback(driver: Any) -> None:
-    """Opcao B: usuario faz login manualmente no navegador."""
-    print("\n" + "=" * 60)
-    print("LOGIN MANUAL")
-    print("=" * 60)
-    print("Preencha CPF e senha manualmente no navegador aberto.")
-    print("Acesse: https://pje.trt2.jus.br/primeirograu/login.seam")
-    print("Apos concluir o login, pressione Enter para continuar...")
-    input()
-    logger.info("Usuario confirmou login manual.")
+    from Fix.sessao import login_cpf
+    login_cpf(driver)
 
 
 # =============================================================================
@@ -120,17 +43,7 @@ def _login_manual_fallback(driver: Any) -> None:
 
 
 def verificar_sessao(driver: Any) -> bool:
-    """Verifica se a sessao atual ainda e valida.
-
-    Checa se a URL atual nao contem indicadores de pagina de login,
-    autenticacao ou acesso negado.
-
-    Args:
-        driver: Driver do navegador.
-
-    Returns:
-        bool: True se a sessao parece valida, False caso contrario.
-    """
+    """True se a URL atual nao indica pagina de login, erro ou acesso negado."""
     try:
         url = (driver.current_url or '').lower()
     except Exception:
@@ -144,14 +57,9 @@ def verificar_sessao(driver: Any) -> bool:
 
 
 def resetar_driver(driver: Any) -> bool:
-    """Tenta recuperar sessao do driver: refresh + navegacao para pagina conhecida.
+    """Tenta recuperar a sessao: refresh, depois navegacao para a base."""
+    from Fix import espera
 
-    Args:
-        driver: Driver do navegador.
-
-    Returns:
-        bool: True se a sessao foi recuperada com sucesso.
-    """
     try:
         logger.info("Resetando driver — tentando refresh...")
         driver.refresh()
@@ -161,7 +69,6 @@ def resetar_driver(driver: Any) -> bool:
             logger.info("Driver recuperado apos refresh.")
             return True
 
-        # Tentar navegar para pagina base conhecida
         try:
             from bianca.config import URL_PJE_BASE
 
@@ -182,7 +89,7 @@ def resetar_driver(driver: Any) -> bool:
 # =============================================================================
 
 def criar_driver_e_fazer_login() -> Optional[Any]:
-    """Cria o driver e faz login. Retorna o driver ou None se falhar."""
+    """Cria o driver e autentica. Retorna o driver ou None se falhar."""
     try:
         driver = criar_driver()
     except Exception as e:

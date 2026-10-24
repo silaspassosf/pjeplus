@@ -1312,7 +1312,21 @@ def _carregar_progresso() -> Dict[str, Any]:
 
 
 def _salvar_progresso(dados: Dict[str, Any]) -> None:
+    """Grava o progresso.
+
+    O arquivo e compartilhado com o monitoramento unificado (pec/mandado/p2b/
+    triagem), que faz leitura-modificacao-escrita do JSON inteiro. Como o DOM
+    grava sob a chave 'dom', reler o arquivo imediatamente antes de escrever
+    evita apagar o que outro fluxo tiver gravado no intervalo.
+    """
     try:
+        atual = _carregar_progresso()
+        if isinstance(atual, dict):
+            chave_dom = dados.get("dom")
+            atual.update({k: v for k, v in dados.items() if k != "dom"})
+            if chave_dom is not None:
+                atual["dom"] = chave_dom
+            dados = atual
         with open(_PROGRESSO_PATH, "w", encoding="utf-8") as f:
             json.dump(dados, f, ensure_ascii=False, indent=2)
     except Exception as e:

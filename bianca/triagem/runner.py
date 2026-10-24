@@ -4,8 +4,8 @@ bianca/triagem/runner.py -- Executor autonomo do fluxo de Triagem Inicial.
 
 Melhorias em relacao a triagem_engine.py original:
   1. Progress tracking (evita reprocessamento)
-  2. should_skip usa ``ProgressoTriagem.processo_ja_executado()``
-  3. persist_result salva progresso via ``marcar_processo_executado()``
+  2. should_skip usa ``processo_ja_executado_unificado()``
+  3. persist_result salva progresso via ``marcar_processo_executado_unificado()``
   4. Limpeza de abas extras apos cada processo
   5. Logging estruturado com numero do processo e indice
 
@@ -28,7 +28,11 @@ from bianca.triagem.api import (
     buscar_lista_triagem,
     enriquecer_processo,
 )
-from bianca.triagem.progress import ProgressoTriagem
+from Fix.monitoramento_progresso_unificado import (
+    carregar_progresso_unificado,
+    marcar_processo_executado_unificado,
+    processo_ja_executado_unificado,
+)
 from bianca.triagem.service import triagem_peticao
 from utilitarios_processamento import resultado_falha, resultado_ok, run_batch
 
@@ -57,7 +61,8 @@ def _fechar_tabs_acesso_negado(drv, handle_principal: str, numero: str = "?") ->
         pass
     return fechadas
 
-_progresso = ProgressoTriagem()
+# Tipo do progresso no monitoramento unificado (mesma fonte do p2b/mandado/pec).
+_TIPO_EXECUCAO = 'triagem'
 
 
 def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
@@ -121,12 +126,12 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
         print("[TRIAGEM] %s processos de Triagem Inicial (de %s brutos)" % (len(lista), len(itens_brutos)))
 
         # --- Progress tracking ---
-        progresso = _progresso.carregar_progresso()
+        progresso = carregar_progresso_unificado(_TIPO_EXECUCAO)
         pendentes = len(lista)
         if progresso:
             ja_executados = sum(
                 1 for p in lista
-                if _progresso.processo_ja_executado(p.get("numero", ""), progresso)
+                if processo_ja_executado_unificado(p.get("numero", ""), progresso)
             )
             pendentes = len(lista) - ja_executados
             print("[TRIAGEM] %s ja executados, %s pendentes" % (ja_executados, pendentes))
@@ -140,7 +145,7 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
             numero = proc.get("numero", "")
             if not numero:
                 return False
-            return _progresso.processo_ja_executado(numero, progresso)
+            return processo_ja_executado_unificado(numero, progresso)
 
         def open_item(proc):
             numero = proc.get("numero", "?")
@@ -259,9 +264,11 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
 
         def persist_result(proc, result):
             numero = proc.get("numero", "?")
-            status = "SUCESSO" if result.get("ok") else "FALHA"
-            erro = result.get("erro") if not result.get("ok") else None
-            _progresso.marcar_processo_executado(numero, status, erro, progresso)
+            ok = bool(result.get("ok"))
+            erro = result.get("erro") if not ok else None
+            marcar_processo_executado_unificado(
+                _TIPO_EXECUCAO, numero, progresso, sucesso=ok, motivo=erro
+            )
 
         batch_result = run_batch(
             items=lista,

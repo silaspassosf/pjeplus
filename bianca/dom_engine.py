@@ -581,7 +581,7 @@ def callback_bucket2(
             logger.info(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] Aguardando salvamento completo do lembrete..."
             )
-            espera.ate_presenca(
+            espera.ate_aparecer(
                 driver,
                 "//mat-panel-title[contains(@class, 'post-it-titulo') and contains(., 'DomicEletr')]",
                 teto=8,
@@ -735,11 +735,11 @@ def _filtro_chips_dom(
     painel_selector = (
         ".mat-select-panel-wrap.ng-trigger-transformPanelWrap"
     )
-    if not espera.ate_visivel(driver, painel_selector, teto=10):
+    if not espera.ate_aparecer(driver, painel_selector, teto=10):
         logger.error("[DOMICILIO_ELETRONICO] Painel de chips nao apareceu")
         return False
 
-    espera.ate_presenca(driver, "mat-option", teto=5)
+    espera.ate_aparecer(driver, "mat-option", teto=5)
     painel = espera.elemento(driver, painel_selector, teto=2)
     opcoes = _sub_els(painel, "mat-option") if painel else espera.elementos(driver, "mat-option", teto=2)
     chips_selecionados: List[str] = []
@@ -752,7 +752,7 @@ def _filtro_chips_dom(
                 if chip in texto and is_vis:
                     _executar_js(driver, "arguments[0].click();", opcao)
                     chips_selecionados.append(chip)
-                    espera.ate_presenca(driver, "mat-option.mat-selected", teto=3)
+                    espera.ate_aparecer(driver, "mat-option.mat-selected", teto=3)
                     break
             except Exception:
                 continue
@@ -763,7 +763,7 @@ def _filtro_chips_dom(
     )
     if botao_filtrar:
         _executar_js(driver, "arguments[0].click();", botao_filtrar)
-        espera.ate_presenca(driver, "tbody tr.tr-class", teto=10)
+        espera.ate_aparecer(driver, "tbody tr.tr-class", teto=10)
 
     logger.info("[DOMICILIO_ELETRONICO] Chips aplicados: %s", chips_selecionados)
     return len(chips_selecionados) > 0
@@ -795,7 +795,7 @@ def navigate_to_activities_and_filter(driver: Any) -> bool:
             driver.get(URL_ATIVIDADES)
         elif hasattr(driver, "page") and hasattr(driver.page, "goto"):
             driver.page.goto(URL_ATIVIDADES)
-        espera.ate_url_conter(driver, "atividades", teto=10)
+        espera.ate_url(driver, "atividades", teto=10)
         logger.info("[DOMICILIO_ELETRONICO] Navegado para painel de atividades")
 
         # 2. Remover chip "Vencidas" se existir
@@ -849,14 +849,14 @@ def navigate_to_activities_and_filter(driver: Any) -> bool:
             logger.info(
                 "[DOMICILIO_ELETRONICO] Filtro dom.e aplicado no painel de atividades"
             )
-            espera.ate_presenca(
+            espera.ate_aparecer(
                 driver, "tr.cdk-drag", teto=10
             )
 
         # 4. Aplicar filtro 100
         aplicar_filtro_100(driver)
         logger.info("[DOMICILIO_ELETRONICO] Filtro 100 aplicado")
-        espera.ate_presenca(
+        espera.ate_aparecer(
             driver, "tr.cdk-drag", teto=10
         )
 
@@ -1005,7 +1005,7 @@ def processar_processo_dom(
         # Extrair tipo do processo da aba de detalhes (mais confiavel)
         tipo_processo = "ATOrd"  # padrao
         try:
-            espera.ate_presenca(
+            espera.ate_aparecer(
                 driver, "pje-cabecalho-processo", teto=10
             )
 
@@ -1165,7 +1165,7 @@ def _gerenciar_abas_apos_processo_dom(
 
         # Pequena espera para evitar rate-limit
         espera.assentar(driver, 2.0)
-        espera.ate_presenca(
+        espera.ate_aparecer(
             driver, "tr.cdk-drag", teto=6
         )
 
@@ -1223,7 +1223,7 @@ def execute_list_with_bucket2_callback(driver: Any) -> bool:
                         "[DOMICILIO_ELETRONICO] Falha ao navegar para painel de atividades"
                     )
                     return False
-                espera.ate_presenca(
+                espera.ate_aparecer(
                     driver, "tr.cdk-drag", teto=10
                 )
         except Exception as e:
@@ -1402,7 +1402,7 @@ def run_dom(driver: Any) -> Dict[str, Any]:
             driver.get(LIST_URL)
         elif hasattr(driver, "page") and hasattr(driver.page, "goto"):
             driver.page.goto(LIST_URL)
-        espera.ate_presenca(
+        espera.ate_aparecer(
             driver, "tbody tr.tr-class", teto=30
         )
         logger.info("[DOMICILIO_ELETRONICO] Navegacao concluida")
@@ -1417,7 +1417,7 @@ def run_dom(driver: Any) -> Dict[str, Any]:
             )
             return {"sucesso": False, "erro": str(e)}
 
-        espera.ate_presenca(
+        espera.ate_aparecer(
             driver, "tbody tr.tr-class", teto=10
         )
 
@@ -1594,7 +1594,7 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
                 driver.get(url)
             elif hasattr(driver, "page") and hasattr(driver.page, "goto"):
                 driver.page.goto(url)
-            espera.ate_presenca(
+            espera.ate_aparecer(
                 driver, "pje-cabecalho-processo,pje-timeline", teto=15
             )
 

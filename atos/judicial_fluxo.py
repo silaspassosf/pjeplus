@@ -133,15 +133,14 @@ def fluxo_cls(
                     logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (ato já assinado)')
                     return True, True
 
-                # Tarefa "Elaborar ..." = a tarefa foi aberta e a aba carregou
-                # na tela de minuta. Não movimenta o processo: segue direto
-                # para as ações da URL /minutar (descrição, modelo, etc.), que
-                # o wrapper executa quando ja_estava_final é False.
+                # Tarefa "Elaborar ..." = mesmo tratamento da "Assinar": o CLS
+                # não abre a tarefa nem refaz a minuta, apenas segue. Encerra
+                # aqui como estado final, igual ao ato já assinado.
                 if getattr(driver, 'pje_tarefa_pronta', None) == 'elaborar':
-                    logger.info('[CLS] Tarefa de elaboração — seguindo direto para as ações de minuta')
+                    logger.info('[CLS] Tarefa de elaboração — seguindo sem abrir a minuta')
                     timing_total = time.time() - timing_inicio
                     logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (tarefa de elaboração)')
-                    return True, False
+                    return True, True
 
                 # Se já está em estado final após abrir tarefa (/assinar ou /minutar)
                 if ja_em_minutar:

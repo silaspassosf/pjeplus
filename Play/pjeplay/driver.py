@@ -293,6 +293,14 @@ class PWDriver:
 
     # -- navegacao --------------------------------------------------------
 
+    # Rotas em que o driver vigia o carregamento inicial. Antes daqui eram so
+    # 'pjekz' e '/processo/', entao login.seam e o SSO do Keycloak ficavam sem
+    # a barreira anti-travamento: a pagina abria devagar e o fluxo seguia com o
+    # DOM vazio, parecendo travamento no clique do SSO (log de 23/10 17:57).
+    _ROTAS_VIGIADAS = (
+        'pjekz', '/processo/', 'login.seam', '/realms/', '/auth/',
+    )
+
     def get(self, url, auto_garantir=True):
         self._ultima_url_navegada = url
         try:
@@ -304,9 +312,21 @@ class PWDriver:
         except Exception as e:
             raise traduzir(e) from e
         self._frame = None
-        if auto_garantir and isinstance(url, str) and ('pjekz' in url or '/processo/' in url):
-            t_timeout = 10.0 if ('/tarefa/' in url or '/processo/' in url) else 5.0
-            self.garantir_carregamento(timeout_refresh=t_timeout, url_alvo=url)
+        if auto_garantir and isinstance(url, str) and any(r in url for r in self._ROTAS_VIGIADAS):
+            # Telas de login/SSO nao tem a casca Angular do PJe (sao Seam e
+            # Keycloak), entao a lista padrao de seletores nunca acerta nelas.
+            # Sem este alvo a barreira concluiria "nao carregou" e recarregaria
+            # a pagina de login a toa.
+            alvo = None
+            if 'login.seam' in url:
+                alvo = '#btnSsoPdpj, #username, form input[type="submit"]'
+            elif '/realms/' in url or '/auth/' in url:
+                alvo = '#username, #kc-login, #otp, input[name="otp"]'
+            # timeout_refresh fica None de proposito: o proprio
+            # garantir_carregamento escolhe o teto pela rota (10s processo,
+            # 12s login/SSO, 5s demais). Passar um valor aqui anularia isso.
+            self.garantir_carregamento(timeout_refresh=None, url_alvo=url,
+                                       seletor_esperado=alvo)
 
     # Trechos de URL que indicam que a aba não está na página pedida: sessão
     # caída, login pendente ou erro do servidor. Checagem por URL apenas — o
@@ -316,6 +336,10 @@ class PWDriver:
         'acesso-negado', 'access-denied', 'login.seam', 'login.jsp',
         '/realms/', 'error.jsp', 'sessao-expirada',
     )
+
+    # Telas de autenticacao. Sao destinos legitimos quando pedidas de proposito
+    # (login_cpf), mas sinal de desvio quando aparecem no lugar de um processo.
+    _ROTAS_LOGIN = ('login.seam', 'login.jsp', '/realms/', '/protocol/openid-connect', '/auth/')
 
     def _pagina_desviada(self, target_url=None):
         """True se a URL atual não corresponde à página esperada.
@@ -328,8 +352,16 @@ class PWDriver:
             return True
         if not curr:
             return True
+
+        # Se o proprio alvo pedido e uma tela de login/SSO, estar nela NAO e
+        # desvio — e o destino. Sem esta guarda, `get(login.seam)` se acusava
+        # como "URL invalida" e a barreira nunca liberava a pagina de login.
+        alvo_url = (target_url or '').lower()
+        alvo_e_login = any(k in alvo_url for k in self._ROTAS_LOGIN)
+
         if any(k in curr for k in self._URL_INVALIDA):
-            return True
+            if not (alvo_e_login and any(k in curr for k in self._ROTAS_LOGIN)):
+                return True
         if target_url:
             alvo = target_url.lower()
             if '/processo/' in alvo and '/processo/' not in curr:
@@ -348,9 +380,17 @@ class PWDriver:
         """
         target_url = url_alvo or getattr(self, '_ultima_url_navegada', None) or self.current_url
         is_processo_ou_tarefa = bool(target_url and ('/processo/' in target_url or '/tarefa/' in target_url))
+        # Login/SSO sao telas leves, mas respondem por rede externa (Keycloak):
+        # 5s e curto quando o servidor esta lento e gerava refresh desnecessario.
+        is_login = bool(target_url and ('login.seam' in target_url or '/realms/' in target_url or '/auth/' in target_url))
 
         if timeout_refresh is None:
-            timeout_refresh = 10.0 if is_processo_ou_tarefa else 5.0
+            if is_processo_ou_tarefa:
+                timeout_refresh = 10.0
+            elif is_login:
+                timeout_refresh = 12.0
+            else:
+                timeout_refresh = 5.0
 
         js_verificar = """
         (args) => {

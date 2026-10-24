@@ -18,6 +18,7 @@ from pprint import pformat
 from typing import Any, Dict, List, Optional, Tuple
 
 from Fix import espera
+from Play.pjeplay.locators import By
 from Fix.abas import trocar_para_nova_aba
 from Fix.browser_suporte import abrir_url_nova_aba, _sub_elemento
 from Fix.core import esperar_elemento, preencher_campo, safe_click
@@ -588,13 +589,25 @@ def _encontrar_slot_dia(driver: Any, hora_str: str) -> None:
 
     # Log detalhado da linha selecionada
     print(f"[SLOT] Linha encontrada: {linha.text[:200]}")
-    # Clica no botão com aria-label "Designar Audiência"
-    btn_plus = _sub_elemento(
-        linha,
-        ".//button[contains(@aria-label,'Designar')] | .//i[contains(@class,'fa-plus-circle')]/ancestor::button"
-    )
+    # Clica no botao "Designar Audiencia" da linha.
+    # Mesmo padrao de Script/modules/Aud/marcar.js:cliciarSlotHora:
+    #   botao por aria-label CSS; senao o <i class="fa-plus-circle"> e seu <button> pai.
+    # NAO passar XPath com "contains(@...)" ao _sub_elemento: ele usa
+    # query_selector (CSS) e estoura "Unsupported token".
+    btn_plus = _sub_elemento(linha, 'button[aria-label*="Designar"]')
+    if not btn_plus:
+        icone = _sub_elemento(linha, 'i.fa-plus-circle')
+        if icone is not None:
+            btn_plus = _closest_button(driver, icone)
+    if not btn_plus:
+        raise Exception(
+            f"Botao 'Designar Audiencia' nao encontrado na linha do horario {hora_str}"
+        )
     print(f"[SLOT] Clicando no botão designar")
-    safe_click(driver, btn_plus)
+    if not safe_click(driver, btn_plus):
+        raise Exception("Clique em 'Designar Audiencia' falhou")
+    # marcar.js:500ms apos o clique no slot antes de seguir para o modal.
+    espera.assentar(driver, 0.5)
 
 
 def _tem_audiencia_marcada(driver: Any, processo_info: Optional[Dict] = None) -> bool:
@@ -631,6 +644,45 @@ def _tem_audiencia_marcada(driver: Any, processo_info: Optional[Dict] = None) ->
         # Se não encontrar dt#audiencias, significa que não tem audiência no DOM
         print("[TRIAGEM] _tem_audiencia_marcada via DOM: False (dt#audiencias nao encontrado)")
         return False
+
+
+def _closest_button(driver: Any, elemento: Any) -> Any:
+    """Retorna o <button> ancestral de `elemento` (equivalente a closest('button')).
+
+    Tenta a API nativa do elemento antes do JS, pois `_executar_js` delega a
+    `page.evaluate` no Playwright, que nao aceita argumentos posicionais.
+    """
+    if elemento is None:
+        return None
+    # 1) API do elemento (Playwright: ElementHandle.closest).
+    closest = getattr(elemento, "closest", None)
+    if callable(closest):
+        try:
+            pai = closest("button")
+            if pai is not None:
+                return pai
+        except Exception:
+            pass
+    # 2) XPath a partir do proprio elemento (Selenium e PWDriver).
+    for metodo in ("find_element", "query_selector"):
+        fn = getattr(elemento, metodo, None)
+        if not callable(fn):
+            continue
+        try:
+            pai = (
+                fn("xpath", "./ancestor::button[1]")
+                if metodo == "find_element"
+                else fn("xpath=./ancestor::button[1]")
+            )
+            if pai is not None:
+                return pai
+        except Exception:
+            pass
+    # 3) JS com argumento (execute_script do Selenium).
+    try:
+        return _executar_js(driver, "return arguments[0].closest('button');", elemento)
+    except Exception:
+        return None
 
 
 def _marcar_aud(
@@ -678,6 +730,18 @@ def _marcar_aud(
         if not modal:
             raise Exception("Modal de audiencia nao encontrado")
 
+        # Preenchimento manual do numero do processo (decisao do usuario: a
+        # estrategia de "aguardar o PJe pre-preencher" usada no modulo Aud de
+        # referencia falha na pratica). Aqui esperamos o campo existir e
+        # preenchemos explicitamente.
+        modal_ok = esperar_elemento(
+            driver, "mat-dialog-container input#inputNumeroProcesso", timeout=10
+        )
+        if not modal_ok:
+            modal_ok = esperar_elemento(driver, "mat-dialog-container", timeout=5)
+        if not modal_ok:
+            raise Exception("Campo numero do processo nao apareceu no modal")
+
         numero_limpo = "".join(filter(str.isdigit, numero_processo))
         preencher_campo(driver, "#inputNumeroProcesso", numero_limpo)
         espera.assentar(driver, 0.8)
@@ -690,6 +754,7 @@ def _marcar_aud(
         if not btn_confirmar:
             raise Exception("Botao Confirmar nao encontrado")
         safe_click(driver, btn_confirmar)
+        # marcar.js:1000ms apos Confirmar antes de validar a resposta do modal.
         espera.assentar(driver, 1.0)
 
         modal_confirmado = esperar_elemento(

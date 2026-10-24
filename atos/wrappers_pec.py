@@ -131,7 +131,7 @@ pec_mddpg = make_comunicacao_wrapper(
     modelo_nome='mddpgt',
     subtipo='Mandado',
     gigs_extra=None,
-    destinatarios='polo_passivo'
+    destinatarios='informado sentenca suscitados'
 )
 
 pec_mddsent = make_comunicacao_wrapper(
@@ -178,7 +178,7 @@ pec_editalpg = make_comunicacao_wrapper(
     modelo_nome='PagamentoEd',
     subtipo='Edital',
     gigs_extra=None,
-    destinatarios='polo_passivo',
+    destinatarios='informado sentenca suscitados',
     wrapper_name='pec_editalpg'
 )
 

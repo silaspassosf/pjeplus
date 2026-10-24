@@ -23,6 +23,7 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from Play.pjeplay.locators import By
 import bianca.dom_engine as dom_engine
 
 

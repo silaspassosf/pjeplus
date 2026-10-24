@@ -216,6 +216,27 @@ def _is_driver_headless(driver) -> bool:
     except Exception:
         return False
 
+
+def _aguardar_formulario_sso(driver, teto=6.0):
+    """Espera o formulario do Keycloak aparecer depois do clique no SSO.
+
+    O clique em #btnSsoPdpj dispara uma navegacao que so avanca quando o driver
+    cede tempo ao loop de eventos do Playwright. Antes daqui havia um
+    `espera.pausa(1.0)` — `time.sleep` puro, que NAO bombeia esse loop: o
+    #username ja estava na tela, mas o driver seguia com o DOM antigo e o
+    fluxo gastava os 10s do teto antes de cair no login manual.
+
+    `ate_aparecer` consulta o servidor a cada volta e por isso bombeia o loop.
+    Devolve True se achou #username ou #otp, ou False se nao apareceu.
+    """
+    try:
+        if espera.ate_aparecer(driver, '#username, #otp, input[name="otp"]', teto=teto):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True, forcar=False):
     """Login automático por CPF/senha alimentado pelo Gerenciador de Credenciais do Windows.
 
@@ -287,12 +308,22 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                 else:
                     safe_click_no_scroll(driver, '#btnSsoPdpj')
                 logger.info('[LOGIN_CPF] Botao SSO PDPJ clicado')
-                espera.pausa(driver, 1.0)
             except Exception as e:
                 logger.debug('[LOGIN_CPF] Aviso ao clicar no botao SSO PDPJ: %s', e)
 
+            # O clique dispara a navegacao para o Keycloak. Esperar aqui com
+            # consulta ao servidor (e nao com sleep) e o que faz o driver
+            # processar a troca de pagina: sem isso o #username ja estava na
+            # tela mas o fluxo gastava o teto e caia no login manual.
+            try:
+                _aguardar_formulario_sso(driver)
+            except Exception as e:
+                logger.debug('[LOGIN_CPF] Aviso ao aguardar formulario do SSO: %s', e)
+
         # Aguardar campo de usuario do Keycloak (#username) ou campo OTP direto
-        if not espera.ate_aparecer(driver, '#username', teto=10):
+        tem_username = espera.ate_aparecer(driver, '#username', teto=10)
+
+        if not tem_username:
             if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=2):
                 logger.info('[LOGIN_CPF] Tela de OTP detectada diretamente sem #username')
             else:

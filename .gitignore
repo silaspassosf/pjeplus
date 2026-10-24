@@ -68,6 +68,16 @@ PEC/clipboard.txt
 **/sisbajud_conciso_ultimo.txt
 **/sisbajud_conciso*.txt
 
+# Telemetria de execucao por maquina (nao e codigo nem fixture)
+Play/medicoes/
+
+# Extensao de navegador de terceiros (nao faz parte do PjePlus)
+rd/
+rd.user.js
+
+# Relatorios de analise/auditoria (material de trabalho, nao de producao)
+relatorios/
+
 
 # Backups e artefatos de execução versionados por engano (F0 2026-10-23)
 *.bak

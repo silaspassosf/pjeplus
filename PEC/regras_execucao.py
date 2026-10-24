@@ -230,6 +230,10 @@ _shared_driver_sisb = None
 def _executar_sisbajud(driver, atv, fn_sisb):
     """Executa o fluxo completo PJE -> SISBAJUD para acoes SISBAJUD usando driver compartilhado."""
     global _shared_driver_sisb
+    # Import local de proposito: a limpeza consolidou os imports de Fix.extracao
+    # no topo e deixou este nome de fora, quebrando minuta bloqueio/teimosinha
+    # (NameError: extrair_dados_processo). O import aqui evita depender do topo.
+    from Fix.extracao import extrair_dados_processo
     from SISB.core import iniciar_sisbajud
 
     dados_processo = extrair_dados_processo(driver)

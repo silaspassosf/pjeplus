@@ -14,6 +14,7 @@ Funcoes exportadas:
 """
 
 import re
+import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from Fix import espera
@@ -40,7 +41,7 @@ _KEY_ESCAPE = '\ue00c'
 
 
 def _sub_el(pai: Any, sel: str) -> Any:
-    """Busca sub-elemento compativel com Selenium e Playwright."""
+    """Busca sub-elemento compativel com driver nativo e Playwright."""
     if pai is None:
         return None
     if hasattr(pai, "query_selector"):
@@ -52,7 +53,7 @@ def _sub_el(pai: Any, sel: str) -> Any:
 
 
 def _sub_els(pai: Any, sel: str) -> List[Any]:
-    """Busca multiplos sub-elementos compativeis com Selenium e Playwright."""
+    """Busca multiplos sub-elementos compativeis com driver nativo e Playwright."""
     if pai is None:
         return []
     if hasattr(pai, "query_selector_all"):
@@ -169,10 +170,24 @@ def aguardar_renderizacao_nativa(
     driver: Any,
     seletor_ou_condicao: Optional[str] = None,
     acao: Optional[str] = None,
-    tempo_limite: Optional[int] = None,
+    tempo_limite: Optional[float] = None,
+    timeout: Optional[float] = None,
 ) -> bool:
-    """Aguarda renderizacao Angular nativa."""
-    return bool(_fix_aguardar_renderizacao_nativa(driver, seletor_ou_condicao, acao, tempo_limite))
+    """Aguarda renderizacao Angular nativa.
+
+    API legada mantida: ``acao`` equivale a ``modo`` no nucleo
+    ('aparecer' | 'sumir' | 'habilitado') e ``tempo_limite`` equivale a
+    ``timeout``. Aceita ambas as grafias; ``timeout`` tem precedencia.
+    """
+    limite = timeout if timeout is not None else (
+        tempo_limite if tempo_limite is not None else 10
+    )
+    modo = acao or "aparecer"
+    return bool(
+        _fix_aguardar_renderizacao_nativa(
+            driver, seletor_ou_condicao, modo=modo, timeout=limite
+        )
+    )
 
 
 def esperar_elemento(
@@ -182,9 +197,34 @@ def esperar_elemento(
     by: Any = None,
     visivel: bool = True,
     log: bool = False,
+    texto: Optional[str] = None,
 ) -> Optional[Any]:
-    """Aguarda presenca ou visibilidade de elemento no DOM."""
-    return _fix_esperar_elemento(driver, seletor, timeout=timeout, by=by, visivel=visivel, log=log)
+    """Aguarda presenca ou visibilidade de elemento no DOM.
+
+    Args:
+        visivel: True (padrao) exige que o elemento esteja visivel; False
+            retorna assim que aparecer no DOM.
+
+    Note:
+        ``Fix.navegacao_espera.esperar_elemento`` nao possui o parametro
+        ``visivel``; a distincao e aplicada aqui apos a espera.
+    """
+    try:
+        elemento = _fix_esperar_elemento(
+            driver, seletor, texto=texto, timeout=timeout, by=by, log=log
+        )
+    except TypeError:
+        # Fallback para assinaturas antigas sem o parametro ``texto``.
+        elemento = _fix_esperar_elemento(driver, seletor, timeout=timeout, by=by, log=log)
+
+    if elemento is None or not visivel:
+        return elemento
+
+    try:
+        return elemento if elemento.is_displayed() else None
+    except Exception:
+        # Elemento stale/invalido: devolve mesmo assim para o chamador decidir.
+        return elemento
 
 
 def aguardar_e_clicar(
@@ -205,8 +245,21 @@ def safe_click(
     delay_depois: float = 0,
     log: bool = False,
 ) -> bool:
-    """Clica em elemento com retries e verificacoes."""
-    return bool(_fix_safe_click(driver, elemento_ou_seletor, timeout=timeout, delay_depois=delay_depois, log=log))
+    """Clica em elemento com retries e verificacoes.
+
+    ``delay_depois`` e aplicado aqui: ``Fix.core.safe_click`` nao o aceita.
+    """
+    clique_ok = bool(_fix_safe_click(driver, elemento_ou_seletor, timeout=timeout, log=log))
+    if clique_ok and delay_depois:
+        try:
+            espera.assentar(driver, delay_depois)
+        except Exception:
+            # Fallback: pulsar cede tempo ao loop do driver sem sleep puro
+            # (mesmo motivo pelo qual Fix/espera.assentar nao usa time.sleep).
+            pulsar = getattr(driver, "pulsar", None)
+            if callable(pulsar):
+                pulsar(delay_depois)
+    return clique_ok
 
 
 def preencher_campo(
@@ -217,8 +270,17 @@ def preencher_campo(
     limpar_antes: bool = True,
     log: bool = False,
 ) -> bool:
-    """Preenche campo de formulario Angular."""
-    return bool(_fix_preencher_campo(driver, seletor, valor, timeout=timeout, limpar_antes=limpar_antes, log=log))
+    """Preenche campo de formulario Angular.
+
+    ``timeout``/``limpar_antes`` sao traduzidos para a API de
+    ``Fix.core.preencher_campo`` (que usa ``limpar`` e nao recebe timeout).
+    """
+    if timeout:
+        try:
+            esperar_elemento(driver, seletor, timeout=timeout)
+        except Exception:
+            pass
+    return bool(_fix_preencher_campo(driver, seletor, valor, limpar=limpar_antes, log=log))
 
 
 def buscar_seletor_robusto(
@@ -289,8 +351,8 @@ def _aguardar_loader_painel(driver: Any, timeout: int = 10) -> None:
     """Aguarda sumir o loader do painel."""
     loader_xpath = "//pje-loader | //div[contains(@class, 'pje-loader')]"
     try:
-        if espera.ate_presenca(driver, loader_xpath, teto=1):
-            espera.ate_desaparecer(driver, loader_xpath, teto=timeout)
+        if espera.ate_aparecer(driver, loader_xpath, teto=1):
+            espera.ate_sumir(driver, loader_xpath, teto=timeout)
             espera.assentar(driver, 0.3)
     except Exception:
         pass
@@ -398,7 +460,7 @@ def _abrir_e_selecionar_opcao(
     if not dropdown_aberto:
         return False
 
-    espera.ate_presenca(driver, 'mat-option[role="option"], option', teto=3)
+    espera.ate_aparecer(driver, 'mat-option[role="option"], option', teto=3)
     opcoes = espera.elementos(
         driver,
         'mat-option[role="option"] span.mat-option-text, option',
@@ -555,7 +617,7 @@ def aplicar_filtro_100(driver: Any) -> bool:
                 safe_click_no_scroll(driver, mat_select)
             aguardar_renderizacao_nativa(driver)
 
-            espera.ate_presenca(driver, ".cdk-overlay-pane", teto=5)
+            espera.ate_aparecer(driver, ".cdk-overlay-pane", teto=5)
             opcao_100 = espera.elemento(
                 driver,
                 "//mat-option[.//span[normalize-space(text())='100']]",
@@ -733,7 +795,7 @@ def resetar_driver(driver: Any) -> bool:
             driver.get("https://pje.trt2.jus.br/pjekz/")
         elif hasattr(driver, "page") and hasattr(driver.page, "goto"):
             driver.page.goto("https://pje.trt2.jus.br/pjekz/")
-        espera.ate_url_conter(driver, "pjekz", teto=5)
+        espera.ate_url(driver, "pjekz", teto=5)
         aguardar_renderizacao_nativa(driver)
         return True
     except Exception as e:

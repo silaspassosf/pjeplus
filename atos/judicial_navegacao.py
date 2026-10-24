@@ -101,8 +101,12 @@ def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:
                 return True, True
 
             if 'elaborar' in tarefa_lower:
-                logger.info(f'[NAVEGAÇÃO] Tarefa "{tarefa_do_botao}" — minuta em elaboração, abrindo sem movimentar')
+                # Mesmo tratamento da tarefa "Assinar": nada a fazer aqui.
+                # Abrir a tarefa so levaria a /minutar para repetir a minuta;
+                # o fluxo segue a partir das acoes da propria URL /minutar.
+                logger.info(f'[NAVEGAÇÃO] Tarefa "{tarefa_do_botao}" — minuta em elaboração, seguindo sem abrir')
                 driver.pje_tarefa_pronta = 'elaborar'
+                return True, True
 
         # Clicar para abrir tarefa
         if not safe_click(driver, btn_abrir_tarefa):

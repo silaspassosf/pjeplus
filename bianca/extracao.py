@@ -154,8 +154,63 @@ def _parse_gigs_string(string: str) -> Dict[str, Any]:
 # GIGS
 # =============================================================================
 
+# Delegacao para o nucleo (Fix.extracao): a implementacao daqui e apenas
+# fallback, usada se o nucleo nao estiver disponivel.
+try:
+    from Fix.extracao import (
+        criar_gigs as _core_criar_gigs,
+        criar_comentario as _core_criar_comentario,
+    )
+except Exception:  # pragma: no cover - nucleo ausente
+    _core_criar_gigs = None
+    _core_criar_comentario = None
+
 
 def criar_gigs(
+    driver: Any,
+    dias_uteis: Any = None,
+    responsavel: Optional[str] = None,
+    observacao: Optional[str] = None,
+    timeout: Union[int, float] = 10,
+    log: bool = True,
+) -> bool:
+    """Cria atividade GIGS - delega para `Fix.extracao.criar_gigs`.
+
+    Mantem a API historica de `bianca` (string unificada "7/xs/carta").
+    """
+    if _core_criar_gigs is not None:
+        try:
+            return bool(_core_criar_gigs(
+                driver, dias_uteis, responsavel, observacao,
+                timeout=timeout, log=log,
+            ))
+        except Exception as e:
+            if log:
+                logger.warning("[GIGS] nucleo falhou (%s) - usando fallback local", e)
+    return _local_criar_gigs(driver, dias_uteis, responsavel, observacao, timeout, log)
+
+
+def criar_comentario(
+    driver: Any,
+    observacao: str,
+    visibilidade: str = 'LOCAL',
+    timeout: Union[int, float] = 10,
+    log: bool = True,
+) -> bool:
+    """Cria comentario - delega para `Fix.extracao.criar_comentario`."""
+    if _core_criar_comentario is not None:
+        try:
+            return bool(_core_criar_comentario(
+                driver, observacao, visibilidade=visibilidade,
+                timeout=timeout, log=log,
+            ))
+        except Exception as e:
+            if log:
+                logger.warning("[COMENTARIO] nucleo falhou (%s) - usando fallback local", e)
+    return _local_criar_comentario(driver, observacao, visibilidade, timeout, log)
+
+
+def _local_criar_gigs(
     driver: Any,
     dias_uteis: Any = None,
     responsavel: Optional[str] = None,
@@ -220,7 +275,7 @@ def criar_gigs(
                 safe_click_no_scroll(driver, btn_nova)
         espera.assentar(driver, 0.2)
 
-        espera.ate_presenca(
+        espera.ate_aparecer(
             driver,
             'textarea[formcontrolname="observacao"]',
             teto=timeout,
@@ -292,7 +347,7 @@ def criar_gigs(
             "//snack-bar-container//span[contains(normalize-space(.), "
             "'Atividade salva com sucesso')]"
         )
-        if espera.ate_presenca(driver, conf_xpath, teto=timeout):
+        if espera.ate_aparecer(driver, conf_xpath, teto=timeout):
             if log:
                 logger.debug("[GIGS] Atividade criada com sucesso")
             return True
@@ -312,7 +367,7 @@ def criar_gigs(
 # =============================================================================
 
 
-def criar_comentario(
+def _local_criar_comentario(
     driver: Any,
     observacao: str,
     visibilidade: str = 'LOCAL',
@@ -363,7 +418,7 @@ def criar_comentario(
         espera.assentar(driver, 0.2)
 
         # 2. Aguardar formulario
-        espera.ate_presenca(
+        espera.ate_aparecer(
             driver,
             'textarea[formcontrolname="descricao"], textarea[name="descricao"]',
             teto=timeout,

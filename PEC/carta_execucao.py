@@ -631,8 +631,9 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
             return resultado;
             """
 
-            page_t0 = espera.assentar(driver, 0, '')
+            page_t0 = time.perf_counter()
             ecarta_data = _executar_js(driver, js_script, pagina_atual)
+            page_dur = time.perf_counter() - page_t0
 
             if not ecarta_data:
                 if log:

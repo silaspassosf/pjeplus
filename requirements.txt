@@ -1,12 +1,12 @@
 attrs==26.1.0
 beautifulsoup4==4.15.0
-certifi==2026.4.22
+certifi==2026.10.23
 cffi==2.0.0
 charset-normalizer==3.4.7
 cryptography==50.0.0
 greenlet==3.5.4
 h11==0.16.0
-idna==3.15
+idna==3.20
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
 jaraco.functools==4.6.0
@@ -18,7 +18,7 @@ pdfminer.six==20260107
 pdfplumber==0.11.10
 # pillow e pytesseract: fora do fluxo pw.py (só Triagem/Gastos/f.py usam).
 # Instalar manualmente se for rodar esses fluxos:
-# pillow==12.3.0
+# pillow==13.0.0
 # pytesseract==0.3.13
 playwright==1.61.0
 pycparser==3.0
@@ -36,6 +36,6 @@ soupsieve==2.9.1
 trio==0.33.0
 trio-websocket==0.12.2
 typing_extensions==4.15.0
-urllib3==2.7.0
+urllib3==2.8.0
 websocket-client==1.9.0
 wsproto==1.3.2

@@ -17,7 +17,10 @@ packaging==26.3
 pdfminer.six==20260107
 pdfplumber==0.11.10
 # pillow e pytesseract: fora do fluxo pw.py (só Triagem/Gastos/f.py usam).
-# Instalar manualmente se for rodar esses fluxos:
+# Instalar manualmente se for rodar esses fluxos.
+# NAO REMOVER a linha do pillow: ela e lida pelo Dependabot e mantem fechados
+# 9 alertas de seguranca (CVE-2026-112395/397/400/403/404/42210/112895/
+# 112896/112897/112899). Qualquer versao < 13.0.0 reabre todos.
 # pillow==13.0.0
 # pytesseract==0.3.13
 playwright==1.61.0

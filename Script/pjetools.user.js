@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.6.27
+// @version      2.6.28
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -53,7 +53,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=2.1.72
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/trt.js?v=1.0.0
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.3.93
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.3.94
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=2.1.85
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=2.6.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=2.6.2
@@ -75,12 +75,13 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.data.js?v=1.1.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.core.js?v=2.3.97
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/marcar.js?v=1.3.5
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.detalhe.js?v=1.0.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.6.27 loaded');
+    console.log('[Loader] PJe Tools Pro v2.6.28 loaded');
 
     const url = window.location.href;
     const isAud = url.includes('/aud') || (function () { try { return window.top && window.top.location.href.includes('/aud'); } catch (e) { return false; } })();
@@ -285,6 +286,11 @@
             console.log('[Loader] Inicializando painel e atalhos. inicializarPainel existe?', typeof window.inicializarPainel, '| initAtalhos existe?', typeof window.initAtalhos);
             window.inicializarPainel && window.inicializarPainel();
             window.initAtalhos && window.initAtalhos();
+            // Marcador do dia da semana da audiência: módulo próprio, porque o
+            // Aud.core.js só roda em /aud. Aqui estamos em /detalhe.
+            if (window.PjeAudDetalhe && typeof window.PjeAudDetalhe.iniciar === 'function') {
+                window.PjeAudDetalhe.iniciar();
+            }
             window.__pjeAudFechadoManualmente = false;
             const audApi = window.PJeAud || W.PJeAud;
             if (typeof audApi?.init === 'function') {

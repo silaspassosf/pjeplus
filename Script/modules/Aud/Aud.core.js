@@ -471,39 +471,73 @@ var diaDaSemana = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 
             //   "Dia 01/02/2027 às 08:05 - Una (rito sumaríssimo) - Sala Principal"
             // e mostra o dia da semana acima dele. Só aparece se a audiência
             // existir; reavalia sozinho quando o Angular renderiza/troca o processo.
+            var LOG_DIA = '[Aud.dia]';
+            console.log(LOG_DIA, '=== bloco do dia da audiência ===');
+            console.log(LOG_DIA, 'href =', window.location.href);
+            console.log(LOG_DIA, 'isRouteDetalhe() =', isRouteDetalhe());
+
             if (isRouteDetalhe()) {
                 var etiquetaDia = E('div',
                     'margin:-4px -12px 8px -12px;padding:6px 12px;background:#eef4ff;' +
                     'border-bottom:1px solid #dbe6ff;font-size:13px;color:#1e40af;' +
                     'font-weight:bold;display:none;');
                 P.appendChild(etiquetaDia);
+                console.log(LOG_DIA, 'etiqueta criada no painel; aguardando o <dd> da audiência');
 
                 var _ultimoTextoAud = null;
-                var _atualizarDiaAud = function () {
+                var _atualizarDiaAud = function (origem) {
                     var dds = document.querySelectorAll('dd.campo-informacao-icone');
+                    console.log(LOG_DIA, '[' + origem + '] dd.campo-informacao-icone =', dds.length);
+
                     var texto = null;
                     for (var i = 0; i < dds.length; i++) {
                         var t = dds[i].textContent || '';
-                        if (/Dia\s+\d{1,2}\/\d{1,2}\/\d{4}/.test(t)) { texto = t; break; }
+                        var casa = /Dia\s+\d{1,2}\/\d{1,2}\/\d{4}/.test(t);
+                        console.log(LOG_DIA, '  dd[' + i + '] casa=' + casa, JSON.stringify(t.trim().slice(0, 90)));
+                        if (casa) { texto = t; break; }
                     }
-                    if (texto === _ultimoTextoAud) return;
+
+                    if (!texto) {
+                        console.warn(LOG_DIA, 'nenhum <dd> com "Dia dd/mm/aaaa" ainda; etiqueta oculta');
+                        etiquetaDia.style.display = 'none';
+                        return;
+                    }
+                    if (texto === _ultimoTextoAud) {
+                        console.log(LOG_DIA, 'texto igual ao anterior; sem mudança');
+                        return;
+                    }
                     _ultimoTextoAud = texto;
-                    var dia = texto ? diaDaSemanaAud(texto) : null;
-                    if (!dia) { etiquetaDia.style.display = 'none'; return; }
+
+                    var dia = diaDaSemanaAud(texto);
+                    console.log(LOG_DIA, 'texto =', JSON.stringify(texto.trim()));
+                    console.log(LOG_DIA, 'diaDaSemanaAud() =', dia ? dia.nome : null);
+
+                    if (!dia) {
+                        console.warn(LOG_DIA, 'falha ao extrair a data; etiqueta oculta');
+                        etiquetaDia.style.display = 'none';
+                        return;
+                    }
                     etiquetaDia.textContent = '📅 Audiência: ' + dia.nome;
                     etiquetaDia.style.display = 'block';
+                    console.log(LOG_DIA, '✅ etiqueta exibida:', etiquetaDia.textContent);
                 };
 
-                _atualizarDiaAud();
+                _atualizarDiaAud('imediato');
                 // O processo pode ainda estar carregando quando o painel abre:
                 // acompanha por um tempo curto e para (sem observador permanente).
                 var _tentativas = 0;
                 var _timerDia = setInterval(function () {
-                    _atualizarDiaAud();
+                    _atualizarDiaAud('tentativa ' + (_tentativas + 1));
                     if (++_tentativas >= 20 || etiquetaDia.style.display === 'block') {
+                        console.log(LOG_DIA, 'monitor encerrado em', _tentativas, 'tentativas',
+                            '| etiqueta visivel =', etiquetaDia.style.display === 'block');
                         clearInterval(_timerDia);
                     }
                 }, 500);
+            } else {
+                console.warn(LOG_DIA, 'rota NAO e /detalhe -> etiqueta nao sera criada.');
+                console.warn(LOG_DIA, 'a URL precisa conter "/detalhe" (ela tem:',
+                    window.location.href.indexOf('/detalhe') !== -1, ')');
             }
 
             P.appendChild(bodyDiv);

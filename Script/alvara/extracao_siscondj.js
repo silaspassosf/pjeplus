@@ -358,40 +358,38 @@
 
     // Completar UMA conta.
     //
-    // 1. Se o HTML já trouxe o Valor Disponível preenchido (sem <img>),
-    //    usa esse valor. Nenhuma requisição.
-    // 2. Se a célula veio com <img> ("Atualizar"), chama
-    //    obterSaldo/{idConta} — UMA requisição que devolve o saldo da conta.
-    //    Sem parcela alguma.
-    // 3. Só se esse endpoint falhar é que descemos para as parcelas, de trás
-    //    para a frente, parando quando a soma para de crescer.
+    // Ordem (o mais barato primeiro, e o caro só para enriquecer):
+    //   1. SALDO — O valor disponível, numa requisição:
+    //        a. se a célula do HTML já tem o valor, usa (zero requisição)
+    //        b. senão GET obterSaldo/{idConta} (uma requisição)
+    //   2. PARCELAS — só para saber QUAIS depósitos formam aquele saldo
+    //      (data e depositante, que não existem no endpoint da conta).
+    //      Percorre da ÚLTIMA página para a primeira e para assim que a soma
+    //      iguala o valor já confirmado no passo 1 — não há o que procurar
+    //      depois disso.
     //
-    // As parcelas, quando consultadas, servem só para a discriminação dos
-    // depósitos na saída — nunca para descobrir se há saldo.
+    // O passo 2 pode falhar sem prejuízo: o saldo já está certo, só a
+    // discriminação fica pendente.
     async function completarConta(conta) {
         const n = conta.parcelas.length;
         const totalPaginas = Math.ceil(n / 3);
 
+        // ── 1. SALDO ──
         let origemSaldo = 'html';
         let valorSaldo = 0;
 
-        // 1. O HTML já tem o valor? Então é isso e pronto.
         const doHtml = parseMoeda(conta.disponivelTexto);
         if (conta.temValorNoHtml && doHtml > 0) {
             valorSaldo = doHtml;
         } else {
-            // 2. Endpoint do saldo da conta: uma requisição.
             const api = await saldoContaApi(conta.idConta);
             if (api) {
                 valorSaldo = api.valor;
                 origemSaldo = 'api-conta';
-                conta.saldoApiTexto = api.texto;
             } else {
-                // 3. Plano B: parcelas, de trás para a frente.
                 logSiscondj('conta', conta.numeroConta,
-                    '— obterSaldo falhou, caindo para as parcelas');
-                valorSaldo = await saldoPorParcelas(conta, totalPaginas);
-                origemSaldo = 'api-parcelas';
+                    '— obterSaldo falhou; saldo ficará incompleto');
+                origemSaldo = 'indisponivel';
             }
         }
 
@@ -405,19 +403,30 @@
             '— disponível', conta.totalDisponivelTexto,
             '| origem', origemSaldo,
             '| depositado', conta.depositadoTexto);
+
+        // ── 2. PARCELAS (datas e depositantes) ──
+        // Só faz sentido se há saldo e se há parcela com depósito.
+        if (valorSaldo > 0) {
+            await casarParcelas(conta, totalPaginas, valorSaldo);
+        }
     }
 
-    // Plano B: soma o saldo percorrendo as parcelas de trás para a frente,
-    // parando na primeira página que não acrescenta nada.
-    async function saldoPorParcelas(conta, totalPaginas) {
+    // Percorre as parcelas da ÚLTIMA página para a primeira, somando o saldo
+    // de cada uma, e para assim que bate o valor já confirmado.
+    //
+    // Como o alvo é conhecido, não é preciso varrer: no caso típico a última
+    // parcela já fecha (depósitos recentes são os que têm saldo) e paramos na
+    // primeira página.
+    async function casarParcelas(conta, totalPaginas, alvo) {
+        let acumulado = 0;
         let paginasLidas = 0;
 
         for (let k = totalPaginas - 1; k >= 0; k--) {
+            if (acumulado >= alvo - TOLERANCIA) break;
+
             const res = await umaPaginaParcelas(conta.idConta, k);
             if (res.fim) continue;
             paginasLidas++;
-
-            const anterior = conta.parcelas.reduce((s, p) => s + (p.disponivelValor || 0), 0);
 
             for (const reg of res.dados) {
                 if (!reg) continue;
@@ -429,14 +438,18 @@
                 p.disponivelTexto = texto;
                 p.disponivelValor = parseMoeda(texto);
                 p.fonte = 'api';
+                acumulado += p.disponivelValor;
             }
-
-            const acumulado = conta.parcelas.reduce((s, p) => s + (p.disponivelValor || 0), 0);
-            if (acumulado > 0 && acumulado <= anterior + TOLERANCIA) break;
         }
 
+        conta.parcelasSemSaldo = conta.parcelas.filter(p => !p.disponivelValor);
         conta.paginasLidas = paginasLidas;
-        return conta.parcelas.reduce((s, p) => s + (p.disponivelValor || 0), 0);
+        conta.parcelasFecharam = Math.abs(acumulado - alvo) < TOLERANCIA;
+
+        logSiscondj('conta', conta.numeroConta,
+            '— parcelas: páginas', paginasLidas + '/' + totalPaginas,
+            '| somam', formatarBRL(acumulado),
+            '|', conta.parcelasFecharam ? 'fecha com o saldo' : 'DIVERGE do saldo');
     }
 
     function formatarBRL(n) {

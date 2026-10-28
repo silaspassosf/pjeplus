@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TESTE — Saldo Alvará (isolado)
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Teste isolado da consulta de saldo do Alvará Eletrônico. Injeta um painel com botão "Buscar saldo" no PJe. Não depende do pjetools.
 // @author       Silas
 // @match        https://pje.trt2.jus.br/*
@@ -311,8 +311,68 @@
                     + JSON.stringify(j.valorCapitalBloqueadoFormatado));
 
                 escrever('   SALDO DA CONTA ' + conta.numeroConta + ': ' + fmt(valor)
-                    + ' em ' + ms1 + 'ms — nenhuma parcela lida',
-                    valor > 0 ? '#27ae60' : '#c0392b');
+                    + ' em ' + ms1 + 'ms', valor > 0 ? '#27ae60' : '#c0392b');
+
+                if (valor <= 0) continue;
+
+                // ── 3. PARCELAS ──
+                // So para achar data e depositante de quem forma o saldo.
+                // Da ULTIMA pagina para a primeira, parando assim que a soma
+                // iguala o valor ja confirmado.
+                const totalPaginas = Math.ceil(conta.parcelas.length / 3);
+                escrever('');
+                escrever('3) parcelas — da ULTIMA pagina para a primeira, ate somar '
+                    + fmt(valor), '#1e88e5');
+                escreverDetalhe('parcelas: ' + conta.parcelas.length
+                    + ' | paginas de 3: ' + totalPaginas);
+
+                let acumulado = 0;
+                let paginasLidas = 0;
+                let parada = 'fim';
+
+                for (let k = totalPaginas - 1; k >= 0; k--) {
+                    if (acumulado >= valor - 0.005) { parada = 'soma fechou'; break; }
+
+                    const res = await umaPagina(conta.idConta, k);
+                    if (res.fim) { escreverDetalhe('   pagina ' + k + ': vazia'); continue; }
+                    paginasLidas++;
+
+                    const antes = acumulado;
+                    for (const reg of res.dados) {
+                        if (!reg) continue;
+                        const p = conta.parcelas.find(x => String(x.idParcela) === String(reg.idParcela));
+                        if (!p) continue;
+                        const txt = reg.valorSaldoCorrigidoFormatado;
+                        if (!txt) continue;
+                        p.finalValor = brl(txt);
+                        p.fonte = 'api';
+                        acumulado += p.finalValor;
+                    }
+
+                    escreverDetalhe('   pagina ' + k + ': +' + fmt(acumulado - antes)
+                        + ' | acumulado ' + fmt(acumulado));
+                }
+
+                conta.parcelas.forEach(p => { if (p.finalValor === undefined) p.finalValor = 0; });
+
+                escreverDetalhe('paginas lidas: ' + paginasLidas + '/' + totalPaginas
+                    + ' | parou por: ' + parada);
+                escreverDetalhe('soma das parcelas: ' + fmt(acumulado)
+                    + ' | saldo confirmado: ' + fmt(valor));
+
+                const fecha = Math.abs(acumulado - valor) < 0.005;
+                escrever('   ' + (fecha ? 'OK — parcelas fecham com o saldo'
+                    : 'DIVERGENCIA entre parcelas e saldo'), fecha ? '#27ae60' : '#c0392b');
+
+                // A discriminacao que vai para a saida de texto.
+                escrever('   Discriminacao de depositos disponiveis:');
+                conta.parcelas.filter(p => p.finalValor > 0).forEach(p => {
+                    escrever('   • ' + p.data + ' - ' + p.depositante + ' - ' + fmt(p.finalValor));
+                });
+
+                if (!conta.parcelas.some(p => p.finalValor > 0)) {
+                    escrever('   (nenhuma parcela com saldo)', '#c0392b');
+                }
             }
 
             escrever('');

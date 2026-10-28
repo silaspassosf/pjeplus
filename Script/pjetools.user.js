@@ -1,11 +1,27 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.6.28
+// @version      2.6.29
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
 // @downloadURL  https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
+// ═══════════════════════════════════════════════════════════════════════════
+//  ⚠️  REGRA OBRIGATÓRIA — LEIA ANTES DE ALTERAR QUALQUER MÓDULO
+// ═══════════════════════════════════════════════════════════════════════════
+//  Os módulos abaixo são carregados via @require com um sufixo ?v=X.Y.Z.
+//  O Tampermonkey guarda o arquivo em cache por URL: se o conteúdo do módulo
+//  mudar e o sufixo continuar igual, o navegador NUNCA baixa a versão nova e
+//  a alteração simplesmente não chega ao usuário.
+//
+//  Portanto, ao alterar QUALQUER dependência deste userscript:
+//    1. Suba o ?v= do @require daquele módulo (ex: ?v=2.6.2 -> ?v=2.6.3).
+//    2. Suba também o @version AQUI no pjetools.user.js (2.6.29 -> 2.6.30).
+//    3. Commite e dê push dos DOIS arquivos: o alterado e este.
+//
+//  Commitar apenas o módulo não publica nada — o cache do Tampermonkey
+//  continua servindo a versão antiga. Sempre os dois, sempre com push.
+// ═══════════════════════════════════════════════════════════════════════════
 // ── PJe (cobre todas as rotas com um único match)
 // @match        https://pje.trt2.jus.br/aud/*
 // @match        https://pje.trt2.jus.br/*
@@ -61,7 +77,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/detalhes.js?v=2.6.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/minuta.js?v=2.6.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.6.2
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.6.2
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.6.3
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/dados.js?v=2.6.16
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.1.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12

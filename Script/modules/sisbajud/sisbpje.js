@@ -127,14 +127,21 @@
             .replace(/\s{2,}/g, ' ')
             .trim();
         console.log('[extrairResumoSisbajud] Texto planificado:', textoFlat);
-        let protocolo = '';
-        const protocoloMatch = textoFlat.match(/Número do protocolo\s*:\s*(\d+)/i) ||
-            textoFlat.match(/protocolo\s*[:#]?\s*(\d{10,20})/i) ||
-            textoFlat.match(/\b(\d{14,16})\b/);
-        if (protocoloMatch) {
-            protocolo = protocoloMatch[1] || protocoloMatch[0];
-            window._sisbajudState.protocolos.add(protocolo);
+        // Um PDF compilado traz varias ordens, cada uma com seu cabecalho
+        // "Número do protocolo:". match() sem /g devolve so a primeira, entao
+        // matchAll recolhe todas.
+        const protocolos = [];
+        for (const achado of textoFlat.matchAll(/N[uú]mero do protocolo\s*:\s*(\d+)/gi)) {
+            if (achado[1] && !protocolos.includes(achado[1])) protocolos.push(achado[1]);
         }
+        if (protocolos.length === 0) {
+            const avulso = textoFlat.match(/protocolo\s*[:#]?\s*(\d{10,20})/i) ||
+                textoFlat.match(/\b(\d{14,16})\b/);
+            if (avulso) protocolos.push(avulso[1] || avulso[0]);
+        }
+        const protocolo = protocolos.join(', ');
+        for (const p of protocolos) window._sisbajudState.protocolos.add(p);
+        console.log('[extrairResumoSisbajud] Ordens encontradas:', protocolos.length, protocolos);
         // Regex do standalone, preservada
         const blockRegex = /(?:\d{11}|\d{14}):\s*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;
         let match;

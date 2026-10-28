@@ -278,6 +278,9 @@
             // parse do HTML desalinha as colunas (a linha perde o <td> do
             // ícone e o restante escorrega), então tds[5] pode não ser o
             // depositado. O id é estável; o índice não é.
+            //
+            // Data e depositante não têm id no HTML, mas vêm nas posições 2 e
+            // 3 — antes das colunas de valor, que são as que escorregam.
             const parcelas = [];
             doc.querySelectorAll('tr[id^="linhaParcela_' + idConta + '_"]').forEach(lp => {
                 const mp = lp.id.match(/linhaParcela_\d+_(\d+)/);
@@ -611,19 +614,30 @@
     }
 
     // Ação do botão no painel (roda na tela /detalhe do PJe).
-    // Devolve { copiado: bool, semSaldo: bool, contas }.
+    // Devolve { copiado: bool, semSaldo: bool, contas, ms, chamadas }.
     async function copiarSaldoProcesso(numeroProcesso) {
+        const t0 = performance.now();
         const contas = await saldosCompletos(numeroProcesso);
+        const ms = Math.round(performance.now() - t0);
+
         const html = montarSaidaHtml(contas);
 
+        // 1 POST + 1 obterSaldo por conta + as páginas de parcela lidas.
+        const chamadas = 1 + contas.reduce((s, c) => s
+            + (c.origemSaldo === 'api-conta' ? 1 : 0)
+            + (c.paginasLidas || 0), 0);
+
         if (!html) {
-            logSiscondj('nenhuma conta com saldo disponível');
-            return { copiado: false, semSaldo: true, contas };
+            logSiscondj('nenhuma conta com saldo disponível',
+                '|', ms + 'ms', '| chamadas:', chamadas);
+            return { copiado: false, semSaldo: true, contas, ms, chamadas };
         }
 
         const ok = copiarHtml(html);
-        logSiscondj('saída copiada:', ok, '| contas com saldo:', contas.filter(c => c.totalDisponivelValor > 0).length);
-        return { copiado: ok, semSaldo: false, contas };
+        logSiscondj('saída copiada:', ok,
+            '| contas com saldo:', contas.filter(c => c.totalDisponivelValor > 0).length,
+            '|', ms + 'ms', '| chamadas:', chamadas);
+        return { copiado: ok, semSaldo: false, contas, ms, chamadas };
     }
 
     Alv.siscondj = Alv.siscondj || {};

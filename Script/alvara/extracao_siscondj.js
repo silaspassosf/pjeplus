@@ -160,6 +160,7 @@
             + '&numeroProcesso=' + encodeURIComponent(String(numeroProcesso).trim())
             + '&idProcesso=&numeroConta=';
 
+        const tReq = performance.now();
         const r = await requisitar({
             method: 'POST',
             url: URL_BUSCAR,
@@ -167,17 +168,20 @@
             data: corpo,
             timeout: 45000
         });
+        const msReq = Math.round(performance.now() - tReq);
 
         if (r.status !== 200) throw new Error('POST /buscar devolveu HTTP ' + r.status);
 
+        const tParse = performance.now();
         const doc = new DOMParser().parseFromString(r.responseText, 'text/html');
+        const msParse = Math.round(performance.now() - tParse);
 
         // Login expirado devolve a tela sem a tabela de contas.
         if (!doc.getElementById('form_movimentacao_conta') && !doc.getElementById('table_contas')) {
             throw new Error('resposta sem o formulário de contas — sessão do Alvará expirada?');
         }
 
-        return { html: r.responseText, doc };
+        return { html: r.responseText, doc, msReq, msParse };
     }
 
     // Busca o saldo de UMA conta — endpoint da conta, não das parcelas.
@@ -338,7 +342,8 @@
     // nunca para descobrir se há saldo.
     async function saldosCompletos(numeroProcesso) {
         const t0 = performance.now();
-        const { doc } = await buscarContas(numeroProcesso);
+        const { doc, msReq, msParse } = await buscarContas(numeroProcesso);
+        const t1 = performance.now();
         const contas = extrairContasDoHtml(doc);
 
         contas.forEach(c => {
@@ -346,7 +351,9 @@
         });
 
         logSiscondj('contas:', contas.length,
-            '| POST em', Math.round(performance.now() - t0) + 'ms');
+            '| rede', msReq + 'ms',
+            '| parse', msParse + 'ms',
+            '| extração', Math.round(performance.now() - t1) + 'ms');
 
         for (const conta of contas) {
             await completarConta(conta);

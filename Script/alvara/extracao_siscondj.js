@@ -262,21 +262,25 @@
 
     // Junta HTML + API.
     //
-    // O HTML do POST já traz, por conta, o "Valor Disponível" em
-    // td_saldo_corrigido_conta_*. Se ele é zero, a conta não tem saldo e não
-    // há por que consultar parcela nenhuma — pula direto. Só as contas com
-    // valor > 0 precisam ser expandidas para saber QUAIS depósitos formam
-    // aquele saldo.
+    // Ordem obrigatória, do jeito que a tela funciona:
+    //   1. Lê o VALOR DISPONÍVEL da conta (td_saldo_corrigido_conta_*).
+    //      É a meta. Zero aqui = conta sem saldo, não há o que expandir.
+    //   2. Percorre as parcelas DE TRÁS PARA A FRENTE, somando o Valor
+    //      Disponível de cada uma (td_saldo_parcela_saldo_*).
+    //   3. Para assim que a soma bate na meta. Depósitos recentes são os que
+    //      carregam saldo; as parcelas velhas normalmente são zero.
+    //   4. Só se a soma do HTML não fechar a meta é que a API é consultada,
+    //      e só para as parcelas que ainda faltam — nunca a lista inteira.
     //
-    // O valor de cada parcela vem da API (valorSaldoCorrigidoFormatado, que é
-    // a coluna "Valor Disponível"); data e depositante vêm do HTML, casados
-    // por idParcela.
+    // A API (obterSaldo/{idConta}/parcelas/{n}/3) devolve
+    // valorSaldoCorrigidoFormatado, que é o mesmo "Valor Disponível" da
+    // linha. Data e depositante só existem no HTML.
     async function saldosCompletos(numeroProcesso) {
         const t0 = performance.now();
         const { doc } = await buscarContas(numeroProcesso);
         const contas = extrairContasDoHtml(doc);
 
-        // Saldo da conta segundo o HTML (antes de qualquer chamada de parcelas).
+        // 1. Meta de cada conta, lida do HTML antes de olhar parcela nenhuma.
         contas.forEach(c => {
             c.saldoHtmlValor = parseMoeda(c.disponivelTexto);
             c.saldoHtmlTexto = c.disponivelTexto;
@@ -287,43 +291,108 @@
             '| com saldo:', comSaldo.length,
             '| POST em', Math.round(performance.now() - t0) + 'ms');
 
-        // Zera as contas sem saldo sem tocar na API.
+        // Conta sem valor: zera e não consulta nada.
         contas.forEach(c => {
             if (c.saldoHtmlValor > 0) return;
             c.parcelas = c.parcelas.map(p => Object.assign({}, p, {
-                disponivelTexto: p.disponivelTexto,
                 disponivelValor: parseMoeda(p.disponivelTexto)
             }));
             c.totalDisponivelValor = 0;
             c.totalDisponivelTexto = formatarBRL(0);
             c.expandida = false;
+            c.apiConsultada = false;
         });
 
-        // Só expande as contas que têm valor.
         for (const conta of comSaldo) {
-            const api = await parcelasContaApi(conta.idConta);
-            const porId = {};
-            api.forEach(p => { porId[String(p.idParcela)] = p; });
-
-            conta.parcelas = conta.parcelas.map(p => {
-                const reg = porId[String(p.idParcela)];
-                // API tem precedência; o HTML é o fallback.
-                const texto = reg && reg.codigoRetorno === '0'
-                    ? (reg.valorSaldoCorrigidoFormatado || p.disponivelTexto)
-                    : p.disponivelTexto;
-                return Object.assign({}, p, {
-                    disponivelTexto: texto,
-                    disponivelValor: parseMoeda(texto)
-                });
-            });
-
-            conta.totalDisponivelValor = conta.parcelas.reduce((s, p) => s + p.disponivelValor, 0);
-            conta.totalDisponivelTexto = formatarBRL(conta.totalDisponivelValor);
-            conta.expandida = true;
+            await completarConta(conta);
         }
 
         logSiscondj('consulta concluída em', Math.round(performance.now() - t0) + 'ms');
         return contas;
+    }
+
+    // Completa UMA conta que tem saldo. Percorre de trás para a frente e para
+    // quando o acumulado bate a meta.
+    //
+    // tol = meio centavo: os valores têm 2 casas, então qualquer diferença
+    // real é de pelo menos um centavo.
+    const TOLERANCIA = 0.005;
+
+    async function completarConta(conta) {
+        const meta = conta.saldoHtmlValor;
+        const n = conta.parcelas.length;
+
+        // Do fim para o começo.
+        const ordem = [];
+        for (let i = n - 1; i >= 0; i--) ordem.push(i);
+
+        let acumulado = 0;
+        let parouEm = -1;
+
+        // Fase 1: só o que já veio no HTML.
+        for (const i of ordem) {
+            const p = conta.parcelas[i];
+            p.disponivelValor = parseMoeda(p.disponivelTexto);
+            p.fonte = 'html';
+            acumulado += p.disponivelValor;
+            if (acumulado >= meta - TOLERANCIA) { parouEm = i; break; }
+        }
+
+        const fechouNoHtml = parouEm >= 0;
+        conta.apiConsultada = false;
+
+        // Fase 2: se o HTML não fechou a conta, consulta a API — mas só para
+        // as parcelas que faltam, também de trás para a frente.
+        if (!fechouNoHtml) {
+            logSiscondj('conta', conta.numeroConta,
+                '— HTML somou', formatarBRL(acumulado),
+                'de', formatarBRL(meta), '| consultando API');
+
+            conta.apiConsultada = true;
+
+            // A API pagina de 3 em 3, na ordem do site (1ª parcela primeiro).
+            // Lemos página a página e aplicamos por idParcela, sem precisar
+            // percorrer a lista inteira: paramos quando fechar.
+            for (let pagina = 0; pagina < MAX_PAGINAS_PARCELAS; pagina++) {
+                const res = await umaPaginaParcelas(conta.idConta, pagina);
+                if (res.fim) break;
+
+                for (const reg of res.dados) {
+                    if (!reg || reg.codigoRetorno !== '0') continue;
+                    const idx = conta.parcelas.findIndex(p => String(p.idParcela) === String(reg.idParcela));
+                    if (idx < 0) continue;
+                    const p = conta.parcelas[idx];
+                    if (p.fonte === 'api') continue;
+
+                    const texto = reg.valorSaldoCorrigidoFormatado;
+                    const valor = parseMoeda(texto);
+                    if (texto) {
+                        acumulado += valor - p.disponivelValor;
+                        p.disponivelTexto = texto;
+                        p.disponivelValor = valor;
+                        p.fonte = 'api';
+                    }
+                }
+
+                if (acumulado >= meta - TOLERANCIA) { parouEm = 0; break; }
+            }
+
+            if (!conta.parcelas.some(p => p.fonte === 'api')) {
+                logSiscondj('conta', conta.numeroConta, '— API não trouxe nada útil');
+            }
+        }
+
+        // Marca como fora do saldo o que não contribuiu (já é zero).
+        conta.totalDisponivelValor = acumulado;
+        conta.totalDisponivelTexto = formatarBRL(acumulado);
+        conta.metaValor = meta;
+        conta.metaTexto = conta.saldoHtmlTexto;
+        conta.fechou = Math.abs(acumulado - meta) < TOLERANCIA;
+        conta.expandida = true;
+        logSiscondj('conta', conta.numeroConta,
+            '— total', formatarBRL(acumulado),
+            '| meta', formatarBRL(meta),
+            '|', conta.fechou ? 'OK' : 'DIVERGENCIA');
     }
 
     function formatarBRL(n) {

@@ -171,27 +171,35 @@
     }
 
     // ── ETAPA 2: parcelas via API ──
+    // Uma página só — devolve { dados, fim }. Usada quando se sabe de antemão
+    // quanto falta somar e dá para parar antes do fim.
+    async function umaPagina(idConta, pagina) {
+        const t0 = performance.now();
+        const r = await requisitar({
+            method: 'GET',
+            url: URL_PARCELAS + '/' + idConta + '/parcelas/' + pagina + '/3?_=' + Date.now(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            timeout: 30000
+        });
+        const ms = Math.round(performance.now() - t0);
+        if (r.status !== 200) { escreverDetalhe('pagina ' + pagina + ': HTTP ' + r.status); return { dados: [], fim: true }; }
+
+        let json;
+        try { json = JSON.parse(r.responseText); } catch (e) { escreverDetalhe('pagina ' + pagina + ': JSON invalido'); return { dados: [], fim: true }; }
+        if (!json) return { dados: [], fim: true };
+        if (json.emptyList !== undefined) { escreverDetalhe('pagina ' + pagina + ': emptyList (fim)'); return { dados: [], fim: true }; }
+
+        const arr = Array.isArray(json) ? json : [json];
+        escreverDetalhe('pagina ' + pagina + ': ' + arr.length + ' parcela(s) em ' + ms + 'ms');
+        return { dados: arr, fim: arr.length === 0 };
+    }
+
     async function parcelasApi(idConta) {
         const todas = [];
         for (let pagina = 0; pagina < MAX_PAGINAS; pagina++) {
-            const t0 = performance.now();
-            const r = await requisitar({
-                method: 'GET',
-                url: URL_PARCELAS + '/' + idConta + '/parcelas/' + pagina + '/3?_=' + Date.now(),
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                timeout: 30000
-            });
-            const ms = Math.round(performance.now() - t0);
-            if (r.status !== 200) { escreverDetalhe('pagina ' + pagina + ': HTTP ' + r.status); break; }
-
-            let json;
-            try { json = JSON.parse(r.responseText); } catch (e) { escreverDetalhe('pagina ' + pagina + ': JSON invalido'); break; }
-            if (!json) break;
-            if (json.emptyList !== undefined) { escreverDetalhe('pagina ' + pagina + ': emptyList (fim)'); break; }
-
-            const arr = Array.isArray(json) ? json : [json];
-            todas.push(...arr);
-            escreverDetalhe('pagina ' + pagina + ': ' + arr.length + ' parcela(s) em ' + ms + 'ms');
+            const res = await umaPagina(idConta, pagina);
+            if (res.fim) break;
+            todas.push(...res.dados);
         }
         return todas;
     }
@@ -222,44 +230,76 @@
             const contas = await buscar(num);
             if (!contas) return;
 
-            // Saldo da conta segundo o HTML
+            // Saldo da conta segundo o HTML — a META, lida antes das parcelas.
             const comSaldo = contas.filter(c => brl(c.disponivelTexto) > 0);
             escrever('');
             escrever('contas com disponivel > 0 no HTML: ' + comSaldo.length,
                 comSaldo.length ? '#27ae60' : '#e67e22');
 
             for (const conta of contas) {
-                const disponivelHtml = brl(conta.disponivelTexto);
+                const meta = brl(conta.disponivelTexto);
 
-                if (disponivelHtml <= 0) {
+                if (meta <= 0) {
                     escrever('   conta ' + conta.numeroConta + ': sem saldo no HTML — pulando API', '#888');
                     continue;
                 }
 
                 escrever('');
-                escrever('2) API de parcelas — conta ' + conta.numeroConta + ' (id ' + conta.idConta + ')', '#1e88e5');
-                const api = await parcelasApi(conta.idConta);
+                escrever('2) somando parcelas DE TRAS PARA A FRENTE — conta '
+                    + conta.numeroConta + ' (id ' + conta.idConta + ')', '#1e88e5');
+                escreverDetalhe('meta (valor disponivel da conta): ' + fmt(meta));
 
-                const porId = {};
-                api.forEach(p => { porId[String(p.idParcela)] = p; });
+                let acumulado = 0;
+                let parou = -1;
+                let apiUsada = false;
 
-                const detalhe = conta.parcelas.map(p => {
-                    const reg = porId[String(p.idParcela)];
-                    const txt = reg && reg.codigoRetorno === '0'
-                        ? (reg.valorSaldoCorrigidoFormatado || p.disponivelTexto)
-                        : p.disponivelTexto;
-                    return Object.assign({}, p, { finalTexto: txt, finalValor: brl(txt) });
-                });
+                // Fase 1: o que ja veio no HTML, do fim para o comeco.
+                for (let i = conta.parcelas.length - 1; i >= 0; i--) {
+                    const p = conta.parcelas[i];
+                    p.finalValor = brl(p.disponivelTexto);
+                    p.fonte = 'html';
+                    acumulado += p.finalValor;
+                    if (acumulado >= meta - 0.005) { parou = i; break; }
+                }
 
-                const total = detalhe.reduce((s, p) => s + p.finalValor, 0);
-                escreverDetalhe('total das parcelas: ' + fmt(total) + ' | conta no HTML: ' + conta.disponivelTexto);
+                if (parou >= 0) {
+                    escreverDetalhe('fechou so com o HTML, na parcela #'
+                        + conta.parcelas[parou].numero + ' — API nao foi chamada');
+                } else {
+                    escreverDetalhe('HTML somou ' + fmt(acumulado)
+                        + ' de ' + fmt(meta) + ' — consultando API');
 
-                const batem = Math.abs(total - disponivelHtml) < 0.01;
+                    // Fase 2: API, so o que falta.
+                    apiUsada = true;
+                    for (let pagina = 0; pagina < 60; pagina++) {
+                        const res = await umaPagina(conta.idConta, pagina);
+                        if (res.fim) break;
+                        escreverDetalhe('   pagina ' + pagina + ': ' + res.dados.length + ' parcelas');
+
+                        for (const reg of res.dados) {
+                            if (!reg || reg.codigoRetorno !== '0') continue;
+                            const p = conta.parcelas.find(x => String(x.idParcela) === String(reg.idParcela));
+                            if (!p || p.fonte === 'api') continue;
+                            const txt = reg.valorSaldoCorrigidoFormatado;
+                            if (!txt) continue;
+                            acumulado += brl(txt) - p.finalValor;
+                            p.finalTexto = txt;
+                            p.finalValor = brl(txt);
+                            p.fonte = 'api';
+                        }
+                        if (acumulado >= meta - 0.005) break;
+                    }
+                }
+
+                const batem = Math.abs(acumulado - meta) < 0.005;
+                escreverDetalhe('acumulado: ' + fmt(acumulado) + ' | meta: ' + fmt(meta)
+                    + ' | API consultada: ' + (apiUsada ? 'sim' : 'nao'));
                 escrever('   ' + (batem ? 'OK — valores batem' : 'DIVERGENCIA'),
                     batem ? '#27ae60' : '#c0392b');
 
-                detalhe.filter(p => p.finalValor > 0).forEach(p => {
-                    escrever('   • ' + p.data + ' - ' + p.depositante + ' - ' + fmt(p.finalValor));
+                conta.parcelas.filter(p => p.finalValor > 0).forEach(p => {
+                    escrever('   • ' + p.data + ' - ' + p.depositante + ' - '
+                        + fmt(p.finalValor) + ' (' + p.fonte + ')');
                 });
             }
 

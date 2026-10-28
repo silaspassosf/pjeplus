@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.6.33
+// @version      2.6.34
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -81,7 +81,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.6.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.6.4
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/dados.js?v=2.6.16
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.2.1
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.3.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/saldo_extracao.js?v=2.1.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/carta/carta.js?v=2.1.0

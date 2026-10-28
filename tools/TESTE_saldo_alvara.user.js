@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TESTE — Saldo Alvará (isolado)
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Teste isolado da consulta de saldo do Alvará Eletrônico. Injeta um painel com botão "Buscar saldo" no PJe. Não depende do pjetools.
 // @author       Silas
 // @match        https://pje.trt2.jus.br/*
@@ -197,6 +197,16 @@
 
         const arr = Array.isArray(json) ? json : [json];
         escreverDetalhe('pagina ' + pagina + ': ' + arr.length + ' parcela(s) em ' + ms + 'ms');
+
+        // PROVA: o que REALMENTE veio. Sem isso a gente fica adivinhando se o
+        // array contem parcelas ou alguma outra coisa.
+        if (arr.length) {
+            escreverDetalhe('pagina ' + pagina + ' chaves: ' + JSON.stringify(Object.keys(arr[0])));
+            escreverDetalhe('pagina ' + pagina + ' item0: ' + JSON.stringify(arr[0]));
+        } else {
+            escreverDetalhe('pagina ' + pagina + ' corpo cru: ' + r.responseText.slice(0, 300));
+        }
+
         return { dados: arr, fim: arr.length === 0 };
     }
 
@@ -263,17 +273,40 @@
                     if (res.fim) { escreverDetalhe('   pagina ' + k + ': vazia, pulando'); continue; }
                     paginasLidas++;
 
+                    // PROVA: mostra o JSON bruto da primeira pagina lida.
+                    // Se codigoRetorno vier numero (0) e nao string ('0'), o
+                    // filtro abaixo descarta tudo em silencio.
+                    if (paginasLidas === 1) {
+                        escreverDetalhe('   JSON BRUTO da pagina ' + k + ': '
+                            + JSON.stringify(res.dados[0]));
+                        escreverDetalhe('   tipos: idParcela=' + typeof res.dados[0].idParcela
+                            + ' | codigoRetorno=' + typeof res.dados[0].codigoRetorno
+                            + ' (' + JSON.stringify(res.dados[0].codigoRetorno) + ')');
+                    }
+
                     const anterior = acumulado;
+                    let casou = 0, naoCasou = 0, semTexto = 0;
 
                     for (const reg of res.dados) {
-                        if (!reg || reg.codigoRetorno !== '0') continue;
+                        if (!reg) continue;
+                        // Sem filtro de codigoRetorno: o console nao filtrava e
+                        // funcionava. Comparar como string cobre 0 e '0'.
                         const p = conta.parcelas.find(x => String(x.idParcela) === String(reg.idParcela));
-                        if (!p) continue;
+                        if (!p) {
+                            naoCasou++;
+                            escreverDetalhe('   idParcela ' + JSON.stringify(reg.idParcela)
+                                + ' da API nao casou com nenhuma linha do HTML');
+                            continue;
+                        }
+                        casou++;
                         const txt = reg.valorSaldoCorrigidoFormatado;
-                        if (!txt) continue;
+                        if (!txt) { semTexto++; continue; }
                         p.finalValor = brl(txt);
                         p.fonte = 'api';
                     }
+
+                    escreverDetalhe('   casou ' + casou + ' | nao casou ' + naoCasou
+                        + ' | sem valorSaldoCorrigidoFormatado ' + semTexto);
 
                     acumulado = conta.parcelas.reduce((s, p) => s + (p.finalValor || 0), 0);
 

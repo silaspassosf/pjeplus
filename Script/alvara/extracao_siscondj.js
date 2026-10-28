@@ -342,7 +342,11 @@
             const anterior = acumulado;
 
             for (const reg of res.dados) {
-                if (!reg || reg.codigoRetorno !== '0') continue;
+                if (!reg) continue;
+                // NÃO filtrar por codigoRetorno: a API pode devolver o número
+                // 0 em vez da string '0', e a comparação estrita descartaria
+                // todas as parcelas em silêncio. O valor vem em
+                // valorSaldoCorrigidoFormatado quando existe.
                 const idx = conta.parcelas.findIndex(p => String(p.idParcela) === String(reg.idParcela));
                 if (idx < 0) continue;
                 const p = conta.parcelas[idx];

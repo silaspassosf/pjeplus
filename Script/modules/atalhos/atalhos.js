@@ -804,12 +804,19 @@ async function _maisPjeEsperarAlvo(nome, timeout) {
 
 // Procura o alvo pelo nome dentro do container (ou do documento, se o
 // container não abriu). Mesmo critério da extensão, mais o "contém".
+//
+// IMPORTANTE: devolve sempre o BOTÃO, nunca um filho dele. Os botões da
+// extensão são montados como
+//     <button id=N name="Siscon"><span class="mat-button-wrapper">Siscon</span></button>
+// e o onclick vive no <button>. Se a busca por texto devolvesse o <span>,
+// clicar nele não aciona nada — foi o que acontecia com "Siscon".
 function _maisPjeAcharAlvo(nome, container) {
     const alvo = String(nome).trim();
     const alvoLower = alvo.toLowerCase();
     const escopo = container || document;
 
-    const candidatos = Array.from(escopo.querySelectorAll('button, a, div, span, li'));
+    // Só elementos que podem RECEBER o clique. Sem 'li' nem 'i'.
+    const candidatos = Array.from(escopo.querySelectorAll('button, a, div, span'));
 
     // 1) nome exato: aria-label, name ou id
     const exato = candidatos.find(el => {
@@ -834,12 +841,26 @@ function _maisPjeAcharAlvo(nome, container) {
     return null;
 }
 
-// Clica de fato: tenta o wrapper do Material, depois o próprio elemento.
+// Sobe do elemento achado até o <button>/<a> que de fato tem o handler.
+// O onclick da extensão está no botão; o texto está no span interno.
+function _maisPjeBotaoDe(el) {
+    if (!el) return null;
+    if (el.closest) {
+        const bt = el.closest('button, a');
+        if (bt) return bt;
+    }
+    return el;
+}
+
+// Clica de fato — mesma sequência do original (atalhos.js:677-678):
+//   alvo.querySelector('.mat-button-wrapper')?.click();
+//   alvo.click();
 function _maisPjeClicar(el) {
+    const botao = _maisPjeBotaoDe(el);
     let clicou = false;
-    const wrapper = el.querySelector && el.querySelector('.mat-button-wrapper');
+    const wrapper = botao.querySelector && botao.querySelector('.mat-button-wrapper');
     if (wrapper) { try { wrapper.click(); clicou = true; } catch (e) { } }
-    try { el.click(); clicou = true; } catch (e) { }
+    try { botao.click(); clicou = true; } catch (e) { }
     return clicou;
 }
 
@@ -877,18 +898,20 @@ function maisPjeHover(icone, opcoes) {
             }
 
             // Destaque visual rápido, para dar para ver por onde passou.
-            const estiloAnterior = alvo.style.cssText;
-            alvo.style.border = '2px solid red';
-            alvo.style.boxShadow = '0 0 10px red';
+            // Vai no BOTÃO (onde está o handler), não no span interno.
+            const botao = _maisPjeBotaoDe(alvo);
+            const estiloAnterior = botao.style.cssText;
+            botao.style.border = '2px solid red';
+            botao.style.boxShadow = '0 0 10px red';
             await new Promise(r => setTimeout(r, 150));
 
             _maisPjeClicar(alvo);
-            alvo.style.cssText = estiloAnterior;
+            botao.style.cssText = estiloAnterior;
 
             if (opts.silencioso !== true) {
                 _maisPjeAviso(`maisPje: ${icone} ➜ ${nome}`, '#4caf50');
             }
-            return { ok: true, icone, alvo, container };
+            return { ok: true, icone, alvo: botao, container };
         }
     };
     return api;

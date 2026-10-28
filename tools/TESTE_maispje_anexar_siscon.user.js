@@ -275,16 +275,32 @@
         alvo.style.boxShadow = '0 0 10px red';
         await wait(200);
 
-        const wrapper = alvo.querySelector('.mat-button-wrapper');
-        log('   .mat-button-wrapper existe? ' + (wrapper ? 'sim' : 'NÃO'));
+        const botao = (alvo.closest ? alvo.closest('button, a') : null) || alvo;
+        try { if (typeof botao.focus === 'function') botao.focus(); } catch (e) {}
 
-        if (wrapper) {
-            try { wrapper.click(); log('   ✓ wrapper.click() executado'); }
-            catch (e) { logErro('   wrapper.click() falhou: ' + e.message); }
+        log('   dispatch mouseover/mouseenter/pointerdown/mousedown/pointerup/mouseup no botão');
+        safeDispatch(botao, 'mouseover', opts);
+        safeDispatch(botao, 'mouseenter', opts);
+        safeDispatch(botao, 'pointerdown', opts);
+        safeDispatch(botao, 'mousedown', opts);
+        safeDispatch(botao, 'pointerup', opts);
+        safeDispatch(botao, 'mouseup', opts);
+
+        let clicou = false;
+        try {
+            if (typeof botao.click === 'function') {
+                botao.click();
+                clicou = true;
+                log('   ✓ botao.click() executado (único)');
+            }
+        } catch (e) {
+            logErro('   botao.click() falhou: ' + e.message);
         }
 
-        try { alvo.click(); log('   ✓ alvo.click() executado'); }
-        catch (e) { logErro('   alvo.click() falhou: ' + e.message); }
+        if (!clicou) {
+            safeDispatch(botao, 'click', opts);
+            log('   ✓ safeDispatch(click) executado');
+        }
 
         await wait(1500);
 

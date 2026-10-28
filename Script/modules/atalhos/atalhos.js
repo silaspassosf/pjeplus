@@ -797,6 +797,42 @@ function _maisPjeBotaoDe(el) {
     return el;
 }
 
+// Dispara um clique completo e seguro no elemento (ou no seu botão ancestral).
+// Envia a sequência completa de eventos (mouseover, mouseenter, pointerdown,
+// mousedown, pointerup, mouseup, click) evitando o disparo duplo que cancelava
+// a ação quando wrapper e botão eram ambos clicados.
+function _maisPjeClicar(el) {
+    if (!el) return false;
+    const botao = _maisPjeBotaoDe(el) || el;
+    const safeDispatch = _maisPjeDispatcher();
+    const dispatchOpts = { bubbles: true, cancelable: true, view: window };
+
+    try { if (typeof botao.focus === 'function') botao.focus(); } catch (e) {}
+
+    safeDispatch(botao, 'mouseover',  dispatchOpts);
+    safeDispatch(botao, 'mouseenter', dispatchOpts);
+    safeDispatch(botao, 'pointerdown', dispatchOpts);
+    safeDispatch(botao, 'mousedown',  dispatchOpts);
+    safeDispatch(botao, 'pointerup',   dispatchOpts);
+    safeDispatch(botao, 'mouseup',    dispatchOpts);
+
+    let clicou = false;
+    try {
+        if (typeof botao.click === 'function') {
+            botao.click();
+            clicou = true;
+        }
+    } catch (e) {
+        console.warn('[maisPje] Falha em botao.click():', e);
+    }
+
+    if (!clicou) {
+        safeDispatch(botao, 'click', dispatchOpts);
+    }
+
+    return true;
+}
+
 /**
  * Motor genérico dos botões da maisPJe.
  *
@@ -861,14 +897,15 @@ function maisPjeHover(icone, opcoes) {
                 alvo.style.boxShadow = '0 0 10px red';
                 await wait(150);
 
-                // JS: alvo.querySelector('.mat-button-wrapper')?.click();
-                //     alvo.click();
-                // Só que `alvo` aqui pode ser o <span> interno (texto exato),
-                // e o onclick vive no <button> pai. Sobe para o botão antes.
-                const botao = _maisPjeBotaoDe(alvo);
-                const wrapper = botao.querySelector('.mat-button-wrapper');
-                if (wrapper) wrapper.click();
-                botao.click();
+                const botao = _maisPjeBotaoDe(alvo) || alvo;
+                _maisPjeClicar(botao);
+
+                setTimeout(() => {
+                    try {
+                        alvo.style.border = '';
+                        alvo.style.boxShadow = '';
+                    } catch (e) {}
+                }, 1000);
 
                 if (opts.silencioso !== true) {
                     _maisPjeAviso(`Ação disparada: ${nome}`, '#4caf50');
@@ -896,6 +933,7 @@ async function acionarMaisPJe(icone, alvo, opcoes) {
 window.maisPje = {
     hover: maisPjeHover,
     acionar: acionarMaisPJe,
+    clicar: _maisPjeClicar,
     icones: MAISPJE_ICONES,
     selectorBase: MAISPJE_BASE
 };

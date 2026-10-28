@@ -747,61 +747,6 @@ function _maisPjeIcone(nome) {
         || null;
 }
 
-// Faz o hover em um ícone da barra. Devolve o container do menu que abriu,
-// ou null se não abriu (aí o alvo pode ser o próprio ícone).
-async function _maisPjeHover(icone) {
-    const safeDispatch = _maisPjeDispatcher();
-    const opts = { bubbles: true, cancelable: true, view: window };
-
-    // A extensão não limpa o menu do hover anterior: ele fica no DOM com os
-    // botões do ícone antigo. Se não removermos, a busca acha o botão do menu
-    // velho e o clique sai no lugar errado (foi observado: hover em concluso
-    // e o menu do anexar ainda na tela com "Siscon").
-    const menuVelho = document.querySelector('maispjecontaineraa');
-    if (menuVelho) menuVelho.remove();
-
-    // ORDEM E CONJUNTO IDÊNTICOS AO ORIGINAL (atalhos.js:662-664).
-    //
-    // A extensão (gigs-plugin.js:4613) faz:
-    //     base.onmouseover = ev => { if (ev.target.id) elementoAtivo = ev.target.id }
-    // e o botão faz onmouseenter → sleep(500) → if (elementoAtivo == this.id).
-    // Ou seja: o mouseover tem de chegar ao base ANTES do mouseenter do
-    // botão. Disparar no ícone com bubbles:true sobe até o base levando
-    // event.target = ícone (que tem id) — exatamente o que ela espera.
-    //
-    // Não intercalar esperas: o mouseleave do botão zera elementoAtivo, e
-    // qualquer coisa entre o mouseover e o mouseenter pode deixá-lo vazio.
-    safeDispatch(icone, 'mouseover',  opts);
-    safeDispatch(icone, 'mouseenter', opts);
-    safeDispatch(icone, 'mousemove',  opts);
-
-    return await esperarElemento('maispjecontaineraa', 3000);
-}
-
-// Espera o ALVO aparecer — não o container.
-//
-// O container pode já estar na tela de um hover anterior (montado com outro
-// conjunto de botões) e NÃO é limpo pela extensão. Esperar só por ele
-// devolveria um menu obsoleto, e é por isso que a remoção prévia (em
-// _maisPjeHover) existe. Aqui a condição de parada é o próprio botão existir.
-async function _maisPjeEsperarAlvo(nome, timeout) {
-    const fim = Date.now() + (timeout || 3000);
-    while (Date.now() < fim) {
-        const container = document.querySelector('maispjecontaineraa');
-        if (container) {
-            const noMenu = _maisPjeAcharAlvo(nome, container);
-            if (noMenu) return { alvo: noMenu, container, origem: 'menu' };
-        }
-        // Sem menu: pode ser um ícone da própria barra (hover A, clique B).
-        // Restrinjo à barra — varrer o documento inteiro encontrava botões
-        // de menus antigos e dava falso positivo.
-        const naBarra = _maisPjeAcharAlvo(nome, document.querySelector(MAISPJE_BASE) || null);
-        if (naBarra) return { alvo: naBarra, container, origem: 'barra' };
-        await new Promise(r => setTimeout(r, 100));
-    }
-    return { alvo: null, container: document.querySelector('maispjecontaineraa') };
-}
-
 // Procura o alvo pelo nome dentro do container (ou do documento, se o
 // container não abriu). Mesmo critério da extensão, mais o "contém".
 //
@@ -852,18 +797,6 @@ function _maisPjeBotaoDe(el) {
     return el;
 }
 
-// Clica de fato — mesma sequência do original (atalhos.js:677-678):
-//   alvo.querySelector('.mat-button-wrapper')?.click();
-//   alvo.click();
-function _maisPjeClicar(el) {
-    const botao = _maisPjeBotaoDe(el);
-    let clicou = false;
-    const wrapper = botao.querySelector && botao.querySelector('.mat-button-wrapper');
-    if (wrapper) { try { wrapper.click(); clicou = true; } catch (e) { } }
-    try { botao.click(); clicou = true; } catch (e) { }
-    return clicou;
-}
-
 /**
  * Motor genérico dos botões da maisPJe.
  *
@@ -878,40 +811,75 @@ function maisPjeHover(icone, opcoes) {
     const api = {
         /** Clica em `nome`, que pode estar no menu aberto ou ser o próprio ícone. */
         async clicar(nome) {
-            const iconeEl = _maisPjeIcone(icone);
-            if (!iconeEl) {
+            const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+            const triggerEl = _maisPjeIcone(icone);
+            if (!triggerEl) {
                 const msg = `maisPje: ícone "${icone}" não encontrado`;
                 if (opts.silencioso !== true) _maisPjeAviso(msg, '#f44336');
                 return { ok: false, erro: msg, icone };
             }
 
-            await _maisPjeHover(iconeEl);
+            const safeDispatch = _maisPjeDispatcher();
+            const dispatchOpts = { bubbles: true, cancelable: true, view: window };
 
-            // O menu do Anexar demora ~500ms para montar os botões depois do
-            // hover, então esperamos o ALVO, não o container.
-            const { alvo, container } = await _maisPjeEsperarAlvo(nome, opts.timeoutAlvo || 4000);
+            // ── Daqui para baixo é o ORIGINAL, linha por linha ──────────
+            // (atalhos.js, hoverAndClickTarget, versão 76e6e03)
+            safeDispatch(triggerEl, 'mouseover',  dispatchOpts);
+            safeDispatch(triggerEl, 'mouseenter', dispatchOpts);
+            safeDispatch(triggerEl, 'mousemove',  dispatchOpts);
 
-            if (!alvo) {
-                const msg = `maisPje: botão "${nome}" não apareceu após hover em "${icone}"`;
+            const container = await esperarElemento('maispjecontaineraa', 3000);
+            if (!container) {
+                const msg = 'Timeout: Menu MaisPJe não abriu!';
                 if (opts.silencioso !== true) _maisPjeAviso(msg, '#f44336');
-                return { ok: false, erro: msg, icone, container };
+                return { ok: false, erro: msg, icone, container: null };
             }
 
-            // Destaque visual rápido, para dar para ver por onde passou.
-            // Vai no BOTÃO (onde está o handler), não no span interno.
-            const botao = _maisPjeBotaoDe(alvo);
-            const estiloAnterior = botao.style.cssText;
-            botao.style.border = '2px solid red';
-            botao.style.boxShadow = '0 0 10px red';
-            await new Promise(r => setTimeout(r, 150));
-
-            _maisPjeClicar(alvo);
-            botao.style.cssText = estiloAnterior;
-
-            if (opts.silencioso !== true) {
-                _maisPjeAviso(`maisPje: ${icone} ➜ ${nome}`, '#4caf50');
+            // A extensão monta os botões ~500ms depois. O original espera 250
+            // e já acha porque movimento é rápido; aqui o menu do Anexar é
+            // maior, então esperamos o botão aparecer dentro deste container.
+            //
+            // If o alvo não estiver neste container, espera até aparecer —
+            // pode ser que o menu ainda esteja sendo montado.
+            let alvo = null;
+            const fimEspera = Date.now() + 5000;
+            while (Date.now() < fimEspera) {
+                const botaoNoContainer = _maisPjeAcharAlvo(nome, container);
+                if (botaoNoContainer) { alvo = botaoNoContainer; break; }
+                await wait(100);
             }
-            return { ok: true, icone, alvo: botao, container };
+
+            // Se não achou no container, tenta na barra (hover A, clique B).
+            if (!alvo) {
+                const barra = document.querySelector(MAISPJE_BASE);
+                if (barra) alvo = _maisPjeAcharAlvo(nome, barra);
+            }
+
+            if (alvo) {
+                alvo.style.border = '2px solid red';
+                alvo.style.boxShadow = '0 0 10px red';
+                await wait(150);
+
+                // JS: alvo.querySelector('.mat-button-wrapper')?.click();
+                //     alvo.click();
+                // Só que `alvo` aqui pode ser o <span> interno (texto exato),
+                // e o onclick vive no <button> pai. Sobe para o botão antes.
+                const botao = _maisPjeBotaoDe(alvo);
+                const wrapper = botao.querySelector('.mat-button-wrapper');
+                if (wrapper) wrapper.click();
+                botao.click();
+
+                if (opts.silencioso !== true) {
+                    _maisPjeAviso(`Ação disparada: ${nome}`, '#4caf50');
+                }
+                return { ok: true, icone, alvo: botao, container };
+            }
+
+            const msg = `Botão não encontrado: ${nome}`;
+            if (opts.silencioso !== true) _maisPjeAviso(msg, '#f44336');
+            return { ok: false, erro: msg, icone, container };
+            // ── fim do original ─────────────────────────────────────────
         }
     };
     return api;

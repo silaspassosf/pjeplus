@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Probe
 // @namespace    pjeplus.probe
-// @version      1.1
+// @version      1.2
 // @description  Botao PROBE: grava seletores (ranking de estabilidade) e endpoints de API (fetch+XHR) da tela. Sobrevive a navegacao/login MESMO ATRAVESSANDO ORIGENS DIFERENTES (GM_setValue nao e por origem). Ao parar, copia relatorio para a area de transferencia.
 // @match        *://*.jus.br/*
 // @run-at       document-end
@@ -11,6 +11,18 @@
 // @grant        GM_deleteValue
 // ==/UserScript==
 /**
+ * v1.2: alem de seletores e endpoints, grava os HOVERS da barra maisPJe.
+ *
+ *   Fica restrito a #maisPJe_bt_detalhes_base: so entra o hover cujo elemento
+ *   esta dentro dessa barra. Hover em qualquer outra coisa da pagina e
+ *   ignorado — o objetivo e mapear "icone -> botoes que o menu abre".
+ *
+ *   Depois de cada hover, espera 700ms (a extensao monta os botoes ~500ms
+ *   depois, ver addBotaoTelaAnexar) e le o menu maisPjeContainerAA, gravando
+ *   id, name, texto e visibilidade de cada botao. O relatorio sai no formato
+ *   que o motor usa:  ICONE #maisPJe_bt_detalhes_anexarDocumentos
+ *                     name="SISCON"  texto="SISCON"
+ *
  * v1.1: troca sessionStorage (isolado por origem) por GM_setValue/GM_getValue
  * (compartilhado entre TODAS as origens que o script casa via @match) — resolve
  * o caso em que o fluxo de login/navegacao atravessa dominios diferentes dentro
@@ -39,6 +51,7 @@
     selectors: [],
     selectorIndex: {},
     endpoints: {},
+    hovers: {},
     origFetch: null,
     origOpen: null,
     origSend: null,
@@ -55,6 +68,7 @@
         selectors: state.selectors,
         selectorIndex: state.selectorIndex,
         endpoints: state.endpoints,
+        hovers: state.hovers,
       }));
     } catch (e) {}
   }
@@ -200,6 +214,98 @@
     }
   }
 
+  // ── Hovers da maisPJe ──────────────────────────────────────────────────
+  //
+  // Grava SO os hovers cujo elemento esta dentro de #maisPJe_bt_detalhes_base
+  // (a barra de icones da extensao). Cada hover e registrado junto com os
+  // botoes que apareceram no menu depois dele — o mapa "icone -> botoes" e
+  // exatamente o que falta para automatizar o clique por nome.
+  //
+  // Fica separado de state.selectors de proposito: sao coisas diferentes.
+  // Um seletor e "como achar este elemento"; um hover e "que menu este
+  // icone abre".
+
+  var MAISPJE_BASE = '#maisPJe_bt_detalhes_base';
+  var MAISPJE_MENU = 'maisPjeContainerAA';
+
+  function iconeDoHover(ev) {
+    var alvo = ev.target;
+    if (!alvo || !alvo.closest) return null;
+    return alvo.closest(MAISPJE_BASE + ' button[aria-label], ' + MAISPJE_BASE + ' a[aria-label]');
+  }
+
+  // Le os botoes que a extensao montou no menu (nome + texto + visibilidade).
+  function lerMenuMaisPje() {
+    var menu = document.querySelector(MAISPJE_MENU);
+    if (!menu) return null;
+
+    var botoes = [];
+    var todos = menu.querySelectorAll('button');
+    for (var i = 0; i < todos.length; i++) {
+      var b = todos[i];
+      var texto = (b.textContent || '').trim();
+      if (!texto && !b.name && !b.id) continue;
+      // visivel de verdade: sem display:none e com caixa
+      var visivel = b.offsetParent !== null && b.style.display !== 'none';
+      botoes.push({
+        id: b.id || '',
+        name: b.name || '',
+        texto: texto,
+        ariaLabel: b.getAttribute('aria-label') || '',
+        visivel: visivel
+      });
+    }
+    return { id: menu.id || '', total: botoes.length, botoes: botoes };
+  }
+
+  function registrarHoverMaisPje(iconeEl) {
+    if (!state.recording) return;
+
+    var rotulo = iconeEl.getAttribute('aria-label') || '';
+    var chave = iconeEl.id || rotulo;
+    var agora = Date.now();
+
+    // Agrupa hovers repetidos do mesmo icone (o mouse sai e volta o tempo
+    // todo). Guarda so o ultimo menu lido, mas conta as ocorrencias.
+    var h = state.hovers[chave];
+    if (!h) {
+      h = state.hovers[chave] = {
+        id: iconeEl.id || '',
+        rotulo: rotulo,
+        vezes: 0,
+        menuId: '',
+        botoes: [],
+        atualizadoEm: null
+      };
+    }
+    h.vezes++;
+    h.atualizadoEm = agora;
+
+    // A extensao monta os botoes ~500ms depois do hover (addBotaoTelaAnexar
+    // usa sleep(500)). Ler cedo demais pegaria o menu vazio ou o anterior.
+    setTimeout(function () {
+      try {
+        var menu = lerMenuMaisPje();
+        if (!menu) return;
+        h.menuId = menu.id;
+        h.botoes = menu.botoes;
+        salvarEstado();
+      } catch (e) {}
+    }, 700);
+
+    salvarEstado();
+  }
+
+  function onHoverMaisPje(ev) {
+    try {
+      if (!state.recording) return;
+      var icone = iconeDoHover(ev);
+      if (icone) registrarHoverMaisPje(icone);
+    } catch (e) {
+      // nunca deixar o probe quebrar a pagina do usuario
+    }
+  }
+
   // ── Endpoints (mesmo mecanismo de Script/bookmarklet_spy.js) ───────────
 
   function urlTemplate(url) {
@@ -298,6 +404,31 @@
       if (e.exampleRes) lines.push('    res: ' + e.exampleRes);
     });
 
+    lines.push('', '== HOVERS maisPJe ==');
+    var hovs = [];
+    for (var hk in state.hovers) hovs.push(state.hovers[hk]);
+    if (!hovs.length) {
+      lines.push('(nenhum hover registrado na barra maisPJe)');
+    } else {
+      hovs.sort(function (a, b) { return b.vezes - a.vezes; });
+      hovs.forEach(function (h) {
+        lines.push('');
+        // Linha pronta para usar no motor: hover(<id>) -> clicar(<name>)
+        lines.push('ICONE ' + (h.id || '(sem id)') + '   "' + h.rotulo + '"   (' + h.vezes + 'x)');
+        if (h.id) lines.push('  selector: #' + h.id);
+        if (!h.botoes.length) {
+          lines.push('  botoes: (menu nao lido — hover sem menu aberto?)');
+        } else {
+          lines.push('  botoes (' + h.botoes.length + '):');
+          h.botoes.forEach(function (b) {
+            var marca = b.visivel ? '' : '  [OCULTO]';
+            lines.push('    name="' + b.name + '"  texto="' + b.texto + '"' +
+              (b.id ? '  id=' + b.id : '') + marca);
+          });
+        }
+      });
+    }
+
     return lines.join('\n');
   }
 
@@ -336,13 +467,19 @@
     state.selectors = retomarDe ? retomarDe.selectors : [];
     state.selectorIndex = retomarDe ? retomarDe.selectorIndex : {};
     state.endpoints = retomarDe ? retomarDe.endpoints : {};
+    state.hovers = (retomarDe && retomarDe.hovers) ? retomarDe.hovers : {};
     document.addEventListener('click', onInteraction, true);
     document.addEventListener('focusin', onInteraction, true);
+    // Hovers da barra maisPJe: mouseover e o unico evento que a extensao
+    // garante receber (ela usa onmouseenter no botao, que dispara junto).
+    document.addEventListener('mouseover', onHoverMaisPje, true);
     patchNetwork();
     btn.style.background = COLOR_REC;
     salvarEstado();
     liveTimer = setInterval(function () {
-      btn.textContent = '● GRAVANDO ' + state.selectors.length + '/' + Object.keys(state.endpoints).length + ' (clique p/ parar)';
+      btn.textContent = '● GRAVANDO ' + state.selectors.length + '/' +
+        Object.keys(state.endpoints).length + ' ep/' +
+        Object.keys(state.hovers).length + ' hov (clique p/ parar)';
     }, 500);
   }
 
@@ -351,12 +488,15 @@
     clearInterval(liveTimer);
     document.removeEventListener('click', onInteraction, true);
     document.removeEventListener('focusin', onInteraction, true);
+    document.removeEventListener('mouseover', onHoverMaisPje, true);
     unpatchNetwork();
     var report = buildReport();
     copyText(report);
     limparEstadoSalvo();
     console.log('[PJE_PROBE] relatorio copiado:\n' + report);
-    btn.textContent = '✓ copiado (' + state.selectors.length + ' sel / ' + Object.keys(state.endpoints).length + ' ep)';
+    btn.textContent = '✓ copiado (' + state.selectors.length + ' sel / ' +
+      Object.keys(state.endpoints).length + ' ep / ' +
+      Object.keys(state.hovers).length + ' hov)';
     btn.style.background = COLOR_DONE;
     setTimeout(function () {
       btn.textContent = '● PROBE';

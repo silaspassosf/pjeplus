@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TESTE maisPJe — anexar/siscon
 // @namespace    pjeplus.teste
-// @version      1.0
+// @version      1.1
 // @description  Teste isolado do hover+clique em botao da maisPJe, com log de cada etapa
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
 // @run-at       document-end
@@ -39,6 +39,22 @@
         });
     }
 
+    // A extensão monta a barra depois do Angular renderizar. Esperar aqui
+    // evita o "base não encontrada" que acontecia em document-end.
+    function esperarBase(timeout) {
+        return new Promise(resolve => {
+            const t0 = Date.now();
+            const iv = setInterval(() => {
+                const base = document.querySelector('#maisPJe_bt_detalhes_base');
+                // Só vale quando já tem botões dentro (extensão terminou).
+                if (base && base.querySelector('button[aria-label]')) {
+                    clearInterval(iv); resolve(base);
+                }
+                if (Date.now() - t0 > timeout) { clearInterval(iv); resolve(null); }
+            }, 200);
+        });
+    }
+
     // ══════════════════════════════════════════════════════════════════
     // TESTE
     // ══════════════════════════════════════════════════════════════════
@@ -53,10 +69,12 @@
         // ── ETAPA 1: achar o ícone ────────────────────────────────────
         logPasso('ETAPA 1 — localizar o ícone do hover');
 
-        const base = document.querySelector('#maisPJe_bt_detalhes_base');
+        const base = await esperarBase(15000);
         if (!base) {
-            logErro('FALHA: #maisPJe_bt_detalhes_base não existe na página!');
-            logErro('A extensão maisPJe está ativa? A barra de botões apareceu?');
+            logErro('FALHA: #maisPJe_bt_detalhes_base com botões não apareceu em 15s!');
+            logErro('A extensão maisPJe está ativa e a barra de botões renderizou?');
+            const semBotoes = document.querySelector('#maisPJe_bt_detalhes_base');
+            logErro('base existe? ' + (semBotoes ? 'sim, mas sem botões' : 'NÃO'));
             return;
         }
         log('✓ base encontrada:', base.id, '| filhos:', base.children.length);
@@ -93,6 +111,9 @@
 
         // ── ETAPA 2: hover ────────────────────────────────────────────
         logPasso('ETAPA 2 — disparar hover no ícone');
+        log('   a extensão (gigs-plugin.js:4613) faz base.onmouseover →');
+        log('   if (event.target.id) elementoAtivo = event.target.id');
+        log('   e o botão faz onmouseenter → sleep(500) → se ativo, monta o menu');
 
         function safeDispatch(el, type, opts) {
             try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
@@ -108,37 +129,57 @@
         }
 
         const opts = { bubbles: true, cancelable: true, view: window };
-        ['mouseover', 'mouseenter', 'mousemove'].forEach(tipo => {
-            const ok = safeDispatch(iconeEl, tipo, opts);
-            log('   dispatch ' + tipo + ' no ícone → ' + (ok ? 'OK' : 'FALHOU'));
-        });
 
-        // A extensão usa elementoAtivo para saber se o mouse está no botão.
-        // Simulamos o que o browser faria: mouseover no ícone e no container.
-        log('   dispatch extra no container base (igual ao motor):');
-        ['mouseover', 'mouseenter', 'mousemove'].forEach(tipo => {
-            safeDispatch(base, tipo, opts);
+        // ORDEM IMPORTA: o mouseover tem de chegar ao base ANTES do
+        // mouseenter do botão, porque é ele que seta elementoAtivo.
+        // Disparar no ícone com bubbles:true já faz isso (sobe até o base
+        // com event.target = ícone, que TEM id).
+        log('   dispatch mouseover no ÍCONE (bubbles → chega no base, target tem id)');
+        const okOver = safeDispatch(iconeEl, 'mouseover', opts);
+        log('   → ' + (okOver ? 'OK' : 'FALHOU'));
+
+        // O ícone tem que ser o alvo (id próprio), não o <i> interno.
+        // Se o alvo fosse o <i>, a extensão subiria para parentElement.id.
+        log('   confirmação: iconeEl.id = "' + iconeEl.id + '" (não vazio = elementoAtivo será setado)');
+
+        await wait(60);
+
+        log('   dispatch mouseenter no ícone (o handler que monta o menu)');
+        ['mouseenter', 'mousemove'].forEach(tipo => {
+            const ok = safeDispatch(iconeEl, tipo, opts);
+            log('   dispatch ' + tipo + ' → ' + (ok ? 'OK' : 'FALHOU'));
         });
-        log('   feito');
 
         // ── ETAPA 3: esperar o container ──────────────────────────────
         logPasso('ETAPA 3 — aguardar o container do menu');
         log('   (a extensão monta os botões 500ms APÓS o hover)');
+        log('   Atenção: o container pode já existir de um hover ANTERIOR —');
+        log('   o que importa é o ID dele (addBotaoTelaAnexar p/ anexar).');
+
+        const containerAntes = document.querySelector('maisPjeContainerAA');
+        if (containerAntes) {
+            log('   ⚠ já havia um container na tela ANTES do hover:');
+            log('      id="' + (containerAntes.id || '(vazio)') + '" botões=' +
+                containerAntes.querySelectorAll('button').length);
+            log('      (removendo para o teste medir o hover de agora)');
+            containerAntes.remove();
+        }
 
         const t0 = Date.now();
         let container = null;
         let ultimoLog = 0;
 
         // Poll manual com log a cada 500ms
-        while (Date.now() - t0 < 6000) {
+        while (Date.now() - t0 < 8000) {
             container = document.querySelector('maisPjeContainerAA');
             const decorrido = Date.now() - t0;
 
             if (decorrido - ultimoLog >= 500) {
                 ultimoLog = decorrido;
                 if (container) {
-                    log('   ' + decorrido + 'ms → container ENCONTRADO (id=' + (container.id || '(vazio)') +
-                        ') botões: ' + container.querySelectorAll('button').length);
+                    log('   ' + decorrido + 'ms → container ENCONTRADO (id="' +
+                        (container.id || '(vazio)') + '") botões: ' +
+                        container.querySelectorAll('button').length);
                 } else {
                     log('   ' + decorrido + 'ms → ainda sem container');
                 }
@@ -148,15 +189,12 @@
         }
 
         if (!container) {
-            logErro('FALHA: container maisPjeContainerAA NÃO apareceu em 6s!');
-            logErro('   Possíveis causas:');
-            logErro('   - mouseover não abriu o menu (a extensão escuta onmouseenter, não mouseover)');
-            logErro('   - a extensão está desligada');
-            logErro('   - o container tem outro nome');
-            log('   Todos os elementos com "maisPje" no id:');
-            document.querySelectorAll('[id*="maisPje"], [id*="maispje"]').forEach(e => {
-                log('      <' + e.tagName.toLowerCase() + ' id="' + e.id + '">');
-            });
+            logErro('FALHA: container maisPjeContainerAA NÃO apareceu em 8s!');
+            logErro('   O hover sintético não chegou a disparar o handler da extensão.');
+            logErro('   Causa provável: a extensão roda em outro contexto (content script),');
+            logErro('   então elementoAtivo dela NÃO é setado pelo nosso MouseEvent.');
+            logErro('   Alternativa: dispare o clique direto no ícone (onclick da extensão');
+            logErro('   chama acaoBotaoDetalhes, que não depende de elementoAtivo).');
             return;
         }
 
@@ -214,6 +252,14 @@
                     ' | texto="' + (b.textContent || '').trim() + '"');
             });
             return;
+        }
+
+        // Botão oculto (display:none) não recebe clique de verdade.
+        const display = getComputedStyle(alvo).display;
+        if (display === 'none' || alvo.offsetParent === null) {
+            logErro('ATENÇÃO: o alvo existe mas está OCULTO (display=' + display + ').');
+            logErro('   Clicar nele não deve fazer nada. Verifique a visibilidade');
+            logErro('   nas preferências da extensão (fase do processo).');
         }
 
         log('✓ alvo encontrado: <' + alvo.tagName.toLowerCase() + '>' +

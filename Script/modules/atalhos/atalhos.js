@@ -753,32 +753,50 @@ async function _maisPjeHover(icone) {
     const safeDispatch = _maisPjeDispatcher();
     const opts = { bubbles: true, cancelable: true, view: window };
 
-    // O hover vai no container também: a extensão escuta mouseover na base
-    // e nos botões, e disparar nos dois aumenta a chance de abrir o menu.
-    const base = document.querySelector(MAISPJE_BASE);
-    [icone, base].filter(Boolean).forEach(el => {
-        safeDispatch(el, 'mouseover', opts);
-        safeDispatch(el, 'mouseenter', opts);
-        safeDispatch(el, 'mousemove', opts);
-    });
+    // A extensão não limpa o menu do hover anterior: ele fica no DOM com os
+    // botões do ícone antigo. Se não removermos, a busca acha o botão do menu
+    // velho e o clique sai no lugar errado (foi observado: hover em concluso
+    // e o menu do anexar ainda na tela com "Siscon").
+    const menuVelho = document.querySelector('maispjecontaineraa');
+    if (menuVelho) menuVelho.remove();
 
-    return await esperarElemento('maispjecontaineraa', 1500);
+    // ORDEM E CONJUNTO IDÊNTICOS AO ORIGINAL (atalhos.js:662-664).
+    //
+    // A extensão (gigs-plugin.js:4613) faz:
+    //     base.onmouseover = ev => { if (ev.target.id) elementoAtivo = ev.target.id }
+    // e o botão faz onmouseenter → sleep(500) → if (elementoAtivo == this.id).
+    // Ou seja: o mouseover tem de chegar ao base ANTES do mouseenter do
+    // botão. Disparar no ícone com bubbles:true sobe até o base levando
+    // event.target = ícone (que tem id) — exatamente o que ela espera.
+    //
+    // Não intercalar esperas: o mouseleave do botão zera elementoAtivo, e
+    // qualquer coisa entre o mouseover e o mouseenter pode deixá-lo vazio.
+    safeDispatch(icone, 'mouseover',  opts);
+    safeDispatch(icone, 'mouseenter', opts);
+    safeDispatch(icone, 'mousemove',  opts);
+
+    return await esperarElemento('maispjecontaineraa', 3000);
 }
 
 // Espera o ALVO aparecer — não o container.
 //
 // O container pode já estar na tela de um hover anterior (montado com outro
-// conjunto de botões). Esperar só por ele devolveria um menu obsoleto. Aqui a
-// condição de parada é o próprio botão existir.
+// conjunto de botões) e NÃO é limpo pela extensão. Esperar só por ele
+// devolveria um menu obsoleto, e é por isso que a remoção prévia (em
+// _maisPjeHover) existe. Aqui a condição de parada é o próprio botão existir.
 async function _maisPjeEsperarAlvo(nome, timeout) {
     const fim = Date.now() + (timeout || 3000);
     while (Date.now() < fim) {
         const container = document.querySelector('maispjecontaineraa');
-        const noMenu = container ? _maisPjeAcharAlvo(nome, container) : null;
-        if (noMenu) return { alvo: noMenu, container };
-        // Sem menu: pode ser um ícone da própria barra.
-        const naBarra = _maisPjeAcharAlvo(nome, document);
-        if (naBarra) return { alvo: naBarra, container };
+        if (container) {
+            const noMenu = _maisPjeAcharAlvo(nome, container);
+            if (noMenu) return { alvo: noMenu, container, origem: 'menu' };
+        }
+        // Sem menu: pode ser um ícone da própria barra (hover A, clique B).
+        // Restrinjo à barra — varrer o documento inteiro encontrava botões
+        // de menus antigos e dava falso positivo.
+        const naBarra = _maisPjeAcharAlvo(nome, document.querySelector(MAISPJE_BASE) || null);
+        if (naBarra) return { alvo: naBarra, container, origem: 'barra' };
         await new Promise(r => setTimeout(r, 100));
     }
     return { alvo: null, container: document.querySelector('maispjecontaineraa') };

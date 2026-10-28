@@ -264,6 +264,22 @@
                         .then(res => {
                             if (res && res.copiado) {
                                 btn.textContent = '✅ Saldo copiado';
+                                // Saldo positivo: aciona o SISCON pelo menu do
+                                // Anexar (hover no ícone, clique no botão).
+                                if (window.maisPje && typeof window.maisPje.hover === 'function') {
+                                    window.maisPje.hover('anexar').clicar('siscon')
+                                        .then(r => {
+                                            if (!r || !r.ok) {
+                                                showToast('Saldo copiado, mas o SISCON não abriu: '
+                                                    + (r && r.erro ? r.erro : 'botão não encontrado'),
+                                                    '#ff9800', 5000);
+                                            }
+                                        })
+                                        .catch(err => console.warn('[PjeTools][Saldo] SISCON:', err));
+                                } else {
+                                    showToast('Motor maisPje não carregado — SISCON não acionado',
+                                        '#ff9800', 4000);
+                                }
                             } else if (res && res.semSaldo) {
                                 btn.textContent = 'Sem saldo';
                             } else {

@@ -765,6 +765,25 @@ async function _maisPjeHover(icone) {
     return await esperarElemento('maispjecontaineraa', 1500);
 }
 
+// Espera o ALVO aparecer — não o container.
+//
+// O container pode já estar na tela de um hover anterior (montado com outro
+// conjunto de botões). Esperar só por ele devolveria um menu obsoleto. Aqui a
+// condição de parada é o próprio botão existir.
+async function _maisPjeEsperarAlvo(nome, timeout) {
+    const fim = Date.now() + (timeout || 3000);
+    while (Date.now() < fim) {
+        const container = document.querySelector('maispjecontaineraa');
+        const noMenu = container ? _maisPjeAcharAlvo(nome, container) : null;
+        if (noMenu) return { alvo: noMenu, container };
+        // Sem menu: pode ser um ícone da própria barra.
+        const naBarra = _maisPjeAcharAlvo(nome, document);
+        if (naBarra) return { alvo: naBarra, container };
+        await new Promise(r => setTimeout(r, 100));
+    }
+    return { alvo: null, container: document.querySelector('maispjecontaineraa') };
+}
+
 // Procura o alvo pelo nome dentro do container (ou do documento, se o
 // container não abriu). Mesmo critério da extensão, mais o "contém".
 function _maisPjeAcharAlvo(nome, container) {
@@ -827,17 +846,14 @@ function maisPjeHover(icone, opcoes) {
                 return { ok: false, erro: msg, icone };
             }
 
-            const container = await _maisPjeHover(iconeEl);
-            await new Promise(r => setTimeout(r, opts.esperaMenu != null ? opts.esperaMenu : 250));
+            await _maisPjeHover(iconeEl);
 
-            // Procura primeiro no menu aberto; se não houver, no documento
-            // inteiro (o alvo pode ser outro ícone da barra, como no
-            // exemplo hover(concluso) + clicar(movimentar)).
-            let alvo = container ? _maisPjeAcharAlvo(nome, container) : null;
-            if (!alvo) alvo = _maisPjeAcharAlvo(nome, document);
+            // O menu do Anexar demora ~500ms para montar os botões depois do
+            // hover, então esperamos o ALVO, não o container.
+            const { alvo, container } = await _maisPjeEsperarAlvo(nome, opts.timeoutAlvo || 4000);
 
             if (!alvo) {
-                const msg = `maisPje: botão "${nome}" não encontrado após hover em "${icone}"`;
+                const msg = `maisPje: botão "${nome}" não apareceu após hover em "${icone}"`;
                 if (opts.silencioso !== true) _maisPjeAviso(msg, '#f44336');
                 return { ok: false, erro: msg, icone, container };
             }

@@ -128,7 +128,7 @@
     const URL_BUSCAR = HOST_ALVARA + '/portaltrtsp/pages/movimentacao/conta/buscar';
     const URL_PARCELAS = HOST_ALVARA + '/portaltrtsp/pages/relatorios/extrato/conta/obterSaldo';
     const MAX_PAGINAS_PARCELAS = 60;
-
+    
     function temGMXHR() {
         return typeof GM_xmlhttpRequest === 'function';
     }
@@ -178,27 +178,34 @@
         return { html: r.responseText, doc };
     }
 
+    // Busca uma página de parcelas. Devolve { dados, fim }.
+    async function umaPaginaParcelas(idConta, pagina) {
+        const r = await requisitar({
+            method: 'GET',
+            url: URL_PARCELAS + '/' + idConta + '/parcelas/' + pagina + '/3?_=' + Date.now(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            timeout: 30000
+        });
+        if (r.status !== 200) return { dados: [], fim: true };
+
+        let json;
+        try { json = JSON.parse(r.responseText); } catch (e) { return { dados: [], fim: true }; }
+        if (!json) return { dados: [], fim: true };
+        if (json.emptyList !== undefined) return { dados: [], fim: true };
+
+        const arr = Array.isArray(json) ? json : [json];
+        return { dados: arr, fim: arr.length === 0 };
+    }
+
     // Parcelas de uma conta, paginando até vir {emptyList:true}.
-    // Devolve os registros da API (fonte autoritativa dos valores).
+    // Chamada apenas para contas que têm saldo — nas demais não há o que
+    // expandir, e o HTML já basta.
     async function parcelasContaApi(idConta) {
         const todas = [];
         for (let pagina = 0; pagina < MAX_PAGINAS_PARCELAS; pagina++) {
-            const r = await requisitar({
-                method: 'GET',
-                url: URL_PARCELAS + '/' + idConta + '/parcelas/' + pagina + '/3?_=' + Date.now(),
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                timeout: 30000
-            });
-            if (r.status !== 200) break;
-
-            let json;
-            try { json = JSON.parse(r.responseText); } catch (e) { break; }
-            if (!json) break;
-            if (json.emptyList !== undefined) break;          // fim da paginação
-
-            const arr = Array.isArray(json) ? json : [json];
-            if (!arr.length) break;
-            todas.push(...arr);
+            const res = await umaPaginaParcelas(idConta, pagina);
+            if (res.fim) break;
+            todas.push(...res.dados);
         }
         return todas;
     }
@@ -253,15 +260,47 @@
         return contas;
     }
 
-    // Junta HTML + API. O valor final de cada parcela vem da API
-    // (valorSaldoCorrigidoFormatado = coluna "Valor Disponível").
-    // Data e depositante vêm do HTML, casados por idParcela.
+    // Junta HTML + API.
+    //
+    // O HTML do POST já traz, por conta, o "Valor Disponível" em
+    // td_saldo_corrigido_conta_*. Se ele é zero, a conta não tem saldo e não
+    // há por que consultar parcela nenhuma — pula direto. Só as contas com
+    // valor > 0 precisam ser expandidas para saber QUAIS depósitos formam
+    // aquele saldo.
+    //
+    // O valor de cada parcela vem da API (valorSaldoCorrigidoFormatado, que é
+    // a coluna "Valor Disponível"); data e depositante vêm do HTML, casados
+    // por idParcela.
     async function saldosCompletos(numeroProcesso) {
+        const t0 = performance.now();
         const { doc } = await buscarContas(numeroProcesso);
         const contas = extrairContasDoHtml(doc);
-        logSiscondj('contas encontradas no HTML:', contas.length);
 
-        for (const conta of contas) {
+        // Saldo da conta segundo o HTML (antes de qualquer chamada de parcelas).
+        contas.forEach(c => {
+            c.saldoHtmlValor = parseMoeda(c.disponivelTexto);
+            c.saldoHtmlTexto = c.disponivelTexto;
+        });
+
+        const comSaldo = contas.filter(c => c.saldoHtmlValor > 0);
+        logSiscondj('contas:', contas.length,
+            '| com saldo:', comSaldo.length,
+            '| POST em', Math.round(performance.now() - t0) + 'ms');
+
+        // Zera as contas sem saldo sem tocar na API.
+        contas.forEach(c => {
+            if (c.saldoHtmlValor > 0) return;
+            c.parcelas = c.parcelas.map(p => Object.assign({}, p, {
+                disponivelTexto: p.disponivelTexto,
+                disponivelValor: parseMoeda(p.disponivelTexto)
+            }));
+            c.totalDisponivelValor = 0;
+            c.totalDisponivelTexto = formatarBRL(0);
+            c.expandida = false;
+        });
+
+        // Só expande as contas que têm valor.
+        for (const conta of comSaldo) {
             const api = await parcelasContaApi(conta.idConta);
             const porId = {};
             api.forEach(p => { porId[String(p.idParcela)] = p; });
@@ -280,8 +319,10 @@
 
             conta.totalDisponivelValor = conta.parcelas.reduce((s, p) => s + p.disponivelValor, 0);
             conta.totalDisponivelTexto = formatarBRL(conta.totalDisponivelValor);
+            conta.expandida = true;
         }
 
+        logSiscondj('consulta concluída em', Math.round(performance.now() - t0) + 'ms');
         return contas;
     }
 
@@ -398,8 +439,33 @@
         return Alv.siscon.consultarDocumento(documento);
     }
 
-    // Copia HTML para o clipboard (mesma técnica do saldo_extracao.js).
+    // Copia HTML para o clipboard.
+    //
+    // execCommand('copy') exige gesto do usuário, e o fluxo aqui é assíncrono
+    // (await na rede) — o navegador perde o vínculo e nega a cópia, o que
+    // acontecia de fato. GM_setClipboard não tem essa exigência, então é o
+    // caminho principal; execCommand fica como reserva. Mesmo padrão do
+    // infojud.js:1011.
     function copiarHtml(html) {
+        if (!html) return false;
+
+        if (typeof GM_setClipboard === 'function') {
+            try {
+                GM_setClipboard(html, 'html');
+                return true;
+            } catch (e) {
+                try {
+                    const puro = document.createElement('div');
+                    puro.innerHTML = html;
+                    GM_setClipboard(puro.innerText, 'text');
+                    return true;
+                } catch (e2) {
+                    logSiscondj('GM_setClipboard falhou:', e2);
+                }
+            }
+        }
+
+        // Reserva: seleção + execCommand (só funciona dentro do gesto).
         const div = document.createElement('div');
         div.innerHTML = html;
         div.style.cssText = 'position:absolute;left:-9999px;';

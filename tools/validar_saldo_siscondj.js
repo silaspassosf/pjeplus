@@ -35,9 +35,12 @@ async function ValidarSaldo(numeroProcesso) {
         console.log('%c--- conta ' + c.numeroConta + ' (id ' + c.idConta + ') ---', 'color:#1e88e5;font-weight:bold');
         console.log('  status:', c.status);
         console.log('  VALOR DEPOSITADO (td_saldo_conta):', c.depositadoTexto);
-        console.log('  VALOR DISPONÍVEL (td_saldo_corrigido_conta):', c.disponivelTexto);
+        console.log('  VALOR DISPONÍVEL (td_saldo_corrigido_conta):', c.saldoHtmlTexto);
+        console.log('  consultou as parcelas?', c.expandida ? 'SIM (tinha saldo)' : 'NÃO (saldo zero)');
         console.log('  total das parcelas:', api.formatarBRL(c.totalDisponivelValor), '(' + c.totalDisponivelValor + ')');
         console.log('  parcelas:', c.parcelas.length);
+
+        if (!c.expandida) return;
 
         const comSaldo = c.parcelas.filter(p => p.disponivelValor > 0);
         console.log('  parcelas com saldo:', comSaldo.length);
@@ -50,8 +53,13 @@ async function ValidarSaldo(numeroProcesso) {
     });
 
     console.log('%c=== 2) conferência ===', 'color:#8e44ad;font-weight:bold');
-    contas.forEach(c => {
-        const somaTela = api.parseMoeda(c.disponivelTexto);
+    const expandidas = contas.filter(c => c.expandida);
+    if (!expandidas.length) {
+        console.log('%cNenhuma conta com saldo — nenhuma chamada de parcelas foi feita. O botão mostraria "Sem saldo".',
+            'color:#e67e22');
+    }
+    expandidas.forEach(c => {
+        const somaTela = c.saldoHtmlValor;
         const somaParcelas = c.totalDisponivelValor;
         const bate = Math.abs(somaTela - somaParcelas) < 0.01;
         console.log(

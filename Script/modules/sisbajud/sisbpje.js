@@ -196,9 +196,39 @@
         }
     }
 
+    // Restaura o botao do painel ao estado "menu aberto" (Extrair / Minuta).
+    // Guarda os NODES dos sub-botoes (nao o innerHTML): serializar em HTML
+    // perderia os handlers, que sao atribuidos via .onclick. Sem isso, uma
+    // falha deixava o botao sem nada clicavel ate recarregar a pagina.
+    function _capturarMenuSisbajud(btn) {
+        if (!btn) return null;
+        var filhos = Array.prototype.slice.call(btn.children);
+        return filhos.length ? filhos : null;
+    }
+
+    function _restaurarBotaoSisbajud(btn, filhosOriginais) {
+        if (!btn) return;
+        btn.style.backgroundColor = '#1e88e5';
+        btn.style.display = 'flex';
+        btn.style.gap = '3px';
+        btn.style.padding = '2px';
+        btn.innerHTML = '';
+        if (filhosOriginais && filhosOriginais.length) {
+            filhosOriginais.forEach(function (filho) { btn.appendChild(filho); });
+            btn.dataset.expanded = 'true';
+        } else {
+            btn.style.display = '';
+            btn.style.gap = '';
+            btn.style.padding = '';
+            btn.innerText = '💸 Sisbajud';
+            delete btn.dataset.expanded;
+        }
+    }
+
     window.executarSisbajudPJe = async function () {
         // Indicador de loading na UI oficial por uns instantes
         var btnAcaoOficial = document.getElementById('btnSisbajud');
+        var filhosOriginais = _capturarMenuSisbajud(btnAcaoOficial);
         if (btnAcaoOficial) {
             btnAcaoOficial.innerText = 'Extraindo...';
             btnAcaoOficial.style.backgroundColor = '#f39c12';
@@ -208,11 +238,7 @@
             var ok = await window.extrairResumoSisbajud();
             if (ok) {
                 var st = window._sisbajudState;
-                if (btnAcaoOficial) {
-                    btnAcaoOficial.innerText = '💸 Sisbajud';
-                    btnAcaoOficial.style.backgroundColor = '#1e88e5';
-                }
-                
+                _restaurarBotaoSisbajud(btnAcaoOficial, filhosOriginais);
                 var containerEx = document.getElementById('sisbajud-botoes-extras');
                 if (!containerEx) {
                     containerEx = document.createElement('div');
@@ -310,16 +336,22 @@
                     if (btnFin) btnFin.innerText = '✅ Finalizar (' + window._sisbajudState.qtdExtraida + ')';
                 }
             } else {
+                // Falha: mostra o aviso e devolve o menu clicavel, para o
+                // usuario abrir a pagina certa e tentar de novo sem recarregar.
                 if (btnAcaoOficial) {
                     btnAcaoOficial.innerText = 'Falhou';
-                    setTimeout(function(){ btnAcaoOficial.innerText = '💸 Sisbajud'; btnAcaoOficial.style.backgroundColor = '#1e88e5'; }, 2000);
+                    setTimeout(function () {
+                        _restaurarBotaoSisbajud(btnAcaoOficial, filhosOriginais);
+                    }, 1500);
                 }
             }
         } catch (e) {
             console.error('[Sisbajud] Erro no executarSisbajudPJe:', e);
             if (btnAcaoOficial) {
                 btnAcaoOficial.innerText = 'Erro';
-                setTimeout(function(){ btnAcaoOficial.innerText = '💸 Sisbajud'; btnAcaoOficial.style.backgroundColor = '#1e88e5'; }, 2000);
+                setTimeout(function () {
+                    _restaurarBotaoSisbajud(btnAcaoOficial, filhosOriginais);
+                }, 1500);
             }
         }
     };

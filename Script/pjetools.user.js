@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.6.29
+// @version      2.6.30
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -16,7 +16,7 @@
 //
 //  Portanto, ao alterar QUALQUER dependência deste userscript:
 //    1. Suba o ?v= do @require daquele módulo (ex: ?v=2.6.2 -> ?v=2.6.3).
-//    2. Suba também o @version AQUI no pjetools.user.js (2.6.29 -> 2.6.30).
+//    2. Suba também o @version AQUI no pjetools.user.js (sempre um a mais).
 //    3. Commite e dê push dos DOIS arquivos: o alterado e este.
 //
 //  Commitar apenas o módulo não publica nada — o cache do Tampermonkey
@@ -77,7 +77,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/detalhes.js?v=2.6.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/minuta.js?v=2.6.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.6.2
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.6.3
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.6.4
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/dados.js?v=2.6.16
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.1.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12

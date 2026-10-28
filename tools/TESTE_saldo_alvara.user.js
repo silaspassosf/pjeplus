@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TESTE — Saldo Alvará (isolado)
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Teste isolado da consulta de saldo do Alvará Eletrônico. Injeta um painel com botão "Buscar saldo" no PJe. Não depende do pjetools.
 // @author       Silas
 // @match        https://pje.trt2.jus.br/*
@@ -134,17 +134,21 @@
             const tdCorr = tr.querySelector('td[id^="td_saldo_corrigido_conta_"]');
             const tdStatus = tr.querySelector('td[id^="td_status"]');
 
+            const temImg = !!(tdCorr && tdCorr.querySelector('img'));
             const conta = {
                 idConta,
                 numeroConta: (tr.querySelector('td:nth-child(2)')?.textContent || '').trim(),
                 depositadoTexto: tdDep ? tdDep.textContent.trim() : null,
                 disponivelTexto: tdCorr ? tdCorr.textContent.trim() : null,
+                temValorNoHtml: !temImg && brl(tdCorr ? tdCorr.textContent : '') > 0,
                 status: tdStatus ? tdStatus.textContent.trim() : ''
             };
 
             escrever('   conta ' + conta.numeroConta + ' (id ' + idConta + ')');
             escreverDetalhe('depositado: ' + JSON.stringify(conta.depositadoTexto));
-            escreverDetalhe('disponivel: ' + JSON.stringify(conta.disponivelTexto));
+            escreverDetalhe('disponivel: ' + JSON.stringify(conta.disponivelTexto)
+                + ' | celula tem <img>: ' + temImg
+                + ' | valor utilizavel no HTML: ' + conta.temValorNoHtml);
             escreverDetalhe('   [tds da linha] ' + Array.from(tr.querySelectorAll('td')).map((td, i) =>
                 i + ':' + (td.id || '-') + '=' + JSON.stringify(td.textContent.replace(/\s+/g, ' ').trim())).join(' | '));
 
@@ -246,93 +250,69 @@
             const contas = await buscar(num);
             if (!contas) return;
 
-            // O Valor Disponivel NAO vem no HTML (o site preenche via AJAX),
-            // entao a API e a unica fonte do saldo. O HTML so diz quantas
-            // parcelas existem e qual o depositado de cada uma.
+            // Etapa 2: saldo da CONTA, uma requisicao so.
+            // Mesmo endpoint que o site usa em carregarContasAjax:
+            //   GET .../extrato/conta/obterSaldo/{idConta}
+            // Devolve valorSaldoCorrigidoFormatado, sem tocar em parcela.
             escrever('');
-            escrever('O HTML nao traz o Valor Disponivel (vem por AJAX no site).',
-                '#e67e22');
-            escrever('O saldo sera lido da API, de tras para a frente.');
+            escrever('2) GET obterSaldo/{idConta} — saldo da conta, uma requisicao',
+                '#1e88e5');
 
             for (const conta of contas) {
-                const totalPaginas = Math.ceil(conta.parcelas.length / 3);
-
-                escrever('');
-                escrever('2) API de parcelas, paginas em ordem REVERSA — conta '
-                    + conta.numeroConta + ' (id ' + conta.idConta + ')', '#1e88e5');
-                escreverDetalhe('parcelas: ' + conta.parcelas.length
-                    + ' | paginas de 3: ' + totalPaginas);
-
-                let acumulado = 0;
-                let paginasLidas = 0;
-                let semCrescer = 0;
-                let motivo = 'fim da paginacao';
-
-                for (let k = totalPaginas - 1; k >= 0; k--) {
-                    const res = await umaPagina(conta.idConta, k);
-                    if (res.fim) { escreverDetalhe('   pagina ' + k + ': vazia, pulando'); continue; }
-                    paginasLidas++;
-
-                    // PROVA: mostra o JSON bruto da primeira pagina lida.
-                    // Se codigoRetorno vier numero (0) e nao string ('0'), o
-                    // filtro abaixo descarta tudo em silencio.
-                    if (paginasLidas === 1) {
-                        escreverDetalhe('   JSON BRUTO da pagina ' + k + ': '
-                            + JSON.stringify(res.dados[0]));
-                        escreverDetalhe('   tipos: idParcela=' + typeof res.dados[0].idParcela
-                            + ' | codigoRetorno=' + typeof res.dados[0].codigoRetorno
-                            + ' (' + JSON.stringify(res.dados[0].codigoRetorno) + ')');
-                    }
-
-                    const anterior = acumulado;
-                    let casou = 0, naoCasou = 0, semTexto = 0;
-
-                    for (const reg of res.dados) {
-                        if (!reg) continue;
-                        // Sem filtro de codigoRetorno: o console nao filtrava e
-                        // funcionava. Comparar como string cobre 0 e '0'.
-                        const p = conta.parcelas.find(x => String(x.idParcela) === String(reg.idParcela));
-                        if (!p) {
-                            naoCasou++;
-                            escreverDetalhe('   idParcela ' + JSON.stringify(reg.idParcela)
-                                + ' da API nao casou com nenhuma linha do HTML');
-                            continue;
-                        }
-                        casou++;
-                        const txt = reg.valorSaldoCorrigidoFormatado;
-                        if (!txt) { semTexto++; continue; }
-                        p.finalValor = brl(txt);
-                        p.fonte = 'api';
-                    }
-
-                    escreverDetalhe('   casou ' + casou + ' | nao casou ' + naoCasou
-                        + ' | sem valorSaldoCorrigidoFormatado ' + semTexto);
-
-                    acumulado = conta.parcelas.reduce((s, p) => s + (p.finalValor || 0), 0);
-
-                    const ganho = acumulado - anterior;
-                    escreverDetalhe('   pagina ' + k + ': +' + fmt(ganho)
-                        + ' | acumulado ' + fmt(acumulado));
-
-                    if (acumulado > 0 && ganho < 0.005) {
-                        semCrescer++;
-                        motivo = 'pagina ' + k + ' nao acrescentou saldo';
-                        break;
-                    }
+                if (conta.temValorNoHtml) {
+                    escrever('   conta ' + conta.numeroConta
+                        + ': valor ja estava no HTML (' + conta.disponivelTexto
+                        + ') — nenhuma requisicao', '#27ae60');
+                    continue;
                 }
 
-                conta.parcelas.forEach(p => { if (p.finalValor === undefined) p.finalValor = 0; });
-
-                escreverDetalhe('acumulado: ' + fmt(acumulado)
-                    + ' | paginas lidas: ' + paginasLidas + '/' + totalPaginas
-                    + ' | parou por: ' + motivo);
-                escrever('   ' + (acumulado > 0 ? 'SALDO: ' + fmt(acumulado) : 'SEM SALDO'),
-                    acumulado > 0 ? '#27ae60' : '#c0392b');
-
-                conta.parcelas.filter(p => p.finalValor > 0).forEach(p => {
-                    escrever('   • parcela ' + p.numero + ' - ' + p.data + ' - '
-                        + p.depositante + ' - ' + fmt(p.finalValor));
+                const t1 = performance.now();
+                const r = await requisitar({
+                    method: 'GET',
+                    url: URL_PARCELAS + '/' + conta.idConta + '?_=' + Date.now(),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    timeout: 30000
                 });
+                const ms1 = Math.round(performance.now() - t1);
+
+                escreverDetalhe('url: ' + URL_PARCELAS.replace(HOST_ALVARA, '') + '/'
+                    + conta.idConta);
+                escreverDetalhe('status ' + r.status + ' em ' + ms1 + 'ms');
+                escreverDetalhe('corpo: ' + r.responseText.slice(0, 400));
+
+                let j = null;
+                try { j = JSON.parse(r.responseText); } catch (e) { /* noop */ }
+                if (!j) {
+                    escrever('   conta ' + conta.numeroConta + ': resposta nao e JSON', '#c0392b');
+                    continue;
+                }
+
+                const tipoCod = typeof j.codigoRetorno;
+                const ok = String(j.codigoRetorno) === '0';
+                escreverDetalhe('codigoRetorno: ' + JSON.stringify(j.codigoRetorno)
+                    + ' (' + tipoCod + ')');
+
+                if (!ok) {
+                    escrever('   conta ' + conta.numeroConta + ': codigoRetorno '
+                        + JSON.stringify(j.codigoRetorno) + ' | msg: '
+                        + (j.msgUsuario || j.msgTecnica || '(vazia)'), '#c0392b');
+                    continue;
+                }
+
+                const valor = typeof j.valorSaldoCorrigido === 'number'
+                    ? j.valorSaldoCorrigido
+                    : brl(j.valorSaldoCorrigidoFormatado);
+
+                escreverDetalhe('valorSaldoCorrigidoFormatado: '
+                    + JSON.stringify(j.valorSaldoCorrigidoFormatado));
+                escreverDetalhe('valorCapitalAgendadoFormatado: '
+                    + JSON.stringify(j.valorCapitalAgendadoFormatado));
+                escreverDetalhe('valorCapitalBloqueadoFormatado: '
+                    + JSON.stringify(j.valorCapitalBloqueadoFormatado));
+
+                escrever('   SALDO DA CONTA ' + conta.numeroConta + ': ' + fmt(valor)
+                    + ' em ' + ms1 + 'ms — nenhuma parcela lida',
+                    valor > 0 ? '#27ae60' : '#c0392b');
             }
 
             escrever('');

@@ -127,6 +127,8 @@
     const HOST_ALVARA = 'https://alvaraeletronico.trt2.jus.br';
     const URL_BUSCAR = HOST_ALVARA + '/portaltrtsp/pages/movimentacao/conta/buscar';
     const URL_PARCELAS = HOST_ALVARA + '/portaltrtsp/pages/relatorios/extrato/conta/obterSaldo';
+    // Saldo da conta inteira (sem /parcelas/). Mesma rota que o site usa.
+    const URL_SALDO_CONTA = URL_PARCELAS;
     const MAX_PAGINAS_PARCELAS = 60;
     
     function temGMXHR() {
@@ -178,6 +180,41 @@
         return { html: r.responseText, doc };
     }
 
+    // Busca o saldo de UMA conta — endpoint da conta, não das parcelas.
+    //
+    // É o mesmo que o site chama em carregarContasAjax (av.md:3076):
+    //     GET /pages/relatorios/extrato/conta/obterSaldo/{idConta}
+    // e devolve valorSaldoCorrigido / valorSaldoCorrigidoFormatado, que é o
+    // "Valor Disponível" da conta. Uma requisição, sem olhar parcela alguma.
+    //
+    // Devolve null se não der para ler (código de erro, resposta ruim).
+    async function saldoContaApi(idConta) {
+        const r = await requisitar({
+            method: 'GET',
+            url: URL_SALDO_CONTA + '/' + idConta + '?_=' + Date.now(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            timeout: 30000
+        });
+        if (r.status !== 200) return null;
+
+        let json;
+        try { json = JSON.parse(r.responseText); } catch (e) { return null; }
+        if (!json || String(json.codigoRetorno) !== '0') return null;
+
+        const texto = json.valorSaldoCorrigidoFormatado;
+        const valor = typeof json.valorSaldoCorrigido === 'number'
+            ? json.valorSaldoCorrigido
+            : parseMoeda(texto);
+
+        return {
+            texto: texto || formatarBRL(valor),
+            valor: valor,
+            agendadoTexto: json.valorCapitalAgendadoFormatado || '',
+            bloqueadoTexto: json.valorCapitalBloqueadoFormatado || '',
+            depositadoTexto: json.valorDepositoOriginalFormatado || ''
+        };
+    }
+
     // Busca uma página de parcelas. Devolve { dados, fim }.
     async function umaPaginaParcelas(idConta, pagina) {
         const r = await requisitar({
@@ -225,9 +262,15 @@
             const status = (tr.querySelector('td[id^="td_status"]')?.textContent || '').trim();
 
             // ATENÇÃO: td_saldo_conta_ é o DEPOSITADO total, não o saldo.
-            // O saldo (td_saldo_corrigido_conta_) NÃO chega no HTML do POST —
-            // o site o preenche depois por AJAX. Só a API o fornece.
             const depositadoTxt = (tr.querySelector('td[id^="td_saldo_conta_"]')?.textContent || '').trim();
+
+            // td_saldo_corrigido_conta_ é o VALOR DISPONÍVEL. Ele vem de dois
+            // jeitos (av.md:3056):
+            //   - com o valor já dentro          -> não precisa consultar nada
+            //   - com um <img> ("Atualizar")     -> o servidor pede consulta
+            const tdDisp = tr.querySelector('td[id^="td_saldo_corrigido_conta_"]');
+            const temImg = !!(tdDisp && tdDisp.querySelector('img'));
+            const disponivelTxt = tdDisp ? (tdDisp.textContent || '').trim() : '';
 
             // Parcelas: cada <tr id="linhaParcela_{idConta}_{idParcela}">
             //
@@ -262,6 +305,10 @@
                 numeroConta,
                 status,
                 depositadoTexto: depositadoTxt,
+                disponivelTexto: disponivelTxt,
+                // true só quando a célula veio preenchida com valor — se veio
+                // com <img>, o saldo tem de ser consultado.
+                temValorNoHtml: !temImg && parseMoeda(disponivelTxt) > 0,
                 parcelas
             });
         });
@@ -271,27 +318,21 @@
 
     // Junta HTML + API.
     //
-    // O QUE O PARSE REALMENTE ENTREGA (conferido em execução real):
-    //   conta   td[2]  id=td_saldo_conta_*            -> DEPOSITADO, tem valor
-    //   conta   td[?]  id=td_saldo_corrigido_conta_*  -> NÃO sobrevive ao parse
-    //   parcela td[5]  id=td_saldo_parcela_depositado_ -> tem valor
-    //   parcela td[8]  id=td_saldo_parcela_saldo_*     -> chega VAZIO
+    // O VALOR DISPONÍVEL DA CONTA, em três situações (av.md:3056):
     //
-    // Ou seja: o Valor Disponível não vem no HTML — no navegador ele é
-    // preenchido depois por carregarContasAjax/carregarTodasAsParcelasAjax.
-    // O único lugar onde ele existe para nós é a API.
+    //   1. A célula td_saldo_corrigido_conta_* já vem com o valor no HTML.
+    //      Nesse caso o site não faz requisição nenhuma — e nós também não.
     //
-    // Então a estratégia é:
-    //   1. Usa o DEPOSITADO do HTML como pista: só parcelas com depósito > 0
-    //      podem ter saldo. Ordena do fim para o começo (depósito recente é
-    //      o que costuma carregar saldo).
-    //   2. Consulta a API de trás para a frente para essas parcelas.
-    //   3. Soma e para quando o saldo total fecha com o depositado da conta,
-    //      que é o único valor de referência confiável que temos.
+    //   2. A célula vem com <img> (ícone "Atualizar"). É o servidor dizendo
+    //      "consulte na hora". Aí o site chama
+    //          GET .../extrato/conta/obterSaldo/{idConta}
+    //      que devolve o saldo da CONTA em uma única requisição, sem
+    //      parcela alguma. É esse caminho que usamos.
     //
-    // A API pagina de 3 em 3 na ordem do site, então cada página traz 3
-    // parcelas — as últimas estão na última página, e é por isso que a
-    // paginação é feita em ordem reversa.
+    //   3. Se esse endpoint falhar, aí sim caímos nas parcelas.
+    //
+    // As parcelas servem só para a discriminação dos depósitos na saída —
+    // nunca para descobrir se há saldo.
     async function saldosCompletos(numeroProcesso) {
         const t0 = performance.now();
         const { doc } = await buscarContas(numeroProcesso);
@@ -317,36 +358,69 @@
 
     // Completar UMA conta.
     //
-    // Critério de parada: o saldo de uma parcela depende do valor corrigido
-    // dela, e parcelas antigas normalmente já foram sacadas (saldo 0). Então
-    // descemos da última página para a primeira e paramos quando a soma para
-    // de crescer por uma página inteira — a partir dali as anteriores só
-    // podem somar zero.
+    // 1. Se o HTML já trouxe o Valor Disponível preenchido (sem <img>),
+    //    usa esse valor. Nenhuma requisição.
+    // 2. Se a célula veio com <img> ("Atualizar"), chama
+    //    obterSaldo/{idConta} — UMA requisição que devolve o saldo da conta.
+    //    Sem parcela alguma.
+    // 3. Só se esse endpoint falhar é que descemos para as parcelas, de trás
+    //    para a frente, parando quando a soma para de crescer.
     //
-    // O depositado da conta NÃO serve de meta: saldo disponível é uma fração
-    // dele, nunca o valor inteiro.
+    // As parcelas, quando consultadas, servem só para a discriminação dos
+    // depósitos na saída — nunca para descobrir se há saldo.
     async function completarConta(conta) {
         const n = conta.parcelas.length;
         const totalPaginas = Math.ceil(n / 3);
 
-        let acumulado = 0;
-        let paginasLidas = 0;
-        let paginasSeguidasSemCrescer = 0;
+        let origemSaldo = 'html';
+        let valorSaldo = 0;
 
-        // De trás para a frente: as parcelas recentes são as que têm saldo.
+        // 1. O HTML já tem o valor? Então é isso e pronto.
+        const doHtml = parseMoeda(conta.disponivelTexto);
+        if (conta.temValorNoHtml && doHtml > 0) {
+            valorSaldo = doHtml;
+        } else {
+            // 2. Endpoint do saldo da conta: uma requisição.
+            const api = await saldoContaApi(conta.idConta);
+            if (api) {
+                valorSaldo = api.valor;
+                origemSaldo = 'api-conta';
+                conta.saldoApiTexto = api.texto;
+            } else {
+                // 3. Plano B: parcelas, de trás para a frente.
+                logSiscondj('conta', conta.numeroConta,
+                    '— obterSaldo falhou, caindo para as parcelas');
+                valorSaldo = await saldoPorParcelas(conta, totalPaginas);
+                origemSaldo = 'api-parcelas';
+            }
+        }
+
+        conta.totalDisponivelValor = valorSaldo;
+        conta.totalDisponivelTexto = formatarBRL(valorSaldo);
+        conta.origemSaldo = origemSaldo;
+        conta.totalPaginas = totalPaginas;
+        conta.expandida = true;
+
+        logSiscondj('conta', conta.numeroConta,
+            '— disponível', conta.totalDisponivelTexto,
+            '| origem', origemSaldo,
+            '| depositado', conta.depositadoTexto);
+    }
+
+    // Plano B: soma o saldo percorrendo as parcelas de trás para a frente,
+    // parando na primeira página que não acrescenta nada.
+    async function saldoPorParcelas(conta, totalPaginas) {
+        let paginasLidas = 0;
+
         for (let k = totalPaginas - 1; k >= 0; k--) {
             const res = await umaPaginaParcelas(conta.idConta, k);
             if (res.fim) continue;
             paginasLidas++;
 
-            const anterior = acumulado;
+            const anterior = conta.parcelas.reduce((s, p) => s + (p.disponivelValor || 0), 0);
 
             for (const reg of res.dados) {
                 if (!reg) continue;
-                // NÃO filtrar por codigoRetorno: a API pode devolver o número
-                // 0 em vez da string '0', e a comparação estrita descartaria
-                // todas as parcelas em silêncio. O valor vem em
-                // valorSaldoCorrigidoFormatado quando existe.
                 const idx = conta.parcelas.findIndex(p => String(p.idParcela) === String(reg.idParcela));
                 if (idx < 0) continue;
                 const p = conta.parcelas[idx];
@@ -357,38 +431,12 @@
                 p.fonte = 'api';
             }
 
-            acumulado = conta.parcelas.reduce((s, p) => s + (p.disponivelValor || 0), 0);
-
-            // Já achamos saldo e essa página não acrescentou nada.
-            if (acumulado > 0 && acumulado <= anterior + TOLERANCIA) {
-                paginasSeguidasSemCrescer++;
-                if (paginasSeguidasSemCrescer >= 1) {
-                    logSiscondj('  parou: página', k, 'não acrescentou saldo');
-                    break;
-                }
-            } else if (acumulado > anterior + TOLERANCIA) {
-                paginasSeguidasSemCrescer = 0;
-            }
+            const acumulado = conta.parcelas.reduce((s, p) => s + (p.disponivelValor || 0), 0);
+            if (acumulado > 0 && acumulado <= anterior + TOLERANCIA) break;
         }
 
-        conta.parcelas.forEach(p => {
-            if (p.disponivelValor === undefined) {
-                p.disponivelValor = parseMoeda(p.disponivelTexto);
-                p.fonte = 'html';
-            }
-        });
-
-        conta.totalDisponivelValor = conta.parcelas.reduce((s, p) => s + (p.disponivelValor || 0), 0);
-        conta.totalDisponivelTexto = formatarBRL(conta.totalDisponivelValor);
         conta.paginasLidas = paginasLidas;
-        conta.totalPaginas = totalPaginas;
-        conta.expandida = true;
-        conta.apiConsultada = paginasLidas > 0;
-
-        logSiscondj('conta', conta.numeroConta,
-            '— disponível', conta.totalDisponivelTexto,
-            '| depositado', conta.depositadoTexto,
-            '| páginas lidas', paginasLidas + '/' + totalPaginas);
+        return conta.parcelas.reduce((s, p) => s + (p.disponivelValor || 0), 0);
     }
 
     function formatarBRL(n) {

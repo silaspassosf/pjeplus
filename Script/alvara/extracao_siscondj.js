@@ -332,6 +332,39 @@
     }
 
     // ─────────────────────────────────────────────────────────────────
+    // NÚMERO DO PROCESSO
+    //
+    // A tela /detalhe do PJe NÃO traz o número na URL (só /processo/{id}).
+    // Mesmas fontes usadas pelo Argos (Script/modules/argos/argos.js:85):
+    // título da aba, .texto-numero-processo e, por último, a URL.
+    // ─────────────────────────────────────────────────────────────────
+    const RE_CNJ = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
+
+    function numeroProcessoDaPagina(doc) {
+        const d = doc || document;
+
+        const doTitulo = String(d.title || '').match(RE_CNJ);
+        if (doTitulo) return doTitulo[0];
+
+        const el = d.querySelector('.texto-numero-processo');
+        if (el) {
+            const m = String(el.textContent || '').match(RE_CNJ);
+            if (m) return m[0];
+        }
+
+        // Fallbacks: campo de formulário e a própria URL.
+        const campo = d.querySelector('#numeroProcesso');
+        if (campo && campo.value && RE_CNJ.test(campo.value)) {
+            return String(campo.value).match(RE_CNJ)[0];
+        }
+
+        const doHref = String((window.location && window.location.href) || '').match(RE_CNJ);
+        if (doHref) return doHref[0];
+
+        return null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
     // ORQUESTRADOR DE EXTRAÇÃO
     // ─────────────────────────────────────────────────────────────────
     async function extrairDadosSiscondj() {
@@ -414,6 +447,7 @@
         lerParcelasConta,
         extrairDadosSiscondj,
         consultarDocumento,
+        numeroProcessoDaPagina,
         // camada de API
         temGMXHR,
         buscarContas,

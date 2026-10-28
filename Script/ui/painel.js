@@ -244,10 +244,12 @@
                         return;
                     }
 
-                    // Número do processo: da URL (/detalhe/...) ou do campo da tela.
-                    const numeroProcesso = (location.href.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/) || [])[0]
-                        || (document.querySelector('#numeroProcesso') || {}).value
-                        || (document.querySelector('[class*="numero-processo"], .numero-processo')?.textContent || '').trim();
+                    // Número do processo: delega ao módulo, que usa as mesmas
+                    // fontes do Argos (título, .texto-numero-processo, URL).
+                    // O /detalhe do PJe não traz o número na URL.
+                    const numeroProcesso = typeof api.numeroProcessoDaPagina === 'function'
+                        ? api.numeroProcessoDaPagina()
+                        : null;
 
                     if (!numeroProcesso) {
                         showToast('Número do processo não encontrado na página', '#dc3545', 3000);

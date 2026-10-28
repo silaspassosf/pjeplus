@@ -15,6 +15,15 @@ async function ValidarSaldo(numeroProcesso) {
     if (!api) { console.error('Alv.siscondj não carregado'); return; }
     if (!api.temGMXHR()) { console.error('GM_xmlhttpRequest indisponível — reinstale o pjetools 2.6.31+'); return; }
 
+    if (!numeroProcesso) {
+        numeroProcesso = api.numeroProcessoDaPagina();
+        if (!numeroProcesso) {
+            console.error('Número do processo não encontrado. Passe na mão: await ValidarSaldo("0000000-00.0000.0.00.0000")');
+            return;
+        }
+    }
+    console.log('processo:', numeroProcesso);
+
     console.log('%c=== 1) buscando contas ===', 'color:#8e44ad;font-weight:bold');
     const t0 = performance.now();
     const contas = await api.saldosCompletos(numeroProcesso);

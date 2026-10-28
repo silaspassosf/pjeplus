@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TESTE — Saldo Alvará (isolado)
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Teste isolado da consulta de saldo do Alvará Eletrônico. Injeta um painel com botão "Buscar saldo" no PJe. Não depende do pjetools.
 // @author       Silas
 // @match        https://pje.trt2.jus.br/*
@@ -103,6 +103,15 @@
         const linhas = doc.querySelectorAll('tr[id^="linhaConta_"]');
         escrever('   contas na pagina: ' + linhas.length, linhas.length ? '#27ae60' : '#c0392b');
 
+        // PROVA: o HTML cru que o GM_xmlhttpRequest recebeu. Se a célula do
+        // valor disponível existe lá e o parse a devolve vazia, o problema é
+        // do parse; se não existe no cru, o problema é do servidor.
+        const cruasCorr = (r.responseText.match(/id="td_saldo_corrigido_conta_[^"]*"/g) || []).length;
+        const cruasDep = (r.responseText.match(/id="td_saldo_conta_[^"]*"/g) || []).length;
+        escreverDetalhe('HTML cru: ' + cruasCorr + 'x td_saldo_corrigido_conta_ | ' + cruasDep + 'x td_saldo_conta_');
+        const mCru = r.responseText.match(/<td[^>]*id="td_saldo_corrigido_conta_[^"]*"[^>]*>([\s\S]*?)<\/td>/);
+        escreverDetalhe('HTML cru, conteudo da celula: ' + (mCru ? JSON.stringify(mCru[1].replace(/\s+/g, ' ').trim()) : '(celula nao encontrada no cru)'));
+
         if (!linhas.length) {
             // Diagnóstico: o que voltou?
             const temLogin = /login|senha|cpf/i.test(r.responseText.slice(0, 3000));
@@ -136,6 +145,8 @@
             escrever('   conta ' + conta.numeroConta + ' (id ' + idConta + ')');
             escreverDetalhe('depositado: ' + JSON.stringify(conta.depositadoTexto));
             escreverDetalhe('disponivel: ' + JSON.stringify(conta.disponivelTexto));
+            escreverDetalhe('   [tds da linha] ' + Array.from(tr.querySelectorAll('td')).map((td, i) =>
+                i + ':' + (td.id || '-') + '=' + JSON.stringify(td.textContent.replace(/\s+/g, ' ').trim())).join(' | '));
 
             // Parcelas do HTML
             conta.parcelas = [];

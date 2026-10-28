@@ -282,6 +282,21 @@
                                 }
                             } else if (res && res.semSaldo) {
                                 btn.textContent = 'Sem saldo';
+                                // Saldo negativo / sem saldo: aciona Concluso -> Parcela
+                                if (window.maisPje && typeof window.maisPje.hover === 'function') {
+                                    window.maisPje.hover('concluso').clicar('parcela')
+                                        .then(r => {
+                                            if (!r || !r.ok) {
+                                                showToast('Sem saldo, mas Concluso -> Parcela não abriu: '
+                                                    + (r && r.erro ? r.erro : 'botão não encontrado'),
+                                                    '#ff9800', 5000);
+                                            }
+                                        })
+                                        .catch(err => console.warn('[PjeTools][Saldo] Concluso:', err));
+                                } else {
+                                    showToast('Motor maisPje não carregado — Concluso não acionado',
+                                        '#ff9800', 4000);
+                                }
                             } else {
                                 btn.textContent = 'Falha ao copiar';
                             }

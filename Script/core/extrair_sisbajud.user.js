@@ -463,10 +463,22 @@
         var textoFlat = textoDocumento.replace(/\n|\r/g, ' ').replace(/\s{2,}/g, ' ');
         console.log('[extrairResumoSisbajud] TEXTO LIDO:', textoFlat);
         
-        var protocolo = '';
-        var protocoloMatch = textoFlat.match(/Número do protocolo:\s*(\d+)/i) ||
-                             textoFlat.match(/(\d{14,16})/);
-        if (protocoloMatch) protocolo = protocoloMatch[1] || protocoloMatch[0];
+        // Um PDF compilado traz varias ordens: cada uma tem seu proprio
+        // cabecalho "Número do protocolo:". match() sem /g pega so a primeira,
+        // entao usa matchAll para recolher todas as ordens do documento.
+        var protocolos = [];
+        var achados = textoFlat.matchAll(/N[uú]mero do protocolo:\s*(\d+)/gi);
+        for (var achado of achados) {
+            var p = achado[1];
+            if (p && protocolos.indexOf(p) === -1) protocolos.push(p);
+        }
+        // PDF antigo/sem rotulo: cai no primeiro numero longo que aparecer.
+        if (protocolos.length === 0) {
+            var avulso = textoFlat.match(/(\d{14,16})/);
+            if (avulso) protocolos.push(avulso[1] || avulso[0]);
+        }
+        var protocolo = protocolos.join(', ');
+        console.log('[extrairResumoSisbajud] Ordens encontradas:', protocolos.length, protocolos);
         
         // Regex
         var blockRegex = /(?:\d{11}|\d{14}):\s*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;
@@ -485,7 +497,9 @@
             }
         }
         
-        if (protocolo) window._sisbajudState.protocolos.add(protocolo);
+        for (var i = 0; i < protocolos.length; i++) {
+            window._sisbajudState.protocolos.add(protocolos[i]);
+        }
         window._sisbajudState.qtdExtraida++;
         
         console.log('[extrairResumoSisbajud] Ordem ' + protocolo + ' processada e valores acumulados.');

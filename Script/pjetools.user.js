@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.6.32
+// @version      2.6.33
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -93,12 +93,12 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.data.js?v=1.1.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.core.js?v=2.3.97
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/marcar.js?v=1.3.5
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.detalhe.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/Aud/Aud.detalhe.js?v=1.0.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/pdf/pdf.compress.js?v=2.1.0
 // ==/UserScript==
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.6.32 loaded');
+    console.log('[Loader] PJe Tools Pro v2.6.33 loaded');
 
     const url = window.location.href;
     const isAud = url.includes('/aud') || (function () { try { return window.top && window.top.location.href.includes('/aud'); } catch (e) { return false; } })();

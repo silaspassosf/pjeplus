@@ -124,10 +124,16 @@
     function atualizar(origem) {
         var dd = acharDdAudiencia();
         if (!dd) {
-            log('[' + origem + '] nenhum <dd> de audiência (sem audiência marcada?)');
+            // Sem audiência é o caso comum; avisar a cada tentativa só suja o
+            // console. Loga uma vez por ciclo e segue silencioso.
+            if (!_avisouSemDd) {
+                _avisouSemDd = true;
+                log('[tentativa ' + origem + '] nenhum <dd> de audiência (sem audiência marcada?)');
+            }
             removerMarcadores();
             return false;
         }
+        _avisouSemDd = false;
 
         var texto = (dd.textContent || '').replace(/\s+/g, ' ').trim();
         var info = diaDaSemana(texto);
@@ -162,6 +168,8 @@
     var _tentativas = 0;
     var _timer = null;
     var _observador = null;
+    var _avisouSemDd = false;
+    var MAX_TENTATIVAS = 2;
 
     function pararTentativas() {
         if (_timer) { clearInterval(_timer); _timer = null; }
@@ -170,10 +178,11 @@
     function iniciarTentativas() {
         pararTentativas();
         _tentativas = 0;
+        _avisouSemDd = false;
         _timer = setInterval(function () {
             _tentativas++;
             var ok = atualizar('tentativa ' + _tentativas);
-            if (ok || _tentativas >= 40) {
+            if (ok || _tentativas >= MAX_TENTATIVAS) {
                 log('tentativas encerradas após', _tentativas, '| sucesso =', ok);
                 pararTentativas();
             }

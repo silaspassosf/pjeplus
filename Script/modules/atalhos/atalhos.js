@@ -644,43 +644,238 @@ async function runExpedienteFlow() {
     showToast('F7: Aba aberta. Aguardando worker...', '#2196f3');
 }
 
+// Compatibilidade: assinatura antiga (selector do gatilho, label do alvo).
+// Agora só delega para o motor genérico — a implementação é uma só.
 async function hoverAndClickTarget(menuSelector, buttonLabel) {
-    const wait = (ms) => new Promise(r => setTimeout(r, ms));
     const triggerEl = document.querySelector(menuSelector);
     if (!triggerEl) { showToast(`Menu não encontrado! (${menuSelector})`, '#f44336'); return; }
-    // dispatch seguro: tenta MouseEvent com `view`, se falhar remove `view` e tenta novamente
-    function safeDispatch(el, type, opts) {
+
+    // O motor espera um alias de ícone ("movimentar", "concluso"...). Aceita
+    // tanto o id completo (#maisPJe_bt_detalhes_movimentar) quanto o sufixo.
+    const icone = menuSelector
+        .replace(/^#maisPJe_bt_detalhes_/, '')
+        .replace(/^#/, '');
+
+    const r = await acionarMaisPJe(icone, buttonLabel);
+    if (r && r.ok) showToast(`Ação disparada: ${buttonLabel}`, '#4caf50');
+}
+
+// ─── MOTOR GENÉRICO: BOTÕES DA MAIS PJE ─────────────────────────
+//
+// Aciona qualquer botão da barra "Detalhes" da extensão maisPJe fazendo
+// hover no ícone certo e clicando no botão pedido.
+//
+//   const alvo = await maisPJe.hover('concluso').clicar('parcela');
+//
+// O hover SEMPRE é um dos botões de #maisPJe_bt_detalhes_base (os "ícones"):
+//   concluso, movimentar, guardarDados, gigs, anexarDocumentos, bndt,
+//   abrirCalculos, intimacaoEExpediente, Expedientes, Lembretes, pagamento,
+//   retificarAutuacao, DomicilioEletronico
+//
+// `clicar` aceita:
+//   - o nome/id/aria-label do próprio ícone ("movimentar", "Pagamento")
+//   - o texto de um item do menu que abre no hover ("parcela", "ag pz-")
+//
+// O casamento segue o mesmo critério da extensão (gigs-plugin.js:4112):
+// aria-label exato, id, ou o texto do elemento. Depois cai para "contém",
+// que é o que permite achar "parcela" dentro de "Parcelas".
+
+const MAISPJE_BASE = '#maisPJe_bt_detalhes_base';
+
+// showToast vem de core/utils.js; se por algum motivo não estiver lá, cai
+// para console — o motor não pode quebrar por causa de aviso.
+function _maisPjeAviso(msg, cor) {
+    if (typeof showToast === 'function') { showToast(msg, cor); }
+    else { console.log('[maisPje]', msg); }
+}
+
+// Aliases curtos -> sufixo do id em #maisPJe_bt_detalhes_<sufixo>.
+const MAISPJE_ICONES = {
+    concluso: 'concluso',
+    movimentar: 'movimentar',
+    movimento: 'movimentar',
+    guardar: 'guardarDados',
+    guardarDados: 'guardarDados',
+    gigs: 'gigs',
+    anexar: 'anexarDocumentos',
+    anexarDocumentos: 'anexarDocumentos',
+    bndt: 'bndt',
+    calculos: 'abrirCalculos',
+    abrirCalculos: 'abrirCalculos',
+    intimacao: 'intimacaoEExpediente',
+    intimacaoEExpediente: 'intimacaoEExpediente',
+    expedientes: 'Expedientes',
+    lembretes: 'Lembretes',
+    pagamento: 'pagamento',
+    retificar: 'retificarAutuacao',
+    retificarAutuacao: 'retificarAutuacao',
+    domicilio: 'DomicilioEletronico',
+    DomicilioEletronico: 'DomicilioEletronico'
+};
+
+function _maisPjeDispatcher() {
+    // Tenta MouseEvent com `view`; se falhar, repete sem `view`; por último
+    // tenta .click(). Alguns ambientes rejeitam a construção com view.
+    return function (el, type, opts) {
         try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
         catch (e) {
-            try { const safeOpts = Object.assign({}, opts || {}); if ('view' in safeOpts) delete safeOpts.view; el.dispatchEvent(new MouseEvent(type, safeOpts)); return true; }
-            catch (e2) { try { el.click(); return true; } catch (e3) {} }
+            try {
+                const safeOpts = Object.assign({}, opts || {});
+                if ('view' in safeOpts) delete safeOpts.view;
+                el.dispatchEvent(new MouseEvent(type, safeOpts));
+                return true;
+            } catch (e2) { try { el.click(); return true; } catch (e3) { } }
         }
         return false;
-    }
-
-    const opts = { bubbles: true, cancelable: true, view: window };
-    safeDispatch(triggerEl, 'mouseover',  opts);
-    safeDispatch(triggerEl, 'mouseenter', opts);
-    safeDispatch(triggerEl, 'mousemove',  opts);
-    const container = await esperarElemento('maispjecontaineraa', 3000);
-    if (!container) { showToast('Timeout: Menu MaisPJe não abriu!', '#f44336'); return; }
-    await wait(250);
-    const labelLower = buttonLabel.toLowerCase();
-    const alvo = Array.from(container.querySelectorAll('button, div, span, a')).find(el => {
-        const name  = (el.getAttribute('name') || '').toLowerCase();
-        const texto = (el.textContent || '').toLowerCase();
-        return texto.trim() === labelLower || name === labelLower || texto.includes(labelLower);
-    });
-    if (alvo) {
-        alvo.style.border = '2px solid red'; alvo.style.boxShadow = '0 0 10px red';
-        await wait(150);
-        alvo.querySelector('.mat-button-wrapper')?.click();
-        alvo.click();
-        showToast(`Ação disparada: ${buttonLabel}`, '#4caf50');
-    } else {
-        showToast(`Botão não encontrado: ${buttonLabel}`, '#f44336');
-    }
+    };
 }
+
+// Resolve o ícone: aceita alias ("concluso"), id completo ou o aria-label.
+function _maisPjeIcone(nome) {
+    const base = document.querySelector(MAISPJE_BASE);
+    if (!base) return null;
+
+    const sufixo = MAISPJE_ICONES[nome] || nome;
+
+    return base.querySelector('#maisPJe_bt_detalhes_' + sufixo)
+        || base.querySelector('button[aria-label="' + String(nome).replace(/"/g, '\\"') + '"]')
+        // último caso: o ícone cujo aria-label começa pelo nome (sem o " ▼")
+        || Array.from(base.querySelectorAll('button[aria-label]')).find(b => {
+            const rotulo = (b.getAttribute('aria-label') || '').toLowerCase();
+            return rotulo && !rotulo.includes('expandir') && rotulo.includes(String(nome).toLowerCase());
+        })
+        || null;
+}
+
+// Faz o hover em um ícone da barra. Devolve o container do menu que abriu,
+// ou null se não abriu (aí o alvo pode ser o próprio ícone).
+async function _maisPjeHover(icone) {
+    const safeDispatch = _maisPjeDispatcher();
+    const opts = { bubbles: true, cancelable: true, view: window };
+
+    // O hover vai no container também: a extensão escuta mouseover na base
+    // e nos botões, e disparar nos dois aumenta a chance de abrir o menu.
+    const base = document.querySelector(MAISPJE_BASE);
+    [icone, base].filter(Boolean).forEach(el => {
+        safeDispatch(el, 'mouseover', opts);
+        safeDispatch(el, 'mouseenter', opts);
+        safeDispatch(el, 'mousemove', opts);
+    });
+
+    return await esperarElemento('maispjecontaineraa', 1500);
+}
+
+// Procura o alvo pelo nome dentro do container (ou do documento, se o
+// container não abriu). Mesmo critério da extensão, mais o "contém".
+function _maisPjeAcharAlvo(nome, container) {
+    const alvo = String(nome).trim();
+    const alvoLower = alvo.toLowerCase();
+    const escopo = container || document;
+
+    const candidatos = Array.from(escopo.querySelectorAll('button, a, div, span, li'));
+
+    // 1) nome exato: aria-label, name ou id
+    const exato = candidatos.find(el => {
+        const rotulo = (el.getAttribute('aria-label') || '').toLowerCase();
+        const name = (el.getAttribute('name') || '').toLowerCase();
+        const id = (el.id || '').toLowerCase();
+        return rotulo === alvoLower || name === alvoLower || id.endsWith(alvoLower);
+    });
+    if (exato) return exato;
+
+    // 2) texto exato (o elemento folha, para não pegar um ancestral)
+    const porTexto = candidatos.find(el =>
+        (el.textContent || '').trim().toLowerCase() === alvoLower && el.children.length === 0);
+    if (porTexto) return porTexto;
+
+    // 3) contém, preferindo o elemento mais interno
+    const contem = candidatos.filter(el =>
+        (el.textContent || '').toLowerCase().includes(alvoLower));
+    if (contem.length) {
+        return contem.sort((a, b) => a.querySelectorAll('*').length - b.querySelectorAll('*').length)[0];
+    }
+    return null;
+}
+
+// Clica de fato: tenta o wrapper do Material, depois o próprio elemento.
+function _maisPjeClicar(el) {
+    let clicou = false;
+    const wrapper = el.querySelector && el.querySelector('.mat-button-wrapper');
+    if (wrapper) { try { wrapper.click(); clicou = true; } catch (e) { } }
+    try { el.click(); clicou = true; } catch (e) { }
+    return clicou;
+}
+
+/**
+ * Motor genérico dos botões da maisPJe.
+ *
+ *   await maisPje.hover('concluso').clicar('parcela')
+ *   await maisPje.hover('movimentar').clicar('ag pz-')
+ *   await maisPje.clicar('Pagamento')          // sem hover explícito
+ *
+ * Retorna { ok, icone, alvo, container }.
+ */
+function maisPjeHover(icone, opcoes) {
+    const opts = opcoes || {};
+    const api = {
+        /** Clica em `nome`, que pode estar no menu aberto ou ser o próprio ícone. */
+        async clicar(nome) {
+            const iconeEl = _maisPjeIcone(icone);
+            if (!iconeEl) {
+                const msg = `maisPje: ícone "${icone}" não encontrado`;
+                if (opts.silencioso !== true) _maisPjeAviso(msg, '#f44336');
+                return { ok: false, erro: msg, icone };
+            }
+
+            const container = await _maisPjeHover(iconeEl);
+            await new Promise(r => setTimeout(r, opts.esperaMenu != null ? opts.esperaMenu : 250));
+
+            // Procura primeiro no menu aberto; se não houver, no documento
+            // inteiro (o alvo pode ser outro ícone da barra, como no
+            // exemplo hover(concluso) + clicar(movimentar)).
+            let alvo = container ? _maisPjeAcharAlvo(nome, container) : null;
+            if (!alvo) alvo = _maisPjeAcharAlvo(nome, document);
+
+            if (!alvo) {
+                const msg = `maisPje: botão "${nome}" não encontrado após hover em "${icone}"`;
+                if (opts.silencioso !== true) _maisPjeAviso(msg, '#f44336');
+                return { ok: false, erro: msg, icone, container };
+            }
+
+            // Destaque visual rápido, para dar para ver por onde passou.
+            const estiloAnterior = alvo.style.cssText;
+            alvo.style.border = '2px solid red';
+            alvo.style.boxShadow = '0 0 10px red';
+            await new Promise(r => setTimeout(r, 150));
+
+            _maisPjeClicar(alvo);
+            alvo.style.cssText = estiloAnterior;
+
+            if (opts.silencioso !== true) {
+                _maisPjeAviso(`maisPje: ${icone} ➜ ${nome}`, '#4caf50');
+            }
+            return { ok: true, icone, alvo, container };
+        }
+    };
+    return api;
+}
+
+/**
+ * Atalho: hover no ícone e clique no alvo.
+ *   await acionarMaisPJe('concluso', 'parcela');
+ */
+async function acionarMaisPJe(icone, alvo, opcoes) {
+    return await maisPjeHover(icone, opcoes).clicar(alvo);
+}
+
+window.maisPje = {
+    hover: maisPjeHover,
+    acionar: acionarMaisPJe,
+    icones: MAISPJE_ICONES,
+    selectorBase: MAISPJE_BASE
+};
+
+
 
 // ─── PAINEL GLOBAL: SELEÇÃO LIVRES + ATIVIDADE XS1 (FLUXO PRAZO) ──
 

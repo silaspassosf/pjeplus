@@ -231,6 +231,55 @@
                         showToast('Módulo Débito não carregado', '#dc3545', 3000);
                     }
                 }, titulo: 'Registrar débito' },
+            { id: 'btnSaldoAlvara', texto: '🏦 Saldo', bg: '#1a7f37', fn: function (e) {
+                    const btn = e.target.closest('button');
+                    const api = window.Alv && window.Alv.siscondj;
+
+                    if (!api || typeof api.copiarSaldoProcesso !== 'function') {
+                        showToast('Módulo Alvará não carregado', '#dc3545', 3000);
+                        return;
+                    }
+                    if (typeof api.temGMXHR === 'function' && !api.temGMXHR()) {
+                        showToast('Falta @grant GM_xmlhttpRequest no pjetools.user.js', '#dc3545', 4000);
+                        return;
+                    }
+
+                    // Número do processo: da URL (/detalhe/...) ou do campo da tela.
+                    const numeroProcesso = (location.href.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/) || [])[0]
+                        || (document.querySelector('#numeroProcesso') || {}).value
+                        || (document.querySelector('[class*="numero-processo"], .numero-processo')?.textContent || '').trim();
+
+                    if (!numeroProcesso) {
+                        showToast('Número do processo não encontrado na página', '#dc3545', 3000);
+                        return;
+                    }
+
+                    const textoOriginal = btn.textContent;
+                    btn.textContent = '⏳ Consultando';
+                    btn.disabled = true;
+
+                    api.copiarSaldoProcesso(numeroProcesso)
+                        .then(res => {
+                            if (res && res.copiado) {
+                                btn.textContent = '✅ Saldo copiado';
+                            } else if (res && res.semSaldo) {
+                                btn.textContent = 'Sem saldo';
+                            } else {
+                                btn.textContent = 'Falha ao copiar';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('[PjeTools][Saldo] erro:', err);
+                            btn.textContent = 'Erro';
+                            showToast('Saldo: ' + (err && err.message ? err.message : err), '#dc3545', 5000);
+                        })
+                        .finally(() => {
+                            setTimeout(() => {
+                                btn.textContent = textoOriginal;
+                                btn.disabled = false;
+                            }, 2500);
+                        });
+                }, titulo: 'Consultar saldo da conta judicial no Alvará e copiar o resumo' },
             { id: 'btnArgos', texto: '⚖️ Argos', bg: '#6f42c1', fn: function () {
                     if (typeof window.executarArgos === 'function') {
                         window.executarArgos();

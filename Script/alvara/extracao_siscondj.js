@@ -103,6 +103,235 @@
     }
 
     // ─────────────────────────────────────────────────────────────────
+    // CAMADA DE API — consulta do saldo sem sair da página do PJe (/detalhe)
+    //
+    // O Alvará roda em alvaraeletronico.trt2.jus.br e o PJe em pje.trt2.jus.br.
+    // O fetch cross-origin é barrado por CORS (o servidor não manda
+    // Access-Control-Allow-Origin) e a sessão do Alvará é httpOnly, então não
+    // há header para montar à mão. GM_xmlhttpRequest ignora CORS e envia os
+    // cookies do domínio de destino — por isso exige @grant no header do
+    // pjetools.user.js junto com @connect.
+    //
+    // Fluxo confirmado em teste real:
+    //   POST /pages/movimentacao/conta/buscar   (só o numeroProcesso importa)
+    //     -> HTML com tr[id^=linhaConta_] e a tabela de parcelas
+    //   GET  /pages/relatorios/extrato/conta/obterSaldo/{idConta}/parcelas/{n}/3
+    //     -> Valor Disponível de cada parcela; termina em {emptyList:true}
+    //
+    // ATENÇÃO ao que é o quê (conferido contra a tela):
+    //   td_saldo_conta_*          = VALOR DEPOSITADO acumulado  (NÃO é o saldo)
+    //   td_saldo_corrigido_conta_ = VALOR DISPONÍVEL da conta    (é o saldo)
+    //   td[5] parcela             = Valor Depositado da parcela
+    //   td[8] parcela             = Valor Disponível da parcela  (é o saldo)
+    // ─────────────────────────────────────────────────────────────────
+    const HOST_ALVARA = 'https://alvaraeletronico.trt2.jus.br';
+    const URL_BUSCAR = HOST_ALVARA + '/portaltrtsp/pages/movimentacao/conta/buscar';
+    const URL_PARCELAS = HOST_ALVARA + '/portaltrtsp/pages/relatorios/extrato/conta/obterSaldo';
+    const MAX_PAGINAS_PARCELAS = 60;
+
+    function temGMXHR() {
+        return typeof GM_xmlhttpRequest === 'function';
+    }
+
+    // Wrapper de GM_xmlhttpRequest em Promise.
+    function requisitar(opcoes) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest(Object.assign({}, opcoes, {
+                onload: r => resolve(r),
+                onerror: e => reject(new Error('falha de rede: ' + (e && e.error ? e.error : 'desconhecida'))),
+                ontimeout: () => reject(new Error('timeout'))
+            }));
+        });
+    }
+
+    // Busca as contas de um processo. Devolve o HTML cru + o documento parseado.
+    async function buscarContas(numeroProcesso) {
+        if (!temGMXHR()) {
+            throw new Error('GM_xmlhttpRequest indisponível — falta @grant no pje_tools.user.js');
+        }
+        if (!numeroProcesso) throw new Error('número do processo vazio');
+
+        // Os campos de id vão vazios de propósito: o servidor resolve pelo
+        // número. Mandar valores de outro processo é o que produz resultado
+        // errado (foi observado em teste).
+        const corpo = 'contaSelecionada=&exibirTJSP=false'
+            + '&numeroProcesso=' + encodeURIComponent(String(numeroProcesso).trim())
+            + '&idProcesso=&numeroConta=';
+
+        const r = await requisitar({
+            method: 'POST',
+            url: URL_BUSCAR,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            data: corpo,
+            timeout: 45000
+        });
+
+        if (r.status !== 200) throw new Error('POST /buscar devolveu HTTP ' + r.status);
+
+        const doc = new DOMParser().parseFromString(r.responseText, 'text/html');
+
+        // Login expirado devolve a tela sem a tabela de contas.
+        if (!doc.getElementById('form_movimentacao_conta') && !doc.getElementById('table_contas')) {
+            throw new Error('resposta sem o formulário de contas — sessão do Alvará expirada?');
+        }
+
+        return { html: r.responseText, doc };
+    }
+
+    // Parcelas de uma conta, paginando até vir {emptyList:true}.
+    // Devolve os registros da API (fonte autoritativa dos valores).
+    async function parcelasContaApi(idConta) {
+        const todas = [];
+        for (let pagina = 0; pagina < MAX_PAGINAS_PARCELAS; pagina++) {
+            const r = await requisitar({
+                method: 'GET',
+                url: URL_PARCELAS + '/' + idConta + '/parcelas/' + pagina + '/3?_=' + Date.now(),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                timeout: 30000
+            });
+            if (r.status !== 200) break;
+
+            let json;
+            try { json = JSON.parse(r.responseText); } catch (e) { break; }
+            if (!json) break;
+            if (json.emptyList !== undefined) break;          // fim da paginação
+
+            const arr = Array.isArray(json) ? json : [json];
+            if (!arr.length) break;
+            todas.push(...arr);
+        }
+        return todas;
+    }
+
+    // Extrai, do HTML do POST, a lista de contas com seus depósitos.
+    // Data e depositante só existem aqui — a API devolve apenas valores.
+    function extrairContasDoHtml(doc) {
+        const contas = [];
+
+        doc.querySelectorAll('tr[id^="linhaConta_"]').forEach(tr => {
+            const m = tr.id.match(/linhaConta_(\d+)/);
+            if (!m) return;
+            const idConta = m[1];
+
+            // Número da conta: segunda coluna (a primeira é o ícone).
+            const numeroConta = (tr.querySelector('td:nth-child(2)')?.textContent || '').trim();
+            const status = (tr.querySelector('td[id^="td_status"]')?.textContent || '').trim();
+
+            // ATENÇÃO: td_saldo_conta_ é o DEPOSITADO total, não o saldo.
+            const depositadoTxt = (tr.querySelector('td[id^="td_saldo_conta_"]')?.textContent || '').trim();
+            const disponivelTxt = (tr.querySelector('td[id^="td_saldo_corrigido_conta_"]')?.textContent || '').trim();
+
+            // Parcelas: cada <tr id="linhaParcela_{idConta}_{idParcela}">
+            const parcelas = [];
+            doc.querySelectorAll('tr[id^="linhaParcela_' + idConta + '_"]').forEach(lp => {
+                const mp = lp.id.match(/linhaParcela_\d+_(\d+)/);
+                if (!mp) return;
+                const tds = lp.querySelectorAll('td');
+                if (tds.length < 9) return;
+
+                parcelas.push({
+                    idParcela: mp[1],
+                    numero: (tds[1].textContent || '').trim(),
+                    data: (tds[2].textContent || '').trim(),
+                    depositante: (tds[3].textContent || '').trim(),
+                    cpfCnpj: (tds[4].textContent || '').trim(),
+                    depositadoTexto: (tds[5].textContent || '').trim(),
+                    disponivelTexto: (tds[8].textContent || '').trim()
+                });
+            });
+
+            contas.push({
+                idConta,
+                numeroConta,
+                status,
+                depositadoTexto: depositadoTxt,
+                disponivelTexto: disponivelTxt,
+                parcelas
+            });
+        });
+
+        return contas;
+    }
+
+    // Junta HTML + API. O valor final de cada parcela vem da API
+    // (valorSaldoCorrigidoFormatado = coluna "Valor Disponível").
+    // Data e depositante vêm do HTML, casados por idParcela.
+    async function saldosCompletos(numeroProcesso) {
+        const { doc } = await buscarContas(numeroProcesso);
+        const contas = extrairContasDoHtml(doc);
+        logSiscondj('contas encontradas no HTML:', contas.length);
+
+        for (const conta of contas) {
+            const api = await parcelasContaApi(conta.idConta);
+            const porId = {};
+            api.forEach(p => { porId[String(p.idParcela)] = p; });
+
+            conta.parcelas = conta.parcelas.map(p => {
+                const reg = porId[String(p.idParcela)];
+                // API tem precedência; o HTML é o fallback.
+                const texto = reg && reg.codigoRetorno === '0'
+                    ? (reg.valorSaldoCorrigidoFormatado || p.disponivelTexto)
+                    : p.disponivelTexto;
+                return Object.assign({}, p, {
+                    disponivelTexto: texto,
+                    disponivelValor: parseMoeda(texto)
+                });
+            });
+
+            conta.totalDisponivelValor = conta.parcelas.reduce((s, p) => s + p.disponivelValor, 0);
+            conta.totalDisponivelTexto = formatarBRL(conta.totalDisponivelValor);
+        }
+
+        return contas;
+    }
+
+    function formatarBRL(n) {
+        try {
+            return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } catch (e) {
+            return 'R$ ' + (Number(n) || 0).toFixed(2).replace('.', ',');
+        }
+    }
+
+    // Monta o HTML de saída — mesmo formato do botão "Extrair saldo"
+    // (Script/alvara/saldo_extracao.js), que é a referência do projeto.
+    function montarSaidaHtml(contas) {
+        const hoje = new Date();
+        const dataConferencia = String(hoje.getDate()).padStart(2, '0') + '/'
+            + String(hoje.getMonth() + 1).padStart(2, '0') + '/' + hoje.getFullYear();
+
+        const pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"';
+
+        // Só contas com valor disponível > 0 entram na saída.
+        const comSaldo = contas.filter(c => (c.totalDisponivelValor || 0) > 0);
+        if (!comSaldo.length) return null;
+
+        let html = '<p ' + pStyle + '>Data da conferência: ' + dataConferencia + '</p>';
+
+        comSaldo.forEach((conta, index) => {
+            html += '<p ' + pStyle + '>Conta judicial: ' + conta.numeroConta + '</p>';
+            html += '<p ' + pStyle + '>Total disponível: ' + formatarBRL(conta.totalDisponivelValor) + '</p>';
+
+            const depositos = conta.parcelas.filter(p => p.disponivelValor > 0 && p.data && p.depositante);
+            if (depositos.length) {
+                html += '<p ' + pStyle + '>Discriminação de depósitos disponíveis:</p>';
+                depositos.forEach(d => {
+                    html += '<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:1cm;text-align:justify !important;text-indent:4.5cm;">'
+                        + '• ' + d.data + ' - ' + d.depositante + ' - ' + formatarBRL(d.disponivelValor) + '</p>';
+                });
+            } else {
+                html += '<p ' + pStyle + '>(Consultar parcelas individuais - expandir detalhes na tela)</p>';
+            }
+
+            if (index < comSaldo.length - 1) {
+                html += '<p ' + pStyle + '><br data-cke-filler="true"></p>';
+            }
+        });
+
+        return html;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
     // ORQUESTRADOR DE EXTRAÇÃO
     // ─────────────────────────────────────────────────────────────────
     async function extrairDadosSiscondj() {
@@ -136,17 +365,62 @@
         return Alv.siscon.consultarDocumento(documento);
     }
 
+    // Copia HTML para o clipboard (mesma técnica do saldo_extracao.js).
+    function copiarHtml(html) {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        div.style.cssText = 'position:absolute;left:-9999px;';
+        document.body.appendChild(div);
+
+        const range = document.createRange();
+        range.selectNodeContents(div);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        if (document.body.contains(div)) document.body.removeChild(div);
+        sel.removeAllRanges();
+        return ok;
+    }
+
+    // Ação do botão no painel (roda na tela /detalhe do PJe).
+    // Devolve { copiado: bool, semSaldo: bool, contas }.
+    async function copiarSaldoProcesso(numeroProcesso) {
+        const contas = await saldosCompletos(numeroProcesso);
+        const html = montarSaidaHtml(contas);
+
+        if (!html) {
+            logSiscondj('nenhuma conta com saldo disponível');
+            return { copiado: false, semSaldo: true, contas };
+        }
+
+        const ok = copiarHtml(html);
+        logSiscondj('saída copiada:', ok, '| contas com saldo:', contas.filter(c => c.totalDisponivelValor > 0).length);
+        return { copiado: ok, semSaldo: false, contas };
+    }
+
     Alv.siscondj = Alv.siscondj || {};
     Object.assign(Alv.siscondj, {
         CONFIG,
         ehSiscondj,
         logSiscondj,
         parseMoeda,
+        formatarBRL,
         valorDoCampo,
         lerTela,
         lerContasJudiciais,
         lerParcelasConta,
         extrairDadosSiscondj,
-        consultarDocumento
+        consultarDocumento,
+        // camada de API
+        temGMXHR,
+        buscarContas,
+        parcelasContaApi,
+        extrairContasDoHtml,
+        saldosCompletos,
+        montarSaidaHtml,
+        copiarSaldoProcesso
     });
 })();

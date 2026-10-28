@@ -269,16 +269,6 @@
                             } else {
                                 btn.textContent = 'Falha ao copiar';
                             }
-                            // Diagnóstico: tempo e nº de chamadas ao Alvará.
-                            if (res) {
-                                console.log('[PjeTools][Saldo]', res.ms + 'ms',
-                                    '| chamadas:', res.chamadas,
-                                    '| contas:', (res.contas || []).map(function (c) {
-                                        return c.numeroConta + ' ' + c.totalDisponivelTexto
-                                            + ' (' + c.origemSaldo
-                                            + (c.paginasLidas ? ', ' + c.paginasLidas + 'p' : '') + ')';
-                                    }).join(' | '));
-                            }
                         })
                         .catch(err => {
                             console.error('[PjeTools][Saldo] erro:', err);

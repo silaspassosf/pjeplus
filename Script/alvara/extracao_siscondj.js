@@ -172,16 +172,14 @@
 
         if (r.status !== 200) throw new Error('POST /buscar devolveu HTTP ' + r.status);
 
-        const tParse = performance.now();
         const doc = new DOMParser().parseFromString(r.responseText, 'text/html');
-        const msParse = Math.round(performance.now() - tParse);
 
         // Login expirado devolve a tela sem a tabela de contas.
         if (!doc.getElementById('form_movimentacao_conta') && !doc.getElementById('table_contas')) {
             throw new Error('resposta sem o formulário de contas — sessão do Alvará expirada?');
         }
 
-        return { html: r.responseText, doc, msReq, msParse };
+        return { html: r.responseText, doc, msReq };
     }
 
     // Busca o saldo de UMA conta — endpoint da conta, não das parcelas.
@@ -341,25 +339,19 @@
     // As parcelas servem só para a discriminação dos depósitos na saída —
     // nunca para descobrir se há saldo.
     async function saldosCompletos(numeroProcesso) {
-        const t0 = performance.now();
-        const { doc, msReq, msParse } = await buscarContas(numeroProcesso);
-        const t1 = performance.now();
+        const { doc, msReq } = await buscarContas(numeroProcesso);
         const contas = extrairContasDoHtml(doc);
 
         contas.forEach(c => {
             c.depositadoValor = parseMoeda(c.depositadoTexto);
         });
 
-        logSiscondj('contas:', contas.length,
-            '| rede', msReq + 'ms',
-            '| parse', msParse + 'ms',
-            '| extração', Math.round(performance.now() - t1) + 'ms');
+        logSiscondj(contas.length, 'conta(s) | rede', msReq + 'ms');
 
         for (const conta of contas) {
             await completarConta(conta);
         }
 
-        logSiscondj('consulta concluída em', Math.round(performance.now() - t0) + 'ms');
         return contas;
     }
 
@@ -409,11 +401,6 @@
         conta.totalPaginas = totalPaginas;
         conta.expandida = true;
 
-        logSiscondj('conta', conta.numeroConta,
-            '— disponível', conta.totalDisponivelTexto,
-            '| origem', origemSaldo,
-            '| depositado', conta.depositadoTexto);
-
         // ── 2. PARCELAS (datas e depositantes) ──
         // Só faz sentido se há saldo e se há parcela com depósito.
         if (valorSaldo > 0) {
@@ -456,10 +443,12 @@
         conta.paginasLidas = paginasLidas;
         conta.parcelasFecharam = Math.abs(acumulado - alvo) < TOLERANCIA;
 
-        logSiscondj('conta', conta.numeroConta,
-            '— parcelas: páginas', paginasLidas + '/' + totalPaginas,
-            '| somam', formatarBRL(acumulado),
-            '|', conta.parcelasFecharam ? 'fecha com o saldo' : 'DIVERGE do saldo');
+        // Só avisa quando NÃO fecha: aí a discriminação pode estar incompleta.
+        if (!conta.parcelasFecharam) {
+            logSiscondj('conta', conta.numeroConta,
+                '— parcelas somam', formatarBRL(acumulado),
+                'mas o saldo é', formatarBRL(alvo), '(discriminação incompleta)');
+        }
     }
 
     function formatarBRL(n) {
@@ -635,15 +624,12 @@
             + (c.paginasLidas || 0), 0);
 
         if (!html) {
-            logSiscondj('nenhuma conta com saldo disponível',
-                '|', ms + 'ms', '| chamadas:', chamadas);
+            logSiscondj('sem saldo disponível |', ms + 'ms');
             return { copiado: false, semSaldo: true, contas, ms, chamadas };
         }
 
         const ok = copiarHtml(html);
-        logSiscondj('saída copiada:', ok,
-            '| contas com saldo:', contas.filter(c => c.totalDisponivelValor > 0).length,
-            '|', ms + 'ms', '| chamadas:', chamadas);
+        logSiscondj('saldo copiado:', ok, '|', ms + 'ms |', chamadas, 'chamada(s)');
         return { copiado: ok, semSaldo: false, contas, ms, chamadas };
     }
 

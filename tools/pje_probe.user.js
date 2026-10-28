@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Probe
 // @namespace    pjeplus.probe
-// @version      1.2
+// @version      1.3
 // @description  Botao PROBE: grava seletores (ranking de estabilidade) e endpoints de API (fetch+XHR) da tela. Sobrevive a navegacao/login MESMO ATRAVESSANDO ORIGENS DIFERENTES (GM_setValue nao e por origem). Ao parar, copia relatorio para a area de transferencia.
 // @match        *://*.jus.br/*
 // @run-at       document-end
@@ -15,13 +15,13 @@
  *
  *   Fica restrito a #maisPJe_bt_detalhes_base: so entra o hover cujo elemento
  *   esta dentro dessa barra. Hover em qualquer outra coisa da pagina e
- *   ignorado — o objetivo e mapear "icone -> botoes que o menu abre".
+ *   ignorado.
  *
- *   Depois de cada hover, espera 700ms (a extensao monta os botoes ~500ms
- *   depois, ver addBotaoTelaAnexar) e le o menu maisPjeContainerAA, gravando
- *   id, name, texto e visibilidade de cada botao. O relatorio sai no formato
- *   que o motor usa:  ICONE #maisPJe_bt_detalhes_anexarDocumentos
- *                     name="SISCON"  texto="SISCON"
+ *   Grava duas coisas por hover: o ICONE que recebeu o hover e o BOTAO que
+ *   recebeu o clique nos 5s seguintes. O menu inteiro nao e listado.
+ *   O relatorio sai assim:
+ *       hover: #maisPJe_bt_detalhes_anexarDocumentos   "Anexar Documentos"
+ *         clique: <button> id=7 name="Siscon" "Siscon"
  *
  * v1.1: troca sessionStorage (isolado por origem) por GM_setValue/GM_getValue
  * (compartilhado entre TODAS as origens que o script casa via @match) — resolve
@@ -216,10 +216,10 @@
 
   // ── Hovers da maisPJe ──────────────────────────────────────────────────
   //
-  // Grava SO os hovers cujo elemento esta dentro de #maisPJe_bt_detalhes_base
-  // (a barra de icones da extensao). Cada hover e registrado junto com os
-  // botoes que apareceram no menu depois dele — o mapa "icone -> botoes" e
-  // exatamente o que falta para automatizar o clique por nome.
+  // Grava SO o hover cujo elemento esta dentro de #maisPJe_bt_detalhes_base
+  // (a barra de icones da extensao), e o clique que vier nos 5s seguintes.
+  // Uma linha por hover: o icone e o botao clicado. O menu inteiro NAO e
+  // listado — nao serve para nada.
   //
   // Fica separado de state.selectors de proposito: sao coisas diferentes.
   // Um seletor e "como achar este elemento"; um hover e "que menu este
@@ -234,30 +234,21 @@
     return alvo.closest(MAISPJE_BASE + ' button[aria-label], ' + MAISPJE_BASE + ' a[aria-label]');
   }
 
-  // Le os botoes que a extensao montou no menu (nome + texto + visibilidade).
-  function lerMenuMaisPje() {
-    var menu = document.querySelector(MAISPJE_MENU);
-    if (!menu) return null;
-
-    var botoes = [];
-    var todos = menu.querySelectorAll('button');
-    for (var i = 0; i < todos.length; i++) {
-      var b = todos[i];
-      var texto = (b.textContent || '').trim();
-      if (!texto && !b.name && !b.id) continue;
-      // visivel de verdade: sem display:none e com caixa
-      var visivel = b.offsetParent !== null && b.style.display !== 'none';
-      botoes.push({
-        id: b.id || '',
-        name: b.name || '',
-        texto: texto,
-        ariaLabel: b.getAttribute('aria-label') || '',
-        visivel: visivel
-      });
-    }
-    return { id: menu.id || '', total: botoes.length, botoes: botoes };
+  // Descreve UM elemento: o que basta para reproduzir o clique depois.
+  function descrever(el) {
+    if (!el) return null;
+    return {
+      tag: el.tagName.toLowerCase(),
+      id: el.id || '',
+      name: el.getAttribute('name') || '',
+      texto: (el.textContent || '').trim().slice(0, 60),
+      ariaLabel: el.getAttribute('aria-label') || ''
+    };
   }
 
+  // Grava o ICONE que recebeu o hover e os botoes que receberam clique
+  // depois dele. Listar o menu inteiro nao serve para nada — o que importa
+  // e "hover em X, clique em Y".
   function registrarHoverMaisPje(iconeEl) {
     if (!state.recording) return;
 
@@ -265,33 +256,24 @@
     var chave = iconeEl.id || rotulo;
     var agora = Date.now();
 
-    // Agrupa hovers repetidos do mesmo icone (o mouse sai e volta o tempo
-    // todo). Guarda so o ultimo menu lido, mas conta as ocorrencias.
+    // O mouse entra e sai do mesmo icone o tempo todo: agrupa pela chave e
+    // acumula os cliques feitos nessa janela.
     var h = state.hovers[chave];
     if (!h) {
       h = state.hovers[chave] = {
         id: iconeEl.id || '',
         rotulo: rotulo,
         vezes: 0,
-        menuId: '',
-        botoes: [],
-        atualizadoEm: null
+        cliques: [],
+        em: null
       };
     }
     h.vezes++;
-    h.atualizadoEm = agora;
+    h.em = agora;
 
-    // A extensao monta os botoes ~500ms depois do hover (addBotaoTelaAnexar
-    // usa sleep(500)). Ler cedo demais pegaria o menu vazio ou o anterior.
-    setTimeout(function () {
-      try {
-        var menu = lerMenuMaisPje();
-        if (!menu) return;
-        h.menuId = menu.id;
-        h.botoes = menu.botoes;
-        salvarEstado();
-      } catch (e) {}
-    }, 700);
+    // Janela: cliques nos proximos 5s contam como "depois deste hover".
+    // A extensao monta os botoes ~500ms depois, entao isso cobre a espera.
+    state._janelaHover = { chave: chave, em: agora };
 
     salvarEstado();
   }
@@ -301,6 +283,37 @@
       if (!state.recording) return;
       var icone = iconeDoHover(ev);
       if (icone) registrarHoverMaisPje(icone);
+    } catch (e) {
+      // nunca deixar o probe quebrar a pagina do usuario
+    }
+  }
+
+  // Clique: se houver janela de hover aberta, anota o BOTAO clicado nela.
+  // Uma entrada por botao (com contagem), nao uma por clique.
+  function onCliqueMaisPje(ev) {
+    try {
+      if (!state.recording) return;
+      var janela = state._janelaHover;
+      if (!janela) return;
+      if (Date.now() - janela.em > 5000) return;
+      if (ev.target.closest && ev.target.closest('[data-pje-probe-ui]')) return;
+
+      var h = state.hovers[janela.chave];
+      if (!h || !ev.target.closest) return;
+
+      var botao = ev.target.closest('button, a');
+      if (!botao) return;
+
+      var d = descrever(botao);
+      var igual = null;
+      for (var i = 0; i < h.cliques.length; i++) {
+        if (h.cliques[i].id === d.id && h.cliques[i].name === d.name &&
+            h.cliques[i].texto === d.texto) { igual = h.cliques[i]; break; }
+      }
+      if (igual) { igual.vezes++; }
+      else { d.vezes = 1; h.cliques.push(d); }
+
+      salvarEstado();
     } catch (e) {
       // nunca deixar o probe quebrar a pagina do usuario
     }
@@ -412,18 +425,19 @@
     } else {
       hovs.sort(function (a, b) { return b.vezes - a.vezes; });
       hovs.forEach(function (h) {
+        // Uma linha por hover: o icone e, logo abaixo, o que foi clicado.
         lines.push('');
-        // Linha pronta para usar no motor: hover(<id>) -> clicar(<name>)
-        lines.push('ICONE ' + (h.id || '(sem id)') + '   "' + h.rotulo + '"   (' + h.vezes + 'x)');
-        if (h.id) lines.push('  selector: #' + h.id);
-        if (!h.botoes.length) {
-          lines.push('  botoes: (menu nao lido — hover sem menu aberto?)');
+        lines.push('hover: ' + (h.id ? '#' + h.id : '(sem id)') +
+          '   "' + h.rotulo + '"' + (h.vezes > 1 ? '   (' + h.vezes + 'x)' : ''));
+        if (!h.cliques.length) {
+          lines.push('  clique: (nenhum)');
         } else {
-          lines.push('  botoes (' + h.botoes.length + '):');
-          h.botoes.forEach(function (b) {
-            var marca = b.visivel ? '' : '  [OCULTO]';
-            lines.push('    name="' + b.name + '"  texto="' + b.texto + '"' +
-              (b.id ? '  id=' + b.id : '') + marca);
+          h.cliques.forEach(function (c) {
+            lines.push('  clique: <' + c.tag + '>' +
+              (c.id ? ' id=' + c.id : '') +
+              (c.name ? ' name="' + c.name + '"' : '') +
+              (c.texto ? ' "' + c.texto + '"' : '') +
+              (c.vezes > 1 ? '   (' + c.vezes + 'x)' : ''));
           });
         }
       });
@@ -473,6 +487,8 @@
     // Hovers da barra maisPJe: mouseover e o unico evento que a extensao
     // garante receber (ela usa onmouseenter no botao, que dispara junto).
     document.addEventListener('mouseover', onHoverMaisPje, true);
+    // Clique: so interessa para saber qual botao foi clicado depois do hover.
+    document.addEventListener('click', onCliqueMaisPje, true);
     patchNetwork();
     btn.style.background = COLOR_REC;
     salvarEstado();
@@ -489,6 +505,7 @@
     document.removeEventListener('click', onInteraction, true);
     document.removeEventListener('focusin', onInteraction, true);
     document.removeEventListener('mouseover', onHoverMaisPje, true);
+    document.removeEventListener('click', onCliqueMaisPje, true);
     unpatchNetwork();
     var report = buildReport();
     copyText(report);

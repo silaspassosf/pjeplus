@@ -2527,7 +2527,7 @@ def teste_sisbajud_minuta_com_probe(id_processo=None):
             LOGGER.info('[SISB_PROBE_TEST] ✓ probe_relatorio.json salvo')
 
             if probe:
-                relatorio_txt = probe.relatorio_texto()
+                relatorio_txt = probe.relatorio_texto(relatorio)
                 with open('probe_relatorio.txt', 'w', encoding='utf-8') as f:
                     f.write(relatorio_txt)
                 LOGGER.info('[SISB_PROBE_TEST] ✓ probe_relatorio.txt salvo')

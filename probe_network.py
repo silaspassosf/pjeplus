@@ -224,9 +224,16 @@ class ProbeNetwork:
         """
 
         try:
-            # Playwright
-            if hasattr(self.driver, 'page'):
-                self.driver.page.evaluate(js_probe)
+            # Playwright: add_init_script persiste o probe em todos os redirecionamentos de página
+            if hasattr(self.driver, 'page') and self.driver.page:
+                try:
+                    self.driver.page.add_init_script(js_probe)
+                except Exception:
+                    pass
+                try:
+                    self.driver.page.evaluate(js_probe)
+                except Exception:
+                    pass
             # Fallback legacy
             elif hasattr(self.driver, 'execute_script'):
                 getattr(self.driver, 'execute_script')(js_probe)
@@ -237,6 +244,8 @@ class ProbeNetwork:
     def stop(self) -> Dict[str, Any]:
         """Para interceptação e coleta resultados."""
         if not self.ativo:
+            if hasattr(self, '_ultimo_resultado') and self._ultimo_resultado:
+                return self._ultimo_resultado
             return {'erro': 'probe não estava ativo'}
 
         self.ativo = False
@@ -281,7 +290,7 @@ class ProbeNetwork:
         # Viabilidade API
         viabilidade = self._analisar_viabilidade()
 
-        return {
+        resultado = {
             'timestamp': datetime.now().isoformat(),
             'duracao_segundos': tempo_total,
             'endpoints': sorted(
@@ -294,6 +303,8 @@ class ProbeNetwork:
             'viabilidade_api': viabilidade,
             'recomendacoes': self._gerar_recomendacoes()
         }
+        self._ultimo_resultado = resultado
+        return resultado
 
     def _analisar_viabilidade(self) -> Dict[str, Any]:
         """Analisa viabilidade de implementação via API pura."""
@@ -387,13 +398,14 @@ class ProbeNetwork:
         except Exception as e:
             print(f"[PROBE] Erro ao salvar relatório: {e}")
 
-    def relatorio_texto(self) -> str:
+    def relatorio_texto(self, resultado: Optional[Dict[str, Any]] = None) -> str:
         """Gera relatório em texto legível."""
-        resultado = self.stop()
+        if resultado is None:
+            resultado = self.stop()
         
         # Se houve erro na coleta, retorna relatório simples
-        if 'erro' in resultado:
-            return f"[PROBE ERROR] {resultado['erro']}"
+        if not resultado or 'erro' in resultado:
+            return f"[PROBE ERROR] {resultado.get('erro', 'dados vazios') if isinstance(resultado, dict) else 'invalido'}"
         
         linhas = [
             "=" * 80,
@@ -412,39 +424,41 @@ class ProbeNetwork:
             "=" * 80,
         ]
 
-        for ep in resultado['endpoints']:
-            marker = "⚠" if ep['critico'] else "○"
-            status_str = ", ".join(f"{k}x{v}" for k, v in sorted(ep['status_codes'].items()))
-            media_tempo = ep['tempo_total_ms'] / ep['chamadas'] if ep['chamadas'] else 0
+        for ep in resultado.get('endpoints', []):
+            marker = "⚠" if ep.get('critico') else "○"
+            status_str = ", ".join(f"{k}x{v}" for k, v in sorted(ep.get('status_codes', {}).items()))
+            chamadas = ep.get('chamadas', 1) or 1
+            media_tempo = ep.get('tempo_total_ms', 0) / chamadas
             
-            linhas.append(f"\n{marker} [{ep['metodo']}] {ep['chamadas']}x  {ep['template']}")
+            linhas.append(f"\n{marker} [{ep.get('metodo', 'GET')}] {ep.get('chamadas', 0)}x  {ep.get('template', '')}")
             linhas.append(f"   Status: {status_str}")
-            linhas.append(f"   Tempo: {media_tempo:.0f}ms média ({ep['tempo_min_ms']:.0f}–{ep['tempo_max_ms']:.0f}ms)")
-            linhas.append(f"   Dados: {ep['tamanho_resp_total']} bytes resposta")
-            if ep['payloads_exemplo']:
+            linhas.append(f"   Tempo: {media_tempo:.0f}ms média ({ep.get('tempo_min_ms', 0):.0f}–{ep.get('tempo_max_ms', 0):.0f}ms)")
+            linhas.append(f"   Dados: {ep.get('tamanho_resp_total', 0)} bytes resposta")
+            if ep.get('payloads_exemplo'):
                 linhas.append(f"   Exemplo request: {ep['payloads_exemplo'][0]}")
-            if ep['respostas_exemplo']:
+            if ep.get('respostas_exemplo'):
                 linhas.append(f"   Exemplo response: {ep['respostas_exemplo'][0]}")
 
+        viab = resultado.get('viabilidade_api', {})
         linhas.extend([
             "",
             "=" * 80,
             "VIABILIDADE DE API",
             "=" * 80,
-            f"Score: {resultado['viabilidade_api']['score']}/100",
-            f"Viável para headless: {'✓ SIM' if resultado['viabilidade_api']['viavel'] else '✗ NÃO'}",
+            f"Score: {viab.get('score', 0)}/100",
+            f"Viável para headless: {'✓ SIM' if viab.get('viavel') else '✗ NÃO'}",
         ])
 
-        if resultado['viabilidade_api']['motivos']:
+        if viab.get('motivos'):
             linhas.append("\nMotivos:")
-            for motivo in resultado['viabilidade_api']['motivos']:
+            for motivo in viab.get('motivos', []):
                 linhas.append(f"  - {motivo}")
 
         linhas.extend([
             "",
             "RECOMENDAÇÕES",
         ])
-        for rec in resultado['recomendacoes']:
+        for rec in resultado.get('recomendacoes', []):
             linhas.append(f"  → {rec}")
 
         return "\n".join(linhas)

@@ -202,6 +202,67 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
         self.assertEqual(mock_chip.call_count, 2)
         mock_pec.assert_called_once()
 
+    @patch("bianca.dom_engine._checar_empresas_e_ids_api")
+    @patch("bianca.dom_engine.criar_gigs")
+    @patch("bianca.dom_engine.criar_comentario")
+    @patch("bianca.dom_engine.criar_lembrete_posit")
+    @patch("bianca.dom_engine.def_chip")
+    @patch("bianca.dom_engine.pec_arord", return_value=True)
+    def test_callback_bucket2_pula_sem_acoes_quando_unica_reclamada_e_pjdp(
+        self,
+        mock_pec,
+        mock_chip,
+        mock_lembrete,
+        mock_coment,
+        mock_gigs,
+        mock_checar_api,
+    ):
+        """Quando a única reclamada com domicílio eletrônico é PJDP, não executa o wrapper nem ações."""
+        from bianca.dom_engine import ListaDestinatariosDOM, callback_bucket2
+
+        mock_driver = MagicMock()
+        mock_driver.current_url = "https://pje.trt2.jus.br/pjekz/processo/8881116/detalhe"
+        mock_driver._numero_processo_lista = "1001572-12.2026.5.02.0703"
+
+        # 0 empresas filtradas, e PJDP detectada
+        destinatarios_mock = ListaDestinatariosDOM([])
+        destinatarios_mock.pjdp_detectado = ["EMPRESA BRASILEIRA DE CORREIOS E TELEGRAFOS"]
+        mock_checar_api.return_value = destinatarios_mock
+
+        res = callback_bucket2(mock_driver, tipo_processo="ATOrd")
+
+        # Deve pular retornando True
+        self.assertTrue(res)
+        # NENHUMA ação deve ser executada (não cria comentário, lembrete, chips, gigs ou PEC)
+        mock_coment.assert_not_called()
+        mock_lembrete.assert_not_called()
+        mock_chip.assert_not_called()
+        mock_gigs.assert_not_called()
+        mock_pec.assert_not_called()
+
+    def test_def_chip_normalizacao_e_matching(self):
+        """Garante que normalização de chips desconsidera maiúsculas, acentos, traços e pontuação."""
+        from atos.movimentos_chips import normalizar_chip_texto, chip_corresponde_padrao
+
+        padrao = "Domicilio Eletronico - Ciencia Automatica"
+        padrao_norm = normalizar_chip_texto(padrao)
+
+        casos_validos = [
+            "Domicílio Eletrônico – Ciência Automática",  # en-dash
+            "Domicílio Eletrônico — Ciência Automática",  # em-dash
+            "Domicilio Eletronico - Ciencia Automatica\ncancel",  # newline + botão
+            "Ciência Automática",  # sem prefixo
+            "DOMICÍLIO ELETRÔNICO: CIÊNCIA AUTOMÁTICA",  # maiúsculas e dois pontos
+        ]
+
+        for texto in casos_validos:
+            chip_norm = normalizar_chip_texto(texto)
+            self.assertTrue(
+                chip_corresponde_padrao(chip_norm, padrao_norm),
+                f"Falha ao casar '{texto}' com '{padrao}'",
+            )
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -199,13 +199,11 @@ def has_dom_eletronico_reminder(driver: Any) -> bool:
         titles = espera.elementos(
             driver, "mat-panel-title.post-it-titulo", teto=2
         )
+        from Fix.utils import normalizar_texto
         for title in titles:
             title_text = (getattr(title, "text", "") or "").strip()
-            if (
-                "Dom Eletronico" in title_text
-                or "DomicEletr" in title_text
-                or "DomElet" in title_text
-            ):
+            norm = normalizar_texto(title_text)
+            if any(k in norm for k in ("dom eletronico", "domiceletr", "domelet", "dom eletr", "domicilio eletr")):
                 return True
         return False
     except Exception:
@@ -241,11 +239,9 @@ def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
                 if not title_text:
                     continue
 
-                if (
-                    "Dom Eletronico" in title_text
-                    or "DomicEletr" in title_text
-                    or "DomElet" in title_text
-                ):
+                from Fix.utils import normalizar_texto
+                norm = normalizar_texto(title_text)
+                if any(k in norm for k in ("dom eletronico", "domiceletr", "domelet", "dom eletr", "domicilio eletr")):
                     # Encontrou o painel, agora extrair descrição
                     try:
                         desc_elem = _sub_el(panel, "mat-panel-description")
@@ -678,6 +674,10 @@ def callback_bucket1(driver: Any, tipo: str = "desconhecido") -> bool:
         "Domicilio Eletronico - Prazo de Ciencia Expirado",
         "Domicilio Eletronico - Prazo de Resposta Excedido",
         "Domicilio Eletronico - Erro na Transmissao",
+        "Ciencia Automatica",
+        "Prazo de Ciencia Expirado",
+        "Prazo de Resposta Excedido",
+        "Domicilio Eletronico",
     ]
     result = def_chip(
         driver,
@@ -731,11 +731,42 @@ def callback_bucket2(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Nao foi possivel extrair id_processo da URL para %s", numero
         )
 
-    # 1. Remover chips de ciencia expirado e resposta excedido
+    # 1. Checar empresas com expedientes pendentes de domicilio eletronico
+    destinatarios_dom = _checar_empresas_e_ids_api(id_processo, driver) if id_processo else []
+    pjdp = list(getattr(destinatarios_dom, 'pjdp_detectado', []) or [])
+
+    logger.info(
+        "[DOMICILIO_ELETRONICO][B2][CALLBACK] %d empresa(s) no filtro DOM: %s",
+        len(destinatarios_dom),
+        ", ".join(
+            f"{d.get('empresa') or '?'} ({d.get('id_unico_documento') or 'sem id'})"
+            for d in destinatarios_dom
+        ) or "-",
+    )
+
+    # Se a única reclamada com domicílio é PJDP (ou nenhuma empresa sobrou no filtro):
+    # PJDP não é alvo do wrapper (AR/correio); se ela é a única, pula o processo (não faz nada).
+    if not destinatarios_dom:
+        if pjdp:
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] A unica reclamada com domicilio eletronico e PJDP (%s) — pulando processo (nenhuma acao / nao executa wrapper)",
+                ", ".join(pjdp),
+            )
+        else:
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Nenhuma empresa com expedientes pendentes no filtro DOM — pulando processo"
+            )
+        return True
+
+    # 2. Há empresas não-PJDP para renovação por correio: executar fluxo
     chips_ciencia_resposta = [
         "Domicilio Eletronico - Ciencia Automatica",
         "Domicilio Eletronico - Prazo de Ciencia Expirado",
         "Domicilio Eletronico - Prazo de Resposta Excedido",
+        "Ciencia Automatica",
+        "Prazo de Ciencia Expirado",
+        "Prazo de Resposta Excedido",
+        "Domicilio Eletronico",
     ]
 
     result_def_chip = def_chip(
@@ -847,26 +878,13 @@ def callback_bucket2(
             )
             executar_pec = False
     else:
-        # Sub-case 2b: Sem lembrete - executar fluxo completo
+        # Sub-case 2b: Sem lembrete - executar fluxo completo (empresas nao-PJDP detectadas)
         logger.info(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Sem lembrete Dom Eletronico"
             " - executando fluxo completo (empresas+lembrete+comentario+chips+PEC)"
         )
-        
-        # Empresas do filtro original + id da notificacao (idUnicoDocumento),
-        # porque a GIGS precisa "Empresa (id c3a4c57)".
-        destinatarios_dom = _checar_empresas_e_ids_api(id_processo, driver)
-        logger.info(
-            "[DOMICILIO_ELETRONICO][B2][CALLBACK] %d empresa(s) no filtro DOM: %s",
-            len(destinatarios_dom),
-            ", ".join(
-                f"{d.get('empresa') or '?'} ({d.get('id_unico_documento') or 'sem id'})"
-                for d in destinatarios_dom
-            ) or "-",
-        )
 
         # 1. Comentario Bianca: marca "DOM" ou "DOM com PJDP detectado"
-        pjdp = list(getattr(destinatarios_dom, 'pjdp_detectado', []) or [])
         observacao_dom = 'DOM com PJDP detectado' if pjdp else 'DOM'
         logger.info(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando comentario: %r",
@@ -884,38 +902,33 @@ def callback_bucket2(
             )
 
         # 2. Lembrete Post-it (DomElet) com formato: Renovado por correio para (Empresa - idNotificacao)
-        if destinatarios_dom:
-            titulo_dom = "DomElet"
-            conteudo_dom = _montar_conteudo_lembrete_dom(destinatarios_dom)
-            logger.info(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando lembrete post-it [%s]: %r",
-                titulo_dom,
-                conteudo_dom,
+        titulo_dom = "DomElet"
+        conteudo_dom = _montar_conteudo_lembrete_dom(destinatarios_dom)
+        logger.info(
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando lembrete post-it [%s]: %r",
+            titulo_dom,
+            conteudo_dom,
+        )
+        try:
+            lembrete_ok = criar_lembrete_posit(
+                driver, titulo_dom, conteudo_dom, debug=True
             )
-            try:
-                lembrete_ok = criar_lembrete_posit(
-                    driver, titulo_dom, conteudo_dom, debug=True
-                )
-                logger.info(
-                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] criar_lembrete_posit -> %s",
-                    lembrete_ok,
-                )
-            except Exception as e:
-                logger.error(
-                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar lembrete post-it: %s",
-                    e,
-                )
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] criar_lembrete_posit -> %s",
+                lembrete_ok,
+            )
+        except Exception as e:
+            logger.error(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar lembrete post-it: %s",
+                e,
+            )
         
         # Apagar chips de domicilio
         result_chips = def_chip(
             driver,
             numero_processo=numero,
             observacao="Remover chips domicilio - lembrete criado",
-            chips_para_remover=[
-                "Domicilio Eletronico - Ciencia Automatica",
-                "Domicilio Eletronico - Prazo de Ciencia Expirado",
-                "Domicilio Eletronico - Prazo de Resposta Excedido",
-            ],
+            chips_para_remover=chips_ciencia_resposta,
             debug=True,
         )
         logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] def_chip result: %s", result_chips)

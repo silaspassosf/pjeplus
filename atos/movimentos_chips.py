@@ -25,20 +25,10 @@ def normalizar_chip_texto(txt: str) -> str:
 
 
 def chip_corresponde_padrao(chip_norm: str, padrao_norm: str) -> bool:
-    """Verifica se o chip normalizado corresponde ao padrão normalizado."""
+    """Verifica se o chip normalizado contém o padrão normalizado (nomes fixos)."""
     if not chip_norm or not padrao_norm:
         return False
-    # 1. Correspondência direta (substring em qualquer direção se comprimento razoável)
-    if padrao_norm in chip_norm:
-        return True
-    if len(chip_norm) >= 6 and chip_norm in padrao_norm:
-        return True
-    # 2. Correspondência por tokens principais (ex: 'ciencia' e 'automatica')
-    tokens_padrao = [t for t in padrao_norm.split() if len(t) > 2]
-    tokens_chip = set(chip_norm.split())
-    if tokens_padrao and all(t in tokens_chip for t in tokens_padrao):
-        return True
-    return False
+    return padrao_norm in chip_norm
 
 
 def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips_para_remover: Optional[List[str]] = None, debug: bool = False, timeout: int = 10) -> bool:

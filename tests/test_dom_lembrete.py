@@ -251,8 +251,8 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
             "Domicílio Eletrônico – Ciência Automática",  # en-dash
             "Domicílio Eletrônico — Ciência Automática",  # em-dash
             "Domicilio Eletronico - Ciencia Automatica\ncancel",  # newline + botão
-            "Ciência Automática",  # sem prefixo
             "DOMICÍLIO ELETRÔNICO: CIÊNCIA AUTOMÁTICA",  # maiúsculas e dois pontos
+            "  Domicílio  Eletrônico  -  Ciência  Automática  ",  # espaços múltiplos
         ]
 
         for texto in casos_validos:

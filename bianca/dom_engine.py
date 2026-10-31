@@ -674,10 +674,6 @@ def callback_bucket1(driver: Any, tipo: str = "desconhecido") -> bool:
         "Domicilio Eletronico - Prazo de Ciencia Expirado",
         "Domicilio Eletronico - Prazo de Resposta Excedido",
         "Domicilio Eletronico - Erro na Transmissao",
-        "Ciencia Automatica",
-        "Prazo de Ciencia Expirado",
-        "Prazo de Resposta Excedido",
-        "Domicilio Eletronico",
     ]
     result = def_chip(
         driver,
@@ -763,10 +759,6 @@ def callback_bucket2(
         "Domicilio Eletronico - Ciencia Automatica",
         "Domicilio Eletronico - Prazo de Ciencia Expirado",
         "Domicilio Eletronico - Prazo de Resposta Excedido",
-        "Ciencia Automatica",
-        "Prazo de Ciencia Expirado",
-        "Prazo de Resposta Excedido",
-        "Domicilio Eletronico",
     ]
 
     result_def_chip = def_chip(

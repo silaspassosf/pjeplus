@@ -136,6 +136,14 @@ class TestComunicacaoDestinatariosModos(unittest.TestCase):
         self.assertEqual(vars_edital.get('destinatarios'), 'informado sentenca suscitados')
         self.assertEqual(vars_edital.get('cliques_informado'), 1)
 
+    def test_pec_sid_wrapper_configuracao(self):
+        """Valida que pec_sid está configurado com destinatarios='informado sentenca suscitados' e gigs_extra=(7, 'xs carta')."""
+        from atos.wrappers_pec import pec_sid
+        import inspect
+        vars_sid = inspect.getclosurevars(pec_sid).nonlocals
+        self.assertEqual(vars_sid.get('destinatarios'), 'informado sentenca suscitados')
+        self.assertEqual(vars_sid.get('gigs_extra'), (7, 'xs carta'))
+
     @patch('atos.comunicacao_destinatarios._extrair_reus_mencionados_no_texto')
     def test_resolver_destinatarios_por_documento_com_partes_dict(self, mock_match):
         """Valida que _resolver_destinatarios_por_documento_api processa partes em formato dict {'PASSIVO': [...]}."""

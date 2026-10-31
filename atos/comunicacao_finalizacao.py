@@ -64,18 +64,73 @@ def _linhas_correios(driver):
 
 
 def _botao_confeccionar_correios(driver, indice=0):
-    """Retorna elemento do botao Confeccionar ato na linha Correios de indice N, re-consultando o DOM."""
+    """Retorna elemento do botao Confeccionar/Alterar ato na linha Correios de indice N, re-consultando o DOM."""
     xpath = (
         f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")]'
         f'[.//span[contains(@class,"mat-select-min-line") and '
         f'contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"correio")]]'
-        f'//button[@aria-label="Confeccionar ato"])[{indice + 1}]'
+        f'//button[@aria-label="Confeccionar ato" or @aria-label="Alterar ato"])[{indice + 1}]'
     )
-    return espera.elemento(driver, xpath, teto=2)
+    btn = espera.elemento(driver, xpath, teto=3)
+    if not btn:
+        xpath_fallback = (
+            f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")]'
+            f'[.//span[contains(@class,"mat-select-min-line") and '
+            f'contains(translate(.,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"correio")]]'
+            f'//button[@aria-label="Confeccionar ato"])[{indice + 1}]'
+        )
+        btn = espera.elemento(driver, xpath_fallback, teto=2)
+    return btn
 
 
 def _contar_linhas_correios(driver):
     return len(_linhas_correios(driver))
+
+
+def _limpar_snackbar_se_houver(driver):
+    """Fecha snackbar ativa se houver para evitar falsos positivos de detecção de texto."""
+    try:
+        btn_snack = espera.elemento(driver, 'simple-snack-bar button, snack-bar-container button', teto=0.5)
+        if btn_snack:
+            safe_click_no_scroll(driver, btn_snack)
+    except Exception:
+        pass
+
+
+def _fechar_dialogos_residuais(driver, log=None):
+    """Fecha diálogos modais de modelo ou de elaboração que tenham permanecido abertos."""
+    from atos.comunicacao_preenchimento import aguardar_fechamento_dialogo_elaboracao
+
+    # 1. Se diálogo de preview do modelo (pje-dialogo-visualizar-modelo) estiver aberto:
+    btn_fechar_prev = espera.elemento(
+        driver,
+        'pje-dialogo-visualizar-modelo button[aria-label*="Fechar" i], '
+        'pje-dialogo-visualizar-modelo button[aria-label*="Cancelar" i], '
+        'pje-dialogo-visualizar-modelo a[mattooltip*="Fechar" i], '
+        'pje-dialogo-visualizar-modelo .div-preview-botoes button:last-child',
+        teto=1
+    )
+    if btn_fechar_prev:
+        safe_click_no_scroll(driver, btn_fechar_prev)
+        aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=3)
+
+    # 2. Se diálogo de elaboração do ato (pje-pec-dialogo-ato) estiver aberto:
+    if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=1):
+        if log:
+            log('[TROCAR_MODELO][WARN] Diálogo de elaboração detectado aberto — acionando botão de fechamento')
+        btn_fechar_elab = espera.elemento(
+            driver,
+            'pje-pec-dialogo-ato a[mattooltip="Fechar"], '
+            'pje-pec-dialogo-ato button[aria-label*="Fechar" i], '
+            'pje-pec-dialogo-ato a[aria-label*="Fechar" i], '
+            'pje-pec-dialogo-ato button[aria-label="Cancelar"]',
+            teto=1
+        )
+        if btn_fechar_elab:
+            safe_click_no_scroll(driver, btn_fechar_elab)
+            espera.pausa(driver, 0.5, motivo='fechamento de emergencia do dialogo de elaboracao')
+
+        aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5)
 
 
 def _abrir_e_limpar_editor(driver, botao, debug=False, log=None):
@@ -158,10 +213,23 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
 
     log(f'[TROCAR_MODELO] Iniciando troca de modelo (modelo_troca={modelo_troca})')
 
+    from atos.comunicacao_preenchimento import (
+        finalizar_minuta,
+        aguardar_fechamento_dialogo_elaboracao,
+    )
+
+    # 0. Barreira inicial: garantir que nenhum diálogo residual de elaboração esteja aberto
+    if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=3):
+        log('[TROCAR_MODELO][WARN] Diálogo residual aberto antes de iniciar — tentando fechar...')
+        _fechar_dialogos_residuais(driver, log=log)
+        if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
+            log('[TROCAR_MODELO][ERRO] Diálogo de elaboração residual não pôde ser fechado')
+            return False
+
     if not esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=20):
         log('[TROCAR_MODELO] Tabela de destinatários não carregou')
         return False
-        
+
     espera.assentar(driver, 2, motivo='Angular renderizar dropdowns de todas as linhas')
 
     tipo_ato = _detectar_tipo_ato_para_modelo(driver, debug=debug, log=log)
@@ -184,41 +252,69 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
     log(f'[TROCAR_MODELO] {total} linha(s) Correios para processar')
 
     for i in range(total):
+        # 1. Barreira pré-abertura: o diálogo da linha anterior TEM QUE ESTAR 100% FECHADO
+        if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
+            log(f'[TROCAR_MODELO][WARN] Diálogo anterior não fechou antes da linha {i + 1} — tentando fechar...')
+            _fechar_dialogos_residuais(driver, log=log)
+            if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
+                raise RuntimeError(
+                    f'Diálogo anterior permaneceu visível no DOM antes da linha {i + 1} — '
+                    'abortando para evitar execução indevida por trás da modal'
+                )
+
         log(f'[TROCAR_MODELO] Linha {i + 1}/{total}: abrindo editor...')
         botao = _botao_confeccionar_correios(driver, indice=i)
         if not botao:
-            log(f'[TROCAR_MODELO] Botão Confeccionar ato não encontrado na linha {i + 1}')
-            continue
+            log(f'[TROCAR_MODELO][ERRO] Botão Confeccionar ato não encontrado na linha {i + 1}')
+            raise RuntimeError(f'Botão Confeccionar ato não encontrado na linha {i + 1}')
 
         if not _abrir_e_limpar_editor(driver, botao, debug=debug, log=log):
-            log(f'[TROCAR_MODELO] Falha ao abrir/limpar editor na linha {i + 1}')
-            continue
+            log(f'[TROCAR_MODELO][ERRO] Falha ao abrir/limpar editor na linha {i + 1}')
+            _fechar_dialogos_residuais(driver, log=log)
+            raise RuntimeError(f'Falha ao abrir/limpar editor na linha {i + 1}')
 
         if not _inserir_modelo_por_nome(driver, modelo_reaplicar, debug=debug, log=log):
-            log(f'[TROCAR_MODELO] Falha ao inserir modelo na linha {i + 1}')
-            continue
+            log(f'[TROCAR_MODELO][ERRO] Falha ao inserir modelo na linha {i + 1}')
+            _fechar_dialogos_residuais(driver, log=log)
+            raise RuntimeError(f'Falha ao inserir modelo na linha {i + 1}')
 
-        # Finalizar ato individual (igual dump: inserir → snackbar → finalizar)
+        # Limpar qualquer snackbar prévia para não contaminar a verificação de finalização
+        _limpar_snackbar_se_houver(driver)
+
+        # 2. Finalização canônica via finalizar_minuta (com retries e espera de snackbar)
         try:
-            btn_finalizar = wait_for_clickable(
-                driver,
-                'pje-pec-dialogo-ato button[aria-label="Finalizar minuta"]',
-                timeout=10
-            )
-            if not btn_finalizar:
-                log(f'[TROCAR_MODELO] Botão Finalizar não encontrado na linha {i + 1}')
-                continue
-
-            safe_click_no_scroll(driver, btn_finalizar)
-
-            # Aguardar confirmação de ato elaborado
-            espera.ate_texto(driver, 'simple-snack-bar', 'Ato elaborado com sucesso', teto=5)
-            log(f'[TROCAR_MODELO] Linha {i + 1}/{total} finalizada')
+            sucesso_fim = finalizar_minuta(driver, log=log)
         except Exception as e:
-            log(f'[TROCAR_MODELO] Erro ao finalizar linha {i + 1}: {e}')
-            continue
+            log(f'[TROCAR_MODELO][WARN] Exceção em finalizar_minuta na linha {i + 1}: {e}')
+            sucesso_fim = False
 
-    log(f'[TROCAR_MODELO] Concluído — {total} linha(s) processadas')
+        # 3. Barreira pós-finalização: confirmação mandatória de que o diálogo sumiu
+        if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=15):
+            log(f'[TROCAR_MODELO][WARN] Diálogo da linha {i + 1} não fechou no timeout de 15s — tentando fechar...')
+            _fechar_dialogos_residuais(driver, log=log)
+            if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
+                raise RuntimeError(
+                    f'Diálogo de elaboração da linha {i + 1} não fechou após finalizar minuta — '
+                    'abortando para evitar que o robô continue executando por trás da modal'
+                )
+            sucesso_fim = False
+
+        if not sucesso_fim:
+            raise RuntimeError(
+                f'Falha ao finalizar minuta da linha {i + 1} — '
+                'abortando para impedir salvamento de ato inconsistente'
+            )
+
+        log(f'[TROCAR_MODELO] Linha {i + 1}/{total} finalizada com sucesso e diálogo fechado')
+        espera.assentar(driver, 1.0, motivo='estabilização da tabela pós-fechamento do diálogo da linha')
+
+    # 4. Barreira final pós-loop: conferir que nenhum diálogo ficou aberto antes de retornar
+    if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
+        _fechar_dialogos_residuais(driver, log=log)
+        if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
+            raise RuntimeError('Diálogo de elaboração permaneceu aberto ao fim do processamento de linhas')
+
+    log(f'[TROCAR_MODELO] Concluído — {total} linha(s) processadas com sucesso')
     return True
 
 
@@ -507,6 +603,14 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 tempo_dest = time.perf_counter() - t_dest
                 if debug:
                     log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (observer)')
+                # O observer confirmou a tabela, mas `linhas_tabela` so' era
+                # atribuida no ramo de FALHA (if not ok_rows). Sem esta linha o
+                # caminho feliz quebrava em `len(linhas_tabela)` (linha seguinte)
+                # com UnboundLocalError: "cannot access local variable
+                # 'linhas_tabela'". Era o que derrubava a PEC por Correios no
+                # domicilio eletronico (AR-Ordv/pec_arordv) — o modelo entrava
+                # corretamente e o fluxo morria ao alterar o meio de expedicao.
+                linhas_tabela = espera.elementos(driver, 'tbody.cdk-drop-list tr.cdk-drag', teto=2)
 
             log('[COMUNICACAO] Verificação rápida de estabilização...')
             contagem_inicial = len(linhas_tabela)

@@ -2,20 +2,24 @@
 # Uso: py f.py [teste] [id_processo]
 #   testes disponiveis:
 #     argos, sisb, pec, pesquisa, ordem, pecord, pecidpj, mddid, anex, triagem,
-#     probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, carta_completa, todos
+#     probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, carta_completa, aud, todos
 #   Exemplos:
 #     py f.py argos            → teste Argos no processo padrão (7508281)
 #     py f.py argos 7449746    → teste Argos no processo 7449746
 #     py f.py probe 7449746 465383360  → probe documento 465383360 do processo 7449746
 #     py f.py pecidpj          → pec_idpj (Intimação defesa IDPJ)
 #     py f.py mddid            → ação real de 'xs mddid' (pec_mddsent + pec_editalsent)
+#     py f.py aud 1002072      → diagnostico isolado de _marcar_aud (artefatos em
+#                                logs_execucao/aud_diag/)
+#     py f.py aud 1002072-78.2026.5.02.0703 ATVARI 08:35  → CNJ/rito/hora fixos
 # ============================================================
 #
 # ARQUITETURA: este harness usa exactamente os mesmos entrypoints que pw.py → x.py.
 #   Bootstrap: pjeplay.iniciar(nativo=True) — MESMO motor de produção (Playwright)
 #   Driver:    Fix.core.criar_driver_vt / criar_driver_pc
 #   Finalizar: Fix.core.finalizar_driver
-#   Login:     Fix.utils.login_manual (interativo) ou login_cpf (CPF salvo)
+#   Login:     _logar_como_pw_visivel() — mesmo fluxo de x.py no modo visivel:
+#              login_cpf -> login manual na mesma janela -> confirma OAuth
 #   Navegação: driver.get(url) + espera.ate_js(driver, "document.readyState==='complete'", teto=15)
 #   Espera:    Fix.espera — nunca time.sleep()
 #   Log:       console + logs_execucao/f_<timestamp>.log (DEBUG nos módulos de negócio)
@@ -193,6 +197,97 @@ def etapa(nome: str):
         raise
 
 
+def _logar_como_pw_visivel(driver) -> bool:
+    """Login identico ao de x.py (o que pw.py usa), com reuso de cookies.
+
+    Ordem:
+      1. verificar_e_aplicar_cookies(driver) — restaura a sessao salva da
+         execucao anterior. Se valida, nao ha login nenhum a fazer.
+      2. login_cpf(driver)                   — CPF salvo
+      3. se falhar, login manual na MESMA janela (browser fica aberto)
+      4. aguarda o handshake OAuth gravar o access_token
+
+    O passo 1 precisa vir PRIMEIRO e por fora do login_cpf: o driver aqui
+    acabou de ser criado, esta numa pagina em branco, entao
+    sessao_oauth_completa() e False e o login_cpf apagaria os cookies e iria
+    para o formulario. E o mesmo motivo pelo qual x.py chama
+    verificar_e_aplicar_cookies antes do login_cpf no modo headless.
+
+    Retorna True se a sessao ficou ativa. O driver nao e recriado em nenhum
+    passo — e o mesmo do inicio ao fim.
+    """
+    from Fix.utils import (
+        sessao_oauth_completa,
+        verificar_e_aplicar_cookies,
+        salvar_cookies_sessao,
+        SALVAR_COOKIES_AUTOMATICO,
+    )
+
+    def aguardar_login_manual(timeout=900):
+        LOGGER.warning('[LOGIN] Login automatico falhou. Browser mantido ABERTO — '
+                       'conclua o login manualmente na janela do navegador.')
+        inicio = time.time()
+        while time.time() - inicio < timeout:
+            try:
+                driver.current_url
+            except Exception:
+                LOGGER.error('[LOGIN] Browser indisponivel durante espera do login manual.')
+                return False
+            if sessao_oauth_completa(driver):
+                LOGGER.info('[LOGIN] Login manual detectado (%.0fs).', time.time() - inicio)
+                _salvar_sessao(driver, 'login_manual_pos_falha')
+                return True
+            espera.pausa(driver, 2)
+        LOGGER.error('[LOGIN] Timeout (%ds) aguardando login manual.', timeout)
+        return False
+
+    def aguardar_sessao_ativa(timeout=60):
+        inicio = time.time()
+        while time.time() - inicio < timeout:
+            try:
+                if sessao_oauth_completa(driver):
+                    LOGGER.info('[LOGIN] Sessao OAuth completa confirmada (%.0fs).',
+                                time.time() - inicio)
+                    return True
+            except Exception:
+                LOGGER.error('[LOGIN] Browser indisponivel ao confirmar sessao.')
+                return False
+            espera.pausa(driver, 2)
+        LOGGER.error('[LOGIN] access_token nao apareceu em %ds.', timeout)
+        return False
+
+    def _salvar_sessao(driver, motivo):
+        if not SALVAR_COOKIES_AUTOMATICO:
+            return
+        try:
+            salvar_cookies_sessao(driver, info_extra=motivo)
+        except Exception as e:
+            LOGGER.debug('[LOGIN] Nao foi possivel salvar cookies: %s', e)
+
+    # 1) Sessao salva da execucao anterior
+    t0 = time.perf_counter()
+    if verificar_e_aplicar_cookies(driver):
+        LOGGER.info('[LOGIN] Sessao restaurada via cookies em %.2fs — sem login.',
+                    time.perf_counter() - t0)
+        return True
+    LOGGER.info('[LOGIN] Cookies ausentes/expirados (%.2fs) — indo para login_cpf.',
+                time.perf_counter() - t0)
+
+    # 2) Login automatico por CPF
+    try:
+        if login_cpf(driver):
+            if aguardar_sessao_ativa():
+                _salvar_sessao(driver, 'login_cpf')
+                return True
+            LOGGER.error('[LOGIN] Sessao OAuth nao completou apos login_cpf')
+            return aguardar_login_manual()
+        LOGGER.error('[LOGIN] login_cpf nao concluiu')
+        return aguardar_login_manual()
+    except Exception as e:
+        LOGGER.error('[LOGIN] %s: %s', type(e).__name__, e)
+        return False
+
+
 def _navegar(driver, url: str):
     """Navega para URL e aguarda DOM pronto — equivale ao driver.get + espera de x.py."""
     driver.get(url)
@@ -227,7 +322,7 @@ def teste_buscar_sequenciais(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[ARGOS_TEST] Falha no login')
                 return
 
@@ -280,7 +375,7 @@ def teste_sisbajud_minuta(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[SISB_TEST] Falha no login')
                 return
 
@@ -364,7 +459,7 @@ def teste_pec_sigilo(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[PEC_TEST] Falha no login')
                 return
 
@@ -425,7 +520,7 @@ def teste_ato_pesquisas(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[PESQUISA_TEST] Falha no login')
                 return
 
@@ -497,7 +592,7 @@ def teste_sisbajud_ordem(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[ORDEM_TEST] Falha no login')
                 return
 
@@ -576,7 +671,7 @@ def teste_pec_ord(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[PEC_ORD_TEST] Falha no login')
                 return
 
@@ -638,7 +733,7 @@ def teste_pec_idpj(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[PEC_IDPJ_TEST] Falha no login')
                 return
 
@@ -710,7 +805,7 @@ def teste_mddid(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[MDDID_TEST] Falha no login')
                 return
 
@@ -765,7 +860,7 @@ def teste_anex_carta(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[ANEX_CARTA_TEST] Falha no login')
                 return
 
@@ -840,7 +935,7 @@ def teste_triagem_peticao(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[TRIAGEM_TEST] Falha no login')
                 return
 
@@ -1020,7 +1115,7 @@ def teste_probe_documento(id_processo=None, id_documento=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[PROBE_DOC] Falha no login')
                 return
 
@@ -1113,7 +1208,7 @@ def teste_triagem_debug(url_processo: str = None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[TDBG] Falha no login')
                 return
 
@@ -1261,7 +1356,7 @@ def _teste_dom_eletronico_1_proc(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[DOM_TEST] Falha no login')
                 return
 
@@ -1318,6 +1413,124 @@ def _teste_dom_eletronico_1_proc(id_processo=None):
 
 
 # ============================================================
+# TESTE 11b: DOM API + COMENTARIO + LEMBRETE (sem GIGS)
+# ============================================================
+def _teste_dom_api_comentario_lembrete(id_processo=None):
+    """Testa SO O COMECO do fluxo DOM + publicacao em comentario + lembrete.
+
+    Executa apenas a parte de API do callback_bucket2 (sub-caso 2b), sem PEC,
+    sem chips, sem GIGS:
+
+        1. _checar_empresas_e_ids_api  -> filtro DOM + PJDP (via procuradoria)
+                                          + idUnicoDocumento de cada notificacao
+        2. criar_comentario            -> observacao DOM
+        3. criar_lembrete_posit        -> titulo "DomElet" + empresas/ids
+
+    Serve para validar a refatoracao do lembrete sem rodar o fluxo inteiro.
+
+    Uso: py f.py dom_api [id_processo]
+    """
+    from bianca import dom_engine as _dom_engine
+    from Fix.extracao import criar_comentario, criar_lembrete_posit
+
+    configurar_logging_debug()
+
+    url, pid = _resolver(id_processo or '8296007', id_processo)
+    LOGGER.info('=' * 60)
+    LOGGER.info('[DOM_API] Teste API + comentario + lembrete (sem GIGS, sem PEC)')
+    LOGGER.info('[DOM_API] Processo URL: %s', url)
+    LOGGER.info('[DOM_API] id=%s', pid)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[DOM_API] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not _logar_como_pw_visivel(driver):
+                LOGGER.error('[DOM_API] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[DOM_API] Navegando para %s', url)
+            _navegar(driver, url)
+
+        driver._numero_processo_lista = pid  # type: ignore[attr-defined]
+
+        # --- 1. SO AS CHAMADAS DE API ------------------------------------
+        with etapa('api_filtro_dom'):
+            LOGGER.info('[DOM_API] Chamando _checar_empresas_e_ids_api (DOM + PJDP)...')
+            destinatarios = _dom_engine._checar_empresas_e_ids_api(pid, driver)
+            # A PJDP ja foi descartada dentro do filtro; os nomes ficam na
+            # propria lista para marcar o comentario.
+            pjdp = list(getattr(destinatarios, 'pjdp_detectado', []) or [])
+            LOGGER.info('[DOM_API] %d empresa(s) no filtro: %s',
+                        len(destinatarios),
+                        ', '.join(
+                            f"{d.get('empresa')} ({d.get('id_unico_documento')})"
+                            for d in destinatarios
+                        ) or '-')
+            for d in destinatarios:
+                LOGGER.info('[DOM_API]   empresa=%s | id_notif=%s | id_documento=%s',
+                            d.get('empresa'),
+                            d.get('id_unico_documento'),
+                            d.get('id_documento'))
+            LOGGER.info('[DOM_API] PJDP detectado (eliminado do fluxo): %s',
+                        ', '.join(sorted(pjdp)) or '-')
+
+        # --- 2. COMENTARIO -------------------------------------------------
+        with etapa('criar_comentario'):
+            # Comentario e' apenas a marca "DOM". Quando ha PJDP no polo
+            # passivo, marca "DOM com PJDP detectado" — independente de
+            # haver lembrete para outras partes ou nao.
+            observacao_dom = 'DOM com PJDP detectado' if pjdp else 'DOM'
+            LOGGER.info('[DOM_API] Comentario: %s', observacao_dom)
+            ok_coment = criar_comentario(driver, observacao_dom, log=True)
+            LOGGER.info('[DOM_API] criar_comentario -> %s', ok_coment)
+
+        if not destinatarios:
+            LOGGER.warning('[DOM_API] Nenhuma empresa no filtro - sem lembrete')
+            LOGGER.info('=' * 60)
+            LOGGER.info('[DOM_API] RESUMO: comentario=%s lembrete=(nao criado)', ok_coment)
+            LOGGER.info('=' * 60)
+            return
+
+        # --- 3. LEMBRETE ---------------------------------------------------
+        with etapa('criar_lembrete'):
+            # O campo de conteudo do lembrete nao comporta paragrafacao (nem
+            # quebra de linha), entao tudo vai numa linha so, separado por " - ".
+            titulo_dom = 'DomElet'
+            conteudo_dom = _dom_engine._montar_conteudo_lembrete_dom(destinatarios) if hasattr(_dom_engine, '_montar_conteudo_lembrete_dom') else ('Renovado por correio para ' + ', '.join(
+                f"({d.get('empresa')} - {d.get('id_unico_documento')})"
+                for d in destinatarios
+            ))
+            LOGGER.info('[DOM_API] Lembrete titulo=%r', titulo_dom)
+            LOGGER.info('[DOM_API] Lembrete conteudo=%r', conteudo_dom)
+            ok_lembrete = criar_lembrete_posit(
+                driver, titulo_dom, conteudo_dom, debug=True
+            )
+            LOGGER.info('[DOM_API] criar_lembrete_posit -> %s', ok_lembrete)
+
+        LOGGER.info('=' * 60)
+        LOGGER.info('[DOM_API] RESUMO: comentario=%s lembrete=%s',
+                    ok_coment, ok_lembrete)
+        LOGGER.info('=' * 60)
+
+    except Exception:
+        LOGGER.exception('[DOM_API] Erro nao tratado')
+    finally:
+        if driver is not None:
+            try:
+                finalizar_driver(driver)
+            except Exception:
+                pass
+
+
+# ============================================================
 # TESTE 12: BNDT — exclusão (bndt com inclusao=False)
 # ============================================================
 
@@ -1346,7 +1559,7 @@ def teste_bndt_exclusao(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[BNDT_TEST] Falha no login')
                 return
 
@@ -1408,7 +1621,7 @@ def teste_p2b(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[P2B_TEST] Falha no login')
                 return
 
@@ -1509,7 +1722,7 @@ def teste_pec_excluiargos(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[PEC_EXCLUIARGOS_TEST] Falha no login')
                 return
 
@@ -1562,7 +1775,7 @@ def teste_sisbajud_direto(numero_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver_pje):
+            if not _logar_como_pw_visivel(driver_pje):
                 LOGGER.error('[SISBAJUD_DIRETO_TEST] Falha no login')
                 return
 
@@ -1700,7 +1913,7 @@ def teste_carta_completa(id_processo=None):
             return
 
         with etapa('login'):
-            if not login_manual(driver):
+            if not _logar_como_pw_visivel(driver):
                 LOGGER.error('[CARTA_TEST] Falha no login')
                 return
 
@@ -1724,6 +1937,422 @@ def teste_carta_completa(id_processo=None):
                 finalizar_driver(driver)
             except Exception:
                 pass
+
+
+# ============================================================
+# TESTE 17: MARCAR AUD — diagnostico isolado da designacao de audiencia
+# ============================================================
+#
+# Uso: py f.py aud <id_processo> [numero_cnj] [rito] [hora]
+#   py f.py aud 1002072                        -> id direto, numero/rito/hora auto
+#   py f.py aud 1002072 1002072-78.2026.5.02.0703 ATVARI 08:35
+#
+# Instrumenta cada etapa de _marcar_aud: URL da pauta, DOM do modal antes/depois
+# do Confirmar, estado dos campos, toast, screenshots e TODAS as requisicoes de
+# rede -- para descobrir por que o PJe responde "Consulte o processo para
+# designar audiencia".
+# ============================================================
+
+_DIR_AUD_DIAG = os.path.join(AQUI, 'logs_execucao', 'aud_diag')
+
+
+def _aud_salvar(nome: str, conteudo) -> str:
+    """Grava um artefato de diagnostico e devolve o caminho."""
+    os.makedirs(_DIR_AUD_DIAG, exist_ok=True)
+    caminho = os.path.join(_DIR_AUD_DIAG, nome)
+    try:
+        with open(caminho, 'w', encoding='utf-8') as fh:
+            fh.write(conteudo if isinstance(conteudo, str) else json.dumps(
+                conteudo, ensure_ascii=False, indent=2))
+    except Exception as e:
+        LOGGER.warning('[AUD_TEST] falha ao salvar %s: %s', nome, e)
+    return caminho
+
+
+def _aud_html(driver, seletor: str, limite: int = 6000) -> str:
+    """HTML externo de um elemento (ou '' se ausente).
+
+    Antes devolvia `espera.ate_js(...)`, que retorna bool (True/False) e nao o
+    HTML -- os dumps saiam como "True". Agora le o valor de verdade.
+    """
+    js = (
+        "(function(){var e=document.querySelector(%s);"
+        "return e ? e.outerHTML : '';})()" % json.dumps(seletor)
+    )
+    page = getattr(driver, 'page', None)
+    if page is not None:
+        try:
+            return str(page.evaluate(js) or '')[:limite * 20]
+        except Exception as e:
+            LOGGER.warning('[AUD_TEST] html via page falhou: %s', e)
+    try:
+        fn = getattr(driver, 'execute_script', None)
+        if fn is not None:
+            return str(fn('return ' + js) or '')[:limite * 20]
+    except Exception as e:
+        LOGGER.warning('[AUD_TEST] html via driver falhou: %s', e)
+    return ''
+
+
+def _aud_screenshot(driver, nome: str) -> None:
+    """Screenshot da aba atual (Playwright e Selenium)."""
+    try:
+        os.makedirs(_DIR_AUD_DIAG, exist_ok=True)
+        caminho = os.path.join(_DIR_AUD_DIAG, nome)
+        page = getattr(driver, 'page', None)
+        if page is not None and hasattr(page, 'screenshot'):
+            page.screenshot(path=caminho, full_page=True)
+            LOGGER.info('[AUD_TEST] screenshot -> %s', caminho)
+            return
+        fn = getattr(driver, 'save_screenshot', None)
+        if callable(fn):
+            fn(caminho)
+            LOGGER.info('[AUD_TEST] screenshot -> %s', caminho)
+    except Exception as e:
+        LOGGER.warning('[AUD_TEST] screenshot falhou: %s', e)
+
+
+def _aud_estado_modal(driver) -> dict:
+    """Estado detalhado do modal de audiencia: campos, selects, botoes, texto."""
+    js = """
+    (function(){
+      var d = document.querySelector('mat-dialog-container');
+      if (!d) return {aberto:false};
+      function txt(e){ return e ? (e.textContent||'').replace(/\\s+/g,' ').trim() : ''; }
+      var campos = [];
+      d.querySelectorAll('input,textarea').forEach(function(el,i){
+        campos.push({i:i, id:el.id||'', nome:el.getAttribute('formcontrolname')||el.name||'',
+                     valor:(el.value||''), vazio:!(el.value||'').trim(),
+                     disabled:!!el.disabled,
+                     ariaInvalid:el.getAttribute('aria-invalid')||'',
+                     classe:(el.className||'').slice(0,120)});
+      });
+      var selects = [];
+      d.querySelectorAll('mat-select').forEach(function(s,i){
+        selects.push({i:i, controle:s.getAttribute('formcontrolname')||'',
+                      valor:txt(s.querySelector('.mat-select-value'))});
+      });
+      var botoes = [];
+      d.querySelectorAll('button').forEach(function(b,i){
+        botoes.push({i:i, texto:txt(b), disabled:!!b.disabled,
+                     classe:(b.className||'').slice(0,120)});
+      });
+      var erros = [];
+      d.querySelectorAll('mat-error, .mat-form-field-invalid, .mat-error, [class*="erro"], [class*="error"]')
+       .forEach(function(e){ var t=txt(e); if(t) erros.push(t.slice(0,200)); });
+      return {
+        aberto:true,
+        texto:txt(d).slice(0,1200),
+        campos:campos, selects:selects, botoes:botoes,
+        erros:erros.slice(0,20),
+        tem_container_conteudo: !!d.querySelector('div.container-conteudo'),
+        classes_ativas: [].slice.call(d.querySelectorAll('[class*="ativo"],[class*="conteudo"]'))
+                          .map(function(e){return (e.className||'').slice(0,100);}).slice(0,10)
+      };
+    })()
+    """
+    page = getattr(driver, 'page', None)
+    try:
+        if page is not None:
+            return page.evaluate(js) or {'aberto': False}
+    except Exception as e:
+        LOGGER.warning('[AUD_TEST] estado do modal falhou (page): %s', e)
+    try:
+        fn = getattr(driver, 'execute_script', None)
+        if fn is not None:
+            return fn(js) or {'aberto': False}
+    except Exception as e:
+        LOGGER.warning('[AUD_TEST] estado do modal falhou (driver): %s', e)
+    return {'aberto': False, 'erro': 'sem evaluate'}
+
+
+def _aud_instalar_monitor_rede(driver):
+    """Captura requisicoes/respostas da pagina para correlacionar com o erro."""
+    eventos = []
+    page = getattr(driver, 'page', None)
+    if page is None:
+        return eventos, None
+
+    def _on_response(resp):
+        try:
+            url = resp.url
+            if not any(k in url for k in ('pauta', 'audiencia', 'designa', 'gravar', 'salvar', 'api/')):
+                return
+            corpo = ''
+            try:
+                ctype = (resp.headers or {}).get('content-type', '')
+                if 'json' in ctype or 'text' in ctype:
+                    corpo = resp.text()[:500]
+            except Exception:
+                corpo = '(corpo indisponivel)'
+            eventos.append({'status': resp.status, 'metodo': resp.request.method,
+                            'url': url[:300], 'corpo': corpo})
+        except Exception:
+            pass
+
+    try:
+        page.on('response', _on_response)
+        return eventos, page
+    except Exception as e:
+        LOGGER.warning('[AUD_TEST] nao foi possivel instalar monitor de rede: %s', e)
+        return eventos, None
+
+
+def teste_marcar_aud(id_processo=None, numero_cnj=None, rito=None, hora=None):
+    """
+    Teste ISOLADO de _marcar_aud com diagnostico completo.
+
+    Aceita tanto o ID do processo (como os outros testes) quanto o numero CNJ.
+    Se o argumento tiver o formato CNJ (NNNNNNN-DD.AAAA.J.TR.OOOO), ele e usado
+    direto como numero e o ID e extraido do processo aberto no PJe.
+
+    Uso: py f.py aud 1002072
+         py f.py aud 1002072-78.2026.5.02.0703 ATVARI 08:35
+    """
+    import re as _re
+    from bianca.triagem import acoes as _acoes
+
+    configurar_logging_debug()
+    logging.getLogger('bianca').setLevel(logging.DEBUG)
+
+    # Parametros posicionais: aceitam id ou CNJ em qualquer ordem util
+    args_pos = [a for a in (id_processo, numero_cnj, rito, hora) if a]
+    cnj = next((a for a in args_pos if _re.match(r'^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$', a)), None)
+    id_num = next((a for a in args_pos if str(a).isdigit()), None)
+    rito_arg = next((a for a in args_pos if str(a).upper() in ('ATVARI', 'ATSUM', 'ATORD')), None)
+    hora_arg = next((a for a in args_pos if _re.match(r'^\d{1,2}:\d{2}$', a)), None)
+
+    id_processo = id_num or '8685584'
+
+    LOGGER.info('=' * 70)
+    LOGGER.info('[AUD_TEST] Diagnostico isolado de _marcar_aud')
+    LOGGER.info('[AUD_TEST] id_processo=%s  cnj=%s  rito=%s  hora=%s',
+                id_processo, cnj, rito_arg, hora_arg)
+    LOGGER.info('[AUD_TEST] artefatos em: %s', _DIR_AUD_DIAG)
+    LOGGER.info('=' * 70)
+
+    url, pid = _resolver(id_processo)
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[AUD_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not _logar_como_pw_visivel(driver):
+                LOGGER.error('[AUD_TEST] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[AUD_TEST] Navegando para %s', url)
+            _navegar(driver, url)
+
+        # --- numero CNJ e rito reais, direto do cabecalho ---
+        with etapa('detectar_processo'):
+            info = _aud_js_info_processo(driver)
+            LOGGER.info('[AUD_TEST] info do cabecalho: %s', json.dumps(info, ensure_ascii=False))
+            numero = cnj or info.get('cnj') or ''
+            tipo = info.get('tipo') or ''
+            LOGGER.info('[AUD_TEST] numero detectado: %r | tipo detectado: %r', numero, tipo)
+            if not numero:
+                LOGGER.error('[AUD_TEST] Numero CNJ nao detectado no cabecalho -- informe como argumento')
+                return
+
+        # rito de pauta: respeita o argumento explicitamente informado
+        if rito_arg:
+            rito_pauta = rito_arg
+            LOGGER.info('[AUD_TEST] rito FORCADO pelo argumento: %s', rito_pauta)
+        else:
+            rito_pauta = 'ATSUM' if tipo.upper().startswith('ATSUM') else 'ATVARI'
+            LOGGER.info('[AUD_TEST] rito derivado do tipo %r -> %s', tipo, rito_pauta)
+
+        # --- monitor de rede ---
+        eventos, page = _aud_instalar_monitor_rede(driver)
+        LOGGER.info('[AUD_TEST] monitor de rede: %s', 'ativo' if page is not None else 'indisponivel')
+
+        # --- desmarcar 100% (igual ao fluxo de producao) ---
+        with etapa('desmarcar_100'):
+            aba_retificar = _acoes.desmarcar_100(driver, pid)
+            LOGGER.info('[AUD_TEST] aba retificar: %s', aba_retificar)
+
+        # --- preview da URL antes de tentar ---
+        url_previa = (f"https://pje.trt2.jus.br/pjekz/pauta-audiencias?maisPje=true"
+                      f"&numero={numero}&rito={rito_pauta}&fase=Conhecimento")
+        LOGGER.info('[AUD_TEST] URL de pauta: %s', url_previa)
+
+        if not aba_retificar:
+            LOGGER.warning('[AUD_TEST] Sem aba retificar -- seguindo de qualquer forma')
+
+        # --- gancho de diagnostico: captura o modal ANTES de _marcar_aud fechar ---
+        capturas = []
+
+        def _hook(etapa_hook, info_hook):
+            LOGGER.info('[AUD_TEST] >>> hook: %s  info=%s', etapa_hook, info_hook)
+            if etapa_hook == 'tabela_carregada':
+                _aud_screenshot(driver, '1_pauta_carregada.png')
+                return
+            estado = _aud_estado_modal(driver)
+            _aud_salvar(f'modal_{etapa_hook}.json', estado)
+            html = _aud_html(driver, 'mat-dialog-container')
+            if not isinstance(html, str):
+                html = '' if html is None else str(html)
+            if html:
+                _aud_salvar(f'modal_{etapa_hook}.html', html)
+            # O painel do autocomplete mora no overlay do CDK, fora do modal
+            overlay = _aud_html(driver, '.cdk-overlay-container')
+            if overlay:
+                _aud_salvar(f'overlay_{etapa_hook}.html', overlay)
+            _aud_screenshot(driver, f'2_{etapa_hook}.png')
+            capturas.append(etapa_hook)
+            LOGGER.info('[AUD_TEST] estado do modal em %r: %s',
+                        etapa_hook, json.dumps(estado, ensure_ascii=False)[:2500])
+            if html:
+                LOGGER.info('[AUD_TEST] HTML do modal (%d chars) -> modal_%s.html',
+                            len(html), etapa_hook)
+
+        _acoes._HOOK_DIAG = _hook
+        LOGGER.info('[AUD_TEST] hook de diagnostico instalado')
+
+        # --- chamada real ---
+        # Os print('[MARCAR_AUD] ...') de acoes.py so iam para o console e nao
+        # ficavam em nenhum log; aqui sao redirecionados para o LOGGER.
+        class _StdoutParaLog:
+            def __init__(self, destino):
+                self._destino = destino
+                self._buf = ''
+
+            def write(self, texto):
+                self._buf += texto
+                while '\n' in self._buf:
+                    linha, self._buf = self._buf.split('\n', 1)
+                    if linha.strip():
+                        LOGGER.info('[PRINT] %s', linha.rstrip())
+                try:
+                    self._destino.write(texto)
+                except Exception:
+                    pass
+                return len(texto)
+
+            def flush(self):
+                try:
+                    self._destino.flush()
+                except Exception:
+                    pass
+
+        with etapa('marcar_aud'):
+            t0 = time.perf_counter()
+            _stdout_original = sys.stdout
+            sys.stdout = _StdoutParaLog(_stdout_original)
+            try:
+                res_aud = _acoes._marcar_aud(driver, numero, rito_pauta, aba_retificar or '')
+            finally:
+                sys.stdout = _stdout_original
+            ok = res_aud[0] if isinstance(res_aud, tuple) else bool(res_aud)
+            dt_aud = res_aud[1] if isinstance(res_aud, tuple) else None
+            LOGGER.info('[AUD_TEST] _marcar_aud -> %s (data: %s) (%.2fs)', ok, dt_aud, time.perf_counter() - t0)
+
+        if ok and aba_retificar and aba_retificar in getattr(driver, 'window_handles', []):
+            with etapa('remarcar_100'):
+                driver.switch_to.window(aba_retificar)
+                remarcou = _acoes.remarcar_100_pos_aud(driver)
+                LOGGER.info('[AUD_TEST] remarcar_100_pos_aud -> %s', remarcou)
+
+        _acoes._HOOK_DIAG = None
+        LOGGER.info('[AUD_TEST] capturas do modal: %s', capturas or 'nenhuma')
+
+        # --- artefatos finais ---
+        try:
+            LOGGER.info('[AUD_TEST] URL final da aba ativa: %s', driver.current_url)
+        except Exception:
+            pass
+        _aud_screenshot(driver, 'final.png')
+
+        # Painel de diagnostico no console
+        LOGGER.info('=' * 70)
+        LOGGER.info('[AUD_TEST] RESULTADO: %s', 'DESIGNADO' if ok else 'FALHOU')
+        LOGGER.info('[AUD_TEST] Requisicoes de rede capturadas: %d', len(eventos))
+        for ev in eventos[-15:]:
+            LOGGER.info('[AUD_TEST]   HTTP %s %s %s\n           %s',
+                        ev['status'], ev['metodo'], ev['url'], (ev['corpo'] or '')[:300])
+        _aud_salvar('rede.json', eventos)
+        LOGGER.info('[AUD_TEST] artefatos salvos em %s', _DIR_AUD_DIAG)
+        LOGGER.info('=' * 70)
+
+        if not ok:
+            LOGGER.error('[AUD_TEST] Designacao FALHOU -- ver modal_*.json, modal_*.html e rede.json')
+            LOGGER.error('[AUD_TEST] Dica: se o toast citar "Consulte o processo", compare a URL '
+                         'logada com a que funciona no navegador (rito/numero/fase).')
+
+    except Exception:
+        LOGGER.exception('[AUD_TEST] Erro nao tratado')
+    finally:
+        # Pausa de inspecao: por padrao o navegador FICA ABERTO para conferir
+        # o estado do modal. Use --fechar (ou PJE_AUD_FECHAR=1) para fechar.
+        fechar = ('--fechar' in sys.argv) or os.environ.get('PJE_AUD_FECHAR') == '1'
+        if driver is not None and not fechar:
+            try:
+                LOGGER.info('=' * 70)
+                LOGGER.info('[AUD_TEST] NAVEGADOR ABERTO para inspecao.')
+                LOGGER.info('[AUD_TEST] Confira a janela do PJe; pressione ENTER aqui para fechar.')
+                try:
+                    input()
+                except EOFError:
+                    LOGGER.info('[AUD_TEST] sem terminal interativo; aguardando 60s...')
+                    import time as _time
+                    _time.sleep(60)
+            except Exception:
+                pass
+        if driver is not None:
+            try:
+                finalizar_driver(driver)
+            except Exception:
+                pass
+
+
+def _aud_js_info_processo(driver) -> dict:
+    """Le numero CNJ e tipo (ATOrd/ATSum/...) do cabecalho do processo."""
+    js = """
+    (function(){
+      var out = {cnj:'', tipo:'', titulo:''};
+      var cab = document.querySelector('pje-cabecalho-processo');
+      var escopo = cab || document;
+      // numero CNJ: aria-label de "Detalhes do Processo" ou regex no texto
+      var a = escopo.querySelector('a[aria-label*="Detalhes do Processo"]');
+      if (a) {
+        var m = (a.getAttribute('aria-label')||'').match(/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/);
+        if (m) out.cnj = m[0];
+      }
+      if (!out.cnj) {
+        var m2 = (document.body.innerText||'').match(/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/);
+        if (m2) out.cnj = m2[0];
+      }
+      // tipo: span com ATOrd/ATSum/ACum
+      var spans = escopo.querySelectorAll('span');
+      for (var i=0;i<spans.length;i++){
+        var t = (spans[i].innerText||spans[i].textContent||'').trim();
+        if (/^(ATOrd|ATSum|ACum|ATVARI|ATSUM)\\b/i.test(t) || /\\b(ATOrd|ATSum|ACum)\\b/.test(t)) {
+          out.tipo = t.slice(0,120); break;
+        }
+      }
+      out.titulo = (document.title||'').slice(0,120);
+      return out;
+    })()
+    """
+    page = getattr(driver, 'page', None)
+    try:
+        if page is not None:
+            return page.evaluate(js) or {}
+    except Exception as e:
+        LOGGER.warning('[AUD_TEST] info via page falhou: %s', e)
+    try:
+        fn = getattr(driver, 'execute_script', None)
+        if fn is not None:
+            return fn(js) or {}
+    except Exception as e:
+        LOGGER.warning('[AUD_TEST] info via driver falhou: %s', e)
+    return {}
 
 
 # ============================================================
@@ -1774,6 +2403,12 @@ if __name__ == '__main__':
         teste_sisbajud_minuta_direto(id_p)
     elif teste in ('carta', 'carta_completa', 'carta_full', 'fluxo_carta', '16'):
         teste_carta_completa(id_p)
+    elif teste in ('aud', 'marcar_aud', 'marcaraud', '17'):
+        arg3 = sys.argv[3] if len(sys.argv) > 3 else None
+        arg4 = sys.argv[4] if len(sys.argv) > 4 else None
+        teste_marcar_aud(id_p, arg3, arg4)
+    elif teste in ('dom_api', 'domapi', '11b'):
+        _teste_dom_api_comentario_lembrete(id_p)
     elif teste in ('todos', 'all'):
         print('=== Executando todos os testes ===')
         print('\n--- TESTE 1: ARGOS ---')

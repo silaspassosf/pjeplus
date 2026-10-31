@@ -127,7 +127,7 @@ def _extrair_nomes_por_separador(observacao):
     """Extrai lista de nomes após o delimitador '>' na observação do GIGS.
 
     Formato esperado: '<prefixo> >nome1, nome2, ...'
-    Ex.: 'xs mddid >murillo, silas' → ['murillo', 'silas']
+    Ex.: 'xs pec id >murillo, silas' → ['murillo', 'silas']
 
     Retorna lista vazia se não houver '>' ou nenhum token válido após ele.
     """
@@ -1256,32 +1256,62 @@ def remover_destinatarios_endereco_invalido(
             'i.fa-times-circle[class*="pec-icone-vermelho"]'
         ].join(', ');
 
-        var icone = document.querySelector(selIcone);
-        if (!icone) return { encontrado: false };
+        var icones = Array.from(document.querySelectorAll(selIcone));
+        if (!icones.length) return { encontrado: false };
 
-        var tr = icone.closest('tr');
-        if (!tr) return { encontrado: true, erro: 'tr_nao_encontrado' };
+        for (var icone of icones) {
+            var tr = icone.closest('tr');
+            if (!tr) continue;
 
-        var nomeEl = tr.querySelector('.pec-nome-parte-tabela-destinatarios, .pec-formatacao-padrao-dados-parte');
-        var nome = nomeEl ? (nomeEl.innerText || nomeEl.textContent || '').trim().replace(/\\s+/g, ' ') : '';
-        var endAria = icone.getAttribute('aria-label') || '';
+            // Extrair o meio de comunicação/expedição da linha
+            var meioEl = tr.querySelector('.mat-select-min-line, mat-select [class*="select-value"], pje-pec-coluna-meio-expedicao, .pec-coluna-meio-expedicao');
+            var meioTxt = (meioEl ? (meioEl.innerText || meioEl.textContent || '') : '').trim().toLowerCase();
+            
+            // Também verificar texto da coluna de endereço como fallback
+            var endAria = (icone.getAttribute('aria-label') || '').toLowerCase();
+            var endTxt = (icone.parentElement ? (icone.parentElement.innerText || icone.parentElement.textContent || '') : '').toLowerCase();
 
-        var btn = tr.querySelector('button[aria-label="Excluir expediente."], button[mattooltip="Excluir expediente."]');
-        if (!btn) {
-            var iconTrash = tr.querySelector('i.fa-trash-alt, .fa-trash-alt');
-            if (iconTrash) btn = iconTrash.closest('button');
+            // Meios eletrônicos onde endereço postal não existe e não é obrigatório
+            var isEletronico = meioTxt.includes('sistema') || 
+                               meioTxt.includes('domicilio') || 
+                               meioTxt.includes('domicílio') || 
+                               meioTxt.includes('eletron') ||
+                               meioTxt.includes('dje') ||
+                               endAria.includes('matéria do dje') ||
+                               endAria.includes('materia do dje') ||
+                               endTxt.includes('matéria do dje') ||
+                               endTxt.includes('materia do dje');
+
+            // Só é elegível para exclusão por endereço inválido se o envio for postal/Correios
+            var isCorreios = meioTxt.includes('correio');
+
+            // Se for meio eletrônico (Sistema/Domicílio/DJE) ou não for comprovadamente Correios, NÃO exclui!
+            if (isEletronico || !isCorreios) {
+                continue;
+            }
+
+            var nomeEl = tr.querySelector('.pec-nome-parte-tabela-destinatarios, .pec-formatacao-padrao-dados-parte');
+            var nome = nomeEl ? (nomeEl.innerText || nomeEl.textContent || '').trim().replace(/\\s+/g, ' ') : '';
+
+            var btn = tr.querySelector('button[aria-label="Excluir expediente."], button[mattooltip="Excluir expediente."]');
+            if (!btn) {
+                var iconTrash = tr.querySelector('i.fa-trash-alt, .fa-trash-alt');
+                if (iconTrash) btn = iconTrash.closest('button');
+            }
+            if (!btn) {
+                btn = tr.querySelector('.pec-coluna-acoes-usuario-tabela-destinatarios button');
+            }
+
+            if (!btn) {
+                return { encontrado: true, erro: 'btn_excluir_nao_encontrado', nome: nome, endereco: endAria };
+            }
+
+            try { btn.scrollIntoView({ block: 'center', behavior: 'instant' }); } catch(e) {}
+            btn.click();
+            return { encontrado: true, excluido: true, nome: nome, endereco: endAria };
         }
-        if (!btn) {
-            btn = tr.querySelector('.pec-coluna-acoes-usuario-tabela-destinatarios button');
-        }
 
-        if (!btn) {
-            return { encontrado: true, erro: 'btn_excluir_nao_encontrado', nome: nome, endereco: endAria };
-        }
-
-        try { btn.scrollIntoView({ block: 'center', behavior: 'instant' }); } catch(e) {}
-        btn.click();
-        return { encontrado: true, excluido: true, nome: nome, endereco: endAria };
+        return { encontrado: false };
     }"""
 
     removidos = 0
@@ -1318,3 +1348,181 @@ def remover_destinatarios_endereco_invalido(
         log("[COMUNICACAO][DESTINATARIOS][DEBUG] Nenhum destinatário com endereço inválido detectado na tabela.")
 
     return removidos
+
+
+# =============================================================================
+# Inserção e Detecção de PJDP (Órgãos Públicos / Fazenda Pública)
+# =============================================================================
+
+PJDP_NOME_KEYWORDS = [
+    'municipio', 'prefeitura', 'estado de', 'estado do', 'governo do estado',
+    'governo do municipio', 'uniao federal', 'ministerio', 'autarquia',
+    'fazenda publica', 'inss', 'tribunal', 'correios', 'empresa brasileira de correios',
+    'fundacao publica', 'fundacao casa', 'procuradoria', 'defensoria publica',
+    'hospital das clinicas', 'universidade federal', 'universidade estadual',
+    'orgao publico', 'ente publico'
+]
+
+
+def detectar_pjdp_processo(driver: Any) -> bool:
+    """Detecta se há PJDP (Pessoa Jurídica de Direito Público / Órgão Público)
+    no polo passivo do processo via API PJe chamando diretamente `_detectar_pjdp_api`
+    de `bianca.triagem.regras` (critério principal: campo `procuradoria` da API).
+    """
+    try:
+        from Fix.variaveis import cliente_para
+        from Fix.core import extrair_id_processo
+        from bianca.triagem.regras import _detectar_pjdp_api
+
+        id_proc = extrair_id_processo(driver)
+        if not id_proc:
+            return False
+
+        client = cliente_para(driver)
+        partes_raw = client.partes(str(id_proc))
+        if not partes_raw:
+            return False
+
+        passivos = []
+        if isinstance(partes_raw, dict):
+            passivos = partes_raw.get('PASSIVO') or partes_raw.get('passivo') or []
+        elif isinstance(partes_raw, list):
+            for p in partes_raw:
+                polo = (p.get('polo') or p.get('tipoPolo') or p.get('poloProcessual') or '').lower()
+                if not polo or polo in ('passivo', 'reclamada', 'reclamado', 'reu'):
+                    passivos.append(p)
+
+        if not passivos:
+            return False
+
+        reclamados_lista = []
+        for p in passivos:
+            nome_p = (p.get('nome') or p.get('nomeParte') or '').strip()
+            item = {'nome': nome_p}
+            # Critério procuradoria (API PJe): entes públicos possuem o campo 'procuradoria' preenchido
+            if 'procuradoria' in p:
+                item['pjdp'] = bool(p.get('procuradoria'))
+            elif 'pjdp' in p:
+                item['pjdp'] = bool(p.get('pjdp'))
+            reclamados_lista.append(item)
+
+        pjdp_detectado, pjdp_nome = _detectar_pjdp_api({'reclamados': reclamados_lista})
+        if pjdp_detectado:
+            logger.info(f'[PJDP] PJDP detectada no polo passivo via _detectar_pjdp_api (procuradoria): "{pjdp_nome}"')
+            return True
+
+        return False
+    except Exception as e:
+        logger.warning(f'[PJDP] Erro ao detectar PJDP via API: {e}')
+        return False
+
+
+def inserir_destinatarios_pjdp(driver: Any, log: Callable = logger.info, debug: bool = False) -> int:
+    """Insere manualmente destinatários PJDP (órgãos públicos) do polo passivo.
+
+    No PJe, entes públicos (PJDP) não são adicionados automaticamente aos
+    destinatários da Notificação Inicial. Esta função abre o Polo Passivo,
+    identifica as partes marcadas como órgão público (ícone fas fa-building /
+    tooltip 'órgão público') e clica na seta para acrescentá-las aos destinatários.
+    """
+    log('[COMUNICACAO][PJDP] Verificando inserção manual de PJDP nos destinatários...')
+
+    # 1. Expandir painel do Polo Passivo
+    if not _clicar_polo_passivo(driver, log):
+        log('[COMUNICACAO][PJDP][WARN] Falha ao expandir o painel Polo Passivo')
+        return 0
+
+    espera.assentar(driver, 0.8, motivo='renderizacao polo passivo')
+
+    # 2. Localizar linhas do Polo Passivo
+    linhas = espera.elementos(
+        driver,
+        '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row',
+        teto=5
+    )
+    if not linhas:
+        log('[COMUNICACAO][PJDP][WARN] Nenhuma linha de parte encontrada no Polo Passivo')
+        return 0
+
+    # Coletar texto dos destinatários já na tabela para evitar duplicatas
+    linhas_tabela = espera.elementos(driver, 'tbody.cdk-drop-list tr.cdk-drag', teto=2) or []
+    nomes_tabela = [normalizar_string(getattr(r, 'text', '') or '').lower() for r in linhas_tabela]
+
+    adicionados = 0
+    for linha in linhas:
+        try:
+            eh_pjdp = False
+            nome_parte = ''
+
+            if hasattr(linha, '_js'):
+                info = linha._js("""el => {
+                    const selPjdp = [
+                        'i.fas.fa-building',
+                        'i.fa-building',
+                        'i[mattooltip*="órgão público"]',
+                        'i[aria-label*="órgão público"]',
+                        'i[mattooltip*="orgao publico"]',
+                        'i[aria-label*="orgao publico"]',
+                        'i.procuradoria-direito-publico'
+                    ];
+                    let temIcone = false;
+                    for (const sel of selPjdp) {
+                        if (el.querySelector(sel)) {
+                            temIcone = true;
+                            break;
+                        }
+                    }
+                    if (!temIcone) {
+                        const txt = (el.textContent || '').toLowerCase();
+                        if (txt.includes('órgão público') || txt.includes('orgao publico')) {
+                            temIcone = true;
+                        }
+                    }
+                    const elNome = el.querySelector('.nome-parte, .pec-formatacao-padrao-dados-parte.nome-parte, .pec-formatacao-padrao-dados-parte');
+                    const nome = (elNome ? elNome.textContent : el.textContent || '').trim();
+                    return { eh_pjdp: temIcone, nome: nome };
+                }""")
+                if info:
+                    eh_pjdp = bool(info.get('eh_pjdp'))
+                    nome_parte = info.get('nome') or ''
+
+            if not eh_pjdp:
+                texto_linha = (getattr(linha, 'text', '') or '').lower()
+                if 'órgão público' in texto_linha or 'orgao publico' in texto_linha:
+                    eh_pjdp = True
+
+            if eh_pjdp:
+                nome_norm = normalizar_string(nome_parte).lower()
+                # Verificar se já consta na tabela de destinatários
+                ja_adicionado = any(nome_norm[:20] in nt for nt in nomes_tabela if len(nome_norm) >= 5) if nomes_tabela else False
+                if ja_adicionado:
+                    log(f'[COMUNICACAO][PJDP] PJDP "{nome_parte}" já presente na tabela de destinatários — pulando')
+                    continue
+
+                log(f'[COMUNICACAO][PJDP] Parte PJDP identificada no Polo Passivo: "{nome_parte}"')
+                clicou = _clicar_btn_acrescentar(driver, linha, qtd_cliques=1, debug=debug)
+                if clicou:
+                    adicionados += 1
+                    log(f'[COMUNICACAO][PJDP] Botão acrescentar clicado para PJDP "{nome_parte}"')
+                    espera.assentar(driver, 1.2, motivo='adicao de pjdp')
+                else:
+                    log(f'[COMUNICACAO][PJDP][WARN] Falha ao clicar botão acrescentar para PJDP "{nome_parte}"')
+        except Exception as e_linha:
+            log(f'[COMUNICACAO][PJDP][ERRO] Erro ao processar linha de parte: {e_linha}')
+
+    if adicionados > 0:
+        log(f'[COMUNICACAO][PJDP] Sucesso: {adicionados} parte(s) PJDP acrescentada(s) aos destinatários.')
+        espera.pausa(driver, 2.0, motivo='estabilizacao tabela pos-adicao pjdp')
+        try:
+            aguardar_renderizacao_nativa(
+                driver,
+                'tbody.cdk-drop-list tr.cdk-drag',
+                modo='aparecer',
+                timeout=10
+            )
+        except Exception:
+            pass
+    else:
+        log('[COMUNICACAO][PJDP] Nenhuma parte PJDP com indicador fas fa-building pendente de inclusão.')
+
+    return adicionados

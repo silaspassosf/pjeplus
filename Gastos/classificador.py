@@ -35,8 +35,10 @@ import unicodedata
 from datetime import datetime
 
 import fitz  # PyMuPDF
+from fitz import Rect  # PyMuPDF
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
-from PIL import Image
+import numpy as np
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 import comum
 from comum import (BLOCO_A, BLOCO_B, BLOCO_I, BLOCO_II, ID_PASTA_RAIZ_DRIVE, MESES, DriveIndex,
@@ -183,6 +185,13 @@ REGRAS_DESPESA = [
         'sufixo': 'OLLIE lanche',
         'keywords': ['cantinho do pao', 'cantina cooeduba', 'lanche creas', 'lanche ollie', 'salgadinhos e doces'],
     },
+    {
+        'rubrica': 'Mesada',
+        'bloco': BLOCO_A,
+        'sufixo': 'OLLIE MESADA',
+        'keywords': ['mesada', 'mesada ollie'],
+        'valores_tipicos': [300.00],
+    },
 ]
 
 
@@ -212,9 +221,15 @@ def extrair_texto_de_bytes(dados_bytes, nome_ou_ext):
                 doc = fitz.open(stream=dados_bytes, filetype="pdf")
                 partes = []
                 for pag in doc:
-                    pix = pag.get_pixmap(dpi=300)
+                    pix = pag.get_pixmap(dpi=200)
                     img = Image.open(io.BytesIO(pix.tobytes('png')))
-                    partes.append(pytesseract.image_to_string(img, lang='por+eng', config='--psm 6'))
+                    w, h = img.size
+                    # Tenta ler a página inteira
+                    txt_p = pytesseract.image_to_string(img, lang='por+eng', config='--psm 6')
+                    # Para prints de celular (como iFood), o rodapé tem dados cruciais com PSM 11
+                    crop_bot = img.crop((0, int(0.5 * h), w, h))
+                    txt_bot = pytesseract.image_to_string(crop_bot, lang='por+eng', config='--psm 11')
+                    partes.append(txt_p + "\n" + txt_bot)
                 return "\n".join(partes)
             else:
                 img = Image.open(io.BytesIO(dados_bytes))
@@ -227,14 +242,40 @@ def extrair_texto_de_bytes(dados_bytes, nome_ou_ext):
 def extrair_data(texto):
     if not texto:
         return None
-    texto_str = str(texto)
+    texto_str = re.sub(r'WhatsApp Image \d{4}-\d{2}-\d{2}[^.\r\n]*', '', str(texto), flags=re.IGNORECASE)
+    # Limpa menções legais que citam anos antigos (ex: Lei 12.839/2013 em notas do Tenda)
+    texto_str = re.sub(r'(?:lei|medida\s+provis[oó]ria|decreto)[\s\S]{0,40}?(?:201[0-9]|200[0-9]|19\d{2})', '', texto_str, flags=re.IGNORECASE)
+
+    # 0. Caso NF-e / DANFE (Tenda, etc.): busca especificamente "DATA DA EMISSÃO"
+    m_danfe = re.search(r'DATA\s+D[EA]\s+EMISS[ÃA]O[^\d\n\r]*[\r\n\s]*(\d{2})[/.-](\d{2})[/.-](20\d{2})', texto_str, re.IGNORECASE)
+    if m_danfe:
+        d, m, a = int(m_danfe.group(1)), int(m_danfe.group(2)), int(m_danfe.group(3))
+        if 1 <= m <= 12 and 1 <= d <= 31:
+            return datetime(a, m, d)
 
     # 1. Caso iFood / Pedido com "Data do pedido"
-    m = re.search(r'Data\s+do\s+pedid[oa]\s*[:\s]*[\r\n\s]*(\d{2})[/.-](\d{2})[/.-](20\d{2})', texto_str, re.IGNORECASE)
+    m = re.search(r'Data\s+d[oaes]\s+pedid[oa][:\s]*[\r\n\s]*([^\r\n]{3,40})', texto_str, re.IGNORECASE)
     if m:
-        dia, mes, ano = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        if 1 <= mes <= 12 and 1 <= dia <= 31:
-            return datetime(ano, mes, dia)
+        linha_data = m.group(1)
+        # Tenta extrair mesmo com ruído OCR (ex: 25/09/2026, 06/DE/2026, 24/10 2026, 03/10/2076)
+        m_d = re.search(r'(\d{1,2})\s*[/.-]\s*(\d{1,2}|[A-Za-z]{2,3})\s*[/.-]?\s*(?:20\d{2}|20[A-Z0-9]{2}|A026|\d{2})', linha_data)
+        if m_d:
+            t_dia = m_d.group(1)
+            t_mes = m_d.group(2)
+            # Mapeia letras se vier OCR ruído
+            mapa_chars = {'O': '0', 'o': '0', 'D': '0', 'Q': '0', 'I': '1', 'l': '1', 'i': '1', 'T': '1', 't': '1', 'L': '1', 'Z': '2', 'z': '2', 'E': '3', 'A': '4', 'a': '4', 'S': '5', 's': '5', 'G': '6', 'b': '6', 'B': '8', 'g': '9', 'q': '9'}
+            mes_clean = "".join(mapa_chars.get(c, c) for c in t_mes)
+            if mes_clean.isdigit():
+                mes_num = int(mes_clean)
+                dia_num = int(t_dia)
+                if 1 <= mes_num <= 12 and 1 <= dia_num <= 31:
+                    return datetime(2026, mes_num, dia_num)
+        # fallback normal
+        m_normal = re.search(r'(\d{2})[/.-](\d{2})[/.-](20\d{2})', linha_data)
+        if m_normal:
+            dia, mes, ano = int(m_normal.group(1)), int(m_normal.group(2)), int(m_normal.group(3))
+            if 1 <= mes <= 12 and 1 <= dia <= 31:
+                return datetime(ano, mes, dia)
 
     # 2. Caso Comprovante Bancário / PIX (Inter, C6, Nubank, Itaú, etc.): "Data do pagamento", "Data da transação", etc.
     # Ex: "Data do pagamento Terça, 06/01/2026", "Data da transação 04/05/2026", "Data da transagao Segunda-feira, 04/05/2026"
@@ -397,6 +438,9 @@ def extrair_valor(texto, nome_arquivo=""):
                 return v
 
     alvo_nome = nome_arquivo if nome_arquivo else texto_str
+    alvo_nome = re.sub(r'WhatsApp Image \d{4}-\d{2}-\d{2}[^.]*', '', alvo_nome, flags=re.IGNORECASE)
+    alvo_nome = re.sub(r'\bat\s+\d{1,2}[.]\d{2}(?:[.]\d{2})?\b', '', alvo_nome, flags=re.IGNORECASE)
+    alvo_nome = re.sub(r'\b\d{2}[.]\d{2}[.]\d{2}\b', '', alvo_nome)
     m = re.search(r'(?<![\d.,])(\d+)[.,](\d{2})(?![\d])', alvo_nome)
     if m:
         return float(f"{m.group(1)}.{m.group(2)}")
@@ -405,6 +449,12 @@ def extrair_valor(texto, nome_arquivo=""):
 
 def classificar_despesa(texto, valor=0.0, nome_arquivo=""):
     texto_norm = normalizar(texto) + " " + normalizar(nome_arquivo)
+
+    # Bloqueio: faturas gerais de cartão de crédito não podem ser atribuídas a uma rubrica específica
+    # só porque mencionam um serviço (como netflix, ifood, etc.) em seus lançamentos
+    eh_fatura_cartao = any(k in texto_norm for k in ['fatura do seu cartao', 'total a pagar', 'pagamento minimo', 'unique mastercard', 'santander mastercard', 'fatura fechada'])
+    if eh_fatura_cartao and 'picpay' not in texto_norm:
+        return None, None, "", "fatura geral de cartão de crédito"
 
     for regra in REGRAS_DESPESA:
         for kw in regra['keywords']:
@@ -1056,6 +1106,309 @@ def processar_pasta_farmacia(pasta_farmacia=r"d:\PjePlus\Gastos\farmacia", pasta
     return resultados
 
 
+def eh_extrato_picpay(texto, nome_arquivo="", dados_bytes=None):
+    """1. Identifica pelo padrão do documento que é a fatura/extrato do PicPay Card."""
+    tn = normalizar(texto)
+    nn = normalizar(nome_arquivo)
+
+    # Indicadores de layout da fatura PicPay Card (2 colunas ou recorte de 1 coluna)
+    marcadores_fatura = [
+        'picpay card', 'transacoes nacionais', 'transagoes nacionais',
+        'data estabelecimento valor', 'subtotal dos lancamentos', 'subtotal dos langamentos',
+        'total geral dos lancamentos', 'total geral dos langamentos',
+        'mastercard platinum', 'mercado zezinho ii', 'panificadora emporio c', 'condesupermercado'
+    ]
+    qtd_marcadores = sum(1 for m in marcadores_fatura if m in tn)
+
+    if 'picpay' in tn and (qtd_marcadores >= 1 or 'vencimento' in tn or 'fechamento' in tn):
+        return True
+    if qtd_marcadores >= 1 and ('transacoes nacionais' in tn or 'transagoes nacionais' in tn or 'data estabelecimento' in tn):
+        return True
+    if qtd_marcadores >= 2:
+        return True
+    if 'picpay' in nn and (qtd_marcadores >= 1 or 'vencimento' in tn or 'fechamento' in tn or not texto.strip()):
+        return True
+
+    # Fallback: verifica cabeçalho ou linhas divisórias de tabela PicPay se dados_bytes for imagem
+    if dados_bytes and pytesseract and dados_bytes[:4] != b'%PDF':
+        try:
+            img = Image.open(io.BytesIO(dados_bytes)).convert('RGB')
+            w, h = img.size
+            topo = img.crop((0, 0, w, max(60, int(0.14 * h))))
+            txt_topo = normalizar(pytesseract.image_to_string(topo, config='--psm 6'))
+            if 'picpay' in txt_topo or 'transacoes nacionais' in txt_topo or 'transagoes nacionais' in txt_topo or 'vencimento' in txt_topo:
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def extrair_data_topo_picpay(img_pil, texto_fallback=""):
+    """2. Extrai o mês/data do cabeçalho no topo da fatura PicPay (Vencimento / Fechamento)."""
+    w, h = img_pil.size
+    textos_topo = []
+    if pytesseract:
+        try:
+            topo = img_pil.crop((0, 0, w, max(80, int(0.14 * h)))).convert('L')
+            topo_2x = topo.resize((topo.width * 2, topo.height * 2), Image.Resampling.LANCZOS)
+            textos_topo.append(pytesseract.image_to_string(topo_2x, config='--psm 6'))
+        except Exception:
+            pass
+    if texto_fallback:
+        linhas_ini = "\n".join(str(texto_fallback).splitlines()[:8])
+        textos_topo.append(linhas_ini)
+
+    for t in textos_topo:
+        for pat in [
+            r'Vencimento\s*:?\s*(\d{2})[/.-](\d{2})[/.-](20\d{2})',
+            r'Fechamento\s*:?\s*(\d{2})[/.-](\d{2})[/.-](20\d{2})',
+            r'\b(\d{2})[/.-](\d{2})[/.-](20\d{2})\b'
+        ]:
+            m = re.search(pat, t, re.IGNORECASE)
+            if m:
+                dia, mes, ano = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                if 1 <= mes <= 12 and 1 <= dia <= 31:
+                    return datetime(ano, mes, dia)
+    return None
+
+
+def _extrair_valor_celula_picpay(img_rgb, x1, x2, y1, y2):
+    """Extrai o valor monetário de uma célula limpa da fatura PicPay sem alterar a imagem."""
+    from PIL import ImageOps
+    cw = x2 - x1
+    rx2 = min(img_rgb.width - 2, x2 + 1)
+    vc = img_rgb.crop((x2 - int(0.24 * cw), y1 + 3, rx2, y2 - 3)).convert('L')
+    arr = np.array(vc)
+    h_v = arr.shape[0]
+    if h_v > 8:
+        top_b = max(2, int(0.26 * h_v))
+        bot_b = h_v - top_b
+        for r in range(top_b):
+            if (arr[r, :] < 55).any() or (arr[r, :] < 235).mean() > 0.5:
+                arr[r, :] = 255
+        for r in range(bot_b, h_v):
+            if (arr[r, :] < 55).any() or (arr[r, :] < 235).mean() > 0.5:
+                arr[r, :] = 255
+
+    col_min = arr.min(axis=0)
+    segs = []
+    in_s = False
+    s0 = 0
+    for x, v in enumerate(col_min):
+        if v < 168:
+            if not in_s:
+                in_s = True
+                s0 = x
+        else:
+            if in_s:
+                in_s = False
+                segs.append((s0, x))
+    if in_s:
+        segs.append((s0, len(col_min)))
+
+    vc_pad = ImageOps.expand(Image.fromarray(arr), border=12, fill=255)
+    vc_3x = vc_pad.resize((vc_pad.width * 3, vc_pad.height * 3), Image.Resampling.LANCZOS)
+    v_txt = pytesseract.image_to_string(
+        vc_3x, config='--psm 7 -c tessedit_char_whitelist=0123456789.,-'
+    ).strip()
+    v_txt = re.sub(r'^[^0-9]+|[^0-9]+$', '', v_txt)
+
+    int_part, dec_part = None, None
+    m_v = re.search(r'(\d{1,4})[.,]\d?(\d{2})$', v_txt)
+    if m_v:
+        int_part, dec_part = m_v.group(1), m_v.group(2)
+    else:
+        m_v1 = re.search(r'(\d{1,4})[.,]1$', v_txt)
+        if m_v1 and len(segs) >= 2 and (segs[-1][1] - segs[-1][0]) <= 4 and (segs[-2][1] - segs[-2][0]) <= 4:
+            int_part, dec_part = m_v1.group(1), '11'
+        else:
+            m_digits = re.search(r'(\d{3,6})$', v_txt)
+            if m_digits:
+                d_str = m_digits.group(1)
+                if len(d_str) == 5 and d_str[2] == '4':
+                    int_part, dec_part = d_str[:2], d_str[3:]
+                elif len(d_str) == 4 and len(segs) == 5 and d_str[1] == '4' and (segs[1][1] - segs[1][0]) <= 3:
+                    int_part, dec_part = d_str[:2], '1' + d_str[-1]
+                elif 3 <= len(d_str) <= 5:
+                    int_part, dec_part = d_str[:-2], d_str[-2:]
+
+    if not int_part or not dec_part:
+        return 0.0, v_txt
+
+    if int_part.startswith('1') and len(segs) == (len(int_part) + 3 + 1):
+        w0 = segs[0][1] - segs[0][0]
+        w1 = segs[1][1] - segs[1][0]
+        if w0 <= 4 and w1 <= 4:
+            int_part = '1' + int_part
+
+    return float(f'{int_part}.{dec_part}'), f'{int_part},{dec_part}'
+
+
+def processar_extrato_picpay(dados_bytes, nome_original="picpay.jpeg"):
+    """Processa comprovante de fatura/extrato PicPay:
+    1. Identifica data/mês da despesa pelo cabeçalho do topo (Vencimento/Fechamento)
+       ou pelo ciclo de fechamento das datas DD/MM quando for recorte de coluna.
+    2. Detecta todas as linhas de lançamento (suporta faturas de 2 colunas e recortes de 1 coluna).
+    3. Mantém a imagem original intacta (sem alterar nem reforçar tarjas).
+    4. Soma apenas as despesas não tarjadas para renomear o arquivo com o valor exato.
+    """
+    _, ext = os.path.splitext(nome_original)
+    if not ext or ext.lower() not in ('.jpg', '.jpeg', '.png'):
+        ext = '.jpeg'
+
+    img = Image.open(io.BytesIO(dados_bytes)).convert('RGB')
+    w, h = img.size
+    arr = np.array(img)
+    gray = arr.mean(axis=2)
+
+    data_topo = extrair_data_topo_picpay(img)
+
+    # Detecta se é layout de 2 colunas (w/h >= 0.75) ou recorte de 1 coluna
+    is_two_col = (w / h >= 0.75)
+    cols = []
+    if is_two_col:
+        for sx1, sx2 in [(int(0.02 * w), int(0.50 * w)), (int(0.49 * w), int(0.97 * w))]:
+            sub_s = gray[:, sx1:sx2]
+            rmask = (((140 <= sub_s) & (sub_s < 238)).mean(axis=1) > 0.65)
+            if rmask.any():
+                col_active = ((140 <= sub_s[rmask, :]) & (sub_s[rmask, :] < 238)).mean(axis=0) > 0.45
+                xs = np.where(col_active)[0]
+                if len(xs):
+                    cols.append((sx1 + int(xs.min()), sx1 + int(xs.max())))
+        if len(cols) < 2:
+            cols = [(int(0.032 * w), int(0.490 * w)), (int(0.492 * w), int(0.955 * w))]
+    else:
+        row_line_mask = (((140 <= gray) & (gray < 238)).mean(axis=1) > 0.60)
+        if row_line_mask.any():
+            line_rows = gray[row_line_mask, :]
+            col_non_white = ((140 <= line_rows) & (line_rows < 238)).mean(axis=0) > 0.45
+            segs = []
+            in_s = False
+            s0 = 0
+            for x in range(w):
+                if col_non_white[x]:
+                    if not in_s:
+                        in_s = True
+                        s0 = x
+                else:
+                    if in_s:
+                        in_s = False
+                        segs.append((s0, x))
+            if in_s:
+                segs.append((s0, w))
+            best_seg = max(segs, key=lambda s: s[1] - s[0]) if segs else (int(0.02 * w), int(0.96 * w))
+            cols = [(max(0, best_seg[0]), min(w, best_seg[1]))]
+        else:
+            cols = [(int(0.02 * w), int(0.96 * w))]
+
+    itens_limpos = []
+    qtd_tarjadas = 0
+    datas_ddmm_limpas = []
+
+    for idx_col, (x1, x2) in enumerate(cols):
+        cw = x2 - x1
+        sub = gray[:, x1:x2]
+        is_line = ((sub < 238).mean(axis=1) > 0.70) & ((sub < 30).mean(axis=1) < 0.35)
+        lines_y = np.where(is_line)[0]
+        groups = []
+        for y in lines_y:
+            if y < int(0.02 * h):
+                continue
+            if not groups or y - groups[-1][-1] > 4:
+                groups.append([y])
+            else:
+                groups[-1].append(y)
+        centers = [int(round(np.mean(g))) for g in groups]
+        diffs = [b - a for a, b in zip(centers, centers[1:]) if 18 <= (b - a) <= 90]
+        row_h_est = int(round(np.median(diffs))) if diffs else 30
+
+        rows = []
+        for k, c in enumerate(centers):
+            if k == 0:
+                if c - row_h_est >= int(0.02 * h):
+                    rows.append((c - row_h_est, c))
+            if k + 1 < len(centers):
+                b = centers[k + 1]
+                gap = b - c
+                n_rows = int(round(gap / row_h_est))
+                if n_rows == 1 and int(0.68 * row_h_est) <= gap <= int(1.40 * row_h_est):
+                    rows.append((c, b))
+                elif 2 <= n_rows <= 6 and abs(gap - n_rows * row_h_est) <= max(8, int(0.28 * row_h_est)):
+                    for r_i in range(n_rows):
+                        ry1 = int(round(c + r_i * (gap / n_rows)))
+                        ry2 = int(round(c + (r_i + 1) * (gap / n_rows)))
+                        rows.append((ry1, ry2))
+                elif gap > row_h_est * 3.0:
+                    rows.append((b - row_h_est, b))
+
+        for (y1, y2) in rows:
+            rh = y2 - y1
+            cy1, cy2 = y1 + int(0.32 * rh), y2 - int(0.32 * rh)
+            row_mid = sub[cy1:cy2, :]
+            v_blk = int((row_mid[:, int(0.75 * cw):] < 30).sum())
+            d_blk = int((row_mid[:, int(0.15 * cw):int(0.75 * cw)] < 30).sum())
+            if v_blk > 15 or d_blk > 35:
+                qtd_tarjadas += 1
+                continue
+
+            valor_linha, val_str = (0.0, "")
+            if pytesseract:
+                valor_linha, val_str = _extrair_valor_celula_picpay(img, x1, x2, y1, y2)
+                if valor_linha > 0 and not data_topo:
+                    d_crop = img.crop((x1, y1 + 2, x1 + int(0.18 * cw), y2 - 2)).convert('L')
+                    d_2x = d_crop.resize((d_crop.width * 2, d_crop.height * 2), Image.Resampling.LANCZOS)
+                    d_txt = pytesseract.image_to_string(d_2x, config='--psm 7').strip()
+                    m_d = re.search(r'(\d{2})/(\d{2})', d_txt)
+                    if m_d:
+                        dia_d, mes_d = int(m_d.group(1)), int(m_d.group(2))
+                        if 1 <= dia_d <= 31 and 1 <= mes_d <= 12:
+                            datas_ddmm_limpas.append((mes_d, dia_d))
+
+            if valor_linha > 0:
+                itens_limpos.append({
+                    'coluna': idx_col + 1,
+                    'y': (y1, y2),
+                    'descricao': val_str,
+                    'valor': valor_linha,
+                })
+
+    if not data_topo and datas_ddmm_limpas:
+        from collections import Counter
+        contagem_meses = Counter(m for m, _ in datas_ddmm_limpas)
+        mes_base = max(contagem_meses.keys(), key=lambda m: (contagem_meses[m], m))
+        datas_filtradas = [(m, d) for (m, d) in datas_ddmm_limpas if abs(m - mes_base) <= 1 or contagem_meses[m] >= 2]
+        if not datas_filtradas:
+            datas_filtradas = datas_ddmm_limpas
+        max_mes, max_dia = max(datas_filtradas)
+        mes_fatura = max_mes + 1 if (max_dia >= 19 and max_mes < 12) else max_mes
+        data_topo = datetime(2026, mes_fatura, 25)
+
+    soma_total = round(sum(it['valor'] for it in itens_limpos), 2)
+    return {
+        'eh_picpay': True,
+        'data_dt': data_topo,
+        'soma': soma_total,
+        'itens': itens_limpos,
+        'qtd_limpas': len(itens_limpos),
+        'qtd_tarjadas': qtd_tarjadas,
+        'dados_bytes_tarjados': None,
+        'ext': ext,
+        'nome_sugerido': f"{soma_total:.2f} picpay{ext}" if soma_total > 0 else f"[SEM_VALOR] picpay{ext}",
+    }
+
+
+def eh_extrato_cantina(texto, nome_arquivo="", dados_bytes=None):
+    """Identifica se o documento é o extrato multimês de recargas da Cantina Escolar."""
+    nome_low = (nome_arquivo or "").lower()
+    if 'cantina' in nome_low:
+        return True
+    txt_norm = normalizar(texto or "")
+    if 'recargas' in txt_norm and ('consumo' in txt_norm or 'estornos' in txt_norm):
+        return True
+    if len(re.findall(r'\brecarga\b', txt_norm)) >= 2:
+        return True
+    return False
+
 
 def analisar_conteudo(dados_bytes, nome_original):
     """Analisa comprovante e aplica a matriz de decisão com degradação graciosa."""
@@ -1064,6 +1417,9 @@ def analisar_conteudo(dados_bytes, nome_original):
         ext = '.pdf' if dados_bytes[:4] == b'%PDF' else '.png'
 
     nome_low = nome_original.lower()
+    eh_picpay = False
+    dados_processados = None
+    res_picpay = None
 
     # 1. 99Receipt: já contém data e valor no nome do arquivo
     if '99receipt' in nome_low or '99 receipt' in nome_low:
@@ -1071,61 +1427,108 @@ def analisar_conteudo(dados_bytes, nome_original):
         valor = extrair_valor("", nome_original)
         rubrica, bloco, sufixo_regra, motivo = 'Transporte', BLOCO_A, 'OLLIE TRANSPORTE', '99receipt nome'
         texto = ""
+    # 1.1 Ollie Plano de Saúde: tratar EXCLUSIVAMENTE pelo nome do arquivo (o holerite tem datas antigas no OCR)
+    elif 'plano de saude' in normalizar(nome_low) and 'ollie' in normalizar(nome_low):
+        m_suf = re.search(r'[_ -](\d{1,2})[-/.](\d{4})', nome_original)
+        if m_suf:
+            mes_n, ano_n = int(m_suf.group(1)), int(m_suf.group(2))
+            data = datetime(ano_n, mes_n, 1)
+        else:
+            data = extrair_data(nome_original)
+        valor = extrair_valor("", nome_original)
+        rubrica, bloco, sufixo_regra, motivo = 'Plano de Saúde e Odontológico', BLOCO_A, 'OLLIE PLANO DE SAUDE', 'ollie plano de saude nome'
+        texto = ""
     else:
         texto = extrair_texto_de_bytes(dados_bytes, nome_original)
 
-        # Caso Especial: Extrato Consolidado do iFood Pago (Multi-pedidos)
-        texto_norm_ifood = normalizar(texto)
-        if ('ifood pago' in texto_norm_ifood or 'ifeed pago' in texto_norm_ifood) and len(re.findall(r'Pedido\s+(?:n[ºo°\s]*\s*)?\d{3,5}', texto, re.IGNORECASE)) >= 2:
-            resumos = processar_extrato_ifood_pago(dados_bytes, nome_original)
-            total_extrato = sum(r['total'] for r in resumos)
-            return {
-                'nome_original': nome_original,
-                'data': 'Múltiplas datas (Extrato iFood)',
-                'data_dt': None,
-                'mes_contabil': 'Multi-mês',
-                'pasta_mes_drive': 'Distribuído por mês em Mercado Açougue Padaria',
-                'bloco': BLOCO_B,
-                'rubrica': 'Mercado/Açougue/Padaria',
-                'pasta_drive_rubrica': 'Mercado Açougue Padaria',
-                'valor': total_extrato,
-                'status': 'COMPLETO',
-                'nome_sugerido': '[EXTRATO_IFOOD_DISTRIBUIDO]',
-                'destino_tipo': 'extrato_processado',
-                'motivo': f'extrato ifood pago ({len(resumos)} meses consolidados)',
-                'aviso': f"Extrato iFood Pago: {len(resumos)} PDFs mensais criados com cabeçalho em 'Mercado Açougue Padaria'.",
-                'extrato_detalhes': resumos
-            }
+        # Caso Especial: Fatura / Extrato PicPay Card (imagem com tarjas)
+        if dados_bytes[:4] != b'%PDF' and eh_extrato_picpay(texto, nome_original, dados_bytes):
+            eh_picpay = True
+            res_picpay = processar_extrato_picpay(dados_bytes, nome_original)
+            ext = res_picpay['ext']
+            data = res_picpay['data_dt'] or extrair_data(texto) or extrair_data(nome_original)
+            valor = res_picpay['soma']
+            rubrica = 'Outros (Geral) 01'
+            bloco = BLOCO_B
+            sufixo_regra = 'picpay'
+            motivo = f"extrato picpay ({res_picpay['qtd_limpas']} despesas somadas, {res_picpay['qtd_tarjadas']} tarjas reforçadas)"
+            dados_processados = res_picpay['dados_bytes_tarjados']
+        else:
+            # Caso Especial: Extrato de Recargas da Cantina Escolar (imagem multimês salva uma única vez em Janeiro)
+            if dados_bytes[:4] != b'%PDF' and eh_extrato_cantina(texto, nome_original, dados_bytes):
+                from extrato import parse_extrato_cantina
+                txs_mes, totais_mes, total_cantina = parse_extrato_cantina(dados_bytes)
+                if len(totais_mes) >= 1:
+                    return {
+                        'nome_original': nome_original,
+                        'data': 'Múltiplas datas (Extrato Cantina Multimês)',
+                        'data_dt': None,
+                        'mes_contabil': 'Janeiro 2026',
+                        'pasta_mes_drive': '01 - Janeiro 2026',
+                        'bloco': BLOCO_A,
+                        'rubrica': 'Alimentação rua e Cantina Escolar',
+                        'pasta_drive_rubrica': comum.PASTA_DRIVE.get('Alimentação rua e Cantina Escolar', 'Alimentação rua e Cantina Escolar'),
+                        'valor': total_cantina,
+                        'status': 'COMPLETO',
+                        'nome_sugerido': 'cantina.jpeg' if ext.lower() in ('.jpg', '.jpeg') else f'cantina{ext}',
+                        'destino_tipo': 'rubrica',
+                        'motivo': f'extrato cantina escolar ({len(totais_mes)} meses consolidados)',
+                        'aviso': f"Extrato Cantina Escolar: R$ {total_cantina:.2f} distribuído mês a mês na planilha em 'Alimentação rua e Cantina Escolar'. Arquivo salvo apenas uma vez em Janeiro 2026.",
+                        'totais_por_mes': totais_mes
+                    }
 
-        # Caso Especial: Extrato Geral Consolidado (Banco Inter / Débito / Multimês)
-        texto_norm = normalizar(texto)
-        if ('banco inter' in texto_norm or 'extrato' in nome_low) and (
-            'categorias alimentacao' in texto_norm or 'saldo por transacao' in texto_norm or 'compra no debito' in texto_norm
-        ):
-            from extrato import parse_extrato_pdf
-            txs_mes, totais_mes, total_extrato = parse_extrato_pdf(dados_bytes)
-            if len(totais_mes) > 1:
+            # Caso Especial: Extrato Consolidado do iFood Pago (Multi-pedidos)
+            texto_norm_ifood = normalizar(texto)
+            if ('ifood pago' in texto_norm_ifood or 'ifeed pago' in texto_norm_ifood) and len(re.findall(r'Pedido\s+(?:n[ºo°\s]*\s*)?\d{3,5}', texto, re.IGNORECASE)) >= 2:
+                resumos = processar_extrato_ifood_pago(dados_bytes, nome_original)
+                total_extrato = sum(r['total'] for r in resumos)
                 return {
                     'nome_original': nome_original,
-                    'data': 'Múltiplas datas (Extrato Geral Consolidado)',
+                    'data': 'Múltiplas datas (Extrato iFood)',
                     'data_dt': None,
-                    'mes_contabil': 'Janeiro 2026',
-                    'pasta_mes_drive': '01 - Janeiro 2026',
+                    'mes_contabil': 'Multi-mês',
+                    'pasta_mes_drive': 'Distribuído por mês em Mercado Açougue Padaria',
                     'bloco': BLOCO_B,
                     'rubrica': 'Mercado/Açougue/Padaria',
-                    'pasta_drive_rubrica': None,
+                    'pasta_drive_rubrica': 'Mercado Açougue Padaria',
                     'valor': total_extrato,
                     'status': 'COMPLETO',
-                    'nome_sugerido': nome_original,
-                    'destino_tipo': 'extrato_geral_raiz_janeiro',
-                    'motivo': f'extrato geral ({len(totais_mes)} meses consolidados)',
-                    'aviso': f"Extrato Geral Consolidado: R$ {total_extrato:.2f} distribuído por competência na planilha em 'Mercado/Açougue/Padaria'. Arquivo mantido na raiz de Janeiro 2026.",
-                    'totais_por_mes': totais_mes
+                    'nome_sugerido': '[EXTRATO_IFOOD_DISTRIBUIDO]',
+                    'destino_tipo': 'extrato_processado',
+                    'motivo': f'extrato ifood pago ({len(resumos)} meses consolidados)',
+                    'aviso': f"Extrato iFood Pago: {len(resumos)} PDFs mensais criados com cabeçalho em 'Mercado Açougue Padaria'.",
+                    'extrato_detalhes': resumos
                 }
 
-        data = extrair_data(texto) or extrair_data(nome_original)
-        valor = extrair_valor(texto, nome_original)
-        rubrica, bloco, sufixo_regra, motivo = classificar_despesa(texto, valor, nome_original)
+            # Caso Especial: Extrato Geral Consolidado (Banco Inter / Débito / Multimês)
+            texto_norm = normalizar(texto)
+            if ('banco inter' in texto_norm or 'extrato' in nome_low) and (
+                'categorias alimentacao' in texto_norm or 'saldo por transacao' in texto_norm or 'compra no debito' in texto_norm
+            ):
+                from extrato import parse_extrato_pdf
+                txs_mes, totais_mes, total_extrato = parse_extrato_pdf(dados_bytes)
+                if len(totais_mes) > 1:
+                    return {
+                        'nome_original': nome_original,
+                        'data': 'Múltiplas datas (Extrato Geral Consolidado)',
+                        'data_dt': None,
+                        'mes_contabil': 'Janeiro 2026',
+                        'pasta_mes_drive': '01 - Janeiro 2026',
+                        'bloco': BLOCO_B,
+                        'rubrica': 'Mercado/Açougue/Padaria',
+                        'pasta_drive_rubrica': None,
+                        'valor': total_extrato,
+                        'status': 'COMPLETO',
+                        'nome_sugerido': nome_original,
+                        'destino_tipo': 'extrato_geral_raiz_janeiro',
+                        'motivo': f'extrato geral ({len(totais_mes)} meses consolidados)',
+                        'aviso': f"Extrato Geral Consolidado: R$ {total_extrato:.2f} distribuído por competência na planilha em 'Mercado/Açougue/Padaria'. Arquivo mantido na raiz de Janeiro 2026.",
+                        'totais_por_mes': totais_mes
+                    }
+
+            data = extrair_data(texto) or extrair_data(nome_original)
+            valor = extrair_valor(texto, nome_original)
+            rubrica, bloco, sufixo_regra, motivo = classificar_despesa(texto, valor, nome_original)
 
     data_ok = bool(data)
     valor_ok = bool(valor > 0) or (valor == 0.0 and ('0,00' in str(texto) or 'r$ 0,00' in str(texto).lower() or 'r$0,00' in str(texto).lower()))
@@ -1143,25 +1546,30 @@ def analisar_conteudo(dados_bytes, nome_original):
         nome_mes, pasta_mes = None, None
 
     nome_limpo = higienizar_fragmento(nome_base)
+    is_ifood = (
+        'ifood' in str(motivo).lower() or 'ifood' in nome_low or
+        (texto and any(w in str(texto).lower() for w in ['ifood', 'cardapio', 'previsao de entrega', 'pago pelo app', 'data do pedido']))
+    )
 
     # --- MATRIZ DE DEGRAÇÃO GRACIOSA ---
     if data_ok and valor_ok and rubrica_ok:
         status = 'COMPLETO'
         det = f" {sufixo_regra}" if sufixo_regra else ""
-        is_ifood = (
-            'ifood' in motivo or 'ifood' in nome_low or
-            (texto and any(w in texto.lower() for w in ['ifood', 'cardapio', 'previsao de entrega', 'pago pelo app', 'data do pedido']))
-        )
-        if 'tenda' in motivo or 'tenda' in nome_low:
+        if eh_picpay:
+            det = " picpay"
+        elif 'tenda' in motivo or 'tenda' in nome_low:
             det = " tenda"
         elif is_ifood and rubrica == 'Mercado/Açougue/Padaria':
-            det = " ifood"
+            suf_data = f" {data.day:02d}-{data.month:02d}" if data_ok else ""
+            det = f" ifood{suf_data}"
         elif rubrica == 'Internet':
             det = " vivo fibra"
         elif rubrica == 'Aluguel':
             det = ""
         elif rubrica == 'Transporte':
             det = " OLLIE TRANSPORTE"
+        elif rubrica == 'Plano de Saúde e Odontológico':
+            det = " OLLIE PLANO DE SAUDE"
         elif rubrica == 'Psicoterapia':
             det = ""
         nome_sugerido = f"{valor:.2f}{det}{ext}".replace('  ', ' ')
@@ -1212,6 +1620,11 @@ def analisar_conteudo(dados_bytes, nome_original):
         'destino_tipo': destino_tipo,
         'motivo': motivo,
         'aviso': aviso,
+        'eh_picpay': eh_picpay,
+        'is_ifood': is_ifood,
+        'dados_processados': dados_processados,
+        'itens_picpay': res_picpay.get('itens', []) if res_picpay else [],
+        'qtd_tarjadas': res_picpay.get('qtd_tarjadas', 0) if res_picpay else 0,
     }
 
 
@@ -1234,45 +1647,82 @@ def resolver_pasta_destino(drive, drive_idx, info, dry_run=False):
     if dt == 'rubrica':
         id_mes = drive_idx.pasta_do_mes(info['mes_contabil'])
         if not id_mes:
-            nome_quar = "[REVISAR_FORA_DO_PERIODO]"
-            id_quar, _ = drive_idx.obter_ou_criar_pasta(nome_quar, ID_PASTA_RAIZ_DRIVE, dry_run=dry_run)
-            return id_quar, f"{nome_quar}/"
+            if info.get('mes_contabil') and not comum.eh_mes_no_periodo(info['mes_contabil']):
+                nome_fp = "[REVISAR_FORA_DO_PERIODO]"
+                id_fp, _ = drive_idx.obter_ou_criar_pasta(nome_fp, ID_PASTA_RAIZ_DRIVE, dry_run=dry_run)
+                return id_fp, f"{nome_fp}/"
+            return ID_PASTA_RAIZ_DRIVE, "[RAIZ]/"
         blocos = [f for f in drive_idx.listar_filhos(id_mes, apenas_pastas=True) if f['name'] == info['bloco']]
         if not blocos:
-            return None
+            return id_mes, f"{info['pasta_mes_drive']} /"
         alvo = normalizar(info['pasta_drive_rubrica'])
         for r in drive_idx.listar_filhos(blocos[0]['id'], apenas_pastas=True):
             if normalizar(r['name']) == alvo:
                 return r['id'], f"{info['pasta_mes_drive']} / {info['bloco']} / {info['pasta_drive_rubrica']}/"
-        return None
+        return id_mes, f"{info['pasta_mes_drive']} /"
 
-    # 2. Pasta de revisão dentro do mês: {pasta_mes}/[REVISAR_RUBRICA]/
+    # 2. Pendente no mês (sem criar pastas de checagem no Drive): salva direto na pasta do mês
     elif dt == 'revisar_mes':
         id_mes = drive_idx.pasta_do_mes(info['mes_contabil'])
         if not id_mes:
-            nome_quar = "[REVISAR_FORA_DO_PERIODO]"
-            id_quar, _ = drive_idx.obter_ou_criar_pasta(nome_quar, ID_PASTA_RAIZ_DRIVE, dry_run=dry_run)
-            return id_quar, f"{nome_quar}/"
-        nome_pasta_rev = "[REVISAR_RUBRICA]"
-        id_rev, _ = drive_idx.obter_ou_criar_pasta(nome_pasta_rev, id_mes, dry_run=dry_run)
-        return id_rev, f"{info['pasta_mes_drive']} / {nome_pasta_rev}/"
+            if info.get('mes_contabil') and not comum.eh_mes_no_periodo(info['mes_contabil']):
+                nome_fp = "[REVISAR_FORA_DO_PERIODO]"
+                id_fp, _ = drive_idx.obter_ou_criar_pasta(nome_fp, ID_PASTA_RAIZ_DRIVE, dry_run=dry_run)
+                return id_fp, f"{nome_fp}/"
+            return ID_PASTA_RAIZ_DRIVE, "[RAIZ]/"
+        return id_mes, f"{info['pasta_mes_drive']} /"
 
-    # 3. Quarentena na raiz do Drive: [REVISAR_SEM_DATA]/
+    # 3. Sem data identificada (sem criar pasta de checagem): mantém na raiz do Drive
     elif dt == 'quarentena_raiz':
-        nome_quar = "[REVISAR_SEM_DATA]"
-        id_quar, _ = drive_idx.obter_ou_criar_pasta(nome_quar, ID_PASTA_RAIZ_DRIVE, dry_run=dry_run)
-        return id_quar, f"{nome_quar}/"
+        return ID_PASTA_RAIZ_DRIVE, "[RAIZ]/"
 
-    return None
+    return ID_PASTA_RAIZ_DRIVE, "[RAIZ]/"
 
 
 RE_CONSOLIDADO = comum.RE_CONSOLIDADO
 
+_CACHE_TEXTO_ARQUIVOS_DRIVE = {}
 
-def verificar_duplicata_ou_substituicao(drive_idx, id_destino, info, md5_novo=None, timestamp_novo=None):
+
+def _obter_texto_arquivo_drive(drive, arq_id, nome_arq):
+    if arq_id in _CACHE_TEXTO_ARQUIVOS_DRIVE:
+        return _CACHE_TEXTO_ARQUIVOS_DRIVE[arq_id]
+    if not drive:
+        return ""
+    try:
+        buf = io.BytesIO()
+        req = drive.files().get_media(fileId=arq_id)
+        dl = MediaIoBaseDownload(buf, req)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        conteudo = buf.getvalue()
+        txt = ""
+        nome_low = nome_arq.lower()
+        if nome_low.endswith('.pdf') or conteudo[:4] == b'%PDF':
+            doc = fitz.open(stream=conteudo, filetype='pdf')
+            for p in doc:
+                txt += (p.get_text() or "") + "\n"
+            if not txt.strip() and len(doc) > 0 and pytesseract:
+                pix = doc[0].get_pixmap(dpi=150)
+                img = Image.open(io.BytesIO(pix.tobytes('png')))
+                txt = pytesseract.image_to_string(img, lang='por+eng')
+            doc.close()
+        elif nome_low.endswith(('.jpg', '.jpeg', '.png')) and pytesseract:
+            img = Image.open(io.BytesIO(conteudo))
+            txt = pytesseract.image_to_string(img, lang='por+eng')
+        _CACHE_TEXTO_ARQUIVOS_DRIVE[arq_id] = txt
+        return txt
+    except Exception:
+        _CACHE_TEXTO_ARQUIVOS_DRIVE[arq_id] = ""
+        return ""
+
+
+def verificar_duplicata_ou_substituicao(drive_idx, id_destino, info, md5_novo=None, timestamp_novo=None, arq_id=None, drive=None):
     """Verifica se o novo arquivo:
     1. É duplicata idêntica (mesmo MD5) de algum arquivo existente.
-    2. Substitui uma versão anterior existente (mesmo mês, mesma rubrica e valor muito próximo/conta única).
+    2. Para iFood: deduplica por mesma data + mesmo valor ou se já contemplado no extrato consolidado.
+    3. Substitui uma versão anterior existente (mesmo mês, mesma rubrica e valor muito próximo/conta única).
     Retorna: (tipo_resultado, arquivo_alvo, mensagem)
     onde tipo_resultado pode ser:
       - 'DUPLICATA_EXATA'
@@ -1280,12 +1730,12 @@ def verificar_duplicata_ou_substituicao(drive_idx, id_destino, info, md5_novo=No
       - 'MANTER_EXISTENTE'
       - 'NOVO'
     """
-    if not id_destino:
+    if not id_destino or id_destino == ID_PASTA_RAIZ_DRIVE:
         return 'NOVO', None, None
 
     candidatos = [
         f for f in drive_idx.listar_filhos(id_destino, apenas_pastas=False)
-        if not RE_CONSOLIDADO.match(f['name'])
+        if not RE_CONSOLIDADO.match(f['name']) and f.get('id') != arq_id
     ]
 
     # 1. Checagem de Duplicata Idêntica (MD5)
@@ -1294,42 +1744,92 @@ def verificar_duplicata_ou_substituicao(drive_idx, id_destino, info, md5_novo=No
             if f.get('md5Checksum') == md5_novo:
                 return 'DUPLICATA_EXATA', f, f"Arquivo idêntico (mesmo MD5={md5_novo[:8]}) já existe como '{f['name']}'."
 
-    # 2. Checagem de Substituição de Versão ("valor muito próximo, mês e tipo semelhantes")
-    # Regra: preferir o último subido, substituir
     rubrica = info.get('rubrica')
     valor_novo = info.get('valor', 0.0)
     data_novo = info.get('data_dt')
     time_novo = timestamp_novo or datetime.now().isoformat()
 
-    # Caso A: Rubrica de Conta Única (Luz, Água, Aluguel, Internet, Escola, etc.)
+    # 2. Checagem Especial para iFood (Deduplicação por Data + Valor ou Extrato Consolidado)
+    is_ifood = (
+        info.get('is_ifood') or
+        'ifood' in str(info.get('nome_sugerido', '')).lower() or
+        'ifood' in str(info.get('motivo', '')).lower()
+    )
+    if is_ifood and valor_novo > 0:
+        data_novo_dt = info.get('data_dt')
+        data_str = info.get('data') or (data_novo_dt.strftime('%d/%m/%Y') if data_novo_dt else None)
+        candidatos_ifood = [f for f in candidatos if 'ifood' in f['name'].lower()]
+
+        for f in candidatos_ifood:
+            m_ex = re.search(r'(?<![\d.,])(\d+)[.,](\d{2})(?![\d])', f['name'])
+            v_exist = float(f"{m_ex.group(1)}.{m_ex.group(2)}") if m_ex else 0.0
+
+            # Caso 2.1: Mesmo valor (pedido individual repetido)
+            if v_exist > 0 and comum.valores_muito_proximos(valor_novo, v_exist):
+                mesma_data = False
+                if data_novo_dt:
+                    # Verifica data no próprio nome do candidato (ex: 45.00 ifood 15-04.pdf)
+                    m_d = re.search(r'(\d{2})[-/.](\d{2})(?:[-/.](20\d{2}))?', f['name'])
+                    if m_d:
+                        d_cand, m_cand = int(m_d.group(1)), int(m_d.group(2))
+                        if d_cand == data_novo_dt.day and m_cand == data_novo_dt.month:
+                            mesma_data = True
+                    # Se não há data no nome, busca no conteúdo do arquivo existente
+                    if not mesma_data and drive:
+                        txt_cand = _obter_texto_arquivo_drive(drive, f['id'], f['name'])
+                        d_ext = extrair_data(txt_cand)
+                        if d_ext and (d_ext.day, d_ext.month, d_ext.year) == (data_novo_dt.day, data_novo_dt.month, data_novo_dt.year):
+                            mesma_data = True
+                        elif not d_ext:
+                            padrao_data = f"{data_novo_dt.day:02d}/{data_novo_dt.month:02d}"
+                            if padrao_data in txt_cand:
+                                mesma_data = True
+
+                # Se confirmou mesma data ou se o nome sugerido é idêntico
+                if mesma_data or f['name'] == info.get('nome_sugerido'):
+                    msg = f"Comprovante iFood duplicado: já existe pedido com mesmo valor (R$ {valor_novo:.2f}) e mesma data ({data_str or 'identificada'}) como '{f['name']}'."
+                    return 'DUPLICATA_EXATA', f, msg
+
+            # Caso 2.2: Candidato é o extrato consolidado mensal do iFood Pago (soma maior)
+            elif v_exist > valor_novo and drive:
+                txt_cand = _obter_texto_arquivo_drive(drive, f['id'], f['name'])
+                if txt_cand:
+                    val_str_comma = f"{valor_novo:.2f}".replace('.', ',')
+                    val_str_dot = f"{valor_novo:.2f}"
+                    tem_val = val_str_comma in txt_cand or val_str_dot in txt_cand
+                    tem_dt = False
+                    if data_novo_dt:
+                        padrao_data = f"{data_novo_dt.day:02d}/{data_novo_dt.month:02d}"
+                        tem_dt = padrao_data in txt_cand
+                    else:
+                        tem_dt = True
+                    if tem_val and tem_dt:
+                        msg = f"Pedido iFood de R$ {valor_novo:.2f} ({data_str or ''}) já está contemplado no extrato consolidado '{f['name']}' deste mês."
+                        return 'DUPLICATA_EXATA', f, msg
+
+    # 3. Checagem de Substituição de Versão ("valor muito próximo, mês e tipo semelhantes")
+
+    # Caso A: Rubrica de Conta Única (Luz, Água, Aluguel, Gás, Internet)
+    # Somente substitui se o existente estiver sem valor ou tiver valor muito próximo
     if rubrica and comum.eh_rubrica_conta_unica(rubrica):
         if candidatos:
             existente = sorted(candidatos, key=lambda x: x.get('modifiedTime', ''), reverse=True)[0]
-            time_existente = existente.get('modifiedTime', '')
-            if time_novo >= time_existente:
-                return 'SUBSTITUIR', existente, f"Rubrica de conta única '{rubrica}': versão mais recente substitui '{existente['name']}'."
+            m_ex = re.search(r'(?<![\d.,])(\d+)[.,](\d{2})(?![\d])', existente['name'])
+            if m_ex:
+                v_exist = float(f"{m_ex.group(1)}.{m_ex.group(2)}")
             else:
-                return 'MANTER_EXISTENTE', existente, f"Versão existente '{existente['name']}' já é mais recente."
+                stem_ex = os.path.splitext(existente['name'])[0].strip()
+                v_exist = float(stem_ex) if re.match(r'^\d{1,4}$', stem_ex) else 0.0
+            if v_exist == 0.0 or (valor_novo > 0 and comum.valores_muito_proximos(valor_novo, v_exist)):
+                time_existente = existente.get('modifiedTime', '')
+                if time_novo >= time_existente:
+                    return 'SUBSTITUIR', existente, f"Rubrica de conta única '{rubrica}': versão mais recente substitui '{existente['name']}'."
+                else:
+                    return 'MANTER_EXISTENTE', existente, f"Versão existente '{existente['name']}' já é mais recente."
 
     # Caso B: Rubricas multi-itens (Mercado, Faxina, Farmácia, Transporte, Cantina, etc.)
-    if valor_novo > 0:
-        for f in candidatos:
-            val_existente = extrair_valor(f['name'])
-            if val_existente > 0 and comum.valores_muito_proximos(valor_novo, val_existente):
-                data_existente = extrair_data(f['name'])
-                match_data = False
-                if data_novo and data_existente:
-                    match_data = (data_novo.date() == data_existente.date())
-                elif not data_existente and abs(valor_novo - val_existente) < 0.01:
-                    match_data = True
-
-                if match_data:
-                    time_existente = f.get('modifiedTime', '')
-                    if time_novo >= time_existente:
-                        return 'SUBSTITUIR', f, f"Despesa correspondente (R$ {valor_novo:.2f}): versão mais recente substitui '{f['name']}'."
-                    else:
-                        return 'MANTER_EXISTENTE', f, f"Versão existente '{f['name']}' é mais recente."
-
+    # Nunca substitui nem descarta comprovantes automaticamente, pois despesas com mesmo valor
+    # (ex: 2 faxinas de R$ 250 ou vários recibos) são itens legítimos separados.
     return 'NOVO', None, None
 
 
@@ -1343,11 +1843,11 @@ def organizar_arquivos_raiz_drive(drive, drive_idx, dry_run=False):
         or f['name'].lower().endswith(('.pdf', '.png', '.jpg', '.jpeg'))
     ]
 
+    movidos, relatorio_triagem = 0, []
     if not comprovantes_soltos:
-        return 0, []
+        return processar_picpay_nas_pastas_drive(drive, drive_idx, dry_run=dry_run)
 
     print(f"\n🔍 Organizando {len(comprovantes_soltos)} comprovante(s) pendente(s) na raiz do Drive...")
-    movidos, relatorio_triagem = 0, []
 
     for arq in comprovantes_soltos:
         buf = io.BytesIO()
@@ -1361,7 +1861,7 @@ def organizar_arquivos_raiz_drive(drive, drive_idx, dry_run=False):
         info = analisar_conteudo(dados_bytes, arq['name'])
         res = resolver_pasta_destino(drive, drive_idx, info, dry_run=dry_run)
 
-        if not res:
+        if not res or res[0] == ID_PASTA_RAIZ_DRIVE:
             print(f"   ⚠️  [{arq['name']}]: Não foi possível determinar pasta de destino.")
             continue
 
@@ -1370,7 +1870,7 @@ def organizar_arquivos_raiz_drive(drive, drive_idx, dry_run=False):
         time_novo = arq.get('modifiedTime', '')
 
         tipo_acao, arq_alvo, msg_acao = verificar_duplicata_ou_substituicao(
-            drive_idx, id_dest, info, md5_novo=md5_novo, timestamp_novo=time_novo
+            drive_idx, id_dest, info, md5_novo=md5_novo, timestamp_novo=time_novo, arq_id=arq['id'], drive=drive
         )
 
         if tipo_acao == 'DUPLICATA_EXATA':
@@ -1447,18 +1947,109 @@ def organizar_arquivos_raiz_drive(drive, drive_idx, dry_run=False):
             print(f"      ⚠️  Atenção: {info['aviso']}")
 
         if not dry_run:
-            drive.files().update(
+            body_upd = {'name': info['nome_sugerido']}
+            media_upd = None
+            if info.get('dados_processados'):
+                mt_up = 'image/png' if info['nome_sugerido'].lower().endswith('.png') else 'image/jpeg'
+                media_upd = MediaIoBaseUpload(io.BytesIO(info['dados_processados']), mimetype=mt_up, resumable=True)
+                body_upd['appProperties'] = {'tarjas_reforcadas': 'sim'}
+            f_upd = drive.files().update(
                 fileId=arq['id'],
                 addParents=id_dest,
                 removeParents=ID_PASTA_RAIZ_DRIVE,
-                body={'name': info['nome_sugerido']}
+                body=body_upd,
+                media_body=media_upd,
+                fields='id, name, parents, md5Checksum, modifiedTime, appProperties, webViewLink'
             ).execute()
             drive_idx.mover_arquivo(arq['id'], id_dest, info['nome_sugerido'])
+            arq.update(f_upd)
             movidos += 1
 
         relatorio_triagem.append(info)
 
+    # Também verifica e processa eventuais faturas PicPay já dentro das pastas que ainda não tenham valor ou tarjas reforçadas
+    mov_pic, tri_pic = processar_picpay_nas_pastas_drive(drive, drive_idx, dry_run=dry_run)
+    movidos += mov_pic
+    relatorio_triagem.extend(tri_pic)
+
     return movidos, relatorio_triagem
+
+
+def processar_picpay_nas_pastas_drive(drive, drive_idx, dry_run=False):
+    """Localiza faturas PicPay dentro das pastas do Drive que ainda não foram renomeadas com o valor
+    ou que estejam em pasta diferente de 'Outros (Geral) 01', renomeia com a soma exata das despesas
+    não tarjadas e garante que fiquem em 'Bloco II - Gerais / Outros (Geral) 01' do mês da fatura
+    (mantendo a imagem original inalterada).
+    """
+    processados = 0
+    triagem = []
+    candidatos = []
+    for f in list(drive_idx.by_id.values()):
+        if f.get('mimeType') == comum.MIME_PASTA:
+            continue
+        nome_f = f.get('name', '')
+        nome_low = nome_f.lower()
+        if RE_CONSOLIDADO.match(nome_f):
+            continue
+        is_img = f.get('mimeType', '').startswith('image/') or nome_low.endswith(('.jpg', '.jpeg', '.png'))
+        if not is_img:
+            continue
+        tem_valor_no_nome = bool(re.search(r'(?<![\d.,])\d+[.,]\d{2}(?![\d])', nome_f)) and not nome_f.startswith('[SEM_VALOR]')
+        pais = f.get('parents', [])
+        nome_pasta_pai = drive_idx.by_id.get(pais[0], {}).get('name', '') if pais else ''
+        pasta_errada = normalizar(nome_pasta_pai) != normalizar('Outros (Geral) 01')
+        if ('picpay' in nome_low and (not tem_valor_no_nome or pasta_errada)) or (
+            normalizar(nome_pasta_pai) == normalizar('Outros (Geral) 01') and not tem_valor_no_nome
+        ):
+            candidatos.append(f)
+
+    for arq in candidatos:
+        try:
+            buf = io.BytesIO()
+            dl = MediaIoBaseDownload(buf, drive.files().get_media(fileId=arq['id']))
+            done = False
+            while not done:
+                _, done = dl.next_chunk()
+            buf.seek(0)
+            dados_bytes = buf.getvalue()
+
+            info = analisar_conteudo(dados_bytes, arq['name'])
+            if not info.get('eh_picpay') or info.get('valor', 0) <= 0:
+                continue
+
+            res = resolver_pasta_destino(drive, drive_idx, info, dry_run=dry_run)
+            if not res:
+                continue
+            id_dest, caminho_dest = res
+            pais_atuais = arq.get('parents', [])
+            pai_atual = pais_atuais[0] if pais_atuais else None
+
+            if arq['name'] == info['nome_sugerido'] and pai_atual == id_dest:
+                continue
+
+            print(f"\n🟢 [PICPAY DETECTADO] {arq['name']} -> {info['nome_sugerido']}")
+            print(f"   📅 Mês: {info['mes_contabil']} | Soma não tarjadas: R$ {info['valor']:.2f} ({len(info.get('itens_picpay', []))} itens)")
+            print(f"   📁 Pasta: {caminho_dest}")
+
+            if not dry_run:
+                body_upd = {'name': info['nome_sugerido']}
+                kwargs_upd = {
+                    'fileId': arq['id'],
+                    'body': body_upd,
+                    'fields': 'id, name, mimeType, parents, md5Checksum, modifiedTime, appProperties, webViewLink'
+                }
+                if pai_atual and pai_atual != id_dest:
+                    kwargs_upd['addParents'] = id_dest
+                    kwargs_upd['removeParents'] = pai_atual
+                f_atualizado = drive.files().update(**kwargs_upd).execute()
+                drive_idx.mover_arquivo(arq['id'], id_dest, info['nome_sugerido'])
+                arq.update(f_atualizado)
+                processados += 1
+            triagem.append(info)
+        except Exception as e_pic:
+            print(f"   ⚠️  Erro ao processar fatura PicPay '{arq.get('name')}': {e_pic}")
+
+    return processados, triagem
 
 
 def enviar_arquivo_local_ao_drive(caminho, drive, drive_idx, dry_run=False):
@@ -1467,6 +2058,14 @@ def enviar_arquivo_local_ao_drive(caminho, drive, drive_idx, dry_run=False):
         dados = f.read()
 
     info = analisar_conteudo(dados, nome)
+    dados_upload = info.get('dados_processados') or dados
+    if info.get('dados_processados') and not dry_run:
+        try:
+            with open(caminho, 'wb') as f_out:
+                f_out.write(dados_upload)
+        except Exception:
+            pass
+
     res = resolver_pasta_destino(drive, drive_idx, info, dry_run=dry_run)
 
     if not res:
@@ -1474,10 +2073,10 @@ def enviar_arquivo_local_ao_drive(caminho, drive, drive_idx, dry_run=False):
         return None
 
     id_dest, caminho_dest = res
-    md5_novo = hashlib.md5(dados).hexdigest()
+    md5_novo = hashlib.md5(dados_upload).hexdigest()
 
     tipo_acao, arq_alvo, msg_acao = verificar_duplicata_ou_substituicao(
-        drive_idx, id_dest, info, md5_novo=md5_novo
+        drive_idx, id_dest, info, md5_novo=md5_novo, drive=drive
     )
 
     if tipo_acao == 'DUPLICATA_EXATA':
@@ -1507,11 +2106,23 @@ def enviar_arquivo_local_ao_drive(caminho, drive, drive_idx, dry_run=False):
         print("   [DRY-RUN] Simulação concluída.")
         return "<simulado>"
 
-    media = MediaIoBaseUpload(io.BytesIO(dados), mimetype='application/pdf' if nome.lower().endswith('.pdf') else 'image/png')
+    nome_sug_low = info['nome_sugerido'].lower()
+    if nome_sug_low.endswith('.pdf'):
+        mt_upload = 'application/pdf'
+    elif nome_sug_low.endswith(('.jpg', '.jpeg')):
+        mt_upload = 'image/jpeg'
+    else:
+        mt_upload = 'image/png'
+
+    body_create = {'name': info['nome_sugerido'], 'parents': [id_dest]}
+    if info.get('eh_picpay'):
+        body_create['appProperties'] = {'tarjas_reforcadas': 'sim'}
+
+    media = MediaIoBaseUpload(io.BytesIO(dados_upload), mimetype=mt_upload)
     f_criado = drive.files().create(
-        body={'name': info['nome_sugerido'], 'parents': [id_dest]},
+        body=body_create,
         media_body=media,
-        fields='id, name, mimeType, parents, md5Checksum, modifiedTime, webViewLink'
+        fields='id, name, mimeType, parents, md5Checksum, modifiedTime, appProperties, webViewLink'
     ).execute()
     drive_idx.adicionar_arquivo(f_criado)
     print(f"   🎉 Upload concluído com sucesso!")
@@ -1526,10 +2137,11 @@ def main():
     ap.add_argument('--pasta', help='pasta local com comprovantes')
     ap.add_argument('--enviar-drive', action='store_true', help='upload direto para o Drive')
     ap.add_argument('--organizar-raiz-drive', action='store_true', help='organiza a raiz do Drive')
+    ap.add_argument('--oauth', action='store_true', help='abrir navegador para renovar OAuth do usuário')
     ap.add_argument('--dry-run', action='store_true')
     args = ap.parse_args()
 
-    gc, drive, tipo = conectar(permitir_login=False)
+    gc, drive, tipo = conectar(permitir_login=args.oauth)
     drive_idx = DriveIndex(drive)
 
     if args.organizar_raiz_drive:

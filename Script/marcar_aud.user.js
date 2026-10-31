@@ -135,6 +135,49 @@
         await sleep(800);
     }
 
+    async function clicarSimConfirmacao(ms = 10000) {
+        const t0 = Date.now();
+        while (Date.now() - t0 < ms) {
+            // 1. Procura em dialogs, modais e overlays (mat-dialog-container, pje-modal-juizo-digital, .cdk-overlay-pane, mat-expansion-panel)
+            const containers = Array.from(document.querySelectorAll(
+                'mat-dialog-container, pje-modal-juizo-digital, .cdk-overlay-pane, mat-expansion-panel'
+            ));
+            for (const c of containers) {
+                const btns = Array.from(c.querySelectorAll('button'));
+                const btnSim = btns.find(b => {
+                    const txt = (b.textContent || '').trim();
+                    return txt === 'Sim' || txt.startsWith('Sim') || /\bSim\b/i.test(txt);
+                });
+                if (btnSim && btnSim.offsetParent !== null) {
+                    console.log('[MarcarAud][Retificar] Clicando em Sim na confirmação:', c.tagName);
+                    btnSim.click();
+                    const w = btnSim.querySelector('span.mat-button-wrapper');
+                    if (w) w.click();
+                    return true;
+                }
+            }
+
+            // 2. Fallback direto por XPath para qualquer botão com span "Sim" em modal/dialog/painel
+            const hit = document.evaluate(
+                "//mat-dialog-container//button[.//span[normalize-space(.)='Sim']] | " +
+                "//pje-modal-juizo-digital//button[.//span[normalize-space(.)='Sim']] | " +
+                "//div[contains(@class,'cdk-overlay-pane')]//button[.//span[normalize-space(.)='Sim']] | " +
+                "//mat-expansion-panel//button[.//span[normalize-space(.)='Sim']]",
+                document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
+            ).singleNodeValue;
+            if (hit) {
+                console.log('[MarcarAud][Retificar] Clicando em Sim via XPath direto');
+                hit.click();
+                const w2 = hit.querySelector('span.mat-button-wrapper');
+                if (w2) w2.click();
+                return true;
+            }
+
+            await sleep(250);
+        }
+        return false;
+    }
+
     // ── Remarcar 100% digital ──────────────────────────────────────────────────
     async function remarcar100() {
         const toggle = await waitEl('mat-slide-toggle[formcontrolname="juizoDigital"]', 10000);
@@ -142,18 +185,14 @@
         if (toggle.classList.contains('mat-checked')) return; // já marcado
 
         toggle.scrollIntoView({ block: 'center' });
-        toggle.querySelector('label.mat-slide-toggle-label').click();
+        const label = toggle.querySelector('label.mat-slide-toggle-label') || toggle;
+        label.click();
         await sleep(600);
 
-        const p = await waitXPath(
-            "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.),'Confirma a inclusão do movimento')]",
-            10000
-        );
-        if (!p) throw new Error('Painel de confirmação não encontrado');
-        const sim = btnByText(p.closest('mat-expansion-panel'), 'Sim');
-        if (!sim) throw new Error('Botão Sim não encontrado');
-        sim.click();
-        await sleep(600);
+        const clicou = await clicarSimConfirmacao(10000);
+        if (!clicou) {
+            console.warn('[MarcarAud][Retificar] Confirmação com botão Sim não encontrada em 10s');
+        }
 
         await waitEl('mat-slide-toggle[formcontrolname="juizoDigital"].mat-checked', 10000);
         await sleep(800);
@@ -226,32 +265,233 @@
         await sleep(500);
     }
 
+    // ── Preenchimento e Autocomplete do Número do Processo no Modal ────────────
+    function tirarFocoBodyDialog(modal) {
+        const alvo = modal.querySelector('.container-conteudo') || modal.querySelector('form') || modal;
+        if (alvo) alvo.click();
+    }
+
+    async function aguardarCarregamento(ms = 8000) {
+        const t0 = Date.now();
+        while (Date.now() - t0 < ms) {
+            const loading = document.querySelector(
+                'mat-dialog-container mat-progress-bar, mat-dialog-container mat-spinner, .mat-progress-bar'
+            );
+            if (!loading) break;
+            await sleep(200);
+        }
+    }
+
+    function encontrarOpcaoProcesso(alvo) {
+        const opcoes = Array.from(document.querySelectorAll(
+            '.mat-autocomplete-panel mat-option, mat-autocomplete mat-option'
+        ));
+        for (const opt of opcoes) {
+            const digitos = (opt.textContent || '').replace(/\D/g, '');
+            if (digitos === alvo) return opt;
+        }
+        return null;
+    }
+
+    async function digitarCaractere(el, ch) {
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: ch, code: 'Digit' + ch, bubbles: true, cancelable: true }));
+        el.dispatchEvent(new KeyboardEvent('keypress', { key: ch, code: 'Digit' + ch, bubbles: true, cancelable: true }));
+
+        let inserted = false;
+        try {
+            inserted = document.execCommand && document.execCommand('insertText', false, ch);
+        } catch (_) {
+            inserted = false;
+        }
+
+        if (!inserted) {
+            const curVal = el.value || '';
+            const newVal = curVal + ch;
+            const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+            if (setter) setter.call(el, newVal); else el.value = newVal;
+            el.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ch }));
+        }
+
+        el.dispatchEvent(new KeyboardEvent('keyup', { key: ch, code: 'Digit' + ch, bubbles: true, cancelable: true }));
+    }
+
+    async function selecionarProcessoPorAutocomplete(modal, alvo) {
+        const input = modal.querySelector('input#inputNumeroProcesso');
+        if (!input) return false;
+
+        input.focus();
+        await sleep(150);
+
+        // Limpa o campo
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+        if (setter) setter.call(input, ''); else input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        await sleep(150);
+
+        const minDigitos = 7;
+        let opcao = null;
+
+        for (let i = 0; i < alvo.length; i++) {
+            const ch = alvo[i];
+            await digitarCaractere(input, ch);
+
+            if (i + 1 >= minDigitos) {
+                // Aguarda reação da busca do PJe (debounce da API é 300ms)
+                await sleep(i + 1 === minDigitos ? 500 : 250);
+                opcao = encontrarOpcaoProcesso(alvo);
+                if (opcao) {
+                    console.log(`[MarcarAud][Pauta] Opção do processo apareceu com ${i + 1} dígitos`);
+                    break;
+                }
+            } else {
+                await sleep(50);
+            }
+        }
+
+        if (!opcao) {
+            const t0 = Date.now();
+            while (Date.now() - t0 < 3000) {
+                opcao = encontrarOpcaoProcesso(alvo);
+                if (opcao) break;
+                await sleep(200);
+            }
+        }
+
+        if (!opcao) {
+            console.warn('[MarcarAud][Pauta] Autocomplete não ofereceu opção para:', alvo);
+            return false;
+        }
+
+        console.log('[MarcarAud][Pauta] Clicando na opção do autocomplete...');
+        opcao.scrollIntoView({ block: 'nearest' });
+        opcao.click();
+        await sleep(500);
+
+        const valDepois = (input.value || '').replace(/\D/g, '');
+        if (valDepois === alvo || valDepois.includes(alvo)) {
+            console.log('[MarcarAud][Pauta] Processo selecionado via autocomplete com sucesso:', input.value);
+            return true;
+        }
+        return false;
+    }
+
+    async function preencherNumeroFallback(modal, numero, alvo) {
+        const input = modal.querySelector('input#inputNumeroProcesso');
+        if (!input) return;
+
+        let formatado = numero;
+        if (alvo.length === 20 && !numero.includes('-')) {
+            formatado = `${alvo.slice(0, 7)}-${alvo.slice(7, 9)}.${alvo.slice(9, 13)}.${alvo.slice(13, 14)}.${alvo.slice(14, 16)}.${alvo.slice(16, 20)}`;
+        }
+
+        setAngularInput(input, formatado);
+        await sleep(300);
+
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+        input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+        await sleep(500);
+
+        const opt = encontrarOpcaoProcesso(alvo) || document.querySelector('.mat-autocomplete-panel mat-option');
+        if (opt) {
+            opt.click();
+            await sleep(400);
+        } else {
+            tirarFocoBodyDialog(modal);
+            await sleep(300);
+        }
+    }
+
+    async function garantirNumeroProcesso(modal, numero) {
+        const input = modal.querySelector('input#inputNumeroProcesso');
+        if (!input) throw new Error('Campo Número do Processo não encontrado no modal');
+
+        const alvo = String(numero || '').replace(/\D/g, '');
+        if (!alvo) throw new Error('Número do processo inválido ou vazio');
+
+        // 1. Verifica se já está pré-preenchido pelo PJe
+        let valAtual = (input.value || '').replace(/\D/g, '');
+        if (valAtual.includes(alvo)) {
+            console.log('[MarcarAud][Pauta] Campo já pré-preenchido pelo PJe:', input.value);
+            return true;
+        }
+
+        await sleep(600);
+        valAtual = (input.value || '').replace(/\D/g, '');
+        if (valAtual.includes(alvo)) {
+            console.log('[MarcarAud][Pauta] Campo pré-preenchido após espera:', input.value);
+            return true;
+        }
+
+        console.log('[MarcarAud][Pauta] Digitando processo no autocomplete:', numero);
+        const selecionado = await selecionarProcessoPorAutocomplete(modal, alvo);
+
+        if (!selecionado) {
+            console.warn('[MarcarAud][Pauta] Seleção por autocomplete falhou -- aplicando fallback');
+            await preencherNumeroFallback(modal, numero, alvo);
+        }
+
+        return true;
+    }
+
     async function preencherModal(numero) {
-        const modal = await waitEl('mat-dialog-container', 10000);
+        const modal = await waitEl('mat-dialog-container', 15000);
         if (!modal) throw new Error('Modal de audiência não abriu');
 
-        const input = modal.querySelector('input#inputNumeroProcesso');
-        if (input && !(input.value || '').trim()) {
-            setAngularInput(input, numero);
-            await sleep(800);
-        }
+        // Preenche o nº do processo via digitação + seleção no autocomplete
+        await garantirNumeroProcesso(modal, numero);
+
+        // Aguarda spinners e loadings sumirem
+        await aguardarCarregamento(8000);
+        await sleep(500);
 
         const btnOk = await waitXPath(
             "//mat-dialog-container//button[.//span[normalize-space(.)='Confirmar']]", 10000
         );
-        if (!btnOk) throw new Error('Botão Confirmar não encontrado');
+        if (!btnOk) throw new Error('Botão Confirmar não encontrado no modal');
+
+        // Aguarda o botão Confirmar ser habilitado pelo Angular
+        const tBtn = Date.now();
+        while (Date.now() - tBtn < 5000) {
+            if (!btnOk.disabled && !btnOk.classList.contains('disabled')) break;
+            await sleep(200);
+        }
+
+        console.log('[MarcarAud][Pauta] Clicando em Confirmar...');
         btnOk.click();
         await sleep(1000);
 
-        if (!await waitXPath(
-            "//mat-dialog-container//*[contains(normalize-space(.),'Designa') and contains(normalize-space(.),'Confirmad')]",
-            10000
-        )) throw new Error('Confirmação de designação não apareceu no modal');
+        // Monitora confirmação ou mensagem "Consulte o processo"
+        const t0 = Date.now();
+        let confirmado = false;
+        while (Date.now() - t0 < 20000) {
+            const txtModal = modal.textContent || '';
+            if (/Designa.*Confirmad|Audiência designada|Designação confirmada/i.test(txtModal)) {
+                confirmado = true;
+                console.log('[MarcarAud][Pauta] ✅ Designação confirmada pelo PJe');
+                break;
+            }
+            if (/consulte o processo/i.test(txtModal)) {
+                console.warn('[MarcarAud][Pauta] ⚠️ PJe acusou "Consulte o processo" -- aplicando retry...');
+                tirarFocoBodyDialog(modal);
+                await sleep(2000);
+                if (!btnOk.disabled && !btnOk.classList.contains('disabled')) {
+                    btnOk.click();
+                }
+            }
+            await sleep(400);
+        }
+
+        if (!confirmado) {
+            throw new Error('Confirmação de designação não apareceu no modal');
+        }
 
         const fechar = await waitXPath(
             "//mat-dialog-container//button[.//span[normalize-space(.)='Fechar']]", 10000
-        );
-        if (fechar) { fechar.click(); await sleep(500); }
+        ) || modal.querySelector('button[aria-label="Fechar"]');
+        if (fechar) {
+            fechar.click();
+            await sleep(500);
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════════

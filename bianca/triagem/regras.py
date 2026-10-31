@@ -22,6 +22,7 @@ Os helpers de formatacao e a funcao ``triagem_peticao`` foram movidos
 para ``service.py``.
 """
 
+import difflib
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
@@ -54,7 +55,11 @@ _UF_BRASIL = {
 # ---------------------------------------------------------------------------
 
 
-def _checar_procuracao_e_identidade(anexos: List[Dict[str, Any]], nome_reclamante: str = '') -> str:
+def _checar_procuracao_e_identidade(
+    anexos: List[Dict[str, Any]], 
+    nome_reclamante: str = '',
+    cpf_reclamante: str = '',
+) -> str:
     proc_via = None
     id_via = None
     termos_proc_tit = ['procuracao', 'mandato']
@@ -87,7 +92,7 @@ def _checar_procuracao_e_identidade(anexos: List[Dict[str, Any]], nome_reclamant
                 id_via = 'conteudo:"%s"' % (tnome or '(sem titulo)')
 
     extra_proc = ''
-    if proc_via and nome_reclamante:
+    if proc_via and (nome_reclamante or cpf_reclamante):
         nome_norm = _norm(nome_reclamante)
         for anx in anexos:
             tref = _norm('%s %s' % (anx.get('titulo', ''), anx.get('tipo', '')))
@@ -98,36 +103,59 @@ def _checar_procuracao_e_identidade(anexos: List[Dict[str, Any]], nome_reclamant
                 if not tbody or len(tbody) < 100:
                     extra_proc = ' [ATENCAO: texto procuracao nao extraido ou OCR vazio]'
                 else:
-                    # Tentar buscar nome completo ou partes dele
-                    partes_nome = nome_norm.split()
-                    nomes_busca = [
-                        ' '.join(partes_nome),           # nome completo
-                        partes_nome[0] if partes_nome else '',  # primeiro nome
-                        partes_nome[-1] if partes_nome else '',  # sobrenome
-                    ]
-                    
-                    # Helper: substitui I<->Y para variacoes ortograficas
-                    def _expandir_variacao_i_y(nome: str) -> list:
-                        """Retorna nome + variacao com I/Y trocados."""
-                        if not nome or len(nome) <= 1:
-                            return [nome]
-                        variacoes = [nome]
-                        if 'i' in nome:
-                            variacoes.append(nome.replace('i', 'y'))
-                        if 'y' in nome:
-                            variacoes.append(nome.replace('y', 'i'))
-                        return variacoes
-                    
-                    # Expandir cada parte com variacoes I/Y
-                    nomes_expandidos = []
-                    for nome in nomes_busca:
-                        if nome:
-                            nomes_expandidos.extend(_expandir_variacao_i_y(nome))
-                    
-                    nome_encontrado = any(
-                        nome and len(nome) > 3 and (' ' + nome + ' ' in ' ' + tbody + ' ' or nome in tbody)
-                        for nome in nomes_expandidos if nome
-                    )
+                    nome_encontrado = False
+
+                    # 1. Checagem por CPF (se disponivel)
+                    if cpf_reclamante:
+                        digits = re.sub(r'\D', '', cpf_reclamante)
+                        if len(digits) == 11:
+                            fmt = f'{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}'
+                            tbody_digits = re.sub(r'\D', '', tbody)
+                            if fmt in tbody or digits in tbody_digits or f'{digits[:3]}.{digits[3:6]}.{digits[6:9]}' in tbody:
+                                nome_encontrado = True
+
+                    # 2. Checagem por nome
+                    if not nome_encontrado and nome_norm:
+                        partes_nome = [p for p in nome_norm.split() if len(p) > 2 and p not in ('de', 'da', 'do', 'dos', 'das', 'e')]
+                        if partes_nome:
+                            # Nome completo exato
+                            if ' '.join(partes_nome) in tbody:
+                                nome_encontrado = True
+                            else:
+                                tokens_corpo = [re.sub(r'[^a-z0-9]', '', w) for w in tbody.split()]
+                                tokens_corpo = [w for w in tokens_corpo if len(w) >= 3]
+
+                                # Helper: substitui I<->Y para variacoes ortograficas
+                                def _expandir_variacao_i_y(nome: str) -> list:
+                                    if not nome or len(nome) <= 1:
+                                        return [nome]
+                                    variacoes = [nome]
+                                    if 'i' in nome:
+                                        variacoes.append(nome.replace('i', 'y'))
+                                    if 'y' in nome:
+                                        variacoes.append(nome.replace('y', 'i'))
+                                    return variacoes
+
+                                # Verifica presenca de qualquer parte significativa (>=4 caracteres)
+                                for p in partes_nome:
+                                    if len(p) >= 4:
+                                        p_vars = _expandir_variacao_i_y(p)
+                                        if any(pv in tokens_corpo or f' {pv} ' in f' {tbody} ' for pv in p_vars):
+                                            nome_encontrado = True
+                                            break
+
+                                # Se ainda nao encontrou, tenta fuzzy matching para tolerar erros pontuais de OCR
+                                if not nome_encontrado:
+                                    for p in partes_nome:
+                                        if len(p) >= 5:
+                                            for w in tokens_corpo:
+                                                if abs(len(w) - len(p)) <= 2:
+                                                    if difflib.SequenceMatcher(None, p, w).ratio() >= 0.82:
+                                                        nome_encontrado = True
+                                                        break
+                                            if nome_encontrado:
+                                                break
+
                     if nome_encontrado:
                         extra_proc = ' [nome reclamante localizado na procuracao]'
                     else:
@@ -393,13 +421,40 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
 _PJDP_NOME_KEYWORDS = [
     'municipio', 'prefeitura', 'estado de', 'estado do', 'governo do estado',
     'governo do municipio', 'uniao federal', 'ministerio', 'autarquia',
-    'fazenda publica', 'inss', 'tribunal',
+    'fazenda publica', 'inss', 'tribunal', 'correios', 'empresa brasileira de correios',
+    'fundacao publica', 'fundacao casa', 'procuradoria', 'defensoria publica',
 ]
 
 
 def _detectar_pjdp_api(capa_dados: Dict[str, Any]) -> Tuple[bool, str]:
-    """Detecta PJDP no polo passivo via dados da API."""
+    """Detecta PJDP no polo passivo via dados da API.
+
+    Criterio PRINCIPAL: campo `procuradoria` da parte em /partes (PASSIVO).
+    E' o que o PJe usa para marcar o ente publico na UI — o card do polo
+    passivo exibe <i class="fa fa-university">, e o seletor correspondente e'
+    'i.procuradoria-direito-publico' (atos/comunicacao_destinatarios.py).
+
+    Confirmado por probe em 30/10/2026 (EMPRESA BRASILEIRA DE CORREIOS):
+        tipoPessoa  = "J"        -> so diz PJ; empresa privada tambem e' "J"
+        autoridade  = False      -> FALSO NEGATIVO num PJDP, nao serve
+        idTipoParte = 66         -> codigo de "Reclamado", nao de ente publico
+        procuradoria= {...}      -> unico campo que distingue
+
+    Fallback: _PJDP_NOME_KEYWORDS, para quando `reclamados` vier de fonte sem
+    o campo `procuradoria` (capa do PDF, dados antigos).
+    """
     reclamados = capa_dados.get('reclamados') or []
+
+    # 1o: marcador da API (procuradoria). Se QUALQUER reclamado trouxe o campo
+    # `pjdp` (mesmo False), a API e' a fonte de verdade e o fallback por nome
+    # NAO deve rodar — senao uma PJ privada com "municipio" no nome viraria PJDP.
+    if any('pjdp' in r for r in reclamados):
+        for r in reclamados:
+            if r.get('pjdp'):
+                return True, r.get('nome', '')
+        return False, ''
+
+    # 2o (fallback): keyword no nome, para fonte sem o campo (capa do PDF)
     for r in reclamados:
         nome_norm = _norm(r.get('nome', ''))
         for kw in _PJDP_NOME_KEYWORDS:
@@ -971,96 +1026,101 @@ def _checar_endereco_reclamante(texto: str, capa_dados: Dict[str, Any] = None) -
             sufixo_fonte += ' [ATENCAO: API sem endereco - dado por extracao de texto, verificar]'
         cidade_norm = _norm(cidade)
         grande_sp_norm = {_norm(g) for g in grande_sp}
+        endereco_api_ok = False
         if not estado:
             if cidade_norm in grande_sp_norm or cidade_norm == _norm('sao paulo'):
                 linhas.append("B12_ENDERECO: OK - reclamante reside em Grande Sao Paulo/SP (UF nao informada)%s" % sufixo_fonte)
+                if fonte_label == 'api':
+                    endereco_api_ok = True
             else:
                 linhas.append("B12_ENDERECO: ALERTA - reclamante em %s (UF nao informada)%s" % (cidade.upper(), sufixo_fonte))
         elif estado == 'sp' and (cidade_norm in grande_sp_norm or cidade_norm == _norm('sao paulo')):
             linhas.append("B12_ENDERECO: OK - reclamante reside em Grande Sao Paulo/SP%s" % sufixo_fonte)
+            if fonte_label == 'api':
+                endereco_api_ok = True
         else:
             cidade_uf = "%s/%s" % (cidade, estado.upper())
             linhas.append("B12_ENDERECO: ALERTA - reclamante em %s (fora SP)%s" % (cidade_uf, sufixo_fonte))
     else:
         fonte_info = ' [fonte tentada: %s]' % fonte if fonte else ''
         linhas.append("B12_ENDERECO: INFO - endereco do reclamante nao identificado%s" % fonte_info)
+        endereco_api_ok = False
 
-    # Detectar endereco no EXTERIOR (peticao vs API)
-    # Se a peticao menciona pais/cidade estrangeira perto do nome do reclamante,
-    # emitir ALERTA mesmo que a API tenha endereco brasileiro cadastrado.
-    _PAISES_ESTRANGEIROS = [
-        'argentina', 'paraguai', 'paraguay', 'uruguai', 'uruguay',
-        'chile', 'bolivia', 'peru', 'colombia', 'venezuela', 'equador',
-        'estados unidos', 'eua', 'united states', 'japao', 'japan',
-        'portugal', 'italia', 'espanha', 'alemanha', 'germany',
-        'franca', 'inglaterra',
-        'canada', 'australia', 'mexico', 'suiça', 'suica',
-        'belgica', 'holanda', 'paises baixos', 'irlanda',
-        'noruega', 'suecia', 'dinamarca', 'austria',
-    ]
-    _CIDADES_ESTRANGEIRAS = [
-        'buenos aires', 'avellaneda', 'montevideo', 'montevideu',
-        'assuncao', 'assuncion', 'santiago', 'miami', 'orlando',
-        'nova york', 'new york', 'los angeles', 'londres', 'london',
-        'paris', 'madri', 'madrid', 'roma', 'milao', 'milan',
-        'toquio', 'tokyo', 'lisboa', 'porto',
-    ]
-    _TERMOS_EXTERIOR = [
-        'exterior', 'estrangeiro', 'no exterior', 'do exterior',
-        'reside na', 'residente na', 'domiciliado na',
-    ]
+    # Regra: se o endereco da API e OK, NAO se gera alerta de endereco do reclamante
+    if not endereco_api_ok:
+        _PAISES_ESTRANGEIROS = [
+            'argentina', 'paraguai', 'paraguay', 'uruguai', 'uruguay',
+            'chile', 'bolivia', 'peru', 'colombia', 'venezuela', 'equador',
+            'estados unidos', 'eua', 'united states', 'japao', 'japan',
+            'portugal', 'italia', 'espanha', 'alemanha', 'germany',
+            'franca', 'inglaterra',
+            'canada', 'australia', 'mexico', 'suiça', 'suica',
+            'belgica', 'holanda', 'paises baixos', 'irlanda',
+            'noruega', 'suecia', 'dinamarca', 'austria',
+        ]
+        _CIDADES_ESTRANGEIRAS = [
+            'buenos aires', 'avellaneda', 'montevideo', 'montevideu',
+            'assuncao', 'assuncion', 'santiago', 'miami', 'orlando',
+            'nova york', 'new york', 'los angeles', 'londres', 'london',
+            'paris', 'madri', 'madrid', 'roma', 'milao', 'milan',
+            'toquio', 'tokyo', 'lisboa', 'porto',
+        ]
+        _TERMOS_EXTERIOR = [
+            'exterior', 'estrangeiro', 'no exterior', 'do exterior',
+            'reside no exterior', 'residente no exterior', 'domiciliado no exterior',
+        ]
 
-    nome_rec_ex = cd.get('reclamante_nome') or ''
-    trecho_ex = norm
-    if nome_rec_ex:
-        nome_norm_ex = _norm(nome_rec_ex)[:25]
-        idx_nome_ex = norm.find(nome_norm_ex)
-        if idx_nome_ex >= 0:
-            inicio_ex = max(0, idx_nome_ex)
-            fim_ex = min(len(norm), idx_nome_ex + 1500)
-            trecho_ex = norm[inicio_ex:fim_ex]
+        nome_rec_ex = cd.get('reclamante_nome') or ''
+        trecho_ex = norm
+        if nome_rec_ex:
+            nome_norm_ex = _norm(nome_rec_ex)[:25]
+            idx_nome_ex = norm.find(nome_norm_ex)
+            if idx_nome_ex >= 0:
+                inicio_ex = max(0, idx_nome_ex)
+                fim_ex = min(len(norm), idx_nome_ex + 1500)
+                trecho_ex = norm[inicio_ex:fim_ex]
 
-    pais_detectado = None
-    for pais in _PAISES_ESTRANGEIROS:
-        if re.search(r'\b' + re.escape(pais) + r'\b', trecho_ex):
-            pais_detectado = pais
-            break
-
-    cidade_ext_detectada = None
-    if not pais_detectado:
-        for cid in _CIDADES_ESTRANGEIRAS:
-            if re.search(r'\b' + re.escape(cid) + r'\b', trecho_ex):
-                cidade_ext_detectada = cid
+        pais_detectado = None
+        for pais in _PAISES_ESTRANGEIROS:
+            if re.search(r'\b' + re.escape(pais) + r'\b', trecho_ex):
+                pais_detectado = pais
                 break
 
-    termo_ext_detectado = None
-    if not pais_detectado and not cidade_ext_detectada:
-        for termo in _TERMOS_EXTERIOR:
-            m_termo = re.search(r'\b' + re.escape(termo) + r'\b', trecho_ex)
-            if m_termo:
-                ctx_ini = max(0, m_termo.start() - 20)
-                ctx_fim = min(len(trecho_ex), m_termo.end() + 80)
-                termo_ext_detectado = trecho_ex[ctx_ini:ctx_fim].replace('\n', ' ').strip()
-                break
+        cidade_ext_detectada = None
+        if not pais_detectado:
+            for cid in _CIDADES_ESTRANGEIRAS:
+                if re.search(r'\b' + re.escape(cid) + r'\b', trecho_ex):
+                    cidade_ext_detectada = cid
+                    break
 
-    if pais_detectado:
-        linhas.append(
-            "B12_ENDERECO: ALERTA - reclamante com endereco no EXTERIOR (%s) "
-            "[ATENCAO: endereco da API pode estar desatualizado - conferir peticao]"
-            % pais_detectado.upper()
-        )
-    elif cidade_ext_detectada:
-        linhas.append(
-            "B12_ENDERECO: ALERTA - reclamante com endereco no EXTERIOR (%s) "
-            "[ATENCAO: cidade estrangeira detectada - conferir peticao]"
-            % cidade_ext_detectada.upper()
-        )
-    elif termo_ext_detectado:
-        linhas.append(
-            "B12_ENDERECO: ALERTA - reclamante possivelmente no EXTERIOR "
-            "[contexto: \"%s\"] [ATENCAO: verificar endereco na peticao]"
-            % termo_ext_detectado[:150]
-        )
+        termo_ext_detectado = None
+        if not pais_detectado and not cidade_ext_detectada:
+            for termo in _TERMOS_EXTERIOR:
+                m_termo = re.search(r'\b' + re.escape(termo) + r'\b', trecho_ex)
+                if m_termo:
+                    ctx_ini = max(0, m_termo.start() - 20)
+                    ctx_fim = min(len(trecho_ex), m_termo.end() + 80)
+                    termo_ext_detectado = trecho_ex[ctx_ini:ctx_fim].replace('\n', ' ').strip()
+                    break
+
+        if pais_detectado:
+            linhas.append(
+                "B12_ENDERECO: ALERTA - reclamante com endereco no EXTERIOR (%s) "
+                "[ATENCAO: endereco da API pode estar desatualizado - conferir peticao]"
+                % pais_detectado.upper()
+            )
+        elif cidade_ext_detectada:
+            linhas.append(
+                "B12_ENDERECO: ALERTA - reclamante com endereco no EXTERIOR (%s) "
+                "[ATENCAO: cidade estrangeira detectada - conferir peticao]"
+                % cidade_ext_detectada.upper()
+            )
+        elif termo_ext_detectado:
+            linhas.append(
+                "B12_ENDERECO: ALERTA - reclamante possivelmente no EXTERIOR "
+                "[contexto: \"%s\"] [ATENCAO: verificar endereco na peticao]"
+                % termo_ext_detectado[:150]
+            )
 
     termos_aud = [
         'audiencia virtual', 'audiencia telepresencial', 'videoconferencia',

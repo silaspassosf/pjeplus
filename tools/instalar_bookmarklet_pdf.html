@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Instalar — Juntar PDFs</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    max-width: 720px; margin: 0 auto; padding: 40px 24px; line-height: 1.6;
+    background: #f5f6f8; color: #1b1b1f;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #16181d; color: #e6e6e9; }
+    .card { background: #1f232b !important; border-color: #2e3440 !important; }
+    code { background: #12151a !important; color: #c8cdd6 !important; }
+    .bm { background: #2f6fed !important; }
+  }
+  h1 { font-size: 22px; margin-bottom: 6px; }
+  .sub { opacity: .7; font-size: 14px; margin-bottom: 28px; }
+  .card {
+    background: #fff; border: 1px solid #e2e5ea; border-radius: 12px;
+    padding: 22px; margin-bottom: 18px;
+  }
+  h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
+  .bm {
+    display: inline-block; padding: 12px 22px; border-radius: 8px; background: #2f6fed;
+    color: #fff !important; text-decoration: none; font-weight: 600; font-size: 15px;
+    cursor: grab; user-select: none;
+  }
+  .bm:active { cursor: grabbing; }
+  ol { padding-left: 22px; margin: 0; }
+  ol li { margin-bottom: 10px; font-size: 14px; }
+  code {
+    background: #12151a; color: #c8cdd6; padding: 2px 6px; border-radius: 4px;
+    font-size: 12px; font-family: ui-monospace, Consolas, monospace;
+  }
+  .nota { font-size: 13px; opacity: .7; margin-top: 14px; }
+  .destaque { font-size: 14px; background: rgba(47,111,237,.08); border-left: 3px solid #2f6fed;
+              padding: 10px 14px; border-radius: 4px; margin-top: 14px; }
+</style>
+</head>
+<body>
+  <h1>Juntar PDFs</h1>
+  <div class="sub">Juntador simples: escolhe os arquivos, confere a ordem, gera o PDF único.</div>
+
+  <div class="card">
+    <h2>Instalar como favorito</h2>
+    <ol>
+      <li>Mostre a barra de favoritos: <code>Ctrl</code> + <code>Shift</code> + <code>B</code></li>
+      <li>Arraste o botão abaixo para a barra de favoritos:</li>
+    </ol>
+    <p style="margin:16px 0 4px">
+      <a class="bm" id="bm" href="#">Juntar PDFs</a>
+    </p>
+    <div class="nota">Não abriu? Configure a URL manualmente como mostrado abaixo.</div>
+  </div>
+
+  <div class="card">
+    <h2>Modo manual</h2>
+    <ol>
+      <li>Abra o arquivo <code>D:\PjePlus\tools\juntar_pdf.html</code> no navegador</li>
+      <li>Adicione aos favoritos: <code>Ctrl</code> + <code>D</code></li>
+      <li>Escolha a barra de favoritos e salve</li>
+    </ol>
+    <div class="destaque">
+      O favorito aponta para um arquivo do seu computador. Se você mover a pasta
+      <code>PjePlus</code> de lugar, o favorito para de funcionar — basta refazer
+      o passo 2.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Como usar</h2>
+    <ol>
+      <li>Clique no favorito — abre a página do juntador.</li>
+      <li>Clique em <strong>“Clique para escolher os PDFs”</strong>.</li>
+      <li>Selecione vários arquivos (arraste com o mouse ou <code>Ctrl</code> + clique).</li>
+      <li>Confira a ordem com as setas <code>↑</code> <code>↓</code>.</li>
+      <li>Clique em <strong>Juntar e baixar</strong>.</li>
+    </ol>
+    <div class="nota">
+      A ordem inicial é alfabética com numeração natural — <code>1</code>,
+      <code>2</code>, <code>10</code> (e não <code>1</code>, <code>10</code>,
+      <code>2</code>). O navegador não informa a ordem em que você clicou nos
+      arquivos, então essa é a regra usada; o botão “Inverter ordem” e as setas
+      corrigem o que for preciso.
+    </div>
+    <div class="nota" style="margin-top:10px">
+      PDFs protegidos por senha são marcados em vermelho e ficam <strong>de fora</strong>
+      do resultado. O pdf-lib não decodifica arquivo criptografado: sem esse aviso
+      eles entrariam como folhas em branco.
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('bm').href =
+      "javascript:(function(){var u='file:///D:/PjePlus/tools/juntar_pdf.html';" +
+      "var w=window.open(u,'_blank');if(!w){location.href=u;}})()";
+  </script>
+</body>
+</html>

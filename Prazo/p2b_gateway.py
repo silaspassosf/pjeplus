@@ -539,19 +539,69 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
         logger.debug('[FLUXO_PZ] inicar_exec texto_normalizado comprimento=%d', len(texto_normalizado))
 
     # 1) GIGS Argos — try isolado
+    #
+    # Duas GIGS seguidas no MESMO formulario e' a origem do defeito visto no
+    # 1000925-51 (28/10): a 2a GIGS (xs sigilo) saiu sem prazo e o fluxo seguiu
+    # para a minuta com DOM instavel — modelo nao entrou, sigilo e "Intimar?"
+    # nao foram tocados, e cada etapa logou sucesso.
+    #
+    # Causa: criar_gigs NAO levanta excecao em caso de falha — ela faz
+    # `return False`. O `except Exception` abaixo nunca dispara, e o retorno era
+    # descartado. Alem disso, nada garantia que o formulario da GIGS anterior
+    # fechasse antes de abrir o proximo: criar_gigs tem uma blindagem interna
+    # (espera.ate_sumir do textarea), mas ela mesma nao verifica o resultado —
+    # se o textarea antigo sobrevive, o Salvar grava no formulario reaproveitado
+    # e o prazo se perde.
+    #
+    # Correcao pontual (sem mudar a estrutura do motor): checar o retorno de
+    # cada criar_gigs e, entre as duas, esperar o formulario fechar de fato.
+    _SEL_TEXTAREA_GIGS = 'textarea[formcontrolname="observacao"]'
+
+    def _fechar_formulario_gigs(rotulo: str) -> bool:
+        """Garante que o formulario de atividade fechou antes da proxima GIGS."""
+        fechou = False
+        try:
+            fechou = bool(espera.ate_sumir(driver, _SEL_TEXTAREA_GIGS, teto=6))
+            if not fechou:
+                # Fecha o overlay remanescente para nao contaminar a proxima etapa.
+                try:
+                    btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
+                    if btn_x:
+                        btn_x.click()
+                except Exception:
+                    pass
+                fechou = bool(espera.ate_sumir(driver, _SEL_TEXTAREA_GIGS, teto=3))
+        except Exception as e:
+            logger.warning('[FLUXO_PZ] inicar_exec: erro ao aguardar fechamento do formulario (%s): %s', rotulo, e)
+        if not fechou:
+            logger.error('[FLUXO_PZ] inicar_exec: formulario de atividade NAO fechou apos %s — proxima GIGS pode gravar no formulario reaproveitado', rotulo)
+        return fechou
+
     if criar_gigs:
         try:
             d, r, o = parse_gigs_param('1/Ana Lucia/Argos')
-            criar_gigs(driver, d, r, o)
+            ok_argos = criar_gigs(driver, d, r, o)
+            if ok_argos:
+                logger.info('[FLUXO_PZ] inicar_exec: GIGS Argos criada (%s/%s/%s)', d, r, o)
+            else:
+                logger.error('[FLUXO_PZ] inicar_exec: criar_gigs Argos retornou False (%s/%s/%s)', d, r, o)
+            _fechar_formulario_gigs('GIGS Argos')
         except Exception as e:
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS Argos: %s', e)
+            _fechar_formulario_gigs('erro em GIGS Argos')
 
         # 2) GIGS xs sigilo — try isolado (não depende do anterior)
         try:
             d2, r2, o2 = parse_gigs_param('1//xs sigilo')
-            criar_gigs(driver, d2, r2, o2)
+            ok_sigilo = criar_gigs(driver, d2, r2, o2)
+            if ok_sigilo:
+                logger.info('[FLUXO_PZ] inicar_exec: GIGS xs sigilo criada (%s/%s/%s)', d2, r2, o2)
+            else:
+                logger.error('[FLUXO_PZ] inicar_exec: criar_gigs xs sigilo retornou False (%s/%s/%s) — GIGS com prazo pode ter saido sem prazo', d2, r2, o2)
+            _fechar_formulario_gigs('GIGS xs sigilo')
         except Exception as e:
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs sigilo: %s', e)
+            _fechar_formulario_gigs('erro em GIGS xs sigilo')
 
     # 3) Rota decidida SÓ por API (fase + movimento 50047 + obrigações a pagar).
     id_processo = None

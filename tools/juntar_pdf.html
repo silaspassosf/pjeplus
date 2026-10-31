@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Juntar PDFs</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 24px; background: #f5f6f8; color: #1b1b1f;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #16181d; color: #e6e6e9; }
+    .card { background: #1f232b !important; border-color: #2e3440 !important; }
+    li { background: #262b34 !important; border-color: #333a45 !important; }
+    .drop { border-color: #3a4150 !important; }
+    button { background: #2b313c !important; color: #e6e6e9 !important; border-color: #3a4150 !important; }
+    button.primary { background: #2f6fed !important; border-color: #2f6fed !important; color: #fff !important; }
+    #log { background: #12151a !important; color: #b9c0cc !important; }
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { font-size: 13px; opacity: .7; margin-bottom: 18px; }
+  .card {
+    background: #fff; border: 1px solid #e2e5ea; border-radius: 12px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  .drop {
+    border: 2px dashed #c3cad6; border-radius: 10px; padding: 32px 16px;
+    text-align: center; cursor: pointer; transition: .15s; font-size: 14px;
+  }
+  .drop:hover, .drop.hot { border-color: #2f6fed; background: rgba(47,111,237,.06); }
+  .drop strong { display: block; font-size: 15px; margin-bottom: 4px; }
+  .drop span { opacity: .65; font-size: 13px; }
+  ul { list-style: none; margin: 14px 0 0; padding: 0; }
+  li {
+    display: flex; align-items: center; gap: 10px; padding: 9px 11px; margin-bottom: 6px;
+    background: #fafbfc; border: 1px solid #e6e9ef; border-radius: 8px; font-size: 13px;
+  }
+  li .num {
+    flex: 0 0 26px; height: 26px; border-radius: 50%; background: #2f6fed; color: #fff;
+    display: grid; place-items: center; font-size: 12px; font-weight: 600;
+  }
+  li .nome { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  li .pags { flex: 0 0 auto; opacity: .55; font-size: 12px; }
+  li .acoes { display: flex; gap: 4px; flex: 0 0 auto; }
+  button {
+    font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 6px;
+    border: 1px solid #d2d8e2; background: #fff; color: #1b1b1f; cursor: pointer;
+  }
+  button:hover { filter: brightness(.95); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.rem { color: #c02626; border-color: #f0c9c9; }
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button.primary {
+    background: #2f6fed; border-color: #2f6fed; color: #fff;
+    font-size: 14px; padding: 10px 18px; border-radius: 8px; font-weight: 600;
+  }
+  #log {
+    background: #0f1115; color: #c8cdd6; font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px; padding: 10px 12px; border-radius: 8px; max-height: 180px;
+    overflow: auto; white-space: pre-wrap; margin-top: 12px; display: none;
+  }
+  .vazio { text-align: center; opacity: .5; font-size: 13px; padding: 14px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Juntar PDFs</h1>
+  <div class="sub">Selecione os arquivos, confira a ordem e gere o PDF único.</div>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <strong>Clique para escolher os PDFs</strong>
+      <span>ou arraste os arquivos aqui</span>
+    </div>
+    <input type="file" id="input" accept="application/pdf,.pdf" multiple hidden>
+    <ul id="lista"></ul>
+    <div class="vazio" id="vazio">Nenhum arquivo selecionado ainda.</div>
+  </div>
+
+  <div class="card">
+    <div class="bar">
+      <button class="primary" id="juntar" disabled>Juntar e baixar</button>
+      <button id="inverter" disabled>Inverter ordem</button>
+      <button id="limpar" disabled>Limpar</button>
+      <span id="info" style="font-size:13px;opacity:.7"></span>
+    </div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const PDFLIB_URLS = [
+    'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+    'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js'
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const input = $('input'), drop = $('drop'), lista = $('lista'), vazio = $('vazio');
+  const btnJuntar = $('juntar'), btnInverter = $('inverter'), btnLimpar = $('limpar');
+  const info = $('info'), logEl = $('log');
+
+  /** @type {{file: File, pags: number|null}[]} */
+  let arquivos = [];
+
+  function log(msg) {
+    logEl.style.display = 'block';
+    logEl.textContent += msg + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Ordenação natural: 1, 2, 10 (e não 1, 10, 2). Compara pedaços numéricos
+  // como números e o resto como texto, sem diferenciar maiúsculas.
+  const colator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' });
+  const ordenarPorNome = (a, b) => colator.compare(a.file.name, b.file.name);
+
+  function carregarPdfLib() {
+    if (window.PDFLib) return Promise.resolve(window.PDFLib);
+    return PDFLIB_URLS.reduce((promise, url) => promise.catch(() => new Promise((ok, falha) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.onload = () => window.PDFLib ? ok(window.PDFLib) : falha(new Error('pdf-lib não expôs PDFLib'));
+      s.onerror = () => falha(new Error('falha ao carregar ' + url));
+      document.head.appendChild(s);
+    })), Promise.reject());
+  }
+
+  async function contarPaginas(file) {
+    try {
+      const { PDFDocument } = await carregarPdfLib();
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+      return doc.getPageCount();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Detecta PDF criptografado.
+   *
+   * O pdf-lib aceita carregar arquivo protegido (com `ignoreEncryption`), mas
+   * NÃO consegue decodificar o conteúdo: as páginas entram em branco, sem
+   * erro. Num juntador de documentos isso é pior que falhar, porque gera um
+   * PDF com folhas vazias no meio e ninguém percebe. Aqui o arquivo é marcado
+   * antes de entrar, e o usuário é avisado na lista.
+   */
+  function estaCriptografado(bytes) {
+    // /Encrypt aparece no trailer de todo PDF criptografado, seguido por "<"
+    // ou por espaço (nunca só um deles: MuPDF escreve "/Encrypt<<", outros
+    // geradores escrevem "/Encrypt <<"). Ler os últimos 4 KB cobre o trailer,
+    // que pode vir depois de um bloco de metadados, sem varrer o arquivo todo.
+    const inicio = Math.max(0, bytes.length - 4096);
+    let cauda = '';
+    for (let i = inicio; i < bytes.length; i++) cauda += String.fromCharCode(bytes[i]);
+    return /\/Encrypt[\s<(\[]/.test(cauda);
+  }
+
+  function render() {
+    lista.innerHTML = '';
+    const total = arquivos.length;
+    vazio.style.display = total ? 'none' : 'block';
+
+    arquivos.forEach((item, i) => {
+      const li = document.createElement('li');
+
+      const num = document.createElement('div');
+      num.className = 'num';
+      num.textContent = String(i + 1);
+
+      const nome = document.createElement('div');
+      nome.className = 'nome';
+      nome.textContent = item.file.name;
+      nome.title = item.file.name;
+
+      const pags = document.createElement('div');
+      pags.className = 'pags';
+      if (item.criptografado) {
+        pags.textContent = 'senha — ignorado';
+        pags.style.color = '#c02626';
+        pags.style.opacity = '1';
+      } else {
+        pags.textContent = item.pags == null ? '' : item.pags + (item.pags === 1 ? ' pág' : ' págs');
+      }
+
+      const acoes = document.createElement('div');
+      acoes.className = 'acoes';
+
+      const subir = document.createElement('button');
+      subir.textContent = '↑';
+      subir.title = 'Mover para cima';
+      subir.disabled = i === 0;
+      subir.onclick = () => { trocar(i, i - 1); };
+
+      const descer = document.createElement('button');
+      descer.textContent = '↓';
+      descer.title = 'Mover para baixo';
+      descer.disabled = i === total - 1;
+      descer.onclick = () => { trocar(i, i + 1); };
+
+      const rem = document.createElement('button');
+      rem.className = 'rem';
+      rem.textContent = '×';
+      rem.title = 'Remover';
+      rem.onclick = () => { arquivos.splice(i, 1); render(); };
+
+      acoes.append(subir, descer, rem);
+      li.append(num, nome, pags, acoes);
+      lista.appendChild(li);
+    });
+
+    const validos = arquivos.filter((a) => !a.criptografado);
+    const somaPaginas = validos.reduce((s, a) => s + (a.pags || 0), 0);
+    const somaMb = arquivos.reduce((s, a) => s + a.file.size, 0) / 1048576;
+    if (total) {
+      const bloqueados = total - validos.length;
+      info.textContent = `${validos.length} de ${total} arquivo(s) · ${somaPaginas} pág${somaPaginas === 1 ? '' : 's'} · ${somaMb.toFixed(1)} MB`
+        + (bloqueados ? ` · ${bloqueados} ignorado(s)` : '');
+    } else {
+      info.textContent = '';
+    }
+
+    btnJuntar.disabled = validos.length === 0;
+    btnInverter.disabled = total < 2;
+    btnLimpar.disabled = total === 0;
+  }
+
+  function trocar(i, j) {
+    if (j < 0 || j >= arquivos.length) return;
+    [arquivos[i], arquivos[j]] = [arquivos[j], arquivos[i]];
+    render();
+  }
+
+  async function adicionar(fileList) {
+    const novos = Array.from(fileList).filter(
+      (f) => /\.pdf$/i.test(f.name) || f.type === 'application/pdf'
+    );
+    if (!novos.length) {
+      log('Nenhum PDF encontrado na seleção.');
+      return;
+    }
+    // Evita duplicar o mesmo arquivo quando ele é selecionado duas vezes.
+    const chave = (f) => f.name + '|' + f.size + '|' + f.lastModified;
+    const existentes = new Set(arquivos.map((a) => chave(a.file)));
+    const entrando = novos
+      .filter((f) => !existentes.has(chave(f)))
+      .map((file) => ({ file, pags: null, criptografado: false }));
+
+    arquivos = arquivos.concat(entrando).sort(ordenarPorNome);
+    render();
+    log(`+ ${entrando.length} arquivo(s). Total: ${arquivos.length}.`);
+
+    // Conta as páginas em segundo plano, sem travar a interface.
+    const alvos = entrando;
+    for (let i = 0; i < alvos.length; i++) {
+      const item = alvos[i];
+      try {
+        const bytes = new Uint8Array(await item.file.arrayBuffer());
+        if (estaCriptografado(bytes)) {
+          item.criptografado = true;
+          item.pags = null;
+          log(`⚠ "${item.file.name}" está protegido por senha — não será juntado.`);
+        } else {
+          item.pags = await contarPaginas(item.file);
+          if (item.pags == null) log(`⚠ Não consegui ler "${item.file.name}" (corrompido?).`);
+        }
+      } catch (e) {
+        log(`⚠ Falha ao ler "${item.file.name}": ${e.message || e}`);
+      }
+      // Só redesenha se o item ainda estiver na lista.
+      if (arquivos.includes(item)) render();
+    }
+  }
+
+  async function juntar() {
+    if (!arquivos.length) return;
+    btnJuntar.disabled = true;
+    btnJuntar.textContent = 'Juntando…';
+
+    try {
+      const { PDFDocument } = await carregarPdfLib();
+      const final = await PDFDocument.create();
+      let paginas = 0;
+      const ignorados = [];
+
+      for (let i = 0; i < arquivos.length; i++) {
+        const item = arquivos[i];
+        if (item.criptografado) {
+          ignorados.push(item.file.name + ' (protegido por senha)');
+          log(`[${i + 1}/${arquivos.length}] ${item.file.name} — ignorado (senha)`);
+          continue;
+        }
+        log(`[${i + 1}/${arquivos.length}] ${item.file.name}`);
+        try {
+          const bytes = new Uint8Array(await item.file.arrayBuffer());
+          const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+          const copiadas = await final.copyPages(src, src.getPageIndices());
+          copiadas.forEach((p) => final.addPage(p));
+          paginas += copiadas.length;
+        } catch (e) {
+          // Um arquivo protegido/corrompido não deve derrubar o lote inteiro.
+          ignorados.push(item.file.name);
+          log(`   ! ignorado: ${e.message || e}`);
+        }
+      }
+
+      if (!paginas) throw new Error('Nenhuma página pôde ser importada.');
+
+      const bytes = await final.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'juntado_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+      log(`✅ PDF gerado: ${paginas} página(s), ${(blob.size / 1048576).toFixed(2)} MB.`);
+      if (ignorados.length) {
+        log(`⚠ ${ignorados.length} arquivo(s) ignorado(s): ${ignorados.join(', ')}`);
+      }
+    } catch (e) {
+      log('❌ Erro: ' + (e.message || e));
+    } finally {
+      btnJuntar.disabled = false;
+      btnJuntar.textContent = 'Juntar e baixar';
+    }
+  }
+
+  // --- eventos ---
+  drop.onclick = () => input.click();
+  input.onchange = () => { adicionar(input.files); input.value = ''; };
+
+  ['dragenter', 'dragover'].forEach((ev) =>
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('hot'); })
+  );
+  ['dragleave', 'drop'].forEach((ev) =>
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('hot'); })
+  );
+  drop.addEventListener('drop', (e) => {
+    if (e.dataTransfer && e.dataTransfer.files.length) adicionar(e.dataTransfer.files);
+  });
+
+  btnJuntar.onclick = juntar;
+  btnInverter.onclick = () => { arquivos.reverse(); render(); };
+  btnLimpar.onclick = () => { arquivos = []; render(); logEl.textContent = ''; logEl.style.display = 'none'; };
+
+  // Permite abrir já com arquivos via arrastar na janela inteira.
+  document.addEventListener('dragover', (e) => e.preventDefault());
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files.length) adicionar(e.dataTransfer.files);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

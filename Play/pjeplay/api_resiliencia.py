@@ -48,6 +48,10 @@ def _driver():
 def _f5_e_aguardar(driver):
     """F5 na pagina ativa e espera o documento recarregar."""
     try:
+        url_atual = (getattr(driver, 'current_url', '') or '').lower()
+        if 'acesso-negado' in url_atual or 'login' in url_atual:
+            logger.warning("api_resiliencia: F5 ignorado pois driver ja esta em tela de erro (%s)", url_atual[:80])
+            return
         driver.refresh()
     except Exception as e:
         logger.warning("api_resiliencia: refresh falhou (%s)", e)

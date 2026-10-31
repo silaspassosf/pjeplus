@@ -122,3 +122,7 @@ llmb.md
 logs_execucao/
 sentenca_IDPJ_*.html
 
+
+# TSE e relatorios locais
+dados_tse_2026/
+.dsh-acl-report/

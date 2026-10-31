@@ -41,11 +41,11 @@ def main():
     pjeplay.iniciar(raiz_projeto=RAIZ, nativo=True)
 
     # Purga de progresso: remove de todos os fluxos os processos executados
-    # ou com erro ha mais de 2 dias (ou sem data registrada). Nao bloqueia.
+    # ou com erro ha mais de 3 dias (ou sem data registrada). Nao bloqueia.
     # APOS pjeplay.iniciar(): nenhum import de Fix/* pode preceder o shim.
     try:
         from Fix.monitoramento_progresso_unificado import limpar_progresso_antigos
-        resumo = limpar_progresso_antigos(dias=2)
+        resumo = limpar_progresso_antigos(dias=3)
         if resumo:
             total = sum(resumo.values())
             print(f"[progresso] purga: {total} entrada(s) antigas(s) removida(s) "

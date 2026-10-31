@@ -207,6 +207,18 @@ ato_termoS = make_ato_wrapper(
     marcar_primeiro_destinatario=True
 )
 
+ato_pagto = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='desppgto',
+    descricao='pagamento após IDPJ',
+    prazo=15,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    Assinar=True
+)
+
 ato_edital = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='xsedit',

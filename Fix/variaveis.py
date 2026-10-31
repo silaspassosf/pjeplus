@@ -473,6 +473,48 @@ class PjeApiClient:
                 break
         return todos
 
+    def expediente_partes(self, id_processo: str, id_processo_expediente: Any) -> List[Dict[str, Any]]:
+        """Partes/destinatarios de um expediente.
+
+        ATENCAO ao ID: o path usa `idProcessoExpediente`, NAO `id`.
+        Confirmado por probe em 30/10/2026 no processo 9010617:
+
+            /expedientes/{idProcessoExpediente}/partes -> partes=N (traz o ID)
+            /expedientes/{id}/partes                   -> partes=0
+            /expedientes/{idDocumento}/partes          -> partes=0
+
+        Exemplo real:
+            exp id=101116266, idProcessoExpediente=85830981
+                -> idDestinatarioExpedienteDomicilioEletronico=2534639
+            exp id=101116267, idProcessoExpediente=85830982
+                -> idDestinatarioExpedienteDomicilioEletronico=2534640
+
+        Returns:
+            Lista de partes (dicts). Vazio em caso de erro ou expediente sem partes.
+        """
+        if id_processo_expediente in (None, ''):
+            return []
+        try:
+            res = self.gateway_get(
+                f'/pje-comum-api/api/processos/id/{id_processo}'
+                f'/expedientes/{id_processo_expediente}/partes',
+                timeout=15,
+            )
+        except Exception as e:
+            logger.warning('[API] expediente_partes %s/%s: %s',
+                           id_processo, id_processo_expediente, e)
+            return []
+        if not res['ok']:
+            logger.warning('[API] expediente_partes %s/%s: %s',
+                           id_processo, id_processo_expediente, res.get('error'))
+            return []
+        dados = res['data']
+        if isinstance(dados, list):
+            return dados
+        if isinstance(dados, dict):
+            return dados.get('resultado') or []
+        return []
+
     def domicilio_eletronico(self, id_parte: str) -> Optional[bool]:
         """Verifica se uma parte está habilitada no domicílio eletrônico.
         
@@ -496,18 +538,23 @@ class PjeApiClient:
             >>> else:
             >>>     print("Erro ao verificar domicílio")
         """
-        url = self._url(f"/pje-comum-api/api/partes/{id_parte}/domicilio")
+        if not id_parte or str(id_parte).strip() in ('None', '0', ''):
+            return None
+        url = self._url(f"/pje-comum-api/api/pessoajuridicadomicilioeletronico/{id_parte}")
         headers = {
             "Content-Type": "application/json",
             "X-Grau-Instancia": str(self.grau)
         }
         try:
             r = self.sess.get(url, headers=headers, timeout=15)
-            if not r.ok:
-                return None
-            dados = r.json()
-            # Retorna True/False conforme o campo 'habilitada'
-            return bool(dados.get('habilitada', False))
+            if r.ok:
+                dados = r.json()
+                return bool(dados.get('habilitada', False))
+            url_alt = self._url(f"/pje-comum-api/api/partes/{id_parte}/domicilio")
+            r_alt = self.sess.get(url_alt, headers=headers, timeout=10)
+            if r_alt.ok:
+                return bool(r_alt.json().get('habilitada', False))
+            return None
         except Exception:
             return None
 
@@ -1148,7 +1195,15 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
                     from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
                     texto_pdf = _extrair_texto_pdf_bytes(raw_content, log=False)
                     if texto_pdf and len(texto_pdf.strip()) >= 10:
-                        return texto_pdf.strip()
+                        # Se contem apenas carimbo de assinatura/validacao do PJe (sem texto real do documento), descartar
+                        corpo = re.sub(
+                            r'(?:^\s*(?:PJe\s+)?Documento assinado (?:eletronicamente|digitalmente) por[^\n]*\n?)'
+                            r'|(?:^\s*https?://pje[^\n]*\n?)'
+                            r'|(?:^\s*N[uú]mero do documento[:\s]+\d+[^\n]*\n?)',
+                            '', texto_pdf, flags=re.IGNORECASE | re.MULTILINE
+                        ).strip()
+                        if len(corpo) >= 20:
+                            return texto_pdf.strip()
                 except Exception:
                     pass
 

@@ -556,7 +556,14 @@ def retificar_autuacao_inserir_uniao(
 # wrappers_ato (modelos aud100 / aud una presenc), que e o que a triagem usa.
 
 from atos import ato_100, ato_unap, pec_ord, pec_sum
-from atos.wrappers_pec import pec_arord, pec_arsum, pec_ordc, pec_sumc
+from atos.wrappers_pec import (
+    pec_arord,
+    pec_arsum,
+    pec_arordv,
+    pec_arsumv,
+    pec_ordc,
+    pec_sumc,
+)
 from atos.movimentos_fluxo import movimentar_inteligente
 
 

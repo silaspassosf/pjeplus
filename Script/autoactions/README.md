@@ -68,7 +68,26 @@ await window.PjeAutoActions.anexar({
 });
 ```
 
-### 5. Execução em Pipeline Sequencial
+### 5. Submotor Lembrete (`lembrete`)
+```javascript
+// Criar post-it / lembrete
+await window.PjeAutoActions.lembrete({
+    titulo: 'Bloqueio pendente',
+    observacao: 'Aguardar manifestação',
+    visibilidade: 'LOCAL',               // 'LOCAL' (padrão), 'PRIVADO' ou 'GLOBAL'
+    destinatario: 'Nome do Usuário',     // opcional (para visibilidade PRIVADO)
+    salvar: true
+});
+
+// Concluir/remover lembrete existente
+await window.PjeAutoActions.lembrete({
+    acao: 'concluir',
+    titulo: 'Bloqueio pendente',
+    observacao: 'manifestação'          // opcional para filtrar
+});
+```
+
+### 6. Execução em Pipeline Sequencial
 ```javascript
 await window.PjeAutoActions.executarPipeline([
     { acao: 'anexar', params: { tipo: 'Certidão', descricao: '...', texto: '...' } },

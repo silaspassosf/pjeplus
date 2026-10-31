@@ -14,7 +14,8 @@ Funcoes:
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 
 logger = logging.getLogger("bianca.triagem.api")
@@ -166,31 +167,129 @@ def _numero_cnj(item: Dict) -> str:
 MOV_100_DIGITAL_TITULO = 'incluidos os autos no juizo 100% digital'
 
 
-def processo_e_100_digital(client: Any, id_processo: str) -> bool:
-    """True se a timeline do processo tem o movimento de Juizo 100% Digital.
-
-    Le a timeline pela API de movimentos (mesmo caminho de
-    Prazo/p2b_gateway._tem_homologacao_liquidacao), que e a fonte de verdade:
-    o campo juizoDigital da lista pode vir nulo mesmo em processo digital.
-
-    Retorna False quando a API nao responde -- o chamador deve tratar esse
-    caso como "nao confirmado", nao como "nao e digital".
-    """
-    if not client or not id_processo:
-        return False
+def parse_data_hora_movimento(val: Any) -> Optional[datetime]:
+    """Converte string ISO de data/hora do PJe em datetime."""
+    if not val or not isinstance(val, str):
+        return None
+    val = val.strip()
     try:
-        from Fix.utils import normalizar_texto
-        itens = client.timeline(
+        clean = val.rstrip('Zz').split('+')[0]
+        if '.' in clean:
+            return datetime.strptime(clean[:23], '%Y-%m-%dT%H:%M:%S.%f')
+        elif 'T' in clean:
+            return datetime.strptime(clean, '%Y-%m-%dT%H:%M:%S')
+        elif ' ' in clean:
+            if '.' in clean:
+                return datetime.strptime(clean[:23], '%Y-%m-%d %H:%M:%S.%f')
+            return datetime.strptime(clean, '%Y-%m-%d %H:%M:%S')
+    except Exception:
+        pass
+    return None
+
+
+def obter_movimentos_timeline(client: Any, id_processo: str) -> List[Dict]:
+    """Obtém a lista de movimentos da timeline do processo via API."""
+    if not client or not id_processo:
+        return []
+    try:
+        return client.timeline(
             str(id_processo), buscarDocumentos=False, buscarMovimentos=True
         ) or []
-        for item in itens:
-            titulo = normalizar_texto(str(item.get('titulo') or ''))
-            if MOV_100_DIGITAL_TITULO in titulo:
-                return True
     except Exception as e:
         logger.warning(
             "[TRIAGEM][API] Falha ao ler movimentos de %s: %s", id_processo, e
         )
+        return []
+
+
+def classificar_audiencia_movimentos(
+    itens_movimentos: List[Dict],
+) -> Tuple[str, Dict[str, Any]]:
+    """Classifica a situação de audiência do processo a partir dos movimentos da timeline.
+
+    3 casos:
+      (a) 'SEM_AUDIENCIA': não há movimento de audiência designada na timeline.
+          -> Fluxo de sempre (marca audiência + despacha).
+      (b) 'TEM_AUDIENCIA': há audiência designada com horário muito próximo (<= 180s)
+          ao da distribuição do processo (autuação automática).
+          -> Fluxo de sempre (Bucket B se 100% digital, Bucket C se presencial).
+      (c) 'AUDIENCIA_TARDIA': tem audiência, mas a marcação veio mais tarde que a
+          distribuição (> 180s ou data diferente).
+          -> Trata como SEM AUDIÊNCIA, mas pula a marcação de pauta.
+
+    Returns:
+        Tuple[str, Dict[str, Any]]: (status, detalhes)
+    """
+    from Fix.utils import normalizar_texto
+
+    mov_distribuicao = None
+    dt_dist = None
+    mov_audiencia = None
+    dt_aud = None
+
+    for item in itens_movimentos:
+        if not isinstance(item, dict):
+            continue
+        titulo = normalizar_texto(str(item.get('titulo') or item.get('textoFinalExterno') or ''))
+        cod = 0
+        try:
+            cod = int(item.get('codEvento') or 0)
+        except (TypeError, ValueError):
+            pass
+
+        data_str = str(item.get('data') or item.get('dataHora') or item.get('atualizadoEm') or '')
+        dt_item = parse_data_hora_movimento(data_str)
+
+        # 1. Identificar movimento de distribuição
+        if not mov_distribuicao:
+            if cod in (26, 27, 28, 29, 30) or 'distribui' in titulo:
+                mov_distribuicao = item
+                dt_dist = dt_item
+
+        # 2. Identificar movimento de audiência designada
+        if not mov_audiencia:
+            if ('audiencia' in titulo and 'designada' in titulo) or ('designad' in titulo and 'audienc' in titulo):
+                mov_audiencia = item
+                dt_aud = dt_item
+
+    detalhes = {
+        'dt_dist': dt_dist,
+        'dt_aud': dt_aud,
+        'mov_dist': mov_distribuicao,
+        'mov_aud': mov_audiencia,
+    }
+
+    # Caso (a): Não tem audiência designada na timeline
+    if not mov_audiencia:
+        return 'SEM_AUDIENCIA', detalhes
+
+    # Se tem audiência e tem distribuição, compara os horários
+    if dt_dist and dt_aud:
+        delta = abs((dt_aud - dt_dist).total_seconds())
+        detalhes['delta_segundos'] = delta
+        # Caso (b): Horário muito próximo (até 180s da autuação)
+        if dt_dist.date() == dt_aud.date() and delta <= 180:
+            return 'TEM_AUDIENCIA', detalhes
+        # Caso (c): Veio mais tarde que a distribuição
+        return 'AUDIENCIA_TARDIA', detalhes
+
+    # Se tem movimento de audiência mas não foi possível extrair data da distribuição
+    return 'AUDIENCIA_TARDIA', detalhes
+
+
+def processo_e_100_digital(
+    client: Any, id_processo: str, itens_movimentos: Optional[List[Dict]] = None
+) -> bool:
+    """True se a timeline do processo tem o movimento de Juizo 100% Digital."""
+    if itens_movimentos is None:
+        itens_movimentos = obter_movimentos_timeline(client, id_processo)
+    if not itens_movimentos:
+        return False
+    from Fix.utils import normalizar_texto
+    for item in itens_movimentos:
+        titulo = normalizar_texto(str(item.get('titulo') or ''))
+        if MOV_100_DIGITAL_TITULO in titulo:
+            return True
     return False
 
 
@@ -200,11 +299,11 @@ def enriquecer_processo(item: Dict, client: Any = None) -> Optional[Dict]:
     Args:
         item: item bruto da lista de triagem.
         client: PjeApiClient autenticado. Quando informado, o 100% digital e
-            confirmado pela timeline de movimentos; sem ele, usa o campo
-            juizoDigital da lista.
+            os 3 casos de audiência são confirmados pela timeline de movimentos.
 
     Retorna dict com:
-        numero, id_processo, tipo, digital, tem_audiencia, bucket
+        numero, id_processo, tipo, digital, tem_audiencia, status_audiencia,
+        pular_marcar_aud, bucket
     """
     id_proc = item.get('id') or item.get('idProcesso')
     numero = _numero_cnj(item)
@@ -212,10 +311,34 @@ def enriquecer_processo(item: Dict, client: Any = None) -> Optional[Dict]:
         return None
 
     tipo = str(item.get('classeJudicial') or '').upper()
+    itens_mov = obter_movimentos_timeline(client, id_proc) if client is not None else []
+
     digital = item.get('juizoDigital') is True or item.get('juizoDigital') == 'true'
     if not digital and client is not None:
-        digital = processo_e_100_digital(client, id_proc)
-    tem_aud = bool(item.get('dataProximaAudiencia'))
+        digital = processo_e_100_digital(client, id_proc, itens_mov)
+
+    status_aud = 'SEM_AUDIENCIA'
+    pular_marcar_aud = False
+    tem_aud = False
+
+    if itens_mov:
+        status_aud, det = classificar_audiencia_movimentos(itens_mov)
+        if status_aud == 'TEM_AUDIENCIA':
+            tem_aud = True
+            pular_marcar_aud = False
+        elif status_aud == 'AUDIENCIA_TARDIA':
+            # Caso (c): trata como SEM AUDIÊNCIA pra efeito de fluxo, pulando marcar audiência
+            tem_aud = False
+            pular_marcar_aud = True
+        else:
+            # Caso (a): SEM AUDIÊNCIA, fluxo de sempre (marca audiência + despacha)
+            tem_aud = False
+            pular_marcar_aud = False
+    else:
+        # Fallback sem API: usa o campo bruto da lista
+        tem_aud = bool(item.get('dataProximaAudiencia'))
+        pular_marcar_aud = False
+        status_aud = 'TEM_AUDIENCIA' if tem_aud else 'SEM_AUDIENCIA'
 
     if _is_carta_precatoria(item):
         bucket = 'CP'
@@ -227,11 +350,16 @@ def enriquecer_processo(item: Dict, client: Any = None) -> Optional[Dict]:
         bucket = 'B'
     else:
         bucket = 'C'
+
     return {
         'numero': numero,
         'id_processo': id_proc,
         'tipo': tipo,
         'digital': digital,
         'tem_audiencia': tem_aud,
+        'status_audiencia': status_aud,
+        'pular_marcar_aud': pular_marcar_aud,
         'bucket': bucket,
+        'dataProximaAudiencia': item.get('dataProximaAudiencia'),
+        'data_audiencia': item.get('dataProximaAudiencia'),
     }

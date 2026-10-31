@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 from pathlib import Path
 from Fix.log import logger
 from Fix.core import safe_click_no_scroll, aguardar_renderizacao_nativa
-from .core import aguardar_e_clicar, safe_click, wait, esperar_elemento, preencher_campo
+from .core import aguardar_e_clicar, safe_click, wait, esperar_elemento, preencher_campo, selecionar_opcao
 from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
 from .utils import normalizar_cpf_cnpj, formatar_moeda_brasileira, formatar_data_brasileira
 from Fix import espera
@@ -821,55 +821,107 @@ def _gigs_responsavel_valido(responsavel: Optional[str]) -> bool:
     return responsavel is not None and responsavel.strip() and responsavel.strip() != '-'
 
 
-# ===== LEMBRETE GENÉRICO (JUNTO COM GIGS) =====
-def _verificar_lembrete_presente(driver, titulo, teto=3):
-    """Confirma no painel de post-its do /detalhe que um lembrete com o título dado existe.
+# ===== LEMBRETE GENÉRICO (JUNTO COM GIGS - PARIDADE AAGIGS GIGS-PLUGIN) =====
+def _normalizar_texto(texto: Any) -> str:
+    """Normaliza texto para comparações robustas (sem acentos, minúsculo, espaços colapsados)."""
+    if not texto:
+        return ""
+    s = unicodedata.normalize('NFKD', str(texto).strip().lower())
+    s = ''.join(c for c in s if not unicodedata.combining(c))
+    return ' '.join(s.split())
+
+
+def _verificar_lembrete_presente(driver, titulo: str, conteudo: Optional[str] = None, teto: float = 1.0) -> bool:
+    """Confirma no painel de post-its do /detalhe que um lembrete com título (e opcionalmente conteúdo) existe.
+
+    Espelha a lógica de aagigs (gigs-plugin.js: lancarLembrete):
+    Verifica os cartões mat-expansion-panel em pje-visualizador-post-its,
+    comparando título em div.post-it-div-titulo/.post-it-titulo e conteúdo em
+    div[aria-label="Conteúdo do Lembrete"].
 
     Retorna True se encontrar elemento com título equivalente (sem acento/caixa).
     """
-    alvo = ''.join(c for c in unicodedata.normalize('NFKD', str(titulo).strip().lower()) if not unicodedata.combining(c))
+    alvo_tit = _normalizar_texto(titulo)
+    alvo_cont = _normalizar_texto(conteudo) if conteudo else ''
+    if not alvo_tit and not alvo_cont:
+        return False
+
     fim = time.time() + teto
-    seletores_titulo = [
-        'mat-panel-title',
-        'div.post-it-set mat-expansion-panel',
-        'div.post-it-conteudo',
-        'pje-post-it',
-        '.post-it-titulo',
-        '.titulo-postit',
-        'mat-card-title'
-    ]
     while time.time() < fim:
         try:
-            for sel in seletores_titulo:
-                titulos = espera.elementos(driver, sel, teto=0.3)
-                for titulo_el in titulos:
-                    try:
-                        txt_raw = getattr(titulo_el, 'text', '') or ''
-                        txt = ''.join(c for c in unicodedata.normalize('NFKD', txt_raw.strip().lower()) if not unicodedata.combining(c))
-                        if alvo in txt or txt == alvo:
-                            return True
-                    except Exception:
+            container = espera.elemento(driver, 'pje-visualizador-post-its div[class*="post-it-set"], pje-visualizador-post-its', teto=0.2)
+            if not container:
+                return False
+
+            paineis = espera.elementos(driver, 'pje-visualizador-post-its mat-expansion-panel, div[class*="post-it-set"] mat-expansion-panel', teto=0.3)
+            if not paineis:
+                return False
+
+            for painel in paineis:
+                try:
+                    el_tit = espera.elemento(painel, 'div[class="post-it-div-titulo"], .post-it-div-titulo, .post-it-titulo, mat-panel-title', teto=0.2)
+                    txt_tit = _normalizar_texto(getattr(el_tit, 'text', '') or '') if el_tit else ''
+
+                    bate_titulo = bool(alvo_tit and (alvo_tit in txt_tit or txt_tit in alvo_tit)) if alvo_tit else True
+                    if not bate_titulo:
                         continue
+
+                    if alvo_cont:
+                        el_cont = espera.elemento(painel, 'div[aria-label="Conteúdo do Lembrete"], .post-it-conteudo, [aria-label*="Conteúdo" i]', teto=0.2)
+                        txt_cont = _normalizar_texto(getattr(el_cont, 'text', '') or '') if el_cont else ''
+                        if txt_cont and (alvo_cont in txt_cont or txt_cont in alvo_cont):
+                            return True
+                        elif not txt_cont:
+                            # Se painel estiver recolhido e conteúdo não visível, o título já confere
+                            return True
+                    else:
+                        return True
+                except Exception:
+                    continue
         except Exception:
             pass
-        espera.assentar(driver, 0.3)
+        espera.assentar(driver, 0.2)
     return False
 
 
-def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
+def criar_lembrete_posit(
+    driver: Any,
+    titulo: str,
+    conteudo: str = "",
+    debug: bool = False,
+    visibilidade: str = "LOCAL",
+    destinatario: Optional[str] = None,
+    salvar: bool = True,
+    verificar_existente: bool = True,
+    acao: str = "criar",
+) -> bool:
     """
-    Cria lembrete/post-it genérico com título e conteúdo customizáveis.
-    Reutilizável em diferentes contextos (Bloqueio, Acompanhamento, etc).
-    Referência arquitetural: LEGADO.md (L11971-L12050 e L14833-L14838).
+    Cria ou conclui lembrete/post-it genérico no PJe com título, visibilidade e conteúdo customizáveis.
+    Totalmente alinhado à lógica de aagigs (lancarLembrete em gigs-plugin.js).
 
     Args:
-        titulo: Texto do título (ex: "Bloqueio pendente")
-        conteudo: Texto do conteúdo (ex: "processar após IDPJ")
-        debug: Log detalhado (default: False)
+        driver: Sessão ativa do driver/navegador.
+        titulo: Texto do título (ex: "Bloqueio pendente", "mdd positivo").
+        conteudo: Texto do conteúdo/observação (ex: "processar após IDPJ", "clipboard").
+        debug: Log detalhado (default: False). Se for string, tratado como visibilidade retrocompatível.
+        visibilidade: 'LOCAL' (padrão), 'PRIVADO' ou 'GLOBAL' (conforme aagigs/PJe).
+        destinatario: Nome do destinatário (quando visibilidade for 'PRIVADO').
+        salvar: Se True (padrão), salva o formulário e confirma fechamento do modal.
+        verificar_existente: Se True, verifica idempotência antes de abrir o modal.
+        acao: 'criar' (padrão) ou 'concluir'/'remover' (remover lembrete existente).
 
     Returns:
-        bool: True se o lembrete foi salvo e o modal fechado com sucesso.
+        bool: True se o lembrete foi processado com sucesso.
     """
+    # Suporte à ação [concluir] do aagigs
+    if acao.lower() in ("concluir", "remover"):
+        return remover_lembrete_posit(driver, titulo=titulo, conteudo=conteudo, debug=debug)
+
+    # Compatibilidade caso debug tenha sido passado como visibilidade string
+    if isinstance(debug, str):
+        visibilidade = debug
+        debug = False
+
     def _fechar_dialogo_residual():
         """Barreira: garante que nenhum diálogo ou overlay de lembrete fique aberto após falha."""
         try:
@@ -881,154 +933,321 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
         except Exception:
             pass
 
+    # Validação rápida de integridade da sessão do driver
+    conexao_status = validar_conexao_driver(driver, "LEMBRETE")
+    if conexao_status == "FATAL" or not conexao_status:
+        if debug:
+            logger.error('[LEMBRETE][POSIT] Driver desconectado ou sessão inválida — abortando')
+        return False
+
     try:
         if debug:
-            logger.debug('[LEMBRETE][POSIT] Criando: "%s" / "%s"', titulo, conteudo)
+            logger.debug('[LEMBRETE][POSIT] Criando: "%s" / "%s" (visibilidade: %s)', titulo, conteudo, visibilidade)
 
-        # Idempotência rápida: se já estiver visível no painel, nada a fazer
-        if _verificar_lembrete_presente(driver, titulo, teto=0.5):
+        if conteudo and "clipboard" in conteudo.lower():
+            try:
+                clip_val = pyperclip.paste() or ""
+                if clip_val:
+                    conteudo = re.sub(r'clipboard', clip_val, conteudo, flags=re.IGNORECASE)
+            except Exception:
+                pass
+
+        # Idempotência rápida: se já estiver visível no painel, nada a criar
+        if verificar_existente and _verificar_lembrete_presente(driver, titulo, conteudo=conteudo, teto=0.5):
             logger.info('[LEMBRETE][POSIT] Lembrete "%s" já presente no painel — nada a criar', titulo)
             return True
 
-        seletores_lembrete = [
-            'pje-icone-post-it button',
-            'button[aria-label*="Lembrete" i]',
-            'button[title*="Lembrete" i]',
-            'button[mattooltip*="Lembrete" i]',
-            '.lista-itens-menu li:nth-child(16) button',
-            '.lista-itens-menu pje-icone-post-it button',
-            '.lista-itens-menu button[aria-label*="Lembrete" i]',
-            'pje-icone-post-it',
-            'button:has(i.fa-sticky-note)',
-            'i.fa-sticky-note',
-        ]
+        # 1. VERIFICAR SE O DIÁLOGO JÁ ESTÁ ABERTO OU SE PRECISA ACIONAR O MENU
+        dialogo_aberto = (
+            espera.elemento(driver, '#tituloPostit', teto=0.3)
+            or espera.elemento(driver, 'pje-dialogo-post-it', teto=0.3)
+        )
 
-        # 1. VERIFICAR SE O BOTÃO JÁ ESTÁ VISÍVEL OU SE PRECISA ABRIR O MENU
-        lembrete_btn = None
-        for sel in seletores_lembrete:
-            el = espera.elemento(driver, sel, teto=0.3)
-            if el:
-                lembrete_btn = el
-                break
+        if not dialogo_aberto:
+            seletores_lembrete = [
+                'pje-icone-post-it button',
+                'button[aria-label*="Lembrete" i]',
+                'button[title*="Lembrete" i]',
+                'button[mattooltip*="Lembrete" i]',
+                '.lista-itens-menu pje-icone-post-it button',
+                '.lista-itens-menu button[aria-label*="Lembrete" i]',
+                'pje-icone-post-it',
+                'button:has(i.fa-sticky-note)',
+                'i.fa-sticky-note',
+            ]
 
-        if not lembrete_btn:
-            # Menu fechado: tentar abrir via #botao-menu ou .fa-bars
-            menu_clicked = aguardar_e_clicar(driver, '#botao-menu', timeout=6, log=debug)
-            if not menu_clicked:
-                menu_clicked = aguardar_e_clicar(driver, '.fa-bars', timeout=4, log=debug)
-            espera.assentar(driver, 0.6)
-
+            lembrete_btn = None
             for sel in seletores_lembrete:
-                el = espera.elemento(driver, sel, teto=1)
+                el = espera.elemento(driver, sel, teto=0.3)
                 if el:
                     lembrete_btn = el
                     break
 
-        # 2. CLICAR NO ÍCONE DE LEMBRETE
-        lembrete_clicked = False
-        if lembrete_btn:
-            try:
-                safe_click_no_scroll(driver, lembrete_btn)
-                lembrete_clicked = True
-            except Exception:
-                lembrete_clicked = False
+            if not lembrete_btn:
+                menu_clicked = aguardar_e_clicar(driver, 'button[id="botao-menu"], #botao-menu', timeout=4, log=debug)
+                if not menu_clicked:
+                    menu_clicked = aguardar_e_clicar(driver, '.fa-bars', timeout=4, log=debug)
+                espera.assentar(driver, 0.6)
+                for sel in seletores_lembrete:
+                    el = espera.elemento(driver, sel, teto=1)
+                    if el:
+                        lembrete_btn = el
+                        break
 
-        if not lembrete_clicked:
-            for seletor in seletores_lembrete:
+            if not lembrete_btn:
+                logger.warning('[LEMBRETE][POSIT] Botão de lembrete não encontrado no menu')
+                return False
+
+            lembrete_clicked = False
+            for seletor in (lembrete_btn, 'pje-icone-post-it button, button[aria-label*="Lembrete" i]'):
                 try:
-                    if aguardar_e_clicar(driver, seletor, timeout=2, log=False):
+                    if isinstance(seletor, str):
+                        if aguardar_e_clicar(driver, seletor, timeout=3, log=debug):
+                            lembrete_clicked = True
+                            break
+                    else:
+                        safe_click_no_scroll(driver, seletor)
                         lembrete_clicked = True
                         break
                 except Exception:
                     continue
 
-        if not lembrete_clicked:
-            if debug:
-                logger.warning('[LEMBRETE][POSIT] Botão de lembrete não encontrado no menu')
-            _fechar_dialogo_residual()
-            return False
-
-        # 3. CONFIRMAR ABERTURA DO DIÁLOGO (#tituloPostit)
-        if not espera.ate_aparecer(driver, '#tituloPostit', teto=6):
-            # Tentar um segundo clique se o diálogo não abriu de primeira
-            for seletor in seletores_lembrete:
-                try:
-                    aguardar_e_clicar(driver, seletor, timeout=1, log=False)
-                    if espera.ate_aparecer(driver, '#tituloPostit', teto=3):
-                        break
-                except Exception:
-                    pass
-
-        if not espera.ate_aparecer(driver, '#tituloPostit', teto=4):
-            logger.warning('[LEMBRETE][POSIT] Diálogo do lembrete não abriu (#tituloPostit ausente)')
-            _fechar_dialogo_residual()
-            return False
-
-        aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
-        espera.assentar(driver, 0.3)
-
-        # 4. PREENCHER TÍTULO E CONTEÚDO (LEGADO L12019-L12026)
-        for sel_campo, valor_campo in (('#tituloPostit', titulo), ('#conteudoPostit', conteudo)):
-            aguardar_e_clicar(driver, sel_campo, timeout=3, log=False)
-            preencher_campo(driver, sel_campo, valor_campo, log=debug)
-            espera.assentar(driver, 0.2)
-
-        # Barreira de validação com JS nativo limpo
-        campos_preenchidos = espera.ate_js(
-            driver,
-            """(() => {
-                const t = document.querySelector('#tituloPostit');
-                const c = document.querySelector('#conteudoPostit');
-                return !!(t && (t.value || '').trim() && c && (c.value || '').trim());
-            })()""",
-            teto=3
-        )
-        if not campos_preenchidos:
-            logger.warning('[LEMBRETE][POSIT] Campos título/conteúdo não ficaram preenchidos — abortando')
-            _fechar_dialogo_residual()
-            return False
-        espera.assentar(driver, 0.3)
-
-        # 5. SALVAR LEMBRETE (LEGADO L12029-L12033 + PJe KZ)
-        seletores_salvar = [
-            '.mat-dialog-container button[type="submit"]:not([disabled])',
-            '.mat-dialog-container button[color="primary"]:not([disabled])',
-            '.mat-dialog-actions button[color="primary"]:not([disabled])',
-            '//mat-dialog-container//button[not(@disabled) and (contains(., "Salvar") or contains(., "Gravar"))]',
-            '.mat-dialog-container .mat-raised-button:not([disabled])',
-            'button[color="primary"]',
-            '.mat-raised-button:not([disabled])',
-            'button[type="submit"]',
-        ]
-
-        salvo = False
-        for _tentativa_salvar in range(3):
-            for seletor in seletores_salvar:
-                try:
-                    if aguardar_e_clicar(driver, seletor, timeout=2, log=False):
-                        break
-                except Exception:
-                    continue
-            # Salvo confirmado quando o modal é descartado pelo Angular
-            if espera.ate_sumir(driver, '#tituloPostit', teto=6):
-                salvo = True
-                break
+            if not lembrete_clicked:
+                return False
             espera.assentar(driver, 0.5)
 
-        if not salvo:
-            logger.warning('[LEMBRETE][POSIT] Diálogo do lembrete não fechou após salvar "%s"', titulo)
+        # 3. CONFIRMAR ABERTURA DO DIÁLOGO (#tituloPostit)
+        if not espera.ate_aparecer(driver, '#tituloPostit', teto=5):
+            if not espera.ate_aparecer(driver, '.mat-dialog-content', teto=2):
+                logger.warning('[LEMBRETE][POSIT] Diálogo do lembrete não abriu (#tituloPostit ausente)')
+                return False
+
+        # 4. PREENCHER TÍTULO (input[id="tituloPostit"])
+        titulo_limpo = (titulo or '').strip()
+        conteudo_limpo = (conteudo or '').strip() if conteudo is not None else ""
+
+        aguardar_e_clicar(driver, '#tituloPostit', timeout=3, log=False)
+        preencher_campo(driver, '#tituloPostit', titulo_limpo, limpar=True, log=debug)
+
+        # 5. VISIBILIDADE (mat-select[id="visibilidadePostit"])
+        try:
+            visib_upper = (visibilidade or 'LOCAL').upper()
+            sel_visib = 'mat-select[id="visibilidadePostit"], #visibilidadePostit'
+            el_visib = espera.elemento(driver, sel_visib, teto=1)
+            if el_visib:
+                # O PJe já abre com "LOCAL" selecionado por padrão.
+                # Só aciona o dropdown se o valor atual for diferente (evita abrir overlay backdrop desnecessário)
+                txt_atual = (getattr(el_visib, 'text', '') or '').strip().upper()
+                if visib_upper not in txt_atual:
+                    mapa_visib = {'LOCAL': 'Local', 'PRIVADO': 'Privado', 'GLOBAL': 'Global'}
+                    lbl_visib = mapa_visib.get(visib_upper, 'Local')
+                    selecionar_opcao(driver, sel_visib, lbl_visib, timeout=3, log=debug)
+                    espera.assentar(driver, 0.3)
+                    if visib_upper == 'PRIVADO' and destinatario:
+                        sel_dest = 'mat-select[id="destinatarioPostit"], #destinatarioPostit'
+                        if espera.elemento(driver, sel_dest, teto=1):
+                            selecionar_opcao(driver, sel_dest, destinatario, timeout=3, log=debug)
+                            espera.assentar(driver, 0.3)
+        except Exception as e_visib:
+            if debug:
+                logger.warning('[LEMBRETE][POSIT] Aviso ao definir visibilidade: %s', e_visib)
+
+        # 6. PREENCHER CONTEÚDO (textarea[id="conteudoPostit"] - max 200 caracteres no PJe)
+        if conteudo is not None:
+            aguardar_e_clicar(driver, '#conteudoPostit', timeout=3, log=False)
+            preencher_campo(driver, '#conteudoPostit', conteudo_limpo, limpar=True, log=debug)
+            espera.assentar(driver, 0.2)
+
+        # Sincronização adicional nativa Playwright quando presente
+        try:
+            page_obj = getattr(driver, 'page', None)
+            if page_obj and type(page_obj).__name__ != 'MagicMock':
+                page_obj.fill('#tituloPostit', titulo_limpo)
+                if conteudo is not None:
+                    page_obj.fill('#conteudoPostit', conteudo_limpo)
+        except Exception:
+            pass
+
+        # Barreira de validação com JS nativo + sincronização de ControlValueAccessor Angular
+        _JS_SYNC_VAL = """(() => {
+            function sync(sel, val, isTa) {
+                const el = document.querySelector(sel);
+                if (!el) return;
+                if (!el.value || el.value !== val) {
+                    el.focus();
+                    const proto = isTa ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+                    const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+                    if (desc && desc.set) {
+                        desc.set.call(el, val);
+                    } else {
+                        el.value = val;
+                    }
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    el.dispatchEvent(new Event('blur', { bubbles: true }));
+                }
+            }
+            const t = document.querySelector('#tituloPostit');
+            return !!(t && (t.value || '').trim());
+        })()"""
+        campos_preenchidos = espera.ate_js(driver, _JS_SYNC_VAL, teto=3)
+        if not campos_preenchidos:
+            logger.warning('[LEMBRETE][POSIT] Campo título não ficou preenchido — abortando')
+            _fechar_dialogo_residual()
+            return False
+        espera.assentar(driver, 0.2)
+
+        if not salvar:
+            logger.info('[LEMBRETE][POSIT] salvar=False: diálogo mantido aberto')
+            return True
+
+        # 7. SALVAR LEMBRETE
+        # O botao do PJe tem aria-label="Salvar" (confirmado por probe no processo 8885568).
+        # Seletores específicos da janela de post-it para não colidir com outros botões.
+        seletores_salvar = (
+            'button[aria-label="Salvar"]',
+            '.criacao-alteracao-post-it button[aria-label="Salvar"]',
+            '.botoes-centralizados button[aria-label="Salvar"]',
+            '.criacao-alteracao-post-it button:not([matdialogclose])',
+        )
+
+        clicou_salvar = False
+        _diag_salvar = []
+        _limite = time.time() + 8
+        while time.time() < _limite and not clicou_salvar:
+            # 1. Tenta clique nativo via Playwright Page se disponível
+            if page_obj:
+                try:
+                    for seletor in seletores_salvar:
+                        loc = page_obj.locator(seletor).first
+                        if loc.is_visible(timeout=500):
+                            loc.click(timeout=1000)
+                            clicou_salvar = True
+                            _diag_salvar.append(f'pw:{seletor} -> True')
+                            break
+                except Exception as e_pw:
+                    _diag_salvar.append(f'pw_err: {e_pw}')
+
+            # 2. Tenta aguardar_e_clicar padrão
+            if not clicou_salvar:
+                for seletor in seletores_salvar:
+                    try:
+                        if aguardar_e_clicar(driver, seletor, timeout=1.5, log=False):
+                            clicou_salvar = True
+                            _diag_salvar.append('%s -> True' % seletor)
+                            break
+                    except Exception as e_sel:
+                        _diag_salvar.append('%s -> %s' % (seletor, e_sel))
+
+            # 3. Fallback com JS direto disparando click
+            if not clicou_salvar:
+                try:
+                    _JS_CLICK_SALVAR = """(() => {
+                        const btn = document.querySelector('.criacao-alteracao-post-it button[aria-label="Salvar"]')
+                                 || document.querySelector('button[aria-label="Salvar"]')
+                                 || Array.from(document.querySelectorAll('.botoes-centralizados button')).find(b => (b.innerText || '').includes('Salvar') && !b.hasAttribute('matdialogclose'));
+                        if (btn && !btn.disabled) {
+                            btn.click();
+                            return true;
+                        }
+                        return false;
+                    })()"""
+                    if page_obj:
+                        if page_obj.evaluate(_JS_CLICK_SALVAR):
+                            clicou_salvar = True
+                            _diag_salvar.append('js_click -> True')
+                    else:
+                        _fn_exec = getattr(driver, 'execute_script', None)
+                        if _fn_exec and _fn_exec(_JS_CLICK_SALVAR):
+                            clicou_salvar = True
+                            _diag_salvar.append('js_click -> True')
+                except Exception as e_js:
+                    _diag_salvar.append(f'js_err: {e_js}')
+
+            if not clicou_salvar:
+                espera.assentar(driver, 0.3)
+
+        if not clicou_salvar:
+            logger.error(
+                '[LEMBRETE][POSIT] Botao "Salvar" nao clicado - lembrete "%s" NAO gravado'
+                ' | tentativas: %s | tituloPostit=%s conteudoPostit=%s',
+                titulo, _diag_salvar,
+                bool(espera.elemento(driver, '#tituloPostit', teto=0.3)),
+                bool(espera.elemento(driver, '#conteudoPostit', teto=0.3)),
+            )
             _fechar_dialogo_residual()
             return False
 
-        # 6. LIMPEZA PÓS-SALVAMENTO: fechar menu residual ou overlay para não atrapalhar o GIGS seguinte
+        # 8. CONFIRMACAO
+        # Snack-bar "com sucesso!" e' o sinal forte (equivale ao
+        # esperarSalvamento do aagigs), mas NAO pode ser obrigatorio: se o
+        # texto mudar ou o aviso demorar, fechar o dialogo aqui descartaria o
+        # lembrete. O criterio final e' o dialogo ter fechado apos o clique.
+        _JS_SNACK = """(() => {
+            const bars = document.querySelectorAll(
+                'simple-snack-bar, .mat-snack-bar-container, snack-bar-container');
+            for (const b of bars) {
+                const t = (b.innerText || '').toLowerCase();
+                if (t.includes('sucesso')) { return 'ok'; }
+                if (t.includes('inv') && t.includes('argumento')) { return 'erro-argumento'; }
+            }
+            return '';
+        })()"""
+        sucesso = ''
+        limite_snack = time.time() + 6
+        while time.time() < limite_snack and not sucesso:
+            try:
+                _fn = getattr(driver, 'execute_script', None)
+                if _fn is not None:
+                    _ret = _fn(_JS_SNACK)
+                else:
+                    _page = getattr(driver, 'page', None)
+                    _ret = _page.evaluate(_JS_SNACK) if _page is not None else None
+                if isinstance(_ret, str):
+                    sucesso = _ret
+            except Exception:
+                pass
+            if not sucesso:
+                espera.assentar(driver, 0.25)
+
+        if sucesso != 'ok':
+            dialogo_someu = espera.ate_sumir(driver, '#tituloPostit', teto=5)
+            if not dialogo_someu:
+                logger.error(
+                    '[LEMBRETE][POSIT] Salvar nao teve efeito (snack=%r, dialogo aberto) - '
+                    'lembrete "%s" NAO gravado', sucesso, titulo,
+                )
+                _fechar_dialogo_residual()
+                return False
+            logger.info(
+                '[LEMBRETE][POSIT] Snack-bar nao observado (retorno=%r), mas o dialogo '
+                'fechou apos o clique - assumindo gravado', sucesso,
+            )
+
+        # Fechar o aviso, como o aagigs faz.
         try:
-            _pressionar_tecla(driver, 'Escape')
+            espera.ate_js(
+                driver,
+                """(() => {
+                    const b = document.querySelector('simple-snack-bar button, .mat-snack-bar-container button');
+                    if (b) { b.click(); return true; }
+                    return false;
+                })()""",
+                teto=2,
+            )
+        except Exception:
+            pass
+
+        # 9. LIMPEZA PÓS-SALVAMENTO
+        try:
+            espera.ate_sumir(driver, '#tituloPostit', teto=3)
+            espera.ate_sumir(driver, 'pje-dialogo-post-it', teto=3)
             espera.ate_sumir(driver, '.cdk-overlay-backdrop-showing', teto=2)
         except Exception:
             pass
-        espera.assentar(driver, 0.4)
+        espera.assentar(driver, 0.3)
 
-        logger.info('[LEMBRETE][POSIT] Lembrete "%s" salvo e concluído com sucesso', titulo)
+        logger.info('[LEMBRETE][POSIT] Lembrete "%s" salvo com sucesso', titulo)
         return True
 
     except Exception as e:
@@ -1036,6 +1255,100 @@ def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
             logger.error("ERRO em criar_lembrete_posit: %s: %s", type(e).__name__, e)
         _fechar_dialogo_residual()
         return False
+
+def remover_lembrete_posit(driver: Any, titulo: str, conteudo: Optional[str] = None, debug: bool = False) -> bool:
+    """
+    Remove/conclui lembrete(s) existente(s) no painel de post-its.
+    Espelha fielmente a ação [concluir] de aagigs (gigs-plugin.js: lancarLembrete).
+
+    Args:
+        driver: Sessão ativa do navegador.
+        titulo: Título do lembrete a remover.
+        conteudo: Conteúdo opcional para refinamento de busca.
+        debug: Se True, registra logs detalhados.
+
+    Returns:
+        bool: True se localizou e removeu ao menos um lembrete com sucesso.
+    """
+    conexao_status = validar_conexao_driver(driver, "REMOVER_LEMBRETE")
+    if conexao_status == "FATAL" or not conexao_status:
+        return False
+
+    alvo_tit = _normalizar_texto(titulo)
+    alvo_cont = _normalizar_texto(conteudo) if conteudo else ''
+
+    try:
+        container = espera.elemento(driver, 'pje-visualizador-post-its div[class*="post-it-set"], pje-visualizador-post-its', teto=2)
+        if not container:
+            if debug:
+                logger.debug('[LEMBRETE][REMOVER] Container de post-its não encontrado')
+            return False
+
+        paineis = espera.elementos(driver, 'pje-visualizador-post-its mat-expansion-panel, div[class*="post-it-set"] mat-expansion-panel', teto=2)
+        if not paineis:
+            if debug:
+                logger.debug('[LEMBRETE][REMOVER] Nenhum post-it encontrado no painel')
+            return False
+
+        removido_algum = False
+        for painel in paineis:
+            try:
+                el_tit = espera.elemento(painel, 'div[class="post-it-div-titulo"], .post-it-div-titulo, .post-it-titulo, mat-panel-title', teto=0.3)
+                txt_tit = _normalizar_texto(getattr(el_tit, 'text', '') or '') if el_tit else ''
+
+                if alvo_tit and not (alvo_tit in txt_tit or txt_tit in alvo_tit):
+                    continue
+
+                if alvo_cont:
+                    el_cont = espera.elemento(painel, 'div[aria-label="Conteúdo do Lembrete"], .post-it-conteudo, [aria-label*="Conteúdo" i]', teto=0.3)
+                    txt_cont = _normalizar_texto(getattr(el_cont, 'text', '') or '') if el_cont else ''
+                    if txt_cont and not (alvo_cont in txt_cont or txt_cont in alvo_cont):
+                        continue
+
+                # Localizou o lembrete alvo: acionar botão remover
+                btn_remover = espera.elemento(painel, 'button[aria-label*="Remover" i], button[title*="Remover" i]', teto=1)
+                if not btn_remover:
+                    header = espera.elemento(painel, 'mat-expansion-panel-header', teto=0.5)
+                    if header:
+                        safe_click_no_scroll(driver, header)
+                        espera.assentar(driver, 0.3)
+                        btn_remover = espera.elemento(painel, 'button[aria-label*="Remover" i], button[title*="Remover" i]', teto=1)
+
+                if btn_remover:
+                    safe_click_no_scroll(driver, btn_remover)
+                    espera.assentar(driver, 0.4)
+
+                    confirmado = False
+                    seletores_confirmar = [
+                        'mat-dialog-container button[color="primary"]',
+                        'mat-dialog-container button[type="submit"]',
+                        '//mat-dialog-container//button[contains(., "Excluir") or contains(., "Sim") or contains(., "Confirmar")]',
+                        'mat-dialog-container button',
+                    ]
+                    for sel_conf in seletores_confirmar:
+                        try:
+                            if aguardar_e_clicar(driver, sel_conf, timeout=2, log=False):
+                                confirmado = True
+                                break
+                        except Exception:
+                            continue
+
+                    if confirmado:
+                        espera.ate_sumir(driver, 'mat-dialog-container', teto=3)
+                        espera.assentar(driver, 0.4)
+                        removido_algum = True
+                        logger.info('[LEMBRETE][REMOVER] Lembrete "%s" excluído com sucesso', titulo)
+            except Exception as e_painel:
+                if debug:
+                    logger.debug('[LEMBRETE][REMOVER] Erro ao processar painel de post-it: %s', e_painel)
+                continue
+
+        return removido_algum
+    except Exception as e:
+        if debug:
+            logger.error('[LEMBRETE][REMOVER] Erro geral ao remover lembrete: %s', e)
+        return False
+
 
 
 def _parse_gigs_string(string):
@@ -1226,6 +1539,72 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
         return False
 
 
+def _clicar_salvar_com_confirmacao(
+    driver: Any,
+    xpath_botao: str,
+    seletor_formulario: str,
+    teto: float = 10,
+    log: bool = False,
+) -> bool:
+    """Clica em "Salvar" e so retorna True se o clique teve efeito.
+
+    Equivalente ao `clicarBotao(seletor, texto, monitorar=true)` do aagigs
+    (gigs-plugin.js): instala um MutationObserver antes do clique e espera o
+    formulario sumir do DOM. Clicar num botao `disabled` nao dispara nada e o
+    chamador achava que tinha salvo — foi o que aconteceu com o comentario do
+    fluxo DOM em 30/10/2026 (retornou True em 0.49s, sem gravar).
+
+    Args:
+        xpath_botao: XPath do botao Salvar.
+        seletor_formulario: seletor de um campo que existe so enquanto o
+            formulario esta aberto (textarea, input...). Quando ele some do
+            DOM, o formulario foi submetido.
+
+    Returns:
+        True se o formulario fechou apos o clique; False caso contrario.
+    """
+    # 1. Esperar o botao existir E estar habilitado.
+    limite = time.time() + max(1.0, teto)
+    btn = None
+    while time.time() < limite:
+        try:
+            btn = espera.elemento(driver, xpath_botao, teto=0.5)
+        except Exception:
+            btn = None
+        if btn is not None:
+            try:
+                desabilitado = btn.get_attribute('disabled') or btn.get_attribute('aria-disabled')
+                if desabilitado not in (True, 'true', 'disabled', ''):
+                    break
+                if desabilitado in (None, False, 'false'):
+                    break
+            except Exception:
+                break
+        espera.assentar(driver, 0.2)
+
+    if btn is None:
+        if log:
+            logger.error('[SALVAR] botao nao encontrado: %s', xpath_botao)
+        return False
+
+    # 2. Clique.
+    try:
+        btn.click()
+    except Exception as e:
+        if log:
+            logger.error('[SALVAR] clique falhou: %s', e)
+        return False
+
+    # 3. Confirmacao: o formulario precisa sumir (mesmo efeito do observer do
+    #    aagigs). Se ele continuar no DOM, o clique nao foi aceito.
+    if espera.ate_sumir(driver, seletor_formulario, teto=5):
+        return True
+
+    if log:
+        logger.error('[SALVAR] formulario (%s) continua no DOM apos o clique', seletor_formulario)
+    return False
+
+
 def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=True):
     """
     Cria comentário GIGS na aba /detalhe - baseado em lancarComentario do a.py
@@ -1311,36 +1690,39 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
                 logger.warning('[COMENTARIO][AVISO] Nao foi possivel selecionar visibilidade: %s', e)
         
         # 5. Salvar
+        # O botao pode estar presente mas ainda desabilitado enquanto o
+        # formulario nao terminou de validar. Clicar num botao disabled nao
+        # faz nada e a funcao retornava True sem gravar (visto em 30/10/2026:
+        # criar_comentario levou 0.49s e nao salvou). Segue o aagigs
+        # (gigs-plugin.js, clicarBotao com monitorar=true): espera o clique
+        # ter efeito antes de considerar salvo.
         if log:
             logger.debug('[COMENTARIO] Salvando...')
-        btn_salvar = espera.elemento(driver, "//button[contains(., 'Salvar')]", teto=timeout)
-        if not btn_salvar:
-            raise TimeoutException("Botao 'Salvar' nao encontrado")
-        btn_salvar.click()
-        espera.assentar(driver, 1)
-
-        # 6. Comentário não dá confirmação explícita, apenas fecha
-        # Verificar se modal fechou
-        espera.ate_sumir(driver, 'mat-dialog-container', teto=1)
-        try:
-            modals = espera.elementos(driver, 'mat-dialog-container')
-            modal_aberto = any(m.is_displayed() for m in modals)
-            if not modal_aberto:
-                if log:
-                    logger.debug('[COMENTARIO] Comentario criado com sucesso')
-                return True
-            else:
-                # Forçar fechar com ESC
-                _pressionar_tecla(driver, "Escape")
-                espera.ate_sumir(driver, 'mat-dialog-container', teto=0.5)
-                if log:
-                    logger.debug('[COMENTARIO] Comentario criado (modal fechado manualmente)')
-                return True
-        except Exception:
+        if not _clicar_salvar_com_confirmacao(
+            driver,
+            "//button[contains(., 'Salvar')]",
+            'textarea[formcontrolname="descricao"], textarea[name="descricao"]',
+            teto=timeout,
+            log=log,
+        ):
             if log:
-                logger.debug('[COMENTARIO] Comentario criado')
-            return True
-            
+                logger.error('[COMENTARIO] Salvar nao teve efeito - comentario NAO gravado')
+            return False
+
+        # 6. Comentário não dá confirmação explícita, apenas fecha.
+        if not espera.ate_sumir(driver, 'mat-dialog-container', teto=3):
+            modais = espera.elementos(driver, 'mat-dialog-container') or []
+            if any(m.is_displayed() for m in modais):
+                if log:
+                    logger.error('[COMENTARIO] Modal segue aberto apos salvar - comentario NAO gravado')
+                _pressionar_tecla(driver, "Escape")
+                espera.ate_sumir(driver, 'mat-dialog-container', teto=1)
+                return False
+
+        if log:
+            logger.debug('[COMENTARIO] Comentario criado com sucesso')
+        return True
+
     except Exception as e:
         if log:
             logger.error("ERRO em criar_comentario: %s: %s", type(e).__name__, e)

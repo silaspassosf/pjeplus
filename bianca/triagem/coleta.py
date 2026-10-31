@@ -19,7 +19,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from Fix.variaveis import PjeApiClient, session_from_driver
-from bianca.triagem.preprocess import _strip_cabecalho_rodape
+from bianca.triagem.preprocess import _strip_cabecalho_rodape, _remover_artefatos_pje
 from bianca.triagem.utils import _norm, logger as _parent_logger
 from Fix.variaveis import obter_texto_documento
 
@@ -252,7 +252,7 @@ def _parsear_capa(texto: str) -> dict:
 
 
 def _extrair_texto_pdf_api(
-    client: "PjeApiClient", id_processo: str, id_doc: str
+    client: "PjeApiClient", id_processo: str, id_doc: str, fracao: float = 0.5
 ) -> str:
     """Extrai texto de PDF via API, com fallback para OCR se texto nativo insuficiente.
 
@@ -301,7 +301,8 @@ def _extrair_texto_pdf_api(
                     textos.append(t)
 
         texto_nativo = "\n".join(textos).strip()
-        media = len(texto_nativo) / total if total else 0
+        texto_limpo = _remover_artefatos_pje(texto_nativo).strip()
+        media = len(texto_limpo) / total if total else 0
         if media >= LIMIAR:
             logger.debug(
                 "PDF %s: texto nativo OK (%s chars, %s pag, media=%.0f)",
@@ -312,13 +313,13 @@ def _extrair_texto_pdf_api(
             )
             return texto_nativo
         logger.debug(
-            "PDF %s: texto nativo insuficiente (%s chars, %s pag, media=%.0f) -- tentando OCR",
+            "PDF %s: texto nativo insuficiente (%s chars uteis, %s pag, media=%.0f) -- tentando OCR",
             id_doc,
-            len(texto_nativo),
+            len(texto_limpo),
             total,
             media,
         )
-        return _ocr_via_pymupdf(pdf_bytes, id_doc, texto_nativo)
+        return _ocr_via_pymupdf(pdf_bytes, id_doc, texto_nativo, fracao=fracao)
     except _ErroAutenticacao401:
         raise
     except Exception as e:
@@ -422,9 +423,10 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         logger.warning("obter_texto_documento falhou: %s. Tentando OCR...", e)
         texto_inicial = ''
 
-    # fallback OCR -- se API retornou texto vazio
-    if not texto_inicial and id_inicial:
-        logger.info('FALLBACK: Tentando OCR para documento %s...', id_inicial)
+    # fallback OCR -- se API retornou texto vazio ou apenas carimbos PJe
+    texto_util_ini = _remover_artefatos_pje(texto_inicial).strip() if texto_inicial else ''
+    if not texto_util_ini and id_inicial:
+        logger.info('FALLBACK: Tentando OCR para peticao inicial %s (chars uteis=%d)...', id_inicial, len(texto_util_ini))
         try:
             texto_inicial = _extrair_texto_pdf_api(client, id_processo, id_inicial) or ''
             if texto_inicial:
@@ -471,11 +473,14 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                 except Exception as e:
                     logger.debug('obter_texto_documento para anexo %s falhou: %s', id_anx, e)
                     
-                # Fallback: PDF + OCR (apenas para procuracao, para otimizar)
-                if not texto_anx and is_proc:
+                # Fallback: PDF + OCR (para procuracao, se texto vazio ou apenas carimbo PJe sem substancia)
+                texto_util = _remover_artefatos_pje(texto_anx).strip() if texto_anx else ''
+                if is_proc and (not texto_anx or len(texto_util) < 80):
                     try:
-                        texto_anx = _extrair_texto_pdf_api(client, id_processo, id_anx) or ''
-                        if texto_anx:
+                        logger.debug('Procuracao %s: acionando OCR fallback (chars uteis=%d)...', id_anx, len(texto_util))
+                        texto_ocr = _extrair_texto_pdf_api(client, id_processo, id_anx, fracao=0.5) or ''
+                        if texto_ocr:
+                            texto_anx = texto_ocr
                             logger.debug('procuracao OCR fallback %s chars', len(texto_anx))
                         else:
                             logger.warning('AVISO: procuracao OCR retornou vazio para anexo %s', id_anx)
@@ -512,9 +517,10 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             try:
                 # Tentar via API primeiro (pode ser HTML/texto)
                 texto_capa = obter_texto_documento(client, id_processo, id_cert) or ''
-                if not texto_capa:
+                texto_util_capa = _remover_artefatos_pje(texto_capa).strip() if texto_capa else ''
+                if not texto_util_capa:
                     # Fallback para PDF via OCR
-                    logger.debug('certidao: obter_texto_documento retornou vazio, tentando PDF/OCR')
+                    logger.debug('certidao: sem texto util, tentando PDF/OCR')
                     texto_capa = _extrair_texto_pdf_api(client, id_processo, id_cert) or ''
                 if texto_capa:
                     logger.debug('certidao_distribuicao: %s chars', len(texto_capa))
@@ -578,7 +584,16 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             reclamados_lista = []
             for p in passivos:
                 doc_p = re.sub(r'\D', '', p.get('documento') or '')
-                reclamados_lista.append({'nome': p.get('nome', '').strip(), 'cpfcnpj': doc_p})
+                rec_item = {'nome': p.get('nome', '').strip(), 'cpfcnpj': doc_p}
+                # PJDP = parte do PASSIVO com `procuradoria` preenchida. E' o
+                # mesmo ente que a UI marca com <i class="fa fa-university"> no
+                # card de polo passivo (seletor 'i.procuradoria-direito-publico'
+                # em atos/comunicacao_destinatarios.py).
+                # Confirmado por probe em 30/10/2026 (EMPRESA BRASILEIRA DE
+                # CORREIOS): tipoPessoa="J" tambem vale para PJ privada e
+                # autoridade veio False num PJDP — so `procuradoria` distingue.
+                rec_item['pjdp'] = bool(p.get('procuradoria'))
+                reclamados_lista.append(rec_item)
 
             # Enriquecer reclamados com CEP/endereco + detectar sem_endereco e dom_elet
             reclamadas_sem_endereco = []
@@ -588,14 +603,19 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                 if _parte.get('enderecoDesconhecido', False):
                     reclamadas_sem_endereco.append(nome_parte)
                 id_parte_pj = str(
-                    _parte.get('idPessoa') or _parte.get('id') or
-                    _parte.get('idParticipante') or _parte.get('idParte') or '')
-                dom_via_api = client.domicilio_eletronico(id_parte_pj) if id_parte_pj else None
+                    _parte.get('id') or _parte.get('idParte') or
+                    _parte.get('idParticipante') or '')
+                id_pessoa_pj = str(_parte.get('idPessoa') or '')
                 dom_flag_raw = (_parte.get('domicilioEletronico')
                                 or _parte.get('possuiDomicilioEletronico'))
-                tem_domicilio = dom_via_api if dom_via_api is not None else (dom_flag_raw is True)
-                if tem_domicilio:
+                if dom_flag_raw is True:
                     reclamadas_com_dom_elet += 1
+                else:
+                    dom_via_api = client.domicilio_eletronico(id_parte_pj) if id_parte_pj else None
+                    if dom_via_api is not True and id_pessoa_pj and id_pessoa_pj != id_parte_pj:
+                        dom_via_api = client.domicilio_eletronico(id_pessoa_pj)
+                    if dom_via_api is True:
+                        reclamadas_com_dom_elet += 1
                 endereco = _parte.get('endereco') or {}
                 cep_raw = endereco.get('nroCep') or ''
                 cep = re.sub(r'[^\d]', '', cep_raw) if cep_raw else None

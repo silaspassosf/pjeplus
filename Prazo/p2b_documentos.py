@@ -389,8 +389,8 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         # REGRA DE TENTATIVAS
         (['deverá realizar tentativas'], (ato_prev,)),
 
-        # REGRA DE INSTAURAÇÃO
-        (['defiro a instauração'], ('criar_gigs[1//xs pec dec]', 'criar_gigs[10//xs mdd edital pgto]', ato_idpj)),
+        # REGRA DE INSTAURAÇÃO (desativada temporariamente)
+        # (['defiro a instauração'], ('criar_gigs[1//xs pec dec]', 'criar_gigs[10//xs mdd edital pgto]', ato_idpj)),
 
         # REGRA DE INCIDENTE IDPJ — decisão que defere a desconsideração em face de
         # sócio(s).
@@ -421,9 +421,10 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         ([
             'inoportuna petição', 'determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição',
             'art. 112 do CPC', 'comunique-se por Edital', 'comunique-se de forma concomitante',
-            'Aguarde-se', 'Aguarde-se o prazo',
+            'Aguarde-se', 'Aguarde-se o prazo', 'Aguarde-se resposta',
             'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão',
             'sob pena de preclusão', 'embargos de declaração', 'Registre-se o movimento processual adequado',
+            'decisão com força de alvará',
         ], (checar_prox,)),
 
         # REGRA DE DADOS BANCÁRIOS / ENDEREÇO (fuzzy, mesma linha — aceita termos interpostos)

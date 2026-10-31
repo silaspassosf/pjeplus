@@ -196,7 +196,11 @@ def triagem_peticao(driver) -> str:
     anexos = coleta['anexos']
     capa_dados = coleta.get('capa_dados') or {}
 
-    b1 = _checar_procuracao_e_identidade(anexos, capa_dados.get('reclamante_nome') or '')
+    b1 = _checar_procuracao_e_identidade(
+        anexos,
+        capa_dados.get('reclamante_nome') or '',
+        capa_dados.get('reclamante_cpf') or '',
+    )
     cep = _checar_cep(texto, capa_dados)
     partes = _checar_partes(texto, capa_dados)
     seg = _checar_segredo(texto, capa_dados)
@@ -215,8 +219,11 @@ def triagem_peticao(driver) -> str:
     def _itens(v):
         return v if isinstance(v, list) else [v]
 
+    end_items = [it for it in _itens(end) if it.startswith('B12_ENDERECO')]
+    aud_items = [it for it in _itens(end) if not it.startswith('B12_ENDERECO')]
+
     alertas, itens_ok = [], []
-    for val in [b1, partes, seg, rec, resp, tut, dig, ped, pf, lit, end, rito, a6]:
+    for val in [b1, end_items, partes, seg, rec, resp, tut, dig, ped, pf, lit, aud_items, rito, a6]:
         for item in _itens(val):
             if not item:
                 continue

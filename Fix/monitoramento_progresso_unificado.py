@@ -133,8 +133,12 @@ def _validar_e_limpar_progresso(progresso: Dict[str, Any]) -> Dict[str, Any]:
         datas = {}
     # Manter apenas entradas com data em formato válido cujo número
     # ainda consta em uma das listas (sem órfãos).
-    numeros_validos = set(progresso_limpo.get("processos_executados", [])) | set(
-        progresso_limpo.get("processos_com_erro", []))
+    numeros_validos = (
+        set(progresso_limpo.get("processos_executados", [])) |
+        set(progresso_limpo.get("processos_com_erro", [])) |
+        set(progresso_limpo.get("tarefas_executadas", [])) |
+        set(progresso_limpo.get("tarefas_com_erro", []))
+    )
     datas_limpas = {}
     for numero, data in datas.items():
         if not isinstance(numero, str) or not isinstance(data, str):
@@ -302,7 +306,7 @@ def salvar_progresso_unificado(tipo_execucao: str, progresso: Dict[str, Any]):
         # Não relançar erro para não quebrar o fluxo principal
 
 
-def limpar_progresso_antigos(dias: int = 2) -> Dict[str, int]:
+def limpar_progresso_antigos(dias: int = 3) -> Dict[str, int]:
     """
     Remove de TODAS as seções do progresso.json os processos executados ou
     com erro há mais de `dias` dias (ou sem data registrada — legado).
@@ -313,7 +317,7 @@ def limpar_progresso_antigos(dias: int = 2) -> Dict[str, int]:
     não tinha controle de data.
 
     Args:
-        dias: Idade máxima (em dias) para manter a entrada. Padrão: 2.
+        dias: Idade máxima (em dias) para manter a entrada. Padrão: 3.
 
     Returns:
         Dict com total removido por seção, ex.: {'pec': 40, 'p2b': 3}.
@@ -333,14 +337,19 @@ def limpar_progresso_antigos(dias: int = 2) -> Dict[str, int]:
         hoje = datetime.now().date()
         limite = hoje.toordinal() - max(0, int(dias))
 
-        def _antigo(data_str: Optional[str]) -> bool:
-            """True se a data é anterior ao limite (ou inválida/ausente)."""
-            if not isinstance(data_str, str):
+        if int(dias) <= 0:
+            def _antigo(data_str: Optional[str]) -> bool:
+                """Purga total (dias <= 0): remove todas as entradas."""
                 return True
-            try:
-                return datetime.strptime(data_str, "%Y-%m-%d").date().toordinal() <= limite
-            except ValueError:
-                return True
+        else:
+            def _antigo(data_str: Optional[str]) -> bool:
+                """True se a data é estritamente anterior ao limite (< limite, mais de `dias` dias)."""
+                if not isinstance(data_str, str):
+                    return True
+                try:
+                    return datetime.strptime(data_str, "%Y-%m-%d").date().toordinal() < limite
+                except ValueError:
+                    return True
 
         arquivo_modificado = False
         for tipo, secao in dados_completos.items():
@@ -360,7 +369,11 @@ def limpar_progresso_antigos(dias: int = 2) -> Dict[str, int]:
                         removidos += 1
                         arquivo_modificado = True
                         continue
-                    if _antigo(datas.get(numero)):
+                    data_ref = datas.get(numero)
+                    if data_ref is None and "::" in numero:
+                        proc_num = numero.split("::", 1)[0].strip()
+                        data_ref = datas.get(proc_num)
+                    if _antigo(data_ref):
                         removidos += 1
                         arquivo_modificado = True
                     else:

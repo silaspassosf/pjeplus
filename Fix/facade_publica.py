@@ -76,6 +76,7 @@ from .extracao import (
     criar_gigs,
     criar_comentario,
     criar_lembrete_posit,
+    remover_lembrete_posit,
     bndt,
     filtrofases,
     indexar_processos,
@@ -640,7 +641,7 @@ __all__ = [
     # Extracao
     'extrair_direto', 'extrair_documento', 'extrair_pdf',
     'extrair_dados_processo', 'extrair_destinatarios_decisao',
-    'criar_gigs', 'criar_comentario', 'criar_lembrete_posit',
+    'criar_gigs', 'criar_comentario', 'criar_lembrete_posit', 'remover_lembrete_posit',
     'bndt', 'filtrofases', 'indexar_processos', 'reindexar_linha',
     'abrir_detalhes_processo', 'indexar_e_processar_lista',
     'analise_argos', 'buscar_documento_argos', 'tratar_anexos_argos',

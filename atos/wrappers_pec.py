@@ -40,9 +40,21 @@ pec_decisao = make_comunicacao_wrapper(
     gigs_extra=(7, 'xs carta'),
     coleta_conteudo="link_ato",
     inserir_conteudo='link_ato',
-    destinatarios='informado',
+    destinatarios='informado decisao',
     endereco_tipo='correios',
     wrapper_name='pec_decisao'
+)
+
+pec_sid = make_comunicacao_wrapper(
+    tipo_expediente='Intimação',
+    prazo=10,
+    nome_comunicacao='sentença IDPJ',
+    sigilo=False,
+    modelo_nome='sent idpj',
+    subtipo='Intimação',
+    gigs_extra=(7, 'xs carta'),
+    destinatarios='informado sentenca suscitados',
+    wrapper_name='pec_sid'
 )
 
 pec_idpj = make_comunicacao_wrapper(
@@ -219,6 +231,7 @@ pec_ord = make_comunicacao_wrapper(
     destinatarios=None,
     trocar_modelo=True,
     modelo_troca_correios='ar-ord',
+    pjdp=False,
     wrapper_name='pec_ord'
 )
 
@@ -233,6 +246,7 @@ pec_sum = make_comunicacao_wrapper(
     destinatarios=None,
     trocar_modelo=True,
     modelo_troca_correios='ar-sum',
+    pjdp=False,
     wrapper_name='pec_sum'
 )
 
@@ -288,6 +302,64 @@ pec_arord = make_comunicacao_wrapper(
     cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
     endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
     wrapper_name='pec_arord'
+)
+
+pec_ordv = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='vord.',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios=None,
+    trocar_modelo=True,
+    modelo_troca_correios='arvord',
+    pjdp=False,
+    wrapper_name='pec_ordv'
+)
+
+pec_sumv = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='vsum',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios=None,
+    trocar_modelo=True,
+    modelo_troca_correios='arvsum',
+    pjdp=False,
+    wrapper_name='pec_sumv'
+)
+
+pec_arsumv = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='arvsum',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
+    cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
+    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    wrapper_name='pec_arsumv'
+)
+
+pec_arordv = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='arvord',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
+    cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
+    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    wrapper_name='pec_arordv'
 )
 
 pec_exeq = make_comunicacao_wrapper(

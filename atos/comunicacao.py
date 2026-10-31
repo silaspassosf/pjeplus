@@ -12,6 +12,8 @@ from .comunicacao_destinatarios import (
     selecionar_destinatarios,
     remover_destinatarios_endereco_invalido,
     contar_linhas_destinatarios,
+    inserir_destinatarios_pjdp,
+    detectar_pjdp_processo,
 )
 from .comunicacao_finalizacao import alterar_meio_expedicao, salvar_minuta_final
 from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
@@ -71,6 +73,7 @@ def comunicacao_judicial(
         trocar_modelo=trocar_modelo,
         assinar=kwargs.get('assinar', assinar),
         remover_endereco_invalido=kwargs.get('remover_endereco_invalido'),
+        pjdp=kwargs.get('pjdp'),
         wrapper_name=kwargs.get('wrapper_name')
     )
     debug_value = kwargs.pop('debug', False)
@@ -100,7 +103,8 @@ def make_comunicacao_wrapper(
     terceiro_default: bool = False,
     assinar: bool = False,
     modelo_troca_correios: Optional[str] = None,
-    remover_endereco_invalido: Optional[bool] = None
+    remover_endereco_invalido: Optional[bool] = None,
+    pjdp: Optional[Union[bool, str]] = False
 ) -> Callable[[Any, bool, Any], bool]:
     def wrapper(
         driver: Any,
@@ -186,8 +190,18 @@ def make_comunicacao_wrapper(
                     False if (wrapper_name == 'pec_exeq' or modelo_nome == 'xsexeq') else True
                 )
             ),
+            'pjdp': (overrides.get('pjdp', pjdp) if wrapper_name in ('pec_ord', 'pec_sum', 'pec_ordv', 'pec_sumv') else False),
             'wrapper_name': wrapper_name
         }
+
+        # Auto-detecção de PJDP se não fornecida explicitamente (EXCLUSIVO para pec_ord, pec_sum, pec_ordv, pec_sumv)
+        if wrapper_name in ('pec_ord', 'pec_sum', 'pec_ordv', 'pec_sumv') and 'pjdp' not in overrides and not call_kwargs.get('pjdp'):
+            try:
+                if detectar_pjdp_processo(driver):
+                    call_kwargs['pjdp'] = True
+                    logger.info(f"[COMUNICACAO][PJDP] PJDP detectada automaticamente para wrapper {wrapper_name}")
+            except Exception as e_pjdp:
+                logger.warning(f"[COMUNICACAO][PJDP][WARN] Falha na detecção automática de PJDP: {e_pjdp}")
 
         # Log function: usa print quando passado via log=print no override (ex: f.py)
         log_fn = overrides.get('log', logger.info)
@@ -350,26 +364,39 @@ def make_comunicacao_wrapper(
 
             # 4.5. Trocar modelo se necessário (fluxo 2: pec_ord, pec_sum, etc)
             if call_kwargs.get('trocar_modelo'):
-                modelo_troca = call_kwargs.get('modelo_troca_correios')
-                log_fn("[COMUNICACAO][ORQUESTRA] Trocando modelo (se detectar Correios nas linhas de destinatário)")
-                from atos.comunicacao_finalizacao import trocar_modelo_minuta
-                trocar_modelo_minuta(driver, modelo_troca=modelo_troca, debug=debug, log=log_fn)
-                
-                # Sincronização: aguardar que a página estabilize após troca de modelo
-                log_fn("[COMUNICACAO][ORQUESTRA] Aguardando estabilização após troca de modelo...")
-                try:
-                    # Aguardar tabela de destinatarios voltar para estado estável
-                    esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=15, by=By.CSS_SELECTOR)
-                    log_fn("[COMUNICACAO][ORQUESTRA] Página estabilizada pós-troca de modelo")
-                except Exception as e:
-                    log_fn(f"[COMUNICACAO][ORQUESTRA][WARN] Erro ao aguardar estabilização: {e}")
+                from atos.comunicacao_finalizacao import trocar_modelo_minuta, _contar_linhas_correios
+                qtd_correios = _contar_linhas_correios(driver)
+                if qtd_correios > 0:
+                    modelo_troca = call_kwargs.get('modelo_troca_correios')
+                    log_fn(f"[COMUNICACAO][ORQUESTRA] Trocando modelo ({qtd_correios} linha(s) Correios detectada(s))")
+                    trocou = trocar_modelo_minuta(driver, modelo_troca=modelo_troca, debug=debug, log=log_fn)
+                    
+                    if trocou:
+                        # Sincronização: aguardar que a página estabilize após troca de modelo
+                        log_fn("[COMUNICACAO][ORQUESTRA] Aguardando estabilização após troca de modelo...")
+                        try:
+                            # Aguardar tabela de destinatarios voltar para estado estável
+                            esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=15, by=By.CSS_SELECTOR)
+                            log_fn("[COMUNICACAO][ORQUESTRA] Página estabilizada pós-troca de modelo")
+                        except Exception as e:
+                            log_fn(f"[COMUNICACAO][ORQUESTRA][WARN] Erro ao aguardar estabilização: {e}")
 
-            # 4.75. Finalizar minuta NOVAMENTE (trocar modelo exige nova finalização)
-            if call_kwargs.get('trocar_modelo'):
-                log_fn("[COMUNICACAO][ORQUESTRA] Finalizando minuta apos troca de modelo")
-                from atos.comunicacao_preenchimento import finalizar_minuta
-                if not finalizar_minuta(driver, log=log_fn):
-                    raise Exception('finalizar_minuta falhou após troca de modelo — ato não finalizado')
+                        # 4.75. Se ainda houver diálogo de elaboração aberto, finaliza
+                        from atos.comunicacao_preenchimento import aguardar_fechamento_dialogo_elaboracao, finalizar_minuta
+                        if not aguardar_fechamento_dialogo_elaboracao(driver, log=log_fn, timeout=2):
+                            log_fn("[COMUNICACAO][ORQUESTRA] Finalizando minuta pendente após troca de modelo")
+                            if not finalizar_minuta(driver, log=log_fn):
+                                raise Exception('finalizar_minuta falhou após troca de modelo — ato não finalizado')
+                else:
+                    log_fn("[COMUNICACAO][ORQUESTRA] Nenhuma linha de Correios detectada (destinatários por Sistema/Domicílio) — mantendo modelo original")
+
+            # 4.6. Inserção manual de PJDP (exclusivo para pec_ord, pec_sum, pec_ordv, pec_sumv)
+            _pjdp_val = call_kwargs.get('pjdp', False)
+            pjdp_permitido = (wrapper_name in ('pec_ord', 'pec_sum', 'pec_ordv', 'pec_sumv'))
+            pjdp_ativo = pjdp_permitido and (str(_pjdp_val).strip().lower() in ('true', 'on', '1', 'yes', 's', 'sim') if _pjdp_val is not None else False)
+            if pjdp_ativo:
+                log_fn(f"[COMUNICACAO][ORQUESTRA] Flag PJDP ativa para {wrapper_name} — executando inserção manual de PJDP nos destinatários...")
+                inserir_destinatarios_pjdp(driver, log=log_fn, debug=debug)
 
             # 4.9. Guarda final pré-salvamento: garantir que não restou destinatário com endereço inválido (se habilitado)
             if remover_invalido:
@@ -431,6 +458,11 @@ def make_comunicacao_wrapper(
 
     if wrapper_name:
         wrapper.__name__ = wrapper_name
+    wrapper.modelo_nome = modelo_nome
+    wrapper.trocar_modelo = trocar_modelo
+    wrapper.modelo_troca_correios = modelo_troca_correios
+    wrapper.endereco_tipo = endereco_tipo
+    wrapper.pjdp = pjdp
 
     return wrapper
 

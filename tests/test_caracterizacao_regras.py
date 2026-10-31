@@ -43,6 +43,77 @@ class TestCaracterizacaoPEC(unittest.TestCase):
             self.assertIsNotNone(match, f"Falha ao casar '{obs}'")
             self.assertEqual(match[1], "comunicacoes")
 
+    def test_determinar_regra_notificacao_v(self):
+        from PEC.regras_execucao import determinar_regra
+        from atos import wrappers_pec as w
+
+        # XS ordv -> pec_ordv (troca de modelo para arvord)
+        match = determinar_regra("XS ordv")
+        self.assertIsNotNone(match)
+        self.assertEqual(match[1], "comunicacoes")
+        self.assertTrue(w.pec_ordv.trocar_modelo)
+        self.assertEqual(w.pec_ordv.modelo_troca_correios, 'arvord')
+
+        # xs sumv -> pec_sumv (troca de modelo para arvsum)
+        match = determinar_regra("xs sumv")
+        self.assertIsNotNone(match)
+        self.assertEqual(match[1], "comunicacoes")
+        self.assertTrue(w.pec_sumv.trocar_modelo)
+        self.assertEqual(w.pec_sumv.modelo_troca_correios, 'arvsum')
+
+        # xs ordva -> pec_arordv (direto sem hífen no wrapper)
+        match = determinar_regra("xs ordva")
+        self.assertIsNotNone(match)
+        self.assertEqual(match[1], "comunicacoes")
+        self.assertEqual(w.pec_arordv.modelo_nome, 'arvord')
+
+        # xs sumva -> pec_arsumv (direto sem hífen no wrapper)
+        match = determinar_regra("xs sumva")
+        self.assertIsNotNone(match)
+        self.assertEqual(match[1], "comunicacoes")
+        self.assertEqual(w.pec_arsumv.modelo_nome, 'arvsum')
+
+        # Garantir ausência de aliases
+        self.assertFalse(hasattr(w, 'pec_ar_ordv'))
+        self.assertFalse(hasattr(w, 'pec_ar_sumv'))
+
+    def test_determinar_regra_pec_id_e_mddid_removido(self):
+        from PEC.regras_execucao import determinar_regra
+        # mddid deve ter sido removido das regras
+        self.assertIsNone(determinar_regra("xs mddid"))
+        self.assertIsNone(determinar_regra("mdd id"))
+        self.assertIsNone(determinar_regra("mddid"))
+
+        # pec id deve casar no bucket comunicacoes
+        for obs in ["xs pec id", "pec id", "pecid", "xs pecid", "xs pec id >silas"]:
+            match = determinar_regra(obs)
+            self.assertIsNotNone(match, f"Falha ao casar '{obs}'")
+            self.assertEqual(match[1], "comunicacoes")
+
+        # pec idpj não deve ser consumido pela regra de pec id
+        match_idpj = determinar_regra("xs pec idpj")
+        self.assertIsNotNone(match_idpj)
+        self.assertEqual(match_idpj[1], "comunicacoes")
+        self.assertIn("idpj", match_idpj[0].pattern)
+
+    def test_determinar_regra_pagto_desp(self):
+        from PEC.regras_execucao import determinar_regra
+        for obs in [
+            "pagto desp",
+            "xs pagto desp",
+            "pgto desp",
+            "xs pgto desp",
+            "desp pagto",
+            "xs desp pagto",
+            "pagto despacho",
+            "despacho pagto",
+            "cumprir pagto desp urgente"
+        ]:
+            match = determinar_regra(obs)
+            self.assertIsNotNone(match, f"Falha ao casar '{obs}'")
+            self.assertEqual(match[1], "outros")
+            self.assertTrue(callable(match[2]))
+
     def test_determinar_regra_sobrestamento(self):
         from PEC.regras_execucao import determinar_regra
         match = determinar_regra("sobrestamento vencido")

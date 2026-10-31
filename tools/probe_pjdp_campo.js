@@ -1,0 +1,141 @@
+/**
+ * PJe Probe v6 — campo da API que identifica PJDP (orgao publico)
+ *
+ * Precisamos detectar PJDP (Poder Judiciario / orgao publico / ente publico)
+ * SEM depender do nome da parte — apenas por campo da API.
+ *
+ * Endpoint: GET /pje-comum-api/api/processos/id/{id}/partes
+ *
+ * Este probe lista todas as partes com TODOS os campos, destaca os que
+ * parecem indicar tipo/natureza, e tabula os candidatos.
+ *
+ * Uso: await pjeProbePJDP()
+ *      await pjeProbePJDP('9010617')
+ */
+(async function pjeProbePJDP(idProcessoArg) {
+  'use strict';
+
+  const log = (t, ...a) => console.log('%c[PJDP]', 'color:#0a0;font-weight:bold', t, ...a);
+  const warn = (t, ...a) => console.warn('%c[PJDP]', 'color:#a80;font-weight:bold', t, ...a);
+
+  let idProcesso = idProcessoArg;
+  if (!idProcesso) {
+    const m = location.pathname.match(/\/processo\/(\d+)/);
+    if (m) idProcesso = m[1];
+  }
+  if (!idProcesso) {
+    console.error('[PJDP] informe o id: pjeProbePJDP("9010617")');
+    return null;
+  }
+  log('idProcesso =', idProcesso);
+
+  const r = await fetch(
+    new URL(`/pje-comum-api/api/processos/id/${idProcesso}/partes`, location.origin).toString(),
+    { credentials: 'include', headers: { 'Accept': 'application/json' } }
+  );
+  if (!r.ok) {
+    console.error('[PJDP] HTTP', r.status);
+    return null;
+  }
+  const partes = await r.json();
+  if (!Array.isArray(partes)) {
+    warn('resposta nao e array:', partes);
+    return null;
+  }
+  log(`partes: ${partes.length}`);
+
+  // ---- 1. Todos os campos de todas as partes ----------------------------
+  if (partes.length) {
+    const campos = new Set();
+    for (const p of partes) Object.keys(p).forEach(k => campos.add(k));
+    log('campos disponiveis:', [...campos].sort().join(', '));
+
+    console.group('%c OBJETO COMPLETO de cada parte ', 'background:#046;color:#fff;font-weight:bold');
+    for (const p of partes) {
+      console.group(`${p.nome || p.nomeParte || p.descricao || '?'}`);
+      console.log(JSON.parse(JSON.stringify(p)));
+      console.groupEnd();
+    }
+    console.groupEnd();
+  }
+
+  // ---- 2. Campos que parecem indicar tipo/natureza ----------------------
+  const CAMPOS_TIPO = [
+    'tipoParte', 'tipo', 'tipoPessoa', 'natureza', 'naturezaParte',
+    'codigoTipoParte', 'tipoParteEnum', 'polo', 'poloProcessual',
+    'descricaoTipoParte', 'idTipoParte', 'grau', 'entePublico',
+    'orgaoPublico', 'poderPublico', 'isEntePublico', 'isOrgaoPublico',
+    'flOrgaoPublico', 'tipoPessoaEnum', 'documento', 'cpfCnpj',
+  ];
+
+  console.group('%c CAMPOS CANDIDATOS DE TIPO ', 'background:#640;color:#fff;font-weight:bold');
+  const linhas = partes.map(p => {
+    const o = { nome: (p.nome || p.nomeParte || '').slice(0, 45) };
+    for (const c of CAMPOS_TIPO) {
+      if (c in p) o[c] = p[c];
+    }
+    return o;
+  });
+  console.table(linhas);
+  console.groupEnd();
+
+  // ---- 3. Valores distintos por campo ----------------------------------
+  console.group('%c VALORES DISTINTOS POR CAMPO ', 'background:#404;color:#fff;font-weight:bold');
+  const dist = {};
+  for (const p of partes) {
+    for (const [k, v] of Object.entries(p)) {
+      if (v === null || v === undefined) continue;
+      if (typeof v === 'object') continue;
+      const chave = k;
+      if (!dist[chave]) dist[chave] = new Set();
+      dist[chave].add(String(v));
+    }
+  }
+  for (const [campo, vals] of Object.entries(dist)) {
+    // campos com poucos valores distintos sao bons candidatos a categoricos
+    if (vals.size <= 5 && vals.size >= 1) {
+      const arr = [...vals];
+      // so mostra se nao forem ids/numeros longos
+      if (arr.every(v => v.length <= 40)) {
+        console.log(`  ${campo} (${vals.size}): ${arr.map(v => JSON.stringify(v)).join(' | ')}`);
+      }
+    }
+  }
+  console.groupEnd();
+
+  // ---- 4. Procura valores que sugiram PJDP -----------------------------
+  console.group('%c VALORES QUE SUGEREM PJDP (publico/orgao/ente) ', 'background:#046;color:#fff;font-weight:bold');
+  const achados = [];
+  const varrer = (obj, caminho) => {
+    if (!obj || typeof obj !== 'object') return;
+    for (const [k, v] of Object.entries(obj)) {
+      const novo = caminho ? `${caminho}.${k}` : k;
+      if (typeof v === 'string' && /public|orgao|órgão|ente|poder|fazend|uniao|união/i.test(v)) {
+        achados.push({ campo: novo, valor: v, nome: (obj.nome || obj.nomeParte || '').slice(0, 40) });
+      }
+      if (typeof v === 'boolean' && v === true && /public|orgao|ente|poder/i.test(k)) {
+        achados.push({ campo: novo, valor: v, nome: (obj.nome || obj.nomeParte || '').slice(0, 40) });
+      }
+      if (v && typeof v === 'object') varrer(v, novo);
+    }
+  };
+  for (const p of partes) varrer(p, '');
+  if (achados.length) console.table(achados);
+  else warn('Nenhum campo com valor "publico/orgao/ente" encontrado.');
+  console.groupEnd();
+
+  // ---- 5. Documento (CNPJ) — PJDP costuma ser CNPJ ----------------------
+  console.group('%c DOCUMENTO (CPF/CNPJ) ', 'background:#640;color:#fff;font-weight:bold');
+  const docs = partes.map(p => {
+    const candidatos = ['documento', 'cpfCnpj', 'nuDocumento', 'numeroDocumento', 'cpf', 'cnpj'];
+    const o = { nome: (p.nome || p.nomeParte || '').slice(0, 45) };
+    for (const c of candidatos) if (c in p) o[c] = p[c];
+    return o;
+  });
+  console.table(docs);
+  console.groupEnd();
+
+  const pacote = { idProcesso, partes };
+  try { copy(JSON.stringify(pacote, null, 2)); log('JSON copiado.'); } catch (_) {}
+  return pacote;
+})();

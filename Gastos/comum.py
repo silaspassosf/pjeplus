@@ -50,21 +50,25 @@ BLOCO_B = BLOCO_II # Alias retrocompatível
 RUBRICAS_A = ['Escola', 'Psicoterapia', 'Psicopedagoga', 'Farmácia e Higiene',
               'Plano de Saúde e Odontológico', 'Médicos e Exames',
               'Alimentação rua e Cantina Escolar', 'Vestuário', 'Transporte', 'Lazer',
-              'Gastos extras escolares'] + [f'Outros (Individual) {i:02d}' for i in range(1, 6)] + ['', '']
+              'Gastos extras escolares', 'Outros (Individual) 01', 'Mesada',
+              'Outros (Individual) 03', 'Outros (Individual) 04', 'Outros (Individual) 05', '', '']
 RUBRICAS_B = ['Aluguel', 'Água', 'Luz', 'Gás', 'Internet', 'Streamings',
               'Mercado/Açougue/Padaria', 'Faxina/Limpeza'] + [f'Outros (Geral) {i:02d}' for i in range(1, 6)] + ['', '']
 LINHA_INI_A, LINHA_INI_B = 5, 27
-VALOR_PADRAO = {'Aluguel': 3500}
+VALOR_PADRAO = {'Aluguel': 3500, 'Mesada': 300, 'Streamings': 105.70}
+AVISO_PADRAO = {'Mesada': 'em espécie'}
 PASTA_DRIVE = {'Faxina/Limpeza': 'Faxina-Limpeza'}
 
-# Rubricas onde normalmente existe apenas 1 conta/recibo mensal (substituição automática de versão)
+# Rubricas de concessionárias/aluguel onde normalmente existe apenas 1 fatura mensal
+# (substituição automática somente quando sem valor ou valor muito próximo)
 RUBRICAS_CONTA_UNICA = {
     'Aluguel', 'Luz', 'Água', 'Gás', 'Internet',
-    'Escola', 'Plano de Saúde e Odontológico', 'Psicopedagoga', 'Psicoterapia'
 }
 
+PASTA_CONSOLIDADO_MENSAL = 'Consolidado mensal'
+
 RE_CONSOLIDADO = re.compile(
-    r'^(?:[a-z]{3}-\d{2}\s+|(?:Doc\s+[A-Z]+\d*\s*-\s*)?Comprovantes\s+-\s+|Doc\s+[A-Z]+\s*-\s*Prestação\s+de\s+Contas\s+-\s*|Prestação\s+de\s+Contas\s+-\s*|Compilação\s+-\s*).+\.pdf$',
+    r'^(?:[a-z]{3}-\d{2}\s+|(?:Doc\s+[A-Z]+\d*\s*-\s*)?Comprovantes\s+-\s+|Doc\s+[A-Z]+\s*-\s*Prestação\s+de\s+Contas\s+-\s*|Prestação\s+de\s+Contas\s+-\s*|Compilação\s+-\s*|Despesas\s+\(?[A-Za-zçÇ]+).+\.pdf$',
     re.IGNORECASE
 )
 
@@ -245,9 +249,9 @@ class DriveIndex:
     def listar_filhos(self, id_pai, apenas_pastas=None):
         filhos = self.by_parent.get(id_pai, [])
         if apenas_pastas is True:
-            return [f for f in filhos if f['mimeType'] == MIME_PASTA]
+            return [f for f in filhos if f.get('mimeType') == MIME_PASTA]
         elif apenas_pastas is False:
-            return [f for f in filhos if f['mimeType'] != MIME_PASTA]
+            return [f for f in filhos if f.get('mimeType') != MIME_PASTA]
         return list(filhos)
 
     def obter_ou_criar_pasta(self, nome, id_pai, dry_run=False):
@@ -318,18 +322,52 @@ def _linhas_bloco(rubricas, linha_ini, bloco):
     vals = []
     for i, rub in enumerate(rubricas):
         ln = linha_ini + i
-        vals.append([rub, VALOR_PADRAO.get(rub, ''), _formula_individual(ln, bloco), '', 'Pendente', ''])
+        val = VALOR_PADRAO.get(rub, '')
+        aviso = AVISO_PADRAO.get(rub, '')
+        status = '' if (aviso or not rub) else 'Pendente'
+        vals.append([rub, val, _formula_individual(ln, bloco), aviso, status, ''])
     return vals
 
 
+RE_RUBRICA_OUTROS = re.compile(r'^Outros \((Individual|Geral)\)\s*\d*$', re.IGNORECASE)
+
+
 def resetar_aba(aba, nome_mes):
-    fim_a = LINHA_INI_A + len(RUBRICAS_A) - 1
-    fim_b = LINHA_INI_B + len(RUBRICAS_B) - 1
-    aba.batch_update([
-        {'range': 'A1', 'values': [[f'Prestação de Contas — {nome_mes}']]},
-        {'range': f'B{LINHA_INI_A}:G{fim_a}', 'values': _linhas_bloco(RUBRICAS_A, LINHA_INI_A, 'A')},
-        {'range': f'B{LINHA_INI_B}:G{fim_b}', 'values': _linhas_bloco(RUBRICAS_B, LINHA_INI_B, 'B')},
-    ], value_input_option='USER_ENTERED')
+    """Reinicia a aba duplicada de um mês anterior, sem fixar posições de linhas.
+
+    As linhas 'Outros (Individual/Geral) NN' NÃO são mantidas no mês novo: só passam a existir
+    quando houver comprovantes na pasta correspondente (inseridas por consolidar.garantir_linhas_outros).
+    """
+    dados = aba.get_all_values()
+    updates = [{'range': 'A1', 'values': [[f'Prestação de Contas — {nome_mes}']]}]
+    linhas_outros = []
+    bloco = None
+    for i, linha in enumerate(dados, 1):
+        c0 = linha[0].strip() if len(linha) > 0 else ''
+        rub = linha[1].strip() if len(linha) > 1 else ''
+        if 'DESPESAS INDIVIDUAIS' in c0:
+            bloco = 'A'
+            continue
+        if 'DESPESAS GERAIS' in c0:
+            bloco = 'B'
+            continue
+        if rub.startswith('Subtotal') or rub.startswith('TOTAL'):
+            bloco = None
+            continue
+        if not bloco or not rub or rub == 'Descrição / Rubrica':
+            continue
+        if RE_RUBRICA_OUTROS.match(rub):
+            linhas_outros.append(i)
+            continue
+        if rub in RUBRICAS_A or rub in RUBRICAS_B:
+            aviso = AVISO_PADRAO.get(rub, '')
+            status = '' if aviso else 'Pendente'
+            updates.append({'range': f'B{i}:G{i}', 'values': [[rub, VALOR_PADRAO.get(rub, ''), _formula_individual(i, bloco), aviso, status, '']]})
+    aba.batch_update(updates, value_input_option='USER_ENTERED')
+    if linhas_outros:
+        reqs = [{'deleteDimension': {'range': {'sheetId': aba.id, 'dimension': 'ROWS', 'startIndex': r - 1, 'endIndex': r}}}
+                for r in sorted(linhas_outros, reverse=True)]
+        aba.spreadsheet.batch_update({'requests': reqs})
 
 
 def corrigir_rotulos_outros(aba, dry_run=False):
@@ -337,8 +375,10 @@ def corrigir_rotulos_outros(aba, dry_run=False):
     updates, cont = [], {'Outros (Geral)': 0, 'Outros (Individual)': 0}
     for i, v in enumerate(col_b, 1):
         v = v.strip()
+        if v in RUBRICAS_A or v in RUBRICAS_B or v == 'Mesada':
+            continue
         for base in cont:
-            if v == base or re.fullmatch(re.escape(base) + r' \d{2}', v):
+            if v == base:
                 cont[base] += 1
                 novo = f'{base} {cont[base]:02d}' if cont[base] <= 5 else ''
                 if novo != v:
@@ -356,6 +396,11 @@ def garantir_meses(sheets_client, drive_idx, ate=MES_ALVO_PADRAO, dry_run=False)
     titulos = {a.title.strip(): a for a in abas}
 
     pastas_raiz = {f['name']: f['id'] for f in drive_idx.listar_filhos(ID_PASTA_RAIZ_DRIVE, apenas_pastas=True)}
+    if PASTA_CONSOLIDADO_MENSAL not in pastas_raiz:
+        id_cons_m, nova_cm = drive_idx.obter_ou_criar_pasta(PASTA_CONSOLIDADO_MENSAL, ID_PASTA_RAIZ_DRIVE, dry_run=dry_run)
+        pastas_raiz[PASTA_CONSOLIDADO_MENSAL] = id_cons_m
+        if nova_cm:
+            print(f'{tag}📁 Drive "{PASTA_CONSOLIDADO_MENSAL}": pasta criada na raiz')
 
     for idx, nome_mes, _prefixo, _ano, _mes in iterar_meses(ate):
         # 1. Planilha

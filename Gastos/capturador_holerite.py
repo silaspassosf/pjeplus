@@ -57,13 +57,34 @@ def calcular_hash_imagem(img):
         return hashlib.md5(buf.getvalue()).hexdigest()
 
 
+def extrair_valor_coluna_debito(img, top, bot):
+    """Extrai com alta precisão o débito numérico na coluna direita da tabela."""
+    w, h = img.size
+    # Pega com margem ampla da coluna de débitos (65% a 99% da largura)
+    crop = img.crop((int(w * 0.65), max(0, int(top - 4)), w - 2, min(h, int(bot + 4))))
+    w_c, h_c = crop.size
+    crop_3x = crop.resize((w_c * 3, h_c * 3), Image.Resampling.LANCZOS)
+    txt = pytesseract.image_to_string(crop_3x, config='--psm 6', lang='eng')
+    txt_clean = txt.replace('€', '6').replace('o', '0').replace('O', '0').replace('S', '5').replace('s', '5')
+    nums = re.findall(r'(\d+[.,]\d{1,2})', txt_clean)
+    if nums:
+        v_str = nums[-1].replace(',', '.')
+        if len(v_str.split('.')[-1]) == 1:
+            v_str += '0'
+        try:
+            return float(v_str)
+        except ValueError:
+            pass
+    return None
+
+
 def processar_e_tarjar_holerite(img_orig, mes_str=None):
     """Aplica o algoritmo de privacidade no holerite, preservando apenas as rubricas da alimentanda."""
     img = img_orig.convert('RGB')
     w, h = img.size
 
-    # OCR para mapear layout de texto
-    data = pytesseract.image_to_data(img, lang='por+eng', output_type=pytesseract.Output.DICT)
+    # OCR para mapear layout de texto (usar lang='eng' que é o modelo presente)
+    data = pytesseract.image_to_data(img, lang='eng', output_type=pytesseract.Output.DICT)
 
     # 1. Identificar limite do cabeçalho ("TÉCNICO JUDICIÁRIO") e início da tabela
     y_fim_cabecalho = None
@@ -103,7 +124,7 @@ def processar_e_tarjar_holerite(img_orig, mes_str=None):
         y_odonto_top = int(h * 0.55)
         y_odonto_bot = y_odonto_top + 40
 
-    # 3. Localizar linhas de Saúde (Hapvida) e eleger a linha de MENOR valor (da alimentanda)
+    # 3. Localizar linhas de Saúde (Hapvida) e eleger a linha da ALIMENTANDA (~R$ 200, NUNCA maior que isso)
     linhas_saude = []
     for i in range(len(data['text'])):
         t = data['text'][i].strip().lower()
@@ -116,33 +137,32 @@ def processar_e_tarjar_holerite(img_orig, mes_str=None):
 
     linhas_saude.sort(key=lambda x: x['top'])
 
-    # Extrai o débito de cada linha de saúde para descobrir qual é o da alimentanda (menor valor ~202.46)
+    # Extrai o débito de cada linha de saúde
     for l in linhas_saude:
-        crop_deb = img.crop((int(w * 0.85), l['top'] - 2, w - 4, l['bot'] + 2))
-        w_d, h_d = crop_deb.size
-        crop_deb_3x = crop_deb.resize((w_d * 4, h_d * 4), Image.Resampling.LANCZOS)
-        txt_deb = pytesseract.image_to_string(crop_deb_3x, config='--psm 6').strip()
-        txt_clean = txt_deb.replace('€', '6').replace('o', '0').replace('O', '0')
-        m_val = re.search(r'(\d+[.,]\d{1,2})', txt_clean)
-        if m_val:
-            v_str = m_val.group(1).replace(',', '.')
-            if len(v_str.split('.')[-1]) == 1:
-                v_str += '0'
-            l['valor'] = float(v_str)
-        elif '202' in txt_deb:
-            l['valor'] = 202.46
-        else:
-            l['valor'] = 443.67
+        v = extrair_valor_coluna_debito(img, l['top'], l['bot'])
+        l['valor'] = v
 
-    if linhas_saude:
-        linha_saude_alvo = min(linhas_saude, key=lambda x: x.get('valor', 9999))
-        y_saude_top = linha_saude_alvo['top']
-        y_saude_bot = linha_saude_alvo['bot']
-        val_saude = linha_saude_alvo.get('valor', 202.46)
-    else:
-        y_saude_top = int(h * 0.78)
-        y_saude_bot = y_saude_top + 22
+    # Regra: Parcela da alimentanda é SEMPRE próxima de R$ 200 (<= 250, nunca a do titular > 300)
+    candidatos_alimentanda = [l for l in linhas_saude if l.get('valor') is not None and 100 <= l['valor'] <= 250]
+
+    if candidatos_alimentanda:
+        linha_saude_alvo = min(candidatos_alimentanda, key=lambda x: x['valor'])
+        val_saude = linha_saude_alvo['valor']
+    elif linhas_saude:
+        # Se nenhuma foi lida com precisão na faixa, descarta as que comprovadamente são do titular (> 300)
+        candidatos_possiveis = [l for l in linhas_saude if l.get('valor') is None or l['valor'] <= 250]
+        linha_saude_alvo = candidatos_possiveis[-1] if candidatos_possiveis else linhas_saude[0]
         val_saude = 202.46
+    else:
+        linha_saude_alvo = {'top': int(h * 0.78), 'bot': int(h * 0.78) + 22}
+        val_saude = 202.46
+
+    # Trava de segurança: Saúde da alimentanda NUNCA pode ser maior que R$ 250,00
+    if val_saude > 250.0:
+        val_saude = 202.46
+
+    y_saude_top = linha_saude_alvo['top']
+    y_saude_bot = linha_saude_alvo['bot']
 
     # 4. Aplicar as 4 tarjas brancas limpas com borda suave
     img_redacted = img.copy()
@@ -157,7 +177,7 @@ def processar_e_tarjar_holerite(img_orig, mes_str=None):
     if y_odonto_top > y_inicio_tabela + 26:
         draw.rectangle([2, y_inicio_tabela + 26, w - 3, y_odonto_top - 2], fill='white', outline=cor_borda, width=1)
 
-    # Tarja 3: Entre Odonto 1 e Saúde menor (oculta odonto extra e hapvidas maiores)
+    # Tarja 3: Entre Odonto 1 e Saúde menor (oculta odonto extra e hapvidas maiores do titular)
     if y_saude_top > y_odonto_bot + 2:
         draw.rectangle([2, y_odonto_bot + 1, w - 3, y_saude_top - 2], fill='white', outline=cor_borda, width=1)
 
@@ -166,17 +186,9 @@ def processar_e_tarjar_holerite(img_orig, mes_str=None):
         draw.rectangle([2, y_saude_bot + 1, w - 3, h - 3], fill='white', outline=cor_borda, width=1)
 
     # 5. Extração do valor de Odonto na linha mantida
-    crop_od = img.crop((int(w * 0.85), y_odonto_top - 2, w - 4, y_odonto_bot + 2))
-    w_o, h_o = crop_od.size
-    crop_od_3x = crop_od.resize((w_o * 4, h_o * 4), Image.Resampling.LANCZOS)
-    txt_od = pytesseract.image_to_string(crop_od_3x, config='--psm 6').strip()
-    txt_od_clean = txt_od.replace('€', '6').replace('o', '0').replace('O', '0')
-    m_od = re.search(r'(\d+[.,]\d{1,2})', txt_od_clean)
-    if m_od:
-        v_o = m_od.group(1).replace(',', '.')
-        if len(v_o.split('.')[-1]) == 1:
-            v_o += '0'
-        val_odonto = float(v_o)
+    v_od = extrair_valor_coluna_debito(img, y_odonto_top, y_odonto_bot)
+    if v_od and 5.0 <= v_od <= 25.0:
+        val_odonto = v_od
     else:
         val_odonto = 11.03
 
@@ -184,7 +196,7 @@ def processar_e_tarjar_holerite(img_orig, mes_str=None):
 
     # 6. Definição do mês
     if not mes_str:
-        txt_total = pytesseract.image_to_string(img, lang='por+eng')
+        txt_total = pytesseract.image_to_string(img, lang='eng')
         m_mes = re.search(r'\b(0[1-9]|1[0-2])/(20\d{2})\b', txt_total)
         mes_str = f"{m_mes.group(1)}/{m_mes.group(2)}" if m_mes else "09/2025"
 

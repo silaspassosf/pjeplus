@@ -20,6 +20,7 @@ from .wrappers_ato import (
     ato_idpj,
     ato_termoE,
     ato_termoS,
+    ato_pagto,
     ato_edital,
     ato_sobrestamento,
     ato_prov,

@@ -61,6 +61,10 @@ def _xs_ord(driver, atv):
     """xs ord: domicilio eletronico determina qual sub-acao executar."""
     from atos.wrappers_pec import pec_ord, pec_arord
     from atos.wrappers_mov import mov_aud
+    from atos.comunicacao_destinatarios import detectar_pjdp_processo
+    pjdp_on = bool(detectar_pjdp_processo(driver))
+    if pjdp_on:
+        logger.info('[xs_ord] PJDP detectada no polo passivo -> flag pjdp=True no pec_ord')
     try:
         from Fix.variaveis import cliente_para
         from Fix.core import extrair_id_processo
@@ -76,7 +80,7 @@ def _xs_ord(driver, atv):
                 logger.info(f'[xs_ord] {com} com domicilio, {sem} sem')
                 if sem == 0:
                     return _executar_passos(
-                        lambda: pec_ord(driver),
+                        lambda: pec_ord(driver, pjdp=pjdp_on),
                         lambda: mov_aud(driver),
                     )
                 if com == 0:
@@ -85,14 +89,14 @@ def _xs_ord(driver, atv):
                         lambda: mov_aud(driver),
                     )
                 return _executar_passos(
-                    lambda: pec_ord(driver),
+                    lambda: pec_ord(driver, pjdp=pjdp_on),
                     lambda: pec_arord(driver),
                     lambda: mov_aud(driver),
                 )
     except Exception as e:
         logger.warning(f'[xs_ord] fallback para pec_ord: {e}')
     return _executar_passos(
-        lambda: pec_ord(driver),
+        lambda: pec_ord(driver, pjdp=pjdp_on),
         lambda: mov_aud(driver),
     )
 
@@ -101,6 +105,10 @@ def _xs_sum(driver, atv):
     """xs sum: domicilio eletronico determina qual sub-acao executar."""
     from atos.wrappers_pec import pec_sum, pec_arsum
     from atos.wrappers_mov import mov_aud
+    from atos.comunicacao_destinatarios import detectar_pjdp_processo
+    pjdp_on = bool(detectar_pjdp_processo(driver))
+    if pjdp_on:
+        logger.info('[xs_sum] PJDP detectada no polo passivo -> flag pjdp=True no pec_sum')
     try:
         from Fix.variaveis import cliente_para
         from Fix.core import extrair_id_processo
@@ -116,7 +124,7 @@ def _xs_sum(driver, atv):
                 logger.info(f'[xs_sum] {com} com domicilio, {sem} sem')
                 if sem == 0:
                     return _executar_passos(
-                        lambda: pec_sum(driver),
+                        lambda: pec_sum(driver, pjdp=pjdp_on),
                         lambda: mov_aud(driver),
                     )
                 if com == 0:
@@ -125,16 +133,36 @@ def _xs_sum(driver, atv):
                         lambda: mov_aud(driver),
                     )
                 return _executar_passos(
-                    lambda: pec_sum(driver),
+                    lambda: pec_sum(driver, pjdp=pjdp_on),
                     lambda: pec_arsum(driver),
                     lambda: mov_aud(driver),
                 )
     except Exception as e:
         logger.warning(f'[xs_sum] fallback para pec_sum: {e}')
     return _executar_passos(
-        lambda: pec_sum(driver),
+        lambda: pec_sum(driver, pjdp=pjdp_on),
         lambda: mov_aud(driver),
     )
+
+
+def _xs_ordv(driver, atv=None):
+    """xs ordv: notificação inicial vara com detecção de PJDP."""
+    from atos.wrappers_pec import pec_ordv
+    from atos.comunicacao_destinatarios import detectar_pjdp_processo
+    pjdp_on = bool(detectar_pjdp_processo(driver))
+    if pjdp_on:
+        logger.info('[xs_ordv] PJDP detectada no polo passivo -> flag pjdp=True no pec_ordv')
+    return pec_ordv(driver, pjdp=pjdp_on)
+
+
+def _xs_sumv(driver, atv=None):
+    """xs sumv: notificação inicial vara com detecção de PJDP."""
+    from atos.wrappers_pec import pec_sumv
+    from atos.comunicacao_destinatarios import detectar_pjdp_processo
+    pjdp_on = bool(detectar_pjdp_processo(driver))
+    if pjdp_on:
+        logger.info('[xs_sumv] PJDP detectada no polo passivo -> flag pjdp=True no pec_sumv')
+    return pec_sumv(driver, pjdp=pjdp_on)
 
 
 def _def_sob(driver, atv):
@@ -143,14 +171,14 @@ def _def_sob(driver, atv):
 
 
 def _pz_idpj(driver, atv):
-    """pz idpj: cria gigs xs mddid + ato IDPJ."""
+    """pz idpj: cria gigs xs pec id + ato IDPJ."""
     from atos.judicial import ato_idpj
     def _run_idpj():
         r = ato_idpj(driver)
         return r[0] if isinstance(r, tuple) else r
         
     return _executar_passos(
-        lambda: criar_gigs(driver, "1", "", "xs mddid"),
+        lambda: criar_gigs(driver, "1", "", "xs pec id"),
         _run_idpj
     )
 
@@ -200,6 +228,13 @@ def _empresa_termo(driver, atv):
         lambda: ato_termoE(driver),
         lambda: bndt(driver, inclusao=True),
     )
+
+
+def _ato_pagto(driver, atv=None):
+    """pagto desp: ato_pagto (Despacho pagamento após IDPJ)."""
+    from atos.wrappers_ato import ato_pagto
+    r = ato_pagto(driver)
+    return r[0] if isinstance(r, tuple) else (True if r is None else r)
 
 
 def _sob_n(driver, atv):
@@ -398,16 +433,21 @@ registry.register(r'\b(?:xs\s+)?sob\s+\d+|\bxs\s+\d+$',                  'xs_sob
 # ── COMUNICACOES ──────────────────────────────────────────────────────────────
 registry.register(r'exclu[ei]r?.*(?:convenios?|serasa|cnib)|(?:convenios?|serasa|cnib).*exclu[ei]r?|mandado\s+de\s+exclus|\b(?:xs\s+|pec\s+)?excluiargos\b',
                   'comunicacoes', _w(_a(w, 'pec_excluiargos')))
-registry.register(r'\b(?:xs\s+ordc|c\.ord\.ar)\b',                    'comunicacoes', _w(_a(w, 'pec_arord')))
-registry.register(r'\b(?:xs\s+sumc|c\.sum\.ar)\b',                    'comunicacoes', _w(_a(w, 'pec_arsum')))
-registry.register(r'\b(?:xs\s+ord|c\.ord)\b',                          'comunicacoes', _xs_ord)
-registry.register(r'\b(?:xs\s+sum|c\.sum)\b',                          'comunicacoes', _xs_sum)
+# ── NOTIFICAÇÕES (BLOCO NOTIFICAÇÃO) ──────────────────────────────────────────
+registry.register(r'\b(?:xs\s+ordva|xs\s+ordv\s+a)\b',                          'comunicacoes', _w(_a(w, 'pec_arordv')))
+registry.register(r'\b(?:xs\s+sumva|xs\s+sumv\s+a)\b',                          'comunicacoes', _w(_a(w, 'pec_arsumv')))
+registry.register(r'\bxs\s+ordv\b',                                               'comunicacoes', _xs_ordv)
+registry.register(r'\bxs\s+sumv\b',                                               'comunicacoes', _xs_sumv)
+registry.register(r'\b(?:xs\s+ordcv|xs\s+ordc|c\.ord\.ar)\b',                    'comunicacoes', _w(_a(w, 'pec_arord')))
+registry.register(r'\b(?:xs\s+sumcv|xs\s+sumc|c\.sum\.ar)\b',                    'comunicacoes', _w(_a(w, 'pec_arsum')))
+registry.register(r'\b(?:xs\s+ord|c\.ord)\b',                                    'comunicacoes', _xs_ord)
+registry.register(r'\b(?:xs\s+sum|c\.sum)\b',                                    'comunicacoes', _xs_sum)
 registry.register(r'\bedital\s+aud\b|\bpec\s+aud\b',                    'comunicacoes', _w(_a(w, 'pec_editalaud')))
 registry.register(r'\bpz\s+idpj\b|\bidpjd\b|\bpzi\b',                 'comunicacoes', _pz_idpj)
 registry.register(r'\bpec\s+cp\b|\bxs\s+pec\s+cp\b|\bmdd\s+cp\b|\bcp\s+geral\b',                   'comunicacoes', _w(_a(w, 'pec_cpgeral')))
 registry.register(r'\bmdd\s+pgto\b',                                  'comunicacoes', _w(_a(w, 'pec_mddpg')))
 registry.register(r'\bmdd\s*2\b',                                    'comunicacoes', _w(_a(w, 'pec_mddgeral')))
-registry.register(r'\bmdd\s+id\b|\bmddid\b',                         'comunicacoes', _mddid)
+registry.register(r'\b(?:xs\s+)?pec\s+id\b|\b(?:xs\s+)?pecid\b',          'comunicacoes', _w(_a(w, 'pec_sid')))
 registry.register(r'\bedital\s+(?:de\s+)?pgto\b|\bpec\s+edital\s+(?:de\s+)?pgto\b', 'comunicacoes', _w(_a(w, 'pec_editalpg')))
 registry.register(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b|\bedital\b',
                   'comunicacoes', _w(_a(w, 'pec_editaldec')))
@@ -425,6 +465,7 @@ registry.register(r'\bsociot\b',                                       'outros',
 registry.register(r'\bempresa\s*termo\b|\btermoempresa\b',              'outros',   _empresa_termo)
 registry.register(r'\bmov\s+exec\b',                                    'outros',   _mov_exec)
 registry.register(r'\bxs\s+(?:pesq|pesquisa)\b',                        'outros',   _xs_pesq)
+registry.register(r'\b(?:xs\s+)?p(?:ag|g)to\s+desp(?:acho)?\b|\b(?:xs\s+)?desp(?:acho)?\s+p(?:ag|g)to\b', 'outros', _ato_pagto)
 
 REGRAS = registry.all_rules()
 

@@ -22,9 +22,9 @@ from bianca.triagem.utils import _norm
 logger = logging.getLogger("bianca.triagem.preprocess")
 
 _RE_ARTEFATOS_PJE = re.compile(
-    r'(?:^Documento assinado eletronicamente por[^\n]*\n?)'
-    r'|(?:^https?://pje\.[^\n]+\n?)'
-    r'|(?:^N[uú]mero do documento\s+\d+[^\n]*\n?)'
+    r'(?:^\s*(?:PJe\s+)?Documento assinado (?:eletronicamente|digitalmente) por[^\n]*\n?)'
+    r'|(?:^\s*https?://pje[^\n]*\n?)'
+    r'|(?:^\s*N[uú]mero do documento[:\s]+\d+[^\n]*\n?)'
     r'|(?:^(?:Start|End) of OCR for page \d+[^\n]*\n?)'
     r'|(?:^\s*PJe\s*\n?)'
     r'|(?:^\s*LOGO\s+IMAGE[^\n]*\n?)',

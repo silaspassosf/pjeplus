@@ -230,8 +230,162 @@
         return { sucesso: false, motivo: 'Atividade alvo não encontrada para conclusão' };
     }
 
+    /**
+     * Cria lembrete (post-it) no processo.
+     * Baseado em lancarLembrete de aagigs (gigs-plugin.js).
+     */
+    async function criarLembrete(params = {}) {
+        const { titulo, descricao, observacao, visibilidade = 'LOCAL', destinatario, salvar = true } = params;
+        const textoTitulo = titulo || descricao || params.tipoAtividade || '';
+        const textoObs = observacao || params.conteudo || '';
+
+        log(`Criando lembrete: titulo="${textoTitulo}", visib="${visibilidade}", obs="${textoObs}"`);
+
+        // 1. Abrir diálogo se ainda não estiver aberto
+        let dialogo = document.querySelector('#tituloPostit, pje-dialogo-post-it');
+        if (!dialogo) {
+            let btnPostit = document.querySelector('pje-icone-post-it button, button[aria-label*="Lembrete" i]');
+            if (!btnPostit) {
+                const btnMenu = document.querySelector('button[id="botao-menu"], #botao-menu, .fa-bars');
+                if (btnMenu) {
+                    btnMenu.click();
+                    await sleep(400);
+                }
+                btnPostit = await waitElem('pje-icone-post-it button, button[aria-label*="Lembrete" i]', 4000);
+            }
+            if (btnPostit) {
+                btnPostit.click();
+            }
+        }
+
+        const inputTitulo = await waitElem('input[id="tituloPostit"], #tituloPostit', 5000);
+        if (!inputTitulo) {
+            throw new Error('Diálogo de lembrete (#tituloPostit) não abriu.');
+        }
+
+        // 2. Preencher Título
+        setNativeValue(inputTitulo, textoTitulo);
+        await sleep(150);
+
+        // 3. Preencher Visibilidade (mat-select[id="visibilidadePostit"])
+        if (visibilidade) {
+            const selectVisib = document.querySelector('mat-select[id="visibilidadePostit"], #visibilidadePostit');
+            if (selectVisib) {
+                selectVisib.click();
+                await sleep(250);
+                const options = Array.from(document.querySelectorAll('mat-option[role="option"], .mat-option'));
+                const target = options.find(opt => (opt.textContent || '').trim().toLowerCase().includes(visibilidade.toLowerCase()));
+                if (target) {
+                    target.click();
+                    await sleep(200);
+                }
+            }
+        }
+
+        // 4. Se PRIVADO e informado destinatario, preencher destinatarioPostit
+        if (visibilidade.toUpperCase() === 'PRIVADO' && destinatario) {
+            const selectDest = await waitElem('mat-select[id="destinatarioPostit"], #destinatarioPostit', 3000);
+            if (selectDest) {
+                selectDest.click();
+                await sleep(250);
+                const options = Array.from(document.querySelectorAll('mat-option[role="option"], .mat-option'));
+                const target = options.find(opt => (opt.textContent || '').trim().toLowerCase().includes(destinatario.toLowerCase()));
+                if (target) {
+                    target.click();
+                    await sleep(200);
+                }
+            }
+        }
+
+        // 5. Preencher Conteúdo/Observação
+        if (textoObs) {
+            const inputConteudo = await waitElem('textarea[id="conteudoPostit"], #conteudoPostit', 3000);
+            if (inputConteudo) {
+                setNativeValue(inputConteudo, textoObs);
+                await sleep(150);
+            }
+        }
+
+        // 6. Salvar
+        if (salvar) {
+            const btnSalvar = Array.from(document.querySelectorAll('pje-dialogo-post-it button, mat-dialog-container button')).find(b => {
+                const t = (b.textContent || '').trim().toLowerCase();
+                return t === 'salvar' || t.includes('gravar');
+            });
+            if (btnSalvar) {
+                btnSalvar.click();
+                await sleep(800);
+            }
+        }
+
+        log('Lembrete cadastrado com sucesso.');
+        return { sucesso: true, titulo: textoTitulo, observacao: textoObs };
+    }
+
+    /**
+     * Conclui/remove lembrete existente.
+     * Espelha a ação [concluir] de aagigs (gigs-plugin.js).
+     */
+    async function concluirLembrete(params = {}) {
+        const { titulo, descricao, observacao } = params;
+        const textoTitulo = (titulo || descricao || params.tipoAtividade || '').toLowerCase();
+        const textoObs = (observacao || params.conteudo || '').toLowerCase();
+
+        log(`Tentando remover/concluir lembrete: titulo="${textoTitulo}", obs="${textoObs}"`);
+
+        const postits = Array.from(document.querySelectorAll('pje-visualizador-post-its mat-expansion-panel, div[class*="post-it-set"] mat-expansion-panel'));
+        if (postits.length === 0) {
+            warn('Nenhum post-it encontrado no painel.');
+            return { sucesso: false, motivo: 'Nenhum post-it encontrado' };
+        }
+
+        for (const postit of postits) {
+            const elTit = postit.querySelector('div[class="post-it-div-titulo"], .post-it-div-titulo, .post-it-titulo, mat-panel-title');
+            const elObs = postit.querySelector('div[aria-label="Conteúdo do Lembrete"], .post-it-conteudo');
+
+            const txtTit = (elTit?.innerText || elTit?.textContent || '').toLowerCase();
+            const txtObs = (elObs?.innerText || elObs?.textContent || '').toLowerCase();
+
+            const bateTit = !textoTitulo || txtTit.includes(textoTitulo);
+            const bateObs = !textoObs || txtObs.includes(textoObs);
+
+            if (bateTit && bateObs) {
+                log('Post-it alvo encontrado. Acionando exclusão...');
+                const btnRemover = postit.querySelector('button[aria-label="Remover Lembrete"], button[aria-label*="Remover" i], button[title*="Remover" i]');
+                if (btnRemover) {
+                    btnRemover.click();
+                    await sleep(400);
+
+                    const dialogBtnSim = await waitElem('mat-dialog-container button', 3000);
+                    if (dialogBtnSim) {
+                        const btnSim = Array.from(document.querySelectorAll('mat-dialog-container button')).find(b => {
+                            const t = (b.textContent || '').trim().toLowerCase();
+                            return t.includes('excluir') || t.includes('sim') || t.includes('confirmar');
+                        });
+                        if (btnSim) btnSim.click();
+                    }
+                    await sleep(600);
+                    return { sucesso: true, removido: true };
+                }
+            }
+        }
+        return { sucesso: false, motivo: 'Lembrete alvo não encontrado' };
+    }
+
+    // Exportação do motor de Lembretes (paridade aagigs)
+    window.PjeAutoActions.lembrete = async function (params = {}) {
+        const acao = (params.acao || 'criar').toLowerCase();
+        if (acao === 'concluir' || acao === 'remover') {
+            return await concluirLembrete(params);
+        }
+        return await criarLembrete(params);
+    };
+
     // Exportação do motor GIGS
     window.PjeAutoActions.gigs = async function (params = {}) {
+        if ((params.tipo || '').toLowerCase() === 'lembrete') {
+            return await window.PjeAutoActions.lembrete(params);
+        }
         const acao = (params.acao || 'criar').toLowerCase();
         if (acao === 'concluir') {
             return await concluirAtividade(params);

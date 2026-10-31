@@ -366,7 +366,7 @@ Arquivos agrupados pelo QUE fazem, independente de ONDE estão:
 | Extrair PDF (pdfplumber) | `Fix/extracao.py` | `extrair_pdf` |
 | Extrair documento (HTML/PDF) | `Fix/extracao.py` | `extrair_documento`, `extrair_direto` |
 | Extrair dados do processo | `Fix/extracao.py` | `extrair_dados_processo` |
-| Criar GIGS/comentário/lembrete | `Fix/extracao.py` | `criar_gigs`, `criar_comentario`, `criar_lembrete_posit` |
+| Criar/remover GIGS/comentário/lembrete | `Fix/extracao.py` | `criar_gigs`, `criar_comentario`, `criar_lembrete_posit`, `remover_lembrete_posit` |
 | BNDT (operações) | `Fix/extracao.py` | `bndt` — abrir, selecionar operação, gravar |
 | Indexar processos em lista | `Fix/extracao.py` | `indexar_processos`, `indexar_e_processar_lista` |
 | Destinatários (cache) | `Fix/extracao.py` | `extrair_destinatarios_decisao`, `salvar_destinatarios_cache` |

@@ -380,15 +380,30 @@ def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[s
 
 # ── extração de documentos da timeline via API (certidão/mandado, sem DOM) ──
 
-def _extrair_texto_documento_timeline_api(driver: Any, match_fn, log: bool = True, contexto: str = '') -> Optional[str]:
-    """Localiza (via timeline API) o primeiro documento cujo tipo/título (já
-    normalizados, sem acento) satisfaçam match_fn(tipo_norm, titulo_norm) e
-    extrai seu texto completo via /conteudo + pdfplumber — sem depender do PDF
-    viewer nem de nenhum elemento do DOM (ícone, autor, etc.).
+def _extrair_texto_documento_timeline_api(
+    driver: Any,
+    match_fn,
+    log: bool = True,
+    contexto: str = '',
+    preferir_ultimo: bool = False,
+) -> Optional[str]:
+    """Localiza (via timeline API) o documento cujo tipo/título/descrição (já
+    normalizados, sem acento) satisfaçam match_fn(tipo_norm, titulo_norm,
+    descricao_norm) e extrai seu texto completo via /conteudo + pdfplumber —
+    sem depender do PDF viewer nem de nenhum elemento do DOM (ícone, autor, etc.).
 
-    A API de timeline já expõe tipo/título categorizados (ex.: tipo='Mandado',
-    'Certidão'), então localizar o documento certo é só uma questão de filtrar
-    por essas strings — não é necessário saber quem assinou.
+    A API de timeline já expõe tipo/título/descrição categorizados (ex.:
+    tipo='Mandado', 'Certidão'; descrição='Certidão de Oficial de Justiça'),
+    então localizar o documento certo é só uma questão de filtrar por essas
+    strings — não é necessário saber quem assinou.
+
+    A descrição é o campo que distingue o modelo do sistema: várias certidões
+    compartilham tipo='Certidão' (Oficial de Justiça, Distribuição, DJEN), e só
+    a descrição separa uma da outra.
+
+    preferir_ultimo: a timeline vem em ordem cronológica, então o primeiro match
+    é o documento MAIS ANTIGO. Para "a certidão atual" isso pegava uma certidão
+    qualquer do passado (ex.: DJEN de 338 chars) em vez da recém-devolvida.
     """
     import io as _io
     import unicodedata
@@ -418,11 +433,17 @@ def _extrair_texto_documento_timeline_api(driver: Any, match_fn, log: bool = Tru
                 continue
             tipo_norm = _norm(doc.get('tipo', ''))
             titulo_norm = _norm(doc.get('titulo', ''))
-            if match_fn(tipo_norm, titulo_norm):
+            descricao_norm = _norm(doc.get('descricao', ''))
+            if match_fn(tipo_norm, titulo_norm, descricao_norm):
                 id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
                 if log:
-                    logger.info(f'[MANDADOS][OUTROS][API]{contexto} Documento localizado: id=%s tipo=%s', id_doc, doc.get('tipo'))
-                break
+                    logger.info(
+                        f'[MANDADOS][OUTROS][API]{contexto} Documento localizado: id=%s tipo=%s desc=%s',
+                        id_doc, doc.get('tipo'), doc.get('descricao'))
+                # sem preferir_ultimo, mantém o primeiro match (comportamento
+                # original); com a flag, segue varrendo e fica com o mais recente
+                if not preferir_ultimo:
+                    break
 
         if not id_doc:
             if log:
@@ -458,13 +479,38 @@ def _extrair_texto_documento_timeline_api(driver: Any, match_fn, log: bool = Tru
         return None
 
 
+def _eh_certidao_oficial_justica(tipo_norm: str, titulo_norm: str, descricao_norm: str) -> bool:
+    """Reconhece a Certidão de Oficial de Justiça pelo modelo do sistema.
+
+    O modelo aparece na descrição do documento na timeline, entre parênteses
+    logo após o título — ex.: link 'Certidão (Certidão de Oficial de Justiça)
+    - 13e4ed2' -> tipo='Certidão', titulo='Certidão',
+    descricao='Certidão de Oficial de Justiça'.
+
+    Filtrar só por 'certidao' no tipo/título pegava qualquer certidão — inclusive
+    a 'Certidão de Disponibilização e Publicação - DJEN', que também tem
+    tipo='Certidão' e vencia a busca por ser mais antiga na timeline. A certidão
+    de oficial correta (id 13e4ed2) era descartada e o processo era pulado sem
+    GIGS. Reusa o predicado canônico de Fix/documentos_cp.py.
+    """
+    from Fix.documentos_cp import _cp_eh_certidao_oj
+    return _cp_eh_certidao_oj(
+        f'{tipo_norm} {titulo_norm} {descricao_norm}'.strip()
+    )
+
+
 def _extrair_texto_certidao_oficial_via_api(driver: Any, log: bool = True) -> Optional[str]:
-    """Extrai o texto da certidão de Oficial de Justiça (documento atual) via API."""
+    """Extrai o texto da certidão de Oficial de Justiça (documento atual) via API.
+
+    Usa a descrição (modelo do sistema) para não confundir com outras certidões
+    e fica com a MAIS RECENTE — é a que o oficial acabou de devolver.
+    """
     return _extrair_texto_documento_timeline_api(
         driver,
-        match_fn=lambda tipo, titulo: 'certidao' in tipo or 'certidao' in titulo,
+        match_fn=_eh_certidao_oficial_justica,
         log=log,
         contexto='[CERTIDAO]',
+        preferir_ultimo=True,
     )
 
 
@@ -473,7 +519,7 @@ def _localizar_texto_mandado_anterior_via_api(driver: Any, log: bool = True) -> 
     na timeline via API — substitui a busca por ícone de gavel + autor no DOM."""
     return _extrair_texto_documento_timeline_api(
         driver,
-        match_fn=lambda tipo, titulo: (
+        match_fn=lambda tipo, titulo, descricao: (
             ('mandado' in tipo or 'mandado' in titulo)
             and 'certidao' not in tipo and 'certidao' not in titulo
         ),
@@ -1232,6 +1278,23 @@ PADRAO_POSITIVO = (
     "intimacao positiva",
     "dei o destinatario por",
     "dei a destinaria por",
+    # Formas perifrásticas: muitos oficiais não escrevem "citei"/"intimei", e sim
+    # "realizei a citação" / "citando para comparecer". Sem estas entradas a
+    # certidão de citação efetivada caía em "nenhuma regra" e o processo era
+    # pulado sem GIGS e sem sair do escaninho (caso 1001406-77.2026).
+    # Restrito a construções inequívocas: "recebi email"/"acusando o
+    # recebimento" ficam de fora porque podem aparecer em certidão que relata
+    # recebimento sem citação efetivada.
+    "realizei a citacao",
+    "realizei a intimacao",
+    "realizei a penhora",
+    "realizei a entrega do mandado",
+    "citando para comparecer",
+    "intimando para comparecer",
+    "citacao realizada",
+    "intimacao realizada",
+    "citacao efetivada",
+    "intimacao efetivada",
 )
 
 # Hipótese negativa de penhora: certidão relata ausência de bens penhoráveis.
@@ -1482,7 +1545,9 @@ def _classificar_certidao_oficial(texto: str) -> Optional[str]:
     return None
 
 
-def fluxo_mandados_outros(driver: Any, log: bool = True) -> Optional[str]:
+def fluxo_mandados_outros(
+    driver: Any, log: bool = True, com_texto: bool = False
+) -> Optional[Any]:
     """
     Processa a certidão de Oficial de Justiça já aberta (fluxo Outros/não-Argos).
 
@@ -1494,11 +1559,28 @@ def fluxo_mandados_outros(driver: Any, log: bool = True) -> Optional[str]:
     2. Classifica em cancelamento/positivo/negativo (motor de regras declarativo)
     3. Para negativo, executa ações adicionais (ato_meios/ato_edital conforme padrão)
 
+    IMPORTANTE — ordem de execução (corrigida em 29/10/2026):
+    O ato_meios deixou de ser executado AQUI. Ele depende de a tarefa do processo
+    abrir corretamente, e neste ponto o driver ainda pode estar na aba do
+    escaninho — o que fazia o clique em "Abrir tarefa do processo" cair em
+    /escaninho/documentos-internos e falhar (caso 1001474-61, 28/10: 4 tentativas
+    de ato_meios, todas abortadas com "Botão Conclusão ao magistrado não apareceu
+    em 15s ... a página da tarefa não carregou", e o fluxo caiu no fallback
+    'negativo' criando apenas a GIGS xs1).
+    O chamador deve executar, nesta ordem:
+        1. arquivar_mandado_outros_reconhecido(..., ao_meios_texto=texto_lower)
+           -> cria GIGS xs1 na aba /detalhe, executa ato_meios, e só então
+              troca para a aba do escaninho e apaga o item.
+    Por isso a assinatura devolve (regra, texto_lower) via tupla quando o
+    chamador pedir com `com_texto=True`; sem essa flag o retorno continua sendo
+    apenas o nome da regra (compatibilidade com os demais chamadores).
+
     Returns:
         Nome da regra reconhecida ('cancelamento'|'positivo'|'negativo') para o
-        chamador decidir o pós-processamento padrão (GIGS xs2 + apagar do
+        chamador decidir o pós-processamento padrão (GIGS xs1 + apagar do
         escaninho, via arquivar_mandado_outros_reconhecido), ou None se nenhuma
         regra foi reconhecida / falha na extração.
+        Com `com_texto=True`, devolve a tupla (regra, texto_lower).
     """
     texto = None
     try:
@@ -1528,22 +1610,20 @@ def fluxo_mandados_outros(driver: Any, log: bool = True) -> Optional[str]:
     if not texto:
         if log:
             logger.error("[MANDADOS][OUTROS][ERRO] Não foi possível extrair o texto da certidão.")
-        return None
+        return (None, '') if com_texto else None
     if log:
         logger.info(f"[MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): {texto[:200].replace(chr(10),' ')}")
 
     regra = _classificar_certidao_oficial(texto)
     logger.info(f'[MANDADOS][OUTROS] Regra reconhecida: {regra or "nenhuma"}')
 
-    if regra == 'negativo':
-        texto_lower = _normalizar_certidao(texto)
-        try:
-            _executar_acoes_padrao_negativo(driver, texto_lower, log=log)
-        except Exception as e:
-            if log:
-                logger.error(f"[MANDADOS][OUTROS][ERRO] Falha ao executar ações do padrão negativo: {e}")
+    # O ato_meios NAO roda mais aqui (ver docstring): a ordem correta e'
+    # GIGS xs1 -> ato_meios -> limpeza do escaninho, executada por
+    # arquivar_mandado_outros_reconhecido. Devolvemos o texto normalizado para
+    # que aquele ponto decida se ha acao do ramo negativo a executar.
+    texto_lower = _normalizar_certidao(texto) if regra == 'negativo' else ''
 
-    return regra
+    return (regra, texto_lower) if com_texto else regra
 
 
 def _criar_gigs_xs1_uma_vez(driver: Any, numero_processo: str, log: bool = True) -> None:
@@ -1554,6 +1634,17 @@ def _criar_gigs_xs1_uma_vez(driver: Any, numero_processo: str, log: bool = True)
             logger.info(f'[MANDADOS][OUTROS] GIGS já criado para #{numero_processo}. Pulando criação.')
         return
     try:
+        url_atual = (getattr(driver, 'current_url', '') or '').lower()
+        if 'acesso-negado' in url_atual or 'login' in url_atual:
+            if log:
+                logger.warning(f'[MANDADOS][OUTROS] URL inválida antes de criar GIGS ({url_atual[:80]}) — tentando recuperar sessão...')
+            from Mandado.entrada_api import _recuperar_sessao
+            if _recuperar_sessao(driver):
+                from Fix.variaveis import url_processo_detalhe
+                from Fix.core import wait_for_page_load
+                driver.get(url_processo_detalhe(numero_processo))
+                wait_for_page_load(driver, timeout=10)
+
         ok = bool(criar_gigs(driver, dias_uteis="1", responsavel="", observacao="xs1", log=log))
         if ok:
             _GIGS_CRIADO_PARA_PROCESSO.add(numero_processo)
@@ -1593,6 +1684,22 @@ def _apagar_mandado_do_escaninho(
                 driver.get(url_escaninho)
                 wait_for_page_load(driver, timeout=10)
                 from Mandado.entrada_api import ativar_filtro_mandados_devolvidos
+                ativar_filtro_mandados_devolvidos(driver)
+            except Exception:
+                pass
+
+    url_esc = (getattr(driver, 'current_url', '') or '').lower()
+    if 'acesso-negado' in url_esc or 'login' in url_esc:
+        if log:
+            logger.warning(f'[MANDADOS][OUTROS] Escaninho em URL inválida ({url_esc[:80]}) — recuperando sessão...')
+        from Mandado.entrada_api import _recuperar_sessao
+        if _recuperar_sessao(driver):
+            from Fix.variaveis import url_escaninho
+            from Fix.core import wait_for_page_load
+            from Mandado.fluxo_ui import ativar_filtro_mandados_devolvidos
+            try:
+                driver.get(url_escaninho)
+                wait_for_page_load(driver, timeout=10)
                 ativar_filtro_mandados_devolvidos(driver)
             except Exception:
                 pass
@@ -1646,6 +1753,7 @@ def arquivar_mandado_outros_reconhecido(
     numero_processo: str,
     escaninho_handle: str,
     log: bool = True,
+    ao_meios_texto: Optional[str] = None,
 ) -> bool:
     """Ação padrão para QUALQUER regra reconhecida no fluxo Outros (cancelamento,
     positivo ou negativo).
@@ -1653,13 +1761,31 @@ def arquivar_mandado_outros_reconhecido(
     A aba 0 (escaninho de mandados devolvidos) é aberta uma única vez no início
     da execução e NUNCA é fechada — por isso não há fallback de navegação aqui,
     apenas o fluxo fixo:
+
     a) cria GIGS sem prazo (xs1) na aba /detalhe ATUAL, logo após as ações da
        regra (chamado antes de qualquer troca de aba, para não perder o contexto).
        A criação ocorre UMA VEZ por processo; chamadas subsequentes para o mesmo
        processo pulam a criação.
-    b) troca para a aba do escaninho (escaninho_handle) e remove o item da lista.
+    b) [NOVO 29/10/2026] se `ao_meios_texto` vier preenchido (ramo NEGATIVO),
+       executa as ações do padrão negativo — que incluem ato_meios/ato_edital —
+       AINDA NA ABA DO PROCESSO. Antes isso acontecia dentro de
+       fluxo_mandados_outros(), antes da GIGS, e o ato_meios falhava porque o
+       driver podia estar na aba do escaninho (caso 1001474-61: "Botão
+       Conclusão ao magistrado não apareceu em 15s -- a página da tarefa não
+       carregou"), fazendo o fluxo cair no fallback 'negativo' com GIGS xs1 só.
+    c) troca para a aba do escaninho (escaninho_handle) e remove o item da lista.
+
+    Ordem final: GIGS xs1 -> ato_meios -> limpeza do escaninho.
     """
     _criar_gigs_xs1_uma_vez(driver, numero_processo, log)
+
+    # (b) ações do ramo negativo (ato_meios/ato_edital) — antes de trocar de aba
+    if ao_meios_texto:
+        try:
+            _executar_acoes_padrao_negativo(driver, ao_meios_texto, log=log)
+        except Exception as e:
+            logger.error(f"[MANDADOS][OUTROS][ERRO] Falha ao executar ações do padrão negativo: {e}")
+
     return _apagar_mandado_do_escaninho(driver, numero_processo, escaninho_handle, log)
 
 

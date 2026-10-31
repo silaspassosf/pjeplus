@@ -220,17 +220,25 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
                         elif bucket == 'c_pedidos': status_str = "Pedidos nao liquidados"
                         elif bucket == 'd_docs': status_str = "Falta de documentos"
                         else:
-                            from bianca.triagem.acoes import _tem_audiencia_marcada
+                            from bianca.triagem.acoes import _tem_audiencia_marcada, _usa_padrao_novo
                             
                             tem_aud = _tem_audiencia_marcada(drv, proc)
                             tem_100 = bool(proc.get('digital', proc.get('tem_100', False)))
                             
                             if tem_aud:
-                                proc["bucket"] = "C"
-                                status_str = "Direto - aud marcada / citado?"
+                                proc["bucket"] = "B" if tem_100 else "C"
+                                if tem_100:
+                                    status_str = "100% digital - despachado?"
+                                elif _usa_padrao_novo(proc, numero):
+                                    status_str = "Direto (seg/ter/sex) - despachado (ato_vpp)?"
+                                else:
+                                    status_str = "Direto - aud marcada / citado?"
                             else:
                                 proc["bucket"] = "A"  # acao_bucket_a lida com o 100% digital internamente
-                                status_str = "100% digital - marcado e despachado?" if tem_100 else "Sem aud - marcado e despachado?"
+                                if proc.get('pular_marcar_aud'):
+                                    status_str = "100% digital - sem aud (pula marcacao)?" if tem_100 else "Sem aud (pula marcacao)?"
+                                else:
+                                    status_str = "100% digital - marcado e despachado?" if tem_100 else "Sem aud - marcado e despachado?"
 
                         observacao = "BIANCA - TRIAGEM\n"
                         if status_str:

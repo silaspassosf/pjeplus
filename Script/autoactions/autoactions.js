@@ -50,8 +50,16 @@
                 }
                 return await self.anexar(params);
 
+            case 'lembrete':
+            case 'postit':
+            case 'post-it':
+                if (typeof self.lembrete !== 'function') {
+                    throw new Error('[PjeAutoActions] Submotor de lembretes não carregado.');
+                }
+                return await self.lembrete(params);
+
             default:
-                throw new Error(`[PjeAutoActions] Ação desconhecida: "${nomeAcao}". Ações disponíveis: gigs, despacho, anexar.`);
+                throw new Error(`[PjeAutoActions] Ação desconhecida: "${nomeAcao}". Ações disponíveis: gigs, despacho, anexar, lembrete.`);
         }
     };
 

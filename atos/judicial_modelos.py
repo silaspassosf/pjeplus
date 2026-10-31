@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from typing import Any, Optional, Callable
@@ -31,8 +32,18 @@ _SEL_BTN_INSERIR_CSS = (
 
 # Editor-alvo: o MESMO que recebe o modelo (Dispositivo → Fundamentação → genérico).
 # Inclui o CKEditor da juntada de anexos (.ck-editor__editable) para reuso do fluxo.
+#
+# O seletor canônico é o do gigs-plugin (+pje/comum/seletores.js,
+# SELETORES.editor.areaConteudo): `[role="textbox"]` é o que distingue o editor
+# de minuta real das outras div[contenteditable] da tela (tópicos da sentença,
+# preview do diálogo). Sem `role`, a busca cai em áreas que não recebem modelo.
+_SEL_EDITOR_TEXTOBOX = 'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]'
+
 _JS_EDITOR_ALVO = """() => {
     var sels = [
+        'div[class*="area-conteudo"][contenteditable="true"][role="textbox"][aria-label*="Dispositivo"]',
+        'div[class*="area-conteudo"][contenteditable="true"][role="textbox"][aria-label*="Fundamentação"]',
+        'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]',
         'div[class*="area-conteudo"] div[contenteditable="true"][aria-label*="Dispositivo"]',
         'div[class*="area-conteudo"] div[contenteditable="true"][aria-label*="Fundamentação"]',
         'div[class*="area-conteudo"][contenteditable="true"][aria-label*="Dispositivo"]',
@@ -58,26 +69,31 @@ _JS_TEOR_CARREGADO = """() => {
     return txt.length > 10 || clone.querySelector('figure') !== null || clone.querySelector('table') !== null;
 }"""
 
-_JS_EDITOR_COM_CONTEUDO = """(sel, baseline) => {
-    function medir(el) {
-        if (!el || el.classList.contains('ck-placeholder')) return { mudou: false, temConteudo: false };
-        var clone = el.cloneNode(true);
-        clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
-        var txt = (clone.innerText || clone.textContent || '').replace(/\\s/g, '');
-        var temEstrutura = clone.querySelector('figure, table, p.corpo, ol, ul') !== null;
-        var temConteudo = txt.length > 1 || temEstrutura;
-        var mudou = txt.length > (baseline + 5) || (temEstrutura && baseline === 0);
-        return { mudou: mudou, temConteudo: temConteudo };
-    }
+# Confirmação de conteúdo no editor — porte fiel de
+# gigs-plugin.js verificarSeExisteTextoNoEditor() (linha ~10771):
+#
+#   if (areaConteudo?.innerText.length > 1) { resposta = true }
+#   if (areaConteudo.querySelector('figure')) { resposta = true }
+#
+# Três pontos do original que a versão anterior havia perdido:
+#   1. ESCOPADO: decide SÓ o editor-alvo. A varredura por outras áreas comparava
+#      cada uma com o baseline do alvo e dava True com o editor vazio.
+#   2. ABSOLUTO: "editor tem texto", não "cresceu em relação a antes". O editor
+#      de minuta nasce vazio; baseline só abria margem para falso-positivo.
+#   3. O mesmo critério do gigs vale para retomada de minuta já preenchida.
+_JS_EDITOR_COM_CONTEUDO = """(sel) => {
     var area = document.querySelector(sel);
-    var res = medir(area);
-    if (res.temConteudo && res.mudou) return true;
-    var outras = Array.from(document.querySelectorAll('div[class*="area-conteudo"] div[contenteditable="true"], div.ck-content[contenteditable="true"]'));
-    for (var out of outras) {
-        var r = medir(out);
-        if (r.temConteudo && r.mudou) return true;
-    }
-    return false;
+    if (!area) return false;
+    var texto = (area.innerText || '').trim();
+    if (texto.length > 1) return true;          // texto real no editor
+    return area.querySelector('figure') !== null;  // imagem anexada sem texto
+}"""
+
+# Medida de diagnóstico (não decide sucesso): -1 = editor ausente.
+_JS_MEDIR = """(sel) => {
+    var area = document.querySelector(sel);
+    if (!area) return -1;
+    return ((area.innerText || '').trim()).length;
 }"""
 
 
@@ -123,20 +139,18 @@ def _focar_editor_alvo(driver: Any) -> bool:
 
 
 def _medir_conteudo_editor(driver: Any, seletor: str) -> int:
-    """Comprimento do texto real do editor-alvo (sem placeholders)."""
-    expr = """(() => {
-        var area = document.querySelector(%r);
-        if (!area) return 0;
-        var clone = area.cloneNode(true);
-        clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
-        return (clone.innerText || clone.textContent || '').trim().length;
-    })()""" % seletor
+    """Comprimento do texto real do editor-alvo (-1 se o editor não existe).
+
+    Diagnóstico apenas: a confirmação de sucesso é feita por
+    _JS_EDITOR_COM_CONTEUDO (escopada e absoluta, padrão gigs-plugin).
+    """
+    expr = "(%s)(%s)" % (_JS_MEDIR, json.dumps(seletor))
     try:
         if hasattr(driver, 'page'):
-            return int(driver.page.evaluate(expr) or 0)
+            return int(driver.page.evaluate(expr))
     except Exception:
         pass
-    return 0
+    return -1
 
 
 def _preencher_filtro_modelo(driver: Any, modelo_nome: str) -> bool:
@@ -207,7 +221,7 @@ def inserir_modelo_no_editor(
     modelo_nome: str,
     log: Optional[Callable] = None,
     timeout_teor: int = 15,
-    timeout_conteudo: int = 15,
+    timeout_conteudo: int = 8,
 ) -> bool:
     """Insere um modelo no editor de minuta — fluxo ÚNICO (padrão gigs-plugin aaDespacho).
 
@@ -225,9 +239,8 @@ def inserir_modelo_no_editor(
         #    permite que CKEditor saiba qual tópico ativo deve receber a inserção).
         _focar_editor_alvo(driver)
 
-        # Editor-alvo + baseline ANTES de inserir (detecta mudança real depois).
+        # Editor-alvo (mesmo critério do gigs: prioriza [role="textbox"]).
         seletor_editor_alvo = _resolver_editor_alvo(driver)
-        baseline_len = _medir_conteudo_editor(driver, seletor_editor_alvo)
 
         # 1. Filtro do modelo
         if not _preencher_filtro_modelo(driver, modelo_nome):
@@ -281,15 +294,21 @@ def inserir_modelo_no_editor(
         except Exception:
             pass
 
-        # 7. Confirmação: conteúdo REAL no editor-alvo (dinâmica, sem falso-positivo de snackbar vazio)
+        # 7. Confirmação: conteúdo REAL no editor-alvo, escopado e absoluto.
+        #    Mesmo critério do gigs (verificarSeExisteTextoNoEditor): decide SÓ o
+        #    editor-alvo e exige texto presente — não "alguma área mudou desde o
+        #    baseline", que dava True com o editor vazio (ato salvo em branco).
+        #    A snackbar não entra na prova: a memória do repo registra que
+        #    "Modelo inserido com sucesso" aparece também com o editor vazio.
         conteudo_confirmado = bool(espera.ate_js(
             driver,
-            "(%s)(%r, %d)" % (_JS_EDITOR_COM_CONTEUDO, seletor_editor_alvo, baseline_len),
+            "(%s)(%s)" % (_JS_EDITOR_COM_CONTEUDO, json.dumps(seletor_editor_alvo)),
             teto=timeout_conteudo,
         ))
 
         if not conteudo_confirmado:
-            log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" não confirmado no editor-alvo após inserção')
+            log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" NÃO confirmado no editor-alvo '
+                f'({seletor_editor_alvo}) após {timeout_conteudo}s — editor vazio')
             return False
 
         # 8. Devolver foco ao editor (padrão gigs-plugin aaDespacho L12148: foco.focus()

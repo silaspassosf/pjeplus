@@ -230,8 +230,7 @@ def _recuperar_sessao(driver, tentativas=1):
     """Recupera a sessão quando a aba caiu em /acesso-negado.
 
     Reaproveita os cookies salvos (Fix.sessao) antes de partir para o login CPF
-    completo, que é o caminho caro. Devolve True se a aba voltou a responder
-    num processo.
+    completo, que é o caminho definitivo. Devolve True se a aba voltou a responder.
     """
     for n in range(1, tentativas + 1):
         try:
@@ -240,26 +239,30 @@ def _recuperar_sessao(driver, tentativas=1):
         except Exception:
             pass
 
-        # 1. Recarregar a página: sessão viva resolve a maior parte dos casos
-        try:
-            driver.refresh()
-            wait_for_page_load(driver, timeout=15)
-        except Exception:
-            pass
-        if not _url_invalida(driver):
-            logger.info('[MANDADOS_API][SESSAO] Recuperado com refresh')
-            return True
+        url_atual = (getattr(driver, 'current_url', '') or '').lower()
+
+        # 1. Recarregar a página (somente se não estiver em acesso-negado ou login, pois refresh aí só recarrega erro)
+        if 'acesso-negado' not in url_atual and 'login' not in url_atual:
+            try:
+                driver.refresh()
+                wait_for_page_load(driver, timeout=15)
+            except Exception:
+                pass
+            if not _url_invalida(driver):
+                logger.info('[MANDADOS_API][SESSAO] Recuperado com refresh')
+                return True
 
         # 2. Cookies salvos (login automático sem interação)
         try:
             from Fix.sessao import carregar_cookies_sessao
             if carregar_cookies_sessao(driver):
-                logger.info('[MANDADOS_API][SESSAO] Recuperado via cookies salvos')
-                return True
+                if not _url_invalida(driver):
+                    logger.info('[MANDADOS_API][SESSAO] Recuperado via cookies salvos')
+                    return True
         except Exception as e:
             logger.warning('[MANDADOS_API][SESSAO] Cookies falharam: %s', str(e)[:80])
 
-        # 3. Navegar ao painel e voltar: revalida o OAuth
+        # 3. Navegar ao painel para tentar revalidar o OAuth
         try:
             driver.get('https://pje.trt2.jus.br/pjekz/')
             wait_for_page_load(driver, timeout=15)
@@ -268,6 +271,23 @@ def _recuperar_sessao(driver, tentativas=1):
                 return True
         except Exception:
             pass
+
+        # 4. Reautenticação via login_cpf (caminho definitivo para acesso-negado / sessão morta)
+        try:
+            logger.info('[MANDADOS_API][SESSAO] Tentando reautenticação via login_cpf...')
+            from Fix.utils import login_cpf
+            from Fix.sessao import salvar_cookies_sessao
+            if login_cpf(driver):
+                try:
+                    salvar_cookies_sessao(driver, info_extra='recuperacao_acesso_negado_mandado')
+                except Exception:
+                    pass
+                if not _url_invalida(driver):
+                    logger.info('[MANDADOS_API][SESSAO] Recuperado com sucesso via login_cpf')
+                    return True
+        except Exception as e_login:
+            logger.warning('[MANDADOS_API][SESSAO] Falha no login_cpf: %s', str(e_login)[:80])
+
     return False
 
 
@@ -467,14 +487,26 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                         driver.close()
                         driver.switch_to.window(escaninho_handle)
                 else:
-                    regra = fluxo_mandados_outros(driver, log=True)
+                    # com_texto=True: o ramo NEGATIVO precisa do texto normalizado
+                    # da certidão para executar ato_meios/ato_edital. Isso acontece
+                    # DENTRO de arquivar_mandado_outros_reconhecido, depois da GIGS
+                    # xs1 e antes de trocar para a aba do escaninho — ordem
+                    # GIGS xs1 -> ato_meios -> limpeza (ver docstring da função).
+                    regra, texto_negativo = fluxo_mandados_outros(driver, log=True, com_texto=True)
                     if regra:
                         if regra == 'positivo':
                             logger.info(f"[MANDADOS_API] #{num}: Regra 'positivo' reconhecida. Executando GIGS xs1 + GIGS sem prazo (dados do mandado) + apagar do escaninho.")
                             arquivar_mandado_positivo_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
                         else:
-                            logger.info(f"[MANDADOS_API] #{num}: Regra '{regra}' reconhecida. Executando GIGS xs1 + apagar do escaninho.")
-                            arquivar_mandado_outros_reconhecido(driver, numero_processo=str(num), escaninho_handle=escaninho_handle, log=True)
+                            acoes_neg = " + ato_meios" if texto_negativo else ""
+                            logger.info(f"[MANDADOS_API] #{num}: Regra '{regra}' reconhecida. Executando GIGS xs1{acoes_neg} + apagar do escaninho.")
+                            arquivar_mandado_outros_reconhecido(
+                                driver,
+                                numero_processo=str(num),
+                                escaninho_handle=escaninho_handle,
+                                log=True,
+                                ao_meios_texto=texto_negativo or None,
+                            )
                         _marcar_concluido_mandado(str(num))
                     else:
                         logger.info(f"[MANDADOS_API] #{num}: Nenhuma regra reconhecida. Pulando.")
@@ -750,7 +782,7 @@ def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None, es
                 return resultado_cp is not None
 
             logger.info(f"[MANDADOS_API] {id_processo or numero_processo} -> Outros (via timeline)")
-            regra = fluxo_mandados_outros(driver, log=False)
+            regra, texto_negativo = fluxo_mandados_outros(driver, log=False, com_texto=True)
             if regra:
                 if regra == 'positivo':
                     arquivar_mandado_positivo_reconhecido(
@@ -765,6 +797,7 @@ def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None, es
                         numero_processo=str(numero_processo or id_processo),
                         escaninho_handle=escaninho_handle,
                         log=False,
+                        ao_meios_texto=texto_negativo or None,
                     )
             return True
 

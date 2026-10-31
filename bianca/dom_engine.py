@@ -699,10 +699,9 @@ def callback_bucket2(
 
     Fluxo:
       1. Remove chips de ciencia expirado e resposta excedido
-      2. Cria GIGS dom.e
-      3. Verifica lembrete Dom Eletronico
-         - Se nao existe: checa empresas, cria lembrete DomicEletr
-      4. Executa PEC conforme tipo e se e 100% digital
+      2. Verifica lembrete Dom Eletronico
+         - Se nao existe: checa empresas/notificações via API, cria comentário Bianca e lembrete DomElet, apaga chips
+      3. Executa PEC conforme tipo e dia da audiência
 
     Args:
         driver: Instancia na aba de detalhes do processo.
@@ -866,29 +865,7 @@ def callback_bucket2(
             ) or "-",
         )
 
-        # 1. GIGS sem prazo: registro listando os destinatarios que terao
-        # citacao renovada por correio, com o id da notificacao de cada um.
-        conteudo_gigs = _montar_conteudo_gigs_dom(destinatarios_dom)
-        logger.info(
-            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando GIGS sem prazo: %r",
-            conteudo_gigs,
-        )
-        try:
-            gigs_ok = bool(criar_gigs(driver, "", "", conteudo_gigs, log=True))
-            if gigs_ok:
-                logger.info(
-                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] GIGS sem prazo criada com sucesso"
-                )
-            else:
-                logger.error(
-                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] GIGS sem prazo retornou False"
-                )
-        except Exception as e:
-            logger.error(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar GIGS sem prazo: %s", e
-            )
-
-        # 2. Comentario Bianca: marca "DOM" ou "DOM com PJDP detectado"
+        # 1. Comentario Bianca: marca "DOM" ou "DOM com PJDP detectado"
         pjdp = list(getattr(destinatarios_dom, 'pjdp_detectado', []) or [])
         observacao_dom = 'DOM com PJDP detectado' if pjdp else 'DOM'
         logger.info(
@@ -906,7 +883,7 @@ def callback_bucket2(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
             )
 
-        # 3. Lembrete Post-it (DomElet) com formato: Renovado por correio para (Empresa - idNotificacao)
+        # 2. Lembrete Post-it (DomElet) com formato: Renovado por correio para (Empresa - idNotificacao)
         if destinatarios_dom:
             titulo_dom = "DomElet"
             conteudo_dom = _montar_conteudo_lembrete_dom(destinatarios_dom)

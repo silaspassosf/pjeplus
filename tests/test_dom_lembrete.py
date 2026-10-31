@@ -150,14 +150,14 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
 
     @patch("bianca.dom_engine.has_dom_eletronico_reminder", return_value=False)
     @patch("bianca.dom_engine._checar_empresas_e_ids_api")
-    @patch("bianca.dom_engine.criar_gigs", return_value=True)
+    @patch("bianca.dom_engine.criar_gigs")
     @patch("bianca.dom_engine.criar_comentario", return_value=True)
     @patch("bianca.dom_engine.criar_lembrete_posit", return_value=True)
     @patch("bianca.dom_engine.def_chip", return_value=True)
     @patch("bianca.dom_engine._verificar_acesso_negado")
     @patch("bianca.dom_engine._obter_abas", side_effect=[['aba1'], ['aba1', 'aba2']])
     @patch("bianca.dom_engine.pec_arordv", return_value=True)
-    def test_callback_bucket2_executa_gigs_comentario_e_lembrete(
+    def test_callback_bucket2_executa_comentario_e_lembrete_sem_gigs(
         self,
         mock_pec,
         mock_abas,
@@ -169,7 +169,7 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
         mock_checar_api,
         mock_verif_lembrete,
     ):
-        """Verifica se callback_bucket2 executa GIGS + Comentário + Lembrete DomElet."""
+        """Verifica se callback_bucket2 executa apenas Comentário + Lembrete DomElet (sem GIGS)."""
         from bianca.dom_engine import ListaDestinatariosDOM, callback_bucket2
 
         mock_driver = MagicMock()
@@ -188,8 +188,11 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
             res = callback_bucket2(mock_driver, tipo_processo="ATOrd", processo_info=processo_info)
 
         self.assertTrue(res)
-        mock_gigs.assert_called_once()
+        # GIGS NÃO deve ser criado
+        mock_gigs.assert_not_called()
+        # Comentário deve ser criado
         mock_coment.assert_called_once_with(mock_driver, "DOM", log=True)
+        # Lembrete Post-it DomElet deve ser criado
         mock_lembrete.assert_called_once_with(
             mock_driver,
             "DomElet",

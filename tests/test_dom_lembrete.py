@@ -148,6 +148,57 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
         self.assertTrue(len(conteudo) <= 200)
         self.assertTrue(conteudo.startswith("Renovado por correio para "))
 
+    @patch("bianca.dom_engine.has_dom_eletronico_reminder", return_value=False)
+    @patch("bianca.dom_engine._checar_empresas_e_ids_api")
+    @patch("bianca.dom_engine.criar_gigs", return_value=True)
+    @patch("bianca.dom_engine.criar_comentario", return_value=True)
+    @patch("bianca.dom_engine.criar_lembrete_posit", return_value=True)
+    @patch("bianca.dom_engine.def_chip", return_value=True)
+    @patch("bianca.dom_engine._verificar_acesso_negado")
+    @patch("bianca.dom_engine._obter_abas", side_effect=[['aba1'], ['aba1', 'aba2']])
+    @patch("bianca.dom_engine.pec_arordv", return_value=True)
+    def test_callback_bucket2_executa_gigs_comentario_e_lembrete(
+        self,
+        mock_pec,
+        mock_abas,
+        mock_acesso,
+        mock_chip,
+        mock_lembrete,
+        mock_coment,
+        mock_gigs,
+        mock_checar_api,
+        mock_verif_lembrete,
+    ):
+        """Verifica se callback_bucket2 executa GIGS + Comentário + Lembrete DomElet."""
+        from bianca.dom_engine import ListaDestinatariosDOM, callback_bucket2
+
+        mock_driver = MagicMock()
+        mock_driver.current_url = "https://pje.trt2.jus.br/pjekz/processo/8885568/detalhe"
+        mock_driver._numero_processo_lista = "1000123-45.2026.5.02.0001"
+
+        destinatarios_mock = ListaDestinatariosDOM([
+            {"empresa": "BANCO CSF", "id_unico_documento": "030869f"},
+        ])
+        destinatarios_mock.pjdp_detectado = []
+        mock_checar_api.return_value = destinatarios_mock
+
+        processo_info = {"dataAudiencia": "2026-11-02 09:00:00"}  # segunda-feira
+
+        with patch("bianca.dom_engine._dia_semana_audiencia", return_value=0):
+            res = callback_bucket2(mock_driver, tipo_processo="ATOrd", processo_info=processo_info)
+
+        self.assertTrue(res)
+        mock_gigs.assert_called_once()
+        mock_coment.assert_called_once_with(mock_driver, "DOM", log=True)
+        mock_lembrete.assert_called_once_with(
+            mock_driver,
+            "DomElet",
+            "Renovado por correio para (BANCO CSF - 030869f)",
+            debug=True,
+        )
+        self.assertEqual(mock_chip.call_count, 2)
+        mock_pec.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

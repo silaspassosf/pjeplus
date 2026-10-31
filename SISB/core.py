@@ -577,219 +577,147 @@ def driver_sisbajud(headless=False):
 
 def login_automatico_sisbajud(driver):
     """
-    Login automatizado no SISBAJUD com credenciais do Windows Credential Manager.
-    Detecta a dialog de ordens pendentes (<mat-dialog-container> / <sisbajud-dialog-aviso-ordem-pendente>)
-    para confirmar login valido e fecha via ESC.
+    Login SIMPLES no SISBAJUD:
+    1. Navega para SISBAJUD
+    2. Preenche CPF/senha
+    3. Clica login (JavaScript direto - sem timeout)
+    4. Aguarda URL correta (/minuta ou raiz autenticada)
+    5. Dispensa dialog se aparecer
+    Fim!
     """
     try:
         from Fix import espera
-        from Fix.utils import obter_credencial, _is_driver_headless
+        from Fix.utils import obter_credencial
 
         cpf = obter_credencial('SISB_CPF', servicos=('sisbajud', 'pjeplus', 'SISB'), aliases=('BP_SISB', 'PJE_USER', 'PJE_CPF'))
         senha = obter_credencial('SISB_SENHA', servicos=('sisbajud', 'pjeplus', 'SISB'), aliases=('BP_PASS', 'PJE_SENHA', 'PJE_PASSWORD'))
 
         if not cpf or not senha:
-            logger.warning('[SISBAJUD][LOGIN] Credenciais SISB_CPF / SISB_SENHA não encontradas no Windows Credential Manager.')
+            logger.warning('[SISBAJUD][LOGIN] Credenciais não encontradas')
             return False
 
-        logger.info('[SISBAJUD][LOGIN] Navegando para SISBAJUD (https://sisbajud.cnj.jus.br/)...')
+        # 1. NAVEGAR
+        logger.info('[SISBAJUD][LOGIN] Navegando para SISBAJUD...')
         driver.get('https://sisbajud.cnj.jus.br/')
-        espera.assentar(driver, 1)
+        espera.assentar(driver, 2)
 
-        # 1. Verificar se já tem sessão ativa no SISBAJUD
-        if is_sessao_ativa_sisbajud(driver):
-            logger.info('[SISBAJUD][LOGIN] Sessão já ativa detectada!')
-            return True
+        # 2. PREENCHER CPF
+        logger.info('[SISBAJUD][LOGIN] Preenchendo CPF...')
+        preencher_campo(driver, '#username, input[name="username"]', str(cpf))
+        espera.assentar(driver, 0.5)
 
-        # 2. Aguardar tela de login (Keycloak SSO / campos de usuário)
-        logger.info('[SISBAJUD][LOGIN] Aguardando tela de autenticação do SISBAJUD...')
-        if not is_tela_login_sisbajud(driver):
-            espera.ate(driver, lambda d: is_tela_login_sisbajud(d) or is_sessao_ativa_sisbajud(d), teto=10)
+        # 3. PREENCHER SENHA
+        logger.info('[SISBAJUD][LOGIN] Preenchendo senha...')
+        preencher_campo(driver, '#password, input[name="password"]', str(senha))
+        espera.assentar(driver, 0.5)
 
-        if is_sessao_ativa_sisbajud(driver):
-            logger.info('[SISBAJUD][LOGIN] Sessão ativa confirmada!')
-            return True
-
-        # Se não aparecer campo de login diretamente, tentar clicar no botão de entrada da landing page se houver
-        if not espera.ate_aparecer(driver, '#username, input[name="username"]', teto=3):
+        # 4. CLICAR LOGIN (JavaScript direto - sem timeout Playwright)
+        logger.info('[SISBAJUD][LOGIN] Clicando em login (JavaScript)...')
+        try:
+            getattr(driver, 'execute_script', lambda s: None)("document.querySelector('#kc-login').click();")
+            logger.info('[SISBAJUD][LOGIN] Click via JavaScript executado')
+        except Exception as e_js:
+            logger.warning('[SISBAJUD][LOGIN] JavaScript click falhou (%s), tentando Playwright com timeout menor', e_js)
             try:
-                clicou_entrar = driver.execute_script("""
-                    const botoes = Array.from(document.querySelectorAll('button, a, .btn'));
-                    for (const b of botoes) {
-                        const txt = (b.textContent || '').trim().toLowerCase();
-                        if (txt === 'entrar' || txt.includes('entrar com') || txt.includes('login') || txt === 'acessar') {
-                            b.click();
-                            return true;
-                        }
-                    }
-                    return false;
-                """)
-                if clicou_entrar:
-                    logger.info('[SISBAJUD][LOGIN] Botão de entrada acionado na landing page')
-                    espera.ate_aparecer(driver, '#username, input[name="username"]', teto=8)
-            except Exception:
-                pass
-
-        if not espera.ate_aparecer(driver, '#username, input[name="username"]', teto=5):
-            if is_sessao_ativa_sisbajud(driver):
-                logger.info('[SISBAJUD][LOGIN] Sessão ativa detectada!')
-                return True
-            logger.warning('[SISBAJUD][LOGIN] Campo #username não localizado e sessão não está ativa.')
-            return False
-
-        # Preencher CPF e Senha
-        logger.info('[SISBAJUD][LOGIN] Preenchendo credenciais do SISBAJUD via Windows Credential Manager...')
-        try:
-            if hasattr(driver, 'page') and driver.page:
-                driver.page.fill('#username, input[name="username"]', str(cpf))
-                driver.page.fill('#password, input[name="password"]', str(senha))
-            else:
-                preencher_campo(driver, '#username', cpf)
-                preencher_campo(driver, '#password', senha)
-        except Exception as e_fill:
-            logger.error('[SISBAJUD][LOGIN] Falha ao preencher credenciais: %s', e_fill)
-            return False
-
-        # Clicar em #kc-login
-        logger.info('[SISBAJUD][LOGIN] Clicando no botão de login (#kc-login)...')
-        try:
-            if hasattr(driver, 'page') and driver.page:
-                driver.page.click('#kc-login')
-            else:
-                safe_click_no_scroll(driver, '#kc-login')
-        except Exception as e_btn:
-            logger.error('[SISBAJUD][LOGIN] Falha ao clicar no botão de login: %s', e_btn)
-            return False
-
-        # Verificar se surgiu tela de OTP (código de verificação em duas etapas)
-        otp_detectado = False
-        if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=3):
-            otp_detectado = True
-            if _is_driver_headless(driver):
-                logger.info('[SISBAJUD][LOGIN] Tela de validação em duas etapas (OTP) detectada (modo headless).')
-                codigo = input("\n[SISBAJUD] Digite o código de validação (OTP): ").strip()
                 if hasattr(driver, 'page') and driver.page:
-                    driver.page.fill('#otp, input[name="otp"]', codigo)
-                    try:
-                        driver.page.locator('input[type="submit"], button[type="submit"], #kc-login').first.click()
-                    except Exception:
-                        driver.page.keyboard.press('Enter')
+                    driver.page.click('#kc-login', timeout=5000)
                 else:
-                    preencher_campo(driver, '#otp', codigo)
-                    safe_click_no_scroll(driver, 'input[type="submit"], button[type="submit"], #kc-login')
-            else:
-                logger.info('[SISBAJUD][LOGIN] Tela de validação em duas etapas (OTP) detectada. Digite o código no navegador e confirme...')
+                    safe_click_no_scroll(driver, '#kc-login')
+            except Exception as e_pw:
+                logger.error('[SISBAJUD][LOGIN] Falha em click: %s', e_pw)
+                return False
 
-        # Validação pós-login via Dialog de ordens pendentes ou sessão ativa
-        logger.info('[SISBAJUD][LOGIN] Aguardando confirmação de login válido via dialog de ordens pendentes ou sessão ativa...')
-        seletor_dialog = 'sisbajud-dialog-aviso-ordem-pendente, mat-dialog-container:has(sisbajud-dialog-aviso-ordem-pendente), mat-dialog-container'
+        # 5. AGUARDAR OTP (se necessário - usuário digita manualmente)
+        if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=5):
+            logger.info('[SISBAJUD][LOGIN] OTP detectado - aguardando entrada manual do usuário...')
+            espera.assentar(driver, 2)
 
-        login_confirmado = False
-        inicio = time.time()
-        timeout_dialog = 120.0 if otp_detectado else 45.0
+        # 6. AGUARDAR URL CORRETA - SISBAJUD (deve ser domínio sisbajud.cnj.jus.br, não SSO)
+        logger.info('[SISBAJUD][LOGIN] Aguardando redirecionamento para SISBAJUD...')
+        def url_ok(d):
+            url = (d.current_url or '').lower()
+            # ACEITA APENAS: https://sisbajud.cnj.jus.br/... (domínio real, não SSO)
+            # REJEITA: https://sso.cloud.pje.jus.br/... (SSO intermediário)
+            if 'sisbajud.cnj.jus.br' in url and 'sso.cloud' not in url:
+                return True
+            return False
+        
+        try:
+            resultado_url = espera.ate(driver, url_ok, teto=60)
+            # CORREÇÃO CRÍTICA: espera.ate retorna False se timeout, não lança exceção
+            if not resultado_url:
+                logger.error('[SISBAJUD][LOGIN] ✗ Timeout (60s) aguardando redirecionamento para SISBAJUD. URL final: %s', driver.current_url)
+                return False
+        except Exception as e_url:
+            logger.error('[SISBAJUD][LOGIN] ✗ Erro aguardando redirecionamento para SISBAJUD: %s', e_url)
+            return False
+        
+        logger.info('[SISBAJUD][LOGIN] ✓ URL carregada: %s', driver.current_url)
 
-        while (time.time() - inicio) < timeout_dialog:
-            # 1. Dialog de aviso de ordens pendentes detectada
-            if espera.ate_aparecer(driver, seletor_dialog, teto=1):
-                logger.info('[SISBAJUD][LOGIN] Dialog <sisbajud-dialog-aviso-ordem-pendente> detectada! Login confirmado com sucesso.')
-                login_confirmado = True
+        # 7. DISPENSAR DIALOG (se aparecer)
+        try:
+            from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
+            dispensar_dialog_ordem_pendente(driver, log=False, timeout=2.0)
+        except Exception:
+            pass
 
-                # Pressionar ESC para fechar a dialog
-                logger.info('[SISBAJUD][LOGIN] Pressionando ESC para fechar a dialog...')
-                try:
-                    if hasattr(driver, 'page') and driver.page:
-                        driver.page.keyboard.press('Escape')
-                    else:
-                        _executar_js = getattr(driver, '_executar_js', getattr(driver, 'execute_script', None))
-                        if _executar_js:
-                            _executar_js("document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape', 'code': 'Escape', 'keyCode': 27, 'which': 27, bubbles: true}));")
-                except Exception as e_esc:
-                    logger.debug('[SISBAJUD][LOGIN] Aviso ao enviar tecla ESC: %s', e_esc)
-
-                # Esperar dialog sumir (Fix.espera.ate_sumir)
-                espera.ate_sumir(driver, 'sisbajud-dialog-aviso-ordem-pendente', teto=4)
-
-                # Garantia caso ESC não feche o mat-dialog
-                try:
-                    from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
-                    dispensar_dialog_ordem_pendente(driver, log=False, timeout=1.5)
-                except Exception:
-                    pass
-                break
-
-            # 2. Sessão ativa comprovada (JWT válido ou DOM autenticado)
-            if is_sessao_ativa_sisbajud(driver):
-                logger.info('[SISBAJUD][LOGIN] Interface e sessão ativa do SISBAJUD confirmadas. Login concluído com sucesso.')
-                login_confirmado = True
-                break
-
-            espera.pausa(driver, 0.5)
-
-        if login_confirmado:
-            try:
-                driver.maximize_window()
-            except Exception:
-                pass
-            return True
-
-        logger.warning('[SISBAJUD][LOGIN] Login automático não confirmado no tempo limite.')
-        return False
-
-    except Exception as e:
-        logger.info(f'[SISBAJUD][LOGIN] Erro durante login automático: {e}')
-        logger.exception("Erro detectado")
+        logger.info('[SISBAJUD][LOGIN] ✓ Login completado com sucesso!')
+        return True
+    
+    except Exception as e_login:
+        logger.error('[SISBAJUD][LOGIN] Erro durante login automatizado: %s', e_login)
         return False
 
 
 def login_manual_sisbajud(driver, aguardar_url_final=True):
     """
-    Login manual para SISBAJUD: navega até a página de login e aguarda o usuário completar o login.
-    Detecta conclusão através de is_sessao_ativa_sisbajud(driver).
-    NUNCA assume que está logado apenas por ausência de 'login' na URL.
+    Login MANUAL para SISBAJUD - Aguarda usuário fazer login manualmente na tela
+    
+    Padrão:
+    1. Navega para SISBAJUD
+    2. Aguarda usuário digitar CPF/senha e clicar login
+    3. Aguarda URL correta (se aguardar_url_final=True)
+    4. Dispensa dialog
+    Fim!
     """
     try:
-        logger.info('[SISBAJUD][LOGIN_MANUAL] Navegando para SISBAJUD e aguardando login manual...')
+        logger.info('[SISBAJUD][LOGIN_MANUAL] Iniciando login manual...')
         
-        # Verificar se já está com sessão ativa
-        if is_sessao_ativa_sisbajud(driver):
-            logger.info('[SISBAJUD][LOGIN_MANUAL] Sessão já está ativa no SISBAJUD!')
-            return True
-
-        # Se não estiver na tela de login nem no SISBAJUD, navegar
-        if not is_tela_login_sisbajud(driver):
-            driver.get('https://sisbajud.cnj.jus.br/')
-        else:
-            logger.info('[SISBAJUD][LOGIN_MANUAL] Já está na página de autenticação, aguardando conclusão...')
+        # 1. NAVEGAR
+        logger.info('[SISBAJUD][LOGIN_MANUAL] Navegando para SISBAJUD...')
+        driver.get('https://sisbajud.cnj.jus.br/')
+        espera.assentar(driver, 2)
         
-        # Aguarda o usuário completar o login
-        timeout = 300  # 5 minutos para login manual
-        inicio = time.time()
-        while True:
-            try:
-                if is_sessao_ativa_sisbajud(driver):
-                    logger.info('[SISBAJUD][LOGIN_MANUAL] Login manual detectado com sucesso (URL: %s).', getattr(driver, 'current_url', ''))
-                    
-                    # Salvar cookies da sessão SISBAJUD
-                    if SALVAR_COOKIES_AUTOMATICO:
-                        try:
-                            salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
-                            logger.info('[SISBAJUD][LOGIN_MANUAL] Cookies salvos após login manual SISBAJUD')
-                        except Exception as e:
-                            logger.info(f"[SISBAJUD][LOGIN_MANUAL] Falha ao salvar cookies: {e}")
+        # 2. AGUARDAR LOGIN MANUAL DO USUÁRIO
+        if aguardar_url_final:
+            logger.info('[SISBAJUD][LOGIN_MANUAL] Aguardando login manual e URL correta...')
+            def url_ok(d):
+                url = (d.current_url or '').lower()
+                # Aceita: /minuta, /bloqueio, ou sisbajud.cnj sem /login
+                if '/minuta' in url or '/bloqueio' in url:
                     return True
-            except Exception as e:
-                _ = e
-
-            if not aguardar_url_final:
+                if 'sisbajud.cnj.jus.br' in url and ('/login' not in url and '/auth' not in url):
+                    return True
                 return False
-
-            if time.time() - inicio > timeout:
-                logger.warning('[SISBAJUD][LOGIN_MANUAL] Timeout aguardando login manual.')
-                return False
-
-            espera.pausa(driver, 0.5)
+            
+            espera.ate(driver, url_ok, teto=300)  # Aguarda até 5 minutos
+            logger.info('[SISBAJUD][LOGIN_MANUAL] ✓ URL carregada: %s', driver.current_url)
+        else:
+            logger.info('[SISBAJUD][LOGIN_MANUAL] Aguardando sem validar URL final...')
+            espera.assentar(driver, 5)
+        
+        # 3. DISPENSAR DIALOG (se aparecer)
+        try:
+            from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
+            dispensar_dialog_ordem_pendente(driver, log=False, timeout=2.0)
+        except Exception:
+            pass
+        
+        logger.info('[SISBAJUD][LOGIN_MANUAL] ✓ Login manual completado!')
+        return True
+    
     except Exception as e:
-        logger.info(f'[SISBAJUD][LOGIN_MANUAL] Erro durante login manual: {e}')
+        logger.error('[SISBAJUD][LOGIN_MANUAL] Erro durante login manual: %s', e)
         return False
 
 
@@ -1098,11 +1026,31 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         except Exception:
             pass
 
-        logger.info('[SISBAJUD] Clicando em "Nova Minuta" para iniciar criação...')
+        logger.info('[SISBAJUD] Procurando botão "Nova Minuta"...')
+        
+        # Debug: inspecciona DOM para encontrar qualquer botão com "Minuta" ou similar
+        fn_exec_debug = getattr(driver, 'execute_script', None) or (lambda s: driver.page.evaluate(s) if hasattr(driver, 'page') and driver.page else None)
+        debug_botoes = fn_exec_debug("""
+        const botoes = Array.from(document.querySelectorAll('button, a, [role="button"], .btn'));
+        return botoes.map(b => ({
+            tag: b.tagName,
+            text: (b.textContent || '').trim().substring(0, 50),
+            class: b.className,
+            id: b.id || '',
+            visible: b.offsetParent !== null
+        })).slice(0, 20);  // primeiros 20 botões
+        """)
+        logger.debug('[SISBAJUD] Botões encontrados na página: %s', debug_botoes)
+        
         script_nova_minuta = """
         var botaoNova = document.querySelector('button.mat-fab.mat-primary .fa-plus');
         if (!botaoNova) {
             botaoNova = document.querySelector('button.mat-fab.mat-primary');
+        }
+        if (!botaoNova) {
+            // Procura por qualquer botão com "Minuta" no texto
+            const botoes = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+            botaoNova = botoes.find(b => b.textContent.toLowerCase().includes('minuta'));
         }
         if (botaoNova) {
             // Se for ícone, clica no botão pai
@@ -1118,13 +1066,13 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         sucesso_nova_minuta = driver.execute_script(script_nova_minuta)
         if sucesso_nova_minuta:
             logger.info('[SISBAJUD]  Botão "Nova Minuta" clicado automaticamente')
-            # Aguardar navegação com wait condicional (time.sleep(2) substituído)
             try:
                 espera.ate_aparecer(driver, 'input[placeholder*="Juiz"], .mat-form-field, form', teto=10)
             except Exception:
                 logger.info('[SISBAJUD] Timeout aguardando formulário da minuta - continuando')
         else:
             logger.info('[SISBAJUD]  Botão "Nova Minuta" não encontrado')
+            logger.info('[SISBAJUD]  Página atual: %s', driver.current_url)
             return {
                 'status': 'erro',
                 'erros': ['Botão "Nova Minuta" não encontrado'],

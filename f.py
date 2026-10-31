@@ -52,6 +52,7 @@ from Fix.core import criar_driver_vt, criar_driver_pc, finalizar_driver  # noqa:
 from Fix.utils import login_manual, login_cpf, navegar_para_tela  # noqa: E402
 from Fix import espera  # noqa: E402
 from Fix.diagnostico_runtime import handler_console_sem_pjeplus  # noqa: E402
+from pjeplay.launcher import criar_driver_sisb_pc  # noqa: E402
 
 # ============================================================
 # URLs de processos para testes (valores padrão)
@@ -256,36 +257,67 @@ def _logar_como_pw_visivel(driver) -> bool:
         LOGGER.error('[LOGIN] access_token nao apareceu em %ds.', timeout)
         return False
 
-    def _salvar_sessao(driver, motivo):
+    def _salvar_sessao(driver_arg, motivo):
+        """Closure para salvar cookies — driver do escopo pai."""
         if not SALVAR_COOKIES_AUTOMATICO:
             return
         try:
             salvar_cookies_sessao(driver, info_extra=motivo)
+            LOGGER.info('[LOGIN] Cookies salvos (%s)', motivo)
         except Exception as e:
             LOGGER.debug('[LOGIN] Nao foi possivel salvar cookies: %s', e)
 
-    # 1) Sessao salva da execucao anterior
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PASSO 1: Restaurar cookies salvos (MESMO MOTOR DE pw.py)
+    # ═══════════════════════════════════════════════════════════════════════════
+    LOGGER.info('[LOGIN] ═══ PASSO 1: Verificar cookies salvos ═══')
     t0 = time.perf_counter()
-    if verificar_e_aplicar_cookies(driver):
-        LOGGER.info('[LOGIN] Sessao restaurada via cookies em %.2fs — sem login.',
-                    time.perf_counter() - t0)
-        return True
-    LOGGER.info('[LOGIN] Cookies ausentes/expirados (%.2fs) — indo para login_cpf.',
-                time.perf_counter() - t0)
-
-    # 2) Login automatico por CPF
     try:
-        if login_cpf(driver):
-            if aguardar_sessao_ativa():
-                _salvar_sessao(driver, 'login_cpf')
-                return True
-            LOGGER.error('[LOGIN] Sessao OAuth nao completou apos login_cpf')
-            return aguardar_login_manual()
-        LOGGER.error('[LOGIN] login_cpf nao concluiu')
-        return aguardar_login_manual()
+        if verificar_e_aplicar_cookies(driver):
+            tempo = time.perf_counter() - t0
+            LOGGER.info('[LOGIN] ✓ Cookies restaurados (%.2fs) — SEM login necessário!', tempo)
+            return True
+        else:
+            tempo = time.perf_counter() - t0
+            LOGGER.info('[LOGIN] ✗ Cookies ausentes/expirados/inválidos (%.2fs)', tempo)
     except Exception as e:
-        LOGGER.error('[LOGIN] %s: %s', type(e).__name__, e)
-        return False
+        tempo = time.perf_counter() - t0
+        LOGGER.warning('[LOGIN] ✗ Erro ao verificar cookies (%.2fs): %s', tempo, e)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PASSO 2: Login automático por CPF (MESMO MOTOR DE pw.py)
+    # ═══════════════════════════════════════════════════════════════════════════
+    LOGGER.info('[LOGIN] ═══ PASSO 2: Tentar login_cpf() automático ═══')
+    t0 = time.perf_counter()
+    try:
+        resultado_cpf = login_cpf(driver)
+        tempo = time.perf_counter() - t0
+        LOGGER.info('[LOGIN] login_cpf() retornou: %s (%.2fs)', resultado_cpf, tempo)
+        
+        if resultado_cpf:
+            # login_cpf() completou — aguardar confirmação de sessão
+            LOGGER.info('[LOGIN] Aguardando confirmação de sessão OAuth...')
+            if aguardar_sessao_ativa():
+                _salvar_sessao(driver, 'login_cpf_sucesso')
+                return True
+            else:
+                # login_cpf() fez algo mas sessão não confirmou
+                LOGGER.warning('[LOGIN] login_cpf() parece ter falhado silenciosamente')
+                LOGGER.info('[LOGIN] ═══ PASSO 3: Fallback para login manual ═══')
+                return aguardar_login_manual()
+        else:
+            # login_cpf() retornou False explicitamente
+            LOGGER.warning('[LOGIN] login_cpf() retornou False')
+            LOGGER.info('[LOGIN] ═══ PASSO 3: Fallback para login manual ═══')
+            return aguardar_login_manual()
+    
+    except Exception as e:
+        tempo = time.perf_counter() - t0
+        LOGGER.error('[LOGIN] EXCEÇÃO em login_cpf (%.2fs): %s: %s', 
+                     tempo, type(e).__name__, e)
+        LOGGER.warning('[LOGIN] Tentando fallback para login manual')
+        LOGGER.info('[LOGIN] ═══ PASSO 3: Fallback para login manual ═══')
+        return aguardar_login_manual()
 
 
 def _navegar(driver, url: str):
@@ -2356,6 +2388,166 @@ def _aud_js_info_processo(driver) -> dict:
 
 
 # ============================================================
+# TESTE 2b: SISBAJUD MINUTA COM PROBE DE REDE
+# ============================================================
+
+def teste_sisbajud_minuta_com_probe(id_processo=None):
+    """
+    Teste SISBAJUD minuta_bloqueio COM interceptação de todas as chamadas de rede.
+    Usa ProbeNetwork para mapear endpoints e avaliar viabilidade de implementação via API pura.
+    
+    Fluxo:
+      1. Carrega dados de dadosatuais.json (reutiliza dados extraídos antes)
+      2. Cria driver PJe + faz login (para ter sessão ativa)
+      3. Cria driver SISB (Firefox novo, mas compartilha Playwright context)
+      4. Inicia probe antes de login SISB
+      5. Login automático SISB (com credenciais do Credential Manager)
+      6. Executa minuta_bloqueio (com probe ativo)
+      7. Coleta endpoints capturados
+    
+    Gera:
+        - probe_relatorio.json: relatório estruturado (endpoints, timing, payloads)
+        - probe_relatorio.txt: relatório legível com análise de viabilidade
+    
+    Uso:
+        py f.py sisb_probe                      # processo padrão (PROCESS_ID_SISB)
+        py f.py sisb_probe 5234567              # processo específico
+        py f.py 2p 5234567                      # alias '2p'
+    """
+    from probe_network import ProbeNetwork
+    
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_SISB, id_processo)
+
+    LOGGER.info('=' * 80)
+    LOGGER.info('[SISB_PROBE_TEST] Teste SISBAJUD minuta_bloqueio COM PROBE DE REDE')
+    LOGGER.info('[SISB_PROBE_TEST] Processo: %s', url)
+    LOGGER.info('[SISB_PROBE_TEST] Gravando TODOS os endpoints (fetch/XHR) durante execução')
+    LOGGER.info('=' * 80)
+
+    driver = None
+    driver_sisb = None
+    probe = None
+    dados_processo = None
+    
+    try:
+        # ===== ETAPA 0: Carregar dados do processo =====
+        with etapa('carregar_dados'):
+            try:
+                with open('dadosatuais.json', 'r', encoding='utf-8') as fh:
+                    dados_processo = json.load(fh)
+                LOGGER.info('[SISB_PROBE_TEST] ✓ Dados carregados de dadosatuais.json (pulando PJe)')
+            except Exception as e:
+                LOGGER.warning('[SISB_PROBE_TEST] Falha ao carregar dadosatuais.json (%s), extraindo via PJe', e)
+
+        # Se não carregou de arquivo, extrai via PJe
+        if not dados_processo:
+            with etapa('criar_driver_pje'):
+                driver = criar_driver_vt(headless=False)
+            if not driver:
+                LOGGER.error('[SISB_PROBE_TEST] Falha ao criar driver PJE')
+                return
+
+            with etapa('login_pje'):
+                if not _logar_como_pw_visivel(driver):
+                    LOGGER.error('[SISB_PROBE_TEST] Falha no login PJE')
+                    return
+
+            with etapa('navegar_processo'):
+                LOGGER.info('[SISB_PROBE_TEST] Navegando para %s', url)
+                _navegar(driver, url)
+
+            with etapa('extrair_dados'):
+                from Fix.extracao import extrair_dados_processo
+                dados_processo = extrair_dados_processo(driver)
+                LOGGER.info('[SISB_PROBE_TEST] Dados extraidos: %s', bool(dados_processo))
+
+            try:
+                with open('dadosatuais.json', 'w', encoding='utf-8') as fh:
+                    json.dump(dados_processo or {}, fh, ensure_ascii=False, indent=2)
+                LOGGER.info('[SISB_PROBE_TEST] dadosatuais.json salvo')
+            except Exception as e:
+                LOGGER.warning('[SISB_PROBE_TEST] Falha ao salvar dadosatuais.json: %s', e)
+
+        if not dados_processo:
+            LOGGER.error('[SISB_PROBE_TEST] Não conseguiu carregar dados do processo')
+            return
+        
+        LOGGER.info('[SISB_PROBE_TEST] ✓ Dados do processo OK')
+
+        # ===== ETAPA 1: Inicia probe (será ativado após criar driver SISB) =====
+        # Deixa probe = None por enquanto, será criado quando tiver driver SISB
+
+        # ===== ETAPA 2: Criar driver SISB isolado =====
+        with etapa('criar_driver_sisb'):
+            from pjeplay.launcher import criar_driver_sisb_pc
+            LOGGER.info('[SISB_PROBE_TEST] Criando Firefox para SISBAJUD...')
+            driver_sisb = criar_driver_sisb_pc(headless=False)
+            if not driver_sisb:
+                LOGGER.error('[SISB_PROBE_TEST] Falha ao criar driver SISBAJUD')
+                return
+            LOGGER.info('[SISB_PROBE_TEST] ✓ Driver SISBAJUD criado')
+
+        # ===== ETAPA 3: Inicia probe antes do login =====
+        with etapa('probe_start'):
+            probe = ProbeNetwork(driver_sisb)
+            probe.start()
+            LOGGER.info('[SISB_PROBE_TEST] ✓ Probe de rede iniciado — interceptando fetch/XHR')
+
+        # ===== ETAPA 4: Login SISBAJUD (com probe ativo) =====
+        with etapa('login_sisbajud'):
+            from SISB.core import login_automatico_sisbajud
+            if not login_automatico_sisbajud(driver_sisb):
+                LOGGER.error('[SISB_PROBE_TEST] Falha no login SISBAJUD')
+                return
+            LOGGER.info('[SISB_PROBE_TEST] ✓ Login SISBAJUD completo')
+
+        # ===== ETAPA 4: Executar minuta_bloqueio (com probe ativo) =====
+        with etapa('minuta_bloqueio'):
+            from SISB.core import minuta_bloqueio
+            LOGGER.info('[SISB_PROBE_TEST] Chamando minuta_bloqueio(...)')
+            resultado = minuta_bloqueio(driver_sisb, dados_processo=dados_processo,
+                                        driver_pje=driver, log=True, fechar_driver=False)
+            LOGGER.info('[SISB_PROBE_TEST] Resultado: %s', resultado)
+
+        # ===== ETAPA 5: Coleta dados de probe =====
+        with etapa('probe_stop'):
+            if probe:
+                relatorio = probe.stop()
+                LOGGER.info('[SISB_PROBE_TEST] ✓ Probe parado — %d endpoints detectados',
+                           len(relatorio.get('endpoints', [])))
+            else:
+                relatorio = {}
+                LOGGER.warning('[SISB_PROBE_TEST] Probe não foi iniciado')
+
+        # ===== ETAPA 5: Salva relatórios =====
+        with etapa('salvar_relatorios'):
+            with open('probe_relatorio.json', 'w', encoding='utf-8') as f:
+                json.dump(relatorio, f, ensure_ascii=False, indent=2, default=str)
+            LOGGER.info('[SISB_PROBE_TEST] ✓ probe_relatorio.json salvo')
+
+            if probe:
+                relatorio_txt = probe.relatorio_texto()
+                with open('probe_relatorio.txt', 'w', encoding='utf-8') as f:
+                    f.write(relatorio_txt)
+                LOGGER.info('[SISB_PROBE_TEST] ✓ probe_relatorio.txt salvo')
+                LOGGER.info('[SISB_PROBE_TEST]\n%s', relatorio_txt)
+
+        LOGGER.info('[SISB_PROBE_TEST] ✓ Teste concluido com sucesso')
+
+    except Exception:
+        LOGGER.exception('[SISB_PROBE_TEST] ✗ Erro nao tratado')
+    finally:
+        LOGGER.info('[SISB_PROBE_TEST] Encerrando drivers')
+        for d in (driver_sisb, driver):
+            if d is not None:
+                try:
+                    finalizar_driver(d)
+                except Exception:
+                    pass
+
+
+# ============================================================
 # MAIN — seleciona qual teste executar
 # ============================================================
 
@@ -2437,9 +2629,11 @@ if __name__ == '__main__':
         teste_p2b(id_p)
         print('\n--- TESTE 14: PEC EXCLUIARGOS ---')
         teste_pec_excluiargos(id_p)
+    elif teste in ('sisb_probe', 'sisb_network', 'probe_minuta', '2p'):
+        teste_sisbajud_minuta_com_probe(id_p)
     else:
         print(f'Teste desconhecido: {teste}')
         print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, pecidpj, mddid,')
         print('             anex, triagem, probe, tdbg, dom, bndt, p2b, excluiargos,')
-        print('             sisbdir, carta, todos')
+        print('             sisbdir, carta, sisb_probe, todos')
         print('Uso: py f.py <teste> [id_processo]')

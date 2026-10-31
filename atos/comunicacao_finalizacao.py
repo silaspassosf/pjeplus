@@ -546,10 +546,15 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
     return seta_clicada
 
 
-def alterar_meio_expedicao(driver, debug=False, log=None):
+def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vincular_primeiro_endereco=None):
     if log is None:
         def log(_msg):
             return None
+
+    if vincular_primeiro_endereco is not None:
+        deve_vincular_endereco = bool(vincular_primeiro_endereco)
+    else:
+        deve_vincular_endereco = (wrapper_name == 'pec_exeq')
 
     log_start('COMUNICACAO_MEIO_EXPEDICAO')
     try:
@@ -670,13 +675,17 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                     meio_atual = (getattr(sp, 'text', '') or '').strip()
 
                 if meio_atual and 'correio' in meio_atual.lower():
-                    if debug:
-                        log(f'[COMUNICACAO] Linha {idx}: "{meio_atual}" já está como Correio - garantindo vínculo de endereço...')
-                    try:
-                        vincular_primeiro_endereco_valido(driver, linha=linha, idx=idx, debug=debug, log=log)
-                    except Exception as e_vinc:
+                    if deve_vincular_endereco:
                         if debug:
-                            log(f'[COMUNICACAO][DEBUG] Linha {idx}: Vínculo de endereço pré-existente: {e_vinc}')
+                            log(f'[COMUNICACAO] Linha {idx}: "{meio_atual}" já está como Correio - garantindo vínculo de endereço...')
+                        try:
+                            vincular_primeiro_endereco_valido(driver, linha=linha, idx=idx, debug=debug, log=log)
+                        except Exception as e_vinc:
+                            if debug:
+                                log(f'[COMUNICACAO][DEBUG] Linha {idx}: Vínculo de endereço pré-existente: {e_vinc}')
+                    else:
+                        if debug:
+                            log(f'[COMUNICACAO] Linha {idx}: "{meio_atual}" já está como Correio - mantido sem alteração de endereço')
                 else:
                     linhas_para_alterar.append((idx, linha, meio_atual))
             except Exception as e_ler:
@@ -744,11 +753,15 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                     except Exception:
                         pass
                 else:
-                    # Inserção de endereço válido imediata para evitar exclusão indevida por endereço inválido (ex: pec_exeq)
-                    try:
-                        vincular_primeiro_endereco_valido(driver, linha=linha, idx=idx, debug=debug, log=log)
-                    except Exception as e_vinc:
-                        log(f'[COMUNICACAO][WARN] Linha {idx}: Falha ao vincular endereço válido pós-mudança para Correio: {e_vinc}')
+                    if deve_vincular_endereco:
+                        # Inserção de endereço válido imediata para evitar exclusão indevida por endereço inválido (exclusivo de pec_exeq)
+                        try:
+                            vincular_primeiro_endereco_valido(driver, linha=linha, idx=idx, debug=debug, log=log)
+                        except Exception as e_vinc:
+                            log(f'[COMUNICACAO][WARN] Linha {idx}: Falha ao vincular endereço válido pós-mudança para Correio: {e_vinc}')
+                    else:
+                        if debug:
+                            log(f'[COMUNICACAO] Linha {idx}: Meio alterado para Correio (seleção de primeiro endereço reservada para pec_exeq)')
 
             except Exception as e_linha:
                 log(f'[COMUNICACAO][WARN] Linha {idx}: Erro ao processar - {str(e_linha)[:60]}')

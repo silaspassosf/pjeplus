@@ -117,8 +117,8 @@ class TestAlterarMeioExpedicao(unittest.TestCase):
     @patch('atos.comunicacao_finalizacao.aguardar_renderizacao_nativa', return_value=True)
     @patch('atos.comunicacao_finalizacao.esperar_elemento', return_value=True)
     @patch('atos.comunicacao_finalizacao.safe_click_no_scroll')
-    def test_alterar_meio_expedicao_chama_vincular_endereco(self, mock_click, mock_esperar, mock_aguardar, mock_vincular):
-        """Ao alterar para Correio, vincular_primeiro_endereco_valido deve ser chamado para a linha."""
+    def test_alterar_meio_expedicao_chama_vincular_endereco_para_pec_exeq(self, mock_click, mock_esperar, mock_aguardar, mock_vincular):
+        """Ao alterar para Correio, vincular_primeiro_endereco_valido deve ser chamado SOMENTE em pec_exeq."""
         linha_diario = MagicMock()
         linha_diario._js.return_value = 'Diário Eletrônico'
 
@@ -142,10 +142,45 @@ class TestAlterarMeioExpedicao(unittest.TestCase):
              patch('atos.comunicacao_finalizacao.espera.elemento', side_effect=mock_elemento), \
              patch('atos.comunicacao_finalizacao.espera.ate_js', return_value=True):
             logs = []
-            sucesso = alterar_meio_expedicao(self.driver, debug=True, log=logs.append)
+            sucesso = alterar_meio_expedicao(self.driver, debug=True, log=logs.append, wrapper_name='pec_exeq')
 
             self.assertTrue(sucesso)
             mock_vincular.assert_called_once_with(self.driver, linha=linha_diario, idx=1, debug=True, log=unittest.mock.ANY)
+
+    @patch('atos.comunicacao_finalizacao.vincular_primeiro_endereco_valido')
+    @patch('atos.comunicacao_finalizacao.aguardar_renderizacao_nativa', return_value=True)
+    @patch('atos.comunicacao_finalizacao.esperar_elemento', return_value=True)
+    @patch('atos.comunicacao_finalizacao.safe_click_no_scroll')
+    def test_alterar_meio_expedicao_nao_chama_vincular_endereco_para_pec_ar(self, mock_click, mock_esperar, mock_aguardar, mock_vincular):
+        """Ao alterar para Correio em pec_arord, pec_arordv, pec_arsum, etc., NÃO deve selecionar primeiro endereço."""
+        linha_diario = MagicMock()
+        linha_diario._js.return_value = 'Diário Eletrônico'
+
+        opcao_correio = MagicMock()
+        opcao_correio.text = 'Correios'
+        dropdown_mock = MagicMock()
+
+        def mock_elementos(drv, sel, teto=2):
+            if 'mat-option' in sel:
+                return [opcao_correio]
+            if 'tbody.cdk-drop-list tr.cdk-drag' in sel:
+                return [linha_diario]
+            return []
+
+        def mock_elemento(drv, sel, teto=2, **kwargs):
+            if 'mat-select' in sel:
+                return dropdown_mock
+            return None
+
+        with patch('atos.comunicacao_finalizacao.espera.elementos', side_effect=mock_elementos), \
+             patch('atos.comunicacao_finalizacao.espera.elemento', side_effect=mock_elemento), \
+             patch('atos.comunicacao_finalizacao.espera.ate_js', return_value=True):
+            for wrapper in ('pec_arord', 'pec_arordv', 'pec_arsum', 'pec_arsumv', 'pec_outro', None):
+                mock_vincular.reset_mock()
+                logs = []
+                sucesso = alterar_meio_expedicao(self.driver, debug=True, log=logs.append, wrapper_name=wrapper)
+                self.assertTrue(sucesso)
+                mock_vincular.assert_not_called()
 
     @patch('atos.comunicacao_finalizacao.aguardar_renderizacao_nativa', return_value=True)
     def test_vincular_primeiro_endereco_valido_via_js(self, mock_aguardar):

@@ -49,6 +49,8 @@ pdf/
 temp/
 logs/
 .cache/
+probe_*.json
+probe_*.txt
 
 # Project specific
 cookies_sessoes/*.json

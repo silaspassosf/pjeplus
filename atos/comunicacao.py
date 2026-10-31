@@ -350,7 +350,9 @@ def make_comunicacao_wrapper(
                 alterar_meio_expedicao(
                     driver,
                     debug=debug,
-                    log=log_fn
+                    log=log_fn,
+                    wrapper_name=wrapper_name,
+                    vincular_primeiro_endereco=call_kwargs.get('vincular_primeiro_endereco')
                 )
 
             # Requisito obrigatório: verificar a tabela após destinatários/meio de expedição e antes de salvar,

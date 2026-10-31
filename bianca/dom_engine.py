@@ -866,11 +866,8 @@ def callback_bucket2(
             ) or "-",
         )
 
-        # GIGS sem prazo substitui o par lembrete DomicEletr + comentario
-        # (pedido em 30/10/2026): um unico registro, sem prazo, listando os
-        # destinatarios que terao a citacao renovada por correio, com o id
-        # da notificacao de cada um.
-        # Formato: criar_gigs(driver, "", "", conteudo) — sem prazo.
+        # 1. GIGS sem prazo: registro listando os destinatarios que terao
+        # citacao renovada por correio, com o id da notificacao de cada um.
         conteudo_gigs = _montar_conteudo_gigs_dom(destinatarios_dom)
         logger.info(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando GIGS sem prazo: %r",
@@ -890,6 +887,47 @@ def callback_bucket2(
             logger.error(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar GIGS sem prazo: %s", e
             )
+
+        # 2. Comentario Bianca: marca "DOM" ou "DOM com PJDP detectado"
+        pjdp = list(getattr(destinatarios_dom, 'pjdp_detectado', []) or [])
+        observacao_dom = 'DOM com PJDP detectado' if pjdp else 'DOM'
+        logger.info(
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando comentario: %r",
+            observacao_dom,
+        )
+        try:
+            coment_ok = criar_comentario(driver, observacao_dom, log=True)
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] criar_comentario -> %s",
+                coment_ok,
+            )
+        except Exception as e:
+            logger.error(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
+            )
+
+        # 3. Lembrete Post-it (DomElet) com formato: Renovado por correio para (Empresa - idNotificacao)
+        if destinatarios_dom:
+            titulo_dom = "DomElet"
+            conteudo_dom = _montar_conteudo_lembrete_dom(destinatarios_dom)
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando lembrete post-it [%s]: %r",
+                titulo_dom,
+                conteudo_dom,
+            )
+            try:
+                lembrete_ok = criar_lembrete_posit(
+                    driver, titulo_dom, conteudo_dom, debug=True
+                )
+                logger.info(
+                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] criar_lembrete_posit -> %s",
+                    lembrete_ok,
+                )
+            except Exception as e:
+                logger.error(
+                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar lembrete post-it: %s",
+                    e,
+                )
         
         # Apagar chips de domicilio
         result_chips = def_chip(

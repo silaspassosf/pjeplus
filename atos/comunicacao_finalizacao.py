@@ -7,6 +7,7 @@ from Fix.core import (
     esperar_elemento,
     wait_for_clickable,
     preencher_campo,
+    _executar_js,
 )
 from Fix.browser_suporte import click_headless_safe, scroll_to_element_safe
 from Fix.errors import NavegacaoError
@@ -546,7 +547,430 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
     return seta_clicada
 
 
-def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vincular_primeiro_endereco=None):
+_XP_LINHA_DESTINATARIO = '(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]'
+
+# Option do dropdown de Meio de Expedição que corresponde a Correios/SEDEX.
+# O probe do PJe (TRT2, 30/10/2026) registrou `mat-option[name="Correios"]`.
+_XP_OPCAO_CORREIOS = (
+    '//div[contains(@class,"cdk-overlay-pane")]//mat-option'
+    '[translate(@name,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz")="correios"'
+    ' or contains(translate(normalize-space(.),"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"correio")]'
+)
+
+# Overlay/backdrop do Angular Material (mat-select abre em cdk-overlay-pane).
+_SEL_OVERLAYS_MATERIAL = '.cdk-overlay-backdrop, div.cdk-overlay-pane'
+_SEL_SPINNERS = '.loading-spinner, .mat-progress-spinner, mat-progress-bar, .loading-overlay'
+
+
+def _linha_destinatario(driver, idx):
+    """Re-consulta a <tr> do destinatário `idx` (1-based). None se não existir.
+
+    A tabela é re-renderizada pelo Angular depois de cada troca de meio de
+    expedição (endereçovalido / expedientesmateria), então a referência antiga
+    da linha fica obsoleta. Sempre re-buscar antes de tocar na linha.
+    """
+    return espera.elemento(driver, _XP_LINHA_DESTINATARIO.format(idx=idx), teto=2)
+
+
+def _dropdown_meio_linha(driver, idx):
+    """Localiza o mat-select de "Meios de Expedição" da linha `idx`."""
+    seletores = (
+        _XP_LINHA_DESTINATARIO.format(idx=idx) + '//mat-select[contains(@id,"MeioExpedicao") or @placeholder="Meios de Expedição"]',
+        _XP_LINHA_DESTINATARIO.format(idx=idx) + '//pje-pec-coluna-meio-expedicao//mat-select',
+        _XP_LINHA_DESTINATARIO.format(idx=idx) + '//div[contains(@class,"mat-form-field-infix")]',
+        f'pje-pec-coluna-meio-expedicao mat-select[id*="MeioExpedicao"]',
+        'mat-select[id*="MeioExpedicao"]',
+    )
+    for sel in seletores:
+        el = espera.elemento(driver, sel, teto=2)
+        if el:
+            return el
+    return None
+
+
+def _meio_atual_linha(driver, idx):
+    """Texto do meio de expedição atualmente exibido na linha `idx`."""
+    sel = (
+        _XP_LINHA_DESTINATARIO.format(idx=idx)
+        + '//span[contains(@class,"mat-select-min-line")]'
+    )
+    el = espera.elemento(driver, sel, teto=2)
+    return ((getattr(el, 'text', '') or '').strip()) if el else ''
+
+
+def _fechar_overlays(driver):
+    """Fecha overlays/backdrops do Material que tenham sobrado abertos.
+
+    Sem isso, o dropdown da próxima linha abre ATRÁS do backdrop da anterior:
+    o painel aparece (é o que o usuário vê) mas o clique na mat-option é
+    engolido pelo backdrop e o fluxo trava.
+    """
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            driver.page.keyboard.press('Escape')
+    except Exception:
+        pass
+    try:
+        _executar_js(
+            driver,
+            "document.querySelectorAll('.cdk-overlay-backdrop').forEach(el => el.click());",
+        )
+    except Exception:
+        pass
+    try:
+        espera.ate_sumir(driver, '.cdk-overlay-backdrop', teto=3)
+    except Exception:
+        pass
+
+
+def _opcao_correios_visivel(driver):
+    """Retorna a mat-option de Correios **visível** no overlay ativo, ou None.
+
+    A validação de visibilidade é o ponto crítico da correção: a mat-option
+    pode existir no DOM (de um dropdown anterior) sem estar visível, e um
+    clique nela é aceito pelo JS (`el.click()`) mas não grava nada no
+    mat-select da linha atual.
+    """
+    try:
+        opcoes = espera.elementos(driver, _XP_OPCAO_CORREIOS, teto=1)
+        if not opcoes:
+            opcoes = espera.elementos(driver, 'mat-option', teto=2)
+        for el in opcoes:
+            try:
+                if hasattr(el, 'is_displayed') and not el.is_displayed():
+                    continue
+            except Exception:
+                pass
+            txt = getattr(el, 'text', '') or ''
+            name = (el.get_attribute('name') or '') if hasattr(el, 'get_attribute') else ''
+            if 'correio' in txt.lower() or 'correio' in name.lower():
+                return el
+    except Exception:
+        pass
+    return None
+
+
+def _ids_prazo_da_linha(driver, idx):
+    """Deriva os ids de prazo da linha a partir do id do select de meio.
+
+    O PJe gera todos os ids de uma linha a partir do mesmo hash
+    (`destinatario_<hash>`), como mostra o probe:
+
+        #destinatario_rxzf2dnuuMeioExpedicao
+        #destinatario_rxzf2dnuuTipoPrazoD-input
+        #destinatario_rxzf2dnuuPrazoDiasUteis
+
+    Returns:
+        (prefixo, id_radio_dias_uteis, id_input_dias) ou (None, None, None).
+    """
+    try:
+        seletor = _dropdown_meio_linha(driver, idx)
+        el_id = ''
+        if seletor is not None and hasattr(seletor, 'get_attribute'):
+            el_id = seletor.get_attribute('id') or ''
+        if not el_id:
+            return None, None, None
+        if not el_id.endswith('MeioExpedicao'):
+            return None, None, None
+        prefixo = el_id[: -len('MeioExpedicao')]
+        return prefixo, prefixo + 'TipoPrazoD-input', prefixo + 'PrazoDiasUteis'
+    except Exception:
+        return None, None, None
+
+
+def _prazo_tipo_atual(driver, prefixo):
+    """Retorna 'dias_uteis' | 'sem_prazo' | 'data_certa' | 'dias_corridos' | '' da linha.
+
+    Lê qual mat-radio-button está com a classe `mat-radio-checked`.
+    """
+    try:
+        tipo = _executar_js(
+            driver,
+            """(function(){
+                var el = document.getElementById(arguments[0] + 'TipoPrazo');
+                if (!el) return '';
+                var marcado = el.querySelector('mat-radio-button.mat-radio-checked');
+                if (!marcado) return '';
+                var txt = (marcado.innerText || marcado.textContent || '')
+                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+                if (txt.indexOf('sem prazo') !== -1) return 'sem_prazo';
+                if (txt.indexOf('data certa') !== -1) return 'data_certa';
+                if (txt.indexOf('corridos') !== -1) return 'dias_corridos';
+                if (txt.indexOf('uteis') !== -1) return 'dias_uteis';
+                return '';
+            })""",
+            prefixo,
+        )
+        return str(tipo or '')
+    except Exception:
+        return ''
+
+
+def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=None):
+    """Restabelece o prazo em dias úteis depois de trocar a linha para Correios.
+
+    Ao mudar o meio de expedição para Correios, o PJe reavalia o expediente
+    (`/expedientesmateria/13`) e o prazo que estava em "5 dias úteis" cai para
+    "sem prazo". Numa notificação isso é grave: o prazo é o próprio conteúdo do
+    ato. Antes de passar para a próxima linha, refazemos:
+
+    1. marcar o rádio "dias úteis"  (#destinatario_<hash>TipoPrazoD-input);
+    2. preencher o input de dias    (#destinatario_<hash>PrazoDiasUteis);
+    3. confirmar que o rádio ficou marcado e o input tem o valor esperado.
+
+    Returns:
+        True se a linha terminou com "dias úteis" e o valor aplicado.
+    """
+    if log is None:
+        def log(_msg):
+            return None
+    if prazo_dias is None or int(prazo_dias) <= 0:
+        return True
+
+    prefixo, id_radio, id_input = _ids_prazo_da_linha(driver, idx)
+    if not prefixo:
+        log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível derivar os ids de prazo (linha re-renderizou?) — tentarei pela linha')
+        # Fallback: procura o input de prazo DENTRO da própria linha, sem depender do id.
+        try:
+            ok = _executar_js(
+                driver,
+                """(function(){
+                    var tr = __pjeEls(%r)[0];
+                    if (!tr) return false;
+                    var radio = tr.querySelector("mat-radio-button[id$='TipoPrazoD'] input[type='radio']")
+                        || tr.querySelector("mat-radio-button.mat-radio-checked input[type='radio']");
+                    if (radio && !radio.checked) radio.click();
+                    var inp = tr.querySelector("input[id$='PrazoDiasUteis']");
+                    if (!inp) return false;
+                    var setter = Object.getOwnPropertyDescriptor(
+                        window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(inp, String(%d));
+                    inp.dispatchEvent(new Event('input', {bubbles: true}));
+                    inp.dispatchEvent(new Event('change', {bubbles: true}));
+                    inp.dispatchEvent(new Event('blur', {bubbles: true}));
+                    return true;
+                })()""" % (_XP_LINHA_DESTINATARIO.format(idx=idx), int(prazo_dias)),
+            )
+            if not ok:
+                return False
+        except Exception as e_fb:
+            log(f'[COMUNICACAO][WARN] Linha {idx}: falha no fallback de prazo ({str(e_fb)[:60]})')
+            return False
+
+        # O fallback não tem `prefixo`, então confirma pela própria linha.
+        try:
+            ok_conf = espera.ate_js(
+                driver,
+                """(function(){
+                    var tr = __pjeEls(%r)[0];
+                    if (!tr) return false;
+                    var m = tr.querySelector("mat-radio-button.mat-radio-checked");
+                    var t = m ? (m.innerText || m.textContent || '') : '';
+                    t = t.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+                    if (t.indexOf('uteis') === -1) return false;
+                    var i = tr.querySelector("input[id$='PrazoDiasUteis']");
+                    return !!i && String(i.value).trim() === %r;
+                })()""" % (_XP_LINHA_DESTINATARIO.format(idx=idx), str(int(prazo_dias))),
+                teto=3,
+            )
+        except Exception:
+            ok_conf = False
+        if ok_conf:
+            if debug:
+                log(f'[COMUNICACAO][DEBUG] Linha {idx}: prazo restabelecido em {int(prazo_dias)} dias úteis (fallback por linha)')
+            return True
+        log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível confirmar o prazo de {int(prazo_dias)} dias úteis (fallback)')
+        return False
+    else:
+        # 1. Rádio "dias úteis".
+        try:
+            _executar_js(
+                driver,
+                """(function(){
+                    var r = document.getElementById(arguments[0]);
+                    if (!r) return false;
+                    if (!r.checked) r.click();
+                    return true;
+                })""",
+                id_radio,
+            )
+        except Exception as e_radio:
+            log(f'[COMUNICACAO][WARN] Linha {idx}: falha ao marcar "dias úteis" ({str(e_radio)[:60]})')
+
+        # 2. Valor do prazo. Espera o input existir: ele só é renderizado quando
+        #    o tipo de prazo é "dias úteis".
+        espera.ate_aparecer(driver, 'input[id="%s"]' % id_input, teto=3)
+        try:
+            _executar_js(
+                driver,
+                """(function(){
+                    var inp = document.getElementById(arguments[0]);
+                    if (!inp) return false;
+                    var setter = Object.getOwnPropertyDescriptor(
+                        window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(inp, String(arguments[1]));
+                    inp.dispatchEvent(new Event('input', {bubbles: true}));
+                    inp.dispatchEvent(new Event('change', {bubbles: true}));
+                    inp.dispatchEvent(new Event('blur', {bubbles: true}));
+                    return true;
+                })""",
+                id_input,
+                int(prazo_dias),
+            )
+        except Exception as e_input:
+            log(f'[COMUNICACAO][WARN] Linha {idx}: falha ao preencher prazo em dias ({str(e_input)[:60]})')
+
+    # 3. Confirmação: tipo = dias úteis e valor gravado.
+    confirmado = False
+    if prefixo:
+        try:
+            confirmado = espera.ate_js(
+                driver,
+                """(function(){
+                    var el = document.getElementById(%r + 'TipoPrazo');
+                    if (!el) return false;
+                    var m = el.querySelector('mat-radio-button.mat-radio-checked');
+                    var t = m ? (m.innerText || m.textContent || '') : '';
+                    t = t.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+                    if (t.indexOf('uteis') === -1) return false;
+                    var i = document.getElementById(%r);
+                    return !!i && String(i.value).trim() === %r;
+                })()""" % (prefixo, id_input, str(int(prazo_dias))),
+                teto=3,
+            )
+        except Exception:
+            confirmado = False
+
+    if confirmado:
+        if debug:
+            log(f'[COMUNICACAO][DEBUG] Linha {idx}: prazo restabelecido em {int(prazo_dias)} dias úteis')
+        return True
+
+    log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível confirmar o prazo de {int(prazo_dias)} dias úteis')
+    return False
+
+
+def _alterar_meio_da_linha_para_correios(driver, idx, debug=False, log=None):
+    """Troca o meio de expedição da linha `idx` para Correios e CONFIRMA a troca.
+
+    Corrige o atropelo entre linhas (o primeiro destinatário muda, o segundo
+    abre o dropdown mas o clique em Correios não pega):
+
+    1. Espera a linha `idx` existir de novo (Angular re-renderiza após cada troca).
+    2. Fecha qualquer overlay/backdrop residual da linha anterior.
+    3. Abre o dropdown por clique real / safe_click_no_scroll.
+    4. Espera a opção de Correios ficar VISÍVEL — não apenas presente no DOM.
+    5. Clica na opção; se o painel continuar aberto, retenta.
+    6. Confirma que `.mat-select-min-line` da própria linha passou a exibir
+       "Correio". Sem essa confirmação, a próxima linha era tratada como se a
+       anterior tivesse terminado — era o travamento relatado.
+
+    Returns:
+        True somente se a linha passou a exibir Correios.
+    """
+    if log is None:
+        def log(_msg):
+            return None
+
+    # Já está em Correios: nada a fazer.
+    if 'correio' in _meio_atual_linha(driver, idx).lower():
+        return True
+
+    for tentativa in range(1, 4):
+        # 1. Linha precisa existir (a tabela pode estar re-renderizando).
+        if not _linha_destinatario(driver, idx):
+            log(f'[COMUNICACAO][WARN] Linha {idx}: linha de destinatário sumiu do DOM (tentativa {tentativa})')
+            espera.ate_aparecer(driver, _XP_LINHA_DESTINATARIO.format(idx=idx), teto=3)
+            if not _linha_destinatario(driver, idx):
+                return False
+
+        # 2. Nenhum overlay/backdrop residual da linha anterior.
+        _fechar_overlays(driver)
+
+        # 3. Abre o dropdown com safe_click_no_scroll.
+        dropdown = _dropdown_meio_linha(driver, idx)
+        if not dropdown:
+            log(f'[COMUNICACAO][WARN] Linha {idx}: Dropdown "Meios de Expedição" não encontrado')
+            return False
+
+        try:
+            scroll_to_element_safe(driver, dropdown)
+        except Exception:
+            pass
+        if not _clicar_elemento_real(driver, dropdown):
+            safe_click_no_scroll(driver, dropdown)
+
+        # Confirma que o painel abriu ANTES de procurar a opção.
+        if not espera.ate_aparecer(driver, 'div.cdk-overlay-pane mat-option, mat-option', teto=3):
+            if debug:
+                log(f'[COMUNICACAO][DEBUG] Linha {idx}: painel não abriu (tentativa {tentativa})')
+            _fechar_overlays(driver)
+            continue
+
+        # 4. Opção de Correios VISÍVEL (não basta existir no DOM).
+        opcao = _opcao_correios_visivel(driver)
+        if not opcao:
+            log(f'[COMUNICACAO][WARN] Linha {idx}: opção "Correios" não visível no overlay (tentativa {tentativa})')
+            _fechar_overlays(driver)
+            continue
+
+        # 5. Clique na opção.
+        try:
+            scroll_to_element_safe(driver, opcao)
+        except Exception:
+            pass
+        if not _clicar_elemento_real(driver, opcao):
+            safe_click_no_scroll(driver, opcao)
+
+        # 6. Confirma a gravação na própria linha. Enquanto o painel estiver
+        #    aberto, o clique não foi aceito: retenta em vez de seguir.
+        espera.ate_sumir(driver, 'div.cdk-overlay-pane mat-option', teto=2)
+        if espera.ate_js(
+            driver,
+            "(function(){var r=__pjeEls(%r)[0];if(!r)return false;"
+            "var s=r.querySelector('span.mat-select-min-line');"
+            "return !!(s && (s.textContent||'').toLowerCase().indexOf('correio')!==-1);})()"
+            % _XP_LINHA_DESTINATARIO.format(idx=idx),
+            teto=4,
+        ):
+            # Processa enderecovalido / expedientesmateria disparados pela troca.
+            try:
+                espera.ate_sumir(driver, _SEL_SPINNERS, teto=5)
+            except Exception:
+                pass
+            return True
+
+        log(f'[COMUNICACAO][WARN] Linha {idx}: clique em Correios não registrou (tentativa {tentativa})')
+        _fechar_overlays(driver)
+
+    return False
+
+
+def _clicar_elemento_real(driver, elemento):
+    """Clique real (Playwright) no elemento, com scroll.
+
+    `safe_click_no_scroll` cai para `el.click()` via JS quando o handle
+    falha — e o JS ignora o backdrop do overlay. Um clique real respeita o
+    hit-testing e falha se algo cobrir o alvo, o que é o comportamento que
+    queremos detectar.
+    """
+    try:
+        if hasattr(elemento, '_handle') and elemento._handle:
+            elemento._handle.click(timeout=3000)
+            return True
+    except Exception:
+        pass
+    try:
+        if hasattr(driver, 'page') and driver.page and isinstance(elemento, str):
+            driver.page.locator(elemento).first.click(timeout=3000)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vincular_primeiro_endereco=None,
+                           restabelecer_prazo=None, prazo_dias=5):
     if log is None:
         def log(_msg):
             return None
@@ -555,6 +979,14 @@ def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vin
         deve_vincular_endereco = bool(vincular_primeiro_endereco)
     else:
         deve_vincular_endereco = (wrapper_name == 'pec_exeq')
+
+    # Trocar o meio para Correios faz o PJe reavaliar o expediente e o prazo
+    # "5 dias úteis" cai para "sem prazo". Para os wrappers que passam por
+    # Correios (DOM e triagem usam esta mesma função) restabelecemos o prazo
+    # linha a linha. pec_exeq mantém o comportamento anterior por padrão.
+    if restabelecer_prazo is None:
+        esperado = prazo_dias
+        restabelecer_prazo = wrapper_name != 'pec_exeq' and bool(esperado) and int(esperado) > 0
 
     log_start('COMUNICACAO_MEIO_EXPEDICAO')
     try:
@@ -703,65 +1135,30 @@ def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vin
             try:
                 log(f'[COMUNICACAO] Linha {idx}: meio "{meio_orig or "não identificado"}" detectado — alterando para Correio...')
 
-                sel_drop = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//mat-select[@placeholder="Meios de Expedição"]'
-                dropdown = espera.elemento(driver, sel_drop, teto=2)
-                if not dropdown:
-                    sel_drop_alt = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//pje-pec-coluna-meio-expedicao//mat-select'
-                    dropdown = espera.elemento(driver, sel_drop_alt, teto=2)
-                if not dropdown:
-                    sel_drop_alt2 = f'(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]//mat-select[contains(@id,"MeioExpedicao")]'
-                    dropdown = espera.elemento(driver, sel_drop_alt2, teto=2)
+                alterado = _alterar_meio_da_linha_para_correios(driver, idx, debug=debug, log=log)
 
-                if not dropdown:
-                    log(f'[COMUNICACAO][WARN] Linha {idx}: Dropdown "Meios de Expedição" não encontrado')
-                    continue
-
-                safe_click_no_scroll(driver, dropdown)
-
-                try:
-                    if not esperar_elemento(driver, 'mat-option', timeout=2):
-                        raise Exception('Opções do dropdown não carregaram')
-                except Exception:
-                    log(f'[COMUNICACAO][WARN] Linha {idx}: Opções do dropdown não carregaram em 2s')
-                    continue
-
-                opcoes = espera.elementos(driver, 'mat-option', teto=2)
-                correio_clicado = False
-                for opcao in opcoes:
-                    try:
-                        txt = opcao.text or ''
-                    except Exception:
-                        txt = getattr(opcao, 'text', '') or ''
-                    if 'correio' in txt.lower():
-                        safe_click_no_scroll(driver, opcao)
-                        log(f'[COMUNICACAO]  Linha {idx}: "{meio_orig or "Anterior"}" → "{txt.strip()}"')
-                        alterados += 1
-                        correio_clicado = True
-                        try:
-                            aguardar_renderizacao_nativa(driver, 'div.cdk-overlay-pane', modo='sumir', timeout=2)
-                        except Exception:
-                            pass
-                        break
-
-                if not correio_clicado:
-                    log(f'[COMUNICACAO][WARN] Linha {idx}: Opção "Correio" não encontrada nas opções')
-                    try:
-                        if hasattr(driver, 'page') and driver.page:
-                            driver.page.keyboard.press("Escape")
-                        else:
-                            safe_click_no_scroll(driver, 'body')
-                    except Exception:
-                        pass
-                else:
+                if alterado:
+                    alterados += 1
+                    log(f'[COMUNICACAO]  Linha {idx}: "{meio_orig or "Anterior"}" → "Correios"')
                     if deve_vincular_endereco:
-                        # Inserção de endereço válido imediata para evitar exclusão indevida por endereço inválido (exclusivo de pec_exeq)
                         try:
-                            vincular_primeiro_endereco_valido(driver, linha=linha, idx=idx, debug=debug, log=log)
+                            linha_atual = _linha_destinatario(driver, idx) or linha
+                            vincular_primeiro_endereco_valido(driver, linha=linha_atual, idx=idx, debug=debug, log=log)
                         except Exception as e_vinc:
                             log(f'[COMUNICACAO][WARN] Linha {idx}: Falha ao vincular endereço válido pós-mudança para Correio: {e_vinc}')
                     else:
                         if debug:
                             log(f'[COMUNICACAO] Linha {idx}: Meio alterado para Correio (seleção de primeiro endereço reservada para pec_exeq)')
+
+                    # Ao virar Correios o PJe reavalia o expediente e o prazo
+                    # cai de "5 dias úteis" para "sem prazo". Restabelecemos
+                    # ANTES de ir para a linha seguinte.
+                    if restabelecer_prazo:
+                        _restabelecer_prazo_da_linha(
+                            driver, idx, prazo_dias=prazo_dias, debug=debug, log=log
+                        )
+                else:
+                    log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível confirmar a troca para Correios')
 
             except Exception as e_linha:
                 log(f'[COMUNICACAO][WARN] Linha {idx}: Erro ao processar - {str(e_linha)[:60]}')

@@ -13,45 +13,37 @@ def dispensar_dialog_ordem_pendente(driver, log=True, timeout: float = 0.0):
     inicio = time.time()
     while True:
         try:
-            clicado = driver.execute_script("""
-                const dialogs = document.querySelectorAll('sisbajud-dialog-aviso-ordem-pendente, mat-dialog-container, .mat-dialog-container, [role="dialog"]');
-                for (const d of dialogs) {
-                    const botoes = Array.from(d.querySelectorAll('button'));
-                    const btnNao = botoes.find(b => {
-                        const txt = (b.innerText || b.textContent || '').trim().toLowerCase();
-                        return txt === 'não' || txt === 'nao' || txt.includes('não') || txt.includes('nao');
-                    });
-                    if (btnNao) {
-                        btnNao.click();
-                        return true;
+            fn_exec = getattr(driver, 'execute_script', None) or (
+                lambda s: driver.page.evaluate(s) if hasattr(driver, 'page') and driver.page else None
+            )
+            clicado = False
+            if fn_exec:
+                clicado = bool(fn_exec("""
+                    const dialogs = document.querySelectorAll('sisbajud-dialog-aviso-ordem-pendente, mat-dialog-container, .mat-dialog-container, [role="dialog"]');
+                    for (const d of dialogs) {
+                        const botoes = Array.from(d.querySelectorAll('button'));
+                        const btnNao = botoes.find(b => {
+                            const txt = (b.innerText || b.textContent || '').trim().toLowerCase();
+                            return txt === 'não' || txt === 'nao' || txt.includes('não') || txt.includes('nao');
+                        });
+                        if (btnNao) {
+                            btnNao.click();
+                            return true;
+                        }
                     }
-                }
-                return false;
-            """)
+                    return false;
+                """))
             if clicado:
                 if log:
                     logger.info('[SISBAJUD] Dialog de ordens pendentes dispensado (clicou "Não")')
-                espera.assentar(driver, 0.5)
-                return True
-        except Exception:
-            pass
-
-        # Fallback Selenium
-        try:
-            dialog = driver.find_element(By.CSS_SELECTOR, 'sisbajud-dialog-aviso-ordem-pendente')
-            if dialog.is_displayed():
-                btn_nao = dialog.find_element(By.XPATH, './/button[.//span[contains(text(),"Não") or contains(text(),"Nao")]]')
-                driver.execute_script("arguments[0].click();", btn_nao)
-                if log:
-                    logger.info('[SISBAJUD] Dialog de ordens pendentes dispensado (clicou "Não")')
-                espera.assentar(driver, 0.5)
+                espera.assentar(driver, 0.3)
                 return True
         except Exception:
             pass
 
         if timeout <= 0 or (time.time() - inicio) >= timeout:
             break
-        time.sleep(0.5)
+        espera.pausa(driver, 0.3)
 
     return False
 

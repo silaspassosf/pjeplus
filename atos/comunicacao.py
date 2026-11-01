@@ -347,12 +347,18 @@ def make_comunicacao_wrapper(
 
             if resolved_endereco_tipo and 'correio' in str(resolved_endereco_tipo).lower():
                 log_fn(f"[COMUNICACAO][ORQUESTRA] Alterando meio de expedição para correios (endereco_tipo={resolved_endereco_tipo})")
+                # Trocar para Correios derruba o prazo para "sem prazo". Só
+                # restabelecemos quando o próprio wrapper pede prazo em dias.
+                _tipo_prazo = str(call_kwargs.get('tipo_prazo') or 'dias uteis').lower()
+                _restabelecer = 'uteis' in _tipo_prazo or 'corridos' in _tipo_prazo
                 alterar_meio_expedicao(
                     driver,
                     debug=debug,
                     log=log_fn,
                     wrapper_name=wrapper_name,
-                    vincular_primeiro_endereco=call_kwargs.get('vincular_primeiro_endereco')
+                    vincular_primeiro_endereco=call_kwargs.get('vincular_primeiro_endereco'),
+                    restabelecer_prazo=_restabelecer,
+                    prazo_dias=prazo,
                 )
 
             # Requisito obrigatório: verificar a tabela após destinatários/meio de expedição e antes de salvar,

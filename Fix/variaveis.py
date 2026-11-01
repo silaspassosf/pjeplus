@@ -151,6 +151,59 @@ class PjeApiClient:
             return None
         return r.json()
 
+    def audiencias_processo(self, id_processo: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Audiências (pauta) do processo.
+
+        Endpoint documentado em api/apis.md (item 26.1) e usado pelo maisPJE
+        (`obterAudienciaMarcada`), que pega a primeira da lista e le `dataInicio`:
+
+            GET /pje-comum-api/api/processos/id/{idProcesso}/audiencias
+
+        Args:
+            id_processo: ID interno do processo.
+            status: filtro opcional (ex.: 'M' para marcada).
+
+        Returns:
+            Lista de audiencias (vazia em caso de erro ou quando nao ha audiencia).
+        """
+        if not id_processo:
+            return []
+        try:
+            params = {'status': status} if status else None
+            r = self.sess.get(
+                self._url(f"/pje-comum-api/api/processos/id/{id_processo}/audiencias"),
+                params=params, timeout=15,
+            )
+            if not r.ok:
+                return []
+            dados = r.json()
+        except Exception as e:
+            logger.warning('[API] audiencias_processo %s: %s', id_processo, e)
+            return []
+
+        # A API pode devolver a lista direto ou embrulhada em 'content'/'resultado'.
+        if isinstance(dados, list):
+            return dados
+        if isinstance(dados, dict):
+            for chave in ('content', 'resultado'):
+                valor = dados.get(chave)
+                if isinstance(valor, list):
+                    return valor
+        return []
+
+    def data_proxima_audiencia(self, id_processo: str) -> Optional[str]:
+        """Data (ISO) da proxima audiencia do processo, pela API de audiencias.
+
+        Mesmo criterio do maisPJE: primeira audiencia da lista, campo `dataInicio`.
+        """
+        for audi in self.audiencias_processo(id_processo):
+            if not isinstance(audi, dict):
+                continue
+            valor = audi.get('dataInicio') or audi.get('dataHoraInicio')
+            if valor:
+                return str(valor)
+        return None
+
     def partes(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
         url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/partes")
         r = self.sess.get(url, timeout=15)

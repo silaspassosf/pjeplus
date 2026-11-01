@@ -538,8 +538,31 @@ def executar_triagem(driver) -> Dict[str, Any]:
                           on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_triagem retornou None"})
 
 
+def executar_pet_dry_run(driver) -> Dict[str, Any]:
+    """Petição DRY RUN — apenas le o escaninho e relata as regras aplicaveis.
+
+    Nao abre processo, nao executa ato e nao grava delete.js.
+    """
+    from Peticao.runtime_pet import executar_dry_run_pet
+
+    def _fluxo(d):
+        return executar_dry_run_pet(d)
+
+    res = _executar_fluxo("Peticao_DryRun", _fluxo, driver,
+                          on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO",
+                                         "erro": "executar_dry_run_pet retornou None"})
+    return res if isinstance(res, dict) else {"sucesso": True, "status": "OK", "detalhes": res}
+
+
 def executar_pet(driver) -> Dict[str, Any]:
-    """Petição Isolada — fluxo completo de petições (escaninho)."""
+    """Petição Isolada — fluxo completo de petições (escaninho).
+
+    Se PJEPLUS_PET_DRYRUN=1, delega ao dry run (apenas relatorio, nada executa).
+    O menu usa a opcao P para dry run explicito.
+    """
+    if os.environ.get("PJEPLUS_PET_DRYRUN") == "1":
+        return executar_pet_dry_run(driver)
+
     def _fluxo(d):
         resultado = run_pet(d)
         if resultado is None:
@@ -797,6 +820,7 @@ def menu_execucao() -> Optional[str]:
         print("G - Petição")
         print("H - Domicílio Eletrônico")
         print("I - Citação")
+        print("P - Petição DRY RUN (só lê o escaninho e mostra as regras)")
         print("X - Cancelar")
         try:
             opcao = input("> ").strip().upper()
@@ -806,7 +830,7 @@ def menu_execucao() -> Optional[str]:
         if not opcao:
             continue  # Enter solto / resíduo de buffer: repete, não cancela
 
-        if opcao in ["A","B","C","D","E","F","G","H","I","X"]:
+        if opcao in ["A","B","C","D","E","F","G","H","I","P","X"]:
             return opcao if opcao != "X" else None
         # opção inválida: repete o menu
 
@@ -963,6 +987,7 @@ FLOW_HANDLERS = {
     "E": executar_pec,
     "F": executar_triagem,
     "G": executar_pet,
+    "P": executar_pet_dry_run,
     "H": executar_domicilio_eletronico,
     "I": executar_citacao,
 }

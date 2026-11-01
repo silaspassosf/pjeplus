@@ -2497,12 +2497,14 @@ def teste_sisbajud_minuta_com_probe(id_processo=None):
         # ===== ETAPA 4: Login SISBAJUD (com probe ativo) =====
         with etapa('login_sisbajud'):
             from SISB.core import login_automatico_sisbajud
+            LOGGER.info('[SISB_PROBE_TEST] Executando login SISBAJUD na URL /minuta...')
             if not login_automatico_sisbajud(driver_sisb):
                 LOGGER.error('[SISB_PROBE_TEST] Falha no login SISBAJUD')
                 return
-            LOGGER.info('[SISB_PROBE_TEST] ✓ Login SISBAJUD completo')
+            LOGGER.info('[SISB_PROBE_TEST] ✓ Login SISBAJUD completo e confirmado (URL: %s)',
+                        getattr(driver_sisb, 'current_url', ''))
 
-        # ===== ETAPA 4: Executar minuta_bloqueio (com probe ativo) =====
+        # ===== ETAPA 5: Executar minuta_bloqueio (com probe ativo) =====
         with etapa('minuta_bloqueio'):
             from SISB.core import minuta_bloqueio
             LOGGER.info('[SISB_PROBE_TEST] Chamando minuta_bloqueio(...)')
@@ -2510,17 +2512,17 @@ def teste_sisbajud_minuta_com_probe(id_processo=None):
                                         driver_pje=driver, log=True, fechar_driver=False)
             LOGGER.info('[SISB_PROBE_TEST] Resultado: %s', resultado)
 
-        # ===== ETAPA 5: Coleta dados de probe =====
+        # ===== ETAPA 6: Coleta dados de probe =====
         with etapa('probe_stop'):
             if probe:
                 relatorio = probe.stop()
                 LOGGER.info('[SISB_PROBE_TEST] ✓ Probe parado — %d endpoints detectados',
-                           len(relatorio.get('endpoints', [])))
+                            len(relatorio.get('endpoints', [])))
             else:
                 relatorio = {}
                 LOGGER.warning('[SISB_PROBE_TEST] Probe não foi iniciado')
 
-        # ===== ETAPA 5: Salva relatórios =====
+        # ===== ETAPA 7: Salva relatórios =====
         with etapa('salvar_relatorios'):
             with open('probe_relatorio.json', 'w', encoding='utf-8') as f:
                 json.dump(relatorio, f, ensure_ascii=False, indent=2, default=str)

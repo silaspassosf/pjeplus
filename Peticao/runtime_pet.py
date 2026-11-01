@@ -15,6 +15,7 @@ logger = getmodulelogger(__name__)
 import io
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 import Fix.espera as espera
@@ -47,6 +48,7 @@ from Peticao.regras_execucao import (
     _detectar_acao_analise,
     _executar_acao,
     classificar,
+    explicar,
     resolver_acao,
 )
 
@@ -309,6 +311,128 @@ def _classificar(itens: List) -> Dict[str, list]:
     return buckets
 
 
+# ============================================================================
+# DRY RUN — le o escaninho e indica as regras SEM abrir processo
+# ============================================================================
+
+# Buckets cujo processamento abre o processo no PJe (apagar incluso: agora
+# abre o processo e cria a GIGS "pet - apagar").
+_BUCKETS_QUE_ABREM = {'apagar', 'diretos', 'pericias', 'recurso', 'analise'}
+
+
+def montar_relatorio_dry_run(itens: List, gravar_arquivo: bool = True) -> Dict[str, Any]:
+    """Classifica os itens e devolve o relatorio das regras aplicaveis.
+
+    Nao navega para nenhum processo, nao executa atos e nao grava delete.js.
+    """
+    linhas = []
+    for item in itens:
+        exp = explicar(item)
+        bucket = exp['bucket']
+        abre = bucket in _BUCKETS_QUE_ABREM
+        linhas.append({
+            'processo': getattr(item, 'numero_processo', '') or '?',
+            'id_processo': getattr(item, 'id_processo', '') or '',
+            'tipo_peticao': getattr(item, 'tipo_peticao', '') or '',
+            'descricao': getattr(item, 'descricao', '') or '',
+            'tarefa': getattr(item, 'tarefa', '') or '',
+            'fase': getattr(item, 'fase', '') or '',
+            'data_juntada': getattr(item, 'data_juntada', '') or '',
+            'eh_perito': bool(getattr(item, 'eh_perito', False)),
+            'parte': getattr(item, 'parte', '') or '',
+            'polo': getattr(item, 'polo', '') or '',
+            'bucket': bucket,
+            'regra': exp['indice_regra'],
+            'regras_total': exp['total_regras'],
+            'acao': exp['nome_acao'],
+            'abre_processo': abre,
+            'efeito': 'ABRE PROCESSO e executa a acao' if abre else 'nao abre processo',
+        })
+
+    por_bucket: Dict[str, int] = {}
+    for ln in linhas:
+        por_bucket[ln['bucket']] = por_bucket.get(ln['bucket'], 0) + 1
+    abre = sum(1 for ln in linhas if ln['abre_processo'])
+
+    relatorio = {
+        'total': len(linhas),
+        'por_bucket': por_bucket,
+        'abririam_processo': abre,
+        'sem_abrir_processo': len(linhas) - abre,
+        'linhas': linhas,
+    }
+
+    logger.info('')
+    logger.info('=' * 100)
+    logger.info('[PET_DRY_RUN] %d peticao(oes) no escaninho', len(linhas))
+    logger.info('=' * 100)
+    for ln in linhas:
+        logger.info(
+            '[PET_DRY_RUN] %-22s | %-9s | regra %-9s | %s',
+            ln['processo'], ln['bucket'],
+            f"{ln['regra']}/{ln['regras_total']}" if ln['regra'] else '-',
+            ln['acao'],
+        )
+        logger.info(
+            "[PET_DRY_RUN]   tipo=%r desc=%r tarefa=%r fase=%r -> %s",
+            ln['tipo_peticao'], ln['descricao'], ln['tarefa'], ln['fase'], ln['efeito'],
+        )
+    logger.info('-' * 100)
+    for nome in ['apagar'] + BUCKETS_ORDEM:
+        qtd = por_bucket.get(nome, 0)
+        if qtd:
+            logger.info('[PET_DRY_RUN]   %-10s %d', nome, qtd)
+    logger.info('[PET_DRY_RUN] Abririam processo: %d | Sem abrir: %d',
+                abre, len(linhas) - abre)
+    logger.info('=' * 100)
+
+    if gravar_arquivo:
+        try:
+            import csv
+            import json as _json
+            from datetime import datetime as _dt
+            base = Path('logs')
+            base.mkdir(parents=True, exist_ok=True)
+            stamp = _dt.now().strftime('%Y%m%d_%H%M%S')
+            p_json = base / f'pet_dry_run_{stamp}.json'
+            p_csv = base / f'pet_dry_run_{stamp}.csv'
+            p_json.write_text(_json.dumps(relatorio, ensure_ascii=False, indent=2),
+                              encoding='utf-8')
+            campos = ['processo', 'bucket', 'regra', 'regras_total', 'acao', 'efeito',
+                      'abre_processo', 'tipo_peticao', 'descricao', 'tarefa', 'fase',
+                      'data_juntada', 'id_processo', 'eh_perito', 'parte', 'polo']
+            with open(p_csv, 'w', encoding='utf-8-sig', newline='') as f:
+                w = csv.DictWriter(f, fieldnames=campos, extrasaction='ignore')
+                w.writeheader()
+                w.writerows(linhas)
+            relatorio['json'] = str(p_json)
+            relatorio['csv'] = str(p_csv)
+            logger.info('[PET_DRY_RUN] Relatorio gravado em %s e %s', p_json, p_csv)
+        except Exception as e:
+            logger.error('[PET_DRY_RUN] Falha ao gravar relatorio: %s', e)
+
+    return relatorio
+
+
+def executar_dry_run_pet(driver=None) -> Dict[str, Any]:
+    """Le o escaninho e indica as regras, sem abrir processo nem tocar em delete.js."""
+    drv = criar_driver_e_logar(driver)
+    if not drv:
+        logger.error('[PET_DRY_RUN] Falha ao obter driver')
+        return {'erro': 'Falha ao obter driver', 'total': 0}
+
+    logger.info('[PET_DRY_RUN] Navegando para %s', ESCANINHO_URL)
+    drv.get(ESCANINHO_URL)
+    _aguardar_renderizacao(drv, timeout=10)
+
+    itens = PeticaoAPIClient().fetch(drv)
+    if not itens:
+        logger.info('[PET_DRY_RUN] Nenhuma peticao no escaninho')
+        return {'total': 0, 'linhas': [], 'por_bucket': {}}
+
+    return montar_relatorio_dry_run(itens)
+
+
 def _abrir_processo(driver: Any, item) -> bool:
     id_proc = getattr(item, 'id_processo', None) or getattr(item, 'numero_processo', '')
     numero_limpo = ''.join(filter(str.isdigit, str(id_proc)))
@@ -358,14 +482,7 @@ def _executar_bucket_normal(driver: Any, nome: str, itens: list,
         finally:
             _fechar_abas_extras(driver)
 
-        # Se processamos um item de quesitos e ainda nao consolidamos, fazer agora
-        if nome == 'diretos' and not quesitos_consolidado and (
-            'quesitos' in (getattr(item, 'tipo_peticao', '') or '')
-            or 'quesitos' in (getattr(item, 'descricao', '') or '')
-        ):
-            logger.info('[PET_EXEC] Quesitos processado -> consolidando delete.js')
-            _consolidar_delete_bookmarklet()
-            quesitos_consolidado = True
+        # delete.js desativado: nao ha o que consolidar apos quesitos.
 
     return stats
 
@@ -399,31 +516,6 @@ def _executar_bucket_analise(driver: Any, itens: list,
     return stats
 
 
-def _executar_bucket_apagar(itens: list) -> Dict[str, int]:
-    """Apagar: sem abertura de processo — registra em delete.js apenas com id_doc."""
-    from Peticao.helpers import apagar
-    stats = {'sucesso': 0, 'erro': 0}
-    for item in itens:
-        try:
-            apagar(getattr(item, 'numero_processo', ''), getattr(item, 'id_item', ''))
-            logger.info(f'[PET_APAG] {getattr(item, "numero_processo", "?")} | id_doc={getattr(item, "id_item", "?")!r}')
-            stats['sucesso'] += 1
-        except Exception as e:
-            logger.error(f'[PET_APAG] {getattr(item, "numero_processo", "?")}: {e}')
-            stats['erro'] += 1
-    return stats
-
-
-def _consolidar_delete_bookmarklet():
-    """Consolida delete.js apos habilitacao e gera bookmarklet."""
-    try:
-        from Peticao.suporte_pet import consolidar_delete_com_bookmarklet
-        consolidar_delete_com_bookmarklet()
-        logger.info('[PET_ORQ] delete.js consolidado e bookmarklet gerado')
-    except Exception as e:
-        logger.warning(f'[PET_ORQ] Falha ao consolidar delete.js: {e}')
-
-
 class PETOrquestrador:
     """Orquestrador do pipeline de peticoes."""
 
@@ -450,58 +542,38 @@ class PETOrquestrador:
                 logger.info(f'  {nome}: {qtd}')
 
         if dry_run:
-            return {'total': len(itens), 'sucesso': 0, 'erro': 0}
+            return montar_relatorio_dry_run(itens)
 
-        # Apagar: executa imediatamente, sem abrir processos
-        apagar_itens = buckets.get('apagar', [])
-        if apagar_itens:
-            logger.info(f'[PET_ORQ] Apagar: {len(apagar_itens)} itens -> delete.js')
-            _executar_bucket_apagar(apagar_itens)
+        # Apagar: agora abre o processo e cria a GIGS "pet - apagar"
+        # (o delete.js foi desativado; nao se grava mais nada em arquivo).
+        if buckets.get('apagar'):
+            logger.info('[PET_ORQ] Apagar: %d itens -> abrir processo + GIGS '
+                        '"pet - apagar"', len(buckets['apagar']))
 
-        # Executar sempre na ordem padrao dos buckets
-        ordem = [n for n in BUCKETS_ORDEM if buckets.get(n)]
+        # Executar sempre na ordem padrao dos buckets ('apagar' primeiro)
+        ordem = [n for n in ['apagar'] + BUCKETS_ORDEM if buckets.get(n)]
         stats = {'total': len(itens), 'sucesso': 0, 'erro': 0}
 
-        for nome_bucket in ordem:
-            itens_bucket = buckets.get(nome_bucket, [])
+        for nome in ordem:
+            itens_bucket = buckets.get(nome, [])
             if not itens_bucket:
                 continue
-            logger.info(f'\n[PET_ORQ] >>> Bucket "{nome_bucket}" ({len(itens_bucket)} itens)')
+            logger.info(f'\n[PET_ORQ] >>> Bucket "{nome}" ({len(itens_bucket)} itens)')
             try:
-                if nome_bucket == 'analise':
-                    r = _executar_bucket_analise(self.driver, itens_bucket, self.progresso)
+                if nome == 'analise':
+                    s = _executar_bucket_analise(self.driver, itens_bucket, self.progresso)
                 else:
-                    r = _executar_bucket_normal(self.driver, nome_bucket, itens_bucket,
+                    s = _executar_bucket_normal(self.driver, nome, itens_bucket,
                                                 self.progresso)
-                stats['sucesso'] += r['sucesso']
-                stats['erro'] += r['erro']
+                stats['sucesso'] += s['sucesso']
+                stats['erro'] += s['erro']
             except RuntimeError as e:
                 if 'RESTART_PET' in str(e):
                     logger.error(f'[RESTART] {e}')
                     raise
                 stats['erro'] += 1
 
-            if dry_run:
-                logger.info(f'[PET_ORQ][DRY-RUN] Processaria {len(itens_bucket)} itens em {nome}')
-                continue
-
-            logger.info(f'[PET_ORQ] Processando bucket: {nome} ({len(itens_bucket)} itens)')
-
-            if nome == 'analise':
-                s = _executar_bucket_analise(self.driver, itens_bucket, self.progresso)
-            else:
-                s = _executar_bucket_normal(self.driver, nome, itens_bucket, self.progresso)
-
-            stats['sucesso'] += s['sucesso']
-            stats['erro']    += s['erro']
-
-        # Se houve quesitos no lote diretos, consolidar delete.js ao final
-        if buckets.get('diretos') and any(
-            'quesitos' in (getattr(i, 'tipo_peticao', '') or '')
-            or 'quesitos' in (getattr(i, 'descricao', '') or '')
-            for i in buckets['diretos']
-        ):
-            _consolidar_delete_bookmarklet()
+        # delete.js desativado: nada a consolidar ao final do lote.
 
         logger.info('=' * 60)
         logger.info(f"[PET_ORQ] Concluido: {stats['sucesso']}/{stats['total']} sucesso, {stats['erro']} erros")

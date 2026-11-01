@@ -362,8 +362,17 @@ def _w(fn):
 
 
 def _gigs(dias, resp, obs):
-    """Factory: callable (driver, item) que chama criar_gigs(driver, dias, resp, obs)."""
-    return lambda driver, _: criar_gigs(driver, dias, resp, obs)
+    """Factory: callable (driver, item) que chama criar_gigs(driver, dias, resp, obs).
+
+    Guarda os parametros em `._gigs_args` para o dry run relatar o que o codigo
+    real faria.
+    """
+    def _acao(driver, _):
+        return criar_gigs(driver, dias, resp, obs)
+
+    _acao.__name__ = 'criar_gigs'
+    _acao._gigs_args = (dias, resp, obs)
+    return _acao
 
 
 # ============================================================================
@@ -505,16 +514,27 @@ def _regras(item, driver=None):
     f      = _nfase(item)
     perito = getattr(item, 'eh_perito', False)
 
+    # Bloco "apagar": NAO apaga mais nada. Abre o processo e cria a GIGS
+    # "pet - apagar" (delete.js foi desativado).
+    pet_apagar = _gigs(-1, "", "pet - apagar")
+
     return [
-        # -- APAGAR (sem driver, sem abrir processo) -------------------------
-        ('apagar',   'parecer do assistente' in desc,                                                      None),
-        ('apagar',   'razoes finais' in tipo or 'carta convite' in tipo,                                    None),
-        ('apagar',   'conhecimento' in f and 'manifestacao' in tipo and any(x in desc for x in ['replica', 'razoes finais', 'preposicao', 'substabelecimento']), None),
-        ('apagar',   'replica' in tipo and 'conhecimento' in f,                                             None),
-        ('apagar',   'aguardando cumprimento de acordo' in tarefa,                                          None),
-        ('apagar',   'manifestacao' in tipo and any(x in desc for x in ['carta de preposicao', 'substabelecimento']), None),
-        ('apagar',   'triagem inicial' in f,                                                                None),
-        ('apagar',   'contestacao' in tipo and 'conhecimento' in f,                                        None),
+        # -- APAGAR (abre processo + GIGS "pet - apagar") --------------------
+        ('apagar',   'parecer do assistente' in desc,                                                      (pet_apagar,)),
+        ('apagar',   'razoes finais' in tipo or 'carta convite' in tipo,                                    (pet_apagar,)),
+        ('apagar',   'conhecimento' in f and 'manifestacao' in tipo and any(x in desc for x in ['replica', 'razoes finais', 'preposicao', 'substabelecimento']), (pet_apagar,)),
+        ('apagar',   'replica' in tipo and 'conhecimento' in f,                                             (pet_apagar,)),
+        ('apagar',   'aguardando cumprimento de acordo' in tarefa,                                          (pet_apagar,)),
+        ('apagar',   'manifestacao' in tipo and any(x in desc for x in ['carta de preposicao', 'substabelecimento']), (pet_apagar,)),
+        # O PJe cria tipo proprio "Apresentacao de Substabelecimento com
+        # Reserva de Poderes" e a descricao vem vazia -- por isso a regra acima
+        # nunca casava. So "com reserva" vai para apagar; "sem reserva" ou sem
+        # indicacao caem em analise (nao casam aqui).
+        ('apagar',   'substabelecimento com reserva' in tipo,                                               (pet_apagar,)),
+        ('apagar',   'triagem inicial' in f,                                                                (pet_apagar,)),
+        ('apagar',   'contestacao' in tipo and 'conhecimento' in f,                                        (pet_apagar,)),
+        # variante real: tipo_peticao costuma ser "Peticao" e a palavra vem na descricao
+        ('apagar',   'contestacao' in desc and 'conhecimento' in f,                                        (pet_apagar,)),
         # -- PERICIAS --------------------------------------------------------
         ('pericias', perito and 'esclarecimentos' in tipo and 'liquidacao' in f and ato_escliq,  (_w(ato_escliq),)),
         ('pericias', perito and 'esclarecimentos' in tipo and ato_esc,                         (_w(ato_esc),)),
@@ -593,3 +613,61 @@ def resolver_acao(item, driver=None):
         if cond:
             return acao
     return None
+
+
+def _nome_acao(acao) -> str:
+    """Nome legivel de uma acao (tupla, callable ou None)."""
+    if acao is None:
+        return 'nenhuma acao'
+    if isinstance(acao, tuple):
+        partes = [_nome_acao(a) for a in acao]
+        return ' + '.join(p for p in partes if p)
+    args_gigs = getattr(acao, '_gigs_args', None)
+    if args_gigs:
+        dias, resp, obs = args_gigs
+        return (
+            f"criar_gigs(dias={dias if dias else '-'}, "
+            f"responsavel={resp if resp else '-'}, "
+            f"observacao={obs if obs else '-'})"
+        )
+    nome = getattr(acao, '__name__', None)
+    if nome and nome != '<lambda>':
+        return nome
+    interno = getattr(acao, 'f', None) or getattr(acao, '__wrapped__', None)
+    nome_interno = getattr(interno, '__name__', None)
+    if nome_interno and nome_interno != '<lambda>':
+        return nome_interno
+    return 'acao (lambda)'
+
+
+def explicar(item, driver=None) -> dict:
+    """Explica a decisao das regras para um item, SEM executar nada.
+
+    Mesma tabela e mesma ordem de `classificar`/`resolver_acao`, mas devolve
+    tambem qual regra casou -- usado pelo dry run.
+    """
+    regras = _regras(item, driver)
+    for i, (bucket, cond, acao) in enumerate(regras, 1):
+        if cond:
+            indice = i
+            total = len(regras)
+            if bucket == 'analise' and acao is None:
+                nome = 'analise de texto (analise_pet)'
+            elif bucket == 'apagar' and acao is None:
+                nome = 'apagar (delete.js)'
+            else:
+                nome = _nome_acao(acao)
+            return {
+                'bucket': bucket,
+                'indice_regra': indice,
+                'total_regras': total,
+                'acao': acao,
+                'nome_acao': nome,
+            }
+    return {
+        'bucket': 'analise',
+        'indice_regra': None,
+        'total_regras': len(regras),
+        'acao': None,
+        'nome_acao': 'nenhuma regra casou -> analise',
+    }

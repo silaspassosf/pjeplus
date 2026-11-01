@@ -2,7 +2,7 @@
 chcp 65001 >nul
 title PJe Plus - pw.py
 
-set "RAIZ=C:\Users\s164283\Desktop\Pje2"
+set "RAIZ=D:\PjePlus"
 set "PY=%RAIZ%\.venv\Scripts\python.exe"
 
 cd /d "%RAIZ%"
@@ -25,6 +25,10 @@ pause
 exit /b 1
 
 :ok_pw
+rem ── /auto : roda em laco sem perguntar (para varios fluxos seguidos) ──
+set "MODO_AUTO="
+if /I "%~1"=="/auto" set "MODO_AUTO=1"
+
 :loop
 echo Iniciando pw.py em %date% %time%...
 echo.
@@ -36,9 +40,21 @@ echo.
 echo Execucao encerrada (codigo de saida %COD%).
 echo.
 
+rem 88 = o usuario cancelou (X) no pw.py/x.py — encerra o laco sem perguntar.
+rem O processo ja terminou e o browser ja foi fechado pelo finally do x.py;
+rem a proxima execucao e um processo NOVO, portanto le o codigo atualizado.
+if "%COD%"=="88" goto :cancelado
+
+if defined MODO_AUTO goto :loop
+
 choice /C SN /M "Executar novamente para escolher um novo fluxo (S=sim, N=nao)"
 if errorlevel 2 goto :fim
 if errorlevel 1 goto :loop
+
+:cancelado
+echo.
+echo Fluxo cancelado pelo usuario — encerrando.
+echo.
 
 :fim
 exit /b %COD%

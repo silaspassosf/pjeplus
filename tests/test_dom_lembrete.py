@@ -134,7 +134,7 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
         conteudo = _montar_conteudo_lembrete_dom(destinatarios)
         self.assertEqual(
             conteudo,
-            "Renovado por correio para (M CASSAB - 512224b), (BANCO CSF - 030869f)"
+            "Citação - renovei via correios: M CASSAB - 512224b, BANCO CSF - 030869f"
         )
         self.assertTrue(len(conteudo) <= 200)
 
@@ -146,7 +146,7 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
         ]
         conteudo = _montar_conteudo_lembrete_dom(destinatarios)
         self.assertTrue(len(conteudo) <= 200)
-        self.assertTrue(conteudo.startswith("Renovado por correio para "))
+        self.assertTrue(conteudo.startswith("Citação - renovei via correios: "))
 
     @patch("bianca.dom_engine.has_dom_eletronico_reminder", return_value=False)
     @patch("bianca.dom_engine._checar_empresas_e_ids_api")
@@ -196,10 +196,13 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
         mock_lembrete.assert_called_once_with(
             mock_driver,
             "DomElet",
-            "Renovado por correio para (BANCO CSF - 030869f)",
+            "Citação - renovei via correios: BANCO CSF - 030869f",
             debug=True,
+            marcadores_titulo=["domelet", "not. id"],
+            marcadores_conteudo=["renovei via correios"],
         )
-        self.assertEqual(mock_chip.call_count, 2)
+        # Chips sao apagados uma unica vez (primeiro passo do fluxo)
+        self.assertEqual(mock_chip.call_count, 1)
         mock_pec.assert_called_once()
 
     @patch("bianca.dom_engine._checar_empresas_e_ids_api")
@@ -261,6 +264,172 @@ class TestDomLembreteIdNotificacao(unittest.TestCase):
                 chip_corresponde_padrao(chip_norm, padrao_norm),
                 f"Falha ao casar '{texto}' com '{padrao}'",
             )
+
+    # ------------------------------------------------------------------
+    # Filtro de advogado: parte alvo COM advogado sai do fluxo DOM
+    # (mesmo criterio do prep.js: `representantes` nao vazio).
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _partes_api(representantes_por_nome):
+        """Monta o dict /partes no formato {"PASSIVO": [...]}."""
+        return {
+            "ATIVO": [{"nome": "RECLAMANTE", "documento": "111.111.111-11", "representantes": []}],
+            "PASSIVO": [
+                {
+                    "nome": nome,
+                    "documento": "17.858.016/0001-32",
+                    "representantes": [{"nome": "ADVOGADO X", "idPessoa": 1}] if tem else [],
+                }
+                for nome, tem in representantes_por_nome
+            ],
+        }
+
+    def _rodar_checar(self, partes, expedientes, documentos):
+        mock_client = MagicMock()
+        mock_client.expedientes_processo.return_value = expedientes
+        mock_client.partes.return_value = partes
+        mock_client.documento_por_id.side_effect = lambda pid, doc_id: documentos.get(doc_id)
+        with patch("Fix.variaveis.session_from_driver", return_value=(MagicMock(), "https://base")), \
+             patch("Fix.variaveis.PjeApiClient", return_value=mock_client), \
+             patch("bianca.dom_engine._pjdp_do_passivo_api", return_value=set()):
+            return _checar_empresas_e_ids_api("8894351", MagicMock())
+
+    def _expediente_dom(self, nome, id_exp, id_documento):
+        return {
+            "id": id_exp,
+            "nomePessoaParte": nome,
+            "idDocumento": id_documento,
+            "meioExpedienteEnum": "DOMICILIO_ELETRONICO",
+            "cienciaViaSistema": True,
+            "dataCiencia": None,
+        }
+
+    def test_alvo_com_advogado_sai_do_filtro(self):
+        """Empresa COM advogado nao entra no filtro DOM; empresa SEM entrou."""
+        partes = self._partes_api([("COM ADVOGADO LTDA", True), ("SEM ADVOGADO LTDA", False)])
+        expedientes = [
+            self._expediente_dom("COM ADVOGADO LTDA", 1, 501),
+            self._expediente_dom("SEM ADVOGADO LTDA", 2, 502),
+        ]
+        documentos = {
+            501: {"id": 501, "titulo": "Notificação", "idUnicoDocumento": "aaa1111"},
+            502: {"id": 502, "titulo": "Notificação", "idUnicoDocumento": "bbb2222"},
+        }
+
+        resultado = self._rodar_checar(partes, expedientes, documentos)
+
+        self.assertEqual([d["empresa"] for d in resultado], ["SEM ADVOGADO LTDA"])
+        self.assertEqual(resultado[0]["id_unico_documento"], "bbb2222")
+        self.assertEqual(resultado.alvos_com_advogado, ["COM ADVOGADO LTDA"])
+
+    def test_todas_com_advogado_resulta_em_lista_vazia(self):
+        """Se TODOS os alvos tem advogado, a lista fica vazia (callback pula o processo)."""
+        partes = self._partes_api([("EMPRESA A LTDA", True), ("EMPRESA B LTDA", True)])
+        expedientes = [
+            self._expediente_dom("EMPRESA A LTDA", 1, 601),
+            self._expediente_dom("EMPRESA B LTDA", 2, 602),
+        ]
+        documentos = {
+            601: {"id": 601, "titulo": "Notificação", "idUnicoDocumento": "ccc3333"},
+            602: {"id": 602, "titulo": "Notificação", "idUnicoDocumento": "ddd4444"},
+        }
+
+        resultado = self._rodar_checar(partes, expedientes, documentos)
+
+        self.assertEqual(list(resultado), [])
+        self.assertEqual(sorted(resultado.alvos_com_advogado), ["EMPRESA A LTDA", "EMPRESA B LTDA"])
+
+    def test_alvo_com_advogado_casa_ignorando_acentos_e_caixa(self):
+        """Match por nome normalizado: 'CONDOMÍNIO' vs 'CONDOMINIO' nao escapa do filtro."""
+        partes = self._partes_api([("CONDOMÍNIO SHOPPING JARDIM SUL", True)])
+        expedientes = [self._expediente_dom("CONDOMINIO SHOPPING JARDIM SUL", 1, 901)]
+        documentos = {901: {"id": 901, "titulo": "Notificação", "idUnicoDocumento": "ggg7777"}}
+
+        resultado = self._rodar_checar(partes, expedientes, documentos)
+
+        self.assertEqual(list(resultado), [])
+        # O match com a API foi por nome normalizado; o registro guarda o nome
+        # como veio da API (com acento), nao o do expediente (sem acento).
+        self.assertEqual(resultado.alvos_com_advogado, ["CONDOMÍNIO SHOPPING JARDIM SUL"])
+
+    def test_nenhum_alvo_com_advogado_entra_igual_antes(self):
+        """Sem advogado em ninguem, o filtro nao remove nada (comportamento antigo preservado)."""
+        partes = self._partes_api([("EMPRESA C LTDA", False)])
+        expedientes = [self._expediente_dom("EMPRESA C LTDA", 1, 701)]
+        documentos = {701: {"id": 701, "titulo": "Notificação", "idUnicoDocumento": "eee5555"}}
+
+        resultado = self._rodar_checar(partes, expedientes, documentos)
+
+        self.assertEqual([d["empresa"] for d in resultado], ["EMPRESA C LTDA"])
+        self.assertEqual(resultado.alvos_com_advogado, [])
+
+    def test_falha_na_api_de_partes_nao_remove_alvos(self):
+        """Se /partes falhar, ninguem e' filtrado (fail-open: nao perde alvo por erro de API)."""
+        partes = self._partes_api([("EMPRESA D LTDA", False)])
+        expedientes = [self._expediente_dom("EMPRESA D LTDA", 1, 801)]
+        documentos = {801: {"id": 801, "titulo": "Notificação", "idUnicoDocumento": "fff6666"}}
+
+        mock_client = MagicMock()
+        mock_client.expedientes_processo.return_value = expedientes
+        mock_client.partes.side_effect = RuntimeError("boom")
+        mock_client.documento_por_id.side_effect = lambda pid, doc_id: documentos.get(doc_id)
+        with patch("Fix.variaveis.session_from_driver", return_value=(MagicMock(), "https://base")), \
+             patch("Fix.variaveis.PjeApiClient", return_value=mock_client), \
+             patch("bianca.dom_engine._pjdp_do_passivo_api", return_value=set()):
+            resultado = _checar_empresas_e_ids_api("8894351", MagicMock())
+
+        self.assertEqual([d["empresa"] for d in resultado], ["EMPRESA D LTDA"])
+
+    @patch("bianca.dom_engine.has_dom_eletronico_reminder", return_value=False)
+    @patch("bianca.dom_engine._checar_empresas_e_ids_api")
+    @patch("bianca.dom_engine.criar_gigs")
+    @patch("bianca.dom_engine.criar_comentario", return_value=True)
+    @patch("bianca.dom_engine.criar_lembrete_posit", return_value=True)
+    @patch("bianca.dom_engine.def_chip", return_value=True)
+    @patch("bianca.dom_engine._verificar_acesso_negado")
+    @patch("bianca.dom_engine._obter_abas", side_effect=[['aba1'], ['aba1', 'aba2']])
+    @patch("bianca.dom_engine.pec_arordv", return_value=True)
+    def test_lembrete_so_lista_empresas_sem_advogado(
+        self,
+        mock_pec,
+        mock_abas,
+        mock_acesso,
+        mock_chip,
+        mock_lembrete,
+        mock_coment,
+        mock_gigs,
+        mock_checar_api,
+        mock_verif_lembrete,
+    ):
+        """O lembrete deve constar apenas as empresas SEM advogado."""
+        from bianca.dom_engine import ListaDestinatariosDOM, callback_bucket2
+
+        mock_driver = MagicMock()
+        mock_driver.current_url = "https://pje.trt2.jus.br/pjekz/processo/8894351/detalhe"
+        mock_driver._numero_processo_lista = "1000123-45.2026.5.02.0001"
+
+        destinatarios = ListaDestinatariosDOM([
+            {"empresa": "SEM ADVOGADO LTDA", "id_unico_documento": "bbb2222"},
+        ])
+        destinatarios.alvos_com_advogado = ["COM ADVOGADO LTDA"]
+        mock_checar_api.return_value = destinatarios
+
+        with patch("bianca.dom_engine._dia_semana_audiencia", return_value=0):
+            res = callback_bucket2(mock_driver, tipo_processo="ATOrd")
+
+        self.assertTrue(res)
+        mock_lembrete.assert_called_once_with(
+            mock_driver,
+            "DomElet",
+            "Citação - renovei via correios: SEM ADVOGADO LTDA - bbb2222",
+            debug=True,
+            marcadores_titulo=["domelet", "not. id"],
+            marcadores_conteudo=["renovei via correios"],
+        )
+        # "COM ADVOGADO LTDA" nao pode aparecer no lembrete
+        conteudo = mock_lembrete.call_args[0][2]
+        self.assertNotIn("COM ADVOGADO", conteudo)
 
 
 

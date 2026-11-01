@@ -18,7 +18,13 @@ from Fix.core import esperar_elemento
 from ..api.client import PjeApiClient, session_from_driver
 from ..core.extracao import extrair_direto, extrair_documento, criar_gigs, extrair_dados_processo
 from Fix.variaveis import obter_chave_ultimo_despacho_decisao_sentenca
-from ..runtime_pet import extrair_texto_peticao_via_api
+
+# `extrair_texto_peticao_via_api` vive em Peticao.runtime_pet, que importa
+# regras_execucao, que importa este modulo. Importar no topo fecha o ciclo
+# (regras_execucao -> helpers -> runtime_pet -> regras_execucao) e o
+# `except ImportError` de regras_execucao zerava os 4 helpers silenciosamente,
+# derrubando as regras de habilitacao/agravo/quesitos/calculos no fallback.
+# Por isso e' importado sob demanda na funcao que usa.
 
 
 def _buscar_documento_relevante_timeline(driver: Any) -> Tuple[Optional[Any], Optional[Any], str]:
@@ -67,55 +73,16 @@ def _normalizar_delete_processes(delete_processes: dict) -> dict:
 
 def apagar(numero_processo: str, id_documento: str):
     """
-    Registra processo no arquivo delete.js para nao ser processado.
-    Formato: {numero_processo: [id_doc]}
+    DESATIVADA: o delete.js nao e' mais escrito.
+
+    O bloco "apagar" hoje abre o processo e cria a GIGS "pet - apagar"
+    (ver Peticao/regras_execucao.py::_regras). Esta funcao fica inerte apenas
+    para nao quebrar chamadas remanescentes.
     """
-    try:
-        delete_file = Path(__file__).parent / "delete.js"
-
-        # Ler arquivo atual (sempre acumular, nunca sobrescrever)
-        delete_processes = {}
-        if delete_file.exists():
-            try:
-                content = delete_file.read_text(encoding='utf-8')
-                match = re.search(
-                    r'const\s+delete_processes\s*=\s*(\{.*?\})\s*;',
-                    content,
-                    re.S,
-                )
-                if match:
-                    delete_processes = _normalizar_delete_processes(json.loads(match.group(1)))
-            except Exception:
-                pass
-
-        novo_id_doc = str(id_documento).strip()
-        if not novo_id_doc:
-            return
-
-        existente = delete_processes.get(numero_processo)
-        if existente is None:
-            delete_processes[numero_processo] = [novo_id_doc]
-        elif isinstance(existente, list):
-            ids = [str(e.get("id_doc") or e).strip() if isinstance(e, dict) else str(e).strip() for e in existente]
-            if novo_id_doc not in ids:
-                existente.append(novo_id_doc)
-        else:
-            id_legado = str(existente).strip()
-            delete_processes[numero_processo] = [id_legado] if id_legado == novo_id_doc else [
-                id_legado,
-                novo_id_doc,
-            ]
-
-        # Escrever de volta (sempre acumulando)
-        with open(delete_file, 'w', encoding='utf-8') as f:
-            f.write("// Arquivo para registrar processos que devem ser \"apagados\" (nao processados)\n")
-            f.write("// Formato: {numero_processo: [id_doc]}\n\n")
-            f.write("const delete_processes = ")
-            json.dump(delete_processes, f, indent=2, ensure_ascii=False)
-            f.write(";\n\nmodule.exports = delete_processes;\n")
-
-    except Exception as e:
-        logger.error("ERRO em apagar: Erro ao registrar processo no delete.js: %s: %s", type(e).__name__, e)
+    logger.info(
+        "[PET_APAG][DESATIVADO] %s (id_doc=%s) - nada gravado em delete.js",
+        numero_processo, id_documento,
+    )
 
 def checar_habilitacao(item, driver: Any) -> bool:
     """
@@ -223,6 +190,7 @@ def checar_habilitacao(item, driver: Any) -> bool:
         # 2. VERIFICAR ADVOGADO -- SEMPRE, independente de ato_ceju
         id_doc_peticao = _extrair_id_doc_peticao()
         fez_gigs = False
+        from ..runtime_pet import extrair_texto_peticao_via_api  # import tardio: evita ciclo
         texto_pdf = extrair_texto_peticao_via_api(driver, item)
         if texto_pdf:
             texto_lower = texto_pdf.lower()

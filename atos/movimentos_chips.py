@@ -3,7 +3,7 @@ import logging
 import re
 import unicodedata
 from Fix import espera
-from Fix.core import safe_click_no_scroll
+from Fix.core import _executar_js, safe_click_no_scroll
 from Fix.selectors_pje import BTN_EXPANDIR_CHIPS, CHIPS_LISTA
 
 logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
             try:
                 # 1. Tentar encontrar o botão de remoção diretamente no elemento do chip
                 btn_remover = None
-                seletor_btn = "button[mattooltip*='Remover' i], button[aria-label*='Remover' i], button.etq-botao-excluir, button.mat-chip-remove, button"
+                seletor_btn = "button[mattooltip*='Remover' i], button[aria-label*='Remover' i], button.etq-botao-excluir, button.mat-chip-remove, mat-icon[mattooltip*='Remover' i], .mat-chip-remove, button"
 
                 if hasattr(chip_element, "_handle") and chip_element._handle:
                     try:
@@ -101,6 +101,14 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
                         if h:
                             from Play.pjeplay.element import PWElement
                             btn_remover = PWElement(h, getattr(chip_element, "_page", None))
+                    except Exception:
+                        pass
+
+                if not btn_remover:
+                    try:
+                        fn_find = getattr(chip_element, "find_element", None)
+                        if fn_find:
+                            btn_remover = fn_find("css selector", seletor_btn)
                     except Exception:
                         pass
 
@@ -121,29 +129,66 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
                     continue
 
                 safe_click_no_scroll(driver, btn_remover)
-                espera.assentar(driver, 1)
+                espera.assentar(driver, 0.4)
 
-                sel_sim = "mat-dialog-container button:has-text('Sim'), //button[.//span[contains(text(), 'Sim')]], button:has-text('Sim')"
-                if espera.ate_habilitar(driver, sel_sim, teto=5):
-                    botao_sim = espera.elemento(driver, sel_sim, teto=2)
+                # Dialogo de confirmacao ("Sim") — padrão exato de movimentos_fimsob (def_sob/PEC):
+                # espera o span/botao 'Sim' aparecer, clica e espera sumir.
+                sel_sim_txt = "//span[contains(text(),'Sim')] | //button[contains(.,'Sim')]"
+                xpath_sim = '//button[.//span[contains(text(), "Sim")]]'
+
+                confirmou = False
+                if espera.ate_aparecer(driver, sel_sim_txt, teto=timeout):
+                    botao_sim = espera.elemento(driver, xpath_sim, teto=2)
+                    if not botao_sim:
+                        botao_sim = espera.elemento(
+                            driver,
+                            '//mat-dialog-container//button[contains(., "Sim")]'
+                            ' | //div[contains(@class,"cdk-overlay-pane")]//button[contains(., "Sim")]'
+                            ' | //button[contains(., "Sim")]',
+                            teto=2,
+                        )
+                    if not botao_sim:
+                        botao_sim = espera.elemento(
+                            driver,
+                            'button[mat-button][color="primary"] span.mat-button-wrapper',
+                            teto=2,
+                        )
+
                     if botao_sim:
                         safe_click_no_scroll(driver, botao_sim)
-                        espera.assentar(driver, 2)
-                        chips_removidos += 1
-                        logger.info(
-                            "[CHIPS][REMOVER] #%s: chip '%s' removido com sucesso",
-                            numero_processo,
-                            raw_text,
-                        )
+                        espera.ate_sumir(driver, "//span[contains(text(),'Sim')]", teto=timeout)
+                        confirmou = True
                     else:
-                        logger.warning(
-                            "[CHIPS][REMOVER] #%s: botao 'Sim' habilitou mas nao foi localizado (chip '%s')",
-                            numero_processo, chip_text,
-                        )
+                        # Fallback JS direto no container do diálogo
+                        res_js = _executar_js(driver, """
+                            const btn = Array.from(document.querySelectorAll('mat-dialog-container button, .cdk-overlay-pane button, button')).find(b => {
+                                const t = (b.textContent || '').trim();
+                                return t === 'Sim' || t.startsWith('Sim') || b.querySelector('span')?.textContent?.trim() === 'Sim';
+                            });
+                            if (btn) { btn.click(); return true; }
+                            return false;
+                        """)
+                        if res_js:
+                            espera.ate_sumir(driver, "//span[contains(text(),'Sim')]", teto=timeout)
+                            confirmou = True
+                        else:
+                            logger.warning(
+                                "[CHIPS][REMOVER] #%s: botao 'Sim' apareceu mas nao foi localizado (chip '%s')",
+                                numero_processo, raw_text,
+                            )
                 else:
                     logger.warning(
-                        "[CHIPS][REMOVER] #%s: dialogo de confirmacao nao habilitou para o chip '%s'",
+                        "[CHIPS][REMOVER] #%s: dialogo de confirmacao nao apareceu para o chip '%s'",
                         numero_processo, raw_text,
+                    )
+
+                if confirmou:
+                    espera.assentar(driver, 0.5)
+                    chips_removidos += 1
+                    logger.info(
+                        "[CHIPS][REMOVER] #%s: chip '%s' removido com sucesso",
+                        numero_processo,
+                        raw_text,
                     )
             except Exception as e:
                 logger.warning("[CHIPS][REMOVER] #%s: falha ao remover chip '%s': %s", numero_processo, raw_text, e)

@@ -22,11 +22,14 @@ Uso:
 """
 
 import json
+import logging
 import re
 import time
 from typing import Any, Dict, List, Optional
 from collections import defaultdict
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class ProbeNetwork:
@@ -121,14 +124,26 @@ class ProbeNetwork:
         return any(c in template.lower() for c in criticos)
 
     def start(self):
-        """Inicia interceptação de rede via JavaScript."""
+        """Inicia interceptação de rede.
+
+        DOIS níveis, porque um sozinho perde a maior parte do fluxo:
+
+        1. Playwright (quando o driver tem `.page`): `page.on('request'/'response')`.
+           É o único nível que sobrevive a navegações completas e redirects
+           (SISBAJUD -> SSO Keycloak -> /minuta). O probe em JS morre no
+           primeiro `location` novo e é por isso que o relatório saía com
+           0 endpoints.
+        2. JS (fetch/XHR): continua ativo para capturar corpos de resposta
+           dentro da SPA, que o nível de rede só faz de forma assíncrona.
+        """
         if self.js_injetado or self.ativo:
             return
-        
+
         self.ativo = True
         self.inicio = time.time()
         self.requisicoes = []
         self.endpoints = {}
+        self._requisicoes_pw = []
 
         js_probe = """
         (function() {
@@ -223,15 +238,25 @@ class ProbeNetwork:
         })();
         """
 
+        # -- Nivel 1: Playwright (sobrevive a navegacao) --
+        page = getattr(self.driver, 'page', None)
+        if page is not None:
+            try:
+                page.on('response', self._ao_response_pw)
+                logger.info('[PROBE] Nível Playwright ligado (request/response) — '
+                            'sobrevive a redirects e navegações')
+            except Exception as e:
+                logger.warning('[PROBE] Não foi possível ligar o nível Playwright: %s', e)
+
         try:
-            # Playwright: add_init_script persiste o probe em todos os redirecionamentos de página
-            if hasattr(self.driver, 'page') and self.driver.page:
+            # Playwright: add_init_script reinstala o probe em toda nova página
+            if page is not None:
                 try:
-                    self.driver.page.add_init_script(js_probe)
+                    page.add_init_script(js_probe)
                 except Exception:
                     pass
                 try:
-                    self.driver.page.evaluate(js_probe)
+                    page.evaluate(js_probe)
                 except Exception:
                     pass
             # Fallback legacy
@@ -239,7 +264,26 @@ class ProbeNetwork:
                 getattr(self.driver, 'execute_script')(js_probe)
             self.js_injetado = True
         except Exception as e:
-            print(f"[PROBE] Erro ao injetar JS: {e}")
+            logger.warning('[PROBE] Erro ao injetar JS: %s', e)
+
+    def _ao_response_pw(self, response):
+        """Callback do Playwright: registra cada resposta HTTP.
+
+        Não bloqueia: o corpo é lido só para JSON pequenos, com falha silenciosa
+        (redirects e respostas descartadas estouram ao tentar `text()`).
+        """
+        try:
+            req = response.request
+            self._requisicoes_pw.append({
+                'metodo': req.method,
+                'url': response.url,
+                'status': response.status,
+                'tipo': 'network',
+                'relativo_ms': int((time.time() - self.inicio) * 1000),
+                'resource_type': getattr(req, 'resource_type', ''),
+            })
+        except Exception:
+            pass
 
     def stop(self) -> Dict[str, Any]:
         """Para interceptação e coleta resultados."""
@@ -250,15 +294,23 @@ class ProbeNetwork:
 
         self.ativo = False
 
-        # Coleta dados da página
+        # Desliga o nível Playwright antes de coletar.
+        page = getattr(self.driver, 'page', None)
+        if page is not None:
+            try:
+                page.remove_listener('response', self._ao_response_pw)
+            except Exception:
+                pass
+
+        # Coleta dados da página (nível JS: corpos dentro da SPA)
         try:
-            if hasattr(self.driver, 'page'):
-                dados = self.driver.page.evaluate("window.__probeNetwork?.requisicoes || []")
+            if page is not None:
+                dados = page.evaluate("window.__probeNetwork?.requisicoes || []")
             else:
                 fn_exec = getattr(self.driver, 'execute_script', lambda s: [])
                 dados = fn_exec("return window.__probeNetwork?.requisicoes || []")
         except Exception as e:
-            print(f"[PROBE] Erro ao coletar dados: {e}")
+            logger.warning('[PROBE] Erro ao coletar dados da página: %s', e)
             dados = []
 
         # Processa requisições
@@ -271,6 +323,20 @@ class ProbeNetwork:
                 tamanho_resp=req.get('tamanho_resp', 0),
                 tempo_ms=req.get('tempo_ms', 0),
                 response_body=req.get('corpo_resp')
+            )
+            self.requisicoes.append(req)
+
+        # Nível Playwright: inclui XHR/fetch que escaparam do JS (bundle minificado,
+        # novos documentos após redirect) e as navegações/documentos.
+        for req in getattr(self, '_requisicoes_pw', []):
+            url = req.get('url', '')
+            if not url or url.startswith('data:') or url.startswith('blob:'):
+                continue
+            self._agrupar_requisicao(
+                metodo=req.get('metodo', 'GET'), url=url,
+                status=req.get('status', 0),
+                tamanho_req=0, tamanho_resp=0,
+                tempo_ms=0,
             )
             self.requisicoes.append(req)
 

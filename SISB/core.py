@@ -595,10 +595,24 @@ def login_automatico_sisbajud(driver):
         URL_MINUTA = 'https://sisbajud.cnj.jus.br/minuta'
         logger.info('[SISBAJUD][LOGIN] Navegando para URL certa: %s', URL_MINUTA)
         driver.get(URL_MINUTA)
-        espera.assentar(driver, 1.5, motivo='carregamento inicial /minuta')
 
-        url_atual = (getattr(driver, 'current_url', '') or '').lower()
-        if '/minuta' in url_atual and 'sso.cloud' not in url_atual and '/login' not in url_atual:
+        def _verificar_estado(d):
+            u = (getattr(d, 'current_url', '') or '').lower()
+            if any(k in u for k in ('sso.cloud', '/realms/', 'openid-connect', '/login', '/autenticacao')):
+                return 'sso'
+            p = getattr(d, 'page', None)
+            if p:
+                try:
+                    if p.locator('#username, input[name="username"], #kc-login').first.is_visible():
+                        return 'sso'
+                    if p.locator('button.mat-fab, mat-toolbar, sisbajud-cadastro-minuta').first.is_visible():
+                        return 'autenticado'
+                except Exception:
+                    pass
+            return None
+
+        estado = espera.ate(driver, _verificar_estado, teto=8)
+        if estado == 'autenticado':
             logger.info('[SISBAJUD][LOGIN] Sessão já ativa na URL /minuta!')
         else:
             # 2. FAZER LOGIN SE NECESSÁRIO
@@ -609,28 +623,34 @@ def login_automatico_sisbajud(driver):
                     logger.warning('[SISBAJUD][LOGIN] Credenciais não encontradas no Windows Credential Manager')
                     return False
 
-                logger.info('[SISBAJUD][LOGIN] Preenchendo CPF...')
-                preencher_campo(driver, '#username, input[name="username"]', str(cpf))
-                espera.assentar(driver, 0.3)
+                logger.info('[SISBAJUD][LOGIN] Preenchendo credenciais...')
+                preenchido = False
+                p = getattr(driver, 'page', None)
+                if p:
+                    try:
+                        p.fill('#username', str(cpf), timeout=1500)
+                        p.fill('#password', str(senha), timeout=1500)
+                        preenchido = True
+                    except Exception:
+                        pass
+                if not preenchido:
+                    preencher_campo(driver, '#username, input[name="username"]', str(cpf))
+                    espera.assentar(driver, 0.2)
+                    preencher_campo(driver, '#password, input[name="password"]', str(senha))
 
-                logger.info('[SISBAJUD][LOGIN] Preenchendo senha...')
-                preencher_campo(driver, '#password, input[name="password"]', str(senha))
                 espera.assentar(driver, 0.3)
-
                 logger.info('[SISBAJUD][LOGIN] Clicando em login...')
                 clicado = False
-                if hasattr(driver, 'page') and driver.page:
+                if p:
                     try:
-                        driver.page.click('#kc-login', timeout=3000)
+                        p.click('#kc-login', timeout=3000)
                         clicado = True
                     except Exception:
                         pass
                 if not clicado:
                     try:
-                        fn_exec = getattr(driver, 'execute_script', None) or (lambda s: driver.page.evaluate(s) if hasattr(driver, 'page') and driver.page else None)
-                        if fn_exec:
-                            fn_exec("document.querySelector('#kc-login').click();")
-                            clicado = True
+                        safe_click_no_scroll(driver, '#kc-login')
+                        clicado = True
                     except Exception:
                         pass
 
@@ -642,29 +662,35 @@ def login_automatico_sisbajud(driver):
             logger.info('[SISBAJUD][LOGIN] Aguardando URL /minuta para confirmação do login...')
             def _url_minuta_ok(d):
                 u = (getattr(d, 'current_url', '') or '').lower()
-                return '/minuta' in u and 'sso.cloud' not in u and '/login' not in u
+                return '/minuta' in u and 'sso.cloud' not in u and '/login' not in u and '/realms/' not in u
 
             resultado_url = espera.ate(driver, _url_minuta_ok, teto=120)
             if not resultado_url:
-                logger.error('[SISBAJUD][LOGIN] ✗ Timeout aguardando URL /minuta. URL final: %s', getattr(driver, 'current_url', ''))
-                return False
+                u = (getattr(driver, 'current_url', '') or '').lower()
+                if 'sisbajud.cnj.jus.br' in u and 'sso.cloud' not in u:
+                    logger.info('[SISBAJUD][LOGIN] Sessão confirmada fora de /minuta — navegando para /minuta...')
+                    driver.get(URL_MINUTA)
+                    if not espera.ate(driver, _url_minuta_ok, teto=15):
+                        logger.error('[SISBAJUD][LOGIN] ✗ Timeout aguardando URL /minuta. URL: %s', u)
+                        return False
+                else:
+                    logger.error('[SISBAJUD][LOGIN] ✗ Timeout aguardando URL /minuta. URL final: %s', u)
+                    return False
 
             logger.info('[SISBAJUD][LOGIN] ✓ URL /minuta confirmada: %s', getattr(driver, 'current_url', ''))
 
         # 4. DAR ESC PARA FECHAR DIALOG
         logger.info('[SISBAJUD][LOGIN] Fechando dialogs via ESC...')
-        espera.assentar(driver, 1.0, motivo='estabilizacao /minuta para fechar dialog')
+        espera.assentar(driver, 0.5, motivo='estabilizacao /minuta para fechar dialog')
         try:
             if hasattr(driver, 'page') and driver.page:
-                driver.page.keyboard.press("Escape")
-                espera.assentar(driver, 0.4)
                 driver.page.keyboard.press("Escape")
         except Exception:
             pass
 
         try:
             from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
-            dispensar_dialog_ordem_pendente(driver, log=False, timeout=1.5)
+            dispensar_dialog_ordem_pendente(driver, log=False, timeout=0.0)
         except Exception:
             pass
 
@@ -914,7 +940,7 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
         logger.info('[SISBAJUD] Verificando e dispensando dialog inicial (ordens pendentes)...')
         try:
             from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
-            dispensar_dialog_ordem_pendente(driver, log=True, timeout=2.0)
+            dispensar_dialog_ordem_pendente(driver, log=True, timeout=0.0)
         except Exception as e_dlg:
             logger.debug(f'[SISBAJUD] Erro ao verificar dialog: {e_dlg}')
 

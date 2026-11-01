@@ -37,6 +37,7 @@ from bianca.atos_utils import (
     pec_arordv,
     pec_arsumv,
 )
+from bianca.triagem.acoes import _DIAS_DESPACHO_NOVO, _NOMES_DIA
 from bianca.triagem.citacao import _dia_semana_audiencia
 from Fix.extracao import (
     abrir_detalhes_processo,
@@ -185,9 +186,10 @@ def _verificar_acesso_negado(driver: Any, contexto: str) -> None:
 def has_dom_eletronico_reminder(driver: Any) -> bool:
     """Verifica se ja existe lembrete Dom Eletronico no processo.
 
-    Busca por elementos mat-panel-title com classe post-it-titulo
-    e verifica se o texto contem "Dom Eletronico", "DomicEletr"
-    ou "DomElet".
+    A detecao aceita DUAS assinaturas (texto normalizado, sem acento/caixa):
+      - Titulo:    "domelet" (lembrete criado pelo fluxo) OU "not. id"
+                   (lembrete padrao do PJe, ex.: "NOT. ID 64e9905")
+      - Conteudo:  "renovei via correios" (frase estavel do lembrete padrao)
 
     Args:
         driver: Instancia do navegador.
@@ -195,26 +197,64 @@ def has_dom_eletronico_reminder(driver: Any) -> bool:
     Returns:
         True se um lembrete DOM eletronico ja existe.
     """
+    from Fix.utils import normalizar_texto
+
+    _MARC_TITULO = ("domelet", "not. id", "dom elet", "domiceletr", "dom eletronico")
+    _MARC_CONTEUDO = ("renovei via correios", "renovado por correio")
+
     try:
-        titles = espera.elementos(
-            driver, "mat-panel-title.post-it-titulo", teto=2
+        paineis = espera.elementos(
+            driver,
+            "mat-expansion-panel[class*='post-it'], [class*='post-it-set'] mat-expansion-panel, mat-expansion-panel",
+            teto=2,
         )
-        from Fix.utils import normalizar_texto
-        for title in titles:
-            title_text = (getattr(title, "text", "") or "").strip()
-            norm = normalizar_texto(title_text)
-            if any(k in norm for k in ("dom eletronico", "domiceletr", "domelet", "dom eletr", "domicilio eletr")):
-                return True
+        if not paineis:
+            # Fallback: tentar por titulo apenas (mat-panel-title.post-it-titulo)
+            paineis = espera.elementos(driver, "mat-panel-title.post-it-titulo", teto=2)
+
+        for painel in paineis:
+            try:
+                el_tit = espera.elemento(
+                    painel,
+                    "mat-panel-title, .post-it-titulo, .post-it-div-titulo",
+                    teto=0.3,
+                )
+                titulo_txt = (getattr(el_tit, "text", "") or "").strip()
+                titulo_norm = normalizar_texto(titulo_txt)
+
+                el_cont = espera.elemento(
+                    painel,
+                    "div[aria-label='Conteúdo do Lembrete'], .post-it-conteudo, [aria-label*='Conteúdo' i]",
+                    teto=0.3,
+                )
+                conteudo_txt = (getattr(el_cont, "text", "") or "").strip()
+                conteudo_norm = normalizar_texto(conteudo_txt)
+
+                bate_titulo = any(k in titulo_norm for k in _MARC_TITULO)
+                bate_conteudo = any(k in conteudo_norm for k in _MARC_CONTEUDO)
+
+                if bate_titulo or bate_conteudo:
+                    logger.info(
+                        "[DOMICILIO_ELETRONICO] Lembrete Dom Eletronico detectado "
+                        "(titulo=%r bate_titulo=%s, conteudo=%r bate_conteudo=%s)",
+                        titulo_txt, bate_titulo, conteudo_txt, bate_conteudo,
+                    )
+                    return True
+            except Exception:
+                continue
         return False
-    except Exception:
+    except Exception as e:
+        logger.warning("[DOMICILIO_ELETRONICO] has_dom_eletronico_reminder falhou: %s", e)
         return False
 
 
 def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
-    """Extrai o conteúdo do lembrete Dom Eletronico se existir.
+    """Extrai o conteudo do lembrete Dom Eletronico se existir.
 
-    Procura pelo elemento mat-panel-title com "Dom Eletronico", "DomicEletr"
-    ou "DomElet" e retorna o texto da descrição (mat-panel-description).
+    Reconhece o titulo por "domelet" (lembrete criado pelo fluxo) ou "not. id"
+    (lembrete padrao do PJe, ex.: "NOT. ID 64e9905") e le o conteudo em
+    div[aria-label="Conteudo do Lembrete"]/.post-it-conteudo — com fallback
+    para mat-panel-description.
 
     Args:
         driver: Instancia do navegador.
@@ -222,11 +262,15 @@ def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
     Returns:
         String com conteúdo do lembrete, ou None se não encontrado.
     """
+    _MARC_TITULO = ("domelet", "not. id", "dom elet", "domiceletr", "dom eletronico")
+
     try:
         panels = espera.elementos(driver, "mat-expansion-panel", teto=2)
         if not panels:
             logger.debug("[DOMICILIO_ELETRONICO] _extrair_conteudo_lembrete_dom: nenhum mat-expansion-panel encontrado")
             return None
+
+        from Fix.utils import normalizar_texto
 
         inspected = 0
         for panel in panels:
@@ -239,26 +283,27 @@ def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
                 if not title_text:
                     continue
 
-                from Fix.utils import normalizar_texto
                 norm = normalizar_texto(title_text)
-                if any(k in norm for k in ("dom eletronico", "domiceletr", "domelet", "dom eletr", "domicilio eletr")):
-                    # Encontrou o painel, agora extrair descrição
-                    try:
-                        desc_elem = _sub_el(panel, "mat-panel-description")
-                        conteudo = (getattr(desc_elem, "text", "") or "").strip() if desc_elem else ""
-                        logger.info(
-                            "[DOMICILIO_ELETRONICO][LEMBRETE] painel encontrado: titulo=%r conteudo=%r",
-                            title_text,
-                            conteudo,
-                        )
-                        return conteudo if conteudo else None
-                    except Exception as e_desc:
-                        logger.warning(
-                            "[DOMICILIO_ELETRONICO][LEMBRETE] titulo bateu mas falhou extrair mat-panel-description: titulo=%r erro=%s",
-                            title_text,
-                            e_desc,
-                        )
-                        return None
+                if any(k in norm for k in _MARC_TITULO):
+                    # Encontrou o painel, agora extrair o conteudo — o texto real
+                    # fica em div[aria-label="Conteúdo do Lembrete"]/.post-it-conteudo.
+                    conteudo = ""
+                    for sel in (
+                        'div[aria-label="Conteúdo do Lembrete"]',
+                        ".post-it-conteudo",
+                        "mat-panel-description",
+                    ):
+                        elem = _sub_el(panel, sel)
+                        txt = (getattr(elem, "text", "") or "").strip() if elem else ""
+                        if txt:
+                            conteudo = txt
+                            break
+                    logger.info(
+                        "[DOMICILIO_ELETRONICO][LEMBRETE] painel encontrado: titulo=%r conteudo=%r",
+                        title_text,
+                        conteudo,
+                    )
+                    return conteudo if conteudo else None
             except Exception:
                 # painel sem title/estrutura esperada
                 continue
@@ -286,10 +331,12 @@ class ListaDestinatariosDOM(list):
     """
 
     pjdp_detectado: List[str]
+    alvos_com_advogado: List[str]
 
     def __init__(self, *args: Any) -> None:
         super().__init__(*args)
         self.pjdp_detectado = []
+        self.alvos_com_advogado = []
 
 
 def _pjdp_do_passivo_api(id_processo: str, driver: Any, client: Any = None) -> set:
@@ -339,6 +386,59 @@ def _pjdp_do_passivo_api(id_processo: str, driver: Any, client: Any = None) -> s
         return set()
 
 
+def _partes_com_advogado_api(id_processo: str, driver: Any, client: Any = None) -> set:
+    """Nomes das partes do PASSIVO que TEM advogado/representante, segundo /partes.
+
+    Mesmo criterio da formacao do prep.js (Script/calc/BASE/hcalc-prep.js,
+    `_shapePartes` + `_buildAdvogadoPartesMap`): uma parte "tem advogado" quando
+    `representantes` vem preenchido. O x.py usa exatamente o mesmo teste
+    (`bool(pt.get("representantes"))`).
+
+    Parte COM advogado ja e' intimada pelo advogado no PJe; nao precisa de
+    nova PEC por correio nem de novo lembrete. So a parte SEM advogado e'
+    alvo do fluxo DOM.
+
+    Args:
+        client: PjeApiClient ja construido (reaproveita a sessao quando o
+            chamador ja tem um — evita abrir sessao duas vezes).
+
+    Returns:
+        Set com os nomes (exatamente como vem em `nome`) das partes COM
+        advogado. Set vazio em caso de erro ou quando ninguem tem advogado.
+    """
+    try:
+        if client is None:
+            from Fix.variaveis import PjeApiClient, session_from_driver as _sfp
+            _sess, _base = _sfp(driver)
+            client = PjeApiClient(_sess, _base)
+        partes = client.partes(id_processo) or {}
+        com_advogado = set()
+        passivos = []
+        if isinstance(partes, dict):
+            passivos = partes.get('PASSIVO') or partes.get('passivo') or partes.get('reu') or []
+        elif isinstance(partes, list):
+            passivos = [
+                p for p in partes
+                if isinstance(p, dict) and (
+                    (p.get('polo') or p.get('tipoPolo') or '').upper() == 'PASSIVO'
+                    or (p.get('tipo') or '').upper() == 'REU'
+                    or 'representantes' in p
+                )
+            ]
+        for p in passivos:
+            if not isinstance(p, dict):
+                continue
+            reps = p.get('representantes') or p.get('representante') or p.get('procuradores') or []
+            if bool(reps):
+                nome = (p.get('nome') or p.get('nomeParte') or '').strip()
+                if nome:
+                    com_advogado.add(nome)
+        return com_advogado
+    except Exception as e:
+        logger.warning('[DOMICILIO_ELETRONICO] _partes_com_advogado_api falhou: %s', e)
+        return set()
+
+
 def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, Any]]:
     """Busca as empresas com expedientes DOM abertos via API, com o id da notificacao.
 
@@ -369,8 +469,13 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
         descartadas do fluxo (lista vazia quando nao ha PJDP). Quem precisa
         marcar o comentario como "DOM com PJDP detectado" le por ali, sem
         precisar chamar _pjdp_do_passivo_api de novo.
+
+        Carrega tambem em `.alvos_com_advogado` os nomes dos alvos REMOVIDOS
+        por ja terem advogado/representante. Quem executa a PEC resolve a
+        selecao de destinatarios a partir da API e reaplicaria o mesmo filtro;
+        esse campo permite que a PEC receba os alvos ja filtrados.
     """
-    saida: List[Dict[str, Any]] = ListaDestinatariosDOM()
+    saida: ListaDestinatariosDOM = ListaDestinatariosDOM()
     from Fix.variaveis import PjeApiClient, session_from_driver as _sfp
     _sess, _base = _sfp(driver)
     _client = PjeApiClient(_sess, _base)
@@ -393,6 +498,21 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
             '[DOMICILIO_ELETRONICO] PJDP no polo passivo (fora do alvo do wrapper): %s',
             ', '.join(sorted(pjdp)),
         )
+
+    # Partes COM advogado (mesmo criterio do prep.js: `representantes` cheio).
+    # Parte com advogado ja e' intimada pelo advogado — nao entra no fluxo.
+    com_advogado = _partes_com_advogado_api(id_processo, driver, client=_client)
+
+    import unicodedata
+
+    def _normalizar(txt: Any) -> str:
+        if not txt:
+            return ""
+        s = unicodedata.normalize('NFKD', str(txt).strip().lower())
+        return ''.join(c for c in s if not unicodedata.combining(c))
+
+    pjdp_norm = {_normalizar(n) for n in pjdp}
+    com_adv_norm = {_normalizar(n) for n in com_advogado}
 
     _cache_doc: Dict[Any, Optional[Dict[str, Any]]] = {}
 
@@ -422,11 +542,24 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
         # disparar o fluxo por si so: se nenhuma outra parte filtrada sobrar,
         # o fluxo nao ocorre. Se sobrar, ele roda normalmente para as outras —
         # e o comentario aponta a PJDP detectada.
-        if nome in pjdp:
+        nome_norm = _normalizar(nome)
+        if nome in pjdp or nome_norm in pjdp_norm:
             logger.info(
                 '[DOMICILIO_ELETRONICO] parte "%s" e PJDP - fora do alvo do wrapper, ignorando',
                 nome,
             )
+            continue
+        # Parte COM advogado nao precisa de nova notificacao por correio nem de
+        # novo lembrete: ja e' intimada pelo proprio advogado no PJe. Ela sai do
+        # filtro (e, por consequencia, do lembrete e dos destinatarios da PEC).
+        # O fluxo so segue se sobrar ao menos um alvo SEM advogado.
+        if nome in com_advogado or nome_norm in com_adv_norm:
+            logger.info(
+                '[DOMICILIO_ELETRONICO] parte "%s" TEM advogado - fora do alvo do wrapper, ignorando',
+                nome,
+            )
+            if nome not in saida.alvos_com_advogado:
+                saida.alvos_com_advogado.append(nome)
             continue
         expedientes_candidatos.setdefault(nome, []).append(exp)
 
@@ -466,6 +599,15 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
 
         return (score_tipo, score_uid, id_exp_num)
 
+    # Registra os alvos que seriam candidatos DOM mas foram removidos por terem
+    # advogado (o loop acima ja' aplicou o filtro). Serve para o chamador logar
+    # e, se precisar, montar a lista de destinatarios da PEC.
+    saida.alvos_com_advogado = sorted(com_advogado)
+    logger.info(
+        '[DOMICILIO_ELETRONICO] alvos com advogado (fora do fluxo): %s',
+        ', '.join(saida.alvos_com_advogado) or '-',
+    )
+
     for nome, lista_exps in expedientes_candidatos.items():
         melhor_exp = max(lista_exps, key=_pontuar_candidato)
         id_documento = melhor_exp.get('idDocumento')
@@ -503,16 +645,20 @@ def _montar_conteudo_lembrete_dom(destinatarios: Any) -> str:
     """Monta o conteudo do lembrete DomElet (uma linha, max 200 chars no PJe).
 
     Exemplo:
-        Renovado por correio para (SP MARKET - 8201597), (BANCO CSF - 030869f)
+        Citação - renovei via correios: SP MARKET - 8201597, BANCO CSF - 030869f
+
+    A frase estável "renovei via correios" é a assinatura usada na detecção de
+    idempotência (_verificar_lembrete_presente): bate contra o lembrete padrão
+    do PJe (título variável "NOT. ID <hash>", conteúdo "... Renovei via Correios.").
     """
-    cabecalho = "Renovado por correio para "
+    cabecalho = "Citação - renovei via correios: "
     partes: List[str] = []
 
     if isinstance(destinatarios, str):
         for bruto in (destinatarios or "").split(","):
             nome = bruto.strip()
             if nome:
-                partes.append(f"({nome})")
+                partes.append(nome)
     elif destinatarios:
         for item in destinatarios:
             if not isinstance(item, dict):
@@ -522,9 +668,9 @@ def _montar_conteudo_lembrete_dom(destinatarios: Any) -> str:
                 continue
             uid = item.get('id_unico_documento')
             if uid:
-                partes.append(f"({nome} - {uid})")
+                partes.append(f"{nome} - {uid}")
             else:
-                partes.append(f"({nome})")
+                partes.append(nome)
 
     if not partes:
         return f"{cabecalho}(destinatario nao identificado via API)"
@@ -633,6 +779,90 @@ def _tem_ata_audiencia(id_processo: str, driver: Any) -> bool:
         return False
 
 
+def _data_audiencia_api(id_processo: str, driver: Any) -> Optional[str]:
+    """Data (ISO) da proxima audiencia do processo, pela API do PJe.
+
+    A API e a fonte decisiva: o `processo_info` do fluxo DOM carrega apenas
+    id/numeroProcesso, e o cabecalho da tela pode nao estar renderizado no
+    momento da leitura.
+
+    Endpoint (api/apis.md 26.1, o mesmo do maisPJE `obterAudienciaMarcada`):
+        GET /pje-comum-api/api/processos/id/{idProcesso}/audiencias
+    Primeira audiencia da lista, campo `dataInicio`.
+
+    Args:
+        id_processo: ID interno do processo (string numerica).
+        driver: Instancia para extrair sessao.
+
+    Returns:
+        String ISO (ex.: '2026-11-03T09:00:00') ou None sem audiencia.
+    """
+    if not id_processo:
+        return None
+    try:
+        from Fix.variaveis import PjeApiClient, session_from_driver as _sfp
+        _sess, _base = _sfp(driver)
+        _client = PjeApiClient(_sess, _base)
+        return _client.data_proxima_audiencia(id_processo)
+    except Exception as e:
+        logger.warning(
+            '[DOMICILIO_ELETRONICO] _data_audiencia_api falhou para %s: %s', id_processo, e
+        )
+        return None
+
+
+def _resolver_dia_audiencia(driver: Any, processo_info: Optional[Dict] = None) -> Optional[int]:
+    """Dia da semana da audiencia (0=segunda ... 6=domingo), ou None.
+
+    O fluxo DOM decide o modelo do PEC pelo dia da audiencia — mesma regra da
+    triagem (seg/ter/sex -> AR-Ordv/AR-Sumv; qua/qui -> AR-Or/AR-Su):
+
+      1. `processo_info`: a lista inicial do DOM
+         (`buscar_processos_conhecimento_dom`) ja traz `dataProximaAudiencia`,
+         entao este caminho cobre o caso normal sem chamada extra.
+      2. `<dd>`/`dt#audiencias` da pagina (via _dia_semana_audiencia).
+      3. API de audiencias (`dataProximaAudiencia` do processo) — decisiva,
+         usada quando a lista veio do cache do dia ou sem a data.
+
+    Args:
+        driver: Instancia na aba de detalhes do processo.
+        processo_info: Dict do processo.
+
+    Returns:
+        Inteiro 0..6 ou None quando a data nao pode ser determinada.
+    """
+    # 1 + 2: processo_info (lista inicial) e depois o DOM da pagina
+    dia = _dia_semana_audiencia(driver, processo_info)
+    if dia is not None:
+        return dia
+
+    # 3: API de audiencias
+    id_processo = str((processo_info or {}).get('id') or '')
+    if not id_processo:
+        try:
+            url_atual = getattr(driver, "current_url", "") or getattr(
+                getattr(driver, "page", None), "url", ""
+            )
+            m_id = re.search(r'/processo/(\d+)', url_atual)
+            if m_id:
+                id_processo = m_id.group(1)
+        except Exception:
+            pass
+
+    data_api = _data_audiencia_api(id_processo, driver)
+    if data_api:
+        dia = _dia_semana_audiencia(None, {'dataProximaAudiencia': data_api})
+        if dia is not None:
+            logger.info(
+                '[DOMICILIO_ELETRONICO] Data da audiencia via API para %s: %s',
+                id_processo or '?', data_api,
+            )
+            return dia
+
+    return None
+
+
+
 def is_processo_100_digital(driver: Any) -> bool:
     """Verifica se o processo e 100% digital baseado na presenca da logo no cabecalho.
 
@@ -730,6 +960,7 @@ def callback_bucket2(
     # 1. Checar empresas com expedientes pendentes de domicilio eletronico
     destinatarios_dom = _checar_empresas_e_ids_api(id_processo, driver) if id_processo else []
     pjdp = list(getattr(destinatarios_dom, 'pjdp_detectado', []) or [])
+    com_advogado = list(getattr(destinatarios_dom, 'alvos_com_advogado', []) or [])
 
     logger.info(
         "[DOMICILIO_ELETRONICO][B2][CALLBACK] %d empresa(s) no filtro DOM: %s",
@@ -743,24 +974,44 @@ def callback_bucket2(
     # Se a única reclamada com domicílio é PJDP (ou nenhuma empresa sobrou no filtro):
     # PJDP não é alvo do wrapper (AR/correio); se ela é a única, pula o processo (não faz nada).
     if not destinatarios_dom:
-        if pjdp:
+        motivo = "pulando processo (nenhuma acao / nao executa wrapper)"
+        if com_advogado and not pjdp:
             logger.info(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] A unica reclamada com domicilio eletronico e PJDP (%s) — pulando processo (nenhuma acao / nao executa wrapper)",
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Todos os alvos com domicilio eletronico TEM advogado (%s) — %s",
+                ", ".join(com_advogado),
+                motivo,
+            )
+        elif pjdp and com_advogado:
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Alvos com domicilio eletronico: PJDP (%s) + com advogado (%s) — %s",
                 ", ".join(pjdp),
+                ", ".join(com_advogado),
+                motivo,
+            )
+        elif pjdp:
+            logger.info(
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] A unica reclamada com domicilio eletronico e PJDP (%s) — %s",
+                ", ".join(pjdp),
+                motivo,
             )
         else:
             logger.info(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Nenhuma empresa com expedientes pendentes no filtro DOM — pulando processo"
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Nenhuma empresa com expedientes pendentes no filtro DOM — %s",
+                motivo,
             )
         return True
 
-    # 2. Há empresas não-PJDP para renovação por correio: executar fluxo
+    # 2. APAGAR CHIPS DE DOMICILIO — PRIMEIRO, antes de comentario/lembrete/PEC.
+    #    O def_chip e a acao mais sensivel a tela limpa (os chips ficam no
+    #    cabecalho e podem ser atropelados por modais de comentario/post-it).
+    #    Feito uma unica vez aqui, nao se repete nos ramos abaixo.
     chips_ciencia_resposta = [
         "Domicilio Eletronico - Ciencia Automatica",
         "Domicilio Eletronico - Prazo de Ciencia Expirado",
         "Domicilio Eletronico - Prazo de Resposta Excedido",
     ]
 
+    logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Apagando chips de domicilio (antes de comentario/lembrete)...")
     result_def_chip = def_chip(
         driver,
         numero_processo=numero,
@@ -787,9 +1038,38 @@ def callback_bucket2(
                 e,
             )
 
-    # 4. Verificar lembrete Dom Eletronico (nova lógica simplificada)
+    # 3. Comentario Bianca — marca "DOM" ou "DOM com PJDP detectado".
+    #    A deteccao do lembrete so roda DEPOIS que o comentario termina (ordem
+    #    chips -> comentario -> deteccao -> cria lembrete -> PEC). Roda-la antes
+    #    fazia a leitura do painel de post-its acontecer junto com o proprio
+    #    comentario e a deteccao nao enxergava o lembrete existente.
+    observacao_dom = 'DOM com PJDP detectado' if pjdp else 'DOM'
+    logger.info(
+        "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando comentario: %r",
+        observacao_dom,
+    )
+    try:
+        coment_ok = criar_comentario(driver, observacao_dom, log=True)
+        logger.info(
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] criar_comentario -> %s",
+            coment_ok,
+        )
+    except Exception as e:
+        logger.error(
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
+        )
+
+    # 4. Deteccao do lembrete Dom Eletronico — depois do comentario
+    logger.info(
+        "[DOMICILIO_ELETRONICO][B2][CALLBACK] Verificando lembrete Dom Eletronico (apos comentario)..."
+    )
     lembrete_existe = has_dom_eletronico_reminder(driver)
     executar_pec = False  # Flag para determinar se PEC deve ser executada
+
+    logger.info(
+        "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete_existe=%s",
+        lembrete_existe,
+    )
 
     if lembrete_existe:
         # Lembrete existe - extrair conteúdo
@@ -800,7 +1080,7 @@ def callback_bucket2(
             titles = espera.elementos(driver, "mat-panel-title.post-it-titulo", teto=2)
             titulos_texto = [(getattr(t, "text", "") or "").strip() for t in titles if (getattr(t, "text", "") or "").strip()]
             logger.info(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete_existe=True. Titulos encontrados=%s",
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Titulos encontrados=%s",
                 titulos_texto,
             )
         except Exception as e_titles:
@@ -827,42 +1107,17 @@ def callback_bucket2(
         contem_via_correio = ("via" in conteudo_norm and contem_correio) or ("correio enviado" in conteudo_norm)
 
         if conteudo and (contem_via_correio or (contem_correio and contem_enviado)):
-            # Sub-case 2a: Via correio já registrado
+            # Sub-case 2a: Via correio já registrado — NAO cria lembrete, NAO executa PEC
+            # (chips ja foram apagados no passo 2)
             logger.info(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Conteudo indica correio (norm=%r) - criando comentario e apagando chips (SEM PEC)",
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Conteudo indica correio (norm=%r) - SEM lembrete novo, SEM PEC",
                 conteudo_norm,
             )
-
-            # Criar comentário Bianca
-            try:
-                comentario = "Dom - verificado correio"
-                criar_comentario(driver, comentario, log=True)
-                logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Comentario criado: %s", comentario)
-            except Exception as e:
-                logger.warning(
-                    "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
-                )
-
-            # Apagar chips de domicilio
-            result_chips = def_chip(
-                driver,
-                numero_processo=numero,
-                observacao="Remover chips domicilio - correio registrado",
-                chips_para_remover=[
-                    "Domicilio Eletronico - Ciencia Automatica",
-                    "Domicilio Eletronico - Prazo de Ciencia Expirado",
-                    "Domicilio Eletronico - Prazo de Resposta Excedido",
-                ],
-                debug=True,
-            )
-            logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] def_chip result: %s", result_chips)
-
-            # NÃO executar PEC
             executar_pec = False
         else:
             # Sub-case: Lembrete existe mas não indica correio/enviado
             logger.warning(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existe mas NAO indica correio enviado. contem_correio=%s contem_enviado=%s via_correio=%s. Pule (sem comentario, sem chips, sem PEC). conteudo_norm=%r",
+                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existe mas NAO indica correio enviado. contem_correio=%s contem_enviado=%s via_correio=%s. Pule (sem PEC). conteudo_norm=%r",
                 contem_correio,
                 contem_enviado,
                 contem_via_correio,
@@ -870,30 +1125,14 @@ def callback_bucket2(
             )
             executar_pec = False
     else:
-        # Sub-case 2b: Sem lembrete - executar fluxo completo (empresas nao-PJDP detectadas)
+        # Sub-case 2b: Sem lembrete - cria lembrete e executa PEC
+        # (chips ja foram apagados no passo 2)
         logger.info(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Sem lembrete Dom Eletronico"
-            " - executando fluxo completo (empresas+lembrete+comentario+chips+PEC)"
+            " - criando lembrete + PEC"
         )
 
-        # 1. Comentario Bianca: marca "DOM" ou "DOM com PJDP detectado"
-        observacao_dom = 'DOM com PJDP detectado' if pjdp else 'DOM'
-        logger.info(
-            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando comentario: %r",
-            observacao_dom,
-        )
-        try:
-            coment_ok = criar_comentario(driver, observacao_dom, log=True)
-            logger.info(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] criar_comentario -> %s",
-                coment_ok,
-            )
-        except Exception as e:
-            logger.error(
-                "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
-            )
-
-        # 2. Lembrete Post-it (DomElet) com formato: Renovado por correio para (Empresa - idNotificacao)
+        # Lembrete Post-it (DomElet) com formato: Citação - renovei via correios: (Empresa - idNotificacao)
         titulo_dom = "DomElet"
         conteudo_dom = _montar_conteudo_lembrete_dom(destinatarios_dom)
         logger.info(
@@ -903,7 +1142,9 @@ def callback_bucket2(
         )
         try:
             lembrete_ok = criar_lembrete_posit(
-                driver, titulo_dom, conteudo_dom, debug=True
+                driver, titulo_dom, conteudo_dom, debug=True,
+                marcadores_titulo=["domelet", "not. id"],
+                marcadores_conteudo=["renovei via correios"],
             )
             logger.info(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] criar_lembrete_posit -> %s",
@@ -914,17 +1155,7 @@ def callback_bucket2(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar lembrete post-it: %s",
                 e,
             )
-        
-        # Apagar chips de domicilio
-        result_chips = def_chip(
-            driver,
-            numero_processo=numero,
-            observacao="Remover chips domicilio - lembrete criado",
-            chips_para_remover=chips_ciencia_resposta,
-            debug=True,
-        )
-        logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] def_chip result: %s", result_chips)
-        
+
         # Executar PEC
         executar_pec = True
         
@@ -952,10 +1183,18 @@ def callback_bucket2(
         )
         return True
 
-    dia_sem = _dia_semana_audiencia(driver, processo_info)
-    is_seg_ter_sex = dia_sem in (0, 1, 4)
-    _dias_nomes = {0: 'segunda-feira', 1: 'terça-feira', 2: 'quarta-feira', 3: 'quinta-feira', 4: 'sexta-feira', 5: 'sábado', 6: 'domingo'}
-    dia_desc = _dias_nomes.get(dia_sem, f'indefinido ({dia_sem})')
+    dia_sem = _resolver_dia_audiencia(driver, processo_info)
+    if dia_sem is None:
+        logger.warning(
+            "[DOMICILIO_ELETRONICO][B2][CALLBACK] Dia da audiencia NAO identificado para %s"
+            " (processo_info/DOM/API) - usando PEC AR padrao (qua/qui)",
+            numero,
+        )
+        dia_desc = "indefinido"
+        is_seg_ter_sex = False
+    else:
+        dia_desc = _NOMES_DIA[dia_sem]
+        is_seg_ter_sex = dia_sem in _DIAS_DESPACHO_NOVO
 
     if is_seg_ter_sex:
         if "ATSum" in tipo_processo:
@@ -1667,7 +1906,13 @@ def _cache_dom_salvar_lista(processos: List[Dict[str, Any]]) -> None:
     prog["dom"] = {
         "data": datetime.now().strftime("%Y-%m-%d"),
         "processos_pendentes": [
-            {"id": str(p.get("id", "")), "numero": p.get("numeroProcesso") or p.get("numero") or ""}
+            {
+                "id": str(p.get("id", "")),
+                "numero": p.get("numeroProcesso") or p.get("numero") or "",
+                # Necessario para escolher o PEC pelo dia da audiencia ao
+                # retomar a partir do cache
+                "dataProximaAudiencia": p.get("dataProximaAudiencia"),
+            }
             for p in processos
         ],
         "processos_ok": [],
@@ -1832,7 +2077,15 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
     pendentes = _cache_dom_carregar_pendentes()
     if pendentes is not None:
         logger.info("[DOMICILIO_ELETRONICO][API] Reutilizando cache do dia (%d processos pendentes)", len(pendentes))
-        processos = [{"id": p["id"], "numeroProcesso": p["numero"]} for p in pendentes]
+        processos = [
+            {
+                "id": p["id"],
+                "numeroProcesso": p["numero"],
+                # Preserva a data para decidir o PEC pelo dia da audiencia
+                "dataProximaAudiencia": p.get("dataProximaAudiencia"),
+            }
+            for p in pendentes
+        ]
     else:
         logger.info(
             "[DOMICILIO_ELETRONICO][API] Buscando processos (conhecimento + chips DOM + audiencia)..."

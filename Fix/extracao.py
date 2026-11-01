@@ -831,30 +831,74 @@ def _normalizar_texto(texto: Any) -> str:
     return ' '.join(s.split())
 
 
-def _verificar_lembrete_presente(driver, titulo: str, conteudo: Optional[str] = None, teto: float = 1.0) -> bool:
-    """Confirma no painel de post-its do /detalhe que um lembrete com título (e opcionalmente conteúdo) existe.
+def _normalizar_marcadores(marcadores) -> list:
+    """Normaliza uma lista (ou string) de marcadores para comparação por substring."""
+    if not marcadores:
+        return []
+    if isinstance(marcadores, str):
+        marcadores = [marcadores]
+    saida = []
+    for m in marcadores:
+        n = _normalizar_texto(m)
+        if n:
+            saida.append(n)
+    return saida
 
-    Espelha a lógica de aagigs (gigs-plugin.js: lancarLembrete):
-    Verifica os cartões mat-expansion-panel em pje-visualizador-post-its,
-    comparando título em div.post-it-div-titulo/.post-it-titulo e conteúdo em
-    div[aria-label="Conteúdo do Lembrete"].
 
-    Retorna True se encontrar elemento com título equivalente (sem acento/caixa).
+def _bate_marcador(alvo: str, marcadores: list) -> bool:
+    """True se `alvo` (normalizado) contém algum marcador (normalizado)."""
+    for m in marcadores:
+        if m and m in alvo:
+            return True
+    return False
+
+
+def _verificar_lembrete_presente(
+    driver,
+    titulo: str,
+    conteudo: Optional[str] = None,
+    teto: float = 1.0,
+    marcadores_titulo: Optional[list] = None,
+    marcadores_conteudo: Optional[list] = None,
+) -> bool:
+    """Confirma no painel de post-its do /detalhe que um lembrete equivalente já existe.
+
+    Espelha a lógica de aagigs (gigs-plugin.js: lancarLembrete): varre os cartões
+    mat-expansion-panel em pje-visualizador-post-its comparando título/conteúdo
+    normalizados. Além da comparação por substring completa (legado), aceita
+    `marcadores_titulo`/`marcadores_conteudo`: substrings estáveis que, presentes
+    no título/conteúdo do painel, contam como match — essencial quando o lembrete
+    existente usa título variável (ex.: "NOT. ID <hash>") e só uma frase do
+    conteúdo identifica o tipo (ex.: "renovei via correios").
+
+    Returns:
+        True se encontrar lembrete equivalente.
     """
     alvo_tit = _normalizar_texto(titulo)
     alvo_cont = _normalizar_texto(conteudo) if conteudo else ''
-    if not alvo_tit and not alvo_cont:
+    marcs_tit = _normalizar_marcadores(marcadores_titulo)
+    marcs_cont = _normalizar_marcadores(marcadores_conteudo)
+
+    if not alvo_tit and not alvo_cont and not marcs_tit and not marcs_cont:
         return False
+
+    logger.info(
+        '[LEMBRETE][VERIFICAR] Procurando lembrete existente (titulo=%r, conteudo=%r, '
+        'marcs_titulo=%r, marcs_conteudo=%r, teto=%.1fs)',
+        alvo_tit, alvo_cont, marcs_tit, marcs_cont, teto,
+    )
 
     fim = time.time() + teto
     while time.time() < fim:
         try:
-            container = espera.elemento(driver, 'pje-visualizador-post-its div[class*="post-it-set"], pje-visualizador-post-its', teto=0.2)
+            container = espera.elemento(driver, '[class*="post-it-set"], pje-visualizador-post-its', teto=0.2)
             if not container:
+                logger.info('[LEMBRETE][VERIFICAR] Painel de post-its nao encontrado — sem lembrete a pular')
                 return False
 
-            paineis = espera.elementos(driver, 'pje-visualizador-post-its mat-expansion-panel, div[class*="post-it-set"] mat-expansion-panel', teto=0.3)
+            paineis = espera.elementos(driver, 'mat-expansion-panel[class*="post-it"], [class*="post-it-set"] mat-expansion-panel, mat-expansion-panel', teto=0.3)
             if not paineis:
+                logger.info('[LEMBRETE][VERIFICAR] Nenhum cartao de lembrete no painel — sem lembrete a pular')
                 return False
 
             for painel in paineis:
@@ -862,25 +906,54 @@ def _verificar_lembrete_presente(driver, titulo: str, conteudo: Optional[str] = 
                     el_tit = espera.elemento(painel, 'div[class="post-it-div-titulo"], .post-it-div-titulo, .post-it-titulo, mat-panel-title', teto=0.2)
                     txt_tit = _normalizar_texto(getattr(el_tit, 'text', '') or '') if el_tit else ''
 
-                    bate_titulo = bool(alvo_tit and (alvo_tit in txt_tit or txt_tit in alvo_tit)) if alvo_tit else True
+                    # Título bate por: substring completa (legado) OU marcador de título
+                    bate_titulo = False
+                    if alvo_tit and (alvo_tit in txt_tit or txt_tit in alvo_tit):
+                        bate_titulo = True
+                    if not bate_titulo and marcs_tit and _bate_marcador(txt_tit, marcs_tit):
+                        bate_titulo = True
+                    if not alvo_tit and not marcs_tit:
+                        bate_titulo = True
+
                     if not bate_titulo:
                         continue
 
-                    if alvo_cont:
-                        el_cont = espera.elemento(painel, 'div[aria-label="Conteúdo do Lembrete"], .post-it-conteudo, [aria-label*="Conteúdo" i]', teto=0.2)
-                        txt_cont = _normalizar_texto(getattr(el_cont, 'text', '') or '') if el_cont else ''
-                        if txt_cont and (alvo_cont in txt_cont or txt_cont in alvo_cont):
+                    logger.info('[LEMBRETE][VERIFICAR] Titulo bate (%r vs alvo=%r)', txt_tit, alvo_tit)
+
+                    # Conteúdo
+                    el_cont = espera.elemento(painel, 'div[aria-label="Conteúdo do Lembrete"], .post-it-conteudo, [aria-label*="Conteúdo" i]', teto=0.2)
+                    txt_cont = _normalizar_texto(getattr(el_cont, 'text', '') or '') if el_cont else ''
+
+                    tem_alvo_cont = bool(alvo_cont)
+                    tem_marc_cont = bool(marcs_cont)
+
+                    # Caso 1: conteúdo alvo bate por substring completa OU marcador
+                    if tem_alvo_cont or tem_marc_cont:
+                        bate_cont = False
+                        if txt_cont:
+                            if alvo_cont and (alvo_cont in txt_cont or txt_cont in alvo_cont):
+                                bate_cont = True
+                            if not bate_cont and _bate_marcador(txt_cont, marcs_cont):
+                                bate_cont = True
+                        if bate_cont:
+                            logger.info('[LEMBRETE][VERIFICAR] Lembrete existente encontrado (titulo+conteudo) — pulando criacao')
                             return True
                         elif not txt_cont:
-                            # Se painel estiver recolhido e conteúdo não visível, o título já confere
+                            # Conteúdo recolhido/invisível: o título já confere
+                            logger.info('[LEMBRETE][VERIFICAR] Lembrete existente encontrado (titulo ok, conteudo recolhido) — pulando criacao')
                             return True
+                        # conteúdo presente mas não bate: segue para o próximo painel
+                        continue
                     else:
+                        # Só título é o critério
+                        logger.info('[LEMBRETE][VERIFICAR] Lembrete existente encontrado (so titulo) — pulando criacao')
                         return True
                 except Exception:
                     continue
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning('[LEMBRETE][VERIFICAR] Erro ao varrer painel de post-its: %s', e)
         espera.assentar(driver, 0.2)
+    logger.info('[LEMBRETE][VERIFICAR] Nenhum lembrete equivalente encontrado (teto %ss esgotado) — prosseguindo para criacao', teto)
     return False
 
 
@@ -894,6 +967,8 @@ def criar_lembrete_posit(
     salvar: bool = True,
     verificar_existente: bool = True,
     acao: str = "criar",
+    marcadores_titulo: Optional[list] = None,
+    marcadores_conteudo: Optional[list] = None,
 ) -> bool:
     """
     Cria ou conclui lembrete/post-it genérico no PJe com título, visibilidade e conteúdo customizáveis.
@@ -909,6 +984,10 @@ def criar_lembrete_posit(
         salvar: Se True (padrão), salva o formulário e confirma fechamento do modal.
         verificar_existente: Se True, verifica idempotência antes de abrir o modal.
         acao: 'criar' (padrão) ou 'concluir'/'remover' (remover lembrete existente).
+        marcadores_titulo: Substrings estáveis que, presentes no título de um
+            lembrete já existente, contam como match (ex.: ["not. id"]).
+        marcadores_conteudo: Substrings estáveis que, presentes no conteúdo de um
+            lembrete já existente, contam como match (ex.: ["renovei via correios"]).
 
     Returns:
         bool: True se o lembrete foi processado com sucesso.
@@ -941,8 +1020,7 @@ def criar_lembrete_posit(
         return False
 
     try:
-        if debug:
-            logger.debug('[LEMBRETE][POSIT] Criando: "%s" / "%s" (visibilidade: %s)', titulo, conteudo, visibilidade)
+        logger.info('[LEMBRETE][POSIT] Criando: "%s" / "%s" (visibilidade: %s)', titulo, conteudo, visibilidade)
 
         if conteudo and "clipboard" in conteudo.lower():
             try:
@@ -952,8 +1030,25 @@ def criar_lembrete_posit(
             except Exception:
                 pass
 
-        # Idempotência rápida: se já estiver visível no painel, nada a criar
-        if verificar_existente and _verificar_lembrete_presente(driver, titulo, conteudo=conteudo, teto=0.5):
+        # Idempotência rápida: se já estiver visível no painel, nada a criar.
+        # Guarda de página viva: acessar driver.page quando não há janela aberta
+        # dispara new_page() SEM timeout no Playwright e trava o fluxo por ~60s.
+        if verificar_existente:
+            try:
+                _ctx = getattr(driver, 'context', None)
+                if _ctx is not None and hasattr(_ctx, 'pages'):
+                    _vivas = [p for p in _ctx.pages if not p.is_closed()]
+                    if not _vivas and not (getattr(driver, 'window_handles', None) or []):
+                        logger.warning('[LEMBRETE][POSIT] Nenhuma pagina aberta — abortando antes da verificacao de idempotencia')
+                        return False
+            except Exception as e:
+                logger.warning('[LEMBRETE][POSIT] Falha ao checar paginas vivas: %s', e)
+
+        if verificar_existente and _verificar_lembrete_presente(
+            driver, titulo, conteudo=conteudo, teto=0.5,
+            marcadores_titulo=marcadores_titulo,
+            marcadores_conteudo=marcadores_conteudo,
+        ):
             logger.info('[LEMBRETE][POSIT] Lembrete "%s" já presente no painel — nada a criar', titulo)
             return True
 

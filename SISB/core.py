@@ -658,26 +658,46 @@ def login_automatico_sisbajud(driver):
                 if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=4):
                     logger.info('[SISBAJUD][LOGIN] OTP / 2FA detectado — por favor, insira o código no navegador...')
 
-            # 3. AGUARDAR URL /MINUTA PARA CONFIRMAÇÃO
-            logger.info('[SISBAJUD][LOGIN] Aguardando URL /minuta para confirmação do login...')
-            def _url_minuta_ok(d):
-                u = (getattr(d, 'current_url', '') or '').lower()
-                return '/minuta' in u and 'sso.cloud' not in u and '/login' not in u and '/realms/' not in u
+            # 3. AGUARDAR CONFIRMAÇÃO DO LOGIN (qualquer aba / rota do SISBAJUD ou componentes autenticados)
+            logger.info('[SISBAJUD][LOGIN] Aguardando confirmação do login...')
 
-            resultado_url = espera.ate(driver, _url_minuta_ok, teto=120)
-            if not resultado_url:
-                u = (getattr(driver, 'current_url', '') or '').lower()
-                if 'sisbajud.cnj.jus.br' in u and 'sso.cloud' not in u:
-                    logger.info('[SISBAJUD][LOGIN] Sessão confirmada fora de /minuta — navegando para /minuta...')
-                    driver.get(URL_MINUTA)
-                    if not espera.ate(driver, _url_minuta_ok, teto=15):
-                        logger.error('[SISBAJUD][LOGIN] ✗ Timeout aguardando URL /minuta. URL: %s', u)
-                        return False
-                else:
-                    logger.error('[SISBAJUD][LOGIN] ✗ Timeout aguardando URL /minuta. URL final: %s', u)
-                    return False
+            def _login_confirmado(d):
+                handles = list(getattr(d, 'window_handles', []))
+                for h in reversed(handles):
+                    try:
+                        d.switch_to.window(h)
+                        u = (getattr(d, 'current_url', '') or '').lower()
+                        # Se já está no SISBAJUD e fora do SSO
+                        if ('sisbajud.cnj.jus.br' in u or 'sisbajud.pdpj.jus.br' in u) and not any(k in u for k in ('sso.cloud', '/realms/', 'openid-connect')):
+                            return True
+                        # Se algum elemento autenticado ou dialog apareceu
+                        p = getattr(d, 'page', None)
+                        if p:
+                            try:
+                                if p.locator('sisbajud-dialog-aviso-ordem-pendente, mat-dialog-container, button.mat-fab, sisbajud-cadastro-minuta, mat-toolbar').first.is_visible():
+                                    return True
+                            except Exception:
+                                pass
+                    except Exception:
+                        continue
+                return False
 
-            logger.info('[SISBAJUD][LOGIN] ✓ URL /minuta confirmada: %s', getattr(driver, 'current_url', ''))
+            resultado_login = espera.ate(driver, _login_confirmado, teto=120)
+            if not resultado_login:
+                logger.error('[SISBAJUD][LOGIN] ✗ Timeout aguardando login. URL final: %s', getattr(driver, 'current_url', ''))
+                return False
+
+            logger.info('[SISBAJUD][LOGIN] ✓ Login confirmado! URL atual: %s', getattr(driver, 'current_url', ''))
+
+            # Garantir que estamos na URL /minuta
+            u_atual = (getattr(driver, 'current_url', '') or '').lower()
+            if '/minuta' not in u_atual:
+                logger.info('[SISBAJUD][LOGIN] Navegando para %s...', URL_MINUTA)
+                driver.get(URL_MINUTA)
+                def _url_minuta_ok(d):
+                    return '/minuta' in (getattr(d, 'current_url', '') or '').lower()
+                espera.ate(driver, _url_minuta_ok, teto=15)
+                logger.info('[SISBAJUD][LOGIN] ✓ URL /minuta pronta: %s', getattr(driver, 'current_url', ''))
 
         # 4. DAR ESC PARA FECHAR DIALOG
         logger.info('[SISBAJUD][LOGIN] Fechando dialogs via ESC...')

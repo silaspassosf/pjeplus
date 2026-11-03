@@ -2504,16 +2504,21 @@ def teste_sisbajud_minuta_com_probe(id_processo=None):
             LOGGER.info('[SISB_PROBE_TEST] ✓ Login SISBAJUD completo e confirmado (URL: %s)',
                         getattr(driver_sisb, 'current_url', ''))
 
-        # ===== ETAPA 5: Executar minuta_bloqueio (com probe ativo) =====
-        with etapa('minuta_bloqueio'):
-            from SISB.core import minuta_bloqueio
-            LOGGER.info('[SISB_PROBE_TEST] Chamando minuta_bloqueio(...)')
-            resultado = minuta_bloqueio(driver_sisb, dados_processo=dados_processo,
-                                        driver_pje=driver, log=True, fechar_driver=False)
+        # ===== ETAPA 5: Minutas (com probe ativo) =====
+        # minuta_bloqueio_amanha executa a 1ª minuta (prazo normal) E a 2ª ordem em
+        # repetição com AGENDAMENTO (offset 1 dia; 2 dias se pendencia == 'sem_calculo').
+        with etapa('minuta_bloqueio_amanha'):
+            from SISB.core import minuta_bloqueio_amanha
+            LOGGER.info('[SISB_PROBE_TEST] Chamando minuta_bloqueio_amanha(...) — 1ª minuta + 2ª com agendamento')
+            resultado = minuta_bloqueio_amanha(driver_sisb, dados_processo=dados_processo,
+                                               driver_pje=driver, log=True, fechar_driver=False)
             LOGGER.info('[SISB_PROBE_TEST] Resultado: %s', resultado)
 
         # ===== ETAPA 6: Coleta dados de probe =====
         with etapa('probe_stop'):
+            # deixa a rede assentar: chamadas de escrita (POST de salvar minuta) disparam
+            # no fim do fluxo e eram perdidas por o probe parar no mesmo segundo
+            espera.assentar(driver_sisb, 3, motivo='drain do probe antes do stop')
             if probe:
                 relatorio = probe.stop()
                 LOGGER.info('[SISB_PROBE_TEST] ✓ Probe parado — %d endpoints detectados',

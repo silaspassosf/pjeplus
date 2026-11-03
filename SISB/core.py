@@ -258,17 +258,23 @@ def is_sessao_ativa_sisbajud(driver) -> bool:
     """
     Verifica se há uma sessão autenticada REAL e ATIVA no SISBAJUD.
     Critérios estritos:
-    1. Se estiver na tela de login (is_tela_login_sisbajud), retorna False imediatamente.
+    1. Gate por URL de SSO/Keycloak (+ campo de OTP) — NÃO usa `is_tela_login_sisbajud`,
+       que dá falso positivo na app autenticada (botão com texto "entrar/login") e
+       reprovava sessão válida logo após o login.
     2. URL deve ser de domínio do SISBAJUD (sisbajud.cnj.jus.br ou sisbajud.pdpj.jus.br).
     3. Prova positiva 1: JWT token válido no localStorage (exp > agora + 15s).
-    4. Prova positiva 2: Componentes Angular autenticados no DOM (dialog de ordens, menus internos, toolbar autenticada).
+    4. Prova positiva 2: Componentes Angular autenticados no DOM (listagem de minutas com
+       breadcrumb, menus internos, toolbar autenticada).
     NUNCA assume que está logado apenas porque a URL tem 'sisbajud' e não tem 'login'.
     """
     try:
-        if is_tela_login_sisbajud(driver):
+        cur_url = (getattr(driver, 'current_url', '') or '').lower()
+        cur_path = cur_url.split('?')[0]
+        if any(k in cur_path for k in ('sso.cloud', '/realms/', 'openid-connect', 'login-actions')):
+            return False
+        if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=0.2):
             return False
 
-        cur_url = (getattr(driver, 'current_url', '') or '').lower()
         if not any(h in cur_url for h in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br']):
             return False
 
@@ -294,6 +300,7 @@ def is_sessao_ativa_sisbajud(driver) -> bool:
 
         # Prova Positiva B: Elementos do sistema autenticado no DOM
         seletores_autenticado = (
+            'div.breadcrumb breadcrumb, '
             'sisbajud-dialog-aviso-ordem-pendente, '
             'sisbajud-cadastro-minuta, '
             'sisbajud-detalhes-teimosinha, '
@@ -304,6 +311,15 @@ def is_sessao_ativa_sisbajud(driver) -> bool:
         if espera.ate_aparecer(driver, seletores_autenticado, teto=0.5):
             return True
 
+        try:
+            _bc = driver.execute_script("return !!document.querySelector('div.breadcrumb breadcrumb');")
+            _txt = driver.execute_script(
+                "return (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').slice(0, 100);"
+            )
+        except Exception as e_diag:
+            _bc, _txt = f'erro: {e_diag}', ''
+        logger.info('[SISBAJUD][SESSION_CHECK] sem prova positiva — url=%s | breadcrumb=%s | texto=%r',
+                    cur_url, _bc, _txt)
         return False
     except Exception as e:
         logger.debug(f'[SISBAJUD][SESSION_CHECK] Erro ao checar sessão ativa: {e}')
@@ -376,9 +392,23 @@ def salvar_cookies_sisbajud(driver, caminho_arquivo=None, info_extra=None) -> bo
             except Exception:
                 pass
 
+        # sessionStorage NÃO entra no storage_state do Playwright: se o token da app
+        # estiver lá, sem isto o reaproveitamento nunca funciona.
+        try:
+            ss = driver.execute_script(
+                "const o = {}; for (let i = 0; i < sessionStorage.length; i++) {"
+                " const k = sessionStorage.key(i); o[k] = sessionStorage.getItem(k); } return o;"
+            ) or {}
+            dados['session_storage'] = [{'origin': 'https://sisbajud.cnj.jus.br', 'items': ss}]
+            logger.info('[SISBAJUD][COOKIES] storage salvo — localStorage=%s | sessionStorage=%s',
+                        [i.get('name') for o in dados.get('origins', [])
+                         for i in (o.get('localStorage') or [])][:12],
+                        list(ss.keys())[:12])
+        except Exception:
+            dados['session_storage'] = []
+
         with open(caminho_arquivo, 'w', encoding='utf-8') as f:
             json.dump(dados, f, ensure_ascii=False, indent=2)
-
         # Também salvar cópia no arquivo fixo ~/.pjeplus/sisbajud_sessao.json
         try:
             with open(_arquivo_sessao_sisbajud(), 'w', encoding='utf-8') as f:
@@ -473,10 +503,15 @@ def carregar_cookies_sisbajud(driver, max_idade_horas=12) -> bool:
                     if not item.get('domain'):
                         item['domain'] = '.pdpj.jus.br'
                     item.setdefault('path', '/')
+                    # Playwright rejeita `expires: null` (cookie de sessão) e, com um item
+                    # inválido, o add_cookies falha o LOTE inteiro — era o que impedia o
+                    # reaproveitamento da sessão.
+                    if item.get('expires') is None:
+                        item.pop('expires', None)
                     pw_cookies.append(item)
                 contexto.add_cookies(pw_cookies)
             except Exception as e:
-                logger.debug(f'[SISBAJUD][COOKIES] contexto.add_cookies: {e}')
+                logger.warning(f'[SISBAJUD][COOKIES] contexto.add_cookies falhou: {e}')
 
         # Restaurar localStorage se presente em ambas as origens
         origins = dados.get('origins', [])
@@ -496,24 +531,30 @@ def carregar_cookies_sisbajud(driver, max_idade_horas=12) -> bool:
                 except Exception:
                     pass
 
-        # Navega para a página principal do SISBAJUD (dominio CNJ — pdpj nao carrega)
-        driver.get('https://sisbajud.cnj.jus.br/')
+        # Restaurar sessionStorage (o storage_state do Playwright não o inclui)
+        for bloco in dados.get('session_storage') or []:
+            try:
+                driver.get(bloco.get('origin') or 'https://sisbajud.cnj.jus.br/')
+                for k, v in (bloco.get('items') or {}).items():
+                    driver.execute_script(
+                        "sessionStorage.setItem(arguments[0], arguments[1]);", k, v
+                    )
+            except Exception:
+                pass
+
+        # Navega para a LISTAGEM (mesma URL e mesma prova usada no login). A raiz
+        # (sisbajud.cnj.jus.br/) não tem breadcrumb e reprovava sessão válida.
+        driver.get('https://sisbajud.cnj.jus.br/minuta')
         espera.assentar(driver, 2)
 
-        # Checagem conclusiva de sessão ativa vs tela de login
-        if is_sessao_ativa_sisbajud(driver):
+        # Checagem conclusiva de sessão ativa — mesma prova do login (breadcrumb) ou JWT/DOM
+        if espera.ate_aparecer(driver, 'div.breadcrumb breadcrumb', teto=8) or is_sessao_ativa_sisbajud(driver):
             logger.info(f'[SISBAJUD][COOKIES] Sessão ativa confirmada a partir de {os.path.basename(arquivo_mais_recente)}! Login reaproveitado.')
             return True
 
-        if is_tela_login_sisbajud(driver):
-            logger.info(f'[SISBAJUD][COOKIES] Tela de login detectada após carregar cookies de {os.path.basename(arquivo_mais_recente)} (cookies inválidos/expirados).')
-        else:
-            logger.info(f'[SISBAJUD][COOKIES] Sessão não autenticada após carregar cookies (url={getattr(driver, "current_url", "")}).')
-
-        try:
-            driver.delete_all_cookies()
-        except Exception:
-            pass
+        # Não apaga os cookies: apagar não renova nada e derrubava o reaproveitamento
+        logger.info('[SISBAJUD][COOKIES] Sessão não reaproveitada após carregar %s (url=%s) — seguindo para login',
+                    os.path.basename(arquivo_mais_recente), getattr(driver, 'current_url', ''))
         return False
     except Exception as e:
         logger.error(f"[SISBAJUD][COOKIES] Falha ao carregar cookies: {e}")
@@ -580,9 +621,10 @@ def login_automatico_sisbajud(driver):
     Login SISBAJUD na URL de minuta com confirmação estrita:
     1. Abre o driver SISBAJUD na URL certa (https://sisbajud.cnj.jus.br/minuta)
     2. Se redirecionar para autenticação SSO, preenche CPF e senha e clica em login
-    3. Aguarda URL /minuta para confirmação do login
-    4. Dá ESC para fechar dialog de ordens pendentes
-    5. Fim!
+    3. Aguarda o OTP ser digitado pelo usuário e a listagem /minuta renderizar
+    4. Confirma pelo breadcrumb "Minutas Pendentes" — já dá para clicar em "Nova Minuta"
+    5. Fim! (não há dialog de ordens pendentes neste caminho: ela é criada em
+       sisbajud.pdpj.jus.br/, que o fluxo não visita)
     """
     try:
         from Fix import espera
@@ -593,6 +635,11 @@ def login_automatico_sisbajud(driver):
 
         # 1. ABRIR NA URL CERTA (/minuta)
         URL_MINUTA = 'https://sisbajud.cnj.jus.br/minuta'
+        # Confirmação de login = breadcrumb "Minutas Pendentes" renderizado na listagem.
+        # A dialog de ordens pendentes NÃO existe neste caminho: ela é criada em
+        # sisbajud.pdpj.jus.br/ e o fluxo vai direto para /minuta — por isso o tratamento
+        # de dialog (espera/dispensar/ESC) foi REMOVIDO daqui.
+        SEL_MINUTAS = 'div.breadcrumb breadcrumb a.mat-button, div.breadcrumb breadcrumb'
         logger.info('[SISBAJUD][LOGIN] Navegando para URL certa: %s', URL_MINUTA)
         driver.get(URL_MINUTA)
 
@@ -658,26 +705,60 @@ def login_automatico_sisbajud(driver):
                 if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=4):
                     logger.info('[SISBAJUD][LOGIN] OTP / 2FA detectado — por favor, insira o código no navegador...')
 
-            # 3. AGUARDAR CONFIRMAÇÃO DO LOGIN (qualquer aba / rota do SISBAJUD ou componentes autenticados)
+            # 3. AGUARDAR CONFIRMAÇÃO DO LOGIN — ESTRITA: só a app autenticada em /minuta confirma.
+            #    Tela de login/SSO/OTP NUNCA confirma nada (o OTP é digitado pelo usuário).
             logger.info('[SISBAJUD][LOGIN] Aguardando confirmação do login...')
+
+            _visto = {'t0': time.monotonic(), 'dump': False}
 
             def _login_confirmado(d):
                 handles = list(getattr(d, 'window_handles', []))
                 for h in reversed(handles):
                     try:
                         d.switch_to.window(h)
-                        u = (getattr(d, 'current_url', '') or '').lower()
-                        # Se já está no SISBAJUD e fora do SSO
-                        if ('sisbajud.cnj.jus.br' in u or 'sisbajud.pdpj.jus.br' in u) and not any(k in u for k in ('sso.cloud', '/realms/', 'openid-connect')):
-                            return True
-                        # Se algum elemento autenticado ou dialog apareceu
-                        p = getattr(d, 'page', None)
-                        if p:
+                        u_path = (getattr(d, 'current_url', '') or '').lower().split('?')[0]
+                        # SSO/OTP = só pela URL + campo de OTP (a heurística de DOM
+                        # `is_tela_login_sisbajud` dá falso positivo na app autenticada)
+                        em_sso = any(k in u_path for k in ('sso.cloud', '/realms/', 'openid-connect', 'login-actions'))
+                        if u_path != _visto.get('url'):
+                            _visto['url'] = u_path
+                            logger.info('[SISBAJUD][LOGIN] estado: url=%s | sso=%s', u_path, em_sso)
+                        # SSO / formulário de credenciais / OTP em andamento: não confirma nada
+                        if em_sso or espera.ate_aparecer(d, '#otp, input[name="otp"]', teto=0.2):
+                            continue
+                        # Só rota /minuta do SISBAJUD (a URL do SSO traz /minuta apenas na query)
+                        if not any(k in u_path for k in ('sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br')):
+                            continue
+                        if '/minuta' not in u_path:
+                            continue
+                        # Diagnóstico único: parado em /minuta sem confirmar há >8s → despeja o DOM
+                        if not _visto['dump'] and (time.monotonic() - _visto['t0']) > 8:
+                            _visto['dump'] = True
                             try:
-                                if p.locator('sisbajud-dialog-aviso-ordem-pendente, mat-dialog-container, button.mat-fab, sisbajud-cadastro-minuta, mat-toolbar').first.is_visible():
-                                    return True
-                            except Exception:
-                                pass
+                                info = d.execute_script("""
+                                    return {
+                                        titulo: document.title,
+                                        url: location.href,
+                                        texto: (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').slice(0, 300),
+                                        custom: Array.from(new Set(Array.from(document.querySelectorAll('*'))
+                                            .map(e => e.tagName.toLowerCase())
+                                            .filter(t => t.includes('-')))).slice(0, 30),
+                                        breadcrumb: !!document.querySelector('div.breadcrumb breadcrumb'),
+                                        storage: Object.keys(localStorage).slice(0, 15)
+                                    };
+                                """)
+                                logger.info('[SISBAJUD][LOGIN][DUMP] %s', info)
+                            except Exception as e_dump:
+                                logger.warning('[SISBAJUD][LOGIN][DUMP] falhou: %s', e_dump)
+                        # Prova primária: sessão ativa (JWT/DOM autenticado)
+                        if is_sessao_ativa_sisbajud(d):
+                            logger.info('[SISBAJUD][LOGIN] prova: sessão ativa (JWT/DOM autenticado)')
+                            return True
+                        # Prova de entrada: breadcrumb "Minutas Pendentes" renderizado —
+                        # é o mesmo estado de /minuta e já dá para clicar em "Nova Minuta"
+                        if espera.ate_aparecer(d, SEL_MINUTAS, teto=0.5):
+                            logger.info('[SISBAJUD][LOGIN] prova: breadcrumb "Minutas Pendentes" (listagem pronta)')
+                            return True
                     except Exception:
                         continue
                 return False
@@ -689,32 +770,25 @@ def login_automatico_sisbajud(driver):
 
             logger.info('[SISBAJUD][LOGIN] ✓ Login confirmado! URL atual: %s', getattr(driver, 'current_url', ''))
 
-            # Garantir que estamos na URL /minuta
+            # Garantir que estamos na URL /minuta — NUNCA navegar em SSO/OTP: reiniciaria o login.
+            # Guarda por URL (não por DOM): `is_tela_login_sisbajud` dá falso positivo na app
+            # autenticada (checagem de botão com texto "entrar/login") e abortava o login.
             u_atual = (getattr(driver, 'current_url', '') or '').lower()
-            if '/minuta' not in u_atual:
+            if any(k in u_atual for k in ('sso.cloud', '/realms/', 'openid-connect', 'login-actions')):
+                logger.error('[SISBAJUD][LOGIN] ✗ Ainda no SSO (%s) — não navegar (abortaria o OTP)', u_atual)
+                return False
+            if '/minuta' not in u_atual.split('?')[0]:
                 logger.info('[SISBAJUD][LOGIN] Navegando para %s...', URL_MINUTA)
                 driver.get(URL_MINUTA)
                 def _url_minuta_ok(d):
-                    return '/minuta' in (getattr(d, 'current_url', '') or '').lower()
+                    return '/minuta' in (getattr(d, 'current_url', '') or '').lower().split('?')[0]
                 espera.ate(driver, _url_minuta_ok, teto=15)
                 logger.info('[SISBAJUD][LOGIN] ✓ URL /minuta pronta: %s', getattr(driver, 'current_url', ''))
 
-        # 4. DAR ESC PARA FECHAR DIALOG
-        logger.info('[SISBAJUD][LOGIN] Fechando dialogs via ESC...')
-        espera.assentar(driver, 0.5, motivo='estabilizacao /minuta para fechar dialog')
-        try:
-            if hasattr(driver, 'page') and driver.page:
-                driver.page.keyboard.press("Escape")
-        except Exception:
-            pass
-
-        try:
-            from SISB.processamento.series_navegar import dispensar_dialog_ordem_pendente
-            dispensar_dialog_ordem_pendente(driver, log=False, timeout=0.0)
-        except Exception:
-            pass
-
-        logger.info('[SISBAJUD][LOGIN] ✓ Login completado e dialog fechada com sucesso!')
+        # 4. FIM — neste caminho NÃO existe dialog: o fluxo vai direto para /minuta e a
+        #    listagem já está pronta (breadcrumb "Minutas Pendentes" confirmado acima).
+        #    Segue para o clique em "Nova Minuta".
+        logger.info('[SISBAJUD][LOGIN] ✓ Login completado — listagem /minuta pronta')
         return True
 
     except Exception as e_login:
@@ -864,6 +938,10 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
                 cookie_restored = False
 
         login_ok = cookie_restored
+        # Marca quando o login automático JÁ confirmou pela listagem /minuta (breadcrumb):
+        # nesse caso não revalidar com is_sessao_ativa_sisbajud — é a mesma prova e a
+        # revalidação gerava falso negativo ("Sessão ativa não confirmada").
+        login_recem_confirmado = False
 
         # 2. Se cookies não restauraram, tentar tokens do localStorage
         if not login_ok:
@@ -888,6 +966,7 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
             logger.info('[SISBAJUD] Executando login automático via CPF...')
             login_ok = login_automatico_sisbajud(driver)
             if login_ok:
+                login_recem_confirmado = True
                 logger.info('[SISBAJUD] Login automático concluído com sucesso!')
                 try:
                     salvar_tokens_sisbajud(driver)
@@ -895,6 +974,9 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
                     pass
                 if SALVAR_COOKIES_AUTOMATICO:
                     try:
+                        # dar tempo de a SPA gravar token/storage antes de fotografar a sessão
+                        espera.ate_aparecer(driver, 'div.breadcrumb breadcrumb', teto=5)
+                        espera.assentar(driver, 1.0)
                         salvar_cookies_sisbajud(driver, info_extra='login_automatico_sisbajud')
                     except Exception as e:
                         logger.debug(f'[SISBAJUD] Falha ao salvar cookies: {e}')
@@ -937,17 +1019,23 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
                 _ = e
             return None
 
-        # Aguardar confirmação de sessão ativa do SISBAJUD após login
-        if not is_sessao_ativa_sisbajud(driver):
-            espera.ate(driver, is_sessao_ativa_sisbajud, teto=10)
+        # Sessão: se o login automático acabou de confirmar pela listagem /minuta (breadcrumb),
+        # segue direto — é a MESMA prova usada no f.py sisb_probe, que funciona. Revalidar aqui
+        # gerava falso negativo ("Sessão ativa não confirmada"). Só revalida quando a sessão veio
+        # de cookies/tokens ou de login manual.
+        if login_recem_confirmado:
+            logger.info('[SISBAJUD] Sessão confirmada pela listagem /minuta — seguindo sem revalidar')
+        else:
+            if not is_sessao_ativa_sisbajud(driver):
+                espera.ate(driver, is_sessao_ativa_sisbajud, teto=10)
 
-        if not is_sessao_ativa_sisbajud(driver):
-            logger.error('[SISBAJUD] Sessão ativa não confirmada após fluxo de autenticação')
-            try:
-                driver.quit()
-            except Exception:
-                pass
-            return None
+            if not is_sessao_ativa_sisbajud(driver):
+                logger.error('[SISBAJUD] Sessão ativa não confirmada após fluxo de autenticação')
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+                return None
 
         # Maximizar janela rapidamente
         try:

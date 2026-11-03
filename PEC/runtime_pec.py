@@ -68,7 +68,10 @@ class PECAPIClient:
             client,
             "/pje-gigs-api/api/relatorioatividades/",
             params_base={
-                'filtrarVencidas': 'true',
+                # 'false' = traz TODAS as atividades pendentes; o recorte D-1..D0 é
+                # feito localmente no orquestrador. Com 'true' o servidor devolve só
+                # as já vencidas e as de HOJE (D0) nunca entram.
+                'filtrarVencidas': 'false',
                 'ordenacaoCrescente': 'true',
                 'filtrarPorDestinatario': 'false',
                 'filtrarPorLocalizacao': 'false',
@@ -864,9 +867,13 @@ class PECOrquestrador:
             logger.info(f'[PEC] data_minima ({data_minima}): {antes} -> {len(atividades)}')
         elif filtro_d1:
             data_d1 = _dia_util_anterior(date.today()).isoformat()
+            hoje = date.today().isoformat()
             antes = len(atividades)
-            atividades = [a for a in atividades if (a.data_prazo or '')[:10] >= data_d1]
-            logger.info(f'[PEC] D-1 ({data_d1}): {antes} -> {len(atividades)} (filtrado por data, dia util anterior)')
+            # Janela D-1 (dia útil anterior) ATÉ D0 (hoje), inclusive: vencidas de
+            # ontem e as que vencem hoje. Prazo futuro fica de fora.
+            atividades = [a for a in atividades
+                          if data_d1 <= (a.data_prazo or '')[:10] <= hoje]
+            logger.info(f'[PEC] D-1..D0 ({data_d1}..{hoje}): {antes} -> {len(atividades)}')
         else:
             logger.info(f'[PEC] Filtro D-1 OFF — processando todas: {len(atividades)}')
 

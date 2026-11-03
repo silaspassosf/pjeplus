@@ -72,6 +72,11 @@
                 window.SisbMinuta.autoRunMinuta();
             }
         }
+
+        // 5. Listagem de Minutas (/minuta) — botão "Copiar protocolo" (inferior direito)
+        if (window.SisbProtocolos && typeof window.SisbProtocolos.injetarBotao === 'function') {
+            window.SisbProtocolos.injetarBotao();
+        }
     }
 
     // Loops de injeção e observação

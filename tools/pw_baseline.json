@@ -1,9 +1,9 @@
 {
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
-  "total_files": 326,
+  "total_files": 393,
   "files_with_patterns": 49,
-  "total_patterns": 911,
+  "total_patterns": 909,
   "migrados": [
     "Fix/browser_suporte.py",
     "Fix/core.py",
@@ -283,9 +283,9 @@
       }
     },
     "SISB/core.py": {
-      "total": 18,
+      "total": 21,
       "breakdown": {
-        "execute_script": 13,
+        "execute_script": 16,
         "window_handles": 5
       }
     },
@@ -390,13 +390,13 @@
       }
     },
     "SISB/processamento/series_navegar.py": {
-      "total": 21,
+      "total": 16,
       "breakdown": {
         "from_selenium": 1,
-        "find_element": 7,
+        "find_element": 5,
         "find_elements": 4,
-        "execute_script": 7,
-        "time_sleep": 2
+        "execute_script": 5,
+        "time_sleep": 1
       }
     },
     "SISB/processamento_campos_principais.py": {

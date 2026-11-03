@@ -325,6 +325,18 @@ def ato_judicial(
     logger.info('[ATO][TIMING][INICIO] conclusao_tipo={} modelo_nome={}'.format(conclusao_tipo, modelo_nome))
 
     try:
+        # Guarda geral do motor (vale para QUALQUER ato): o ato só roda a partir de uma
+        # página viva do PJe. Sem isso, um driver em branco (ex.: aba fechada depois da
+        # juntada) "concluía" o ato sem executar nada — falso positivo de sucesso.
+        try:
+            _url_ato = (getattr(driver, 'current_url', '') or '')
+        except Exception:
+            _url_ato = ''
+        if not ('pje' in _url_ato and 'jus.br' in _url_ato):
+            logger.error('[ATO][ERRO] Página atual não é do PJe (%r) — ato não executado',
+                         _url_ato or 'sem URL')
+            return False, False
+
         # 0. PRIMEIRO: Executar coleta de conteúdo parametrizável na aba /detalhe (se especificado)
         if coleta_conteudo:
             logger.info('[ATO][COLETA] Executando coleta de conteúdo parametrizável ANTES do fluxo principal...')

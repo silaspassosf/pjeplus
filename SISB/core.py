@@ -1644,6 +1644,18 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
 
         # 7. Executar juntada no PJE
         if relatorio_gerado and driver_pje:
+            # Guardar aba/URL de /detalhe ANTES da juntada: o clique em "Anexar Documentos"
+            # pode não abrir aba nova e navegar a MESMA aba para /anexar. Sem isso, o
+            # retorno era feito fechando a única aba -> driver sem janelas
+            # ("list index out of range") e ato_meios rodando no vazio — era o que travava
+            # o fluxo NEGATIVO depois da juntada.
+            aba_detalhe = None
+            url_detalhe = ''
+            try:
+                aba_detalhe = driver_pje.current_window_handle
+                url_detalhe = driver_pje.current_url or ''
+            except Exception:
+                pass
             juntada_executada = helpers._executar_juntada_pje(driver_pje, tipo_fluxo, numero_processo, log)
             resultado['juntada_executada'] = juntada_executada
             
@@ -1652,38 +1664,30 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                 try:
                     from atos.wrappers_ato import ato_meios, ato_bloq
                     
-                    # Fechar aba da juntada (minuta de anexo) após salvar e voltar para /detalhe
+                    # Voltar para /detalhe após a juntada — mesmo padrão da CARTA
+                    # (wrapper_juntada_com_navegacao): fecha SÓ abas extras e, se a aba
+                    # atual tiver sido navegada para /anexar, volta pela URL guardada.
+                    # NUNCA fechar a aba atual sem saber quantas existem.
                     try:
-                        # Fechar aba atual (juntada)
-                        driver_pje.close()
-                        if log:
-                            logger.info('[SISBAJUD]  Aba de juntada fechada')
-                        
-                        # Procurar aba /detalhe e focar nela
-                        abas_disponiveis = driver_pje.window_handles
-                        aba_detalhe_encontrada = False
-                        
-                        for aba in abas_disponiveis:
-                            try:
-                                driver_pje.switch_to.window(aba)
-                                url_atual = driver_pje.current_url
-                                if '/detalhe' in url_atual:
-                                    aba_detalhe_encontrada = True
-                                    if log:
-                                        logger.info(f'[SISBAJUD]  Foco na aba /detalhe: {url_atual}')
-                                    break
-                            except Exception:
-                                continue
-                        
-                        if not aba_detalhe_encontrada:
+                        abas = list(getattr(driver_pje, 'window_handles', []) or [])
+                        if len(abas) > 1:
+                            from Fix.browser_suporte import forcar_fechamento_abas_extras
+                            forcar_fechamento_abas_extras(driver_pje, aba_detalhe or abas[0])
                             if log:
-                                logger.info('[SISBAJUD]  Aba /detalhe não encontrada, usando primeira aba disponível')
-                            # Fallback: usar primeira aba
-                            driver_pje.switch_to.window(driver_pje.window_handles[0])
-                            
+                                logger.info('[SISBAJUD]  Aba de juntada fechada (%d -> %d abas)',
+                                            len(abas), len(getattr(driver_pje, 'window_handles', []) or []))
+
+                        if '/detalhe' not in (driver_pje.current_url or '') and url_detalhe:
+                            if log:
+                                logger.info('[SISBAJUD]  Aba não está em /detalhe — voltando para: %s', url_detalhe)
+                            driver_pje.get(url_detalhe)
+
+                        if log:
+                            logger.info('[SISBAJUD]  Foco na aba /detalhe: %s', driver_pje.current_url)
+
                     except Exception as e_fechar:
                         if log:
-                            logger.info(f'[SISBAJUD]  Erro ao fechar aba de juntada: {e_fechar}')
+                            logger.info(f'[SISBAJUD]  Erro ao voltar para a aba /detalhe: {e_fechar}')
                     
                     if tipo_fluxo == 'POSITIVO':
                         # Fluxo POSITIVO: executar ato_bloq

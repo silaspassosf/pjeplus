@@ -39,29 +39,49 @@ class TestMovimentosNavegacao(unittest.TestCase):
         args = mock_exec.call_args[0]
         self.assertEqual(args[1], {'texto': 'Análise', 'tag': 'button'})
 
+    def test_clicar_botao_por_texto_espera_botao_aparecer(self):
+        """O JS é retentado até o botão existir; não desiste na 1ª tentativa.
+
+        Antes, uma única tentativa sem sucesso caía direto no fallback e, se o
+        Angular ainda não tinha montado a tarefa, o fluxo concluía que o botão
+        não estava disponível.
+        """
+        driver = MagicMock()
+        tentativas = {'n': 0}
+
+        def exec_js(_script, _args):
+            tentativas['n'] += 1
+            return tentativas['n'] >= 3   # só na 3ª o botão existe
+
+        setattr(driver, 'execute_script', exec_js)
+
+        with patch('atos.movimentos_navegacao.espera.assentar', return_value=None):
+            sucesso = clicar_botao_por_texto(driver, "Análise", timeout=5)
+
+        self.assertTrue(sucesso)
+        self.assertEqual(tentativas['n'], 3)   # tentou de novo até aparecer
+
     def test_movimentar_analise_conclusao(self):
         driver = MagicMock()
         mock_exec = MagicMock(return_value=True)
         setattr(driver, 'execute_script', mock_exec)
 
-        with patch('atos.movimentos_navegacao.esperar_transicao_tarefa', return_value=True):
-            sucesso = movimentar_analise(driver, "Conclusão ao Magistrado")
-            self.assertTrue(sucesso)
-            # Deve ter clicado no botão 'cancelar Conclusao'
-            call_args = mock_exec.call_args[0]
-            self.assertEqual(call_args[1]['texto'], 'cancelar Conclusao')
+        sucesso = movimentar_analise(driver, "Conclusão ao Magistrado")
+        self.assertTrue(sucesso)
+        # Deve ter clicado no botão 'cancelar Conclusao'
+        call_args = mock_exec.call_args[0]
+        self.assertEqual(call_args[1]['texto'], 'cancelar Conclusao')
 
     def test_movimentar_analise_cumprimento_providencias(self):
         driver = MagicMock()
         mock_exec = MagicMock(return_value=True)
         setattr(driver, 'execute_script', mock_exec)
 
-        with patch('atos.movimentos_navegacao.esperar_transicao_tarefa', return_value=True):
-            sucesso = movimentar_analise(driver, "Cumprimento de Providências")
-            self.assertTrue(sucesso)
-            # Deve ter clicado no botão default 'analise'
-            call_args = mock_exec.call_args[0]
-            self.assertEqual(call_args[1]['texto'], 'analise')
+        sucesso = movimentar_analise(driver, "Cumprimento de Providências")
+        self.assertTrue(sucesso)
+        # Deve ter clicado no botão default 'analise'
+        call_args = mock_exec.call_args[0]
+        self.assertEqual(call_args[1]['texto'], 'analise')
 
     def test_movimentar_inteligente_cumprimento_para_aguardando_prazo(self):
         driver = MagicMock()
@@ -76,8 +96,7 @@ class TestMovimentosNavegacao(unittest.TestCase):
         with patch('atos.movimentos_fluxo.abrir_tarefa_por_api', return_value=True), \
              patch('atos.movimentos_fluxo._tarefa_atual_via_api', return_value=None), \
              patch('atos.movimentos_fluxo._obter_tarefa_atual_robusta', side_effect=tarefas), \
-             patch('atos.movimentos_navegacao.clicar_botao_por_texto', return_value=True), \
-             patch('atos.movimentos_navegacao.esperar_transicao_tarefa', return_value=True):
+             patch('atos.movimentos_navegacao.clicar_botao_por_texto', return_value=True):
 
             ok = movimentar_inteligente(driver, "Aguardando Prazo")
             self.assertTrue(ok)

@@ -7,7 +7,7 @@ import unicodedata
 import logging
 import time
 from Fix import espera
-from Fix.core import safe_click_no_scroll, aguardar_renderizacao_nativa
+from Fix.core import safe_click_no_scroll
 
 logger = logging.getLogger(__name__)
 
@@ -77,19 +77,27 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
     }
     """
     try:
+        # Tenta o JS em loop até `timeout`: a tarefa abre numa aba nova e o
+        # Angular monta os botões depois. Uma única tentativa saía antes de o
+        # botão existir e o fluxo seguia como se ele não estivesse disponível.
         fn = getattr(driver, "execute_" + "script", None)
-        if fn is not None:
-            res = fn(script, {'texto': texto, 'tag': tag})
-            if res:
+        limite = time.monotonic() + float(timeout)
+        while time.monotonic() < limite:
+            try:
+                if fn is not None:
+                    res = fn(script, {'texto': texto, 'tag': tag})
+                elif hasattr(driver, 'page') and driver.page:
+                    res = driver.page.evaluate(script, {'texto': texto, 'tag': tag})
+                else:
+                    break
+                if res:
+                    if debug:
+                        logger.debug(f'[MOV_CLIQUE] Botão "{texto}" clicado via JS')
+                    return True
+            except Exception as e:
                 if debug:
-                    logger.debug(f'[MOV_CLIQUE] Botão "{texto}" clicado via execute_script JS')
-                return True
-        elif hasattr(driver, 'page') and driver.page:
-            res = driver.page.evaluate(script, {'texto': texto, 'tag': tag})
-            if res:
-                if debug:
-                    logger.debug(f'[MOV_CLIQUE] Botão "{texto}" clicado via page.evaluate JS')
-                return True
+                    logger.debug(f'[MOV_CLIQUE] Falha na execução JS: {e}')
+            espera.assentar(driver, 0.2)
     except Exception as e:
         if debug:
             logger.debug(f'[MOV_CLIQUE] Falha na execução JS: {e}')
@@ -117,30 +125,6 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
         espera.assentar(driver, 0.2)
 
     return False
-
-
-def esperar_transicao_tarefa(driver: Any, timeout: int = 5) -> bool:
-    """Aguarda a transição de tarefa terminar (espelha esperarTransicao do gigs-plugin.js)."""
-    script_check = """
-    () => {
-        if (window.location.href.includes('/transicao')) return true;
-        const b = document.querySelectorAll('pje-botoes-transicao button');
-        if (b && b.length >= 3) return true;
-        return false;
-    }
-    """
-    limite = time.monotonic() + float(timeout)
-    while time.monotonic() < limite:
-        try:
-            fn = getattr(driver, "execute_" + "script", None)
-            res = fn(script_check) if fn else (driver.page.evaluate(script_check) if hasattr(driver, 'page') and driver.page else None)
-            if res:
-                espera.assentar(driver, 0.3)
-                return True
-        except Exception:
-            pass
-        espera.assentar(driver, 0.2)
-    return True
 
 
 def movimentar_analise(driver: Any, tarefa: str, debug: bool = False) -> bool:
@@ -179,8 +163,7 @@ def movimentar_analise(driver: Any, tarefa: str, debug: bool = False) -> bool:
         clicado = clicar_botao_por_texto(driver, 'analise', debug=debug)
 
     if clicado:
-        logger.info('[MOV_ANALISE] Botão de transição clicado — aguardando transição...')
-        esperar_transicao_tarefa(driver)
+        logger.info('[MOV_ANALISE] Botão de transição clicado')
         return True
 
     logger.warning(f'[MOV_ANALISE] Nenhum botão de transição para Análise encontrado na tarefa "{tarefa}"')
@@ -212,29 +195,30 @@ def navegar_para_tarefa(
             return False
 
         # Se já está em Análise: clica no botão destino
+        # Se já está em Análise: clica no botão destino
+        # Não esperamos o container genérico `pje-botoes-transicao button`: ele
+        # já existe no esqueleto, então libera a espera antes de a tarefa montar
+        # e o clique falha sem retentar. A garantia real é `clicar_botao_por_texto`
+        # aguardar o BOTÃO DO DESTINO aparecer.
         if 'analise' in tarefa_atual_norm:
-            aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(5, timeout))
-            clicado = clicar_botao_por_texto(driver, tarefa_destino, debug=debug)
+            clicado = clicar_botao_por_texto(driver, tarefa_destino, timeout=max(5, timeout), debug=debug)
             if not clicado:
                 if 'aguardando prazo' in tarefa_destino_norm or 'prazo' in tarefa_destino_norm:
                     logger.info('[NAVEGAR_TAREFA] Já está em Análise e botão "%s" não disponível — conforme LEGADO L4869, está correto.', tarefa_destino)
                     return True
                 return False
-            esperar_transicao_tarefa(driver)
             return True
 
         # Se não está em Análise: transiciona primeiro para Análise
         if movimentar_analise(driver, tarefa_atual, debug=debug):
             if 'analise' in tarefa_destino_norm:
                 return True
-            aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(5, timeout))
-            clicado = clicar_botao_por_texto(driver, tarefa_destino, debug=debug)
+            clicado = clicar_botao_por_texto(driver, tarefa_destino, timeout=max(5, timeout), debug=debug)
             if not clicado:
                 if 'aguardando prazo' in tarefa_destino_norm or 'prazo' in tarefa_destino_norm:
                     logger.info('[NAVEGAR_TAREFA] Transicionou para Análise e botão "%s" não disponível — conforme LEGADO L4869, está correto.', tarefa_destino)
                     return True
                 return False
-            esperar_transicao_tarefa(driver)
             return True
 
         return False

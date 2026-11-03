@@ -19,6 +19,7 @@ dropdown mas o clique em Correios não registra (backdrop residual / linha
 obsoleta depois do re-render do Angular).
 """
 
+import re
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -180,30 +181,43 @@ class TabelaFake:
                     linha.prazo = '5' if 'DiasUteis' in script else linha.prazo
                     return True
             return False
-        alvo = args[0] if args else ''
-        linha = None
-        if isinstance(alvo, str):
-            for l in self.linhas.values():
-                if alvo.startswith(l.prefixo):
-                    linha = l
-                    break
-        if linha is None and isinstance(alvo, str) and 'cdk-drag' in alvo:
-            # Fallback por XPath (índice da linha).
-            for i in self.linhas:
-                if f'[{i}]' in alvo:
-                    linha = self.linhas[i]
-                    break
-        if linha is None:
-            return False
-        if alvo.endswith('TipoPrazoD-input'):
+    def _linha_do_script(self, script):
+        """Descobre a linha a partir do XPath `(//...tr[...])[N]` embutido no script."""
+        m = re.search(r'\]\)\[(\d+)\]', script)
+        if not m:
+            return None
+        return self.linhas.get(int(m.group(1)))
+
+    def executar_js(self, driver, script, *args):
+        """Emula os scripts de prazo usados por `_restabelecer_prazo_da_linha`.
+
+        A implementação atual resolve a linha pelo próprio XPath (embutido no
+        script) e recebe o valor do prazo como `args[0]`:
+          - script de leitura (`_tipo_prazo_atual` / `_valor_prazo_atual`)
+          - script de escrita (marca "dias úteis" + preenche o valor)
+        """
+        linha = self._linha_do_script(script)
+
+        # --- leituras -------------------------------------------------
+        if "indexOf('sem prazo')" in script:            # _tipo_prazo_atual
+            return linha.tipo_prazo if linha else ''
+        if 'input[id$="PrazoDiasUteis"]' in script and 'dispatchEvent' not in script:
+            if not linha:                               # _valor_prazo_atual
+                return ''
+            return '' if linha.prazo is None else str(linha.prazo)
+        if 'slice(-13)' in script:                      # _hash_da_linha
+            return linha.prefixo if linha else ''
+
+        # --- escrita (marca rádio + preenche o valor) ------------------
+        if 'dispatchEvent' in script and 'sem_linha' in script:
+            if not linha:
+                return 'sem_linha'
+            if not getattr(linha, 'tem_radio', True):
+                return 'sem_radio'
             linha.tipo_prazo = 'dias_uteis'
-            return True
-        if alvo.endswith('PrazoDiasUteis'):
-            # Só aceita o valor quando o tipo é "dias úteis" (o input só existe aí).
-            if linha.tipo_prazo != 'dias_uteis':
-                return False
-            linha.prazo = str(args[1]) if len(args) > 1 else '5'
-            return True
+            linha.prazo = str(args[0]) if args else '5'
+            return 'ok'
+
         return True
 
     def ate_aparecer(self, driver, sel, teto=2.0):
@@ -215,15 +229,6 @@ class TabelaFake:
         if 'mat-option' in sel:
             return not self.painel_aberto
         return True
-
-
-def _ids_prazo_fake(tabela, idx):
-    """Equivalente a `_ids_prazo_da_linha` usando os hashes do fake."""
-    linha = tabela.linha(idx)
-    if not linha:
-        return None, None, None
-    p = linha.prefixo
-    return p, p + 'TipoPrazoD-input', p + 'PrazoDiasUteis'
 
 
 def _fake_dropdown_meio(tabela):
@@ -281,8 +286,6 @@ def _patch_ambiente(tabela, vincular_mock=None):
         patch('atos.comunicacao_finalizacao.espera.ate_sumir', side_effect=tabela.ate_sumir),
         patch('atos.comunicacao_finalizacao.espera.assentar', return_value=None),
         patch('atos.comunicacao_finalizacao._executar_js', side_effect=tabela.executar_js),
-        patch('atos.comunicacao_finalizacao._ids_prazo_da_linha',
-              side_effect=lambda driver, idx: _ids_prazo_fake(tabela, idx)),
     ]
     if vincular_mock is not None:
         patches.append(
@@ -507,19 +510,22 @@ class TestAlterarMeioExpedicao(unittest.TestCase):
         self.assertEqual(tabela.linha(1).tipo_prazo, 'sem_prazo')
         self.assertIsNone(tabela.linha(1).prazo)
 
-    def test_fallback_por_linha_quando_ids_de_prazo_nao_sao_derivaveis(self):
-        """Se a linha re-renderizou e os ids não derivam, o fallback por <tr> resolve."""
+    def test_restabelece_prazo_mesmo_sem_ids_derivaveis(self):
+        """A restauração do prazo resolve pela própria <tr>, sem depender do hash.
+
+        A implementação antiga derivava `destinatario_<hash>` do select de meio e
+        caía num fallback quando isso falhava. A nova sempre trabalha a partir da
+        linha (XPath), então funciona mesmo quando o hash não é derivável.
+        """
         tabela = TabelaFake([FakeLinha(1, 'Domicílio Eletrônico', prazo='5')])
         logs = []
         patches = _patch_ambiente(tabela)
         for p in patches:
             p.start()
         try:
-            with patch('atos.comunicacao_finalizacao._ids_prazo_da_linha',
-                       side_effect=lambda driver, idx: (None, None, None)):
-                driver = MagicMock()
-                driver.page = MagicMock()
-                alterar_meio_expedicao(driver, debug=True, log=logs.append)
+            driver = MagicMock()
+            driver.page = MagicMock()
+            alterar_meio_expedicao(driver, debug=True, log=logs.append)
         finally:
             for p in patches:
                 p.stop()

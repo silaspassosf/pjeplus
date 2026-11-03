@@ -650,58 +650,64 @@ def _opcao_correios_visivel(driver):
     return None
 
 
-def _ids_prazo_da_linha(driver, idx):
-    """Deriva os ids de prazo da linha a partir do id do select de meio.
+_JS_CONF_PRAZO = """(function(){
+    var tr = __pjeEls(%r)[0];
+    if (!tr) return false;
+    var m = tr.querySelector('pje-pec-coluna-tipo-prazo mat-radio-button.mat-radio-checked')
+         || tr.querySelector('mat-radio-button[id*="TipoPrazo"][class*="mat-radio-checked"]');
+    if (!m) return false;
+    var t = (m.innerText || m.textContent || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (t.indexOf('uteis') === -1) return false;
+    var i = tr.querySelector("input[id$='PrazoDiasUteis']");
+    return !!i && String(i.value).trim() === %r;
+})()"""
 
-    O PJe gera todos os ids de uma linha a partir do mesmo hash
-    (`destinatario_<hash>`), como mostra o probe:
 
-        #destinatario_rxzf2dnuuMeioExpedicao
-        #destinatario_rxzf2dnuuTipoPrazoD-input
-        #destinatario_rxzf2dnuuPrazoDiasUteis
+def _tipo_prazo_atual(driver, idx):
+    """Tipo de prazo marcado na linha: 'dias_uteis'|'sem_prazo'|'data_certa'|'dias_corridos'|''.
 
-    Returns:
-        (prefixo, id_radio_dias_uteis, id_input_dias) ou (None, None, None).
+    CRÍTICO: o seletor precisa ser restrito à coluna de prazo. A linha tem
+    DOIS mat-radio-group (signatário: "Usuário" e tipo de prazo); um seletor
+    amplo (`mat-radio-button.mat-radio-checked`) casa primeiro com o de
+    signatário e devolve lixo — foi o bug encontrado no teste do IIFE.
     """
     try:
-        seletor = _dropdown_meio_linha(driver, idx)
-        el_id = ''
-        if seletor is not None and hasattr(seletor, 'get_attribute'):
-            el_id = seletor.get_attribute('id') or ''
-        if not el_id:
-            return None, None, None
-        if not el_id.endswith('MeioExpedicao'):
-            return None, None, None
-        prefixo = el_id[: -len('MeioExpedicao')]
-        return prefixo, prefixo + 'TipoPrazoD-input', prefixo + 'PrazoDiasUteis'
-    except Exception:
-        return None, None, None
-
-
-def _prazo_tipo_atual(driver, prefixo):
-    """Retorna 'dias_uteis' | 'sem_prazo' | 'data_certa' | 'dias_corridos' | '' da linha.
-
-    Lê qual mat-radio-button está com a classe `mat-radio-checked`.
-    """
-    try:
-        tipo = _executar_js(
+        res = _executar_js(
             driver,
             """(function(){
-                var el = document.getElementById(arguments[0] + 'TipoPrazo');
-                if (!el) return '';
-                var marcado = el.querySelector('mat-radio-button.mat-radio-checked');
-                if (!marcado) return '';
-                var txt = (marcado.innerText || marcado.textContent || '')
-                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
-                if (txt.indexOf('sem prazo') !== -1) return 'sem_prazo';
-                if (txt.indexOf('data certa') !== -1) return 'data_certa';
-                if (txt.indexOf('corridos') !== -1) return 'dias_corridos';
-                if (txt.indexOf('uteis') !== -1) return 'dias_uteis';
+                var tr = __pjeEls(%r)[0];
+                if (!tr) return '';
+                var m = tr.querySelector('pje-pec-coluna-tipo-prazo mat-radio-button.mat-radio-checked')
+                     || tr.querySelector('mat-radio-button[id*="TipoPrazo"][class*="mat-radio-checked"]');
+                if (!m) return '';
+                var t = (m.innerText || m.textContent || '')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                if (t.indexOf('sem prazo') !== -1) return 'sem_prazo';
+                if (t.indexOf('data certa') !== -1) return 'data_certa';
+                if (t.indexOf('corridos') !== -1) return 'dias_corridos';
+                if (t.indexOf('uteis') !== -1) return 'dias_uteis';
                 return '';
-            })""",
-            prefixo,
+            })()""" % _XP_LINHA_DESTINATARIO.format(idx=idx),
         )
-        return str(tipo or '')
+        return str(res or '')
+    except Exception:
+        return ''
+
+
+def _valor_prazo_atual(driver, idx):
+    """Valor atual do input de prazo em dias úteis (string) ou ''."""
+    try:
+        res = _executar_js(
+            driver,
+            """(function(){
+                var tr = __pjeEls(%r)[0];
+                if (!tr) return '';
+                var inp = tr.querySelector('input[id$="PrazoDiasUteis"]');
+                return inp ? String(inp.value == null ? '' : inp.value) : '';
+            })()""" % _XP_LINHA_DESTINATARIO.format(idx=idx),
+        )
+        return str(res or '')
     except Exception:
         return ''
 
@@ -714,139 +720,82 @@ def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=Non
     "sem prazo". Numa notificação isso é grave: o prazo é o próprio conteúdo do
     ato. Antes de passar para a próxima linha, refazemos:
 
-    1. marcar o rádio "dias úteis"  (#destinatario_<hash>TipoPrazoD-input);
-    2. preencher o input de dias    (#destinatario_<hash>PrazoDiasUteis);
-    3. confirmar que o rádio ficou marcado e o input tem o valor esperado.
+        1. marcar o rádio "dias úteis"  (#destinatario_<hash>TipoPrazoD-input);
+        2. preencher o input de dias    (#destinatario_<hash>PrazoDiasUteis);
+        3. confirmar rádio marcado + valor aplicado (com 1 retentativa).
+
+    Mesma lógica do IIFE validado no console (`pje_correios_prazo5.js`).
 
     Returns:
-        True se a linha terminou com "dias úteis" e o valor aplicado.
+        True se a linha terminou com "dias úteis" e o valor esperado.
     """
     if log is None:
         def log(_msg):
             return None
-    if prazo_dias is None or int(prazo_dias) <= 0:
+    try:
+        prazo_alvo = int(prazo_dias)
+    except Exception:
+        prazo_alvo = 5
+    if prazo_alvo <= 0:
         return True
 
-    prefixo, id_radio, id_input = _ids_prazo_da_linha(driver, idx)
-    if not prefixo:
-        log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível derivar os ids de prazo (linha re-renderizou?) — tentarei pela linha')
-        # Fallback: procura o input de prazo DENTRO da própria linha, sem depender do id.
-        try:
-            ok = _executar_js(
-                driver,
-                """(function(){
-                    var tr = __pjeEls(%r)[0];
-                    if (!tr) return false;
-                    var radio = tr.querySelector("mat-radio-button[id$='TipoPrazoD'] input[type='radio']")
-                        || tr.querySelector("mat-radio-button.mat-radio-checked input[type='radio']");
-                    if (radio && !radio.checked) radio.click();
-                    var inp = tr.querySelector("input[id$='PrazoDiasUteis']");
-                    if (!inp) return false;
-                    var setter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(inp, String(%d));
-                    inp.dispatchEvent(new Event('input', {bubbles: true}));
-                    inp.dispatchEvent(new Event('change', {bubbles: true}));
-                    inp.dispatchEvent(new Event('blur', {bubbles: true}));
-                    return true;
-                })()""" % (_XP_LINHA_DESTINATARIO.format(idx=idx), int(prazo_dias)),
-            )
-            if not ok:
-                return False
-        except Exception as e_fb:
-            log(f'[COMUNICACAO][WARN] Linha {idx}: falha no fallback de prazo ({str(e_fb)[:60]})')
-            return False
+    # Marca o rádio "dias úteis" e preenche o input na MESMA execução de JS:
+    # entre uma chamada e outra o Angular pode re-renderizar a linha.
+    _JS_MARCAR_E_PREENCHER = """(function(){
+        var alvo = String(arguments[0]);
+        var tr = __pjeEls(%r)[0];
+        if (!tr) return 'sem_linha';
+        var radio = tr.querySelector("pje-pec-coluna-tipo-prazo mat-radio-button[id$='TipoPrazoD'] input[type='radio']")
+                 || tr.querySelector("mat-radio-button[id$='TipoPrazoD'] input[type='radio']");
+        if (!radio) return 'sem_radio';
+        if (!radio.checked) radio.click();
+        var inp = tr.querySelector("input[id$='PrazoDiasUteis']");
+        if (!inp) return 'sem_input';
+        var setter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype, 'value').set;
+        setter.call(inp, alvo);
+        inp.dispatchEvent(new Event('input', {bubbles: true}));
+        inp.dispatchEvent(new Event('change', {bubbles: true}));
+        inp.dispatchEvent(new Event('blur', {bubbles: true}));
+        return 'ok';
+    })()""" % _XP_LINHA_DESTINATARIO.format(idx=idx)
 
-        # O fallback não tem `prefixo`, então confirma pela própria linha.
+    def _aplicar():
         try:
-            ok_conf = espera.ate_js(
-                driver,
-                """(function(){
-                    var tr = __pjeEls(%r)[0];
-                    if (!tr) return false;
-                    var m = tr.querySelector("mat-radio-button.mat-radio-checked");
-                    var t = m ? (m.innerText || m.textContent || '') : '';
-                    t = t.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
-                    if (t.indexOf('uteis') === -1) return false;
-                    var i = tr.querySelector("input[id$='PrazoDiasUteis']");
-                    return !!i && String(i.value).trim() === %r;
-                })()""" % (_XP_LINHA_DESTINATARIO.format(idx=idx), str(int(prazo_dias))),
-                teto=3,
-            )
-        except Exception:
-            ok_conf = False
-        if ok_conf:
-            if debug:
-                log(f'[COMUNICACAO][DEBUG] Linha {idx}: prazo restabelecido em {int(prazo_dias)} dias úteis (fallback por linha)')
-            return True
-        log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível confirmar o prazo de {int(prazo_dias)} dias úteis (fallback)')
+            return str(_executar_js(driver, _JS_MARCAR_E_PREENCHER, str(prazo_alvo)) or '')
+        except Exception as e:
+            log(f'[COMUNICACAO][WARN] Linha {idx}: falha ao marcar/preencher prazo ({str(e)[:60]})')
+            return 'erro'
+
+    def _confirmado():
+        return (_tipo_prazo_atual(driver, idx) == 'dias_uteis'
+                and _valor_prazo_atual(driver, idx).strip() == str(prazo_alvo))
+
+    # 1ª tentativa
+    res = _aplicar()
+    if res in ('sem_linha', 'sem_radio', 'sem_input'):
+        log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível restabelecer o prazo ({res})')
         return False
-    else:
-        # 1. Rádio "dias úteis".
-        try:
-            _executar_js(
-                driver,
-                """(function(){
-                    var r = document.getElementById(arguments[0]);
-                    if (!r) return false;
-                    if (!r.checked) r.click();
-                    return true;
-                })""",
-                id_radio,
-            )
-        except Exception as e_radio:
-            log(f'[COMUNICACAO][WARN] Linha {idx}: falha ao marcar "dias úteis" ({str(e_radio)[:60]})')
 
-        # 2. Valor do prazo. Espera o input existir: ele só é renderizado quando
-        #    o tipo de prazo é "dias úteis".
-        espera.ate_aparecer(driver, 'input[id="%s"]' % id_input, teto=3)
-        try:
-            _executar_js(
-                driver,
-                """(function(){
-                    var inp = document.getElementById(arguments[0]);
-                    if (!inp) return false;
-                    var setter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(inp, String(arguments[1]));
-                    inp.dispatchEvent(new Event('input', {bubbles: true}));
-                    inp.dispatchEvent(new Event('change', {bubbles: true}));
-                    inp.dispatchEvent(new Event('blur', {bubbles: true}));
-                    return true;
-                })""",
-                id_input,
-                int(prazo_dias),
-            )
-        except Exception as e_input:
-            log(f'[COMUNICACAO][WARN] Linha {idx}: falha ao preencher prazo em dias ({str(e_input)[:60]})')
+    try:
+        if espera.ate_js(driver, _JS_CONF_PRAZO % (
+                _XP_LINHA_DESTINATARIO.format(idx=idx), str(prazo_alvo)), teto=3):
+            if debug:
+                log(f'[COMUNICACAO][DEBUG] Linha {idx}: prazo restabelecido em {prazo_alvo} dias úteis')
+            return True
+    except Exception:
+        pass
 
-    # 3. Confirmação: tipo = dias úteis e valor gravado.
-    confirmado = False
-    if prefixo:
-        try:
-            confirmado = espera.ate_js(
-                driver,
-                """(function(){
-                    var el = document.getElementById(%r + 'TipoPrazo');
-                    if (!el) return false;
-                    var m = el.querySelector('mat-radio-button.mat-radio-checked');
-                    var t = m ? (m.innerText || m.textContent || '') : '';
-                    t = t.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
-                    if (t.indexOf('uteis') === -1) return false;
-                    var i = document.getElementById(%r);
-                    return !!i && String(i.value).trim() === %r;
-                })()""" % (prefixo, id_input, str(int(prazo_dias))),
-                teto=3,
-            )
-        except Exception:
-            confirmado = False
-
-    if confirmado:
+    # 2ª tentativa: alguns casos só pegam no segundo blur.
+    _aplicar()
+    espera.assentar(driver, 0.6, motivo='retentativa de prazo')
+    if _confirmado():
         if debug:
-            log(f'[COMUNICACAO][DEBUG] Linha {idx}: prazo restabelecido em {int(prazo_dias)} dias úteis')
+            log(f'[COMUNICACAO][DEBUG] Linha {idx}: prazo restabelecido em {prazo_alvo} dias úteis (2ª tentativa)')
         return True
 
-    log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível confirmar o prazo de {int(prazo_dias)} dias úteis')
+    log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível confirmar o prazo de {prazo_alvo} dias úteis '
+        f'(tipo={_tipo_prazo_atual(driver, idx) or "?"}, valor={_valor_prazo_atual(driver, idx) or "?"})')
     return False
 
 

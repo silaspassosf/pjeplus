@@ -250,11 +250,19 @@ def navegar_para_conclusao(driver: Any) -> bool:
                     nome_tarefa, getattr(driver, 'current_url', ''))
                 return False
         else:
-            logger.info('[NAVEGAÇÃO] Tarefa "%s": roteando via máquina de estados (Análise se necessário)', nome_tarefa)
-            if not navegar_para_tarefa(driver, 'conclusão ao magistrado', debug=True, tarefa_atual_conhecida=nome_tarefa):
-                # navegar_para_tarefa já moveu para Análise; aqui só falta clicar
-                logger.info('[NAVEGAÇÃO] Roteamento não concluiu — tentando o botão na tela atual')
-            btn_conclusao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=15)
+            # Tenta o botão DIRETO na tela atual antes de rotear por Análise.
+            # Em tarefas como "Triagem Inicial" a Conclusão ao Magistrado já está
+            # disponível: rotear cegamente custava ~12s (movimentar_analise +
+            # espera de transição) para depois encontrar o botão que já estava lá.
+            logger.info('[NAVEGAÇÃO] Tarefa "%s": procurando conclusão direta antes de rotear', nome_tarefa)
+            btn_conclusao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=6)
+
+            if not btn_conclusao:
+                logger.info('[NAVEGAÇÃO] Conclusão indisponível — roteando via máquina de estados (Análise)')
+                if not navegar_para_tarefa(driver, 'conclusão ao magistrado', debug=True, tarefa_atual_conhecida=nome_tarefa):
+                    # navegar_para_tarefa já moveu para Análise; aqui só falta clicar
+                    logger.info('[NAVEGAÇÃO] Roteamento não concluiu — tentando o botão na tela atual')
+                btn_conclusao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=15)
             if not btn_conclusao:
                 logger.error(
                     '[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não apareceu em 15s '
@@ -273,7 +281,11 @@ def navegar_para_conclusao(driver: Any) -> bool:
             return False
         logger.info('[NAVEGAÇÃO] ✅ Clique em "Conclusão ao magistrado" realizado')
 
-        limpar_overlays(driver)
+        # NÃO chamar limpar_overlays() aqui. Logo após o clique a tela de
+        # conclusão está montando; um Escape no meio da transição pode fechar
+        # componentes que o Angular estava abrindo (era o "refresh" visível
+        # antes de escolher o tipo de conclusão). Se sobrar overlay, a espera
+        # abaixo já falha de forma explícita.
 
         # ===== CONFIRMAÇÃO DA CHEGADA =====
         # Sucesso só quando os botões de conclusão existem de fato. Antes, esta
@@ -415,10 +427,12 @@ def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
 
         logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado com sucesso')
 
-        try:
-            espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
-        except Exception:
-            pass
+        # NÃO esperar `document.readyState === 'complete'` aqui. O clique dispara
+        # a navegação para /minutar; bloquear até o readyState fechar prendia o
+        # passo por toda a transição (3.8s no log) e, pior, devolvia o controle
+        # só depois que o DOM já tinha sido substituído — a tela "piscava"
+        # antes do passo seguinte. Quem espera a transição é
+        # `aguardar_transicao_minutar` (Passo 5), que observa o sinal certo.
 
         return True
 

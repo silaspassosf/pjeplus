@@ -306,7 +306,168 @@ def _abrir_nova_aba(
         return None
 
 
+# ── Juízo 100% digital: helpers compartilhados ────────────────────────────────
+# Baseados em Script/modules/Aud/marcar.js (desmarcar100 / remarcar100), que é a
+# implementação validada em campo. As duas ações acontecem em MOMENTOS diferentes
+# do fluxo (desmarcar antes de marcar a audiência; remarcar depois), mas usam a
+# mesma mecânica: toggle[formcontrolname='juizoDigital'] + confirmação.
+
+_SEL_TOGGLE_100 = "mat-slide-toggle[formcontrolname='juizoDigital']"
+
+_JS_TOGGLE_100 = """(function(sel){
+    var t = document.querySelector(sel);
+    if (!t) return 'ausente';
+    return t.classList.contains('mat-checked') ? 'marcado' : 'desmarcado';
+})"""
+
+# Estado do toggle: 'marcado' | 'desmarcado' | 'ausente'
+def _estado_toggle_100(driver: Any) -> str:
+    try:
+        res = _executar_js(driver, _JS_TOGGLE_100, _SEL_TOGGLE_100)
+        return str(res or 'ausente')
+    except Exception:
+        return 'ausente'
+
+
+def _gatilho_toggle_100(driver: Any) -> bool:
+    """Clica o label do toggle (não o input). Retorna True se achou e clicou."""
+    try:
+        res = _executar_js(
+            driver,
+            """(function(sel){
+                var t = document.querySelector(sel);
+                if (!t) return false;
+                t.scrollIntoView({block: 'center'});
+                var label = t.querySelector('label.mat-slide-toggle-label') || t;
+                label.click();
+                return true;
+            })""",
+            _SEL_TOGGLE_100,
+        )
+        return bool(res)
+    except Exception:
+        return False
+
+
+def _clicar_botao_em_painel(driver: Any, titulo_painel: str, texto_botao: str,
+                            timeout: float = 10.0) -> bool:
+    """Acha o mat-expansion-panel cujo título contém `titulo_painel` e clica no
+    botão cujo texto começa com `texto_botao`.
+
+    A confirmação do Juízo 100% digital aparece como expansion-panel (o probe
+    registra `mat-expansion-panel-header` e botões "Sim"/"Não"), não como dialog.
+    """
+    js = """(function(titulo, alvo){
+        var xp = "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.),'" + titulo + "')]";
+        var res = document.evaluate(xp, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        var title = res.singleNodeValue;
+        if (!title) return {ok: false, erro: 'painel_ausente'};
+        var panel = title.closest('mat-expansion-panel');
+        if (!panel) return {ok: false, erro: 'panel_ausente'};
+        var btns = Array.prototype.slice.call(panel.querySelectorAll('button'));
+        var b = btns.filter(function(x){
+            return (x.textContent || '').trim().indexOf(alvo) === 0;
+        })[0];
+        if (!b) return {ok: false, erro: 'botao_ausente'};
+        b.click();
+        var w = b.querySelector('span.mat-button-wrapper');
+        if (w) w.click();
+        return {ok: true};
+    })"""
+
+    t0 = _t_monotonic()
+    while _t_monotonic() - t0 < timeout:
+        try:
+            res = _executar_js(driver, js, titulo_painel, texto_botao)
+            if isinstance(res, dict) and res.get('ok'):
+                return True
+        except Exception:
+            pass
+        _t_sleep(0.3)
+    return False
+
+
+def _clicar_sim_confirmacao(driver: Any, timeout: float = 10.0) -> bool:
+    """Clica "Sim" na confirmação do toggle, procurando nos containers usuais.
+
+    Cobre mat-expansion-panel (estrutura do probe), mat-dialog-container e
+    pje-modal-juizo-digital (estruturas alternativas do PJe). Retorna False se
+    nada aparecer — o chamador decide se isso é erro.
+    """
+    js = """(function(){
+        var containers = Array.prototype.slice.call(document.querySelectorAll(
+            'pje-modal-juizo-digital, mat-dialog-container, mat-expansion-panel, .cdk-overlay-pane'));
+        for (var i = 0; i < containers.length; i++) {
+            var c = containers[i];
+            var btns = Array.prototype.slice.call(c.querySelectorAll('button'));
+            var sim = btns.filter(function(b){
+                var t = (b.textContent || '').trim();
+                return t === 'Sim' || t.indexOf('Sim') === 0;
+            }).filter(function(b){ return b.offsetParent !== null; })[0];
+            if (sim) {
+                sim.click();
+                var w = sim.querySelector('span.mat-button-wrapper');
+                if (w) w.click();
+                return {ok: true, tipo: c.tagName.toLowerCase()};
+            }
+        }
+        return {ok: false};
+    })()"""
+
+    t0 = _t_monotonic()
+    while _t_monotonic() - t0 < timeout:
+        try:
+            res = _executar_js(driver, js)
+            if isinstance(res, dict) and res.get('ok'):
+                return True
+        except Exception:
+            pass
+        _t_sleep(0.3)
+    return False
+
+
+def _ir_para_step_caracteristicas(driver: Any, timeout: float = 15.0) -> bool:
+    """Garante que a aba Características (step 4) está aberta.
+
+    Se o toggle já está no DOM, não faz nada — evita re-clicar o step e
+    re-renderizar a aba à toa.
+    """
+    if _estado_toggle_100(driver) != 'ausente':
+        return True
+    js = """(function(){
+        var step4 = document.querySelector("mat-step-header[aria-posinset='4']");
+        if (!step4) return false;
+        step4.scrollIntoView({block: 'center'});
+        step4.click();
+        return true;
+    })()"""
+    t0 = _t_monotonic()
+    while _t_monotonic() - t0 < timeout:
+        try:
+            if _executar_js(driver, js):
+                break
+        except Exception:
+            pass
+        _t_sleep(0.3)
+        if _estado_toggle_100(driver) != 'ausente':
+            return True
+    return _estado_toggle_100(driver) != 'ausente'
+
+
 def desmarcar_100(driver: Any, id_processo: str) -> Optional[str]:
+    """Desmarca o Juízo 100% digital na aba /retificar.
+
+    Espelha Script/modules/Aud/marcar.js::desmarcar100, que é a versão validada:
+      1. Abre /retificar e garante o step "Características".
+      2. Se o toggle JÁ está desmarcado, retorna (nada a fazer).
+      3. Clica o label do toggle.
+      4. Painel "Tem certeza de que deseja retirar" -> "Sim".
+      5. Painel "Confirma a inclusão do movimento" -> "Não".
+      6. Confirma que o toggle perdeu .mat-checked.
+
+    Returns:
+        O handle da nova aba (para o chamador fechar depois) ou None.
+    """
     aba_detalhe = driver.current_window_handle
     url_retificar = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/retificar"
 
@@ -326,94 +487,46 @@ def desmarcar_100(driver: Any, id_processo: str) -> Optional[str]:
         pass
 
     try:
-        step_carac = esperar_elemento(
-            driver,
-            "mat-step-header[aria-posinset='4']",
-            timeout=15,
-        )
-        if not step_carac:
-            raise Exception("Step 'Caracteristicas' nao encontrado")
+        if not _ir_para_step_caracteristicas(driver):
+            raise Exception("Step 'Caracteristicas' (ou toggle) nao encontrado")
 
-        _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", step_carac)
-        safe_click(driver, step_carac)
-        espera.assentar(driver, 1.0)
-
-        toggle = esperar_elemento(
-            driver,
-            "mat-slide-toggle[formcontrolname='juizoDigital']",
-            timeout=10,
-        )
-        if not toggle:
+        estado = _estado_toggle_100(driver)
+        if estado == 'ausente':
             raise Exception("Toggle Juizo 100% digital nao encontrado")
+        if estado == 'desmarcado':
+            print("[TRIAGEM/ACOES] ✅ 100% digital já estava desmarcado")
+            return nova_aba
 
-        if "mat-checked" in (toggle.get_attribute("class") or ""):
-            _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", toggle)
-            label = _sub_elemento(toggle, "label.mat-slide-toggle-label")
-            safe_click(driver, label)
-            
-        # 1. Localizar e clicar "Sim" no primeiro painel (Tem certeza de que deseja retirar)
-        sim_js = """
-        (function() {
-            var xpath = "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.),'Tem certeza de que deseja retirar')]";
-            var res = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-            var title = res.singleNodeValue;
-            if (!title) return {ok: false, erro: 'Painel Tem certeza nao encontrado'};
-            var panel = title.closest('mat-expansion-panel');
-            if (!panel) return {ok: false, erro: 'mat-expansion-panel nao encontrado'};
-            var btns = Array.from(panel.querySelectorAll('button'));
-            var sim = btns.find(function(b) { return (b.textContent || '').trim().includes('Sim'); });
-            if (!sim) return {ok: false, erro: 'Botao Sim nao encontrado'};
-            sim.click();
-            return {ok: true};
-        })()
-        """
-        t0 = _t_monotonic()
-        clicou_sim = False
-        while _t_monotonic() - t0 < 10.0:
-            res_sim = _executar_js(driver, sim_js)
-            if res_sim and res_sim.get('ok'):
-                clicou_sim = True
-                break
-            _t_sleep(0.3)
-        if not clicou_sim:
-            raise Exception("Primeiro painel ou botao 'Sim' nao encontrado")
+        if not _gatilho_toggle_100(driver):
+            raise Exception("Nao foi possivel clicar no toggle")
 
         espera.assentar(driver, 0.6)
 
-        # 2. Localizar e clicar "Não" no segundo painel (Confirma a inclusão do movimento)
-        nao_js = """
-        (function() {
-            var xpath = "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.),'Confirma a inclusão do movimento')]";
-            var res = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-            var title = res.singleNodeValue;
-            if (!title) return {ok: false, erro: 'Painel Confirma inclusao nao encontrado'};
-            var panel = title.closest('mat-expansion-panel');
-            if (!panel) return {ok: false, erro: 'mat-expansion-panel nao encontrado'};
-            var btns = Array.from(panel.querySelectorAll('button'));
-            var nao = btns.find(function(b) { return (b.textContent || '').trim().includes('Não'); });
-            if (!nao) return {ok: false, erro: 'Botao Nao nao encontrado'};
-            nao.click();
-            return {ok: true};
-        })()
-        """
-        t0 = _t_monotonic()
-        clicou_nao = False
-        while _t_monotonic() - t0 < 10.0:
-            res_nao = _executar_js(driver, nao_js)
-            if res_nao and res_nao.get('ok'):
-                clicou_nao = True
-                break
-            _t_sleep(0.3)
-        if not clicou_nao:
-            raise Exception("Segundo painel ou botao 'Nao' nao encontrado")
+        # Painel 1 — "Tem certeza de que deseja retirar" -> Sim
+        if not _clicar_botao_em_painel(
+            driver, 'Tem certeza de que deseja retirar', 'Sim', timeout=10.0
+        ):
+            raise Exception("Primeiro painel ou botao 'Sim' nao encontrado")
+        espera.assentar(driver, 0.6)
 
-        espera.assentar(driver, 0.5)
-        espera.ate_js(
+        # Painel 2 — "Confirma a inclusão do movimento" -> Não
+        if not _clicar_botao_em_painel(
+            driver, 'Confirma a inclusão do movimento', 'Não', timeout=10.0
+        ):
+            raise Exception("Segundo painel ou botao 'Nao' nao encontrado")
+        espera.assentar(driver, 0.6)
+
+        if not espera.ate_js(
             driver,
-            "(function() { var t = document.querySelector(\"mat-slide-toggle[formcontrolname='juizoDigital']\"); return !!t && !t.classList.contains('mat-checked'); })()",
-            teto=10
-        )
-        espera.assentar(driver, 1.0)
+            """(function(sel){var t=document.querySelector(sel);
+               return !!t && !t.classList.contains('mat-checked');})""",
+            _SEL_TOGGLE_100,
+            teto=10,
+        ):
+            print("[TRIAGEM/ACOES] ⚠️ desmarcar_100: toggle nao confirmou estado desmarcado")
+
+        espera.assentar(driver, 0.8)
+        print("[TRIAGEM/ACOES] ✅ 100% digital desmarcado")
         return nova_aba
     except Exception as e:
         print(f"[TRIAGEM/ACOES] ❌ desmarcar_100: {type(e).__name__}: {e}")
@@ -421,127 +534,61 @@ def desmarcar_100(driver: Any, id_processo: str) -> Optional[str]:
 
 
 def remarcar_100_pos_aud(driver: Any) -> bool:
-    """Remarca 100% digital na aba retificar (/processo/{id}/retificar).
+    """Remarca o Juízo 100% digital depois de marcar a audiência.
 
-    Espelha a lógica validada de Script/modules/Aud/marcar.js (remarcar100):
-      1. Garante que está no Step 4 ('Características').
-      2. Localiza toggle[formcontrolname='juizoDigital']. Se já .mat-checked, retorna True.
-      3. Clica no toggle (label.mat-slide-toggle-label).
-      4. Aguarda painel 'Confirma a inclusão do movimento' e clica no botão 'Sim'.
-      5. Aguarda toggle ganhar a classe .mat-checked.
+    Espelha Script/modules/Aud/marcar.js::remarcar100:
+      1. Garante o toggle (step "Características").
+      2. Se já está .mat-checked, retorna True.
+      3. Clica o label do toggle.
+      4. Clica "Sim" na confirmação.
+      5. Confirma que o toggle ganhou .mat-checked.
+
+    Returns:
+        True somente se o toggle terminou marcado.
     """
     print("[TRIAGEM/ACOES] Executando remarcar_100_pos_aud...")
     try:
-        # 1. Garante Step 4 ('Características')
-        step_js = """
-        (function() {
-            var toggle = document.querySelector("mat-slide-toggle[formcontrolname='juizoDigital']");
-            if (toggle) return {ok: true, presente: true};
-            var step4 = document.querySelector("mat-step-header[aria-posinset='4']");
-            if (step4) {
-                step4.scrollIntoView({block: 'center'});
-                step4.click();
-                return {ok: true, clicou_step: true};
-            }
-            return {ok: false, erro: 'Step 4 nao encontrado'};
-        })()
-        """
-        _executar_js(driver, step_js)
-        espera.assentar(driver, 0.8)
-
-        # 2. Localiza toggle e clica se não estiver marcado
-        toggle_js = """
-        (function() {
-            var toggle = document.querySelector("mat-slide-toggle[formcontrolname='juizoDigital']");
-            if (!toggle) return {ok: false, erro: 'Toggle Juizo Digital nao encontrado'};
-            if (toggle.classList.contains('mat-checked')) return {ok: true, ja_marcado: true};
-            toggle.scrollIntoView({block: 'center'});
-            var label = toggle.querySelector('label.mat-slide-toggle-label') || toggle;
-            label.click();
-            return {ok: true, clicou: true};
-        })()
-        """
-        res_toggle = _executar_js(driver, toggle_js)
-        if not res_toggle or not res_toggle.get('ok'):
-            print(f"[TRIAGEM/ACOES] ⚠ remarcar_100: toggle não encontrado ou falhou: {res_toggle}")
+        if not _ir_para_step_caracteristicas(driver):
+            print("[TRIAGEM/ACOES] ⚠ remarcar_100: toggle nao encontrado")
             return False
 
-        if res_toggle.get('ja_marcado'):
+        estado = _estado_toggle_100(driver)
+        if estado == 'ausente':
+            print("[TRIAGEM/ACOES] ⚠ remarcar_100: toggle nao encontrado")
+            return False
+        if estado == 'marcado':
             print("[TRIAGEM/ACOES] ✅ 100% digital já estava marcado")
             return True
 
-        espera.assentar(driver, 0.6)
-
-        # 3. Painel / Dialog de confirmação: clica em 'Sim' na dialog ou no painel
-        sim_js = """
-        (function() {
-            // 1. Procura em dialogs, modais e containers de overlay (mat-dialog-container, pje-modal-juizo-digital, .cdk-overlay-pane, mat-expansion-panel)
-            var containers = Array.from(document.querySelectorAll(
-                'mat-dialog-container, pje-modal-juizo-digital, .cdk-overlay-pane, mat-expansion-panel'
-            ));
-            for (var i = 0; i < containers.length; i++) {
-                var c = containers[i];
-                var btns = Array.from(c.querySelectorAll('button'));
-                var btnSim = btns.find(function(b) {
-                    var txt = (b.textContent || '').trim();
-                    return txt === 'Sim' || txt.startsWith('Sim') || /\\bSim\\b/i.test(txt);
-                });
-                if (btnSim && btnSim.offsetParent !== null) {
-                    btnSim.click();
-                    var w = btnSim.querySelector('span.mat-button-wrapper');
-                    if (w) w.click();
-                    return {ok: true, tipo: c.tagName.toLowerCase(), clicou: true};
-                }
-            }
-
-            // 2. Fallback por XPath direto para qualquer botão com span 'Sim' em modal/dialog/overlay/painel
-            var xpBtn = "//mat-dialog-container//button[.//span[normalize-space(.)='Sim']] | " +
-                        "//pje-modal-juizo-digital//button[.//span[normalize-space(.)='Sim']] | " +
-                        "//div[contains(@class,'cdk-overlay-pane')]//button[.//span[normalize-space(.)='Sim']] | " +
-                        "//mat-expansion-panel//button[.//span[normalize-space(.)='Sim']]";
-            var res = document.evaluate(xpBtn, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-            var b = res.singleNodeValue;
-            if (b) {
-                b.click();
-                var w2 = b.querySelector('span.mat-button-wrapper');
-                if (w2) w2.click();
-                return {ok: true, tipo: 'xpath_direto', clicou: true};
-            }
-
-            return {ok: false, erro: 'confirmacao_nao_encontrada'};
-        })()
-        """
-        t0 = _t_monotonic()
-        clicou_sim = False
-        while _t_monotonic() - t0 < 10.0:
-            res_sim = _executar_js(driver, sim_js)
-            if res_sim and res_sim.get('ok'):
-                clicou_sim = True
-                print(f"[TRIAGEM/ACOES] Botão 'Sim' clicado na confirmação ({res_sim.get('tipo')})")
-                break
-            _t_sleep(0.3)
-
-        if not clicou_sim:
-            print("[TRIAGEM/ACOES] ⚠️ Nenhuma dialog ou painel de confirmação com 'Sim' apareceu em 10s")
+        if not _gatilho_toggle_100(driver):
+            print("[TRIAGEM/ACOES] ⚠ remarcar_100: nao foi possivel clicar no toggle")
+            return False
 
         espera.assentar(driver, 0.6)
 
-        # 4. Aguarda o toggle ganhar a classe .mat-checked
+        if not _clicar_sim_confirmacao(driver, timeout=10.0):
+            # Sem confirmação o toggle normalmente não grava. Não retornamos
+            # False ainda: alguns casos marcam direto, então confirmamos abaixo.
+            print("[TRIAGEM/ACOES] ⚠️ Nenhuma confirmacao com 'Sim' apareceu em 10s")
+
+        espera.assentar(driver, 0.6)
+
         marcado = espera.ate_js(
             driver,
-            "(function() { var t = document.querySelector(\"mat-slide-toggle[formcontrolname='juizoDigital']\"); return !!t && t.classList.contains('mat-checked'); })()",
-            teto=10
+            """(function(sel){var t=document.querySelector(sel);
+               return !!t && t.classList.contains('mat-checked');})""",
+            _SEL_TOGGLE_100,
+            teto=10,
         )
         if marcado:
             print("[TRIAGEM/ACOES] ✅ 100% digital remarcado com sucesso (.mat-checked ativo)")
             return True
-        else:
-            print("[TRIAGEM/ACOES] ⚠️ Toggle não confirmou classe .mat-checked após remarcar")
-            return False
+
+        print("[TRIAGEM/ACOES] ⚠️ Toggle nao confirmou classe .mat-checked apos remarcar")
+        return False
     except Exception as e:
         print(f"[TRIAGEM/ACOES] ❌ remarcar_100_pos_aud: {type(e).__name__}: {e}")
         return False
-
 
 _MESES_PT = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

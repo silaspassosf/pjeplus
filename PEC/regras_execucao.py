@@ -57,88 +57,32 @@ def _executar_passos(*passos) -> Any:
             ultimo_resultado = resultado
     return ultimo_resultado
 
-def _xs_ord(driver, atv):
-    """xs ord: domicilio eletronico determina qual sub-acao executar."""
-    from atos.wrappers_pec import pec_ord, pec_arord
+def _xs_ord(driver, atv=None):
+    """xs ord: notificação inicial (modelo zordd). O wrapper indicado é sempre usado;
+    a troca do modelo para ar-ord (linhas de Correios) acontece NA ELABORAÇÃO do ato
+    (trocar_modelo / modelo_troca_correios), nunca antes."""
+    from atos.wrappers_pec import pec_ord
     from atos.wrappers_mov import mov_aud
     from atos.comunicacao_destinatarios import detectar_pjdp_processo
     pjdp_on = bool(detectar_pjdp_processo(driver))
     if pjdp_on:
         logger.info('[xs_ord] PJDP detectada no polo passivo -> flag pjdp=True no pec_ord')
-    try:
-        from Fix.variaveis import cliente_para
-        from Fix.core import extrair_id_processo
-        id_proc = extrair_id_processo(driver)
-        if id_proc:
-            client = cliente_para(driver)
-            reclamadas = [p for p in (client.partes(id_proc) or [])
-                          if p.get('poloProcessual', '').lower() in ['passivo', 'reclamada']]
-            if reclamadas:
-                com = sum(1 for p in reclamadas
-                          if client.domicilio_eletronico(str(p.get('id') or p.get('idParte'))) is True)
-                sem = len(reclamadas) - com
-                logger.info(f'[xs_ord] {com} com domicilio, {sem} sem')
-                if sem == 0:
-                    return _executar_passos(
-                        lambda: pec_ord(driver, pjdp=pjdp_on),
-                        lambda: mov_aud(driver),
-                    )
-                if com == 0:
-                    return _executar_passos(
-                        lambda: pec_arord(driver),
-                        lambda: mov_aud(driver),
-                    )
-                return _executar_passos(
-                    lambda: pec_ord(driver, pjdp=pjdp_on),
-                    lambda: pec_arord(driver),
-                    lambda: mov_aud(driver),
-                )
-    except Exception as e:
-        logger.warning(f'[xs_ord] fallback para pec_ord: {e}')
     return _executar_passos(
         lambda: pec_ord(driver, pjdp=pjdp_on),
         lambda: mov_aud(driver),
     )
 
 
-def _xs_sum(driver, atv):
-    """xs sum: domicilio eletronico determina qual sub-acao executar."""
-    from atos.wrappers_pec import pec_sum, pec_arsum
+def _xs_sum(driver, atv=None):
+    """xs sum: notificação inicial (modelo zsumd). O wrapper indicado é sempre usado;
+    a troca do modelo para ar-sum (linhas de Correios) acontece NA ELABORAÇÃO do ato
+    (trocar_modelo / modelo_troca_correios), nunca antes."""
+    from atos.wrappers_pec import pec_sum
     from atos.wrappers_mov import mov_aud
     from atos.comunicacao_destinatarios import detectar_pjdp_processo
     pjdp_on = bool(detectar_pjdp_processo(driver))
     if pjdp_on:
         logger.info('[xs_sum] PJDP detectada no polo passivo -> flag pjdp=True no pec_sum')
-    try:
-        from Fix.variaveis import cliente_para
-        from Fix.core import extrair_id_processo
-        id_proc = extrair_id_processo(driver)
-        if id_proc:
-            client = cliente_para(driver)
-            reclamadas = [p for p in (client.partes(id_proc) or [])
-                          if p.get('poloProcessual', '').lower() in ['passivo', 'reclamada']]
-            if reclamadas:
-                com = sum(1 for p in reclamadas
-                          if client.domicilio_eletronico(str(p.get('id') or p.get('idParte'))) is True)
-                sem = len(reclamadas) - com
-                logger.info(f'[xs_sum] {com} com domicilio, {sem} sem')
-                if sem == 0:
-                    return _executar_passos(
-                        lambda: pec_sum(driver, pjdp=pjdp_on),
-                        lambda: mov_aud(driver),
-                    )
-                if com == 0:
-                    return _executar_passos(
-                        lambda: pec_arsum(driver),
-                        lambda: mov_aud(driver),
-                    )
-                return _executar_passos(
-                    lambda: pec_sum(driver, pjdp=pjdp_on),
-                    lambda: pec_arsum(driver),
-                    lambda: mov_aud(driver),
-                )
-    except Exception as e:
-        logger.warning(f'[xs_sum] fallback para pec_sum: {e}')
     return _executar_passos(
         lambda: pec_sum(driver, pjdp=pjdp_on),
         lambda: mov_aud(driver),
@@ -421,7 +365,7 @@ def _a(mod, name):
 registry = RuleRegistry("pec", BUCKET_ORDEM)
 
 # ── SISBAJUD ──────────────────────────────────────────────────────────────────
-registry.register(r'teimosinha\s+60|t2\s+60|\b60\s*d\b|60\s+dias',    'sisbajud_teimosinha', _sisbajud_minuta_60)
+registry.register(r'(?:teimosinha|t2)[\s\-_/:(]*60|(?:teimosinha|t2)[\s\-_/:(]*sessenta|\b60\s*d\b|60\s+dias|sessenta\s+dias?',    'sisbajud_teimosinha', _sisbajud_minuta_60)
 registry.register(r'\bteimosinha\b|\bt2\b',                             'sisbajud_teimosinha', _sisbajud_minuta)
 registry.register(r'\b(?:xs\s+)?resultado\b|\bsisbajud\s+resultado\b|\bresultado\s+teimosinha\b', 'sisbajud_resultado', _sisbajud_processar_ordem)
 # ── CARTA ─────────────────────────────────────────────────────────────────────

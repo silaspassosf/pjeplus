@@ -881,11 +881,23 @@ class PECOrquestrador:
             return {'total': 0, 'sucesso': 0, 'erro': 0}
 
         buckets: Dict[str, list] = {b: [] for b in BUCKET_ORDEM}
+        padrao_de: Dict[object, str] = {}
         for atv in atividades:
             match = determinar_regra(atv.observacao or '')
             if match:
-                _, bucket, acao = match
+                padrao, bucket, acao = match
                 buckets[bucket].append((atv, acao))
+                padrao_de[atv] = padrao
+
+        # Ordem DENTRO de cada bucket: observações iguais em SEQUÊNCIA (agrupadas),
+        # com "exequente pessoal" (pec_exeq) na frente e o resto na ordem original da
+        # API (prazo ascendente). `xs_sigilo` e `xs_sob` já são buckets próprios e vêm
+        # antes pela BUCKET_ORDEM. sort é estável: empate preserva a ordem de chegada.
+        for itens_bucket in buckets.values():
+            itens_bucket.sort(key=lambda it: (
+                0 if 'exequente' in getattr(padrao_de.get(it[0]), 'pattern', '') else 1,
+                normalizar_texto(it[0].observacao or ''),
+            ))
 
         if dry_run:
             self._log_dry_run(buckets)
@@ -1017,13 +1029,15 @@ class PECOrquestrador:
         return stats
 
     def _log_dry_run(self, buckets: Dict[str, list]):
-        logger.info("[DRY RUN] Distribuicao prevista:")
-        for nome, items in buckets.items():
-            if items:
-                logger.info(f"  {nome}: {len(items)}")
-                for atv, acao in items[:3]:
-                    acao_nome = getattr(acao, '__name__', repr(acao))
-                    logger.info(f"    - {atv.numero_processo}: {atv.observacao[:50]} -> {acao_nome}")
+        logger.info("[DRY RUN] Distribuicao prevista — ORDEM DE EXECUCAO:")
+        for nome in BUCKET_ORDEM:
+            items = buckets.get(nome) or []
+            if not items:
+                continue
+            logger.info(f"  {nome}: {len(items)}")
+            for i, (atv, acao) in enumerate(items, 1):
+                acao_nome = getattr(acao, '__name__', repr(acao))
+                logger.info(f"    {i:>2}. {atv.numero_processo}: {atv.observacao[:50]} -> {acao_nome}")
 
 
 def executar_fluxo_novo_simplificado(driver, filtro_d1: bool = True,

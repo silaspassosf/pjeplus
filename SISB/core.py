@@ -1249,6 +1249,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         # 2.1 Usar prazo_dias fornecido ou padrão 30
         if prazo_dias is None:
             prazo_dias = 30
+        logger.info('[SISBAJUD] prazo_dias aplicado na minuta: %s', prazo_dias)
 
         # 3. Preencher campos iniciais (com o prazo selecionado)
         campos_preenchidos = helpers._preencher_campos_iniciais(driver, dados_processo, prazo_dias)
@@ -1388,7 +1389,9 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                         logger.info('[SISBAJUD]  Falha ao aplicar visibilidade para certidão sigilosa')
 
                     # Criar GIGS (após visibilidade, ainda em /detalhe)
-                    gigs_prazo = '60' if prazo_dias == 60 else '22'
+                    # GIGS "resultado" em DIAS ÚTEIS: 30 dias corridos ≈ 22 DU,
+                    # 60 dias corridos ≈ 41 DU (antes saía 60, que não é DU).
+                    gigs_prazo = '41' if prazo_dias == 60 else '22'
                     if pendencia == 'calculo_antigo':
                         gigs_str = f'{gigs_prazo}/xs resultado CALC'
                     else:
@@ -2148,6 +2151,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         # 3. PRAZO DAS MINUTAS
         if prazo_dias is None:
             prazo_dias = 30
+        logger.info('[SISBAJUD] prazo_dias aplicado nas minutas: %s', prazo_dias)
 
         # =====================================================================
         # === 1ª MINUTA (idêntica ao normal) ===
@@ -2447,7 +2451,9 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     vis_ok = executar_visibilidade_sigilosos_se_necessario(driver_pje, True, debug=log)
                     resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
 
-                    gigs_prazo = '60' if prazo_dias == 60 else '22'
+                    # GIGS "resultado" em DIAS ÚTEIS: 30 dias corridos ≈ 22 DU,
+                    # 60 dias corridos ≈ 41 DU (antes saía 60, que não é DU).
+                    gigs_prazo = '41' if prazo_dias == 60 else '22'
                     if pendencia == 'calculo_antigo':
                         gigs_str = f'{gigs_prazo}/xs resultado CALC'
                     else:

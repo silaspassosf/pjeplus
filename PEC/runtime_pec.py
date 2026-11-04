@@ -68,10 +68,9 @@ class PECAPIClient:
             client,
             "/pje-gigs-api/api/relatorioatividades/",
             params_base={
-                # 'false' = traz TODAS as atividades pendentes; o recorte D-1..D0 é
-                # feito localmente no orquestrador. Com 'true' o servidor devolve só
-                # as já vencidas e as de HOJE (D0) nunca entram.
-                'filtrarVencidas': 'false',
+                # 'true' = só atividades VENCIDAS (data_prazo < hoje). O recorte D-1 é
+                # feito no orquestrador — hoje (D0) fica de fora por definição.
+                'filtrarVencidas': 'true',
                 'ordenacaoCrescente': 'true',
                 'filtrarPorDestinatario': 'false',
                 'filtrarPorLocalizacao': 'false',
@@ -266,10 +265,33 @@ def tarefa_ja_executada_pec(atv: Any, progresso: Optional[Dict[str, Any]] = None
     if progresso is None:
         progresso = carregar_progresso_pec()
 
+    def _canonica(k: str) -> str:
+        """Chave sem o segmento `id:<x>`.
+
+        O id da atividade no GIGS muda entre execuções (a tarefa é recriada), e a chave
+        antiga `NUM::id:123::xs sum` não casava com a nova `NUM::xs sum` — a mesma tarefa
+        era reexecutada. Comparar a forma canônica resolve nas duas direções.
+        """
+        return "::".join(p for p in str(k).split("::") if not p.startswith("id:"))
+
     chave = obter_chave_tarefa_pec(atv)
     tarefas_executadas = progresso.get("tarefas_executadas", [])
     if chave in tarefas_executadas:
         return True
+
+    chave_canon = _canonica(chave)
+    hoje = datetime.now().strftime('%Y-%m-%d')
+    datas = progresso.get('datas_execucao') or {}
+    for salva in tarefas_executadas:
+        if not isinstance(salva, str) or _canonica(salva) != chave_canon:
+            continue
+        # Só considera concluída se foi executada HOJE (ou sem data, legado): assim uma
+        # tarefa nova do dia seguinte, com a mesma observação, não é pulada por engano.
+        data_ref = datas.get(salva)
+        if data_ref is None and '::' in salva:
+            data_ref = datas.get(salva.split('::', 1)[0].strip())
+        if data_ref in (None, hoje):
+            return True
 
     # Fallback caso a chave tenha sido gravada sem id_atividade (ou com variação de id)
     if hasattr(atv, 'numero_processo') and getattr(atv, 'observacao', None):
@@ -867,13 +889,10 @@ class PECOrquestrador:
             logger.info(f'[PEC] data_minima ({data_minima}): {antes} -> {len(atividades)}')
         elif filtro_d1:
             data_d1 = _dia_util_anterior(date.today()).isoformat()
-            hoje = date.today().isoformat()
             antes = len(atividades)
-            # Janela D-1 (dia útil anterior) ATÉ D0 (hoje), inclusive: vencidas de
-            # ontem e as que vencem hoje. Prazo futuro fica de fora.
-            atividades = [a for a in atividades
-                          if data_d1 <= (a.data_prazo or '')[:10] <= hoje]
-            logger.info(f'[PEC] D-1..D0 ({data_d1}..{hoje}): {antes} -> {len(atividades)}')
+            # Só D-1 (dia útil anterior). Hoje (D0) fica de fora.
+            atividades = [a for a in atividades if (a.data_prazo or '')[:10] >= data_d1]
+            logger.info(f'[PEC] D-1 ({data_d1}): {antes} -> {len(atividades)}')
         else:
             logger.info(f'[PEC] Filtro D-1 OFF — processando todas: {len(atividades)}')
 

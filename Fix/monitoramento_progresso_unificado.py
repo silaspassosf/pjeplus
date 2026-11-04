@@ -292,6 +292,28 @@ def salvar_progresso_unificado(tipo_execucao: str, progresso: Dict[str, Any]):
         # Atualizar timestamp
         progresso_validado["last_update"] = datetime.now().isoformat()
 
+        # MERGE com o que já está no disco: um dict em memória desatualizado NUNCA pode
+        # remover o que já foi gravado como executado. Sem isso, um save com cópia velha
+        # apagava tarefas de execuções anteriores e o bot repetia processos já feitos.
+        # (Só as listas de SUCESSO são unidas; as de erro seguem o estado atual, para que
+        #  um sucesso posterior continue removendo o erro.)
+        existente = dados_completos.get(tipo_execucao)
+        if isinstance(existente, dict):
+            for campo in ("processos_executados", "tarefas_executadas"):
+                atual = progresso_validado.get(campo) or []
+                anterior = existente.get(campo) or []
+                if isinstance(anterior, list):
+                    progresso_validado[campo] = list(dict.fromkeys(
+                        [x for x in anterior if isinstance(x, str)] +
+                        [x for x in atual if isinstance(x, str)]
+                    ))
+            datas_novas = progresso_validado.get("datas_execucao") or {}
+            datas_antigas = existente.get("datas_execucao") or {}
+            if isinstance(datas_antigas, dict) and isinstance(datas_novas, dict):
+                mescladas = dict(datas_antigas)
+                mescladas.update(datas_novas)
+                progresso_validado["datas_execucao"] = mescladas
+
         # Atualizar seção específica
         dados_completos[tipo_execucao] = progresso_validado
 

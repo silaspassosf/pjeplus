@@ -86,7 +86,12 @@ __all__ = [
 # ════════════════════════════════════════
 
 def lembrete_bloq(driver: Any, debug: bool = False) -> bool:
-    """Cria GIGS de bloqueio com apenas observação 'BLOQUEIO - processar após IDPJ' (sem prazo ou responsável)."""
+    """Cria GIGS de bloqueio com apenas observação 'BLOQUEIO - processar após IDPJ' (sem prazo ou responsável).
+
+    USO RESTRITO: só pertence à regra IDPJ (`estrategia_defiro_instauracao`), junto com
+    `pec_idpj`. NÃO chamar em caminho de SISBAJUD positivo genérico — a regra do Silas é
+    que esse GIGS entra apenas pela decisão de IDPJ.
+    """
     try:
         return bool(criar_gigs(driver, '', '', 'BLOQUEIO - processar após IDPJ', log=debug))
     except Exception as e:

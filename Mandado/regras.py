@@ -58,7 +58,6 @@ from .apoio_fluxos import (
     pec_idpj,
     mov_arquivar,
     ato_meiosub,
-    lembrete_bloq
 )
 
 
@@ -503,19 +502,9 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
             else:
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_bloq (1 reclamada, SISBAJUD positivo/indefinido)')
-                # Lembrete de bloqueio DEVE ser criado e FINALIZADO antes de prosseguir
-                # (criar_lembrete_posit aguarda o diálogo fechar — evita atropelo)
-                if resultado_sisbajud == 'positivo':
-                    if debug:
-                        logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio (aguarda finalizar)')
-                    inicio_lembrete = time.time()
-                    try:
-                        lembrete_bloq(driver, debug=debug)
-                    except Exception as e:
-                        if debug:
-                            logger.error(f'[ARGOS][REGRAS][ERRO] lembrete_bloq falhou: {e}')
-                    if debug:
-                        logger.info(f'[ARGOS][REGRAS] lembrete_bloq finalizado em {time.time() - inicio_lembrete:.2f}s')
+                # O GIGS "BLOQUEIO - processar após IDPJ" NÃO pertence a este caminho:
+                # ele só existe na regra IDPJ (estrategia_defiro_instauracao), junto com
+                # pec_idpj. Aqui basta o ato de bloqueio.
                 return _executar_ato_seguro(driver, ato_bloq, 'ato_bloq', debug=debug)
         else:
             # Multiplas reclamadas
@@ -526,19 +515,9 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
             else:
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_bloq (multiplas reclamadas, SISBAJUD positivo/indefinido)')
-                # Lembrete de bloqueio DEVE ser criado e FINALIZADO antes de prosseguir
-                # (criar_lembrete_posit aguarda o diálogo fechar — evita atropelo)
-                if resultado_sisbajud == 'positivo':
-                    if debug:
-                        logger.info('[ARGOS][REGRAS] SISBAJUD positivo: criando lembrete de bloqueio (aguarda finalizar)')
-                    inicio_lembrete = time.time()
-                    try:
-                        lembrete_bloq(driver, debug=debug)
-                    except Exception as e:
-                        if debug:
-                            logger.error(f'[ARGOS][REGRAS][ERRO] lembrete_bloq falhou: {e}')
-                    if debug:
-                        logger.info(f'[ARGOS][REGRAS] lembrete_bloq finalizado em {time.time() - inicio_lembrete:.2f}s')
+                # O GIGS "BLOQUEIO - processar após IDPJ" NÃO pertence a este caminho:
+                # ele só existe na regra IDPJ (estrategia_defiro_instauracao), junto com
+                # pec_idpj. Aqui basta o ato de bloqueio.
                 return _executar_ato_seguro(driver, ato_bloq, 'ato_bloq', debug=debug)
         return False
     return False

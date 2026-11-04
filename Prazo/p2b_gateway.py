@@ -888,17 +888,22 @@ def testar_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> List[dict]:
     return testar_gigs_xs1(driver, tamanho_pagina=tamanho_pagina)
 
 
-def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processos: int = 0):
+def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processos: int = 0,
+                                 atividades: Optional[List[dict]] = None):
     """Executa o fluxo P2B usando API GIGS sem prazo + 'XS' e engine run_batch.
 
     Substitui apenas a etapa de navegação/listagem onde D em x.py chamava fluxo_prazo.
     Ações por processo continuam sendo executadas via fluxo_pz (mesma lógica de processos).
+
+    `atividades`: lista já filtrada (ex.: pelo motor API-first, `Prazo/p2b_engine_api.py`).
+    Quando None, busca as xs1 na API.
     """
     from utilitarios_processamento import run_batch, resultado_ok, resultado_falha
     from Fix.core import wait_for_page_load
 
     progresso = carregar_progresso_p2b()
-    atividades = testar_gigs_xs1(driver, tamanho_pagina=tamanho_pagina)
+    if atividades is None:
+        atividades = testar_gigs_xs1(driver, tamanho_pagina=tamanho_pagina)
     total_encontrado = len(atividades)
     if total_encontrado == 0:
         logger.info('[PRAZO_API] Nenhuma atividade XS1 encontrada')

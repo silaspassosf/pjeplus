@@ -735,8 +735,14 @@ def executar_citacao(driver) -> Dict[str, Any]:
                                          "erro": "fluxo citacao retornou None"})
 
 
-def executar_p2b(driver) -> Dict[str, Any]:
-    """P2B Isolado (API GIGS sem prazo XS + processamento por processo)"""
+def executar_p2b(driver, motor_api: bool = False) -> Dict[str, Any]:
+    """P2B Isolado (API GIGS sem prazo XS + processamento por processo).
+
+    motor_api=True usa a camada API-first (`Prazo/p2b_engine_api.py`): lê a última
+    decisão/despacho/sentença pela API e só abre os processos com regra acionável.
+    Ligado por padrão SOMENTE no fluxo D (P2B isolado) — no bloco completo (A) e no
+    Prazo isolado o motor continua o canônico.
+    """
     def _fluxo(d):
         # Executar API + fluxo de cada processo (substitui lista antiga)
         logger.debug("[P2B] executando fluxo_prazo via API GIGS sem prazo XS...")
@@ -746,12 +752,19 @@ def executar_p2b(driver) -> Dict[str, Any]:
             numeros_processos = [item.get('processo', {}).get('numero') or item.get('numeroProcesso') or item.get('numero') for item in atividades]
             logger.debug("[P2B] numeros dos processos: %s", numeros_processos)
 
-        resultado = processar_gigs_sem_prazo_p2b(d, tamanho_pagina=100, max_processos=0)
+        def _rodar(drv):
+            if motor_api:
+                from Prazo.p2b_engine_api import processar_p2b_api
+                logger.info("[P2B] motor API-first (filtra por regra antes de abrir)")
+                return processar_p2b_api(drv, tamanho_pagina=100, max_processos=0)
+            return processar_gigs_sem_prazo_p2b(drv, tamanho_pagina=100, max_processos=0)
+
+        resultado = _rodar(d)
 
         if resultado.get('critical_stop'):
             logger.warning("[P2B] Sessao expirada (401) — resetando driver e retentando")
             resetar_driver(d)
-            resultado = processar_gigs_sem_prazo_p2b(d, tamanho_pagina=100, max_processos=0)
+            resultado = _rodar(d)
 
         logger.debug("[P2B] processamento individual concluido")
         falhas = resultado.get('falhas') or []
@@ -767,6 +780,11 @@ def executar_p2b(driver) -> Dict[str, Any]:
         }
 
     return _executar_fluxo("P2B", _fluxo, driver)
+
+
+def executar_p2b_isolado(driver) -> Dict[str, Any]:
+    """Fluxo D — P2B isolado, já com o motor API-first ligado."""
+    return executar_p2b(driver, motor_api=True)
 
 
 # ============================================================================
@@ -983,7 +1001,7 @@ FLOW_HANDLERS = {
     "A": executar_bloco_completo,
     "B": executar_mandado,
     "C": executar_prazo,
-    "D": executar_p2b,
+    "D": executar_p2b_isolado,
     "E": executar_pec,
     "F": executar_triagem,
     "G": executar_pet,

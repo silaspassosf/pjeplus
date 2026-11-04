@@ -406,9 +406,9 @@ def _extrair_texto_documento_timeline_api(
     compartilham tipo='Certidão' (Oficial de Justiça, Distribuição, DJEN), e só
     a descrição separa uma da outra.
 
-    preferir_ultimo: a timeline vem em ordem cronológica, então o primeiro match
-    é o documento MAIS ANTIGO. Para "a certidão atual" isso pegava uma certidão
-    qualquer do passado (ex.: DJEN de 338 chars) em vez da recém-devolvida.
+    preferir_ultimo: escolhe o documento de DATA mais recente entre os que casarem
+    (a timeline do PJe costuma vir do mais novo para o mais antigo, mas a ordem não é
+    contrato — escolher por posição já pegou certidão antiga no lugar da atual).
     """
     import io as _io
     import unicodedata
@@ -433,22 +433,50 @@ def _extrair_texto_documento_timeline_api(
             return None
 
         id_doc = None
+        candidatos = []
         for doc in timeline:
             if not isinstance(doc, dict):
                 continue
             tipo_norm = _norm(doc.get('tipo', ''))
             titulo_norm = _norm(doc.get('titulo', ''))
-            descricao_norm = _norm(doc.get('descricao', ''))
+            # A descrição do modelo não vem sempre em `descricao` (na timeline de
+            # certidão ela chega null e o modelo vem no título). Mesmos campos que o
+            # fluxo Petição usa para montar PeticaoItem: descricao/descricaoPeticao e
+            # nomeTipoProcessoDocumento.
+            descricao_bruta = (
+                doc.get('descricao') or doc.get('descricaoModelo')
+                or doc.get('descricaoPeticao') or doc.get('nomeTipoProcessoDocumento') or ''
+            )
+            descricao_norm = _norm(descricao_bruta)
             if match_fn(tipo_norm, titulo_norm, descricao_norm):
                 id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
                 if log:
                     logger.info(
-                        f'[MANDADOS][OUTROS][API]{contexto} Documento localizado: id=%s tipo=%s desc=%s',
-                        id_doc, doc.get('tipo'), doc.get('descricao'))
+                        f'[MANDADOS][OUTROS][API]{contexto} Documento localizado: id=%s tipo=%s titulo=%s desc=%s',
+                        id_doc, doc.get('tipo'), doc.get('titulo'), descricao_bruta or None)
+                candidatos.append((id_doc, doc))
                 # sem preferir_ultimo, mantém o primeiro match (comportamento
-                # original); com a flag, segue varrendo e fica com o mais recente
+                # original); com a flag, varre tudo e escolhe o mais RECENTE
                 if not preferir_ultimo:
                     break
+
+        if candidatos and preferir_ultimo:
+            # A timeline do PJe vem do mais RECENTE para o mais antigo (o 1º item é o
+            # último documento juntado), mas a ordem da lista não é contrato: escolher
+            # por posição pegava a certidão ANTIGA (caso 1002208-12: leu certidão de
+            # mandado anterior, classificou 'positivo' e criou GIGS com destinatário
+            # errado). Escolhe pela data do documento — ISO ordena como string.
+            candidatos.sort(key=lambda par: str(
+                par[1].get('dataJuntada') or par[1].get('dataCadastro')
+                or par[1].get('data') or ''))
+            id_doc, doc_escolhido = candidatos[-1]
+            if log:
+                logger.info(
+                    f'[MANDADOS][OUTROS][API]{contexto} Documento mais recente escolhido: '
+                    'id=%s (%d candidato(s), data=%s)',
+                    id_doc, len(candidatos),
+                    doc_escolhido.get('dataJuntada') or doc_escolhido.get('dataCadastro')
+                    or doc_escolhido.get('data') or '?')
 
         if not id_doc:
             if log:

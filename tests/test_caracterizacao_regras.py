@@ -248,6 +248,35 @@ class TestCaracterizacaoMandado(unittest.TestCase):
         self.assertIsNone(_extrair_nome_destinatario_certidao(None))
         self.assertIsNone(_extrair_nome_destinatario_certidao("Texto sem destinatario"))
 
+    def test_escolha_certidao_por_data_nao_por_posicao(self):
+        """Entre 2 certidões de oficial, escolhe a de DATA mais recente (ordem da timeline não é contrato)."""
+        from unittest.mock import patch, MagicMock
+        import Mandado.apoio_fluxos as af
+
+        def _tl(ordem):
+            docs = {
+                'nova': {'id': '497417953', 'tipo': 'Certidão', 'titulo': 'Certidão (Certidão de Oficial de Justiça)',
+                         'descricao': None, 'dataJuntada': '2026-11-03T14:48:10.936Z'},
+                'djen': {'id': '777', 'tipo': 'Certidão', 'titulo': 'Certidão (Certidão de Publicação no DJEN)',
+                         'descricao': None, 'dataJuntada': '2026-10-27T03:16:00.000Z'},
+                'velha': {'id': '487502943', 'tipo': 'Certidão', 'titulo': 'Certidão (Certidão de Oficial de Justiça)',
+                          'descricao': None, 'dataJuntada': '2025-08-20T10:00:00.000Z'},
+            }
+            return [docs[o] for o in ordem]
+
+        for ordem in (['nova', 'djen', 'velha'], ['velha', 'djen', 'nova']):
+            client = MagicMock()
+            client.timeline.return_value = _tl(ordem)
+            client._url.side_effect = lambda p: p
+            resp = MagicMock(status_code=200, content=b'%PDF-1.4 x')
+            client.sess.get.return_value = resp
+            with patch.object(af, '_extrair_id_processo_da_url', return_value='8045838'), \
+                 patch.object(af, '_criar_api_client_local', return_value=client), \
+                 patch.object(af, '_extrair_texto_pdf_bytes', return_value='texto'):
+                af._extrair_texto_certidao_oficial_via_api(MagicMock(), log=False)
+            urls = [c[0][0] for c in client._url.call_args_list if 'documentos/id/' in c[0][0]]
+            self.assertIn('497417953', urls[0], f'ordem {ordem}: escolheu {urls[0]}')
+
     def test_arquivar_mandado_positivo_registra_gigs_sem_prazo(self):
         from unittest.mock import patch, MagicMock
         from Mandado.apoio_fluxos import arquivar_mandado_positivo_reconhecido
@@ -434,7 +463,7 @@ class TestCaracterizacaoP2B(unittest.TestCase):
         self.assertEqual(regra_casada, ("criar_gigs[1//xs saldo]",))
 
     def test_p2b_regra_arquivar_devendo_diligenciar_cartorio(self):
-        """Valida que o trecho 'devendo diligenciar junto ao cartório' aciona a ação mov_arquivar."""
+        """Valida que 'devendo diligenciar junto ao cartório' aciona a ação de arquivamento guardada."""
         from Prazo.p2b_documentos import _definir_regras_processamento
         from Prazo.p2b_regras_execucao import gerar_regex_geral
         from Fix.utils import normalizar_texto
@@ -456,9 +485,108 @@ class TestCaracterizacaoP2B(unittest.TestCase):
                 break
 
         self.assertIsNotNone(regra_casada)
-        # O callable deve ser mov_arquivar
+        # A ação é a guarda que só arquiva sem GIGS com prazo pendente
         acao = regra_casada[0]
-        self.assertEqual(getattr(acao, '__name__', str(acao)), 'mov_arquivar')
+        self.assertEqual(getattr(acao, '__name__', str(acao)), '_mov_arquivar_se_sem_prazo')
+
+    def test_p2b_arquivar_pula_com_gigs_prazo_pendente(self):
+        """GIGS com prazo pendente (vencido ou em aberto) no painel impede o mov_arquivar."""
+        from unittest.mock import patch, MagicMock
+        import Prazo.p2b_documentos as doc
+
+        driver = MagicMock()
+        mov = MagicMock(return_value=True)
+        with patch.object(doc.espera, 'elementos', return_value=[MagicMock()]), \
+             patch.object(doc.espera, 'elemento', return_value=MagicMock(text='Prazo: xs')), \
+             patch.object(doc, '_lazy_import', return_value={'mov_arquivar': mov}):
+            res = doc._mov_arquivar_se_sem_prazo(driver)
+
+        self.assertTrue(res)              # pula sem falhar
+        mov.assert_not_called()           # arquivamento NÃO executado
+
+    def test_p2b_arquivar_executa_sem_prazo_pendente(self):
+        """Painel com atividades mas sem selo de prazo: arquivamento roda normalmente."""
+        from unittest.mock import patch, MagicMock
+        import Prazo.p2b_documentos as doc
+
+        driver = MagicMock()
+        mov = MagicMock(return_value=True)
+        with patch.object(doc.espera, 'elementos', return_value=[MagicMock(), MagicMock()]), \
+             patch.object(doc.espera, 'elemento', return_value=None), \
+             patch.object(doc, '_lazy_import', return_value={'mov_arquivar': mov}):
+            res = doc._mov_arquivar_se_sem_prazo(driver)
+
+        self.assertTrue(res)
+        mov.assert_called_once_with(driver)
+
+    def test_p2b_arquivar_nao_executa_se_consulta_falhar(self):
+        """Sem painel e com falha na API: não arquiva por segurança (mas não marca falha)."""
+        from unittest.mock import patch, MagicMock
+        import Prazo.p2b_documentos as doc
+
+        driver = MagicMock()
+        mov = MagicMock(return_value=True)
+        with patch.object(doc.espera, 'elementos', return_value=[]), \
+             patch('Fix.navegacao_espera.extrair_id_processo', return_value='1234567'), \
+             patch('Prazo.p2b_gateway._criar_api_client', side_effect=RuntimeError('sem sessao')), \
+             patch.object(doc, '_lazy_import', return_value={'mov_arquivar': mov}):
+            res = doc._mov_arquivar_se_sem_prazo(driver)
+
+        self.assertTrue(res)
+        mov.assert_not_called()
+
+    def test_p2b_arquivar_fallback_api_com_prazo_vencido(self):
+        """Sem painel, a API confirma prazo vencido (status VENCIDO) e bloqueia o arquivamento."""
+        from unittest.mock import patch, MagicMock
+        import Prazo.p2b_documentos as doc
+
+        driver = MagicMock()
+        client = MagicMock()
+        client.atividades_gigs.return_value = [
+            {'tipoAtividade': 'Prazo', 'dataPrazo': '2026-11-03', 'statusAtividade': 'VENCIDO'},
+        ]
+        mov = MagicMock(return_value=True)
+        with patch.object(doc.espera, 'elementos', return_value=[]), \
+             patch('Fix.navegacao_espera.extrair_id_processo', return_value='1234567'), \
+             patch('Prazo.p2b_gateway._criar_api_client', return_value=client), \
+             patch.object(doc, '_lazy_import', return_value={'mov_arquivar': mov}):
+            res = doc._mov_arquivar_se_sem_prazo(driver)
+
+        self.assertTrue(res)
+        mov.assert_not_called()
+
+    def test_p2b_casas_regra_sem_acao_aplicavel(self):
+        """`_casas_regra` não casa nada em texto sem regra (base do filtro API-first)."""
+        from Prazo.p2b_documentos import _casas_regra
+        from Fix.utils import normalizar_texto
+
+        self.assertIsNone(_casas_regra(normalizar_texto('Vistos etc. Homologo o acordo entre as partes.')))
+        casada = _casas_regra(normalizar_texto('Julgo extinta a presente execução, nos termos do art. 924 do CPC.'))
+        self.assertIsNotNone(casada)
+        self.assertEqual(getattr(casada[1][0], '__name__', str(casada[1][0])), '_mov_arquivar_se_sem_prazo')
+
+    def test_p2b_engine_api_classifica_por_regra(self):
+        """Camada API-first: texto da decisão vindo da API decide se abre o processo."""
+        from unittest.mock import patch
+        import Prazo.p2b_engine_api as eng
+
+        texto_com_regra = ('Transcrição do(a) Sentença (ID 123): \n"Julgo extinta a presente execução, '
+                           'nos termos do art. 924 do CPC."')
+        with patch('Fix.variaveis.obter_chave_ultimo_despacho_decisao_sentenca',
+                   return_value=('http://x', texto_com_regra)):
+            info = eng.classificar_processo(object(), '123')
+        self.assertTrue(info['acionavel'])
+
+        texto_sem_regra = 'Transcrição do(a) Despacho (ID 124): \n"Vistos etc. Homologo o acordo."'
+        with patch('Fix.variaveis.obter_chave_ultimo_despacho_decisao_sentenca',
+                   return_value=('http://x', texto_sem_regra)):
+            info = eng.classificar_processo(object(), '124')
+        self.assertFalse(info['acionavel'])
+
+        with patch('Fix.variaveis.obter_chave_ultimo_despacho_decisao_sentenca',
+                   return_value=(None, None)):
+            info = eng.classificar_processo(object(), '125')
+        self.assertIsNone(info['acionavel'])   # abre como fallback
 
     def test_p2b_regra_iniciar_exec_comprovar_recolhimento_sob_pena_execucao(self):
         """Valida que intimação com comprovação de recolhimento sob pena de execução dispara _inicar_exec."""

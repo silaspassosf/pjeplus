@@ -237,6 +237,90 @@ def _fechar_aba_processo(driver: Any) -> None:
 # ═══════════════════════════════════════════
 
 
+def _gigs_com_prazo_pendente(driver: Any) -> bool:
+    """True se o painel GIGS do processo aberto tiver QUALQUER atividade com prazo.
+
+    Lê o painel já renderizado na página do processo (`pje-gigs-atividades`): o selo
+    `pje-gigs-alerta-prazo span.prazo` aparece tanto para prazo em aberto (verde)
+    quanto para prazo vencido (vermelho) — os dois bloqueiam o arquivamento.
+    Atividade sem prazo (ex. "xs carta") não tem o selo e não bloqueia.
+
+    Se o painel não estiver na página, cai na checagem pela API.
+    """
+    try:
+        linhas = espera.elementos(driver, 'pje-gigs-atividades tbody tr', teto=3)
+    except Exception as e:
+        logger.warning('[FLUXO_PZ][GIGS] falha ao ler o painel (%s: %s)', type(e).__name__, e)
+        linhas = []
+
+    if linhas:
+        for linha in linhas:
+            selo = espera.elemento(linha, 'pje-gigs-alerta-prazo span.prazo', teto=0.1)
+            if not selo:
+                continue
+            descricao = ''
+            try:
+                el_desc = espera.elemento(linha, 'span.descricao', teto=0.1)
+                descricao = (el_desc.text if el_desc else '') or ''
+            except Exception:
+                pass
+            logger.info('[FLUXO_PZ][GIGS] prazo pendente no painel: %s', (descricao or '?')[:80])
+            return True
+        logger.info('[FLUXO_PZ][GIGS] painel conferido: %d atividade(s), nenhuma com prazo', len(linhas))
+        return False
+
+    return _gigs_com_prazo_pendente_api(driver)
+
+
+def _gigs_com_prazo_pendente_api(driver: Any) -> bool:
+    """Fallback da guarda: confere prazos pela API de atividades GIGS do processo.
+
+    Pendente = atividade com `dataPrazo` preenchido e status diferente de
+    CONCLUÍDA/CANCELADA. Vencido também conta. Erro na consulta devolve True —
+    não arquivar sem conferir.
+    """
+    try:
+        from Fix.navegacao_espera import extrair_id_processo
+        id_processo = extrair_id_processo(driver)
+        if not id_processo:
+            logger.warning('[FLUXO_PZ][GIGS] id do processo ausente na URL — prazos nao conferidos')
+            return True
+        from .p2b_gateway import _criar_api_client
+        client = _criar_api_client(driver)
+        atividades = client.atividades_gigs(id_processo) or []
+        for atv in atividades:
+            data_prazo = atv.get('dataPrazo')
+            if not data_prazo or not str(data_prazo).strip():
+                continue
+            status = str(atv.get('statusAtividade') or '').upper()
+            if 'CONCLU' in status or 'CANCELA' in status:
+                continue
+            logger.info('[FLUXO_PZ][GIGS] prazo pendente (API): tipo=%s status=%s data=%s',
+                        atv.get('tipoAtividade') or '?', status or '?', data_prazo)
+            return True
+        return False
+    except Exception as e:
+        logger.warning('[FLUXO_PZ][GIGS] falha ao conferir prazos (%s: %s) — nao arquiva por seguranca',
+                       type(e).__name__, e)
+        return True
+
+
+def _mov_arquivar_se_sem_prazo(driver: Any) -> bool:
+    """Regra de arquivamento do P2B: só arquiva se não houver GIGS com prazo pendente.
+
+    Com prazo pendente (vencido ou não) a regra APENAS PULA e devolve True, para o
+    processo não ser marcado como falha.
+    """
+    if _gigs_com_prazo_pendente(driver):
+        logger.info('[FLUXO_PZ] Arquivamento PULADO: processo tem GIGS com prazo pendente')
+        return True
+    mov_arquivar = _lazy_import().get('mov_arquivar')
+    if not mov_arquivar:
+        logger.error('[FLUXO_PZ] mov_arquivar indisponivel no lazy import')
+        return False
+    return bool(mov_arquivar(driver))
+
+
 def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
     """
     Tabela do motor de regras do P2B: cada entrada é (trechos, ações).
@@ -254,7 +338,6 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
     """
     # Lazy load modules necessários para as regras
     m = _lazy_import()
-    mov_arquivar = m['mov_arquivar']
     ato_180 = m['ato_180']
     ato_calc2 = m['ato_calc2']
     ato_prev = m['ato_prev']
@@ -279,11 +362,13 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         (['A pronúncia da'], (prescreve,)),
 
         # REGRA DE ARQUIVAMENTO - MÁXIMA PRIORIDADE (logo após prescrição)
+        # Só arquiva se NÃO houver GIGS com prazo pendente (vencido ou não); caso
+        # contrário a regra apenas pula (_mov_arquivar_se_sem_prazo).
         ([
             'julgo extinta a presente execução, nos termos do art. 924',
             'autos ao arquivo',
             'devendo diligenciar junto ao cartório',
-        ], (mov_arquivar,)),
+        ], (_mov_arquivar_se_sem_prazo,)),
 
         # REGRA DE DESCUMPRIMENTO - executar gigs1, gigs2, ato_pesqliq (sem tentar mov_exec)
         (['Ante a notícia de descumprimento'], ("criar_gigs[1/Ana Lucia/Argos]", "criar_gigs[1//xs sigilo]", ato_pesqliq)),
@@ -438,6 +523,24 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
     ]
 
 
+def _casas_regra(texto_normalizado: str):
+    """Primeira regra que casa com o texto — SEM executar nenhuma ação.
+
+    Returns:
+        (trechos, tipo_acao, match) ou None se nenhuma regra casar.
+
+    Usado pelo motor API-first (`Prazo/p2b_engine_api.py`) para decidir se o
+    processo tem ação aplicável antes de abrir a página.
+    """
+    for trechos, tipo_acao in _definir_regras_processamento():
+        for trecho in trechos:
+            padrao = trecho if hasattr(trecho, 'search') else gerar_regex_geral(trecho)
+            encontrado = padrao.search(texto_normalizado)
+            if encontrado:
+                return trechos, tipo_acao, encontrado
+    return None
+
+
 @medir_tempo('_processar_regras_gerais')
 def _processar_regras_gerais(driver: Any, texto_normalizado: str, doc_idx: int = 0):
     """
@@ -517,17 +620,10 @@ def _processar_regras_gerais(driver: Any, texto_normalizado: str, doc_idx: int =
             return None
 
     # Varredura sequencial: primeira regra cujo trecho casar decide a ação.
-    for trechos, tipo_acao in regras:
-        match = None
-        for trecho in trechos:
-            padrao = trecho if hasattr(trecho, 'search') else gerar_regex_geral(trecho)
-            encontrado = padrao.search(texto_normalizado)
-            if encontrado:
-                match = encontrado
-                break
-        if not match:
-            continue
-
+    # `_casas_regra` faz só o match (sem executar) — mesma varredura, reusada pelo
+    # motor API-first.
+    casada = _casas_regra(texto_normalizado)
+    for trechos, tipo_acao, match in ([casada] if casada else []):
         try:
             span = match.span()
             start = max(0, span[0] - 40)

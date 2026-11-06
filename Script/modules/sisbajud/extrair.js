@@ -352,6 +352,25 @@
         document.body.appendChild(painel);
     }
 
+    // ── Abre a aba do processo no PJe (mesma ação do botão +PJe) ─────
+    // Falha aqui NUNCA aborta a extração: os dados já estão no clipboard/painel.
+    function abrirProcessoNoPJe(numero) {
+        var fn = (window.Atalhos && window.Atalhos.abrir_processo_direto) || window.abrir_processo_direto;
+        if (typeof fn !== 'function') {
+            console.log('[SisbExtrair] abrir_processo_direto indisponível (atalhos.js não carregado) — aba do PJe não aberta');
+            return;
+        }
+        if (!numero) {
+            console.log('[SisbExtrair] número do processo não encontrado na tela — aba do PJe não aberta');
+            return;
+        }
+        Promise.resolve(fn(numero, { focar: true })).then(function (r) {
+            console.log('[SisbExtrair] PJe:', r);
+        }, function (e) {
+            console.log('[SisbExtrair] falha ao abrir o processo:', e);
+        });
+    }
+
     // ── Ação do botão ────────────────────────────────────────────────
     function aoClicar(btn) {
         btn.disabled = true;
@@ -372,6 +391,9 @@
         copiarParaClipboard(html).then(function (copiou) {
             if (!copiou) console.log('=== DADOS EXTRAÍDOS SISBAJUD ===\n' + htmlParaTexto(html));
             substituirPorPainel(htmlParaTexto(html), copiou);
+            // Extração terminada → abre e FOCA a aba do processo no PJe (ação do botão +PJe)
+            var numero = extrairRotulo('Número do Processo') || '';
+            setTimeout(function () { abrirProcessoNoPJe(numero); }, 600);
         });
     }
 

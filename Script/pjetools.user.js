@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.6.53
+// @version      2.6.60
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -30,6 +30,7 @@
 // @match        https://pje.trt2.jus.br/segundograu/*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*
 // @match        https://simba-novo.redejt/*
+// @match        https://www3.bcb.gov.br/saj/*
 // @match        https://www3.bcb.gov.br/saj/requisicao-extratos-cadastro*
 // ── Alvará Eletrônico (módulo saldo_extracao)
 // @match        https://alvaraeletronico.trt2.jus.br/*
@@ -43,6 +44,11 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
+// ── Módulo PjeAbas (atalhos.js): registro/foco de abas entre domínios
+// @grant        GM_getTab
+// @grant        GM_saveTab
+// @grant        GM_getTabs
+// @grant        GM_addValueChangeListener
 // @grant        GM_openInTab
 // @grant        GM_xmlhttpRequest
 // @grant        window.close
@@ -68,7 +74,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=2.6.16
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js?v=2.1.74
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=2.3.1
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=2.3.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/trt.js?v=1.0.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.3.98
@@ -78,15 +84,16 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/ordens.js?v=2.6.4
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/detalhes.js?v=2.6.2
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/minuta.js?v=2.6.2
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.6.3
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=2.6.4
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbpje.js?v=2.6.4
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/dados.js?v=2.6.16
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/protocolos.js?v=1.1.1
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/extrair.js?v=1.0.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/extracao_siscondj.js?v=2.8.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/siscon_consulta.js?v=2.1.12
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/alvara/saldo_extracao.js?v=2.1.1
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/carta/carta.js?v=2.1.0
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.70
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/simba/simba.js?v=2.1.74
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=2.1.71
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/argos/argos.js?v=2.3.1
 // ── AUD modularizado: DADOS (textos jurídicos) carregados ANTES da LÓGICA;
@@ -120,7 +127,8 @@
     const isReceita = url.includes('cav.receita.fazenda.gov.br');
     const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');
     const isPjeDomain = url.includes('pje.trt2.jus.br') || url.includes('pje1g.trt2.jus.br');
-    const isBcb = url.includes('bcb.gov.br/saj/requisicao-extratos-cadastro');
+    // Todo o domínio /saj/ (raiz e requisicao-extratos-cadastro)
+    const isBcb = url.includes('bcb.gov.br/saj');
 
     // (No match da Receita, content scripts já estão via @require em header)
 
@@ -145,37 +153,71 @@
     }
 
     // ── Lógica BCB (terceira execução Simba) ──
-    if (isBcb) {        console.log('[Loader] Detectada URL do BCB, carregando Simba BCB...');
-        setTimeout(() => {
-            if (!document.getElementById('btnSimbaBcbExtratos')) {
-                const btn = document.createElement('button');
-                btn.id = 'btnSimbaBcbExtratos';
-                btn.textContent = '🦁 Preencher BCB';
-                btn.title = 'Preencher automaticamente o formulário de requisição de extratos do BCB';
-                btn.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:999999999;
-                    padding:10px 15px;background-color:#ff6600;color:white;border:none;
-                    border-radius:4px;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);
-                    font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,0.3);`;
+    if (isBcb) {
+        console.log('[Loader] Detectada URL do BCB, carregando Simba BCB...');
 
-                btn.onclick = async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    btn.disabled = true;
-                    btn.textContent = 'Processando...';
-                    try {
-                        await window.executarSimbaBcb?.();
-                    } catch (err) {
-                        console.error('[Loader BCB] Erro:', err);
-                        alert('Erro ao preencher formulário BCB: ' + err.message);
-                    }
-                    btn.textContent = '🦁 Preencher BCB';
-                    btn.disabled = false;
-                };
-
-                document.body.appendChild(btn);
-                console.log('[Loader] Botão BCB criado com sucesso');
+        // Etapa do botão: 'minuta' (Parte 1: vara → telefone) e depois
+        // 'investigados' (Parte 2: diálogo "Adicionar Investigado").
+        let etapaBcb = 'minuta';
+        const aplicarRotuloBcb = (btn) => {
+            if (etapaBcb === 'minuta') {
+                btn.textContent = '🦁 BCB Minuta';
+                btn.title = 'Parte 1: preenche a primeira página da requisição (vara até telefone)';
+            } else {
+                btn.textContent = '🦁 BCB Investigados';
+                btn.title = 'Parte 2: preenche os investigados no diálogo "Adicionar Investigado"';
             }
-        }, 800);
+        };
+
+        const criarBotaoBcb = () => {
+            if (document.getElementById('btnSimbaBcbExtratos')) return;
+            if (!document.body) return;
+            const btn = document.createElement('button');
+            btn.id = 'btnSimbaBcbExtratos';
+            aplicarRotuloBcb(btn);
+            btn.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:999999999;
+                padding:10px 15px;background-color:#ff6600;color:white;border:none;
+                border-radius:4px;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);
+                font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,0.3);`;
+
+            btn.onclick = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                btn.disabled = true;
+                btn.textContent = 'Processando...';
+
+                if (etapaBcb === 'minuta') {
+                    try {
+                        await window.executarSimbaBcbParte1?.();
+                    } catch (err) {
+                        console.error('[Loader BCB] Erro na minuta:', err);
+                    } finally {
+                        // Vira "BCB Investigados" mesmo com erros pontuais na Parte 1
+                        etapaBcb = 'investigados';
+                        aplicarRotuloBcb(btn);
+                        btn.disabled = false;
+                    }
+                    return;
+                }
+
+                try {
+                    await window.executarSimbaBcbInvestigados?.();
+                } catch (err) {
+                    console.error('[Loader BCB] Erro nos investigados:', err);
+                } finally {
+                    aplicarRotuloBcb(btn);
+                    btn.disabled = false;
+                }
+            };
+
+            document.body.appendChild(btn);
+            console.log('[Loader] Botão BCB criado com sucesso');
+        };
+
+        setTimeout(criarBotaoBcb, 800);
+        // O SAJ navega entre /saj/ e /saj/requisicao-extratos-cadastro sem recarregar
+        // o documento; recria o botão se ele sair do DOM.
+        setInterval(criarBotaoBcb, 2000);
         return;
     }
 

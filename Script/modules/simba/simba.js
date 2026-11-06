@@ -130,20 +130,11 @@
                         console.log('[Simba] Array PASSIVO não encontrado ou não é array:', partes.PASSIVO);
                     }
                     
-                    // Extrair TERCEIROS (Sócios, etc)
-                    if (partes.TERCEIROS && Array.isArray(partes.TERCEIROS)) {
-                        console.log(`[Simba] Verificando ${partes.TERCEIROS.length} partes em TERCEIROS...`);
-                        partes.TERCEIROS.forEach(p => {
-                            console.log('[Simba] Analisando parte TERCEIROS:', p);
-                            if (p.nome && p.documento) {
-                                reclamados.push({ nome: p.nome, documento: p.documento });
-                                console.log(`[Simba] Adicionado TERCEIRO: ${p.nome} - ${p.documento}`);
-                            }
-                        });
-                    }
+                    // TERCEIROS (sócios, peritos, etc.) NÃO entram como investigados:
+                    // o preenchimento usa APENAS o polo passivo.
 
                     if (reclamados.length > 0) {
-                        console.log(`[Simba] Encontrados ${reclamados.length} investigados/reclamados:`, reclamados);
+                        console.log(`[Simba] Encontrados ${reclamados.length} investigados (polo passivo):`, reclamados);
                         const reclamadosStr = JSON.stringify(reclamados);
                         console.log('[Simba] Salvando no GM_setValue simba_reclamados:', reclamadosStr);
                         if (typeof GM_setValue !== 'undefined') {
@@ -509,32 +500,27 @@
             return false;
         };
 
-        // ── Helper: Preencher telefone BCB (FocusEvent + keystrokes) ──
+        // ── Helper: Preencher telefone BCB ──
+        // O campo usa a diretiva telefonemask: recebe o número SECO (só dígitos)
+        // e a máscara formata. Nada de KeyboardEvent sintético (no Firefox o
+        // construtor recusa 'view: window' — era o erro que abortava o preenchimento).
         const preencherTelefoneBCB = async (telDigitos, delayMs = 300) => {
             const el = document.querySelector('#telefone');
             if (!el) {
                 console.warn('[Simba BCB P1] Campo Telefone não encontrado');
                 return false;
             }
-            // Scroll e ativar máscara via FocusEvent
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            await new Promise(r => setTimeout(r, 500));
-            el.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
-            await new Promise(r => setTimeout(r, 500));
-            
-            // Digitar dígito por dígito (máscara processa)
-            for (const digit of telDigitos) {
-                const cc = digit.charCodeAt(0);
-                el.dispatchEvent(new KeyboardEvent('keydown', { key: digit, code: `Digit${digit}`, keyCode: cc, which: cc, bubbles: true, cancelable: true, view: window }));
-                await new Promise(r => setTimeout(r, 30));
-                el.dispatchEvent(new KeyboardEvent('keypress', { key: digit, code: `Digit${digit}`, keyCode: cc, which: cc, bubbles: true, cancelable: true, view: window }));
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                await new Promise(r => setTimeout(r, 30));
-                el.dispatchEvent(new KeyboardEvent('keyup', { key: digit, code: `Digit${digit}`, keyCode: cc, which: cc, bubbles: true, cancelable: true, view: window }));
-                await new Promise(r => setTimeout(r, 60));
-            }
+            el.focus();
+            await new Promise(r => setTimeout(r, 200));
+
+            const setterValor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+            setterValor.call(el, telDigitos);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
             el.dispatchEvent(new Event('change', { bubbles: true }));
-            console.log(`[Simba BCB P1] Telefone preenchido: "${el.value}"`);
+            el.blur();
+
+            console.log(`[Simba BCB P1] Telefone preenchido: digitado "${telDigitos}" -> campo "${el.value}"`);
             await new Promise(r => setTimeout(r, delayMs));
             return true;
         };
@@ -601,24 +587,40 @@
 
             console.log(`[Simba BCB P1] Dados carregados: processo=${numProcesso}, email=${email}, telefone=${telefone}, dataInicio=${dataInicio}, dataFim=${dataFim}`);
 
-            // 2. Preencher Vara (digitar 3ª VA e depois selecionar no dropdown)
+            // 2. Preencher Vara (digitar o nome completo e selecionar no dropdown)
             const inputVara = document.querySelector('input.form-control.saj-input-select-form-input');
             if (inputVara) {
+                const textoVara = '3ª VARA DO TRABALHO DA ZONA S';
                 inputVara.focus();
                 await new Promise(r => setTimeout(r, 100));
-                inputVara.value = '3ª VA';
+                // Setter nativo: o Angular só enxerga a mudança pelo evento 'input'
+                const setterValor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+                setterValor.call(inputVara, textoVara);
                 inputVara.dispatchEvent(new Event('input', { bubbles: true }));
-                console.log('[Simba BCB P1] Digitado "3ª VA" no campo de Vara');
-                await new Promise(r => setTimeout(r, 500));
-                
-                // Procurar pela opção "3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO" no dropdown
-                const opcaoVara = document.querySelector('div.saj-input-select-body-options-value');
-                if (opcaoVara && opcaoVara.textContent.startsWith('3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO')) {
+                console.log(`[Simba BCB P1] Digitado "${textoVara}" no campo de Vara`);
+
+                // Esperar o dropdown do app-input-select montar as opções
+                const normalizar = (s) => (s || '').replace(/\s+/g, ' ').trim().toUpperCase();
+                const alvo = normalizar(vara);
+                let opcaoVara = null;
+                let opcoes = [];
+                for (let i = 0; i < 30 && !opcaoVara; i++) {
+                    await new Promise(r => setTimeout(r, 100));
+                    opcoes = Array.from(document.querySelectorAll('div.saj-input-select-body-options-value'));
+                    // Comparação EXATA: "13ª VARA..." contém "3ª VARA..." como substring
+                    opcaoVara = opcoes.find(o => normalizar(o.textContent) === alvo) || null;
+                }
+                if (!opcaoVara) {
+                    // Fallback: começa com "3ª VARA DO TRABALHO DA ZONA S" (exclui a 13ª)
+                    opcaoVara = opcoes.find(o => normalizar(o.textContent).startsWith('3ª VARA DO TRABALHO DA ZONA S')) || null;
+                }
+                if (opcaoVara) {
                     opcaoVara.click();
-                    console.log('[Simba BCB P1] Selecionada: 3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO');
+                    console.log(`[Simba BCB P1] Selecionada: ${normalizar(opcaoVara.textContent)}`);
                     await new Promise(r => setTimeout(r, 400));
+                    console.log(`[Simba BCB P1] Campo de Vara agora: "${inputVara.value}"`);
                 } else {
-                    console.warn('[Simba BCB P1] Opção de vara não encontrada');
+                    console.warn('[Simba BCB P1] Opção de vara não encontrada. Opções no dropdown:', opcoes.map(o => normalizar(o.textContent)));
                 }
             } else {
                 console.warn('[Simba BCB P1] Campo de Vara não encontrado');
@@ -674,7 +676,51 @@
     // =========================================================================
     // EXECUÇÃO BCB - PARTE 2 (Adicionar investigados)
     // =========================================================================
-    
+
+    // Diálogo "Adicionar Investigado": modal com tag-input #cpfCnpj
+    // e rodapé "Confirmar os investigados na requisição".
+    // Exige VISIBILIDADE: o Angular deixa o markup no DOM com display:none
+    // quando o modal está fechado.
+    const elementoVisivel = (el) => !!el && el.getClientRects().length > 0;
+    const dialogoInvestigadoAberto = () => {
+        if (elementoVisivel(document.querySelector('#cpfCnpj, input[formcontrolname="item"]'))) return true;
+        return Array.from(document.querySelectorAll('.modal-title, .mat-dialog-title, h1, h2, h3, h4'))
+            .some(e => /adicionar\s+investigado/i.test(e.textContent || '') && elementoVisivel(e));
+    };
+
+    // Botão "BCB Investigados": só dispara o preenchimento se o diálogo de
+    // investigados existir. A presença do diálogo é o sinal de que a Parte 1
+    // foi concluída e a requisição está na página certa.
+    window.executarSimbaBcbInvestigados = async function() {
+        console.log('[Simba BCB P2] Verificando diálogo "Adicionar Investigado"...');
+
+        if (!dialogoInvestigadoAberto()) {
+            const btnAbrir = Array.from(document.querySelectorAll('button'))
+                .find(b => /adicionar\s+investigado/i.test(b.textContent || ''));
+            if (btnAbrir) {
+                btnAbrir.click();
+                console.log('[Simba BCB P2] Clicado botão "Adicionar Investigado"');
+            } else {
+                console.warn('[Simba BCB P2] Botão "Adicionar Investigado" não encontrado na página');
+            }
+            for (let t = 0; t < 25 && !dialogoInvestigadoAberto(); t++) {
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
+
+        if (!dialogoInvestigadoAberto()) {
+            console.warn('[Simba BCB P2] Diálogo não encontrado — Parte 1 pendente ou página errada. Nada preenchido.');
+            if (typeof showToast === 'function') {
+                showToast('Diálogo de investigados não encontrado (Parte 1 pendente?)', '#dc3545', 4000);
+            }
+            return false;
+        }
+
+        console.log('[Simba BCB P2] Diálogo detectado — disparando preenchimento dos investigados.');
+        await window.executarSimbaBcbParte2();
+        return true;
+    };
+
     window.executarSimbaBcbParte2 = async function() {
         console.log('[Simba BCB P2] Iniciando adição de investigados...');
         
@@ -721,14 +767,19 @@
                 
                 console.log(`[Simba BCB P2] Processando investigado ${i + 1}/${reclamados.length}: ${r.nome} (${docLimpo})...`);
                 
-                // Clicar no botão "Adicionar Investigado(a)" antes de cada adição
-                const btnAdicionar = document.querySelector('button.btn.btn-primary');
-                if (btnAdicionar && btnAdicionar.textContent.includes('Adicionar Investigado')) {
-                    btnAdicionar.click();
-                    console.log(`[Simba BCB P2] Clicado botão Adicionar Investigado para item ${i + 1}`);
-                    await new Promise(r => setTimeout(r, 500));
-                } else {
-                    console.warn('[Simba BCB P2] Botão Adicionar Investigado não encontrado');
+                // Abrir o diálogo só se ele ainda não estiver aberto
+                if (!dialogoInvestigadoAberto()) {
+                    const btnAdicionar = Array.from(document.querySelectorAll('button'))
+                        .find(b => /adicionar\s+investigado/i.test(b.textContent || ''));
+                    if (btnAdicionar) {
+                        btnAdicionar.click();
+                        console.log(`[Simba BCB P2] Clicado botão Adicionar Investigado para item ${i + 1}`);
+                        for (let t = 0; t < 25 && !dialogoInvestigadoAberto(); t++) {
+                            await new Promise(r => setTimeout(r, 200));
+                        }
+                    } else {
+                        console.warn('[Simba BCB P2] Botão Adicionar Investigado não encontrado');
+                    }
                 }
                 
                 // Preencher CPF/CNPJ

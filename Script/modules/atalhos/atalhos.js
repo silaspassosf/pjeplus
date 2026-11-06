@@ -1374,3 +1374,357 @@ window.selecionarProcessosLivres = selecionarProcessosLivres;
 window.executarLivresXs1 = executarLivresXs1;
 window.injetarBotaoLivresPainelGlobal = injetarBotaoLivresPainelGlobal;
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ═══ PJEABAS INICIO ═══ (bloco delimitado: o teste injeta exatamente isto)
+//
+// Localiza abas do navegador por título/URL e pula para a aba de um processo.
+//
+// Como funciona: o navegador não expõe a lista de abas. O Tampermonkey expõe
+// GM_getTabs()/GM_saveTab(), cujo registro é por SCRIPT — vale em qualquer
+// domínio onde este userscript roda (PJe, SISBAJUD, BCB, eCarta...). Assim uma
+// aba do SISBAJUD enxerga e alcança a aba do processo no PJe.
+//
+// Canal de pedido: GM_setValue/GM_addValueChangeListener (não é estrangulado
+// em aba de segundo plano, ao contrário de setInterval).
+//
+// Uso:
+//   PjeAbas.imprimir()                 → tabela das abas registradas
+//   PjeAbas.numeroDaPagina()           → acha o nº do processo na aba atual
+//   PjeAbas.pularPara('1001949-17.2025')  → vai para a aba desse processo
+//   PjeAbas.pularParaProcesso()        → usa o nº memorizado (ou o da página)
+//   PjeAbas.lembrar('1001949-17.2025') → memoriza o processo atual
+// ═══════════════════════════════════════════════════════════════════════════
+(function () {
+    'use strict';
+
+    const VERSAO = '1.0.0';
+    const BATIDA_MS = 5000;          // recarimbo periódico de cada aba
+    const LIMITE_MS = 20000;         // sem sinal por 20s = provavelmente fechada
+    const ESPERA_PULO_MS = 3000;     // tempo máximo esperando o ack da aba alvo
+    const CH_PING = 'pjeabas_ping';
+    const CH_PEDIDO = 'pjeabas_pedido';
+    const CH_ACK = 'pjeabas_ack_';
+    const CH_MEMORIA = 'pjeabas_processo';
+    const MARCA = '👉 ';
+    const RE_NUMERO = /\d{7}-\d{2}\.\d{4}/;      // 1001949-17.2025
+    const RE_DETALHE = /\/pjekz\/processo\/[^/]+\/detalhe/;   // alvo do pulo
+    const CHAVE_DIGITOS = 13;                     // 7 + 2 + 4 = identidade do processo
+
+    let meuId = null;
+    let timer = null;
+    let ultimoPing = null;
+    let restaurarTimer = null;
+
+    const aleat = () => Math.random().toString(36).slice(2, 8);
+    const digitos = (s) => String(s || '').replace(/\D/g, '');
+    function temGM() {
+        try { return typeof GM_getTabs === 'function' && typeof GM_saveTab === 'function'; }
+        catch (e) { return false; }
+    }
+    const normalizar = (s) => String(s || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().replace(/\s+/g, ' ').trim();
+
+    // número -> chave de comparação (13 primeiros dígitos)
+    function chaveDe(texto) {
+        const d = digitos(texto);
+        return d.length >= CHAVE_DIGITOS ? d.slice(0, CHAVE_DIGITOS) : '';
+    }
+
+    function numeroEm(texto) {
+        const m = String(texto || '').match(RE_NUMERO);
+        return m ? m[0] : null;
+    }
+
+    // Só páginas de detalhe aceitam/respondem pedido de foco. Sem isso, a
+    // própria aba do SISBAJUD (que tem o número no texto) se acharia "já aqui".
+    function ehPaginaProcesso() {
+        return RE_DETALHE.test(location.pathname);
+    }
+
+    // ── registro: esta aba se descreve no Tampermonkey ───────────────
+    function carimbar() {
+        return new Promise((resolve) => {
+            try {
+                GM_getTab((tab) => {
+                    tab = tab || {};
+                    tab.id = tab.id || ('aba_' + aleat());
+                    tab.title = document.title || '';
+                    tab.numero = numeroEm(document.title) || numeroEm(location.href) || '';
+                    tab.url = location.href;
+                    tab.host = location.host;
+                    tab.ts = Date.now();
+                    tab.visivel = document.visibilityState === 'visible';
+                    tab.versao = VERSAO;
+                    meuId = tab.id;
+                    try { GM_saveTab(tab); } catch (e) { }
+                    resolve(tab);
+                });
+            } catch (e) {
+                resolve(null);
+            }
+        });
+    }
+
+    function ping(esperaMs) {
+        return new Promise((resolve) => {
+            try { GM_setValue(CH_PING, { n: Date.now() + aleat(), de: meuId }); } catch (e) { }
+            setTimeout(resolve, esperaMs || 300);
+        });
+    }
+
+    // ── lista das abas ───────────────────────────────────────────────
+    async function listar(filtro, opcoes) {
+        const opts = Object.assign({ ping: true, espera: 300 }, opcoes || {});
+        if (opts.ping) await ping(opts.espera);
+
+        const termos = normalizar(filtro).split(' ').filter(Boolean);
+        return new Promise((resolve) => {
+            try {
+                GM_getTabs((tabs) => {
+                    const agora = Date.now();
+                    const lista = [];
+                    Object.entries(tabs || {}).forEach(([tabId, t]) => {
+                        const d = t || {};
+                        const idade = d.ts ? agora - d.ts : null;
+                        const item = {
+                            id: d.id || ('tab_' + tabId),
+                            title: d.title || '(sem titulo)',
+                            numero: d.numero || '',
+                            host: d.host || '',
+                            url: d.url || '',
+                            idadeMs: idade,
+                            visto: idade === null ? 'nunca'
+                                : idade < 6000 ? 'agora'
+                                    : Math.round(idade / 1000) + 's',
+                            parada: idade === null || idade > LIMITE_MS,
+                            eu: d.id === meuId
+                        };
+                        if (termos.length) {
+                            const alvo = normalizar(item.title + ' ' + item.url + ' ' + item.host);
+                            if (!termos.every((x) => alvo.indexOf(x) > -1)) return;
+                        }
+                        lista.push(item);
+                    });
+                    lista.sort((a, b) => (a.eu ? -1 : b.eu ? 1
+                        : a.parada !== b.parada ? (a.parada ? 1 : -1)
+                            : a.title.localeCompare(b.title, 'pt-BR')));
+                    resolve(lista);
+                });
+            } catch (e) {
+                resolve([]);
+            }
+        });
+    }
+
+    // ── destaque visual na aba que recebe o pedido ──────────────────
+    function destacar(segundos) {
+        try {
+            const antigo = document.getElementById('pjeabas-destaque');
+            if (antigo) antigo.remove();
+            const d = document.createElement('div');
+            d.id = 'pjeabas-destaque';
+            d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' +
+                'border:4px solid #1976d2;box-shadow:inset 0 0 22px rgba(25,118,210,.55);' +
+                'transition:opacity .6s;opacity:1';
+            document.documentElement.appendChild(d);
+            setTimeout(() => { d.style.opacity = '0'; }, (segundos || 4) * 1000);
+            setTimeout(() => { d.remove(); }, (segundos || 4) * 1000 + 800);
+        } catch (e) { }
+    }
+
+    function marcarTitulo(segundos) {
+        try {
+            if (!document.title.startsWith(MARCA)) document.title = MARCA + document.title;
+            clearTimeout(restaurarTimer);
+            restaurarTimer = setTimeout(() => {
+                if (document.title.startsWith(MARCA)) document.title = document.title.slice(MARCA.length);
+            }, (segundos || 6) * 1000);
+        } catch (e) { }
+    }
+
+    // ── recebe pedido de pulo ────────────────────────────────────────
+    let ultimoPedidoVisto = null;
+    try {
+        GM_addValueChangeListener(CH_PEDIDO, (nome, antes, agora, remoto) => {
+            if (!remoto || !agora || !agora.nonce) return;
+            if (agora.nonce === ultimoPedidoVisto) return;
+            ultimoPedidoVisto = agora.nonce;
+
+            if (!ehPaginaProcesso()) return;               // só aba de detalhe obedece
+            const minha = chaveDe(document.title + ' ' + location.href);
+            if (!minha || minha !== agora.chave) return;   // não é o meu processo
+
+            marcarTitulo(6);
+            destacar(4);
+            let focou = false;
+            try { window.focus(); focou = document.hasFocus(); } catch (e) { }
+            try {
+                GM_setValue(CH_ACK + agora.nonce, {
+                    ok: true, id: meuId, numero: numeroEm(document.title) || '',
+                    detalhe: ehPaginaProcesso(),
+                    title: document.title, url: location.href, host: location.host,
+                    focou: focou, quando: Date.now()
+                });
+            } catch (e) { }
+        });
+    } catch (e) { }
+
+    // ── pula para a aba do processo ──────────────────────────────────
+    // termo: '1001949-17.2025' (ou qualquer texto com o número)
+    // opcoes: { espera: ms }
+    function pularPara(termo, opcoes) {
+        const opts = Object.assign({ espera: ESPERA_PULO_MS }, opcoes || {});
+        return new Promise(async (resolve) => {
+            const chave = chaveDe(termo);
+            if (!chave) {
+                resolve({ ok: false, motivo: 'sem número de processo em "' + (termo || '') + '"' });
+                return;
+            }
+
+            // Atalho: já estou na aba certa? (só vale em página de detalhe —
+            // a página do SISBAJUD também contém o número e daria falso positivo)
+            if (ehPaginaProcesso() && chaveDe(document.title + ' ' + location.href) === chave) {
+                destacar(3);
+                resolve({ ok: true, jaEstava: true, title: document.title, url: location.href });
+                return;
+            }
+
+            const nonce = Date.now() + '_' + aleat();
+            let terminou = false;
+            let cancelar = null;
+
+            const finalizar = (r) => {
+                if (terminou) return;
+                terminou = true;
+                clearTimeout(timeout);
+                if (cancelar) { try { cancelar(); } catch (e) { } }
+                resolve(r);
+            };
+
+            const timeout = setTimeout(async () => {
+                const abas = await listar(undefined, { ping: false });
+                finalizar({
+                    ok: false,
+                    motivo: 'nenhuma aba respondeu ao pedido',
+                    abas: abas.map((a) => ({ title: a.title, host: a.host, parada: a.parada }))
+                });
+            }, opts.espera);
+
+            try {
+                cancelar = GM_addValueChangeListener(CH_ACK + nonce, (nome, antes, agora, remoto) => {
+                    if (!remoto || !agora || !agora.ok) return;
+                    finalizar(Object.assign({ ok: true }, agora));
+                });
+            } catch (e) { }
+
+            try {
+                GM_setValue(CH_PEDIDO, { nonce: nonce, chave: chave, de: meuId, ts: Date.now() });
+            } catch (e) {
+                finalizar({ ok: false, motivo: 'GM_setValue indisponível: ' + e });
+            }
+        });
+    }
+
+    // ── número do processo na página atual ───────────────────────────
+    function numeroDaPagina() {
+        return numeroEm(document.title)
+            || numeroEm(location.href)
+            || numeroEm((document.body && document.body.innerText) || '')
+            || null;
+    }
+
+    // ── memória do processo em foco ─────────────────────────────────
+    function lembrar(numero) {
+        const n = numero || numeroDaPagina();
+        if (!n) return null;
+        try {
+            GM_setValue(CH_MEMORIA, { numero: n, ts: Date.now(), de: location.host });
+        } catch (e) { }
+        return n;
+    }
+
+    function memorizado() {
+        try {
+            const m = GM_getValue(CH_MEMORIA, null);
+            return m && m.numero ? m.numero : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // ── atalhos de alto nível ───────────────────────────────────────
+    async function pularParaProcesso(numero) {
+        const n = numero || memorizado() || numeroDaPagina();
+        if (!n) return { ok: false, motivo: 'não achei número de processo (memória nem página)' };
+        return pularPara(n);
+    }
+
+    // ── utilidades de console ───────────────────────────────────────
+    async function imprimir(filtro) {
+        const lista = await listar(filtro);
+        const linhas = lista.map((a) => ({
+            eu: a.eu ? 'EU' : '', id: a.id, visto: a.visto, parada: a.parada ? 'SIM' : '',
+            host: a.host, numero: a.numero, titulo: a.title,
+            caminho: (() => { try { return new URL(a.url).pathname; } catch (e) { return a.url; } })()
+        }));
+        console.log('%c[PjeAbas] ' + lista.length + ' aba(s)', 'font-weight:bold;color:#1976d2');
+        if (console.table) console.table(linhas);
+        else console.log(linhas);
+        if (lista.length <= 1) {
+            console.warn('[PjeAbas] só esta aba apareceu — recarregue as outras abas (F5) ' +
+                'para que o userscript rode nelas.');
+        }
+        return lista;
+    }
+
+    function ajuda() {
+        console.log('%cPjeAbas ' + VERSAO, 'font:bold 13px monospace;color:#1976d2',
+            '\n  PjeAbas.imprimir()                    → abas registradas',
+            '\n  PjeAbas.listar("10019")               → filtro por título/URL',
+            '\n  PjeAbas.numeroDaPagina()              → nº do processo nesta aba',
+            '\n  PjeAbas.pularPara("1001949-17.2025")  → pula para a aba do processo',
+            '\n  PjeAbas.pularParaProcesso()           → idem, usando nº memorizado/página',
+            '\n  PjeAbas.lembrar("1001949-17.2025")    → memoriza o processo',
+            '\n  PjeAbas.memorizado()                  → processo memorizado',
+            '\n  esta aba: ' + meuId + ' — "' + document.title + '"');
+    }
+
+    // ── ciclo de vida ───────────────────────────────────────────────
+    function iniciar() {
+        if (!temGM()) {
+            console.warn('[PjeAbas] GM_getTabs indisponível — adicione @grant GM_getTabs/GM_saveTab/' +
+                'GM_getTab/GM_addValueChangeListener no pjetools.user.js');
+            return;
+        }
+        carimbar();
+        timer = setInterval(carimbar, BATIDA_MS);
+        window.addEventListener('focus', carimbar);
+        window.addEventListener('blur', carimbar);
+        document.addEventListener('visibilitychange', carimbar);
+        window.addEventListener('pagehide', () => {
+            clearInterval(timer);
+            carimbar();
+        });
+    }
+
+    window.PjeAbas = {
+        versao: VERSAO,
+        meuId: () => meuId,
+        listar,
+        imprimir,
+        existe: async (f) => (await listar(f)).length > 0,
+        numeroDaPagina,
+        pularPara,
+        pularParaProcesso,
+        lembrar,
+        memorizado,
+        ajuda,
+        ping: () => ping(0),
+        recarimbar: carimbar
+    };
+
+    iniciar();
+})();
+// ═══ PJEABAS FIM ═══

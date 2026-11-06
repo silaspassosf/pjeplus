@@ -8,6 +8,7 @@
 //   - ordens.js (SisbOrdens)
 //   - detalhes.js (SisbDetalhes)
 //   - minuta.js (SisbMinuta)
+//   - extrair.js (SisbExtrair — botão "Extrair dados" em /ordem-judicial/*/desdobrar)
 // ═══════════════════════════════════════════════════════════════════
 
 (function() {
@@ -46,6 +47,11 @@
         if (isDesdobrar) {
             var elResidual = document.getElementById('pjetools-sisb-desdobrar-container');
             if (elResidual) elResidual.remove();
+        }
+
+        // 2b. Ordem judicial /desdobrar — botão "Extrair dados" (centro inferior)
+        if (window.SisbExtrair && typeof window.SisbExtrair.injetarBotao === 'function') {
+            window.SisbExtrair.injetarBotao();
         }
 
         // 3. Tela de Ordens (Transferir / Desbloquear / Reiteração)

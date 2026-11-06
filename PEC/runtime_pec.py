@@ -276,8 +276,9 @@ def tarefa_ja_executada_pec(atv: Any, progresso: Optional[Dict[str, Any]] = None
 
     chave = obter_chave_tarefa_pec(atv)
     tarefas_executadas = progresso.get("tarefas_executadas", [])
-    if chave in tarefas_executadas:
-        return True
+    # NÃO atalhar por chave exata aqui: o laço canônico abaixo já cobre esse caso e é o
+    # único que aplica o guard de data. Um `if chave in tarefas_executadas: return True`
+    # pulava a tarefa mesmo executada ONTEM (mesmo id_atividade, mesma observação).
 
     chave_canon = _canonica(chave)
     hoje = datetime.now().strftime('%Y-%m-%d')
@@ -575,7 +576,7 @@ def formatar_dados_ecarta(dados_mais_recentes, intimacoes_info, log=True):
             re.search(r'devolvid[oa]', item.get('STATUS', ''), re.IGNORECASE) or item.get('FALSO_POSITIVO')
             for item in dados_mais_recentes
         )
-        if tem_devolvido:
+        if tem_devolvido and not datas_entrega_validas:
             prazo_texto = ""
         else:
             tem_alguma_desconsideracao = any(info.get('tem_desconsideracao') for info in intimacoes_info)

@@ -2,6 +2,7 @@
 """Testes unitários para o controle de progresso por tarefa no fluxo PEC."""
 
 import unittest
+from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 
 from PEC.runtime_pec import (
@@ -84,6 +85,39 @@ class TestPECProgressoTarefas(unittest.TestCase):
         # Agora ambas constam como executadas
         self.assertTrue(tarefa_ja_executada_pec(self.atv_sob, progresso))
         self.assertTrue(tarefa_ja_executada_pec(self.atv_exeq, progresso))
+
+    def test_tarefa_executada_ontem_nao_e_pulada_hoje(self):
+        """Entrada de ONTEM (mesmo id_atividade e observação) não pode bloquear a execução de hoje.
+
+        Regressão: um atalho `if chave in tarefas_executadas: return True` antes do guard de
+        data pulava a tarefa mesmo com data de execução de ontem.
+        """
+        atv = AtividadePEC(
+            numero_processo="1001439-72.2023.5.02.0703",
+            observacao="SILAS - Teimosinha",
+            status="PENDENTE",
+            data_prazo="2026-11-05",
+            tipo_gigs="Intimação",
+            id_processo=25246033,
+            id_atividade=25246033,
+        )
+        chave = obter_chave_tarefa_pec(atv)
+        ontem = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        hoje = datetime.now().strftime('%Y-%m-%d')
+
+        progresso = {
+            "processos_executados": [],
+            "processos_com_erro": [],
+            "tarefas_executadas": [chave],
+            "tarefas_com_erro": [],
+            "datas_execucao": {chave: ontem},
+        }
+        # Executada ontem -> deve rodar de novo hoje
+        self.assertFalse(tarefa_ja_executada_pec(atv, progresso))
+
+        # Executada hoje -> não repete
+        progresso["datas_execucao"][chave] = hoje
+        self.assertTrue(tarefa_ja_executada_pec(atv, progresso))
 
     def test_marcar_tarefa_com_erro(self):
         """Tarefa com erro deve ser registrada em tarefas_com_erro e não bloquear execução futura."""

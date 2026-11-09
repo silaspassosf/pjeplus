@@ -66,9 +66,14 @@ def obter_credencial(
 
     return None
 
-def login_manual(driver, aguardar_url_painel=True):
-    """Login manual: navega para login e aguarda usuário fazer login"""
-    if verificar_e_aplicar_cookies(driver):
+def login_manual(driver, aguardar_url_painel=True, usar_credenciais=True):
+    """Login manual: navega para login e aguarda usuário fazer login.
+
+    usar_credenciais=False (VT visível): nao le chaves do sistema (keyring) em
+    nenhuma hipotese — se os cookies nao servirem, abre a tela de login e
+    espera o usuario digitar.
+    """
+    if verificar_e_aplicar_cookies(driver, usar_credenciais=usar_credenciais):
         if SALVAR_COOKIES_AUTOMATICO:
             salvar_cookies_sessao(driver, info_extra='cookies_reutilizados')
         return True
@@ -610,10 +615,14 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
         logger.error("ERRO em carregar_cookies_sessao: %s: %s", type(e).__name__, e)
         return False
 
-def verificar_e_aplicar_cookies(driver):
+def verificar_e_aplicar_cookies(driver, usar_credenciais=True):
     """
     Função integrada que verifica e aplica cookies automaticamente.
     Retorna True se login via cookies foi bem-sucedido.
+
+    usar_credenciais=False: em caso de acesso-negado NAO tenta login forcado
+    com chaves do sistema (keyring) — devolve False e quem chamou cai no login
+    manual (usado no VT visivel).
     """
     if not USAR_COOKIES_AUTOMATICO:
         return False
@@ -624,6 +633,12 @@ def verificar_e_aplicar_cookies(driver):
     if sucesso:
         try:
             current_url = driver.current_url
+            if 'acesso-negado' in current_url and not usar_credenciais:
+                logger.warning(
+                    '[COOKIES] Acesso negado apos cookies — sem chaves do sistema '
+                    '(modo manual): abrindo tela de login para autenticacao manual.'
+                )
+                return False
             if 'acesso-negado' in current_url:
                 logger.warning('[COOKIES] Acesso negado detectado apos aplicar cookies - forcando login CPF...')
 

@@ -106,6 +106,33 @@ def fluxo_cls(
         else:
             ja_em_conclusao = False
 
+        # ===== Tarefa "Elaborar ..." encerra o processo, em QUALQUER estado de entrada =====
+        # Na via API (atos.movimentos_fluxo.abrir_tarefa_por_api) o driver já chega
+        # em /tarefa/<id>, então estado_atual != 'detalhe' e o guard que vivia
+        # dentro do bloco /detalhe nunca rodava: o fluxo seguia para a Conclusão
+        # ao magistrado numa tarefa de elaboração e morria nos 15s, deixando o
+        # processo sem executar. Aqui o processo é encerrado como estado final
+        # (mesmo retorno do caso /detalhe), e o gateway marca "executado" e
+        # segue para o próximo.
+        if not ja_em_conclusao:
+            nome_cls = (getattr(driver, 'pje_tarefa_atual', '') or '').strip()
+            if not nome_cls:
+                try:
+                    h1 = espera.elementos(
+                        driver,
+                        "pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1",
+                        teto=2,
+                    )
+                    if h1:
+                        nome_cls = (getattr(h1[0], 'text', '') or '').strip()
+                except Exception:
+                    pass
+            if getattr(driver, 'pje_tarefa_pronta', None) == 'elaborar' or 'elaborar' in nome_cls.lower():
+                logger.info('[CLS] Tarefa de elaboração — processo encerrado, seguindo para o próximo')
+                timing_total = time.time() - timing_inicio
+                logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (tarefa de elaboração)')
+                return True, True
+
         # ===== PASSO 1: ABRIR TAREFA DO PROCESSO (apenas se estivermos em /detalhe) =====
         ja_em_minutar = False
         if not ja_em_conclusao:
@@ -430,6 +457,46 @@ def ato_judicial(
             # Monitoramento ativo do salvamento (gigs-plugin clicarBotao com monitorar=true):
             # 1. Aguarda barra/spinner de progresso de gravação sumir
             espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=15)
+
+            # 1.5 GARANTIR A ABA "INTIMAÇÕES" ATIVA (mudança de DOM no PJe).
+            # Antes o PJe movimentava sozinho para a aba de intimações após o
+            # Salvar; quando isso deixou de acontecer, o painel de
+            # destinatários/prazo nunca renderizava e o salvamento era dado
+            # como não confirmado. Mesma lógica da guia Movimentos em
+            # Fix/facade_publica.executar_movimento_judicial (padrão aaDespacho
+            # do gigs-plugin): acha a guia pelo TEXTO entre os role="tab"
+            # (DOM atual: div.mat-tab-label "Intimações") e usa
+            # pje-editor-lateral div[aria-posinset="1"] como reserva.
+            js_aba_intimacoes = """async () => {
+                const sleep = ms => new Promise(r => setTimeout(r, ms));
+                const texto = el => (el.textContent || '').toLowerCase();
+                let guia = Array.from(document.querySelectorAll('div[role="tab"], .mat-tab-label'))
+                    .find(t => texto(t).indexOf('intima') !== -1);
+                if (!guia) guia = document.querySelector('pje-editor-lateral div[aria-posinset="1"]');
+                if (!guia) return { ok: false, motivo: 'aba de intimações não encontrada' };
+                if (guia.getAttribute('aria-selected') === 'true') {
+                    return { ok: true, ja_ativa: true, texto: (guia.textContent || '').trim() };
+                }
+                guia.click();
+                await sleep(600);
+                return {
+                    ok: guia.getAttribute('aria-selected') !== 'false',
+                    ja_ativa: false,
+                    texto: (guia.textContent || '').trim(),
+                };
+            }"""
+            try:
+                aba_int = None
+                if hasattr(driver, 'page'):
+                    aba_int = driver.page.evaluate(js_aba_intimacoes)
+                if aba_int and aba_int.get('ja_ativa'):
+                    logger.info(f'[ATO][ABA] Aba "{aba_int.get("texto") or "Intimações"}" já estava ativa')
+                elif aba_int and aba_int.get('ok'):
+                    logger.info(f'[ATO][ABA] Aba "{aba_int.get("texto") or "Intimações"}" ativada manualmente (sem movimentação automática)')
+                elif aba_int:
+                    logger.warning(f'[ATO][ABA] Aba Intimações não ativada: {aba_int.get("motivo")}')
+            except Exception as e:
+                logger.debug(f'[ATO][ABA] Erro ao ativar aba Intimações: {e}')
 
             # 2. Confirmação POSITIVA de minuta salva. O retorno é OBRIGATÓRIO:
             #    "spinner sumiu" não é prova (pode nunca ter aparecido). Só aceitamos

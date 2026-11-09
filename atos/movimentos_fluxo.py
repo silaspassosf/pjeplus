@@ -591,6 +591,14 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
 
         # Etapa 4: Navegar direto para a tarefa (padrão gigs-plugin apis.abrirTarefa.abrir(..., 'self'))
         url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
+        # Limpa o nome/estado da tarefa anterior: sem isso o roteamento em
+        # navegar_para_conclusao decide pelo nome do processo ANTERIOR (nome
+        # sujo), já que driver.pje_tarefa_atual persiste no driver.
+        try:
+            driver.pje_tarefa_atual = ''
+            driver.pje_tarefa_pronta = None
+        except Exception:
+            pass
         try:
             driver.get(url_tarefa)
         except Exception as e:

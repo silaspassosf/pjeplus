@@ -204,7 +204,16 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
             logger.error("ERRO em criar_e_logar_driver: falha ao criar driver")
             return None
 
-        if not login_cpf(driver):
+        # VT visivel = login MANUAL: o usuario digita no browser aberto. Nao le
+        # credenciais do sistema (keyring/Gerenciador do Windows). PC visivel
+        # continua no login_cpf.
+        if vt_mode:
+            logger.info("[LOGIN] VT visivel: login manual (sem credenciais do sistema)")
+            if not login_manual(driver, usar_credenciais=False):
+                logger.error("ERRO em criar_e_logar_driver: login manual nao concluido")
+                finalizar_driver_fix(driver)
+                return None
+        elif not login_cpf(driver):
             logger.error("ERRO em criar_e_logar_driver: login nao concluido")
             if not _aguardar_login_manual(driver):
                 finalizar_driver_fix(driver)
@@ -1080,7 +1089,11 @@ def _executar_um_fluxo(driver, fluxo: str, driver_type) -> dict:
                     driver.delete_all_cookies()
                 except Exception:
                     pass
-                ok = login_cpf(driver, forcar=True) and _aguardar_sessao_ativa(driver)
+                if driver_type == DriverType.VT_VISIBLE:
+                    # VT visivel: relogin manual, sem chaves do sistema
+                    ok = login_manual(driver, usar_credenciais=False) and _aguardar_sessao_ativa(driver)
+                else:
+                    ok = login_cpf(driver, forcar=True) and _aguardar_sessao_ativa(driver)
                 if not ok:
                     logger.warning(
                         "[LOGIN] Conclua o login manualmente na janela "

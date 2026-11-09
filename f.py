@@ -1,7 +1,7 @@
 # f.py -- Harness de teste isolado: Multi-testes
 # Uso: py f.py [teste] [id_processo]
 #   testes disponiveis:
-#     argos, sisb, pec, pesquisa, ordem, pecord, pecidpj, mddid, anex, triagem,
+#     argos, sisb, sisb_conf, pec, pesquisa, ordem, pecord, pecidpj, mddid, anex, triagem,
 #     probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, carta_completa, aud, todos
 #   Exemplos:
 #     py f.py argos            → teste Argos no processo padrão (7508281)
@@ -663,6 +663,149 @@ def teste_sisbajud_ordem(id_processo=None):
         LOGGER.exception('[ORDEM_TEST] Erro nao tratado')
     finally:
         LOGGER.info('[ORDEM_TEST] encerrando drivers')
+        for d in (driver_sisb, driver):
+            if d is not None:
+                try:
+                    finalizar_driver(d)
+                except Exception:
+                    pass
+
+
+# ============================================================
+# TESTE 5b: SISBAJUD — sisb_conf (conferência das séries pelo módulo novo)
+# ============================================================
+
+def _chave_serie(serie):
+    """Identidade + valores de uma série, para comparar extração real x nova."""
+    valor = round(float(serie.get('valor_bloqueado') or 0), 2)
+    data = serie.get('data_conclusao')
+    data = data.strftime('%Y-%m-%d') if hasattr(data, 'strftime') else str(data or '')
+    return (str(serie.get('id_serie') or ''), valor, data)
+
+
+def teste_sisbajud_conferencia(id_processo=None):
+    """
+    Executa o fluxo do 'xs resultado' ATÉ O RESULTADO da conferência de séries.
+
+    SÓ NESTE TESTE (e só aqui) a conferência real é trocada pela implementação DOM de
+    `SISB/conferencia_teimosinha.py`, que ocupa o lugar de:
+        - `helpers._filtrar_series(driver, data_limite)`  (leitura/filtro das séries)
+        - bloco "4. Determinar tipo de fluxo" do `SISB/core.py`  (NEGATIVO/DESBLOQUEIO/POSITIVO)
+        - `_calcular_estrategia_bloqueio`  (TRANSFERIR_TUDO / TRANSFERIR_PARCIAL)
+
+    O código real (core.py, series_filtro.py, series_estrategia.py) NÃO é alterado.
+
+    Depois da conferência, roda a `_filtrar_series` REAL na mesma página (a tabela ainda
+    está carregada) e compara série a série — é a prova de que a extração do módulo novo
+    devolve o mesmo conteúdo do código real.
+
+    Sem interface após o resultado: só a definição de fluxo no log.
+    """
+    from datetime import datetime, timedelta
+
+    from SISB import helpers
+    from SISB.conferencia_teimosinha import conferir_fluxo, resumo
+
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_SISB, id_processo)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[SISB_CONF] Conferência de séries (módulo novo) — fluxo até o resultado')
+    LOGGER.info('[SISB_CONF] Processo: %s', url)
+    LOGGER.info('=' * 60)
+
+    driver = None
+    driver_sisb = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[SISB_CONF] Falha ao criar driver PJE')
+            return
+
+        with etapa('login'):
+            if not _logar_como_pw_visivel(driver):
+                LOGGER.error('[SISB_CONF] Falha no login')
+                return
+
+        with etapa('navegar_processo'):
+            LOGGER.info('[SISB_CONF] Navegando para %s', url)
+            _navegar(driver, url)
+
+        with etapa('extrair_dados'):
+            from Fix.extracao import extrair_dados_processo
+            dados_processo = extrair_dados_processo(driver)
+            LOGGER.info('[SISB_CONF] Dados extraidos: %s', bool(dados_processo))
+
+        numero_processo = (dados_processo or {}).get('numero_processo') \
+            or (dados_processo or {}).get('numero')
+        if isinstance(numero_processo, list):
+            numero_processo = numero_processo[0] if numero_processo else None
+        if not numero_processo:
+            LOGGER.error('[SISB_CONF] Numero do processo nao encontrado nos dados extraidos')
+            return
+        LOGGER.info('[SISB_CONF] Numero do processo: %s', numero_processo)
+
+        with etapa('iniciar_sisbajud'):
+            from SISB.core import iniciar_sisbajud
+            driver_sisb = iniciar_sisbajud(driver_pje=driver, extrair_dados=False)
+            if not driver_sisb:
+                LOGGER.error('[SISB_CONF] Falha ao iniciar SISBAJUD')
+                return
+
+        data_limite = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) \
+            - timedelta(days=30)
+        LOGGER.info('[SISB_CONF] Data limite para filtro: %s (30 dias)',
+                    data_limite.strftime('%d/%m/%Y'))
+
+        # ── conferência pelo módulo novo: entra no lugar de _filtrar_series + tipo_fluxo ──
+        with etapa('conferir_fluxo'):
+            fluxo = conferir_fluxo(driver_sisb, numero_processo,
+                                   dados_processo=dados_processo,
+                                   data_limite=data_limite, log=True)
+
+        LOGGER.info('-' * 60)
+        LOGGER.info('[SISB_CONF] RESULTADO DA CONFERENCIA')
+        LOGGER.info('[SISB_CONF] Tipo de fluxo: %s', fluxo['tipo_fluxo'])
+        LOGGER.info('[SISB_CONF] Series na tabela: %d | validas: %d',
+                    len(fluxo['series']), len(fluxo['series_validas']))
+        LOGGER.info('[SISB_CONF] Valor bloqueado: R$ %.2f | a bloquear: R$ %.2f',
+                    fluxo['total_bloqueado'], fluxo['total_bloquear'])
+        estrategia = (fluxo.get('estrategia') or {}).get('tipo')
+        LOGGER.info('[SISB_CONF] Estrategia: %s', estrategia or '(nao se aplica)')
+        if fluxo.get('series_ordenadas'):
+            LOGGER.info('[SISB_CONF] Series ordenadas (parcial): %s',
+                        [s['id_serie'] for s in fluxo['series_ordenadas']])
+        LOGGER.info('[SISB_CONF] Resumo: %s', resumo(fluxo))
+        LOGGER.info('-' * 60)
+
+        # ── paridade de extração: roda a _filtrar_series REAL na mesma página ──
+        with etapa('paridade_extracao'):
+            reais = helpers._filtrar_series(driver_sisb, data_limite) or []
+            novas = fluxo['series_validas']
+            chaves_reais = [_chave_serie(s) for s in reais]
+            chaves_novas = [_chave_serie(s) for s in novas]
+
+            LOGGER.info('[SISB_CONF] _filtrar_series real: %d serie(s) | modulo novo: %d',
+                        len(reais), len(novas))
+
+            if chaves_reais == chaves_novas:
+                LOGGER.info('[SISB_CONF] PARIDADE OK — extracao identica a do codigo real')
+            else:
+                LOGGER.error('[SISB_CONF] PARIDADE DIVERGENTE')
+                for indice in range(max(len(chaves_reais), len(chaves_novas))):
+                    chave_real = chaves_reais[indice] if indice < len(chaves_reais) else None
+                    chave_nova = chaves_novas[indice] if indice < len(chaves_novas) else None
+                    if chave_real != chave_nova:
+                        LOGGER.error('[SISB_CONF]   serie %d: real=%s | novo=%s',
+                                     indice, chave_real, chave_nova)
+
+        LOGGER.info('[SISB_CONF] concluido')
+
+    except Exception:
+        LOGGER.exception('[SISB_CONF] Erro nao tratado')
+    finally:
+        LOGGER.info('[SISB_CONF] encerrando drivers')
         for d in (driver_sisb, driver):
             if d is not None:
                 try:
@@ -2570,6 +2713,8 @@ if __name__ == '__main__':
         teste_pec_sigilo(id_p)
     elif teste in ('pesquisa', 'ato_pesquisas', '4'):
         teste_ato_pesquisas(id_p)
+    elif teste in ('sisb_conf', 'conferencia', 'conf', '5b'):
+        teste_sisbajud_conferencia(id_p)
     elif teste in ('ordem', 'resultado', '5'):
         teste_sisbajud_ordem(id_p)
     elif teste in ('pecord', '6'):

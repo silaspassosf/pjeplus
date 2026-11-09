@@ -104,7 +104,10 @@ from Fix.driver_factory import (  # noqa: E402, F401
 
 if not os.path.exists(GECKODRIVER_PATH):
     import sys
-    if getattr(webdriver, '__version__', None) != 'pjeplay' and 'pjeplay' not in sys.modules:
+    # sob o shim pjeplay (`Play.pjeplay.compat.instalar()`) `webdriver` existe em
+    # sys.modules; sem ele o nome não está definido e o import quebrava tudo.
+    _webdriver = sys.modules.get('webdriver')
+    if getattr(_webdriver, '__version__', None) != 'pjeplay' and 'pjeplay' not in sys.modules:
         logger.warning(f'AVISO: Geckodriver não encontrado em {GECKODRIVER_PATH}')
 else:
     logger.info(f'Geckodriver encontrado: {GECKODRIVER_PATH}')

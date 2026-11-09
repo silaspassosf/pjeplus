@@ -7,6 +7,7 @@ import re
 from datetime import datetime, timedelta
 
 from .judicial_fluxo import ato_judicial
+from .judicial_utils import verificar_bloqueio_recente
 from .wrappers_ato import ato_bloq, ato_meios
 
 

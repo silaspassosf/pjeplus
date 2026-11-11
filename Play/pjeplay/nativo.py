@@ -97,7 +97,11 @@ def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR
     alvo = traduzir_seletor(by, seletor)
     try:
         if texto:
-            loc = ctx.locator(alvo).filter(has_text=texto).first
+            # `has_text` cru é case-insensitive mas não ignora acento nem o
+            # espaçamento do DOM. `padrao_texto` (Fix.utils) é a normalização
+            # canônica do projeto aplicada aos dois lados de uma vez.
+            from Fix.utils import padrao_texto
+            loc = ctx.locator(alvo).filter(has_text=padrao_texto(texto) or texto).first
             loc.wait_for(state="attached", timeout=_ms(timeout))
             return PWElement(loc.element_handle(), driver.page)
         handle = ctx.wait_for_selector(alvo, state="attached", timeout=_ms(timeout))

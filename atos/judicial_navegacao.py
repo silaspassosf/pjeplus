@@ -15,6 +15,7 @@ from Fix.core import (
     safe_click,
     wait_for_page_load,
     aguardar_renderizacao_nativa,
+    esperar_elemento,
     preencher_campo,
 )
 from Fix.log import logger
@@ -176,11 +177,11 @@ def navegar_para_conclusao(driver: Any) -> bool:
     Estratégia:
     1. Se já está em Conclusão/minutar, nada a fazer.
     2. Se a tarefa já é a própria Conclusão ao Magistrado, nada a fazer.
-    3. Aguarda o BOTÃO REAL aparecer (seletor por aria-label, teto 15s --
-       mesmo padrão de esperarColecao('pje-botoes-transicao button', 15) do
-       gigs-plugin). Esta é a estabilização: esperar pelo esqueleto da aba
-       (pje-cabecalho-tarefa / pje-botoes-transicao button) não garante nada,
-       porque ambos já existem antes de a tarefa montar.
+    3. Aguarda o BOTÃO REAL aparecer e clica. A busca é por texto DENTRO do
+       container da barra de transição: `nav.container-botoes button` com
+       `texto='Conclusão ao magistrado'` (o texto fica em
+       `div.texto-botao-app` e o botão NÃO tem aria-label). Reservas curtas:
+       aria-label (2s) e `button` amplo (2s).
     4. Clica no botão.
     5. Confirma a chegada pelos botões de conclusão. Só retorna True se eles
        existirem de fato -- retorno otimista escondia a falha e fazia o erro
@@ -222,14 +223,11 @@ def navegar_para_conclusao(driver: Any) -> bool:
         # esqueleto. As esperas anteriores observavam `pje-cabecalho-tarefa` e
         # `pje-botoes-transicao button`, ambos presentes JÁ no esqueleto, então
         # retornavam na hora e a busca saía antes de o botão existir.
-        # Aqui esperamos o botão real pelo aria-label, como faz o gigs-plugin
+        # Aqui esperamos a barra de transição montar, como faz o gigs-plugin
         # (esperarColecao('pje-botoes-transicao button', 15)).
-        aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=15)
-
-        SELETOR_CONCLUSAO = (
-            "button[aria-label*='Conclusão ao magistrado' i], "
-            "pje-botoes-transicao button[aria-label*='Conclusão ao magistrado' i]"
-        )
+        aguardar_renderizacao_nativa(
+            driver, 'nav.container-botoes button, pje-botoes-transicao button',
+            modo='aparecer', timeout=15)
 
         # ===== ROTEAMENTO PELO ESTADO DA TAREFA =====
         # Em "Aguardando prazo" a Conclusão ao Magistrado SEMPRE existe: é regra
@@ -240,45 +238,72 @@ def navegar_para_conclusao(driver: Any) -> bool:
         # vez de recriá-lo aqui.
         tarefa_direta = 'aguardando prazo' in tarefa_norm
 
-        if tarefa_direta:
-            logger.info('[NAVEGAÇÃO] Tarefa "Aguardando prazo": conclusão direta ao magistrado')
-            btn_conclusao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=15)
-            if not btn_conclusao:
-                logger.error(
-                    '[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não apareceu em 15s '
-                    '(tarefa "%s", URL=%s) -- a página da tarefa não carregou',
-                    nome_tarefa, getattr(driver, 'current_url', ''))
-                return False
-        else:
-            # Tenta o botão DIRETO na tela atual antes de rotear por Análise.
-            # Em tarefas como "Triagem Inicial" a Conclusão ao Magistrado já está
-            # disponível: rotear cegamente custava ~12s (movimentar_analise +
-            # espera de transição) para depois encontrar o botão que já estava lá.
-            logger.info('[NAVEGAÇÃO] Tarefa "%s": procurando conclusão direta antes de rotear', nome_tarefa)
-            btn_conclusao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=6)
+        # ORDEM DE BUSCA — a PRIMEIRA tentativa tem de ser a que acerta.
+        # DOM real da barra de transição (colado pelo Silas):
+        #   <nav class="container-botoes ...">
+        #     <button mat-raised-button role="link" class="... botao-app ...">
+        #       <span class="mat-button-wrapper">
+        #         <i class="fas fa-clipboard-check icone-app"></i>
+        #         <div class="texto-botao-app"> Conclusão ao magistrado </div>
+        # O botão NÃO tem aria-label: o texto mora em `div.texto-botao-app`.
+        # Por isso buscar primeiro pelo aria-label custava 6s FIXOS em "Prazos
+        # Vencidos" — NAVEGAR_CONCLUSAO saía em ~7,1s todas as vezes (6s de
+        # espera inútil + 1s de limpeza de overlay). O aria-label fica só como
+        # reserva curta, para telas com marcação diferente.
+        SELETOR_CONCLUSAO = (
+            "button[aria-label*='Conclusão ao magistrado' i], "
+            "pje-botoes-transicao button[aria-label*='Conclusão ao magistrado' i]"
+        )
 
-            if not btn_conclusao:
-                logger.info('[NAVEGAÇÃO] Conclusão indisponível — roteando via máquina de estados (Análise)')
-                if not navegar_para_tarefa(driver, 'conclusão ao magistrado', debug=True, tarefa_atual_conhecida=nome_tarefa):
-                    # navegar_para_tarefa já moveu para Análise; aqui só falta clicar
-                    logger.info('[NAVEGAÇÃO] Roteamento não concluiu — tentando o botão na tela atual')
-                btn_conclusao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=15)
-            if not btn_conclusao:
-                logger.error(
-                    '[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não apareceu em 15s '
-                    '(tarefa "%s", URL=%s)',
-                    nome_tarefa, getattr(driver, 'current_url', ''))
-                return False
+        logger.info('[NAVEGAÇÃO] Tarefa "%s": procurando conclusão direta antes de rotear', nome_tarefa)
+        botao = esperar_elemento(
+            driver, 'nav.container-botoes button',
+            texto='Conclusão ao magistrado',
+            timeout=15 if tarefa_direta else 6)
+        if botao is None:
+            botao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=2)
+        if botao is None:
+            botao = esperar_elemento(
+                driver, 'button', texto='Conclusão ao magistrado', timeout=2)
+
+        if botao is None and not tarefa_direta:
+            # Tarefas que realmente exigem Análise antes da conclusão (ex.:
+            # Cumprimento de Providências). O roteamento é a máquina de estados
+            # do gigs-plugin, já pronta em navegar_para_tarefa.
+            logger.info('[NAVEGAÇÃO] Conclusão indisponível — roteando via máquina de estados (Análise)')
+            if not navegar_para_tarefa(driver, 'conclusão ao magistrado', debug=True, tarefa_atual_conhecida=nome_tarefa):
+                logger.info('[NAVEGAÇÃO] Roteamento não concluiu — tentando o botão na tela atual')
+            botao = esperar_elemento(
+                driver, 'nav.container-botoes button',
+                texto='Conclusão ao magistrado', timeout=15)
+            if botao is None:
+                botao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=2)
+            if botao is None:
+                botao = esperar_elemento(
+                    driver, 'button', texto='Conclusão ao magistrado', timeout=2)
+
+        if botao is None:
+            _dump_botoes_conclusao(
+                driver,
+                'nav.container-botoes button, pje-botoes-transicao button, '
+                'button[aria-label]')
+            logger.error(
+                '[NAVEGAÇÃO] Botão "Conclusão ao magistrado" não apareceu '
+                '(tarefa "%s", URL=%s)',
+                nome_tarefa, getattr(driver, 'current_url', ''))
+            return False
 
         logger.info('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" presente no DOM')
 
-        # Qualquer overlay pendente sobre os botões de transição impediria o clique
+        # Overlay pendente sobre a barra de transição engole o clique.
+        # Só ANTES do clique: depois dele o Escape no meio da montagem do
+        # Angular é justamente o que causava o "refresh" visível.
         limpar_overlays(driver)
 
-        logger.info('[NAVEGAÇÃO] Clicando em "Conclusão ao magistrado"...')
-        if not safe_click_no_scroll(driver, btn_conclusao):
+        if not safe_click_no_scroll(driver, botao):
             logger.error('[NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado"')
             return False
+
         logger.info('[NAVEGAÇÃO] ✅ Clique em "Conclusão ao magistrado" realizado')
 
         # NÃO chamar limpar_overlays() aqui. Logo após o clique a tela de
@@ -368,6 +393,40 @@ def preparar_campo_minutar(driver: Any) -> bool:
         return False
 
 
+def _dump_botoes_conclusao(driver: Any, seletor: str = (
+        'pje-concluso-tarefa-botao button, '
+        'pje-conclusao-dependencia button, '
+        'button.mat-raised-button')) -> None:
+    """Lista os botões da tela no log (só diagnóstico).
+
+    Sem isso, "não encontrou o botão" não diz se o texto mudou, se a tela era
+    outra ou se havia overlay. `seletor` permite reaproveitar o dump na barra de
+    transição (`pje-botoes-transicao button`) quando a falha é anterior.
+    """
+    try:
+        if not hasattr(driver, 'page'):
+            return
+        dump = driver.page.evaluate("""(sel) => {
+            function norm(s) { return (s || '').replace(/\\s+/g, ' ').trim(); }
+            var out = [];
+            var els = document.querySelectorAll(sel);
+            for (var i = 0; i < els.length && out.length < 15; i++) {
+                var b = els[i];
+                out.push({
+                    txt: norm(b.textContent).slice(0, 40),
+                    aria: norm(b.getAttribute('aria-label')).slice(0, 40),
+                    vis: (b.offsetWidth > 0 && b.offsetHeight > 0),
+                    dis: !!b.disabled,
+                    host: b.closest('pje-concluso-tarefa-botao') ? 'concluso' : (b.closest('pje-conclusao-dependencia') ? 'dependencia' : 'outro')
+                });
+            }
+            return out;
+        }""", seletor)
+        logger.error('[CONCLUSÃO] Botões na tela no momento da falha: %s', dump)
+    except Exception as e:
+        logger.error('[CONCLUSÃO] Não foi possível listar os botões da tela: %s', e)
+
+
 def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
     """
     Escolhe o tipo de conclusão na tela de conclusão do processo.
@@ -379,52 +438,26 @@ def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
     try:
         logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
 
-        script_eval = """tipo_buscado => {
-            function normalizar(s) {
-                return (s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
-            }
+        # O botão do tipo de conclusão fica em `pje-concluso-tarefa-botao`.
+        # Escopar ali é o que evita a isca: `pje-conclusao-dependencia` (lista
+        # de dependências) também tem botões "Despacho" e vinha ANTES no DOM —
+        # era ela que fazia o clique "dar certo" e a tela ficar em /conclusao.
+        # `esperar_elemento(..., texto=...)` filtra pelo texto visível e no
+        # caminho nativo vira `locator(escopo).filter(has_text=texto)`.
+        botao = esperar_elemento(
+            driver, 'pje-concluso-tarefa-botao button',
+            texto=conclusao_tipo, timeout=15,
+        )
+        if botao is None:
+            # Fora do container canônico (variação de tela): busca ampla, curta.
+            botao = esperar_elemento(driver, 'button', texto=conclusao_tipo, timeout=2)
 
-            var tipo_norm = normalizar(tipo_buscado);
-            var candidatos = document.querySelectorAll('pje-concluso-tarefa-botao button, pje-conclusao-dependencia button, button.mat-raised-button');
-
-            for (var i = 0; i < candidatos.length; i++) {
-                var btn = candidatos[i];
-                var txt = normalizar(btn.textContent);
-                var aria = normalizar(btn.getAttribute('aria-label'));
-
-                if (txt.indexOf(tipo_norm) !== -1 || aria.indexOf(tipo_norm) !== -1) {
-                    if (aria.indexOf('remover') === -1 && aria.indexOf('fechar') === -1 && aria.indexOf('excluir') === -1) {
-                        if (!btn.disabled && btn.offsetWidth > 0 && btn.offsetHeight > 0) {
-                            btn.scrollIntoView({block: 'center', behavior: 'instant'});
-                            btn.click();
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }"""
-
-        clicou = False
-        limite = time.time() + 15
-        while time.time() < limite:
-            try:
-                if hasattr(driver, 'page'):
-                    if driver.page.evaluate(script_eval, conclusao_tipo):
-                        clicou = True
-                        break
-                elif hasattr(driver, '_js'):
-                    if driver._js(script_eval, conclusao_tipo):
-                        clicou = True
-                        break
-            except Exception:
-                pass
-            espera.assentar(driver, 0.5, motivo='esperando botão de conclusão renderizar')
-
-        if not clicou:
+        if botao is None:
             logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado após 15s de espera')
+            _dump_botoes_conclusao(driver)
             return False
 
+        safe_click_no_scroll(driver, botao)
         logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado com sucesso')
 
         # NÃO esperar `document.readyState === 'complete'` aqui. O clique dispara
@@ -489,6 +522,7 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
 
         if not transicionou:
             logger.error(f'[CONCLUSÃO] Falha na transição para minutar após {timeout}s: URL={getattr(driver, "current_url", "")}')
+            _dump_botoes_conclusao(driver)
             return False
 
         # Aguardar spinners de carregamento inicial assentarem

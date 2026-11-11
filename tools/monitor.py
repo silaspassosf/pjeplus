@@ -174,16 +174,18 @@ class MonitorSession:
 
     def __init__(
         self,
+        script_name: str,
+        slow_threshold: float = 1.0,
+        report_dir: Optional[str] = None,
         driver: Optional[Any] = None,  # ✨ NOVO: driver para debug
     ) -> None:
+        if report_dir is None:
+            report_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "monitor_reports")
         self.script_name = script_name
         self.report_dir = report_dir
         self.data = MonitorData(slow_threshold)
         self.slow_threshold = slow_threshold
         self._driver_ref = driver  # ✨ NOVO
-        self.report_dir = report_dir
-        self.data = MonitorData(slow_threshold)
-        self.slow_threshold = slow_threshold
 
         self._patched: List[tuple[Any, str, Callable[..., Any]]] = []
         self._logger_levels: List[tuple[logging.Logger, int]] = []
@@ -345,12 +347,11 @@ class MonitorSession:
                 result = func(*args, **kwargs)
                 success = True  # ✨ NOVO
                 return result
-            exce# ✨ NOVO: Passar driver para debug interativo
-                driver_ref = getattr(args[0] if args else None, '__class__', None)
-                driver_obj = args[0] if args and hasattr(args[0], 'find_element') else None
-                data.record_error(label, exc, driver=driver_obj
+            except Exception as exc:
                 success = False  # ✨ NOVO
-                data.record_error(label, exc)
+                # ✨ NOVO: Passar driver para debug interativo
+                driver_obj = args[0] if args and hasattr(args[0], 'find_element') else None
+                data.record_error(label, exc, driver=driver_obj)
                 raise
             finally:
                 duration = time.perf_counter() - start
@@ -398,70 +399,6 @@ class MonitorSession:
             except Exception:  # pragma: no cover
                 pass
         self._patched.clear()
-
-
-# -----------------------------------------------------------------------------
-# Fallback helper (template)
-# -----------------------------------------------------------------------------
-def tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=None):
-    """Template helper para o Smart Finder.
-
-    Recebe o `driver` e um contexto/valor original (normalmente o seletor
-    que falhou). Tenta uma lista curta de seletores heurísticos e retorna
-    uma tupla `(elemento, novo_seletor)` em caso de sucesso, ou `(None, None)`.
-
-    Esta função é intencionalmente simples — ela serve como ponto de extensão
-    para implementações mais avançadas (ML/heurísticas/varredura em arquivos
-    de histórico). A ideia é que a função busque elementos por texto visível
-    ou por variações XPath/CSS comuns.
-    """
-    from selenium.common.exceptions import NoSuchElementException
-    import logging
-
-    logger = logging.getLogger(__name__)
-    orig = contexto_ou_valor_antigo or ''
-    orig_text = str(orig).strip()
-
-    # Build candidate selectors (simple heuristics)
-    candidates = []
-    if orig_text:
-        candidates.append(orig_text)
-        # text-based xpath
-        safe = orig_text.replace('"', '\\"')
-        candidates.append(f"//*[contains(normalize-space(.), \"{safe}\")]")
-        candidates.append(f"//button[contains(normalize-space(.), \"{safe}\")]")
-        candidates.append(f"//a[contains(normalize-space(.), \"{safe}\")]")
-        candidates.append(f"//input[@placeholder=\"{safe}\"]")
-        candidates.append(f"//label[contains(normalize-space(.), \"{safe}\")]//following::input[1]")
-
-    # fallbacks: generic interactive elements
-    candidates.extend([
-        "button",
-        "input[type=submit]",
-        "a[role=button]",
-    ])
-
-    seen = set()
-    for s in candidates:
-        if not s:
-            continue
-        if s in seen:
-            continue
-        seen.add(s)
-        try:
-            if s.strip().startswith('//'):
-                el = driver.find_element('xpath', s)
-            else:
-                el = driver.find_element('css selector', s)
-            logger.info('monitor.tentar_encontrar_fallback: found with %s', s)
-            return el, s
-        except NoSuchElementException:
-            continue
-        except Exception:
-            continue
-
-    logger.info('monitor.tentar_encontrar_fallback: no candidate found for %s', orig_text)
-    return None, None
 
         for logger, level in self._logger_levels:
             logger.setLevel(level)
@@ -599,6 +536,68 @@ def tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=None):
 
         with open(history_path, "w", encoding="utf-8") as fp:
             json.dump(history[-120:], fp, ensure_ascii=False, indent=2)
+
+
+# -----------------------------------------------------------------------------
+# Fallback helper (template)
+# -----------------------------------------------------------------------------
+def tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=None):
+    """Template helper para o Smart Finder.
+
+    Recebe o `driver` e um contexto/valor original (normalmente o seletor
+    que falhou). Tenta uma lista curta de seletores heurísticos e retorna
+    uma tupla `(elemento, novo_seletor)` em caso de sucesso, ou `(None, None)`.
+
+    Esta função é intencionalmente simples — ela serve como ponto de extensão
+    ou por variações XPath/CSS comuns.
+    """
+    from selenium.common.exceptions import NoSuchElementException
+    import logging
+
+    logger = logging.getLogger(__name__)
+    orig = contexto_ou_valor_antigo or ''
+    orig_text = str(orig).strip()
+
+    # Build candidate selectors (simple heuristics)
+    candidates = []
+    if orig_text:
+        candidates.append(orig_text)
+        # text-based xpath
+        safe = orig_text.replace('"', '\\"')
+        candidates.append(f"//*[contains(normalize-space(.), \"{safe}\")]")
+        candidates.append(f"//button[contains(normalize-space(.), \"{safe}\")]")
+        candidates.append(f"//a[contains(normalize-space(.), \"{safe}\")]")
+        candidates.append(f"//input[@placeholder=\"{safe}\"]")
+        candidates.append(f"//label[contains(normalize-space(.), \"{safe}\")]//following::input[1]")
+
+    # fallbacks: generic interactive elements
+    candidates.extend([
+        "button",
+        "input[type=submit]",
+        "a[role=button]",
+    ])
+
+    seen = set()
+    for s in candidates:
+        if not s:
+            continue
+        if s in seen:
+            continue
+        seen.add(s)
+        try:
+            if s.strip().startswith('//'):
+                el = driver.find_element('xpath', s)
+            else:
+                el = driver.find_element('css selector', s)
+            logger.info('monitor.tentar_encontrar_fallback: found with %s', s)
+            return el, s
+        except NoSuchElementException:
+            continue
+        except Exception:
+            continue
+
+    logger.info('monitor.tentar_encontrar_fallback: no candidate found for %s', orig_text)
+    return None, None
 
 
 def run_with_monitor(

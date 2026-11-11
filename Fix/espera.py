@@ -101,11 +101,25 @@ def ate_desabilitar(driver, seletor, teto=2.0):
 
 
 def ate_texto(driver, seletor, texto, teto=2.0):
-    """Espera algum elemento de `seletor` conter `texto`."""
+    """Espera algum elemento de `seletor` conter `texto`.
+
+    Usa `padrao_texto` (Fix.utils) para casar sem depender de acento, caixa ou
+    espaçamento — o mesmo critério do caminho nativo.
+    """
+    from Fix.utils import padrao_texto  # import tardio: Fix.utils importa este módulo
+
+    padrao = padrao_texto(texto)
+    if padrao is None:
+        return ate_js(
+            driver,
+            "__pjeEls(%r).some(el => (el.textContent || '').includes(%r))"
+            % (seletor, texto),
+            teto=teto,
+        )
     return ate_js(
         driver,
-        "__pjeEls(%r).some(el => (el.textContent || '').includes(%r))"
-        % (seletor, texto),
+        "__pjeEls(%r).some(el => new RegExp(%r, 'i').test(el.textContent || ''))"
+        % (seletor, padrao.pattern),
         teto=teto,
     )
 

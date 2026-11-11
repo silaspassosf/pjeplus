@@ -4,6 +4,7 @@ Corpos idênticos aos originais (mesma ordem interna). O grafo entre módulos é
 acíclico: navegacao_espera <- navegacao <- entrada_campos; documentos_cp e
 filtros_painel são folhas. """
 
+import os
 import re
 import unicodedata
 
@@ -885,15 +886,14 @@ def baixarCP(driver, timeout=15, log=True, numero_processo=None):
 
     aguardar_renderizacao_nativa(driver, 'button[role="menuitem"]', modo='aparecer', timeout=timeout)
 
-    # 6. Selecionar "PDF único"
-    clicou_pdf = False
-    xpath_pdf_unico = "//button[@role='menuitem'][contains(., 'PDF') and (contains(., 'único') or contains(., 'unico'))]"
-    if click_headless_safe(driver, xpath_pdf_unico, by=By.XPATH, timeout=timeout):
-        clicou_pdf = True
-    elif clicar_botao_por_texto(driver, 'PDF único', timeout=timeout):
-        clicou_pdf = True
-    else:
-        clicou_pdf = bool(_executar_js(driver, """
+    # 6. Selecionar "PDF único" e capturar o download
+    def _clicar_pdf_unico() -> bool:
+        xpath_pdf_unico = "//button[@role='menuitem'][contains(., 'PDF') and (contains(., 'único') or contains(., 'unico'))]"
+        if click_headless_safe(driver, xpath_pdf_unico, by=By.XPATH, timeout=timeout):
+            return True
+        if clicar_botao_por_texto(driver, 'PDF único', timeout=timeout):
+            return True
+        return bool(_executar_js(driver, """
             const items = Array.from(document.querySelectorAll('button[role="menuitem"]'));
             const target = items.find(b => /pdf\\s*(único|unico)/i.test(b.innerText || ''));
             if (target) {
@@ -903,15 +903,54 @@ def baixarCP(driver, timeout=15, log=True, numero_processo=None):
             return false;
         """))
 
-    if not clicou_pdf:
-        raise ElementoNaoEncontradoError('[BAIXAR_CP] Opcao "PDF unico" nao encontrada no menu de download')
+    page = getattr(driver, 'page', None)
+    download = None
+    if page is not None:
+        try:
+            with page.expect_download(timeout=timeout * 1000) as dl_info:
+                if not _clicar_pdf_unico():
+                    raise ElementoNaoEncontradoError('[BAIXAR_CP] Opcao "PDF unico" nao encontrada no menu de download')
+            download = dl_info.value
+        except ElementoNaoEncontradoError:
+            raise
+        except Exception as e:
+            if log:
+                logger.warning('[BAIXAR_CP] download nao capturado pelo Playwright: %s', e)
+    else:
+        if not _clicar_pdf_unico():
+            raise ElementoNaoEncontradoError('[BAIXAR_CP] Opcao "PDF unico" nao encontrada no menu de download')
 
-    # 7. Aguardar diálogo de download aparecer e sumir
+    # 7. Salvar no Downloads do usuario com o nome que o PJe enviou (sem renomear
+    #    nem converter: o arquivo ja vem em PDF com o nome do Content-Disposition).
+    if download is not None:
+        from Play.pjeplay.launcher import DOWNLOADS
+        nome = download.suggested_filename
+        if not isinstance(nome, str) or not nome.strip():
+            nome = 'documento.pdf'
+        # basename: o nome vem do servidor; nunca deixar escapar da pasta Downloads
+        nome = os.path.basename(nome.replace('\\', '/'))
+        destino = os.path.join(DOWNLOADS, nome)
+        base, ext = os.path.splitext(destino)
+        n = 1
+        while os.path.exists(destino):
+            destino = f'{base} ({n}){ext}'
+            n += 1
+        try:
+            download.save_as(destino)
+        except Exception as e:
+            raise ElementoNaoEncontradoError(f'[BAIXAR_CP] Falha ao salvar o PDF em {destino}: {e}')
+        if log:
+            logger.info('[BAIXAR_CP] PDF salvo em %s', destino)
+    else:
+        if log:
+            logger.warning('[BAIXAR_CP] clique em "PDF unico" feito, mas nenhum download foi capturado')
+
+    # 8. Aguardar diálogo de download aparecer e sumir (quando existir)
     if aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='aparecer', timeout=5):
         aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='sumir', timeout=timeout)
 
     if log:
-        logger.info('[BAIXAR_CP] Download "PDF unico" iniciado com sucesso')
+        logger.info('[BAIXAR_CP] Download "PDF unico" concluido')
 
     return True
 

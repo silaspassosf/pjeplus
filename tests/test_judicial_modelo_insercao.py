@@ -29,6 +29,17 @@ OUTRA = 'div[class*="area-conteudo"] div[contenteditable="true"]'
 
 
 def _carregar_isolado():
+    # Os stubs abaixo substituem os pacotes REAIS Fix/atos em sys.modules.
+    # Sem restaurar, qualquer teste coletado depois deste passa a enxergar
+    # os stubs (ex.: "No module named 'Fix.seletores_catalogo'"). Guardamos
+    # o estado e devolvemos ao final.
+    nomes_stub = (
+        'Fix', 'Fix.espera', 'Fix.core',
+        'atos', 'atos.judicial_navegacao', 'atos.judicial_modelos',
+    )
+    _ausente = object()
+    backup = {k: sys.modules.get(k, _ausente) for k in nomes_stub}
+
     espera = types.ModuleType('Fix.espera')
     espera.ate_js = lambda *a, **k: False
     espera.assentar = lambda *a, **k: None
@@ -58,7 +69,14 @@ def _carregar_isolado():
     spec = importlib.util.spec_from_file_location('atos.judicial_modelos', caminho)
     modulo = importlib.util.module_from_spec(spec)
     sys.modules['atos.judicial_modelos'] = modulo
-    spec.loader.exec_module(modulo)
+    try:
+        spec.loader.exec_module(modulo)
+    finally:
+        for nome, anterior in backup.items():
+            if anterior is _ausente:
+                sys.modules.pop(nome, None)
+            else:
+                sys.modules[nome] = anterior
     return modulo
 
 

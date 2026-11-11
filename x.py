@@ -595,6 +595,19 @@ def executar_domicilio_eletronico(driver) -> Dict[str, Any]:
                           on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_dom_api retornou None"})
 
 
+def executar_chipadv(driver) -> ResultadoFluxo:
+    """Chip Advogado impedido de Atuar — adv.py (run_chipadv)."""
+    def _fluxo(d):
+        from adv import run_chipadv
+        resultado = run_chipadv(d)
+        if resultado is None:
+            return None
+        return resultado
+
+    return _executar_fluxo("Chip_Advogado", _fluxo, driver,
+                          on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_chipadv retornou None"})
+
+
 # ── Fluxo Citação ─────────────────────────────────────────────────────────────
 
 _PAUTA_ENDPOINT = "/audapi/rest/pje/audpje/pautas"
@@ -847,6 +860,7 @@ def menu_execucao() -> Optional[str]:
         print("G - Petição")
         print("H - Domicílio Eletrônico")
         print("I - Citação")
+        print("J - Chip Advogado impedido de Atuar (CHIPADV)")
         print("P - Petição DRY RUN (só lê o escaninho e mostra as regras)")
         print("X - Cancelar")
         try:
@@ -857,7 +871,7 @@ def menu_execucao() -> Optional[str]:
         if not opcao:
             continue  # Enter solto / resíduo de buffer: repete, não cancela
 
-        if opcao in ["A","B","C","D","E","F","G","H","I","P","X"]:
+        if opcao in ["A","B","C","D","E","F","G","H","I","J","P","X"]:
             return opcao if opcao != "X" else None
         # opção inválida: repete o menu
 
@@ -1017,6 +1031,7 @@ FLOW_HANDLERS = {
     "P": executar_pet_dry_run,
     "H": executar_domicilio_eletronico,
     "I": executar_citacao,
+    "J": executar_chipadv,
 }
 
 

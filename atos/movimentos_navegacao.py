@@ -49,15 +49,20 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
             return t.normalize('NFKD')
                 .replace(/[\\u0300-\\u036f]/g, '')
                 .toLowerCase()
-                .replace(/[\\r\\n\\t]+/g, ' ')
+                .replace(/\\s+/g, ' ')
                 .trim();
         }
         const alvo = norm(textoAlvo);
         if (!alvo) return false;
 
+        // Prioriza pje-botoes-transicao, mas NÃO se limita a ele. Antes, se o
+        // container existisse com outros botões, o botão de conclusão (que fica
+        // fora dele em algumas tarefas) nunca era visto e o timeout inteiro era
+        // queimado — quem acertava era o fallback Playwright, segundos depois.
         let botoes = Array.from(document.querySelectorAll('pje-botoes-transicao ' + tag));
-        if (botoes.length === 0) {
-            botoes = Array.from(document.querySelectorAll(tag + ', input[type="button"], input[type="submit"]'));
+        const vistos = new Set(botoes);
+        for (const b of document.querySelectorAll(tag + ', input[type="button"], input[type="submit"]')) {
+            if (!vistos.has(b)) { botoes.push(b); vistos.add(b); }
         }
 
         for (const b of botoes) {
@@ -76,12 +81,14 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
         return false;
     }
     """
+    # Prazo ÚNICO para as duas tentativas (JS e fallback Playwright). Antes cada
+    # uma tinha o seu `timeout`, então a espera real era o dobro do pedido.
+    limite = time.monotonic() + float(timeout)
     try:
         # Tenta o JS em loop até `timeout`: a tarefa abre numa aba nova e o
         # Angular monta os botões depois. Uma única tentativa saía antes de o
         # botão existir e o fluxo seguia como se ele não estivesse disponível.
         fn = getattr(driver, "execute_" + "script", None)
-        limite = time.monotonic() + float(timeout)
         while time.monotonic() < limite:
             try:
                 if fn is not None:
@@ -102,9 +109,8 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
         if debug:
             logger.debug(f'[MOV_CLIQUE] Falha na execução JS: {e}')
 
-    # Fallback seguro via elementos Playwright
+    # Fallback seguro via elementos Playwright — reaproveita o MESMO prazo
     texto_norm = _normalizar_texto(texto)
-    limite = time.monotonic() + float(timeout)
     while time.monotonic() < limite:
         try:
             for el in espera.elementos(driver, 'pje-botoes-transicao button, button, input[type="button"]', teto=0.5):

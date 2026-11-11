@@ -14,6 +14,7 @@ usa o Firefox proprio (`playwright install firefox`).
 """
 import logging
 import os
+import tempfile
 
 from playwright.sync_api import sync_playwright
 from .driver import PWDriver
@@ -23,7 +24,11 @@ logger = logging.getLogger("pjeplay")
 _pw_instancia = None  # singleton: sync_playwright nao e reentrante
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOWNLOADS = os.path.join(RAIZ, "downloads")
+# Destino final dos downloads: a pasta Downloads real do usuario, como o
+# navegador faria. O Playwright grava primeiro num temporario (DOWNLOADS_TEMP)
+# e o fluxo move para ca com o nome sugerido pelo PJe (Content-Disposition).
+DOWNLOADS = os.path.join(os.path.expanduser("~"), "Downloads")
+DOWNLOADS_TEMP = os.path.join(tempfile.gettempdir(), "pje-downloads")
 
 UA_PJE = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) "
           "Gecko/20100101 Firefox/91.0")
@@ -111,6 +116,7 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
     prefs.update(prefs_extra or {})
 
     os.makedirs(DOWNLOADS, exist_ok=True)
+    os.makedirs(DOWNLOADS_TEMP, exist_ok=True)
 
     # sync_playwright nao e reentrante: falha se chamado com outro driver
     # ativo (ex: PJe + SISB). Reusa a instancia existente.
@@ -128,7 +134,7 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
             context_kw = dict(
                 headless=headless,
                 firefox_user_prefs=prefs,
-                downloads_path=DOWNLOADS,
+                downloads_path=DOWNLOADS_TEMP,
                 accept_downloads=True,
                 user_agent=UA_PJE,
             )
@@ -145,7 +151,7 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
             browser = pw.firefox.launch(
                 headless=headless,
                 firefox_user_prefs=prefs,
-                downloads_path=DOWNLOADS,
+                downloads_path=DOWNLOADS_TEMP,
             )
             context_kw = dict(
                 user_agent=UA_PJE,

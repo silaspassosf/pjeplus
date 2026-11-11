@@ -120,7 +120,7 @@ class TestContarMandadosECertidoes:
         mock_driver = MagicMock()
         mock_driver.current_url = "https://pje.trt2.jus.br/pjekz/processo/8924893/detalhe"
 
-        with patch("Fix.core._obter_timeline_via_api", return_value=PROBE_TIMELINE_API):
+        with patch("Fix.documentos_cp._obter_timeline_via_api", return_value=PROBE_TIMELINE_API):
             qtd_mandados, qtd_certidoes = contar_mandados_e_certidoes_oficial(mock_driver, log=False)
 
         # Do probe: 2 Mandados (2d9dbaa, 0310153) e 2 Certidões OJ (107a23d, 4774fce)
@@ -142,7 +142,7 @@ class TestContarMandadosECertidoes:
         elem_cert1.text = "Certidão de Oficial de Justiça"
         elem_cert1.get_attribute.return_value = "Selecionar Certidão de Oficial de Justiça"
 
-        with patch("Fix.core._obter_timeline_via_api", return_value=None):
+        with patch("Fix.documentos_cp._obter_timeline_via_api", return_value=None):
             with patch("Fix.core._buscar_filho", return_value=None):
                 with patch("Fix.core.espera.elementos", return_value=[elem_cdist, elem_mand1, elem_cert1]):
                     qtd_mandados, qtd_certidoes = contar_mandados_e_certidoes_oficial(mock_driver, log=False)
@@ -210,11 +210,11 @@ class TestBaixarCP:
                 marcados_uids.append(elem)
             return True
 
-        with patch("Fix.core._obter_timeline_via_api", return_value=PROBE_TIMELINE_API):
+        with patch("Fix.documentos_cp._obter_timeline_via_api", return_value=PROBE_TIMELINE_API):
             with patch("Fix.browser_suporte.click_headless_safe", return_value=True):
-                with patch("Fix.core.aguardar_renderizacao_nativa", return_value=True):
+                with patch("Fix.documentos_cp.aguardar_renderizacao_nativa", return_value=True):
                     with patch("atos.movimentos_navegacao.clicar_botao_por_texto", return_value=True):
-                        with patch("Fix.core._cp_marcar_checkbox", side_effect=mock_marcar):
+                        with patch("Fix.documentos_cp._cp_marcar_checkbox", side_effect=mock_marcar):
                             sucesso = baixarCP(mock_driver, log=False, numero_processo="1001742-81.2026.5.02.0000")
 
         assert sucesso is True
@@ -227,3 +227,53 @@ class TestBaixarCP:
         assert "#doc_2d9dbaa" in marcados_uids  # Mandado
         assert "#doc_107a23d" in marcados_uids  # Certidão OJ
         assert len(marcados_uids) == 7
+
+    def test_baixar_cp_salva_no_downloads_do_usuario_com_nome_do_pje(self):
+        """O PDF unico deve ir para ~/Downloads com o nome sugerido (sem renomear)."""
+        import os
+        from Play.pjeplay.launcher import DOWNLOADS
+
+        class _FakeDownload:
+            suggested_filename = "documentos_carta_precatoria.pdf"
+
+            def __init__(self):
+                self.saved = None
+
+            def save_as(self, path):
+                self.saved = path
+
+        class _FakeExpect:
+            def __init__(self, download):
+                self._download = download
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            @property
+            def value(self):
+                return self._download
+
+        download = _FakeDownload()
+        mock_driver = MagicMock()
+        mock_driver.current_url = "https://pje.trt2.jus.br/pjekz/processo/8924893/detalhe"
+        mock_driver.page.expect_download.return_value = _FakeExpect(download)
+
+        destino_esperado = os.path.join(DOWNLOADS, download.suggested_filename)
+        if os.path.exists(destino_esperado):
+            os.remove(destino_esperado)
+
+        with patch("Fix.documentos_cp._obter_timeline_via_api", return_value=PROBE_TIMELINE_API):
+            with patch("Fix.browser_suporte.click_headless_safe", return_value=True):
+                with patch("Fix.documentos_cp.aguardar_renderizacao_nativa", return_value=True):
+                    with patch("atos.movimentos_navegacao.clicar_botao_por_texto", return_value=True):
+                        with patch("Fix.documentos_cp._cp_marcar_checkbox", return_value=True):
+                            sucesso = baixarCP(mock_driver, log=False, numero_processo="1001742-81.2026.5.02.0000")
+
+        assert sucesso is True
+        assert download.saved is not None
+        assert download.saved == destino_esperado
+        assert os.path.dirname(download.saved) == DOWNLOADS
+        assert download.saved.endswith(".pdf")

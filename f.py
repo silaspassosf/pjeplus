@@ -2698,6 +2698,174 @@ def teste_sisbajud_minuta_com_probe(id_processo=None):
 
 
 # ============================================================
+# TESTE — advogados do processo e "Situação do advogado na OAB"
+# ============================================================
+
+def teste_advogados_oab(id_processo=None):
+    """Despeja os advogados do processo e caça a API da situação na OAB.
+
+    Baseado no `Script/calc/BASE/hcalc-prep.js`: lê o idProcesso de
+    `/processo/(\\d+)`, faz fetch SAME-ORIGIN em
+    `/pje-comum-api/api/processos/id/{id}/partes` — o mesmo payload que o
+    hcalc e o módulo Triagem usam. A diferença é que aqui não se monta o
+    resumo: despeja-se o JSON CRU, porque o hcalc só aproveita
+    `nome`/`numeroOab`/`tipo` e o resto dos campos é justamente o que estamos
+    procurando.
+
+    O que sai no log:
+      1. todos os advogados (representantes), com TODOS os campos crus;
+      2. os campos de `/processos/id/{id}`;
+      3. o elemento do DOM com `aria-label="Situação do advogado na OAB: ..."`
+         e o HTML do pai — é o que aponta de onde o dado vem;
+      4. varredura de endpoints candidatos de OAB por `idPessoa` do advogado.
+
+    Também grava tudo em `logs_execucao/adv_<id>_<ts>.json`.
+    """
+    from Fix import espera
+
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_TRIAGEM, id_processo)
+
+    LOGGER.info('=' * 60)
+    LOGGER.info('[ADV_TEST] Processo: %s (id=%s)', url, pid)
+    LOGGER.info('=' * 60)
+
+    js = """async (idp) => {
+        const base = location.origin + '/pje-comum-api/api/processos/id/' + idp;
+        const get = async (u) => {
+            try {
+                const r = await fetch(u, {credentials: 'include',
+                                          headers: {'Accept': 'application/json'}});
+                const t = await r.text();
+                let b = t;
+                try { b = JSON.parse(t); } catch (_) {}
+                return {status: r.status, body: b};
+            } catch (e) { return {status: 0, erro: String(e)}; }
+        };
+
+        const out = {idp, base};
+        out.partes   = await get(base + '/partes');
+        out.processo = await get(base);
+
+        const advs = [];
+        const src = (out.partes.body && typeof out.partes.body === 'object') ? out.partes.body : {};
+        for (const polo of ['ATIVO', 'PASSIVO', 'TERCEIROS']) {
+            for (const p of (src[polo] || [])) {
+                for (const r of ((p && p.representantes) || [])) {
+                    advs.push(Object.assign({_polo: polo, _parte: p.nome}, r));
+                }
+            }
+        }
+        out.advogados = advs;
+
+        const span = document.querySelector('[aria-label^="Situa\\u00e7\\u00e3o do advogado"]')
+                  || document.querySelector('span[aria-label*="OAB"]');
+        out.dom_oab = span ? {
+            aria: span.getAttribute('aria-label'),
+            classes: span.className,
+            pai: (span.parentElement ? span.parentElement.outerHTML : '').slice(0, 700),
+        } : null;
+
+        const alvo = advs.find(a => a.idPessoa || a.id);
+        const pidAdv = alvo ? (alvo.idPessoa || alvo.id) : null;
+        out.alvo = alvo ? {nome: alvo.nome, oab: alvo.numeroOab, idPessoa: pidAdv} : null;
+
+        out.sondagem = [];
+        if (pidAdv) {
+            const cands = [
+                '/pje-comum-api/api/pessoas/' + pidAdv,
+                '/pje-comum-api/api/pessoas/' + pidAdv + '/oab',
+                '/pje-comum-api/api/pessoas/' + pidAdv + '/oabs',
+                '/pje-comum-api/api/advogados/' + pidAdv,
+                '/pje-comum-api/api/advogados/' + pidAdv + '/oab',
+                '/pje-comum-api/api/pessoa-fisica/' + pidAdv,
+                base + '/partes?retornaEndereco=true&retornaOab=true',
+                '/pje-oab-api/api/pessoa/' + pidAdv,
+                '/pje-oab-api/api/oab/pessoa/' + pidAdv,
+            ];
+            for (const c of cands) {
+                const r = await get(c);
+                out.sondagem.push({url: c, status: r.status,
+                                   amostra: JSON.stringify(r.body).slice(0, 500)});
+            }
+        }
+        return out;
+    }"""
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_vt(headless=False)
+        if not driver:
+            LOGGER.error('[ADV_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not _logar_como_pw_visivel(driver):
+                LOGGER.error('[ADV_TEST] Falha no login')
+                return
+
+        with etapa('detalhe'):
+            driver.get(url)
+            espera.ate_js(driver, "document.readyState === 'complete'", teto=20)
+
+        with etapa('coleta'):
+            dados = driver.page.evaluate(js, pid)
+            if not dados:
+                LOGGER.error('[ADV_TEST] page.evaluate devolveu vazio')
+                return
+
+            partes = dados.get('partes') or {}
+            LOGGER.info('[ADV_TEST] /partes -> HTTP %s', partes.get('status'))
+            proc = dados.get('processo') or {}
+            LOGGER.info('[ADV_TEST] /processos/id -> HTTP %s', proc.get('status'))
+
+            advs = dados.get('advogados') or []
+            LOGGER.info('[ADV_TEST] %d representante(s) encontrado(s)', len(advs))
+            for i, a in enumerate(advs, 1):
+                campos = sorted(k for k in a if not k.startswith('_'))
+                LOGGER.info('[ADV_TEST] %02d %s (polo=%s, parte=%s)', i,
+                            a.get('nome'), a.get('_polo'), a.get('_parte'))
+                LOGGER.info('[ADV_TEST]     campos: %s', campos)
+                for k in campos:
+                    v = a.get(k)
+                    if isinstance(v, (dict, list)):
+                        v = json.dumps(v, ensure_ascii=False)[:300]
+                    LOGGER.info('[ADV_TEST]     %s = %r', k, v)
+
+            dom = dados.get('dom_oab')
+            if dom:
+                LOGGER.info('[ADV_TEST] DOM "Situação do advogado": aria=%r classes=%r',
+                            dom.get('aria'), dom.get('classes'))
+                LOGGER.info('[ADV_TEST] contexto do span: %s', dom.get('pai'))
+            else:
+                LOGGER.warning('[ADV_TEST] nenhum span com aria-label de OAB na tela')
+
+            LOGGER.info('[ADV_TEST] alvo da sondagem: %r', dados.get('alvo'))
+            for s in (dados.get('sondagem') or []):
+                LOGGER.info('[ADV_TEST]   %s -> HTTP %s | %s',
+                            s.get('url'), s.get('status'), s.get('amostra'))
+
+            caminho = os.path.join(
+                AQUI, 'logs_execucao',
+                'adv_%s_%s.json' % (pid, time.strftime('%Y%m%d_%H%M%S')))
+            with open(caminho, 'w', encoding='utf-8') as f:
+                json.dump(dados, f, ensure_ascii=False, indent=2)
+            LOGGER.info('[ADV_TEST] JSON completo em: %s', caminho)
+            LOGGER.info('[ADV_TEST] campos do /processos/id: %s',
+                        sorted((proc.get('body') or {}).keys())
+                        if isinstance(proc.get('body'), dict) else type(proc.get('body')))
+
+    finally:
+        LOGGER.info('[ADV_TEST] encerrando driver')
+        if driver is not None:
+            try:
+                finalizar_driver(driver)
+            except Exception:
+                pass
+
+
+# ============================================================
 # MAIN — seleciona qual teste executar
 # ============================================================
 
@@ -2753,6 +2921,8 @@ if __name__ == '__main__':
         teste_marcar_aud(id_p, arg3, arg4)
     elif teste in ('dom_api', 'domapi', '11b'):
         _teste_dom_api_comentario_lembrete(id_p)
+    elif teste in ('adv', 'oab', 'advogados', '18'):
+        teste_advogados_oab(id_p)
     elif teste in ('todos', 'all'):
         print('=== Executando todos os testes ===')
         print('\n--- TESTE 1: ARGOS ---')

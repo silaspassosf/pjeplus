@@ -42,6 +42,38 @@ def normalizar_texto(txt: str) -> str:
     return remover_acentos(txt.lower())
 
 
+# Cada letra base -> as variantes acentuadas que o PJe pode renderizar.
+_VARIANTES_ACENTO = {
+    'a': 'aàáâãä', 'e': 'eèéêë', 'i': 'iìíîï', 'o': 'oòóôõö',
+    'u': 'uùúûü', 'c': 'cç', 'n': 'nñ', 'y': 'yýÿ',
+}
+
+
+def padrao_texto(texto: Optional[str]) -> Optional['re.Pattern']:
+    """Regex que casa `texto` ignorando acento, caixa e espaçamento.
+
+    `normalizar_texto` só normaliza o lado Python; o texto que vem do DOM está
+    como o PJe renderizou. Este padrão resolve os dois lados de uma vez: cada
+    letra vira uma classe com as variantes acentuadas e cada espaço vira `\\s+`,
+    então "Suspensao" casa "Suspensão" e "Conclusão ao\\nMagistrado" casa
+    "Conclusão ao Magistrado".
+
+    Devolve None quando `texto` não tem nenhuma palavra — aí o chamador usa a
+    comparação literal.
+    """
+    palavras = normalizar_texto(texto or '').split()
+    if not palavras:
+        return None
+    partes = [
+        ''.join(
+            '[%s]' % _VARIANTES_ACENTO[c] if c in _VARIANTES_ACENTO else re.escape(c)
+            for c in palavra
+        )
+        for palavra in palavras
+    ]
+    return re.compile(r'\s+'.join(partes), re.IGNORECASE)
+
+
 def sleep_fixed(segundos=1):
     """Compatibilidade para pausas fixas ainda usadas por wrappers legados."""
     espera.pausa(None, float(segundos))

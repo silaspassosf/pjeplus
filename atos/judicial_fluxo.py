@@ -462,41 +462,73 @@ def ato_judicial(
             # Antes o PJe movimentava sozinho para a aba de intimações após o
             # Salvar; quando isso deixou de acontecer, o painel de
             # destinatários/prazo nunca renderizava e o salvamento era dado
-            # como não confirmado. Mesma lógica da guia Movimentos em
-            # Fix/facade_publica.executar_movimento_judicial (padrão aaDespacho
-            # do gigs-plugin): acha a guia pelo TEXTO entre os role="tab"
-            # (DOM atual: div.mat-tab-label "Intimações") e usa
-            # pje-editor-lateral div[aria-posinset="1"] como reserva.
-            js_aba_intimacoes = """async () => {
-                const sleep = ms => new Promise(r => setTimeout(r, ms));
-                const texto = el => (el.textContent || '').toLowerCase();
-                let guia = Array.from(document.querySelectorAll('div[role="tab"], .mat-tab-label'))
-                    .find(t => texto(t).indexOf('intima') !== -1);
-                if (!guia) guia = document.querySelector('pje-editor-lateral div[aria-posinset="1"]');
-                if (!guia) return { ok: false, motivo: 'aba de intimações não encontrada' };
-                if (guia.getAttribute('aria-selected') === 'true') {
-                    return { ok: true, ja_ativa: true, texto: (guia.textContent || '').trim() };
-                }
-                guia.click();
-                await sleep(600);
-                return {
-                    ok: guia.getAttribute('aria-selected') !== 'false',
-                    ja_ativa: false,
-                    texto: (guia.textContent || '').trim(),
-                };
-            }"""
-            try:
-                aba_int = None
-                if hasattr(driver, 'page'):
-                    aba_int = driver.page.evaluate(js_aba_intimacoes)
-                if aba_int and aba_int.get('ja_ativa'):
-                    logger.info(f'[ATO][ABA] Aba "{aba_int.get("texto") or "Intimações"}" já estava ativa')
-                elif aba_int and aba_int.get('ok'):
-                    logger.info(f'[ATO][ABA] Aba "{aba_int.get("texto") or "Intimações"}" ativada manualmente (sem movimentação automática)')
-                elif aba_int:
-                    logger.warning(f'[ATO][ABA] Aba Intimações não ativada: {aba_int.get("motivo")}')
-            except Exception as e:
-                logger.debug(f'[ATO][ABA] Erro ao ativar aba Intimações: {e}')
+            # como não confirmado.
+            #
+            # Clique e confirmação são independentes, de propósito:
+            #   - o CLIQUE é SEMPRE feito. Depois do Salvar a aba que fica
+            #     ativa é a "Modelos" (foi por ela que o modelo entrou), e o
+            #     painel de intimações só monta com o clique. Não existe
+            #     atalho de "já estava ativa": o log não registrava clique
+            #     nenhum e a execução seguia com o painel errado.
+            #   - a POSIÇÃO identifica a aba: `aria-posinset="1"` é
+            #     "Intimações" no `pje-editor-lateral` (id `mat-tab-label-0-N`
+            #     e `mat-tab-content-0-N` são gerados pelo Angular e mudam de
+            #     numeração — não servir como seletor). Buscar por TEXTO
+            #     (`textContent.includes('intima')`) pegou a aba errada em
+            #     produção (log dizia `Aba "Modelos" já estava ativa`).
+            #   - a CONFIRMAÇÃO lê o LABEL selecionado (`mat-tab-label-active`
+            #     / `aria-selected="true"`) E exige o painel montado no mesmo
+            #     `mat-tab-group`. Um sinal só mente: o Angular mantém as 6
+            #     abas montadas no DOM (presença não prova nada) e a classe
+            #     `mat-tab-body-active` do corpo não acompanha a troca.
+            def _aba_intimacoes_ativa(teto=2.0):
+                return bool(espera.ate_js(driver, """(() => {
+                    var l = document.querySelector(
+                        'pje-editor-lateral div[role="tab"][aria-posinset="1"]');
+                    if (!l) return false;
+                    if (!(l.classList.contains('mat-tab-label-active')
+                          || l.getAttribute('aria-selected') === 'true')) return false;
+                    var g = l.closest('mat-tab-group') || document;
+                    return !!g.querySelector(
+                        'pje-intimacao-automatica .controle-intimacao-pai');
+                })()""", teto=teto))
+
+            sel_aba_intimacoes = 'pje-editor-lateral div[role="tab"][aria-posinset="1"]'
+
+            aba_ok = False
+            aba = esperar_elemento(driver, sel_aba_intimacoes, timeout=5)
+            if aba is None:
+                logger.error('[ATO][ABA] Aba "Intimações" não encontrada por: %s', sel_aba_intimacoes)
+            else:
+                try:
+                    safe_click_no_scroll(driver, aba)
+                    logger.info('[ATO][ABA] Clique na aba "Intimações" realizado (%s)',
+                                sel_aba_intimacoes)
+                except Exception as e:
+                    logger.warning('[ATO][ABA] Falha ao clicar na aba "Intimações": %s', e)
+                aba_ok = _aba_intimacoes_ativa()
+                if aba_ok:
+                    logger.info('[ATO][ABA] ✅ Aba "Intimações" selecionada e painel montado')
+
+            if not aba_ok:
+                # Diagnóstico: sem isto, "aba não ativou" não diz qual seletor
+                # apontar. Lista as abas reais com texto/id/posição/estado.
+                try:
+                    if hasattr(driver, 'page'):
+                        abas = driver.page.evaluate("""() => Array.from(
+                            document.querySelectorAll('pje-editor-lateral div[role="tab"], pje-editor-lateral .mat-tab-label')
+                        ).map(t => ({
+                            texto: (t.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 30),
+                            id: t.id || null,
+                            pos: t.getAttribute('aria-posinset'),
+                            sel: t.getAttribute('aria-selected'),
+                            ativa: t.classList.contains('mat-tab-label-active')
+                        }))""")
+                        logger.error('[ATO][ABA] Abas encontradas na tela: %s', abas)
+                except Exception as e:
+                    logger.error('[ATO][ABA] Não foi possível listar as abas: %s', e)
+                logger.error('[ATO][ABA] Painel de intimações NÃO confirmado — abortando antes de executar prazos')
+                return False, False
 
             # 2. Confirmação POSITIVA de minuta salva. O retorno é OBRIGATÓRIO:
             #    "spinner sumiu" não é prova (pode nunca ter aparecido). Só aceitamos

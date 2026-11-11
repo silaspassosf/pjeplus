@@ -128,3 +128,6 @@ sentenca_IDPJ_*.html
 # TSE e relatorios locais
 dados_tse_2026/
 .dsh-acl-report/
+
+# Launchers/setup .bat ficam SO na maquina — nao versionar
+*.bat

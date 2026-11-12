@@ -2,36 +2,48 @@
 """
 adv.py — Fluxo CHIPADV (chip "Advogado impedido de Atuar").
 
-Sequência definida pelo Silas (11/11/2026):
+Sequência definida pelo Silas (11/11/2026, ajustada em 12/11/2026):
 
   0. driver já criado/logado pelo pw.py → navega para meu-painel
   1. API: processos marcados com o chip "Advogado impedido de Atuar"
-     (mesmo padrão do fluxo DOM em bianca/dom_engine.py:
-      PATCH /agrupamentotarefas/processos/todos
-      POST  /pje-etiquetas-api/api/etiquetas/etiquetasprocessos
-      filtro client-side pelo id da etiqueta)
-     FILTRO INICIAL = SÓ O CHIP. Nenhum outro filtro (fase, órgão julgador,
-     responsável) entra na consulta.
-  2. usa apenas os 10 primeiros processos
-  3. partes do processo pela API (/pje-comum-api/api/processos/id/{id}/partes),
-     mesmo payload do Script/calc/BASE/hcalc-overlay-partes.js → todos os
-     advogados (representantes com tipo ADVOGADO/OAB)
-  4. PLACEHOLDER: filtrar o advogado marcado pelo chip — a chamada de API que
-     identifica o advogado correto ainda está sendo investigada pelo Silas
-  5. CPF do advogado
+       GET /pje-administracao-api/api/consultaprocessosadm
+           ?idEtiqueta=918&idsOrgaosJulgadores=187&naoValidar=true
+     É a mesma consulta administrativa que a tela usa — `idEtiqueta` é o
+     chip. Não existe mais a varredura em lote do agrupamento de tarefas
+     (`/agrupamentotarefas/processos/todos`) + `/etiquetasprocessos`.
+     Uma página por vez, sob demanda: o total vem em `totalRegistros` e os
+     processos são processados UM A UM.
+     FILTRO = SÓ O CHIP (`idEtiqueta`) no recorte da consulta (OJ 187).
+     Nada de fase processual, responsável ou tipo de atividade.
+  2. o total é informado no log antes do primeiro processo
+  3. partes do processo pela API (/pje-comum-api/api/processos/id/{id}/partes)
+     com `comInativas=true` → TODOS os representantes (ADVOGADO/OAB), ativos
+     E inativos. Os inativos são a causa clássica do chip "Advogado impedido".
+  4. (PENDENTE) OAB live: POST
+     /pje-comum-api/api/pessoas/fisicas/{idPessoa}/validacaooab
+     ?especializacao=Advogado — o mesmo POST do dialog "Validar na OAB".
+     A leitura dos inativos já é feita no passo 3, mas a REGRA DO LAÇO ainda
+     não foi fechada; por ora o passo 4/5 usa o primeiro advogado ATIVO e a
+     validação antiga.
+  5. CPF do advogado escolhido
   6. validar_cadastro(): /pjekz/pessoa-fisica → CPF → Enter → lápis →
      aba "Advogado" → "Validar na OAB" → radio SP (ou 1ª opção) → Gravar →
      fecha a aba. Se o dialog NÃO tiver radio selecionável, o cadastro está
      SUSPENSO na OAB (a tabela traz Situação = Suspenso) — reporta e segue.
-     PULADO quando o `/partes` já traz `situacaoOab` = SUSPENSO ou CANCELADO:
-     a API decide sozinha e o passo 7 vai direto ao laço de GIGS. Ausente (e
-     REGULAR) validam normalmente.
   7. laço ÚNICO, escolhido pelo resultado da validação (passo 6):
        'ok'       (achou radio SP ou outra inscrição) → reprocessar chips
        'suspenso' (só cadastro suspenso)              → criar_gigs "Advogado
                                                          suspenso"
-     Nos dois casos: consulta por CPF + etiqueta → abre cada processo em
-     /detalhe → executa a ação → fecha a aba
+     Nos dois casos: consulta por CPF + chip na MESMA API
+     (`cpf` + `idEtiqueta` + `idsOrgaosJulgadores`), total informado, cada
+     processo aberto direto em /pjekz/processo/{id}/detalhe → ação → fecha
+     a aba.
+
+Registro da execução:
+     o CPF tratado é anotado (independente do laço) junto com todos os
+     processos cobertos pelo lote dele. Se o mesmo CPF — ou um processo já
+     coberto pelo lote — reaparecer, o fluxo pula: o lote já resolveu aquele
+     advogado e o processo repetido é informação desatualizada.
   → recomeça com o próximo processo da API
 
 Nada aqui abre driver nem faz login: quem chama é o x.py/pw.py.
@@ -56,16 +68,22 @@ from Fix.log import logger
 
 URL_PAINEL = 'https://pje.trt2.jus.br/pjekz/gigs/meu-painel'
 URL_PESSOA_FISICA = 'https://pje.trt2.jus.br/pjekz/pessoa-fisica'
-URL_CONSULTA_ADV = (
-    'https://pje.trt2.jus.br/administracao/consulta/processo/index'
-    '?pagina=1&idsOrgaosJulgadores=187&idEtiqueta={etiqueta}&cpf={cpf}'
-)
+
+# Consulta administrativa usada pela tela /administracao/consulta/processo.
+# É a chamada que filtra pelo chip: `idEtiqueta` = id do chip.
+URL_CONSULTA_API = '/pje-administracao-api/api/consultaprocessosadm'
+
+# Recorte fixo da consulta (mesmo OJ da URL informada pelo Silas). Sem o
+# `idsOrgaosJulgadores` o PJe ignora o `idEtiqueta` e devolve a base inteira.
+ORGAO_JULGADOR_CONSULTA = 187
+
+# Aba /detalhe aberta direto pelo id interno devolvido pela consulta.
+URL_PROCESSO_DETALHE = 'https://pje.trt2.jus.br/pjekz/processo/{id}/detalhe'
 
 # Id da etiqueta (chip) "Advogado impedido de Atuar" — veio da URL de consulta
 # informada pelo Silas (idEtiqueta=918). Se o PJe mudar o id, ajustar aqui.
 CHIP_ADVOGADO_IMPEDIDO_ID = 918
 
-LIMITE_PROCESSOS = 10
 TAMANHO_PAGINA_API = 100
 
 
@@ -76,6 +94,35 @@ TAMANHO_PAGINA_API = 100
 def _somente_digitos(valor: Any) -> str:
     """CPF/CNPJ só com dígitos (a API devolve '123.456.789-00')."""
     return re.sub(r'\D', '', str(valor or ''))
+
+
+def _inteiro(valor: Any, padrao: int = 0) -> int:
+    """Converte contadores da API para int sem explodir com None/string."""
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return padrao
+
+
+def _partir_oab(numero_oab: Any) -> tuple:
+    """'SP128341' / 'PE22616' / 'AP1551-A' -> ('SP', 128341)."""
+    m = re.match(r'\s*([A-Za-z]{2})\s*(\d+)', str(numero_oab or ''))
+    if not m:
+        return None, None
+    return m.group(1).upper(), _inteiro(m.group(2), 0)
+
+
+def _representante_ativo(rep: Dict[str, Any]) -> bool:
+    """Ativo/inativo do representante no /partes.
+
+    O PJe marca `status` = 'A' para ativo; `situacao` = 'Inativo' aparece nas
+    partes inativas (que só vêm com `comInativas=true`).
+    """
+    status = str(rep.get('status') or '').strip().upper()
+    if status:
+        return status == 'A'
+    situacao = str(rep.get('situacao') or '').strip().lower()
+    return situacao in ('', 'ativo')
 
 
 def _texto_normalizado(valor: Any) -> str:
@@ -162,97 +209,112 @@ def _criar_client(driver: Any):
     return PjeApiClient(sess, base_url)
 
 
-def _paginar_processos(client: Any) -> List[Dict[str, Any]]:
-    """Pagina o agrupamento de tarefas SEM nenhum filtro além da paginação.
+def _consultar_processos(client: Any, chip_id: int, *, cpf: Optional[str] = None,
+                         pagina: int = 1,
+                         tamanho_pagina: int = TAMANHO_PAGINA_API) -> Optional[Dict[str, Any]]:
+    """Uma página da consulta administrativa filtrada pelo chip.
 
-    Diretriz do Silas (11/11/2026): o filtro inicial é APENAS o chip indicado,
-    mais nada — nada de fase processual, órgão julgador ou responsável.
+    `GET /pje-administracao-api/api/consultaprocessosadm` é a chamada que a
+    própria tela de consulta faz; `idEtiqueta` é o chip. `naoValidar=true` é
+    o que a tela envia para liberar a busca só com o chip (sem parte, CPF,
+    número ou OAB).
+
+    Devolve o payload (`resultado`, `totalRegistros`, `qtdPaginas`) ou None
+    em caso de falha.
     """
-    todos: List[Dict[str, Any]] = []
-    for pagina in range(1, 201):
-        body = {
-            'pagina': pagina,
-            'tamanhoPagina': TAMANHO_PAGINA_API,
-            'subCaixa': None,
-            'tipoAtividade': None,
-            'processos': None,
-            'nomeConclusoMagistrado': None,
-            'usuarioResponsavel': None,
-            'faseProcessualString': None,
-            'numeroProcesso': None,
-        }
-        res = client.gateway_patch(
-            '/pje-comum-api/api/agrupamentotarefas/processos/todos',
-            json_data=body, timeout=30,
-        )
-        if not res.get('ok'):
-            logger.error('[CHIPADV][API] p%d: %s', pagina, res.get('error'))
-            return []
-        lista = (res.get('data') or {}).get('resultado') or []
-        todos.extend(lista)
-        logger.info('[CHIPADV][API] p%d: %d processo(s) (acumulado %d)',
-                    pagina, len(lista), len(todos))
-        if len(lista) < TAMANHO_PAGINA_API:
-            break
-    return todos
+    params = {
+        'pagina': pagina,
+        'tamanhoPagina': tamanho_pagina,
+        # Libera a consulta só pelo chip, como a tela faz ao paginar.
+        'naoValidar': 'true',
+        # Ordenação fixa: sem ela o PJe não garante ordem estável entre
+        # páginas e um processo poderia aparecer duas vezes (ou sumir).
+        'ordenacaoColuna': 'numero',
+        'ordenacaoCrescente': 'true',
+        'idEtiqueta': int(chip_id),
+        # Sem o OJ o PJe ignora o idEtiqueta e devolve a base inteira.
+        'idsOrgaosJulgadores': ORGAO_JULGADOR_CONSULTA,
+    }
+    if cpf:
+        params['cpf'] = _somente_digitos(cpf)
+
+    res = client.gateway_get(URL_CONSULTA_API, params=params, timeout=60)
+    if not res.get('ok'):
+        logger.error('[CHIPADV][API] consulta chip %s p%d: %s',
+                     chip_id, pagina, res.get('error'))
+        return None
+    dados = res.get('data')
+    if not isinstance(dados, dict):
+        logger.error('[CHIPADV][API] resposta inesperada na consulta p%d: %r',
+                     pagina, dados)
+        return None
+    return dados
 
 
-def buscar_processos_por_chip(client: Any, chip_ids, limite: int = LIMITE_PROCESSOS,
-                              tamanho_pagina: int = TAMANHO_PAGINA_API) -> List[Dict[str, Any]]:
-    """Processos marcados com um dos chips (`chip_ids`), limitados a `limite`.
+def iniciar_busca_processos_por_chip(client: Any, chip_id: int,
+                                     tamanho_pagina: int = TAMANHO_PAGINA_API):
+    """Primeira página + total do chip; páginas seguintes sob demanda.
 
-    Mesma estratégia do fluxo DOM do bianca (confirmada pelo API Spy): pagina o
-    agrupamento de tarefas sem filtro e cruza com as etiquetas de cada processo.
-    O ÚNICO filtro é o chip — nada de fase processual.
+    Devolve `(total, iterador)`. A primeira página já traz `totalRegistros`,
+    então o total é informado ANTES de processar o primeiro processo; as
+    demais páginas só são buscadas quando o iterador avança. Não há carga
+    inicial em lote — cada processo é tratado um por vez.
     """
-    ids_alvo = set(int(i) for i in chip_ids)
+    dados = _consultar_processos(client, chip_id, pagina=1,
+                                 tamanho_pagina=tamanho_pagina)
+    if dados is None:
+        return 0, iter(())
 
-    todos = _paginar_processos(client)
-    if not todos:
-        logger.error('[CHIPADV][API] Nenhum processo retornado pelo agrupamento de tarefas')
-        return []
+    itens = dados.get('resultado') or []
+    total = _inteiro(dados.get('totalRegistros'), len(itens))
+    qtd_paginas = _inteiro(dados.get('qtdPaginas'), 1)
+    logger.info('[CHIPADV][API] %d processo(s) com o chip %s (OJ %s) — '
+                'processando um por vez', total, chip_id, ORGAO_JULGADOR_CONSULTA)
 
-    mapa: Dict[Any, List[int]] = {}
-    total_lotes = (len(todos) + tamanho_pagina - 1) // tamanho_pagina
-    for i in range(0, len(todos), tamanho_pagina):
-        lote = todos[i:i + tamanho_pagina]
-        ids_proc = [p['id'] for p in lote if p.get('id')]
-        if not ids_proc:
-            continue
-        logger.info('[CHIPADV][API] etiquetas lote %d/%d (%d processo(s))',
-                    i // tamanho_pagina + 1, total_lotes, len(ids_proc))
-        res_et = client.gateway_post(
-            '/pje-etiquetas-api/api/etiquetas/etiquetasprocessos',
-            json_data={'idsProcesso': ids_proc}, timeout=20,
-        )
-        if not res_et.get('ok'):
-            logger.warning('[CHIPADV][API] etiquetas lote %d: %s',
-                           i // tamanho_pagina + 1, res_et.get('error'))
-            continue
-        for item in (res_et.get('data') or []):
-            pid = item.get('idProcesso')
-            etiquetas = [e.get('id') for e in (item.get('etiquetas') or []) if e.get('id')]
-            if pid is not None:
-                mapa[pid] = etiquetas
+    def _iterar():
+        yield from itens
+        for pagina in range(2, qtd_paginas + 1):
+            proxima = _consultar_processos(client, chip_id, pagina=pagina,
+                                           tamanho_pagina=tamanho_pagina)
+            if not proxima:
+                return
+            lista = proxima.get('resultado') or []
+            if not lista:
+                return
+            logger.info('[CHIPADV][API] p%d/%d: %d processo(s)',
+                        pagina, qtd_paginas, len(lista))
+            yield from lista
 
-    filtrados = [p for p in todos if ids_alvo.intersection(mapa.get(p.get('id'), []))]
-    logger.info('[CHIPADV][API] %d/%d processo(s) com o chip %s',
-                len(filtrados), len(todos), sorted(ids_alvo))
-    return filtrados[:limite]
+    return total, _iterar()
 
 
 # =============================================================================
 # 3. Partes → advogados
 # =============================================================================
 
-def ler_advogados_do_processo(client: Any, id_processo: Any) -> List[Dict[str, Any]]:
+def ler_advogados_do_processo(client: Any, id_processo: Any,
+                              com_inativas: bool = True) -> List[Dict[str, Any]]:
     """Todos os advogados (representantes) do processo, pela API de partes.
+
+    `com_inativas=True` inclui as partes/advogados inativos: é o que o PJe usa
+    para montar o chip "Advogado impedido" (parte inativa + cadastro inativo).
+    Sem esse parâmetro a API devolve só os ativos e o chip fica sem explicação.
 
     Payload igual ao do hcalc-overlay-partes.js: dict com ATIVO/PASSIVO/
     TERCEIROS, cada parte com `representantes` (nome, documento, numeroOab,
     tipo).
     """
-    partes = client.partes(str(id_processo)) or {}
+    partes = client.partes(str(id_processo), com_inativas=com_inativas) or {}
+    # A variante paginada (`dadosPaginados=true`) devolve {'resultado': {...}}.
+    if isinstance(partes, dict) and isinstance(partes.get('resultado'), dict):
+        partes = partes['resultado']
+    if (com_inativas and isinstance(partes, dict)
+            and not any(partes.get(p) for p in ('ATIVO', 'PASSIVO', 'TERCEIROS'))):
+        # Se a variante com inativas não vier (ou vier só o envelope), cai
+        # para a consulta padrão — melhor ver os ativos do que nenhum.
+        partes = client.partes(str(id_processo)) or {}
+        if isinstance(partes, dict) and isinstance(partes.get('resultado'), dict):
+            partes = partes['resultado']
     if not isinstance(partes, dict):
         logger.warning('[CHIPADV][PARTES] Payload inesperado para o processo %s', id_processo)
         return []
@@ -278,6 +340,10 @@ def ler_advogados_do_processo(client: Any, id_processo: Any) -> List[Dict[str, A
                     'nome': (rep.get('nome') or '').strip(),
                     'cpf': cpf,
                     'oab': oab,
+                    'id_pessoa': rep.get('idPessoa') or rep.get('id'),
+                    'status': rep.get('status') or '',
+                    'situacao': rep.get('situacao') or '',
+                    'ativo': _representante_ativo(rep),
                     # Situação da inscrição na OAB vinda da API de partes:
                     # 'REGULAR', 'CANCELADO', 'SUSPENSO'… ou ausente (o PJe
                     # omite o campo quando não encontra a inscrição).
@@ -290,26 +356,27 @@ def ler_advogados_do_processo(client: Any, id_processo: Any) -> List[Dict[str, A
 
 
 # =============================================================================
-# 4. PLACEHOLDER — qual advogado está marcado pelo chip
+# 4. Qual advogado do processo entra no laço
 # =============================================================================
 
 def _filtrar_advogado_do_chip(advogados: List[Dict[str, Any]],
                               processo: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """PLACEHOLDER do passo 4.
+    """Escolhe o advogado que o laço vai considerar neste processo.
 
-    A regra de qual advogado está marcado pelo chip "Advogado impedido de
-    Atuar" ainda não está definida (o Silas vai explicar como o PJe marca).
-    Por ora devolve o PRIMEIRO advogado do processo e loga o aviso — quando a
-    regra existir, é só trocar o corpo desta função.
+    A leitura já traz os inativos (comInativas=true), mas a regra do laço
+    ainda não foi fechada — por ora fica o primeiro ATIVO (para não abrir
+    validação de um inativo, que nem aparece no painel do /detalhe).
     """
     if not advogados:
         return None
+    ativos = [a for a in advogados if a.get('ativo', True)]
+    escolhido = (ativos or advogados)[0]
     numero = processo.get('numeroProcesso') or processo.get('numero') or processo.get('id')
-    escolhido = advogados[0]
     logger.warning(
-        '[CHIPADV][PLACEHOLDER] Regra do chip ainda não definida — usando o '
-        'primeiro advogado do processo %s: %s (CPF %s)',
+        '[CHIPADV][PLACEHOLDER] Regra do laço ainda não definida — usando o '
+        'primeiro advogado ativo do processo %s: %s (CPF %s, inativo=%s)',
         numero, escolhido.get('nome'), escolhido.get('cpf'),
+        not escolhido.get('ativo', True),
     )
     return escolhido
 
@@ -338,8 +405,13 @@ def _linhas_tabela_oab(driver: Any) -> List[List[str]]:
     return [l for l in (linhas or []) if isinstance(l, list) and l]
 
 
-def _tratar_dialog_oab(driver: Any) -> str:
+def _tratar_dialog_oab(driver: Any, oab_alvo: Any = None) -> str:
     """Trata o dialog "Validar na OAB".
+
+    `oab_alvo` (ex.: 'PE22616'/'AP1551') é a inscrição que o processo usa:
+    quando informada, a seleção prioriza essa linha (UF + número), e não
+    "SP ou a primeira" — o que escolheria a OAB errada num advogado com
+    várias inscrições.
 
     Devolve:
       'ok'       — inscrição selecionada e gravada (ou validação direta, sem dialog)
@@ -367,23 +439,49 @@ def _tratar_dialog_oab(driver: Any) -> str:
         logger.error('[CHIPADV][VALIDAR] Dialog OAB sem inscrição selecionável — %s', resumo)
         return 'falha'
 
+    alvo_uf, alvo_num = _partir_oab(oab_alvo)
+
     escolhido = None
-    for radio in radios:
-        try:
-            rotulo = (radio.get_attribute('aria-label') or '').strip()
-        except Exception:
-            rotulo = ''
-        if rotulo.upper().startswith('SP'):
-            escolhido = radio
-            logger.info('[CHIPADV][VALIDAR] Inscrição SP selecionada: %s', rotulo)
-            break
+    if alvo_uf and alvo_num:
+        for radio in radios:
+            try:
+                if not radio.is_enabled():
+                    continue
+            except Exception:
+                pass
+            try:
+                rotulo = (radio.get_attribute('aria-label') or '').strip()
+            except Exception:
+                rotulo = ''
+            rot_uf, rot_num = _partir_oab(rotulo)
+            if rot_uf == alvo_uf and rot_num == alvo_num:
+                escolhido = radio
+                logger.info('[CHIPADV][VALIDAR] Inscrição do processo selecionada: %s',
+                            rotulo)
+                break
+    if escolhido is None:
+        for radio in radios:
+            try:
+                if not radio.is_enabled():
+                    continue
+            except Exception:
+                pass
+            try:
+                rotulo = (radio.get_attribute('aria-label') or '').strip()
+            except Exception:
+                rotulo = ''
+            if rotulo.upper().startswith('SP'):
+                escolhido = radio
+                logger.info('[CHIPADV][VALIDAR] Inscrição SP selecionada: %s', rotulo)
+                break
     if escolhido is None:
         escolhido = radios[0]
         try:
             rotulo = (escolhido.get_attribute('aria-label') or '').strip()
         except Exception:
             rotulo = ''
-        logger.info('[CHIPADV][VALIDAR] Nenhuma inscrição SP — usando a primeira: %s', rotulo)
+        logger.info('[CHIPADV][VALIDAR] Nenhuma inscrição do processo/SP — '
+                    'usando a primeira: %s', rotulo)
 
     # Angular Material: o clique efetivo é no label do mat-radio-button.
     alvo = escolhido
@@ -413,7 +511,7 @@ def _tratar_dialog_oab(driver: Any) -> str:
     return 'ok'
 
 
-def validar_cadastro(driver: Any, cpf: str) -> str:
+def validar_cadastro(driver: Any, cpf: str, oab_alvo: Any = None) -> str:
     """Passo 6 — valida o cadastro do advogado na OAB.
 
     Abre /pjekz/pessoa-fisica em ABA NOVA (o passo K manda fechar esta aba),
@@ -473,7 +571,7 @@ def validar_cadastro(driver: Any, cpf: str) -> str:
             return 'falha'
         safe_click_no_scroll(driver, botao)
 
-        status = _tratar_dialog_oab(driver)
+        status = _tratar_dialog_oab(driver, oab_alvo=oab_alvo)
         if status == 'ok':
             logger.info('[CHIPADV][VALIDAR] Cadastro validado na OAB — CPF %s', cpf)
         return status
@@ -574,127 +672,162 @@ def _criar_gigs_advogado_suspenso(driver: Any) -> bool:
     return ok
 
 
-def _executar_na_linha(driver: Any, indice: int, aba_lista: str, url_lista: str,
-                       acao, rotulo: str) -> bool:
-    """Abre o processo da linha `indice`, roda `acao(driver)` e fecha a aba."""
-    botoes = espera.elementos(
-        driver, 'mat-row button[aria-label^="Detalhes do Processo"]', teto=5)
-    if indice >= len(botoes):
-        logger.warning('[CHIPADV][%s] Linha %d sem botão de detalhes', rotulo, indice + 1)
+def _executar_no_detalhe(driver: Any, id_processo: Any, acao, rotulo: str,
+                         numero: Any = '') -> bool:
+    """Abre /pjekz/processo/{id}/detalhe em aba nova, roda `acao` e fecha.
+
+    A ida direto pela URL dispensa a tela de consulta e o clique na linha
+    (que dependia do índice da `mat-row` e voltava a carregar a lista). O id
+    vem da própria consulta da API.
+    """
+    alvo = numero or id_processo
+    principal = driver.current_window_handle
+    aba = abrir_url_nova_aba(driver, URL_PROCESSO_DETALHE.format(id=id_processo))
+    if not aba:
+        logger.warning('[CHIPADV][%s] Não foi possível abrir /detalhe de %s',
+                       rotulo, alvo)
         return False
 
-    antes = set(_obter_window_handles(driver) or [])
-    safe_click_no_scroll(driver, botoes[indice])
-
-    nova = None
-    if espera.ate_abas(driver, len(antes) + 1, teto=15):
-        for h in (_obter_window_handles(driver) or []):
-            if h not in antes:
-                driver.switch_to.window(h)
-                nova = h
-                break
-
-    mesma_aba = nova is None
-    if mesma_aba:
-        # O clique navegou a própria aba da lista para o /detalhe.
-        if '/detalhe' not in (driver.current_url or ''):
-            logger.warning('[CHIPADV][%s] Linha %d não abriu /detalhe', rotulo, indice + 1)
-            return False
-        nova = aba_lista
-
-    ok = False
     try:
-        espera.ate_url(driver, '/detalhe', teto=25)
-        ok = bool(acao(driver))
+        if not espera.ate_url(driver, '/detalhe', teto=30):
+            logger.warning('[CHIPADV][%s] /detalhe não carregou para %s', rotulo, alvo)
+            return False
+        # Qualquer um destes confirma que o /detalhe renderizou; as ações
+        # usam o menu do processo (chips) ou o botão "Nova Atividade" (GIGS).
+        if not espera.ate_aparecer(
+                driver,
+                'pje-cabecalho-processo, pje-timeline, '
+                'button[aria-label="Menu do processo"]',
+                teto=30):
+            logger.warning('[CHIPADV][%s] /detalhe sem os elementos esperados: %s',
+                           rotulo, alvo)
+            return False
+        return bool(acao(driver))
     except Exception as e:
-        logger.warning('[CHIPADV][%s] Linha %d: %s: %s', rotulo, indice + 1,
+        logger.warning('[CHIPADV][%s] Processo %s: %s: %s', rotulo, alvo,
                        type(e).__name__, e)
+        return False
     finally:
-        if mesma_aba:
-            # A lista foi substituída pelo detalhe: volta para a consulta.
-            try:
-                driver.get(url_lista)
-                espera.ate_js(driver, "__pjeEls('mat-row').length > 0", teto=30)
-            except Exception:
-                pass
-        else:
-            _fechar_aba(driver, nova, aba_lista)
-    return ok
+        _fechar_aba(driver, aba, principal)
 
 
-def _percorrer_processos_do_cpf(driver: Any, cpf: str, etiqueta_id: int,
-                                acao, rotulo: str) -> int:
-    """Consulta os processos do CPF e roda `acao(driver)` em cada /detalhe.
+def _processos_do_cpf(client: Any, cpf: str, etiqueta_id: int,
+                      tamanho_pagina: int = TAMANHO_PAGINA_API):
+    """Consulta (API) todos os processos do CPF marcados com o chip.
 
-    Navega para a consulta administrativa filtrada por CPF + etiqueta, abre
-    cada processo em /detalhe, executa a ação e fecha a aba. Devolve quantos
-    processos foram processados com sucesso.
+    Usa a mesma chamada do passo 1, agora com `cpf`: `idEtiqueta` +
+    `idsOrgaosJulgadores` + `cpf`. Pagina até esgotar `qtdPaginas` (na
+    prática o advogado tem poucos processos com o chip).
+
+    Devolve `(total, itens, consulta_ok)` — `consulta_ok=False` quando a
+    primeira página falhou (para o chamador não registrar o CPF como tratado
+    sem ter consultado nada).
     """
     cpf = _somente_digitos(cpf)
-    url_lista = URL_CONSULTA_ADV.format(etiqueta=etiqueta_id, cpf=cpf)
-    principal = driver.current_window_handle
+    itens: List[Dict[str, Any]] = []
+    total = 0
+    pagina = 1
+    consulta_ok = False
+    while True:
+        dados = _consultar_processos(client, etiqueta_id, cpf=cpf,
+                                     pagina=pagina,
+                                     tamanho_pagina=tamanho_pagina)
+        if dados is None:
+            break
+        consulta_ok = True
+        total = _inteiro(dados.get('totalRegistros'), total)
+        lista = dados.get('resultado') or []
+        itens.extend(lista)
+        qtd_paginas = _inteiro(dados.get('qtdPaginas'), 1)
+        if pagina >= qtd_paginas or len(lista) < tamanho_pagina:
+            break
+        pagina += 1
+    return total or len(itens), itens, consulta_ok
 
-    aba_lista = abrir_url_nova_aba(driver, url_lista)
-    if not aba_lista:
-        logger.error('[CHIPADV][%s] Não foi possível abrir a consulta do CPF %s',
-                     rotulo, cpf)
-        return 0
+
+def _percorrer_processos_do_cpf(driver: Any, client: Any, cpf: str,
+                                etiqueta_id: int, acao, rotulo: str):
+    """Roda `acao(driver)` em cada processo do CPF que tem o chip.
+
+    Devolve `(processados, ids_processados, consulta_ok)`. Os ids são os
+    processos que o lote cobriu — o orquestrador usa essa lista para não
+    reabrir, no laço externo, um processo que já foi visto aqui.
+    """
+    cpf = _somente_digitos(cpf)
+    total, itens, consulta_ok = _processos_do_cpf(client, cpf, etiqueta_id)
+    ids = [item.get('id') for item in itens if item.get('id')]
+
+    if not consulta_ok:
+        logger.error('[CHIPADV][%s] Falha na consulta do CPF %s', rotulo, cpf)
+        return 0, ids, False
+
+    logger.info('[CHIPADV][%s] %d processo(s) na consulta do CPF %s',
+                rotulo, total, cpf)
+    if not itens:
+        logger.info('[CHIPADV][%s] Nenhum processo com o chip para o CPF %s',
+                    rotulo, cpf)
+        return 0, ids, True
 
     processados = 0
-    total = 0
-    try:
-        if not espera.ate_url(driver, 'administracao/consulta/processo', teto=30):
-            logger.warning('[CHIPADV][%s] Consulta não carregou (CPF %s)', rotulo, cpf)
-        if not espera.ate_js(driver, "__pjeEls('mat-row').length > 0", teto=30):
-            logger.info('[CHIPADV][%s] Nenhum processo na consulta do CPF %s', rotulo, cpf)
-            return 0
-
-        total = len(espera.elementos(driver, 'mat-row', teto=2))
-        logger.info('[CHIPADV][%s] %d processo(s) na consulta do CPF %s', rotulo, total, cpf)
-
-        for indice in range(total):
-            if _executar_na_linha(driver, indice, aba_lista, url_lista, acao, rotulo):
-                processados += 1
-    except Exception as e:
-        logger.error('[CHIPADV][%s] Erro: %s: %s', rotulo, type(e).__name__, e)
-    finally:
-        _fechar_aba(driver, aba_lista, principal)
+    for indice, item in enumerate(itens, 1):
+        id_processo = item.get('id')
+        numero = item.get('numero') or item.get('numeroProcesso') or id_processo
+        logger.info('[CHIPADV][%s] [%d/%d] %s (id=%s)',
+                    rotulo, indice, total, numero, id_processo)
+        if not id_processo:
+            logger.warning('[CHIPADV][%s] Processo sem id na consulta — pulando',
+                           rotulo)
+            continue
+        if _executar_no_detalhe(driver, id_processo, acao, rotulo, numero):
+            processados += 1
 
     logger.info('[CHIPADV][%s] %d/%d processo(s) processado(s) para o CPF %s',
                 rotulo, processados, total, cpf)
-    return processados
+    return processados, ids, True
 
 
 def reprocessar_chips_do_advogado(driver: Any, cpf: str,
-                                  etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> int:
-    """Reprocessa os chips de todos os processos do advogado (CPF + etiqueta)."""
-    return _percorrer_processos_do_cpf(
-        driver, cpf, etiqueta_id, _reprocessar_chips_do_processo, 'CHIPS')
+                                  etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
+                                  client: Any = None) -> int:
+    """Reprocessa os chips de todos os processos do advogado (CPF + chip)."""
+    client = client or _criar_client(driver)
+    qtd, _, _ = _percorrer_processos_do_cpf(
+        driver, client, cpf, etiqueta_id, _reprocessar_chips_do_processo, 'CHIPS')
+    return qtd
 
 
 def criar_gigs_do_advogado(driver: Any, cpf: str,
-                           etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> int:
+                           etiqueta_id: int = CHIP_ADVOGADO_IMPEDIDO_ID,
+                           client: Any = None) -> int:
     """Passo 7 do fluxo — cria GIGS "Advogado suspenso" nos processos do CPF.
 
-    Mesma lógica do reprocessar chips (consulta por CPF + etiqueta, abre cada
+    Mesma lógica do reprocessar chips (consulta por CPF + chip, abre cada
     processo em /detalhe), mas a ação é `criar_gigs(..., 'Advogado suspenso')`.
     """
-    return _percorrer_processos_do_cpf(
-        driver, cpf, etiqueta_id, _criar_gigs_advogado_suspenso, 'GIGS')
+    client = client or _criar_client(driver)
+    qtd, _, _ = _percorrer_processos_do_cpf(
+        driver, client, cpf, etiqueta_id, _criar_gigs_advogado_suspenso, 'GIGS')
+    return qtd
 
 
 # =============================================================================
 # Orquestrador
 # =============================================================================
 
-def run_chipadv(driver: Any, limite: int = LIMITE_PROCESSOS,
+def run_chipadv(driver: Any, limite: Optional[int] = None,
                 chip_id: int = CHIP_ADVOGADO_IMPEDIDO_ID) -> Dict[str, Any]:
-    """Fluxo CHIPADV completo. Recebe o driver já logado (pw.py/x.py)."""
+    """Fluxo CHIPADV completo. Recebe o driver já logado (pw.py/x.py).
+
+    `limite`: teto opcional de processos EXAMINADOS no laço externo (só para
+    testes). `None` percorre todos os processos do chip.
+    """
     logger.info('[CHIPADV] === INICIANDO FLUXO CHIP ADVOGADO IMPEDIDO ===')
     resultado: Dict[str, Any] = {
         'sucesso': False,
         'total': 0,
         'processados': 0,
+        'ignorados': 0,
+        'cpfs': {},
         'erros': [],
     }
 
@@ -708,7 +841,8 @@ def run_chipadv(driver: Any, limite: int = LIMITE_PROCESSOS,
         resultado['erros'].append(f'meu-painel: {e}')
         return resultado
 
-    # 1 + 2. processos com o chip (só os 10 primeiros)
+    # 1 + 2. processos com o chip — uma consulta (página 1) para saber o total;
+    #        as demais páginas são buscadas conforme o laço avança.
     try:
         client = _criar_client(driver)
     except Exception as e:
@@ -717,23 +851,47 @@ def run_chipadv(driver: Any, limite: int = LIMITE_PROCESSOS,
         resultado['erros'].append(f'api: {e}')
         return resultado
 
-    processos = buscar_processos_por_chip(client, (chip_id,), limite=limite)
-    resultado['total'] = len(processos)
-    if not processos:
+    total_chip, processos = iniciar_busca_processos_por_chip(client, chip_id)
+    resultado['total'] = total_chip
+    if not total_chip:
         logger.warning('[CHIPADV] Nenhum processo com o chip %s — nada a fazer', chip_id)
         resultado['sucesso'] = True
         return resultado
 
-    for proc in processos:
-        numero = (proc.get('numeroProcesso') or proc.get('numero')
-                  or str(proc.get('id')))
-        logger.info('[CHIPADV] Processo %s (id=%s)', numero, proc.get('id'))
+    logger.info('[CHIPADV] Total com o chip %s: %d processo(s) — um por vez',
+                chip_id, total_chip)
 
-        # 3. partes → advogados
-        advogados = ler_advogados_do_processo(client, proc.get('id'))
-        logger.info('[CHIPADV] %d advogado(s) no processo %s', len(advogados), numero)
+    # Registro da execução: CPF → ação do lote, e ids que o lote já cobriu.
+    cpfs_tratados: Dict[str, Dict[str, Any]] = {}
+    ids_tratados: set = set()
+    examinados = 0
 
-        # 4 + 5. advogado marcado pelo chip → CPF
+    for indice, proc in enumerate(processos, 1):
+        if limite is not None and examinados >= limite:
+            logger.info('[CHIPADV] Teto de %d processo(s) examinado(s) — parando',
+                        limite)
+            break
+        examinados += 1
+
+        id_proc = proc.get('id')
+        numero = proc.get('numeroProcesso') or proc.get('numero') or str(id_proc)
+        logger.info('[CHIPADV] [%d/%d] Processo %s (id=%s)',
+                    indice, total_chip, numero, id_proc)
+
+        # Já coberto pelo lote de um CPF anterior: não reabre.
+        if id_proc in ids_tratados:
+            logger.info('[CHIPADV] Processo %s já tratado no lote de um CPF — pulando',
+                        numero)
+            resultado['ignorados'] += 1
+            continue
+
+        # 3. partes → advogados (com inativos na leitura; o laço usa o 1º ativo)
+        advogados = ler_advogados_do_processo(client, id_proc, com_inativas=True)
+        inativos = [a for a in advogados if not a.get('ativo')]
+        logger.info('[CHIPADV] %d advogado(s) no processo %s (%d inativo(s))',
+                    len(advogados), numero, len(inativos))
+
+        # 4 + 5. advogado do laço → CPF
         advogado = _filtrar_advogado_do_chip(advogados, proc)
         if not advogado:
             logger.warning('[CHIPADV] Processo %s sem advogado — pulando', numero)
@@ -741,6 +899,14 @@ def run_chipadv(driver: Any, limite: int = LIMITE_PROCESSOS,
             continue
         cpf = advogado['cpf']
         logger.info('[CHIPADV] Advogado %s — CPF %s', advogado.get('nome'), cpf)
+
+        # CPF já tratado (em qualquer um dos dois laços) → o lote dele cobriu
+        # todos os processos com o chip; este aqui é informação desatualizada.
+        if cpf in cpfs_tratados:
+            logger.info('[CHIPADV] CPF %s já tratado (%s) — processo %s pulado',
+                        cpf, cpfs_tratados[cpf].get('acao'), numero)
+            resultado['ignorados'] += 1
+            continue
 
         # 6. validar cadastro — o RESULTADO define qual laço roda no passo 7.
         #    Exceção: quando a API de partes JÁ diz SUSPENSO ou CANCELADO, não
@@ -766,17 +932,36 @@ def run_chipadv(driver: Any, limite: int = LIMITE_PROCESSOS,
             logger.warning('[CHIPADV] Advogado %s (CPF %s) com cadastro SUSPENSO na OAB '
                            '— laço de GIGS', advogado.get('nome'), cpf)
             resultado.setdefault('suspensos', []).append(cpf)
-            qtd = criar_gigs_do_advogado(driver, cpf, chip_id)
+            acao = 'gigs'
+            qtd, ids, consulta_ok = _percorrer_processos_do_cpf(
+                driver, client, cpf, chip_id, _criar_gigs_advogado_suspenso, 'GIGS')
             logger.info('[CHIPADV] %d processo(s) com GIGS "%s" para %s',
                         qtd, OBS_GIGS_ADV_SUSPENSO, cpf)
         else:
             logger.info('[CHIPADV] Advogado %s (CPF %s) validado na OAB — laço de chips',
                         advogado.get('nome'), cpf)
-            qtd = reprocessar_chips_do_advogado(driver, cpf, chip_id)
+            acao = 'chips'
+            qtd, ids, consulta_ok = _percorrer_processos_do_cpf(
+                driver, client, cpf, chip_id, _reprocessar_chips_do_processo, 'CHIPS')
             logger.info('[CHIPADV] %d processo(s) com chips reprocessados para %s', qtd, cpf)
+
+        if not consulta_ok:
+            resultado['erros'].append(f'{numero}: consulta do CPF {cpf} falhou')
+            continue
+
+        # Registra o CPF tratado (qualquer um dos laços) e os processos que o
+        # lote cobriu — o laço externo não volta neles.
+        cpfs_tratados[cpf] = {
+            'acao': acao,
+            'processos': len(ids),
+            'ok': qtd,
+        }
+        ids_tratados.update(ids)
+        resultado['cpfs'][cpf] = cpfs_tratados[cpf]
         resultado['processados'] += 1
 
     resultado['sucesso'] = not resultado['erros']
-    logger.info('[CHIPADV] total=%d processados=%d erros=%d',
-                resultado['total'], resultado['processados'], len(resultado['erros']))
+    logger.info('[CHIPADV] total=%d examinados=%d processados=%d ignorados=%d erros=%d',
+                resultado['total'], examinados, resultado['processados'],
+                resultado['ignorados'], len(resultado['erros']))
     return resultado

@@ -204,9 +204,10 @@ class PjeApiClient:
                 return str(valor)
         return None
 
-    def partes(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
+    def partes(self, id_processo: str, com_inativas: bool = False) -> Optional[List[Dict[str, Any]]]:
         url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/partes")
-        r = self.sess.get(url, timeout=15)
+        params = {'comInativas': 'true'} if com_inativas else None
+        r = self.sess.get(url, params=params, timeout=15)
         if not r.ok:
             return None
         return r.json()

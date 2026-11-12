@@ -2717,7 +2717,13 @@ def teste_advogados_oab(id_processo=None):
       2. os campos de `/processos/id/{id}`;
       3. o elemento do DOM com `aria-label="Situação do advogado na OAB: ..."`
          e o HTML do pai — é o que aponta de onde o dado vem;
-      4. varredura de endpoints candidatos de OAB por `idPessoa` do advogado.
+      4. para CADA advogado (idPessoa): `GET /pessoas/fisicas/advogados/{id}`
+         (cadastro) e `POST /pessoas/fisicas/{id}/validacaooab?especializacao=Advogado`
+         (o mesmo POST do dialog "Validar na OAB"), comparando o resultado
+         com o `situacaoOab` do `/partes`;
+      5. resumo por advogado: `/partes` x situação live x inscrição escolhida
+         (o impedimento, se houver; senão a primeira regular), `multiplasOab`,
+         `dadosWsOab` e a flag DIVERGENTE.
 
     Também grava tudo em `logs_execucao/adv_<id>_<ts>.json`.
     """
@@ -2731,32 +2737,99 @@ def teste_advogados_oab(id_processo=None):
     LOGGER.info('=' * 60)
 
     js = """async (idp) => {
-        const base = location.origin + '/pje-comum-api/api/processos/id/' + idp;
-        const get = async (u) => {
+        const origin = location.origin;
+        const base = origin + '/pje-comum-api/api/processos/id/' + idp;
+
+        const cookie = (nome) => {
+            const alvo = nome.toLowerCase() + '=';
+            const c = document.cookie.split(';').map(x => x.trim())
+                .find(x => x.toLowerCase().startsWith(alvo));
+            return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
+        };
+        const headersJson = {'Accept': 'application/json', 'Content-Type': 'application/json'};
+        const xsrf = cookie('XSRF-TOKEN');
+        if (xsrf) headersJson['X-XSRF-TOKEN'] = xsrf;
+
+        const req = async (url, opts) => {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 120000);
             try {
-                const r = await fetch(u, {credentials: 'include',
-                                          headers: {'Accept': 'application/json'}});
+                const r = await fetch(url, Object.assign({credentials: 'include',
+                                                          signal: ctrl.signal}, opts || {}));
                 const t = await r.text();
                 let b = t;
                 try { b = JSON.parse(t); } catch (_) {}
                 return {status: r.status, body: b};
-            } catch (e) { return {status: 0, erro: String(e)}; }
+            } catch (e) {
+                return {status: 0, erro: String(e)};
+            } finally {
+                clearTimeout(timer);
+            }
         };
+        const get = (u) => req(u, {headers: {'Accept': 'application/json'}});
+        const post = (u, body) => req(u, {method: 'POST', headers: headersJson,
+                                          body: JSON.stringify(body || {})});
 
         const out = {idp, base};
         out.partes   = await get(base + '/partes');
         out.processo = await get(base);
+        // A tela /detalhe chama /partes com estes parâmetros; comparar as três
+        // variantes mostra se o `situacaoOab` vazio ("NÃO ENCONTRADA" no DOM)
+        // vem da diferença de query, não do dado em si.
+        out.partes_endereco = await get(base + '/partes?retornaEndereco=true');
+        out.partes_oab = await get(base + '/partes?retornaEndereco=true&retornaOab=true');
+        // A retificação usa comInativas=true: é a ÚNICA forma de ver as partes/
+        // advogados inativos que motivam o chip "Advogado impedido".
+        out.partes_inativas = await get(base + '/partes?comInativas=true');
+
+        const polos = (resp) => {
+            let b = (resp && resp.body) || {};
+            if (b && b.resultado && typeof b.resultado === 'object'
+                    && !Array.isArray(b.resultado)) {
+                b = b.resultado;
+            }
+            return (b && typeof b === 'object') ? b : {};
+        };
+        const norm = (v) => String(v || '')
+            .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toUpperCase().trim();
+        const estaAtivo = (r) => {
+            const st = String((r && r.status) || '').toUpperCase();
+            if (st) return st === 'A';
+            const sit = norm(r && r.situacao);
+            return sit === '' || sit === 'ATIVO';
+        };
+        const fonteAdvs = polos(out.partes_inativas);
+        const src = Object.keys(fonteAdvs).length ? fonteAdvs : polos(out.partes);
 
         const advs = [];
-        const src = (out.partes.body && typeof out.partes.body === 'object') ? out.partes.body : {};
         for (const polo of ['ATIVO', 'PASSIVO', 'TERCEIROS']) {
             for (const p of (src[polo] || [])) {
                 for (const r of ((p && p.representantes) || [])) {
-                    advs.push(Object.assign({_polo: polo, _parte: p.nome}, r));
+                    const tipo = String(r.tipo || '').toUpperCase();
+                    const oab = r.numeroOab || '';
+                    if (!tipo.includes('ADVOGADO') && !tipo.includes('OAB') && !oab) continue;
+                    advs.push(Object.assign({_polo: polo, _parte: p.nome,
+                                             _ativo: estaAtivo(r)}, r));
                 }
             }
         }
         out.advogados = advs;
+
+        const porPessoa = (resp) => {
+            const m = new Map();
+            const body = (resp && resp.body && typeof resp.body === 'object') ? resp.body : {};
+            for (const polo of ['ATIVO', 'PASSIVO', 'TERCEIROS']) {
+                for (const p of (body[polo] || [])) {
+                    for (const r of ((p && p.representantes) || [])) {
+                        const pid = r.idPessoa || r.id;
+                        if (pid) m.set(String(pid), r);
+                    }
+                }
+            }
+            return m;
+        };
+        const mapaEndereco = porPessoa(out.partes_endereco);
+        const mapaOab = porPessoa(out.partes_oab);
 
         const span = document.querySelector('[aria-label^="Situa\\u00e7\\u00e3o do advogado"]')
                   || document.querySelector('span[aria-label*="OAB"]');
@@ -2766,28 +2839,108 @@ def teste_advogados_oab(id_processo=None):
             pai: (span.parentElement ? span.parentElement.outerHTML : '').slice(0, 700),
         } : null;
 
-        const alvo = advs.find(a => a.idPessoa || a.id);
-        const pidAdv = alvo ? (alvo.idPessoa || alvo.id) : null;
-        out.alvo = alvo ? {nome: alvo.nome, oab: alvo.numeroOab, idPessoa: pidAdv} : null;
+        const CODIGOS = {1: 'Regular', 2: 'Cancelado', 3: 'Falecido', 4: 'Suspenso',
+                         5: 'Licenciado', 6: 'Excluido', 7: 'Em processo de inscricao'};
+        const codigo = (d) => (d && d.codigoSituacao !== undefined && d.codigoSituacao !== null)
+            ? Number(d.codigoSituacao) : null;
 
-        out.sondagem = [];
-        if (pidAdv) {
-            const cands = [
-                '/pje-comum-api/api/pessoas/' + pidAdv,
-                '/pje-comum-api/api/pessoas/' + pidAdv + '/oab',
-                '/pje-comum-api/api/pessoas/' + pidAdv + '/oabs',
-                '/pje-comum-api/api/advogados/' + pidAdv,
-                '/pje-comum-api/api/advogados/' + pidAdv + '/oab',
-                '/pje-comum-api/api/pessoa-fisica/' + pidAdv,
-                base + '/partes?retornaEndereco=true&retornaOab=true',
-                '/pje-oab-api/api/pessoa/' + pidAdv,
-                '/pje-oab-api/api/oab/pessoa/' + pidAdv,
-            ];
-            for (const c of cands) {
-                const r = await get(c);
-                out.sondagem.push({url: c, status: r.status,
-                                   amostra: JSON.stringify(r.body).slice(0, 500)});
-            }
+        // Um POST por pessoa: advogados repetidos em polos/partes não repetem a chamada.
+        const pessoas = new Map();
+        for (const a of advs) {
+            const pid = a.idPessoa || a.id;
+            if (!pid || pessoas.has(pid)) continue;
+            pessoas.set(pid, a);
+        }
+
+        out.oab = [];
+        for (const [pid, a] of pessoas) {
+            const rEnd = mapaEndereco.get(String(pid)) || {};
+            const rOab = mapaOab.get(String(pid)) || {};
+            const item = {
+                idPessoa: pid,
+                nome: a.nome,
+                cpf: a.documento || a.cpf || '',
+                polo: a._polo,
+                parte: a._parte,
+                ativo: a._ativo !== undefined ? !!a._ativo : true,
+                oabPartes: a.numeroOab || '',
+                situacaoPartes: a.situacaoOab || '',
+                situacaoPartesEndereco: rEnd.situacaoOab || '',
+                situacaoPartesOab: rOab.situacaoOab || '',
+            };
+
+            item.cadastro = await get('/pje-comum-api/api/pessoas/fisicas/advogados/' + pid);
+            item.validacao = await post(
+                '/pje-comum-api/api/pessoas/fisicas/' + pid
+                    + '/validacaooab?especializacao=' + encodeURIComponent('Advogado'), {});
+
+            const body = (item.validacao.body && typeof item.validacao.body === 'object')
+                ? item.validacao.body : {};
+            const dadosOab = Array.isArray(body.dadosOab) ? body.dadosOab : [];
+            const detalhados = dadosOab.map((d) => Object.assign({}, d, {
+                situacaoLabel: CODIGOS[codigo(d)] || d.nomeSituacao || '',
+            }));
+
+            const oabPartes = String(item.oabPartes || '');
+            const mOab = oabPartes.match(/^([A-Za-z]{2})\\s*(\\d+)/);
+            const ufAlvo = mOab ? mOab[1].toUpperCase() : '';
+            const numAlvo = mOab ? String(parseInt(mOab[2], 10)) : '';
+            const mesmoNumero = (d) => {
+                const num = String(d.numInscricao || '').replace(/\\D/g, '').replace(/^0+/, '');
+                return !!numAlvo && num === numAlvo;
+            };
+            const match = (ufAlvo && numAlvo)
+                ? (detalhados.find((d) => String(d.uf || '').toUpperCase() === ufAlvo
+                                        && mesmoNumero(d)) || null)
+                : null;
+            const regular = detalhados.find((d) => codigo(d) === 1) || null;
+            const escolhida = match || regular || detalhados[0] || null;
+            const impedimento = (match && codigo(match) !== null && codigo(match) !== 1)
+                ? match
+                : ((!match && !regular && detalhados.length) ? detalhados[0] : null);
+
+            item.validacao.dadosOab = detalhados;
+            item.validacao.multiplasOab = !!body.multiplasOab;
+            item.validacao.dadosWsOab = body.dadosWsOab;
+            item.validacao.pessoaOab = body.pessoaOab || null;
+            item.validacao.oabPartes = oabPartes;
+            item.validacao.matchProcesso = !!match;
+            item.validacao.situacaoLive = escolhida
+                ? (CODIGOS[codigo(escolhida)] || escolhida.nomeSituacao || '')
+                : (body.dadosWsOab ? 'SEM_INSCRICAO' : 'NAO_CONSULTADO');
+            item.validacao.inscricaoEscolhida = escolhida
+                ? String(escolhida.uf || '') + String(escolhida.numInscricao || '')
+                : '';
+            item.validacao.idDadosOabEscolhido = escolhida ? escolhida.id : null;
+            item.validacao.impedimento = !!impedimento;
+            item.validacao.motivoEscolha = impedimento
+                ? (match ? 'match_impedimento' : 'sem_match_sem_regular')
+                : (match ? 'match_regular' : 'sem_match_regular');
+
+            const partes = norm(item.situacaoPartes);
+            const partesEnd = norm(item.situacaoPartesEndereco);
+            const partesOab = norm(item.situacaoPartesOab);
+            // O DOM usa a variante ?retornaEndereco=true; se ela divergir da
+            // chamada sem params, é a explicação do "NÃO ENCONTRADA".
+            const partesEfetiva = partesEnd || partesOab || partes;
+            const live = norm(item.validacao.situacaoLive);
+            const liveConhecida = live && live !== 'NAO_CONSULTADO' && live !== 'SEM_INSCRICAO';
+            item.divergenciaVariantes = (partesEnd !== partes) || (partesOab !== partes);
+            item.divergente = (partesEfetiva !== '' && partesEfetiva !== 'REGULAR' && live === 'REGULAR')
+                || ((partesEfetiva === '' || partesEfetiva === 'REGULAR')
+                    && liveConhecida && live !== 'REGULAR');
+            item.resumo = 'partes=' + (partes || '-')
+                + ' end=' + (partesEnd || '-')
+                + ' oab=' + (partesOab || '-')
+                + ' live=' + (item.validacao.situacaoLive || '-')
+                + ' inscricao=' + (item.validacao.inscricaoEscolhida || '-')
+                + ' ativo=' + item.ativo
+                + ' match=' + item.validacao.matchProcesso
+                + ' motivo=' + item.validacao.motivoEscolha
+                + ' multiplas=' + item.validacao.multiplasOab
+                + (item.divergenciaVariantes ? ' VARIANTES_DIFEREM' : '')
+                + (item.divergente ? ' DIVERGENTE' : '');
+            out.oab.push(item);
         }
         return out;
     }"""
@@ -2817,6 +2970,12 @@ def teste_advogados_oab(id_processo=None):
 
             partes = dados.get('partes') or {}
             LOGGER.info('[ADV_TEST] /partes -> HTTP %s', partes.get('status'))
+            for chave, rotulo in (
+                    ('partes', '/partes'),
+                    ('partes_endereco', '/partes?retornaEndereco=true'),
+                    ('partes_oab', '/partes?retornaEndereco=true&retornaOab=true')):
+                resp = dados.get(chave) or {}
+                LOGGER.info('[ADV_TEST] %s -> HTTP %s', rotulo, resp.get('status'))
             proc = dados.get('processo') or {}
             LOGGER.info('[ADV_TEST] /processos/id -> HTTP %s', proc.get('status'))
 
@@ -2841,10 +3000,53 @@ def teste_advogados_oab(id_processo=None):
             else:
                 LOGGER.warning('[ADV_TEST] nenhum span com aria-label de OAB na tela')
 
-            LOGGER.info('[ADV_TEST] alvo da sondagem: %r', dados.get('alvo'))
-            for s in (dados.get('sondagem') or []):
-                LOGGER.info('[ADV_TEST]   %s -> HTTP %s | %s',
-                            s.get('url'), s.get('status'), s.get('amostra'))
+            oab = dados.get('oab') or []
+            LOGGER.info('[ADV_TEST][OAB] %d pessoa(s) consultada(s) no POST validacaooab',
+                        len(oab))
+            divergentes = 0
+            for i, item in enumerate(oab, 1):
+                v = item.get('validacao') or {}
+                cad = (item.get('cadastro') or {}).get('body')
+                validado = cad.get('validado') if isinstance(cad, dict) else None
+                LOGGER.info(
+                    '[ADV_TEST][OAB] %02d %s | /partes=%s | end=%s | oab=%s | live=%s | '
+                    'inscricao=%s (id=%s) | ativo=%s | match=%s | motivo=%s | '
+                    'multiplas=%s | dadosWsOab=%s | cadastro.validado=%s',
+                    i, item.get('nome'), item.get('situacaoPartes') or '-',
+                    item.get('situacaoPartesEndereco') or '-',
+                    item.get('situacaoPartesOab') or '-',
+                    v.get('situacaoLive') or '-', v.get('inscricaoEscolhida') or '-',
+                    v.get('idDadosOabEscolhido'), item.get('ativo'),
+                    v.get('matchProcesso'), v.get('motivoEscolha'),
+                    v.get('multiplasOab'), v.get('dadosWsOab'), validado)
+                if item.get('divergenciaVariantes'):
+                    LOGGER.warning(
+                        '[ADV_TEST][OAB] VARIANTES DIFEREM para %s: /partes=%r '
+                        '?retornaEndereco=%r ?retornaOab=%r',
+                        item.get('nome'), item.get('situacaoPartes'),
+                        item.get('situacaoPartesEndereco'), item.get('situacaoPartesOab'))
+                for d in (v.get('dadosOab') or []):
+                    LOGGER.info(
+                        '[ADV_TEST][OAB]     - %s%s codigo=%s situacao=%s',
+                        d.get('uf') or '', d.get('numInscricao') or '',
+                        d.get('codigoSituacao'),
+                        d.get('situacaoLabel') or d.get('nomeSituacao') or '')
+                if v.get('pessoaOab'):
+                    LOGGER.info('[ADV_TEST][OAB]     pessoaOab=%s',
+                                json.dumps(v['pessoaOab'], ensure_ascii=False)[:600])
+                if v.get('erro'):
+                    LOGGER.warning('[ADV_TEST][OAB]     erro=%s', v['erro'])
+                if item.get('divergente'):
+                    divergentes += 1
+                    LOGGER.warning(
+                        '[ADV_TEST][OAB] DIVERGENTE: %s | /partes=%r end=%r oab=%r | '
+                        'live=%s (%s) | validar com a inscricao %s (id=%s)',
+                        item.get('nome'), item.get('situacaoPartes'),
+                        item.get('situacaoPartesEndereco'),
+                        item.get('situacaoPartesOab'), v.get('situacaoLive'),
+                        v.get('motivoEscolha'), v.get('inscricaoEscolhida') or '-',
+                        v.get('idDadosOabEscolhido'))
+            LOGGER.info('[ADV_TEST][OAB] divergencias: %d/%d', divergentes, len(oab))
 
             caminho = os.path.join(
                 AQUI, 'logs_execucao',

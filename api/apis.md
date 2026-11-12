@@ -1487,9 +1487,25 @@ Busca minutas de comunicações processuais (expedientes) vinculadas ao processo
 ### 28.1. Consulta de processos administrativos
 
 **Endpoint:** `GET /pje-administracao-api/api/consultaprocessosadm`
-**Parâmetros:** `pagina`, `nomeParte`, `tamanhoPagina=1000`
+**Parâmetros:** `pagina`, `tamanhoPagina`, `nomeParte`, `numero`, `cpf`, `cnpj`,
+`oab`, `idTarefa`, `idEtiqueta`, `idsOrgaosJulgadores`, `naoValidar`,
+`ordenacaoColuna`, `ordenacaoCrescente`
 
-Pesquisa processos administrativos por nome da parte.
+Pesquisa processos administrativos. É a API usada pela tela
+`/administracao/consulta/processo/index` (o filtro "Chips" é o `idEtiqueta`).
+
+Resposta: `{pagina, tamanhoPagina, qtdPaginas, totalRegistros, resultado[]}`;
+cada item traz `id` (id interno do processo), `numero`, `idOrgaoJulgador`,
+`descricaoClasseJudicial`, `autor`, `reu`, `nomeTarefa`, etc.
+
+Notas confirmadas em produção (12/11/2026):
+
+- `naoValidar=true` é o que a tela envia e libera a busca sem um dos filtros
+  obrigatórios (parte, número, CPF, CNPJ, OAB, tarefa, responsável).
+- `idEtiqueta` sozinho é ignorado pelo backend (devolve a base inteira);
+  combinado com `idsOrgaosJulgadores` ele filtra pelo chip de verdade.
+- Usar `ordenacaoColuna=numero&ordenacaoCrescente=true` para paginação
+  estável entre páginas.
 
 **Wrapper JS:** `apis.consultaProcessosAdm`
 

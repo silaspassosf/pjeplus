@@ -282,8 +282,10 @@ def _sisbajud_minuta_60(driver, atv):
 
 
 def _sisbajud_processar_ordem(driver, atv):
-    from SISB.core import processar_ordem_sisbajud
-    return _executar_sisbajud(driver, atv, processar_ordem_sisbajud)
+    # Ponto de entrada do fluxo `xs resultado`: a API decide o fluxo sem navegar
+    # e só chama processar_ordem_sisbajud (DOM) quando há ordens a processar.
+    from SISB.api_series import processar_ordem_via_api
+    return _executar_sisbajud(driver, atv, processar_ordem_via_api)
 
 
 def _audx_mov_int(driver, atv):

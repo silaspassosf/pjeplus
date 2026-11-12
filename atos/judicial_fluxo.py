@@ -301,6 +301,283 @@ def fluxo_cls(
         return False, False  # (sucesso=False, ja_estava_estado_final=False)
 
 
+# ===== ABA "INTIMAÇÕES" (pós-Salvar da minuta) =====
+# Candidatos em ordem de confiança. Todos foram provados localizando
+# "Intimações" no DOM real (teste de seletores de 11/11); o 1º é o vencedor
+# daquele teste e os demais existem porque `aria-posinset`/ids derivam quando
+# muda a ordem ou o conjunto de abas. Como os índices `mat-tab-*` são gerados
+# pelo Angular, NENHUM candidato é usado sem confirmar o TEXTO do label — é
+# isso que impede clicar numa aba errada silenciosamente.
+SELETORES_ABA_INTIMACOES = (
+    'pje-editor-lateral div[role="tab"][aria-posinset="1"]',
+    'pje-editor-lateral .mat-tab-label[aria-posinset="1"]',
+    'pje-editor-lateral div[role="tab"][aria-controls="mat-tab-content-0-0"]',
+    'pje-editor-lateral mat-tab-header div[role="tab"]:first-child',
+    '#mat-tab-label-0-0',
+)
+TENTATIVAS_ABA_INTIMACOES = 3
+
+# Confirmação em DOIS sinais, porque um só mente: o label precisa estar
+# selecionado (`mat-tab-label-active` / `aria-selected="true"`) E o painel de
+# intimações precisa estar montado no MESMO `mat-tab-group`. O Angular mantém
+# as 6 abas montadas no DOM (presença não prova nada) e a classe
+# `mat-tab-body-active` do corpo não acompanha a troca.
+_JS_ABA_INTIMACOES_ATIVA = """(() => {
+    var l = document.querySelector(%s);
+    if (!l) return false;
+    if (!(l.classList.contains('mat-tab-label-active')
+          || l.getAttribute('aria-selected') === 'true')) return false;
+    var g = l.closest('mat-tab-group') || document;
+    return !!g.querySelector(
+        'pje-intimacao-automatica .controle-intimacao-pai');
+}"""
+
+_JS_TEXTO_ABA = """(() => {
+    var l = document.querySelector(%s);
+    return l ? (l.textContent || '') : '';
+})()"""
+
+_JS_ESTADO_ABA = """(() => {
+    var l = document.querySelector(%s);
+    var g = l && (l.closest('mat-tab-group') || document);
+    var ativa = g && g.querySelector(
+        'div[role="tab"].mat-tab-label-active, div[role="tab"][aria-selected="true"]');
+    return {
+        existe: !!l,
+        ativa: !!(l && (l.classList.contains('mat-tab-label-active')
+                        || l.getAttribute('aria-selected') === 'true')),
+        painel: !!(g && g.querySelector(
+            'pje-intimacao-automatica .controle-intimacao-pai')),
+        ativa_texto: ativa
+            ? ' '.join((ativa.textContent || '').split()).toLowerCase() : ''
+    };
+})()"""
+
+
+def _texto_aba(driver: Any, seletor: str, elemento: Any = None) -> str:
+    """Texto normalizado do label apontado por `seletor` ('' se não existir).
+
+    Lê preferencialmente do elemento já resolvido (funciona também no baseline
+    sem `driver.page`) e cai no JS quando só o seletor está em mãos.
+    """
+    bruto = ''
+    if elemento is not None:
+        try:
+            bruto = getattr(elemento, 'text', '') or ''
+        except Exception:
+            bruto = ''
+    if not bruto:
+        try:
+            bruto = driver.page.evaluate(_JS_TEXTO_ABA % json.dumps(seletor)) or ''
+        except Exception:
+            return ''
+    return ' '.join(str(bruto).split()).lower()
+
+
+def _estado_aba(driver: Any, seletor: str, elemento: Any = None) -> dict:
+    """Estado observável da aba: existe / ativa / painel montado / label ativo.
+
+    O `ativa_texto` (label atualmente selecionado no tab-group) é o que permite
+    ATRIBUIR o sucesso ao clique: sem ele, um clique manual durante a execução
+    faz o painel aparecer e o log mente dizendo que a automação acertou.
+    """
+    if hasattr(driver, 'page'):
+        try:
+            estado = driver.page.evaluate(_JS_ESTADO_ABA % json.dumps(seletor))
+            if isinstance(estado, dict):
+                return estado
+        except Exception:
+            pass
+    # Baseline sem `driver.page`: lê o que der do elemento.
+    ativa = False
+    if elemento is not None:
+        try:
+            classe = elemento.get_attribute('class') or ''
+            ativa = (elemento.get_attribute('aria-selected') == 'true'
+                     or 'mat-tab-label-active' in classe)
+        except Exception:
+            ativa = False
+    painel = False
+    try:
+        painel = bool(esperar_elemento(
+            driver, 'pje-intimacao-automatica .controle-intimacao-pai', timeout=1))
+    except Exception:
+        painel = False
+    return {'existe': elemento is not None, 'ativa': ativa,
+            'painel': painel, 'ativa_texto': ''}
+
+
+def _aba_intimacoes_ativa(driver: Any, seletor: str, teto: float = 2.0) -> bool:
+    """True só com AQUELE label ativo E o painel montado no mesmo tab-group."""
+    def _ok(_driver):
+        estado = _estado_aba(_driver, seletor)
+        return bool(estado.get('ativa') and estado.get('painel'))
+    return bool(espera.ate(driver, _ok, teto=teto))
+
+
+_JS_ARMAR_CLIQUE_ABA = """(sel) => {
+    var l = document.querySelector(sel);
+    if (!l) return false;
+    window.__pjeCliqueAba = 0;
+    l.addEventListener('click', function () { window.__pjeCliqueAba += 1; }, { once: true });
+    return true;
+}"""
+
+_JS_LER_CLIQUE_ABA = """() => (window.__pjeCliqueAba || 0)"""
+
+
+def _armar_clique_aba(driver: Any, seletor: str) -> bool:
+    """Arma um contador de eventos de `click` no label antes do clique.
+
+    `element.click()` dispara o evento de forma SÍNCRONA, então ler o contador
+    logo depois de `safe_click_no_scroll` prova se o clique da automação
+    alcançou a aba — um clique manual durante a espera posterior não conta.
+    """
+    if not hasattr(driver, 'page'):
+        return False
+    try:
+        return bool(driver.page.evaluate(_JS_ARMAR_CLIQUE_ABA % json.dumps(seletor)))
+    except Exception:
+        return False
+
+
+def _ler_clique_aba(driver: Any) -> int:
+    """Eventos de clique vistos no label desde o armamento (-1 = sem medição)."""
+    try:
+        return int(driver.page.evaluate(_JS_LER_CLIQUE_ABA))
+    except Exception:
+        return -1
+
+
+def _resolver_aba_intimacoes(driver: Any, tentativa: int):
+    """Acha o 1º candidato cujo label seja realmente "Intimações".
+
+    Devolve (seletor, elemento) ou (None, None). O texto é conferido para
+    detectar drift de posição/id e para o log dizer por que um candidato caiu.
+    """
+    for idx, seletor in enumerate(SELETORES_ABA_INTIMACOES, 1):
+        teto = 4 if (tentativa == 1 and idx == 1) else 2
+        elemento = esperar_elemento(driver, seletor, timeout=teto)
+        if elemento is None:
+            logger.debug('[ATO][ABA] candidato %d/%d ausente: %s',
+                         idx, len(SELETORES_ABA_INTIMACOES), seletor)
+            continue
+        texto = _texto_aba(driver, seletor, elemento)
+        if 'intima' not in texto:
+            logger.warning('[ATO][ABA] candidato %d/%d (%s) aponta para %r — ignorado',
+                           idx, len(SELETORES_ABA_INTIMACOES), seletor, texto)
+            continue
+        logger.info('[ATO][ABA] candidato %d/%d (%s) resolvido para %r',
+                    idx, len(SELETORES_ABA_INTIMACOES), seletor, texto)
+        return seletor, elemento
+    return None, None
+
+
+def _dump_abas_intimacoes(driver: Any) -> None:
+    """Diagnóstico: estado de cada candidato e de todas as abas da tela."""
+    for idx, seletor in enumerate(SELETORES_ABA_INTIMACOES, 1):
+        estado = _estado_aba(driver, seletor)
+        logger.error('[ATO][ABA] candidato %d/%d %s -> texto=%r ativa=%s painel=%s',
+                     idx, len(SELETORES_ABA_INTIMACOES), seletor,
+                     _texto_aba(driver, seletor) or '<ausente>',
+                     estado.get('ativa'), estado.get('painel'))
+    try:
+        if not hasattr(driver, 'page'):
+            return
+        abas = driver.page.evaluate("""() => Array.from(
+            document.querySelectorAll('pje-editor-lateral div[role="tab"], pje-editor-lateral .mat-tab-label')
+        ).map(t => ({
+            texto: (t.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 30),
+            id: t.id || null,
+            pos: t.getAttribute('aria-posinset'),
+            sel: t.getAttribute('aria-selected'),
+            ativa: t.classList.contains('mat-tab-label-active')
+        }))""")
+        logger.error('[ATO][ABA] abas na tela: %s', abas)
+    except Exception as e:
+        logger.error('[ATO][ABA] não foi possível listar as abas: %s', e)
+
+
+def _ativar_aba_intimacoes(driver: Any) -> bool:
+    """Ativa a aba "Intimações" pelo clique, com retry, e confirma o painel.
+
+    O CLIQUE É SEMPRE FEITO a cada tentativa — não existe atalho de "já estava
+    ativa" (histórico de 11/11, 13:01: a confirmação antiga mentia, pulava o
+    clique e o log não registrava clique nenhum).
+
+    ATRIBUIÇÃO (por que o estado é lido ANTES do clique): se alguém clicar
+    manualmente durante a execução, o painel aparece e a confirmação passaria
+    mesmo com o clique da automação tendo falhado — o log diria "sucesso" sem
+    que a automação tenha acertado. Comparando o estado antes/depois, o log
+    passa a distinguir `transição observada pelo clique` de `já estava pronto
+    antes do clique`.
+    """
+    for tentativa in range(1, TENTATIVAS_ABA_INTIMACOES + 1):
+        seletor, aba = _resolver_aba_intimacoes(driver, tentativa)
+        if aba is None:
+            logger.warning('[ATO][ABA] tentativa %d/%d nenhum candidato apontou para '
+                           '"Intimações"', tentativa, TENTATIVAS_ABA_INTIMACOES)
+            espera.assentar(driver, 0.6, motivo='re-tentativa de localização da aba Intimações')
+            continue
+
+        antes = _estado_aba(driver, seletor, aba)
+        if antes.get('ativa') and antes.get('painel'):
+            logger.info('[ATO][ABA] tentativa %d/%d: aba JÁ estava ativa e com painel '
+                        'ANTES do clique (ativo=%r) — atribuição não comprovável',
+                        tentativa, TENTATIVAS_ABA_INTIMACOES,
+                        antes.get('ativa_texto'))
+        armado = _armar_clique_aba(driver, seletor)
+        clicou = None
+        try:
+            clicou = safe_click_no_scroll(driver, aba)
+            logger.info('[ATO][ABA] tentativa %d/%d — clique na aba "Intimações" via %s '
+                        '(ativo antes=%r)', tentativa, TENTATIVAS_ABA_INTIMACOES,
+                        seletor, antes.get('ativa_texto'))
+        except Exception as e:
+            logger.warning('[ATO][ABA] tentativa %d/%d falha ao clicar via %s: %s',
+                           tentativa, TENTATIVAS_ABA_INTIMACOES, seletor, e)
+
+        # PROVA DO PRÓPRIO CLIQUE: se nenhum evento de clique chegou ao label,
+        # o painel (se aparecer) veio de clique alheio — não deste código.
+        if armado:
+            recebidos = _ler_clique_aba(driver)
+            if recebidos == 0:
+                logger.warning('[ATO][ABA] tentativa %d/%d: clique NÃO alcançou a aba '
+                               '(0 eventos no label) — painel alheio não conta',
+                               tentativa, TENTATIVAS_ABA_INTIMACOES)
+                if tentativa < TENTATIVAS_ABA_INTIMACOES:
+                    espera.assentar(driver, 0.6, motivo='re-tentativa: clique não alcançou a aba')
+                    continue
+            elif recebidos > 1:
+                logger.info('[ATO][ABA] tentativa %d/%d: %d cliques no label no intervalo '
+                            '(houve clique externo)', tentativa,
+                            TENTATIVAS_ABA_INTIMACOES, recebidos)
+        elif clicou is False:
+            logger.warning('[ATO][ABA] tentativa %d/%d: safe_click falhou para %s',
+                           tentativa, TENTATIVAS_ABA_INTIMACOES, seletor)
+
+        # Dá tempo do Angular montar o painel de intimações após o clique.
+        espera.assentar(driver, 0.8, motivo='pós-clique da aba Intimações')
+        if _aba_intimacoes_ativa(driver, seletor, teto=3.0):
+            depois = _estado_aba(driver, seletor, aba)
+            if not (antes.get('ativa') and antes.get('painel')):
+                logger.info('[ATO][ABA] ✅ transição observada pelo clique → aba '
+                            '"Intimações" ativa e painel montado '
+                            '(tentativa %d, seletor %s)', tentativa, seletor)
+            else:
+                logger.info('[ATO][ABA] ✅ aba "Intimações" ativa e painel montado '
+                            '(sem transição: já estava antes; ativo depois=%r)',
+                            depois.get('ativa_texto'))
+            return True
+        depois = _estado_aba(driver, seletor, aba)
+        logger.warning('[ATO][ABA] tentativa %d/%d sem confirmação — antes(ativa=%s, '
+                       'painel=%s) depois(ativa=%s, painel=%s)',
+                       tentativa, TENTATIVAS_ABA_INTIMACOES,
+                       antes.get('ativa'), antes.get('painel'),
+                       depois.get('ativa'), depois.get('painel'))
+    return False
+
+
 def ato_judicial(
     driver: Any,
     conclusao_tipo: Optional[str] = None,
@@ -460,74 +737,15 @@ def ato_judicial(
 
             # 1.5 GARANTIR A ABA "INTIMAÇÕES" ATIVA (mudança de DOM no PJe).
             # Antes o PJe movimentava sozinho para a aba de intimações após o
-            # Salvar; quando isso deixou de acontecer, o painel de
-            # destinatários/prazo nunca renderizava e o salvamento era dado
-            # como não confirmado.
-            #
-            # Clique e confirmação são independentes, de propósito:
-            #   - o CLIQUE é SEMPRE feito. Depois do Salvar a aba que fica
-            #     ativa é a "Modelos" (foi por ela que o modelo entrou), e o
-            #     painel de intimações só monta com o clique. Não existe
-            #     atalho de "já estava ativa": o log não registrava clique
-            #     nenhum e a execução seguia com o painel errado.
-            #   - a POSIÇÃO identifica a aba: `aria-posinset="1"` é
-            #     "Intimações" no `pje-editor-lateral` (id `mat-tab-label-0-N`
-            #     e `mat-tab-content-0-N` são gerados pelo Angular e mudam de
-            #     numeração — não servir como seletor). Buscar por TEXTO
-            #     (`textContent.includes('intima')`) pegou a aba errada em
-            #     produção (log dizia `Aba "Modelos" já estava ativa`).
-            #   - a CONFIRMAÇÃO lê o LABEL selecionado (`mat-tab-label-active`
-            #     / `aria-selected="true"`) E exige o painel montado no mesmo
-            #     `mat-tab-group`. Um sinal só mente: o Angular mantém as 6
-            #     abas montadas no DOM (presença não prova nada) e a classe
-            #     `mat-tab-body-active` do corpo não acompanha a troca.
-            def _aba_intimacoes_ativa(teto=2.0):
-                return bool(espera.ate_js(driver, """(() => {
-                    var l = document.querySelector(
-                        'pje-editor-lateral div[role="tab"][aria-posinset="1"]');
-                    if (!l) return false;
-                    if (!(l.classList.contains('mat-tab-label-active')
-                          || l.getAttribute('aria-selected') === 'true')) return false;
-                    var g = l.closest('mat-tab-group') || document;
-                    return !!g.querySelector(
-                        'pje-intimacao-automatica .controle-intimacao-pai');
-                })()""", teto=teto))
-
-            sel_aba_intimacoes = 'pje-editor-lateral div[role="tab"][aria-posinset="1"]'
-
-            aba_ok = False
-            aba = esperar_elemento(driver, sel_aba_intimacoes, timeout=5)
-            if aba is None:
-                logger.error('[ATO][ABA] Aba "Intimações" não encontrada por: %s', sel_aba_intimacoes)
-            else:
-                try:
-                    safe_click_no_scroll(driver, aba)
-                    logger.info('[ATO][ABA] Clique na aba "Intimações" realizado (%s)',
-                                sel_aba_intimacoes)
-                except Exception as e:
-                    logger.warning('[ATO][ABA] Falha ao clicar na aba "Intimações": %s', e)
-                aba_ok = _aba_intimacoes_ativa()
-                if aba_ok:
-                    logger.info('[ATO][ABA] ✅ Aba "Intimações" selecionada e painel montado')
+            # Salvar; sem isso o painel de destinatários/prazo não renderiza e
+            # o salvamento é dado como não confirmado. Regras de seleção,
+            # clique e confirmação ficam documentadas em _ativar_aba_intimacoes.
+            aba_ok = _ativar_aba_intimacoes(driver)
 
             if not aba_ok:
-                # Diagnóstico: sem isto, "aba não ativou" não diz qual seletor
-                # apontar. Lista as abas reais com texto/id/posição/estado.
-                try:
-                    if hasattr(driver, 'page'):
-                        abas = driver.page.evaluate("""() => Array.from(
-                            document.querySelectorAll('pje-editor-lateral div[role="tab"], pje-editor-lateral .mat-tab-label')
-                        ).map(t => ({
-                            texto: (t.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 30),
-                            id: t.id || null,
-                            pos: t.getAttribute('aria-posinset'),
-                            sel: t.getAttribute('aria-selected'),
-                            ativa: t.classList.contains('mat-tab-label-active')
-                        }))""")
-                        logger.error('[ATO][ABA] Abas encontradas na tela: %s', abas)
-                except Exception as e:
-                    logger.error('[ATO][ABA] Não foi possível listar as abas: %s', e)
-                logger.error('[ATO][ABA] Painel de intimações NÃO confirmado — abortando antes de executar prazos')
+                logger.error('[ATO][ABA] Painel de intimações NÃO confirmado após %d tentativas '
+                             '— abortando antes de executar prazos', TENTATIVAS_ABA_INTIMACOES)
+                _dump_abas_intimacoes(driver)
                 return False, False
 
             # 2. Confirmação POSITIVA de minuta salva. O retorno é OBRIGATÓRIO:

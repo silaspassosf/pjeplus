@@ -50,6 +50,76 @@ def _aguardar_painel_destinatarios_assentar(driver: Any, teto_linhas: int = 10) 
     return atual
 
 
+_SEL_POLO_ATIVO = ('#selecionar-polo-ativo, button[aria-label="Selecionar polo ativo"]')
+
+_JS_CLICAR_POLO_ATIVO = """
+    const btn = document.getElementById('selecionar-polo-ativo')
+        || document.querySelector('#selecionar-polo-ativo')
+        || document.querySelector('button[aria-label="Selecionar polo ativo"]');
+    if (!btn) return false;
+    btn.click();
+    return true;
+"""
+
+_JS_ALGUMA_LINHA_MARCADA = (
+    "__pjeEls('table.t-class tbody tr.ng-star-inserted input[aria-label=\"Intimar parte\"]')"
+    ".some(cb => !!cb.checked)"
+)
+
+
+def _clicar_polo_ativo(driver: Any, tentativas: int = 2) -> bool:
+    """Clica em "Selecionar polo ativo" e confirma que alguma linha foi marcada.
+
+    Clique nativo por ID via JS (padrão do pre-refac). Não usa a busca com gate
+    de visibilidade: o botão fica no corpo da aba e pode não passar no gate
+    enquanto o painel ainda hidrata — e antes o clique silencioso deixava o log
+    dizer "clique realizado" sem clique nenhum (processo 1001901, 12/11: o ato
+    seguiu até o fim com os destinatários não selecionados).
+
+    A confirmação é o efeito esperado (linha marcada), não o disparo do clique.
+    """
+    try:
+        espera.ate_aparecer(driver, _SEL_POLO_ATIVO, teto=10)
+    except Exception:
+        pass
+
+    for tentativa in range(1, tentativas + 1):
+        logger.info('[PRAZOS] Clicando no botão #selecionar-polo-ativo (tentativa %d/%d)...',
+                    tentativa, tentativas)
+        clicado = False
+        try:
+            clicado = bool(_executar_js(driver, _JS_CLICAR_POLO_ATIVO))
+        except Exception as e:
+            logger.warning('[PRAZOS] JS de clique no polo ativo falhou: %s', e)
+
+        if not clicado:
+            # Reserva: elemento sem gate de visibilidade.
+            btn = None
+            try:
+                btn = espera.elemento(driver, _SEL_POLO_ATIVO, teto=2, visivel=False)
+            except Exception:
+                btn = None
+            if btn is not None:
+                clicado = bool(safe_click_no_scroll(driver, btn, log=False))
+
+        if not clicado:
+            logger.warning('[PRAZOS] Botão #selecionar-polo-ativo não encontrado (tentativa %d/%d)',
+                           tentativa, tentativas)
+            continue
+
+        if espera.ate_js(driver, _JS_ALGUMA_LINHA_MARCADA, teto=3):
+            logger.info('[PRAZOS] Polo ativo selecionado (linha marcada)')
+            espera.assentar(driver, 0.3)
+            return True
+
+        logger.warning('[PRAZOS] Clique efetuado mas nenhuma linha foi marcada (tentativa %d/%d)',
+                       tentativa, tentativas)
+        espera.assentar(driver, 0.4)
+
+    return False
+
+
+
 def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: bool = False, perito: bool = False, perito_nomes: Any = None) -> bool:
     """
     Preenche prazos para destinatários em uma tabela específica.
@@ -71,18 +141,9 @@ def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: boo
 
         # Se apenas_primeiro, clicar no botão "Selecionar polo ativo"
         if apenas_primeiro:
-            try:
-                logger.info('[PRAZOS] Clicando no botão #selecionar-polo-ativo...')
-                espera.ate_aparecer(driver, '#selecionar-polo-ativo, button[aria-label="Selecionar polo ativo"]', teto=10)
-
-                btn = espera.elemento(driver, '#selecionar-polo-ativo, button[aria-label="Selecionar polo ativo"]', teto=2)
-                if btn:
-                    safe_click_no_scroll(driver, btn, log=False)
-
-                espera.assentar(driver, 0.5)
-                logger.info('[PRAZOS] Botão #selecionar-polo-ativo clicado com sucesso')
-            except Exception as e:
-                logger.warning(f'[PRAZOS] Erro ao clicar no botão selecionar-polo-ativo: {e}')
+            if not _clicar_polo_ativo(driver):
+                logger.warning('[PRAZOS] Clique em #selecionar-polo-ativo não marcou nenhuma linha '
+                               '— seguindo sem seleção de polo')
         else:
             # Selecionar todos e filtrar apenas "Diário" (excluir "Domicílio Eletrônico")
             try:

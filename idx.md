@@ -8,6 +8,7 @@ Atualizado: 2026-10-01 (regras de referência histórica e branch de trabalho)
 > 1. `.agents/rules/anti-selenium.md` — Playwright é a única via; proibido reintroduzir Selenium.
 > 2. `.agents/rules/comparacao-historica.md` — branch de trabalho sempre `main`; em caso de dúvida/falha, compare com `968047a^`. A comparação é diagnóstica, não modo de restauração. Não consulte branches anteriores.
 > 3. `gigs-plugin.js` e outras fontes legadas só podem ser consultadas se o prompt as mencionar expressamente. (`LEGADO.md` foi removido em 2026-10-23 — conhecimento destilado em `docs/HISTORICO_LEGADO.md`; conteúdo integral recuperável via git.)
+> 4. **Referência de correção: tag `pre-refac`** (commit `37cc8c9c`; ler com `git show pre-refac:<caminho>`) **e a arquitetura real dos submotores `Script/autoactions/*.js`** (ex.: `despacho_engine.js` para conclusão/minuta). Consultar só quando o prompt pedir. O `<pre-refac>:atos/*` é Selenium (`Fix.selenium_base`, `WebDriver`): usar como referência de comportamento/seletor, não copiar verbatim nem usar para decisões de arquitetura — a arquitetura vigente é a dos submotores + `Fix/`.
 
 ---
 

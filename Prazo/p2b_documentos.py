@@ -238,14 +238,18 @@ def _fechar_aba_processo(driver: Any) -> None:
 
 
 def _gigs_com_prazo_pendente(driver: Any) -> bool:
-    """True se o painel GIGS do processo aberto tiver QUALQUER atividade com prazo.
+    """True se o processo tiver QUALQUER atividade GIGS além do gatilho `xs1`.
 
-    Lê o painel já renderizado na página do processo (`pje-gigs-atividades`): o selo
-    `pje-gigs-alerta-prazo span.prazo` aparece tanto para prazo em aberto (verde)
-    quanto para prazo vencido (vermelho) — os dois bloqueiam o arquivamento.
-    Atividade sem prazo (ex. "xs carta") não tem o selo e não bloqueia.
+    Regra: o arquivamento só é liberado quando a ÚNICA atividade encontrada é a
+    `xs1`. Havendo outra atividade — inclusive comentário, e mesmo sem prazo —
+    devolve True (bloqueia).
 
-    Se o painel não estiver na página, cai na checagem pela API.
+    Lê o painel já renderizado na página do processo (`pje-gigs-atividades`) e,
+    se ele não estiver na página, cai na checagem pela API.
+
+    O `xs1` é o marcador que faz o processo entrar no P2B (ver testar_gigs_xs1)
+    e carrega prazo próprio; contá-lo bloqueava o arquivamento em 100% dos
+    casos (log 12/11: 13 de 13 "Arquivamento PULADO" com o mesmo `Prazo: xs1`).
     """
     try:
         linhas = espera.elementos(driver, 'pje-gigs-atividades tbody tr', teto=3)
@@ -254,50 +258,64 @@ def _gigs_com_prazo_pendente(driver: Any) -> bool:
         linhas = []
 
     if linhas:
+        ignoradas = 0
         for linha in linhas:
-            selo = espera.elemento(linha, 'pje-gigs-alerta-prazo span.prazo', teto=0.1)
-            if not selo:
+            try:
+                texto_linha = (getattr(linha, 'text', '') or '').lower()
+            except Exception:
+                texto_linha = ''
+            # A própria atividade `xs1` é o gatilho do P2B (ver testar_gigs_xs1)
+            # e vem com prazo próprio; ela não conta como bloqueio.
+            if 'xs1' in texto_linha:
+                ignoradas += 1
                 continue
+            # Qualquer OUTRA atividade — inclusive comentário, e mesmo sem
+            # prazo — bloqueia: o arquivamento só é liberado quando xs1 é a
+            # única atividade encontrada.
             descricao = ''
             try:
                 el_desc = espera.elemento(linha, 'span.descricao', teto=0.1)
                 descricao = (el_desc.text if el_desc else '') or ''
             except Exception:
                 pass
-            logger.info('[FLUXO_PZ][GIGS] prazo pendente no painel: %s', (descricao or '?')[:80])
+            logger.info('[FLUXO_PZ][GIGS] outra atividade no painel (arquivamento PULADO): %s',
+                        (descricao or texto_linha or '?')[:80])
             return True
-        logger.info('[FLUXO_PZ][GIGS] painel conferido: %d atividade(s), nenhuma com prazo', len(linhas))
+        logger.info('[FLUXO_PZ][GIGS] painel sem outra atividade (%d xs1 ignorada(s)) — '
+                    'arquivamento liberado', ignoradas)
         return False
 
     return _gigs_com_prazo_pendente_api(driver)
 
 
 def _gigs_com_prazo_pendente_api(driver: Any) -> bool:
-    """Fallback da guarda: confere prazos pela API de atividades GIGS do processo.
+    """Fallback da guarda: confere as atividades GIGS pela API do processo.
 
-    Pendente = atividade com `dataPrazo` preenchido e status diferente de
-    CONCLUÍDA/CANCELADA. Vencido também conta. Erro na consulta devolve True —
+    Mesma regra do painel: só libera quando a única atividade é `xs1`. Qualquer
+    outra (inclusive comentário) bloqueia. Erro na consulta devolve True —
     não arquivar sem conferir.
     """
     try:
         from Fix.navegacao_espera import extrair_id_processo
         id_processo = extrair_id_processo(driver)
         if not id_processo:
-            logger.warning('[FLUXO_PZ][GIGS] id do processo ausente na URL — prazos nao conferidos')
+            logger.warning('[FLUXO_PZ][GIGS] id do processo ausente na URL — atividades nao conferidas')
             return True
         from .p2b_gateway import _criar_api_client
         client = _criar_api_client(driver)
         atividades = client.atividades_gigs(id_processo) or []
+        ignoradas = 0
         for atv in atividades:
-            data_prazo = atv.get('dataPrazo')
-            if not data_prazo or not str(data_prazo).strip():
+            tipo_atv = str(atv.get('tipoAtividade') or '')
+            observacao = str(atv.get('observacao') or '')
+            if 'xs1' in f'{tipo_atv} {observacao}'.lower():
+                ignoradas += 1
                 continue
-            status = str(atv.get('statusAtividade') or '').upper()
-            if 'CONCLU' in status or 'CANCELA' in status:
-                continue
-            logger.info('[FLUXO_PZ][GIGS] prazo pendente (API): tipo=%s status=%s data=%s',
-                        atv.get('tipoAtividade') or '?', status or '?', data_prazo)
+            logger.info('[FLUXO_PZ][GIGS] outra atividade (API) — arquivamento PULADO: tipo=%s status=%s data=%s',
+                        tipo_atv or '?', atv.get('statusAtividade') or '?', atv.get('dataPrazo') or '-')
             return True
+        logger.info('[FLUXO_PZ][GIGS] (API) sem outra atividade (%d xs1 ignorada(s)) — '
+                    'arquivamento liberado', ignoradas)
         return False
     except Exception as e:
         logger.warning('[FLUXO_PZ][GIGS] falha ao conferir prazos (%s: %s) — nao arquiva por seguranca',
@@ -306,10 +324,11 @@ def _gigs_com_prazo_pendente_api(driver: Any) -> bool:
 
 
 def _mov_arquivar_se_sem_prazo(driver: Any) -> bool:
-    """Regra de arquivamento do P2B: só arquiva se não houver GIGS com prazo pendente.
+    """Regra de arquivamento do P2B: só arquiva quando a única GIGS é `xs1`.
 
-    Com prazo pendente (vencido ou não) a regra APENAS PULA e devolve True, para o
-    processo não ser marcado como falha.
+    A atividade `xs1` (gatilho do P2B) não conta como bloqueio. Havendo outra
+    atividade — inclusive comentário — a regra APENAS PULA e devolve True, para
+    o processo não ser marcado como falha.
     """
     if _gigs_com_prazo_pendente(driver):
         logger.info('[FLUXO_PZ] Arquivamento PULADO: processo tem GIGS com prazo pendente')
@@ -362,8 +381,9 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         (['A pronúncia da'], (prescreve,)),
 
         # REGRA DE ARQUIVAMENTO - MÁXIMA PRIORIDADE (logo após prescrição)
-        # Só arquiva se NÃO houver GIGS com prazo pendente (vencido ou não); caso
-        # contrário a regra apenas pula (_mov_arquivar_se_sem_prazo).
+        # Só arquiva quando a ÚNICA atividade GIGS é a `xs1` (gatilho do P2B).
+        # Qualquer outra atividade ou comentário faz a regra apenas pular
+        # (_mov_arquivar_se_sem_prazo).
         ([
             'julgo extinta a presente execução, nos termos do art. 924',
             'autos ao arquivo',

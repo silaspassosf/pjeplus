@@ -6,7 +6,6 @@ Funções para abertura de tarefas, navegação entre estados do PJE,
 limpeza de overlays e transição entre URLs.
 """
 
-import time
 from typing import Optional, Tuple, Any
 
 from Fix.core import (
@@ -16,6 +15,7 @@ from Fix.core import (
     wait_for_page_load,
     aguardar_renderizacao_nativa,
     esperar_elemento,
+    esperar_url_conter,
     preencher_campo,
 )
 from Fix.log import logger
@@ -452,8 +452,47 @@ def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
             # Fora do container canônico (variação de tela): busca ampla, curta.
             botao = esperar_elemento(driver, 'button', texto=conclusao_tipo, timeout=2)
 
+        # ===== FALLBACK: busca ativa do tipo (pre-refac + despacho_engine) =====
+        # Enquanto a tela de conclusão migra, `esperar_elemento` pode não achar
+        # o botão do tipo mesmo após 15s. A arquitetura real resolve isso
+        # buscando o tipo por texto no conjunto canônico
+        # (Script/autoactions/despacho_engine.js:93-110 — escolherTipoConclusao),
+        # com o mesmo conjunto de seletores do pre-refac: o polling vira a
+        # última barreira ANTES de desistir.
+        if botao is None and hasattr(driver, 'page'):
+            script_find = """(tipo) => {
+                function normalizar(s){ return (s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().trim(); }
+                var tipo_norm = normalizar(tipo);
+                var candidatos = Array.prototype.slice.call(document.querySelectorAll(
+                    'pje-concluso-tarefa-botao button, pje-conclusao-dependencia button, button.mat-raised-button'));
+                function casa(btn) {
+                    var txt = normalizar(btn.textContent);
+                    if (txt === tipo_norm || txt.indexOf(tipo_norm) !== -1) return true;
+                    var aria = normalizar(btn.getAttribute('aria-label'));
+                    return aria.indexOf(tipo_norm) !== -1;
+                }
+                for (var i = 0; i < candidatos.length; i++) {
+                    var btn = candidatos[i];
+                    var txt = normalizar(btn.textContent);
+                    var aria = normalizar(btn.getAttribute('aria-label'));
+                    if (aria.indexOf('remover') !== -1 || aria.indexOf('fechar') !== -1 || aria.indexOf('excluir') !== -1) continue;
+                    if (btn.disabled || !(btn.offsetWidth > 0 && btn.offsetHeight > 0)) continue;
+                    if (!casa(btn)) continue;
+                    btn.scrollIntoView({block:'center', behavior:'instant'});
+                    btn.click();
+                    return true;
+                }
+                return false;
+            }"""
+            fallback_ok = espera.ate(
+                driver, lambda d: bool(d.page.evaluate(script_find, conclusao_tipo)), teto=10)
+            if fallback_ok:
+                logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado via busca ativa (despacho_engine / pre-refac)')
+                return True
+
         if botao is None:
-            logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado após 15s de espera')
+            logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado após 15s de espera '
+                         f'(incluindo busca ativa do despacho_engine / pre-refac)')
             _dump_botoes_conclusao(driver)
             return False
 
@@ -477,8 +516,14 @@ def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
 def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
     """
     Aguarda a transição da tela de conclusão para a tela de minutar.
-    Observa a mudança da URL para /minutar e a renderização dos componentes
-    exclusivos de minutar (árvore de modelos, input de filtro, editor).
+
+    Ordem de sinais ALINHADA AO PRE-REFAC / gigs-plugin: o ponto de partida é a
+    renderização do DOM exclusivo de minutar (árvore de modelos / campo de
+    filtro / editor), que responde na hora em que o Angular monta a tela. O
+    polling de URL no Angular era o sinal PRIMÁRIO aqui e é lento/instável —
+    nos casos em que a tela demora a montar ele estourava o teto sozinho
+    (log 12/11: "falha na transição minutar" em Homologação de Cálculos). A URL
+    fica só como FALLBACK, exatamente como no pre-refac.
 
     Returns:
         bool: True se conseguiu fazer a transição
@@ -492,33 +537,21 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
             'div[class*="area-conteudo"]'
         )
 
-        limite = time.monotonic() + float(timeout)
-        transicionou = False
-        while time.monotonic() < limite:
-            url = (getattr(driver, 'current_url', '') or '').lower()
-            if '/minutar' in url:
-                transicionou = True
-                break
-            try:
-                if hasattr(driver, 'page'):
-                    if driver.page.evaluate(f"""() => {{
-                        var els = document.querySelectorAll('{seletor_exclusivo_minutar}');
-                        for (var i = 0; i < els.length; i++) {{
-                            var el = els[i];
-                            if (el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0)) {{
-                                return true;
-                            }}
-                        }}
-                        return false;
-                    }}"""):
-                        transicionou = True
-                        break
-            except Exception:
-                pass
-            espera.assentar(driver, 0.15)
+        # Atalho: o clique pode ter levado direto para /minutar.
+        if '/minutar' in (getattr(driver, 'current_url', '') or '').lower():
+            logger.info('[CONCLUSÃO] URL já em /minutar — transição imediata')
+            return True
 
+        # 1. PRIMÁRIO (DOM): a tela de minutar montou?
+        transicionou = bool(aguardar_renderizacao_nativa(
+            driver, seletor_exclusivo_minutar, modo='aparecer',
+            timeout=max(6.0, float(timeout) * 0.6)))
+
+        # 2. FALLBACK (URL): sinal lento do Angular, só se o DOM não veio.
         if not transicionou:
-            transicionou = bool(espera.elemento(driver, seletor_exclusivo_minutar, teto=3))
+            logger.info('[CONCLUSÃO] DOM de minutar não renderizou — verificando URL /minutar como fallback...')
+            transicionou = bool(esperar_url_conter(
+                driver, '/minutar', timeout=max(5.0, float(timeout) * 0.4)))
 
         if not transicionou:
             logger.error(f'[CONCLUSÃO] Falha na transição para minutar após {timeout}s: URL={getattr(driver, "current_url", "")}')

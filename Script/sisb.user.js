@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         SISB - Leitura de ordens da Teimosinha via API
 // @namespace    http://tampermonkey.net/
-// @version      2.3.0
+// @version      3.0.0
 // @description  Na aba /detalhe, le as series da Teimosinha pela API v1/serie, monta o relatorio do fluxo e copia para a area de transferencia
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
+// @match        https://sisbajud.pdpj.jus.br/*
+// @match        https://sisbajud.cnj.jus.br/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -20,10 +22,17 @@
 // pagina e sai de `numeroProcessoDaPagina()` — a mesma funcao que o botao
 // "Saldo" do painel do pjetools usa (Script/alvara/extracao_siscondj.js).
 //
-// A API do SISBAJUD e outro dominio: vai por GM_xmlhttpRequest (sem CORS), que
-// envia os cookies do dominio alvo Ã¢â‚¬â€ com o SISBAJUD logado no navegador basta a
-// sessao. O token (access_token do localStorage `sisbajud-token` la) e opcional:
-// so entra se a API recusar a sessao, e fica guardado via GM_setValue.
+// A API do SISBAJUD e outro dominio: vai por GM_xmlhttpRequest (sem CORS).
+//
+// Cookie de sessao NAO resolve, ao contrario do Alvará/SISCONDJ: la o host
+// (alvaraeletronico.trt2.jus.br) e SAME-SITE com o PJe (trt2.jus.br) e o cookie
+// httpOnly viaja; aqui e CROSS-SITE (pdpj.jus.br x trt2.jus.br), o navegador
+// nao manda o cookie e a API responde 401. A API exige o Bearer.
+//
+// O access_token vive no localStorage do dominio SISBAJUD, fora do alcance
+// desta origem. Por isso o script tambem roda la (@match acima): na aba do
+// SISBAJUD ele so coleta o token para o GM_setValue; aqui usa o valor coletado.
+// O campo de token fica como sobreposicao manual.
 
 (function () {
     'use strict';
@@ -167,21 +176,23 @@
 
         var url = URL_API + '?codProcesso=' + digitos(numero);
 
-        // 1) tenta com a sessao (cookie). So usa Bearer se a API recusar e
-        //    houver token guardado.
-        var resp = await requisitar(url, '');
-        log('HTTP', resp.status, 'v1/serie (sessao)');
-        if ((resp.status === 401 || resp.status === 403) && token) {
-            log('sessao recusada Ã¢â‚¬â€ repetindo com Bearer');
+        // Bearer primeiro: cookie nao cruza site (ver cabecalho). Sem token a
+        // chamada vai so pela sessao, para o 401 virar orientacao util.
+        var resp;
+        if (token) {
             resp = await requisitar(url, token);
             log('HTTP', resp.status, 'v1/serie (bearer)');
+        } else {
+            resp = await requisitar(url, '');
+            log('HTTP', resp.status, 'v1/serie (sessao)');
         }
 
         if (resp.status === 401 || resp.status === 403) {
             return {
-                erro: 'API recusou a chamada (HTTP ' + resp.status + ').'
-                    + (token ? ' Token guardado tambem foi recusado Ã¢â‚¬â€ atualize-o.'
-                        : ' Faca login no SISBAJUD ou informe um token.'),
+                erro: 'API recusou (HTTP ' + resp.status + ').'
+                    + (token
+                        ? ' Token recusado/vencido — abra uma aba do SISBAJUD para recoletar.'
+                        : ' Abra (ou atualize) uma aba do SISBAJUD logada: o token e coletado de la.'),
             };
         }
         if (resp.status !== 200) {
@@ -294,7 +305,7 @@
                 + '<strong>TRANSFERIDAS</strong> a conta judicial do processo, acao que sera efetivada em ate 48h uteis.</p>');
         }
 
-        h.push('<p ' + P_STYLE + '>Processo: ' + esc(numero) + ' Ã¢â‚¬â€ gerado em '
+        h.push('<p ' + P_STYLE + '>Processo: ' + esc(numero) + ' — gerado em '
             + new Date().toLocaleString('pt-BR') + '.</p>');
 
         return h.join('');
@@ -380,7 +391,7 @@
         painel = document.createElement('div');
         painel.id = 'sisb-api-panel';
         painel.innerHTML = '<div class="sb-cab"><span>Teimosinha via API</span>'
-            + '<button type="button" data-close>Ãƒâ€”</button></div><div class="sb-body"></div>';
+            + '<button type="button" data-close>×</button></div><div class="sb-body"></div>';
         painel.querySelector('[data-close]').addEventListener('click', fechar);
         document.body.appendChild(painel);
         return painel;
@@ -388,13 +399,13 @@
 
     function avisoToken() {
         var t = lerToken().trim();
-        if (!t) return '<small>Opcional: com o SISBAJUD logado no navegador a chamada usa a sessao.</small>';
+        if (!t) return '<small>Sem token. Abra uma aba do SISBAJUD logada: ele e coletado de la.</small>';
         var exp = expDoJwt(t);
-        if (!exp) return '<small>Token guardado (sem exp legivel) Ã¢â‚¬â€ usado so se a sessao for recusada.</small>';
+        if (!exp) return '<small>Token coletado (sem exp legivel).</small>';
         var venc = exp * 1000 < Date.now();
         return '<small' + (venc ? ' class="sb-aviso"' : '') + '>Token '
             + (venc ? 'EXPIRADO' : 'guardado, valido ate ' + new Date(exp * 1000).toLocaleString('pt-BR'))
-            + ' Ã¢â‚¬â€ usado so se a sessao for recusada.</small>';
+            + ' .</small>';
     }
 
     function formulario() {
@@ -403,7 +414,7 @@
             + '<input id="sisb-numero" type="text" placeholder="numero CNJ" value="">'
             + '<button id="sisb-consultar" class="sb-btn" type="button">Consultar via API</button></div>'
             + '<div class="sb-linha"><label>Token</label>'
-            + '<input id="sisb-token" type="text" placeholder="opcional Ã¢â‚¬â€ access_token do SISBAJUD" value="'
+            + '<input id="sisb-token" type="text" placeholder="coletado automaticamente — pode sobrepor" value="'
             + esc(lerToken()) + '"></div>'
             + '<div id="sisb-token-info">' + avisoToken() + '</div>'
             + '<div id="sisb-saida"></div>');
@@ -415,7 +426,7 @@
         var btn = painel.querySelector('#sisb-consultar');
 
         campoToken.addEventListener('change', function () {
-            salvarToken((campoToken.value || '').trim());
+            var tCampo = (campoToken.value || '').trim(); if (tCampo) salvarToken(tCampo);
             info.innerHTML = avisoToken();
         });
 
@@ -429,9 +440,9 @@
                 saida.innerHTML = '<div class="sb-erro">Numero invalido (precisa de 15+ digitos).</div>';
                 return;
             }
-            salvarToken((campoToken.value || '').trim());
+            var tCampo = (campoToken.value || '').trim(); if (tCampo) salvarToken(tCampo);
             btn.disabled = true;
-            saida.innerHTML = '<div class="sb-aviso">Consultando a APIÃ¢â‚¬Â¦</div>';
+            saida.innerHTML = '<div class="sb-aviso">Consultando a API…</div>';
             try {
                 await executar(num, saida);
             } catch (e) {
@@ -457,16 +468,16 @@
 
         var cls = { NEGATIVO: 'sb-neg', POSITIVO: 'sb-pos', DESBLOQUEIO: 'sb-des' }[decisao.tipo_fluxo] || '';
         var linhas = series.map(function (s) {
-            return '<tr><td>' + esc(s.id_serie) + '</td><td>' + esc(s.protocolo || 'Ã¢â‚¬â€') + '</td>'
-                + '<td>' + esc(s.acao || 'Ã¢â‚¬â€') + '</td><td>' + esc(dataCurta(s.data_ms)) + '</td>'
+            return '<tr><td>' + esc(s.id_serie) + '</td><td>' + esc(s.protocolo || '—') + '</td>'
+                + '<td>' + esc(s.acao || '—') + '</td><td>' + esc(dataCurta(s.data_ms)) + '</td>'
                 + '<td>' + esc(s.valor_bloqueado_text) + '</td><td>' + esc(s.valor_bloquear_text) + '</td></tr>';
         }).join('');
 
         saida.innerHTML = '<div class="sb-fluxo ' + cls + '">Fluxo: ' + esc(decisao.tipo_fluxo) + '</div>'
-            + '<div><b>' + series.length + '</b> serie(s) valida(s) de <b>' + r.total_bruto + '</b> Ã‚Â· '
-            + 'bloqueado ' + esc(brl(decisao.total_bloqueado)) + ' Ã‚Â· a bloquear '
+            + '<div><b>' + series.length + '</b> serie(s) valida(s) de <b>' + r.total_bruto + '</b> · '
+            + 'bloqueado ' + esc(brl(decisao.total_bloqueado)) + ' · a bloquear '
             + esc(brl(decisao.valor_a_bloquear))
-            + (decisao.estrategia ? ' Ã‚Â· estrategia ' + esc(decisao.estrategia.tipo) : '') + '</div>'
+            + (decisao.estrategia ? ' · estrategia ' + esc(decisao.estrategia.tipo) : '') + '</div>'
             + (series.length ? '<table><thead><tr><th>Serie</th><th>Protocolo</th><th>Acao</th>'
                 + '<th>Finalizacao</th><th>Bloqueado</th><th>A bloquear</th></tr></thead><tbody>'
                 + linhas + '</tbody></table>' : '')
@@ -483,6 +494,36 @@
         });
     }
 
+    // =========================================================================
+    // Coletor: roda so na aba do SISBAJUD. Guarda o access_token no GM para o
+    // lado do PJe (origens diferentes nao compartilham localStorage).
+    // =========================================================================
+    function coletarTokenSisbajud() {
+        var ultimo = '';
+        var tentativas = 0;
+
+        function ler() {
+            try {
+                return localStorage.getItem('sisbajud-token')
+                    || localStorage.getItem('LS.sisbajud-token') || '';
+            } catch (e) { return ''; }
+        }
+
+        function passo() {
+            var t = ler();
+            if (t && t !== ultimo) {
+                ultimo = t;
+                salvarToken(t);
+                var exp = expDoJwt(t);
+                log('token coletado' + (exp ? ' (expira ' + new Date(exp * 1000).toISOString() + ')' : ''));
+            }
+            if (++tentativas < 30) setTimeout(passo, 2000);
+        }
+
+        passo();
+        try { window.addEventListener('storage', passo); } catch (e) { }
+    }
+
     function init() {
         try {
             css();
@@ -490,7 +531,7 @@
             var btn = document.createElement('button');
             btn.id = 'btn-sisb-api';
             btn.type = 'button';
-            btn.textContent = 'Ã¢â€”Å’ Teimosinha (API)';
+            btn.textContent = '◌ Teimosinha (API)';
             btn.addEventListener('click', formulario);
             document.body.appendChild(btn);
             log('botao injetado');
@@ -499,7 +540,13 @@
 
     if (document.documentElement.getAttribute('data-' + CLS + '-boot')) { log('ja iniciado'); return; }
     document.documentElement.setAttribute('data-' + CLS + '-boot', '1');
-    log('iniciando v2');
+    log('iniciando v3');
+
+    if (/^sisbajud\.(pdpj|cnj)\.jus\.br$/.test(location.hostname)) {
+        log('aba SISBAJUD: coletando token');
+        coletarTokenSisbajud();
+        return;
+    }
 
     if (document.body) init();
     else document.addEventListener('DOMContentLoaded', init, { once: true });

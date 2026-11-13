@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SISB - Leitura de ordens da Teimosinha via API
 // @namespace    http://tampermonkey.net/
-// @version      2.1.0
+// @version      2.3.0
 // @description  Na aba /detalhe, le as series da Teimosinha pela API v1/serie, monta o relatorio do fluxo e copia para a area de transferencia
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
@@ -16,12 +16,12 @@
 // Espelha SISB/api_series.py::ler_series_api + decidir_fluxo e
 // SISB/processamento/relatorios_ordem.py::_gerar_relatorio_ordem.
 //
-// Roda no /detalhe (como o hcalc): o numero do processo vem da propria URL,
-// resolvido por /pje-comum-api/api/processos/id/{id} -> `numero` (mesmo caminho
-// de Script/modules/sisbajud/core.js).
+// Roda no /detalhe (como o hcalc): o numero do processo ja esta na propria
+// pagina e sai de `numeroProcessoDaPagina()` — a mesma funcao que o botao
+// "Saldo" do painel do pjetools usa (Script/alvara/extracao_siscondj.js).
 //
 // A API do SISBAJUD e outro dominio: vai por GM_xmlhttpRequest (sem CORS), que
-// envia os cookies do dominio alvo â€” com o SISBAJUD logado no navegador basta a
+// envia os cookies do dominio alvo Ã¢â‚¬â€ com o SISBAJUD logado no navegador basta a
 // sessao. O token (access_token do localStorage `sisbajud-token` la) e opcional:
 // so entra se a API recusar a sessao, e fica guardado via GM_setValue.
 
@@ -70,27 +70,34 @@
         return d.getDate() + ' DE ' + MESES[d.getMonth()] + ' DE ' + d.getFullYear();
     }
 
-    function idProcessoDaUrl() {
-        var m = location.pathname.match(/\/processo\/(\d+)\/detalhe/);
-        return m ? m[1] : null;
-    }
+    // =========================================================================
+    // =========================================================================
+    // Numero do processo: ja esta na propria pagina. Mesma ordem de
+    // Script/alvara/extracao_siscondj.js::numeroProcessoDaPagina, usada pelo
+    // botao "Saldo" do painel do pjetools: titulo, .texto-numero-processo,
+    // campo #numeroProcesso e, por ultimo, a URL.
+    // =========================================================================
+    var RE_CNJ = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
 
-    // =========================================================================
-    // Numero do processo (API do PJe, mesmo padrao de sisbajud/core.js)
-    // =========================================================================
-    async function numeroDoProcesso(idp) {
-        try {
-            var r = await fetch(location.origin + '/pje-comum-api/api/processos/id/' + idp,
-                { credentials: 'include', headers: { 'Accept': 'application/json' } });
-            if (!r.ok) return '';
-            var j = await r.json();
-            var n = j.numeroProcesso || j.numero || j.numeroIdentificacaoJustica || '';
-            log('numero do processo:', n);
-            return String(n);
-        } catch (e) {
-            log('falha ao ler o numero:', e.message);
-            return '';
+    function numeroProcessoDaPagina() {
+        var doTitulo = String(document.title || "").match(RE_CNJ);
+        if (doTitulo) return doTitulo[0];
+
+        var el = document.querySelector(".texto-numero-processo");
+        if (el) {
+            var doEl = String(el.textContent || "").match(RE_CNJ);
+            if (doEl) return doEl[0];
         }
+
+        var campo = document.querySelector("#numeroProcesso");
+        if (campo && campo.value && RE_CNJ.test(campo.value)) {
+            return String(campo.value).match(RE_CNJ)[0];
+        }
+
+        var doHref = String(location.href || "").match(RE_CNJ);
+        if (doHref) return doHref[0];
+
+        return "";
     }
 
     // =========================================================================
@@ -165,7 +172,7 @@
         var resp = await requisitar(url, '');
         log('HTTP', resp.status, 'v1/serie (sessao)');
         if ((resp.status === 401 || resp.status === 403) && token) {
-            log('sessao recusada â€” repetindo com Bearer');
+            log('sessao recusada Ã¢â‚¬â€ repetindo com Bearer');
             resp = await requisitar(url, token);
             log('HTTP', resp.status, 'v1/serie (bearer)');
         }
@@ -173,7 +180,7 @@
         if (resp.status === 401 || resp.status === 403) {
             return {
                 erro: 'API recusou a chamada (HTTP ' + resp.status + ').'
-                    + (token ? ' Token guardado tambem foi recusado â€” atualize-o.'
+                    + (token ? ' Token guardado tambem foi recusado Ã¢â‚¬â€ atualize-o.'
                         : ' Faca login no SISBAJUD ou informe um token.'),
             };
         }
@@ -287,7 +294,7 @@
                 + '<strong>TRANSFERIDAS</strong> a conta judicial do processo, acao que sera efetivada em ate 48h uteis.</p>');
         }
 
-        h.push('<p ' + P_STYLE + '>Processo: ' + esc(numero) + ' â€” gerado em '
+        h.push('<p ' + P_STYLE + '>Processo: ' + esc(numero) + ' Ã¢â‚¬â€ gerado em '
             + new Date().toLocaleString('pt-BR') + '.</p>');
 
         return h.join('');
@@ -373,7 +380,7 @@
         painel = document.createElement('div');
         painel.id = 'sisb-api-panel';
         painel.innerHTML = '<div class="sb-cab"><span>Teimosinha via API</span>'
-            + '<button type="button" data-close>Ã—</button></div><div class="sb-body"></div>';
+            + '<button type="button" data-close>Ãƒâ€”</button></div><div class="sb-body"></div>';
         painel.querySelector('[data-close]').addEventListener('click', fechar);
         document.body.appendChild(painel);
         return painel;
@@ -383,21 +390,20 @@
         var t = lerToken().trim();
         if (!t) return '<small>Opcional: com o SISBAJUD logado no navegador a chamada usa a sessao.</small>';
         var exp = expDoJwt(t);
-        if (!exp) return '<small>Token guardado (sem exp legivel) â€” usado so se a sessao for recusada.</small>';
+        if (!exp) return '<small>Token guardado (sem exp legivel) Ã¢â‚¬â€ usado so se a sessao for recusada.</small>';
         var venc = exp * 1000 < Date.now();
         return '<small' + (venc ? ' class="sb-aviso"' : '') + '>Token '
             + (venc ? 'EXPIRADO' : 'guardado, valido ate ' + new Date(exp * 1000).toLocaleString('pt-BR'))
-            + ' â€” usado so se a sessao for recusada.</small>';
+            + ' Ã¢â‚¬â€ usado so se a sessao for recusada.</small>';
     }
 
-    async function formulario() {
-        var idp = idProcessoDaUrl();
+    function formulario() {
         abrirPainel();
         render('<div class="sb-linha"><label>Processo</label>'
             + '<input id="sisb-numero" type="text" placeholder="numero CNJ" value="">'
             + '<button id="sisb-consultar" class="sb-btn" type="button">Consultar via API</button></div>'
             + '<div class="sb-linha"><label>Token</label>'
-            + '<input id="sisb-token" type="text" placeholder="opcional â€” access_token do SISBAJUD" value="'
+            + '<input id="sisb-token" type="text" placeholder="opcional Ã¢â‚¬â€ access_token do SISBAJUD" value="'
             + esc(lerToken()) + '"></div>'
             + '<div id="sisb-token-info">' + avisoToken() + '</div>'
             + '<div id="sisb-saida"></div>');
@@ -413,13 +419,9 @@
             info.innerHTML = avisoToken();
         });
 
-        if (!idp) {
-            saida.innerHTML = '<div class="sb-erro">Id do processo nao encontrado na URL.</div>';
-        } else {
-            var n = await numeroDoProcesso(idp);
-            if (n) campoNum.value = n;
-            else saida.innerHTML = '<div class="sb-aviso">Nao consegui ler o numero pela API; informa a mao.</div>';
-        }
+        var n = numeroProcessoDaPagina();
+        if (n) { campoNum.value = n; log("numero da pagina:", n); }
+        else saida.innerHTML = '<div class="sb-aviso">Processo nao detectado na pagina; informe o numero.</div>';
 
         btn.addEventListener('click', async function () {
             var num = (campoNum.value || '').trim();
@@ -429,7 +431,7 @@
             }
             salvarToken((campoToken.value || '').trim());
             btn.disabled = true;
-            saida.innerHTML = '<div class="sb-aviso">Consultando a APIâ€¦</div>';
+            saida.innerHTML = '<div class="sb-aviso">Consultando a APIÃ¢â‚¬Â¦</div>';
             try {
                 await executar(num, saida);
             } catch (e) {
@@ -455,16 +457,16 @@
 
         var cls = { NEGATIVO: 'sb-neg', POSITIVO: 'sb-pos', DESBLOQUEIO: 'sb-des' }[decisao.tipo_fluxo] || '';
         var linhas = series.map(function (s) {
-            return '<tr><td>' + esc(s.id_serie) + '</td><td>' + esc(s.protocolo || 'â€”') + '</td>'
-                + '<td>' + esc(s.acao || 'â€”') + '</td><td>' + esc(dataCurta(s.data_ms)) + '</td>'
+            return '<tr><td>' + esc(s.id_serie) + '</td><td>' + esc(s.protocolo || 'Ã¢â‚¬â€') + '</td>'
+                + '<td>' + esc(s.acao || 'Ã¢â‚¬â€') + '</td><td>' + esc(dataCurta(s.data_ms)) + '</td>'
                 + '<td>' + esc(s.valor_bloqueado_text) + '</td><td>' + esc(s.valor_bloquear_text) + '</td></tr>';
         }).join('');
 
         saida.innerHTML = '<div class="sb-fluxo ' + cls + '">Fluxo: ' + esc(decisao.tipo_fluxo) + '</div>'
-            + '<div><b>' + series.length + '</b> serie(s) valida(s) de <b>' + r.total_bruto + '</b> Â· '
-            + 'bloqueado ' + esc(brl(decisao.total_bloqueado)) + ' Â· a bloquear '
+            + '<div><b>' + series.length + '</b> serie(s) valida(s) de <b>' + r.total_bruto + '</b> Ã‚Â· '
+            + 'bloqueado ' + esc(brl(decisao.total_bloqueado)) + ' Ã‚Â· a bloquear '
             + esc(brl(decisao.valor_a_bloquear))
-            + (decisao.estrategia ? ' Â· estrategia ' + esc(decisao.estrategia.tipo) : '') + '</div>'
+            + (decisao.estrategia ? ' Ã‚Â· estrategia ' + esc(decisao.estrategia.tipo) : '') + '</div>'
             + (series.length ? '<table><thead><tr><th>Serie</th><th>Protocolo</th><th>Acao</th>'
                 + '<th>Finalizacao</th><th>Bloqueado</th><th>A bloquear</th></tr></thead><tbody>'
                 + linhas + '</tbody></table>' : '')
@@ -488,7 +490,7 @@
             var btn = document.createElement('button');
             btn.id = 'btn-sisb-api';
             btn.type = 'button';
-            btn.textContent = 'â—Œ Teimosinha (API)';
+            btn.textContent = 'Ã¢â€”Å’ Teimosinha (API)';
             btn.addEventListener('click', formulario);
             document.body.appendChild(btn);
             log('botao injetado');

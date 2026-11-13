@@ -60,18 +60,63 @@
     }
 
     // ── Token (coletado na aba do SISBAJUD via GM_setValue) ─────────────
+    var CHAVE_TOKEN_REQ = 'pjetools_sisbajud_token_req';
+
+    function limparToken(t) {
+        return String(t || '').trim().replace(/^"+|"+$/g, '');
+    }
+
     function lerToken() {
         try {
-            if (typeof GM_getValue === 'function') return GM_getValue(CHAVE_TOKEN, '') || '';
+            if (typeof GM_getValue === 'function') return limparToken(GM_getValue(CHAVE_TOKEN, '') || '');
         } catch (e) { }
-        try { return localStorage.getItem(CHAVE_TOKEN) || ''; } catch (e) { return ''; }
+        try { return limparToken(localStorage.getItem(CHAVE_TOKEN) || ''); } catch (e) { return ''; }
     }
 
     function salvarToken(t) {
+        t = limparToken(t);
+        if (!t) return;
         try {
             if (typeof GM_setValue === 'function') { GM_setValue(CHAVE_TOKEN, t); return; }
         } catch (e) { }
         try { localStorage.setItem(CHAVE_TOKEN, t); } catch (e) { }
+    }
+
+    function pedirTokenParaAbaSisbajud(timeoutMs) {
+        return new Promise(function (resolve) {
+            if (typeof GM_setValue !== 'function' || typeof GM_addValueChangeListener !== 'function') {
+                resolve('');
+                return;
+            }
+            var anterior = lerToken();
+            var resolvido = false;
+            var listenerId = null;
+            var timer = null;
+
+            function finalizar(val) {
+                if (resolvido) return;
+                resolvido = true;
+                if (timer) clearTimeout(timer);
+                try {
+                    if (listenerId != null && typeof GM_removeValueChangeListener === 'function') {
+                        GM_removeValueChangeListener(listenerId);
+                    }
+                } catch (e) { }
+                resolve(limparToken(val));
+            }
+
+            listenerId = GM_addValueChangeListener(CHAVE_TOKEN, function (_name, _oldVal, newVal) {
+                var limpo = limparToken(newVal);
+                if (limpo && limpo !== anterior) finalizar(limpo);
+            });
+
+            timer = setTimeout(function () {
+                var atual = lerToken();
+                finalizar(atual && atual !== anterior ? atual : '');
+            }, timeoutMs || 1500);
+
+            GM_setValue(CHAVE_TOKEN_REQ, Date.now());
+        });
     }
 
     function expDoJwt(token) {
@@ -112,12 +157,12 @@
         var dig = digitos(numero);
         if (dig.length < 15) return { erro: 'Número inválido: ' + numero };
 
-        var token = lerToken().trim();
-        if (token) {
-            var exp = expDoJwt(token);
-            if (exp && exp * 1000 < Date.now()) {
-                log('ATENÇÃO: token expirado em', new Date(exp * 1000).toISOString());
-            }
+        var token = lerToken();
+        var exp = token ? expDoJwt(token) : 0;
+        if (!token || (exp && exp * 1000 < Date.now())) {
+            log('token ausente ou expirado — solicitando à aba do SISBAJUD...');
+            var novo = await pedirTokenParaAbaSisbajud(1500);
+            if (novo) token = novo;
         }
 
         var url = URL_API + '?codProcesso=' + encodeURIComponent(dig);
@@ -125,11 +170,18 @@
         log('HTTP', resp.status, 'v1/serie', token ? '(bearer)' : '(sessao)');
 
         if (resp.status === 401 || resp.status === 403) {
+            var recoletado = await pedirTokenParaAbaSisbajud(1500);
+            if (recoletado && recoletado !== token) {
+                token = recoletado;
+                resp = await requisitar(url, token);
+                log('HTTP (retry)', resp.status, 'v1/serie (bearer)');
+            }
+        }
+
+        if (resp.status === 401 || resp.status === 403) {
             return {
-                erro: 'API SISBAJUD recusou (HTTP ' + resp.status + ').'
-                    + (token
-                        ? ' Token recusado/vencido — abra uma aba do SISBAJUD para recoletar.'
-                        : ' Abra (ou atualize) uma aba do SISBAJUD logada para coletar o token.'),
+                erro: 'API SISBAJUD recusou (HTTP ' + resp.status + '). '
+                    + 'Recarregue (F5) a aba do SISBAJUD logada para o PJeTools coletar o token e tente novamente.',
             };
         }
         if (resp.status !== 200) {
@@ -327,28 +379,44 @@
     // ── Coletor de token na aba do SISBAJUD ────────────────────────────
     function coletarTokenSisbajud() {
         var ultimo = '';
-        var tentativas = 0;
 
         function ler() {
-            try {
-                return localStorage.getItem('sisbajud-token')
-                    || localStorage.getItem('LS.sisbajud-token') || '';
-            } catch (e) { return ''; }
+            var storages = [];
+            try { if (typeof unsafeWindow !== 'undefined' && unsafeWindow.localStorage) storages.push(unsafeWindow.localStorage); } catch (e) { }
+            try { if (window.localStorage) storages.push(window.localStorage); } catch (e) { }
+            for (var i = 0; i < storages.length; i++) {
+                try {
+                    var t = limparToken(
+                        storages[i].getItem('sisbajud-token')
+                        || storages[i].getItem('LS.sisbajud-token')
+                        || ''
+                    );
+                    if (t) return t;
+                } catch (e) { }
+            }
+            return '';
         }
 
-        function passo() {
+        function passo(forcar) {
             var t = ler();
-            if (t && t !== ultimo) {
+            if (t && (forcar || t !== ultimo)) {
                 ultimo = t;
                 salvarToken(t);
                 var exp = expDoJwt(t);
                 log('token coletado' + (exp ? ' (expira ' + new Date(exp * 1000).toISOString() + ')' : ''));
             }
-            if (++tentativas < 30) setTimeout(passo, 2000);
         }
 
-        passo();
-        try { window.addEventListener('storage', passo); } catch (e) { }
+        log('aba SISBAJUD: coletor ativo');
+        passo(true);
+        setInterval(function () { passo(false); }, 5000);
+        try { window.addEventListener('storage', function () { passo(false); }); } catch (e) { }
+        try { document.addEventListener('visibilitychange', function () { if (!document.hidden) passo(false); }); } catch (e) { }
+        try {
+            if (typeof GM_addValueChangeListener === 'function') {
+                GM_addValueChangeListener(CHAVE_TOKEN_REQ, function () { passo(true); });
+            }
+        } catch (e) { }
     }
 
     if (/^sisbajud\.(pdpj|cnj)\.jus\.br$/.test(location.hostname)) {

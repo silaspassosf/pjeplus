@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SISB - Leitura de ordens da Teimosinha via API
 // @namespace    http://tampermonkey.net/
-// @version      2.0.0
+// @version      2.1.0
 // @description  Na aba /detalhe, le as series da Teimosinha pela API v1/serie, monta o relatorio do fluxo e copia para a area de transferencia
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
@@ -20,10 +20,10 @@
 // resolvido por /pje-comum-api/api/processos/id/{id} -> `numero` (mesmo caminho
 // de Script/modules/sisbajud/core.js).
 //
-// A API do SISBAJUD e outro dominio: vai por GM_xmlhttpRequest (sem CORS),
-// com fetch como reserva — igual ao xhrJSON de Script/modules/atalhos/atalhos.js.
-// O token e o access_token do SISBAJUD (localStorage `sisbajud-token` la) e
-// fica guardado aqui via GM_setValue para nao ser redigitado.
+// A API do SISBAJUD e outro dominio: vai por GM_xmlhttpRequest (sem CORS), que
+// envia os cookies do dominio alvo â€” com o SISBAJUD logado no navegador basta a
+// sessao. O token (access_token do localStorage `sisbajud-token` la) e opcional:
+// so entra se a API recusar a sessao, e fica guardado via GM_setValue.
 
 (function () {
     'use strict';
@@ -123,8 +123,11 @@
     // =========================================================================
     // Requisicao cross-origin (GM_xmlhttpRequest; fetch como reserva)
     // =========================================================================
+    // Sem token a requisicao vai so com o cookie da sessao do SISBAJUD
+    // (GM_xmlhttpRequest envia os cookies do dominio alvo).
     function requisitar(url, token) {
-        var headers = { 'Accept': 'application/json', 'Authorization': 'Bearer ' + token };
+        var headers = { 'Accept': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
         return new Promise(function (resolve) {
             try {
                 if (typeof GM_xmlhttpRequest === 'function') {
@@ -148,20 +151,31 @@
     // =========================================================================
     async function lerSeries(numero) {
         var token = lerToken().trim();
-        if (!token) {
-            return { erro: 'Token do SISBAJUD nao informado. Cole o access_token (localStorage "sisbajud-token").' };
-        }
-        var exp = expDoJwt(token);
-        if (exp && exp * 1000 < Date.now()) {
-            log('ATENCAO: token expirado em', new Date(exp * 1000).toISOString());
+        if (token) {
+            var exp = expDoJwt(token);
+            if (exp && exp * 1000 < Date.now()) {
+                log('ATENCAO: token expirado em', new Date(exp * 1000).toISOString());
+            }
         }
 
         var url = URL_API + '?codProcesso=' + digitos(numero);
-        var resp = await requisitar(url, token);
-        log('HTTP', resp.status, 'v1/serie');
+
+        // 1) tenta com a sessao (cookie). So usa Bearer se a API recusar e
+        //    houver token guardado.
+        var resp = await requisitar(url, '');
+        log('HTTP', resp.status, 'v1/serie (sessao)');
+        if ((resp.status === 401 || resp.status === 403) && token) {
+            log('sessao recusada â€” repetindo com Bearer');
+            resp = await requisitar(url, token);
+            log('HTTP', resp.status, 'v1/serie (bearer)');
+        }
 
         if (resp.status === 401 || resp.status === 403) {
-            return { erro: 'API recusou o token (HTTP ' + resp.status + '). Atualize o token do SISBAJUD.' };
+            return {
+                erro: 'API recusou a chamada (HTTP ' + resp.status + ').'
+                    + (token ? ' Token guardado tambem foi recusado â€” atualize-o.'
+                        : ' Faca login no SISBAJUD ou informe um token.'),
+            };
         }
         if (resp.status !== 200) {
             return { erro: 'API devolveu HTTP ' + resp.status + (resp.status <= 0 ? ' (rede/CORS)' : '') + '.' };
@@ -273,7 +287,7 @@
                 + '<strong>TRANSFERIDAS</strong> a conta judicial do processo, acao que sera efetivada em ate 48h uteis.</p>');
         }
 
-        h.push('<p ' + P_STYLE + '>Processo: ' + esc(numero) + ' — gerado em '
+        h.push('<p ' + P_STYLE + '>Processo: ' + esc(numero) + ' â€” gerado em '
             + new Date().toLocaleString('pt-BR') + '.</p>');
 
         return h.join('');
@@ -359,7 +373,7 @@
         painel = document.createElement('div');
         painel.id = 'sisb-api-panel';
         painel.innerHTML = '<div class="sb-cab"><span>Teimosinha via API</span>'
-            + '<button type="button" data-close>×</button></div><div class="sb-body"></div>';
+            + '<button type="button" data-close>Ã—</button></div><div class="sb-body"></div>';
         painel.querySelector('[data-close]').addEventListener('click', fechar);
         document.body.appendChild(painel);
         return painel;
@@ -367,12 +381,13 @@
 
     function avisoToken() {
         var t = lerToken().trim();
-        if (!t) return '<small>Token do SISBAJUD ainda nao informado — cole o access_token.</small>';
+        if (!t) return '<small>Opcional: com o SISBAJUD logado no navegador a chamada usa a sessao.</small>';
         var exp = expDoJwt(t);
-        if (!exp) return '<small>Token informado (sem exp legivel).</small>';
+        if (!exp) return '<small>Token guardado (sem exp legivel) â€” usado so se a sessao for recusada.</small>';
         var venc = exp * 1000 < Date.now();
         return '<small' + (venc ? ' class="sb-aviso"' : '') + '>Token '
-            + (venc ? 'EXPIRADO' : 'valido ate ' + new Date(exp * 1000).toLocaleString('pt-BR')) + '</small>';
+            + (venc ? 'EXPIRADO' : 'guardado, valido ate ' + new Date(exp * 1000).toLocaleString('pt-BR'))
+            + ' â€” usado so se a sessao for recusada.</small>';
     }
 
     async function formulario() {
@@ -382,7 +397,7 @@
             + '<input id="sisb-numero" type="text" placeholder="numero CNJ" value="">'
             + '<button id="sisb-consultar" class="sb-btn" type="button">Consultar via API</button></div>'
             + '<div class="sb-linha"><label>Token</label>'
-            + '<input id="sisb-token" type="text" placeholder="access_token do SISBAJUD" value="'
+            + '<input id="sisb-token" type="text" placeholder="opcional â€” access_token do SISBAJUD" value="'
             + esc(lerToken()) + '"></div>'
             + '<div id="sisb-token-info">' + avisoToken() + '</div>'
             + '<div id="sisb-saida"></div>');
@@ -414,7 +429,7 @@
             }
             salvarToken((campoToken.value || '').trim());
             btn.disabled = true;
-            saida.innerHTML = '<div class="sb-aviso">Consultando a API…</div>';
+            saida.innerHTML = '<div class="sb-aviso">Consultando a APIâ€¦</div>';
             try {
                 await executar(num, saida);
             } catch (e) {
@@ -440,16 +455,16 @@
 
         var cls = { NEGATIVO: 'sb-neg', POSITIVO: 'sb-pos', DESBLOQUEIO: 'sb-des' }[decisao.tipo_fluxo] || '';
         var linhas = series.map(function (s) {
-            return '<tr><td>' + esc(s.id_serie) + '</td><td>' + esc(s.protocolo || '—') + '</td>'
-                + '<td>' + esc(s.acao || '—') + '</td><td>' + esc(dataCurta(s.data_ms)) + '</td>'
+            return '<tr><td>' + esc(s.id_serie) + '</td><td>' + esc(s.protocolo || 'â€”') + '</td>'
+                + '<td>' + esc(s.acao || 'â€”') + '</td><td>' + esc(dataCurta(s.data_ms)) + '</td>'
                 + '<td>' + esc(s.valor_bloqueado_text) + '</td><td>' + esc(s.valor_bloquear_text) + '</td></tr>';
         }).join('');
 
         saida.innerHTML = '<div class="sb-fluxo ' + cls + '">Fluxo: ' + esc(decisao.tipo_fluxo) + '</div>'
-            + '<div><b>' + series.length + '</b> serie(s) valida(s) de <b>' + r.total_bruto + '</b> · '
-            + 'bloqueado ' + esc(brl(decisao.total_bloqueado)) + ' · a bloquear '
+            + '<div><b>' + series.length + '</b> serie(s) valida(s) de <b>' + r.total_bruto + '</b> Â· '
+            + 'bloqueado ' + esc(brl(decisao.total_bloqueado)) + ' Â· a bloquear '
             + esc(brl(decisao.valor_a_bloquear))
-            + (decisao.estrategia ? ' · estrategia ' + esc(decisao.estrategia.tipo) : '') + '</div>'
+            + (decisao.estrategia ? ' Â· estrategia ' + esc(decisao.estrategia.tipo) : '') + '</div>'
             + (series.length ? '<table><thead><tr><th>Serie</th><th>Protocolo</th><th>Acao</th>'
                 + '<th>Finalizacao</th><th>Bloqueado</th><th>A bloquear</th></tr></thead><tbody>'
                 + linhas + '</tbody></table>' : '')
@@ -473,7 +488,7 @@
             var btn = document.createElement('button');
             btn.id = 'btn-sisb-api';
             btn.type = 'button';
-            btn.textContent = '◌ Teimosinha (API)';
+            btn.textContent = 'â—Œ Teimosinha (API)';
             btn.addEventListener('click', formulario);
             document.body.appendChild(btn);
             log('botao injetado');

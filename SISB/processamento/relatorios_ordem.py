@@ -33,19 +33,22 @@ def _gerar_relatorio_ordem(tipo_fluxo, series_processadas, ordens_processadas, d
                 total_bloqueado = serie.get('valor_bloqueado', 0)
                 total_bloqueado_text = serie.get('valor_bloqueado_text', '')
 
-                if data_conclusao and hasattr(data_conclusao, 'strftime'):
-                    data_str = data_conclusao.strftime('%d/%m/%Y')
-                elif serie.get('data_conclusao_text'):
-                    data_str = serie.get('data_conclusao_text')
-                else:
-                    data_str = 'Data nao disponivel'
-
                 if total_bloqueado_text and total_bloqueado_text != 'R$ 0,00':
                     valor_str = total_bloqueado_text
                 else:
                     valor_str = f"R$ {total_bloqueado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
-                linha_serie = f"- (Serie {numero_serie}) - Data da finalizacao: ({data_str}) - Total bloqueado: ({valor_str})"
+                situacao = (serie.get('situacao') or '').strip().lower()
+                if situacao == 'ativa':
+                    linha_serie = f"- (Serie {numero_serie}) - Total bloqueado: ({valor_str})"
+                else:
+                    if data_conclusao and hasattr(data_conclusao, 'strftime'):
+                        data_str = data_conclusao.strftime('%d/%m/%Y')
+                    elif serie.get('data_conclusao_text'):
+                        data_str = serie.get('data_conclusao_text')
+                    else:
+                        data_str = 'Data nao disponivel'
+                    linha_serie = f"- (Serie {numero_serie}) - Data da finalizacao: ({data_str}) - Total bloqueado: ({valor_str})"
                 relatorio_html += f'<p {pStyle}>{linha_serie}</p>'
 
         # Etapa 1.5: informar valor da execucao

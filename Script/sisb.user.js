@@ -41,6 +41,7 @@
     var CLS = 'sisb-api';
     var URL_API = 'https://sisbajud.pdpj.jus.br/v1/serie';
     var CHAVE_TOKEN = 'pjetools_sisbajud_token';
+    var TIPO_SITUACAO_ATIVA = 1;
     var TIPO_SITUACAO_ENCERRADA = 2;
     var DIAS_CORTE = 30;
     var LIMITE_IRRISORIO = 100.0;
@@ -70,6 +71,7 @@
     }
 
     function dataCurta(ms) {
+        if (!ms) return '—';
         var d = new Date(Number(ms));
         return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
     }
@@ -192,7 +194,7 @@
                 erro: 'API recusou (HTTP ' + resp.status + ').'
                     + (token
                         ? ' Token recusado/vencido — abra uma aba do SISBAJUD para recoletar.'
-                        : ' Abra (ou atualize) uma aba do SISBAJUD logada: o token e coletado de la.'),
+                        : ' Abra (ou atualize) uma aba do SISBAJUD logada: o token é coletado de lá.'),
             };
         }
         if (resp.status !== 200) {
@@ -211,14 +213,15 @@
         limite.setHours(0, 0, 0, 0);
         limite.setDate(limite.getDate() - DIAS_CORTE);
 
-        // Filtro identico a ler_series_api: encerrada + dataLimite dentro do prazo.
+        // Filtro identico a ler_series_api: ativa (1) ou encerrada (2), com dataLimite >= limite.
         var validas = [];
         bruto.forEach(function (s) {
             try {
-                if (s.tipoSituacaoSerie !== TIPO_SITUACAO_ENCERRADA) return;
+                var sit = s.tipoSituacaoSerie;
+                if (sit !== TIPO_SITUACAO_ATIVA && sit !== TIPO_SITUACAO_ENCERRADA) return;
                 var fim = s.dataLimite;
-                if (!fim) return;
-                if (new Date(Number(fim)) < limite) return;
+                if (!fim && sit === TIPO_SITUACAO_ENCERRADA) return;
+                if (fim && new Date(Number(fim)) < limite) return;
                 var ordem = s.ordemOriginal || {};
                 var vb = Number(s.valorBloqueioRealizado || 0);
                 var vbr = Number(s.valorBloqueioTotal || 0);
@@ -226,8 +229,8 @@
                     id_serie: String(s.codSerie),
                     protocolo: String(ordem.protocolo || ''),
                     acao: String(ordem.descricaoTipoOrdem || ''),
-                    data_ms: Number(fim),
-                    situacao: 'Encerrada',
+                    data_ms: fim ? Number(fim) : 0,
+                    situacao: sit === TIPO_SITUACAO_ATIVA ? 'Ativa' : 'Encerrada',
                     valor_bloqueado: vb,
                     valor_bloquear: vbr,
                     valor_bloqueado_text: brl(vb),
@@ -276,33 +279,43 @@
     // =========================================================================
     function gerarRelatorio(numero, series, decisao) {
         var h = [];
-        h.push('<p ' + P_STYLE + '><strong>Relatorio de series executadas:</strong></p>');
+        h.push('<p ' + P_STYLE + '><strong>Relatório de séries executadas:</strong></p>');
 
         if (!series.length) {
-            h.push('<p ' + P_STYLE + '>Nenhuma serie encerrada localizada nos ultimos '
+            h.push('<p ' + P_STYLE + '>Nenhuma série ativa ou encerrada localizada nos últimos '
                 + DIAS_CORTE + ' dias.</p>');
         }
         series.forEach(function (s) {
-            h.push('<p ' + P_STYLE + '>- (Serie ' + esc(s.id_serie) + ') - Data da finalizacao: ('
-                + esc(dataCurta(s.data_ms)) + ') - Total bloqueado: (' + esc(s.valor_bloqueado_text) + ')</p>');
+            var parteData = s.situacao === 'Ativa'
+                ? ''
+                : ' - Data da finalização: (' + esc(dataCurta(s.data_ms)) + ')';
+            h.push('<p ' + P_STYLE + '>- (Série ' + esc(s.id_serie) + ')' + parteData
+                + ' - Total bloqueado: (' + esc(s.valor_bloqueado_text) + ')</p>');
         });
 
         if (decisao.estrategia) {
             var e = decisao.estrategia;
-            h.push('<p ' + P_STYLE + '><strong>Valor da execucao:</strong> ' + esc(brl(e.valor_execucao)) + '</p>');
-            h.push('<p ' + P_STYLE + '><strong>Total bloqueado nas series:</strong> '
+            h.push('<p ' + P_STYLE + '><strong>Valor da execução:</strong> ' + esc(brl(e.valor_execucao)) + '</p>');
+            h.push('<p ' + P_STYLE + '><strong>Total bloqueado nas séries:</strong> '
                 + esc(brl(e.total_bloqueado))
-                + (e.tipo === 'TRANSFERIR_PARCIAL' ? ' (excede valor da execucao)' : '') + '</p>');
+                + (e.tipo === 'TRANSFERIR_PARCIAL' ? ' (excede o valor da execução)' : '') + '</p>');
         }
 
         if (decisao.tipo_fluxo === 'NEGATIVO') {
-            h.push('<p ' + P_STYLE + '>Nao houve bloqueios realizados.</p>');
+            h.push('<p ' + P_STYLE + '>Não houve bloqueios realizados.</p>');
         } else if (decisao.tipo_fluxo === 'DESBLOQUEIO') {
-            h.push('<p ' + P_STYLE + '>Considerando as regras sobre bloqueios irrisorios, as quantias '
-                + 'localizadas foram <strong>DESBLOQUEADAS</strong>, acao que sera efetivada em ate 48h uteis.</p>');
+            h.push('<p ' + P_STYLE + '>Considerando as regras sobre bloqueios irrisórios, as quantias '
+                + 'localizadas foram <strong>DESBLOQUEADAS</strong>, ação que será efetivada em até 48h úteis.</p>');
+        } else if (decisao.estrategia && decisao.estrategia.tipo === 'TRANSFERIR_PARCIAL') {
+            // Excedente: o que passou do valor da execução é devolvido.
+            var excedente = decisao.total_bloqueado - decisao.estrategia.valor_execucao;
+            h.push('<p ' + P_STYLE + '>Considerando os bloqueios realizados, as quantias localizadas foram '
+                + '<strong>TRANSFERIDAS</strong> à conta judicial do processo e os valores excedentes ('
+                + esc(brl(excedente)) + ') foram devidamente <strong>DESBLOQUEADOS</strong>, '
+                + 'ações que serão efetivadas em até 48h úteis.</p>');
         } else {
             h.push('<p ' + P_STYLE + '>Considerando os bloqueios realizados, as quantias localizadas foram '
-                + '<strong>TRANSFERIDAS</strong> a conta judicial do processo, acao que sera efetivada em ate 48h uteis.</p>');
+                + '<strong>TRANSFERIDAS</strong> à conta judicial do processo, ação que será efetivada em até 48h úteis.</p>');
         }
 
         h.push('<p ' + P_STYLE + '>Processo: ' + esc(numero) + ' — gerado em '
@@ -364,6 +377,9 @@
             '#sisb-api-panel .sb-des{color:#b0720a}',
             '#sisb-api-panel .sb-erro{color:#a11;white-space:pre-wrap;font-family:Consolas,monospace;font-size:11px}',
             '#sisb-api-panel .sb-aviso{color:#b0720a}',
+            '#sisb-api-panel .sb-rel{margin-top:10px;border-top:1px solid #ddd;padding-top:8px}',
+            '#sisb-api-panel .sb-rel-txt{margin-top:4px;color:#333}',
+            '#sisb-api-panel .sb-rel-txt p{margin:4px 0;font-size:12px;text-indent:0;text-align:left}',
             '#sisb-api-panel small{color:#666}',
             '.sb-toast{position:fixed;top:20px;right:20px;z-index:2147483002;background:#0a6b1f;color:#fff;padding:10px 16px;border-radius:6px;font-weight:bold;font-size:13px}',
         ].join('\n');
@@ -399,66 +415,62 @@
 
     function avisoToken() {
         var t = lerToken().trim();
-        if (!t) return '<small>Sem token. Abra uma aba do SISBAJUD logada: ele e coletado de la.</small>';
+        if (!t) return '<small>Sem token. Abra uma aba do SISBAJUD logada: ele é coletado de lá.</small>';
         var exp = expDoJwt(t);
-        if (!exp) return '<small>Token coletado (sem exp legivel).</small>';
+        if (!exp) return '<small>Token coletado (sem exp legível).</small>';
         var venc = exp * 1000 < Date.now();
         return '<small' + (venc ? ' class="sb-aviso"' : '') + '>Token '
-            + (venc ? 'EXPIRADO' : 'guardado, valido ate ' + new Date(exp * 1000).toLocaleString('pt-BR'))
+            + (venc ? 'EXPIRADO' : 'guardado, válido até ' + new Date(exp * 1000).toLocaleString('pt-BR'))
             + ' .</small>';
     }
 
-    function formulario() {
+    // Clique no botao = consulta direta, sem passo intermediario.
+    async function formulario() {
+        if (painel && document.body.contains(painel)) { fechar(); return; }
         abrirPainel();
-        render('<div class="sb-linha"><label>Processo</label>'
-            + '<input id="sisb-numero" type="text" placeholder="numero CNJ" value="">'
-            + '<button id="sisb-consultar" class="sb-btn" type="button">Consultar via API</button></div>'
-            + '<div class="sb-linha"><label>Token</label>'
-            + '<input id="sisb-token" type="text" placeholder="coletado automaticamente — pode sobrepor" value="'
-            + esc(lerToken()) + '"></div>'
-            + '<div id="sisb-token-info">' + avisoToken() + '</div>'
-            + '<div id="sisb-saida"></div>');
 
-        var campoNum = painel.querySelector('#sisb-numero');
-        var campoToken = painel.querySelector('#sisb-token');
-        var info = painel.querySelector('#sisb-token-info');
-        var saida = painel.querySelector('#sisb-saida');
-        var btn = painel.querySelector('#sisb-consultar');
+        var numero = numeroProcessoDaPagina();
+        render('');
 
-        campoToken.addEventListener('change', function () {
-            var tCampo = (campoToken.value || '').trim(); if (tCampo) salvarToken(tCampo);
-            info.innerHTML = avisoToken();
-        });
+        var saida = painel.querySelector('.sb-body');
+        if (!numero) {
+            // Sem numero na pagina: unica situacao com intervencao manual.
+            render('<div class="sb-aviso">Processo não detectado na página. Informe o número:</div>'
+                + '<div class="sb-linha"><input id="sisb-numero" type="text" placeholder="número CNJ">'
+                + '<button id="sisb-consultar" class="sb-btn" type="button">Consultar</button></div>');
+            var campo = painel.querySelector('#sisb-numero');
+            painel.querySelector('#sisb-consultar').addEventListener('click', function () {
+                var n = (campo.value || '').trim();
+                if (digitos(n).length < 15) {
+                    saida.insertAdjacentHTML('beforeend',
+                        '<div class="sb-erro">Número inválido (precisa de 15+ dígitos).</div>');
+                    return;
+                }
+                rodar(n, saida);
+            });
+            return;
+        }
 
-        var n = numeroProcessoDaPagina();
-        if (n) { campoNum.value = n; log("numero da pagina:", n); }
-        else saida.innerHTML = '<div class="sb-aviso">Processo nao detectado na pagina; informe o numero.</div>';
+        log('numero da pagina:', numero);
+        await rodar(numero, saida);
+    }
 
-        btn.addEventListener('click', async function () {
-            var num = (campoNum.value || '').trim();
-            if (digitos(num).length < 15) {
-                saida.innerHTML = '<div class="sb-erro">Numero invalido (precisa de 15+ digitos).</div>';
-                return;
-            }
-            var tCampo = (campoToken.value || '').trim(); if (tCampo) salvarToken(tCampo);
-            btn.disabled = true;
-            saida.innerHTML = '<div class="sb-aviso">Consultando a API…</div>';
-            try {
-                await executar(num, saida);
-            } catch (e) {
-                log('ERRO', e && e.stack || e);
-                saida.innerHTML = '<div class="sb-erro">' + esc(e && e.stack || e) + '</div>';
-            } finally {
-                btn.disabled = false;
-            }
-        });
+    async function rodar(numero, saida) {
+        saida.innerHTML = '<div class="sb-aviso">Consultando a API…</div>';
+        try {
+            await executar(numero, saida);
+        } catch (e) {
+            log('ERRO', e && e.stack || e);
+            saida.innerHTML = '<div class="sb-erro">' + esc(e && e.stack || e) + '</div>';
+        }
     }
 
     async function executar(numero, saida) {
         log('consulta', numero);
         var r = await lerSeries(numero);
         if (r.erro) {
-            saida.innerHTML = '<div class="sb-erro">' + esc(r.erro) + '</div>';
+            saida.innerHTML = '<div class="sb-erro">' + esc(r.erro) + '</div>'
+                + '<div id="sisb-token-info">' + avisoToken() + '</div>';
             return;
         }
 
@@ -469,28 +481,35 @@
         var cls = { NEGATIVO: 'sb-neg', POSITIVO: 'sb-pos', DESBLOQUEIO: 'sb-des' }[decisao.tipo_fluxo] || '';
         var linhas = series.map(function (s) {
             return '<tr><td>' + esc(s.id_serie) + '</td><td>' + esc(s.protocolo || '—') + '</td>'
-                + '<td>' + esc(s.acao || '—') + '</td><td>' + esc(dataCurta(s.data_ms)) + '</td>'
+                + '<td>' + esc(s.situacao || '—') + '</td>'
+                + '<td>' + esc(s.acao || '—') + '</td><td>'
+                + esc(s.situacao === 'Ativa' ? '—' : dataCurta(s.data_ms)) + '</td>'
                 + '<td>' + esc(s.valor_bloqueado_text) + '</td><td>' + esc(s.valor_bloquear_text) + '</td></tr>';
         }).join('');
 
+        var relatorio = gerarRelatorio(numero, series, decisao);
+
         saida.innerHTML = '<div class="sb-fluxo ' + cls + '">Fluxo: ' + esc(decisao.tipo_fluxo) + '</div>'
-            + '<div><b>' + series.length + '</b> serie(s) valida(s) de <b>' + r.total_bruto + '</b> · '
+            + '<div><b>' + series.length + '</b> série(s) válida(s) de <b>' + r.total_bruto + '</b> · '
             + 'bloqueado ' + esc(brl(decisao.total_bloqueado)) + ' · a bloquear '
             + esc(brl(decisao.valor_a_bloquear))
-            + (decisao.estrategia ? ' · estrategia ' + esc(decisao.estrategia.tipo) : '') + '</div>'
-            + (series.length ? '<table><thead><tr><th>Serie</th><th>Protocolo</th><th>Acao</th>'
-                + '<th>Finalizacao</th><th>Bloqueado</th><th>A bloquear</th></tr></thead><tbody>'
+            + (decisao.estrategia ? ' · estratégia ' + esc(decisao.estrategia.tipo) : '') + '</div>'
+            + (series.length ? '<table><thead><tr><th>Série</th><th>Protocolo</th><th>Situação</th><th>Ação</th>'
+                + '<th>Finalização</th><th>Bloqueado</th><th>A bloquear</th></tr></thead><tbody>'
                 + linhas + '</tbody></table>' : '')
             + '<div class="sb-linha" style="margin-top:8px">'
-            + '<button class="sb-btn sb-sec" type="button" id="sisb-copiar">Copiar relatorio</button></div>';
+            + '<button class="sb-btn sb-sec" type="button" id="sisb-copiar">'
+            + 'Copiar relatório novamente</button></div>'
+            + '<div class="sb-rel"><b>Relatório gerado e copiado:</b>'
+            + '<div class="sb-rel-txt">' + relatorio + '</div></div>';
 
-        var relatorio = gerarRelatorio(numero, series, decisao);
         var ok = copiarHtml(relatorio);
-        toast(ok ? 'Relatorio copiado para a area de transferencia'
-            : 'Nao foi possivel copiar (use o botao)', ok ? null : '#a11');
+        toast(ok ? 'Relatório copiado para a área de transferência'
+            : 'Não foi possível copiar (use o botão)', ok ? null : '#a11');
 
         painel.querySelector('#sisb-copiar').addEventListener('click', function () {
-            toast(copiarHtml(relatorio) ? 'Relatorio copiado' : 'Nao foi possivel copiar', '#a11');
+            var copiou = copiarHtml(relatorio);
+            toast(copiou ? 'Relatório copiado' : 'Não foi possível copiar', copiou ? null : '#a11');
         });
     }
 

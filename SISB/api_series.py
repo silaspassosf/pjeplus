@@ -15,12 +15,12 @@ Diferenças em relação ao DOM:
     refaz o caminho completo por conta própria — pesquisa o processo, lê a
     lista de séries e abre a série com bloqueio pela linha. A API serve só
     para decidir o fluxo (e alimentar a certidão em NEGATIVO/DESBLOQUEIO).
-  - `situacao` é sintetizada como 'Encerrada' quando tipoSituacaoSerie == 2,
-    para o filtro textual existente ('encerrada' in situacao.lower()) seguir valendo.
+  - `situacao` é sintetizada como 'Ativa' quando tipoSituacaoSerie == 1 e
+    'Encerrada' quando tipoSituacaoSerie == 2.
 
-Filtro (idêntico ao atual, só muda a fonte da data):
-  - encerrada  -> tipoSituacaoSerie == 2
-  - recente    -> dataLimite (FIM da série) >= data_limite
+Filtro (data_limite como mínimo):
+  - ativa ou encerrada -> tipoSituacaoSerie in (1, 2)
+  - recente / futura  -> dataLimite (FIM da série) >= data_limite (ou ausente se ativa)
 """
 
 import logging
@@ -29,7 +29,9 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 URL_API = 'https://sisbajud.pdpj.jus.br/v1/serie'
+TIPO_SITUACAO_ATIVA = 1
 TIPO_SITUACAO_ENCERRADA = 2
+TIPOS_SITUACAO_VALIDOS = (TIPO_SITUACAO_ATIVA, TIPO_SITUACAO_ENCERRADA)
 
 _MESES = {
     1: 'JANEIRO', 2: 'FEVEREIRO', 3: 'MARÇO', 4: 'ABRIL', 5: 'MAIO', 6: 'JUNHO',
@@ -133,15 +135,16 @@ def ler_series_api(numero_processo, data_limite=None, timeout=20,
     validas = []
     for serie in bruto:
         try:
-            if serie.get('tipoSituacaoSerie') != TIPO_SITUACAO_ENCERRADA:
+            tipo_situacao = serie.get('tipoSituacaoSerie')
+            if tipo_situacao not in TIPOS_SITUACAO_VALIDOS:
                 continue
 
             fim_ms = serie.get('dataLimite')
-            if not fim_ms:
+            if not fim_ms and tipo_situacao == TIPO_SITUACAO_ENCERRADA:
                 continue
 
-            data_fim = datetime.fromtimestamp(fim_ms / 1000.0)
-            if isinstance(data_limite, datetime) and data_fim < data_limite:
+            data_fim = datetime.fromtimestamp(fim_ms / 1000.0) if fim_ms else None
+            if data_fim is not None and isinstance(data_limite, datetime) and data_fim < data_limite:
                 continue
 
             ordem = serie.get('ordemOriginal') or {}
@@ -154,7 +157,7 @@ def ler_series_api(numero_processo, data_limite=None, timeout=20,
                 'acao': str(ordem.get('descricaoTipoOrdem') or ''),
                 'data_conclusao': data_fim,
                 'data_conclusao_text': _data_texto(fim_ms),
-                'situacao': 'Encerrada',
+                'situacao': 'Ativa' if tipo_situacao == TIPO_SITUACAO_ATIVA else 'Encerrada',
                 'valor_bloqueado': valor_bloqueado,
                 'valor_bloquear': valor_bloquear,
                 'valor_bloqueado_text': _valor_texto(valor_bloqueado),

@@ -220,9 +220,23 @@
                             showToast('Módulo Sisbajud não carregado', '#dc3545', 3000);
                         }
                     };
+
+                    const b3 = document.createElement('button');
+                    b3.textContent = 'Séries';
+                    b3.title = 'Consultar séries da Teimosinha via API e copiar relatório';
+                    b3.style.cssText = btnStyle;
+                    b3.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (window.SisbSeries && typeof window.SisbSeries.consultar === 'function') {
+                            window.SisbSeries.consultar();
+                        } else {
+                            showToast('Módulo Séries não carregado', '#dc3545', 3000);
+                        }
+                    };
                     
                     btn.appendChild(b1);
                     btn.appendChild(b2);
+                    btn.appendChild(b3);
                 }, titulo: 'Sisbajud', full: true },
             { id: 'btnDebito', texto: '💰 Débito', bg: '#17a2b8', fn: function () {
                     if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.executar === 'function') {

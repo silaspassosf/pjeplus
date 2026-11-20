@@ -74,7 +74,7 @@ def medir_latencia(etapa: str):
         logger.info(f"[LATENCIA][FIM] {etapa}: liquida={duracao_liquida:.3f}s (bruta={duracao_bruta:.3f}s, pausa={pausa_dentro:.3f}s)")
 
 
-SCRIPT_SELECAO_GIGS_AJ_JT = '''
+SCRIPT_SELECAO_GIGS_AJ_JT = r'''
 function selecionarProcessosPorGIGS(processosComGIGS) {
     console.log("🔍 Iniciando seleção de GIGS. Processos a selecionar:", processosComGIGS);
 
@@ -131,17 +131,17 @@ function selecionarProcessosPorGIGS(processosComGIGS) {
 return selecionarProcessosPorGIGS(arguments[0]);
 '''
 
-SCRIPT_SELECAO_LIVRES = '''
+SCRIPT_SELECAO_LIVRES = r'''
 try {
     let linhas = document.querySelectorAll('tr.cdk-drag');
     let selecionados = 0;
     linhas.forEach(function(linha){
-        let prazo = linha.querySelector('td:nth-child(9) time');
+        let prazo = linha.querySelector('td[data-label*="prazo" i] time, td:nth-child(9) time');
         let prazoVazio = !prazo || !prazo.textContent.trim();
         let hasComment = linha.querySelector('i.fa-comment') !== null;
         let inputField = linha.querySelector('input[matinput]');
         let campoPreenchido = inputField && inputField.value.trim();
-        let temLupa = linha.querySelector('td:nth-child(3) i.fa-search') !== null;
+        let temLupa = linha.querySelector('td[data-label*="processo" i] i.fa-search, td:nth-child(3) i.fa-search') !== null;
         if (prazoVazio && !hasComment && !campoPreenchido && !temLupa) {
             let checkbox = linha.querySelector('mat-checkbox input[type="checkbox"]');
             if (checkbox && !checkbox.checked) {
@@ -155,19 +155,19 @@ try {
 } catch(e) { return -1; }
 '''
 
-SCRIPT_SELECAO_LIVRES_API = '''
+SCRIPT_SELECAO_LIVRES_API = r'''
 try {
     let processosComGigsApi = arguments[0] || [];
     let linhas = document.querySelectorAll('tr.cdk-drag');
     let selecionados = 0;
     let padrao = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/;
     linhas.forEach(function(linha){
-        let prazo = linha.querySelector('td:nth-child(9) time');
+        let prazo = linha.querySelector('td[data-label*="prazo" i] time, td:nth-child(9) time');
         let prazoVazio = !prazo || !prazo.textContent.trim();
         let hasComment = linha.querySelector('i.fa-comment') !== null;
         let inputField = linha.querySelector('input[matinput]');
         let campoPreenchido = inputField && inputField.value.trim();
-        let temLupa = linha.querySelector('td:nth-child(3) i.fa-search') !== null;
+        let temLupa = linha.querySelector('td[data-label*="processo" i] i.fa-search, td:nth-child(3) i.fa-search') !== null;
         let numeroProcesso = null;
         let links = linha.querySelectorAll('a');
         for (let link of links) {

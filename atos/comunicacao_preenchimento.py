@@ -168,7 +168,9 @@ def inserir_modelo_comunicacao(driver: Any, modelo_nome: str, log=None) -> bool:
 
     _JS_TEXTO_EDITOR = """() => {
         var sels = [
+            'pje-pec-dialogo-ato div[class*="area-conteudo"][contenteditable="true"][role="textbox"]',
             'pje-pec-dialogo-ato div[contenteditable="true"]',
+            'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]',
             'div.area-conteudo[contenteditable="true"]',
             '.ck-editor__editable[contenteditable="true"]',
             '.ck-content[contenteditable="true"]',

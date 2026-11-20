@@ -11,6 +11,19 @@ from Fix.diagnostico_runtime import log_erro_estruturado
 
 logger = logging.getLogger("Fix.seletores")
 
+# Seletores canônicos validados contra o DOM real do PJe (cf. TRADUCAO_MONOLITO_GIGS.md A2/A3/A5).
+SEL_EDITOR_CONTEUDO = 'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]'
+SEL_EDITOR_FALLBACKS = (
+    'div[class*="area-conteudo"][contenteditable="true"][role="textbox"], '
+    'div[class*="area-conteudo"][contenteditable="true"], '
+    'div.ck-content[contenteditable="true"]'
+)
+SEL_SOBRESTAMENTO_PRAZO_BTN = (
+    'pje-motivos-sobrestamento button[aria-label="Definir prazo para este motivo de sobrestamento"], '
+    'pje-motivos-sobrestamento button[mattooltip="Definir prazo para este motivo de sobrestamento"], '
+    'button[mattooltip="Definir prazo para este motivo de sobrestamento"]'
+)
+
 
 def _telemetria(acao: str, seletor: Optional[str], contexto: str, processo: str,
                 *, tentativas: int, inicio: float, ok: bool,

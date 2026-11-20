@@ -75,7 +75,8 @@ def mov_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
         if not url_ok:
             return True
 
-        btn_calendario = espera.elemento(driver, 'button[mattooltip="Definir prazo para este motivo de sobrestamento"]', teto=timeout)
+        from Fix.seletores_catalogo import SEL_SOBRESTAMENTO_PRAZO_BTN
+        btn_calendario = espera.elemento(driver, SEL_SOBRESTAMENTO_PRAZO_BTN, teto=timeout)
         if not btn_calendario:
             btn_calendario = espera.elemento(driver, 'i.fas.fa-calendar-alt', teto=5)
             if btn_calendario:

@@ -588,10 +588,10 @@ def ato_judicial(
                 return True, False
 
             # esperar a estrutura existir evita descricao e modelo perdidos por pagina
+            from Fix.seletores_catalogo import SEL_EDITOR_FALLBACKS
             espera.ate_aparecer(
                 driver,
-                'input#inputFiltro, pje-arvore-modelo-documento, '
-                'div[class*="area-conteudo"][contenteditable="true"], div.ck-content[contenteditable="true"]',
+                f'input#inputFiltro, pje-arvore-modelo-documento, {SEL_EDITOR_FALLBACKS}',
                 teto=20,
             )
 
@@ -607,11 +607,7 @@ def ato_judicial(
                 except Exception as e:
                     logger.error(f'[ATO][DESCRICAO]  Erro ao preencher descrição: {e}')
 
-            espera.ate_aparecer(
-                driver,
-                'div[class*="area-conteudo"][contenteditable="true"], div.ck-content[contenteditable="true"]',
-                teto=10,
-            )
+            espera.ate_aparecer(driver, SEL_EDITOR_FALLBACKS, teto=10)
             logger.info(f'[ATO][MODELO] Inserindo modelo "{modelo_nome}"...')
             if not inserir_modelo_no_editor(driver, modelo_nome, log=logger.info):
                 logger.error('[ATO][MODELO] Modelo não confirmado no editor-alvo — abortando antes do Salvar')

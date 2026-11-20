@@ -1,7 +1,6 @@
 """pjeplay.api_resiliencia - resiliencia global das chamadas API do PJe."""
 import logging
 import threading
-import time
 
 import requests
 
@@ -44,13 +43,14 @@ def _f5_e_aguardar(driver):
     except Exception as e:
         logger.warning("api_resiliencia: refresh falhou (%s)", e)
         return
-    for _ in range(30):
+    if hasattr(driver, 'page') and driver.page is not None:
         try:
-            if driver.execute_script("return document.readyState") == "complete":
-                break
+            driver.page.wait_for_load_state("load", timeout=15000)
+            return
         except Exception:
             pass
-        time.sleep(0.5)
+    from Fix import espera  # import tardio: nunca importar Fix antes de pjeplay.iniciar()
+    espera.ate_js(driver, "document.readyState === 'complete'", teto=15)
 
 
 def _ressincronizar_cookies(driver, sess):
@@ -87,7 +87,8 @@ def instalar():
                         break
                     _f5_e_aguardar(driver)
                     _ressincronizar_cookies(driver, self)
-                    time.sleep(_PAUSA)
+                    from Fix import espera
+                    espera.pausa(driver, _PAUSA)
                     resp = original(self, method, url, *args, **kwargs)
                     if resp.status_code < 500:
                         break

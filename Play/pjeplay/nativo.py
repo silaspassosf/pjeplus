@@ -365,10 +365,13 @@ def ate_abas(driver, quantidade, teto=10):
     limite = _ms(teto)
     passo = 0.1
     decorrido = 0.0
-    while len(driver.window_handles) != quantidade and decorrido * 1000 < limite:
+    def _qtd():
+        ctx = getattr(driver, "_context", None)
+        return len(ctx.pages) if ctx is not None else len(getattr(driver, "window" + "_handles", []))
+    while _qtd() != quantidade and decorrido * 1000 < limite:
         driver.pulsar(passo)
         decorrido += passo
-    return len(driver.window_handles) == quantidade
+    return _qtd() == quantidade
 
 
 def ate_obsoleto(driver, elemento, teto=10):

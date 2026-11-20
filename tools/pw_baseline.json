@@ -1,9 +1,9 @@
 {
   "version": "1.0",
   "description": "Baseline de migracao Playwright nativo (ratchet)",
-  "total_files": 393,
-  "files_with_patterns": 49,
-  "total_patterns": 909,
+  "total_files": 404,
+  "files_with_patterns": 26,
+  "total_patterns": 661,
   "migrados": [
     "Fix/browser_suporte.py",
     "Fix/core.py",
@@ -43,6 +43,8 @@
     "Peticao/helpers/helpers.py",
     "Peticao/runtime_pet.py",
     "Peticao/suporte_pet.py",
+    "Play/pjeplay/api_resiliencia.py",
+    "Play/pjeplay/nativo.py",
     "Prazo/loop_execucao_final.py",
     "Prazo/loop_lote.py",
     "Prazo/loop_orquestrador.py",
@@ -51,7 +53,28 @@
     "Prazo/p2b_gateway.py",
     "Prazo/p2b_regras_execucao.py",
     "SISB/Core/login.py",
+    "SISB/Core/sessao_helpers.py",
+    "SISB/Core/utils_web.py",
+    "SISB/batch.py",
+    "SISB/core.py",
+    "SISB/ordens_dados_navegacao.py",
+    "SISB/ordens_execucao.py",
+    "SISB/performance.py",
+    "SISB/processamento/minutas_campos.py",
+    "SISB/processamento/minutas_relatorio.py",
+    "SISB/processamento/minutas_reus.py",
     "SISB/processamento/minutas_salvar.py",
+    "SISB/processamento/navegacao.py",
+    "SISB/processamento/ordens_acao.py",
+    "SISB/processamento/ordens_dados.py",
+    "SISB/processamento/relatorios_dados.py",
+    "SISB/processamento/series_fluxo.py",
+    "SISB/processamento/series_navegar.py",
+    "SISB/processamento_campos_principais.py",
+    "SISB/processamento_campos_reus.py",
+    "SISB/processamento_minuta.py",
+    "SISB/processamento_relatorios.py",
+    "SISB/relatorios_integracao.py",
     "atos/anexos/anexos_extracao.py",
     "atos/anexos/anexos_wrappers.py",
     "atos/anexos_sigilo.py",
@@ -195,13 +218,6 @@
         "time_sleep": 1
       }
     },
-    "Play/pjeplay/api_resiliencia.py": {
-      "total": 3,
-      "breakdown": {
-        "execute_script": 1,
-        "time_sleep": 2
-      }
-    },
     "Play/pjeplay/compat.py": {
       "total": 6,
       "breakdown": {
@@ -219,26 +235,19 @@
       }
     },
     "Play/pjeplay/medicao.py": {
-      "total": 2,
+      "total": 1,
       "breakdown": {
-        "time_sleep": 2
-      }
-    },
-    "Play/pjeplay/nativo.py": {
-      "total": 3,
-      "breakdown": {
-        "window_handles": 2,
-        "webdriver_wait": 1
+        "time_sleep": 1
       }
     },
     "Play/pjeplay/waits.py": {
-      "total": 10,
+      "total": 8,
       "breakdown": {
         "find_element": 1,
         "find_elements": 1,
         "window_handles": 2,
-        "webdriver_wait": 3,
-        "expected_conditions": 2,
+        "webdriver_wait": 2,
+        "expected_conditions": 1,
         "time_sleep": 1
       }
     },
@@ -253,189 +262,6 @@
         "window_handles": 3,
         "webdriver_wait": 9,
         "expected_conditions": 9
-      }
-    },
-    "SISB/Core/sessao_helpers.py": {
-      "total": 4,
-      "breakdown": {
-        "execute_script": 1,
-        "time_sleep": 3
-      }
-    },
-    "SISB/Core/utils_web.py": {
-      "total": 18,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 2,
-        "execute_script": 4,
-        "send_keys": 1,
-        "webdriver_wait": 2,
-        "expected_conditions": 2,
-        "time_sleep": 4
-      }
-    },
-    "SISB/batch.py": {
-      "total": 20,
-      "breakdown": {
-        "from_selenium": 1,
-        "window_handles": 14,
-        "webdriver_type": 5
-      }
-    },
-    "SISB/core.py": {
-      "total": 21,
-      "breakdown": {
-        "execute_script": 16,
-        "window_handles": 5
-      }
-    },
-    "SISB/ordens_dados_navegacao.py": {
-      "total": 47,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 6,
-        "find_elements": 5,
-        "execute_script": 4,
-        "send_keys": 5,
-        "webdriver_wait": 9,
-        "expected_conditions": 9,
-        "time_sleep": 1,
-        "webdriver_type": 4
-      }
-    },
-    "SISB/ordens_execucao.py": {
-      "total": 21,
-      "breakdown": {
-        "from_selenium": 4,
-        "find_element": 4,
-        "find_elements": 1,
-        "webdriver_wait": 6,
-        "expected_conditions": 5,
-        "webdriver_type": 1
-      }
-    },
-    "SISB/performance.py": {
-      "total": 7,
-      "breakdown": {
-        "execute_script": 3,
-        "time_sleep": 1,
-        "webdriver_type": 3
-      }
-    },
-    "SISB/processamento/minutas_campos.py": {
-      "total": 1,
-      "breakdown": {
-        "webdriver_type": 1
-      }
-    },
-    "SISB/processamento/minutas_relatorio.py": {
-      "total": 11,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_element": 1,
-        "execute_script": 4,
-        "send_keys": 3,
-        "webdriver_type": 1
-      }
-    },
-    "SISB/processamento/minutas_reus.py": {
-      "total": 1,
-      "breakdown": {
-        "webdriver_type": 1
-      }
-    },
-    "SISB/processamento/navegacao.py": {
-      "total": 12,
-      "breakdown": {
-        "from_selenium": 2,
-        "find_element": 3,
-        "find_elements": 2,
-        "execute_script": 2,
-        "send_keys": 1,
-        "webdriver_type": 2
-      }
-    },
-    "SISB/processamento/ordens_acao.py": {
-      "total": 8,
-      "breakdown": {
-        "from_selenium": 2,
-        "execute_script": 3,
-        "send_keys": 1,
-        "time_sleep": 2
-      }
-    },
-    "SISB/processamento/ordens_dados.py": {
-      "total": 4,
-      "breakdown": {
-        "from_selenium": 1,
-        "find_elements": 2,
-        "webdriver_type": 1
-      }
-    },
-    "SISB/processamento/relatorios_dados.py": {
-      "total": 15,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 5,
-        "find_elements": 2,
-        "webdriver_wait": 2,
-        "expected_conditions": 2,
-        "webdriver_type": 1
-      }
-    },
-    "SISB/processamento/series_fluxo.py": {
-      "total": 4,
-      "breakdown": {
-        "time_sleep": 4
-      }
-    },
-    "SISB/processamento/series_navegar.py": {
-      "total": 16,
-      "breakdown": {
-        "from_selenium": 1,
-        "find_element": 5,
-        "find_elements": 4,
-        "execute_script": 5,
-        "time_sleep": 1
-      }
-    },
-    "SISB/processamento_campos_principais.py": {
-      "total": 1,
-      "breakdown": {
-        "webdriver_type": 1
-      }
-    },
-    "SISB/processamento_campos_reus.py": {
-      "total": 5,
-      "breakdown": {
-        "execute_script": 4,
-        "webdriver_type": 1
-      }
-    },
-    "SISB/processamento_minuta.py": {
-      "total": 3,
-      "breakdown": {
-        "execute_script": 1,
-        "webdriver_type": 2
-      }
-    },
-    "SISB/processamento_relatorios.py": {
-      "total": 4,
-      "breakdown": {
-        "execute_script": 2,
-        "window_handles": 1,
-        "webdriver_type": 1
-      }
-    },
-    "SISB/relatorios_integracao.py": {
-      "total": 16,
-      "breakdown": {
-        "from_selenium": 3,
-        "find_element": 5,
-        "find_elements": 2,
-        "webdriver_wait": 2,
-        "expected_conditions": 2,
-        "webdriver_type": 2
       }
     },
     "Script/modules/Aud/aud_server.py": {

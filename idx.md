@@ -2,27 +2,23 @@
 
 Atualizado: 2026-11-20 (campanha de limpeza e simplificação Playwright ativa)
 
-> **PROCESSO DE LIMPEZA ATIVO (`refactor/pw-limpeza`):**
-> - **Branch de trabalho desta campanha:** `refactor/pw-limpeza` (base `main` preservada intacta até validação final).
-> - **Foco exclusivo:** grafo vivo de `pw.py` (`pw.py`, `x.py`, `Play/`, `Fix/`, `atos/`, `SISB/`, `bianca/`, `Mandado/`, `Prazo/`, `PEC/`, `Peticao/`, `api/`), 100% Playwright nativo (`Fix/espera.py`, `Play/pjeplay/nativo.py`, `Page`/`Locator`).
-> - **Objetivo:** remover comentários/docstrings verbosos e simplificar funções longas/duplicadas para reduzir linhas **sem perder nenhuma funcionalidade ou assinatura pública**.
-> - **Validação obrigatória a cada etapa:** `py -m py_compile` + `py tools/check_pw.py` + `py tools/check_imports.py` + `py -m pytest tests -q`.
+> **PROCESSO DE LIMPEZA CONCLUÍDO NA BRANCH `refactor/pw-limpeza` (pronto para revisão e merge em `main`):**
+> - **Branch de trabalho desta campanha:** `refactor/pw-limpeza` (base `main` preservada intacta em `657cb84`).
+> - **Foco exclusivo:** grafo vivo de `pw.py` (`pw.py`, `x.py`, `Play/pjeplay/`, `Fix/`, `atos/`, `SISB/`, `bianca/`, `Mandado/`, `Prazo/`, `PEC/`, `Peticao/`, `api/`), 100% Playwright nativo (`Fix/espera.py`, `Play/pjeplay/nativo.py`, `Page`/`Locator`).
+> - **Resultado consolidado:** **77.436L → 64.858L (-12.578 linhas / -16,2%)** | comentários `#` **4.484 → 372 (-91,7%, preservando só workarounds/diretivas)** | **100% dos módulos de negócio com 0 padrões Selenium (`LIMPO`)** | ratchet atualizado para **114 arquivos migrados garantidos** (`909 → 661`, `-248` padrões).
+> - **Validação final executada:** `py_compile` 100% (235 arquivos OK) + `py tools/check_pw.py` (APROVADO) + `py tools/check_imports.py` (53/53 OK) + smoke real `"X" | py pw.py` (`EXIT=88` OK) + `py -m pytest tests -q` (zero regressões frente ao baseline).
 > - **Andamento das ondas:**
->   - [x] **Etapa 0 — Baseline verde:** zeradas as 3 regressões prévias do `tools/check_pw.py` (`atos/anexos_sigilo.py` -> 0, `SISB/processamento/minutas_campos.py` -> 0 [MIGRADO], `tests/test_atualizacao_rapida.py` -> 0, `SISB/core.py` -2). Ratchet: **906/909 (-3), APROVADO**.
->   - [x] **Etapa 1 — Poda de comentários/docstrings e simplificação inicial (concluída — ~10.300 linhas removidas, AST verificado):**
->     - [x] Lote 1: `Fix/entrada_campos.py` (705L → 395L, -44%) e `pw.py` (150L → 129L)
->     - [x] Lote 2a/2b: `x.py` (1273L → 944L, -26%) e `api/` (1274L → 1025L, -249L)
->     - [x] Lote 3: `Fix/` (14694L → 12262L, -2432L)
->     - [x] Lote 4: `Prazo/` (4707L → 3805L, -902L)
->     - [x] Lote 5: `Mandado/` (5023L → 4287L, -736L)
->     - [x] Lote 6: `PEC/` + `Peticao/` (7534L → 6675L, -859L)
->     - [x] Lote 7: `bianca/` (9784L → 8145L, -1639L)
->     - [x] Lote 8: `SISB/` (12344L → 11028L, -1316L; ratchet 906 → 881, +2 arquivos migrados)
->     - [x] Lote 9: `atos/` (13683L → 12285L, -1398L)
->     - [x] Lote 10: `Play/pjeplay/` (4341L → 3927L, -414L)
->   - [ ] **Etapa 2 — Simplificação de funções gigantes e migração Playwright nativa (em andamento):** zerar padrões legados em `SISB/` e simplificar hotspots em `SISB/`, `atos/` e `Fix/`.
->   - [ ] **Etapa 3 — Enxugamento do motor Playwright e auditoria de shims/código morto:** `Play/pjeplay/`, `x.py`, `tools/shim_audit.py`.
->   - [ ] **Etapa 4 — Fechamento:** atualizar `tools/pw_baseline.json` e este `idx.md` com o saldo final.
+>   - [x] **Etapa 0 — Baseline verde:** zeradas as 3 regressões prévias do `tools/check_pw.py` (`atos/anexos_sigilo.py`, `SISB/processamento/minutas_campos.py`, `tests/test_atualizacao_rapida.py`).
+>   - [x] **Etapa 1 — Poda AST-verificada de comentários/docstrings e simplificação inicial (Lotes 1–10):**
+>     - `Fix/entrada_campos.py` (705L → 395L), `pw.py` (150L → 129L), `x.py` (1273L → 944L), `api/` (-249L), `Fix/` (-2432L), `Prazo/` (-902L), `Mandado/` (-736L), `PEC/` + `Peticao/` (-859L), `bianca/` (-1639L), `SISB/` (-1316L), `atos/` (-1398L), `Play/pjeplay/` (-414L).
+>   - [x] **Etapa 2 — Simplificação estrutural e migração Playwright nativa (Lotes 2.1–2.5):**
+>     - `SISB/` 100% migrado (**239 → 0 padrões, 21 arquivos `[MIGRADO!]`**), com deduplicação de `SISB/batch.py` (-44%), `SISB/relatorios_integracao.py` (-163L) e `SISB/ordens_dados_navegacao.py` (-74%).
+>     - `atos/comunicacao.py`: `make_comunicacao_wrapper` decomposto em 5 helpers coesos.
+>   - [x] **Etapa 3 — Motor Playwright e auditoria de shims:**
+>     - `Play/pjeplay/nativo.py` e `Play/pjeplay/api_resiliencia.py` migrados para **0 padrões (`[MIGRADO!]`)**.
+>     - Conformidade P9 verificada (0 chamadores externos de `Fix.selenium_base`).
+>     - Auditoria de shims `Fix/` preservando Seção 4: 12 shims com 0 chamadores no escopo `pw.py` (`element_wait`, `smart_finder`, `documents`, `navigation`, `gigs`, `variaveis_client`, `variaveis_helpers`, `variaveis_resolvers`, `exceptions`, `debug_interativo`, `drivers`, `progress`) mapeados para aposentadoria futura.
+>   - [x] **Etapa 4 — Fechamento:** `tools/pw_baseline.json` atualizado (114 migrados / 26 restantes fora dos módulos de negócio), `idx.md` sincronizado e execução end-to-end de `pw.py` validada.
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 

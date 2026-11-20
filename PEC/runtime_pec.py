@@ -750,122 +750,71 @@ class PECOrquestrador:
             self._log_dry_run(buckets)
             return {'total': len(atividades), 'sucesso': 0, 'erro': 0}
 
-        items = []
-        for bucket in BUCKET_ORDEM:
-            for atv, acao in buckets[bucket]:
-                items.append((atv, acao))
-
+        items = [(atv, acao) for bucket in BUCKET_ORDEM for atv, acao in buckets[bucket]]
         progresso = carregar_progresso_pec()
-        _critical_exc = None
+        critical_exc = [None]
 
-        _DRIVER_DEAD_MSGS = (
-            'browsing context',
-            'no longer exist',
-            'failed to decode response from marionette',
-            'tried to run command without establishing a connection',
-            'no such window',
-            'unable to connect to marionette',
-            'session deleted',
-        )
+        from Fix.motor_fluxo import FluxoSpec, executar_fluxo_lote
 
-        def _is_critical(exc: Exception) -> bool:
-            msg = str(exc).lower()
-            return (
-                'RESTART_PEC' in str(exc)
-                or 'acesso negado' in msg
-                or is_browsing_context_discarded_error(msg)
-                or any(k in msg for k in _DRIVER_DEAD_MSGS)
-            )
-
-        def should_skip(item):
-            atv, _ = item
-            ja_executado = tarefa_ja_executada_pec(atv, progresso)
-            if ja_executado:
-                logger.info(f'[PEC] Skip já executado: {atv.numero_processo} ({atv.observacao})')
-            return ja_executado
-
-        def open_item(item):
-            atv, _ = item
-            try:
-                if atv.id_processo:
-                    url = url_processo_detalhe(atv.id_processo)
-                else:
-                    url = _montar_url_processo(atv.numero_processo or '')
-                self.driver.get(url)
-                _aguardar_carregamento(self.driver)
-                return resultado_ok()
-            except Exception as e:
-                if _is_critical(e):
-                    return resultado_falha(str(e), critical=True, _exception=e)
-                return resultado_falha(str(e))
-            finally:
-                _fechar_abas_extras(self.driver)
-
-        def execute_item(item):
+        def _executar_pec(drv, item):
             atv, acao = item
             if acao is None:
                 return resultado_falha("Acao None", observacao=atv.observacao)
-            try:
-                ultimo_retorno = True
-                if isinstance(acao, tuple):
-                    for f in acao:
-                        retorno = f(self.driver, atv)
-                        if retorno is None or retorno is False or (isinstance(retorno, tuple) and not all(retorno)):
-                            nome_acao = getattr(f, '__name__', repr(f))
-                            return resultado_falha(
-                                f"Acao {nome_acao} retornou {retorno!r}",
-                                observacao=atv.observacao,
-                            )
-                        if retorno is not True:
-                            ultimo_retorno = retorno
-                else:
-                    retorno = acao(self.driver, atv)
-                    if retorno is None or retorno is False or (isinstance(retorno, tuple) and not all(retorno)):
-                        nome_acao = getattr(acao, '__name__', repr(acao))
-                        return resultado_falha(
-                            f"Acao {nome_acao} retornou {retorno!r}",
-                            observacao=atv.observacao,
-                        )
-                    if retorno is not True:
-                        ultimo_retorno = retorno
-                return resultado_ok(retorno=ultimo_retorno)
-            except Exception as e:
-                if _is_critical(e):
-                    return resultado_falha(str(e), critical=True, _exception=e)
-                return resultado_falha(str(e))
-            finally:
-                _fechar_abas_extras(self.driver)
+            acoes = acao if isinstance(acao, tuple) else (acao,)
+            ultimo_retorno = True
+            for fn in acoes:
+                retorno = fn(drv, atv)
+                if retorno is None or retorno is False or (isinstance(retorno, tuple) and not all(retorno)):
+                    nome_acao = getattr(fn, '__name__', repr(fn))
+                    return resultado_falha(f"Acao {nome_acao} retornou {retorno!r}", observacao=atv.observacao)
+                if retorno is not True:
+                    ultimo_retorno = retorno
+            return resultado_ok(retorno=ultimo_retorno)
 
-        def persist_result(item, result):
-            nonlocal _critical_exc
+        def _persistir_pec(item, result):
             atv, _ = item
             dados = result.get('dados') or {}
-            if dados.get('critical') and _critical_exc is None:
+            if dados.get('critical') and critical_exc[0] is None:
                 causa = dados.get('_exception') or RuntimeError(result.get('erro', ''))
-                _critical_exc = RuntimeError(f'RESTART_PEC: {causa}')
+                critical_exc[0] = RuntimeError(f'RESTART_PEC: {causa}')
             status = 'SUCESSO' if result.get('ok') else 'ERRO'
             marcar_tarefa_executada_pec(atv, progresso, status=status, detalhes=result.get('erro'))
 
-        batch_result = run_batch(
-            items=items,
-            should_skip=should_skip,
-            open_item=open_item,
-            execute_item=execute_item,
-            persist_result=persist_result,
-            stop_on_critical=True,
+        def _should_skip_pec(item):
+            atv, _ = item
+            if tarefa_ja_executada_pec(atv, progresso):
+                logger.info('[PEC] Skip já executado: %s (%s)', atv.numero_processo, atv.observacao)
+                return True
+            return False
+
+        spec = FluxoSpec(
+            nome='pec',
+            tag_log='[PEC]',
+            executar=_executar_pec,
+            obter_url=lambda it: (
+                url_processo_detalhe(it[0].id_processo)
+                if it[0].id_processo
+                else _montar_url_processo(it[0].numero_processo or '')
+            ),
+            obter_chave=lambda it: it[0].numero_processo or str(it[0].id_processo or ''),
+            should_skip=_should_skip_pec,
+            persist_result=_persistir_pec,
+            seletor_pronto=None,
+            usar_garantir_carregamento=False,
+            validar_conexao=False,
+            fechar_abas_ao_final=True,
+            erros_criticos_extras=('RESTART_PEC', 'acesso negado'),
         )
-
-        #     logger.error(f"[PEC] Erro ao fechar driver SISBAJUD compartilhado: {e}")
-
-        if _critical_exc:
-            raise _critical_exc
+        res = executar_fluxo_lote(self.driver, items, spec)
+        if critical_exc[0]:
+            raise critical_exc[0]
 
         stats = {
             'total': len(atividades),
-            'sucesso': batch_result['sucesso'],
-            'erro': batch_result['falha'],
+            'sucesso': res['processados'],
+            'erro': res['erro'],
         }
-        logger.info(f'[RESUMO] Total: {stats["total"]} | Sucesso: {stats["sucesso"]} | Erro: {stats["erro"]}')
+        logger.info('[RESUMO] Total: %d | Sucesso: %d | Erro: %d', stats['total'], stats['sucesso'], stats['erro'])
         return stats
 
     def _log_dry_run(self, buckets: Dict[str, list]):

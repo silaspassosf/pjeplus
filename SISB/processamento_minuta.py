@@ -1,3 +1,4 @@
+from Fix import espera
 import logging
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def minuta_bloqueio_refatorada(driver_sisbajud, dados_processo, driver_pje=None,
             if not dados_processo:
                 raise ValueError("Não foi possível carregar dados do processo do arquivo")
 
-        driver_sisbajud.execute_script(criar_js_otimizado())
+        espera._executar_script(driver_sisbajud, criar_js_otimizado())
         log_sisbajud("JavaScript otimizado injetado")
 
         from .processamento_campos import _preencher_campos_principais

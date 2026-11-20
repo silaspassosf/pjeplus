@@ -1,3 +1,4 @@
+from Fix import espera
 import logging
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class PerformanceOptimizer:
 
         start_time = time.time()
         try:
-            result = driver.execute_script(script, *args)
+            result = espera._executar_script(driver, script, *args)
             execution_time = time.time() - start_time
 
             if execution_time > 2.0:
@@ -174,13 +175,13 @@ class PollingReducer:
 
     def replace_polling_with_observer(self, driver, seletor: str, timeout: int = 10000):
         """Substitui polling tradicional por MutationObserver."""
-        driver.execute_script(self.mutation_observer_script)
+        espera._executar_script(driver, self.mutation_observer_script)
 
         script = f"""
         return window.SmartElementWaiter.waitForElement('{seletor}', null, {timeout});
         """
 
-        return driver.execute_script(script)
+        return espera._executar_script(driver, script)
 
 class CacheManager:
     """Gerenciador inteligente de cache para SISBAJUD"""
@@ -251,7 +252,7 @@ class ParallelProcessor:
 
             # Delay entre batches para evitar detecção
             from .facades_contratos import SISBConstants
-            time.sleep(SISBConstants.RATE_LIMITS['delay_minimo'] / 1000)
+            espera._dormir(SISBConstants.RATE_LIMITS['delay_minimo'] / 1000)
 
         return results
 

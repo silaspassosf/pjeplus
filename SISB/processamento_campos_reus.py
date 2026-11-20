@@ -190,10 +190,10 @@ def _configurar_valor(driver, dados_processo):
             return true;
             """
 
-            driver.execute_script(script_valor)
+            espera._executar_script(driver, script_valor)
             espera.ate_aparecer(driver, '#maisPJe_valor_execucao', teto=1)
 
-            driver.execute_script("""
+            espera._executar_script(driver, """
             var overlay = document.getElementById('maisPJe_valor_execucao');
             if (overlay) {
                 overlay.click();
@@ -204,7 +204,7 @@ def _configurar_valor(driver, dados_processo):
 
             espera.assentar(driver, 1)
 
-            driver.execute_script("""
+            espera._executar_script(driver, """
             var botaoConfirmar = document.querySelector('button.btn-adicionar.mat-mini-fab.mat-primary mat-icon.fa-check-square');
             if (botaoConfirmar) {
                 botaoConfirmar.closest('button').click();
@@ -222,7 +222,7 @@ def _configurar_opcoes_adicionais(driver, dados_processo):
     """Configura opções adicionais como conta-salário."""
     try:
         if dados_processo.get('sisbajud', {}).get('contasalario', '').lower() == 'sim':
-            driver.execute_script("""
+            espera._executar_script(driver, """
             var toggles = document.querySelectorAll('mat-slide-toggle label');
             for (var i = 0; i < toggles.length; i++) {
                 toggles[i].click();

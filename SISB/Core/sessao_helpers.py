@@ -1,3 +1,4 @@
+from Fix import espera
 import logging
 import time
 
@@ -114,12 +115,12 @@ def _navegar_minuta(driver):
                     break
             except Exception:
                 pass
-            time.sleep(0.5)
+            espera._dormir(0.5)
 
         if not url_ready:
             return False
 
-        time.sleep(2)
+        espera._dormir(2)
 
         try:
             driver.maximize_window()
@@ -141,9 +142,9 @@ def _navegar_minuta(driver):
         return false;
         """
 
-        sucesso = driver.execute_script(script)
+        sucesso = espera._executar_script(driver, script)
         if sucesso:
-            time.sleep(1)
+            espera._dormir(1)
             return True
         return False
 

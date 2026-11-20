@@ -1,3 +1,4 @@
+from Fix import espera
 """SISB Series - Fluxo de processamento"""
 
 import logging
@@ -107,7 +108,7 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                         if log:
                             logger.info(f'[SISBAJUD] Possivel bloqueio/CAPTCHA detectado antes da ordem {sequencial_ordem}, aplicando backoff preventivo')
                         for b in (30, 60, 120):
-                            time.sleep(b)
+                            espera._dormir(b)
                             if not detectar_captcha(driver):
                                 break
 
@@ -203,11 +204,11 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                         # pequeno throttle entre ordens para evitar bursts de requests
                         processed_since_pause += 1
                         delay = base_delay + random.uniform(jitter_min, jitter_max)
-                        time.sleep(delay)
+                        espera._dormir(delay)
                         if processed_since_pause >= pause_after:
                             if log:
                                 logger.info(f'[SISBAJUD] Pausa breve de {pause_duration}s para evitar excesso de requisicoes')
-                            time.sleep(pause_duration)
+                            espera._dormir(pause_duration)
                             processed_since_pause = 0
 
                     except Exception as e:
@@ -227,7 +228,7 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                             for b in backoffs:
                                 if log:
                                     logger.info(f'[SISBAJUD] Possivel rate-limit detectado, aguardando {b}s antes de continuar')
-                                time.sleep(b)
+                                espera._dormir(b)
                                 try:
                                     from .navegacao import _voltar_para_lista_principal
                                     _voltar_para_lista_principal(driver, log)

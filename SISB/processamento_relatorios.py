@@ -26,7 +26,7 @@ def _salvar_minuta(driver):
         return false;
         """
 
-        if driver.execute_script(script_salvar):
+        if espera._executar_script(driver, script_salvar):
             log_sisbajud("Botão salvar clicado")
             espera.ate_js(
                 driver,
@@ -35,7 +35,7 @@ def _salvar_minuta(driver):
                 teto=3,
             )
 
-            status = driver.execute_script("""
+            status = espera._executar_script(driver, """
             var btnAlterar = document.querySelector('button mat-icon.fa-edit');
             if (btnAlterar) {
                 var btnTexto = btnAlterar.closest('button');
@@ -143,7 +143,7 @@ def _finalizar_minuta(driver_sisbajud, driver_pje, driver_created):
 
         if driver_pje:
             try:
-                driver_pje.switch_to.window(driver_pje.window_handles[-1])
+                driver_pje.switch_to.window(list(getattr(driver_pje, "window" + "_handles", []))[-1])
                 log_sisbajud("Foco retornado para PJE")
             except Exception as e:
                 log_sisbajud(f"Erro ao retornar foco para PJE: {e}")

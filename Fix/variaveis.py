@@ -1,11 +1,26 @@
-"""Fix.variaveis"""
-from typing import Optional, Any, Dict, List, Tuple
+"""Fix.variaveis — Cliente API REST canônico do PJe, paginação e resolvers."""
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 import requests
 import re
 import html as _html
 import unicodedata
 from urllib.parse import unquote, urlparse
 from Fix.log import logger
+
+
+class GatewayError(TypedDict):
+    type: str
+    message: str
+    method: str
+    path: str
+    status: Optional[int]
+
+
+class GatewayResult(TypedDict):
+    ok: bool
+    status: Optional[int]
+    data: Any
+    error: Optional[GatewayError]
 
 
 PJE_BASE_URL = "https://pje.trt2.jus.br"
@@ -1209,48 +1224,88 @@ def verificar_domicilio_eletronico_partes(client: PjeApiClient, id_processo: str
         return resultado
 
 
-"""
-Exemplo de uso das funções de domicílio eletrônico:
+def _erro_gateway(tipo: str, mensagem: str, path: str, status: Optional[int] = None, method: str = 'GET') -> Dict[str, Any]:
+    return {
+        'ok': False,
+        'status': status,
+        'data': None,
+        'error': {'type': tipo, 'message': mensagem, 'method': method.upper(), 'path': path, 'status': status},
+    }
 
-# 1. Verificar uma parte específica
-from Fix.variaveis import session_from_driver, PjeApiClient, obter_domicilio_eletronico_parte
 
-sess, trt = session_from_driver(driver)
-client = PjeApiClient(sess, trt)
+def _extrair_itens_pagina(payload: Any, pagina_atual: int, tamanho_pagina: int) -> Tuple[List[Any], bool]:
+    if isinstance(payload, list):
+        return payload, len(payload) >= tamanho_pagina
+    if not isinstance(payload, dict):
+        return [], False
+    itens = None
+    for chave in ('items', 'itens', 'content', 'resultados', 'resultado', 'data'):
+        if payload.get(chave) is not None:
+            itens = payload.get(chave)
+            break
+    if not isinstance(itens, list):
+        itens = []
+    for k_tot in ('totalPaginas', 'totalPages'):
+        tp = payload.get(k_tot)
+        if isinstance(tp, int):
+            return itens, pagina_atual < tp
+    ultima = payload.get('ultima')
+    if isinstance(ultima, bool):
+        return itens, not ultima
+    return itens, len(itens) >= tamanho_pagina
 
-habilitada = obter_domicilio_eletronico_parte(client, '12345')
-if habilitada:
-    print("✅ Parte habilitada no domicílio eletrônico")
-elif habilitada is False:
-    print("❌ Parte NÃO habilitada")
 
-# 2. Verificar todas as partes de um processo
-resultado = verificar_domicilio_eletronico_partes(client, '1234567')
-print(f"Total de partes: {resultado['total_partes']}")
-print(f"Habilitadas: {resultado['habilitadas']}")
-print(f"Não habilitadas: {resultado['nao_habilitadas']}")
+def buscar_todas_paginas(
+    client: PjeApiClient,
+    path: str,
+    *,
+    params_base: Optional[Dict[str, Any]] = None,
+    page_param: str = 'pagina',
+    size_param: str = 'tamanhoPagina',
+    pagina_inicial: int = 1,
+    tamanho_pagina: int = 100,
+    limite_paginas: int = 100,
+    timeout: int = 15,
+    method: str = 'GET',
+    json_base: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Pagina automaticamente endpoints REST do PJe (GET, POST ou PATCH) até esgotar."""
+    if limite_paginas < 1:
+        return _erro_gateway('pagination_error', 'limite_paginas deve ser >= 1', path, method=method)
 
-# Listar cada parte
-for parte in resultado['partes']:
-    print(f"  {parte['nome']}: {parte['status_texto']}")
+    itens_total: List[Any] = []
+    pagina_atual = pagina_inicial
+    metodo = method.upper()
 
-# 3. Integração em fluxo de trabalho
-def processar_partes_com_domicilio(driver, id_processo):
-    sess, trt = session_from_driver(driver)
-    client = PjeApiClient(sess, trt)
-    
-    resultado = verificar_domicilio_eletronico_partes(client, id_processo)
-    
-    if resultado.get('erro'):
-        print(f"Erro: {resultado['erro']}")
-        return False
-    
-    for parte in resultado['partes']:
-        if parte['domicilio']:
-            # Executar ação apenas para partes habilitadas
-            print(f"Processando {parte['nome']} (habilitada no domicílio)")
+    for _ in range(limite_paginas):
+        if metodo == 'GET':
+            params = dict(params_base or {})
+            params[page_param] = pagina_atual
+            params[size_param] = tamanho_pagina
+            resposta = client.gateway_get(path, params=params, timeout=timeout)
         else:
-            print(f"Parte {parte['nome']} não habilitada - pulando")
-    
-    return True
-"""
+            body = dict(json_base or {})
+            body[page_param] = pagina_atual
+            body[size_param] = tamanho_pagina
+            resposta = client.request_gateway(metodo, path, params=params_base, json_data=body, timeout=timeout)
+
+        if not resposta.get('ok'):
+            erro = resposta.get('error') or {}
+            return _erro_gateway(
+                erro.get('type') or 'http_error',
+                erro.get('message') or f'Falha na pagina {pagina_atual}',
+                path,
+                resposta.get('status'),
+                method=metodo,
+            )
+
+        itens_pagina, tem_mais = _extrair_itens_pagina(
+            resposta.get('data'), pagina_atual=pagina_atual, tamanho_pagina=tamanho_pagina
+        )
+        itens_total.extend(itens_pagina)
+        if not tem_mais:
+            return {'ok': True, 'status': resposta.get('status'), 'data': itens_total, 'error': None}
+        pagina_atual += 1
+
+    return _erro_gateway('pagination_limit', f'Limite de paginas atingido: {limite_paginas}', path, method=metodo)
+

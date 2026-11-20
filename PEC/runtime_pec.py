@@ -332,83 +332,12 @@ def marcar_processo_executado_pec(
 
 
 CALENDARIO_DIAS_UTEIS_PATH = Path('dias-uteis-trt2-2025.json')
-_CALENDARIO_DIAS_UTEIS = None
-_CALENDARIO_INTERVALO = None
-
-
-def _arquivos_calendario():
-    """Todos os arquivos de calendário do projeto (um por ano)."""
-    achados = sorted(Path('.').glob('dias-uteis-trt2-*.json'))
-    if achados:
-        return achados
-    return [CALENDARIO_DIAS_UTEIS_PATH] if CALENDARIO_DIAS_UTEIS_PATH.exists() else []
-
-
-def _carregar_calendario_dias_uteis():
-    global _CALENDARIO_DIAS_UTEIS, _CALENDARIO_INTERVALO
-    if _CALENDARIO_DIAS_UTEIS is not None:
-        return _CALENDARIO_DIAS_UTEIS, _CALENDARIO_INTERVALO
-    dias_calendario = set()
-    intervalo = None
-    anos = set()
-    for arquivo_calendario in _arquivos_calendario():
-        m_ano = re.search(r'(\d{4})', arquivo_calendario.name)
-        if m_ano:
-            anos.add(int(m_ano.group(1)))
-        try:
-            with open(arquivo_calendario, 'r', encoding='utf-8') as arquivo:
-                conteudo = json.load(arquivo)
-            for entrada in conteudo.get('dias_uteis', []):
-                try:
-                    data_convertida = datetime.fromisoformat(entrada).date()
-                    dias_calendario.add(data_convertida)
-                except ValueError:
-                    continue
-        except Exception:
-            continue
-    if anos:
-        intervalo = (datetime(min(anos), 1, 1).date(), datetime(max(anos), 12, 31).date())
-    _CALENDARIO_DIAS_UTEIS = dias_calendario
-    _CALENDARIO_INTERVALO = intervalo
-    return _CALENDARIO_DIAS_UTEIS, _CALENDARIO_INTERVALO
-
-
-def _somar_dias_uteis(data_base, quantidade):
-    if not data_base or quantidade <= 0:
-        return data_base
-    dias_calendario, intervalo = _carregar_calendario_dias_uteis()
-    data_atual = data_base
-    acumulado = 0
-    seguranca = 0
-    while acumulado < quantidade and seguranca < 1000:
-        data_atual += timedelta(days=1)
-        seguranca += 1
-        dentro_intervalo = intervalo and intervalo[0] <= data_atual <= intervalo[1]
-        if dias_calendario and dentro_intervalo:
-            if data_atual in dias_calendario:
-                acumulado += 1
-        else:
-            if data_atual.weekday() < 5:
-                acumulado += 1
-    if acumulado < quantidade:
-        return None
-    return data_atual
-
-
-def _dia_util_anterior(data_ref):
-    """Retorna o dia util imediatamente anterior a data_ref, considerando o calendario."""
-    dias_calendario, intervalo = _carregar_calendario_dias_uteis()
-    data = data_ref - timedelta(days=1)
-    for _ in range(30):
-        dentro_intervalo = intervalo and intervalo[0] <= data <= intervalo[1]
-        if dias_calendario and dentro_intervalo:
-            if data in dias_calendario:
-                return data
-        else:
-            if data.weekday() < 5:
-                return data
-        data -= timedelta(days=1)
-    return data_ref - timedelta(days=1)
+from Fix.calendario import (
+    _arquivos_calendario,
+    carregar_calendario_dias_uteis as _carregar_calendario_dias_uteis,
+    dia_util_anterior as _dia_util_anterior,
+    somar_dias_uteis as _somar_dias_uteis,
+)
 
 
 def _parse_data_ecarta(valor):

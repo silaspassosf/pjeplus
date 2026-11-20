@@ -498,10 +498,8 @@ _PAUTA_MAX_DIAS = 30
 
 
 def _proximo_dia_util(a_partir_de) -> "date":
-    dia = a_partir_de + timedelta(days=1)
-    while dia.weekday() >= 5:
-        dia += timedelta(days=1)
-    return dia
+    from Fix.calendario import proximo_dia_util
+    return proximo_dia_util(a_partir_de, inclusive=False)
 
 
 def _audiencia_cogida(tipo: str) -> bool:

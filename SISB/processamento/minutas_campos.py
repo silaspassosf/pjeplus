@@ -107,23 +107,9 @@ def _executar_campos_resiliente(driver, script, tentativas=2):
 
 
 def _proximo_dia_util(data):
-    """Primeiro dia útil a partir de `data` (inclusive)."""
-    try:
-        from PEC.runtime_pec import _carregar_calendario_dias_uteis
-        dias_uteis, intervalo = _carregar_calendario_dias_uteis()
-    except Exception:
-        dias_uteis, intervalo = set(), None
-
-    alvo = data
-    for _ in range(60):
-        dentro_do_calendario = bool(intervalo) and intervalo[0] <= alvo <= intervalo[1]
-        if dias_uteis and dentro_do_calendario:
-            if alvo in dias_uteis:
-                return alvo
-        elif alvo.weekday() < 5:
-            return alvo
-        alvo += timedelta(days=1)
-    return alvo
+    """Primeiro dia útil a partir de `data` (inclusive), via Fix.calendario."""
+    from Fix.calendario import proximo_dia_util
+    return proximo_dia_util(data, inclusive=True)
 
 
 def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanha=False, agendar_offset=1):

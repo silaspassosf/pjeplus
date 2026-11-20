@@ -8,9 +8,7 @@ SISB Series - Estrategia de bloqueio
 
 
 def _calcular_estrategia_bloqueio(series_validas, dados_processo, log=True):
-    """
-    Calcula estrategia de bloqueio comparando valor total bloqueado com valor da execucao.
-    """
+    """Calcula estrategia de bloqueio comparando valor total bloqueado com valor da execucao."""
     try:
         valor_execucao_str = dados_processo.get('divida', {}).get('valor', 'R$ 0,00')
         texto_limpo = valor_execucao_str.replace('R$', '').replace('\xa0', '').replace('&nbsp;', '').strip()

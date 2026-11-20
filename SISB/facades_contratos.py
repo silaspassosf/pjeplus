@@ -1,9 +1,4 @@
-"""
-SISB Facades e Contratos - Fachadas e contratos públicos consolidados
-
-Consolida as re-exportacoes de __init__.py, o conteudo de standards.py e
-o orquestrador de s_orquestrador.py em uma unica unidade.
-"""
+"""SISB Facades e Contratos - Fachadas e contratos públicos consolidados"""
 
 import logging
 from typing import Dict, List, Optional, Union, Any, Callable
@@ -13,10 +8,8 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-# =============================================================================
 # SECAO 1 - SUBPACOTE processamento/ (DEFINIDO ANTES DE core PARA EVITAR
 #            CIRCULAR: helpers.py -> validation/__init__ -> facades_contratos)
-# =============================================================================
 
 from .processamento.validacao import _validar_dados
 from .processamento.integracao import (
@@ -55,11 +48,7 @@ from .processamento.minutas_reus import _processar_reus_otimizado
 from .processamento.minutas_salvar import _salvar_minuta
 from .processamento.minutas_relatorio import _gerar_relatorio_minuta, _protocolar_minuta
 
-# =============================================================================
-# SECAO 2 - MODULOS PRINCIPAIS (core, utils, performance, batch, SISB-level)
-# =============================================================================
 
-# --- Core (SISB/core.py) ---
 from .core import (
     iniciar_sisbajud,
     driver_sisbajud,
@@ -74,13 +63,12 @@ from .core import (
     verificar_e_aplicar_cookies_sisbajud,
     USAR_COOKIES_AUTOMATICO,
     SALVAR_COOKIES_AUTOMATICO,
-    processar_bloqueios,  # usado internamente por executar_sisbajud_completo
+    processar_bloqueios,
     minuta_bloqueio,
     minuta_bloqueio_60,
     minuta_bloqueio_amanha,
 )
 
-# --- Utils (SISB/utils.py) ---
 from .utils import (
     criar_js_otimizado,
     safe_click,
@@ -90,7 +78,6 @@ from .utils import (
     formatar_valor_monetario,
 )
 
-# --- Performance (SISB/performance.py) ---
 from .performance import (
     performance_optimizer,
     polling_reducer,
@@ -98,10 +85,8 @@ from .performance import (
     parallel_processor,
 )
 
-# --- Batch (SISB/batch.py) ---
 from .batch import processar_lote_sisbajud
 
-# --- SISB-level processamento modules ---
 from .processamento_minuta import minuta_bloqueio_refatorada
 from .processamento_campos_principais import _preencher_campos_principais
 from .processamento_campos_reus import (
@@ -118,11 +103,6 @@ from .processamento_extracao import (
 )
 from .ordens_execucao import _processar_ordem
 
-# =============================================================================
-# SECAO 3 - CONTEUDO DE standards.py (classes, enums, excecoes, utilitarios)
-# =============================================================================
-
-# -- Constantes consolidadas --
 
 class SISBConstants:
     """Constantes consolidadas do SISBAJUD"""
@@ -198,8 +178,6 @@ class SISBConstants:
     }
 
 
-# -- Enums para tipos --
-
 class StatusProcessamento(Enum):
     """Status possiveis do processamento SISBAJUD"""
     PENDENTE = "pendente"
@@ -222,8 +200,6 @@ class TipoMinuta(Enum):
     ENDERECO = "endereco"
     INFORMACOES = "informacoes"
 
-
-# -- Data classes --
 
 @dataclass
 class DadosProcesso:
@@ -290,10 +266,8 @@ class OrdemSisbajud:
     protocolo: str
     valor_bloquear: float
     data: datetime
-    linha_el: Any = None  # WebElement
+    linha_el: Any = None
 
-
-# -- Logger padronizado --
 
 class SISBLogger:
     """Logger padronizado para SISBAJUD"""
@@ -329,11 +303,8 @@ class SISBLogger:
         self.log(mensagem, "INFO", contexto)
 
 
-# Instancia global do logger
 sisb_logger = SISBLogger()
 
-
-# -- Excecoes padronizadas --
 
 class SISBException(Exception):
     """Excecao base para SISBAJUD"""
@@ -394,21 +365,8 @@ class DadosInvalidosException(SISBException):
         )
 
 
-# -- Utilitarios padronizados --
-
 def validar_numero_processo_padronizado(numero: Union[str, List[str]]) -> str:
-    """
-    Validacao padronizada de numero do processo.
-
-    Args:
-        numero: Numero do processo (string ou lista)
-
-    Returns:
-        str: Numero validado
-
-    Raises:
-        DadosInvalidosException: Se formato invalido
-    """
+    """Validacao padronizada de numero do processo."""
     if isinstance(numero, list) and len(numero) > 0:
         numero = numero[0]
     elif not isinstance(numero, str) or not numero.strip():
@@ -421,15 +379,7 @@ def validar_numero_processo_padronizado(numero: Union[str, List[str]]) -> str:
 
 
 def formatar_valor_monetario_padronizado(valor: Union[float, str]) -> str:
-    """
-    Formatacao padronizada de valores monetarios brasileiros.
-
-    Args:
-        valor: Valor a formatar (float ou string)
-
-    Returns:
-        str: Valor formatado (ex: 'R$ 1.234,56')
-    """
+    """Formatacao padronizada de valores monetarios brasileiros."""
     if isinstance(valor, str):
         valor = float(
             valor.replace('R$', '').replace(' ', '')
@@ -449,8 +399,6 @@ def criar_timestamp_padronizado() -> str:
     """Criacao padronizada de timestamp para logging."""
     return datetime.now().strftime("[%H:%M:%S]")
 
-
-# -- Decorators padronizados --
 
 def log_operacao(contexto: str):
     """Decorator para logging padronizado de operacoes."""
@@ -496,23 +444,9 @@ def retry_on_failure(max_tentativas: int = 3, delay: float = 1.0):
         return wrapper
     return decorator
 
-# =============================================================================
-# SECAO 4 - ORQUESTRADOR PRINCIPAL (de s_orquestrador.py)
-# =============================================================================
-
 
 def executar_sisbajud_completo(dados_processo, driver_pje=None, modo="automatico"):
-    """
-    Orquestrador principal para execucao completa SISBAJUD.
-
-    Args:
-        dados_processo: Dados do processo extraidos
-        driver_pje: Driver do PJE (opcional)
-        modo: Modo de execucao ("automatico" ou "manual")
-
-    Returns:
-        ResultadoProcessamento: Resultado estruturado da operacao
-    """
+    """Orquestrador principal para execucao completa SISBAJUD."""
     resultado = ResultadoProcessamento(
         status=StatusProcessamento.PENDENTE,
         detalhes={},
@@ -521,7 +455,6 @@ def executar_sisbajud_completo(dados_processo, driver_pje=None, modo="automatico
     try:
         sisb_logger.log("=== INICIANDO SISBAJUD COMPLETO (MODULAR) ===", "INFO", "orquestrador")
 
-        # FASE 1: Validacao de dados
         if not dados_processo:
             raise ValueError("Dados do processo nao fornecidos")
 
@@ -529,7 +462,6 @@ def executar_sisbajud_completo(dados_processo, driver_pje=None, modo="automatico
         if not numero_processo:
             raise ValueError("Numero do processo invalido")
 
-        # FASE 2: Inicializacao
         sisb_logger.log("FASE 1: Inicializacao SISBAJUD", "INFO", "orquestrador")
 
         driver_sisb = iniciar_sisbajud(driver_pje=driver_pje)
@@ -538,7 +470,6 @@ def executar_sisbajud_completo(dados_processo, driver_pje=None, modo="automatico
 
         resultado.detalhes['driver_inicializado'] = True
 
-        # FASE 3: Processamento principal
         sisb_logger.log("FASE 2: Processamento principal", "INFO", "orquestrador")
 
         if dados_processo.get('sisbajud', {}).get('tipo') == 'endereco':
@@ -546,7 +477,6 @@ def executar_sisbajud_completo(dados_processo, driver_pje=None, modo="automatico
         else:
             resultado_processamento = processar_bloqueios(driver_pje=driver_pje)
 
-        # FASE 4: Analise de resultados
         if resultado_processamento and resultado_processamento.get('status') == 'sucesso':
             resultado.status = StatusProcessamento.SUCESSO
             resultado.tipo_fluxo = TipoFluxo(resultado_processamento.get('tipo_fluxo', 'positivo'))
@@ -556,7 +486,6 @@ def executar_sisbajud_completo(dados_processo, driver_pje=None, modo="automatico
             resultado.status = StatusProcessamento.ERRO
             resultado.erros = resultado_processamento.get('erros', ['Erro desconhecido'])
 
-        # FASE 5: Limpeza e finalizacao
         sisb_logger.log("FASE 3: Finalizacao", "INFO", "orquestrador")
 
         try:
@@ -577,12 +506,7 @@ def executar_sisbajud_completo(dados_processo, driver_pje=None, modo="automatico
         return resultado
 
 
-# =============================================================================
-# SECAO 5 - ALL
-# =============================================================================
-
 __all__ = [
-    # Core
     'iniciar_sisbajud',
     'driver_sisbajud',
     'login_automatico_sisbajud',
@@ -597,7 +521,6 @@ __all__ = [
     'USAR_COOKIES_AUTOMATICO',
     'SALVAR_COOKIES_AUTOMATICO',
 
-    # Utils
     'criar_js_otimizado',
     'safe_click',
     'aguardar_elemento',
@@ -605,7 +528,6 @@ __all__ = [
     'validar_numero_processo',
     'formatar_valor_monetario',
 
-    # Padroes
     'SISBConstants',
     'StatusProcessamento',
     'TipoFluxo',
@@ -617,7 +539,6 @@ __all__ = [
     'SISBLogger',
     'sisb_logger',
 
-    # Excecoes
     'SISBException',
     'ElementoNaoEncontradoException',
     'TimeoutExcedidoException',
@@ -625,7 +546,6 @@ __all__ = [
     'SessaoExpiradaException',
     'DadosInvalidosException',
 
-    # Utilitarios padronizados
     'validar_numero_processo_padronizado',
     'formatar_valor_monetario_padronizado',
     'calcular_data_limite_padronizada',
@@ -634,19 +554,15 @@ __all__ = [
     'validar_parametros',
     'retry_on_failure',
 
-    # Performance
     'performance_optimizer',
     'polling_reducer',
     'cache_manager',
     'parallel_processor',
 
-    # Orquestrador
     'executar_sisbajud_completo',
 
-    # Batch
     'processar_lote_sisbajud',
 
-    # Processamento
     'minuta_bloqueio_refatorada',
     '_validar_dados',
     '_preencher_campos_iniciais',

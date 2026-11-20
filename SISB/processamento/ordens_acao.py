@@ -20,11 +20,7 @@ Estrutura real do HTML /desdobrar (confirmada em doc.txt):
 
 
 def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
-    """
-    Seleciona a ação em todos os dropdowns com-saldo via JS puro.
-    Não usa referências Python (evita StaleElementReferenceException).
-    Cada interação faz query fresh no DOM — idêntico ao que funciona no console.
-    """
+    """Seleciona a ação em todos os dropdowns com-saldo via JS puro."""
     espera.assentar(driver, 0.5)
 
     if not espera.ate_aparecer(driver, "mat-select[name='assessor']", teto=5):
@@ -32,7 +28,6 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
             logger.error("[_acao] Nenhum mat-select[name='assessor'] encontrado")
         return False
 
-    # JS: conta selects visíveis em painéis com-saldo (sem nao-resposta)
     JS_SELS = """
         return Array.from(document.querySelectorAll('mat-select[name="assessor"]')).filter(function(s) {
             var panel = s.closest('.mat-expansion-panel-content');
@@ -64,7 +59,6 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
     texto_alvo = 'Transferir valor' if tipo_fluxo == 'POSITIVO' else 'Desbloquear valor'
     processados = 0
 
-    # JS: clica o i-ésimo select com-saldo (query fresh)
     JS_CLICK_SEL = """
         var sels = Array.from(document.querySelectorAll('mat-select[name="assessor"]')).filter(function(s) {
             var panel = s.closest('.mat-expansion-panel-content');
@@ -86,7 +80,6 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
         return false;
     """
 
-    # JS: clica a opção correta no overlay (query fresh)
     JS_CLICK_OPT = """
         var alvo = arguments[0];
         var opcoes = Array.from(document.querySelectorAll('mat-option[role="option"]'));

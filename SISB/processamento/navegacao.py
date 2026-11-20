@@ -15,32 +15,16 @@ Funcoes para voltar entre listas de ordens e series
 
 
 def _voltar_para_lista_ordens_serie(driver, log=True):
-    """
-    Volta da ordem processada para a lista de ordens da serie.
-    Clica apenas uma vez no botao voltar (chevron-left).
-
-    IMPORTANTE: So deve ser chamado quando estiver em /desdobrar!
-
-    Args:
-        driver: WebDriver do Selenium
-        log: Se deve fazer log das operacoes
-
-    Returns:
-        bool: True se conseguiu voltar com sucesso
-    """
+    """Volta da ordem processada para a lista de ordens da serie."""
     try:
-        # VERIFICAR SE ESTA EM /DESDOBRAR ANTES DE TENTAR VOLTAR
         url_atual = driver.current_url.lower()
         if "/desdobrar" not in url_atual:
-            # Se ja esta na lista de ordens (/detalhes), nao precisa voltar
             if "/detalhes" in url_atual:
                 return True
             return False
 
-        # Aguardar pagina carregar completamente
         espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
 
-        # Seletores para o botao voltar (chevron-left)
         seletores_voltar = [
             "button[aria-label='Voltar'] i.fa-chevron-left",
             "button i.fa-chevron-left",
@@ -51,7 +35,6 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
             "button[title='Voltar']"
         ]
 
-        # Tentar encontrar e clicar no botao voltar
         botao_encontrado = False
         for seletor in seletores_voltar:
             try:
@@ -70,7 +53,6 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
                 continue
 
         if not botao_encontrado:
-            # Ultima tentativa: buscar por JavaScript
             try:
                 js_script = """
                 var botoes = document.querySelectorAll('button, a, .btn');
@@ -92,13 +74,11 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
         if not botao_encontrado:
             return False
 
-        # Aguardar URL mudar (sinal de que navegacao iniciou)
         for _ in range(10):
             espera.ate_js(driver, "!location.href.includes('/desdobrar')", teto=0.5)
             if "/desdobrar" not in driver.current_url:
                 break
 
-        # Aguardar tabela de ordens reaparecer
         if not espera.ate_aparecer(driver, 'table.mat-table', teto=10):
             if log:
                 logger.error("[SISBAJUD]  Erro ao aguardar tabela: nao apareceu")
@@ -111,18 +91,8 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
 
 
 def _voltar_para_lista_principal(driver, log=True):
-    """
-    Volta para a lista principal de series usando navegacao direta ou botao voltar.
-
-    Args:
-        driver: WebDriver do Selenium
-        log: Se deve fazer log das operacoes
-
-    Returns:
-        bool: True se conseguiu voltar com sucesso
-    """
+    """Volta para a lista principal de series usando navegacao direta ou botao voltar."""
     try:
-        # Detectar e fechar overlays/modais que podem bloquear cliques
         try:
             overlays = driver.find_elements(By.CSS_SELECTOR, 'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing')
             if overlays:
@@ -143,11 +113,9 @@ def _voltar_para_lista_principal(driver, log=True):
         except Exception:
             pass
 
-        # Tentar usar botao voltar na interface (mais eficiente para SPA)
         # O Angular gerencia o retorno e preserva o estado sem recarregar a pagina
         url_atual = driver.current_url
 
-        # Se nao esta em pagina de detalhes, tentar usar botao voltar (duas vezes)
         for _ in range(2):
             seletores_voltar = [
                 'button.mat-icon-button .fa-chevron-left',
@@ -160,7 +128,6 @@ def _voltar_para_lista_principal(driver, log=True):
             botao_voltar_clicado = False
             for seletor in seletores_voltar:
                 try:
-                    # Pressionar ESC antes para fechar possiveis modais
                     try:
                         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
                         espera.ate_sumir(
@@ -172,7 +139,6 @@ def _voltar_para_lista_principal(driver, log=True):
                         pass
 
                     botao_icon = driver.find_element(By.CSS_SELECTOR, seletor)
-                    # Tentar pegar botao pai
                     try:
                         botao = botao_icon.find_element(By.XPATH, './ancestor::button[1]')
                     except Exception:

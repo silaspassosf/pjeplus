@@ -53,10 +53,7 @@ SISB Series - Navegacao e extracao de ordens/nome
 
 
 def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
-    """
-    Navega para uma serie especifica e extrai suas ordens.
-    Usa o padrao menu-trigger + "Detalhar" (probe-confirmed).
-    """
+    """Navega para uma serie especifica e extrai suas ordens."""
     try:
         id_serie = serie.get('id_serie')
         if not id_serie:
@@ -79,7 +76,6 @@ def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
 
                     aberto = False
 
-                    # Estrategia 1: menu-trigger (botao com tres pontinhos) + "Detalhar"
                     try:
                         btn_menu = linha_el.find_element(By.CSS_SELECTOR, "button.mat-menu-trigger.mat-icon-button")
                         driver.execute_script("arguments[0].click();", btn_menu)
@@ -97,7 +93,6 @@ def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
                     except Exception:
                         pass
 
-                    # Estrategia 2: botao icon-button direto (fallback)
                     if not aberto:
                         try:
                             btn_detalhes = linha_el.find_element(By.CSS_SELECTOR, "button.mat-icon-button")
@@ -106,7 +101,6 @@ def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
                         except Exception:
                             pass
 
-                    # Estrategia 3: clique na celula
                     if not aberto:
                         try:
                             driver.execute_script("arguments[0].click();", linha_el.find_element(By.CSS_SELECTOR, "td"))
@@ -148,9 +142,7 @@ def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
 
 
 def _extrair_nome_executado_serie(driver, log=True):
-    """
-    Tenta extrair o nome do executado na pagina de detalhes da serie.
-    """
+    """Tenta extrair o nome do executado na pagina de detalhes da serie."""
     try:
         try:
             header = driver.find_element(By.CSS_SELECTOR, "mat-expansion-panel-header .col-reu-dados-nome-pessoa")

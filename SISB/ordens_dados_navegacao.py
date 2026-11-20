@@ -1,7 +1,4 @@
-"""
-SISB Ordens Dados e Navegacao - Dados de ordens e navegacao entre paginas
-Consolida SISB/ordens/processor.py e SISB/navigation/navigator.py
-"""
+"""SISB Ordens Dados e Navegacao - Dados de ordens e navegacao entre paginas"""
 
 import logging
 from Fix.core import safe_click_no_scroll
@@ -19,18 +16,11 @@ from .utils import carregar_dados_processo, safe_click
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
 # DADOS DE ORDEM
-# =============================================================================
 
 
 def _carregar_dados_ordem():
-    """
-    Helper para carregar dados do processo para processamento de ordens.
-
-    Returns:
-        tuple: (dados_processo, numero_processo) ou (None, None) se erro
-    """
+    """Helper para carregar dados do processo para processamento de ordens."""
     try:
         dados_arquivo = carregar_dados_processo()
         if not dados_arquivo or not isinstance(dados_arquivo, dict):
@@ -51,17 +41,7 @@ def _carregar_dados_ordem():
 
 
 def _extrair_ordens_da_serie(driver, log=True):
-    """
-    Extrai ordens da pagina de detalhes da serie.
-
-    Args:
-        driver: WebDriver do Selenium
-        log: Se deve fazer log
-
-    Returns:
-        list: Lista de ordens com estrutura
-              {'sequencial', 'data', 'valor_bloquear', 'protocolo', 'linha_el'}
-    """
+    """Extrai ordens da pagina de detalhes da serie."""
     ordens = []
     try:
         tabela = espera.elemento(driver, "table.mat-table tbody", teto=10)
@@ -141,25 +121,14 @@ def _extrair_ordens_da_serie(driver, log=True):
 
 
 def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
-    """
-    Seleciona a acao correta na pagina /desdobrar baseado no tipo de fluxo.
-
-    Args:
-        driver: WebDriver do Selenium
-        tipo_fluxo: 'POSITIVO' ou 'DESBLOQUEIO'
-        log: Se deve fazer log
-        valor_parcial: Valor parcial para transferencia (apenas POSITIVO)
-
-    Returns:
-        bool: True se conseguiu aplicar a acao
-    """
+    """Seleciona a acao correta na pagina /desdobrar baseado no tipo de fluxo."""
     try:
         if tipo_fluxo == 'POSITIVO':
             if valor_parcial:
                 acao_alvo = 'Transferir valor e desbloquear saldo remanescente'
             else:
                 acao_alvo = 'Transferir valor'
-        else:  # DESBLOQUEIO
+        else:
             acao_alvo = 'Desbloquear valor'
 
         try:
@@ -179,7 +148,6 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                 if not select_element.is_displayed():
                     continue
 
-                # Pular bancos com saldo de 0,01
                 try:
                     js_check_001 = """
                     var s = arguments[0];
@@ -204,7 +172,7 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                         safe_click(driver, parent_element, 'click')
                     else:
                         safe_click(driver, select_element, 'click')
-                except Exception:  # item individual, continua
+                except Exception:
                     safe_click(driver, select_element, 'click')
 
                 opcoes = None
@@ -220,14 +188,14 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                             break
                     except Exception:
                         if tentativa_opcoes < max_tentativas_opcoes - 1:
-                            time.sleep(1.5)  # rate-limit
+                            time.sleep(1.5)
                         else:
                             continue
 
                 if not opcoes or len(opcoes) == 0:
                     try:
                         driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
-                    except Exception:  # cleanup, continua
+                    except Exception:
                         continue
                     try:
                         WebDriverWait(driver, 1).until(
@@ -314,7 +282,7 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                         )
                     except Exception:
                         pass
-                except Exception:  # cleanup, continua
+                except Exception:
                     continue
 
             except Exception as e_dropdown:
@@ -325,7 +293,7 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                     )
                 try:
                     driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
-                except Exception:  # cleanup, continua
+                except Exception:
                     continue
                 try:
                     WebDriverWait(driver, 1).until(
@@ -348,23 +316,12 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
 
 
 def _identificar_ordens_com_bloqueio(ordens, valor_total_bloqueado_serie=None, log=True):
-    """
-    Identifica ordens que geraram bloqueio usando logica de diferenca de valores.
-
-    Args:
-        ordens: Lista de ordens da serie
-        valor_total_bloqueado_serie: Valor total bloqueado da serie (fallback)
-        log: Se deve fazer log
-
-    Returns:
-        list: Lista de ordens que tem bloqueio
-    """
+    """Identifica ordens que geraram bloqueio usando logica de diferenca de valores."""
     bloqueios = []
 
     if not ordens:
         return bloqueios
 
-    # 1. Detectar bloqueios pela diferenca de valor entre ordens consecutivas
     for i in range(len(ordens) - 1):
         valor_atual = ordens[i]["valor_bloquear"]
         valor_posterior = ordens[i + 1]["valor_bloquear"]
@@ -402,7 +359,6 @@ def _identificar_ordens_com_bloqueio(ordens, valor_total_bloqueado_serie=None, l
                 }
                 bloqueios.append(ordem_com_bloqueio)
 
-    # 3. FALLBACK: Se serie tem valor bloqueado mas nenhum bloqueio foi detectado
     if (
         valor_total_bloqueado_serie
         and valor_total_bloqueado_serie > 0
@@ -423,25 +379,8 @@ def _identificar_ordens_com_bloqueio(ordens, valor_total_bloqueado_serie=None, l
     return bloqueios
 
 
-# =============================================================================
-# NAVEGACAO
-# =============================================================================
-
-
 def _voltar_para_lista_ordens_serie(driver, log=True):
-    """
-    Volta da ordem processada para a lista de ordens da serie.
-    Clica apenas uma vez no botao voltar (chevron-left).
-
-    IMPORTANTE: So deve ser chamado quando estiver em /desdobrar!
-
-    Args:
-        driver: WebDriver do Selenium
-        log: Se deve fazer log das operacoes
-
-    Returns:
-        bool: True se conseguiu voltar com sucesso
-    """
+    """Volta da ordem processada para a lista de ordens da serie."""
     try:
         url_atual = driver.current_url.lower()
         if "/desdobrar" not in url_atual:
@@ -515,16 +454,7 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
 
 
 def _voltar_para_lista_principal(driver, log=True):
-    """
-    Volta para a lista principal de series usando navegacao direta ou botao voltar.
-
-    Args:
-        driver: WebDriver do Selenium
-        log: Se deve fazer log das operacoes
-
-    Returns:
-        bool: True se conseguiu voltar com sucesso
-    """
+    """Volta para a lista principal de series usando navegacao direta ou botao voltar."""
     try:
         try:
             overlays = driver.find_elements(
@@ -617,10 +547,6 @@ def _voltar_para_lista_principal(driver, log=True):
             )
         return False
 
-
-# =============================================================================
-# ALL
-# =============================================================================
 
 __all__ = [
     '_carregar_dados_ordem',

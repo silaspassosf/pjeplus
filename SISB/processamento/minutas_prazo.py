@@ -8,9 +8,7 @@ SISB Minutas - Selecao de prazo
 
 
 def _selecionar_prazo_bloqueio(driver, padrao=30):
-    """
-    Helper para selecionar prazo (30 ou 60 dias) via dialogo JavaScript no SISBAJUD.
-    """
+    """Helper para selecionar prazo (30 ou 60 dias) via dialogo JavaScript no SISBAJUD."""
     try:
         script_selecao_prazo = """
         return new Promise((resolve) => {

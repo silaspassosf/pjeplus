@@ -10,9 +10,7 @@ SISB Minutas - Preenchimento de campos iniciais
 _SEL_FORM_MINUTA = ('input[placeholder*="Juiz"], input[formcontrolname="numeroProcesso"], '
                     'input[placeholder*="processo"]')
 
-# Nome único: permite recuperar o progresso do script MESMO quando a avaliação
 # morre (contexto destruído). Sem isto o `log` interno se perdia na exceção e o
-# log da execução não dizia em qual passo (Juiz/Vara/Processo/...) falhou.
 _FN_CAMPOS = 'pjeplusPreencherMinuta'
 
 
@@ -109,12 +107,7 @@ def _executar_campos_resiliente(driver, script, tentativas=2):
 
 
 def _proximo_dia_util(data):
-    """Primeiro dia útil a partir de `data` (inclusive).
-
-    Usa o calendário de dias úteis/feriados do projeto
-    (dias-uteis-trt2-<ano>.json, via PEC.runtime_pec). Fora da faixa do
-    calendário cai no critério seg-sex.
-    """
+    """Primeiro dia útil a partir de `data` (inclusive)."""
     try:
         from PEC.runtime_pec import _carregar_calendario_dias_uteis
         dias_uteis, intervalo = _carregar_calendario_dias_uteis()
@@ -157,23 +150,18 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
         if prazo_dias not in [0, 1, 30, 60]:
             prazo_dias = 30
 
-        # Calcular data de agendamento da 2ª minuta conforme horário e dia da semana
         _agora = datetime.now()
-        # após 19h o protocolo não pode ser para o próprio dia seguinte
         _offset = agendar_offset + (1 if _agora.hour >= 19 else 0)
         _amanha = _proximo_dia_util((_agora + timedelta(days=_offset)).date())
 
         _ag_ano = _amanha.year
-        _ag_mes = _amanha.month - 1   # 0-based para JS
+        _ag_mes = _amanha.month - 1
         _ag_dia = _amanha.day
         _meses_js = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
                      "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
         _meses_js_str = str(_meses_js)
 
         if agendar_amanha:
-            # js_agendamento é uma f-string separada: os {{ }} aqui viram { } no valor final.
-            # Quando esse valor for injetado no script_unico_campos via {js_agendamento},
-            # o f-string externo insere o valor como está — sem reinterpretar as chaves.
             js_agendamento = f"""
                 // 9. AGENDAR PROTOCOLO PARA AMANHÃ (2ª minuta)
                 log.push('9. Selecionando agendamento de protocolo (Sim)...');
@@ -584,7 +572,6 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
 
         resultado_campos = _executar_campos_resiliente(driver, script_unico_campos)
 
-        # Logar detalhadamente TODAS as mensagens do script JS no log da execução:
         if resultado_campos and isinstance(resultado_campos, dict) and resultado_campos.get('log'):
             for msg in resultado_campos['log']:
                 logger.info(f'[SISBAJUD][CAMPOS] {msg}')

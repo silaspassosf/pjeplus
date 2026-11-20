@@ -1,6 +1,4 @@
-"""
-SISB Series - Fluxo de processamento
-"""
+"""SISB Series - Fluxo de processamento"""
 
 import logging
 
@@ -39,9 +37,7 @@ def _ensure_metrics(driver):
 
 
 def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=None):
-    """
-    Helper para processar series e suas ordens.
-    """
+    """Helper para processar series e suas ordens."""
     try:
         if log:
             logger.info(f'[SISBAJUD] Processando {len(series_validas)} series...')
@@ -66,7 +62,6 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
         usar_estrategia_parcial = (estrategia and estrategia.get('tipo') == 'TRANSFERIR_PARCIAL')
         limite_execucao = estrategia.get('acumulado_limite', 0.0) if usar_estrategia_parcial else 0.0
 
-        # inicializar metricas no driver (persistente durante execucao)
         _ensure_metrics(driver)
 
         for idx_serie, serie in enumerate(series_validas, 1):
@@ -74,11 +69,10 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                 logger.info(f'[SISBAJUD] Processando serie {idx_serie}/{len(series_validas)}: {serie["id_serie"]}')
 
             try:
-                # rate-limiter / counters por serie
                 processed_since_pause = 0
                 base_delay = 3.0
                 jitter_min, jitter_max = 0.5, 1.5
-                pause_after = 2  # pausas curtas após N ordens
+                pause_after = 2
                 pause_duration = 20
                 ordens = _navegar_e_extrair_ordens_serie(driver, serie, log)
                 if not ordens:
@@ -148,7 +142,6 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                                     logger.info(f'[SISBAJUD] Ordem {sequencial_ordem}: TRANSFERENCIA PARCIAL (R$ {valor_restante:.2f} de R$ {valor_ordem:.2f})')
 
                     try:
-                        # registrar tentativa de acao
                         try:
                             m = driver._sisb_metrics
                             m['actions'] += 1
@@ -173,7 +166,6 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                             valor_transferido = valor_a_transferir if acao == 'TRANSFERIR_PARCIAL' else valor_ordem
                             acumulado_transferido += valor_transferido
                             resultado['ordens_processadas'] += 1
-                            # metricas: transferencia executada
                             try:
                                 m = driver._sisb_metrics
                                 m['transfers'] += 1
@@ -201,7 +193,6 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
 
                         _navegar_pos_ordem(driver, idx_ordem, total_ordens_serie, ordens_bloqueadas, log)
 
-                        # metricas: desbloqueio efetuado
                         try:
                             if acao == 'DESBLOQUEAR':
                                 m = driver._sisb_metrics
@@ -225,27 +216,23 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                         if log:
                             logger.info(f'[SISBAJUD] {erro}')
                         resultado['erros'].append(erro)
-                        # metricas: erro
                         try:
                             m = driver._sisb_metrics
                             m['errors'] += 1
                         except Exception:
                             pass
 
-                        # detectar possivel rate-limit/excesso de requisicoes e aplicar backoff
                         if 'excesso' in msg or 'limite' in msg or 'rate' in msg or '429' in msg or detectar_captcha(driver):
                             backoffs = [30, 60, 120]
                             for b in backoffs:
                                 if log:
                                     logger.info(f'[SISBAJUD] Possivel rate-limit detectado, aguardando {b}s antes de continuar')
                                 time.sleep(b)
-                                # após aguardar, tentar voltar para lista principal e prosseguir
                                 try:
                                     from .navegacao import _voltar_para_lista_principal
                                     _voltar_para_lista_principal(driver, log)
                                 except Exception:
                                     pass
-                            # registrar e seguir adiante
                         _registrar_erro_processar(driver, idx_ordem, total_ordens_serie, ordens_bloqueadas, log)
 
                 resultado['series_processadas'] += 1

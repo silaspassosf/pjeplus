@@ -13,27 +13,15 @@ from .utils import criar_js_otimizado, log_sisbajud
 from .processamento_extracao import _extrair_cpf_autor, _extrair_nome_autor
 
 def _preencher_campos_principais(driver, dados_processo):
-    """
-    Preenche os campos principais da minuta usando JavaScript otimizado.
-
-    Args:
-        driver: WebDriver do SISBAJUD
-        dados_processo: Dados do processo
-
-    Returns:
-        dict: Resultado da operação
-    """
+    """Preenche os campos principais da minuta usando JavaScript otimizado."""
     try:
-        # Extrair dados necessários
         juiz = dados_processo.get('sisbajud', {}).get('juiz', 'Otavio Augusto')
         vara = dados_processo.get('sisbajud', {}).get('vara', '30006')
         numero_processo = dados_processo.get('numero', [''])[0]
         cpf_cnpj_autor = _extrair_cpf_autor(dados_processo)
-        # Para o campo do autor, usar sempre CPF/CNPJ completo (sem cortar raiz de CNPJ)
         cpf_cnpj_autor_completo = ''.join(filter(str.isdigit, cpf_cnpj_autor))
         log_sisbajud(f"CPF/CNPJ autor extraído: '{cpf_cnpj_autor}' -> processado: '{cpf_cnpj_autor_completo}' (len: {len(cpf_cnpj_autor_completo)})")
 
-        # VERIFICAÇÃO: Garantir que CPF/CNPJ tenha o tamanho correto
         if len(cpf_cnpj_autor_completo) == 11:
             log_sisbajud(f"CPF válido: {cpf_cnpj_autor_completo} (11 dígitos)")
         elif len(cpf_cnpj_autor_completo) == 14:
@@ -43,12 +31,10 @@ def _preencher_campos_principais(driver, dados_processo):
 
         nome_autor = _extrair_nome_autor(dados_processo)
 
-        # Calcular data limite
-        prazo_dias = 30  # Valor padrão
+        prazo_dias = 30
         data_fim = datetime.now() + timedelta(days=prazo_dias + 2)
         data_formatada = data_fim.strftime('%d/%m/%Y')
 
-        # JavaScript para preenchimento completo
         script_preenchimento = rf"""
         {criar_js_otimizado()}
 

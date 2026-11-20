@@ -37,7 +37,6 @@ from .Core.sessao_helpers import (
 )
 
 # Lazy imports para evitar ciclo: SISB.utils → SISB.processamento → SISB.utils
-# Essas funções são apenas re-exportadas, não usadas dentro deste módulo
 _validar_dados = None
 _preencher_campos_iniciais = None
 _processar_reus_otimizado = None
@@ -94,7 +93,6 @@ __all__ = [
     '_salvar_minuta',
 ]
 
-# Module-level __getattr__ para lazy import das funções de processamento
 def __getattr__(name):
     """Lazy import para evitar ciclos de importação"""
     if name in ('_validar_dados', '_preencher_campos_iniciais', '_processar_reus_otimizado', '_salvar_minuta'):

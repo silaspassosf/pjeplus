@@ -14,18 +14,7 @@ SISB Relatorios - Dados de bloqueios
 
 
 def _agrupar_dados_bloqueios(dados_acumulados, dados_novos, log=True):
-    """
-    Agrupa dados de bloqueios novos nos dados acumulados.
-    Merge por executado (chave = nome|documento).
-
-    Args:
-        dados_acumulados: Dict existente {'executados': {...}, 'total_geral': float}
-        dados_novos: Dict com novos dados {'executados': {...}, 'total_geral': float}
-        log: Se deve fazer log
-
-    Returns:
-        None (modifica dados_acumulados in-place)
-    """
+    """Agrupa dados de bloqueios novos nos dados acumulados."""
     try:
         if not dados_novos or not dados_novos.get('executados'):
             return
@@ -43,7 +32,7 @@ def _agrupar_dados_bloqueios(dados_acumulados, dados_novos, log=True):
 
                 exec_acum['protocolos'].extend(protocolos_novos)
                 exec_acum['total'] += dados_exec.get('total', 0.0)
-                
+
                 bancos_novos = dados_exec.get('bancos_001', [])
                 if bancos_novos:
                     exec_acum['bancos_001'] = list(set(exec_acum.get('bancos_001', []) + bancos_novos))
@@ -64,20 +53,8 @@ def _agrupar_dados_bloqueios(dados_acumulados, dados_novos, log=True):
 
 
 def extrair_dados_bloqueios_processados(driver, log=True, protocolo_ordem=None):
-    """
-    Extrai dados dos bloqueios processados agrupados por executado.
-    Le diretamente dos headers mat-expansion-panel-header na pagina do SISBAJUD.
-
-    Args:
-        driver: WebDriver do SISBAJUD
-        log: Se deve fazer log
-        protocolo_ordem: Numero do protocolo da ordem (extraido da lista de ordens)
-
-    Returns:
-        dict: {'executados': {chave: {nome, documento, protocolos, total}}, 'total_geral': float}
-    """
+    """Extrai dados dos bloqueios processados agrupados por executado."""
     try:
-        # Aguardar headers de executados aparecerem (ate 3s)
         try:
             WebDriverWait(driver, 3).until(
                 EC.presence_of_element_located((

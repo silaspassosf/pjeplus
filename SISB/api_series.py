@@ -1,27 +1,4 @@
-"""SISB/api_series.py — leitura das séries da Teimosinha por API.
-
-Camada inicial do fluxo `xs resultado` (PEC) — decide o fluxo SEM navegar no
-driver SISBAJUD. Substitui a leitura DOM de
-`SISB/processamento/series_filtro.py::_filtrar_series` mantendo o MESMO
-contrato de saída, para que nada a jusante precise mudar:
-
-    id_serie, protocolo, acao, data_conclusao, data_conclusao_text,
-    situacao, valor_bloqueado, valor_bloquear,
-    valor_bloqueado_text, valor_bloquear_text, linha_index
-
-Diferenças em relação ao DOM:
-  - `linha_index` vem None e NÃO é usado: quando há ordens para processar
-    (DESBLOQUEIO e PARCIAL), quem processa é a função DOM existente, que
-    refaz o caminho completo por conta própria — pesquisa o processo, lê a
-    lista de séries e abre a série com bloqueio pela linha. A API serve só
-    para decidir o fluxo (e alimentar a certidão em NEGATIVO/DESBLOQUEIO).
-  - `situacao` é sintetizada como 'Ativa' quando tipoSituacaoSerie == 1 e
-    'Encerrada' quando tipoSituacaoSerie == 2.
-
-Filtro (data_limite como mínimo):
-  - ativa ou encerrada -> tipoSituacaoSerie in (1, 2)
-  - recente / futura  -> dataLimite (FIM da série) >= data_limite (ou ausente se ativa)
-"""
+"""SISB/api_series.py — leitura das séries da Teimosinha por API."""
 
 import logging
 from datetime import datetime, timedelta
@@ -64,19 +41,7 @@ def _http_get(url, headers, timeout):
 
 def ler_series_api(numero_processo, data_limite=None, timeout=20,
                    token=None, http_get=None, log=True):
-    """Lê as séries da Teimosinha por API e devolve o mesmo contrato de `_filtrar_series`.
-
-    Args:
-        numero_processo: número com ou sem formatação (só os dígitos importam).
-        data_limite: datetime de corte; séries com dataLimite anterior são descartadas.
-        token: access_token; se None, carrega de ~/.pjeplus/sisbajud_tokens.json.
-        http_get: injetável em teste; assinatura (url, headers, timeout) -> (status, texto).
-
-    Returns:
-        list[dict] no contrato de `_filtrar_series`, ou None se a API não puder
-        ser usada (sem token, HTTP != 200, corpo inesperado) — quem chama deve
-        então cair no caminho DOM atual.
-    """
+    """Lê as séries da Teimosinha por API e devolve o mesmo contrato de `_filtrar_series`."""
     digitos = ''.join(ch for ch in str(numero_processo or '') if ch.isdigit())
     if len(digitos) < 15:
         if log:
@@ -174,36 +139,23 @@ def ler_series_api(numero_processo, data_limite=None, timeout=20,
     return validas
 
 
-# ─────────────────────────── decisão do fluxo ───────────────────────────
-
-LIMITE_IRRISORIO = 100.0      # abaixo disto o bloqueado é resíduo (igual ao core.py)
+LIMITE_IRRISORIO = 100.0
 LIMITE_BLOQUEIO = 1000.0      # a partir disto houve ordem relevante (igual ao core.py)
 
 
 def valor_a_bloquear(series):
-    """Referência da comparação: o MAIOR 'a bloquear' entre as séries.
-
-    Cada série é uma ordem repetida do mesmo valor; somar as séries dobraria a
-    referência e o bot passaria a transferir acima do devido. Por isso: máximo,
-    não soma (a soma é usada só do lado do bloqueado).
-    """
+    """Referência da comparação: o MAIOR 'a bloquear' entre as séries."""
     valores = [float(s.get('valor_bloquear') or 0) for s in (series or [])]
     return max(valores) if valores else 0.0
 
 
 def dados_processo_api(series):
-    """Monta o `dados_processo` que `_calcular_estrategia_bloqueio` já espera,
-    com o valor vindo da API (valor a bloquear) no lugar da dívida do PJe.
-    """
+    """Monta o `dados_processo` que `_calcular_estrategia_bloqueio` já espera,"""
     return {'divida': {'valor': _valor_texto(valor_a_bloquear(series))}}
 
 
 def decidir_fluxo(series, log=True):
-    """NEGATIVO / DESBLOQUEIO / POSITIVO e, no POSITIVO, a estratégia.
-
-    Usa a MESMA função de estratégia do bot (`_calcular_estrategia_bloqueio`),
-    só trocando a fonte do valor de referência — nada em series_estrategia.py muda.
-    """
+    """NEGATIVO / DESBLOQUEIO / POSITIVO e, no POSITIVO, a estratégia."""
     total_bloqueado = sum(float(s.get('valor_bloqueado', 0)) for s in (series or []))
     total_bloquear = sum(float(s.get('valor_bloquear', 0)) for s in (series or []))
 
@@ -235,8 +187,6 @@ def decidir_fluxo(series, log=True):
     return resultado
 
 
-# ─────────────────────── ponto de entrada do fluxo ───────────────────────
-
 def _numero_processo(dados_processo):
     numero = (dados_processo or {}).get('numero_processo') or (dados_processo or {}).get('numero')
     if isinstance(numero, list):
@@ -245,12 +195,7 @@ def _numero_processo(dados_processo):
 
 
 def _voltar_para_detalhe(driver_pje, aba_detalhe, url_detalhe, log=True):
-    """Volta o foco do PJe para /detalhe depois da juntada.
-
-    Mesmo padrão do core.py: fecha SÓ abas extras e, se a aba atual foi
-    navegada para /anexar, volta pela URL guardada. Nunca fecha a aba atual
-    sem saber quantas existem (era o que deixava o driver sem janelas).
-    """
+    """Volta o foco do PJe para /detalhe depois da juntada."""
     try:
         abas = list(getattr(driver_pje, 'window_handles', []) or [])
         if len(abas) > 1:
@@ -273,11 +218,7 @@ def _voltar_para_detalhe(driver_pje, aba_detalhe, url_detalhe, log=True):
 
 
 def _acoes_pje(series, decisao, numero, driver_pje, log=True):
-    """Relatório + juntada + despacho no PJe, sem tocar no driver SISBAJUD.
-
-    Usado em NEGATIVO e DESBLOQUEIO: a certidão com o modelo do fluxo já resolve,
-    não precisa das ordens.
-    """
+    """Relatório + juntada + despacho no PJe, sem tocar no driver SISBAJUD."""
     from SISB import helpers
 
     tipo_fluxo = decisao['tipo_fluxo']
@@ -298,8 +239,6 @@ def _acoes_pje(series, decisao, numero, driver_pje, log=True):
         resultado['erros'].append('driver_pje ausente — não é possível juntar/despachar')
         return resultado
 
-    # Guardar aba/URL de /detalhe ANTES da juntada (o clique em "Anexar Documentos"
-    # pode navegar a MESMA aba para /anexar).
     aba_detalhe = None
     url_detalhe = ''
     try:
@@ -344,18 +283,7 @@ def _acoes_pje(series, decisao, numero, driver_pje, log=True):
 
 
 def processar_ordem_via_api(driver, dados_processo, driver_pje=None, log=True, fechar_driver=True):
-    """Ponto de entrada do fluxo `xs resultado`: a API decide, o DOM executa.
-
-    Sequência:
-      POSITIVO (tudo e parcial) -> caminho DOM atual, inteiro, sem alteração.
-      NEGATIVO                  -> relatório + juntada + ato_meios. Não processa ordens.
-      DESBLOQUEIO               -> relatório + juntada + ato_meios, DEPOIS processa as ordens.
-      API indisponível          -> caminho DOM atual (comportamento de hoje).
-
-    O driver SISBAJUD já chega aberto e autenticado: quem chama é
-    `PEC/regras_execucao.py::_executar_sisbajud`, que garante o driver
-    compartilhado antes de invocar esta função.
-    """
+    """Ponto de entrada do fluxo `xs resultado`: a API decide, o DOM executa."""
     from SISB.core import processar_ordem_sisbajud
 
     numero = _numero_processo(dados_processo)
@@ -375,11 +303,8 @@ def processar_ordem_via_api(driver, dados_processo, driver_pje=None, log=True, f
                     tipo_fluxo, decisao.get('total_bloqueado', 0.0), decisao.get('valor_a_bloquear', 0.0))
 
     if tipo_fluxo == 'POSITIVO':
-        # Tudo e parcial: caminho DOM atual, inteiro (navega, lê, processa,
-        # relatório, juntada, ato_bloq + GIGS).
         return processar_ordem_sisbajud(driver, dados_processo, driver_pje, log, fechar_driver)
 
-    # NEGATIVO / DESBLOQUEIO: as ações do PJe vêm primeiro.
     resultado = _acoes_pje(series, decisao, numero, driver_pje, log)
 
     if tipo_fluxo == 'DESBLOQUEIO' and resultado.get('juntada_executada'):

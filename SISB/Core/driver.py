@@ -1,6 +1,6 @@
 """SISB Core - Driver"""
 
-from Fix.driver_factory import criar_driver_sisb_pc as criar_driver_sisb  # referência canônica
+from Fix.driver_factory import criar_driver_sisb_pc as criar_driver_sisb
 
 
 def driver_sisbajud():

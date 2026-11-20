@@ -12,16 +12,7 @@ from .utils import criar_js_otimizado, log_sisbajud
 from Fix import espera
 
 def _processar_reus_otimizado(driver, dados_processo):
-    """
-    Processa todos os réus de forma otimizada.
-
-    Args:
-        driver: WebDriver do SISBAJUD
-        dados_processo: Dados do processo
-
-    Returns:
-        dict: Resultado da operação
-    """
+    """Processa todos os réus de forma otimizada."""
     try:
         reus = dados_processo.get('reu', [])
         if not reus:
@@ -29,20 +20,18 @@ def _processar_reus_otimizado(driver, dados_processo):
 
         log_sisbajud(f"Processando {len(reus)} réus...")
 
-        # Preparar dados dos réus
         lista_reus_js = []
         for reu in reus:
             cpf_cnpj = reu.get('cpfcnpj', '')
             if cpf_cnpj:
                 cpf_cnpj_limpo = ''.join(filter(str.isdigit, cpf_cnpj))
-                if len(cpf_cnpj_limpo) == 14:  # CNPJ
-                    cpf_cnpj_limpo = cpf_cnpj_limpo[:8]  # Raiz do CNPJ
+                if len(cpf_cnpj_limpo) == 14:
+                    cpf_cnpj_limpo = cpf_cnpj_limpo[:8]
                 lista_reus_js.append({
                     'cpfcnpj': cpf_cnpj_limpo,
                     'nome': reu.get('nome', '')
                 })
 
-        # JavaScript otimizado para processar todos os réus
         script_reus = f"""
         {criar_js_otimizado()}
 
@@ -180,7 +169,6 @@ def _configurar_valor(driver, dados_processo):
         if valor:
             log_sisbajud(f"Configurando valor: {valor}")
 
-            # Criar overlay clicável
             script_valor = f"""
             var ancora = document.querySelector('div[class="label-valor-extenso"]');
             if (ancora && !document.getElementById('maisPJe_valor_execucao')) {{
@@ -205,7 +193,6 @@ def _configurar_valor(driver, dados_processo):
             driver.execute_script(script_valor)
             espera.ate_aparecer(driver, '#maisPJe_valor_execucao', teto=1)
 
-            # Clicar no overlay
             driver.execute_script("""
             var overlay = document.getElementById('maisPJe_valor_execucao');
             if (overlay) {
@@ -217,7 +204,6 @@ def _configurar_valor(driver, dados_processo):
 
             espera.assentar(driver, 1)
 
-            # Confirmar valor
             driver.execute_script("""
             var botaoConfirmar = document.querySelector('button.btn-adicionar.mat-mini-fab.mat-primary mat-icon.fa-check-square');
             if (botaoConfirmar) {
@@ -235,7 +221,6 @@ def _configurar_valor(driver, dados_processo):
 def _configurar_opcoes_adicionais(driver, dados_processo):
     """Configura opções adicionais como conta-salário."""
     try:
-        # Conta-salário
         if dados_processo.get('sisbajud', {}).get('contasalario', '').lower() == 'sim':
             driver.execute_script("""
             var toggles = document.querySelectorAll('mat-slide-toggle label');

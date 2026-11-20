@@ -15,15 +15,11 @@ SISB Relatorios - Relatorio de ordens
 
 
 def _gerar_relatorio_ordem(tipo_fluxo, series_processadas, ordens_processadas, detalhes, series_validas=None, driver=None, log=True, numero_processo=None, estrategia=None):
-    """
-    Helper para gerar relatorio do processamento de ordens (Transferencia/Desbloqueio).
-    Sempre inclui primeiro o relatorio das series analisadas.
-    """
+    """Helper para gerar relatorio do processamento de ordens (Transferencia/Desbloqueio)."""
     try:
         pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"'
         relatorio_html = ""
 
-        # Etapa 1: incluir relatorio das series
         if series_validas and len(series_validas) > 0:
             relatorio_html += f'<p {pStyle}><strong>Relatorio de series executadas:</strong></p>'
 
@@ -51,7 +47,6 @@ def _gerar_relatorio_ordem(tipo_fluxo, series_processadas, ordens_processadas, d
                     linha_serie = f"- (Serie {numero_serie}) - Data da finalizacao: ({data_str}) - Total bloqueado: ({valor_str})"
                 relatorio_html += f'<p {pStyle}>{linha_serie}</p>'
 
-        # Etapa 1.5: informar valor da execucao
         if estrategia:
             valor_exec = estrategia.get('valor_execucao', 0.0)
             total_bloq = estrategia.get('total_bloqueado', 0.0)
@@ -66,7 +61,6 @@ def _gerar_relatorio_ordem(tipo_fluxo, series_processadas, ordens_processadas, d
             else:
                 relatorio_html += f'<p {pStyle}><strong>Total bloqueado nas series:</strong> {total_bloq_fmt}</p>'
 
-        # Etapa 2: processar por tipo de fluxo
         if tipo_fluxo == 'POSITIVO':
             dados_bloqueios = detalhes.get('dados_bloqueios', {}) if detalhes else {}
 
@@ -122,9 +116,8 @@ def _gerar_relatorio_ordem(tipo_fluxo, series_processadas, ordens_processadas, d
             relatorio_html += f'<p {pStyle}>Ordens processadas: {ordens_processadas}</p>'
             relatorio_html += f'<p {pStyle}>Data/Hora: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}</p>'
 
-        # Salvar no clipboard.txt centralizado
         try:
-            from PEC.anexos import salvar_conteudo_clipboard
+            from atos.anexos import salvar_conteudo_clipboard
 
             sucesso = salvar_conteudo_clipboard(
                 conteudo=relatorio_html,

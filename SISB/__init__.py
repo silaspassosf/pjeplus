@@ -1,14 +1,10 @@
-"""
-SISB - Fachada de compatibilidade
-Reexporta nomes publicos de SISB.facades_contratos
-"""
+"""SISB - Fachada de compatibilidade"""
 import logging
 
 logger = logging.getLogger(__name__)
 __version__ = '3.0.0'
 
 from SISB.facades_contratos import (  # noqa: E402, F401
-    # Core
     iniciar_sisbajud,
     driver_sisbajud,
     login_automatico_sisbajud,
@@ -23,7 +19,6 @@ from SISB.facades_contratos import (  # noqa: E402, F401
     USAR_COOKIES_AUTOMATICO,
     SALVAR_COOKIES_AUTOMATICO,
 
-    # Utils
     criar_js_otimizado,
     safe_click,
     aguardar_elemento,
@@ -31,7 +26,6 @@ from SISB.facades_contratos import (  # noqa: E402, F401
     validar_numero_processo,
     formatar_valor_monetario,
 
-    # Padroes
     SISBConstants,
     StatusProcessamento,
     TipoFluxo,
@@ -39,22 +33,17 @@ from SISB.facades_contratos import (  # noqa: E402, F401
     ResultadoProcessamento,
     sisb_logger,
 
-    # Performance
     performance_optimizer,
     polling_reducer,
     cache_manager,
     parallel_processor,
 
-    # Orquestrador
     executar_sisbajud_completo,
 
-    # Batch
     processar_lote_sisbajud,
 
-    # Processamento
     minuta_bloqueio_refatorada,
 
-    # Minutas (acesso direto)
     minuta_bloqueio,
     minuta_bloqueio_60,
     minuta_bloqueio_amanha,

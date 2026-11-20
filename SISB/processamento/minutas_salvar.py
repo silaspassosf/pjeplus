@@ -36,7 +36,6 @@ def _salvar_minuta(driver):
 
         logger.info('[SISBAJUD] Botão Salvar clicado. Aguardando confirmação do salvamento...')
 
-        # Aguardar até 20s confirmação do salvamento (polling a cada 0.5s tolerante a navegação)
         def _verificar_salvo(drv):
             try:
                 st = espera._executar_script(drv, script_verificar)

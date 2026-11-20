@@ -1,38 +1,4 @@
-"""SISB/conferencia_teimosinha.py — conferência das séries de Teimosinha e definição do fluxo.
-
-Espelha, num só lugar, o que hoje está espalhado em:
-  - `SISB/processamento/series_filtro.py`  (`_filtrar_series` — lê a tabela e filtra)
-  - `SISB/core.py`, bloco "4. Determinar tipo de fluxo" (NEGATIVO / DESBLOQUEIO / POSITIVO)
-  - `SISB/processamento/series_estrategia.py` (`_calcular_estrategia_bloqueio`)
-
-A conferência é **DOM, não API** — igual ao botão "Conferir SISBAJUD(Teimosinha)" da
-extensão +PJe (`+pje/PJe-Atual/gigs-plugin.js`: `conferirTeimosinhaEmLote()` ->
-`obterResultadoTeimosinha()`): abre https://sisbajud.cnj.jus.br/teimosinha, clica
-"Limpar", digita em `input[placeholder="Número do Processo"]` e clica "Consultar".
-
-Extração **idêntica à real** (`_filtrar_series`): tabela `table.mat-table`, linhas
-`tbody tr.mat-row` / `tbody tr[mat-row]`, células por `td[data-label="<campo>"]` com
-fallback `td.cdk-column-<campo>`, texto via `textContent` normalizado (\\u00a0 -> espaço,
-espaços colapsados). Datas lidas como `10 DE SETEMBRO DE 2026` (5 partes: dia, DE, mês,
-DE, ano) — qualquer outro formato é descartado, como no código real.
-
-Diferença em relação ao +PJe: **nenhuma janela oculta e nenhuma interface após o
-resultado** — usa a própria página do driver SISBAJUD e devolve só a definição de fluxo
-(dict), sem montar botão/lista/tela.
-
-Contrato (condução tranquila: nunca levanta exceção):
-    from SISB.conferencia_teimosinha import conferir_fluxo
-
-    fluxo = conferir_fluxo(driver_sisb, numero_processo, dados_processo=dados)
-    fluxo['tipo_fluxo']        # 'NEGATIVO' | 'DESBLOQUEIO' | 'POSITIVO'
-    fluxo['estrategia']        # None | {'tipo': 'TRANSFERIR_TUDO'|'TRANSFERIR_PARCIAL', ...}
-    fluxo['series_validas']    # séries encerradas dentro do prazo (formato do core.py)
-
-Peças separadas, para quem já está na página da teimosinha:
-    series  = ler_series(driver)                      # lê a tabela, sem navegar
-    validas = filtrar_validas(series, data_limite)    # encerradas + prazo
-    fluxo   = definir_fluxo(validas, dados_processo)  # NEGATIVO/DESBLOQUEIO/POSITIVO + estratégia
-"""
+"""SISB/conferencia_teimosinha.py — conferência das séries de Teimosinha e definição do fluxo."""
 
 import logging
 from datetime import datetime, timedelta
@@ -51,7 +17,6 @@ SEL_AVISO = 'sisbajud-snack-messenger, .mat-snack-bar-container, .snackbar'
 SEL_LIMPAR = "//button[contains(normalize-space(.), 'Limpar')]"
 SEL_CONSULTAR = "//button[contains(normalize-space(.), 'Consultar')]"
 
-# Extração fiel ao script de `_filtrar_series` (mesmos data-label e fallback por classe).
 JS_LER_SERIES = r"""
 () => {
   function norm(text) {
@@ -94,13 +59,9 @@ _MESES = {
     'JUL': 7, 'AGO': 8, 'SET': 9, 'OUT': 10, 'NOV': 11, 'DEZ': 12,
 }
 
-# limites do fluxo (idênticos ao bloco "4. Determinar tipo de fluxo" do core.py)
-LIMITE_IRRISORIO = 100.0     # abaixo disto o bloqueado é resíduo
+LIMITE_IRRISORIO = 100.0
 LIMITE_BLOQUEIO = 1000.0     # a partir disto houve ordem relevante
-VALOR_EXECUCAO_FALLBACK = 1003.0  # fallback seguro do `_calcular_estrategia_bloqueio`
-
-
-# ───────────────────────────── infra mínima ─────────────────────────────
+VALOR_EXECUCAO_FALLBACK = 1003.0
 
 
 def _log(mensagem, log=True, nivel='info'):
@@ -150,11 +111,7 @@ def _valor(texto):
 
 
 def _data(texto):
-    """'10 DE SETEMBRO DE 2026' -> datetime(2026, 9, 10).
-
-    Regra idêntica à real: exige 5 partes, mês na posição 2 e ano na posição 4;
-    qualquer outro formato devolve None (a série é descartada, como no código real).
-    """
+    """'10 DE SETEMBRO DE 2026' -> datetime(2026, 9, 10)."""
     texto = (texto or '').strip()
     if not texto:
         return None
@@ -170,9 +127,6 @@ def _data(texto):
         return datetime(ano, mes, dia)
     except (ValueError, IndexError):
         return None
-
-
-# ───────────────────────────── navegação ─────────────────────────────
 
 
 def _garantir_pagina(driver, log=True):
@@ -194,15 +148,8 @@ def _garantir_pagina(driver, log=True):
         return False
 
 
-# ───────────────────────────── leitura da tabela ─────────────────────────────
-
-
 def ler_series(driver, log=True):
-    """Lê a tabela de séries já carregada (sem navegar nem consultar).
-
-    Devolve o mesmo conteúdo de `series_bruto` em `_filtrar_series`, acrescido dos
-    campos já convertidos (valor_bloqueado, valor_bloquear, data_conclusao, encerrada).
-    """
+    """Lê a tabela de séries já carregada (sem navegar nem consultar)."""
     try:
         brutos = _pagina(driver).evaluate(JS_LER_SERIES)
     except Exception as e:
@@ -229,9 +176,6 @@ def ler_series(driver, log=True):
 
     _log('%d série(s) na tabela' % len(series), log, 'debug')
     return series
-
-
-# ───────────────────────────── fluxo ─────────────────────────────
 
 
 def filtrar_validas(series, data_limite=None, log=True):
@@ -301,12 +245,7 @@ def _estrategia(series_validas, dados_processo=None, log=True):
 
 
 def definir_fluxo(series_validas, dados_processo=None, log=True):
-    """Define NEGATIVO / DESBLOQUEIO / POSITIVO e, no POSITIVO, a estratégia.
-
-    Regras idênticas ao bloco "4. Determinar tipo de fluxo" do `SISB/core.py`.
-    No POSITIVO com TRANSFERIR_PARCIAL, devolve também as séries ordenadas por valor
-    bloqueado (decrescente), como o core.py faz antes de processar.
-    """
+    """Define NEGATIVO / DESBLOQUEIO / POSITIVO e, no POSITIVO, a estratégia."""
     series_validas = series_validas or []
     total_bloqueado = sum(float(s.get('valor_bloqueado', 0)) for s in series_validas)
     total_bloquear = sum(float(s.get('valor_bloquear', 0)) for s in series_validas)
@@ -338,9 +277,6 @@ def definir_fluxo(series_validas, dados_processo=None, log=True):
         'estrategia': estrategia,
         'series_ordenadas': series_ordenadas,
     }
-
-
-# ───────────────────────────── API pública ─────────────────────────────
 
 
 def conferir(driver, numero, log=True):
@@ -388,11 +324,7 @@ def conferir(driver, numero, log=True):
 
 
 def conferir_fluxo(driver, numero=None, dados_processo=None, data_limite=None, log=True):
-    """Conferência completa: séries -> válidas -> fluxo/estratégia.
-
-    `numero` None = já estamos na página da teimosinha com a tabela carregada
-    (caso do `core.py`, que insere o processo no SISBAJUD logo antes).
-    """
+    """Conferência completa: séries -> válidas -> fluxo/estratégia."""
     if data_limite is None:
         data_limite = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) \
             - timedelta(days=30)

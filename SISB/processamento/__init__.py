@@ -1,6 +1,4 @@
-"""
-SISB Processamento - Reexports para compatibilidade (lazy via __getattr__)
-"""
+"""SISB Processamento - Reexports para compatibilidade (lazy via __getattr__)"""
 import importlib as _importlib
 
 _fc = None

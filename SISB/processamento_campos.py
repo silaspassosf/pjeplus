@@ -10,6 +10,5 @@ Subdivide em:
 - processamento_campos_reus.py: Processamento de réus e configurações adicionais
 """
 
-# Re-exportar funções dos submódulos para compatibilidade
 from .processamento_campos_principais import _preencher_campos_principais
 from .processamento_campos_reus import _processar_reus_otimizado, _configurar_valor, _configurar_opcoes_adicionais

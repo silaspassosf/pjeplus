@@ -1,6 +1,4 @@
-"""
-SISB Core - Constantes
-"""
+"""SISB Core - Constantes"""
 
 SISBAJUD_URLS = {
     'base': 'https://sisbajud.cnj.jus.br',

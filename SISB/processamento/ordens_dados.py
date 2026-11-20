@@ -10,21 +10,14 @@ SISBAJUD Ordens - Dados e extracao de ordens
 
 
 def _carregar_dados_ordem():
-    """
-    Helper para carregar dados do processo para processamento de ordens.
-
-    Returns:
-        tuple: (dados_processo, numero_processo) ou (None, None) se erro
-    """
+    """Helper para carregar dados do processo para processamento de ordens."""
     try:
         from ..utils import carregar_dados_processo
 
-        # Carregar dados do arquivo
         dados_arquivo = carregar_dados_processo()
         if not dados_arquivo or not isinstance(dados_arquivo, dict):
             return None, None
 
-        # Extrair numero do processo
         numero_bruto = dados_arquivo.get('numero')
         if isinstance(numero_bruto, list) and len(numero_bruto) > 0:
             numero_processo = numero_bruto[0]
@@ -40,16 +33,7 @@ def _carregar_dados_ordem():
 
 
 def _extrair_ordens_da_serie(driver, log=True):
-    """
-    Extrai ordens da pagina de detalhes da serie.
-
-    Args:
-        driver: WebDriver do Selenium
-        log: Se deve fazer log
-
-    Returns:
-        list: Lista de ordens com estrutura {'sequencial', 'data', 'valor_bloquear', 'protocolo', 'linha_el'}
-    """
+    """Extrai ordens da pagina de detalhes da serie."""
     from selenium.webdriver.common.by import By
 
     ordens = []
@@ -83,7 +67,6 @@ def _extrair_ordens_da_serie(driver, log=True):
 
                 valor_txt = cols[4].text.strip()
 
-                # Converter data
                 data_ordem = None
                 if "/" in data_txt:
                     partes = data_txt.split(",")
@@ -99,7 +82,6 @@ def _extrair_ordens_da_serie(driver, log=True):
                 if not data_ordem:
                     continue
 
-                # Converter valor
                 try:
                     valor = float(valor_txt.replace("R$", "").replace("\u00a0", "").replace(".", "").replace(",", ".").strip())
                 except Exception:
@@ -119,7 +101,6 @@ def _extrair_ordens_da_serie(driver, log=True):
                     logger.error(f"[SISBAJUD] Ignorando linha: erro inesperado - {e}")
                 continue
 
-        # Ordenar por data
         ordens.sort(key=lambda x: x["data"])
         return ordens
 
@@ -130,34 +111,21 @@ def _extrair_ordens_da_serie(driver, log=True):
 
 
 def _identificar_ordens_com_bloqueio(ordens, valor_total_bloqueado_serie=None, log=True):
-    """
-    Identifica ordens que geraram bloqueio usando logica de diferenca de valores.
-
-    Args:
-        ordens: Lista de ordens da serie
-        valor_total_bloqueado_serie: Valor total bloqueado da serie (para fallback)
-        log: Se deve fazer log
-
-    Returns:
-        list: Lista de ordens que tem bloqueio
-    """
+    """Identifica ordens que geraram bloqueio usando logica de diferenca de valores."""
     bloqueios = []
 
     if not ordens:
         return bloqueios
 
-    # 1. Detectar bloqueios pela diferenca de valor entre ordens consecutivas
     for i in range(len(ordens) - 1):
         valor_atual = ordens[i]["valor_bloquear"]
         valor_posterior = ordens[i + 1]["valor_bloquear"]
 
         if valor_atual > valor_posterior:
-            # Adicionar campo com valor esperado de bloqueio (diferenca)
             ordem_com_bloqueio = ordens[i].copy()
             valor_bloqueio = valor_atual - valor_posterior
             ordem_com_bloqueio['valor_bloqueio_esperado'] = valor_bloqueio
 
-            # Pre-adicionar ao relatorio (sera atualizado no processamento)
             ordem_com_bloqueio['_relatorio'] = {
                 'protocolo': ordem_com_bloqueio.get('protocolo', 'N/A'),
                 'valor_esperado': valor_bloqueio,
@@ -178,11 +146,9 @@ def _identificar_ordens_com_bloqueio(ordens, valor_total_bloqueado_serie=None, l
 
         if diferenca_absoluta > 0.01:
             if ultima_ordem not in bloqueios:
-                # Adicionar campo com valor esperado de bloqueio
                 ordem_com_bloqueio = ultima_ordem.copy()
                 ordem_com_bloqueio['valor_bloqueio_esperado'] = diferenca_esperada
 
-                # Pre-adicionar ao relatorio (sera atualizado no processamento)
                 ordem_com_bloqueio['_relatorio'] = {
                     'protocolo': ordem_com_bloqueio.get('protocolo', 'N/A'),
                     'valor_esperado': diferenca_esperada,
@@ -192,7 +158,6 @@ def _identificar_ordens_com_bloqueio(ordens, valor_total_bloqueado_serie=None, l
 
                 bloqueios.append(ordem_com_bloqueio)
 
-    # 3. Fallback: serie tem valor bloqueado mas nenhum bloqueio foi detectado
     if valor_total_bloqueado_serie and valor_total_bloqueado_serie > 0 and len(bloqueios) == 0 and len(ordens) > 0:
         ultima_ordem = ordens[-1]
         ordem_com_bloqueio = ultima_ordem.copy()

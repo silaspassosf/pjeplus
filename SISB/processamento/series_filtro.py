@@ -11,9 +11,7 @@ SISB Series - Filtro de series
 
 
 def _filtrar_series(driver, data_limite):
-    """
-    Helper para filtrar series validas da tabela.
-    """
+    """Le a tabela de series do SISBAJUD e devolve as validas."""
     try:
         script_extrair = f"""
         {criar_js_otimizado()}
@@ -27,8 +25,26 @@ def _filtrar_series(driver, data_limite):
                     return row.querySelector('td[data-label="' + dataLabel + '"]') || row.querySelector('td.' + legacyClass) || null;
                 }}
 
-                let tabela = await esperarElemento('table.mat-table', 10000);
-                if (!tabela) return {{sucesso: false, erro: 'Tabela nao encontrada'}};
+                function normTxt(t) {{ return String(t || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').trim(); }}
+                function acharTabelaSeries() {{
+                    var tabelas = Array.prototype.slice.call(
+                        document.querySelectorAll('table[mat-table], table.mat-table'));
+                    return tabelas.find(function (t) {{
+                        var th = t.querySelector('thead');
+                        var cab = normTxt(th ? th.textContent : '').toUpperCase();
+                        return cab.indexOf('ID DA SÉRIE') >= 0 || cab.indexOf('ID DA SERIE') >= 0;
+                    }}) || null;
+                }}
+                // A tabela de series e identificada pelo CABECALHO (padrao do bookmarklet
+                // do Silas): pegar a 1a table.mat-table da pagina lia tabela errada/vazia
+                // e o fluxo concluia "0 series" sem juntar nem despachar (1001531-84, 05/11).
+                var tabela = null;
+                for (var tent = 0; tent < 30; tent++) {{
+                    tabela = acharTabelaSeries();
+                    if (tabela && tabela.querySelectorAll('tbody tr.mat-row, tbody tr[mat-row]').length > 0) break;
+                    await new Promise(function (r) {{ setTimeout(r, 500); }});
+                }}
+                if (!tabela) return {{sucesso: false, erro: 'Tabela de series nao encontrada (cabecalho ID DA SERIE)'}};
 
                 let linhas = tabela.querySelectorAll('tbody tr.mat-row, tbody tr[mat-row]');
                 let series = [];
@@ -61,7 +77,7 @@ def _filtrar_series(driver, data_limite):
                     series.push(serie);
                 }}
 
-                return {{sucesso: true, series: series}};
+                return {{sucesso: true, series: series, lidas: linhas.length}};
             }} catch(e) {{
                 return {{sucesso: false, erro: e.message}};
             }}
@@ -72,10 +88,12 @@ def _filtrar_series(driver, data_limite):
 
         resultado = driver.execute_async_script(script_extrair)
         if not resultado or not resultado.get('sucesso'):
-            logger.error(f'[SISBAJUD]  Erro na extracao: {resultado.get("erro")}')
-            return []
+            erro = (resultado or {}).get('erro') or 'resposta vazia do JS'
+            logger.error(f'[SISBAJUD]  Erro na extracao: {erro}')
+            return {'series': [], 'lidas': 0, 'erro': erro}
 
         series_bruto = resultado.get('series', [])
+        lidas = resultado.get('lidas', len(series_bruto))
 
         series_validas = []
         meses_map = {
@@ -150,11 +168,11 @@ def _filtrar_series(driver, data_limite):
                 logger.info(f'[SISBAJUD] Erro processando serie {idx}: {e}')
                 continue
 
-        logger.info(f'[SISBAJUD] Filtradas {len(series_validas)} series validas de {len(series_bruto)}')
-        return series_validas
+        logger.info(f'[SISBAJUD] Filtradas {len(series_validas)} series validas de {lidas} lida(s)')
+        return {'series': series_validas, 'lidas': lidas, 'erro': None}
 
     except Exception as e:
-        logger.info(f'[SISBAJUD] Erro ao filtrar series: {e}')
+        logger.error(f'[SISBAJUD] Erro ao filtrar series: {e}')
         import traceback
         logger.exception("Erro detectado")
-        return []
+        return {'series': [], 'lidas': 0, 'erro': str(e)}

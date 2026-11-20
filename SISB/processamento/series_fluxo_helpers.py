@@ -1,6 +1,4 @@
-"""
-SISB Series - Helpers de fluxo
-"""
+"""SISB Series - Helpers de fluxo"""
 
 import logging
 

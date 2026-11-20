@@ -7,17 +7,8 @@ SISBAJUD Validacao - Funcoes de validacao
 
 
 def _validar_dados(dados_processo):
-    """
-    Helper para validar dados do processo necessarios para minuta de bloqueio.
-
-    Args:
-        dados_processo: Dados do processo (se None, carrega do arquivo dadosatuais.json)
-
-    Returns:
-        tuple: (dados_validos, numero_processo) onde dados_validos e bool e numero_processo e str
-    """
+    """Helper para validar dados do processo necessarios para minuta de bloqueio."""
     try:
-        # Se dados_processo nao foi fornecido, carregar do arquivo
         if not dados_processo:
             try:
                 from ..utils import carregar_dados_processo
@@ -28,7 +19,6 @@ def _validar_dados(dados_processo):
                 logger.error(f'[SISBAJUD]  Erro ao carregar dados do arquivo: {e}')
                 return False, None
 
-        # Verificar campos obrigatorios
         numero_lista = dados_processo.get('numero', [])
         if not numero_lista:
             return False, None

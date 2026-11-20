@@ -1,12 +1,8 @@
-"""
-SISB Core - JavaScript helpers
-"""
+"""SISB Core - JavaScript helpers"""
 
 
 def criar_js_otimizado() -> str:
-    """
-    JavaScript otimizado consolidado para todas as operacoes SISBAJUD.
-    """
+    """JavaScript otimizado consolidado para todas as operacoes SISBAJUD."""
     return """
     // ===== JAVASCRIPT OTIMIZADO CONSOLIDADO =====
 

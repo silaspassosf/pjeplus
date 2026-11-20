@@ -25,17 +25,7 @@ class PerformanceOptimizer:
 
     @lru_cache(maxsize=100)
     def cache_element_selector(self, seletor: str, contexto: str) -> str:
-        """
-        Cache inteligente de seletores CSS para reduzir lookups.
-
-        Args:
-            seletor: Seletor CSS
-            contexto: Contexto de uso
-
-        Returns:
-            str: Seletor otimizado
-        """
-        # Otimizações baseadas em padrões observados
+        """Cache inteligente de seletores CSS para reduzir lookups."""
         otimizacoes = {
             'input[placeholder*="Juiz"]': 'input[placeholder*="Juiz"]',
             'input[placeholder="Número do Processo"]': 'input[placeholder="Número do Processo"]',
@@ -45,15 +35,7 @@ class PerformanceOptimizer:
         return otimizacoes.get(seletor, seletor)
 
     def batch_dom_operations(self, operations: List[Dict[str, Any]]) -> str:
-        """
-        Batch de operações DOM para reduzir requisições JavaScript.
-
-        Args:
-            operations: Lista de operações a executar
-
-        Returns:
-            str: Script JavaScript otimizado
-        """
+        """Batch de operações DOM para reduzir requisições JavaScript."""
         script_lines = [
             "async function executeBatch() {",
             "    const results = {};",
@@ -87,30 +69,17 @@ class PerformanceOptimizer:
         return "\n".join(script_lines)
 
     def optimize_javascript_execution(self, driver, script: str, *args) -> Any:
-        """
-        Execução otimizada de JavaScript com cache e pooling.
-
-        Args:
-            driver: WebDriver instance
-            script: Script JavaScript
-            *args: Argumentos para o script
-
-        Returns:
-            Any: Resultado da execução
-        """
-        # Cache de scripts compilados (simulação)
+        """Execução otimizada de JavaScript com cache e pooling."""
         cache_key = hash(script)
         with self.lock:
             if cache_key not in self.cache:
                 self.cache[cache_key] = script
 
-        # Execução com timeout otimizado
         start_time = time.time()
         try:
             result = driver.execute_script(script, *args)
             execution_time = time.time() - start_time
 
-            # Log de performance
             if execution_time > 2.0:
                 from .facades_contratos import sisb_logger
                 sisb_logger.log(f"Script lento executado em {execution_time:.2f}s", "WARNING", "performance")
@@ -204,21 +173,9 @@ class PollingReducer:
         """
 
     def replace_polling_with_observer(self, driver, seletor: str, timeout: int = 10000):
-        """
-        Substitui polling tradicional por MutationObserver.
-
-        Args:
-            driver: WebDriver instance
-            seletor: Seletor CSS
-            timeout: Timeout em ms
-
-        Returns:
-            WebElement: Elemento encontrado
-        """
-        # Injetar script se necessário
+        """Substitui polling tradicional por MutationObserver."""
         driver.execute_script(self.mutation_observer_script)
 
-        # Usar observer
         script = f"""
         return window.SmartElementWaiter.waitForElement('{seletor}', null, {timeout});
         """
@@ -231,7 +188,7 @@ class CacheManager:
     def __init__(self):
         self.element_cache = {}
         self.data_cache = {}
-        self.cache_timeout = 300  # 5 minutos
+        self.cache_timeout = 300
         self.lock = threading.Lock()
 
     def cache_data(self, key: str, data: Any, ttl: int = None):
@@ -251,7 +208,6 @@ class CacheManager:
                 if time.time() - cached['timestamp'] < cached['ttl']:
                     return cached['data']
                 else:
-                    # Cache expirado
                     del self.data_cache[key]
         return None
 
@@ -263,21 +219,12 @@ class ParallelProcessor:
         self.semaphore = threading.Semaphore(max_workers)
 
     async def process_parallel(self, tasks: List[callable]) -> List[Any]:
-        """
-        Processa tarefas em paralelo com controle de concorrência.
-
-        Args:
-            tasks: Lista de funções a executar
-
-        Returns:
-            List[Any]: Resultados das tarefas
-        """
+        """Processa tarefas em paralelo com controle de concorrência."""
         async def execute_task(task):
             with self.semaphore:
                 loop = asyncio.get_event_loop()
                 return await loop.run_in_executor(self.executor, task)
 
-        # Executar todas as tarefas em paralelo
         results = await asyncio.gather(
             *[execute_task(task) for task in tasks],
             return_exceptions=True
@@ -286,31 +233,19 @@ class ParallelProcessor:
         return results
 
     def process_series_parallel(self, driver, series: List[Dict], process_func: callable) -> List[Any]:
-        """
-        Processa séries SISBAJUD em paralelo (limitado para evitar detecção).
-
-        Args:
-            driver: WebDriver instance
-            series: Lista de séries
-            process_func: Função de processamento
-
-        Returns:
-            List[Any]: Resultados do processamento
-        """
+        """Processa séries SISBAJUD em paralelo (limitado para evitar detecção)."""
         # Limitar paralelismo para evitar detecção
-        max_parallel = min(len(series), 2)  # Máximo 2 séries em paralelo
+        max_parallel = min(len(series), 2)
 
         results = []
         for i in range(0, len(series), max_parallel):
             batch = series[i:i + max_parallel]
 
-            # Criar tarefas para o batch
             tasks = []
             for serie in batch:
                 task = lambda s=serie: process_func(driver, s)
                 tasks.append(task)
 
-            # Executar batch em paralelo
             batch_results = asyncio.run(self.process_parallel(tasks))
             results.extend(batch_results)
 
@@ -320,7 +255,6 @@ class ParallelProcessor:
 
         return results
 
-# Instâncias globais dos otimizadores
 performance_optimizer = PerformanceOptimizer()
 polling_reducer = PollingReducer()
 cache_manager = CacheManager()

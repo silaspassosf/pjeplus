@@ -13,7 +13,6 @@ from typing import Any, Dict, List, Optional, Callable, Tuple
 from Fix.core import aguardar_renderizacao_nativa
 from Fix.extracao import criar_gigs, extrair_dados_processo
 
-# URL base para navegação entre processos
 URL_MINUTA = "https://sisbajud.cnj.jus.br/minuta"
 
 
@@ -28,69 +27,42 @@ def processar_lote_sisbajud(
     fn_marcar_executado: Callable[[str, Dict[str, Any]], None],
     log: bool = True
 ) -> Dict[str, int]:
-    """
-    Processa um lote de processos SISBAJUD com driver compartilhado.
-    
-    Separa processos em 'teimosinha' (minuta) e 'resultado' (processar ordens),
-    cria um único driver SISBAJUD e processa todos sequencialmente.
-    
-    Args:
-        driver_pje: WebDriver do PJE
-        processos: Lista de processos com {numero, observacao, linha, ...}
-        progresso: Dicionário de progresso
-        fn_reindexar_linha: Função para reindexar linha na tabela
-        fn_abrir_detalhes: Função para abrir detalhes do processo
-        fn_trocar_aba: Função para trocar para nova aba
-        fn_ja_executado: Função para verificar se já foi executado
-        fn_marcar_executado: Função para marcar como executado
-        log: Se deve fazer log
-        
-    Returns:
-        dict: {'sucesso': int, 'erro': int}
-    """
+    """Processa um lote de processos SISBAJUD com driver compartilhado."""
     from .core import iniciar_sisbajud, minuta_bloqueio, processar_ordem_sisbajud
-    
+
     resultados = {'sucesso': 0, 'erro': 0}
-    
+
     if not processos:
         return resultados
-    
-    # ===== ETAPA 1: Separar processos por tipo (baseado na PRIMEIRA ação) =====
+
     processos_teimosinha = []
     processos_resultado = []
-    
+
     for proc in processos:
-        # As ações já foram determinadas por PEC/regras.py
         acoes = proc.get('acoes', [])
-        
+
         if not acoes:
-            # Fallback: se por algum motivo não veio com ações, ignorar
             continue
-        
-        # Usar PRIMEIRA ação para separar
+
         primeira_acao = acoes[0]
         acao_nome = primeira_acao.__name__ if callable(primeira_acao) else str(primeira_acao)
-        
-        # Classificar baseado na primeira ação
+
         if 'minuta_bloqueio' in acao_nome:
-            # minuta_bloqueio ou minuta_bloqueio_60
             processos_teimosinha.append(proc)
         elif 'processar_ordem' in acao_nome:
             processos_resultado.append(proc)
         else:
-            # Default
             processos_teimosinha.append(proc)
-    
+
     if log:
         _ = True
-    
+
     # ===== ETAPA 2: Armazenar aba da lista e preparar driver SISBAJUD (será criado no primeiro processo) =====
     driver_sisbajud = None
     aba_lista_pje = driver_pje.current_window_handle
-    
+
     try:
-        
-        # ===== ETAPA 3: Processar todos TEIMOSINHA =====
+
         if processos_teimosinha:
             driver_sisbajud, res = _processar_grupo(
                 driver_pje=driver_pje,
@@ -109,8 +81,7 @@ def processar_lote_sisbajud(
             )
             resultados['sucesso'] += res['sucesso']
             resultados['erro'] += res['erro']
-        
-        # ===== ETAPA 4: Processar todos RESULTADO =====
+
         if processos_resultado:
             driver_sisbajud, res = _processar_grupo(
                 driver_pje=driver_pje,
@@ -129,24 +100,24 @@ def processar_lote_sisbajud(
             )
             resultados['sucesso'] += res['sucesso']
             resultados['erro'] += res['erro']
-        
+
     except Exception as e:
         if log:
             logger.error(f"[SISBAJUD]  Erro geral: {e}")
         import traceback
         logger.exception("Erro detectado")
-        
+
     finally:
         # ===== ETAPA 5: Fechar driver SISBAJUD =====
         if driver_sisbajud:
             try:
                 driver_sisbajud.quit()
-            except Exception:  # cleanup, ignora falha ao fechar driver
+            except Exception:
                 pass
-    
+
     if log:
         logger.error(f"[SISBAJUD]  Total: {resultados['sucesso']} sucesso | {resultados['erro']} erros\n")
-    
+
     return resultados
 
 
@@ -165,164 +136,135 @@ def _processar_grupo(
     fn_marcar_executado: Callable[[str, Dict[str, Any]], None],
     log: bool = True
 ) -> Tuple[Optional[WebDriver], Dict[str, int]]:
-    """
-    Processa um grupo de processos do mesmo tipo.
-    
-    Args:
-        driver_pje: WebDriver do PJE
-        driver_sisbajud: WebDriver do SISBAJUD (compartilhado)
-        processos: Lista de processos
-        tipo: 'TEIMOSINHA' ou 'RESULTADO'
-        fn_executar: Função a executar para cada processo
-        progresso: Dicionário de progresso
-        aba_lista_pje: Handle da aba da lista PJE
-        fn_*: Funções auxiliares do PEC
-        log: Se deve fazer log
-        
-    Returns:
-        dict: {'sucesso': int, 'erro': int}
-    """
-    
+    """Processa um grupo de processos do mesmo tipo."""
+
     resultados = {'sucesso': 0, 'erro': 0}
-    
+
     for idx, proc in enumerate(processos, 1):
         numero_processo = proc.get('numero')
-        
+
         try:
-            # Verificar se já foi executado
             if fn_ja_executado(numero_processo, progresso):
                 continue
-            
-            # Reindexar linha se necessário
+
             linha = proc.get('linha')
             try:
                 linha.is_displayed()
-            except Exception:  # item individual, continua
+            except Exception:
                 linha = fn_reindexar_linha(driver_pje, numero_processo)
-            
+
             if not linha:
-                # Verificar se é acesso negado
                 try:
                     url_atual = driver_pje.current_url
                     if 'acesso-negado' in url_atual.lower() or 'access-denied' in url_atual.lower():
                         fn_marcar_executado(numero_processo, progresso)
                         resultados['erro'] += 1
                         continue
-                except Exception:  # verificacao de URL, continua
+                except Exception:
                     pass
-                
+
                 resultados['erro'] += 1
                 continue
-            
-            # Abrir detalhes do processo no PJE
+
             if not fn_abrir_detalhes(driver_pje, linha):
-                # Verificar se é acesso negado
                 try:
                     url_atual = driver_pje.current_url
                     if 'acesso-negado' in url_atual.lower() or 'access-denied' in url_atual.lower():
                         fn_marcar_executado(numero_processo, progresso)
                         resultados['erro'] += 1
                         continue
-                except Exception:  # verificacao de URL, continua
+                except Exception:
                     pass
-                
+
                 resultados['erro'] += 1
                 continue
-            
+
             aguardar_renderizacao_nativa(driver_pje, timeout=1)
             nova_aba = fn_trocar_aba(driver_pje, aba_lista_pje)
             if not nova_aba:
                 resultados['erro'] += 1
                 continue
-            
+
             aguardar_renderizacao_nativa(driver_pje, timeout=2)
 
-            # Extrair dados do processo
             dados_processo = extrair_dados_processo(driver_pje)
             if not dados_processo:
-                # Verificar se é acesso negado
                 try:
                     url_atual = driver_pje.current_url
                     if 'acesso-negado' in url_atual.lower() or 'access-denied' in url_atual.lower():
                         raise Exception(f"RESTART_SISB: ACESSO_NEGADO detectado para {numero_processo}")
                 except Exception as e:
-                    # Se a exceção é de acesso negado, propagar
                     if "RESTART_SISB" in str(e):
                         raise
-                    # Outros erros, apenas continuar
-                
+
                 try:
                     if aba_lista_pje in driver_pje.window_handles:
                         driver_pje.switch_to.window(aba_lista_pje)
-                        
+
                         for handle in list(driver_pje.window_handles):
                             if handle != aba_lista_pje:
                                 try:
                                     driver_pje.switch_to.window(handle)
                                     driver_pje.close()
-                                except Exception:  # item individual, continua
+                                except Exception:
                                     pass
 
                         driver_pje.switch_to.window(aba_lista_pje)
-                except Exception:  # cleanup, continua
+                except Exception:
                     pass
-                
+
                 resultados['erro'] += 1
                 continue
-            
+
             # ===== VERIFICAR VALOR DE BLOQUEIO ANTES DE CRIAR DRIVER SISBAJUD =====
             divida = dados_processo.get('divida', {})
             valor = divida.get('valor')
-            
+
             if not valor:
                 try:
                     criar_gigs(driver_pje, 'Bruna Atualização', log=log)
                     try:
                         if aba_lista_pje in driver_pje.window_handles:
                             driver_pje.switch_to.window(aba_lista_pje)
-                            
-                            # Fechar todas as outras abas
+
                             for handle in list(driver_pje.window_handles):
                                 if handle != aba_lista_pje:
                                     try:
                                         driver_pje.switch_to.window(handle)
                                         driver_pje.close()
-                                    except Exception:  # item individual, continua
+                                    except Exception:
                                         pass
-                            
-                            # Garantir que estamos na lista
+
                             driver_pje.switch_to.window(aba_lista_pje)
-                    except Exception:  # cleanup, continua
+                    except Exception:
                         pass
-                    
-                    # Contar como sucesso (GIGS criado)
+
                     resultados['sucesso'] += 1
                     continue
-                    
+
                 except Exception as e:
                     if log:
                         logger.error(f'[SISBAJUD_LOTE]  Erro ao criar GIGS para {numero_processo}: {e}')
-                    
-                    # FECHAR TODAS AS ABAS DO PJE EXCETO A LISTA
+
                     try:
                         if aba_lista_pje in driver_pje.window_handles:
                             driver_pje.switch_to.window(aba_lista_pje)
-                            
+
                             for handle in list(driver_pje.window_handles):
                                 if handle != aba_lista_pje:
                                     try:
                                         driver_pje.switch_to.window(handle)
                                         driver_pje.close()
-                                    except Exception:  # item individual, continua
+                                    except Exception:
                                         pass
-                            
+
                             driver_pje.switch_to.window(aba_lista_pje)
-                    except Exception:  # cleanup, continua
+                    except Exception:
                         pass
 
                     resultados['erro'] += 1
                     continue
-            
+
             if driver_sisbajud is None:
                 # Validar conexão do driver PJE antes de iniciar SISBAJUD
                 try:
@@ -333,7 +275,6 @@ def _processar_grupo(
                         raise Exception(f"RESTART_SISB: driver PJE inválido antes de iniciar SISBAJUD for {numero_processo}")
                 except Exception as e_valid:
                     logger.error(f"[SISBAJUD_LOTE] Validação do driver PJE falhou: {e_valid}")
-                    # Garantir foco na aba da lista e continuar
                     try:
                         if aba_lista_pje in driver_pje.window_handles:
                             driver_pje.switch_to.window(aba_lista_pje)
@@ -355,10 +296,10 @@ def _processar_grupo(
                                     try:
                                         driver_pje.switch_to.window(handle)
                                         driver_pje.close()
-                                    except Exception:  # item individual, continua
+                                    except Exception:
                                         pass
                             driver_pje.switch_to.window(aba_lista_pje)
-                    except Exception:  # cleanup, continua
+                    except Exception:
                         pass
                     resultados['erro'] += 1
                     continue
@@ -371,14 +312,13 @@ def _processar_grupo(
                         logger.error(f"[SISBAJUD_LOTE] Driver SISBAJUD inválido após criação for {numero_processo}: {ok_sisb}")
                         try:
                             driver_sisbajud.quit()
-                        except Exception:  # cleanup, ignora falha ao fechar driver
+                        except Exception:
                             pass
                         resultados['erro'] += 1
                         continue
                 except Exception:
-                    # Se a validação falhar por qualquer motivo, prosseguir com cautela
                     pass
-                
+
             try:
                 driver_sisbajud.get(URL_MINUTA)
                 aguardar_renderizacao_nativa(driver_sisbajud, timeout=1)
@@ -393,7 +333,6 @@ def _processar_grupo(
                 resultados['erro'] += 1
                 continue
 
-            # Executar TODAS AS AÇÕES determinadas para este processo
             acoes = proc.get('acoes', [])
 
             if acoes:
@@ -404,7 +343,6 @@ def _processar_grupo(
                     else:
                         continue
             else:
-                # Fallback para fn_executar se não tiver ações (compatibilidade)
                 resultado = fn_executar(driver_sisbajud, dados_processo, driver_pje)
 
             # Limpar driver SISBAJUD entre processos (evita estado residual da SPA Angular)
@@ -413,57 +351,52 @@ def _processar_grupo(
                 aguardar_renderizacao_nativa(driver_sisbajud, timeout=2)
             except Exception:
                 pass
-            
-            # FECHAR TODAS AS ABAS DO PJE EXCETO A LISTA
+
             # (Evita que abas remanescentes causem confusão entre processos)
             try:
-                # Voltar para lista primeiro
                 if aba_lista_pje in driver_pje.window_handles:
                     driver_pje.switch_to.window(aba_lista_pje)
-                    
-                    # Fechar todas as outras abas
+
                     for handle in list(driver_pje.window_handles):
                         if handle != aba_lista_pje:
                             try:
                                 driver_pje.switch_to.window(handle)
                                 driver_pje.close()
-                            except Exception:  # item individual, continua
+                            except Exception:
                                 pass
-                    
-                    # Garantir que estamos na lista
+
                     driver_pje.switch_to.window(aba_lista_pje)
             except Exception as e:
                 if log:
                     logger.error(f"   Erro ao fechar abas: {e}")
                 try:
                     driver_pje.switch_to.window(aba_lista_pje)
-                except Exception:  # cleanup, continua
+                except Exception:
                     pass
-            
-            # Avaliar resultado
+
             sucesso = False
             if isinstance(resultado, dict):
                 sucesso = resultado.get('status') == 'concluido'
             elif resultado:
                 sucesso = True
-            
+
             try:
                 if aba_lista_pje in driver_pje.window_handles:
                     driver_pje.switch_to.window(aba_lista_pje)
-                    
+
                     for handle in list(driver_pje.window_handles):
                         if handle != aba_lista_pje:
                             try:
                                 driver_pje.switch_to.window(handle)
                                 driver_pje.close()
-                            except Exception:  # item individual, continua
+                            except Exception:
                                 pass
-                    
+
                 fn_marcar_executado(numero_processo, progresso)
             except Exception as e:
                 if log:
                     logger.error(f"   Erro ao fechar abas: {e}")
-            
+
             if log:
                 pass
             else:
@@ -474,7 +407,7 @@ def _processar_grupo(
             resultados['erro'] += 1
             try:
                 driver_pje.switch_to.window(aba_lista_pje)
-            except Exception:  # cleanup, continua
+            except Exception:
                 pass
 
     return driver_sisbajud, resultados

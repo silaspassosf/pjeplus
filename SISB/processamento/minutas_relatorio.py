@@ -18,7 +18,7 @@ def _gerar_relatorio_minuta(driver, numero_processo, dados_processo=None, salvar
         if dados_relatorio:
             try:
                 if salvar_clipboard:
-                    from PEC.anexos import salvar_conteudo_clipboard
+                    from atos.anexos import salvar_conteudo_clipboard
 
                     salvar_conteudo_clipboard(
                         conteudo=dados_relatorio,
@@ -27,7 +27,6 @@ def _gerar_relatorio_minuta(driver, numero_processo, dados_processo=None, salvar
                         debug=True
                     )
 
-                # Minutas criadas aguardam assinatura/protocolo do juiz: protocolo fica em branco
                 protocolo = ""
 
                 return {
@@ -47,18 +46,7 @@ def _gerar_relatorio_minuta(driver, numero_processo, dados_processo=None, salvar
 
 
 def _protocolar_minuta(driver, log=True):
-    """Protocolar/assinar minuta no SISBAJUD.
-
-    Clica em 'Protocolar', digita senha no modal, confirma e verifica
-    sucesso pelo botao 'Copiar Dados para Nova Ordem'.
-
-    Args:
-        driver: WebDriver SISBAJUD (ja na pagina da minuta apos salvar)
-        log: Se True, exibe logs detalhados
-
-    Returns:
-        str: protocolo extraido da URL se sucesso, None caso contrario
-    """
+    """Protocolar/assinar minuta no SISBAJUD."""
     import random
     import time
     from selenium.webdriver.common.keys import Keys
@@ -71,7 +59,6 @@ def _protocolar_minuta(driver, log=True):
 
         espera.assentar(driver, 1)
 
-        # 1. Clicar no botao "Protocolar" (martelo + texto)
         script_clicar = """
         const buttons = Array.from(document.querySelectorAll('button'));
         const btn = buttons.find(b => {
@@ -91,10 +78,8 @@ def _protocolar_minuta(driver, log=True):
         if log:
             logger.info('[SISBAJUD][PROTOCOLO] Botao Protocolar clicado')
 
-        # 2. Aguardar modal de senha
         espera.ate_aparecer(driver, 'input[type="password"][formcontrolname="senha"]', teto=5)
 
-        # 3. Digitar senha
         campo_senha = driver.find_element(By.CSS_SELECTOR, 'input[type="password"][formcontrolname="senha"]')
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", campo_senha)
         espera.assentar(driver, 0.3)
@@ -120,7 +105,6 @@ def _protocolar_minuta(driver, log=True):
         if log:
             logger.info('[SISBAJUD][PROTOCOLO] Senha digitada')
 
-        # 4. Clicar Confirmar
         espera.assentar(driver, 0.5)
         script_confirmar = """
         const buttons = Array.from(document.querySelectorAll('button[type="submit"]'));
@@ -152,7 +136,6 @@ def _protocolar_minuta(driver, log=True):
             except Exception:
                 pass
 
-        # 6. Extrair protocolo da URL
         import re as _re
         protocolo = None
         try:

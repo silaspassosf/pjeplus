@@ -9,18 +9,7 @@ SISB Minutas - Processamento de reus
 
 
 def _processar_reus_otimizado(driver, reus, max_validos=10):
-    """
-    Helper para processar reus de forma otimizada.
-
-    Args:
-        driver: WebDriver do SISBAJUD
-        reus: Lista de dicts com 'cpfcnpj' e 'nome'
-        max_validos: Limite de reus validos a adicionar (default 10).
-                     Para de adicionar quando atinge esse numero.
-
-    Returns:
-        dict com 'sucesso', 'adicionados', 'removidos', 'processados_ate' (indice)
-    """
+    """Helper para processar reus de forma otimizada."""
     try:
         from ..utils import criar_js_otimizado
 
@@ -39,7 +28,6 @@ def _processar_reus_otimizado(driver, reus, max_validos=10):
                     'nome': reu.get('nome', '')
                 })
 
-        # JSON-encode para garantir escape seguro de strings no JS
         reus_json = json.dumps(lista_reus_js, ensure_ascii=False)
 
         script_processar_reus = f"""

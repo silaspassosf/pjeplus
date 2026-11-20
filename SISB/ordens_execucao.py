@@ -1,14 +1,4 @@
-"""
-SISB.ordens_execucao - Execucao detalhada de ordens SISBAJUD e validacao.
-
-Merge de:
-  - SISB/processamento_ordens_processamento.py (_processar_ordem)
-  - SISB/validation/processor.py              (_validar_dados)
-
-Public contracts:
-  - _processar_ordem(driver, ordem, tipo_fluxo, log, valor_parcial, apenas_extrair)
-  - _validar_dados(dados_processo)
-"""
+"""SISB.ordens_execucao - Execucao detalhada de ordens SISBAJUD e validacao."""
 
 import logging
 import time as time_module
@@ -21,23 +11,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from Fix.core import safe_click, safe_click_no_scroll
 from Fix.log import logger
 
-# ---------------------------------------------------------------------------
-# _validar_dados - validacao de dados do processo
-# ---------------------------------------------------------------------------
-
 
 def _validar_dados(dados_processo):
-    """
-    Helper para validar dados do processo necessarios para minuta de bloqueio.
-
-    Args:
-        dados_processo: Dados do processo (se None, carrega do arquivo dadosatuais.json)
-
-    Returns:
-        tuple: (dados_validos, numero_processo) onde dados_validos é bool e numero_processo é str
-    """
+    """Helper para validar dados do processo necessarios para minuta de bloqueio."""
     try:
-        # Se dados_processo não foi fornecido, carregar do arquivo
         if not dados_processo:
             try:
                 from ..utils import carregar_dados_processo
@@ -48,7 +25,6 @@ def _validar_dados(dados_processo):
                 logger.error(f'[SISBAJUD]  Erro ao carregar dados do arquivo: {e}')
                 return False, None
 
-        # Verificar campos obrigatórios
         numero_lista = dados_processo.get('numero', [])
         if not numero_lista:
             return False, None
@@ -68,44 +44,14 @@ def _validar_dados(dados_processo):
         return False, None
 
 
-# ---------------------------------------------------------------------------
 # _processar_ordem - processamento detalhado de ordem no /desdobrar
-# ---------------------------------------------------------------------------
 
 
 def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, apenas_extrair=False):
-    """
-    Processa uma ordem individual do SISBAJUD - VERSÃO OTIMIZADA.
-
-    Otimizações aplicadas:
-    - CSS selector direto em vez de iteração (reduz latência 50%)
-    - Delays mínimos: 0.2-0.3s entre ações (em vez de 0.5s)
-    - WebDriverWait com timeout curto (máximo 3s)
-    - Safe click com simulação humana mínima
-
-    Sequência:
-    1. Localizar linha por CSS selector direto
-    2. Clicar em menu (botão ellipsis)
-    3. Clicar em "Detalhar"
-    4. (Se apenas_extrair=False) Selecionar Juiz, ação, dados de transferência
-    5. (Se apenas_extrair=False) Salvar
-    6. (Se apenas_extrair=True) Apenas extrair dados e voltar
-
-    Args:
-        driver: WebDriver SISBAJUD
-        ordem: Dict com 'sequencial', 'data', 'valor_bloqueio_esperado', 'protocolo', 'linha_el'
-        tipo_fluxo: 'POSITIVO' ou 'DESBLOQUEIO'
-        log: Se deve fazer log
-        valor_parcial: Se presente, faz transferência parcial com este valor (float)
-        apenas_extrair: Se True, apenas abre /desdobrar, extrai dados e volta (sem processar)
-
-    Returns:
-        bool: True se processamento bem-sucedido
-    """
+    """Processa uma ordem individual do SISBAJUD - VERSÃO OTIMIZADA."""
     _start_geral = time_module.time()
 
     try:
-        # inicializar metricas leves no driver
         try:
             if not hasattr(driver, '_sisb_metrics') or driver._sisb_metrics is None:
                 driver._sisb_metrics = {
@@ -122,26 +68,19 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
         logger.debug("[SISBAJUD] [ORDEM] Processando ordem %s (tipo: %s) +0.0s", ordem['sequencial'], tipo_fluxo)
         logger.debug("[SISBAJUD] [ORDEM] URL atual: %s", driver.current_url)
 
-        # ===== VERIFICAR SE ESTÁ NA PÁGINA CORRETA =====
-        # URL esperadas:
         # - https://sisbajud.cnj.jus.br/teimosinha/{id_serie}/detalhes (lista de ordens - CORRETO)
         # - https://sisbajud.pdpj.jus.br/teimosinha (página de pesquisa - ERRADO)
         # - https://sisbajud.cnj.jus.br/minuta (minuta - ERRADO)
 
         url_atual = driver.current_url.lower()
 
-        # Verificar se está em página inválida (não deve fazer back se estiver em /detalhes)
         if "/detalhes" not in url_atual and ("/minuta" in url_atual or url_atual.endswith("/teimosinha")):
             logger.warning("[SISBAJUD] [ORDEM] ALERTA: Pagina incorreta detectada! Tentando navegar para lista de ordens da serie...")
-            # NÃO usar driver.back() - pode piorar a situação
-            # Retornar False para que o retry externo navegue corretamente
             return False
 
-        # ===== OTIMIZAÇÃO 1: CSS SELECTOR DIRETO =====
         # Em vez de iterar todas as linhas, usar XPath direto para a ordem
         sequencial = ordem['sequencial']
 
-        # Seletor otimizado: vai direto para a linha com o sequencial
         xpath_linha = f"//tr[.//td[contains(@class,'cdk-column-index') and normalize-space(text())='{sequencial}']]"
 
         try:
@@ -149,11 +88,9 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
                 EC.presence_of_element_located((By.XPATH, xpath_linha))
             )
             logger.debug("[SISBAJUD] [ORDEM] Linha localizada via XPath direto +%.1fs", time_module.time()-_start_geral)
-        except Exception:  # item individual, continua
+        except Exception:
             logger.debug("[SISBAJUD] [ORDEM] Fallback: buscando linha por CSS selector...")
-            # Fallback: buscar via CSS selector de tabela
             try:
-                # Aguardar tabela estabilizar após navegação
                 tabela = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "table.mat-table tbody tr.mat-row"))
                 )
@@ -173,7 +110,7 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
                             linha_el = linha
                             logger.debug("[SISBAJUD] [ORDEM] Linha encontrada: ordem %s", sequencial)
                             break
-                    except Exception:  # item individual, continua
+                    except Exception:
                         continue
 
                 if not linha_el:
@@ -185,7 +122,6 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
 
         # ===== ABRIR ORDEM =====
         # mat-icon.icone-ativo tem aria-hidden=true — não tem binding Angular.
-        # Navegação real: button.mat-menu-trigger (ellipsis) → item "Detalhar"
         abriu = False
         try:
             btn_menu = linha_el.find_element(By.CSS_SELECTOR, "button.mat-menu-trigger")
@@ -208,7 +144,6 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
         except Exception as e_menu:
             logger.error("ERRO em _processar_ordem: Menu ellipsis falhou: %s", e_menu)
 
-        # Fallback final: menu ellipsis → Detalhar
         if not abriu:
             logger.debug("[SISBAJUD] [ORDEM] Ultimo fallback: menu ellipsis...")
             try:
@@ -231,8 +166,7 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
             logger.error("ERRO em _processar_ordem: Impossivel abrir ordem %s — todos os seletores falharam", sequencial)
             return False
 
-        # ===== AGUARDAR /DESDOBRAR =====
-        for tentativa in range(20):  # 20 × 0.5s = 10s máximo
+        for tentativa in range(20):
             if "/desdobrar" in driver.current_url:
                 logger.debug("[SISBAJUD] [ORDEM] Pagina /desdobrar carregada +%.1fs", time_module.time()-_start_geral)
                 break
@@ -242,18 +176,15 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
             logger.error("ERRO em _processar_ordem: Pagina /desdobrar nao carregou apos 10s (URL: %s)", url_atual_debug)
             return False
 
-        # ===== VERIFICAR SE APENAS EXTRAÇÃO: EXTRAIR DADOS E VOLTAR =====
         if apenas_extrair:
             logger.debug("[SISBAJUD] [ORDEM] Modo apenas extracao - coletando dados...")
 
             try:
-                # Extrair dados dos bloqueios
                 from .helpers import extrair_dados_bloqueios_processados
                 protocolo_ordem = ordem.get('protocolo', 'N/A')
 
                 dados_ordem = extrair_dados_bloqueios_processados(driver, log, protocolo_ordem=protocolo_ordem)
 
-                # Atualizar entrada do relatório com discriminação
                 if '_relatorio' in ordem and dados_ordem:
                     ordem['_relatorio']['status'] = 'processado'
                     ordem['_relatorio']['discriminacao'] = dados_ordem
@@ -275,7 +206,6 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
 
             except Exception as e_ext:
                 logger.error("ERRO em _processar_ordem: Erro ao extrair dados: %s", e_ext)
-                # Tentar voltar para lista de ordens mesmo com erro
                 try:
                     from .navegacao import _voltar_para_lista_ordens_serie
                     _voltar_para_lista_ordens_serie(driver, log)
@@ -287,15 +217,12 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
                 time_module.sleep(0.5)
                 return False
 
-
-        # ===== PROCESSAMENTO COMPLETO VIA JS ASYNC =====
         texto_acao = 'Transferir valor' if tipo_fluxo == 'POSITIVO' else 'Desbloquear valor'
 
         logger.debug("[SISBAJUD] [ORDEM] JS async: processando /desdobrar (tipo=%s)...", tipo_fluxo)
 
         driver.set_script_timeout(90)
 
-        # registrar chamada JS async (vai incrementar quando executado)
         try:
             driver._sisb_metrics['js_calls'] += 1
         except Exception:

@@ -8,9 +8,7 @@ SISB Relatorios - Formatacao e conteudo
 
 
 def gerar_relatorio_bloqueios_processados(dados_bloqueios, log=True):
-    """
-    Gera o relatorio formatado dos bloqueios processados agrupados por executado.
-    """
+    """Gera o relatorio formatado dos bloqueios processados agrupados por executado."""
     try:
         if not dados_bloqueios or not dados_bloqueios.get('executados'):
             return "Nenhum bloqueio processado encontrado."
@@ -78,9 +76,7 @@ def gerar_relatorio_bloqueios_processados(dados_bloqueios, log=True):
 
 
 def gerar_relatorio_bloqueios_conciso(dados_bloqueios, log=True):
-    """
-    Gera versao concisa do relatorio de bloqueios.
-    """
+    """Gera versao concisa do relatorio de bloqueios."""
     try:
         if not dados_bloqueios or not dados_bloqueios.get('executados'):
             return ""

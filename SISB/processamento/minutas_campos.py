@@ -7,22 +7,134 @@ logger = logging.getLogger(__name__)
 SISB Minutas - Preenchimento de campos iniciais
 """
 
+_SEL_FORM_MINUTA = ('input[placeholder*="Juiz"], input[formcontrolname="numeroProcesso"], '
+                    'input[placeholder*="processo"]')
+
+# Nome único: permite recuperar o progresso do script MESMO quando a avaliação
+# morre (contexto destruído). Sem isto o `log` interno se perdia na exceção e o
+# log da execução não dizia em qual passo (Juiz/Vara/Processo/...) falhou.
+_FN_CAMPOS = 'pjeplusPreencherMinuta'
+
+
+def _exec_js(driver, script):
+    from Fix import espera
+    return espera._executar_script(driver, script)
+
+
+def _snapshot_cadastro(driver, momento):
+    """Despeja o estado da tela de cadastro para diagnóstico (nunca levanta)."""
+    try:
+        info = _exec_js(driver, """
+            const q = s => document.querySelector(s);
+            const val = s => { const e = q(s); return e ? (e.value || '') : null; };
+            const txt = (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ');
+            return {
+                url: location.href,
+                titulo: document.title,
+                readyState: document.readyState,
+                cadastro: !!q('sisbajud-cadastro-minuta'),
+                juiz: val('input[placeholder*="Juiz"]'),
+                processo: val('input[placeholder="Número do Processo"]')
+                          || val('input[formcontrolname="numeroProcesso"]'),
+                vara: !!q('mat-select[name*="varaJuizoSelect"], mat-select[aria-label*="Selecione a Vara"]'),
+                dataLimite: val('input[placeholder*="Data limite"], input[formcontrolname="dataLimite"]'),
+                overlay: !!q('.cdk-overlay-container .mat-select-panel, .cdk-overlay-container mat-calendar'),
+                dialog: !!q('sisbajud-dialog-aviso-ordem-pendente, mat-dialog-container'),
+                spinner: !!q('mat-progress-spinner, mat-spinner, .loading'),
+                passos: (window.__pjeplusCamposLog || []).slice(-12),
+                texto: txt.slice(0, 240)
+            };
+        """) or {}
+        if not isinstance(info, dict):
+            logger.warning('[SISBAJUD][CAMPOS][SNAPSHOT %s] retorno inesperado: %r', momento, info)
+            return {}
+        logger.info('[SISBAJUD][CAMPOS][SNAPSHOT %s] url=%s cadastro=%s juiz=%r processo=%r '
+                    'vara=%s dataLimite=%r overlay=%s dialog=%s spinner=%s',
+                    momento, info.get('url'), info.get('cadastro'), info.get('juiz'),
+                    info.get('processo'), info.get('vara'), info.get('dataLimite'),
+                    info.get('overlay'), info.get('dialog'), info.get('spinner'))
+        passos = info.get('passos') or []
+        if passos:
+            logger.info('[SISBAJUD][CAMPOS][SNAPSHOT %s] últimos passos do script: %s',
+                        momento, ' | '.join(str(p) for p in passos))
+        if info.get('texto'):
+            logger.info('[SISBAJUD][CAMPOS][SNAPSHOT %s] tela: %s', momento, info['texto'])
+        return info
+    except Exception as e:
+        logger.warning('[SISBAJUD][CAMPOS][SNAPSHOT %s] falhou: %s: %s',
+                       momento, type(e).__name__, e)
+        return {}
+
+
+def _executar_campos_resiliente(driver, script, tentativas=2):
+    """Roda o script de preenchimento e retenta uma vez se a SPA navegar no meio."""
+    from Fix import espera
+
+    _snapshot_cadastro(driver, 'antes')
+    ultimo_erro = None
+    for tent in range(1, tentativas + 1):
+        try:
+            return driver.execute_async_script(script)
+        except Exception as e:
+            ultimo_erro = e
+            msg = str(e)
+            logger.error('[SISBAJUD][CAMPOS] exceção na tentativa %d/%d: %s: %s',
+                         tent, tentativas, type(e).__name__, msg)
+            try:
+                passos = _exec_js(driver, "return (window.__pjeplusCamposLog || []).slice(-15);") or []
+                if isinstance(passos, (list, tuple)) and passos:
+                    logger.error('[SISBAJUD][CAMPOS] passo a passo até a falha: %s',
+                                 ' | '.join(str(p) for p in passos))
+                else:
+                    logger.error('[SISBAJUD][CAMPOS] script não registrou nenhum passo '
+                                 '(morreu antes do 1º campo ou o contexto foi recriado)')
+            except Exception as e_log:
+                logger.error('[SISBAJUD][CAMPOS] progresso indisponível (%s) — '
+                             'contexto provavelmente recriado por navegação', e_log)
+            _snapshot_cadastro(driver, f'falha-t{tent}')
+
+            recuperavel = ('Execution context was destroyed' in msg
+                           or 'context was destroyed' in msg
+                           or 'navigation' in msg.lower())
+            if not recuperavel or tent >= tentativas:
+                raise
+            logger.warning('[SISBAJUD][CAMPOS] contexto destruido (SPA navegou) — '
+                           'reassentando e reexecutando (tentativa %d/%d)',
+                           tent + 1, tentativas)
+            espera.assentar(driver, 1.5, motivo='SPA reassentando antes do preenchimento')
+            if not espera.ate_habilitar(driver, _SEL_FORM_MINUTA, teto=15):
+                logger.error('[SISBAJUD][CAMPOS] formulário não voltou a ficar habilitado')
+                raise ultimo_erro
+    raise ultimo_erro
+
+
+def _proximo_dia_util(data):
+    """Primeiro dia útil a partir de `data` (inclusive).
+
+    Usa o calendário de dias úteis/feriados do projeto
+    (dias-uteis-trt2-<ano>.json, via PEC.runtime_pec). Fora da faixa do
+    calendário cai no critério seg-sex.
+    """
+    try:
+        from PEC.runtime_pec import _carregar_calendario_dias_uteis
+        dias_uteis, intervalo = _carregar_calendario_dias_uteis()
+    except Exception:
+        dias_uteis, intervalo = set(), None
+
+    alvo = data
+    for _ in range(60):
+        dentro_do_calendario = bool(intervalo) and intervalo[0] <= alvo <= intervalo[1]
+        if dias_uteis and dentro_do_calendario:
+            if alvo in dias_uteis:
+                return alvo
+        elif alvo.weekday() < 5:
+            return alvo
+        alvo += timedelta(days=1)
+    return alvo
+
 
 def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanha=False, agendar_offset=1):
-    """
-    Helper para preencher campos iniciais da minuta de bloqueio.
-
-    Args:
-        driver: WebDriver do SISBAJUD
-        dados_processo: Dados do processo
-        prazo_dias: Prazo em dias (0, 1, 30 ou 60). 0 = amanhã para teimosinha.
-        agendar_amanha: Se True, seleciona 'Agendar protocolo = Sim' e define
-                        a data do protocolo conforme agendar_offset + regras de
-                        horário/dia da semana.
-        agendar_offset: Offset base em dias para o agendamento (default=1).
-                        Ex: offset=1 → amanhã (d+1), offset=2 → d+2.
-                        Aplica-se a regra de pós-19h e sexta-feira sobre o offset.
-    """
+    """Preenche campos iniciais da minuta de bloqueio (prazo_dias=0 -> amanhã para teimosinha)."""
     try:
         from ..utils import criar_js_otimizado
 
@@ -47,18 +159,9 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
 
         # Calcular data de agendamento da 2ª minuta conforme horário e dia da semana
         _agora = datetime.now()
-        _hora = _agora.hour
-        _dia_semana = _agora.weekday()  # 0=segunda .. 4=sexta, 5=sáb, 6=dom
-
-        if _dia_semana == 4:            # Sexta-feira
-            if _hora < 19:
-                _amanha = _agora + timedelta(days=agendar_offset + 2)   # pula fim de semana → segunda (offset 1) ou terça (offset 2)
-            else:
-                _amanha = _agora + timedelta(days=agendar_offset + 3)   # pula fim de semana → terça (offset 1) ou quarta (offset 2)
-        elif _hora >= 19:
-            _amanha = _agora + timedelta(days=agendar_offset + 1)       # após 19h → d+offset+1
-        else:
-            _amanha = _agora + timedelta(days=agendar_offset)           # antes 19h, dia útil → d+offset
+        # após 19h o protocolo não pode ser para o próprio dia seguinte
+        _offset = agendar_offset + (1 if _agora.hour >= 19 else 0)
+        _amanha = _proximo_dia_util((_agora + timedelta(days=_offset)).date())
 
         _ag_ano = _amanha.year
         _ag_mes = _amanha.month - 1   # 0-based para JS
@@ -146,7 +249,7 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
 
         numdias = prazo_dias
         hoje = datetime.now()
-        data_fim = hoje + timedelta(days=numdias + 1)
+        data_fim = _proximo_dia_util((hoje + timedelta(days=numdias + 1)).date())
 
         ano = data_fim.year
         mes_d = data_fim.month - 1
@@ -292,6 +395,15 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
 
         async function preencherMinutaCompleta() {{
             let log = [];
+            // Espelho em window: sobrevive a "Execution context was destroyed",
+            // permitindo ao Python dizer em qual passo o preenchimento morreu.
+            window.__pjeplusCamposLog = log;
+            const _push = log.push.bind(log);
+            log.push = function(...msgs) {{
+                msgs.forEach(m => _push(String(m)));
+                return log.length;
+            }};
+            log.push('0. Script iniciado em ' + location.href);
 
             try {{
                 log.push('1. Preenchendo Juiz...');
@@ -458,14 +570,19 @@ def _preencher_campos_iniciais(driver, dados_processo, prazo_dias, agendar_amanh
                 return {{sucesso: true, msg: 'Campos preenchidos com sucesso', log: log, data_final: dataFinal}};
 
             }} catch(e) {{
+                log.push('[ERRO] ' + (e && e.message ? e.message : e));
                 return {{sucesso: false, msg: 'Erro: ' + e.message, log: log}};
             }}
         }}
 
-        return preencherMinutaCompleta().then(arguments[arguments.length - 1]).catch(e => arguments[arguments.length - 1]({{sucesso: false, msg: 'Excecao assincrona: ' + (e && e.message ? e.message : e), log: []}}));
+        return preencherMinutaCompleta().then(arguments[arguments.length - 1]).catch(e => {{
+            const msg = 'Excecao assincrona: ' + (e && e.message ? e.message : e);
+            try {{ (window.__pjeplusCamposLog || []).push('[ERRO] ' + msg); }} catch (_) {{}}
+            arguments[arguments.length - 1]({{sucesso: false, msg: msg, log: window.__pjeplusCamposLog || []}});
+        }});
         """
 
-        resultado_campos = driver.execute_async_script(script_unico_campos)
+        resultado_campos = _executar_campos_resiliente(driver, script_unico_campos)
 
         # Logar detalhadamente TODAS as mensagens do script JS no log da execução:
         if resultado_campos and isinstance(resultado_campos, dict) and resultado_campos.get('log'):

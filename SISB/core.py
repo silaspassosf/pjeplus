@@ -1065,6 +1065,40 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
     return None
 
 
+def _atualizar_calculo_antigo(driver_pje, dados_processo, valor, log=True):
+    """Ponto calculo_antigo do fluxo teimosinha: roda a atualização rápida
+    (data atual, cálculo mais recente) e repuxa o valor novo via API, mutando
+    ``dados_processo['divida']`` para a minuta usar o valor atualizado.
+
+    Devolve ``(pendencia, valor)``:
+      (None, valor_novo)        — atualizado e API já reflete: minuta com valor
+                                  novo, sem marcação CALC no GIGS;
+      ('calculo_antigo', valor) — atualização falhou OU API ainda não reflete:
+                                  mantém o comportamento anterior (valor antigo
+                                  + GIGS 'xs resultado CALC'). Nunca reenvia.
+    """
+    from Fix.atualizacao_rapida import AtualizacaoRapidaErro, atualizar_calculo_se_antigo
+    try:
+        atualizar_calculo_se_antigo(driver_pje, dados_processo, log=log)
+    except AtualizacaoRapidaErro as e:
+        if log:
+            logger.info(f'[SISBAJUD]  Atualização rápida falhou (pos_envio={e.pos_envio}): {e} '
+                        '— minuta seguirá com valor anterior + GIGS CALC')
+        return 'calculo_antigo', valor
+    divida = dados_processo.get('divida') or {}
+    valor_novo = divida.get('valor') or valor
+    data_nova = divida.get('data', '')
+    try:
+        _dt_nova = datetime.strptime(data_nova, '%d/%m/%Y')
+        if (datetime.now() - _dt_nova).days <= 90:
+            if log:
+                logger.info(f'[SISBAJUD]  Cálculo atualizado — minuta usará {valor_novo} (liquidado em {data_nova})')
+            return None, valor_novo
+    except (ValueError, TypeError):
+        pass
+    return 'calculo_antigo', valor
+
+
 def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fechar_driver=True, prazo_dias=None, protocolar=False):
     """
     Orquestra a criação de minuta de bloqueio no SISBAJUD:
@@ -1154,6 +1188,11 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     pendencia = 'calculo_antigo'
                     if log:
                         logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>3 meses)')
+                    # Cálculo antigo: atualiza AGORA (atualização rápida autônoma,
+                    # data atual) e repuxa o valor novo via API para esta minuta.
+                    # A juntada não é pré-requisito — se falhar adiante, o GIGS
+                    # 'xs resultado CALC' segue cobrindo a retomada.
+                    pendencia, valor = _atualizar_calculo_antigo(driver_pje, dados_processo, valor, log=log)
             except Exception:
                 pass
         
@@ -1303,7 +1342,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                 if isinstance(relatorio_gerado, dict):
                     relatorio_gerado['conteudo'] = conteudo
                 try:
-                    from PEC.anexos import salvar_conteudo_clipboard
+                    from atos.anexos import salvar_conteudo_clipboard
                     salvar_conteudo_clipboard(
                         conteudo=conteudo,
                         numero_processo=numero_processo,
@@ -1368,7 +1407,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     logger.info(f'[SISBAJUD]  Erro ao tentar ajustar foco para PJe: {e}')
 
                 # Juntada (wrapper ja inclui navegacao, juntada e fechamento da aba)
-                from PEC.anexos import anex_sisbconsulta
+                from atos.anexos import anex_sisbconsulta
                 juntada_executada = anex_sisbconsulta(driver_pje, numero_processo, debug=log, modelo='xteim')
                 resultado['juntada_executada'] = bool(juntada_executada)
                 if juntada_executada and log:
@@ -1575,7 +1614,23 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
             logger.info(f'[SISBAJUD] Data limite para filtro: {data_limite.strftime("%d/%m/%Y")} (30 dias)')
 
         # 3. Filtrar séries válidas
-        series_validas = helpers._filtrar_series(driver, data_limite)
+        #    "Tabela não lida" != "não há séries na janela": a página pode não ter
+        #    renderizado ainda. Caso 1001531-84 (05/11): 1s após abrir a série veio
+        #    "0 de 0", o fluxo concluiu e a tarefa foi marcada ✅ SEM juntar/despachar.
+        leitura = helpers._filtrar_series(driver, data_limite)
+        series_validas = leitura.get('series') or []
+        if not series_validas and (leitura.get('erro') or leitura.get('lidas', 0) == 0):
+            logger.warning('[SISBAJUD] Tabela de séries não lida (%s) — aguardando e relendo',
+                           leitura.get('erro') or '0 linha(s)')
+            espera.assentar(driver, 3.0, motivo='tabela de séries do SISBAJUD')
+            leitura = helpers._filtrar_series(driver, data_limite)
+            series_validas = leitura.get('series') or []
+            if not series_validas and (leitura.get('erro') or leitura.get('lidas', 0) == 0):
+                resultado['status'] = 'erro'
+                resultado['erros'].append(
+                    'Tabela de séries do SISBAJUD não carregou (%s) — nada foi processado'
+                    % (leitura.get('erro') or '0 linha(s)'))
+                return resultado
         if not series_validas:
             resultado['status'] = 'concluido'
             resultado['erros'].append('Não há séries válidas para processar')
@@ -1656,6 +1711,11 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                 url_detalhe = driver_pje.current_url or ''
             except Exception:
                 pass
+            # LACO: relatorio pronto no SISBAJUD -> volta o foco para o PJe no
+            # /detalhe DESTE processo antes de juntar.
+            _voltar_para_pje_detalhe(
+                driver_pje, numero_processo,
+                (dados_processo or {}).get('id_processo'), log=log)
             juntada_executada = helpers._executar_juntada_pje(driver_pje, tipo_fluxo, numero_processo, log)
             resultado['juntada_executada'] = juntada_executada
             
@@ -2142,6 +2202,11 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     pendencia = 'calculo_antigo'
                     if log:
                         logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>3 meses)')
+                    # Cálculo antigo: atualiza AGORA (atualização rápida autônoma,
+                    # data atual) e repuxa o valor novo via API para as minutas.
+                    # A juntada não é pré-requisito — se falhar adiante, o GIGS
+                    # 'xs resultado CALC' segue cobrindo a retomada.
+                    pendencia, valor = _atualizar_calculo_antigo(driver_pje, dados_processo, valor, log=log)
             except Exception:
                 pass
 
@@ -2162,16 +2227,16 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         # =====================================================================
         logger.info(f'[SISBAJUD] === CRIANDO 1ª MINUTA (prazo {prazo_dias} dias) ===')
 
-        # 3a. Navegar diretamente para /minuta/cadastrar (evita delay e refresh de listagem)
+        # 3a. Navegar para /minuta/cadastrar ESPERANDO o formulario ficar pronto.
+        #     `aguardar_renderizacao_nativa(timeout=3)` só espera readyState: a SPA
+        #     continuava navegando e o preenchimento caía no meio da transicao
+        #     ("Elemento nao encontrado: input[placeholder*='Juiz']" e "Execution
+        #     context was destroyed", casos 1000215-94 e 1001652-59 em 05/11).
         URL_CADASTRAR = "https://sisbajud.cnj.jus.br/minuta/cadastrar"
-        try:
-            logger.info(f'[SISBAJUD] Navegando diretamente para cadastro de minuta: {URL_CADASTRAR}')
-            driver.get(URL_CADASTRAR)
-            from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, timeout=3)
-        except Exception as e_nav:
-            if log:
-                logger.info(f'[SISBAJUD]  Erro ao navegar para /minuta/cadastrar: {e_nav}')
+        if not _abrir_cadastro_minuta(driver, '1ª minuta', log=log):
+            resultado['status'] = 'erro'
+            resultado['erros'].append('1ª minuta: formulário de cadastro não carregou')
+            return resultado
 
         # Fallback caso a rota direta não abra o formulário: clica em Nova Minuta
         if '/cadastrar' not in (driver.current_url or ''):
@@ -2239,18 +2304,11 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         # =====================================================================
         logger.info('[SISBAJUD] === CRIANDO 2ª MINUTA (agendamento dia seguinte) ===')
 
-        # Navegar diretamente para /minuta/cadastrar
+        # Navegar para /minuta/cadastrar da 2ª minuta — mesma espera da 1ª
+        # (readyState nao basta: a SPA continua navegando).
         URL_CADASTRAR = "https://sisbajud.cnj.jus.br/minuta/cadastrar"
-        try:
-            logger.info(f'[SISBAJUD] Navegando diretamente para cadastro da 2ª minuta: {URL_CADASTRAR}')
-            driver.get(URL_CADASTRAR)
-            from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, timeout=3)
-            espera.ate_aparecer(driver, 'input[formcontrolname="numeroProcesso"], input[placeholder*="processo"]', teto=10)
-        except Exception as e_nav:
-            if log:
-                logger.info(f'[SISBAJUD]  Erro ao navegar para /minuta/cadastrar: {e_nav}')
-            resultado['erros'].append(f'2ª minuta: erro ao navegar: {e_nav}')
+        if not _abrir_cadastro_minuta(driver, '2ª minuta', log=log):
+            resultado['erros'].append('2ª minuta: formulário de cadastro não carregou')
 
         # Fallback caso a rota direta não abra o formulário: clica em Nova Minuta
         if '/cadastrar' not in (driver.current_url or ''):
@@ -2393,7 +2451,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
 
             resultado['relatorio_consolidado'] = consolidado
             try:
-                from PEC.anexos import salvar_conteudo_clipboard
+                from atos.anexos import salvar_conteudo_clipboard
                 salvar_conteudo_clipboard(
                     conteudo=consolidado,
                     numero_processo=numero_processo,
@@ -2408,7 +2466,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         elif dados_rel_1 and isinstance(dados_rel_1, dict) and dados_rel_1.get('conteudo'):
             # Fallback caso a 2ª minuta não tenha executado
             try:
-                from PEC.anexos import salvar_conteudo_clipboard
+                from atos.anexos import salvar_conteudo_clipboard
                 salvar_conteudo_clipboard(
                     conteudo=dados_rel_1['conteudo'],
                     numero_processo=numero_processo,
@@ -2421,29 +2479,20 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         # =====================================================================
         # === JUNTADA NO PJe (única, ao final de ambas as minutas) ===
         # =====================================================================
+        # === LACO: RELATORIO PRONTO (driver SISBAJUD) -> VOLTA PARA O PJE =====
+        # =====================================================================
+        # A minuta/relatorio ja foi gerada no driver SISBAJUD. ANTES de juntar, o
+        # foco volta para o driver PJe na aba /detalhe DESTE processo — daqui em
+        # diante (juntada, visibilidade, GIGS) nada roda no driver SISBAJUD.
         juntada_executada = False
         if (dados_rel_1 or minuta_1_salva or resultado.get('minuta_2', {}).get('salva')) and driver_pje:
+            _voltar_para_pje_detalhe(
+                driver_pje, numero_processo,
+                (dados_processo or {}).get('id_processo'), log=log)
+
             try:
-                # Garantir foco na aba /detalhe do PJe
-                aba_detalhe = None
-                for handle in list(driver_pje.window_handles):
-                    try:
-                        driver_pje.switch_to.window(handle)
-                        url = driver_pje.current_url or ''
-                        if '/detalhe' in url:
-                            aba_detalhe = handle
-                            break
-                    except Exception:
-                        continue
-
-                if aba_detalhe:
-                    try:
-                        driver_pje.switch_to.window(aba_detalhe)
-                    except Exception:
-                        pass
-
-                # Executar juntada (modelo xteim)
-                from PEC.anexos import anex_sisbconsulta
+                # Executar juntada (modelo xteim) — no driver PJe ja posicionado
+                from atos.anexos import anex_sisbconsulta
                 if log:
                     logger.info('[SISBAJUD] Executando juntada da minuta no PJe (modelo xteim)...')
                 juntada_executada = anex_sisbconsulta(driver_pje, numero_processo, debug=log, modelo='xteim')
@@ -2505,6 +2554,203 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                 pass
 
         return resultado
+
+
+def _voltar_para_pje_detalhe(driver_pje, numero_processo, id_processo=None, log=True):
+    """Relatorio pronto no SISBAJUD -> devolve o foco ao PJe no /detalhe DO PROCESSO.
+
+    Este e o passo que fecha o laco PJe -> SISBAJUD -> PJe: a partir daqui a
+    juntada e o despacho rodam no driver PJe, nunca no driver SISBAJUD.
+    Prefere a aba que ja esta no /detalhe do processo; se nao existir, navega a
+    aba atual para ele. Retorna a URL em que o PJe ficou ('' quando nao garantiu).
+    """
+    if driver_pje is None:
+        return ''
+
+    url_alvo = ''
+    if id_processo:
+        try:
+            from Fix.variaveis import url_processo_detalhe
+            url_alvo = url_processo_detalhe(id_processo)
+        except Exception as e_url:
+            logger.warning('[SISBAJUD][LACO] Nao consegui montar a URL do processo %s: %s',
+                           id_processo, e_url)
+
+    abas_vistas = []
+    aba_alvo = None
+    try:
+        for handle in list(driver_pje.window_handles):
+            try:
+                driver_pje.switch_to.window(handle)
+                url = driver_pje.current_url or ''
+            except Exception:
+                continue
+            abas_vistas.append(url)
+            if '/detalhe' not in url:
+                continue
+            if id_processo and ('/processo/%s' % id_processo) not in url:
+                continue
+            aba_alvo = handle
+            break
+    except Exception as e_abas:
+        logger.warning('[SISBAJUD][LACO] Falha ao listar abas do PJe: %s', e_abas)
+
+    if aba_alvo:
+        try:
+            driver_pje.switch_to.window(aba_alvo)
+        except Exception:
+            pass
+    elif url_alvo:
+        try:
+            driver_pje.get(url_alvo)
+            aguardar_renderizacao_nativa(driver_pje, 'pje-cabecalho-processo',
+                                         modo='aparecer', timeout=15)
+        except Exception as e_nav:
+            logger.error('[SISBAJUD][LACO] Falha ao posicionar o PJe no processo %s: %s',
+                         numero_processo, e_nav)
+            return ''
+    else:
+        logger.warning('[SISBAJUD][LACO] sem id do processo — mantendo a aba atual (%s)',
+                       getattr(driver_pje, 'current_url', ''))
+
+    try:
+        url_final = driver_pje.current_url or ''
+    except Exception:
+        url_final = ''
+    if log:
+        for u in abas_vistas:
+            logger.info('[SISBAJUD][LACO] aba candidata: %s', u)
+        logger.info('[SISBAJUD][LACO] relatório pronto — PJe de volta em: %s', url_final)
+    return url_final
+
+
+_SEL_FORM_CADASTRO = ('input[placeholder*="Juiz"], input[formcontrolname="numeroProcesso"], '
+                      'input[placeholder*="processo"]')
+
+
+_SEL_CAMPO_MINUTA = ('input[placeholder*="Juiz"], input[placeholder="Número do Processo"], '
+                     'input[formcontrolname="numeroProcesso"]')
+
+# Sonda de renderizacao real do cadastro. NAO usa "URL sem hash": o callback OIDC
+# reaproveita a mesma URL e mantem o fragmento #state=.../code=... mesmo depois de
+# concluido (visto no log de 22:59). Os sinais uteis sao o texto "Carregando" e a
+# ausencia de campo utilizavel.
+_PROBE_CADASTRO = """
+const texto = (document.body ? document.body.innerText : '');
+const campos = Array.from(document.querySelectorAll(
+    'input[placeholder*="Juiz"], input[placeholder="Número do Processo"], '
+    + 'input[formcontrolname="numeroProcesso"]'));
+const livres = campos.filter(c => !c.disabled && !c.readOnly).length;
+const carregando = /Carregando/i.test(texto);
+return {
+    pronto: location.pathname.includes('/minuta/cadastrar')
+        && document.readyState === 'complete' && !carregando && livres > 0,
+    motivo: carregando ? 'carregando'
+        : document.readyState !== 'complete' ? ('dom-' + document.readyState)
+        : livres === 0 ? 'sem-campo' : 'ok',
+    url: location.href
+};
+"""
+
+
+def _exec_js(driver, script):
+    return espera._executar_script(driver, script)
+
+
+def _aguardar_cadastro_renderizado(driver, teto=25, intervalo=0.4):
+    """Espera a tela de cadastro sair de 'Carregando', ter campo utilizavel e URL estavel em 2 amostras."""
+    visto = {'url': None, 'motivo': ''}
+
+    def _cond(d):
+        try:
+            info = _exec_js(d, _PROBE_CADASTRO) or {}
+        except Exception:
+            return False
+        if not isinstance(info, dict):
+            return False
+        visto['motivo'] = info.get('motivo') or '?'
+        if not info.get('pronto'):
+            visto['url'] = None
+            return False
+        if info.get('url') != visto['url']:
+            visto['url'] = info.get('url')
+            return False  # exige 2a amostra com a mesma URL
+        return True
+
+    try:
+        ok = bool(espera.ate(driver, _cond, teto=teto, intervalo=intervalo))
+    except Exception:
+        ok = False
+    if not ok:
+        logger.warning('[SISBAJUD] Cadastro nao renderizou em %.1fs (motivo=%s, url=%s)',
+                       teto, visto['motivo'] or '?', getattr(driver, 'current_url', '?'))
+    return ok
+
+
+def _cadastro_pronto_para_preencher(driver, teto=6):
+    """True se /minuta/cadastrar ja esta renderizado, vazio e sem aviso pos-salvamento."""
+    try:
+        if '/minuta/cadastrar' not in (driver.current_url or ''):
+            return False
+        if not _aguardar_cadastro_renderizado(driver, teto=teto):
+            return False
+        estado = _exec_js(driver, """
+            const sel = 'input[placeholder*="Juiz"], input[formcontrolname="numeroProcesso"], input[placeholder*="processo"]';
+            const campos = Array.from(document.querySelectorAll(sel));
+            if (!campos.length) return {ok: false};
+            const preenchido = campos.some(c => (c.value || '').trim().length > 0);
+            const txt = (document.body ? document.body.innerText : '').toLowerCase();
+            const posSalvamento = txt.includes('minuta salva') || txt.includes('salva com sucesso')
+                || txt.includes('protocolo') && txt.includes('gerado');
+            return {ok: !preenchido && !posSalvamento, preenchido: preenchido, posSalvamento: posSalvamento};
+        """) or {}
+        return isinstance(estado, dict) and bool(estado.get('ok'))
+    except Exception:
+        return False
+
+
+def _abrir_cadastro_minuta(driver, rotulo='minuta', log=True, tentativas=2, forcar_novo=False):
+    """Garante /minuta/cadastrar pronto; reaproveita se fresco (forcar_novo=True sempre renavega)."""
+    url = "https://sisbajud.cnj.jus.br/minuta/cadastrar"
+
+    if not forcar_novo and _cadastro_pronto_para_preencher(driver):
+        if log:
+            logger.info('[SISBAJUD] Cadastro ja aberto e fresco (%s) — sem renavegar: %s',
+                        rotulo, driver.current_url)
+        return True
+
+    for tent in range(1, tentativas + 1):
+        try:
+            if log:
+                logger.info('[SISBAJUD] Navegando para cadastro (%s, tentativa %d): %s',
+                            rotulo, tent, url)
+            driver.get(url)
+            if _aguardar_cadastro_renderizado(driver, teto=25):
+                url_1 = driver.current_url
+                espera.assentar(driver, 1.0, motivo='confirmando URL estavel do cadastro')
+                if driver.current_url != url_1:
+                    logger.warning('[SISBAJUD] SPA ainda navegando (%s): %s -> %s — reassentando',
+                                   rotulo, url_1, driver.current_url)
+                    espera.assentar(driver, 1.5, motivo='SPA terminou de navegar')
+                    if not _aguardar_cadastro_renderizado(driver, teto=15):
+                        logger.warning('[SISBAJUD] Cadastro perdido apos navegacao da SPA (%s)', rotulo)
+                        continue
+                if log:
+                    logger.info('[SISBAJUD] Formulario de cadastro pronto (%s): %s',
+                                rotulo, driver.current_url)
+                    try:
+                        from SISB.processamento.minutas_campos import _snapshot_cadastro
+                        _snapshot_cadastro(driver, f'cadastro-pronto-{rotulo}')
+                    except Exception:
+                        pass
+                return True
+            logger.warning('[SISBAJUD] Formulario de cadastro nao ficou pronto (%s, tentativa %d) — url=%s',
+                           rotulo, tent, getattr(driver, 'current_url', '?'))
+        except Exception as e_nav:
+            logger.warning('[SISBAJUD] Falha ao abrir cadastro (%s, tentativa %d): %s',
+                           rotulo, tent, e_nav)
+        espera.assentar(driver, 1.0, motivo='retentativa do cadastro de minuta')
+    return False
 
 
 def _clicar_nova_minuta(driver, log=True):

@@ -1239,13 +1239,13 @@ def _extrair_itens_pagina(payload: Any, pagina_atual: int, tamanho_pagina: int) 
     if not isinstance(payload, dict):
         return [], False
     itens = None
-    for chave in ('items', 'itens', 'content', 'resultados', 'resultado', 'data'):
+    for chave in ('items', 'itens', 'content', 'resultados', 'resultado', 'dados', 'data'):
         if payload.get(chave) is not None:
             itens = payload.get(chave)
             break
     if not isinstance(itens, list):
         itens = []
-    for k_tot in ('totalPaginas', 'totalPages'):
+    for k_tot in ('qtdPaginas', 'totalPaginas', 'totalPages'):
         tp = payload.get(k_tot)
         if isinstance(tp, int):
             return itens, pagina_atual < tp

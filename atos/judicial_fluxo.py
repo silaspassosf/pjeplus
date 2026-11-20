@@ -29,7 +29,6 @@ from typing import Optional, Tuple, Dict, List, Union, Callable, Any
 from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from .core import verificar_carregamento_pagina, aguardar_e_verificar_aba
 
-# Importações dos módulos especializados
 from .judicial_navegacao import (
     abrir_tarefa_processo,
     limpar_overlays,
@@ -54,25 +53,8 @@ def fluxo_cls(
     conclusao_tipo: str,
     forcar_iniciar_execucao: bool = False
 ) -> bool:
-    '''
-    Fluxo principal para CLS (Conclusão ao Magistrado → Minutar).
-
-    Garantia: sempre chega em Conclusão ao Magistrado, independente da tarefa
-    de origem, usando a matriz de transição do aaDespacho.
-
-    LÓGICA SEQUENCIAL:
-    1. Verificar estados especiais (/assinar, /minutar, /conclusao)
-    2. Abrir tarefa do processo se necessário (de /detalhe)
-    3. Navegar para 'Conclusão ao Magistrado' via navegacao unificada
-       (com retry + refresh entre tentativas)
-    4. Escolher tipo de conclusão
-    5. Aguardar transição para minutar e preparar campo
-
-    Returns:
-        bool: True se sucesso, False se falha
-    '''
+    """Fluxo principal para CLS (Conclusão ao Magistrado → Minutar)."""
     log_start('CLS')
-    # === TIMING: INICIO ===
     timing_inicio = time.time()
     logger.info('[CLS][TIMING][INICIO]')
 
@@ -80,22 +62,18 @@ def fluxo_cls(
         logger.info('FLUXO CLS - INICIANDO')
         logger.info('=' * 60)
 
-        # ===== VERIFICAÇÃO INICIAL: Estados especiais =====
         timing_check_estado = time.time()
         estado_atual = verificar_estado_atual(driver)
 
         timing_check_estado = time.time() - timing_check_estado
         logger.info(f'[CLS][TIMING][CHECK_ESTADO] {timing_check_estado:.3f}s estado={estado_atual}')
-        
+
         if estado_atual == 'assinar':
             logger.info('[CLS]  Processo já está em /assinar - ato cumprido')
             timing_total = time.time() - timing_inicio
             logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
-            return True, True  # (sucesso, ja_estava_estado_final=True)
+            return True, True
         elif estado_atual == 'minutar':
-            # Já na tela de minuta: não movimenta o processo, segue direto para
-            # as ações da URL /minutar (descrição, modelo...). Retornar
-            # ja_estava_estado_final=True aqui abortaria justamente esse trabalho.
             logger.info('[CLS] Processo já em /minutar — seguindo para as ações de minuta')
             timing_total = time.time() - timing_inicio
             logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar)')
@@ -106,14 +84,6 @@ def fluxo_cls(
         else:
             ja_em_conclusao = False
 
-        # ===== Tarefa "Elaborar ..." encerra o processo, em QUALQUER estado de entrada =====
-        # Na via API (atos.movimentos_fluxo.abrir_tarefa_por_api) o driver já chega
-        # em /tarefa/<id>, então estado_atual != 'detalhe' e o guard que vivia
-        # dentro do bloco /detalhe nunca rodava: o fluxo seguia para a Conclusão
-        # ao magistrado numa tarefa de elaboração e morria nos 15s, deixando o
-        # processo sem executar. Aqui o processo é encerrado como estado final
-        # (mesmo retorno do caso /detalhe), e o gateway marca "executado" e
-        # segue para o próximo.
         if not ja_em_conclusao:
             nome_cls = (getattr(driver, 'pje_tarefa_atual', '') or '').strip()
             if not nome_cls:
@@ -133,7 +103,6 @@ def fluxo_cls(
                 logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (tarefa de elaboração)')
                 return True, True
 
-        # ===== PASSO 1: ABRIR TAREFA DO PROCESSO (apenas se estivermos em /detalhe) =====
         ja_em_minutar = False
         if not ja_em_conclusao:
             # Usa estado_atual para evitar dupla leitura de URL
@@ -150,26 +119,18 @@ def fluxo_cls(
                     logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao abrir tarefa')
                     return False, False
 
-                # Tarefa "Assinar ..." = ato já cumprido: encerra o CLS aqui,
-                # sem navegar. A URL ainda é /detalhe nesse caso, então decidir
-                # pela URL (como antes) deixava o fluxo seguir tentando
-                # movimentar um processo que já estava pronto.
                 if getattr(driver, 'pje_tarefa_pronta', None) == 'assinar':
                     logger.info('[CLS] Tarefa de assinatura — ato já cumprido, encerrando CLS')
                     timing_total = time.time() - timing_inicio
                     logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (ato já assinado)')
                     return True, True
 
-                # Tarefa "Elaborar ..." = mesmo tratamento da "Assinar": o CLS
-                # não abre a tarefa nem refaz a minuta, apenas segue. Encerra
-                # aqui como estado final, igual ao ato já assinado.
                 if getattr(driver, 'pje_tarefa_pronta', None) == 'elaborar':
                     logger.info('[CLS] Tarefa de elaboração — seguindo sem abrir a minuta')
                     timing_total = time.time() - timing_inicio
                     logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (tarefa de elaboração)')
                     return True, True
 
-                # Se já está em estado final após abrir tarefa (/assinar ou /minutar)
                 if ja_em_minutar:
                     current_after = (driver.current_url or '').lower()
                     if '/assinar' in current_after:
@@ -178,16 +139,11 @@ def fluxo_cls(
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
                         return True, True
                     elif '/minutar' in current_after:
-                        # idem: /minutar é ponto de partida para as ações de
-                        # minuta, não um estado final que dispensa trabalho
                         logger.info('[CLS] Já em /minutar após abrir tarefa — seguindo para as ações de minuta')
                         timing_total = time.time() - timing_inicio
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
                         return True, False
                     else:
-                        # a tarefa não levou a nenhuma tela de ato: sem este ramo
-                        # o fluxo seguia para Conclusão e ficava tentando clicar
-                        # em botões de uma tela que não abriu.
                         logger.warning(
                             '[CLS] Tarefa "%s" não abriu tela de ato (URL=%s) — abortando CLS',
                             getattr(driver, 'pje_tarefa_atual', ''), current_after)
@@ -195,26 +151,22 @@ def fluxo_cls(
                         logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s tarefa não abriu')
                         return False, False
 
-                # Se abriu direto em /conclusao, marca para pular a navegação (mas segue para escolher o tipo)
                 current_after = (driver.current_url or '').lower()
                 if '/conclusao' in current_after:
                     logger.info('[CLS] Nova aba já em /conclusao — pulando navegação inicial')
                     ja_em_conclusao = True
             else:
-                # Se não estamos em /detalhe, presumimos que já estamos na aba da tarefa do processo
                 logger.info('[CLS] Não estamos em /detalhe — assumindo que já estamos na aba da tarefa do processo')
                 current_url = (driver.current_url or '').lower()
                 if '/conclusao' in current_url:
                     ja_em_conclusao = True
 
-        # ===== PASSO 2: LIMPAR OVERLAYS =====
         logger.info('[CLS] Passo 2: Limpando overlays...')
         timing_overlays_inicio = time.time()
         limpar_overlays(driver)
         timing_overlays = time.time() - timing_overlays_inicio
         logger.info(f'[CLS][TIMING][LIMPAR_OVERLAYS] {timing_overlays:.3f}s')
 
-        # ===== PASSO 3: NAVEGAR PARA CONCLUSÃO (se necessário) =====
         if not ja_em_conclusao:
             logger.info('[CLS] Passo 3: Navegando para conclusão...')
             timing_nav_inicio = time.time()
@@ -233,7 +185,6 @@ def fluxo_cls(
             timing_nav = time.time() - timing_nav_inicio
             logger.info(f'[CLS][TIMING][NAVEGAR_CONCLUSAO] {timing_nav:.3f}s')
 
-        # ===== PASSO 4: ESCOLHER TIPO DE CONCLUSÃO =====
         logger.info(f'[CLS] Passo 4: Escolhendo tipo de conclusão: {conclusao_tipo}')
         timing_tipo_inicio = time.time()
         try:
@@ -250,7 +201,6 @@ def fluxo_cls(
         timing_tipo = time.time() - timing_tipo_inicio
         logger.info(f'[CLS][TIMING][ESCOLHER_TIPO] {timing_tipo:.3f}s tipo={conclusao_tipo}')
 
-        # ===== PASSO 5: AGUARDAR TRANSIÇÃO PARA MINUTAR =====
         logger.info('[CLS] Passo 5: Aguardando transição para minutar...')
         timing_transicao_inicio = time.time()
         try:
@@ -267,7 +217,6 @@ def fluxo_cls(
         timing_transicao = time.time() - timing_transicao_inicio
         logger.info(f'[CLS][TIMING][TRANSICAO_MINUTAR] {timing_transicao:.3f}s')
 
-        # ===== PASSO 6: PREPARAR CAMPO DE MINUTAR =====
         logger.info('[CLS] Passo 6: Preparando campo de minutar...')
         timing_campo_inicio = time.time()
         try:
@@ -287,41 +236,35 @@ def fluxo_cls(
         logger.info('=' * 60)
         logger.info('FLUXO CLS - CONCLUÍDO COM SUCESSO')
         logger.info('=' * 60)
-        
+
         timing_total = time.time() - timing_inicio
         log_fim('CLS', {'status': 'sucesso', 'tempo': f'{timing_total:.3f}s'})
         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (fluxo completo)')
-        return True, False  # (sucesso, ja_estava_estado_final)
+        return True, False
 
     except Exception as e:
         timing_total = time.time() - timing_inicio
         log_fim('CLS', {'status': 'erro', 'motivo': str(e)[:80]})
         logger.error(f'[CLS][TIMING][ERRO] {timing_total:.3f}s erro inesperado: {e}')
         logger.error(f'[CLS] Erro inesperado no fluxo CLS: {e}')
-        return False, False  # (sucesso=False, ja_estava_estado_final=False)
+        return False, False
 
 
-# ===== ABA "INTIMAÇÕES" (pós-Salvar da minuta) =====
 # Candidatos em ordem de confiança. Todos foram provados localizando
-# "Intimações" no DOM real (teste de seletores de 11/11); o 1º é o vencedor
-# daquele teste e os demais existem porque `aria-posinset`/ids derivam quando
 # muda a ordem ou o conjunto de abas. Como os índices `mat-tab-*` são gerados
 # pelo Angular, NENHUM candidato é usado sem confirmar o TEXTO do label — é
-# isso que impede clicar numa aba errada silenciosamente.
 SELETORES_ABA_INTIMACOES = (
     'pje-editor-lateral div[role="tab"][aria-posinset="1"]',
-    'pje-editor-lateral .mat-tab-label[aria-posinset="1"]',
     'pje-editor-lateral div[role="tab"][aria-controls="mat-tab-content-0-0"]',
+    # 3-5: fallbacks estruturais do Angular Material.
+    'pje-editor-lateral .mat-tab-label[aria-posinset="1"]',
     'pje-editor-lateral mat-tab-header div[role="tab"]:first-child',
     '#mat-tab-label-0-0',
+    '//pje-editor-lateral//div[@role="tab"][contains(., "Intima")]',
 )
 TENTATIVAS_ABA_INTIMACOES = 3
 
-# Confirmação em DOIS sinais, porque um só mente: o label precisa estar
-# selecionado (`mat-tab-label-active` / `aria-selected="true"`) E o painel de
 # intimações precisa estar montado no MESMO `mat-tab-group`. O Angular mantém
-# as 6 abas montadas no DOM (presença não prova nada) e a classe
-# `mat-tab-body-active` do corpo não acompanha a troca.
 _JS_ABA_INTIMACOES_ATIVA = """(() => {
     var l = document.querySelector(%s);
     if (!l) return false;
@@ -338,7 +281,10 @@ _JS_TEXTO_ABA = """(() => {
 })()"""
 
 _JS_ESTADO_ABA = """(() => {
-    var l = document.querySelector(%s);
+    var sel = %s;
+    var l = (sel.startsWith('//') || sel.startsWith('('))
+        ? document.evaluate(sel, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+        : document.querySelector(sel);
     var g = l && (l.closest('mat-tab-group') || document);
     var ativa = g && g.querySelector(
         'div[role="tab"].mat-tab-label-active, div[role="tab"][aria-selected="true"]');
@@ -347,19 +293,19 @@ _JS_ESTADO_ABA = """(() => {
         ativa: !!(l && (l.classList.contains('mat-tab-label-active')
                         || l.getAttribute('aria-selected') === 'true')),
         painel: !!(g && g.querySelector(
-            'pje-intimacao-automatica .controle-intimacao-pai')),
+            'pje-intimacao-automatica .controle-intimacao-pai, pje-intimacao-automatica label.mat-slide-toggle-label')),
         ativa_texto: ativa
-            ? ' '.join((ativa.textContent || '').split()).toLowerCase() : ''
+            ? (ativa.textContent || '').trim().replace(/\\s+/g, ' ').toLowerCase() : ''
     };
 })()"""
 
 
-def _texto_aba(driver: Any, seletor: str, elemento: Any = None) -> str:
-    """Texto normalizado do label apontado por `seletor` ('' se não existir).
+def _is_xpath(seletor: str) -> bool:
+    return seletor.startswith('//') or seletor.startswith('(')
 
-    Lê preferencialmente do elemento já resolvido (funciona também no baseline
-    sem `driver.page`) e cai no JS quando só o seletor está em mãos.
-    """
+
+def _texto_aba(driver: Any, seletor: str, elemento: Any = None) -> str:
+    """Texto normalizado do label apontado por `seletor` ('' se não existir)."""
     bruto = ''
     if elemento is not None:
         try:
@@ -368,6 +314,20 @@ def _texto_aba(driver: Any, seletor: str, elemento: Any = None) -> str:
             bruto = ''
     if not bruto:
         try:
+            if _is_xpath(seletor):
+                if hasattr(driver, 'page'):
+                    try:
+                        xpath_js = (
+                            "x => {" +
+                            "var r = document.evaluate(x, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);"
+                            "var n = r.singleNodeValue;"
+                            "return n ? (n.textContent || '') : '';"
+                            "}"
+                        )
+                        bruto = driver.page.evaluate(xpath_js, seletor) or ''
+                    except Exception:
+                        return ''
+                return ''
             bruto = driver.page.evaluate(_JS_TEXTO_ABA % json.dumps(seletor)) or ''
         except Exception:
             return ''
@@ -375,12 +335,7 @@ def _texto_aba(driver: Any, seletor: str, elemento: Any = None) -> str:
 
 
 def _estado_aba(driver: Any, seletor: str, elemento: Any = None) -> dict:
-    """Estado observável da aba: existe / ativa / painel montado / label ativo.
-
-    O `ativa_texto` (label atualmente selecionado no tab-group) é o que permite
-    ATRIBUIR o sucesso ao clique: sem ele, um clique manual durante a execução
-    faz o painel aparecer e o log mente dizendo que a automação acertou.
-    """
+    """Estado observável da aba: existe / ativa / painel montado / label ativo."""
     if hasattr(driver, 'page'):
         try:
             estado = driver.page.evaluate(_JS_ESTADO_ABA % json.dumps(seletor))
@@ -388,7 +343,6 @@ def _estado_aba(driver: Any, seletor: str, elemento: Any = None) -> dict:
                 return estado
         except Exception:
             pass
-    # Baseline sem `driver.page`: lê o que der do elemento.
     ativa = False
     if elemento is not None:
         try:
@@ -416,7 +370,9 @@ def _aba_intimacoes_ativa(driver: Any, seletor: str, teto: float = 2.0) -> bool:
 
 
 _JS_ARMAR_CLIQUE_ABA = """(sel) => {
-    var l = document.querySelector(sel);
+    var l = (sel.startsWith('//') || sel.startsWith('('))
+        ? document.evaluate(sel, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+        : document.querySelector(sel);
     if (!l) return false;
     window.__pjeCliqueAba = 0;
     l.addEventListener('click', function () { window.__pjeCliqueAba += 1; }, { once: true });
@@ -427,16 +383,11 @@ _JS_LER_CLIQUE_ABA = """() => (window.__pjeCliqueAba || 0)"""
 
 
 def _armar_clique_aba(driver: Any, seletor: str) -> bool:
-    """Arma um contador de eventos de `click` no label antes do clique.
-
-    `element.click()` dispara o evento de forma SÍNCRONA, então ler o contador
-    logo depois de `safe_click_no_scroll` prova se o clique da automação
-    alcançou a aba — um clique manual durante a espera posterior não conta.
-    """
+    """Arma um contador de eventos de `click` no label antes do clique."""
     if not hasattr(driver, 'page'):
         return False
     try:
-        return bool(driver.page.evaluate(_JS_ARMAR_CLIQUE_ABA % json.dumps(seletor)))
+        return bool(driver.page.evaluate(_JS_ARMAR_CLIQUE_ABA, seletor))
     except Exception:
         return False
 
@@ -450,14 +401,11 @@ def _ler_clique_aba(driver: Any) -> int:
 
 
 def _resolver_aba_intimacoes(driver: Any, tentativa: int):
-    """Acha o 1º candidato cujo label seja realmente "Intimações".
-
-    Devolve (seletor, elemento) ou (None, None). O texto é conferido para
-    detectar drift de posição/id e para o log dizer por que um candidato caiu.
-    """
+    """Acha o 1º candidato cujo label seja realmente "Intimações"."""
     for idx, seletor in enumerate(SELETORES_ABA_INTIMACOES, 1):
-        teto = 4 if (tentativa == 1 and idx == 1) else 2
-        elemento = esperar_elemento(driver, seletor, timeout=teto)
+        teto = 4 if idx == 1 else 2
+        by = By.XPATH if seletor.startswith('//') else By.CSS_SELECTOR
+        elemento = esperar_elemento(driver, seletor, timeout=teto, by=by)
         if elemento is None:
             logger.debug('[ATO][ABA] candidato %d/%d ausente: %s',
                          idx, len(SELETORES_ABA_INTIMACOES), seletor)
@@ -499,19 +447,7 @@ def _dump_abas_intimacoes(driver: Any) -> None:
 
 
 def _ativar_aba_intimacoes(driver: Any) -> bool:
-    """Ativa a aba "Intimações" pelo clique, com retry, e confirma o painel.
-
-    O CLIQUE É SEMPRE FEITO a cada tentativa — não existe atalho de "já estava
-    ativa" (histórico de 11/11, 13:01: a confirmação antiga mentia, pulava o
-    clique e o log não registrava clique nenhum).
-
-    ATRIBUIÇÃO (por que o estado é lido ANTES do clique): se alguém clicar
-    manualmente durante a execução, o painel aparece e a confirmação passaria
-    mesmo com o clique da automação tendo falhado — o log diria "sucesso" sem
-    que a automação tenha acertado. Comparando o estado antes/depois, o log
-    passa a distinguir `transição observada pelo clique` de `já estava pronto
-    antes do clique`.
-    """
+    """Ativa a aba "Intimações" pelo clique, com retry, e confirma o painel."""
     for tentativa in range(1, TENTATIVAS_ABA_INTIMACOES + 1):
         seletor, aba = _resolver_aba_intimacoes(driver, tentativa)
         if aba is None:
@@ -537,8 +473,6 @@ def _ativar_aba_intimacoes(driver: Any) -> bool:
             logger.warning('[ATO][ABA] tentativa %d/%d falha ao clicar via %s: %s',
                            tentativa, TENTATIVAS_ABA_INTIMACOES, seletor, e)
 
-        # PROVA DO PRÓPRIO CLIQUE: se nenhum evento de clique chegou ao label,
-        # o painel (se aparecer) veio de clique alheio — não deste código.
         if armado:
             recebidos = _ler_clique_aba(driver)
             if recebidos == 0:
@@ -597,26 +531,7 @@ def ato_judicial(
     intimar: Optional[bool] = None,
     **kwargs: Any
 ) -> Tuple[bool, bool]:
-    '''
-    Fluxo generalizado para qualquer ato judicial, seguindo a ordem:
-    0. Coleta de conteúdo parametrizável (PRIMEIRO PASSO - na aba /detalhe)
-    1. Modelo (fluxo_cls)
-    2. Descrição
-    3. Sigilo
-    4. Intimar
-    5. PEC
-    6. Prazo
-    7. Movimento
-    8. Assinar
-    9. Função extra de sigilo (NOTA: não executada aqui, deve ser feita externamente)
-
-    NOVO COMPORTAMENTO DE SIGILO:
-    - A função visibilidade_sigilosos não é mais executada automaticamente
-    - Deve ser executada externamente após fechar a aba e estar na URL /detalhe
-    - Use executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado)
-
-    :return: (sucesso: bool, sigilo_ativado: bool)
-    '''
+    """Fluxo generalizado para qualquer ato judicial, seguindo a ordem:"""
     import time
     atribuir_visibilidade_autor = False
     try:
@@ -629,9 +544,7 @@ def ato_judicial(
     logger.info('[ATO][TIMING][INICIO] conclusao_tipo={} modelo_nome={}'.format(conclusao_tipo, modelo_nome))
 
     try:
-        # Guarda geral do motor (vale para QUALQUER ato): o ato só roda a partir de uma
         # página viva do PJe. Sem isso, um driver em branco (ex.: aba fechada depois da
-        # juntada) "concluía" o ato sem executar nada — falso positivo de sucesso.
         try:
             _url_ato = (getattr(driver, 'current_url', '') or '')
         except Exception:
@@ -641,7 +554,6 @@ def ato_judicial(
                          _url_ato or 'sem URL')
             return False, False
 
-        # 0. PRIMEIRO: Executar coleta de conteúdo parametrizável na aba /detalhe (se especificado)
         if coleta_conteudo:
             logger.info('[ATO][COLETA] Executando coleta de conteúdo parametrizável ANTES do fluxo principal...')
             try:
@@ -653,7 +565,6 @@ def ato_judicial(
             except Exception as e:
                 logger.error(f'[ATO][COLETA] Erro na coleta de conteúdo: {e} — prosseguindo')
 
-        # 1. MODELO: Executar fluxo CLS se modelo_nome especificado
         if modelo_nome:
             logger.info(f'[ATO] Executando fluxo CLS com modelo: {modelo_nome}')
 
@@ -661,7 +572,6 @@ def ato_judicial(
                 logger.error('[ATO] conclusao_tipo é obrigatório quando modelo_nome é fornecido!')
                 return False, False
 
-            # Executar fluxo_cls (retorna (sucesso, ja_estava_estado_final))
             res_cls = fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=True)
             if isinstance(res_cls, tuple):
                 sucesso_cls, ja_estava_final = res_cls
@@ -677,11 +587,18 @@ def ato_judicial(
                 logger.info('[ATO] Processo já estava em estado final — ato cumprido sem nova minuta')
                 return True, False
 
-            # Preencher descrição se fornecida
+            # esperar a estrutura existir evita descricao e modelo perdidos por pagina
+            espera.ate_aparecer(
+                driver,
+                'input#inputFiltro, pje-arvore-modelo-documento, '
+                'div[class*="area-conteudo"][contenteditable="true"], div.ck-content[contenteditable="true"]',
+                teto=20,
+            )
+
             if descricao:
                 logger.info(f'[ATO][DESCRICAO] Preenchendo descrição: {descricao}')
                 try:
-                    campo_descricao = esperar_elemento(driver, 'input[aria-label="Descrição"]', timeout=5)
+                    campo_descricao = esperar_elemento(driver, 'input[aria-label="Descrição"]', timeout=10)
                     if campo_descricao:
                         preencher_campo(driver, 'input[aria-label="Descrição"]', descricao)
                         logger.info('[ATO][DESCRICAO]  Descrição preenchida')
@@ -690,8 +607,6 @@ def ato_judicial(
                 except Exception as e:
                     logger.error(f'[ATO][DESCRICAO]  Erro ao preencher descrição: {e}')
 
-            # ===== INSERÇÃO DE MODELO (fluxo único: atos/judicial_modelos.inserir_modelo_no_editor) =====
-            # Aguarda o editor tornar-se contenteditable antes de inserir.
             espera.ate_aparecer(
                 driver,
                 'div[class*="area-conteudo"][contenteditable="true"], div.ck-content[contenteditable="true"]',
@@ -703,7 +618,6 @@ def ato_judicial(
                 return False, False
             espera.assentar(driver, 1.0, motivo='paciência pós-inserção do modelo')
 
-        # ===== INSERIR CONTEÚDO (antes do salvar, como no jud.py) =====
         if inserir_conteudo:
             logger.info('[ATO][INSERIR] Executando inserção de conteúdo...')
             try:
@@ -713,7 +627,6 @@ def ato_judicial(
                 logger.error(f'[ATO][INSERIR]  Erro ao inserir conteúdo: {e}')
                 return False, False
 
-        # ===== SALVAR APÓS INSERÇÃO (Referência: aaDespacho e clicarBotao do gigs-plugin) =====
         logger.info('[ATO][SALVAR] Salvando minuta após inserção...')
         try:
             seletor_btn_salvar = 'button[aria-label="Salvar"]'
@@ -731,26 +644,8 @@ def ato_judicial(
             safe_click(driver, btn_salvar)
             logger.info('[ATO][SALVAR] Clique no botão Salvar realizado')
 
-            # Monitoramento ativo do salvamento (gigs-plugin clicarBotao com monitorar=true):
-            # 1. Aguarda barra/spinner de progresso de gravação sumir
             espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=15)
 
-            # 1.5 GARANTIR A ABA "INTIMAÇÕES" ATIVA (mudança de DOM no PJe).
-            # Antes o PJe movimentava sozinho para a aba de intimações após o
-            # Salvar; sem isso o painel de destinatários/prazo não renderiza e
-            # o salvamento é dado como não confirmado. Regras de seleção,
-            # clique e confirmação ficam documentadas em _ativar_aba_intimacoes.
-            aba_ok = _ativar_aba_intimacoes(driver)
-
-            if not aba_ok:
-                logger.error('[ATO][ABA] Painel de intimações NÃO confirmado após %d tentativas '
-                             '— abortando antes de executar prazos', TENTATIVAS_ABA_INTIMACOES)
-                _dump_abas_intimacoes(driver)
-                return False, False
-
-            # 2. Confirmação POSITIVA de minuta salva. O retorno é OBRIGATÓRIO:
-            #    "spinner sumiu" não é prova (pode nunca ter aparecido). Só aceitamos
-            #    snackbar explícita OU a transição real para a aba de destinatários.
             js_snack_salvo = """() => {
                 var snacks = Array.from(document.querySelectorAll('simple-snack-bar, snack-bar-container'));
                 for (var s of snacks) {
@@ -763,11 +658,18 @@ def ato_judicial(
                 }
                 return false;
             }"""
-            salvou = bool(espera.ate_js(driver, js_snack_salvo, teto=15))
+            salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})()", teto=4))
+
+            # Salvar; sem isso o painel de destinatários/prazo não renderiza e
+            aba_ok = _ativar_aba_intimacoes(driver)
+
+            if not aba_ok:
+                logger.warning('[ATO][ABA] Painel de intimações NÃO confirmado pelo clique — '
+                               'verificando controles de destinatários')
 
             if not salvou:
-                # Sem snackbar: exige a transição observável para a aba de destinatários
-                # (controles que só existem APÓS o salvamento da minuta).
+                salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})()", teto=2))
+            if not salvou:
                 salvou = bool(aguardar_renderizacao_nativa(
                     driver,
                     'pje-intimacao-automatica label.mat-slide-toggle-label, '
@@ -778,11 +680,10 @@ def ato_judicial(
                     timeout=15,
                 ))
 
-            if not salvou:
+            if not salvou and not aba_ok:
                 logger.error('[ATO][SALVAR] Sem confirmação positiva de salvamento (nem snackbar nem aba de destinatários) — abortando')
                 return False, False
 
-            # Aguarda renderização dos controles da aba de destinatários
             aguardar_renderizacao_nativa(
                 driver,
                 'button[aria-label="Gravar a intimação/notificação"], '
@@ -802,11 +703,8 @@ def ato_judicial(
             logger.error(f'[ATO][SALVAR] Erro ao salvar minuta: {e}')
             return False, False
 
-        # ===== ABA DESTINATÁRIOS =====
-        # sigilo_ativado referenciado no retorno mesmo sem movimento
         sigilo_ativado = False
 
-        # Verificar intimar_ativado
         intimar_ativado = True if intimar is None else str(intimar).lower() in ("sim", "true", "1")
 
         # ----- 1. SIGILO (primeiro de tudo, logo após a aba renderizar) -----
@@ -850,15 +748,12 @@ def ato_judicial(
             except Exception as e:
                 logger.debug(f'[ATO][SIGILO] Erro ao aplicar sigilo: {e}')
 
-        # ----- 2. TOGGLE INTIMAR (ativar ou desativar conforme intimar_ativado) -----
         if intimar_ativado:
             try:
-                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=5)
-                if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
-                    safe_click_no_scroll(driver, guia_intimacoes)
-                    espera.assentar(driver, 0.5)
-
-                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=5)
+                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=2)
+                if not toggle_intimar:
+                    _ativar_aba_intimacoes(driver)
+                    toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=5)
                 if toggle_intimar:
                     is_mat_checked = False
                     if hasattr(toggle_intimar, '_js'):
@@ -877,12 +772,10 @@ def ato_judicial(
         else:
             logger.info('[ATO][INTIMAR] Desativando intimações automáticas...')
             try:
-                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10)
-                if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
-                    safe_click_no_scroll(driver, guia_intimacoes)
-                    espera.assentar(driver, 0.5)
-
-                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10)
+                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=2)
+                if not toggle_intimar:
+                    _ativar_aba_intimacoes(driver)
+                    toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=8)
                 if toggle_intimar:
                     is_mat_checked = False
                     if hasattr(toggle_intimar, '_js'):
@@ -901,22 +794,17 @@ def ato_judicial(
             except Exception as e:
                 logger.error(f'[ATO][INTIMAR] Erro ao desativar intimações: {e}')
 
-        # ----- AGUARDAR ESTABILIZAÇÃO DA ABA (quando intimar=False) -----
-        # Após desativar intimações, a aba precisa de tempo para renderizar
         # antes de prosseguir para Gravar/Movimento. Sem isso, o spinner fica
         # travado na tela porque o Angular ainda está processando a transição.
         if not intimar_ativado:
             logger.info('[ATO][INTIMAR] Aguardando estabilização da aba após desativar intimações...')
             try:
-                # Aguarda o spinner/carregamento da aba de intimações sumir
                 espera.ate_sumir(driver, 'mat-progress-spinner, .mat-progress-spinner, mat-progress-bar, .mat-progress-bar', teto=8)
                 # Pequena pausa extra para o Angular finalizar a renderização
                 espera.assentar(driver, 1.5, motivo='estabilização pós-desativação de intimações')
             except Exception as e:
                 logger.debug(f'[ATO][INTIMAR] Erro ao aguardar estabilização: {e}')
-                # Mesmo com erro, continua — não bloqueia o fluxo
 
-        # ----- 3. DESTINATÁRIOS E PRAZO (quando intimar=True) -----
         if intimar_ativado and (prazo is not None or marcar_primeiro_destinatario):
             logger.info(f'[ATO][PRAZO] Configurando destinatários/prazos: prazo={prazo} (apenas_primeiro={marcar_primeiro_destinatario})')
             try:
@@ -928,7 +816,6 @@ def ato_judicial(
                 logger.error(f'[ATO][PRAZO] Erro ao preencher prazos: {e}')
                 return False, False
 
-        # ----- 4. PEC (conforme padrão aadespacho de gigs-plugin.js) -----
         if marcar_pec is not None:
             marcar_pec_bool = str(marcar_pec).lower() in ("sim", "true", "1", "yes")
             logger.info(f'[ATO][PEC] Parâmetro marcar_pec={marcar_pec!r} (desejado: {"marcar" if marcar_pec_bool else "desmarcar"})')
@@ -983,14 +870,38 @@ def ato_judicial(
                     if alterado:
                         espera.assentar(driver, 0.5)
                         js_recheca_pec = """() => {
-                            var el = document.querySelector('pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], mat-checkbox[aria-label="Enviar para PEC"]');
-                            if (!el) return null;
-                            var cls = el.getAttribute('class') || '';
-                            return cls.indexOf('mat-checkbox-checked') !== -1 || cls.indexOf('mat-mdc-checkbox-checked') !== -1;
+                            var el = document.querySelector(
+                                'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], ' +
+                                'mat-checkbox[aria-label="Enviar para PEC"], ' +
+                                'pje-intimacao-automatica .checkbox-pec mat-checkbox, ' +
+                                '.checkbox-pec mat-checkbox'
+                            );
+                            if (el) {
+                                var cls = el.getAttribute('class') || '';
+                                if (cls.indexOf('mat-checkbox-checked') !== -1 || cls.indexOf('mat-mdc-checkbox-checked') !== -1) return true;
+                            }
+                            var inp = (el && el.querySelector('input[type="checkbox"]'))
+                                || document.querySelector('input[aria-label="Enviar para PEC"], input[name="enviarPec"]');
+                            return inp ? !!(inp.checked || inp.getAttribute('aria-checked') === 'true') : null;
                         }"""
                         novo_estado = None
                         if hasattr(driver, 'page'):
                             novo_estado = driver.page.evaluate(js_recheca_pec)
+                        if novo_estado is not None and bool(novo_estado) != marcar_pec_bool:
+                            # Fallback Playwright: em alguns formulários Angular o
+                            el_pec = esperar_elemento(
+                                driver,
+                                'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"], '
+                                'mat-checkbox[aria-label="Enviar para PEC"], '
+                                'pje-intimacao-automatica .checkbox-pec mat-checkbox, '
+                                'input[name="enviarPec"]',
+                                timeout=2,
+                            )
+                            if el_pec:
+                                safe_click_no_scroll(driver, el_pec, log=False)
+                                espera.assentar(driver, 0.4)
+                                if hasattr(driver, 'page'):
+                                    novo_estado = driver.page.evaluate(js_recheca_pec)
                         novo_estado_str = "marcado" if novo_estado else "desmarcado"
                         logger.info(f'[ATO][PEC] Estado inicial: {estado_ini} → alterado para: {novo_estado_str}')
                     else:
@@ -998,7 +909,6 @@ def ato_judicial(
             except Exception as e:
                 logger.error(f'[ATO][PEC] Erro ao tratar PEC: {e}')
 
-        # ----- 5. GRAVAR INTIMAÇÕES (padrão gigs-plugin.js e leg) -----
         logger.info('[ATO][GRAVAR] Gravando intimações...')
         try:
             if hasattr(driver, 'page'):
@@ -1035,13 +945,9 @@ def ato_judicial(
         except Exception as e:
             logger.debug(f'[ATO][GRAVAR] {e}')
 
-        # ----- 6. MOVIMENTO -----
         if movimento:
             logger.info(f'[ATO][MOVIMENTO] Selecionando movimento: {movimento}')
             try:
-                # Snackbars pendentes (ex.: "Intimações salvas com sucesso") podem
-                # interceptar o clique na aba — esconde e dá tempo de assentar
-                # antes de trocar de guia (paciência do legado).
                 if hasattr(driver, 'page'):
                     try:
                         driver.page.evaluate("""() => {
@@ -1065,7 +971,6 @@ def ato_judicial(
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')
                 return False, False
 
-        # ----- 7. SALVAR FINAL (botão canônico primeiro; sem movimento é a única persistência do ato) -----
         logger.info('[ATO][SALVAR_FINAL] Salvando ato...')
         try:
             salvou_final = False
@@ -1093,7 +998,6 @@ def ato_judicial(
         except Exception as e:
             logger.warning(f'[ATO][SALVAR_FINAL] {e}')
 
-        # 8. ASSINAR: Clicar em assinar se especificado
         if Assinar:
             logger.info('[ATO][ASSINAR] Clicando em assinar...')
             try:
@@ -1153,9 +1057,7 @@ def make_ato_wrapper(
     intimar: Optional[bool] = None,
     atribuir_visibilidade_autor: Optional[bool] = False
 ) -> Callable[[Any, Any], Tuple[bool, bool]]:
-    '''
-    Factory function que cria um wrapper para ato_judicial com parâmetros pré-definidos.
-    '''
+    """Factory function que cria um wrapper para ato_judicial com parâmetros pré-definidos."""
     def wrapper(driver, **kwargs):
         params = {
             'conclusao_tipo': conclusao_tipo,

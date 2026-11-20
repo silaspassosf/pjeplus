@@ -11,10 +11,6 @@ deste modulo no RuleRegistry (bucket 'ato_judicial').
 from .judicial_fluxo import make_ato_wrapper
 
 
-# ====================================================
-# WRAPPER FUNCTIONS - ATO_JUDICIAL DERIVATIVES
-# ====================================================
-
 ato_meios = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='xsmeios',
@@ -117,39 +113,36 @@ ato_crte = make_ato_wrapper(
 # Função auxiliar para inserir relatório conciso SISBAJUD no modelo xsparcial
 def _inserir_relatorio_conciso_sisbajud(driver, numero_processo=None, conteudo_relatorio=None, debug=True):
     try:
-        from PEC.anexos import substituir_marcador_por_conteudo
+        from atos.anexos import substituir_marcador_por_conteudo
         import os
-        
-        # Se conteúdo foi fornecido diretamente, usar ele
+
         if conteudo_relatorio:
             conteudo = conteudo_relatorio
         else:
-            # Ler do arquivo específico PEC/sisbajud_conciso_ultimo.txt
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # pasta raiz
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             arquivo_conciso = os.path.join(base_dir, "PEC", "sisbajud_conciso_ultimo.txt")
-            
+
             if not os.path.exists(arquivo_conciso):
                 return False
-            
+
             with open(arquivo_conciso, 'r', encoding='utf-8') as f:
                 conteudo = f.read()
-            
+
         if not conteudo:
             return False
-        
+
         if debug:
             pass
-        
-        # Substituir marcador -- pelo conteúdo conciso
+
         resultado = substituir_marcador_por_conteudo(
             driver=driver,
             conteudo_customizado=conteudo,
             debug=debug,
             marcador='--'
         )
-        
+
         return resultado
-        
+
     except Exception as e:
         if debug:
             logger.error(f'[ATO_BLOQ]  Erro ao inserir relatório conciso: {e}')
@@ -194,7 +187,7 @@ ato_antes = make_ato_wrapper(
     descricao='Edital concomitante',
     marcar_pec=False,
     movimento=None,
-    gigs=None    
+    gigs=None
 )
 
 ato_termoS = make_ato_wrapper(
@@ -539,7 +532,6 @@ ato_agpinter = make_ato_wrapper(
     marcar_primeiro_destinatario=False,
     descricao='Não-Recebimento de agravo de Petição'
 )
-#  NOVO: ato_ceju para Habilitação com CEJU
 ato_ceju = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='sse na rem',
@@ -573,7 +565,6 @@ ato_revel = make_ato_wrapper(
     descricao='Revelia - ag prazo cálculos'
 )
 
-#  NOVO: ato_assistente para Admissão de Assistentes
 ato_assistente = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='de assis',
@@ -585,7 +576,6 @@ ato_assistente = make_ato_wrapper(
     descricao='Admissão de Assistentes'
 )
 
-#  NOVO: ato_concor para Concordância (Liquidação)
 ato_concor = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='cia com os c',
@@ -641,7 +631,6 @@ ato_conv = make_ato_wrapper(
     descricao='despacho'
 )
 
-#  NOVO: ato_prevjud para CAGED (Previdenciário)
 ato_prevjud = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='ere prevjud',
@@ -653,7 +642,6 @@ ato_prevjud = make_ato_wrapper(
     descricao='Defere Previdenciário'
 )
 
-#  NOVO: ato_ed para Embargos de Declaração
 ato_ed = make_ato_wrapper(
     conclusao_tipo='Embargos',
     modelo_nome=None,

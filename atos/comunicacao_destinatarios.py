@@ -39,15 +39,7 @@ def extrair_primeiro_nome_e_sobrenome(nome: str):
 
 
 def casar_nome_destinatario(nome_alvo: str, texto_linha: str) -> bool:
-    """Verifica se o nome da linha corresponde estritamente ao destinatário alvo.
-    
-    Regras:
-    1. Match exato (nome_alvo == texto_linha ou contido como substring completa).
-    2. Se não exato, o primeiro nome DEVE ser igual (se é Bruno, tem que ser Bruno).
-    3. Se houver próximo sobrenome no alvo, ele deve casar contiguamente com o primeiro nome
-       (ex.: 'BRUNO DOS SANTOS' ou 'BRUNO SANTOS').
-    4. Rejeita tokens isolados dispersos (ex.: 'GOMES' e 'MIRANDA' espalhados entre réu e advogado).
-    """
+    """Verifica se o nome da linha corresponde estritamente ao destinatário alvo."""
     if not nome_alvo or not texto_linha:
         return False
 
@@ -57,7 +49,6 @@ def casar_nome_destinatario(nome_alvo: str, texto_linha: str) -> bool:
     if not alvo_norm or not linha_norm:
         return False
 
-    # 1. Match exato ou substring completa direta
     if alvo_norm == linha_norm or alvo_norm in linha_norm or linha_norm in alvo_norm:
         return True
 
@@ -124,13 +115,7 @@ def _carregar_dadosatuais_local(caminho='dadosatuais.json'):
 
 
 def _extrair_nomes_por_separador(observacao):
-    """Extrai lista de nomes após o delimitador '>' na observação do GIGS.
-
-    Formato esperado: '<prefixo> >nome1, nome2, ...'
-    Ex.: 'xs pec id >murillo, silas' → ['murillo', 'silas']
-
-    Retorna lista vazia se não houver '>' ou nenhum token válido após ele.
-    """
+    """Extrai lista de nomes após o delimitador '>' na observação do GIGS."""
     if not observacao or '>' not in observacao:
         return []
     _, _, parte_nomes = observacao.partition('>')
@@ -139,14 +124,7 @@ def _extrair_nomes_por_separador(observacao):
 
 
 def _resolver_candidatos_via_api(driver, nomes_alvo, numero_processo=None, debug=False, log=None):
-    """Confirma destinatários fazendo GET /pje-comum-api/api/processos/id/{id}/partes.
-
-    Recebe nomes_alvo (lista de strings, ex: ['murillo', 'silas']) e retorna
-    apenas as partes cujos nomes dão match com ao menos um token de nomes_alvo.
-    Não usa DOM nem JSON local — apenas a API.
-
-    Retorna lista de dicts no formato esperado por selecionar_destinatario_por_documento.
-    """
+    """Confirma destinatários fazendo GET /pje-comum-api/api/processos/id/{id}/partes."""
     if log is None:
         def log(_msg): return None
 
@@ -166,7 +144,6 @@ def _resolver_candidatos_via_api(driver, nomes_alvo, numero_processo=None, debug
         sess = session_from_driver(driver)
         client = PjeApiClient(sess)
 
-        # Resolver ID do processo a partir do número CNJ se necessário
         id_processo = None
         if numero_processo:
             try:
@@ -202,11 +179,10 @@ def _resolver_candidatos_via_api(driver, nomes_alvo, numero_processo=None, debug
             nome_norm = _normalizar_nome_para_match(nome)
             tokens_nome = set(re.findall(r'[a-z0-9]+', nome_norm))
 
-            # Match: ao menos um token do nome_alvo presente nos tokens do nome da parte
             matched_alvo = None
             for token_alvo in tokens_alvo:
                 tokens_do_alvo = set(re.findall(r'[a-z0-9]+', token_alvo))
-                if tokens_do_alvo & tokens_nome:  # interseção não vazia
+                if tokens_do_alvo & tokens_nome:
                     matched_alvo = token_alvo
                     break
 
@@ -246,31 +222,19 @@ def _extrair_reus_mencionados_no_texto(
     debug: bool = False,
     log: Any = None
 ) -> List[Dict[str, Any]]:
-    """Compara o texto do documento com a lista de réus (dados_processo['reu']).
-    
-    Se `padrao_proximidade` for fornecido (ou se for detectado padrão de 'suscitado(s)/suscitada(s)'),
-    restringe a busca ao trecho de proximidade logo após o padrão (ex: até 500 caracteres ou fim de período),
-    evitando que réus fora desse contexto específico (ex: a empresa ré principal) sejam indevidamente incluídos.
-
-    Para cada réu, extrai tokens significativos do nome (tamanho >= 3, ignorando stopwords).
-    Se ao menos 2 tokens significativos (ou todos se o nome for curto) estiverem no texto,
-    ou se houver match exato do nome normalizado, o réu é considerado destinatário.
-    """
+    """Compara o texto do documento com a lista de réus (dados_processo['reu'])."""
     if not texto or not reus:
         return []
 
     texto_alvo = texto
 
-    # Se houver padrão de proximidade especificado explicitamente (ex.: via 'informado sentenca suscitados')
     regex_prox = padrao_proximidade
 
     if regex_prox:
         trechos_encontrados = []
-        # Localiza todas as ocorrências do padrão e extrai a janela seguinte (até 600 chars ou ponto final de parágrafo)
         for m in re.finditer(regex_prox, texto, re.I):
             inicio = m.end()
             janela = texto[inicio:inicio + 600]
-            # Cortar no final de sentença/parágrafo duplo se houver
             m_fim = re.search(r'(\n\s*\n|\.\s+[A-Z])', janela)
             if m_fim:
                 janela = janela[:m_fim.start() + 1]
@@ -286,9 +250,6 @@ def _extrair_reus_mencionados_no_texto(
                     log(f'[DESTINATARIOS][WARN] Padrão de proximidade "{padrao_proximidade}" não localizado no documento')
                 return []
 
-    # 1. Match prioritário por CPF / CNPJ mencionado no documento
-    # Se algum réu tiver seu CPF ou CNPJ mencionado explicitamente no texto,
-    # ele é identificado com certeza absoluta e prevalece sobre matches nominais gerais (ex.: empresa no cabeçalho).
     texto_digitos = re.sub(r'\D', '', texto_alvo)
     candidatos_documento = []
     vistos = set()
@@ -345,7 +306,6 @@ def _extrair_reus_mencionados_no_texto(
         if chave in vistos:
             continue
 
-        # 1. Match direto como substring exata
         if len(nome_norm) >= 5 and nome_norm in texto_norm:
             vistos.add(chave)
             destinatarios.append({
@@ -359,7 +319,6 @@ def _extrair_reus_mencionados_no_texto(
                 log(f'[DESTINATARIOS] Match direto do réu "{nome}" no trecho do documento')
             continue
 
-        # 2. Match por primeiro nome e próximo sobrenome contíguos (se é Bruno, tem que ser Bruno + sobrenome)
         if casar_nome_destinatario(nome, texto_norm):
             vistos.add(chave)
             destinatarios.append({
@@ -384,22 +343,10 @@ def _resolver_destinatarios_por_documento_api(
     debug: bool = False,
     log: Any = None
 ) -> List[Dict[str, Any]]:
-    """Busca o documento respectivo mais recente (e o anterior como fallback) via API
-    e cruza seu conteúdo com dados_processo['reu'] para definir os destinatários.
-
-    Args:
-        driver: driver PJe / Playwright
-        tipo_alvo: 'despacho', 'decisao' ou 'sentenca' (ou lista correspondente)
-        dados_processo: dict com dados do processo contendo 'reu'
-        numero_processo: número do processo (opcional)
-        padrao_proximidade: regex ou termo de proximidade (ex: r'suscitad[oas]{1,2}')
-        debug: flag de depuração
-        log: logger callback
-    """
+    """Busca o documento respectivo mais recente (e o anterior como fallback) via API"""
     if log is None:
         def log(_msg): return None
 
-    # Normalizar tipos procurados para a timeline
     mapa_tipos = {
         'despacho': ['Despacho'],
         'decisao': ['Decisão', 'Decisao'],
@@ -432,7 +379,6 @@ def _resolver_destinatarios_por_documento_api(
         log('[DESTINATARIOS][WARN] id_processo não disponível para leitura de documento via API')
         return []
 
-    # Obter réus a partir de dados_processo ou via API /partes
     reus = []
     if isinstance(dados_processo, dict) and dados_processo.get('reu'):
         reus = dados_processo['reu']
@@ -440,13 +386,11 @@ def _resolver_destinatarios_por_documento_api(
         try:
             partes_raw = client.partes(str(id_processo))
             if isinstance(partes_raw, dict):
-                # Formato padrão PJe /partes: {'PASSIVO': [...]}
                 passivos = partes_raw.get('PASSIVO') or partes_raw.get('passivo') or partes_raw.get('reu') or []
                 for p in passivos:
                     if isinstance(p, dict):
                         reus.append(p)
             elif isinstance(partes_raw, list):
-                # Formato lista plana: filtrar estritamente polo passivo/reu
                 for p in partes_raw:
                     if isinstance(p, dict):
                         polo = (p.get('polo') or p.get('tipoPolo') or '').lower()
@@ -459,14 +403,12 @@ def _resolver_destinatarios_por_documento_api(
         log('[DESTINATARIOS][WARN] Nenhum réu encontrado para match com documento')
         return []
 
-    # Buscar itens da timeline via API
     try:
         timeline_dados = client.timeline(str(id_processo), buscarDocumentos=True, buscarMovimentos=False) or []
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao obter timeline via API: {e}')
         return []
 
-    # Flatten documentos + anexos
     documentos_candidatos = []
     for item in timeline_dados:
         documentos_candidatos.append(item)
@@ -493,7 +435,6 @@ def _resolver_destinatarios_por_documento_api(
         log(f'[DESTINATARIOS][WARN] Nenhum documento do tipo "{tipo_alvo}" ({tipos_busca}) encontrado na timeline')
         return []
 
-    # Ler no máximo o último (mais recente) e o anterior se não encontrar no mais recente
     limite_docs = docs_alvo[:2]
     log(f'[DESTINATARIOS] Encontrados {len(docs_alvo)} documento(s) de tipo {tipos_busca}; avaliando até {len(limite_docs)} mais recente(s)')
 
@@ -529,10 +470,8 @@ def _resolver_destinatarios_por_documento_api(
     return []
 
 
-
 def _clicar_polo_passivo(driver, log):
     try:
-        # 1. Tentar via JS primeiro (mais rápido e checa aria-expanded/classe mat-expanded)
         if hasattr(driver, 'page') and driver.page:
             try:
                 res = driver.page.evaluate("""() => {
@@ -558,7 +497,6 @@ def _clicar_polo_passivo(driver, log):
             except Exception as e_js:
                 log(f'[DESTINATARIOS][DEBUG] Tentativa JS expandir Polo Passivo falhou: {e_js}')
 
-        # 2. Fallback via XPath amplo
         xpath_header = '//mat-expansion-panel-header[contains(., "Polo Passivo")]'
         header = espera.elemento(driver, xpath_header, teto=3)
         if not header:
@@ -576,7 +514,6 @@ def _clicar_polo_passivo(driver, log):
             safe_click_no_scroll(driver, header)
             espera.assentar(driver, 0.5)
 
-        # aguardar conteúdo do painel (preferir observer nativo)
         try:
             aguardar_renderizacao_nativa(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', modo='aparecer', timeout=5)
         except Exception:
@@ -588,17 +525,10 @@ def _clicar_polo_passivo(driver, log):
 
 
 def _clicar_e_aguardar_spinner(driver, btn, timeout_s=15):
-    """Clica e aguarda loading do servidor (equivalente a clicarBotao(monitorar=true) do gigs-plugin).
-    
-    Fluxo puro (SEM sleeps fixos):
-    1. Execute script click
-    2. Aguarde spinner/dialog/modal sumir (observer nativo)
-    3. Retorna quando DOM estiver pronto
-    """
+    """Clica e aguarda loading do servidor (equivalente a clicarBotao(monitorar=true) do gigs-plugin)."""
     import time
     safe_click_no_scroll(driver, btn)
-    
-    # Aguardar APENAS até spinner sumir — nenhum sleep fixo
+
     seletores_loading = (
         'mat-dialog-container, mat-progress-spinner, mat-progress-bar, '
         '.loading-spinner, .cdk-overlay-backdrop, .modal-backdrop'
@@ -623,20 +553,16 @@ def _clicar_botao_polo_passivo(driver, log, qtd_cliques=1):
         log(f'[DESTINATARIOS][ERRO] Falha ao clicar no botão polo passivo (fallback): {e}')
 
 
-
-# Seletores do botão "acrescentar parte" — ordenados por especificidade (Probe: button.icone-clicavel)
-# O Probe confirmou: class="...icone-clicavel mat-icon-button mat-button-base..."
-# button[mat-icon-button] fica por último: pega edit/delete também se mal-escoped
 _SELETORES_BTN_ACRESCENTAR = [
-    'button.icone-clicavel[mattooltip*="acrescentar"]',          # mais específico: classe + tooltip
-    'button.icone-clicavel[aria-label*="acrescentar"]',          # classe + aria-label
-    'button[mattooltip*="acrescentar"]',                          # só tooltip
-    'button[aria-label*="acrescentar"]',                          # só aria-label
+    'button.icone-clicavel[mattooltip*="acrescentar"]',
+    'button.icone-clicavel[aria-label*="acrescentar"]',
+    'button[mattooltip*="acrescentar"]',
+    'button[aria-label*="acrescentar"]',
     'button[mattooltip*="Acrescentar"]',
     'button[aria-label*="Acrescentar"]',
-    'button.mat-tooltip-trigger.mat-icon-button',                 # Probe PJe
+    'button.mat-tooltip-trigger.mat-icon-button',
     'button[aria-label="Clique para acrescentar esta parte à lista de destinatários de expedientes e comunicações."]',
-    'button.icone-clicavel',                                      # fallback por classe
+    'button.icone-clicavel',
 ]
 
 
@@ -742,11 +668,9 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                             logger.info(f"[DESTINATARIOS] Parte selecionada via documento: {documento_alvo}")
                         return {'status': 'ok', 'count': 1}
 
-        # --- tentativa por nome (Two-pass: exato primeiro, depois primeiro nome + próximo sobrenome) ---
         if nome_alvo:
             nome_alvo_norm = _normalizar_nome_para_match(nome_alvo).lower()
 
-            # Passada 1: Procura match exato do nome alvo entre todas as linhas
             for linha in linhas:
                 try:
                     nome_linha = _extrair_nome_linha_pje(linha)
@@ -761,7 +685,6 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                 except Exception:
                     continue
 
-            # Passada 2: Procura match estrito (primeiro nome + próximo sobrenome, nunca tokens isolados)
             for linha in linhas:
                 try:
                     nome_linha = _extrair_nome_linha_pje(linha)
@@ -796,7 +719,6 @@ def _selecionar_por_lista(driver, lista_destinatarios, origem_log, log, fallback
             return {'status': 'fallback', 'count': 0}
         return {'status': 'empty', 'count': 0}
 
-    # APENAS abrir painel se houver items para selecionar
     try:
         _clicar_polo_passivo(driver, log)
     except Exception as e:
@@ -919,17 +841,14 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     qtd_informado = 2 if str(cliques_informado).strip().lower() in ('2', '2x') else 1
     qtd_cliques_fallback = 2 if str(cliques_polo_passivo).strip().lower() in ('2', '2x') else 1
 
-    # Normalização de 'informado [tipo]' (ex: 'informado despacho', 'informado_decisao', 'informado sentenca', 'informado decisao suscitados')
     tipo_informado_doc = None
     padrao_proximidade_informado = None
     if isinstance(destinatarios, str):
         dest_str = destinatarios.strip().lower()
-        # Verificar se especifica cliques no final (ex: informado despacho 2, informado_2)
         m_cliques = re.search(r'[\s_]([12])x?$', dest_str)
         if m_cliques and not re.search(r'(despacho|decis|senten)', m_cliques.group(0)):
             qtd_informado = int(m_cliques.group(1))
 
-        # Identificar padrão de proximidade se especificado (ex: após/depois de X ou suscitad...)
         m_apos = re.search(r'(?:ap[oó]s|depois\s+de)\s+([a-z0-9_]+)', dest_str)
         if m_apos:
             termo = m_apos.group(1).strip()
@@ -937,7 +856,6 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
         elif re.search(r'\b(suscitad[oas]{1,2})\b', dest_str):
             padrao_proximidade_informado = r'\b(?:suscitad[oas]{1,2})\b'
 
-        # Identificar tipo de documento informado
         if re.search(r'\b(despacho)\b', dest_str):
             tipo_informado_doc = 'despacho'
             destinatarios = 'informado'
@@ -949,9 +867,8 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             destinatarios = 'informado'
         elif re.match(r'^informado', dest_str):
             destinatarios = 'informado'
-            tipo_informado_doc = 'decisao'  # padrão quando vem 'informado'
+            tipo_informado_doc = 'decisao'
 
-    # Roteamento principal
     if destinatarios is None:
         log('[DESTINATARIOS] Parâmetro None - pulando seleção')
         return ResultadoExecucao(sucesso=False, status='skip', detalhes={'count': 0})
@@ -1029,7 +946,6 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
         log('[DESTINATARIOS] Modo Polo Passivo (1x) + Terceiros Interessados (pec_cpgeral)')
         polo_passivo_ok = False
         try:
-            # 1. Clicar sempre no Polo Passivo (1x)
             btn_polo_passivo = wait_for_clickable(
                 driver,
                 'button[name="btnIntimarSomentePoloPassivo"]',
@@ -1045,7 +961,6 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
         except Exception as e_pp:
             log(f'[DESTINATARIOS][WARN] Erro ao intimar polo passivo: {e_pp}')
 
-        # 2. Tentar intimar terceiros interessados (se houver; se não houver terceiros, não falha)
         terceiros_adicionados = False
         try:
             btn_terceiro = espera.elemento(
@@ -1102,10 +1017,8 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     if destinatarios == 'primeiro':
         log('[DESTINATARIOS] OPCAO PRIMEIRO: expande Polo Passivo + seleciona primeiro destinatário (pec_excluiargos)')
         try:
-            # 1. Expandir Polo Passivo de forma robusta
             _clicar_polo_passivo(driver, log)
 
-            # Aguardar renderização das partes no painel
             aguardar_renderizacao_nativa(
                 driver,
                 '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row, mat-expansion-panel.mat-expanded button',
@@ -1113,7 +1026,6 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                 timeout=5
             )
 
-            # 2. Localizar e clicar no botão de acrescentar do primeiro destinatário do Polo Passivo
             clicado = False
             if hasattr(driver, 'page') and driver.page:
                 try:
@@ -1153,7 +1065,6 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                     log(f'[DESTINATARIOS][DEBUG] Falha ao clicar primeiro destinatário via JS: {e_click_js}')
 
             if not clicado:
-                # Fallback via seletores e click_headless_safe
                 for sel_btn in _SELETORES_BTN_ACRESCENTAR:
                     xpath_seta = (
                         f'(//mat-expansion-panel[.//mat-expansion-panel-header[contains(., "Polo Passivo")]]'
@@ -1167,7 +1078,6 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             if not clicado:
                 raise RuntimeError('Falha ao clicar primeira seta do Polo Passivo (botão de acrescentar não encontrado)')
 
-            # Aguardar spinner pós-clique
             seletores_loading = (
                 'mat-dialog-container, mat-progress-spinner, mat-progress-bar, '
                 '.loading-spinner, .cdk-overlay-backdrop, .modal-backdrop'
@@ -1177,13 +1087,11 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             except Exception:
                 pass
 
-            # Aguardar destinatário aparecer na tabela de expedientes
             try:
                 aguardar_renderizacao_nativa(driver, 'tbody.cdk-drop-list tr.cdk-drag, table[name="Expedientes"] tbody tr', modo='aparecer', timeout=5)
             except Exception:
                 pass
 
-            # Se abrir modal de endereços (ex.: tribunal), tenta selecionar
             try:
                 if espera.elemento(driver, '.pec-consulta-enderecos', teto=2):
                     _selecionar_endereco_tribunal(driver, log, debug=debug)
@@ -1199,7 +1107,6 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             log(f'[DESTINATARIOS][ERRO] Falha ao selecionar primeiro destinatário: {e}')
             return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
-    # opção padrão: clicar polo passivo 1x
     log('[DESTINATARIOS] OPÇÃO PADRÃO: Clicando no polo passivo (1x)')
     try:
         btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=10, by=By.CSS_SELECTOR)
@@ -1236,14 +1143,7 @@ def remover_destinatarios_endereco_invalido(
     log: Optional[Callable] = None,
     debug: bool = False,
 ) -> int:
-    """Verifica a tabela de expedientes e exclui destinatários com endereço inválido.
-
-    Identifica linhas com o ícone '.pec-icone-vermelho-endereco-tabela-destinatarios'
-    (fas fa-times-circle) e clica no botão 'Excluir expediente.' da respectiva linha.
-    Opera independentemente da função de destinatário e mesmo que seja o único da tabela.
-
-    Retorna a quantidade de destinatários removidos.
-    """
+    """Verifica a tabela de expedientes e exclui destinatários com endereço inválido."""
     if log is None:
         def log(_msg):
             pass
@@ -1350,10 +1250,6 @@ def remover_destinatarios_endereco_invalido(
     return removidos
 
 
-# =============================================================================
-# Inserção e Detecção de PJDP (Órgãos Públicos / Fazenda Pública)
-# =============================================================================
-
 PJDP_NOME_KEYWORDS = [
     'municipio', 'prefeitura', 'estado de', 'estado do', 'governo do estado',
     'governo do municipio', 'uniao federal', 'ministerio', 'autarquia',
@@ -1365,10 +1261,7 @@ PJDP_NOME_KEYWORDS = [
 
 
 def detectar_pjdp_processo(driver: Any) -> bool:
-    """Detecta se há PJDP (Pessoa Jurídica de Direito Público / Órgão Público)
-    no polo passivo do processo via API PJe chamando diretamente `_detectar_pjdp_api`
-    de `bianca.triagem.regras` (critério principal: campo `procuradoria` da API).
-    """
+    """Detecta se há PJDP (Pessoa Jurídica de Direito Público / Órgão Público)"""
     try:
         from Fix.variaveis import cliente_para
         from Fix.core import extrair_id_processo
@@ -1399,7 +1292,6 @@ def detectar_pjdp_processo(driver: Any) -> bool:
         for p in passivos:
             nome_p = (p.get('nome') or p.get('nomeParte') or '').strip()
             item = {'nome': nome_p}
-            # Critério procuradoria (API PJe): entes públicos possuem o campo 'procuradoria' preenchido
             if 'procuradoria' in p:
                 item['pjdp'] = bool(p.get('procuradoria'))
             elif 'pjdp' in p:
@@ -1418,23 +1310,15 @@ def detectar_pjdp_processo(driver: Any) -> bool:
 
 
 def inserir_destinatarios_pjdp(driver: Any, log: Callable = logger.info, debug: bool = False) -> int:
-    """Insere manualmente destinatários PJDP (órgãos públicos) do polo passivo.
-
-    No PJe, entes públicos (PJDP) não são adicionados automaticamente aos
-    destinatários da Notificação Inicial. Esta função abre o Polo Passivo,
-    identifica as partes marcadas como órgão público (ícone fas fa-building /
-    tooltip 'órgão público') e clica na seta para acrescentá-las aos destinatários.
-    """
+    """Insere manualmente destinatários PJDP (órgãos públicos) do polo passivo."""
     log('[COMUNICACAO][PJDP] Verificando inserção manual de PJDP nos destinatários...')
 
-    # 1. Expandir painel do Polo Passivo
     if not _clicar_polo_passivo(driver, log):
         log('[COMUNICACAO][PJDP][WARN] Falha ao expandir o painel Polo Passivo')
         return 0
 
     espera.assentar(driver, 0.8, motivo='renderizacao polo passivo')
 
-    # 2. Localizar linhas do Polo Passivo
     linhas = espera.elementos(
         driver,
         '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row',
@@ -1493,7 +1377,6 @@ def inserir_destinatarios_pjdp(driver: Any, log: Callable = logger.info, debug: 
 
             if eh_pjdp:
                 nome_norm = normalizar_string(nome_parte).lower()
-                # Verificar se já consta na tabela de destinatários
                 ja_adicionado = any(nome_norm[:20] in nt for nt in nomes_tabela if len(nome_norm) >= 5) if nomes_tabela else False
                 if ja_adicionado:
                     log(f'[COMUNICACAO][PJDP] PJDP "{nome_parte}" já presente na tabela de destinatários — pulando')

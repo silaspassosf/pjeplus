@@ -10,12 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def normalizar_chip_texto(txt: str) -> str:
-    """Normaliza texto de chip para comparação:
-    - remove acentos / diacríticos
-    - converte para minúsculas
-    - substitui traços, hifens (inclusive en-dash/em-dash), pontuação por espaço
-    - colapsa múltiplos espaços em branco
-    """
+    """Normaliza texto de chip para comparação:"""
     if not txt:
         return ""
     s = unicodedata.normalize("NFD", str(txt))
@@ -51,7 +46,6 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
                 teto=2,
             )
 
-        # Coleta os textos brutos de todos os chips na tela para log e análise
         chips_brutos = []
         for el in chip_elements:
             try:
@@ -91,7 +85,6 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
 
         for chip_element, raw_text in itens_a_remover:
             try:
-                # 1. Tentar encontrar o botão de remoção diretamente no elemento do chip
                 btn_remover = None
                 seletor_btn = "button[mattooltip*='Remover' i], button[aria-label*='Remover' i], button.etq-botao-excluir, button.mat-chip-remove, mat-icon[mattooltip*='Remover' i], .mat-chip-remove, button"
 
@@ -112,7 +105,6 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
                     except Exception:
                         pass
 
-                # Fallback via XPath usando trecho limpo
                 if not btn_remover:
                     trecho = raw_text.splitlines()[0].strip() if raw_text else ""
                     if trecho:
@@ -131,8 +123,6 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
                 safe_click_no_scroll(driver, btn_remover)
                 espera.assentar(driver, 0.4)
 
-                # Dialogo de confirmacao ("Sim") — padrão exato de movimentos_fimsob (def_sob/PEC):
-                # espera o span/botao 'Sim' aparecer, clica e espera sumir.
                 sel_sim_txt = "//span[contains(text(),'Sim')] | //button[contains(.,'Sim')]"
                 xpath_sim = '//button[.//span[contains(text(), "Sim")]]'
 
@@ -159,7 +149,6 @@ def def_chip(driver: Any, numero_processo: str = '', observacao: str = '', chips
                         espera.ate_sumir(driver, "//span[contains(text(),'Sim')]", teto=timeout)
                         confirmou = True
                     else:
-                        # Fallback JS direto no container do diálogo
                         res_js = _executar_js(driver, """
                             const btn = Array.from(document.querySelectorAll('mat-dialog-container button, .cdk-overlay-pane button, button')).find(b => {
                                 const t = (b.textContent || '').trim();

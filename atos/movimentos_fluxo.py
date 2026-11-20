@@ -67,11 +67,8 @@ def _trocar_para_aba_detalhe(driver, debug: bool = False) -> bool:
 
 
 def _localizar_botao_tarefa(driver: Any, timeout: int = 8):
-    """Tentativa robusta de localizar o botão 'Abrir tarefa do processo'.
-    Retorna WebElement ou None.
-    """
+    """Tentativa robusta de localizar o botão 'Abrir tarefa do processo'."""
     try:
-        # 1) seletor canônico
         btn = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout)
         if btn:
             return btn
@@ -79,7 +76,6 @@ def _localizar_botao_tarefa(driver: Any, timeout: int = 8):
         pass
 
     try:
-        # 2) busca robusta por textos/atributos (maisPje style)
         textos = ['Abre a tarefa do processo', 'Abrir tarefa', 'tarefa do processo', 'tarefa']
         el = buscar_seletor_robusto(driver, textos, timeout=timeout)
         if el:
@@ -88,7 +84,6 @@ def _localizar_botao_tarefa(driver: Any, timeout: int = 8):
         pass
 
     try:
-        # 3) tentativas por seletores alternativos
         alt = ["button[mattooltip*='tarefa']", "button[aria-label*='tarefa']", "button[title*='tarefa']"]
         for s in alt:
             try:
@@ -104,12 +99,12 @@ def _localizar_botao_tarefa(driver: Any, timeout: int = 8):
 
 
 def _obter_tarefa_atual_robusta(driver: Any, timeout: int = 6, debug: bool = False) -> Optional[str]:
-    """Obtém a tarefa atual sem depender do cabeçalho da tarefa estar renderizado."""
+    """Obtém a tarefa atual pelos mesmos seletores do ato_judicial (sem ler o cabeçalho inteiro)."""
     seletores_tarefa = [
-        'pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1, pje-cabecalho-tarefa',
+        'pje-cabecalho-tarefa h1.titulo-tarefa',
+        'pje-cabecalho-tarefa h1',
         'span.texto-tarefa-processo',
         'mat-card-title',
-        'h1',
     ]
 
     for seletor in seletores_tarefa:
@@ -120,6 +115,10 @@ def _obter_tarefa_atual_robusta(driver: Any, timeout: int = 6, debug: bool = Fal
                     return texto
         except Exception:
             continue
+
+    tarefa_cache = (getattr(driver, 'pje_tarefa_atual', '') or '').strip()
+    if tarefa_cache:
+        return tarefa_cache
 
     url_atual = getattr(driver, 'current_url', '') or ''
     if '/tarefa/' in url_atual:
@@ -187,15 +186,7 @@ def mov_simples(
     debug: bool = False,
     timeout: int = 15
 ) -> bool:
-    """
-    Versão SIMPLIFICADA do movimento - apenas uma tentativa:
-    1. Busca aba /detalhe
-    2. Clica uma vez no botão "Abrir tarefa do processo" 
-    3. Troca para nova aba
-    4. Procura o botão alvo diretamente (sem clicar em "Análise" novamente)
-    5. Clica no botão alvo
-    6. (Opcional) Confirma ação
-    """
+    """Versão SIMPLIFICADA do movimento - apenas uma tentativa:"""
     def log_debug(msg):
         if debug:
             try:
@@ -204,20 +195,17 @@ def mov_simples(
                 pass
 
     try:
-        # ===== ETAPA 1: GARANTIR QUE ESTÁ EM /DETALHE =====
         log_debug("Buscando aba /detalhe...")
         if not _trocar_para_aba_detalhe(driver, debug=debug):
             logger.error('[MOV_SIMPLES][ERRO] Aba /detalhe não encontrada!')
             return False
 
-        # ===== ETAPA 2: ABRIR TAREFA DO PROCESSO =====
         log_debug("Procurando botão 'Abrir tarefa do processo'...")
         btn_abrir_tarefa = _localizar_botao_tarefa(driver, timeout=max(2, timeout//2))
         if not btn_abrir_tarefa:
             logger.error(f'[MOV_SIMPLES][ERRO] Botão "Abrir tarefa do processo" não encontrado!')
             return False
 
-        # Captura o texto da tarefa
         tarefa_do_botao = None
         try:
             span_tarefa = espera.elemento(driver, '.texto-tarefa-processo', teto=1)
@@ -234,7 +222,6 @@ def mov_simples(
             except Exception:
                 log_debug("Não foi possível capturar nome da tarefa")
 
-        # Clica na tarefa (usar estratégia sem scroll/dispatchEvent)
         handle_orig = getattr(driver, 'current_window_handle', None)
         click_resultado = safe_click_no_scroll(driver, btn_abrir_tarefa, log=debug)
 
@@ -256,7 +243,6 @@ def mov_simples(
         else:
             log_debug("Nenhuma nova aba detectada, prosseguindo na aba atual")
 
-        # ===== ETAPA 4: PROCURAR E CLICAR NO BOTÃO ALVO =====
         log_debug(f"Procurando botão alvo: {seletor_alvo}")
         btn_alvo = espera.elemento(driver, seletor_alvo, teto=timeout//2)
         if btn_alvo:
@@ -265,7 +251,6 @@ def mov_simples(
             logger.error(f'[MOV_SIMPLES][ERRO] Botão alvo não encontrado: {seletor_alvo}')
             return False
 
-        # ===== ETAPA 5: CONFIRMAÇÃO (OPCIONAL) =====
         if texto_confirmacao:
             try:
                 xpath_confirma = f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]]"
@@ -293,17 +278,7 @@ def mov(
     debug: bool = False,
     timeout: int = 15
 ) -> bool:
-    """
-    Fluxo geral MELHORADO para movimentos:
-    1. Verifica se está em /detalhe, se não estiver busca a aba /detalhe
-    2. Clica no botão "Abrir tarefa do processo" (BTN_TAREFA_PROCESSO)
-    3. Troca para nova aba, se aberta
-    4. Procura o botão alvo (seletor_alvo)
-       - Se não encontrar, SEMPRE clica em "Análise" e tenta novamente
-       - Se ainda não der certo, recomeça do passo 1 (volta para /detalhe)
-    5. Clica no botão alvo
-    6. (Opcional) Confirma ação se texto_confirmacao for fornecido
-    """
+    """Fluxo geral MELHORADO para movimentos:"""
     logger.info(f'[MOV] Iniciando movimento geral - Seletor: {seletor_alvo}')
 
     def log_debug(msg):
@@ -316,7 +291,6 @@ def mov(
     def tentar_encontrar_alvo():
         """Tenta encontrar o botão alvo, com fallback para Análise"""
         try:
-            # Primeira tentativa: buscar o alvo diretamente
             btn_alvo = espera.elemento(driver, seletor_alvo, teto=timeout//3)
             if btn_alvo:
                 safe_click(driver, btn_alvo)
@@ -324,10 +298,8 @@ def mov(
         except Exception:
             pass
 
-        # Verificar se já está em "Análise" - se sim, e botão não encontrado, está correto
         if seletor_alvo == "button[aria-label='Aguardando prazo']":
             try:
-                # Verificar se estamos em uma tarefa de análise
                 elementos_analise = espera.elementos(driver, "//*[contains(translate(text(), 'ANÁLISE', 'análise'), 'análise')]", teto=1)
                 em_analise = any('análise' in (getattr(el, 'text', '') or '').lower() for el in elementos_analise if getattr(el, 'is_displayed', lambda: True)())
                 if em_analise:
@@ -336,33 +308,29 @@ def mov(
             except Exception:
                 pass
 
-        # SEMPRE tenta clicar em "Análise" se não encontrar o alvo
         log_debug("Botão alvo não encontrado. Tentando clicar em 'Análise'...")
         btn_analise = None
-        
-        # Busca por texto "Análise"
+
         btns_analise = espera.elementos(driver, "//button[contains(translate(normalize-space(text()), 'ANÁLISE', 'análise'), 'análise')]", teto=2)
         for btn in btns_analise:
             if getattr(btn, 'is_displayed', lambda: True)() and getattr(btn, 'is_enabled', lambda: True)():
                 btn_analise = btn
                 break
-        
-        # Fallback: busca por aria-label
+
         if not btn_analise:
             btns_analise = espera.elementos(driver, "button[aria-label*='Análise']", teto=2)
             for btn in btns_analise:
                 if getattr(btn, 'is_displayed', lambda: True)() and getattr(btn, 'is_enabled', lambda: True)():
                     btn_analise = btn
                     break
-        
+
         if btn_analise:
             safe_click(driver, btn_analise)
             try:
                 aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao', modo='aparecer', timeout=8)
             except Exception:
                 pass
-            
-            # Segunda tentativa: buscar o alvo após Análise
+
             try:
                 btn_alvo = espera.elemento(driver, seletor_alvo, teto=timeout//3)
                 if btn_alvo:
@@ -375,18 +343,15 @@ def mov(
         else:
             log_debug("Botão 'Análise' não encontrado")
             return False
-    
-    # Máximo de 2 tentativas completas
+
     for tentativa in range(1, 3):
         try:
-            # ===== ETAPA 1: GARANTIR QUE ESTÁ EM /DETALHE =====
             if not _trocar_para_aba_detalhe(driver, debug=debug):
                 logger.error(f'[MOV][ERRO] Tentativa {tentativa}: Não foi possível encontrar aba /detalhe')
-                if tentativa == 2:  # Última tentativa
+                if tentativa == 2:
                     return False
                 continue
-            
-            # ===== ETAPA 2: ABRIR TAREFA DO PROCESSO =====
+
             log_debug("Procurando botão 'Abrir tarefa do processo'...")
             btn_abrir_tarefa = _localizar_botao_tarefa(driver, timeout=max(2, timeout//2))
             if not btn_abrir_tarefa:
@@ -394,8 +359,7 @@ def mov(
                 if tentativa == 2:
                     return False
                 continue
-            
-            # Captura o texto da tarefa antes do clique
+
             tarefa_do_botao = None
             try:
                 span_tarefa = espera.elemento(driver, '.texto-tarefa-processo', teto=1)
@@ -411,11 +375,10 @@ def mov(
                     log_debug(f"Tarefa identificada (texto completo): '{tarefa_do_botao}'")
                 except Exception:
                     log_debug("Não foi possível capturar nome da tarefa")
-            
-            # Clica na tarefa (usar dispatchEvent/sem scroll)
+
             handle_orig = getattr(driver, 'current_window_handle', None)
             click_resultado = safe_click_no_scroll(driver, btn_abrir_tarefa, log=debug)
-            
+
             if not click_resultado:
                 logger.error(f'[MOV][ERRO] Tentativa {tentativa}: Falha no clique do botão da tarefa')
                 if tentativa == 2:
@@ -429,16 +392,14 @@ def mov(
                     nova_aba = aguardar_nova_aba(driver, handle_orig, timeout=6)
             except Exception:
                 pass
-            
+
             if nova_aba:
                 driver.switch_to.window(nova_aba)
                 log_debug("Foco trocado para nova aba da tarefa")
             else:
                 log_debug("Nenhuma nova aba detectada, prosseguindo na aba atual")
-            
-            # ===== ETAPA 4: ENCONTRAR E CLICAR NO ALVO =====
+
             if tentar_encontrar_alvo():
-                # ===== ETAPA 5: CONFIRMAÇÃO (OPCIONAL) =====
                 if texto_confirmacao:
                     try:
                         xpath_confirma = f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]]"
@@ -451,14 +412,13 @@ def mov(
                     except Exception as e:
                         logger.error(f'[MOV][ERRO] Não foi possível clicar no botão de confirmação "{texto_confirmacao}": {e}')
                         return False
-                
+
                 return True
             else:
                 logger.warning(f'[MOV][WARN] Tentativa {tentativa}: Não foi possível encontrar o alvo, tentando novamente...')
                 if tentativa == 2:
                     logger.error('[MOV][ERRO] Esgotadas todas as tentativas')
                     return False
-                # Fechar aba da tarefa antes de tentar novamente
                 try:
                     abas = _obter_abas(driver)
                     if nova_aba and nova_aba in abas:
@@ -472,13 +432,13 @@ def mov(
                 except Exception:
                     pass
                 continue
-                
+
         except Exception as e:
             logger.error(f'[MOV][ERRO] Tentativa {tentativa}: Falha no fluxo de movimento: {e}')
             if tentativa == 2:
                 return False
             continue
-    
+
     return False
 
 
@@ -489,12 +449,7 @@ def _remover_acentos(texto: str) -> str:
 
 
 def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int = 8):
-    """Localiza o botão de destino alinhado ao gigs-plugin/mini-selenium:
-    1. Busca por textContent normalizado (removeAcento + includes) — tal como querySelectorByText
-    2. Busca prioritária em pje-botoes-transicao button
-    3. Fallback para busca global de botões na página
-    4. Fallback para aria-label / title
-    """
+    """Localiza o botão de destino alinhado ao gigs-plugin/mini-selenium:"""
     destino_lower = (destino or '').strip().lower()
     if not destino_lower:
         return None
@@ -514,7 +469,6 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
         except Exception:
             return False
 
-    # 1. Dentro de pje-botoes-transicao (se houver)
     try:
         for el in espera.elementos(driver, 'pje-botoes-transicao button', teto=min(1.5, timeout)):
             if _match(el):
@@ -522,7 +476,6 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
     except Exception:
         pass
 
-    # 2. Qualquer botão visível na página
     try:
         for el in espera.elementos(driver, 'button, input[type="button"]', teto=min(1.5, timeout)):
             if _match(el):
@@ -533,17 +486,8 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
     return None
 
 
-
 def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
-    """Abre a tarefa mais recente do processo via API REST (padrão gigs-plugin).
-    
-    Estratégia:
-    1. GET /pje-comum-api/api/processos/id/{idProcesso}/tarefas?maisRecente=true
-    2. Extrai idTarefa de payload[0].idTarefa
-    3. Navega direto (driver.get) para /pjekz/processo/{idProcesso}/tarefa/{idTarefa}
-    
-    Este fluxo não depende do cabeçalho da tarefa estar renderizado para prosseguir.
-    """
+    """Abre a tarefa mais recente do processo via API REST (padrão gigs-plugin)."""
     import re as _re
     from Fix.variaveis import session_from_driver
 
@@ -560,14 +504,12 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
         id_processo = m.group(1)
         base = url_atual.split('/pjekz/')[0]
 
-        # Etapa 1: Obter session autenticada via cookies do driver (padrão apis.js)
         try:
             sess, host = session_from_driver(driver)
         except Exception as e:
             logger.warning(f'[API_TAREFA] session_from_driver falhou: {e}')
             return False
 
-        # Etapa 2: GET /tarefas?maisRecente=true (padrão gigs-plugin L4511-4512)
         endpoint = f"https://{host}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
         try:
             r = sess.get(endpoint, timeout=10)
@@ -577,25 +519,24 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
             logger.warning(f'[API_TAREFA] GET {endpoint} falhou: {e}')
             return False
 
-        # Etapa 3: Extrair idTarefa (resposta é array [0].idTarefa conforme gigs-plugin)
         id_tarefa = None
-        if isinstance(dados, list) and dados:
-            id_tarefa = dados[0].get('idTarefa') or dados[0].get('id')
-        elif isinstance(dados, dict):
-            # Fallback: resposta envelopada {idTarefa: ...}
-            id_tarefa = dados.get('idTarefa') or dados.get('id')
+        registro = dados[0] if (isinstance(dados, list) and dados) else (dados if isinstance(dados, dict) else None)
+        nome_tarefa_api = ''
+        if isinstance(registro, dict):
+            id_tarefa = registro.get('idTarefa') or registro.get('id')
+            for campo in ('nomeTarefa', 'nome', 'tarefa', 'descricao', 'titulo'):
+                val = registro.get(campo)
+                if isinstance(val, str) and val.strip():
+                    nome_tarefa_api = val.strip()
+                    break
 
         if not id_tarefa:
             logger.warning(f'[API_TAREFA] idTarefa não encontrado na resposta: {dados}')
             return False
 
-        # Etapa 4: Navegar direto para a tarefa (padrão gigs-plugin apis.abrirTarefa.abrir(..., 'self'))
         url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
-        # Limpa o nome/estado da tarefa anterior: sem isso o roteamento em
-        # navegar_para_conclusao decide pelo nome do processo ANTERIOR (nome
-        # sujo), já que driver.pje_tarefa_atual persiste no driver.
         try:
-            driver.pje_tarefa_atual = ''
+            driver.pje_tarefa_atual = nome_tarefa_api
             driver.pje_tarefa_pronta = None
         except Exception:
             pass
@@ -605,17 +546,16 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
             logger.error(f'[API_TAREFA] Erro ao navegar para tarefa: {e}')
             return False
 
-        # Etapa 5: Aguardar renderização da tarefa com barreira anti-travamento
         try:
             from Fix.core import garantir_carregamento_pagina
             garantir_carregamento_pagina(
                 driver,
-                seletor_esperado='pje-cabecalho-tarefa, pje-botoes-transicao',
+                seletor_esperado='pje-cabecalho-tarefa h1.titulo-tarefa, pje-cabecalho-tarefa h1, nav.container-botoes button, pje-botoes-transicao button',
                 timeout_refresh=10.0,
                 url_alvo=url_tarefa,
             )
         except Exception:
-            pass  # Fallback: continuar mesmo se renderização falhar
+            pass
 
         logger.info(f'[API_TAREFA] Tarefa aberta via API com sucesso: processo={id_processo} tarefa={id_tarefa}')
         return True
@@ -626,15 +566,7 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
 
 
 def _tarefa_atual_via_api(driver: Any) -> Optional[str]:
-    """Nome da tarefa mais recente do processo via API, SEM navegar o browser.
-
-    Consulta o mesmo endpoint de abrir_tarefa_por_api
-    (/tarefas?maisRecente=true) e extrai o nome da tarefa do payload.
-    Usado para evitar abrir a tarefa no browser quando ela já está no
-    estado de destino (fluxo p2b: 'Aguardando Prazo' — abria e fechava
-    em sequência, sem ação visível).
-    Retorna None se não conseguir determinar (chamador segue o fluxo normal).
-    """
+    """Nome da tarefa mais recente do processo via API, SEM navegar o browser."""
     import re as _re
     from Fix.variaveis import session_from_driver
 
@@ -671,13 +603,7 @@ def _tarefa_atual_via_api(driver: Any) -> Optional[str]:
 
 
 def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15, profundidade: int = 0, pular_abertura_api: bool = False) -> bool:
-    """Movimentação inteligente de processos baseada na máquina de estados do gigs-plugin.js (acao_bt_aaMovimento).
-    
-    1. Verifica se já está no destino (via API ou DOM);
-    2. Aborta em elaboração/assinatura ou controle de acordo para segurança dos dados;
-    3. Se na tarefa Análise: clica no botão de destino em pje-botoes-transicao;
-    4. Se em outra tarefa: tenta destino direto ou transiciona para Análise (movimentar_analise) e repete.
-    """
+    """Movimentação inteligente de processos baseada na máquina de estados do gigs-plugin.js (acao_bt_aaMovimento)."""
     if profundidade >= 3:
         logger.error(f'[MOV_INT] Limite de {profundidade} navegacoes atingido sem conseguir "{destino}" — abortando')
         return False
@@ -685,7 +611,6 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
     try:
         from .movimentos_navegacao import clicar_botao_por_texto, movimentar_analise, navegar_para_tarefa
 
-        # ===== ETAPA -1: JÁ ESTÁ NO DESTINO? (verificação via API, sem abrir a tarefa) =====
         if '?' not in (destino or ''):
             tarefa_api = _tarefa_atual_via_api(driver)
             if tarefa_api:
@@ -694,7 +619,6 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
                     logger.info(f"[MOV_INT] tarefa já está em '{tarefa_api}' (via API) — nada a fazer")
                     return True
 
-        # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API SE NECESSÁRIO =====
         if not pular_abertura_api:
             abrir_tarefa_por_api(driver, timeout=timeout)
 
@@ -714,7 +638,6 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
 
         logger.info(f"[MOV_INT] tarefa='{tarefa_text}' destino='{destino}'")
 
-        # 1. JÁ SE ENCONTRA NA TAREFA DESTINO
         if destino_norm and destino_norm in tarefa_norm:
             logger.info("[MOV_INT] Processo já se encontra na tarefa de destino.")
             if ultimo_lance:
@@ -729,20 +652,22 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
                     pass
             return True
 
-        # 2. INTERROMPER EM TAREFA DE ELABORAR OU ASSINAR (proteção de minuta)
         if 'elaborar' in tarefa_norm or 'assinar' in tarefa_norm:
             logger.warning('[MOV_INT] Processo em tarefa de elaborar/assinar — movimento cancelado para evitar perda de minuta')
             return False
 
-        # 3. INTERROMPER EM CONTROLE DE ACORDO
         if 'controle de acordo' in tarefa_norm:
             logger.warning('[MOV_INT] Processo em controle de acordo — requer movimentação manual')
             return False
 
-        # 4. REGRA GERAL (gigs-plugin.js L12293-12386):
-        # 4.1 Processo já está na tarefa ANÁLISE:
+        aguardar_renderizacao_nativa(
+            driver,
+            'nav.container-botoes button, pje-botoes-transicao button',
+            modo='aparecer',
+            timeout=min(10, timeout),
+        )
+
         if 'analise' in tarefa_norm:
-            aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(5, timeout))
             if clicar_botao_por_texto(driver, destino, debug=True):
                 logger.info(f'[MOV_INT] Botão destino "{destino}" clicado na tarefa Análise!')
                 if ultimo_lance:
@@ -757,8 +682,6 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
                         pass
                 return True
 
-            # Conforme LEGADO L4869: se destino é 'aguardando prazo' e já está em 'Análise',
-            # mas o botão não está disponível, a tarefa já está no estado correto após elaboração/expedição.
             if 'aguardando prazo' in destino_norm or 'prazo' in destino_norm:
                 logger.info("[MOV_INT] Já está em 'Análise' e botão 'Aguardando prazo' não disponível — conforme LEGADO L4869, está correto.")
                 return True
@@ -766,9 +689,9 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
             logger.warning(f'[MOV_INT] Botão destino "{destino}" não encontrado na tarefa Análise')
             return False
 
-        # 4.2 Processo em outra tarefa (ex: 'Cumprimento de Providências'):
-        # Tenta clique no destino direto se o botão estiver visível na tarefa
-        if clicar_botao_por_texto(driver, destino, timeout=1, debug=True):
+        # 'Cumprimento de Providências' exige Análise antes (evita espera inútil).
+        exige_analise = 'cumprimento de providencias' in tarefa_norm
+        if not exige_analise and clicar_botao_por_texto(driver, destino, timeout=2, debug=True):
             logger.info(f'[MOV_INT] Botão destino "{destino}" clicado diretamente na tarefa atual!')
             if ultimo_lance:
                 try:
@@ -782,10 +705,13 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
                     pass
             return True
 
-        # Se não há transição direta para o destino, movimenta primeiro para Análise (movimentar_analise do gigs-plugin.js)
         logger.info(f'[MOV_INT] Destino direto indisponível na tarefa "{tarefa_text}" — transicionando para Análise (gigs-plugin)...')
         if movimentar_analise(driver, tarefa_text, debug=True):
-            # Estando em Análise, repete para clicar no botão de destino
+            try:
+                driver.pje_tarefa_atual = ''
+            except Exception:
+                pass
+            espera.assentar(driver, 0.5)
             return movimentar_inteligente(
                 driver,
                 destino,
@@ -797,8 +723,12 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
                 pular_abertura_api=True
             )
 
-        # Fallback via navegar_para_tarefa se movimentar_analise não encontrou botão
         if navegar_para_tarefa(driver, 'análise', debug=True, timeout=timeout, tarefa_atual_conhecida=tarefa_text):
+            try:
+                driver.pje_tarefa_atual = ''
+            except Exception:
+                pass
+            espera.assentar(driver, 0.5)
             return movimentar_inteligente(
                 driver,
                 destino,
@@ -818,12 +748,8 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
         return False
 
 
-
 def clicar_ultimo_lance(driver: Any, texto_ultimo_lance: str, timeout: int = 5) -> bool:
-    """Tenta clicar no último lance indicado pelo texto.
-
-    Retorna True se clicou, False caso contrário.
-    """
+    """Tenta clicar no último lance indicado pelo texto."""
     try:
         if not texto_ultimo_lance:
             return False
@@ -834,7 +760,6 @@ def clicar_ultimo_lance(driver: Any, texto_ultimo_lance: str, timeout: int = 5) 
             btn = None
 
         if not btn:
-            # tentar buscar por parcial do texto
             try:
                 btns = espera.elementos(driver, f"//button[contains(., '{texto_ultimo_lance}')]", teto=max(2, timeout//2))
                 for b in btns:
@@ -859,12 +784,8 @@ def clicar_ultimo_lance(driver: Any, texto_ultimo_lance: str, timeout: int = 5) 
 
 
 def chip_responsavel(driver, chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 5) -> None:
-    """Clica no chip (se solicitado) e tenta abrir seleção de responsável (GIGS) se solicitado.
-
-    Não lança exceções em falhas, apenas tenta realizar as ações.
-    """
+    """Clica no chip (se solicitado) e tenta abrir seleção de responsável (GIGS) se solicitado."""
     try:
-        # Chip amarelo padrão
         if chip:
             try:
                 el = esperar_elemento(driver, 'button[aria-label="Incluir Chip Amarelo"]', timeout=max(1, timeout//2))
@@ -873,7 +794,6 @@ def chip_responsavel(driver, chip: Optional[str] = None, responsavel: Optional[s
             except Exception:
                 pass
 
-        # Responsável: abrir o GIGS para escolher, se aplicável
         if responsavel:
             try:
                 gg = buscar_seletor_robusto(driver, ['Abrir o GIGS', 'GIGS'], timeout=max(1, timeout//2))

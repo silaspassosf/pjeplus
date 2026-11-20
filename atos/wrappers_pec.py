@@ -11,10 +11,6 @@ deste modulo no RuleRegistry (bucket 'comunicacao_judicial').
 from .comunicacao import make_comunicacao_wrapper
 
 
-# ====================================================
-# WRAPPER FUNCTIONS - COMUNICACAO_JUDICIAL DERIVATIVES
-# ====================================================
-
 pec_bloqueio = make_comunicacao_wrapper(
     tipo_expediente='Intimação',
     prazo=7,
@@ -67,7 +63,7 @@ pec_idpj = make_comunicacao_wrapper(
     descricao="Intimação para manifestação sobre IDPJ",
     tipo_prazo='dias uteis',
     gigs_extra=(7, 'xs carta'),
-    destinatarios='informado decisao',  # lê a última decisão via API e cruza com os réus
+    destinatarios='informado decisao',
     cliques_informado=2,
     wrapper_name='pec_idpj'
 )
@@ -81,7 +77,7 @@ pec_editalidpj = make_comunicacao_wrapper(
     subtipo='Edital',
     gigs_extra=None,
     destinatarios='informado despacho',
-    cliques_informado=1,  
+    cliques_informado=1,
     wrapper_name='pec_editalidpj'
 )
 
@@ -284,9 +280,9 @@ pec_arsum = make_comunicacao_wrapper(
     modelo_nome='AR-Su',
     subtipo="Notificação",
     gigs_extra=None,
-    destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
-    cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    destinatarios='polo_passivo',
+    cliques_polo_passivo=0,
+    endereco_tipo='correios',
     wrapper_name='pec_arsum'
 )
 
@@ -298,9 +294,9 @@ pec_arord = make_comunicacao_wrapper(
     modelo_nome='AR-Or',
     subtipo="Notificação",
     gigs_extra=None,
-    destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
-    cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    destinatarios='polo_passivo',
+    cliques_polo_passivo=0,
+    endereco_tipo='correios',
     wrapper_name='pec_arord'
 )
 
@@ -342,9 +338,9 @@ pec_arsumv = make_comunicacao_wrapper(
     modelo_nome='arvsum',
     subtipo="Notificação",
     gigs_extra=None,
-    destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
-    cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    destinatarios='polo_passivo',
+    cliques_polo_passivo=0,
+    endereco_tipo='correios',
     wrapper_name='pec_arsumv'
 )
 
@@ -356,9 +352,9 @@ pec_arordv = make_comunicacao_wrapper(
     modelo_nome='arvord',
     subtipo="Notificação",
     gigs_extra=None,
-    destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
-    cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios',  # Alterado de mudar_expediente=True para endereco_tipo
+    destinatarios='polo_passivo',
+    cliques_polo_passivo=0,
+    endereco_tipo='correios',
     wrapper_name='pec_arordv'
 )
 
@@ -375,21 +371,12 @@ pec_exeq = make_comunicacao_wrapper(
     assinar=True,
     endereco_tipo='correios',
     wrapper_name='pec_exeq',
-    remover_endereco_invalido=False 
+    remover_endereco_invalido=False
 )
 
-# ====================================================
-# WRAPPERS COM DOMICÍLIO ELETRÔNICO - xs ord / xs sum
-# ====================================================
 
 def wrapper_pec_ord_com_domicilio(driver, debug=False, **kwargs):
-    """Wrapper para xs ord com decisão por domicílio eletrônico.
-    
-    Lógica:
-    - SÓ COM domicílio: executa pec_ord
-    - SÓ SEM domicílio: executa pec_ordc
-    - MISTURADO: executa pec_ord + pec_ordc
-    """
+    """Wrapper para xs ord com decisão por domicílio eletrônico."""
     from Fix.variaveis import cliente_para
     from Fix.core import extrair_id_processo
 
@@ -400,23 +387,22 @@ def wrapper_pec_ord_com_domicilio(driver, debug=False, **kwargs):
 
         client = cliente_para(driver)
         partes = client.partes(id_processo)
-        
+
         if not partes:
             return pec_ord(driver, debug=debug, **kwargs)
-        
-        # Contar domicílio nas reclamadas
+
         reclamadas = [p for p in partes if p.get('poloProcessual', '').lower() in ['passivo', 'reclamada']]
         if not reclamadas:
             return pec_ord(driver, debug=debug, **kwargs)
-        
+
         com_domicilio = sum(
-            1 for p in reclamadas 
+            1 for p in reclamadas
             if client.domicilio_eletronico(str(p.get('id') or p.get('idParte'))) is True
         )
         sem_domicilio = len(reclamadas) - com_domicilio
-        
+
         logger.info(f"[PEC_ORD]  {com_domicilio} com domicílio, {sem_domicilio} sem")
-        
+
         if sem_domicilio == 0:
             logger.info("[PEC_ORD] → Executa pec_ord")
             pec_ord(driver, debug=debug, **kwargs)
@@ -427,7 +413,7 @@ def wrapper_pec_ord_com_domicilio(driver, debug=False, **kwargs):
             logger.info("[PEC_ORD] → Executa pec_ord + pec_ordc")
             pec_ord(driver, debug=debug, **kwargs)
             pec_ordc(driver, debug=debug, **kwargs)
-        
+
         from .wrappers_mov import mov_aud
         logger.info("[PEC_ORD] → Executa mov_aud")
         return mov_aud(driver, debug=debug)
@@ -438,10 +424,6 @@ def wrapper_pec_ord_com_domicilio(driver, debug=False, **kwargs):
         logger.info("[PEC_ORD] → Fallback: Executa mov_aud")
         return mov_aud(driver, debug=debug)
 
-
-# ====================================================
-# WRAPPERS PARA INTIMAÇÃO 100% DIGITAL E SEM AUDIÊNCIA
-# ====================================================
 
 ato_100 = make_comunicacao_wrapper(
    tipo_expediente='Intimação',
@@ -471,13 +453,7 @@ ato_unap = make_comunicacao_wrapper(
 
 
 def wrapper_pec_sum_com_domicilio(driver, debug=False, **kwargs):
-    """Wrapper para xs sum com decisão por domicílio eletrônico.
-    
-    Lógica:
-    - SÓ COM domicílio: executa pec_sum
-    - SÓ SEM domicílio: executa pec_sumc
-    - MISTURADO: executa pec_sum + pec_sumc
-    """
+    """Wrapper para xs sum com decisão por domicílio eletrônico."""
     from Fix.variaveis import cliente_para
     from Fix.core import extrair_id_processo
 
@@ -488,23 +464,22 @@ def wrapper_pec_sum_com_domicilio(driver, debug=False, **kwargs):
 
         client = cliente_para(driver)
         partes = client.partes(id_processo)
-        
+
         if not partes:
             return pec_sum(driver, debug=debug, **kwargs)
-        
-        # Contar domicílio nas reclamadas
+
         reclamadas = [p for p in partes if p.get('poloProcessual', '').lower() in ['passivo', 'reclamada']]
         if not reclamadas:
             return pec_sum(driver, debug=debug, **kwargs)
-        
+
         com_domicilio = sum(
-            1 for p in reclamadas 
+            1 for p in reclamadas
             if client.domicilio_eletronico(str(p.get('id') or p.get('idParte'))) is True
         )
         sem_domicilio = len(reclamadas) - com_domicilio
-        
+
         logger.info(f"[PEC_SUM]  {com_domicilio} com domicílio, {sem_domicilio} sem")
-        
+
         if sem_domicilio == 0:
             logger.info("[PEC_SUM] → Executa pec_sum")
             pec_sum(driver, debug=debug, **kwargs)
@@ -515,11 +490,11 @@ def wrapper_pec_sum_com_domicilio(driver, debug=False, **kwargs):
             logger.info("[PEC_SUM] → Executa pec_sum + pec_sumc")
             pec_sum(driver, debug=debug, **kwargs)
             pec_sumc(driver, debug=debug, **kwargs)
-        
+
         from .wrappers_mov import mov_aud
         logger.info("[PEC_SUM] → Executa mov_aud")
         return mov_aud(driver, debug=debug)
-            
+
     except Exception as e:
         logger.info(f"[PEC_SUM] Erro: {e} → pec_sum")
         pec_sum(driver, debug=debug, **kwargs)

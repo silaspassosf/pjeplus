@@ -102,7 +102,6 @@ def _fechar_dialogos_residuais(driver, log=None):
     """Fecha diálogos modais de modelo ou de elaboração que tenham permanecido abertos."""
     from atos.comunicacao_preenchimento import aguardar_fechamento_dialogo_elaboracao
 
-    # 1. Se diálogo de preview do modelo (pje-dialogo-visualizar-modelo) estiver aberto:
     btn_fechar_prev = espera.elemento(
         driver,
         'pje-dialogo-visualizar-modelo button[aria-label*="Fechar" i], '
@@ -115,7 +114,6 @@ def _fechar_dialogos_residuais(driver, log=None):
         safe_click_no_scroll(driver, btn_fechar_prev)
         aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=3)
 
-    # 2. Se diálogo de elaboração do ato (pje-pec-dialogo-ato) estiver aberto:
     if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=1):
         if log:
             log('[TROCAR_MODELO][WARN] Diálogo de elaboração detectado aberto — acionando botão de fechamento')
@@ -198,8 +196,6 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
         def log(_msg):
             return None
 
-    # Fluxo único de inserção (atos/judicial_modelos.inserir_modelo_no_editor):
-    # filtro → nodo → diálogo → teor → inserir → confirmação escopada + baseline.
     from .judicial_modelos import inserir_modelo_no_editor
     if not inserir_modelo_no_editor(driver, modelo_nome, log=log):
         log(f'[COMUNICACAO][WARN] Modelo "{modelo_nome}" não confirmado no editor-alvo')
@@ -219,7 +215,6 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
         aguardar_fechamento_dialogo_elaboracao,
     )
 
-    # 0. Barreira inicial: garantir que nenhum diálogo residual de elaboração esteja aberto
     if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=3):
         log('[TROCAR_MODELO][WARN] Diálogo residual aberto antes de iniciar — tentando fechar...')
         _fechar_dialogos_residuais(driver, log=log)
@@ -253,7 +248,6 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
     log(f'[TROCAR_MODELO] {total} linha(s) Correios para processar')
 
     for i in range(total):
-        # 1. Barreira pré-abertura: o diálogo da linha anterior TEM QUE ESTAR 100% FECHADO
         if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
             log(f'[TROCAR_MODELO][WARN] Diálogo anterior não fechou antes da linha {i + 1} — tentando fechar...')
             _fechar_dialogos_residuais(driver, log=log)
@@ -279,17 +273,14 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
             _fechar_dialogos_residuais(driver, log=log)
             raise RuntimeError(f'Falha ao inserir modelo na linha {i + 1}')
 
-        # Limpar qualquer snackbar prévia para não contaminar a verificação de finalização
         _limpar_snackbar_se_houver(driver)
 
-        # 2. Finalização canônica via finalizar_minuta (com retries e espera de snackbar)
         try:
             sucesso_fim = finalizar_minuta(driver, log=log)
         except Exception as e:
             log(f'[TROCAR_MODELO][WARN] Exceção em finalizar_minuta na linha {i + 1}: {e}')
             sucesso_fim = False
 
-        # 3. Barreira pós-finalização: confirmação mandatória de que o diálogo sumiu
         if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=15):
             log(f'[TROCAR_MODELO][WARN] Diálogo da linha {i + 1} não fechou no timeout de 15s — tentando fechar...')
             _fechar_dialogos_residuais(driver, log=log)
@@ -309,7 +300,6 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
         log(f'[TROCAR_MODELO] Linha {i + 1}/{total} finalizada com sucesso e diálogo fechado')
         espera.assentar(driver, 1.0, motivo='estabilização da tabela pós-fechamento do diálogo da linha')
 
-    # 4. Barreira final pós-loop: conferir que nenhum diálogo ficou aberto antes de retornar
     if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
         _fechar_dialogos_residuais(driver, log=log)
         if not aguardar_fechamento_dialogo_elaboracao(driver, log=log, timeout=5):
@@ -320,25 +310,13 @@ def trocar_modelo_minuta(driver, modelo_troca=None, debug=False, log=None):
 
 
 def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, log=None):
-    """Vincula o primeiro endereço disponível da lista para o destinatário na linha informada.
-
-    Acionado após alterar o meio de expedição para Correio, para garantir que o destinatário
-    receba um endereço válido na minuta e não seja indevidamente excluído pela rotina
-    de limpeza de endereços inválidos (ex: pec_exeq).
-
-    Fluxo:
-    1. Clica no ícone de envelope da linha do destinatário (abre modal de endereços).
-    2. Aguarda o diálogo de endereços renderizar.
-    3. Clica na primeira seta para cima ('Selecionar endereço') disponível na tabela.
-    4. Fecha o diálogo de endereços.
-    """
+    """Vincula o primeiro endereço disponível da lista para o destinatário na linha informada."""
     if log is None:
         def log(_msg):
             pass
 
     log(f'[COMUNICACAO] Linha {idx}: Vinculando endereço válido via envelope...')
 
-    # 1. Clicar no botão do envelope na linha correspondente
     _JS_CLICAR_ENVELOPE = """(targetIdx) => {
         const rows = document.querySelectorAll('tbody.cdk-drop-list tr.cdk-drag, pje-pec-tabela-destinatarios tbody tr, mat-table tbody tr');
         const tr = rows[targetIdx - 1];
@@ -398,7 +376,6 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
         log(f'[COMUNICACAO][WARN] Linha {idx}: Botão de envelope não encontrado para vincular endereço')
         return False
 
-    # 2. Aguardar o diálogo de endereços abrir
     sel_modal = 'pje-pec-dialogo-endereco, .pec-dialogo-endereco, .pec-consulta-enderecos, mat-dialog-container'
     try:
         aguardar_renderizacao_nativa(driver, sel_modal, modo='aparecer', timeout=5)
@@ -410,7 +387,6 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
         log(f'[COMUNICACAO][WARN] Linha {idx}: Diálogo de endereços não apareceu após clicar no envelope')
         return False
 
-    # 3. Localizar e clicar na primeira seta para cima ('Selecionar endereço')
     sel_btn_seta = (
         'pje-pec-dialogo-endereco button[aria-label="Selecionar endereço"], '
         'mat-dialog-container button[aria-label="Selecionar endereço"], '
@@ -479,7 +455,6 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
     else:
         log(f'[COMUNICACAO][WARN] Linha {idx}: Nenhuma seta de seleção de endereço encontrada no modal')
 
-    # 4. Fechar o diálogo de endereços
     _JS_FECHAR_MODAL = """() => {
         const modal = document.querySelector('pje-pec-dialogo-endereco, .pec-dialogo-endereco, .pec-consulta-enderecos, mat-dialog-container');
         if (!modal) return { ok: true, motivo: 'modal_ja_fechado' };
@@ -549,8 +524,6 @@ def vincular_primeiro_endereco_valido(driver, linha=None, idx=1, debug=False, lo
 
 _XP_LINHA_DESTINATARIO = '(//tbody[contains(@class,"cdk-drop-list")]//tr[contains(@class,"cdk-drag")])[{idx}]'
 
-# Option do dropdown de Meio de Expedição que corresponde a Correios/SEDEX.
-# O probe do PJe (TRT2, 30/10/2026) registrou `mat-option[name="Correios"]`.
 _XP_OPCAO_CORREIOS = (
     '//div[contains(@class,"cdk-overlay-pane")]//mat-option'
     '[translate(@name,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz")="correios"'
@@ -563,12 +536,7 @@ _SEL_SPINNERS = '.loading-spinner, .mat-progress-spinner, mat-progress-bar, .loa
 
 
 def _linha_destinatario(driver, idx):
-    """Re-consulta a <tr> do destinatário `idx` (1-based). None se não existir.
-
-    A tabela é re-renderizada pelo Angular depois de cada troca de meio de
-    expedição (endereçovalido / expedientesmateria), então a referência antiga
-    da linha fica obsoleta. Sempre re-buscar antes de tocar na linha.
-    """
+    """Re-consulta a <tr> do destinatário `idx` (1-based). None se não existir."""
     return espera.elemento(driver, _XP_LINHA_DESTINATARIO.format(idx=idx), teto=2)
 
 
@@ -599,12 +567,7 @@ def _meio_atual_linha(driver, idx):
 
 
 def _fechar_overlays(driver):
-    """Fecha overlays/backdrops do Material que tenham sobrado abertos.
-
-    Sem isso, o dropdown da próxima linha abre ATRÁS do backdrop da anterior:
-    o painel aparece (é o que o usuário vê) mas o clique na mat-option é
-    engolido pelo backdrop e o fluxo trava.
-    """
+    """Fecha overlays/backdrops do Material que tenham sobrado abertos."""
     try:
         if hasattr(driver, 'page') and driver.page:
             driver.page.keyboard.press('Escape')
@@ -624,13 +587,6 @@ def _fechar_overlays(driver):
 
 
 def _opcao_correios_visivel(driver):
-    """Retorna a mat-option de Correios **visível** no overlay ativo, ou None.
-
-    A validação de visibilidade é o ponto crítico da correção: a mat-option
-    pode existir no DOM (de um dropdown anterior) sem estar visível, e um
-    clique nela é aceito pelo JS (`el.click()`) mas não grava nada no
-    mat-select da linha atual.
-    """
     try:
         opcoes = espera.elementos(driver, _XP_OPCAO_CORREIOS, teto=1)
         if not opcoes:
@@ -665,13 +621,7 @@ _JS_CONF_PRAZO = """(function(){
 
 
 def _tipo_prazo_atual(driver, idx):
-    """Tipo de prazo marcado na linha: 'dias_uteis'|'sem_prazo'|'data_certa'|'dias_corridos'|''.
-
-    CRÍTICO: o seletor precisa ser restrito à coluna de prazo. A linha tem
-    DOIS mat-radio-group (signatário: "Usuário" e tipo de prazo); um seletor
-    amplo (`mat-radio-button.mat-radio-checked`) casa primeiro com o de
-    signatário e devolve lixo — foi o bug encontrado no teste do IIFE.
-    """
+    """Tipo de prazo marcado na linha: 'dias_uteis'|'sem_prazo'|'data_certa'|'dias_corridos'|''."""
     try:
         res = _executar_js(
             driver,
@@ -713,22 +663,7 @@ def _valor_prazo_atual(driver, idx):
 
 
 def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=None):
-    """Restabelece o prazo em dias úteis depois de trocar a linha para Correios.
-
-    Ao mudar o meio de expedição para Correios, o PJe reavalia o expediente
-    (`/expedientesmateria/13`) e o prazo que estava em "5 dias úteis" cai para
-    "sem prazo". Numa notificação isso é grave: o prazo é o próprio conteúdo do
-    ato. Antes de passar para a próxima linha, refazemos:
-
-        1. marcar o rádio "dias úteis"  (#destinatario_<hash>TipoPrazoD-input);
-        2. preencher o input de dias    (#destinatario_<hash>PrazoDiasUteis);
-        3. confirmar rádio marcado + valor aplicado (com 1 retentativa).
-
-    Mesma lógica do IIFE validado no console (`pje_correios_prazo5.js`).
-
-    Returns:
-        True se a linha terminou com "dias úteis" e o valor esperado.
-    """
+    """Restabelece o prazo em dias úteis depois de trocar a linha para Correios."""
     if log is None:
         def log(_msg):
             return None
@@ -739,7 +674,6 @@ def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=Non
     if prazo_alvo <= 0:
         return True
 
-    # Marca o rádio "dias úteis" e preenche o input na MESMA execução de JS:
     # entre uma chamada e outra o Angular pode re-renderizar a linha.
     _JS_MARCAR_E_PREENCHER = """(function(){
         var alvo = String(arguments[0]);
@@ -771,7 +705,6 @@ def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=Non
         return (_tipo_prazo_atual(driver, idx) == 'dias_uteis'
                 and _valor_prazo_atual(driver, idx).strip() == str(prazo_alvo))
 
-    # 1ª tentativa
     res = _aplicar()
     if res in ('sem_linha', 'sem_radio', 'sem_input'):
         log(f'[COMUNICACAO][WARN] Linha {idx}: não foi possível restabelecer o prazo ({res})')
@@ -786,7 +719,6 @@ def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=Non
     except Exception:
         pass
 
-    # 2ª tentativa: alguns casos só pegam no segundo blur.
     _aplicar()
     espera.assentar(driver, 0.6, motivo='retentativa de prazo')
     if _confirmado():
@@ -800,43 +732,23 @@ def _restabelecer_prazo_da_linha(driver, idx, prazo_dias=5, debug=False, log=Non
 
 
 def _alterar_meio_da_linha_para_correios(driver, idx, debug=False, log=None):
-    """Troca o meio de expedição da linha `idx` para Correios e CONFIRMA a troca.
-
-    Corrige o atropelo entre linhas (o primeiro destinatário muda, o segundo
-    abre o dropdown mas o clique em Correios não pega):
-
-    1. Espera a linha `idx` existir de novo (Angular re-renderiza após cada troca).
-    2. Fecha qualquer overlay/backdrop residual da linha anterior.
-    3. Abre o dropdown por clique real / safe_click_no_scroll.
-    4. Espera a opção de Correios ficar VISÍVEL — não apenas presente no DOM.
-    5. Clica na opção; se o painel continuar aberto, retenta.
-    6. Confirma que `.mat-select-min-line` da própria linha passou a exibir
-       "Correio". Sem essa confirmação, a próxima linha era tratada como se a
-       anterior tivesse terminado — era o travamento relatado.
-
-    Returns:
-        True somente se a linha passou a exibir Correios.
-    """
+    """Troca o meio de expedição da linha `idx` para Correios e CONFIRMA a troca."""
     if log is None:
         def log(_msg):
             return None
 
-    # Já está em Correios: nada a fazer.
     if 'correio' in _meio_atual_linha(driver, idx).lower():
         return True
 
     for tentativa in range(1, 4):
-        # 1. Linha precisa existir (a tabela pode estar re-renderizando).
         if not _linha_destinatario(driver, idx):
             log(f'[COMUNICACAO][WARN] Linha {idx}: linha de destinatário sumiu do DOM (tentativa {tentativa})')
             espera.ate_aparecer(driver, _XP_LINHA_DESTINATARIO.format(idx=idx), teto=3)
             if not _linha_destinatario(driver, idx):
                 return False
 
-        # 2. Nenhum overlay/backdrop residual da linha anterior.
         _fechar_overlays(driver)
 
-        # 3. Abre o dropdown com safe_click_no_scroll.
         dropdown = _dropdown_meio_linha(driver, idx)
         if not dropdown:
             log(f'[COMUNICACAO][WARN] Linha {idx}: Dropdown "Meios de Expedição" não encontrado')
@@ -849,21 +761,18 @@ def _alterar_meio_da_linha_para_correios(driver, idx, debug=False, log=None):
         if not _clicar_elemento_real(driver, dropdown):
             safe_click_no_scroll(driver, dropdown)
 
-        # Confirma que o painel abriu ANTES de procurar a opção.
         if not espera.ate_aparecer(driver, 'div.cdk-overlay-pane mat-option, mat-option', teto=3):
             if debug:
                 log(f'[COMUNICACAO][DEBUG] Linha {idx}: painel não abriu (tentativa {tentativa})')
             _fechar_overlays(driver)
             continue
 
-        # 4. Opção de Correios VISÍVEL (não basta existir no DOM).
         opcao = _opcao_correios_visivel(driver)
         if not opcao:
             log(f'[COMUNICACAO][WARN] Linha {idx}: opção "Correios" não visível no overlay (tentativa {tentativa})')
             _fechar_overlays(driver)
             continue
 
-        # 5. Clique na opção.
         try:
             scroll_to_element_safe(driver, opcao)
         except Exception:
@@ -871,8 +780,6 @@ def _alterar_meio_da_linha_para_correios(driver, idx, debug=False, log=None):
         if not _clicar_elemento_real(driver, opcao):
             safe_click_no_scroll(driver, opcao)
 
-        # 6. Confirma a gravação na própria linha. Enquanto o painel estiver
-        #    aberto, o clique não foi aceito: retenta em vez de seguir.
         espera.ate_sumir(driver, 'div.cdk-overlay-pane mat-option', teto=2)
         if espera.ate_js(
             driver,
@@ -882,7 +789,6 @@ def _alterar_meio_da_linha_para_correios(driver, idx, debug=False, log=None):
             % _XP_LINHA_DESTINATARIO.format(idx=idx),
             teto=4,
         ):
-            # Processa enderecovalido / expedientesmateria disparados pela troca.
             try:
                 espera.ate_sumir(driver, _SEL_SPINNERS, teto=5)
             except Exception:
@@ -896,13 +802,7 @@ def _alterar_meio_da_linha_para_correios(driver, idx, debug=False, log=None):
 
 
 def _clicar_elemento_real(driver, elemento):
-    """Clique real (Playwright) no elemento, com scroll.
-
-    `safe_click_no_scroll` cai para `el.click()` via JS quando o handle
-    falha — e o JS ignora o backdrop do overlay. Um clique real respeita o
-    hit-testing e falha se algo cobrir o alvo, o que é o comportamento que
-    queremos detectar.
-    """
+    """Clique real (Playwright) no elemento, com scroll."""
     try:
         if hasattr(elemento, '_handle') and elemento._handle:
             elemento._handle.click(timeout=3000)
@@ -929,10 +829,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vin
     else:
         deve_vincular_endereco = (wrapper_name == 'pec_exeq')
 
-    # Trocar o meio para Correios faz o PJe reavaliar o expediente e o prazo
-    # "5 dias úteis" cai para "sem prazo". Para os wrappers que passam por
-    # Correios (DOM e triagem usam esta mesma função) restabelecemos o prazo
-    # linha a linha. pec_exeq mantém o comportamento anterior por padrão.
     if restabelecer_prazo is None:
         esperado = prazo_dias
         restabelecer_prazo = wrapper_name != 'pec_exeq' and bool(esperado) and int(esperado) > 0
@@ -942,7 +838,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vin
         log('[COMUNICACAO]  Alterando meio de expedição IMEDIATAMENTE (pós-seleção de destinatários, pré-salvamento)...')
         t0_expediente = time.perf_counter()
 
-        # VERIFICAÇÃO ULTRA-RÁPIDA: tabela já está pronta?
         try:
             aguardar_renderizacao_nativa(driver, 'tbody.cdk-drop-list tr.cdk-drag', modo='aparecer', timeout=1)
         except Exception:
@@ -989,13 +884,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vin
                 tempo_dest = time.perf_counter() - t_dest
                 if debug:
                     log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (observer)')
-                # O observer confirmou a tabela, mas `linhas_tabela` so' era
-                # atribuida no ramo de FALHA (if not ok_rows). Sem esta linha o
-                # caminho feliz quebrava em `len(linhas_tabela)` (linha seguinte)
-                # com UnboundLocalError: "cannot access local variable
-                # 'linhas_tabela'". Era o que derrubava a PEC por Correios no
-                # domicilio eletronico (AR-Ordv/pec_arordv) — o modelo entrava
-                # corretamente e o fluxo morria ao alterar o meio de expedicao.
                 linhas_tabela = espera.elementos(driver, 'tbody.cdk-drop-list tr.cdk-drag', teto=2)
 
             log('[COMUNICACAO] Verificação rápida de estabilização...')
@@ -1023,7 +911,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vin
 
         log(f'[COMUNICACAO] Verificando {total_linhas} destinatário(s) para alterar meio de expedição')
 
-        # OTIMIZAÇÃO: Pré-filtrar apenas linhas que precisam alteração
         linhas_para_alterar = []
         for idx, linha in enumerate(linhas_tabela, 1):
             try:
@@ -1099,9 +986,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vin
                         if debug:
                             log(f'[COMUNICACAO] Linha {idx}: Meio alterado para Correio (seleção de primeiro endereço reservada para pec_exeq)')
 
-                    # Ao virar Correios o PJe reavalia o expediente e o prazo
-                    # cai de "5 dias úteis" para "sem prazo". Restabelecemos
-                    # ANTES de ir para a linha seguinte.
                     if restabelecer_prazo:
                         _restabelecer_prazo_da_linha(
                             driver, idx, prazo_dias=prazo_dias, debug=debug, log=log
@@ -1119,7 +1003,7 @@ def alterar_meio_expedicao(driver, debug=False, log=None, wrapper_name=None, vin
 
         tempo_total = time.perf_counter() - t0_expediente
         log(f'[COMUNICACAO]  Alterados: {alterados} | Não precisavam: {pulados} | Total: {total_linhas} (tempo: {tempo_total:.3f}s)')
-        
+
         log_fim('COMUNICACAO_MEIO_EXPEDICAO', {'status': 'sucesso', 'alterados': alterados, 'total': total_linhas})
         return True
     except Exception as e:
@@ -1134,7 +1018,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             return None
 
     log_start('COMUNICACAO_SALVAR_MINUTA')
-    # 0. Limpeza preventiva de destinatários com endereço inválido antes do salvamento (se habilitada)
     if remover_endereco_invalido:
         try:
             from .comunicacao_destinatarios import remover_destinatarios_endereco_invalido
@@ -1142,7 +1025,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         except Exception:
             pass
 
-    # Desfocar campo ativo antes do salvamento (sem blur cego com clique no body)
     try:
         fn_exec = getattr(driver, 'execute_script', None)
         if fn_exec:
@@ -1170,10 +1052,8 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         return False
     log('[COMUNICACAO] Clique no botão Salvar realizado.')
 
-    # Aguarda salvamento ser processado (LEGADO L2450-2454: time.sleep(1) + time.sleep(2))
     espera.pausa(driver, 3.0, motivo='processamento do salvamento (LEGADO L2450-2454)')
 
-    # Checar retorno imediato do salvamento via snackbar ANTES de qualquer descarte
     texto_snack = ''
     try:
         el_snack = espera.elemento(driver, 'snack-bar-container, simple-snack-bar', teto=3)
@@ -1185,7 +1065,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
     if texto_snack:
         log(f'[COMUNICACAO] Snackbar pós-salvamento detectada: "{texto_snack}"')
         texto_snack_lower = texto_snack.lower()
-        # Verificar se é erro impeditivo do PJe (ex: "Há campos não preenchidos", endereço inválido, etc.)
         termos_erro = [
             'campos n', 'campos obrigat', 'não preenchid', 'nao preenchid',
             'selecione o endere', 'erro ao salvar', 'falha ao salvar', 'inválid'
@@ -1195,7 +1074,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': f'snackbar_erro: {texto_snack[:80]}'})
             return False
 
-    # Descartar snackbar residual (se for de sucesso ou neutra) para não cobrir o botão Assinar
     try:
         snack_btn = espera.elemento(driver, 'snack-bar-container button, simple-snack-bar button', teto=1)
         if snack_btn:
@@ -1203,7 +1081,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
     except Exception:
         pass
 
-    # 3. Aguardar botão Assinar
     _SEL_ASSINAR = (
         'pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],'
         'pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]'
@@ -1223,7 +1100,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
     if gigs_extra:
         log('[GIGS_EXTRA][WARN] Criação de GIGS via minuta removida. Use criar_gigs na aba /detalhe antes do fluxo.')
 
-    # 4. Assinar se solicitado
     if assinar:
         try:
             from Fix.debug_assinatura import ativo as _dbg_ativo, capturar_estado_browser, diff_estado, salvar_delta
@@ -1251,7 +1127,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'btn_finalizar_none_antes_assinar'})
             raise NavegacaoError('assinar_atos: btn_finalizar é None')
 
-        # Garante fechamento de eventuais snackbars da etapa de salvar
         try:
             fn_exec = getattr(driver, 'execute_script', None)
             if fn_exec:
@@ -1275,7 +1150,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                 raise NavegacaoError(f'assinar_atos: {e}')
         log('[COMUNICACAO] Botão Assinar ato(s) clicado.')
 
-        # 4a. Detectar dialog de validação por dispositivo móvel
         _TIMEOUT_VALIDACAO_MOVEL = 180
         _dialog_apareceu = aguardar_renderizacao_nativa(driver, 'input.codigo-otp', 'aparecer', 3)
         dialog_movel = espera.elemento(driver, 'input.codigo-otp', teto=1) if _dialog_apareceu else None
@@ -1366,9 +1240,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                 except Exception:
                     log('[COMUNICACAO][DEBUG] salvar_delta falhou (não crítico)')
 
-            # Mesmo loop do ramo "sem dialog": procura lista vazia ou snackbar de
-            # assinatura por até 20s, IGNORANDO snackbars residuais do Salvar
-            # ("Salvo com sucesso") que causavam falso sucesso/WARN aqui.
             _assinou = False
             limite_assin = time.monotonic() + 20
             while time.monotonic() < limite_assin:
@@ -1388,7 +1259,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                         log(f'[COMUNICACAO] Assinatura confirmada: "{txt.strip()}"')
                         _assinou = True
                         break
-                    # snackbar residual da etapa de Salvar — descartar e seguir esperando
                 espera.pausa(driver, 0.5, motivo='aguardando confirmacao de assinatura (ramo dialog)')
 
             if not _assinou:
@@ -1432,6 +1302,4 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
     log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'sucesso'})
     log('Comunicação processual finalizada.')
     return True
-
-
 

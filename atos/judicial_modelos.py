@@ -20,7 +20,6 @@ from .judicial_navegacao import (
 
 logger = logging.getLogger(__name__)
 
-# Seletores canônicos do fluxo de modelo (padrão gigs-plugin aaDespacho).
 _SEL_FILTRO = 'input#inputFiltro'
 _SEL_NODO = '.nodo-filtrado'
 _SEL_DIALOGO = 'pje-dialogo-visualizar-modelo'
@@ -30,13 +29,7 @@ _SEL_BTN_INSERIR_CSS = (
     ' > div.div-botao-inserir > button'
 )
 
-# Editor-alvo: o MESMO que recebe o modelo (Dispositivo → Fundamentação → genérico).
 # Inclui o CKEditor da juntada de anexos (.ck-editor__editable) para reuso do fluxo.
-#
-# O seletor canônico é o do gigs-plugin (+pje/comum/seletores.js,
-# SELETORES.editor.areaConteudo): `[role="textbox"]` é o que distingue o editor
-# de minuta real das outras div[contenteditable] da tela (tópicos da sentença,
-# preview do diálogo). Sem `role`, a busca cai em áreas que não recebem modelo.
 _SEL_EDITOR_TEXTOBOX = 'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]'
 
 _JS_EDITOR_ALVO = """() => {
@@ -57,7 +50,6 @@ _JS_EDITOR_ALVO = """() => {
     return null;
 }"""
 
-# Teor carregado no preview do diálogo (guarda anti-corrida: clicar antes = editor vazio).
 _JS_TEOR_CARREGADO = """() => {
     var dlg = document.querySelector('pje-dialogo-visualizar-modelo');
     if (!dlg) return false;
@@ -69,27 +61,45 @@ _JS_TEOR_CARREGADO = """() => {
     return txt.length > 10 || clone.querySelector('figure') !== null || clone.querySelector('table') !== null;
 }"""
 
-# Confirmação de conteúdo no editor — porte fiel de
-# gigs-plugin.js verificarSeExisteTextoNoEditor() (linha ~10771):
-#
-#   if (areaConteudo?.innerText.length > 1) { resposta = true }
-#   if (areaConteudo.querySelector('figure')) { resposta = true }
-#
-# Três pontos do original que a versão anterior havia perdido:
-#   1. ESCOPADO: decide SÓ o editor-alvo. A varredura por outras áreas comparava
-#      cada uma com o baseline do alvo e dava True com o editor vazio.
-#   2. ABSOLUTO: "editor tem texto", não "cresceu em relação a antes". O editor
-#      de minuta nasce vazio; baseline só abria margem para falso-positivo.
-#   3. O mesmo critério do gigs vale para retomada de minuta já preenchida.
 _JS_EDITOR_COM_CONTEUDO = """(sel) => {
     var area = document.querySelector(sel);
     if (!area) return false;
-    var texto = (area.innerText || '').trim();
+    // Placeholder ("Dispositivo", "Digite aqui...") tambem e innerText > 1 char e
+    // fazia a confirmacao passar com o editor VAZIO — remover antes de medir.
+    var clone = area.cloneNode(true);
+    clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
+    var texto = (clone.innerText || '').trim();
     if (texto.length > 1) return true;          // texto real no editor
     return area.querySelector('figure') !== null;  // imagem anexada sem texto
 }"""
 
-# Medida de diagnóstico (não decide sucesso): -1 = editor ausente.
+_JS_TRECHO_PREVIEW = """() => {
+    var dlg = document.querySelector('pje-dialogo-visualizar-modelo');
+    if (!dlg) return '';
+    var preview = dlg.querySelector('.div-preview-conteudo, .preview-conteudo, .conteudo-modelo, .ck-content, [class*="preview"]');
+    if (!preview) return '';
+    var clone = preview.cloneNode(true);
+    clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder], button').forEach(p => p.remove());
+    var txt = (clone.innerText || clone.textContent || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').trim().toLowerCase();
+    var palavras = txt.split(' ').filter(w => w.length > 2);
+    if (palavras.length < 4) return '';
+    var meio = Math.max(0, Math.floor(palavras.length / 2) - 3);
+    return palavras.slice(meio, meio + 6).join(' ');
+}"""
+
+_JS_EDITOR_CONTEM_TRECHO = """(trecho) => {
+    if (!trecho) return false;
+    var areas = Array.from(document.querySelectorAll(
+        'div[class*="area-conteudo"][contenteditable="true"], div[class*="area-conteudo"] div[contenteditable="true"], .ck-editor__editable[contenteditable="true"]'));
+    for (var a of areas) {
+        if (a.closest('pje-dialogo-visualizar-modelo')) continue;
+        var txt = (a.innerText || a.textContent || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').toLowerCase();
+        var palavras = txt.split(' ').filter(w => w.length > 2).join(' ');
+        if (palavras.indexOf(trecho) !== -1) return true;
+    }
+    return false;
+}"""
+
 _JS_MEDIR = """(sel) => {
     var area = document.querySelector(sel);
     if (!area) return -1;
@@ -139,11 +149,7 @@ def _focar_editor_alvo(driver: Any) -> bool:
 
 
 def _medir_conteudo_editor(driver: Any, seletor: str) -> int:
-    """Comprimento do texto real do editor-alvo (-1 se o editor não existe).
-
-    Diagnóstico apenas: a confirmação de sucesso é feita por
-    _JS_EDITOR_COM_CONTEUDO (escopada e absoluta, padrão gigs-plugin).
-    """
+    """Comprimento do texto real do editor-alvo (-1 se o editor não existe)."""
     expr = "(%s)(%s)" % (_JS_MEDIR, json.dumps(seletor))
     try:
         if hasattr(driver, 'page'):
@@ -223,95 +229,127 @@ def inserir_modelo_no_editor(
     timeout_teor: int = 15,
     timeout_conteudo: int = 8,
 ) -> bool:
-    """Insere um modelo no editor de minuta — fluxo ÚNICO (padrão gigs-plugin aaDespacho).
-
-    Encapsula: foco prévio no editor-alvo → filtro → nodo-filtrado (com expansão da árvore) →
-    diálogo → espera do teor no preview → clique em Inserir → confirmação de conteúdo no editor-ALVO.
-
-    Retorna True só com conteúdo REAL confirmado no editor-alvo; False caso contrário.
-    """
+    """Insere um modelo no editor de minuta — fluxo ÚNICO (padrão gigs-plugin aaDespacho)."""
     if log is None:
         def log(_msg):
             return None
 
     try:
-        # 0. Foco no editor-alvo ANTES de iniciar a busca (padrão aaDespacho gigs-plugin:
         #    permite que CKEditor saiba qual tópico ativo deve receber a inserção).
         _focar_editor_alvo(driver)
 
-        # Editor-alvo (mesmo critério do gigs: prioriza [role="textbox"]).
         seletor_editor_alvo = _resolver_editor_alvo(driver)
 
-        # 1. Filtro do modelo
+        if not espera.ate_aparecer(
+            driver,
+            'input#inputFiltro, pje-arvore-modelo-documento',
+            teto=20,
+        ):
+            log('[MODELO] Árvore de modelos não apareceu em 20s — página de minutar sem árvore')
+            return False
+        seletor_editor_alvo = _resolver_editor_alvo(driver) or seletor_editor_alvo
+
         if not _preencher_filtro_modelo(driver, modelo_nome):
             log(f'[MODELO] Campo de filtro não encontrado para "{modelo_nome}"')
             return False
 
-        # 2. Nodo filtrado: caminho primário = clique nativo (comportamento pré-refactor,
-        #    validado no PEC); fallback = busca com espera de spinner e expansão de galhos.
-        if not aguardar_e_clicar(driver, _SEL_NODO, timeout=10):
-            log(f'[MODELO] Nodo filtrado não clicável via caminho nativo para "{modelo_nome}", tentando fallback com expansão')
-            if not _localizar_e_clicar_nodo_filtrado(driver, timeout=8):
-                log(f'[MODELO] Nodo filtrado não encontrado para "{modelo_nome}"')
-                return False
+        conteudo_confirmado = False
+        for tentativa in (1, 2, 3):
+            rotulo = '1a' if tentativa == 1 else '%da' % tentativa
 
-        # 3. Diálogo de visualização
-        if not aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='aparecer', timeout=15):
-            log('[MODELO] Diálogo de visualização não abriu')
-            return False
+            _focar_editor_alvo(driver)
+            seletor_editor_alvo = _resolver_editor_alvo(driver) or seletor_editor_alvo
+            if tentativa > 1:
+                _preencher_filtro_modelo(driver, modelo_nome)
 
-        # 4. GUARDA ANTI-CORRIDA: espera POSITIVA do teor no preview (não sleep fixo).
-        if not espera.ate_js(driver, _JS_TEOR_CARREGADO, teto=timeout_teor):
-            log('[MODELO] Teor do preview não confirmado no timeout, verificando se botão Inserir está disponível')
-            espera.assentar(driver, 1.0, motivo='PJe carregando o teor do modelo')
+            if not aguardar_e_clicar(driver, _SEL_NODO, timeout=10):
+                log(f'[MODELO] Nodo filtrado não clicável via caminho nativo para "{modelo_nome}", tentando fallback com expansão')
+                if not _localizar_e_clicar_nodo_filtrado(driver, timeout=8):
+                    log(f'[MODELO] Nodo filtrado não encontrado para "{modelo_nome}" ({rotulo} tentativa) — refazendo')
+                    continue
 
-        # 5. Botão Inserir (aria-label estável; fallback CSS estrutural)
-        btn_inserir = wait_for_clickable(driver, _SEL_BTN_INSERIR, timeout=10)
-        if not btn_inserir:
-            btn_inserir = wait_for_clickable(driver, _SEL_BTN_INSERIR_CSS, timeout=5)
-        if not btn_inserir:
-            log('[MODELO] Botão Inserir não encontrado')
-            return False
+            if not aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='aparecer', timeout=15):
+                log(f'[MODELO] Diálogo de visualização não abriu ({rotulo} tentativa) — refazendo')
+                continue
 
-        safe_click_no_scroll(driver, btn_inserir)
+            espera.assentar(driver, 1.0, motivo='PJe montando o teor do modelo no diálogo')
 
-        # 6. Aguardar diálogo de modelo sumir
-        aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=15)
+            if not espera.ate_js(driver, f"({_JS_TEOR_CARREGADO})()", teto=timeout_teor):
+                log(f'[MODELO] Teor do preview não confirmado em {timeout_teor}s ({rotulo} tentativa) — fechando e refazendo')
+                aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=5)
+                continue
 
-        # Tratar snackbar se aparecer
-        js_fechar_snack = """() => {
-            var s = document.querySelector('simple-snack-bar, snack-bar-container');
-            if (s) {
-                var btn = s.querySelector('button');
-                if (btn) btn.click();
-                return true;
-            }
-            return false;
-        }"""
-        try:
-            if hasattr(driver, 'page'):
-                driver.page.evaluate(js_fechar_snack)
-        except Exception:
-            pass
+            btn_inserir = wait_for_clickable(driver, _SEL_BTN_INSERIR, timeout=10)
+            if not btn_inserir:
+                btn_inserir = wait_for_clickable(driver, _SEL_BTN_INSERIR_CSS, timeout=5)
+            if not btn_inserir:
+                log(f'[MODELO] Botão Inserir não encontrado ({rotulo} tentativa) — refazendo')
+                aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=5)
+                continue
 
-        # 7. Confirmação: conteúdo REAL no editor-alvo, escopado e absoluto.
-        #    Mesmo critério do gigs (verificarSeExisteTextoNoEditor): decide SÓ o
-        #    editor-alvo e exige texto presente — não "alguma área mudou desde o
-        #    baseline", que dava True com o editor vazio (ato salvo em branco).
-        #    A snackbar não entra na prova: a memória do repo registra que
-        #    "Modelo inserido com sucesso" aparece também com o editor vazio.
-        conteudo_confirmado = bool(espera.ate_js(
-            driver,
-            "(%s)(%s)" % (_JS_EDITOR_COM_CONTEUDO, json.dumps(seletor_editor_alvo)),
-            teto=timeout_conteudo,
-        ))
+            trecho_modelo = ''
+            try:
+                if hasattr(driver, 'page'):
+                    trecho_modelo = driver.page.evaluate(_JS_TRECHO_PREVIEW) or ''
+            except Exception:
+                trecho_modelo = ''
+
+            safe_click_no_scroll(driver, btn_inserir)
+
+            if not aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=15):
+                log(f'[MODELO] Diálogo não fechou após Inserir ({rotulo} tentativa) — tentando clique nativo')
+                try:
+                    btn_inserir.click()
+                except Exception:
+                    pass
+                if not aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=10):
+                    log(f'[MODELO] Inserir não efetivou ({rotulo} tentativa) — fechando o diálogo e refazendo')
+                    try:
+                        if hasattr(driver, 'page'):
+                            driver.page.keyboard.press('Escape')
+                    except Exception:
+                        pass
+                    aguardar_renderizacao_nativa(driver, _SEL_DIALOGO, modo='sumir', timeout=5)
+                    continue
+
+            js_fechar_snack = """() => {
+                var s = document.querySelector('simple-snack-bar, snack-bar-container');
+                if (s) {
+                    var btn = s.querySelector('button');
+                    if (btn) btn.click();
+                    return true;
+                }
+                return false;
+            }"""
+            try:
+                if hasattr(driver, 'page'):
+                    driver.page.evaluate(js_fechar_snack)
+            except Exception:
+                pass
+
+            conteudo_confirmado = bool(espera.ate_js(
+                driver,
+                "(%s)(%s)" % (_JS_EDITOR_COM_CONTEUDO, json.dumps(seletor_editor_alvo)),
+                teto=timeout_conteudo,
+            ))
+            if conteudo_confirmado and trecho_modelo:
+                conteudo_confirmado = bool(espera.ate_js(
+                    driver,
+                    "(%s)(%s)" % (_JS_EDITOR_CONTEM_TRECHO, json.dumps(trecho_modelo)),
+                    teto=timeout_conteudo,
+                ))
+                if not conteudo_confirmado:
+                    log(f'[MODELO] Teor do modelo "{modelo_nome}" NÃO encontrado no editor '
+                        f'({rotulo} tentativa) — refazendo')
+            if conteudo_confirmado:
+                break
+            log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" NÃO confirmado no editor-alvo '
+                f'({seletor_editor_alvo}) após {timeout_conteudo}s ({rotulo} tentativa) — refazendo')
 
         if not conteudo_confirmado:
-            log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" NÃO confirmado no editor-alvo '
-                f'({seletor_editor_alvo}) após {timeout_conteudo}s — editor vazio')
+            log(f'[MODELO] Conteúdo do modelo "{modelo_nome}" não entrou no editor após 3 tentativas')
             return False
 
-        # 8. Devolver foco ao editor (padrão gigs-plugin aaDespacho L12148: foco.focus()
         #    para forçar sync dos eventos do CKEditor com o modelo de formulário do Angular)
         _focar_editor_alvo(driver)
         espera.assentar(driver, 0.8, motivo='estabilização pós-inserção do modelo')

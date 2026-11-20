@@ -40,9 +40,7 @@ def selecionar_opcao_select(
     texto_opcao: str,
     timeout: int = 10
 ) -> bool:
-    """
-    Seleciona uma opção em um mat-select de forma robusta.
-    """
+    """Seleciona uma opção em um mat-select de forma robusta."""
     try:
         if not espera.ate_habilitar(driver, seletor, teto=timeout):
             raise Exception(f'{seletor} não habilitou')
@@ -66,13 +64,10 @@ def verificar_carregamento_pagina(
     max_tentativas: int = 5,
     log: bool = False
 ) -> bool:
-    """
-    Verifica se a página está em estado de carregamento (spinner visível).
-    Continua tentando até o spinner desaparecer - NÃO desiste facilmente.
-    """
+    """Verifica se a página está em estado de carregamento (spinner visível)."""
     for tentativa in range(1, max_tentativas + 1):
         espera.assentar(driver, timeout_spinner, motivo='aguardar spinner')
-        
+
         try:
             _sel = 'mat-progress-spinner, mat-spinner, .mat-progress-spinner, .loading-spinner, .loading-overlay, .modal-backdrop, .cdk-overlay-backdrop'
             try:
@@ -95,34 +90,34 @@ def verificar_carregamento_pagina(
                     }""")
                 except Exception:
                     status = 'complete'
-            
+
             if status == 'complete':
                 return True
-            
+
             if status == 'loading':
                 espera.assentar(driver, 0.3, motivo='aguardar readyState complete')
                 if _is_doc_ready_complete(driver):
                     return True
-            
+
             if log:
                 logger.warning(f"[CARREGAMENTO] Status={status}, F5...")
-            
+
             driver.refresh()
             try:
                 espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
             except Exception:
                 pass
-            
+
             try:
                 aguardar_renderizacao_nativa(driver, 'mat-progress-spinner, mat-spinner, .loading-spinner, .loading-overlay', 'sumir', 5)
             except Exception:
                 espera.assentar(driver, 0.5, motivo='espera de segurança pós reload')
-            
+
         except Exception as e:
             if log:
                 logger.warning(f"[CARREGAMENTO] Erro: {e}")
             return True
-    
+
     if log:
         logger.error(f"[CARREGAMENTO] Falha após {max_tentativas} tentativas")
     raise NavegacaoError(f"verificar_carregamento_pagina: falha após {max_tentativas} tentativas")
@@ -136,22 +131,20 @@ def aguardar_e_verificar_aba(
     max_tentativas_reload: int = 3,
     log: bool = False
 ) -> bool:
-    """
-    Aguarda uma nova aba carregar e verifica se não está travada no spinner.
-    """
+    """Aguarda uma nova aba carregar e verifica se não está travada no spinner."""
     try:
         if url_esperada:
             if not espera.ate_url(driver, url_esperada, teto=timeout_aba):
                 if log:
                     logger.warning(f"[ABA] Timeout aguardando URL com '{url_esperada}'. URL atual: {driver.current_url}")
-        
+
         return verificar_carregamento_pagina(
             driver,
             timeout_spinner=timeout_spinner,
             max_tentativas=max_tentativas_reload,
             log=log
         )
-        
+
     except Exception as e:
         logger.error(f"[ABA] Erro ao verificar aba: {e}")
         raise NavegacaoError(f'aguardar_e_verificar_aba: {e}')
@@ -163,10 +156,7 @@ def verificar_carregamento_detalhe(
     max_tentativas: int = 3,
     log: bool = False
 ) -> bool:
-    """
-    Verifica se a página /detalhe carregou corretamente.
-    A página /detalhe não tem spinner, então verificamos a presença do botão de filtro.
-    """
+    """Verifica se a página /detalhe carregou corretamente."""
     FILTRO_SELECTORS = [
         'button[aria-label="Filtrar"] i.fa-filter',
         'button.botao-menu i.fa-filter',
@@ -175,7 +165,7 @@ def verificar_carregamento_detalhe(
         '.botao-menu i.fa-filter.botao-menu-texto',
         'button.mat-mini-fab[aria-label="Filtrar"]'
     ]
-    
+
     for tentativa in range(1, max_tentativas + 1):
         try:
             SELECTOR_JOINED = ', '.join(FILTRO_SELECTORS)
@@ -197,7 +187,7 @@ def verificar_carregamento_detalhe(
                 return True
         except Exception:
             pass
-        
+
         filtro_encontrado = False
         for selector in FILTRO_SELECTORS:
             try:
@@ -210,7 +200,7 @@ def verificar_carregamento_detalhe(
                     break
             except Exception:
                 continue
-        
+
         if filtro_encontrado:
             try:
                 if _is_doc_ready_complete(driver):
@@ -224,12 +214,12 @@ def verificar_carregamento_detalhe(
                         return True
             except Exception:
                 pass
-            
+
             return True
-        
+
         if log:
             logger.warning(f"[DETALHE] Botão de filtro não encontrado na tentativa {tentativa}. Recarregando página (F5)...")
-        
+
         try:
             driver.refresh()
             try:
@@ -240,9 +230,7 @@ def verificar_carregamento_detalhe(
         except Exception as e:
             if log:
                 logger.error(f"[DETALHE] Erro ao recarregar página: {e}")
-    
+
     logger.error(f"[DETALHE] Falha após {max_tentativas} tentativas. Página /detalhe não carregou.")
     raise NavegacaoError(f"verificar_carregamento_detalhe: falha após {max_tentativas} tentativas")
-
-
 

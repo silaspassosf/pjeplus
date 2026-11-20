@@ -155,7 +155,6 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
         for seletor in [
             # LEGADO.md ~45110: o ícone de sigilo é `i.fa-wpexplorer` (dentro de
             # `pje-doc-sigiloso span button`). Sem estes seletores o sigilo não é
-            # aplicado, o checkbox do anexo não é marcado e — como a seleção deve
             # preceder o "Visibilidade para Sigilo" — o botão nunca habilita.
             'button[name="Inserir sigilo"]',
             'button[aria-label*="Inserir sigilo" i]',
@@ -192,13 +191,11 @@ def inserir_sigilo_individual(elemento: Any, driver: Any = None, debug: bool = F
         safe_click_no_scroll(driver, btn_sigilo)
 
         # Verifica antes de dormir: quando o PJe já aplicou o sigilo no próprio
-        # clique, o laço sai na primeira iteração em vez de pagar 250ms fixos.
         for _ in range(8):
             if _tem_sigilo():
                 return True
             espera.assentar(driver, 0.25)
 
-        # Se clicou sem erro e o botão de inserir sumiu/mudou, considerar inserido
         try:
             ainda_inserir = espera.elementos(elemento, 'button[name="Inserir sigilo"]', teto=0.2)
             if not ainda_inserir:
@@ -233,11 +230,7 @@ return n;
 
 
 def marcar_sigilosos_timeline(driver: Any) -> int:
-    """Marca os checkboxes dos documentos sigilosos da timeline.
-
-    Ordem do LEGADO.md (~6793): a seleção do sigiloso vem ANTES do botão
-    "Visibilidade para Sigilo". Devolve quantos checkboxes foram marcados.
-    """
+    """Marca os checkboxes dos documentos sigilosos da timeline."""
     try:
         return int(_exec_js(driver, _JS_MARCAR_SIGILOSOS) or 0)
     except Exception as e:
@@ -247,13 +240,10 @@ def marcar_sigilosos_timeline(driver: Any) -> int:
 
 def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bool = False) -> bool:
     try:
-        # Garantir que nenhum dialog/overlay anterior esteja aberto antes de iniciar
         aguardar_visibilidade_concluida(driver, timeout=15.0, estabilidade=0.3, log=log)
 
         # Ordem do LEGADO.md (~6793 / Fix.core.visibilidade_sigilosos): PRIMEIRO o
-        # documento sigiloso tem de estar selecionado (múltipla seleção ativa), só
         # DEPOIS se clica em "Visibilidade para Sigilo". Sem seleção o botão nunca
-        # habilita — era daí que vinha a falha silenciosa do lote.
         marcados = espera.ate_js(
             driver,
             """__pjeEls('ul.pje-timeline mat-checkbox input[type="checkbox"]').some(el => el.checked)""",
@@ -288,7 +278,6 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
         modal = espera.elemento(driver, modal_container, teto=5, visivel=False)
         if modal:
             espera.elemento(driver, '.cdk-overlay-container tr.cdk-drag, pje-doc-visibilidade-sigilo tr.cdk-drag', teto=5, visivel=False)
-            # Aguardar barra de progresso inicial do modal carregar a tabela de partes
             espera.ate_sumir(driver, 'pje-doc-visibilidade-sigilo mat-progress-bar', teto=10)
 
         seletor_marcar = 'button[aria-label="Marcar todas"], i.fa.fa-check.botao-icone-titulo-coluna, .botao-icone-titulo-coluna'
@@ -298,7 +287,6 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
             if icone_header:
                 safe_click_no_scroll(driver, icone_header)
                 # Marcar todas dispara mat-progress-bar interno do pje-doc-visibilidade-sigilo
-                # (cf. api/gigs-plugin.js): aguardar concluir antes de clicar em Salvar.
                 if espera.ate_aparecer(driver, 'pje-doc-visibilidade-sigilo mat-progress-bar', teto=0.8):
                     espera.ate_sumir(driver, 'pje-doc-visibilidade-sigilo mat-progress-bar', teto=10)
                 espera.assentar(driver, 0.2)
@@ -306,7 +294,6 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
         except Exception:
             pass
 
-        # Fallback pré-limpeza do dia 29: se não marcou pelo header, marca cada checkbox do modal
         if not marcou_todos:
             try:
                 checkboxes = espera.elementos(driver, '.cdk-overlay-container mat-checkbox', teto=2)
@@ -354,15 +341,11 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
             except Exception:
                 pass
 
-        # Barreira rigorosa: só prosseguir quando NENHUMA dialog de visibilidade,
-        # diálogo de progresso ("Aguarde"), backdrop ou spinner existir e permanecer
-        # estável sem reabrir.
         fechou = aguardar_visibilidade_concluida(driver, timeout=30.0, estabilidade=0.5, log=log)
         if not fechou:
             logger.warning('[VISIBILIDADE_LOTE] Dialog de visibilidade nao fechou completamente dentro do timeout')
             return False
 
-        # Ocultar múltipla seleção somente APÓS confirmar fechamento completo do modal
         try:
             sel_ocultar = 'button[aria-label="Ocultar múltipla seleção."]'
             btn_ocultar = espera.elemento(driver, sel_ocultar, teto=1.5)
@@ -372,7 +355,6 @@ def visibilidade_sigilosos_lote_apenas(driver: Any, polo: str = 'ativo', log: bo
         except Exception:
             pass
 
-        # Confirmação final de estabilidade antes de devolver controle ao fluxo
         aguardar_visibilidade_concluida(driver, timeout=10.0, estabilidade=0.3, log=log)
         return True
     except Exception as e:

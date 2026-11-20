@@ -1,8 +1,4 @@
-"""
-atos.anexos - Namespace de anexos para atos.
-
-Espelha a API de PEC/anexos, mantendo compatibilidade total.
-"""
+"""atos.anexos — MOTOR ÚNICO de anexação/juntada de documentos no PJe."""
 
 from .core import (
     substituir_marcador_por_conteudo,
@@ -12,13 +8,17 @@ from .core import (
     anex_sisbconsulta,
     anex_bloqneg,
     anex_parcial,
+    anex_retifidpj,
+    anex_devcp,
     formatar_conteudo_ecarta,
     _obter_conteudo_relatorio_sisbajud,
     _wrapper_sisbajud_generico,
     wrapper_juntada_geral,
+    wrapper_juntada_com_navegacao,
     create_juntador,
     executar_juntada_ate_editor,
     executar_juntada,
+    executar_juntada_pje,
 )
 
 __all__ = [
@@ -29,11 +29,15 @@ __all__ = [
     'anex_sisbconsulta',
     'anex_bloqneg',
     'anex_parcial',
+    'anex_retifidpj',
+    'anex_devcp',
     'formatar_conteudo_ecarta',
     '_obter_conteudo_relatorio_sisbajud',
     '_wrapper_sisbajud_generico',
     'wrapper_juntada_geral',
+    'wrapper_juntada_com_navegacao',
     'create_juntador',
     'executar_juntada_ate_editor',
     'executar_juntada',
+    'executar_juntada_pje',
 ]

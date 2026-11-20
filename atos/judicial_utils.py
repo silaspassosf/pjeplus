@@ -1,10 +1,4 @@
-"""
-judicial_utils.py - Utilitrios para atos judiciais
-===================================================
-
-Funes utilitrias para preenchimento de prazos, verificao de bloqueios
-e criao de wrappers para atos judiciais.
-"""
+"""judicial_utils.py - Utilitrios para atos judiciais"""
 
 import re
 import time
@@ -16,19 +10,11 @@ from Fix import espera
 from Fix.core import _executar_js
 
 def _aguardar_painel_destinatarios_assentar(driver: Any, teto_linhas: int = 10) -> int:
-    """Espera o painel de destinatários terminar de renderizar/hidratar.
-
-    Causa do atropelo (caso 1001827-72.2023.5.02.0703): a tabela aparece no DOM
-    ANTES do Angular terminar de hidratar as linhas (que chegam por HTTP) e
-    ligar o handler do botão 'Selecionar polo ativo' — o clique cedo não tem
-    efeito e a seleção fica com o default (todas marcadas). O ate_habilitar
-    só valida DOM, não prontidão Angular. Sinais de prontidão reais:
-      1) contagem de linhas estável em 2 leituras consecutivas;
-      2) nenhum overlay/spinner de carregamento visível.
-    """
+    """Espera o painel de destinatários terminar de renderizar/hidratar."""
     anterior = -1
     atual = 0
-    limite = time.monotonic() + float(teto_linhas)
+    inicio = time.monotonic()
+    limite = inicio + float(teto_linhas)
     while time.monotonic() < limite:
         try:
             atual = len(espera.elementos(driver, 'table.t-class tbody tr.ng-star-inserted', teto=0.1))
@@ -37,7 +23,7 @@ def _aguardar_painel_destinatarios_assentar(driver: Any, teto_linhas: int = 10) 
         if atual > 0 and atual == anterior:
             break
         anterior = atual
-        espera.assentar(driver, 0.5, motivo='[PRAZOS] aguardando linhas estabilizar')
+        espera.assentar(driver, 0.2, motivo='[PRAZOS] aguardando linhas estabilizar')
     try:
         espera.ate_sumir(
             driver,
@@ -47,6 +33,7 @@ def _aguardar_painel_destinatarios_assentar(driver: Any, teto_linhas: int = 10) 
         )
     except Exception:
         pass
+    logger.info('[PRAZOS] painel assentou em %.2fs (%d linha(s))', time.monotonic() - inicio, atual)
     return atual
 
 
@@ -68,16 +55,7 @@ _JS_ALGUMA_LINHA_MARCADA = (
 
 
 def _clicar_polo_ativo(driver: Any, tentativas: int = 2) -> bool:
-    """Clica em "Selecionar polo ativo" e confirma que alguma linha foi marcada.
-
-    Clique nativo por ID via JS (padrão do pre-refac). Não usa a busca com gate
-    de visibilidade: o botão fica no corpo da aba e pode não passar no gate
-    enquanto o painel ainda hidrata — e antes o clique silencioso deixava o log
-    dizer "clique realizado" sem clique nenhum (processo 1001901, 12/11: o ato
-    seguiu até o fim com os destinatários não selecionados).
-
-    A confirmação é o efeito esperado (linha marcada), não o disparo do clique.
-    """
+    """Clica em "Selecionar polo ativo" e confirma que alguma linha foi marcada."""
     try:
         espera.ate_aparecer(driver, _SEL_POLO_ATIVO, teto=10)
     except Exception:
@@ -93,7 +71,6 @@ def _clicar_polo_ativo(driver: Any, tentativas: int = 2) -> bool:
             logger.warning('[PRAZOS] JS de clique no polo ativo falhou: %s', e)
 
         if not clicado:
-            # Reserva: elemento sem gate de visibilidade.
             btn = None
             try:
                 btn = espera.elemento(driver, _SEL_POLO_ATIVO, teto=2, visivel=False)
@@ -119,36 +96,27 @@ def _clicar_polo_ativo(driver: Any, tentativas: int = 2) -> bool:
     return False
 
 
-
 def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: bool = False, perito: bool = False, perito_nomes: Any = None) -> bool:
-    """
-    Preenche prazos para destinatários em uma tabela específica.
-    Se apenas_primeiro=True, seleciona apenas o polo ativo (clicando no ícone verde).
-    """
+    """Preenche prazos para destinatários em uma tabela específica."""
     try:
         logger.info(f'[PRAZOS] Preenchendo prazos: {prazo}')
 
-        # Aguardar tabela de prazos carregar
         if espera.ate_js(driver, "__pjeEls('table.t-class tr.ng-star-inserted').length > 0", teto=20):
             logger.info('[PRAZOS] Tabela de destinatários carregada')
-            # FIX fluxo: só interagir com o painel depois dele ASSENTAR (linhas
-            # estáveis + sem overlay) — clique em painel ainda hidratando não
-            # tem efeito e a seleção fica no default (todas marcadas).
             _aguardar_painel_destinatarios_assentar(driver)
         else:
             logger.warning('[PRAZOS] Tabela de destinatários não carregou no tempo esperado')
             return False
 
-        # Se apenas_primeiro, clicar no botão "Selecionar polo ativo"
         if apenas_primeiro:
             if not _clicar_polo_ativo(driver):
                 logger.warning('[PRAZOS] Clique em #selecionar-polo-ativo não marcou nenhuma linha '
                                '— seguindo sem seleção de polo')
         else:
-            # Selecionar todos e filtrar apenas "Diário" (excluir "Domicílio Eletrônico")
             try:
-                # Clicar em "Selecionar todas"
+                t0_selecionar = time.monotonic()
                 if espera.ate_habilitar(driver, '#selecionar-todas', teto=10):
+                    logger.info('[PRAZOS] #selecionar-todas habilitado em %.2fs', time.monotonic() - t0_selecionar)
                     btn_selecionar_todas = espera.elemento(driver, '#selecionar-todas', teto=2)
                     clicou = False
                     if btn_selecionar_todas:
@@ -156,15 +124,14 @@ def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: boo
                     if clicou:
                         logger.info('[PRAZOS] Todas as partes selecionadas')
                     espera.assentar(driver, 0.5)
-                    
-                    # Desmarcar aqueles com "Domicílio Eletrônico"
+
                     checkboxes_de = espera.elementos(
                         driver,
                         "//table[contains(@class, 't-class')]//tbody//tr[contains(@class, 'ng-star-inserted') and (contains(., 'Domicílio Eletrônico') or contains(., 'Domicilio Eletronico'))]//input[@type='checkbox']",
                         teto=2
                     )
                     desmarcados = 0
-                    
+
                     for cb in checkboxes_de:
                         try:
                             if getattr(cb, 'is_selected', lambda: False)() or cb.get_attribute('aria-checked') == 'true':
@@ -174,7 +141,7 @@ def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: boo
                         except Exception as e:
                             logger.debug(f'[PRAZOS] Erro ao processar linha: {e}')
                             continue
-                    
+
                     if desmarcados > 0:
                         logger.info(f'[PRAZOS] {desmarcados} destinatário(s) com Domicílio Eletrônico desmarcado(s)')
                         espera.assentar(driver, 0.3)
@@ -183,7 +150,6 @@ def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: boo
             except Exception as e:
                 logger.warning(f'[PRAZOS] Erro ao filtrar destinatários: {e}')
 
-        # Se prazo foi fornecido, preenche os campos de prazo APENAS nas linhas selecionadas
         if prazo is not None:
             try:
                 script_prazo = """
@@ -248,18 +214,11 @@ def preencher_prazos_destinatarios(driver: Any, prazo: Any, apenas_primeiro: boo
 
 
 def verificar_bloqueio_recente(driver: Any, debug: bool = False) -> bool:
-    '''
-    Verifica se existe lembrete de bloqueio com data no superior a 100 dias.
-    Verso simplificada baseada na funo original.
-    
-    Returns:
-        bool: True se encontrou bloqueio recente, False caso contrrio
-    '''
+    """Verifica se existe lembrete de bloqueio com data no superior a 100 dias."""
     try:
         if debug:
             logger.info('[BLOQUEIOS] Verificando bloqueios recentes...')
 
-        # Procurar por elementos de bloqueio
         elementos_bloqueio = espera.elementos(driver, '[class*="bloqueio"], [class*="block"]', teto=2)
 
         for elemento in elementos_bloqueio:
@@ -268,8 +227,6 @@ def verificar_bloqueio_recente(driver: Any, debug: bool = False) -> bool:
                 if not texto:
                     continue
 
-                # Procurar por datas no texto
-                # Padres comuns: DD/MM/YYYY, DD-MM-YYYY, etc.
                 padroes_data = [
                     r'\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b',
                     r'\b(\d{4})[/-](\d{1,2})[/-](\d{1,2})\b'
@@ -279,9 +236,9 @@ def verificar_bloqueio_recente(driver: Any, debug: bool = False) -> bool:
                     matches = re.findall(padrao, texto)
                     for match in matches:
                         try:
-                            if len(match[0]) == 4:  # Formato YYYY-MM-DD
+                            if len(match[0]) == 4:
                                 ano, mes, dia = int(match[0]), int(match[1]), int(match[2])
-                            else:  # Formato DD-MM-YYYY
+                            else:
                                 dia, mes, ano = int(match[0]), int(match[1]), int(match[2])
 
                             data_bloqueio = datetime(ano, mes, dia)
@@ -290,13 +247,12 @@ def verificar_bloqueio_recente(driver: Any, debug: bool = False) -> bool:
                             if debug:
                                 logger.info(f'[BLOQUEIOS] Data encontrada: {data_bloqueio.date()}, {dias_diferenca} dias atrs')
 
-                            # Verificar se est dentro de 100 dias
                             if 0 <= dias_diferenca <= 100:
                                 logger.info(f'[BLOQUEIOS] Bloqueio recente encontrado: {data_bloqueio.date()} ({dias_diferenca} dias)')
                                 return True
 
                         except ValueError:
-                            continue  # Data invlida, continuar procurando
+                            continue
 
             except Exception as e:
                 if debug:

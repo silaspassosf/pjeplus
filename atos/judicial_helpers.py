@@ -12,12 +12,7 @@ from .wrappers_ato import ato_bloq, ato_meios
 
 
 def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: Any) -> Tuple[bool, bool]:
-    """Ato de pesquisas (BACEN): sigilo + VISIBILIDADE da decisão após o ato.
-
-    IMPORTANTE: devolve (sucesso, sigilo_ativado) — é o sinal que dispara a
-    atribuição de visibilidade em `ato_judicial` quando
-    `atribuir_visibilidade_autor=True` (recuperado do pre-refac).
-    """
+    """Ato de pesquisas (BACEN): sigilo + VISIBILIDADE da decisão após o ato."""
     try:
         try:
             btn_iniciar = espera.elemento(driver, "button[aria-label*='Iniciar a execução'], button[mattooltip*='Iniciar a execução']", teto=1)
@@ -26,10 +21,8 @@ def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: 
                 espera.assentar(driver, 1)
         except Exception:
             pass
-        
+
         # Recuperado do pre-refac: este ato sempre aplica sigilo, ATRIBUI
-        # VISIBILIDADE À DECISÃO após o ato judicial e DESLIGA o toggle
-        # INTIMAR (intimar=False). `setdefault` preserva overrides explícitos
         # do chamador (ex.: p2b_gateway passa sigilo=True).
         params = dict(kwargs)
         params.setdefault('sigilo', True)
@@ -60,18 +53,7 @@ def ato_pesquisas(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: 
 
 
 def ato_pesqliq(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: Any) -> Tuple[bool, bool]:
-    """Ato de pesquisas na liquidação (Homologação de Cálculos / xsbacen): sigilo + visibilidade autor.
-
-    Espelha a lógica e garantias de `ato_pesquisas`, com:
-      - conclusão_tipo = 'Homologação de Cálculos'
-      - modelo_nome = 'xsbacen'
-      - sigilo = True
-      - atribuir_visibilidade_autor = True
-      - intimar = False
-      - prazo = 30
-      - marcar_primeiro_destinatario = True
-    Retorna a tupla (sucesso, sigilo_ativado).
-    """
+    """Ato de pesquisas na liquidação (Homologação de Cálculos / xsbacen): sigilo + visibilidade autor."""
     try:
         params = dict(kwargs)
         params.setdefault('sigilo', True)
@@ -101,24 +83,23 @@ def ato_pesqliq(driver: Any, debug: bool = False, gigs: Any = None, **kwargs: An
         return False, False
 
 
-
 def idpj(
     driver: Any,
     debug: bool = False
 ) -> bool:
     try:
         tem_bloqueio_recente = verificar_bloqueio_recente(driver, debug=debug)
-        
+
         try:
             bndt(driver, operacao="inclusao", polo="passivo", debug=debug)
         except Exception as e:
             logger.error(f"[IDPJ] Erro no BNDT inclusão: {e}")
-        
+
         if tem_bloqueio_recente:
             resultado = ato_bloq(driver, debug=debug)
         else:
             resultado = ato_meios(driver, debug=debug)
-        
+
         return resultado
     except Exception as e:
         logger.error(f"[IDPJ] Erro no fluxo IDPJ: {e}")

@@ -1,7 +1,4 @@
-"""atos.movimentos_navegacao - Navegação e transição entre tarefas do PJe.
-
-Espelha fielmente a lógica comprovada do gigs-plugin.js (acao_bt_aaMovimento / movimentar_analise).
-"""
+"""atos.movimentos_navegacao - Navegação e transição entre tarefas do PJe."""
 from typing import Any, Optional
 import unicodedata
 import logging
@@ -31,17 +28,11 @@ def _normalizar_tarefa(tarefa: str) -> str:
 
 
 def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str = 'button', debug: bool = False) -> bool:
-    """Localiza e clica em um botão pelo texto normalizado (espelha clicarBotao/querySelectorByText do gigs-plugin.js).
-    
-    1. Executa busca JS direta e rápida no DOM comparando textContent, aria-label, title, mattooltip e value normalizados.
-    2. Prioriza botões em pje-botoes-transicao.
-    3. Fallback Playwright seguro caso execute_script não esteja disponível.
-    """
+    """Localiza e clica em um botão pelo texto normalizado (espelha clicarBotao/querySelectorByText do gigs-plugin..."""
     if not texto:
         return False
 
-    script = """
-    (args) => {
+    script_arrow = """(args) => {
         const textoAlvo = (args && args.texto) || '';
         const tag = (args && args.tag) || 'button';
         function norm(t) {
@@ -55,11 +46,9 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
         const alvo = norm(textoAlvo);
         if (!alvo) return false;
 
-        // Prioriza pje-botoes-transicao, mas NÃO se limita a ele. Antes, se o
-        // container existisse com outros botões, o botão de conclusão (que fica
-        // fora dele em algumas tarefas) nunca era visto e o timeout inteiro era
-        // queimado — quem acertava era o fallback Playwright, segundos depois.
-        let botoes = Array.from(document.querySelectorAll('pje-botoes-transicao ' + tag));
+        // Prioriza barras de transição (nav.container-botoes / pje-botoes-transicao),
+        // mas também varre o restante da página se o botão estiver fora delas.
+        let botoes = Array.from(document.querySelectorAll('nav.container-botoes ' + tag + ', pje-botoes-transicao ' + tag));
         const vistos = new Set(botoes);
         for (const b of document.querySelectorAll(tag + ', input[type="button"], input[type="submit"]')) {
             if (!vistos.has(b)) { botoes.push(b); vistos.add(b); }
@@ -79,22 +68,20 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
             }
         }
         return false;
-    }
-    """
-    # Prazo ÚNICO para as duas tentativas (JS e fallback Playwright). Antes cada
-    # uma tinha o seu `timeout`, então a espera real era o dobro do pedido.
-    limite = time.monotonic() + float(timeout)
+    }"""
+    script_sel = f"return ({script_arrow})(arguments[0]);"
+
+    agora = time.monotonic()
+    limite_total = agora + float(timeout)
+    limite_js = agora + max(0.25, float(timeout) * 0.75)
     try:
-        # Tenta o JS em loop até `timeout`: a tarefa abre numa aba nova e o
-        # Angular monta os botões depois. Uma única tentativa saía antes de o
-        # botão existir e o fluxo seguia como se ele não estivesse disponível.
         fn = getattr(driver, "execute_" + "script", None)
-        while time.monotonic() < limite:
+        while time.monotonic() < limite_js:
             try:
                 if fn is not None:
-                    res = fn(script, {'texto': texto, 'tag': tag})
+                    res = fn(script_sel, {'texto': texto, 'tag': tag})
                 elif hasattr(driver, 'page') and driver.page:
-                    res = driver.page.evaluate(script, {'texto': texto, 'tag': tag})
+                    res = driver.page.evaluate(script_arrow, {'texto': texto, 'tag': tag})
                 else:
                     break
                 if res:
@@ -109,11 +96,10 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
         if debug:
             logger.debug(f'[MOV_CLIQUE] Falha na execução JS: {e}')
 
-    # Fallback seguro via elementos Playwright — reaproveita o MESMO prazo
     texto_norm = _normalizar_texto(texto)
-    while time.monotonic() < limite:
+    while time.monotonic() < limite_total:
         try:
-            for el in espera.elementos(driver, 'pje-botoes-transicao button, button, input[type="button"]', teto=0.5):
+            for el in espera.elementos(driver, 'nav.container-botoes button, pje-botoes-transicao button, button, input[type="button"]', teto=0.5):
                 try:
                     if getattr(el, 'is_displayed', lambda: True)() and not el.get_attribute('disabled'):
                         txt = _normalizar_texto(getattr(el, 'text', '') or getattr(el, 'text_content', lambda: '')() or '')
@@ -134,45 +120,44 @@ def clicar_botao_por_texto(driver: Any, texto: str, timeout: int = 4, tag: str =
 
 
 def movimentar_analise(driver: Any, tarefa: str, debug: bool = False) -> bool:
-    """Movimenta qualquer tarefa intermediária para a tarefa ANÁLISE.
-    
-    Implementação 1:1 idêntica a movimentar_analise do gigs-plugin.js (L12390-12465).
-    """
-    tarefa_norm = _normalizar_tarefa(tarefa)
-    logger.info(f'[MOV_ANALISE] Movimentando tarefa "{tarefa_norm}" para ANÁLISE (padrao gigs-plugin)...')
+    """Transiciona a tarefa atual para ANÁLISE clicando no botão de análise"""
+    logger.info(f'[MOV_ANALISE] Transicionando para ANÁLISE (roteamento por botões)...')
 
-    clicado = False
+    tarefa_norm = _normalizar_tarefa(tarefa)
+
     if 'conclusao ao magistrado' in tarefa_norm or 'conclusao' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'cancelar Conclusao', debug=debug)
-    elif 'comunicacoes e expedientes' in tarefa_norm or 'preparar expedientes' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'cancelar expedientes', debug=debug)
-    elif 'arquivo provisorio' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'Arquivo', tag='input', debug=debug)
-    elif 'arquivo' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'desarquivar', debug=debug)
-    elif 'aguardando final do sobrestamento' in tarefa_norm or 'sobrestamento' in tarefa_norm:
+        return clicar_botao_por_texto(driver, 'cancelar Conclusao', debug=debug)
+    if 'comunicacoes e expedientes' in tarefa_norm or 'preparar expedientes' in tarefa_norm:
+        return clicar_botao_por_texto(driver, 'cancelar expedientes', debug=debug)
+    if 'arquivo provisorio' in tarefa_norm:
+        return clicar_botao_por_texto(driver, 'Arquivo', tag='input', debug=debug)
+    if 'arquivo' in tarefa_norm:
+        return clicar_botao_por_texto(driver, 'desarquivar', debug=debug)
+    if 'aguardando final do sobrestamento' in tarefa_norm or 'sobrestamento' in tarefa_norm:
         if clicar_botao_por_texto(driver, 'encerrar', debug=debug):
             espera.assentar(driver, 0.5)
-            clicado = clicar_botao_por_texto(driver, 'Sim', debug=debug)
-    elif 'iniciar execucao' in tarefa_norm or 'iniciar liquidacao' in tarefa_norm or 'liquidacao' in tarefa_norm or 'execucao' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'iniciar', debug=debug)
-    elif 'remeter' in tarefa_norm or 'remessa' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'Cancelar Remessa', debug=debug) or clicar_botao_por_texto(driver, 'cancelar', debug=debug)
-    elif 'prazos vencidos - secretaria' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'analise de secretaria', debug=debug)
+            return clicar_botao_por_texto(driver, 'Sim', debug=debug)
+        return False
+    if 'iniciar execucao' in tarefa_norm or 'iniciar liquidacao' in tarefa_norm or 'liquidacao' in tarefa_norm or 'execucao' in tarefa_norm:
+        return clicar_botao_por_texto(driver, 'iniciar', debug=debug)
+    if 'remeter' in tarefa_norm or 'remessa' in tarefa_norm:
+        return clicar_botao_por_texto(driver, 'Cancelar Remessa', debug=debug) or clicar_botao_por_texto(driver, 'cancelar', debug=debug)
+
+    if 'prazos vencidos - secretaria' in tarefa_norm:
+        candidatos = ('analise de secretaria', 'analise')
     elif 'prazos vencidos - gabinete' in tarefa_norm or 'analise de recurso interno' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'analise de gabinete', debug=debug)
-    elif 'transito em julgado' in tarefa_norm:
-        clicado = clicar_botao_por_texto(driver, 'analise', debug=debug)
+        candidatos = ('analise de gabinete', 'analise')
+    elif 'prazos vencidos' in tarefa_norm:
+        candidatos = ('analise de secretaria', 'analise de gabinete', 'analise')
     else:
-        # DEFAULT para Cumprimento de Providências e qualquer outra tarefa
-        clicado = clicar_botao_por_texto(driver, 'analise', debug=debug)
+        candidatos = ('analise', 'analise de secretaria', 'analise de gabinete')
 
-    if clicado:
-        logger.info('[MOV_ANALISE] Botão de transição clicado')
-        return True
+    for i, botao_alvo in enumerate(candidatos):
+        if clicar_botao_por_texto(driver, botao_alvo, timeout=4 if i == 0 else 1, debug=debug):
+            logger.info('[MOV_ANALISE] Botão de análise "%s" clicado', botao_alvo)
+            return True
 
-    logger.warning(f'[MOV_ANALISE] Nenhum botão de transição para Análise encontrado na tarefa "{tarefa}"')
+    logger.warning(f'[MOV_ANALISE] Nenhum botão de análise encontrado na tarefa "{tarefa}"')
     return False
 
 
@@ -181,7 +166,8 @@ def navegar_para_tarefa(
     tarefa_destino: str,
     debug: bool = False,
     timeout: int = 20,
-    tarefa_atual_conhecida: Optional[str] = None
+    tarefa_atual_conhecida: Optional[str] = None,
+    clicar_destino: bool = True,
 ) -> bool:
     """Navega para a tarefa de destino aplicando a máquina de estados do gigs-plugin.js."""
     try:
@@ -200,12 +186,6 @@ def navegar_para_tarefa(
             logger.warning('[NAVEGAR_TAREFA] Movimento interrompido por condicao especial')
             return False
 
-        # Se já está em Análise: clica no botão destino
-        # Se já está em Análise: clica no botão destino
-        # Não esperamos o container genérico `pje-botoes-transicao button`: ele
-        # já existe no esqueleto, então libera a espera antes de a tarefa montar
-        # e o clique falha sem retentar. A garantia real é `clicar_botao_por_texto`
-        # aguardar o BOTÃO DO DESTINO aparecer.
         if 'analise' in tarefa_atual_norm:
             clicado = clicar_botao_por_texto(driver, tarefa_destino, timeout=max(5, timeout), debug=debug)
             if not clicado:
@@ -215,11 +195,16 @@ def navegar_para_tarefa(
                 return False
             return True
 
-        # Se não está em Análise: transiciona primeiro para Análise
         if movimentar_analise(driver, tarefa_atual, debug=debug):
             if 'analise' in tarefa_destino_norm:
                 return True
+            if not clicar_destino:
+                return True
+            t0_destino = time.monotonic()
             clicado = clicar_botao_por_texto(driver, tarefa_destino, timeout=max(5, timeout), debug=debug)
+            logger.info('[NAVEGAR_TAREFA] Após Análise: botão "%s" %s em %.2fs',
+                        tarefa_destino, 'clicado' if clicado else 'NAO encontrado',
+                        time.monotonic() - t0_destino)
             if not clicado:
                 if 'aguardando prazo' in tarefa_destino_norm or 'prazo' in tarefa_destino_norm:
                     logger.info('[NAVEGAR_TAREFA] Transicionou para Análise e botão "%s" não disponível — conforme LEGADO L4869, está correto.', tarefa_destino)

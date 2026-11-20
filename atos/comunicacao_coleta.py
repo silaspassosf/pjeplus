@@ -17,7 +17,7 @@ def executar_coleta_conteudo(driver: Any, config_coleta: Any, debug: bool = Fals
 
         numero_processo = None
         try:
-            from PEC.anexos import extrair_numero_processo_da_url
+            from atos.anexos import extrair_numero_processo_da_url
             numero_processo = extrair_numero_processo_da_url(driver)
             if not numero_processo:
                 numero_processo = "PROCESSO_DESCONHECIDO"
@@ -43,7 +43,7 @@ def executar_coleta_conteudo(driver: Any, config_coleta: Any, debug: bool = Fals
                         if not base.startswith('http'):
                             base = 'https://' + base
                         link_validacao = f"{base}/pjekz/validacao/{link_validacao}?instancia=1"
-                    from PEC.anexos import salvar_conteudo_clipboard
+                    from atos.anexos import salvar_conteudo_clipboard
                     sucesso_coleta = salvar_conteudo_clipboard(conteudo=link_validacao, numero_processo=str(numero_processo), tipo_conteudo="link_ato_validacao", debug=debug)
                     if conteudo_condensado:
                         salvar_conteudo_clipboard(conteudo=conteudo_condensado, numero_processo=str(numero_processo), tipo_conteudo="conteudo_formatado", debug=debug)
@@ -89,7 +89,7 @@ def executar_coleta_conteudo(driver: Any, config_coleta: Any, debug: bool = Fals
 
                     if link_validacao_dom:
                         try:
-                            from PEC.anexos import salvar_conteudo_clipboard
+                            from atos.anexos import salvar_conteudo_clipboard
                             sucesso_coleta = salvar_conteudo_clipboard(conteudo=link_validacao_dom, numero_processo=str(numero_processo), tipo_conteudo="link_ato_validacao", debug=debug)
                             if sucesso_coleta:
                                 return True

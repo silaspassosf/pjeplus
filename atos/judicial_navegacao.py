@@ -1,10 +1,4 @@
-"""
-judicial_navegacao.py - Funções de navegação para atos judiciais
-====================================================================
-
-Funções para abertura de tarefas, navegação entre estados do PJE,
-limpeza de overlays e transição entre URLs.
-"""
+"""judicial_navegacao.py - Funções de navegação para atos judiciais"""
 
 from typing import Optional, Tuple, Any
 
@@ -28,11 +22,7 @@ from atos.movimentos_navegacao import (
 
 
 def _localizar_botao_navegacao(driver: Any, label: str):
-    """Localiza botão de navegação de tarefa via estratégias combinadas (case/accent-insensitive).
-
-    Mantido como utilidade de diagnóstico: o caminho de navegação usa
-    diretamente o seletor por aria-label (ver navegar_para_conclusao).
-    """
+    """Localiza botão de navegação de tarefa via estratégias combinadas (case/accent-insensitive)."""
     el = espera.elemento(
         driver,
         f"button[aria-label*='{label}' i], pje-botoes-transicao button[aria-label*='{label}' i]",
@@ -54,31 +44,25 @@ def _localizar_botao_navegacao(driver: Any, label: str):
 
 
 def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:
-    """
-    Abre a tarefa do processo atual e troca para nova aba se necessário.
-
-    Returns:
-        Tuple[bool, bool]: (sucesso_abertura, ja_em_estado_final)
-        - sucesso_abertura: True se conseguiu abrir a tarefa
-        - ja_em_estado_final: True se já estava em /assinar, /minutar ou /conclusao
-    """
+    """Abre a tarefa do processo atual e troca para nova aba se necessário."""
     try:
         logger.info('[NAVEGAÇÃO] Abrindo tarefa do processo...')
         # zera a marca do item anterior: sem isto um processo assinado deixaria
-        # a flag ligada e o seguinte seria encerrado por engano
         try:
             driver.pje_tarefa_pronta = None
         except Exception:
             pass
         handle_original = getattr(driver, 'current_window_handle', None)
+        try:
+            handles_antes = set(getattr(driver, 'window_handles', []) or [])
+        except Exception:
+            handles_antes = set()
 
-        # Obter botão da tarefa
         btn_abrir_tarefa = aguardar_e_clicar(driver, BTN_TAREFA_PROCESSO, timeout=10, retornar_elemento=True)
         if not btn_abrir_tarefa:
             logger.error('[NAVEGAÇÃO] Botão "Abrir tarefa do processo" não encontrado!')
             return False, False
 
-        # Verificar se já está em "Assinar"
         tarefa_do_botao = None
         try:
             span_tarefa = espera.elemento(driver, f"{BTN_TAREFA_PROCESSO} .texto-tarefa-processo", teto=1)
@@ -93,47 +77,35 @@ def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:
         if tarefa_do_botao:
             driver.pje_tarefa_atual = tarefa_do_botao
             tarefa_lower = _normalizar_texto(tarefa_do_botao).lower()
-            # A tarefa é lida aqui, ainda em /detalhe, e o nome define o caminho
-            # (mesma regra do gigs-plugin.js:12030 — movimentar_destino):
-            #   "Assinar <ato>"  -> ato já concluído, falta só assinar: nada a fazer;
-            #   "Elaborar <ato>" -> minuta em elaboração: NÃO movimentar o processo,
-            #                       a URL /minutar é consequência dessa tarefa.
             if 'assinar' in tarefa_lower:
                 logger.info(f'[NAVEGAÇÃO] Tarefa "{tarefa_do_botao}" — ato já assinado, nada a fazer')
                 driver.pje_tarefa_pronta = 'assinar'
                 return True, True
 
             if 'elaborar' in tarefa_lower:
-                # Mesmo tratamento da tarefa "Assinar": nada a fazer aqui.
-                # Abrir a tarefa so levaria a /minutar para repetir a minuta;
-                # o fluxo segue a partir das acoes da propria URL /minutar.
                 logger.info(f'[NAVEGAÇÃO] Tarefa "{tarefa_do_botao}" — minuta em elaboração, seguindo sem abrir')
                 driver.pje_tarefa_pronta = 'elaborar'
                 return True, True
 
-        # Clicar para abrir tarefa
         if not safe_click(driver, btn_abrir_tarefa):
             logger.error('[NAVEGAÇÃO] Falha ao clicar em "Abrir tarefa do processo"')
             return False, False
 
-        # Aguardar nova aba se tiver aberto
         try:
             from Fix.browser_suporte import aguardar_nova_aba
-            if handle_original:
-                nova_aba = aguardar_nova_aba(driver, handle_original, timeout=10)
+            if handles_antes or handle_original:
+                nova_aba = aguardar_nova_aba(driver, handles_antes or handle_original, timeout=10)
                 if nova_aba:
                     driver.switch_to.window(nova_aba)
                     logger.info('[NAVEGAÇÃO] Foco trocado para nova aba')
         except Exception:
             logger.info('[NAVEGAÇÃO] Nenhuma nova aba detectada (continuando na mesma aba)')
 
-        # Aguardar carregamento mínimo
         try:
             aguardar_renderizacao_nativa(driver, timeout=3)
         except Exception:
             pass
 
-        # Verificar estado final após abertura
         current_url = (driver.current_url or '').lower()
         ja_em_estado_final = ('/assinar' in current_url or
                             '/minutar' in current_url or
@@ -150,9 +122,7 @@ def abrir_tarefa_processo(driver: Any) -> Tuple[bool, bool]:
 
 
 def limpar_overlays(driver: Any) -> None:
-    """
-    Remove overlays e elementos flutuantes que podem interferir nos cliques.
-    """
+    """Remove overlays e elementos flutuantes que podem interferir nos cliques."""
     try:
         overlays = espera.elementos(driver, '.cdk-overlay-backdrop, .mat-dialog-container', teto=1)
         if overlays:
@@ -167,29 +137,7 @@ def limpar_overlays(driver: Any) -> None:
 
 
 def navegar_para_conclusao(driver: Any) -> bool:
-    """
-    Navega da tarefa atual para "Conclusão ao Magistrado".
-
-    Premissa do PJe (não é caso a tratar): em "Aguardando prazo" a Conclusão ao
-    Magistrado SEMPRE existe. Portanto não há desvio para "Análise" -- o único
-    problema possível é a página da tarefa não ter carregado.
-
-    Estratégia:
-    1. Se já está em Conclusão/minutar, nada a fazer.
-    2. Se a tarefa já é a própria Conclusão ao Magistrado, nada a fazer.
-    3. Aguarda o BOTÃO REAL aparecer e clica. A busca é por texto DENTRO do
-       container da barra de transição: `nav.container-botoes button` com
-       `texto='Conclusão ao magistrado'` (o texto fica em
-       `div.texto-botao-app` e o botão NÃO tem aria-label). Reservas curtas:
-       aria-label (2s) e `button` amplo (2s).
-    4. Clica no botão.
-    5. Confirma a chegada pelos botões de conclusão. Só retorna True se eles
-       existirem de fato -- retorno otimista escondia a falha e fazia o erro
-       aparecer só no passo seguinte, como se fosse problema do CLS.
-
-    Returns:
-        bool: True se conseguiu navegar para conclusão
-    """
+    """Navega da tarefa atual para "Conclusão ao Magistrado"."""
     try:
         logger.info('[NAVEGAÇÃO] Navegando para Conclusão ao Magistrado...')
 
@@ -201,7 +149,21 @@ def navegar_para_conclusao(driver: Any) -> bool:
             logger.info('[NAVEGAÇÃO] Já em /minutar — pulando navegação')
             return True
 
-        # Obter nome da tarefa se disponível (do DOM ou do driver salvo anteriormente)
+        if '/tarefa' not in current_url:
+            try:
+                atual = driver.current_window_handle
+                for h in reversed(list(getattr(driver, 'window_handles', []) or [])):
+                    driver.switch_to.window(h)
+                    if '/tarefa' in (getattr(driver, 'current_url', '') or '').lower():
+                        logger.warning('[NAVEGAÇÃO] Foco estava fora da tarefa (%s) — trocado para a aba da tarefa (%s)',
+                                       current_url, driver.current_url)
+                        break
+                else:
+                    driver.switch_to.window(atual)
+            except Exception as e_aba:
+                logger.debug('[NAVEGAÇÃO] Guarda de aba falhou: %s', e_aba)
+        logger.info('[NAVEGAÇÃO] Procurando botões na URL: %s', getattr(driver, 'current_url', ''))
+
         nome_tarefa = getattr(driver, 'pje_tarefa_atual', '') or ''
         if not nome_tarefa:
             try:
@@ -218,58 +180,35 @@ def navegar_para_conclusao(driver: Any) -> bool:
             logger.info('[NAVEGAÇÃO] Tarefa atual já é Conclusão ao Magistrado')
             return True
 
-        # ===== ESTABILIZAÇÃO DA PÁGINA =====
         # A tarefa abre numa aba nova e o Angular monta o DOM depois do
-        # esqueleto. As esperas anteriores observavam `pje-cabecalho-tarefa` e
-        # `pje-botoes-transicao button`, ambos presentes JÁ no esqueleto, então
-        # retornavam na hora e a busca saía antes de o botão existir.
-        # Aqui esperamos a barra de transição montar, como faz o gigs-plugin
-        # (esperarColecao('pje-botoes-transicao button', 15)).
         aguardar_renderizacao_nativa(
             driver, 'nav.container-botoes button, pje-botoes-transicao button',
             modo='aparecer', timeout=15)
 
-        # ===== ROTEAMENTO PELO ESTADO DA TAREFA =====
-        # Em "Aguardando prazo" a Conclusão ao Magistrado SEMPRE existe: é regra
-        # do próprio PJe. O botão é procurado direto, sem passar por Análise.
-        # Os demais fluxos (ex.: Cumprimento de Providências) realmente pedem
-        # Análise antes da conclusão -- esse roteamento já existe pronto em
-        # navegar_para_tarefa (máquina de estados do gigs-plugin) e é usado em
-        # vez de recriá-lo aqui.
         tarefa_direta = 'aguardando prazo' in tarefa_norm
+        # obrigatória é Análise antes da conclusão. Procurar o botão direto aqui só
+        exige_analise = 'cumprimento de providencias' in tarefa_norm
 
         # ORDEM DE BUSCA — a PRIMEIRA tentativa tem de ser a que acerta.
-        # DOM real da barra de transição (colado pelo Silas):
-        #   <nav class="container-botoes ...">
-        #     <button mat-raised-button role="link" class="... botao-app ...">
-        #       <span class="mat-button-wrapper">
-        #         <i class="fas fa-clipboard-check icone-app"></i>
-        #         <div class="texto-botao-app"> Conclusão ao magistrado </div>
-        # O botão NÃO tem aria-label: o texto mora em `div.texto-botao-app`.
-        # Por isso buscar primeiro pelo aria-label custava 6s FIXOS em "Prazos
-        # Vencidos" — NAVEGAR_CONCLUSAO saía em ~7,1s todas as vezes (6s de
-        # espera inútil + 1s de limpeza de overlay). O aria-label fica só como
-        # reserva curta, para telas com marcação diferente.
         SELETOR_CONCLUSAO = (
             "button[aria-label*='Conclusão ao magistrado' i], "
             "pje-botoes-transicao button[aria-label*='Conclusão ao magistrado' i]"
         )
 
         logger.info('[NAVEGAÇÃO] Tarefa "%s": procurando conclusão direta antes de rotear', nome_tarefa)
-        botao = esperar_elemento(
-            driver, 'nav.container-botoes button',
-            texto='Conclusão ao magistrado',
-            timeout=15 if tarefa_direta else 6)
-        if botao is None:
-            botao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=2)
-        if botao is None:
+        botao = None
+        if not exige_analise:
             botao = esperar_elemento(
-                driver, 'button', texto='Conclusão ao magistrado', timeout=2)
+                driver, 'nav.container-botoes button',
+                texto='Conclusão ao magistrado',
+                timeout=15 if tarefa_direta else 6)
+            if botao is None:
+                botao = espera.elemento(driver, SELETOR_CONCLUSAO, teto=2)
+            if botao is None:
+                botao = esperar_elemento(
+                    driver, 'button', texto='Conclusão ao magistrado', timeout=2)
 
         if botao is None and not tarefa_direta:
-            # Tarefas que realmente exigem Análise antes da conclusão (ex.:
-            # Cumprimento de Providências). O roteamento é a máquina de estados
-            # do gigs-plugin, já pronta em navegar_para_tarefa.
             logger.info('[NAVEGAÇÃO] Conclusão indisponível — roteando via máquina de estados (Análise)')
             if not navegar_para_tarefa(driver, 'conclusão ao magistrado', debug=True, tarefa_atual_conhecida=nome_tarefa):
                 logger.info('[NAVEGAÇÃO] Roteamento não concluiu — tentando o botão na tela atual')
@@ -295,8 +234,6 @@ def navegar_para_conclusao(driver: Any) -> bool:
 
         logger.info('[NAVEGAÇÃO] Botão "Conclusão ao magistrado" presente no DOM')
 
-        # Overlay pendente sobre a barra de transição engole o clique.
-        # Só ANTES do clique: depois dele o Escape no meio da montagem do
         # Angular é justamente o que causava o "refresh" visível.
         limpar_overlays(driver)
 
@@ -306,17 +243,8 @@ def navegar_para_conclusao(driver: Any) -> bool:
 
         logger.info('[NAVEGAÇÃO] ✅ Clique em "Conclusão ao magistrado" realizado')
 
-        # NÃO chamar limpar_overlays() aqui. Logo após o clique a tela de
-        # conclusão está montando; um Escape no meio da transição pode fechar
         # componentes que o Angular estava abrindo (era o "refresh" visível
-        # antes de escolher o tipo de conclusão). Se sobrar overlay, a espera
-        # abaixo já falha de forma explícita.
 
-        # ===== CONFIRMAÇÃO DA CHEGADA =====
-        # Sucesso só quando os botões de conclusão existem de fato. Antes, esta
-        # função retornava True mesmo sem ter navegado, e o erro aparecia só no
-        # Passo 4 ("Botão de conclusão 'Despacho' não encontrado"), escondendo
-        # a causa real.
         if '/minutar' in (getattr(driver, 'current_url', '') or '').lower():
             logger.info('[NAVEGAÇÃO] Processo foi direto para /minutar')
             return True
@@ -336,12 +264,7 @@ def navegar_para_conclusao(driver: Any) -> bool:
 
 
 def preparar_campo_minutar(driver: Any) -> bool:
-    """
-    Prepara o campo de filtro de modelos na tela de minutar.
-
-    Returns:
-        bool: True se conseguiu preparar o campo ou se a tela de minutar já está ativa
-    """
+    """Prepara o campo de filtro de modelos na tela de minutar."""
     try:
         logger.info('[NAVEGAÇÃO] Preparando campo de filtro para minutar...')
         seletor_filtro = 'input#inputFiltro, input[id="inputFiltro"], pje-arvore-modelo-documento input, input[placeholder*="Filtro" i]'
@@ -352,7 +275,6 @@ def preparar_campo_minutar(driver: Any) -> bool:
 
         if not campo_filtro_modelo:
             # Tolerância estrutural: se já estamos em /minutar ou o editor CKEditor já está presente,
-            # não abortamos o fluxo_cls! O inserir_modelo_no_editor tem retries e localizadores próprios.
             estado_atual = verificar_estado_atual(driver)
             editor_presente = False
             try:
@@ -397,12 +319,7 @@ def _dump_botoes_conclusao(driver: Any, seletor: str = (
         'pje-concluso-tarefa-botao button, '
         'pje-conclusao-dependencia button, '
         'button.mat-raised-button')) -> None:
-    """Lista os botões da tela no log (só diagnóstico).
-
-    Sem isso, "não encontrou o botão" não diz se o texto mudou, se a tela era
-    outra ou se havia overlay. `seletor` permite reaproveitar o dump na barra de
-    transição (`pje-botoes-transicao button`) quando a falha é anterior.
-    """
+    """Lista os botões da tela no log (só diagnóstico)."""
     try:
         if not hasattr(driver, 'page'):
             return
@@ -428,37 +345,18 @@ def _dump_botoes_conclusao(driver: Any, seletor: str = (
 
 
 def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
-    """
-    Escolhe o tipo de conclusão na tela de conclusão do processo.
-
-    ESTRATÉGIA ROBUSTA (GIGS aadespacho / despacho_engine):
-    - Normaliza acentos (Suspensão == Suspensao)
-    - Faz polling ativo injetando JS para clicar
-    """
+    """Escolhe o tipo de conclusão na tela de conclusão do processo."""
     try:
         logger.info(f'[CONCLUSÃO] Escolhendo tipo de conclusão: {conclusao_tipo}')
 
-        # O botão do tipo de conclusão fica em `pje-concluso-tarefa-botao`.
         # Escopar ali é o que evita a isca: `pje-conclusao-dependencia` (lista
-        # de dependências) também tem botões "Despacho" e vinha ANTES no DOM —
-        # era ela que fazia o clique "dar certo" e a tela ficar em /conclusao.
-        # `esperar_elemento(..., texto=...)` filtra pelo texto visível e no
-        # caminho nativo vira `locator(escopo).filter(has_text=texto)`.
         botao = esperar_elemento(
             driver, 'pje-concluso-tarefa-botao button',
             texto=conclusao_tipo, timeout=15,
         )
         if botao is None:
-            # Fora do container canônico (variação de tela): busca ampla, curta.
             botao = esperar_elemento(driver, 'button', texto=conclusao_tipo, timeout=2)
 
-        # ===== FALLBACK: busca ativa do tipo (pre-refac + despacho_engine) =====
-        # Enquanto a tela de conclusão migra, `esperar_elemento` pode não achar
-        # o botão do tipo mesmo após 15s. A arquitetura real resolve isso
-        # buscando o tipo por texto no conjunto canônico
-        # (Script/autoactions/despacho_engine.js:93-110 — escolherTipoConclusao),
-        # com o mesmo conjunto de seletores do pre-refac: o polling vira a
-        # última barreira ANTES de desistir.
         if botao is None and hasattr(driver, 'page'):
             script_find = """(tipo) => {
                 function normalizar(s){ return (s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().trim(); }
@@ -499,13 +397,6 @@ def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
         safe_click_no_scroll(driver, botao)
         logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado com sucesso')
 
-        # NÃO esperar `document.readyState === 'complete'` aqui. O clique dispara
-        # a navegação para /minutar; bloquear até o readyState fechar prendia o
-        # passo por toda a transição (3.8s no log) e, pior, devolvia o controle
-        # só depois que o DOM já tinha sido substituído — a tela "piscava"
-        # antes do passo seguinte. Quem espera a transição é
-        # `aguardar_transicao_minutar` (Passo 5), que observa o sinal certo.
-
         return True
 
     except Exception as e:
@@ -514,20 +405,7 @@ def escolher_tipo_conclusao(driver: Any, conclusao_tipo: str) -> bool:
 
 
 def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
-    """
-    Aguarda a transição da tela de conclusão para a tela de minutar.
-
-    Ordem de sinais ALINHADA AO PRE-REFAC / gigs-plugin: o ponto de partida é a
-    renderização do DOM exclusivo de minutar (árvore de modelos / campo de
-    filtro / editor), que responde na hora em que o Angular monta a tela. O
-    polling de URL no Angular era o sinal PRIMÁRIO aqui e é lento/instável —
-    nos casos em que a tela demora a montar ele estourava o teto sozinho
-    (log 12/11: "falha na transição minutar" em Homologação de Cálculos). A URL
-    fica só como FALLBACK, exatamente como no pre-refac.
-
-    Returns:
-        bool: True se conseguiu fazer a transição
-    """
+    """Aguarda a transição da tela de conclusão para a tela de minutar."""
     try:
         logger.info(f'[CONCLUSÃO] Aguardando transição para tela de minutar (teto={timeout}s)...')
 
@@ -537,12 +415,10 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
             'div[class*="area-conteudo"]'
         )
 
-        # Atalho: o clique pode ter levado direto para /minutar.
         if '/minutar' in (getattr(driver, 'current_url', '') or '').lower():
             logger.info('[CONCLUSÃO] URL já em /minutar — transição imediata')
             return True
 
-        # 1. PRIMÁRIO (DOM): a tela de minutar montou?
         transicionou = bool(aguardar_renderizacao_nativa(
             driver, seletor_exclusivo_minutar, modo='aparecer',
             timeout=max(6.0, float(timeout) * 0.6)))
@@ -558,7 +434,6 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
             _dump_botoes_conclusao(driver)
             return False
 
-        # Aguardar spinners de carregamento inicial assentarem
         try:
             espera.ate_sumir(driver, '.loading-spinner, .mat-progress-spinner, .fa-spin', teto=5)
         except Exception:
@@ -574,12 +449,7 @@ def aguardar_transicao_minutar(driver: Any, timeout: float = 20.0) -> bool:
 
 
 def verificar_estado_atual(driver: Any) -> str:
-    """
-    Verifica o estado atual do processo baseado na URL.
-
-    Returns:
-        str: Estado atual ('assinar', 'minutar', 'conclusao', 'detalhe', 'outro')
-    """
+    """Verifica o estado atual do processo baseado na URL."""
     current_url = (driver.current_url or '').lower()
 
     if '/assinar' in current_url:
@@ -595,12 +465,7 @@ def verificar_estado_atual(driver: Any) -> str:
 
 
 def focar_campo_minutar_se_necessario(driver: Any) -> bool:
-    """
-    Foca no campo de filtro de modelos se estiver na tela de minutar.
-
-    Returns:
-        bool: True se conseguiu focar ou se não era necessário
-    """
+    """Foca no campo de filtro de modelos se estiver na tela de minutar."""
     try:
         if verificar_estado_atual(driver) == 'minutar':
             logger.info('[CONCLUSÃO] Já em minutar - focando no campo de filtro')

@@ -37,7 +37,6 @@ def abrir_minutas(driver: Any, debug: bool = False) -> bool:
         if not esperar_url_conter(driver, '/minutas', timeout=20):
             raise Exception('URL de minutas não carregou após aguardar readyState')
 
-        # UI check com timeout generoso (10s) antes de refresh
         if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 10):
             logger.info('[MINUTAS] Elemento esperado não encontrado; refresh na aba')
             try:
@@ -53,7 +52,6 @@ def abrir_minutas(driver: Any, debug: bool = False) -> bool:
             logger.info(f'[URL][ERRO] Falha na navegação direta por URL: {url_error}')
             logger.info('[URL] Fazendo fallback para navegação tradicional por cliques...')
 
-        # FALLBACK: Navegação tradicional por cliques
         from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 
         aba_antes = driver.current_window_handle
@@ -73,7 +71,6 @@ def abrir_minutas(driver: Any, debug: bool = False) -> bool:
         if not esperar_url_conter(driver, '/minutas', timeout=20):
             if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 20):
                 raise Exception('URL e conteúdo de minutas não carregaram')
-        # UI check com timeout generoso antes de refresh
         if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 10):
             logger.info('[MINUTAS][FALLBACK] Elemento esperado não encontrado; refresh na aba')
             try:

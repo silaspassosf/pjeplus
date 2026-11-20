@@ -1,6 +1,4 @@
-"""
-Pacote atos - Automação de atos judiciais para PJe.
-"""
+"""Pacote atos - Automação de atos judiciais para PJe."""
 
 from .core import selecionar_opcao_select
 from .judicial import (

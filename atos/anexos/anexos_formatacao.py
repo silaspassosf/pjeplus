@@ -1,8 +1,6 @@
-"""
-atos.anexos.formatacao - Formatação de conteúdo.
-"""
+"""atos.anexos.formatacao - Módulo de formatação PEC/anexos."""
 
 
 def formatar_conteudo_ecarta(html_table):
-    """Formata conteúdo HTML extraído do e-carta para inserção no editor."""
+    """Formata o conteúdo HTML extraído do e-carta para inserção adequada no editor."""
     return html_table

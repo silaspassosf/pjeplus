@@ -1,12 +1,5 @@
-"""Prazo P2B - Regras de Execucao (Core + Criteria Matcher)
+"""Prazo P2B - Regras de Execucao (Core + Criteria Matcher)"""
 
-Consolidado de: p2b_core.py, criteria_matcher.py
-
-ATENCAO: p2b_core.checar_prox() e importado por Mandado/regras.py.
-Este shim DEVE ser preservado.
-"""
-
-# ── Imports ──
 import datetime
 import json
 import logging
@@ -26,58 +19,30 @@ from Fix.utils import remover_acentos, normalizar_texto
 logger = logging.getLogger(__name__)
 
 
-# ═══════════════════════════════════════════
-# 1. criteria_matcher.py
-# ═══════════════════════════════════════════
-
 class CriteriaMatcher:
-    """
-    Matcher de critérios com early termination para buscas em loop.
-
-    Otimiza buscas em listas paginadas parando quando encontra
-    o critério desejado, em vez de percorrer todas as páginas.
-    """
+    """Matcher de critérios com early termination para buscas em loop."""
 
     def __init__(self, driver, config, wait_pool):
-        """
-        Inicializa matcher.
-
-        Args:
-            driver: conexao/driver PJe
-            config: Configuração do driver/modo
-            wait_pool: ElementWaitPool para waits consistentes
-        """
+        """Inicializa matcher."""
         self.driver = driver
         self.config = config
         self.wait_pool = wait_pool
 
     def buscar_com_criterio(self, criterio_fn: Callable[[Dict], bool],
                            max_paginas: int = 50) -> Tuple[bool, Optional[Dict]]:
-        """
-        Busca com early termination quando critério atende.
-
-        Args:
-            criterio_fn: Função que retorna True se critério atende
-            max_paginas: Máximo de páginas a percorrer
-
-        Returns:
-            (encontrado, dados): Tupla com status e dados encontrados
-        """
+        """Busca com early termination quando critério atende."""
         pagina_atual = 1
 
         while pagina_atual <= max_paginas:
             try:
                 logger.debug(f"Verificando critério na página {pagina_atual}")
 
-                # Extrair dados da página atual
                 dados_pagina = self._extrair_dados_pagina()
 
-                # Aplicar critério
                 if criterio_fn(dados_pagina):
                     logger.info(f"Criterio encontrado na pagina {pagina_atual}")
                     return True, dados_pagina
 
-                # Critério não atendido, verificar se há próxima página
                 if not self._ir_proxima_pagina():
                     logger.info("Última página atingida, critério não encontrado")
                     return False, None
@@ -92,15 +57,7 @@ class CriteriaMatcher:
         return False, None
 
     def buscar_prazo_ativo(self, max_paginas: int = 20) -> Tuple[bool, Optional[Dict]]:
-        """
-        Busca específica por prazo ativo (não vencido).
-
-        Args:
-            max_paginas: Máximo de páginas a verificar
-
-        Returns:
-            (encontrado, dados_prazo): Prazo ativo encontrado
-        """
+        """Busca específica por prazo ativo (não vencido)."""
         def criterio_prazo_ativo(dados: Dict) -> bool:
             """Critério: prazo não vencido e ativo."""
             prazos = dados.get('prazos', [])
@@ -108,7 +65,6 @@ class CriteriaMatcher:
             for prazo in prazos:
                 status = prazo.get('status', '').lower()
                 if 'ativo' in status or 'vigente' in status:
-                    # Verificar se não está vencido
                     data_fim = prazo.get('data_fim')
                     if data_fim and not self._prazo_vencido(data_fim):
                         return True
@@ -117,20 +73,12 @@ class CriteriaMatcher:
         return self.buscar_com_criterio(criterio_prazo_ativo, max_paginas)
 
     def _extrair_dados_pagina(self) -> Dict:
-        """
-        Extrai dados da página atual.
-
-        Returns:
-            Dict com dados da página (prazos, metadados, etc.)
-        """
+        """Extrai dados da página atual."""
         try:
-            # Aguardar carregamento da tabela
             self.wait_pool.esperar_elemento("tabela_dados", timeout=5)
 
-            # Extrair prazos da tabela
             prazos = self._extrair_prazos_tabela()
 
-            # Metadados da página
             metadados = {
                 'pagina_atual': self._obter_numero_pagina(),
                 'total_paginas': self._obter_total_paginas(),
@@ -157,28 +105,21 @@ class CriteriaMatcher:
             )
 
     def _extrair_prazos_tabela(self) -> list:
-        """
-        Extrai lista de prazos da tabela atual.
-
-        Returns:
-            Lista de dicionários com dados dos prazos
-        """
+        """Extrai lista de prazos da tabela atual."""
         prazos = []
 
         try:
-            # Localizar tabela de prazos
             tabela = espera.elemento(self.driver, "#data-table", teto=2)
             if not tabela:
                 return prazos
 
-            # Extrair linhas (exceto header)
             linhas = espera.elementos(tabela, "tr", teto=1)[1:]
 
             for linha in linhas:
                 try:
                     colunas = espera.elementos(linha, "td", teto=0.5)
 
-                    if len(colunas) >= 4:  # Assumindo colunas: Tipo, Data Início, Data Fim, Status
+                    if len(colunas) >= 4:
                         prazo = {
                             'tipo': colunas[0].text.strip(),
                             'data_inicio': colunas[1].text.strip(),
@@ -198,22 +139,14 @@ class CriteriaMatcher:
         return prazos
 
     def _ir_proxima_pagina(self) -> bool:
-        """
-        Navega para a próxima página.
-
-        Returns:
-            True se conseguiu navegar, False se não há próxima página
-        """
+        """Navega para a próxima página."""
         try:
-            # Tentar clicar no botão "Próximo"
             botao_proximo = self.wait_pool.esperar_clicavel("botao_proximo", timeout=3)
 
-            # Verificar se botão está habilitado
             if botao_proximo.is_enabled():
                 botao_proximo.click()
                 logger.debug("Navegou para próxima página")
 
-                # Aguardar carregamento da nova página
                 self.wait_pool.esperar_invisibilidade("spinner", timeout=5)
                 return True
             else:
@@ -227,12 +160,10 @@ class CriteriaMatcher:
     def _obter_numero_pagina(self) -> int:
         """Obtém número da página atual."""
         try:
-            # Procurar por indicador de página (ex: "Página 1 de 10")
             elementos_pagina = espera.elementos(self.driver, "//*[contains(text(), 'Página')]", teto=1)
             for elem in elementos_pagina:
                 texto = elem.text
                 if 'Página' in texto:
-                    # Extrair número da página
                     match = re.search(r'Página\s+(\d+)', texto)
                     if match:
                         return int(match.group(1))
@@ -255,21 +186,12 @@ class CriteriaMatcher:
             return 1
 
     def _prazo_vencido(self, data_fim: str) -> bool:
-        """
-        Verifica se prazo está vencido.
-
-        Args:
-            data_fim: Data fim no formato DD/MM/YYYY
-
-        Returns:
-            True se vencido
-        """
+        """Verifica se prazo está vencido."""
         try:
             from datetime import datetime
             data_fim_dt = datetime.strptime(data_fim, '%d/%m/%Y')
             return data_fim_dt < datetime.now()
         except Exception:
-            # Se não conseguir parsear, assumir não vencido
             return False
 
     def _timestamp_atual(self) -> str:
@@ -278,36 +200,18 @@ class CriteriaMatcher:
         return datetime.now().isoformat()
 
 
-# ═══════════════════════════════════════════
-# 2. p2b_core.py
-# ═══════════════════════════════════════════
-
-# Log de execução (usando arquivo separado para não conflitar)
 try:
     with open("p2b_log.txt", "w", encoding="utf-8") as f:
         f.write(f"# Ultima execucao P2B: {datetime.datetime.now()}\n")
         f.write(f"# Script: {os.path.abspath(sys.argv[0])}\n")
         f.write(f"# Argumentos: {' '.join(sys.argv[1:])}\n")
 except Exception:
-    pass  # Ignorar erros de log
+    pass
 
-### DIRETRIZES MÁXIMAS INEGOCIÁVEIS
-# Priorizar edições apenas no código selecionado ou referenciado
-# Sempre validar se as alterações propostas estão estritamente alinhadas com o prompt do usuário.
 # Evitar modificações em arquivos não explicitamente mencionados.
-# Respeitar convenções de estilo definidas no projeto (ex: indentação com tabs, aspas duplas).
-# Workspace preference: NÃO altere, traduza ou reescreva NENHUMA linha do código, exceto exatamente o trecho solicitado.
-# NÃO traduza palavras-chave, nomes de variáveis, comentários, strings, nem nada do código.
-# NÃO faça ajustes automáticos, refatorações, nem 'melhorias' não solicitadas.
-# Se precisar editar, use sempre o padrão # ...existing code... para indicar partes não alteradas.
-# As edições devem ser ESPECIFICAMENTE sobre erros de log ou pedidos EXPLICITOS do usuario, nada alem disso.
-# tenha em mente que descumprir essas diretizes estraga o codigo e causa perda de tempo
 # nao é neceasário varrer o codigo todo para cada edição pedida
 
 
-# ===== CONSTANTES EXTRAÍDAS =====
-
-# JavaScript para análise de timeline
 SCRIPT_ANALISE_TIMELINE = """
 function analisarTimeline() {
     const itens = document.querySelectorAll('li.tl-item-container');
@@ -343,7 +247,6 @@ function analisarTimeline() {
 return analisarTimeline();
 """
 
-# Regex patterns para regras de negócio - BASEADO NO P2B.PY ORIGINAL
 REGEX_PATTERNS = {
     'prescricao': re.compile(r'A pronúncia da', re.IGNORECASE),
     'bloqueio': re.compile(r'sob pena de bloqueio', re.IGNORECASE),
@@ -368,24 +271,11 @@ REGEX_PATTERNS = {
 }
 
 
-# ===== FUNÇÕES AUXILIARES COMPARTILHADAS =====
-
-
 def gerar_regex_geral(termo: str) -> re.Pattern:
-    """
-    Gera regex tolerante para busca de termos em texto.
-
-    Args:
-        termo: Termo a ser procurado
-
-    Returns:
-        Pattern regex compilado
-    """
+    """Gera regex tolerante para busca de termos em texto."""
     termo_norm = normalizar_texto(termo)
     palavras = termo_norm.split()
 
-    # Monta regex permitindo pontuação/espaços entre palavras
-    # (sem \w: impedir que o trecho case com palavras interpostas no texto)
     partes = [re.escape(p) for p in palavras]
     regex = r''
     for i, parte in enumerate(partes):
@@ -393,36 +283,24 @@ def gerar_regex_geral(termo: str) -> re.Pattern:
         if i < len(partes) - 1:
             regex += r'[\s\.,;:!\-–—()$]*'
 
-    # Permite o trecho em qualquer lugar do texto
     return re.compile(rf"{regex}", re.IGNORECASE)
 
 
 def parse_gigs_param(parametro: str) -> tuple:
-    """
-    Parse parâmetro GIGS no formato 'dias/responsavel/observacao'.
-
-    Args:
-        parametro: String no formato 'dias/responsavel/observacao'
-
-    Returns:
-        Tupla (dias, responsavel, observacao)
-    """
+    """Parse parâmetro GIGS no formato 'dias/responsavel/observacao'."""
     partes = parametro.split('/')
     if len(partes) == 3:
         return partes[0], partes[1], partes[2]
     else:
-        # Fallback para formato antigo
         return "1", parametro, parametro
 
 
 def carregar_progresso_p2b() -> dict:
     """Carrega progresso salvo do P2B."""
-    # Delegar ao monitoramento unificado (formato e arquivo centralizados)
     try:
         from Fix.monitoramento_progresso_unificado import carregar_progresso_p2b as _carregar
         progresso = _carregar()
 
-        # Migrar formato antigo (se existir 'p2b' subdict com detalhes por processo)
         if 'p2b' in progresso and isinstance(progresso['p2b'], dict):
             old_p2b = progresso.pop('p2b')
             processos_executados = progresso.get('processos_executados', [])
@@ -430,12 +308,10 @@ def carregar_progresso_p2b() -> dict:
                 if details.get('executado') and proc_id not in processos_executados:
                     processos_executados.append(proc_id)
             progresso['processos_executados'] = processos_executados
-            # Salvar migrado
             salvar_progresso_p2b(progresso)
 
         return progresso
     except Exception:
-        # Fallback leve: retornar estrutura vazia compatível
         return {}
 
 
@@ -460,12 +336,7 @@ def processo_ja_executado_p2b(processo_id: str, progresso: dict) -> bool:
 
 
 def calc1(driver: Any) -> Optional[Any]:
-    """Extrai dados do processo e escolhe o ato correto para réu.
-
-    Regras:
-        - reu com advogado -> ato_crda
-        - reu sem advogado -> ato_revel
-    """
+    """Extrai dados do processo e escolhe o ato correto para réu."""
     try:
         from Fix.extracao import extrair_dados_processo
         extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
@@ -506,39 +377,14 @@ def calc1(driver: Any) -> Optional[Any]:
 
 
 def checar_prox(driver: Any, itens: List[Any], doc_idx: int, regras: List[Any], texto_normalizado: str) -> Tuple[Optional[Any], Optional[Any], Optional[int]]:
-    """
-    Verifica se há próximo documento relevante na timeline.
-
-    Busca o próximo documento (decisão, despacho ou sentença) a partir da posição atual,
-    filtrando por magistrados específicos (otavio, mariana).
-
-    Args:
-        driver: conexao/driver PJe
-        itens: Lista de itens da timeline
-        doc_idx: Índice atual do documento
-        regras: Lista de regras (não utilizado nesta implementação)
-        texto_normalizado: Texto normalizado (não utilizado nesta implementação)
-
-    Returns:
-        Tupla (doc_encontrado, doc_link, doc_idx) se encontrou documento relevante,
-        ou (None, None, None) se não encontrou
-
-    Note:
-        - Busca apenas um documento por chamada (single-pass)
-        - Filtra por tipos: despacho, decisão/décisão, sentença/sentença, conclusão/conclusão
-        - Verifica ícones de magistrado para validação
-        - Usa normalização de texto para tolerância a acentos
-    """
-    # Guard clause: validar entrada
+    """Verifica se há próximo documento relevante na timeline."""
     if not driver or not itens or doc_idx < 0 or doc_idx >= len(itens):
         return None, None, None
 
-    # Calcular próximo índice (a partir do documento seguinte)
     next_idx = doc_idx + 1
     if next_idx >= len(itens):
         return None, None, None
 
-    # Iterar apenas pelos próximos itens (otimização: não reprocessar timeline inteira)
     for idx in range(next_idx, len(itens)):
         try:
             item = itens[idx]
@@ -548,20 +394,15 @@ def checar_prox(driver: Any, itens: List[Any], doc_idx: int, regras: List[Any], 
             if not link or not getattr(link, 'is_displayed', lambda: True)():
                 continue
 
-            # Extrair e normalizar texto do link
             raw_text = getattr(link, 'text', '') or ''
             doc_text = unicodedata.normalize('NFD', raw_text).encode('ascii', 'ignore').decode('ascii').lower()
 
-            # Verificar se é documento relevante (despacho, decisão, sentença, conclusão, embargos de declaração)
-            # Apenas a frase exata normalizada 'embargos de declaracao' deve ser considerada
             if not re.search(r'despacho|decisao|decisão|sentenca|sentença|conclusao|conclusão|embargos de declaracao', doc_text):
                 continue
 
-            # FILTRO: pular documentos com "art. 112 do CPC" (baixa/nulidade)
             if re.search(r'art\.?\s*112\s+do\s+cpc', doc_text, re.IGNORECASE):
                 continue
 
-            # Verificar magistrados (otavio ou mariana)
             mag_icons = espera.elementos(item, 'div.tl-icon[aria-label*="Magistrado"]', teto=0.5)
             mag_ok = any('otavio' in (getattr(mag, 'get_attribute', lambda _: '')('aria-label') or '').lower() or
                         'mariana' in (getattr(mag, 'get_attribute', lambda _: '')('aria-label') or '').lower()
@@ -571,19 +412,14 @@ def checar_prox(driver: Any, itens: List[Any], doc_idx: int, regras: List[Any], 
                 return item, link, idx
 
         except Exception:
-            # Ignorar erros individuais e continuar busca
             continue
 
-    # Não encontrou nenhum documento relevante
     return None, None, None
 
 
 def ato_pesqliq_callback(driver):
-    # removido: função stub movida/considerada desnecessária
     raise RuntimeError('ato_pesqliq_callback was removed; call atos.ato_pesqliq directly')
 
-
-# ===== DATACLASSES =====
 
 @dataclass
 class RegraProcessamento:
@@ -594,29 +430,19 @@ class RegraProcessamento:
     acao_secundaria: Optional[callable] = None
 
     def aplicar(self, driver, texto_normalizado: str) -> bool:
-        """
-        Aplica a regra se encontrar match no texto.
-
-        Returns:
-            True se a regra foi aplicada, False caso contrário
-        """
+        """Aplica a regra se encontrar match no texto."""
         for regex in self.keywords:
             if regex.search(texto_normalizado):
                 return True
         return False
 
 
-# ===== VALIDAÇÃO =====
-
 if __name__ == "__main__":
-    # Teste básico das funções
 
-    # Teste normalizar_texto
     teste = "TÊSTE ÁCÊNTÖS"
     resultado = normalizar_texto(teste)
     logger.info('normalizar_texto OK: "%s" -> "%s"', teste, resultado)
 
-    # Teste regex
     pattern = gerar_regex_geral("teste regex")
     teste_texto = "Este é um teste de regex funcionando"
     match = pattern.search(teste_texto)

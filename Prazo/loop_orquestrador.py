@@ -1,10 +1,4 @@
-"""Prazo - Loop Orquestrador
-
-Consolidado de: __init__.py (loop), loop_base.py, loop_helpers.py, loop_api.py, loop_ciclo1.py
-
-Entrypoint publico: loop_prazo()
-"""
-# ── Imports ──
+"""Prazo - Loop Orquestrador"""
 import logging
 import math
 import re
@@ -13,7 +7,6 @@ from contextlib import contextmanager
 from typing import Dict, Any, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Selenium imports removed — Playwright native
 
 from Fix import espera
 from Fix.core import (
@@ -29,16 +22,8 @@ from Fix.core import _executar_js
 logger = logging.getLogger(__name__)
 
 
-# ═══════════════════════════════════════════════
-# ── 1. loop_base.py ──
-# ═══════════════════════════════════════════════
-
-# ===== CONFIGURAÇÃO DE PERFORMANCE =====
-# Número de workers para verificação paralela da API GIGS
-# Ajuste conforme sua conexão: 5-10 (estável), 15-20 (rápida), 3-5 (lenta)
 GIGS_API_MAX_WORKERS = 20
 
-# ===== DEPURAÇÃO INTERATIVA (CICLO 1 + CICLO 2) =====
 DEBUG_PAUSAS_LOOP = False
 _PAUSA_ACUMULADA_S = 0.0
 
@@ -88,8 +73,6 @@ def medir_latencia(etapa: str):
         duracao_liquida = max(0.0, duracao_bruta - pausa_dentro)
         logger.info(f"[LATENCIA][FIM] {etapa}: liquida={duracao_liquida:.3f}s (bruta={duracao_bruta:.3f}s, pausa={pausa_dentro:.3f}s)")
 
-
-# ── Scripts JavaScript ──
 
 SCRIPT_SELECAO_GIGS_AJ_JT = '''
 function selecionarProcessosPorGIGS(processosComGIGS) {
@@ -253,27 +236,11 @@ return selecionarProcessos(arguments[0]);
 '''
 
 
-# ═══════════════════════════════════════════════
-# ── 2. loop_helpers.py ──
-# ═══════════════════════════════════════════════
-
 def _extrair_numero_processo_da_linha(linha_elemento: Any) -> Optional[str]:
-    """Extrai número de processo de um elemento <tr> da tabela de atividades.
-
-    Procura por <a> (links) que contenham o padrão de número de processo:
-    NNNNNNN-DD.AAAA.J.TT.OOOO (formato processual brasileiro).
-
-    Args:
-        linha_elemento: elemento <tr> da tabela
-
-    Returns:
-        String com número do processo (formatado com pontos e hífen) ou None
-    """
+    """Extrai número de processo de um elemento <tr> da tabela de atividades."""
     try:
-        # Buscar padrão processual usando regex
         padrao_processo = re.compile(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})')
 
-        # Estratégia 1: Procurar em links <a> (localização padrão no PJe)
         try:
             links = espera.elementos(linha_elemento, 'a', teto=0.1)
             for link in links:
@@ -284,7 +251,6 @@ def _extrair_numero_processo_da_linha(linha_elemento: Any) -> Optional[str]:
         except Exception:
             pass
 
-        # Estratégia 2: Procurar em toda a linha (fallback)
         try:
             texto_linha = linha_elemento.text.strip()
             match = padrao_processo.search(texto_linha)
@@ -300,11 +266,8 @@ def _extrair_numero_processo_da_linha(linha_elemento: Any) -> Optional[str]:
 
 
 def selecionar_processos_nao_livres(driver: Any, max_processos: int = 20) -> Tuple[int, bool]:
-    """Seleciona processos não livres (com prazo preenchido, comentário ou campo preenchido).
-    Retorna (quantidade_selecionada, ha_mais) onde ha_mais indica se há mais processos além do limite.
-    """
+    """Seleciona processos não livres (com prazo preenchido, comentário ou campo preenchido)."""
     try:
-        # Executar script JavaScript para seleção
         resultado = _executar_js(driver, SCRIPT_SELECAO_NAO_LIVRES, max_processos)
 
         if resultado == -1:
@@ -328,10 +291,6 @@ def selecionar_processos_nao_livres(driver: Any, max_processos: int = 20) -> Tup
         return 0, False
 
 
-# ═══════════════════════════════════════════════
-# ── 3. loop_api.py ──
-# ═══════════════════════════════════════════════
-
 def _selecionar_processos_por_gigs_aj_jt(driver: Any, client: 'PjeApiClient') -> int:
     """Seleciona processos com atividade GIGS AJ-JT apenas em fase LIQUIDAÇÃO."""
     try:
@@ -350,11 +309,9 @@ def _selecionar_processos_por_gigs_aj_jt(driver: Any, client: 'PjeApiClient') ->
                 if not dados_gigs_fase:
                     continue
 
-                # Apenas Liquidação
                 if dados_gigs_fase.get('fase') != 'Liquidação':
                     continue
 
-                # Procurar por AJ-JT
                 atividades_gigs = dados_gigs_fase.get('atividades_gigs', [])
                 for atividade in atividades_gigs:
                     if 'AJ-JT' in atividade.get('observacao', ''):
@@ -388,26 +345,15 @@ def _selecionar_processos_por_gigs_aj_jt(driver: Any, client: 'PjeApiClient') ->
 
 
 def _verificar_processo_tem_xs(client: 'PjeApiClient', numero_processo: str) -> bool:
-    """Verifica se o processo já tem atividade GIGS xs (sem prazo).
-
-    Args:
-        client: Cliente PJe API
-        numero_processo: Número do processo formatado (NNNNNNN-DD.AAAA.J.TT.OOOO)
-
-    Returns:
-        True se processo já tem atividade xs (sem prazo), False caso contrário
-    """
+    """Verifica se o processo já tem atividade GIGS xs (sem prazo)."""
     try:
-        # Buscar atividades GIGS do processo
         atividades = client.atividades_gigs(numero_processo)
 
         if not atividades:
             return False
 
-        # Verificar se existe alguma atividade sem prazo (dataPrazo vazio/null)
         for atividade in atividades:
             data_prazo = atividade.get('dataPrazo')
-            # Se dataPrazo é None, vazio ou string vazia, é atividade xs
             if not data_prazo or (isinstance(data_prazo, str) and not data_prazo.strip()):
                 logger.debug('[LOOP_PRAZO][XS] Processo %s ja tem atividade xs no GIGS', numero_processo)
                 return True
@@ -415,7 +361,6 @@ def _verificar_processo_tem_xs(client: 'PjeApiClient', numero_processo: str) -> 
         return False
     except Exception as e:
         logger.error('[LOOP_PRAZO][ERRO] Erro ao verificar xs para %s: %s: %s', numero_processo, type(e).__name__, e)
-        # Em caso de erro, retornar False para não bloquear o processo
         return False
 
 
@@ -444,29 +389,17 @@ def _obter_processos_com_gigs_api(client: 'PjeApiClient', numeros_processos: Lis
     return com_gigs
 
 
-# ═══════════════════════════════════════════════
-# ── 4. loop_ciclo0.py ──
-# ═══════════════════════════════════════════════
-
 def ciclo0(driver: Any) -> bool:
-    """
-    Ciclo 0: Painel Global 14 (Análise)
-    a- navega para https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos
-    b- filtro fase execução e liquidação
-    c- listar 100
-    d- seleção livres + atividade xs1
-    """
+    """Ciclo 0: Painel Global 14 (Análise)"""
     from .loop_lote import _ciclo1_aplicar_filtro_fases
     from .loop_execucao_final import _ciclo2_criar_atividade_xs
 
-    # a- Navegar para Painel Global 14
     url_painel14 = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
     if not pausar_confirmacao('CICLO0/NAVEGAR_PAINEL14', f'Navegar para {url_painel14}'):
         return False
     logger.info(f'[CICLO0] Navegando para Painel Global 14: {url_painel14}')
     driver.get(url_painel14)
 
-    # Espera dinâmica: aguardar URL e elemento chave do painel de atividades
     if not espera.ate_url(driver, "painel/global/14", teto=10):
         logger.warning(f'[CICLO0] URL ainda não contém painel/global/14. URL atual: {getattr(driver, "current_url", "")}. Forçando navegação direta...')
         driver.get(url_painel14)
@@ -481,16 +414,14 @@ def ciclo0(driver: Any) -> bool:
     except Exception:
         logger.warning('[CICLO0] Timeout aguardando dropdown "Fase processual" - prosseguindo mesmo assim')
 
-    # ===== VERIFICAÇÃO PRÉVIA: Lista já vazia antes do filtro =====
     try:
         mensagem_vazia = espera.elementos(driver, "//span[contains(text(), 'Não há processos neste tema')]", teto=0.5)
         if mensagem_vazia and any(getattr(el, 'is_displayed', lambda: True)() for el in mensagem_vazia):
             logger.info('[CICLO0] Lista já vazia antes do filtro - nada a processar')
             return True
     except Exception:
-        pass  # Se erro ao verificar, segue normalmente
+        pass
 
-    # b- Filtro fase execução e liquidação
     with medir_latencia('CICLO0_APLICAR_FILTRO_FASES'):
         filtro_result = _ciclo1_aplicar_filtro_fases(driver)
     if filtro_result == "no_more_processes":
@@ -500,7 +431,6 @@ def ciclo0(driver: Any) -> bool:
         logger.error('[CICLO0] Falha ao aplicar filtro de fases.')
         return False
 
-    # c- Listar 100
     with medir_latencia('CICLO0_FILTRO_100'):
         logger.info('[CICLO0] Aplicando filtro 100...')
         try:
@@ -518,11 +448,9 @@ def ciclo0(driver: Any) -> bool:
         except Exception:
             espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
 
-    # d- Seleção livres + atividade xs1
     with medir_latencia('CICLO0_SELECAO_LIVRES_E_XS1'):
         logger.info('[CICLO0] Selecionando processos livres...')
 
-        # Obter total de processos para calcular páginas se > 100
         try:
             total_elem = espera.elemento(driver, 'span.total-registros', teto=2)
             total_text = getattr(total_elem, 'text', '') if total_elem else ''
@@ -553,7 +481,6 @@ def ciclo0(driver: Any) -> bool:
             except Exception as e:
                 logger.error(f"[CICLO0] Erro ao selecionar livres na página {pagina+1}: {e}")
 
-            # Ir para próxima página, se houver
             if pagina < paginas - 1:
                 try:
                     btn_next = espera.elemento(driver, 'mat-paginator button[aria-label="Próxima página"]', teto=2)
@@ -571,39 +498,12 @@ def ciclo0(driver: Any) -> bool:
         if total_selecionados == 0:
             logger.info("[CICLO0] Nenhum processo livre encontrado")
 
-    # ===== CÓDIGO DO CICLO 1 COMENTADO (movimentação em lote / suitcase) =====
-    # # with medir_latencia('CICLO1_MARCAR_TODAS'):
-    # #     marcar_result = _ciclo1_marcar_todas(driver)
-    # # with medir_latencia('CICLO1_ABRIR_SUITCASE'):
-    # #     abriu_suitcase = _ciclo1_abrir_suitcase(driver)
-    # # with medir_latencia('CICLO1_AGUARDAR_MOVIMENTACAO_LOTE'):
-    # #     aguardou_mov_lote = _ciclo1_aguardar_movimentacao_lote(driver)
-    # # with medir_latencia(f'CICLO1_MOVIMENTAR_DESTINO_Análise'):
-    # #     moveu_destino = _ciclo1_movimentar_destino(driver, 'Análise')
-    # # with medir_latencia('CICLO1_RETORNAR_LISTA'):
-    # #     _ciclo1_retornar_lista(driver)
-
     logger.info("[CICLO0] Ciclo 0 concluído com sucesso")
     return True
 
 
-# ═══════════════════════════════════════════════
-# ── 4b. loop_ciclo1.py (preservado para referência) ──
-# ═══════════════════════════════════════════════
-
 def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
-    """
-    Orquestra ciclo 1: filtro, marcação, suitcase, movimentação para painel 14.
-
-    Returns:
-        True: sucesso (pode ter mais processos, repetir loop)
-        "complete_single_batch": sucesso, todos processos movidos em lote único (<20), não repetir
-        False: erro crítico
-        "no_more_processes": sem processos em liquidação/execução
-        "marcar_todas_not_found_but_continue": marcar-todas não encontrado
-        "go_to_ciclo2": batch indisponível no ciclo1, seguir para ciclo2
-        "single_process": apenas 1 processo, batch não disponível
-    """
+    """Orquestra ciclo 1: filtro, marcação, suitcase, movimentação para painel 14."""
     # lazy import to avoid circular dependency with loop_lote
     from .loop_lote import (
         _ciclo1_aplicar_filtro_fases,
@@ -614,14 +514,13 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
         _ciclo1_retornar_lista,
     )
 
-    # ===== VERIFICAÇÃO PRÉVIA: Lista já vazia antes do filtro =====
     try:
         mensagem_vazia = espera.elementos(driver, "//span[contains(text(), 'Não há processos neste tema')]", teto=0.5)
         if mensagem_vazia and any(getattr(el, 'is_displayed', lambda: True)() for el in mensagem_vazia):
             logger.info('[CICLO1] Lista já vazia antes do filtro - nada a processar')
             return "no_more_processes"
     except Exception:
-        pass  # Se erro ao verificar, segue normalmente
+        pass
 
     with medir_latencia('CICLO1_APLICAR_FILTRO_FASES'):
         filtro_result = _ciclo1_aplicar_filtro_fases(driver)
@@ -631,8 +530,6 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
     if not filtro_result:
         return False
 
-    # ===== VERIFICAR QUANTIDADE DE PROCESSOS =====
-    # Se houver apenas 1 processo, o PJE não mostra o botão batch (suitcase)
     qtd_processos = 0
     try:
         try:
@@ -651,7 +548,6 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
             logger.info('[CICLO1] Nenhum processo encontrado após filtro.')
             return "no_more_processes"
 
-        # Otimização: se menos de 20, sabemos que processaremos tudo em um único lote
         if qtd_processos < 20:
             logger.info(f'[CICLO1] Lote único detectado ({qtd_processos} < 20) - não repetir após conclusão')
     except Exception as e:
@@ -670,11 +566,9 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
         logger.info(f'[CICLO1] Retorno inesperado em marcar-todas: {marcar_result}')
         return False
 
-    # Pequena pausa para garantir que a lista e UI estabilizaram
     try:
         logger.info('[CICLO1] Pausa breve (2s) para verificação visual da seleção antes do lote')
         aguardar_renderizacao_nativa(driver, timeout=2)
-        # Também oferece a pausa interativa se DEBUG_PAUSAS_LOOP estiver habilitado
         pausar_confirmacao('CICLO1/VERIFICAR_SELECAO', 'Verificar seleção antes de abrir suitcase')
     except Exception:
         pass
@@ -700,7 +594,6 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
     with medir_latencia('CICLO1_RETORNAR_LISTA'):
         _ciclo1_retornar_lista(driver)
 
-    # Retornar status baseado na quantidade inicial de processos
     if qtd_processos < 20:
         logger.info(f'[CICLO1] Ciclo 1 concluído - lote único ({qtd_processos} processos), não repetir')
         return "complete_single_batch"
@@ -709,75 +602,18 @@ def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
         return True
 
 
-# ═══════════════════════════════════════════════
-# ── 5. __init__.py (loop parts) ──
-# ═══════════════════════════════════════════════
-
 def loop_prazo(driver: Any) -> Dict[str, Any]:
     """Função wrapper que executa o fluxo de prazo (Ciclo 0 + Cumprimento de Providências)"""
     try:
         # lazy import to avoid circular dependency with loop_execucao_final
-        # from .loop_execucao_final import ciclo2  # loop 2 comentado temporariamente
         from .loop_execucao_final import ciclo3
 
-        # ===== LOOP 0 (Painel 14 - Análise: filtro fases + listar 100 + livres + xs1) =====
         logger.info("[LOOP_PRAZO] Loop 0: Executando ciclo 0 no painel 14")
         resultado_ciclo0 = ciclo0(driver)
         if not resultado_ciclo0:
             logger.error("[LOOP_PRAZO] Erro crítico no ciclo 0.")
             return ResultadoExecucao(sucesso=False, status='FALHA', erro="Falha em ciclo 0")
 
-        # ===== LOOP 1 e LOOP 2 (comentados por enquanto) =====
-        # # 1. Navegar para Painel Global 14 (Análise)
-        # url_lista = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
-        # if not pausar_confirmacao('LOOP/NAVEGAR_PAINEL14', f'Navegar para {url_lista}'):
-        #     return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 14")
-        # logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 14: {url_lista}')
-        # driver.get(url_lista)
-        # # Espera dinâmica: aguardar elemento chave do painel de atividades
-        # try:
-        #     if espera.elemento(driver, "//span[contains(text(), 'Fase processual')]", teto=12, visivel=False) is None:
-        #         raise TimeoutError()
-        #     logger.info('[LOOP_PRAZO] Elemento "Fase processual" presente - prosseguindo')
-        # except Exception:
-        #     logger.info('[LOOP_PRAZO] Timeout aguardando elemento "Fase processual" - prosseguindo mesmo assim')
-        #
-        # # FASE 1: Loop para ciclo1 (Análise)
-        # logger.info("[LOOP_PRAZO] Fase 1: Processando processos no painel 14")
-        # while True:
-        #     resultado_ciclo1 = ciclo1(driver)
-        #
-        #     if resultado_ciclo1 == "no_more_processes":
-        #         logger.info("[LOOP_PRAZO] Não há mais processos para processar no ciclo1.")
-        #         break
-        #     elif resultado_ciclo1 == "single_process":
-        #         logger.info("[LOOP_PRAZO] Apenas 1 processo detectado - pulando batch")
-        #         break
-        #     elif resultado_ciclo1 == "complete_single_batch":
-        #         logger.info("[LOOP_PRAZO] Lote único processado (<20 processos) - não repetir ciclo1")
-        #         break
-        #     elif resultado_ciclo1 is False:
-        #         logger.error("[LOOP_PRAZO] Erro crítico no ciclo1.")
-        #         return ResultadoExecucao(sucesso=False, status='FALHA', erro="Falha em ciclo1")
-        #     elif resultado_ciclo1 in ["go_to_ciclo2", "marcar_todas_not_found_but_continue"]:
-        #         break
-        #
-        #     logger.info("[LOOP_PRAZO] Ciclo 1 concluído. Verificando se há mais...")
-        #     aguardar_renderizacao_nativa(driver, timeout=4)
-        #
-        # # 2. Navegar para Painel Global 8 (Cumprimento de providências)
-        # url_painel8 = "https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos"
-        # if not pausar_confirmacao('LOOP/NAVEGAR_PAINEL8', f'Navegar para {url_painel8}'):
-        #     return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 8")
-        # logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 8: {url_painel8}')
-        # driver.get(url_painel8)
-        # espera.ate_url(driver, "painel/global/8", teto=5)
-        #
-        # # FASE 2: Ciclo 2
-        # logger.info("[LOOP_PRAZO] Fase 2: Executando ciclo 2")
-        # resultado_ciclo2 = ciclo2(driver)
-
-        # FASE 3: Ciclo 3 (painel cumprimento de providências - painel 6: livres sem GIGS + xs1)
         logger.info("[LOOP_PRAZO] Fase Cumprimento de Providências: Executando ciclo 3 (painel 6)")
         resultado_ciclo3 = ciclo3(driver)
 

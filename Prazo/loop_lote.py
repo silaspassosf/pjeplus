@@ -1,14 +1,9 @@
-"""Prazo - Loop Lote (filtros + movimentacao + selecao)
-
-Consolidado de: loop_ciclo1_filtros.py, loop_ciclo1_movimentacao.py, loop_ciclo2_selecao.py
-"""
-# ── Imports ──
+"""Prazo - Loop Lote (filtros + movimentacao + selecao)"""
 import logging
 import re
 import time
 from typing import Any, List, Optional, Tuple, Union
 
-# Selenium imports removed — Playwright native
 
 from Fix import espera
 from Fix.core import (
@@ -34,30 +29,19 @@ from Fix.core import _executar_js
 logger = logging.getLogger(__name__)
 
 
-# ═══════════════════════════════════════════════
-# ── 1. loop_ciclo1_filtros.py ──
-# ═══════════════════════════════════════════════
-
 def _verificar_quantidade_processos_paginacao(driver: Any) -> int:
-    """
-    Verifica quantidade de processos lendo o elemento de paginação.
-    Retorna: quantidade de processos ou -1 se não conseguir detectar
-    """
+    """Verifica quantidade de processos lendo o elemento de paginação."""
     try:
-        # Buscar o elemento span.total-registros que contém "X - Y de Z"
         total_elem = espera.elemento(driver, 'span.total-registros', teto=2)
         if not total_elem:
             return -1
         texto = getattr(total_elem, 'text', '').strip()
 
-        # Extrair o total (último número após "de")
-        # Formato: "1 - 1 de 1" ou "1 - 20 de 150" ou "0 de 0"
         match = re.search(r'de\s+(\d+)', texto)
         if match:
             total = int(match.group(1))
             return total
 
-        # Fallback: tentar detectar "0 de 0" ou formato sem hífen
         if '0 de 0' in texto or '0 - 0 de 0' in texto:
             return 0
 
@@ -69,13 +53,7 @@ def _verificar_quantidade_processos_paginacao(driver: Any) -> int:
 
 
 def _ciclo1_aplicar_filtro_fases(driver: Any) -> Union[bool, str]:
-    """Aplica filtro de liquidação/execução no painel 14.
-
-    Returns:
-        True: filtro aplicado e processos encontrados
-        "no_more_processes": filtro aplicado mas sem processos
-        False: erro ao aplicar filtro
-    """
+    """Aplica filtro de liquidação/execução no painel 14."""
     try:
         if not pausar_confirmacao('CICLO1/FILTRO_FASES', 'Aplicar filtro liquidação/execução'):
             return False
@@ -106,26 +84,20 @@ def _ciclo1_aplicar_filtro_fases(driver: Any) -> Union[bool, str]:
         if espera.elemento(driver, 'div.carregando', teto=4, visivel=False) is not None \
                 and espera.ate_sumir(driver, 'div.carregando', teto=15):
             logger.info('[CICLO1][FILTRO] Spinner de filtro sumiu — lista pronta para polling')
-        # sem spinner visível — pode ter sido rápido; polling cobre o restante
 
-        # AGUARDAR LISTA CARREGAR - loop manual com break imediato ao encontrar células
         t1 = time.perf_counter()
         # Dar mais tempo para o Angular povoar a lista após aplicar o filtro.
-        # 3s provou ser insuficiente em casos reais; usar 6s para maior robustez.
-        timeout_espera = 6.0  # máximo 6 segundos de espera
+        timeout_espera = 6.0
 
-        # Tentar aguardar renderização nativa/pagination atualizar (quando disponível)
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
             logger.info('[CICLO1][FILTRO] aguardar_renderizacao_nativa completada')
         except Exception:
-            # fallback silencioso; o loop abaixo fará a checagem final
             logger.info('[CICLO1][FILTRO] aguardar_renderizacao_nativa indisponível ou falhou')
 
         seletor_celula_processo = 'td.td-class span.link.processo'
         xpath_vazio = "//span[contains(text(), 'Não há processos neste tema')]"
 
-        # Loop manual: break assim que encontrar células ou mensagem vazio
         while time.perf_counter() - t1 < timeout_espera:
             try:
                 celulas = espera.elementos(driver, seletor_celula_processo, teto=0.1)
@@ -137,7 +109,6 @@ def _ciclo1_aplicar_filtro_fases(driver: Any) -> Union[bool, str]:
             except Exception:
                 pass
 
-            # Verificar se há mensagem de vazio
             try:
                 vazios = espera.elementos(driver, xpath_vazio, teto=0.1)
                 if any(getattr(el, 'is_displayed', lambda: True)() for el in vazios):
@@ -150,12 +121,10 @@ def _ciclo1_aplicar_filtro_fases(driver: Any) -> Union[bool, str]:
 
             espera.pausa(driver, 0.15, "polling filtro fases")
 
-        # Timeout da espera atingido - fazer avaliação final rápida
         t_lista = time.perf_counter() - t1
         logger.info(f'[CICLO1][FILTRO] Timeout de espera atingido ({timeout_espera}s), avaliando lista...')
         logger.info(f'[LATENCIA][DETALHE] CICLO1 espera lista: {t_lista:.3f}s')
 
-        # Verificação rápida final se há células
         try:
             celulas = espera.elementos(driver, seletor_celula_processo, teto=0.1)
             if len(celulas) > 0:
@@ -164,7 +133,6 @@ def _ciclo1_aplicar_filtro_fases(driver: Any) -> Union[bool, str]:
         except Exception:
             pass
 
-        # Última verificação: tentar ler paginação para confirmar quantidade
         try:
             total = _verificar_quantidade_processos_paginacao(driver)
             if total == 0:
@@ -183,20 +151,10 @@ def _ciclo1_aplicar_filtro_fases(driver: Any) -> Union[bool, str]:
         return False
 
 
-# ═══════════════════════════════════════════════
-# ── 2. loop_ciclo1_movimentacao.py ──
-# ═══════════════════════════════════════════════
-
 def _ciclo1_marcar_todas(driver: Any) -> str:
-    """Seleciona todos os processos via botão marcar-todas.
-
-    Correção: clica no <button> pai (não no <i>) e valida checkboxes
-    apenas nas linhas da tabela (tr.cdk-drag) com baseline pré-clique.
-    Referência: legado atalhos_backup.js + idx.md (P4, P8).
-    """
+    """Seleciona todos os processos via botão marcar-todas."""
     logger.info("[CICLO1/MARCAR_TODAS] Iniciando busca e clique")
 
-    # Baseline: contar checkboxes já marcados nas linhas da tabela (exclui filtros/menus)
     baseline = _executar_js(
         driver,
         "return document.querySelectorAll('tr.cdk-drag mat-checkbox input[type=\"checkbox\"]:checked').length;"
@@ -235,7 +193,6 @@ def _ciclo1_marcar_todas(driver: Any) -> str:
 
     try:
         if com_retry(_tentar_marcar, max_tentativas=5, backoff_base=1.5, log=True):
-            # Validar: contar apenas checkboxes nas linhas da tabela, comparado ao baseline
             marcados = _executar_js(
                 driver,
                 "return document.querySelectorAll('tr.cdk-drag mat-checkbox input[type=\"checkbox\"]:checked').length;"
@@ -311,11 +268,7 @@ def _ciclo1_abrir_suitcase(driver: Any) -> bool:
 
 
 def _ciclo1_aguardar_movimentacao_lote(driver: Any) -> bool:
-    """Aguarda carregamento da página de movimentação em lote.
-
-    Inclui espera pelo spinner 'Recuperando transições possíveis...' (div.carregando)
-    desaparecer antes de retornar — garante que o dropdown de destino terá opções.
-    """
+    """Aguarda carregamento da página de movimentação em lote."""
     logger.info("[DEBUG] Aguardando URL /painel/movimentacao-lote...")
     try:
         espera.ate_url(driver, '/painel/movimentacao-lote', teto=15)
@@ -325,7 +278,6 @@ def _ciclo1_aguardar_movimentacao_lote(driver: Any) -> bool:
             return False
         logger.info(f"[LOOP_PRAZO] Na tela de movimentação em lote: {driver.current_url}")
 
-        # ── Aguardar spinner "Recuperando transições possíveis..." desaparecer ──
         # Sem isso, o dropdown de destino não terá opções e o clique nunca funciona
         logger.info("[CICLO1/LOTE] Aguardando transições carregarem (div.carregando sumir)...")
         if not espera.ate_sumir(driver, 'div.carregando', teto=25):
@@ -352,7 +304,6 @@ def _ciclo1_movimentar_destino_providencias(driver: Any) -> bool:
             return False
         safe_click_no_scroll(driver, seta_dropdown)
 
-        # Aguardar um mat-option aparecer (garante que as opções foram carregadas)
         espera.ate_aparecer(driver, ".cdk-overlay-pane mat-option", teto=8)
 
         opcao_elemento = None
@@ -410,7 +361,6 @@ def _ciclo1_movimentar_destino(driver: Any, opcao_destino: str) -> bool:
             logger.error(f"[LOOP_PRAZO] Erro ao abrir dropdown de destino com seletor {seletor_dropdown}: {e}")
             return False
 
-        # Aguardar um mat-option aparecer (garante que as opções foram carregadas)
         espera.ate_aparecer(driver, ".cdk-overlay-pane mat-option", teto=6)
 
         opcao_xpath = f"//mat-option//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
@@ -459,38 +409,27 @@ def _ciclo1_retornar_lista(driver: Any) -> None:
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
         except Exception:
-            aguardar_renderizacao_nativa(driver, timeout=2)  # fallback: DOM ready
-        # Garantir fechamento de modais se sobrarem
+            aguardar_renderizacao_nativa(driver, timeout=2)
         _executar_js(driver, "document.querySelectorAll('.cdk-overlay-backdrop').forEach(e => e.click())")
     except Exception as e:
         logger.info(f"[DEBUG] Erro ao retornar: {e}")
 
 
-# ═══════════════════════════════════════════════
-# ── 3. loop_ciclo2_selecao.py ──
-# ═══════════════════════════════════════════════
-
 def _ciclo2_aplicar_filtros(driver: Any) -> bool:
     """Aplica filtros necessários para ciclo 2."""
     try:
-        # Aguardar lista carregar
         try:
-            # Usar buscar() para detectar o mat-select mais rapidamente
             el = buscar(driver, 'ciclo2_mat_select_combobox', ["mat-select[role='combobox']", "//mat-select"])
             if not el:
-                # Prefer waiting for the stable total-registros indicator (shows "X - Y de Z")
                 try:
                     aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=10)
                 except Exception:
-                    # Fallback: esperar mat-select quando total-registros não estiver presente
                     aguardar_renderizacao_nativa(driver, "mat-select[role='combobox']", timeout=10)
         except Exception:
-            # fallback leve
             espera.assentar(driver, 0.5)
 
         if not aplicar_filtro_100(driver):
             return False
-        # aguardar aplicação do filtro — checar presença de linhas
         try:
             aguardar_renderizacao_nativa(driver, 'tr.cdk-drag', timeout=6)
         except Exception:
@@ -503,8 +442,6 @@ def _ciclo2_aplicar_filtros(driver: Any) -> bool:
             seletor_tarefa='Tarefa do processo'
         ):
             return False
-        # Aguardar spinner do filtro de fases (div.carregando) ANTES de selecionar processos.
-        # Garante que a lista reflete o filtro antes de selecionar_todos / suitcase.
         if espera.elemento(driver, 'div.carregando', teto=4, visivel=False) is not None \
                 and espera.ate_sumir(driver, 'div.carregando', teto=15):
             logger.info('[CICLO2][FILTRO] Spinner de filtro sumiu — lista pronta')
@@ -521,20 +458,10 @@ def _ciclo2_aplicar_filtros(driver: Any) -> bool:
 
 
 def _ciclo2_processar_livres(driver: Any, client: Optional['PjeApiClient'] = None) -> int:
-    """Seleciona todos os processos livres (sem gigs DOM nem gigs via API).
-
-    Args:
-        driver: conexao/driver PJe
-        client: PjeApiClient — quando fornecido, faz checagem extra via API para
-                detectar gigs sem prazo que não aparecem no DOM.
-
-    Returns:
-        Total de processos livres selecionados
-    """
+    """Seleciona todos os processos livres (sem gigs DOM nem gigs via API)."""
     try:
         processos_com_gigs_api: List[str] = []
         if client is not None:
-            # Extrai números de todos os processos visíveis na tabela
             linhas = espera.elementos(driver, 'tr.cdk-drag', teto=1)
             numeros = [n for linha in linhas
                        if (n := _extrair_numero_processo_da_linha(linha))]

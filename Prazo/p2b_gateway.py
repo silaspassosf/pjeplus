@@ -1,13 +1,5 @@
-"""Prazo P2B - Gateway (API + Fluxo + Helpers)
+"""Prazo P2B - Gateway (API + Fluxo + Helpers)"""
 
-Consolidado de: fluxo_api.py, p2b_api.py, p2b_fluxo.py, p2b_fluxo_helpers.py
-
-Entrypoints publicos:
-    testar_gigs_sem_prazo()
-    processar_gigs_sem_prazo_p2b()
-"""
-
-# ── Imports ──
 import io
 import json
 import logging
@@ -17,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from Fix import espera
 
-# Dependencias externas do modulo Prazo
 from .p2b_core import (
     carregar_progresso_p2b, marcar_processo_executado_p2b, normalizar_texto,
     parse_gigs_param, processo_ja_executado_p2b,
@@ -27,7 +18,6 @@ from .p2b_fluxo_lazy import _lazy_import
 from .p2b_fluxo_prescricao import prescreve, analisar_timeline_prescreve_js_puro
 from .p2b_documentos import _definir_regras_processamento, _processar_regras_gerais
 
-# Fallback para extrair_dados_processo
 try:
     from Fix.extracao import extrair_dados_processo
 except Exception:
@@ -44,10 +34,6 @@ class SessaoExpiradaError(Exception):
     pass
 
 
-# ═══════════════════════════════════════════
-# 1. p2b_api.py
-# ═══════════════════════════════════════════
-
 _TIPOS_RELEVANTES = re.compile(r'^(despacho|decis[aã]o|senten[cç]a|conclus[aã]o)', re.IGNORECASE)
 
 _RE_PRAZO_CURTO_2D = re.compile(
@@ -61,11 +47,7 @@ _RE_EXECUCAO_P2B = re.compile(
 
 
 def _eh_despacho_2_dias_execucao(texto: str) -> bool:
-    """Verifica se o despacho é o caso específico de prazo curto (2 dias / 48h) com execução.
-
-    Exceção solicitada à regra dos 5 dias úteis: despachos que determinam comprovação
-    de recolhimento / pagamento / custas sob pena de execução com prazo de 2 dias ou 48h.
-    """
+    """Verifica se o despacho é o caso específico de prazo curto (2 dias / 48h) com execução."""
     if not texto:
         return False
     from Fix.utils import normalizar_texto
@@ -77,12 +59,8 @@ def _eh_despacho_2_dias_execucao(texto: str) -> bool:
 
 
 def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
-    """Extrai o primeiro documento relevante via API (/timeline + /documentos/.../conteudo).
+    """Extrai o primeiro documento relevante via API (/timeline + /documentos/.../conteudo)."""
 
-    Retorna dict com chaves: sucesso, conteudo, tipo, titulo, id_documento, id_processo, erro
-    """
-
-    # 1) obter id_processo da URL
     m = re.search(r'/processo/(\d+)', driver.current_url)
     if not m:
         return _falha('id_processo não detectado na URL: ' + driver.current_url)
@@ -91,7 +69,6 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
     sess, host = session_from_driver(driver)
     base = f'https://{host}'
 
-    # 2) timeline via API (retry curto para 5xx transitórios do PJe)
     url_timeline = (
         f'{base}/pje-comum-api/api/processos/id/{id_processo}/timeline'
         '?buscarDocumentos=true&buscarMovimentos=false&somenteDocumentosAssinados=false'
@@ -121,25 +98,24 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
     id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
     tipo = doc.get('tipo', '')
     titulo = doc.get('titulo', '')
-    
-    # 2.5) Calcula a data do documento e idade em dias úteis
+
     data_str = doc.get('dataJuntada') or doc.get('dataCadastro') or doc.get('data')
     dias_idade = None
     if data_str:
         try:
             from datetime import datetime, timezone, timedelta
             from PEC.runtime_pec import _carregar_calendario_dias_uteis
-            
+
             data_str_clean = data_str.replace('Z', '+00:00')
             dt_doc = datetime.fromisoformat(data_str_clean)
             if dt_doc.tzinfo is None:
                 dt_doc = dt_doc.replace(tzinfo=timezone.utc)
             now = datetime.now(timezone.utc)
-            
+
             dias_calendario, intervalo = _carregar_calendario_dias_uteis()
             data_atual = dt_doc.date()
             data_fim = now.date()
-            
+
             dias_uteis = 0
             while data_atual < data_fim:
                 data_atual += timedelta(days=1)
@@ -150,15 +126,14 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
                 else:
                     if data_atual.weekday() < 5:
                         dias_uteis += 1
-                        
+
             dias_idade = dias_uteis
             logger.info(f'[p2b_api] Data documento: {data_str} -> {dt_doc.isoformat()} (Idade: {dias_idade} dias úteis)')
         except Exception as e:
             logger.warning(f'[p2b_api] erro ao calcular data do doc {data_str}: {e}')
-            
+
     logger.info(f'[p2b_api] doc relevante: tipo={tipo} id={id_doc} data_extraida={data_str} idade_dias={dias_idade}')
 
-    # 3) download do conteúdo (PDF esperado)
     url_conteudo = f'{base}/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_doc}/conteudo'
     try:
         r = sess.get(url_conteudo, timeout=60, stream=True)
@@ -177,7 +152,6 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
             id_processo=id_processo, id_documento=id_doc, tipo=tipo, titulo=titulo,
         )
 
-    # 4) extrair texto do PDF (cascata: pdfplumber → pymupdf → pypdfium2)
     from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
     texto = _extrair_texto_pdf_bytes(pdf_bytes, log=True)
 
@@ -188,7 +162,6 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
 
     logger.info(f'[p2b_api] texto extraído: {len(texto)} chars')
 
-    # 5) Verifica a data do documento (se for <= 5 dias, pular — EXCETO se for despacho específico de 2 dias/48h)
     if dias_idade is not None and dias_idade <= 5:
         if _eh_despacho_2_dias_execucao(texto):
             if dias_idade >= 2:
@@ -219,17 +192,13 @@ def extrair_documento_relevante(driver: Any) -> Dict[str, Any]:
     }
 
 
-
 def _falha(msg: str, **extra) -> Dict[str, Any]:
     logger.warning(f'[p2b_api] {msg}')
     return {'sucesso': False, 'conteudo': None, 'tipo': None, 'titulo': None, 'id_documento': None, 'id_processo': None, 'erro': msg, **extra}
 
 
 def processar_processo_por_id_api(driver: Any, id_processo: int, host: str = 'pje.trt2.jus.br') -> Dict[str, Any]:
-    """Abre detalhe do processo e tenta localizar+extrair documento relevante.
-
-    Retorna dicionário com o resultado da extração e metadados.
-    """
+    """Abre detalhe do processo e tenta localizar+extrair documento relevante."""
     detalhe_url = f'https://{host}/pjekz/processo/{id_processo}/detalhe/'
     logger.info(f'[P2B_API] Abrindo processo id={id_processo} url={detalhe_url}')
 
@@ -238,10 +207,8 @@ def processar_processo_por_id_api(driver: Any, id_processo: int, host: str = 'pj
     except Exception as e:
         return {'sucesso': False, 'erro': 'nav_failure', 'mensagem': str(e)}
 
-    # pequena espera para carregar timeline
     espera.assentar(driver, 1.5)
 
-    # Usar exclusivamente o pipeline API-based (timeline -> conteudo -> pdfplumber)
     try:
         resultado = extrair_documento_relevante(driver)
     except Exception as e:
@@ -258,10 +225,6 @@ def processar_processo_por_id_api(driver: Any, id_processo: int, host: str = 'pj
         'indice': 0,
     }
 
-
-# ═══════════════════════════════════════════
-# 2. p2b_fluxo_helpers.py
-# ═══════════════════════════════════════════
 
 GIGS_API_MAX_WORKERS = 20
 
@@ -307,11 +270,7 @@ def _abrir_tarefa_e_tentar_iniciar_execucao(driver: Any, timeout: int = 10) -> b
 
 
 def _abrir_tarefa(driver: Any, timeout: int = 10) -> bool:
-    """Abre a tarefa mais recente na mesma aba, sem clicar em "Iniciar execução".
-
-    Usado nos caminhos em que a execução NÃO deve ser iniciada (ex.: liquidação
-    ainda não homologada, que roda o wrapper de liquidação).
-    """
+    """Abre a tarefa mais recente na mesma aba, sem clicar em "Iniciar execução"."""
     if '/tarefa/' in (getattr(driver, 'current_url', '') or ''):
         return True
     try:
@@ -323,12 +282,7 @@ def _abrir_tarefa(driver: Any, timeout: int = 10) -> bool:
 
 
 def obter_fase_processual(driver, caminho_json: str = 'dadosatuais.json', debug: bool = False) -> Optional[str]:
-    """
-    Extrai dados do processo via `extrair_dados_processo` (Fix.extracao) e retorna
-    o valor de `labelFaseProcessual` presente em `caminho_json`.
-
-    Retorna `None` em caso de falha ou se o campo não existir.
-    """
+    """Extrai dados do processo via `extrair_dados_processo` (Fix.extracao) e retorna"""
     try:
         if extrair_dados_processo:
             extrair_dados_processo(driver, caminho_json=caminho_json, debug=debug)
@@ -351,10 +305,8 @@ def obter_fase_processual(driver, caminho_json: str = 'dadosatuais.json', debug:
         return None
 
 
-# Movimento CNJ que homologa a liquidação (api/apis.md §5) — define o roteamento
 MOV_HOMOLOGADA_LIQUIDACAO = 50047
 
-# GIGS criada quando a liquidação homologada ainda não tem crédito registrado
 GIGS_OBS_REGISTRAR_OBRIGACAO = 'registrar obrigação'
 CREDITO_MOCK = '0,01'
 SCRIPTS_DIR = Path(__file__).parent / 'scripts'
@@ -375,17 +327,7 @@ def _tem_homologacao_liquidacao(client, id_processo: str) -> bool:
 
 
 def decidir_rota_iniciar_exec(client, id_processo: str) -> Optional[str]:
-    """Decide o caminho do `inicar_exec` só com API — sem checar botão.
-
-    - fase já é execução                                       → 'pesquisas'
-    - fase liquidação/homologação SEM movimento 50047           → 'pesqliq'
-    - liquidação homologada (50047) COM obrigações registradas  → 'executar_pesquisas'
-    - liquidação homologada (50047) SEM obrigações registradas  → 'mock_pesquisas'
-
-    Devolve `None` quando a API não responde ou a fase não é reconhecida — nesse
-    caso o chamador cai no fallback antigo (botão "Iniciar execução" + fase do
-    `dadosatuais.json`).
-    """
+    """Decide o caminho do `inicar_exec` só com API — sem checar botão."""
     try:
         dados = client.processo_por_id(id_processo) or {}
         fase = str(dados.get('labelFaseProcessual') or dados.get('faseProcessual') or '').lower()
@@ -438,13 +380,7 @@ def _preencher_credito_mock_js(driver: Any, valor: str, placeholder: str = 'Cré
 
 
 def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
-    """Registra R$ 0,01 como crédito do demandante (obrigação de pagar).
-
-    Replica o fluxo do `Script/modules/debito/registrar_debito.js`:
-      /obrigacao-pagar/{id}/cadastro → marca Credor e Devedor → Próximo →
-      /inclusao → Data do Cálculo (hoje) + Crédito do demandante (0,01) → Salvar,
-    e fecha a aba de obrigações ao final.
-    """
+    """Registra R$ 0,01 como crédito do demandante (obrigação de pagar)."""
     from urllib.parse import urlparse
     from datetime import datetime
     from Fix.browser_suporte import abrir_url_nova_aba, forcar_fechamento_abas_extras
@@ -462,7 +398,6 @@ def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
         return False
 
     try:
-        # 1) /cadastro — marcar as partes (Credor e Devedor) e avançar
         if not espera.ate_aparecer(driver, 'table.t-class', teto=15):
             logger.warning('[FLUXO_PZ] credito_mock: tabela de partes nao apareceu')
             return False
@@ -485,7 +420,6 @@ def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
             return False
         safe_click_no_scroll(driver, btn_proximo)
 
-        # 2) /inclusao — Data do Cálculo (hoje) + Crédito do demandante (0,01)
         if not espera.ate_aparecer(driver, 'input[data-placeholder="Crédito do demandante"]', teto=20):
             logger.warning('[FLUXO_PZ] credito_mock: formulario de inclusao nao abriu')
             return False
@@ -497,7 +431,6 @@ def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
         if not _preencher_credito_mock_js(driver, CREDITO_MOCK):
             return False
 
-        # 3) Salvar o registro
         btn_salvar = espera.elemento(driver, "//button[@name='salvar']", teto=10)
         if not btn_salvar:
             logger.warning('[FLUXO_PZ] credito_mock: botao Salvar nao encontrado')
@@ -515,20 +448,7 @@ def registrar_credito_mock_0_01(driver: Any, id_processo: str) -> bool:
 
 
 def inicar_exec(driver, texto_normalizado: Optional[str] = None):
-    """Helper: cria duas GIGS padrão, decide a rota por API e executa o wrapper.
-
-    1) cria GIG '1/Ana Lucia/Argos'  (try independente)
-    2) cria GIG '1//xs sigilo'       (try independente — não bloqueado por falha do 1)
-    3) rota decidida SÓ por API (`decidir_rota_iniciar_exec`):
-       'pesquisas'          → fase já é execução: ato_pesquisas (caminho definido)
-       'pesqliq'            → liquidação SEM movimento 50047: ato_pesqliq
-       'executar_pesquisas' → liquidação homologada COM obrigações: inicia execução + ato_pesquisas
-       'mock_pesquisas'     → liquidação homologada SEM obrigações: GIGS de observação +
-                              crédito mock 0,01 → inicia execução + ato_pesquisas
-       None                 → API indisponível: fallback (botão "Iniciar execução" + fase)
-
-    Retorna o resultado da ação executada (tupla ou bool).
-    """
+    """Helper: cria duas GIGS padrão, decide a rota por API e executa o wrapper."""
     m = _lazy_import()
     criar_gigs = m.get('criar_gigs')
     ato_pesquisas = m.get('ato_pesquisas')
@@ -538,23 +458,8 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
     if texto_normalizado:
         logger.debug('[FLUXO_PZ] inicar_exec texto_normalizado comprimento=%d', len(texto_normalizado))
 
-    # 1) GIGS Argos — try isolado
-    #
-    # Duas GIGS seguidas no MESMO formulario e' a origem do defeito visto no
     # 1000925-51 (28/10): a 2a GIGS (xs sigilo) saiu sem prazo e o fluxo seguiu
     # para a minuta com DOM instavel — modelo nao entrou, sigilo e "Intimar?"
-    # nao foram tocados, e cada etapa logou sucesso.
-    #
-    # Causa: criar_gigs NAO levanta excecao em caso de falha — ela faz
-    # `return False`. O `except Exception` abaixo nunca dispara, e o retorno era
-    # descartado. Alem disso, nada garantia que o formulario da GIGS anterior
-    # fechasse antes de abrir o proximo: criar_gigs tem uma blindagem interna
-    # (espera.ate_sumir do textarea), mas ela mesma nao verifica o resultado —
-    # se o textarea antigo sobrevive, o Salvar grava no formulario reaproveitado
-    # e o prazo se perde.
-    #
-    # Correcao pontual (sem mudar a estrutura do motor): checar o retorno de
-    # cada criar_gigs e, entre as duas, esperar o formulario fechar de fato.
     _SEL_TEXTAREA_GIGS = 'textarea[formcontrolname="observacao"]'
 
     def _fechar_formulario_gigs(rotulo: str) -> bool:
@@ -563,7 +468,6 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
         try:
             fechou = bool(espera.ate_sumir(driver, _SEL_TEXTAREA_GIGS, teto=6))
             if not fechou:
-                # Fecha o overlay remanescente para nao contaminar a proxima etapa.
                 try:
                     btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
                     if btn_x:
@@ -603,7 +507,6 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs sigilo: %s', e)
             _fechar_formulario_gigs('erro em GIGS xs sigilo')
 
-    # 3) Rota decidida SÓ por API (fase + movimento 50047 + obrigações a pagar).
     id_processo = None
     rota = None
     try:
@@ -616,8 +519,6 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
     except Exception as e:
         logger.warning('[FLUXO_PZ] inicar_exec: roteamento por API indisponivel (%s)', e)
 
-    # 3.1) Fallback (API fora/fase desconhecida): abre a tarefa, tenta o botão
-    #      "Iniciar execução" e roteia pela fase do dadosatuais.json (comportamento antigo).
     if rota is None:
         mov_ok = False
         try:
@@ -639,8 +540,6 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
                 pass
             rota = 'pesqliq' if ('liquid' in fase_lower or 'homolog' in fase_lower) else 'pesquisas'
 
-    # 3.2) Liquidação ainda não homologada → wrapper de liquidação + crédito mock 0,01.
-    #      Aqui NÃO se clica "Iniciar execução": a execução não deve começar.
     if rota == 'pesqliq':
         _abrir_tarefa(driver)
         if ato_pesqliq:
@@ -662,7 +561,6 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
 
         return resultado
 
-    # 3.3) Liquidação homologada SEM crédito registrado → GIGS de observação + mock 0,01.
     if rota == 'mock_pesquisas' and id_processo:
         if criar_gigs:
             try:
@@ -672,9 +570,6 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
                              GIGS_OBS_REGISTRAR_OBRIGACAO, e)
         registrar_credito_mock_0_01(driver, id_processo)
 
-    # 3.4) Rotas de pesquisa: garante a tarefa aberta e roda o ato de pesquisas.
-    #      Quando é caso de INICIAR a execução (liquidação homologada), tenta o botão;
-    #      quando a fase já é execução, apenas abre a tarefa.
     try:
         if rota in ('executar_pesquisas', 'mock_pesquisas'):
             if not _abrir_tarefa_e_tentar_iniciar_execucao(driver, timeout=10):
@@ -690,43 +585,24 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
     except Exception as e:
         logger.error('[FLUXO_PZ] inicar_exec: erro ao executar ato_pesquisas: %s', e)
 
-    # aplicar visibilidade se necessário
     try:
         sucesso, sigilo_ativado = resultado if isinstance(resultado, tuple) else (bool(resultado), False)
     except Exception:
         sucesso, sigilo_ativado = (False, False)
 
-    # Visibilidade é aplicada pelo próprio `ato_judicial` quando o wrapper
-    # foi configurado com `atribuir_visibilidade_autor=True`. Não executar
     # aqui para evitar duplicação.
 
     return resultado
 
 
-# ═══════════════════════════════════════════
-# 3. p2b_fluxo.py
-# ═══════════════════════════════════════════
-
-
 def fluxo_pz(driver: Any) -> None:
-    """
-    Processa prazos detalhados em processos abertos.
-
-    Usa extrair_documento para obter texto, analisa regras,
-    cria GIGS parametrizadas, executa atos sequenciais e fecha aba.
-
-    Refatoração: 761→40 linhas, aninhamento 6→2 níveis
-    Padrão: Orchestrator + 8 Helpers privados
-    """
-    # Extrai documento relevante através do pipeline API+pdfplumber
+    """Processa prazos detalhados em processos abertos."""
     resultado = extrair_documento_relevante(driver)
     if not resultado or not resultado.get('sucesso'):
         if (resultado or {}).get('sessao_expirada'):
             raise SessaoExpiradaError('API retornou 401 — sessao expirada')
-            
+
         if (resultado or {}).get('decisao_recente'):
-            # D-5: tarefa de sobrestamento não deve ser movida — o fim do
-            # sobrestamento é gerido pelo próprio fluxo de sobrestamento.
             tarefa_atual = None
             try:
                 from atos.movimentos_fluxo import _tarefa_atual_via_api
@@ -747,15 +623,14 @@ def fluxo_pz(driver: Any) -> None:
                 mov_ok = movimentar_inteligente(driver, 'Aguardando Prazo')
             except Exception as e:
                 logger.error(f'[FLUXO_PZ] Erro ao mover processo para Aguardando Prazo (decisão recente): {e}')
-                
+
             try:
                 _fechar_aba_processo(driver)
             except Exception:
                 pass
-            
-            # Se movimento falhou, retorna False; caso contrário, sucesso
+
             return bool(mov_ok)
-            
+
         logger.info('[FLUXO_PZ] Nenhum documento relevante extraído: %s', (resultado or {}).get('erro'))
         try:
             _fechar_aba_processo(driver)
@@ -765,23 +640,16 @@ def fluxo_pz(driver: Any) -> None:
 
     texto = resultado.get('conteudo') or ''
 
-    # Formatar/extrair texto com utilitário se disponível
     try:
         from Fix.extracao import _extrair_formatar_texto
         texto_formatado = _extrair_formatar_texto(texto)
     except Exception:
         texto_formatado = texto
 
-    # Normalizar e aplicar regras
     texto_normalizado = normalizar_texto(texto_formatado)
     try:
         resultado_regras = _processar_regras_gerais(driver, texto_normalizado, 0)
-        # resultado_regras pode ser:
-        # - True: regra casou e ações completaram com sucesso
-        # - False: regra casou mas alguma ação falhou (ex: mov_arquivar retornou False)
-        # - None: nenhuma regra casou
-        # - tuple: resultado de checar_prox
-        
+
         if resultado_regras is False:
             logger.warning('[FLUXO_PZ] Regra casou mas ação falhou (retornou False)')
             try:
@@ -797,7 +665,6 @@ def fluxo_pz(driver: Any) -> None:
             pass
         return False
 
-    # Fechar aba/processo e retornar
     try:
         _fechar_aba_processo(driver)
     except Exception:
@@ -805,10 +672,6 @@ def fluxo_pz(driver: Any) -> None:
 
     return True
 
-
-# ═══════════════════════════════════════════
-# 4. fluxo_api.py
-# ═══════════════════════════════════════════
 
 def _criar_api_client(driver):
     """Cria PjeApiClient a partir do driver (import direto de Fix.variaveis)."""
@@ -890,14 +753,7 @@ def testar_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> List[dict]:
 
 def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processos: int = 0,
                                  atividades: Optional[List[dict]] = None):
-    """Executa o fluxo P2B usando API GIGS sem prazo + 'XS' e engine run_batch.
-
-    Substitui apenas a etapa de navegação/listagem onde D em x.py chamava fluxo_prazo.
-    Ações por processo continuam sendo executadas via fluxo_pz (mesma lógica de processos).
-
-    `atividades`: lista já filtrada (ex.: pelo motor API-first, `Prazo/p2b_engine_api.py`).
-    Quando None, busca as xs1 na API.
-    """
+    """Executa o fluxo P2B usando API GIGS sem prazo + 'XS' e engine run_batch."""
     from utilitarios_processamento import run_batch, resultado_ok, resultado_falha
     from Fix.core import wait_for_page_load
 
@@ -911,7 +767,6 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
 
     logger.info(f'[PRAZO_API] GIGS XS1 encontrados: {total_encontrado}')
 
-    # ── Normalizar itens, aplicando limite max_processos sobre a lista original
     itens = []
     for idx, item in enumerate(atividades, start=1):
         if max_processos and idx > max_processos:
@@ -930,7 +785,6 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
 
     logger.info(f'[PRAZO_API] Processos a serem executados: {[p.get("numero") for p in itens]}')
 
-    # ── Callbacks do engine
     def should_skip(item):
         chave = item.get('chave') or item.get('numero') or str(item.get('id', ''))
         if chave and processo_ja_executado_p2b(chave, progresso):
@@ -938,10 +792,6 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             return True
         return False
 
-    # ── Interrupção manual do usuário ──
-    # Se as abas sumirem DE NOVO depois da 1ª recriação, o browser foi fechado
-    # manualmente — abortar o batch (critical) em vez de forçar a abertura de
-    # novas abas para prosseguir indevidamente.
     recriacoes_aba = 0
 
     def open_item(item):
@@ -987,8 +837,6 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             return resultado_falha("sessao_expirada_401", critical=True)
         except Exception as e:
             msg = str(e)
-            # Erro de nível browser/context (aba morta em toda a chain) — não é
-            # falha do processo: parar o batch imediatamente.
             if 'has been closed' in msg:
                 logger.warning(f'[PRAZO_API] Browser fechado durante execucao do processo {item.get("numero")} — interrompendo batch: {msg}')
                 return resultado_falha('browser_fechado_manualmente', critical=True)
@@ -1002,7 +850,6 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
                 marcar_processo_executado_p2b(chave, progresso)
                 logger.info(f'[PRAZO_API] Processo {item.get("numero")} processado com sucesso (fluxo_pz)')
         else:
-            # Nao marca como executado (sera retentado), mas deixa rastro no log.
             logger.warning(
                 f'[PRAZO_API] Processo {item.get("numero")} NAO concluido '
                 f'({result.get("erro") or "motivo desconhecido"}) — nao marcado; '
@@ -1029,14 +876,9 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
     }
 
 
-# ═══════════════════════════════════════════
-# VALIDAÇÃO / TESTE
-# ═══════════════════════════════════════════
-
 if __name__ == "__main__":
     logger.info('Prazo.p2b_gateway: funcoes disponiveis: fluxo_pz, processar_gigs_sem_prazo_p2b, testar_gigs_sem_prazo')
 
-    # Teste importações
     try:
         from Prazo.p2b_core import normalizar_texto, gerar_regex_geral
 

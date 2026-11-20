@@ -1,17 +1,12 @@
-# LEGADO — fora do caminho de execucao do x.py atual. Preservado como referencia.
 from typing import Dict
 
 # Cache de módulos carregados para evitar reimportações
 _modules_cache: Dict[str, object] = {}
 
 def _lazy_import():
-    """Carrega módulos pesados sob demanda (lazy loading).
-    
-    Esta função é chamada pelas funções que precisam dos módulos,
-    garantindo que só sejam carregados quando realmente necessários.
-    """
+    """Carrega módulos pesados sob demanda (lazy loading)."""
     global _modules_cache
-    
+
     if not _modules_cache:
         from Fix.core import aguardar_e_clicar
         from Fix.extracao import criar_gigs, criar_lembrete_posit
@@ -20,12 +15,11 @@ def _lazy_import():
         from atos.wrappers_mov import mov_arquivar
         from atos.wrappers_ato import ato_sobrestamento, ato_pesqliq, ato_180, ato_calc2, ato_prev, ato_meios, ato_idpj, ato_reitmeios, ato_HCL
         from atos import pec_excluiargos
-        # PEC anexos wrappers
         try:
-            from PEC.anexos.anexos_wrappers import anex_retifidpj
+            from atos.anexos.anexos_wrappers import anex_retifidpj
         except Exception:
             anex_retifidpj = None
-        
+
         _modules_cache.update({
             'aguardar_e_clicar': aguardar_e_clicar,
             'criar_gigs': criar_gigs,
@@ -46,5 +40,5 @@ def _lazy_import():
             'pec_excluiargos': pec_excluiargos,
             'anex_retifidpj': anex_retifidpj,
         })
-    
+
     return _modules_cache

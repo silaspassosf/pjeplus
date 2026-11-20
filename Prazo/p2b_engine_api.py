@@ -1,27 +1,11 @@
 # -*- coding: utf-8 -*-
-"""P2B — camada API-first (experimental, paralela ao fluxo canônico).
-
-O P2B já nasce de uma atividade GIGS específica (`xs1`). Com a lista de processos
-em mãos ANTES de abrir qualquer página, dá para:
-
-1. ler a ÚLTIMA decisão/despacho/sentença de cada processo pela API
-   (`timeline` + `documentos/id/{id}` — o mesmo caminho que ARGOS/PEC já usam,
-   incluindo a exceção de "comunique-se por edital" / "de forma concomitante");
-2. casar a tabela de regras do P2B (`_casas_regra`) SEM executar nenhuma ação;
-3. abrir e processar SOMENTE os processos em que há regra com ação aplicável.
-
-Ganho esperado: nenhuma navegação para processo que não tem ação a executar.
-
-Ativação: `PJE_P2B_ENGINE=api` (lida em `x.py::executar_p2b`). Sem a variável o
-fluxo canônico continua valendo — nada muda para quem não setar.
-"""
+"""P2B — camada API-first (experimental, paralela ao fluxo canônico)."""
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# `condensar_conteudo_documento` (Fix/variaveis.py) envolve o texto neste cabeçalho.
 _PADRAO_TRANSCRICAO = re.compile(
     r'^Transcri[cç][aã]o do\(a\)[^:]*:\s*\n?"(.*)"\s*$', re.S
 )
@@ -34,11 +18,7 @@ def _client(driver: Any):
 
 
 def texto_ultima_decisao(client, id_processo) -> Optional[str]:
-    """Texto da última decisão/despacho/sentença, via API, sem abrir o processo.
-
-    Usa `obter_chave_ultimo_despacho_decisao_sentenca(..., incluir_conteudo_condensado=True)`,
-    que já descarta despacho de "comunique-se por edital" + "de forma concomitante".
-    """
+    """Texto da última decisão/despacho/sentença, via API, sem abrir o processo."""
     try:
         from Fix.variaveis import obter_chave_ultimo_despacho_decisao_sentenca
         _link, conteudo = obter_chave_ultimo_despacho_decisao_sentenca(
@@ -55,13 +35,7 @@ def texto_ultima_decisao(client, id_processo) -> Optional[str]:
 
 
 def classificar_processo(client, id_processo) -> Dict[str, Any]:
-    """Diz se o processo tem regra com ação aplicável — sem abrir a página.
-
-    Returns:
-        {'acionavel': True|False|None, 'motivo': str, 'trecho': str|None}
-        `None` = não deu para ler o texto pela API (o processo deve ser aberto
-        como fallback, para o caminho DOM decidir).
-    """
+    """Diz se o processo tem regra com ação aplicável — sem abrir a página."""
     from Fix.utils import normalizar_texto
     from .p2b_documentos import _casas_regra
 
@@ -82,11 +56,7 @@ def classificar_processo(client, id_processo) -> Dict[str, Any]:
 
 
 def filtrar_processos(driver: Any, atividades: List[dict]) -> Tuple[List[dict], List[dict]]:
-    """Separa (a abrir, pulados) aplicando a classificação por regra.
-
-    Item sem id de processo é mantido na lista de abertura (o fluxo normal
-    resolve o id na navegação).
-    """
+    """Separa (a abrir, pulados) aplicando a classificação por regra."""
     client = _client(driver)
     selecionados: List[dict] = []
     pulados: List[dict] = []
@@ -121,12 +91,7 @@ def filtrar_processos(driver: Any, atividades: List[dict]) -> Tuple[List[dict], 
 
 
 def processar_p2b_api(driver: Any, tamanho_pagina: int = 100, max_processos: int = 0):
-    """Executa o P2B pelo motor API-first: filtra por regra ANTES de abrir.
-
-    Mesma saída de `processar_gigs_sem_prazo_p2b`, acrescida de:
-      - `total_xs1`: quantas atividades xs1 a API devolveu;
-      - `pulados_sem_regra`: processos que não foram abertos e o motivo.
-    """
+    """Executa o P2B pelo motor API-first: filtra por regra ANTES de abrir."""
     from .p2b_gateway import processar_gigs_sem_prazo_p2b, testar_gigs_xs1
 
     atividades = testar_gigs_xs1(driver, tamanho_pagina=tamanho_pagina)

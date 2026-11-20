@@ -34,19 +34,19 @@ def _carregar_dados_ordem():
 
 def _extrair_ordens_da_serie(driver, log=True):
     """Extrai ordens da pagina de detalhes da serie."""
-    from selenium.webdriver.common.by import By
-
     ordens = []
     try:
         # Aguarda a transição do SPA (evita pegar a tabela da série anterior que está sumindo do DOM)
         espera.ate_sumir(driver, 'table.mat-table tbody', teto=2)
         tabela = espera.elemento(driver, "table.mat-table tbody", teto=10)
+        if not tabela:
+            return []
 
-        linhas = tabela.find_elements(By.CSS_SELECTOR, "tr.mat-row, tr[mat-row]")
+        linhas = espera.elementos(tabela, "tr.mat-row, tr[mat-row]", teto=0.5)
 
         for linha in linhas:
             try:
-                cols = linha.find_elements(By.CSS_SELECTOR, "td")
+                cols = espera.elementos(linha, "td", teto=0.2)
                 if len(cols) < 6:
                     continue
 

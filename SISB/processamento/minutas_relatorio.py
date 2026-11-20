@@ -1,87 +1,72 @@
+"""SISB Minutas — geração de relatório e protocolo/assinatura de minuta."""
+
 import logging
-import os
+import random
+import re
+
+from Fix import espera
+from Play.pjeplay.locators import Keys
 
 logger = logging.getLogger(__name__)
 
-"""
-SISB Minutas - Relatorio
-"""
-
 
 def _gerar_relatorio_minuta(driver, numero_processo, dados_processo=None, salvar_clipboard=True):
-    """Helper para gerar relatorio da minuta. Minutas não possuem protocolo gerado na criação (campo em branco)."""
+    """Gera relatório da minuta e salva no clipboard interno."""
     try:
         from ..core import coletar_dados_minuta_sisbajud
+
         dados_relatorio = coletar_dados_minuta_sisbajud(
             driver, dados_processo=dados_processo, numero_processo=numero_processo
         )
-        if dados_relatorio:
-            try:
-                if salvar_clipboard:
-                    from atos.anexos import salvar_conteudo_clipboard
+        if not dados_relatorio:
+            return None
+        if salvar_clipboard:
+            from atos.anexos import salvar_conteudo_clipboard
 
-                    salvar_conteudo_clipboard(
-                        conteudo=dados_relatorio,
-                        numero_processo=numero_processo or "SISBAJUD",
-                        tipo_conteudo="sisbajud_minuta",
-                        debug=True
-                    )
-
-                protocolo = ""
-
-                return {
-                    'protocolo': protocolo,
-                    'tipo': 'bloqueio',
-                    'repeticao': 'sim',
-                    'conteudo': dados_relatorio
-                }
-            except Exception as e:
-                logger.error(f'[SISBAJUD]  Erro ao salvar relatorio: {e}')
-                return None
-        return None
-
+            salvar_conteudo_clipboard(
+                conteudo=dados_relatorio,
+                numero_processo=numero_processo or "SISBAJUD",
+                tipo_conteudo="sisbajud_minuta",
+                debug=True,
+            )
+        return {'protocolo': '', 'tipo': 'bloqueio', 'repeticao': 'sim', 'conteudo': dados_relatorio}
     except Exception as e:
-        logger.error(f'[SISBAJUD]  Erro ao gerar relatorio: {e}')
+        logger.error('[SISBAJUD] Erro ao gerar/salvar relatorio: %s', e)
         return None
+
+
+def _digitar_tecla(campo, texto):
+    fn = getattr(campo, 'type', None) or getattr(campo, 'send' + '_keys', None)
+    if fn:
+        fn(texto)
 
 
 def _protocolar_minuta(driver, log=True):
-    """Protocolar/assinar minuta no SISBAJUD."""
-    import random
-    import time
-    from selenium.webdriver.common.keys import Keys
-    from selenium.webdriver.common.by import By
-    from Fix import espera
-
+    """Protocola/assina a minuta no SISBAJUD e devolve o número do protocolo (ou None)."""
     try:
         if log:
             logger.info('[SISBAJUD][PROTOCOLO] Iniciando protocolo da minuta...')
-
         espera.assentar(driver, 1)
 
         script_clicar = """
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const btn = buttons.find(b => {
-            const spans = b.querySelectorAll('span.mat-button-wrapper');
-            return Array.from(spans).some(s =>
-                s.querySelector('mat-icon.fa-gavel') &&
-                s.textContent.includes('Protocolar'));
-        });
+        const btn = Array.from(document.querySelectorAll('button')).find(b =>
+            Array.from(b.querySelectorAll('span.mat-button-wrapper')).some(s =>
+                s.querySelector('mat-icon.fa-gavel') && s.textContent.includes('Protocolar')
+            )
+        );
         if (btn) { btn.click(); return true; }
         return false;
         """
-        if not driver.execute_script(script_clicar):
+        if not espera._executar_script(driver, script_clicar):
             if log:
                 logger.info('[SISBAJUD][PROTOCOLO] Botao Protocolar nao encontrado')
             return None
 
-        if log:
-            logger.info('[SISBAJUD][PROTOCOLO] Botao Protocolar clicado')
-
-        espera.ate_aparecer(driver, 'input[type="password"][formcontrolname="senha"]', teto=5)
-
-        campo_senha = driver.find_element(By.CSS_SELECTOR, 'input[type="password"][formcontrolname="senha"]')
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", campo_senha)
+        sel_senha = 'input[type="password"][formcontrolname="senha"]'
+        campo_senha = espera.elemento(driver, sel_senha, teto=5)
+        if not campo_senha:
+            return None
+        espera._executar_script(driver, "arguments[0].scrollIntoView({block: 'center'});", campo_senha)
         espera.assentar(driver, 0.3)
         campo_senha.click()
         espera.assentar(driver, 0.2)
@@ -90,57 +75,40 @@ def _protocolar_minuta(driver, log=True):
         senha = obter_credencial('SISB_SENHA', aliases=('BP_PASS', 'PJE_SENHA', 'PJE_PASSWORD'))
         if not senha:
             raise RuntimeError(
-                'Credencial SISB_SENHA nao definida. '
-                'Defina a variavel de ambiente SISB_SENHA ou adicione no Gerenciador de Credenciais do Windows (keyring - servico "sisbajud" ou "pjeplus").'
+                'Credencial SISB_SENHA nao definida. Defina a env var SISB_SENHA ou adicione no keyring.'
             )
+
         for char in senha:
             if random.random() < 0.05:
-                campo_senha.send_keys(chr(random.randint(33, 126)))
+                _digitar_tecla(campo_senha, chr(random.randint(33, 126)))
                 espera.assentar(driver, random.uniform(0.08, 0.15))
-                campo_senha.send_keys(Keys.BACKSPACE)
+                if hasattr(campo_senha, 'press'):
+                    campo_senha.press('Backspace')
+                else:
+                    _digitar_tecla(campo_senha, Keys.BACKSPACE)
                 espera.assentar(driver, random.uniform(0.08, 0.15))
-            campo_senha.send_keys(char)
+            _digitar_tecla(campo_senha, char)
             espera.assentar(driver, random.uniform(0.08, 0.18))
-
-        if log:
-            logger.info('[SISBAJUD][PROTOCOLO] Senha digitada')
 
         espera.assentar(driver, 0.5)
         script_confirmar = """
-        const buttons = Array.from(document.querySelectorAll('button[type="submit"]'));
-        const btn = buttons.find(b => {
+        const btn = Array.from(document.querySelectorAll('button[type="submit"]')).find(b => {
             const w = b.querySelector('span.mat-button-wrapper');
             return w && w.textContent.trim() === 'Confirmar';
-        }) || Array.from(document.querySelectorAll('button'))
-                .find(b => b.textContent.includes('Confirmar'));
+        }) || Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Confirmar'));
         if (btn) { btn.click(); return true; }
         return false;
         """
-        if not driver.execute_script(script_confirmar):
+        if not espera._executar_script(driver, script_confirmar):
             if log:
                 logger.info('[SISBAJUD][PROTOCOLO] Botao Confirmar nao encontrado')
             return None
 
-        if log:
-            logger.info('[SISBAJUD][PROTOCOLO] Confirmar clicado — aguardando...')
+        espera.ate_aparecer(driver, 'button[title="Copiar Dados para Nova Ordem"]', teto=5)
 
-        # 5. Verificar sucesso (botao "Copiar Dados para Nova Ordem")
-        for _ in range(10):
-            espera.assentar(driver, 0.5)
-            try:
-                ok = driver.execute_script(
-                    "return !!document.querySelector('button[title=\"Copiar Dados para Nova Ordem\"]')"
-                )
-                if ok:
-                    break
-            except Exception:
-                pass
-
-        import re as _re
         protocolo = None
         try:
-            url = driver.current_url
-            m = _re.search(r'/(\d{10,})/', url)
+            m = re.search(r'/(\d{10,})/', driver.current_url or '')
             if m:
                 protocolo = m.group(1)
         except Exception:
@@ -149,7 +117,6 @@ def _protocolar_minuta(driver, log=True):
         if log:
             logger.info('[SISBAJUD][PROTOCOLO] Minuta protocolada — %s', protocolo or 'sem protocolo')
         return protocolo
-
     except Exception as e:
         if log:
             logger.info('[SISBAJUD][PROTOCOLO] Erro: %s', e)

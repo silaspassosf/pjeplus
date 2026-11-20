@@ -1,13 +1,4 @@
-"""Caminho rapido: substitui os helpers quentes de Fix/ por versoes nativas.
-
-A camada de compatibilidade sozinha ja faz o projeto rodar, mas mantem o custo
-do Selenium: polling de 500ms no WebDriverWait e MutationObserver injetado via
-execute_async_script. Aqui esses mesmos helpers passam a usar o auto-wait do
-Playwright — mesma assinatura, mesmo contrato de retorno, sem polling.
-
-Cada funcao delega para a implementacao original quando o driver nao e um
-PWDriver, entao aplicar isto e seguro mesmo em execucao mista.
-"""
+"""Caminho rapido: substitui os helpers quentes de Fix/ por versoes nativas."""
 import logging
 
 from .driver import PWDriver
@@ -19,7 +10,6 @@ logger = logging.getLogger("pjeplay")
 
 _ORIGINAIS = {}
 
-# Visibilidade equivalente ao is_displayed() do Selenium.
 _VISIVEL = "el => el.getClientRects().length > 0"
 _ALGUM_VISIVEL = (
     "sel => Array.from(document.querySelectorAll(sel))"
@@ -56,8 +46,6 @@ def _delegar(nome, *args, **kwargs):
         return None
     return original(*args, **kwargs)
 
-
-# -- esperas ----------------------------------------------------------------
 
 def aguardar_renderizacao_nativa(driver, seletor=None, modo="aparecer", timeout=10):
     ctx = _ctx(driver)
@@ -97,9 +85,6 @@ def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR
     alvo = traduzir_seletor(by, seletor)
     try:
         if texto:
-            # `has_text` cru é case-insensitive mas não ignora acento nem o
-            # espaçamento do DOM. `padrao_texto` (Fix.utils) é a normalização
-            # canônica do projeto aplicada aos dois lados de uma vez.
             from Fix.utils import padrao_texto
             loc = ctx.locator(alvo).filter(has_text=padrao_texto(texto) or texto).first
             loc.wait_for(state="attached", timeout=_ms(timeout))
@@ -146,16 +131,8 @@ def esperar_url_conter(driver, substring, timeout=10):
         return False
 
 
-# -- cliques ----------------------------------------------------------------
-
 def _clicar(driver, alvo, timeout, log, rotulo):
-    """Clique JS-first: espera o elemento existir (attached) e clica via DOM.
-
-    Nao usa o clique nativo do Playwright como caminho principal porque o
-    gate de estabilidade dele depende de rAF — aba/janela inativa no Firefox
-    nao dispara rAF e o clique trava o timeout inteiro. O clique via DOM
-    dispara os handlers igual ao padrao Selenium (execute_script click).
-    """
+    """Clique JS-first: espera o elemento existir (attached) e clica via DOM."""
     try:
         handle = driver._ctx.wait_for_selector(
             alvo, state="attached", timeout=_ms(timeout)
@@ -208,15 +185,10 @@ def safe_click_no_scroll(driver, element, log=False):
     if not isinstance(element, PWElement):
         return _delegar("safe_click_no_scroll", driver, element, log)
     try:
-        # Estratégia: JS puro primeiro (garantido funcionar mesmo off-viewport),
-        # fallback para nativo só se JS falhar (para compatibilidade com listeners especiais).
-        # Isto espelha o padrão Selenium (dispatchEvent MouseEvent) que funciona
-        # mesmo quando elemento está fora da viewport após scrollIntoView.
         try:
             element._handle.evaluate("el => el.click()")
             return True
         except Exception:
-            # Fallback: tentar click nativo (pode falhar off-viewport, mas tenta)
             if element._handle.is_visible():
                 element._handle.click(timeout=5000)
             else:
@@ -233,8 +205,6 @@ def scroll_to_element_safe(driver, element):
         return _delegar("scroll_to_element_safe", driver, element)
     return element.scroll_into_view()
 
-
-# -- formularios ------------------------------------------------------------
 
 def preencher_campo(driver, seletor, valor, trigger_events=True, limpar=True, log=False):
     ctx = _ctx(driver)
@@ -313,13 +283,7 @@ def ate_js(driver, expressao, teto=2.0):
 
 
 # "Assentou" no PJe = Angular estável e nenhum spinner visível.
-#
 # A quiescência precisa PERSISTIR. Logo após um clique o Angular fica
-# momentaneamente estável — a requisição ainda nem saiu — e um teste
-# instantâneo retornaria na hora, entregando ao chamador uma tela que ainda vai
-# mudar. O `sleep` que esta função substitui não tinha esse furo. Por isso
-# exige-se estabilidade contínua por `_QUIESCENCIA_MS` antes de dar por
-# assentado.
 _QUIESCENCIA_MS = 150
 
 _JS_ASSENTADO = """
@@ -341,23 +305,18 @@ _JS_ASSENTADO = """
 
 
 def assentar(driver, teto=2.0, motivo=""):
-    """Versão Playwright de `Fix.espera.assentar`: espera assentar de verdade.
-
-    Onde o Selenium dorme o teto inteiro, aqui retorna assim que a interface
-    fica quieta de forma sustentada — mesmo teto, custo real bem menor.
-    """
+    """Versão Playwright de `Fix.espera.assentar`: espera assentar de verdade."""
     ctx = _ctx(driver)
     if ctx is None:
         return _delegar("assentar", driver, teto, motivo)
 
     minimo = min(_QUIESCENCIA_MS, _ms(teto) // 2)
     try:
-        # Zera o marcador: sobra da chamada anterior daria quiescência falsa.
         ctx.evaluate("() => { window.__pjeplayQuietoDesde = null; }")
         ctx.wait_for_function(_JS_ASSENTADO, arg=minimo, timeout=_ms(teto))
         return True
     except Exception:
-        return False  # não assentou dentro do teto: mesmo desfecho do sleep
+        return False
 
 
 def elemento(driver, seletor, teto=10, visivel=True):
@@ -415,7 +374,6 @@ def ate_abas(driver, quantidade, teto=10):
 def ate_obsoleto(driver, elemento, teto=10):
     if _ctx(driver) is None:
         return _delegar("ate_obsoleto", driver, elemento, teto)
-    # Locator re-resolve a cada uso: obsolescência praticamente não ocorre.
     return True
 
 
@@ -424,8 +382,6 @@ def is_headless_mode(driver):
         return bool(driver.headless)
     return _delegar("is_headless_mode", driver)
 
-
-# -- instalacao -------------------------------------------------------------
 
 _ALVOS = {
     "Fix.core": [
@@ -452,12 +408,7 @@ _ALVOS = {
 
 
 def aplicar():
-    """Troca os helpers de Fix/ pelas versoes nativas. Idempotente.
-
-    Deve rodar depois de `import Fix.core` e antes de importar os modulos de
-    negocio — quem faz `from Fix.core import esperar_elemento` fixa o nome no
-    momento do import.
-    """
+    """Troca os helpers de Fix/ pelas versoes nativas. Idempotente."""
     import importlib
 
     trocados = 0

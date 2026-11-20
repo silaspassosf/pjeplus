@@ -1,9 +1,4 @@
-"""WebDriverWait e expected_conditions compativeis.
-
-Caminho de compatibilidade: preserva os ~241 `WebDriverWait` e ~186 `EC.*` do
-codigo atual. O caminho rapido (auto-wait nativo do Playwright) fica em
-`pjeplay.nativo`, que substitui os helpers quentes de `Fix/core.py`.
-"""
+"""WebDriverWait e expected_conditions compativeis."""
 import time
 
 from .errors import (
@@ -68,8 +63,6 @@ class WebDriverWait:
         alvo = message or f"aguardando {getattr(metodo, '__name__', metodo)}"
         raise TimeoutException(f"Timeout apos {self._timeout}s: {alvo}") from ultimo
 
-
-# --- expected_conditions ---------------------------------------------------
 
 def _achar(driver, locator):
     return driver.find_element(*locator)

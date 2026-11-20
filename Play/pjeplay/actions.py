@@ -14,8 +14,6 @@ class ActionChains:
         self._fila = []
         self._duracao = duration
 
-    # -- infraestrutura ---------------------------------------------------
-
     def _enfileirar(self, fn):
         self._fila.append(fn)
         return self
@@ -34,8 +32,6 @@ class ActionChains:
             raise NoSuchElementException("Elemento sem caixa delimitadora")
         return caixa["x"] + caixa["width"] / 2, caixa["y"] + caixa["height"] / 2
 
-    # -- movimento --------------------------------------------------------
-
     def move_to_element(self, elemento):
         return self._enfileirar(lambda: elemento._handle.hover())
 
@@ -50,8 +46,6 @@ class ActionChains:
 
     def scroll_to_element(self, elemento):
         return self._enfileirar(lambda: elemento._handle.scroll_into_view_if_needed())
-
-    # -- cliques ----------------------------------------------------------
 
     def click(self, elemento=None):
         if elemento is not None:
@@ -99,8 +93,6 @@ class ActionChains:
             self._mouse.up()
         return self._enfileirar(_acao)
 
-    # -- teclado ----------------------------------------------------------
-
     def send_keys(self, *valores):
         texto = "".join(str(v) for v in valores)
 
@@ -138,8 +130,6 @@ class ActionChains:
 
     def pause(self, segundos):
         return self._enfileirar(lambda: time.sleep(float(segundos)))
-
-    # -- execucao ---------------------------------------------------------
 
     def perform(self):
         for acao in self._fila:

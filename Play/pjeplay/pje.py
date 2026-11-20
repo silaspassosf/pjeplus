@@ -1,16 +1,4 @@
-"""Vocabulário PJe nativo — as primitivas em que os fluxos portados são escritos.
-
-Aqui não há fachada WebDriver: são Locators do Playwright, com auto-wait e
-re-resolução. É o que `pjeplay.compat` não consegue entregar, porque depende de
-como o código chama, não de qual motor está embaixo.
-
-Referência: docs/01-traducao.md §5. Riscos R2 (timing do overlay CDK),
-R3 (CKEditor 4 vs 5) e R4 (Angular zone ausente) são resolvidos aqui, uma vez,
-em vez de espalhados pelos fluxos.
-
-Aceita tanto uma Page do Playwright quanto um PWDriver, para que um fluxo possa
-ser migrado aos poucos sem trocar tudo de uma vez.
-"""
+"""Vocabulário PJe nativo — as primitivas em que os fluxos portados são escritos."""
 import logging
 import re
 
@@ -22,8 +10,6 @@ OPCOES = "mat-option, [role='option']"
 SPINNER = "mat-spinner, mat-progress-spinner, .mat-spinner"
 MODAL = "mat-dialog-container, [role='dialog']"
 
-# R4: getAllAngularTestabilities some em build de produção com otimizações.
-# Sem testabilities, devolve true em vez de travar até o timeout.
 _JS_ANGULAR_ESTAVEL = """
 () => {
   const t = window.getAllAngularTestabilities?.();
@@ -76,8 +62,6 @@ def _ms(timeout):
     return int(float(timeout) * 1000)
 
 
-# -- estabilização ----------------------------------------------------------
-
 def aguardar_angular(alvo, timeout=10):
     """Aguarda o ngZone estabilizar. Cai para ausência de spinner (R4)."""
     page = pagina(alvo)
@@ -111,11 +95,7 @@ def esperar_rota(alvo, padrao, timeout=15):
 # -- Angular Material -------------------------------------------------------
 
 def mat_select(alvo, seletor, opcao, exato=False, timeout=10):
-    """Seleciona opção num mat-select (ou <select> nativo).
-
-    R2: espera o overlay CDK abrir e renderizar as opções antes de clicar, e
-    confirma que ele fechou depois — sem isso a opção some no meio do clique.
-    """
+    """Seleciona opção num mat-select (ou <select> nativo)."""
     page = pagina(alvo)
     ms = _ms(timeout)
     try:
@@ -134,7 +114,6 @@ def mat_select(alvo, seletor, opcao, exato=False, timeout=10):
         filtro = re.compile(rf"^\s*{re.escape(opcao)}\s*$") if exato else opcao
         opcoes.filter(has_text=filtro).first.click(timeout=ms)
 
-        # Overlay aberto significa que o clique não pegou.
         try:
             page.locator(PAINEL_CDK).first.wait_for(state="hidden", timeout=ms)
         except Exception:
@@ -196,8 +175,6 @@ def filtro_100(alvo, timeout=15):
     return esperar_spinner(page, timeout=timeout)
 
 
-# -- modais -----------------------------------------------------------------
-
 def abrir_modal(alvo, timeout=10):
     page = pagina(alvo)
     try:
@@ -226,17 +203,8 @@ def esperar_overlay_fechar(alvo, timeout=5):
         return False
 
 
-# -- abas -------------------------------------------------------------------
-
 def abrir_em_nova_aba(alvo, acao, timeout=15):
-    """Executa `acao` e devolve a Page que ela abriu.
-
-    Substitui o par `window_handles` + `switch_to.window`: `expect_page` arma a
-    escuta ANTES do clique, então não existe a janela de corrida em que a aba
-    abre e fecha entre duas leituras de handles.
-
-        nova = pje.abrir_em_nova_aba(page, lambda: page.locator('#abrir').click())
-    """
+    """Executa `acao` e devolve a Page que ela abriu."""
     page = pagina(alvo)
     with page.context.expect_page(timeout=_ms(timeout)) as info:
         acao()
@@ -291,8 +259,6 @@ def ckeditor_obter(alvo, timeout=10):
     return page.evaluate(_JS_CKEDITOR_GET, versao)
 
 
-# -- tabelas ----------------------------------------------------------------
-
 def linha_tabela(alvo, texto, seletor_linha="mat-row, tr"):
     """Locator da linha que contém `texto` — lazy, re-resolve a cada uso."""
     return pagina(alvo).locator(seletor_linha).filter(has_text=texto)
@@ -309,8 +275,6 @@ def esperar_tabela(alvo, seletor="mat-table, table", timeout=15):
     except Exception:
         return False
 
-
-# -- estado da sessão -------------------------------------------------------
 
 def acesso_negado(alvo):
     page = pagina(alvo)

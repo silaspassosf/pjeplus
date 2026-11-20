@@ -1,17 +1,4 @@
-"""Fabricas de driver Playwright — IMPLEMENTAÇÃO INTERNA DO SHIM.
-
-Este módulo é a implementação real do backend Playwright quando pw.py está
-ativo. Ele NÃO deve ser importado diretamente de fora do pacote pjeplay.
-
-Com o shim ativo (pjeplay.iniciar()), qualquer chamada a
-`Fix.core.criar_driver_PC` já retorna um PWDriver transparentemente.
-Portanto, código de negócio deve sempre importar de Fix.core ou
-Fix.driver_factory — nunca daqui.
-
-As preferencias replicam `_montar_options_pc`, `criar_driver_sisb_pc` e
-`criar_driver_sisb_vt` do projeto Selenium. Nao ha geckodriver: o Playwright
-usa o Firefox proprio (`playwright install firefox`).
-"""
+"""Fabricas de driver Playwright — IMPLEMENTAÇÃO INTERNA DO SHIM."""
 import logging
 import os
 import tempfile
@@ -21,12 +8,9 @@ from .driver import PWDriver
 
 logger = logging.getLogger("pjeplay")
 
-_pw_instancia = None  # singleton: sync_playwright nao e reentrante
+_pw_instancia = None
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Destino final dos downloads: a pasta Downloads real do usuario, como o
-# navegador faria. O Playwright grava primeiro num temporario (DOWNLOADS_TEMP)
-# e o fluxo move para ca com o nome sugerido pelo PJe (Content-Disposition).
 DOWNLOADS = os.path.join(os.path.expanduser("~"), "Downloads")
 DOWNLOADS_TEMP = os.path.join(tempfile.gettempdir(), "pje-downloads")
 
@@ -39,7 +23,6 @@ TIPOS_DOWNLOAD_DIRETO = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
 
-# Espelha prefs_anti_automacao + prefs_pc_base + prefs_anti_throttling.
 PREFS_BASE = {
     "dom.webdriver.enabled": False,
     "useAutomationExtension": False,
@@ -85,8 +68,6 @@ PREFS_DOWNLOAD = {
     "pdfjs.disabled": True,
 }
 
-# Ganho de velocidade opcional: o PJe nao depende de imagens/fontes para
-# nenhum fluxo automatizado, e elas dominam o trafego das telas de timeline.
 RECURSOS_DESCARTAVEIS = ("image", "font", "media")
 
 
@@ -102,12 +83,7 @@ def _bloquear_recursos(context):
 def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
                  bloquear_midia=False, viewport=(1920, 1080),
                  espera_navegacao="domcontentloaded", implicito=10):
-    """Cria um PWDriver Firefox. Base de todas as fabricas nomeadas.
-
-    perfil: diretorio de perfil persistente (sessao/certificados do PJe).
-    bloquear_midia: aborta imagens/fontes/midia — mais rapido, sem efeito
-    sobre os fluxos automatizados.
-    """
+    """Cria um PWDriver Firefox. Base de todas as fabricas nomeadas."""
     global _pw_instancia
 
     prefs = dict(PREFS_BASE)
@@ -118,15 +94,10 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
     os.makedirs(DOWNLOADS, exist_ok=True)
     os.makedirs(DOWNLOADS_TEMP, exist_ok=True)
 
-    # sync_playwright nao e reentrante: falha se chamado com outro driver
-    # ativo (ex: PJe + SISB). Reusa a instancia existente.
     if _pw_instancia is None:
         _pw_instancia = sync_playwright().start()
     pw = _pw_instancia
     largura, altura = viewport
-    # Headed: a viewport segue a janela real (o usuario pode maximizar no
-    # monitor que quiser sem o motor re-redimensionar). Headless: viewport
-    # fixa 1920x1080 para determinismo entre execucoes.
     viewport_ctx = {"width": largura, "height": altura} if headless else None
 
     try:
@@ -186,8 +157,6 @@ def criar_driver(headless=False, perfil=None, prefs_extra=None, cache=True,
             logger.warning("camada headless nao ativada: %s", e)
     return driver
 
-
-# -- fabricas com os nomes usados pelo shim (NAO importar de fora de pjeplay) --
 
 def criar_driver_PC(headless=False, **kwargs):
     driver = criar_driver(headless=headless, **kwargs)

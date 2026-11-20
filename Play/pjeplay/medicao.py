@@ -1,23 +1,4 @@
-"""Instrumentação para comparar os dois backends de forma honesta.
-
-O ponto cego de uma migração é atribuir ao motor novo um ganho que veio de ter
-reescrito o código. Este módulo mede as duas coisas separadamente:
-
-- `tempo_morto`: soma dos `time.sleep()` — some ao reescrever, em qualquer motor;
-- `tempo_helper`: tempo dentro dos helpers de `Fix/` — esse sim é do motor.
-
-Funciona idêntico no Selenium e no Playwright, porque instrumenta os mesmos
-helpers que os dois backends atravessam.
-
-    from pjeplay import medicao
-
-    with medicao.sessao("p2b-selenium") as m:
-        with m.etapa("abrir lista"):
-            ...
-    m.salvar("baseline-selenium.json")
-
-    medicao.comparar("baseline-selenium.json", "baseline-playwright.json")
-"""
+"""Instrumentação para comparar os dois backends de forma honesta."""
 import contextlib
 import json
 import logging
@@ -35,16 +16,12 @@ HELPERS = {
         "click_headless_safe", "trocar_para_nova_aba", "aguardar_nova_aba",
         "forcar_fechamento_abas_extras", "validar_conexao_driver",
     ],
-    # As esperas que substituíram os sleeps: é onde se vê o ganho por motor.
     "Fix.espera": [
         "assentar", "ate_aparecer", "ate_sumir", "ate_habilitar",
         "ate_desabilitar", "ate_texto", "ate_js", "pausa",
     ],
 }
 
-# Em Selenium `assentar` dorme o teto inteiro; em Playwright retorna quando a
-# tela aquieta. A diferença entre as duas medições é o ganho atribuível ao
-# motor — não à reescrita.
 ESPERAS = ("assentar", "ate_aparecer", "ate_sumir", "ate_habilitar",
            "ate_desabilitar", "ate_texto", "ate_js", "pausa")
 
@@ -61,8 +38,6 @@ class Medicao:
         self.qtd_sleeps = 0
         self._restaurar = []
         self._sleep_original = None
-
-    # -- coleta -----------------------------------------------------------
 
     @contextlib.contextmanager
     def etapa(self, nome):
@@ -88,8 +63,6 @@ class Medicao:
         if not ok:
             reg["falhas"] += 1
 
-    # -- instrumentação ---------------------------------------------------
-
     def observar_sleeps(self):
         """Contabiliza todo `time.sleep()` como tempo morto."""
         if self._sleep_original is not None:
@@ -104,11 +77,7 @@ class Medicao:
         time.sleep = sleep_medido
 
     def observar_helpers(self):
-        """Envolve os helpers de `Fix/` para medir tempo e chamadas.
-
-        Os dois backends passam por estes mesmos nomes, então a comparação é
-        maçã com maçã.
-        """
+        """Envolve os helpers de `Fix/` para medir tempo e chamadas."""
         import importlib
 
         for modulo, nomes in HELPERS.items():
@@ -147,8 +116,6 @@ class Medicao:
         for mod, nome, original in self._restaurar:
             setattr(mod, nome, original)
         self._restaurar.clear()
-
-    # -- saída ------------------------------------------------------------
 
     def relatorio(self):
         tempo_helper = round(sum(c["segundos"] for c in self.chamadas.values()), 3)
@@ -218,8 +185,6 @@ def _tem_playwright():
     return bool(mod and getattr(mod.WebDriver, "__module__", "").startswith("pjeplay"))
 
 
-# -- tracing ----------------------------------------------------------------
-
 def iniciar_trace(driver, nome="pjeplay"):
     """Liga o tracing do Playwright (snapshot de DOM, rede e console por ação)."""
     contexto = getattr(driver, "context", None)
@@ -245,8 +210,6 @@ def finalizar_trace(driver, caminho="trace.zip"):
         return None
 
 
-# -- comparação -------------------------------------------------------------
-
 def comparar(caminho_a, caminho_b):
     """Compara dois relatórios e separa o ganho do motor do ganho da reescrita."""
     with open(caminho_a, encoding="utf-8") as f:
@@ -265,8 +228,6 @@ def comparar(caminho_a, caminho_b):
     linha("em esperas", a.get("tempo_espera", 0), b.get("tempo_espera", 0))
     linha("tempo morto", a["tempo_morto"], b["tempo_morto"])
 
-    # As esperas rodam o mesmo código nos dois lados — a diferença ali é só do
-    # motor. Os sleeps crus que sobraram somem em qualquer motor: é reescrita.
     ganho_espera = a.get("tempo_espera", 0) - b.get("tempo_espera", 0)
     ganho_outros = ((a["tempo_helper"] - a.get("tempo_espera", 0))
                     - (b["tempo_helper"] - b.get("tempo_espera", 0)))

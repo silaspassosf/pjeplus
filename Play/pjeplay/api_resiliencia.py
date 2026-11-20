@@ -1,16 +1,4 @@
-"""pjeplay.api_resiliencia - resiliencia global das chamadas API do PJe.
-
-Envelopa `requests.Session.request` para TODO o processo rodando sob o
-pw.py: qualquer fluxo (P2B, PEC, Mandado, SISB, Peticao, bianca, ...) que
-receba 5xx da API do PJe em um GET dispara F5 na pagina ativa (reload do
-processo), ressincroniza cookies do driver e repete a chamada.
-
-Pontos de ancoragem (nao ha outro lugar a patchear):
-- `instalar()`      -> chamado por `pjeplay.iniciar()` (antes de qualquer
-                       import de negocio no pw.py).
-- `registrar_driver()` -> chamado por `launcher.criar_driver` (funil unico
-                       de criacao de drivers).
-"""
+"""pjeplay.api_resiliencia - resiliencia global das chamadas API do PJe."""
 import logging
 import threading
 import time
@@ -23,8 +11,8 @@ _lock = threading.Lock()
 _driver_ativo = None
 _instalado = False
 
-_TENTATIVAS = 2   # retries apos a 1a falha
-_PAUSA = 3.0      # segundos antes de cada retry
+_TENTATIVAS = 2
+_PAUSA = 3.0
 _HOSTS = ("jus.br",)
 
 
@@ -39,7 +27,7 @@ def _driver():
     if d is None:
         return None
     try:
-        d.current_url  # sonda: driver vivo?
+        d.current_url
         return d
     except Exception:
         return None
@@ -56,7 +44,7 @@ def _f5_e_aguardar(driver):
     except Exception as e:
         logger.warning("api_resiliencia: refresh falhou (%s)", e)
         return
-    for _ in range(30):  # ate ~15s
+    for _ in range(30):
         try:
             if driver.execute_script("return document.readyState") == "complete":
                 break

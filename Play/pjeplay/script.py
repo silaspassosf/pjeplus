@@ -1,12 +1,4 @@
-"""Ponte execute_script / execute_async_script para Playwright.
-
-Selenium injeta os parametros como `arguments[0..n]` e, no modo async, recebe
-um callback em `arguments[arguments.length - 1]`. Playwright passa um unico
-argumento para uma funcao. A ponte reconstroi a semantica original aplicando o
-script dentro de uma `function` classica (que tem `arguments` real) via
-`.apply(null, args)` — assim nenhum dos ~295 `execute_script` do projeto precisa
-ser reescrito.
-"""
+"""Ponte execute_script / execute_async_script para Playwright."""
 from .errors import traduzir
 
 _SYNC = "(__a) => (function(){ %s }).apply(null, __a)"
@@ -41,8 +33,6 @@ def _reempacotar(handle):
     try:
         valor = handle.json_value()
     except Exception:
-        # Provavel colecao contendo nos DOM: desmonta propriedade a propriedade.
-        # Os handles-filhos seguem vivos, por isso o pai nao e descartado aqui.
         try:
             return [_reempacotar(v) for v in handle.get_properties().values()]
         except Exception:

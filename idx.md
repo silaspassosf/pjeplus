@@ -9,11 +9,18 @@ Atualizado: 2026-11-20 (campanha de limpeza e simplificação Playwright ativa)
 > - **Validação obrigatória a cada etapa:** `py -m py_compile` + `py tools/check_pw.py` + `py tools/check_imports.py` + `py -m pytest tests -q`.
 > - **Andamento das ondas:**
 >   - [x] **Etapa 0 — Baseline verde:** zeradas as 3 regressões prévias do `tools/check_pw.py` (`atos/anexos_sigilo.py` -> 0, `SISB/processamento/minutas_campos.py` -> 0 [MIGRADO], `tests/test_atualizacao_rapida.py` -> 0, `SISB/core.py` -2). Ratchet: **906/909 (-3), APROVADO**.
->   - [ ] **Etapa 1 — Poda de comentários/docstrings e simplificação inicial (em andamento):**
+>   - [x] **Etapa 1 — Poda de comentários/docstrings e simplificação inicial (concluída — ~10.300 linhas removidas, AST verificado):**
 >     - [x] Lote 1: `Fix/entrada_campos.py` (705L → 395L, -44%) e `pw.py` (150L → 129L)
->     - [x] Lote 2a: `x.py` (1273L → 944L, -26%) — loop no bloco completo, unificação de reset/wrappers, remoção de refs Selenium em logging
->     - [ ] Próximos: `api/`, `Fix/`, `Prazo/`, `Mandado/`, `PEC/`, `Peticao/`, `bianca/`, `SISB/`, `atos/`, `Play/`.
->   - [ ] **Etapa 2 — Simplificação de funções gigantes e Playwright nativo:** hotspots em `Fix/`, `SISB/`, `atos/`, `PEC/`, `bianca/`, `Mandado/`.
+>     - [x] Lote 2a/2b: `x.py` (1273L → 944L, -26%) e `api/` (1274L → 1025L, -249L)
+>     - [x] Lote 3: `Fix/` (14694L → 12262L, -2432L)
+>     - [x] Lote 4: `Prazo/` (4707L → 3805L, -902L)
+>     - [x] Lote 5: `Mandado/` (5023L → 4287L, -736L)
+>     - [x] Lote 6: `PEC/` + `Peticao/` (7534L → 6675L, -859L)
+>     - [x] Lote 7: `bianca/` (9784L → 8145L, -1639L)
+>     - [x] Lote 8: `SISB/` (12344L → 11028L, -1316L; ratchet 906 → 881, +2 arquivos migrados)
+>     - [x] Lote 9: `atos/` (13683L → 12285L, -1398L)
+>     - [x] Lote 10: `Play/pjeplay/` (4341L → 3927L, -414L)
+>   - [ ] **Etapa 2 — Simplificação de funções gigantes e migração Playwright nativa (em andamento):** zerar padrões legados em `SISB/` e simplificar hotspots em `SISB/`, `atos/` e `Fix/`.
 >   - [ ] **Etapa 3 — Enxugamento do motor Playwright e auditoria de shims/código morto:** `Play/pjeplay/`, `x.py`, `tools/shim_audit.py`.
 >   - [ ] **Etapa 4 — Fechamento:** atualizar `tools/pw_baseline.json` e este `idx.md` com o saldo final.
 

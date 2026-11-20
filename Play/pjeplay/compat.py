@@ -1,10 +1,4 @@
-"""Instala o backend Playwright no lugar do pacote `selenium`.
-
-Registra modulos compativeis em `sys.modules` antes de qualquer `import Fix...`.
-A partir dai todo o projeto — Fix/, atos/, PEC/, Prazo/, Mandado/, SISB/,
-Peticao/, Triagem/, bianca/ — roda sobre Playwright sem uma linha editada.
-E por isso que nao existe fork: as atualizacoes do projeto valem automaticamente.
-"""
+"""Instala o backend Playwright no lugar do pacote `selenium`."""
 import logging
 import sys
 import types
@@ -21,11 +15,7 @@ _INSTALADO = False
 
 
 class Options:
-    """Coletor de preferencias no formato do FirefoxOptions do Selenium.
-
-    Nao configura nada por si: e lido por `Firefox()` e convertido em
-    parametros do Playwright.
-    """
+    """Coletor de preferencias no formato do FirefoxOptions do Selenium."""
 
     def __init__(self):
         self._prefs = {}
@@ -82,11 +72,7 @@ class FirefoxProfile:
 
 
 def Firefox(options=None, service=None, **kwargs):
-    """Substitui `webdriver.Firefox(...)`, devolvendo um PWDriver.
-
-    Traduz as options montadas por `Fix/core.py` para o launcher Playwright,
-    de modo que `criar_driver_PC()` e afins continuem funcionando como estao.
-    """
+    """Substitui `webdriver.Firefox(...)`, devolvendo um PWDriver."""
     opts = options or Options()
     perfil = getattr(opts, "profile", None)
     if isinstance(perfil, FirefoxProfile):

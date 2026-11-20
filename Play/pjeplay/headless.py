@@ -1,15 +1,4 @@
-"""pjeplay.headless — Camada headless não invasiva para PJePlus.
-
-Ativa-se EXCLUSIVAMENTE quando driver.headless é True.
-Em modo visível (headed), este módulo não é importado pelo launcher.
-
-Responsabilidades comprovadas:
-1. Virtual Clipboard Polyfill: intercepta cópias na página (execCommand,
-   navigator.clipboard.writeText, DataTransfer) e supre pyperclip.paste()
-   em ambiente headless onde o SO não recebe o clipboard gráfico.
-2. Recovery Headless-Aware: assegura que chamadas ao mecanismo de recovery
-   em Fix.utils recriem o driver com headless=True.
-"""
+"""pjeplay.headless — Camada headless não invasiva para PJePlus."""
 import logging
 import sys
 from typing import Any, Optional
@@ -140,7 +129,6 @@ def ler_clipboard_virtual(drv: Any) -> str:
         "() => { const t = window.__pjeplay_clipboard || ''; "
         "window.__pjeplay_clipboard = ''; return t; }"
     )
-    # 1. Tentar ler da página ativa
     try:
         p = getattr(drv, "page", None)
         if p and not p.is_closed():
@@ -150,7 +138,6 @@ def ler_clipboard_virtual(drv: Any) -> str:
     except Exception as e:
         logger.debug("headless: erro ao ler clipboard da pagina ativa: %s", e)
 
-    # 2. Se vazio, tentar em outras páginas vivas do contexto
     try:
         ctx = getattr(drv, "_context", None)
         if ctx:
@@ -237,7 +224,6 @@ def ativar_para_driver(driver: Any) -> None:
     global _driver_registrado
     _driver_registrado = driver
 
-    # 1. Injetar JS de clipboard no contexto Playwright
     try:
         ctx = getattr(driver, "_context", None)
         if ctx and hasattr(ctx, "add_init_script"):
@@ -251,10 +237,8 @@ def ativar_para_driver(driver: Any) -> None:
     except Exception as e:
         logger.warning("headless: falha ao registrar JS_CLIPBOARD: %s", e)
 
-    # 2. Instalar bridge pyperclip.paste
     _instalar_clipboard_virtual()
 
-    # 3. Assegurar que recovery mantenha headless
     _instalar_recovery_headless()
 
 

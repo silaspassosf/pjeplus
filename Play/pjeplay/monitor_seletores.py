@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
-"""pjeplay.monitor_seletores — Monitor de assertividade de seletores e detector de fallbacks.
-
-Intercepta helpers de busca, clique e formulário para registrar exatamente qual seletor
-funcionou (HIT) ou falhou (MISS) em cada ação, o chamador exato (arquivo:linha) e o tempo
-gasto. Gera estatísticas para guiar a faxina de fallbacks desnecessários.
-"""
+"""pjeplay.monitor_seletores — Monitor de assertividade de seletores e detector de fallbacks."""
 import inspect
 import json
 import os
@@ -92,7 +87,6 @@ class MonitorSeletores:
                 return f"{val} -> '{args[2]}'"
             if isinstance(val, (str, list, tuple)):
                 return str(val)
-            # Pode ser um Elemento direto
             if hasattr(val, "tag_name") or hasattr(val, "_handle"):
                 return "<ElementoDOM>"
         return None
@@ -157,7 +151,6 @@ class MonitorSeletores:
 
                     if self.verbose:
                         marcador = "[SEL OK]" if sucesso else "[SEL XX]"
-                        # Encurta seletor se for muito longo no log do console
                         sel_disp = (seletor[:60] + "...") if len(seletor) > 63 else seletor
                         print(f"  {marcador} {chamador} | {fn_nome} -> {sel_disp} ({duracao_ms}ms)")
 
@@ -181,7 +174,6 @@ class MonitorSeletores:
             tempo_desperdicado_ms += tempo_miss_chamador
 
             if len(seletores_vistos) > 1:
-                # O chamador tentou mais de um seletor -> evidência de fallback
                 vencedores = list(dict.fromkeys(
                     c["seletor"] for c in chamadas if c["sucesso"]
                 ))

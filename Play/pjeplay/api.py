@@ -1,21 +1,4 @@
-"""E3 — acesso à API do PJe pelo caminho nativo do Playwright.
-
-A ponte conservadora que o plano previa (copiar cookies do browser para um
-`requests.Session`) **não precisou ser escrita**:
-`Fix.variaveis.session_from_driver` usa apenas `driver.get_cookies()` e
-`driver.current_url`, e o `PWDriver` implementa os dois. Ela já funciona.
-
-O que sobra é o que só o Playwright oferece:
-
-- `requisicao()` — o `APIRequestContext` do próprio contexto do browser.
-  Compartilha cookies, sessão e TLS com a aba aberta, sem copiar nada. Um
-  re-login no browser vale imediatamente para as chamadas de API; com o
-  `requests.Session` seria preciso reconstruir a sessão.
-
-- `esperar_resposta()` — aguarda o XHR de verdade. Hoje o projeto clica e tenta
-  adivinhar pelo DOM quando a chamada terminou; aqui a espera é sobre o próprio
-  tráfego, e a resposta ainda vem de brinde.
-"""
+"""E3 — acesso à API do PJe pelo caminho nativo do Playwright."""
 import json as _json
 import logging
 
@@ -28,11 +11,7 @@ def requisicao(driver):
 
 
 def sessao(driver, grau=1):
-    """`(requests.Session, trt_host)` — atalho para o caminho compatível.
-
-    Preferir `requisicao()` em código novo; isto existe para conviver com o que
-    já recebe uma `requests.Session` pronta (`PjeApiClient`).
-    """
+    """`(requests.Session, trt_host)` — atalho para o caminho compatível."""
     from Fix.variaveis import session_from_driver
 
     return session_from_driver(driver, grau=grau)
@@ -52,28 +31,14 @@ def obter_json(driver, url, **kwargs):
 
 
 def esperar_resposta(driver, padrao, acao, timeout=15):
-    """Executa `acao` e devolve a resposta de rede que casa com `padrao`.
-
-    A escuta é armada ANTES da ação, então não existe a janela de corrida em
-    que a resposta chega antes de começarmos a esperar.
-
-        r = api.esperar_resposta(driver, '**/timeline**',
-                                 lambda: botao.click())
-        dados = r.json()
-
-    `padrao` aceita glob, regex ou callable — como no Playwright.
-    """
+    """Executa `acao` e devolve a resposta de rede que casa com `padrao`."""
     with driver.page.expect_response(padrao, timeout=int(timeout * 1000)) as info:
         acao()
     return info.value
 
 
 def esperar_conclusao(driver, padrao, acao, timeout=15):
-    """Igual a `esperar_resposta`, mas só confirma a conclusão (bool).
-
-    Para o caso comum de "clicou em Salvar, esperar a requisição terminar" —
-    substitui o `sleep` que existia justamente por não haver esse sinal.
-    """
+    """Igual a `esperar_resposta`, mas só confirma a conclusão (bool)."""
     try:
         resposta = esperar_resposta(driver, padrao, acao, timeout=timeout)
         return bool(resposta.ok)
@@ -94,12 +59,7 @@ def corpo(resposta):
 
 
 def registrar_trafego(driver, filtro=None):
-    """Coleta as respostas da API durante um trecho, para diagnóstico.
-
-        with api.registrar_trafego(driver, '**/pje-comum-api/**') as trafego:
-            fluxo()
-        print(trafego)   # [(status, url), ...]
-    """
+    """Coleta as respostas da API durante um trecho, para diagnóstico."""
     import contextlib
 
     coletadas = []

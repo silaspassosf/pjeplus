@@ -1,13 +1,7 @@
-"""PWElement — fachada WebElement sobre um ElementHandle do Playwright.
-
-Mantem a semantica do Selenium (resolucao ansiosa, staleness, get_attribute
-misturando propriedade e atributo) porque o codigo de negocio depende dela.
-"""
+"""PWElement — fachada WebElement sobre um ElementHandle do Playwright."""
 from .errors import NoSuchElementException, traduzir
 from .locators import By, dividir_teclas, traduzir as traduzir_seletor
 
-# Replica o comportamento do atom getAttribute do Selenium: propriedade quando
-# ela existe e e mais fiel (value, href, innerHTML), atributo caso contrario.
 _JS_ATRIBUTO = """
 (el, nome) => {
   const BOOL = ['checked','selected','disabled','readonly','multiple','required',
@@ -48,8 +42,6 @@ class PWElement:
         self._handle = handle
         self._page = page
 
-    # -- infraestrutura ---------------------------------------------------
-
     @property
     def page(self):
         if self._page is None:
@@ -70,8 +62,6 @@ class PWElement:
 
     def __hash__(self):
         return hash(id(self._handle))
-
-    # -- leitura ----------------------------------------------------------
 
     @property
     def text(self):
@@ -112,7 +102,6 @@ class PWElement:
             return False
 
     def is_selected(self):
-        # Vale para <option> (selected) e para checkbox/radio (checked).
         return bool(self._js(
             "el => el.selected !== undefined ? !!el.selected : !!el.checked"))
 
@@ -144,16 +133,7 @@ class PWElement:
         raiz = self._handle.evaluate_handle("el => el.shadowRoot")
         return PWElement(raiz, self._page)
 
-    # -- acao -------------------------------------------------------------
-
     def click(self):
-        # JS-first: nao depende de actionability (visible/enabled/STABLE) do
-        # Playwright. O gate de estabilidade usa rAF e aba/janela inativa no
-        # Firefox nao dispara rAF — com a janela ao fundo o clique nativo
-        # travava 30s ("waiting for element to be stable"). O el.click() via
-        # evaluate dispara os handlers igual ao padrao Selenium
-        # (execute_script("arguments[0].click()")). Fallback nativo com
-        # force=True (pula actionability) se o evaluate falhar.
         try:
             self._js("el => el.click()")
             return
@@ -175,8 +155,6 @@ class PWElement:
         teclado = self.page.keyboard
         try:
             # Gate curto de estabilidade: elemento em modal Angular pode ficar
-            # instante por segundos (preview carregando) e o default de 30s do
-            # Playwright trava o fluxo. Fallback JS se nao estabilizar rapido.
             try:
                 self._handle.scroll_into_view_if_needed(timeout=2000)
             except Exception:
@@ -206,8 +184,6 @@ class PWElement:
     def screenshot(self, caminho):
         self._handle.screenshot(path=caminho)
         return True
-
-    # -- busca aninhada ---------------------------------------------------
 
     def find_element(self, by=By.CSS_SELECTOR, value=None):
         seletor = traduzir_seletor(by, value)

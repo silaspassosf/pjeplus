@@ -1,9 +1,4 @@
-"""Excecoes compativeis com selenium.common.exceptions.
-
-O codigo de negocio do PJePlus captura estas excecoes por nome em ~100 pontos.
-Manter a mesma hierarquia permite rodar o projeto sobre Playwright sem editar
-nenhum modulo de negocio.
-"""
+"""Excecoes compativeis com selenium.common.exceptions."""
 
 
 class WebDriverException(Exception):
@@ -128,8 +123,6 @@ class NoSuchShadowRootException(WebDriverException):
 class NoSuchCookieException(WebDriverException):
     pass
 
-
-# Sinais internos do Playwright que devem virar excecoes Selenium ------------
 
 _DETACHED_HINTS = (
     "element is not attached",

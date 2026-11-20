@@ -1,8 +1,4 @@
-"""Traducao de localizadores Selenium (By.*) e teclas (Keys.*) para Playwright.
-
-O projeto usa By.CSS_SELECTOR em ~500 pontos e By.XPATH em ~117 — os demais
-sao residuais. A traducao acontece uma unica vez, aqui.
-"""
+"""Traducao de localizadores Selenium (By.*) e teclas (Keys.*) para Playwright."""
 import json
 
 from .errors import InvalidSelectorException
@@ -92,7 +88,6 @@ class Keys:
     COMMAND = META
 
 
-# Codepoint WebDriver -> nome de tecla Playwright (page.keyboard.press)
 TECLAS_PW = {
     Keys.BACKSPACE: "Backspace",
     Keys.TAB: "Tab",
@@ -153,10 +148,7 @@ def traduzir(by, valor):
 
 
 def dividir_teclas(texto):
-    """Fatia uma sequencia de send_keys em blocos ('texto', str) / ('tecla', nome).
-
-    send_keys('abc' + Keys.ENTER) vira [('texto', 'abc'), ('tecla', 'Enter')].
-    """
+    """Fatia uma sequencia de send_keys em blocos ('texto', str) / ('tecla', nome)."""
     blocos = []
     buffer = []
     for ch in str(texto):

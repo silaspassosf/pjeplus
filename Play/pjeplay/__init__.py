@@ -1,22 +1,4 @@
-"""pjeplay — backend Playwright para o PJePlus.
-
-Nao e um fork do projeto: e uma camada que implementa a superficie WebDriver
-sobre o Playwright. O codigo de negocio (Fix/, atos/, PEC/, Prazo/, Mandado/,
-SISB/, Peticao/, Triagem/, bianca/) roda sem uma linha alterada, entao toda
-atualizacao feita no projeto Selenium vale automaticamente aqui.
-
-Uso tipico:
-
-    import pjeplay
-    pjeplay.iniciar()                      # antes de qualquer import do projeto
-
-    from Fix.core import criar_driver_PC   # ja devolve um driver Playwright
-    driver = criar_driver_PC(headless=False)
-
-Ou criando o driver direto pelo launcher, com as opcoes novas:
-
-    driver = pjeplay.criar_driver_PC(headless=True, bloquear_midia=True)
-"""
+"""pjeplay — backend Playwright para o PJePlus."""
 import logging
 import sys
 
@@ -51,15 +33,7 @@ logger = logging.getLogger("pjeplay")
 
 
 def iniciar(raiz_projeto=None, nativo=True, silencioso=False):
-    """Ativa o backend Playwright para o projeto inteiro.
-
-    1. troca `selenium` pelo backend Playwright;
-    2. carrega `Fix.core` / `Fix.browser_suporte` ja sobre esse backend;
-    3. (nativo=True) troca os helpers quentes pelo auto-wait do Playwright.
-
-    Chame antes de importar qualquer modulo de negocio: `from Fix.core import X`
-    fixa o nome no momento do import.
-    """
+    """Ativa o backend Playwright para o projeto inteiro."""
     if raiz_projeto and raiz_projeto not in sys.path:
         sys.path.insert(0, raiz_projeto)
 

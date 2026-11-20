@@ -1,10 +1,4 @@
-"""PWDriver — fachada WebDriver sobre Playwright.
-
-O codigo de negocio do PJePlus fala WebDriver em ~1500 pontos
-(execute_script, find_element(s), switch_to, window_handles, current_url...).
-PWDriver implementa exatamente essa superficie sobre uma Page do Playwright,
-o que permite rodar os modulos atuais — sem fork, sem editar arquivo algum.
-"""
+"""PWDriver — fachada WebDriver sobre Playwright."""
 import logging
 import time
 
@@ -54,7 +48,7 @@ class SwitchTo:
     def alert(self):
         driver = self._driver
         if driver._dialogo_pendente is None:
-            driver.pulsar()  # despacha o evento de dialogo, se houver
+            driver.pulsar()
         if driver._dialogo_pendente is None:
             raise NoAlertPresentException("Nenhum alerta presente")
         return Alert(driver._dialogo_pendente, driver)
@@ -132,17 +126,12 @@ class PWDriver:
         self._encerrado = False
         self.headless = headless
         self.espera_navegacao = espera_navegacao
-        # "accept" | "dismiss" | None (None = guarda para switch_to.alert)
         self.auto_dialogo = "accept"
         self.ultimo_dialogo = None
-        # find_elements fiel ao Selenium aguarda o implicito quando vazio.
-        # Desligar acelera varreduras que toleram lista vazia.
         self.implicito_em_find_elements = True
 
         self._context.on("page", self._registrar_pagina)
         self._registrar_pagina(pagina)
-
-    # -- ciclo de vida de paginas ----------------------------------------
 
     def _registrar_pagina(self, pagina):
         if any(p is pagina for p in self._handles.values()):
@@ -163,20 +152,13 @@ class PWDriver:
 
     def _ao_abrir_dialogo(self, dialogo):
         self.ultimo_dialogo = dialogo.message
-        # Um dialogo nao respondido congela a pagina inteira no Playwright.
-        # O PJe nunca consome alertas, entao o padrao e aceitar — quem precisar
-        # do fluxo Selenium (switch_to.alert) troca auto_dialogo para None.
         if dialogo.type == "beforeunload" or self.auto_dialogo:
             (dialogo.accept if self.auto_dialogo != "dismiss" else dialogo.dismiss)()
             return
         self._dialogo_pendente = dialogo
 
     def pulsar(self, segundos=0.05):
-        """Cede tempo ao loop de eventos do Playwright durante polls Python.
-
-        A API sync so despacha eventos (dialog, page, close) dentro de uma
-        chamada ao servidor; um `time.sleep` puro deixaria eventos represados.
-        """
+        """Cede tempo ao loop de eventos do Playwright durante polls Python."""
         try:
             self.page.wait_for_timeout(int(segundos * 1000))
         except Exception:
@@ -211,8 +193,6 @@ class PWDriver:
         if frame is None:
             raise NoSuchFrameException(f"Frame nao encontrado: {referencia!r}")
         return frame
-
-    # -- acessores --------------------------------------------------------
 
     @property
     def page(self):
@@ -291,12 +271,7 @@ class PWDriver:
                 return handle
         raise NoSuchWindowException("Janela atual nao registrada")
 
-    # -- navegacao --------------------------------------------------------
-
-    # Rotas em que o driver vigia o carregamento inicial. Antes daqui eram so
     # 'pjekz' e '/processo/', entao login.seam e o SSO do Keycloak ficavam sem
-    # a barreira anti-travamento: a pagina abria devagar e o fluxo seguia com o
-    # DOM vazio, parecendo travamento no clique do SSO (log de 23/10 17:57).
     _ROTAS_VIGIADAS = (
         'pjekz', '/processo/', 'login.seam', '/realms/', '/auth/',
     )
@@ -315,37 +290,24 @@ class PWDriver:
         if auto_garantir and isinstance(url, str) and any(r in url for r in self._ROTAS_VIGIADAS):
             # Telas de login/SSO nao tem a casca Angular do PJe (sao Seam e
             # Keycloak), entao a lista padrao de seletores nunca acerta nelas.
-            # Sem este alvo a barreira concluiria "nao carregou" e recarregaria
-            # a pagina de login a toa.
             alvo = None
             if 'login.seam' in url:
                 alvo = '#btnSsoPdpj, #username, form input[type="submit"]'
             elif '/realms/' in url or '/auth/' in url:
                 alvo = '#username, #kc-login, #otp, input[name="otp"]'
-            # timeout_refresh fica None de proposito: o proprio
-            # garantir_carregamento escolhe o teto pela rota (10s processo,
-            # 12s login/SSO, 5s demais). Passar um valor aqui anularia isso.
             self.garantir_carregamento(timeout_refresh=None, url_alvo=url,
                                        seletor_esperado=alvo)
 
-    # Trechos de URL que indicam que a aba não está na página pedida: sessão
-    # caída, login pendente ou erro do servidor. Checagem por URL apenas — o
     # DOM dessas telas mantém a casca Angular e engana qualquer verificação
-    # baseada em elemento.
     _URL_INVALIDA = (
         'acesso-negado', 'access-denied', 'login.seam', 'login.jsp',
         '/realms/', 'error.jsp', 'sessao-expirada',
     )
 
-    # Telas de autenticacao. Sao destinos legitimos quando pedidas de proposito
-    # (login_cpf), mas sinal de desvio quando aparecem no lugar de um processo.
     _ROTAS_LOGIN = ('login.seam', 'login.jsp', '/realms/', '/protocol/openid-connect', '/auth/')
 
     def _pagina_desviada(self, target_url=None):
-        """True se a URL atual não corresponde à página esperada.
-
-        Só olha a URL. Usado antes de declarar a página carregada.
-        """
+        """True se a URL atual não corresponde à página esperada."""
         try:
             curr = (self.current_url or '').lower()
         except Exception:
@@ -353,9 +315,6 @@ class PWDriver:
         if not curr:
             return True
 
-        # Se o proprio alvo pedido e uma tela de login/SSO, estar nela NAO e
-        # desvio — e o destino. Sem esta guarda, `get(login.seam)` se acusava
-        # como "URL invalida" e a barreira nunca liberava a pagina de login.
         alvo_url = (target_url or '').lower()
         alvo_e_login = any(k in alvo_url for k in self._ROTAS_LOGIN)
 
@@ -371,17 +330,10 @@ class PWDriver:
         return False
 
     def garantir_carregamento(self, seletor_esperado=None, timeout_refresh=None, timeout_pos_refresh=10.0, log=True, url_alvo=None):
-        """Monitora o carregamento inicial da página com barreira anti-travamento.
-
-        Se o elemento esperado (ou elementos válidos da rota) for detectado,
-        o refresh é abortado imediatamente e a execução prossegue.
-        Se exceder timeout_refresh sem elementos válidos, tenta destravar
-        recarregando a URL alvo ou com refresh controlado sem perder a rota.
-        """
+        """Monitora o carregamento inicial da página com barreira anti-travamento."""
         target_url = url_alvo or getattr(self, '_ultima_url_navegada', None) or self.current_url
         is_processo_ou_tarefa = bool(target_url and ('/processo/' in target_url or '/tarefa/' in target_url))
         # Login/SSO sao telas leves, mas respondem por rede externa (Keycloak):
-        # 5s e curto quando o servidor esta lento e gerava refresh desnecessario.
         is_login = bool(target_url and ('login.seam' in target_url or '/realms/' in target_url or '/auth/' in target_url))
 
         if timeout_refresh is None:
@@ -468,16 +420,10 @@ class PWDriver:
         if log:
             logger.info(f"[CARREGAMENTO] ⏳ Monitorando carregamento inicial (barreira de {timeout_refresh:.1f}s){alvo_str}...")
 
-        # Fase 1: até timeout_refresh
         while time.time() - t_inicio < timeout_refresh:
             try:
                 res = self.page.evaluate(js_verificar, payload)
                 if res and res.get('ok'):
-                    # Elemento de conteúdo presente NÃO garante página certa: o
-                    # veredito desta fase era baseado só no DOM e declarava
-                    # "página viva" em tela de onde o processo não carregou —
-                    # o fluxo seguia e só falhava adiante. A URL é a fonte da
-                    # verdade para sessão caída/desvio.
                     if self._pagina_desviada(target_url):
                         if log:
                             logger.warning(
@@ -492,7 +438,6 @@ class PWDriver:
                 pass
             self.page.wait_for_timeout(150)
 
-        # Fase 2: Passou do tempo sem elemento válido detectado
         elapsed_antes = time.time() - t_inicio
         if log:
             logger.warning(
@@ -513,7 +458,6 @@ class PWDriver:
             if log:
                 logger.warning(f"[CARREGAMENTO] Falha ao tentar destravar: {e}")
 
-        # Se após tentativa a página caiu no painel global (fora da rota esperada), re-navegar para target_url
         if target_url and is_processo_ou_tarefa:
             curr = (self.current_url or '').lower()
             if self._pagina_desviada(target_url) or ('/painel' in curr):
@@ -527,7 +471,6 @@ class PWDriver:
         if log:
             logger.info(f"[CARREGAMENTO] 🔄 Recuperação executada. Monitorando pós-recuperação (teto de {timeout_pos_refresh:.1f}s)...")
 
-        # Fase 3: monitora recuperação pós-refresh
         t_pos = time.time()
         while time.time() - t_pos < timeout_pos_refresh:
             try:
@@ -561,8 +504,6 @@ class PWDriver:
     def forward(self):
         self.page.go_forward(wait_until=self.espera_navegacao)
         self._frame = None
-
-    # -- busca ------------------------------------------------------------
 
     def find_element(self, by=By.CSS_SELECTOR, value=None):
         seletor = traduzir_seletor(by, value)
@@ -607,21 +548,16 @@ class PWDriver:
     def find_element_by_css_selector(self, seletor):
         return self.find_element(By.CSS_SELECTOR, seletor)
 
-    # -- scripts ----------------------------------------------------------
-
     def execute_script(self, script, *args):
         return ponte.executar(self._ctx, script, args, assincrono=False)
 
     def execute_async_script(self, script, *args):
-        # O callback do script controla a conclusao; o teto e o script timeout.
         self.page.set_default_timeout(int(self._timeout_script * 1000))
         return ponte.executar(self._ctx, script, args, assincrono=True)
 
     def execute_cdp_cmd(self, *args, **kwargs):
         """Firefox/Playwright nao expoe CDP; mantido como no-op de compatibilidade."""
         return {}
-
-    # -- timeouts ---------------------------------------------------------
 
     def implicitly_wait(self, segundos):
         self._implicito = float(segundos)
@@ -632,13 +568,7 @@ class PWDriver:
     def set_page_load_timeout(self, segundos):
         self._timeout_pagina = float(segundos)
 
-    # -- janela -----------------------------------------------------------
-
     def maximize_window(self):
-        # Headed: a janela pertence ao usuario (posicao/maximizacao no monitor
-        # que ele escolher) e NAO deve ser re-redimensionada. No Firefox o
-        # Playwright implementa viewport redimensionando a janela do SO, o que
-        # arrastaria a janela de monitor. Headless: mantem 1920x1080.
         if not self.headless:
             return None
         self.set_window_size(1920, 1080)
@@ -679,8 +609,6 @@ class PWDriver:
     def get_screenshot_as_png(self):
         return self.page.screenshot()
 
-    # -- cookies ----------------------------------------------------------
-
     def get_cookies(self):
         saida = []
         for c in self._context.cookies():
@@ -719,8 +647,6 @@ class PWDriver:
     def delete_all_cookies(self):
         self._context.clear_cookies()
 
-    # -- encerramento -----------------------------------------------------
-
     def close(self):
         try:
             atual = self._pagina
@@ -733,9 +659,6 @@ class PWDriver:
         if self._encerrado:
             return
         self._encerrado = True
-        # Fecha apenas browser e context — o _pw e compartilhado
-        # via singleton em launcher.py e nao pode ser parado aqui
-        # (mataria outros drivers ativos, ex: PJe + SISB).
         for fechar in (
             lambda: self._context.close(),
             lambda: self._browser.close(),

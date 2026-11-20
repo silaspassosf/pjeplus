@@ -1,106 +1,11 @@
-"""SISB.processamento_relatorios - Módulo de relatórios e finalização SISBAJUD."""
+"""SISB.processamento_relatorios — relatórios e finalização (re-exporta funções canônicas de processamento/)."""
 
-import time
 from datetime import datetime
 from Fix import espera
+from .processamento.minutas_relatorio import _gerar_relatorio_minuta  # noqa: F401
+from .processamento.minutas_salvar import _salvar_minuta  # noqa: F401
+from .utils import log_sisbajud
 
-def _salvar_minuta(driver):
-    """Salva a minuta com múltiplas estratégias."""
-    try:
-        log_sisbajud("Salvando minuta...")
-
-        script_salvar = """
-        var btnSalvar = document.querySelector('button.mat-fab.mat-primary mat-icon.fa-save');
-        if (btnSalvar) {
-            btnSalvar.closest('button').click();
-            return true;
-        }
-
-        // Estratégia 2: Fallback
-        var btnFallback = document.querySelector('button mat-icon.fa-save');
-        if (btnFallback) {
-            btnFallback.closest('button').click();
-            return true;
-        }
-
-        return false;
-        """
-
-        if espera._executar_script(driver, script_salvar):
-            log_sisbajud("Botão salvar clicado")
-            espera.ate_js(
-                driver,
-                "Array.from(document.querySelectorAll('button mat-icon.fa-edit')).some("
-                "el => el.closest('button') && el.closest('button').textContent.includes('Alterar'))",
-                teto=3,
-            )
-
-            status = espera._executar_script(driver, """
-            var btnAlterar = document.querySelector('button mat-icon.fa-edit');
-            if (btnAlterar) {
-                var btnTexto = btnAlterar.closest('button');
-                if (btnTexto && btnTexto.textContent.includes('Alterar')) {
-                    return 'SALVO';
-                }
-            }
-            return 'NAO_SALVOU';
-            """)
-
-            if status == 'SALVO':
-                log_sisbajud("Minuta salva com sucesso")
-                return True
-            else:
-                log_sisbajud("Status de salvamento incerto")
-                return False
-        else:
-            log_sisbajud("Falha ao clicar no botão salvar")
-            return False
-
-    except Exception as e:
-        log_sisbajud(f"Erro ao salvar minuta: {e}", "ERROR")
-        return False
-
-def _gerar_relatorio_minuta(driver, numero_processo):
-    """Gera relatório da minuta criada coletando dados reais da página SISBAJUD."""
-    try:
-        log_sisbajud("Gerando relatório da minuta...")
-
-        if not numero_processo or not isinstance(numero_processo, str):
-            log_sisbajud(f"⚠️ numero_processo inválido: {numero_processo}")
-            numero_processo = "SISBAJUD"
-
-        try:
-            from .core import coletar_dados_minuta_sisbajud
-        except ImportError:
-            log_sisbajud(f"Não foi possível importar coletar_dados_minuta_sisbajud do core")
-            dados_relatorio = f"""
-            <h3>Minuta de Bloqueio SISBAJUD</h3>
-            <p>Processo: {numero_processo or 'N/A'}</p>
-            <p>Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
-            """
-            return _salvar_relatorios(dados_relatorio, numero_processo)
-
-        # Coletar dados reais da página SISBAJUD
-        dados_relatorio = coletar_dados_minuta_sisbajud(driver)
-
-        if not dados_relatorio:
-            log_sisbajud("Não foi possível coletar dados da minuta, usando relatório básico")
-            dados_relatorio = f"""
-            <h3>Minuta de Bloqueio SISBAJUD</h3>
-            <p>Processo: {numero_processo or 'N/A'}</p>
-            <p>Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
-            """
-
-        return _salvar_relatorios(dados_relatorio, numero_processo)
-
-    except Exception as e:
-        log_sisbajud(f"Erro ao gerar relatório: {e}")
-        dados_relatorio = f"""
-        <h3>Minuta de Bloqueio SISBAJUD</h3>
-        <p>Processo: {numero_processo or 'N/A'}</p>
-        <p>Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
-        """
-        return _salvar_relatorios(dados_relatorio, numero_processo)
 
 def _salvar_relatorios(dados_relatorio, numero_processo=None):
     """Salva os relatórios no clipboard.txt centralizado."""

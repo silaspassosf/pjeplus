@@ -1,16 +1,5 @@
-"""Mandado - Entrada API (Entrypoint Unico do x.py)
+"""Mandado - Entrada API (Entrypoint Unico do x.py)"""
 
-Consolidado a partir de:
-    Mandado/processamento_api.py  — entrada principal, timeline, despacho
-    Mandado/utils.py              — utilitarios e compatibilidade (LEGADO)
-    Mandado/utils_intimacao.py    — fechamento de intimacao
-
-Entrypoint publico: processar_mandados_devolvidos_api()
-Cadeia: processar_mandados_devolvidos_api -> processar_mandado_detalhe
-        -> _selecionar_doc_via_timeline -> processar_argos | fluxo_mandados_outros
-"""
-
-# ══════════════════════ IMPORTS ══════════════════════
 
 import importlib.util
 import logging
@@ -66,14 +55,11 @@ from Mandado.apoio_fluxos import (
 from utilitarios_processamento import run_batch, create_skip_checker, resultado_ok, resultado_falha
 from Fix.variaveis import url_processo_detalhe
 
-# ── LEGADO (utils.py: bloco de diagnostico, preservado por fidelidade) ──
 with open("log.py", "w", encoding="utf-8") as f:
     f.write(f"# Ultima execucao: {datetime.now()}\n")
     f.write(f"# Script: {os.path.abspath(sys.argv[0])}\n")
     f.write(f"# Argumentos: {' '.join(sys.argv[1:])}\n")
 
-
-# ══════════════════════ 1. API ENTRY ══════════════════════
 
 _API_CORE_TYPES = None
 
@@ -206,15 +192,7 @@ def _marcar_concluido_mandado(numero: str) -> None:
 
 
 def _url_invalida(driver):
-    """True quando a aba atual não está numa página utilizável de processo.
-
-    Detecção é por URL, pura e simples: sessão caída se manifesta na URL
-    (/acesso-negado, /login), não no DOM. Nada aqui olha o conteúdo da página.
-
-    Caso real (23/10 17:04:41): o processo #1001351-29 abriu em /acesso-negado e
-    o fluxo seguiu às cegas — a API não achava o id_processo na URL, caía no
-    fallback DOM e gastava ~30s antes de falhar.
-    """
+    """True quando a aba atual não está numa página utilizável de processo."""
     try:
         url = (getattr(driver, 'current_url', '') or '').lower()
     except Exception:
@@ -227,11 +205,7 @@ def _url_invalida(driver):
 
 
 def _recuperar_sessao(driver, tentativas=1):
-    """Recupera a sessão quando a aba caiu em /acesso-negado.
-
-    Reaproveita os cookies salvos (Fix.sessao) antes de partir para o login CPF
-    completo, que é o caminho definitivo. Devolve True se a aba voltou a responder.
-    """
+    """Recupera a sessão quando a aba caiu em /acesso-negado."""
     for n in range(1, tentativas + 1):
         try:
             logger.warning('[MANDADOS_API][SESSAO] Aba inválida (%s) — tentativa %d/%d de recuperar',
@@ -241,7 +215,6 @@ def _recuperar_sessao(driver, tentativas=1):
 
         url_atual = (getattr(driver, 'current_url', '') or '').lower()
 
-        # 1. Recarregar a página (somente se não estiver em acesso-negado ou login, pois refresh aí só recarrega erro)
         if 'acesso-negado' not in url_atual and 'login' not in url_atual:
             try:
                 driver.refresh()
@@ -252,7 +225,6 @@ def _recuperar_sessao(driver, tentativas=1):
                 logger.info('[MANDADOS_API][SESSAO] Recuperado com refresh')
                 return True
 
-        # 2. Cookies salvos (login automático sem interação)
         try:
             from Fix.sessao import carregar_cookies_sessao
             if carregar_cookies_sessao(driver):
@@ -262,7 +234,6 @@ def _recuperar_sessao(driver, tentativas=1):
         except Exception as e:
             logger.warning('[MANDADOS_API][SESSAO] Cookies falharam: %s', str(e)[:80])
 
-        # 3. Navegar ao painel para tentar revalidar o OAuth
         try:
             driver.get('https://pje.trt2.jus.br/pjekz/')
             wait_for_page_load(driver, timeout=15)
@@ -272,7 +243,6 @@ def _recuperar_sessao(driver, tentativas=1):
         except Exception:
             pass
 
-        # 4. Reautenticação via login_cpf (caminho definitivo para acesso-negado / sessão morta)
         try:
             logger.info('[MANDADOS_API][SESSAO] Tentando reautenticação via login_cpf...')
             from Fix.utils import login_cpf
@@ -292,11 +262,7 @@ def _recuperar_sessao(driver, tentativas=1):
 
 
 def _garantir_processo_aberto(driver, detalhe_url, num=''):
-    """Abre `detalhe_url` e garante que a aba está mesmo no processo.
-
-    Abre, confere a URL e, se caiu em acesso-negado/login, tenta recuperar a
-    sessão e reabre. Devolve True só quando a aba está num /processo/{id}.
-    """
+    """Abre `detalhe_url` e garante que a aba está mesmo no processo."""
     for tentativa in range(1, 3):
         try:
             driver.get(detalhe_url)
@@ -323,20 +289,17 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
         logger.info('[MANDADOS_API] Nenhum mandado devolvido encontrado')
         return False
 
-    # ABRIR ESCANINHO E FILTRAR (passo 1)
     from Mandado.fluxo_ui import ativar_filtro_mandados_devolvidos
     from Fix.core import wait_for_page_load
-    
+
     url_escaninho = "https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos"
     if "escaninho/documentos-internos" not in driver.current_url:
         driver.get(url_escaninho)
         wait_for_page_load(driver, timeout=15)
-        
+
     ativar_filtro_mandados_devolvidos(driver)
     escaninho_handle = driver.current_window_handle
 
-    # ── Classificar cada item ANTES de abrir qualquer processo, consultando a
-    # timeline real via API (mesmo criterio de _TERMOS_ARGOS/_TERMOS_OUTROS
     # usado depois no DOM). Evita abrir aba so para descobrir "e argos" e pular.
     client = _criar_api_client(driver)
     itens_argos_sigilo = []
@@ -365,33 +328,26 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
 
     logger.info(f'[MANDADOS_API] {len(itens_argos_sigilo)} Argos/Sigilo, {len(itens_certidao)} Certidoes de Oficial, {len(itens_outros)} outros na fila')
 
-    # ════════════════════════════════════════
     # BLOCO 1: ARGOS / SIGILO / DEVOLUCAO DE PESQUISA (primeiro)
-    # ════════════════════════════════════════
     if itens_argos_sigilo:
         logger.info(f'[MANDADOS_API] BLOCO 1: Processando {len(itens_argos_sigilo)} itens Argos/Sigilo...')
         from Fix.variaveis import url_processo_detalhe
         concluidos_antes = get_concluidos('mandado')
         if concluidos_antes:
             logger.info(f'[MANDADOS_API] BLOCO 1: {len(concluidos_antes)} ja concluidos — serao pulados')
-        
+
         for it in itens_argos_sigilo:
             num = it['numero']
             id_p = it['id']
-            
+
             if _should_skip_mandado(num):
                 logger.info(f'[MANDADOS_API][BLOCO1] #{num} ja concluido — pulando')
                 continue
-            
+
             logger.info(f'[MANDADOS_API][BLOCO1] Processando Argos/Sigilo: #{num}')
 
             detalhe_url = url_processo_detalhe(id_p or num)
             try:
-                # Navega na aba do escaninho (sem abrir nova aba).
-                # Isso garante que _aba_original no wrapper pec_idpj seja o escaninho,
-                # e não o processo, evitando que o wrapper feche o escaninho como "extra".
-                # Confere a URL: se a aba caiu em /acesso-negado, recupera a sessão
-                # antes de processar, senão o fluxo roda às cegas e falha lá na frente.
                 if not _garantir_processo_aberto(driver, detalhe_url, num):
                     _fechar_abas_extras(driver, escaninho_handle)
                     try:
@@ -409,46 +365,34 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
             except Exception as e:
                 logger.error(f'[MANDADOS_API][BLOCO1] Erro ao processar Argos #{num}: {e}')
             finally:
-                # Fechar todas as abas extras e retornar ao escaninho.
                 _fechar_abas_extras(driver, escaninho_handle)
-                # Se o escaninho foi fechado pelo wrapper (não deveria ocorrer mais),
-                # navega de volta para garantir estado consistente.
                 try:
                     if driver.current_window_handle != escaninho_handle:
                         driver.switch_to.window(escaninho_handle)
                 except Exception:
                     pass
 
-        # Ao fim do BLOCO 1, a aba está no último processo processado.
-        # Renavegar para o escaninho para restaurar o estado esperado pelo BLOCO 2.
         driver.get(url_escaninho)
         wait_for_page_load(driver, timeout=10)
         ativar_filtro_mandados_devolvidos(driver)
 
-    # ════════════════════════════════════════
-    # BLOCO 2: CERTIDAO DE OFICIAL (segundo)
-    # ════════════════════════════════════════
     for it in itens_certidao:
         num = it['numero']
         id_p = it['id']
-        
+
         if _should_skip_mandado(num):
             logger.info(f'[MANDADOS_API][BLOCO2] #{num} ja concluido — pulando')
             continue
-        
+
         logger.info(f'[MANDADOS_API] Processando Certidao: #{num}')
-        
+
         from Fix.variaveis import url_processo_detalhe
         detalhe_url = url_processo_detalhe(id_p or num)
-        
-        # Abre em nova aba e troca foco
+
         novo_handle = abrir_url_nova_aba(driver, detalhe_url, timeout=10)
-        
+
         try:
             wait_for_page_load(driver, timeout=8)
-            # Sessão caiu (acesso-negado/login)? Recupera antes de qualquer leitura.
-            # Sem esta checagem o fluxo seguia com a aba inválida: a API não achava
-            # o id_processo, caía no fallback DOM e só falhava ~30s depois.
             if _url_invalida(driver):
                 logger.warning('[MANDADOS_API] #%s abriu em %s', num,
                                (getattr(driver, 'current_url', '') or '')[:100])
@@ -467,9 +411,8 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                         pass
                     continue
 
-            # Aguardar timeline renderizar (substitui time.sleep(2) por espera direcionada)
             aguardar_renderizacao_nativa(driver, "li.tl-item-container", timeout=5)
-            
+
             tipo = _selecionar_doc_via_timeline(driver, log=True)
             if tipo == 'outros':
                 tipo_cabecalho = _classificar_tipo_processo_cabecalho(driver, log=True)
@@ -487,11 +430,7 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                         driver.close()
                         driver.switch_to.window(escaninho_handle)
                 else:
-                    # com_texto=True: o ramo NEGATIVO precisa do texto normalizado
-                    # da certidão para executar ato_meios/ato_edital. Isso acontece
-                    # DENTRO de arquivar_mandado_outros_reconhecido, depois da GIGS
                     # xs1 e antes de trocar para a aba do escaninho — ordem
-                    # GIGS xs1 -> ato_meios -> limpeza (ver docstring da função).
                     regra, texto_negativo = fluxo_mandados_outros(driver, log=True, com_texto=True)
                     if regra:
                         if regra == 'positivo':
@@ -513,8 +452,6 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
                         driver.close()
                         driver.switch_to.window(escaninho_handle)
             elif tipo == 'argos':
-                # Divergencia rara entre classificacao previa (API) e DOM: nao descartar,
-                # processar pelo fluxo Argos correto (mesmo tratamento do BLOCO 1).
                 logger.info(f"[MANDADOS_API] #{num}: Tipo na timeline={tipo} (divergiu da classificacao previa). Processando via fluxo Argos.")
                 from Mandado.fluxo_argos import processar_argos
                 result = processar_argos(driver, log=True)
@@ -536,14 +473,11 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
             except Exception:
                 pass
 
-    # 2 - DEPOIS O RESTO
     logger.info(f'[MANDADOS_API] Iniciando processamento do resto ({len(itens_outros)} itens)...')
-    # ── Verificar progresso de execucoes anteriores
     concluidos = get_concluidos('mandado')
     if concluidos:
         logger.info(f'[MANDADOS_API] {len(concluidos)} processo(s) ja concluidos em execucao anterior — serao ignorados')
 
-    # ── should_skip: factory do engine (baseada em progresso unificado)
     should_skip = create_skip_checker('mandado')
 
     def open_item(item):
@@ -628,7 +562,6 @@ def _gigs_sem_prazo_via_js(driver, tamanho_pagina: int = 100) -> list:
 
     dados = resultado.get('data') or []
 
-    # Filtrar somente GIGS com descricao xs (se aplica)
     filtrados = []
     for item in dados:
         tipo = (item.get('tipoAtividade') or {}).get('descricao', '') or (item.get('tipoAtividade') or {}).get('nome', '')
@@ -648,8 +581,6 @@ def testar_api_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> list:
     return resultado
 
 
-# ══════════════════════ 2. TIMELINE / SELECAO DE DOCUMENTO ══════════════════════
-
 _TERMOS_ARGOS = (
     'pesquisa patrimonial', 'argos', 'devolucao de ordem de pesquisa',
     'devolucao de ordem',
@@ -661,11 +592,7 @@ _TERMOS_OUTROS = (
 
 
 def _classificar_tipo_timeline_api(client, id_processo):
-    """Classifica o processo em 'argos'/'outros' consultando a timeline via API,
-    SEM abrir aba/navegador. Usa os mesmos criterios de _selecionar_doc_via_timeline
-    (primeira ocorrencia relevante, timeline vem ordenada do mais recente).
-    Retorna 'argos', 'outros' ou None (nenhum doc relevante / falha na API).
-    """
+    """Classifica o processo em 'argos'/'outros' consultando a timeline via API,"""
     if not id_processo:
         return None
     try:
@@ -688,12 +615,7 @@ def _classificar_tipo_timeline_api(client, id_processo):
 
 
 def _selecionar_doc_via_timeline(driver, log=True):
-    """
-    Localiza e clica na primeira ocorrencia relevante da timeline (mais recente).
-    Usa safe_click_no_scroll (dispatchEvent) — independente de scroll.
-    Retorna 'argos', 'outros' ou None se nenhum doc relevante encontrado.
-    Regras espelham classificarItem() de lista.timeline.js e fluxo_mandado() do LEGADO.
-    """
+    """Localiza e clica na primeira ocorrencia relevante da timeline (mais recente)."""
     links = espera.elementos(driver, 'li.tl-item-container a.tl-documento:not([target="_blank"])', teto=2)
     for link in links:
         norm = normalizar_texto(link.text or '')
@@ -719,14 +641,7 @@ def _selecionar_doc_via_timeline(driver, log=True):
 
 
 def _classificar_tipo_processo_cabecalho(driver: Any, log: bool = True):
-    """Le o span 'align-end' do cabecalho do processo (pje-cabecalho-processo
-    > pje-descricao-processo) e retorna seu texto (ex.: 'CartPrecCiv',
-    'ATOrd') — mesmo seletor ja usado em f.py/bianca/dom_engine.py para
-    extrair o tipo do processo. Usado aqui para decidir Fluxo CP vs fluxo
-    geral de Outros.
-
-    Retorna o texto (trim) ou None se o cabecalho/span nao for encontrado.
-    """
+    """Le o span 'align-end' do cabecalho do processo (pje-cabecalho-processo"""
     try:
         spans = espera.elementos(driver, 'pje-cabecalho-processo pje-descricao-processo span.align-end', teto=2)
         for span in spans:
@@ -739,8 +654,6 @@ def _classificar_tipo_processo_cabecalho(driver: Any, log: bool = True):
             logger.warning(f'[MANDADOS_API] Falha ao ler cabecalho do processo: {e}')
         return None
 
-
-# ══════════════════════ 3. DETAIL PROCESSING ══════════════════════
 
 def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None, escaninho_handle=None):
     """Navega para /processo/{id}/detalhe/ na aba atual, processa mandado e fecha abas extras."""
@@ -763,7 +676,6 @@ def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None, es
 
         tipo = _selecionar_doc_via_timeline(driver, log=True)
 
-        # ── Despacho para Ramos ──
         if tipo == 'argos':
             logger.info(f"[MANDADOS_API] {id_processo or numero_processo} -> Argos (via timeline)")
             from Mandado.fluxo_argos import processar_argos
@@ -810,8 +722,6 @@ def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None, es
         _fechar_abas_extras(driver, handle_principal)
 
 
-# ══════════════════════ 4. UTILS / COMPATIBILIDADE ══════════════════════
-
 def retirar_sigilo_demais_documentos_especificos(driver, documentos_sequenciais, log=True):
     """COMPATIBILIDADE: Chama retirar_sigilo_fluxo_argos e retorna lista de demais documentos."""
     resultado = retirar_sigilo_fluxo_argos(driver, documentos_sequenciais, log)
@@ -819,13 +729,7 @@ def retirar_sigilo_demais_documentos_especificos(driver, documentos_sequenciais,
 
 
 def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=True):
-    """
-     FUNCAO EFICIENTE - Remove sigilo APENAS dos documentos especificos fornecidos:
-    Os documentos_sequenciais ja vem filtrados da buscar_documentos_sequenciais()
-    MAXIMO 5 documentos: 1 certidao devolucao, 1 certidao expedicao, 1 intimacao, 1 decisao, 1 planilha
-
-    NADA MAIS que isso - SEM VARRER TIMELINE INTEIRA!
-    """
+    """FUNCAO EFICIENTE - Remove sigilo APENAS dos documentos especificos fornecidos:"""
     if not documentos_sequenciais:
         return []
 
@@ -864,17 +768,13 @@ def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=Tr
                 'erro': str(e)
             })
 
-    #  RELATORIO FINAL
     if log:
 
         for doc in documentos_processados:
             status_icon = "" if doc['status'] == 'sucesso' else "" if doc['status'] == 'erro' else ""
 
-
     return documentos_processados
 
-
-# ══════════════════════ 5. FECHAMENTO DE INTIMACAO ══════════════════════
 
 def _selecionar_checkbox_intimacao(driver: Any, linha: Any, log: bool = True) -> bool:
     """Marca o checkbox da linha alvo usando poucas tentativas eficientes."""
@@ -922,15 +822,7 @@ def _selecionar_checkbox_intimacao(driver: Any, linha: Any, log: bool = True) ->
 
 
 def _expediente_prazo30_aberto(driver, log: bool = True):
-    """Consulta a API de expedientes e diz se há intimação de prazo 30 em aberto.
-
-    Espelha exatamente a regra que o DOM usava (coluna 8 == '30' e coluna 10 !=
-    'sim'), só que lida do JSON: prazoLegal == 30 e fechado == False.
-
-    Devolve True / False quando a API respondeu, ou None quando não foi possível
-    consultar — nesse caso o chamador segue pelo caminho antigo (abrir a dialog).
-    Nada aqui depende de DOM, então roda antes de qualquer clique.
-    """
+    """Consulta a API de expedientes e diz se há intimação de prazo 30 em aberto."""
     id_processo = None
     try:
         m = re.search(r'/processo/(\d+)', getattr(driver, 'current_url', '') or '')
@@ -985,15 +877,12 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
     """Fecha a intimacao do processo."""
     logger.info('[INTIMACAO] === INICIO ===')
     try:
-        # 0. Atalho por API: só abre a dialog se houver prazo 30 em aberto.
         # A consulta não usa DOM, então evita o trecho mais frágil da função
-        # (abrir modal, esperar tabela popular, ler colunas por índice).
         tem_30 = _expediente_prazo30_aberto(driver, log=log)
         if tem_30 is False:
             logger.info('[INTIMACAO] [0] Nenhuma intimação de prazo 30 em aberto (API) — nada a fazer')
             return True
 
-        # 1. Abrir menu
         logger.info('[INTIMACAO] [1] Tentando abrir menu #botao-menu...')
         try:
             btn_menu = espera.elemento(driver, '#botao-menu', teto=2, visivel=False)
@@ -1005,7 +894,6 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
             return False
         logger.info('[INTIMACAO] [1]  Menu aberto')
 
-        # 2. Clicar Expedientes
         logger.info('[INTIMACAO] [2] Tentando clicar Expedientes...')
         try:
             btn_exp = espera.elemento(driver, 'button[aria-label="Expedientes"]', teto=3, visivel=False)
@@ -1018,15 +906,10 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
             return False
         logger.info('[INTIMACAO] [2]  Botao Expedientes clicado')
 
-        # 3. Aguardar modal
         logger.info('[INTIMACAO] [3] Aguardando modal abrir...')
         espera.elemento(driver, 'tbody tr', teto=5, visivel=False)
-        # O primeiro <tr> aparece antes de a tabela popular: sem esta pausa o
-        # passo [4] lia só parte das linhas (4 de 10 no log de 23/10) e nenhuma
-        # delas casava com prazo 30, embora a intimação estivesse aberta.
         espera.assentar(driver, 1, motivo='[INTIMACAO] tabela de expedientes popular')
 
-        # 4. Buscar linha prazo 30
         logger.info('[INTIMACAO] [4] Buscando linhas com prazo 30...')
         rows = espera.elementos(driver, 'tbody tr', teto=2)
         logger.info(f'[INTIMACAO] [4] Total de linhas encontradas: {len(rows)}')
@@ -1058,7 +941,6 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
             espera.ate_js(driver, "document.readyState === 'complete'", teto=2)
             return True
 
-        # 5. Clicar checkbox
         logger.info('[INTIMACAO] [5] Tentando marcar checkbox...')
         if not _selecionar_checkbox_intimacao(driver, linha_prazo_30, log=log):
             logger.info('[INTIMACAO] [5]  FALHOU: Nao conseguiu marcar checkbox')
@@ -1067,7 +949,6 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
             return False
         logger.info('[INTIMACAO] [5]  Checkbox marcado')
 
-        # 6. Clicar Fechar Expedientes
         logger.info('[INTIMACAO] [6] Tentando clicar Fechar Expedientes...')
         if not aguardar_e_clicar(driver, 'button[aria-label="Fechar Expedientes"]', timeout=5):
             logger.info('[INTIMACAO] [6]  FALHOU: Nao conseguiu clicar Fechar Expedientes')
@@ -1076,7 +957,6 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
         logger.info('[INTIMACAO] [6]  Botao Fechar Expedientes clicado')
         aguardar_renderizacao_nativa(driver, '.cdk-overlay-container mat-dialog-container', modo='aparecer', timeout=5)
 
-        # 7. Confirmar no botao do dialogo usando JS direto e sem loop custoso
         logger.info('[INTIMACAO] [7] Confirmando fechamento...')
         btn_sim = None
         try:
@@ -1089,7 +969,6 @@ def fechar_intimacao(driver: Any, log: bool = True) -> bool:
             logger.info('[INTIMACAO] [7]  FALHOU: botao Sim nao encontrado rapidamente')
             return False
 
-        # Aguardar timeline pronta apos fechamento (sem sleep fixo e sem snackbar)
         logger.info('[INTIMACAO] [8] Aguardando timeline estabilizar...')
         espera.elemento(driver, 'li.tl-item-container', teto=3, visivel=False)
 

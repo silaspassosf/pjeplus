@@ -1,16 +1,5 @@
-"""Mandado - Processamento de Anexos Argos
+"""Mandado - Processamento de Anexos Argos"""
 
-Lógica consolidada de:
-  - Processamento de anexos sigilosos (infojud, doi, irpf, etc.)
-  - Análise SISBAJUD a partir do PDF da certidão de devolução
-  - Aplicação de visibilidade e sigilo de documentos
-
-Entrypoints públicos:
-  - tratar_anexos_argos(): ETAPA 2 do fluxo Argos
-  - processar_sisbajud(): ETAPA 3 do fluxo Argos
-"""
-
-# ══════════════════════ Imports ══════════════════════
 import re
 import time
 from typing import Optional, Dict, List, Any
@@ -22,8 +11,6 @@ from Fix.utils_observer import aguardar_renderizacao_nativa
 from Fix.core import safe_click_no_scroll
 from Fix import espera
 
-
-# ══════════════════════ Constantes ══════════════════════
 
 _SIGILO_TYPES = [
     "infojud", "doi", "irpf", "ir2022", "ir2023", "ir2024", "ir2025", "ir2026",
@@ -45,8 +32,6 @@ _SELETORES_ANEXOS = {
 }
 
 
-# ══════════════════════ Funções Privadas ══════════════════════
-
 def _identificar_tipo_anexo(texto: str) -> Optional[str]:
     """Identifica tipo de anexo especial."""
     texto_lower = texto.strip().lower()
@@ -56,12 +41,11 @@ def _identificar_tipo_anexo(texto: str) -> Optional[str]:
                 return tipo
         elif tipo in texto_lower:
             return tipo
-    
-    # Fallback para IR_* ou qualquer IR seguido por número (ex: ir_2023, ir_24, ir-25)
+
     ir_match = re.search(r"\bir[_\s-]*\d+", texto_lower)
     if ir_match:
         return ir_match.group(0)
-        
+
     return None
 
 
@@ -92,24 +76,15 @@ def _extrair_executados_pdf(texto_documento: str) -> List[Dict[str, str]]:
     return executados
 
 
-# ══════════════════════ Funções Públicas ══════════════════════
-
 def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list]:
-    """
-    ANÁLISE SISBAJUD: Sempre processa usando o texto extraído (texto_pdf).
-
-    Não busca SISBAJUD em anexos, apenas analisa o texto recebido.
-    """
+    """ANÁLISE SISBAJUD: Sempre processa usando o texto extraído (texto_pdf)."""
     import unicodedata
 
-    # ── Normalização robusta: remover acentos, colapsar whitespace ──
     texto_normalizado = unicodedata.normalize('NFD', texto_pdf)
     texto_normalizado = ''.join(c for c in texto_normalizado if unicodedata.category(c) != 'Mn')
     texto_normalizado = texto_normalizado.lower()
-    # Colapsar espaços/quebras repetidas em espaço único
     texto_colapsado = ' '.join(texto_normalizado.split())
 
-    # Buscar marcador no texto colapsado (tolera quebra de linha entre palavras)
     if 'determinacoes normativas e legais' not in texto_colapsado:
         if log:
             from Fix.log import logger as _logger
@@ -117,18 +92,14 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
             _logger.info('[SISBAJUD][DEBUG] Marcador nao encontrado. Texto normalizado (primeiros 500 chars):\n%s', amostra)
         raise ValueError('[SISBAJUD][ERRO] Marcador "determinações normativas e legais" não encontrado no texto')
 
-    # Reconstruir lines e localizar det_idx com versão normalizada de cada linha
     lines = texto_pdf.splitlines()
     det_idx = -1
     for idx, line in enumerate(lines):
-        # Normalizar linha: remover acentos, lowercase
         nl = unicodedata.normalize('NFD', line)
         nl = ''.join(c for c in nl if unicodedata.category(c) != 'Mn').lower()
-        # Buscar parte do marcador na linha
         if 'determinacoes' in nl or 'normativas e legais' in nl:
             det_idx = idx
             break
-    # Fallback: buscar marcador quebrado entre duas linhas consecutivas
     if det_idx == -1:
         for idx in range(len(lines) - 1):
             nl1 = unicodedata.normalize('NFD', lines[idx])
@@ -137,7 +108,7 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
             nl2 = ''.join(c for c in nl2 if unicodedata.category(c) != 'Mn').lower()
             combinado = (nl1.rstrip() + ' ' + nl2.lstrip())
             if 'determinacoes normativas e legais' in combinado:
-                det_idx = idx  # primeira linha do par
+                det_idx = idx
                 break
 
     executados = _extrair_executados_pdf(texto_pdf)
@@ -154,16 +125,22 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
     if bloqueio_idx == -1:
         return 'negativo', 'Bloqueio de valores não encontrado, sem SISBAJUD', executados
 
-    # Analisar janela da seção Bloqueio de Valores (até 25 linhas após bloqueio_idx)
     max_linhas = min(len(lines), bloqueio_idx + 25)
     secao_linhas = []
     for idx_l in range(bloqueio_idx, max_linhas):
         l_txt = lines[idx_l].strip().lower()
         if not l_txt:
             continue
-        # Se entrar na próxima seção da certidão, encerra a leitura
-        if idx_l > bloqueio_idx and any(sec in l_txt for sec in [
-            'pesquisa de bens', 'renajud', 'infojud', 'certifico finalmente', 'conclusao', 'registro de veiculos'
+        l_norm = ''.join(
+            c for c in unicodedata.normalize('NFD', l_txt)
+            if unicodedata.category(c) != 'Mn'
+        )
+        # para não contaminar o veredito do SISBAJUD com "positivo.pdf" de outros convênios.
+        if idx_l > bloqueio_idx and any(sec in l_norm for sec in [
+            'pesquisa de bens', 'pesquisa patrimonial', 'restricao e indisponibilidade',
+            'renajud', 'infojud', 'cnib', 'serasajud', 'arisp', 'sniper',
+            'anexos', 'observacoes', 'documento assinado',
+            'certifico finalmente', 'conclusao', 'registro de veiculos',
         ]):
             break
         secao_linhas.append(l_txt)
@@ -172,7 +149,6 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
     logger.info('[SISBAJUD][SECAO] det_idx=%s bloqueio_idx=%s linhas=%d texto=%r',
                 det_idx, bloqueio_idx, len(secao_linhas), texto_secao[:500])
 
-    # 1. Checar se há valores em R$ bloqueados maiores que zero
     valores_encontrados = []
     for match in re.finditer(r'r\$\s*([\d.,]+)', texto_secao):
         valor_str = match.group(1).replace('.', '').replace(',', '.')
@@ -186,48 +162,47 @@ def processar_sisbajud(texto_pdf: str, log: bool = True) -> tuple[str, str, list
     if maior_valor > 0:
         return 'positivo', f'SISBAJUD com valor positivo: R$ {maior_valor:.2f}', executados
 
-    # 2. Checar menções a positivo/negativo na seção (positivo tem precedência sobre negativo)
-    tem_positivo = any('positivo' in l for l in secao_linhas)
-    tem_negativo = any('negativo' in l for l in secao_linhas)
-
-    if tem_positivo:
+    # 2. Veredito declarado pelo próprio SISBAJUD na seção (ex.: "sisbajud negativo")
+    compacto_secao = re.sub(r'\s+', '', texto_secao)
+    if 'sisbajudnegativo' in compacto_secao:
+        return 'negativo', 'SISBAJUD Negativo na seção Bloqueio de valores', executados
+    if 'sisbajudpositivo' in compacto_secao:
         return 'positivo', 'SISBAJUD Positivo na seção Bloqueio de valores', executados
+
+    tem_negativo = any('negativo' in l for l in secao_linhas)
+    tem_positivo = any('positivo' in l for l in secao_linhas)
 
     if tem_negativo:
         return 'negativo', 'SISBAJUD Negativo na seção Bloqueio de valores', executados
 
+    if tem_positivo:
+        return 'positivo', 'SISBAJUD Positivo na seção Bloqueio de valores', executados
+
     return 'negativo', 'SISBAJUD não encontrado na seção Bloqueio de valores', executados
 
 
-def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: bool = True) -> Optional[Dict]:
-    """
-    ETAPA 2 DO FLUXO ARGOS - Processar anexos sigilosos e extrair SISBAJUD
-
-    Sequência correta conforme m1.py:
-    1. Abrir anexos
-    2. Processar sigilo + visibilidade da lista infojud, doi, irpf, etc.
-    3. Extrair SISBAJUD
-    4. Aplicar regras adicionais
-    """
+def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: bool = True, escopo_doc: bool = False) -> Optional[Dict]:
+    """ETAPA 2 DO FLUXO ARGOS - Processar anexos sigilosos e extrair SISBAJUD"""
     if not documentos_sequenciais:
         if log:
             logger.info('[ARGOS][ANEXOS][ERRO] Nenhum documento sequencial fornecido')
         return None
 
-    # ABRIR ANEXOS (JavaScript direto - ignora overlay de DOM) conforme legado
+    from atos.anexos_sigilo import aguardar_visibilidade_concluida
+    if not aguardar_visibilidade_concluida(driver, timeout=25.0, estabilidade=0.4, log=log):
+        if log:
+            logger.warning('[ARGOS][ANEXOS] Dialog/overlay de visibilidade anterior ainda aberto na entrada — prosseguindo com cautela')
+
     doc = documentos_sequenciais[0]
-    
-    # Testar vários seletores para encontrar o botão de anexos e logar qual funcionou
+
     seletores_teste = [
         'button.botao-anexos'
     ]
-    
+
     btn_anexos_encontrado = None
     for sel in seletores_teste:
         try:
             # A ETAPA 1.5 (sigilo) pode deixar a timeline re-renderizando; com
-            # teto=0.5 o botão era perdido em metade dos processos — no log de
-            # 23/10 o mesmo seletor funcionou num processo e falhou no seguinte.
             elementos = espera.elementos(doc, sel, teto=3)
             if elementos:
                 btn_anexos_encontrado = elementos[0]
@@ -236,7 +211,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
                 break
         except Exception:
             continue
-            
+
     if btn_anexos_encontrado:
         try:
             # JavaScript direto conforme legado (evita abertura de aba e ignora overlays)
@@ -253,7 +228,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             logger.info('[ARGOS][ANEXOS]  Botão de anexos não encontrado com nenhum seletor testado')
         return None
 
-    anexos = espera.elementos(driver, _SELETORES_ANEXOS['anexos'], teto=2)
+    anexos = espera.elementos(doc if escopo_doc else driver, _SELETORES_ANEXOS['anexos'], teto=2)
     tem_anexos = len(anexos) > 0
 
     if not anexos:
@@ -268,7 +243,6 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
     executados = []
     resultado_sisbajud = None
 
-    # === ATIVAR MÚLTIPLA SELEÇÃO (antes de qualquer ação nos anexos) ===
     if log:
         logger.info('[ARGOS][ANEXOS] Ativando múltipla seleção...')
     try:
@@ -310,7 +284,6 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             if not tipo:
                 continue
 
-            # Garante que chaves dinâmicas (como IR_*) existam nos dicionários de controle
             if tipo not in found_sigilo:
                 found_sigilo[tipo] = False
             if tipo not in sigilo_anexos:
@@ -331,9 +304,6 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
                 if log:
                     logger.info(f'[ARGOS][ANEXOS]  [OK] Sigilo mantido/detectado: {tipo.upper()}')
 
-            # Selecionar checkbox do anexo (código pré-limpeza do dia 29)
-            # A seleção do checkbox DEVE preceder a visibilidade para que os documentos
-            # fiquem marcados na timeline.
             try:
                 inp_cb = espera.elemento(anexo, 'mat-checkbox input[type="checkbox"]', teto=0.4)
                 ja_marcado = False
@@ -357,7 +327,6 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             except Exception:
                 pass
 
-    # Disparar visibilidade se algum anexo especial foi processado (com sucesso OU falha)
     # Falha pode indicar que sigilo já estava presente mas não foi detectado
     tem_especiais = any(found_sigilo.values())
     if anexos_com_sigilo or tem_especiais:
@@ -368,7 +337,6 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             else:
                 logger.info('[ARGOS][ANEXOS] Anexos especiais encontrados (sigilo já presente) — aplicando visibilidade')
 
-        # === FASE 2: APLICAR VISIBILIDADE EM LOTE (checkboxes já selecionados na FASE 1) ===
         if log:
             logger.info('[ARGOS][ANEXOS] === FASE 2: APLICAR VISIBILIDADE EM LOTE ===')
 
@@ -399,6 +367,16 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
     else:
         if log:
             logger.info('[ARGOS][ANEXOS] Nenhum anexo especial encontrado.')
+        try:
+            sel_ocultar = 'button[aria-label="Ocultar múltipla seleção."]'
+            btn_ocultar = espera.elemento(driver, sel_ocultar, teto=1.0)
+            if btn_ocultar:
+                safe_click_no_scroll(driver, btn_ocultar)
+                espera.ate_sumir(driver, sel_ocultar, teto=5)
+        except Exception:
+            pass
+
+    aguardar_visibilidade_concluida(driver, timeout=25.0, estabilidade=0.4, log=log)
 
     return ResultadoExecucao(
         sucesso=True,

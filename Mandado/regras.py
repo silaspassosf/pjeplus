@@ -1,26 +1,9 @@
 import logging
 logger = logging.getLogger(__name__)
 
-# m1.py
-# Fluxo automatizado de mandados PJe TRT2
-###DIRETRIZES MÁXIMAS INEGOCIÁVEIS
-# Priorizar edições apenas no código selecionado ou referenciado  
-# Sempre validar se as alterações propostas estão estritamente alinhadas com o prompt do usuário.  
-# Evitar modificações em arquivos não explicitamente mencionados.  
-# Respeitar convenções de estilo definidas no projeto (ex: indentação com tabs, aspas duplas).  
-# Workspace preference: NÃO altere, traduza ou reescreva NENHUMA linha do código, exceto exatamente o trecho solicitado.
-# NÃO traduza palavras-chave, nomes de variáveis, comentários, strings, nem nada do código.
-# NÃO faça ajustes automáticos, refatorações, nem ‘melhorias’ não solicitadas.
-# Se precisar editar, use sempre o padrão # ...existing code... para indicar partes não alteradas. 
-# As edições devem ser ESPECIFICAMENTE sobre erros de log ou pedidos EXPLICITOS do usuario, nada alem disso.
-# tenha em mente que descumprir essas diretizes estraga o codigo e causa perda de tempo
-# nao é neceasário varrer o codigo todo para cada edição pedida 
-# use a busca de termos para ir diretamente à região correta e edirtar apenas o necessário, para ser mais eficiente
-# ====================================================
-# BLOCO 0 - GERAL
-# ====================================================
+# Evitar modificações em arquivos não explicitamente mencionados.
+# nao é neceasário varrer o codigo todo para cada edição pedida
 
-# 0. Importações Padrão
 import json
 import os
 import re
@@ -31,12 +14,9 @@ from Fix.utils import remover_acentos, normalizar_texto
 from datetime import datetime
 from typing import Dict, List, Any, Callable, Optional
 
-# ===== IMPORTS PESADOS REMOVIDOS (LAZY LOADING) =====
-# Movidos para cache sob demanda para carregamento 8-10x mais rápido
 
 from core.rule_registry import RuleRegistry
 
-# Módulos Locais (mantidos leves)
 from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
 from Fix.core import preencher_campo, aguardar_renderizacao_nativa
 from Fix.extracao import salvar_destinatarios_cache
@@ -59,7 +39,6 @@ from .apoio_fluxos import (
     mov_arquivar,
     ato_meiosub,
 )
-
 
 
 def _normalizar_texto_match(valor: str) -> str:
@@ -102,11 +81,7 @@ def _carregar_reus_dadosatuais(debug: bool = False) -> List[Dict[str, str]]:
 
 
 def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -> List[Dict[str, str]]:
-    """
-    Identifica destinatários da decisão IDPJ cruzando nomes no texto com dadosatuais.json.
-
-    Retorna lista no formato esperado por salvar_destinatarios_cache.
-    """
+    """Identifica destinatários da decisão IDPJ cruzando nomes no texto com dadosatuais.json."""
     if not texto_documento:
         return []
 
@@ -115,12 +90,9 @@ def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -
     if not reus:
         return []
 
-    # 1) Contexto focal da decisão IDPJ: priorizar parágrafo de providências
-    # Ex.: "Providencie a Secretaria da Vara retificação da autuação...".
     # Isso evita detectar nomes que aparecem no cabeçalho do documento.
     contexto_focal = ''
 
-    # Prioridade: parágrafo que inicia com "Providencie a Secretaria" (ou variações)
     try:
         m2 = re.search(r'providencie a secretaria.*?(?:\n\s*\n|$)', texto_norm, flags=re.IGNORECASE | re.DOTALL)
         if m2:
@@ -128,7 +100,6 @@ def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -
     except Exception:
         contexto_focal = ''
 
-    # Se não encontrou o parágrafo de providências, tenta padrões clássicos de inclusão
     if not contexto_focal:
         padroes_focais = [
             r'incluir os socios .*? no polo passivo',
@@ -172,7 +143,6 @@ def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -
             })
             nomes_match.append(nome)
 
-    # 2) Fallback: se o contexto focal não capturar destinatários, usa texto completo
     if not destinatarios and contexto_focal:
         for reu in reus:
             nome = reu.get('nome', '')
@@ -200,9 +170,6 @@ def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -
 
     return destinatarios
 
-# =========================
-# ESTRATEGIAS_ARGOS - Strategy Pattern for Argos document relevance
-# =========================
 def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Regra IDPJ por decisão; SISBAJUD afeta apenas lembrete."""
     txt_lower = texto_documento.lower() if texto_documento else ''
@@ -210,8 +177,7 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
     if 'decisao' not in tipo_norm:
         return False
     normalized = normalizar_texto(texto_documento) if texto_documento else ''
-    
-    # Lista expandida de palavras-chave para detectar IDPJ
+
     palavras_idpj = [
         'defiro a instauração',
         'defiro a instauracao',
@@ -231,7 +197,7 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
         'sócio retirante',
         'socio retirante'
     ]
-    
+
     idpj_detectado = False
     palavra_encontrada = None
     for palavra in palavras_idpj:
@@ -239,7 +205,7 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
             idpj_detectado = True
             palavra_encontrada = palavra
             break
-    
+
     if idpj_detectado:
         def _persistir_destinatarios_idpj() -> None:
             """Persiste destinatários apenas quando a regra IDPJ for efetivamente aplicada."""
@@ -260,11 +226,14 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
 
         _persistir_destinatarios_idpj()
 
+        try:
+            from atos.anexos_sigilo import aguardar_visibilidade_concluida
+            aguardar_visibilidade_concluida(driver, timeout=20.0, estabilidade=0.4, log=True)
+        except Exception as e_vis:
+            logger.warning(f'[ARGOS][IDPJ] barreira pre-GIGS visibilidade: {type(e_vis).__name__}: {e_vis}')
+
         # Sequência obrigatória no fluxo IDPJ:
         #   1) GIGS de bloqueio (se SISBAJUD positivo ou valores bloqueados na decisão):
-        #      apenas observação "processar após IDPJ", sem prazo ou responsável.
-        #   2) GIGS xs carta — criar_gigs aguarda "Atividade salva com sucesso"
-        #   3) pec_idpj — com gigs_extra=False para NÃO recriar o GIGS
         tem_bloqueio_decisao = any(termo in texto_documento.lower() for termo in [
             'valores bloqueados', 'bloqueio positivo', 'bloqueio de valores positivo', 'saldo bloqueado'
         ])
@@ -290,14 +259,12 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
         elif debug:
             logger.info('[ARGOS][REGRAS] SISBAJUD não positivo: sem GIGS de bloqueio, seguindo com GIGS xs carta e pec_idpj')
 
-        # BARREIRA 1: formulário do GIGS e overlays precisam ter sumido antes do próximo GIGS.
         try:
             espera.ate_sumir(driver, 'textarea[formcontrolname="observacao"]', teto=4)
             espera.ate_sumir(driver, '.cdk-overlay-backdrop-showing', teto=4)
         except Exception as e:
             logger.warning(f'[ARGOS][IDPJ] barreira pos-gigs-bloqueio: {type(e).__name__}: {e}')
 
-        # Passo 2/3: GIGS xs carta — retorno verificado (antes era ignorado) com retry.
         gigs_ok = False
         for tentativa in range(1, 4):
             try:
@@ -312,7 +279,6 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
         if not gigs_ok:
             logger.error('[ARGOS][IDPJ][ERRO] GIGS xs carta nao confirmado apos 3 tentativas — prosseguindo com pec_idpj')
 
-        # BARREIRA 2: formulário do GIGS e overlays precisam ter sumido antes do PEC.
         try:
             espera.ate_sumir(driver, 'textarea[formcontrolname="observacao"]', teto=6)
             aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=5)
@@ -336,6 +302,11 @@ def _executar_ato_seguro(driver: Any, fn_ato: Callable, nome_ato: str, debug: bo
     """Executa ato judicial com medição de tempo e tratamento seguro de exceções."""
     t0 = time.time()
     try:
+        try:
+            from atos.anexos_sigilo import aguardar_visibilidade_concluida
+            aguardar_visibilidade_concluida(driver, timeout=15.0, estabilidade=0.3, log=debug)
+        except Exception:
+            pass
         res = fn_ato(driver, debug=debug)
         duracao = time.time() - t0
         sucesso = False
@@ -433,21 +404,18 @@ def estrategia_infojud(driver, resultado_sisbajud, sigilo_anexos, tipo_documento
     return _executar_ato_seguro(driver, fn_ato, nome_ato, debug=debug)
 
 
-
 def estrategia_decisao_manifestar(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Decisão com 'devendo se manifestar'"""
     tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'decisao' not in tipo_norm:
         return False
 
-    # Triggers que, segundo m1.py, devem acionar checar_prox para avançar ao próximo documento
     trechos_checar_prox = ['devendo se manifestar', 'nada a deferir', 'comunique-se por edital', 'mantenho o despacho']
     for trecho in trechos_checar_prox:
         if texto_documento and trecho in texto_documento.lower():
             if debug:
                 logger.info(f'[ARGOS][REGRAS] Texto "{trecho}" detectado, chamando checar_prox...')
             try:
-                # Seguir o padrão histórico: passar placeholders compatíveis
                 checar_prox(driver, None, None, None, texto_documento)
             except Exception as e:
                 if debug:
@@ -460,11 +428,9 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
     """Decisão com 'tendo em vista que' — analisa número de reclamadas e escolhe ação."""
     tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'decisao' in tipo_norm and texto_documento:
-        # Normalizar texto para detecção robusta (remover acentos)
         txt_lower = texto_documento.lower()
         normalized = unicodedata.normalize('NFD', texto_documento).encode('ascii', 'ignore').decode('ascii').lower()
 
-        # Buscar em ambas as formas (com e sem acento)
         tem_tendo_em_vista = ('tendo em vista que' in txt_lower or
                              'tendo em vista que' in normalized)
 
@@ -473,7 +439,6 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
         if debug:
             logger.info('[ARGOS][REGRAS] Regra decisao+tendo_em_vista reconhecida')
         try:
-            # API direta para contar reclamadas (muito mais leve que extrair_dados_processo)
             from .apoio_fluxos import _extrair_id_processo_da_url, _criar_api_client_local
             id_proc = _extrair_id_processo_da_url(driver)
             num_reclamadas = 0
@@ -490,7 +455,6 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
                 logger.error(f'[ARGOS][REGRAS][ERRO] Falha ao consultar partes via API: {e}')
             num_reclamadas = 0
         if num_reclamadas == 1:
-            # Com uma reclamada, segue lógica semelhante a despacho
             if resultado_sisbajud != 'positivo' and all(v == 'nao' for v in (sigilo_anexos or {}).values()):
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_meios (1 reclamada, SISBAJUD negativo/indefinido, sem sigilo)')
@@ -502,12 +466,8 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
             else:
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_bloq (1 reclamada, SISBAJUD positivo/indefinido)')
-                # O GIGS "BLOQUEIO - processar após IDPJ" NÃO pertence a este caminho:
-                # ele só existe na regra IDPJ (estrategia_defiro_instauracao), junto com
-                # pec_idpj. Aqui basta o ato de bloqueio.
                 return _executar_ato_seguro(driver, ato_bloq, 'ato_bloq', debug=debug)
         else:
-            # Multiplas reclamadas
             if resultado_sisbajud != 'positivo':
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_meiosub (multiplas reclamadas, SISBAJUD negativo/indefinido)')
@@ -515,21 +475,13 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
             else:
                 if debug:
                     logger.info('[ARGOS][REGRAS] Chamando ato_bloq (multiplas reclamadas, SISBAJUD positivo/indefinido)')
-                # O GIGS "BLOQUEIO - processar após IDPJ" NÃO pertence a este caminho:
-                # ele só existe na regra IDPJ (estrategia_defiro_instauracao), junto com
-                # pec_idpj. Aqui basta o ato de bloqueio.
                 return _executar_ato_seguro(driver, ato_bloq, 'ato_bloq', debug=debug)
         return False
     return False
 
 
-# Adicione outras estratégias conforme necessário
-
-# ─── Text-pattern registry for argos rules (complementary layer) ─────────────
-
 registry_argos = RuleRegistry("argos", ["tendo_vista", "idpj", "manifestar", "despacho_argos", "infojud"])
 
-# Patterns extracted from strategy functions for centralized text matching
 registry_argos.register(r'defiro a instaura[cç][aã]o|desconsidera[cç][aã]o|idpj|inclua.se no polo passivo|s[óo]cio retirante',
                         'idpj', None)
 registry_argos.register(r'tendo em vista que', 'tendo_vista', None)
@@ -539,12 +491,11 @@ registry_argos.register(r'realize.se a pesquisa infojud|pesquisa infojud|atrav[�
                         'infojud', None)
 
 ESTRATEGIAS_ARGOS = [
-    ("decisao+tendo_em_vista", estrategia_tendo_em_vista_que),  #  PRIMEIRA: Triagem por quantidade de reclamadas
+    ("decisao+tendo_em_vista", estrategia_tendo_em_vista_que),
     ("IDPJ (instauração/855-A/desconsideração)", estrategia_defiro_instauracao),
     ("despacho+argos", estrategia_despacho_argos),
     ("despacho+infojud", estrategia_infojud),
     ("decisao+manifestar", estrategia_decisao_manifestar),
-    # Adicione outras estratégias aqui
 ]
 
 ESTRATEGIAS_ARGOS_DECISAO = [
@@ -567,27 +518,7 @@ def aplicar_regras_argos(
     texto_documento: str,
     debug: bool = False
 ) -> bool:
-    """Aplica regras de negócio via Strategy Pattern.
-    
-    Avalia documento usando múltiplas estratégias em ordem de prioridade,
-    aplicando atos judiciais conforme padrões identificados.
-    
-    Args:
-        driver: conectado ao PJe
-        resultado_sisbajud: Dict com resultado da consulta SISBAJUD
-        sigilo_anexos: Dict com status de sigilo por tipo de anexo
-        tipo_documento: Tipo do documento (despacho, decisão, etc)
-        texto_documento: Texto completo do documento
-        debug: Se True, imprime logs detalhados
-    
-    Returns:
-        True se alguma regra foi aplicada, False caso contrário
-    
-    Examples:
-        >>> resultado = {'tipo': 'positivo'}
-        >>> aplicar_regras_argos(driver, resultado, {}, 'despacho', 'texto', debug=True)
-        True
-    """
+    """Aplica regras de negócio via Strategy Pattern."""
     if not texto_documento:
         return False
 
@@ -598,16 +529,14 @@ def aplicar_regras_argos(
         estrategias_em_uso = ESTRATEGIAS_ARGOS_DESPACHO
     else:
         estrategias_em_uso = ESTRATEGIAS_ARGOS
-    
+
     if debug:
-        # Mostrar trecho extraído para diagnóstico (raw + normalizado sem acentos)
         try:
             raw_snippet = texto_documento[:1200].replace('\n', ' ')
         except Exception:
             raw_snippet = str(texto_documento)[:1200]
         normalized_snippet = remover_acentos(texto_documento)[:1200] if texto_documento else ''
-    
-    # Registry pre-check: text-pattern matching (complementary diagnostic layer)
+
     if texto_documento:
         registry_bucket, _ = registry_argos.match(texto_documento)
         if debug:
@@ -629,7 +558,7 @@ def aplicar_regras_argos(
                     fim_estrategia = time.time()
                     logger.info(f'[ARGOS][REGRAS] Estrategia "{nome_estrategia}" aplicada em {fim_estrategia - inicio_estrategia:.2f}s')
                     logger.info(f'[ARGOS][REGRAS] Tempo total ate aplicar regra: {fim_estrategia - inicio_aplicacao:.2f}s')
-                break  # Interrompe após primeira regra aplicada
+                break
             if debug:
                 fim_estrategia = time.time()
                 logger.info(f'[ARGOS][REGRAS] Estrategia "{nome_estrategia}" sem aplicacao ({fim_estrategia - inicio_estrategia:.2f}s)')
@@ -642,5 +571,4 @@ def aplicar_regras_argos(
         fim_aplicacao = time.time()
         logger.info(f'[ARGOS][REGRAS] Nenhuma regra aplicou ({fim_aplicacao - inicio_aplicacao:.2f}s)')
     return regra_aplicada
-# ...existing code...
 

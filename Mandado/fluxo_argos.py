@@ -1,21 +1,10 @@
-"""Mandado - Fluxo Argos (Pesquisa Patrimonial)
+"""Mandado - Fluxo Argos (Pesquisa Patrimonial)"""
 
-Consolidado de:
-    processamento_argos.py — fluxo principal Argos (etapas 0-5)
-    processamento_anexos.py — tratamento de anexos (sigilo, visibilidade, SISBAJUD)
-
-Entrypoint publico: processar_argos()
-Sequencia obrigatoria: ETAPA 0 (fechar intimacao) -> ETAPA 1 (documentos sequenciais)
-    -> ETAPA 1.5 (sigilo) -> ETAPA 2 (anexos infojud) -> ETAPA 3 (SISBAJUD)
-    -> ETAPA 4 (regras) -> ETAPA 5 (destinatarios)
-"""
-
-# ══════════════════════ Imports ══════════════════════
 import time
 from typing import Any
 
 from Fix.core import buscar_documento_argos, wait_for_page_load
-from Fix.core import buscar_documentos_sequenciais
+from Fix.core import buscar_documentos_sequenciais, _norm
 from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, extrair_direto, salvar_destinatarios_cache, criar_gigs
 from Fix.log import logger
 
@@ -28,44 +17,23 @@ from .apoio_fluxos import retirar_sigilo_fluxo_argos, buscar_documentos_sequenci
 from .entrada_api import fechar_intimacao
 
 
-# ══════════════════════ Imports de anexos (refatorado) ══════════════════════
-
 from .anexos_argos import tratar_anexos_argos, processar_sisbajud
 
 
-# ══════════════════════ 2. Fluxo Principal ARGOS ══════════════════════
-
-
 def processar_argos(driver: Any, log: bool = False) -> bool:
-    """
-    Processa fluxo Argos com sequência rigorosa e validações entre etapas.
-
-    SEQUÊNCIA OBRIGATÓRIA (não pode ser alterada):
-    0. Documentos sequenciais (identificar certidão, ordem de pesquisa, cálculos, intimação, decisão)
-    1. Tirar sigilo da certidão
-    2. Tratar anexos especiais infojud (sigilo+visibilidade)
-    3. SISBAJUD - extrair documento PDF + regras
-    4. Retirar sigilo dos demais documentos sequenciais que forem ainda sigilosos
-
-    Cada etapa deve ser executada completamente antes de passar para a próxima.
-    """
-    # === TIMING: INÍCIO DO PROCESSAMENTO ===
+    """Processa fluxo Argos com sequência rigorosa e validações entre etapas."""
     timing_inicio = time.time()
     logger.info('[ARGOS][TIMING][PROCESAR_ARGOS][INICIO]')
 
     try:
         logger.info('[ARGOS][INICIO] Iniciando processamento do fluxo Argos com sequência rigorosa')
 
-        # ════════════════════════════════════════
-        # === ETAPA 0: FECHAR INTIMAÇÃO ===
         logger.info('[ARGOS][ETAPA 0] Fechando intimação...')
         if not fechar_intimacao(driver, log=log):
             logger.info('[ARGOS][ETAPA 0][ERRO CRÍTICO] Falha ao fechar intimação - ABORTANDO FLUXO')
             return False
         logger.info('[ARGOS][ETAPA 0]  Intimação fechada com sucesso')
 
-        # ════════════════════════════════════════
-        # === ETAPA 1: IDENTIFICAR DOCUMENTOS SEQUENCIAIS ===
         logger.info('[ARGOS][ETAPA 1] Identificando documentos sequenciais (certidão, ordem de pesquisa, cálculos, intimação, decisão)...')
         documentos_sequenciais, uids_sigilosos_hint = buscar_documentos_sequenciais_via_api(driver, log=log)
         if documentos_sequenciais and len(documentos_sequenciais) >= 2:
@@ -78,7 +46,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
             documentos_sequenciais = buscar_documentos_sequenciais(driver, log=log)
             uids_sigilosos_hint = None
         if not documentos_sequenciais:
-            # Retry unico: recarrega o detalhe (timeline pode nao ter renderizado no DOM)
             logger.warning('[ARGOS][ETAPA 1] Timeline nao localizada no DOM — recarregando detalhe e tentando de novo')
             try:
                 driver.get(driver.current_url)
@@ -97,7 +64,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
         else:
             logger.info(f'[ARGOS][ETAPA 1]  Encontrados {len(documentos_sequenciais)} documentos sequenciais')
 
-        # ════════════════════════════════════════
         # === ETAPA 1.5: RETIRAR SIGILO DOS DOCUMENTOS SEQUENCIAIS ===
         if not modo_degradado_dom:
             logger.info('[ARGOS][ETAPA 1.5] Removendo sigilo dos documentos sequenciais (se houver)...')
@@ -107,12 +73,9 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
             else:
                 logger.info('[ARGOS][ETAPA 1.5]  Todos os documentos sequenciais sem sigilo')
 
-        # ════════════════════════════════════════
-        # === ETAPA 1.6: VERIFICAR FASE PARA GIGS (LIQUIDACAO) ===
         logger.info('[ARGOS][ETAPA 1.6] Verificando fase do processo para possivel GIGS...')
         try:
             import re
-            # F4: par canônico (Fix.variaveis) — nada fora de bianca depende de bianca
             from Fix.variaveis import cliente_para, obter_gigs_com_fase
 
             m = re.search(r'processo/(\d+)', driver.current_url)
@@ -122,7 +85,7 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                 client = cliente_para(driver)
                 info_fase = obter_gigs_com_fase(client, id_proc)
                 fase = info_fase.get('fase', '').lower() if info_fase else ''
-                
+
                 if 'liquidacao' in fase or 'liquidação' in fase or 'liquid' in fase:
                     logger.info('[ARGOS][ETAPA 1.6] Fase de liquidacao detectada. Criando GIGS 2 / xs mov exec.')
                     criar_gigs(driver, dias_uteis=2, responsavel='xs mov exec', log=log)
@@ -133,7 +96,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
         except Exception as e:
             logger.info(f'[ARGOS][ETAPA 1.6] Erro ao verificar fase para GIGS: {e}')
 
-        # ════════════════════════════════════════
         # === ETAPA 2: TRATAR ANEXOS ESPECIAIS INFOJUD (SIGILO + VISIBILIDADE) ===
         logger.info('[ARGOS][ETAPA 2] Tratando anexos especiais infojud (sigilo + visibilidade)...')
         if modo_degradado_dom:
@@ -151,20 +113,32 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
             else:
                 logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
 
-        # Garantir término completo da visibilidade e ausência de modal/spinner antes de prosseguir
-        # pje-dialogo-status-progresso é o "Aguarde" do PJe: sem ele nesta lista
-        # a espera não enxergava o spinner que a visibilidade em lote detecta
-        # (atos/anexos_sigilo.py:230 usa exatamente esse seletor) e o SISBAJUD
-        # começava com a atribuição de visibilidade ainda em curso.
-        from Fix import espera
-        espera.ate_sumir(
-            driver,
-            'pje-dialogo-status-progresso, mat-dialog-container, mat-progress-spinner, '
-            'mat-spinner, mat-progress-bar, .loading-spinner, .loading-overlay',
-            teto=10
-        )
+        from atos.anexos_sigilo import aguardar_visibilidade_concluida
+        if not aguardar_visibilidade_concluida(driver, timeout=30.0, estabilidade=0.5, log=True):
+            logger.warning('[ARGOS][ETAPA 2] Dialog/overlay de visibilidade ainda aberto após 30s antes da ETAPA 2.1')
 
-        # Extrair dados de anexos para decisão de rota
+        # === ETAPA 2.1: CERTIDÃO DE PESQUISA PATRIMONIAL (ANEXOS SIGILO + VISIBILIDADE) ===
+        # Fica antes da certidão de expedição (normalmente no mesmo dia). Sigilo dela
+        if not modo_degradado_dom:
+            cert_pesquisa = None
+            for d in documentos_sequenciais[1:]:
+                try:
+                    if 'certidao de pesquisa patrimonial' in _norm(d.text):
+                        cert_pesquisa = d
+                        break
+                except Exception:
+                    continue
+            if cert_pesquisa is None:
+                logger.info('[ARGOS][ETAPA 2.1] Sem certidão de pesquisa patrimonial no bloco')
+            else:
+                logger.info('[ARGOS][ETAPA 2.1] Tratando anexos da certidão de pesquisa patrimonial (sigilo + visibilidade)...')
+                try:
+                    tratar_anexos_argos(driver, [cert_pesquisa], log=log, escopo_doc=True)
+                except Exception as e:
+                    logger.warning('[ARGOS][ETAPA 2.1] Falha não crítica: %s', e)
+                if not aguardar_visibilidade_concluida(driver, timeout=30.0, estabilidade=0.5, log=True):
+                    logger.warning('[ARGOS][ETAPA 2.1] Dialog/overlay de visibilidade ainda aberto após 30s antes das ações seguintes')
+
         if modo_degradado_dom:
             pass
         elif hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
@@ -180,21 +154,15 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
             ato_meios(driver, debug=log)
             return True
 
-        # ════════════════════════════════════════
         # === ETAPA 3: ANÁLISE SISBAJUD VIA CERTIDÃO DE DEVOLUÇÃO ===
-        # A certidão de devolução JÁ ESTÁ selecionada na timeline.
-        # Após tratamento de anexos (ETAPA 2), ela continua selecionada.
-        # Estratégia: API com pdfplumber (todas as páginas) → fallback extrair_direto
         logger.info('[ARGOS][ETAPA 3] Lendo certidão de devolução para análise SISBAJUD...')
 
         resultado_sisbajud = None
         executados = []
 
         try:
-            # ── Via API (pdfplumber, todas as páginas) ──
             texto_certidao = _extrair_texto_certidao_via_api(driver, log=log)
             if not texto_certidao:
-                # ── Fallback: extrair_direto (PDF viewer, pode vir só 1 página) ──
                 logger.info('[ARGOS][ETAPA 3] API indisponível — fallback extrair_direto')
                 resultado_extracao = extrair_direto(driver, timeout=10, debug=log, formatar=True)
                 texto_certidao = resultado_extracao.get('conteudo') if resultado_extracao and resultado_extracao.get('sucesso') else None
@@ -209,7 +177,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                         logger.info(f'[ARGOS][ETAPA 3] SISBAJUD NEGATIVO: {motivo}')
                 except ValueError as ve:
                     logger.info('[ARGOS][ETAPA 3] SISBAJUD INDISPONIVEL: %s', ve)
-                    # Logar trecho inicial da certidão para diagnóstico
                     amostra = (texto_certidao or '')[:300]
                     logger.info('[ARGOS][ETAPA 3][DEBUG] Amostra da certidão (primeiros 300 chars):\n%s', amostra)
                     resultado_sisbajud = None
@@ -223,24 +190,16 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
         except Exception as e:
             logger.error('[ARGOS][ETAPA 3] Falha ao extrair certidão: %s', e)
 
-        # ════════════════════════════════════════
-        # === ETAPA 4: BUSCAR E APLICAR REGRAS ARGOS (VIA API — IGUAL P2B) ===
-        # Estratégia primária: extrair documentos despacho/decisão via API
-        # (timeline → PDF → pdfplumber), mesmo approach do extrair_documento_relevante
-        # do P2B. Fallback DOM apenas se API indisponível.
-        # LIMITE: Máximo 3 documentos. Se passar de 3 sem encontrar regra, abortar busca.
-
         timing_etapa4_inicio = time.time()
         logger.info('[ARGOS][TIMING][ETAPA4][INICIO] Iniciando busca e aplicação de regras ARGOS (API)')
 
         documentos_api = _extrair_documentos_decisao_despacho_api(driver, log=log)
 
         regra_aplicada = False
-        max_documentos_testados = 3  # LIMITE: máximo 3 documentos
+        max_documentos_testados = 3
         documentos_testados = 0
 
         if documentos_api:
-            # ── CAMINHO PRINCIPAL: API (igual P2B) ──
             logger.info('[ARGOS][ETAPA 4] Usando extração API (%d documento(s) para testar)', len(documentos_api))
 
             for documento_texto, documento_tipo, documento_idx in documentos_api:
@@ -251,8 +210,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                 logger.info('[ARGOS][ETAPA 4] Testando documento %d/%d (API idx #%d, tipo: %s)...',
                            documentos_testados, max_documentos_testados, documento_idx, documento_tipo)
 
-                # ════════════════════════════════════════
-                # === ETAPA 5: EXTRAIR DESTINATÁRIOS ===
                 try:
                     dados_processo_cache = extrair_dados_processo(driver, debug=log)
                 except Exception:
@@ -278,7 +235,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                 except Exception:
                     pass
 
-                # TENTAR APLICAR REGRAS
                 timing_regras_inicio = time.time()
                 regras_aplicadas = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, documento_tipo, documento_texto, debug=True)
                 timing_regras_fim = time.time()
@@ -295,7 +251,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                         logger.info(f'[ARGOS][ETAPA 4] Limite de documentos ({max_documentos_testados}) atingido. Interrompendo busca por regras.')
                         break
         else:
-            # ── FALLBACK DOM (legado) ──
             logger.info('[ARGOS][ETAPA 4] API indisponível — fallback DOM (buscar_documento_argos)')
 
             documentos_ignorados = []
@@ -321,8 +276,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                 logger.info('[ARGOS][ETAPA 4] Testando documento %d/%d (DOM índice #%d, tipo: %s)...',
                            documentos_testados, max_documentos_testados, documento_idx, documento_tipo)
 
-                # ════════════════════════════════════════
-                # === ETAPA 5: EXTRAIR DESTINATÁRIOS ===
                 try:
                     dados_processo_cache = extrair_dados_processo(driver, debug=log)
                 except Exception:
@@ -348,7 +301,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                 except Exception:
                     pass
 
-                # TENTAR APLICAR REGRAS
                 timing_regras_inicio = time.time()
                 regras_aplicadas = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, documento_tipo, documento_texto, debug=True)
                 timing_regras_fim = time.time()
@@ -367,7 +319,6 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
                         break
                     continue
 
-        # === TIMING: FIM DA ETAPA 4 ===
         timing_etapa4_total = time.time() - timing_etapa4_inicio
         logger.info(f'[ARGOS][TIMING][ETAPA4][TOTAL] {timing_etapa4_total:.3f}s documentos_testados={documentos_testados} regra_aplicada={regra_aplicada}')
 

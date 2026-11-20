@@ -1,17 +1,5 @@
-"""Mandado - Apoio a Fluxos (Outros + Utilitarios)
+"""Mandado - Apoio a Fluxos (Outros + Utilitarios)"""
 
-Consolidado de:
-    processamento_outros.py — ramo Oficial de Justica / Outros
-    utils_sigilo.py — sigilo de certidao e anexos
-    utils_lembrete.py — lembrete de bloqueio
-    atos_wrapper.py — wrappers de atos usados por regras
-
-Entrypoint publico: fluxo_mandados_outros()
-"""
-
-# ════════════════════════════════════════
-# Imports (consolidados dos 4 arquivos)
-# ════════════════════════════════════════
 
 import os
 import re
@@ -53,16 +41,10 @@ from atos import (
 )
 from Fix import espera
 
-# ════════════════════════════════════════
 # 0. Controle de GIGS por processo (evita duplicidade)
-# ════════════════════════════════════════
 
 _GIGS_CRIADO_PARA_PROCESSO: set = set()
 
-
-# ════════════════════════════════════════
-# 1. atos_wrapper.py — re-export de atos/
-# ════════════════════════════════════════
 
 __all__ = [
     'ato_judicial',
@@ -81,17 +63,8 @@ __all__ = [
 ]
 
 
-# ════════════════════════════════════════
-# 2. utils_lembrete.py — lembrete de bloqueio
-# ════════════════════════════════════════
-
 def lembrete_bloq(driver: Any, debug: bool = False) -> bool:
-    """Cria GIGS de bloqueio com apenas observação 'BLOQUEIO - processar após IDPJ' (sem prazo ou responsável).
-
-    USO RESTRITO: só pertence à regra IDPJ (`estrategia_defiro_instauracao`), junto com
-    `pec_idpj`. NÃO chamar em caminho de SISBAJUD positivo genérico — a regra do Silas é
-    que esse GIGS entra apenas pela decisão de IDPJ.
-    """
+    """Cria GIGS de bloqueio com apenas observação 'BLOQUEIO - processar após IDPJ' (sem prazo ou responsável)."""
     try:
         return bool(criar_gigs(driver, '', '', 'BLOQUEIO - processar após IDPJ', log=debug))
     except Exception as e:
@@ -99,28 +72,50 @@ def lembrete_bloq(driver: Any, debug: bool = False) -> bool:
         return False
 
 
-# ════════════════════════════════════════
 # 3. utils_sigilo.py — sigilo de certidao e anexos
-# ════════════════════════════════════════
+
+_SEL_INDICADOR_SIGILO = (
+    'a.tl-documento.is-sigiloso, '
+    'i.tl-sigiloso, i.fa-wpexplorer.tl-sigiloso, '
+    'button[name="Retirar sigilo"], button[aria-label*="Retirar sigilo" i], '
+    'button[mattooltip*="Retirar sigilo" i]'
+)
+
+
+def _elemento_esta_sigiloso(elemento: Any, debug: bool = False) -> bool:
+    """Detecta se um item da timeline ainda está marcado como sigiloso."""
+    if not elemento:
+        return False
+    try:
+        links = espera.elementos(elemento, 'a.tl-documento', teto=0.4)
+        if links:
+            for link in links:
+                classes = (link.get_attribute('class') or '').lower()
+                if debug:
+                    logger.info(f"[SIGILO_DEBUG] Classes link documento: {classes}")
+                if 'is-sigiloso' in classes:
+                    return True
+    except Exception:
+        pass
+
+    try:
+        if hasattr(elemento, '_handle') and hasattr(elemento._handle, 'query_selector'):
+            if elemento._handle.query_selector(_SEL_INDICADOR_SIGILO) is not None:
+                return True
+        elif hasattr(elemento, 'query_selector'):
+            if elemento.query_selector(_SEL_INDICADOR_SIGILO) is not None:
+                return True
+        else:
+            if espera.elementos(elemento, _SEL_INDICADOR_SIGILO, teto=0.25):
+                return True
+    except Exception:
+        pass
+
+    return False
+
 
 def retirar_sigilo(elemento: Any, driver: Optional[Any] = None, debug: bool = False) -> bool:
-    """
-     DIRETO E SIMPLES: Verifica tl-nao-sigiloso (AZUL) antes de qualquer ação.
-
-    Lógica clara:
-    1. Busca botão de sigilo
-    2. Se TEM tl-nao-sigiloso (azul) → retorna True (JÁ SEM SIGILO)
-    3. Se TEM tl-sigiloso (vermelho) → clica para remover
-    4. Caso contrário → retorna True (sem sigilo)
-
-    Args:
-        elemento: Elemento do documento na timeline
-        driver: Instancia do driver
-        debug: Exibir logs detalhados
-
-    Returns:
-        True se sigilo foi removido ou já estava removido, False em erro
-    """
+    """Remove sigilo de um documento na timeline com verificação e retry."""
     if not elemento:
         return False
 
@@ -133,99 +128,99 @@ def retirar_sigilo(elemento: Any, driver: Optional[Any] = None, debug: bool = Fa
         except Exception:
             return False
 
-    def _link_documento() -> Optional[Any]:
-        links = espera.elementos(elemento, 'a.tl-documento', teto=0.5)
-        if not links:
-            return None
-        for link in links:
-            role = (link.get_attribute('role') or '').lower()
-            target = (link.get_attribute('target') or '').lower()
-            if role == 'button' or target != '_blank':
-                return link
-        return links[-1]
-
-    def _tem_sigilo_link() -> bool:
-        link = _link_documento()
-        if not link:
-            return False
-        classes = (link.get_attribute('class') or '').lower()
-        if debug:
-            logger.info(f"[SIGILO_DEBUG] Classes link documento: {classes}")
-        return 'is-sigiloso' in classes
+    try:
+        resumo_doc = ((getattr(elemento, 'text', '') or '').strip().splitlines() or [''])[0][:80]
+    except Exception:
+        resumo_doc = ''
 
     try:
-        if not _tem_sigilo_link():
+        if not _elemento_esta_sigiloso(elemento, debug=debug):
             if debug:
-                logger.info('[SIGILO_DEBUG] Link sem is-sigiloso → JÁ SEM SIGILO')
+                logger.info('[SIGILO_DEBUG] Documento sem sigilo → JÁ SEM SIGILO (%s)', resumo_doc)
             return True
 
-        btn_sigilo = None
         seletores = [
-            # LEGADO.md ~45110: o ícone de sigilo é `i.fa-wpexplorer`.
-            'button[name="Inserir sigilo"]',
+            'button[name="Retirar sigilo"]',
+            'button[aria-label*="Retirar sigilo" i]',
+            'button[mattooltip*="Retirar sigilo" i]',
             'pje-doc-sigiloso button',
             'pje-doc-sigiloso span button',
-            'button i.fa-wpexplorer',
             'i.fa-wpexplorer.tl-sigiloso',
+            'button i.fa-wpexplorer',
             'i.fa-wpexplorer',
+            'button[name="Inserir sigilo"]',
         ]
-        for seletor in seletores:
-            try:
-                candidato = espera.elemento(elemento, seletor, teto=0.5)
-                if candidato and getattr(candidato, 'is_displayed', lambda: True)():
-                    btn_sigilo = candidato
-                    break
-            except Exception:
+
+        def _buscar_btn() -> Optional[Any]:
+            for seletor in seletores:
+                try:
+                    candidato = espera.elemento(elemento, seletor, teto=0.4)
+                    if candidato and getattr(candidato, 'is_displayed', lambda: True)():
+                        return candidato
+                except Exception:
+                    continue
+            return None
+
+        for tentativa in range(1, 3):
+            btn_sigilo = _buscar_btn()
+            if not btn_sigilo:
+                if not _elemento_esta_sigiloso(elemento, debug=debug):
+                    return True
+                logger.warning(
+                    '[SIGILO] Botão de retirar sigilo não encontrado (tentativa %d/2): %s',
+                    tentativa, resumo_doc,
+                )
+                espera.assentar(driver, 0.3)
                 continue
 
-        if not btn_sigilo:
-            if debug:
-                logger.error('[SIGILO_DEBUG] Botão de sigilo não encontrado com link is-sigiloso ativo')
-            return False
-
-        try:
-            safe_click_no_scroll(driver, btn_sigilo)
-        except Exception:
-            btn_sigilo.click()
-
-        import time
-        for _ in range(8):
-            espera.assentar(driver, 0.25)
             try:
-                if not _tem_sigilo_link():
-                    if debug:
-                        logger.info('[SIGILO_DEBUG] ✅ is-sigiloso removido após clique')
-                    return True
+                if tentativa == 1:
+                    safe_click_no_scroll(driver, btn_sigilo)
+                else:
+                    btn_sigilo.click()
             except Exception:
-                pass
+                try:
+                    if tentativa == 1:
+                        btn_sigilo.click()
+                    else:
+                        safe_click_no_scroll(driver, btn_sigilo)
+                except Exception as e_clk:
+                    logger.warning(
+                        '[SIGILO] Erro ao clicar botão de sigilo (tentativa %d/2) em "%s": %s',
+                        tentativa, resumo_doc, e_clk,
+                    )
 
-        if debug:
-            logger.error('[SIGILO_DEBUG] ❌ Clique executado, mas classe is-sigiloso permaneceu')
+            for _ in range(14):
+                try:
+                    if not _elemento_esta_sigiloso(elemento, debug=debug):
+                        if debug:
+                            logger.info('[SIGILO_DEBUG] ✅ Sigilo removido após clique (tentativa %d): %s', tentativa, resumo_doc)
+                        return True
+                except Exception:
+                    pass
+                espera.assentar(driver, 0.25)
+
+            if tentativa == 1:
+                logger.warning(
+                    '[SIGILO] Sigilo ainda ativo após 1ª tentativa — retentando: %s',
+                    resumo_doc,
+                )
+
+        logger.warning('[SIGILO] ❌ Sigilo permaneceu ativo após 2 tentativas: %s', resumo_doc)
         return False
 
     except Exception as e:
-        if debug:
-            logger.error(f"[SIGILO_DEBUG] Erro geral: {e}")
+        logger.warning('[SIGILO] Erro geral ao retirar sigilo (%s): %s', resumo_doc, e)
         return False
 
 
-# ── helpers API para identificação de documentos sigilosos ──────────────────
-
 def _extrair_id_processo_da_url(driver: Any) -> Optional[str]:
-    """ID numérico do processo na URL atual do PJe (`/processo/{id}`).
-
-    Delega ao helper estrutural `Fix.core.extrair_id_processo`.
-    """
+    """ID numérico do processo na URL atual do PJe (`/processo/{id}`)."""
     return extrair_id_processo(driver)
 
 
 def _criar_api_client_local(driver: Any):
-    """Cria PjeApiClient a partir do driver (lazy import).
-
-    Mantem a sessao `requests` (em vez de `cliente_para`) porque os chamadores
-    usam `client.sess.get` para baixar PDF alem dos metodos do cliente —
-    `cliente_para` devolve o cliente, nao a sessao (receita R03, regra 3).
-    """
+    """Cria PjeApiClient a partir do driver (lazy import)."""
     try:
         from Fix.variaveis import PjeApiClient, session_from_driver
         sess, trt_host = session_from_driver(driver)
@@ -235,17 +230,12 @@ def _criar_api_client_local(driver: Any):
 
 
 def _extrair_texto_pdf_bytes(pdf_bytes: bytes, log: bool = False) -> str:
-    """Extrai texto completo de bytes de PDF com cascata de engines:
-    1. pdfplumber (padrão PJePlus)
-    2. pymupdf (fitz - alta velocidade)
-    3. pypdfium2 (renderizador Chromium/PDFium)
-    """
+    """Extrai texto completo de bytes de PDF com cascata de engines:"""
     if not pdf_bytes or not pdf_bytes.startswith(b'%PDF'):
         return ""
 
     import io
 
-    # 1. Tentar pdfplumber
     try:
         import pdfplumber
         textos = []
@@ -261,7 +251,6 @@ def _extrair_texto_pdf_bytes(pdf_bytes: bytes, log: bool = False) -> str:
         if log:
             logger.debug('[PDF_EXTRACT] pdfplumber falhou/ausente: %s', e)
 
-    # 2. Fallback: pymupdf (fitz)
     try:
         import pymupdf
         doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
@@ -273,7 +262,6 @@ def _extrair_texto_pdf_bytes(pdf_bytes: bytes, log: bool = False) -> str:
         if log:
             logger.debug('[PDF_EXTRACT] pymupdf falhou/ausente: %s', e)
 
-    # 3. Fallback: pypdfium2
     try:
         import pypdfium2
         pdf = pypdfium2.PdfDocument(pdf_bytes)
@@ -289,12 +277,7 @@ def _extrair_texto_pdf_bytes(pdf_bytes: bytes, log: bool = False) -> str:
 
 
 def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[str]:
-    """Extrai o texto COMPLETO da certidão de devolução via API (todas as páginas).
-
-    Baixa o PDF binário pelo endpoint /conteudo e extrai com cascata de PDF,
-    mesmo approach usado em bianca/triagem/coleta.py. Não depende do PDF
-    viewer do PJe (que só renderiza uma página por vez).
-    """
+    """Extrai o texto COMPLETO da certidão de devolução via API (todas as páginas)."""
     id_processo = _extrair_id_processo_da_url(driver)
     if not id_processo:
         if log:
@@ -321,8 +304,6 @@ def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[s
         for doc in timeline:
             if not isinstance(doc, dict):
                 continue
-            # id numérico (ex: 465383360) — necessário para o endpoint /conteudo
-            # idUnicoDocumento é UID alfanumérico (ex: badd6fa) que a API não aceita
             doc_id = str(doc.get('id') or doc.get('idUnicoDocumento') or '')
             if not doc_id:
                 continue
@@ -381,10 +362,6 @@ def _extrair_texto_certidao_via_api(driver: Any, log: bool = True) -> Optional[s
         return None
 
 
-
-
-# ── extração de documentos da timeline via API (certidão/mandado, sem DOM) ──
-
 def _extrair_texto_documento_timeline_api(
     driver: Any,
     match_fn,
@@ -392,24 +369,7 @@ def _extrair_texto_documento_timeline_api(
     contexto: str = '',
     preferir_ultimo: bool = False,
 ) -> Optional[str]:
-    """Localiza (via timeline API) o documento cujo tipo/título/descrição (já
-    normalizados, sem acento) satisfaçam match_fn(tipo_norm, titulo_norm,
-    descricao_norm) e extrai seu texto completo via /conteudo + pdfplumber —
-    sem depender do PDF viewer nem de nenhum elemento do DOM (ícone, autor, etc.).
-
-    A API de timeline já expõe tipo/título/descrição categorizados (ex.:
-    tipo='Mandado', 'Certidão'; descrição='Certidão de Oficial de Justiça'),
-    então localizar o documento certo é só uma questão de filtrar por essas
-    strings — não é necessário saber quem assinou.
-
-    A descrição é o campo que distingue o modelo do sistema: várias certidões
-    compartilham tipo='Certidão' (Oficial de Justiça, Distribuição, DJEN), e só
-    a descrição separa uma da outra.
-
-    preferir_ultimo: escolhe o documento de DATA mais recente entre os que casarem
-    (a timeline do PJe costuma vir do mais novo para o mais antigo, mas a ordem não é
-    contrato — escolher por posição já pegou certidão antiga no lugar da atual).
-    """
+    """Localiza (via timeline API) o documento cujo tipo/título/descrição (já"""
     import io as _io
     import unicodedata
 
@@ -439,10 +399,6 @@ def _extrair_texto_documento_timeline_api(
                 continue
             tipo_norm = _norm(doc.get('tipo', ''))
             titulo_norm = _norm(doc.get('titulo', ''))
-            # A descrição do modelo não vem sempre em `descricao` (na timeline de
-            # certidão ela chega null e o modelo vem no título). Mesmos campos que o
-            # fluxo Petição usa para montar PeticaoItem: descricao/descricaoPeticao e
-            # nomeTipoProcessoDocumento.
             descricao_bruta = (
                 doc.get('descricao') or doc.get('descricaoModelo')
                 or doc.get('descricaoPeticao') or doc.get('nomeTipoProcessoDocumento') or ''
@@ -455,17 +411,11 @@ def _extrair_texto_documento_timeline_api(
                         f'[MANDADOS][OUTROS][API]{contexto} Documento localizado: id=%s tipo=%s titulo=%s desc=%s',
                         id_doc, doc.get('tipo'), doc.get('titulo'), descricao_bruta or None)
                 candidatos.append((id_doc, doc))
-                # sem preferir_ultimo, mantém o primeiro match (comportamento
-                # original); com a flag, varre tudo e escolhe o mais RECENTE
                 if not preferir_ultimo:
                     break
 
         if candidatos and preferir_ultimo:
-            # A timeline do PJe vem do mais RECENTE para o mais antigo (o 1º item é o
             # último documento juntado), mas a ordem da lista não é contrato: escolher
-            # por posição pegava a certidão ANTIGA (caso 1002208-12: leu certidão de
-            # mandado anterior, classificou 'positivo' e criou GIGS com destinatário
-            # errado). Escolhe pela data do documento — ISO ordena como string.
             candidatos.sort(key=lambda par: str(
                 par[1].get('dataJuntada') or par[1].get('dataCadastro')
                 or par[1].get('data') or ''))
@@ -513,19 +463,7 @@ def _extrair_texto_documento_timeline_api(
 
 
 def _eh_certidao_oficial_justica(tipo_norm: str, titulo_norm: str, descricao_norm: str) -> bool:
-    """Reconhece a Certidão de Oficial de Justiça pelo modelo do sistema.
-
-    O modelo aparece na descrição do documento na timeline, entre parênteses
-    logo após o título — ex.: link 'Certidão (Certidão de Oficial de Justiça)
-    - 13e4ed2' -> tipo='Certidão', titulo='Certidão',
-    descricao='Certidão de Oficial de Justiça'.
-
-    Filtrar só por 'certidao' no tipo/título pegava qualquer certidão — inclusive
-    a 'Certidão de Disponibilização e Publicação - DJEN', que também tem
-    tipo='Certidão' e vencia a busca por ser mais antiga na timeline. A certidão
-    de oficial correta (id 13e4ed2) era descartada e o processo era pulado sem
-    GIGS. Reusa o predicado canônico de Fix/documentos_cp.py.
-    """
+    """Reconhece a Certidão de Oficial de Justiça pelo modelo do sistema."""
     from Fix.documentos_cp import _cp_eh_certidao_oj
     return _cp_eh_certidao_oj(
         f'{tipo_norm} {titulo_norm} {descricao_norm}'.strip()
@@ -533,11 +471,7 @@ def _eh_certidao_oficial_justica(tipo_norm: str, titulo_norm: str, descricao_nor
 
 
 def _extrair_texto_certidao_oficial_via_api(driver: Any, log: bool = True) -> Optional[str]:
-    """Extrai o texto da certidão de Oficial de Justiça (documento atual) via API.
-
-    Usa a descrição (modelo do sistema) para não confundir com outras certidões
-    e fica com a MAIS RECENTE — é a que o oficial acabou de devolver.
-    """
+    """Extrai o texto da certidão de Oficial de Justiça (documento atual) via API."""
     return _extrair_texto_documento_timeline_api(
         driver,
         match_fn=_eh_certidao_oficial_justica,
@@ -562,11 +496,7 @@ def _localizar_texto_mandado_anterior_via_api(driver: Any, log: bool = True) -> 
 
 
 def _localizar_mandado_anterior_timeline_api(driver: Any, log: bool = True) -> Optional[Dict[str, Any]]:
-    """Localiza o documento do mandado anterior na timeline via API.
-
-    Retorna o dict do documento da timeline cujo tipo/título/descrição contenha 'mandado'
-    e não seja certidão.
-    """
+    """Localiza o documento do mandado anterior na timeline via API."""
     import unicodedata
 
     id_processo = _extrair_id_processo_da_url(driver)
@@ -650,20 +580,8 @@ def _verificar_mandado_anterior_penhora_dom(driver: Any) -> bool:
     return False
 
 
-# ── extração de documentos decisão/despacho via API (igual P2B) ─────────────
-
 def _extrair_documentos_decisao_despacho_api(driver: Any, log: bool = True) -> List[Tuple[str, str, int]]:
-	"""Extrai documentos de decisão/despacho via API (timeline → PDF → pdfplumber).
-
-	Mesmo approach do P2B (extrair_documento_relevante em p2b_gateway.py).
-	Busca TODOS os documentos despacho/decisão/sentença/conclusão da timeline,
-	baixa o PDF de cada um e extrai o texto com pdfplumber.
-
-	Retorna lista de (texto_documento, tipo_documento, idx) — compatível com o
-	formato esperado pelo loop de aplicar_regras_argos().
-
-	Limite interno de 3 documentos (igual ao loop DOM original).
-	"""
+	"""Extrai documentos de decisão/despacho via API (timeline → PDF → pdfplumber)."""
 	import io as _io
 	import unicodedata
 
@@ -691,7 +609,6 @@ def _extrair_documentos_decisao_despacho_api(driver: Any, log: bool = True) -> L
 				logger.info('[ARGOS_API] Timeline vazia')
 			return []
 
-		# Filtrar documentos relevantes (despacho/decisão/sentença/conclusão)
 		docs_relevantes = []
 		for i, doc in enumerate(timeline):
 			if not isinstance(doc, dict):
@@ -768,11 +685,7 @@ def _extrair_documentos_decisao_despacho_api(driver: Any, log: bool = True) -> L
 
 
 def _identificar_uids_sigilosos_por_api(driver: Any, log: bool = False) -> Optional[List[str]]:
-    """Consulta timeline via API e retorna UIDs de docs sigilosos.
-
-    Candidatos: certidão de devolução + 4 documentos mais recentes.
-    Retorna None em caso de falha da API, lista vazia se sucesso mas nenhum sigiloso.
-    """
+    """Consulta timeline via API e retorna UIDs de docs sigilosos."""
     id_processo = _extrair_id_processo_da_url(driver)
     if not id_processo:
         if log:
@@ -790,12 +703,10 @@ def _identificar_uids_sigilosos_por_api(driver: Any, log: bool = False) -> Optio
         if not timeline:
             return []
 
-        # Apenas itens com idUnicoDocumento (documentos, não movimentos)
         docs = [item for item in timeline if item.get('idUnicoDocumento')]
         if not docs:
             return []
 
-        # Separar certidão de devolução dos demais
         certidao = None
         outros: List[dict] = []
         for doc in docs:
@@ -807,7 +718,6 @@ def _identificar_uids_sigilosos_por_api(driver: Any, log: bool = False) -> Optio
             else:
                 outros.append(doc)
 
-        # Candidatos: certidão de devolução + 4 mais recentes (timeline já ordenada)
         candidatos: List[dict] = []
         if certidao:
             candidatos.append(certidao)
@@ -863,23 +773,8 @@ def _encontrar_elemento_por_uid(
     return None
 
 
-# ── identificação de documentos sequenciais via API ─────────────────────────
-
 def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tuple:
-    """Identifica documentos do bloco ARGOS via API + DOM e retorna (elementos, uids_sigilosos).
-
-    Estratégia hibrida:
-    1. API confirma quais documentos existem (certidao, decisao, etc.) e extrai
-       UIDs sigilosos.
-    2. DOM localiza os WebElements por matching de texto (mesmo algoritmo de
-       buscar_documentos_sequenciais em Fix/core.py), sem depender de UIDs que
-       nao correspondem aos hrefs do DOM.
-
-    uids_sigilosos: UIDs cujo campo sigiloso=True na API (para passar direto a
-    retirar_sigilo_fluxo_argos e evitar segunda chamada à API).
-
-    Retorna ([], []) em caso de falha — caller deve usar fallback DOM.
-    """
+    """Identifica documentos do bloco ARGOS via API + DOM e retorna (elementos, uids_sigilosos)."""
     import unicodedata
 
     id_processo = _extrair_id_processo_da_url(driver)
@@ -905,22 +800,28 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
         if not docs:
             return [], []
 
-        # Certidão de devolução — mais recente (primeira na timeline)
-        idx_cert = None
+        # antigas de meses/anos anteriores e deixava os documentos atuais com sigilo.
+        idxs_cert = []
         for i, doc in enumerate(docs):
             t = _norm(doc.get('tipo', '')) + ' ' + _norm(doc.get('titulo', ''))
             if 'certid' in t and 'devolu' in t:
-                idx_cert = i
+                idxs_cert.append(i)
                 if log:
                     logger.debug('[SEQUENCIAIS_API] certidao_devolucao idx=%d uid=%s', i, doc['idUnicoDocumento'])
-                break
 
-        if idx_cert is None:
+        if not idxs_cert:
             if log:
                 logger.info('[SEQUENCIAIS_API] Certidao de devolucao nao encontrada na API')
             return [], []
 
-        # Decisão — primeira após certidão de devolução
+        if len(idxs_cert) > 1 and log:
+            logger.info(
+                '[SEQUENCIAIS_API] %d certidões de devolução na timeline — usando a mais recente (idx=%d) como âncora',
+                len(idxs_cert), idxs_cert[0],
+            )
+
+        idx_cert = idxs_cert[0]
+
         idx_decisao = None
         for i in range(idx_cert + 1, len(docs)):
             t = _norm(docs[i].get('tipo', '')) + ' ' + _norm(docs[i].get('titulo', ''))
@@ -931,18 +832,25 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
                 break
 
         if idx_decisao is None:
+            for i in range(idx_cert + 1, len(docs)):
+                t = _norm(docs[i].get('tipo', '')) + ' ' + _norm(docs[i].get('titulo', ''))
+                if 'despach' in t and 'certid' not in t:
+                    idx_decisao = i
+                    if log:
+                        logger.debug('[SEQUENCIAIS_API] fallback despacho idx=%d uid=%s', i, docs[i]['idUnicoDocumento'])
+                    break
+
+        if idx_decisao is None:
             if log:
-                logger.info('[SEQUENCIAIS_API] Decisao nao encontrada apos certidao na API')
+                logger.info('[SEQUENCIAIS_API] Decisao/Despacho nao encontrada apos certidao na API')
             return [], []
 
-        # UIDs sigilosos (campo sigiloso da API) — para repassar a retirar_sigilo
         def _tem_sigilo_api(doc: dict) -> bool:
             return bool(
                 doc.get('sigiloso') or doc.get('sigilo')
                 or doc.get('isSigiloso') or doc.get('isSignificant')
             )
 
-        # UIDs sigilosos dentro do bloco (para hint em retirar_sigilo_fluxo_argos)
         bloco_idx = [idx_cert] + list(range(idx_cert + 1, idx_decisao)) + [idx_decisao]
         uids_sigilosos: List[str] = [
             docs[i]['idUnicoDocumento'] for i in bloco_idx if _tem_sigilo_api(docs[i])
@@ -950,11 +858,6 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
         if log and uids_sigilosos:
             logger.debug('[SEQUENCIAIS_API] %d uid(s) sigilosos no bloco', len(uids_sigilosos))
 
-        # Localizar no DOM por matching de texto (mesmo algoritmo de
-        # buscar_documentos_sequenciais em Fix/core.py).
-        # API ja confirmou que os documentos existem; agora encontramos os
-        # WebElements correspondentes pelo conteudo textual, sem depender de
-        # UIDs que nao batem com os hrefs do DOM.
         espera.elemento(driver, 'li.tl-item-container', teto=5, visivel=False)
 
         elementos = espera.elementos(driver, 'li.tl-item-container', teto=5)
@@ -963,22 +866,27 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
         if not elementos:
             return [], []
 
-        # Encontrar certidao de devolucao por texto no DOM
-        idx_cert_dom = None
+        idxs_cert_dom = []
         for idx, elem in enumerate(elementos):
             texto = _norm(elem.text.strip())
             if 'certidao de devolucao' in texto:
-                idx_cert_dom = idx
+                idxs_cert_dom.append(idx)
                 if log:
                     logger.debug('[SEQUENCIAIS_API] DOM: certidao_devolucao idx=%d', idx)
-                break
 
-        if idx_cert_dom is None:
+        if not idxs_cert_dom:
             if log:
                 logger.info('[SEQUENCIAIS_API] Certidao de devolucao nao localizada no DOM')
             return [], []
 
-        # Encontrar decisao apos certidao por texto no DOM
+        if len(idxs_cert_dom) > 1 and log:
+            logger.info(
+                '[SEQUENCIAIS_API] DOM: %d certidões de devolução — usando a mais recente (idx=%d) como âncora',
+                len(idxs_cert_dom), idxs_cert_dom[0],
+            )
+
+        idx_cert_dom = idxs_cert_dom[0]
+
         idx_decisao_dom = None
         for idx in range(idx_cert_dom + 1, len(elementos)):
             texto = _norm(elementos[idx].text.strip())
@@ -989,27 +897,37 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
                 break
 
         if idx_decisao_dom is None:
+            for idx in range(idx_cert_dom + 1, len(elementos)):
+                texto = _norm(elementos[idx].text.strip())
+                if 'despacho(' in texto:
+                    idx_decisao_dom = idx
+                    if log:
+                        logger.debug('[SEQUENCIAIS_API] DOM: fallback despacho idx=%d', idx)
+                    break
+
+        if idx_decisao_dom is None:
             if log:
-                logger.info('[SEQUENCIAIS_API] Decisao nao localizada no DOM')
+                logger.info('[SEQUENCIAIS_API] Decisao/Despacho nao localizada no DOM')
             return [], []
 
         resultado: List[Any] = [elementos[idx_cert_dom]]
 
-        # Documentos do meio (entre certidao e decisao)
         _TERMOS_MEIO_DOM = {
+            'certidao_devolucao': ['certidao de devolucao'],
             'certidao_expedicao': ['certidao de expedicao'],
-            'planilha':           ['planilha de atualizacao'],
+            'certidao_pesquisa':  ['certidao de pesquisa patrimonial'],
+            'planilha':           ['planilha de atualizacao', 'planilha de calculo'],
+            'ordem_pesquisa':     ['ordem de pesquisa'],
             'intimacao':          ['intimacao('],
         }
         for idx in range(idx_cert_dom + 1, idx_decisao_dom):
             texto = _norm(elementos[idx].text.strip())
             for nome, palavras in _TERMOS_MEIO_DOM.items():
-                for palavra in palavras:
-                    if palavra in texto:
-                        resultado.append(elementos[idx])
-                        if log:
-                            logger.debug('[SEQUENCIAIS_API] DOM: %s idx=%d', nome, idx)
-                        break
+                if any(palavra in texto for palavra in palavras):
+                    resultado.append(elementos[idx])
+                    if log:
+                        logger.debug('[SEQUENCIAIS_API] DOM: %s idx=%d', nome, idx)
+                    break
 
         resultado.append(elementos[idx_decisao_dom])
 
@@ -1026,29 +944,29 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
         return [], []
 
 
-# ── função principal ─────────────────────────────────────────────────────────
+def _classificar_doc_argos(texto: str) -> str:
+    t = _norm(texto or '')
+    if 'certidao de devolucao' in t:
+        return 'certidao_devolucao'
+    if 'certidao de pesquisa patrimonial' in t:
+        return 'certidao_pesquisa'
+    if 'certidao de expedicao' in t:
+        return 'certidao_expedicao'
+    if 'planilha de atualizacao' in t or 'planilha de calculo' in t:
+        return 'planilha'
+    if 'ordem de pesquisa' in t:
+        return 'ordem_pesquisa'
+    if 'intimacao' in t:
+        return 'intimacao'
+    if 'decisao' in t:
+        return 'decisao'
+    if 'despacho' in t:
+        return 'despacho'
+    return 'documento'
+
 
 def retirar_sigilo_fluxo_argos(driver: Any, documentos_sequenciais: List[Any], log: bool = True, debug: bool = False, uids_sigilosos_hint: Optional[List[str]] = None) -> dict:
-    """
-     FUNÇÃO ÚNICA PARA TODO O FLUXO DE REMOÇÃO DE SIGILO DO ARGOS
-
-    Respeita a ORDEM OBRIGATÓRIA do fluxo ARGOS:
-    1º - Certidão de devolução (PRIMEIRO)
-    2º - Demais documentos: certidão expedição, intimação, decisão, planilha
-
-    Estratégia: identifica documentos sigilosos via API (atributo sigilo +
-    uid), e usa o uid para localizar o elemento DOM correto antes de clicar.
-    Fallback para varredura de texto no DOM se a API não responder.
-
-    Args:
-        driver: Instancia do driver
-        documentos_sequenciais: Lista de elementos dos documentos
-        log: Exibir logs detalhados
-        debug: Ativar modo debug com detalhes das classes CSS
-
-    Returns:
-        dict com status de cada etapa e documentos processados
-    """
+    """FUNÇÃO ÚNICA PARA TODO O FLUXO DE REMOÇÃO DE SIGILO DO ARGOS"""
     from core.resultado_execucao import ResultadoExecucao
     if not documentos_sequenciais:
         return ResultadoExecucao(sucesso=False, status='FALHA', erro='nenhum_documento', detalhes={'etapa_erro': 'nenhum_documento'})
@@ -1057,55 +975,19 @@ def retirar_sigilo_fluxo_argos(driver: Any, documentos_sequenciais: List[Any], l
         'sucesso': True,
         'certidao_devolucao': None,
         'demais_documentos': [],
-        'total_processados': 0
+        'total_processados': 0,
     }
 
-    # =======================================================
-    # CAMINHO 1: Identificação via API (atributo sigilo + uid)
-    # =======================================================
-    if uids_sigilosos_hint:
-        uids_sigilosos = uids_sigilosos_hint
-    else:
-        uids_sigilosos = _identificar_uids_sigilosos_por_api(driver, log=log)
-
-    if uids_sigilosos:
-        if log:
-            logger.info(f'[SIGILO_ARGOS] API: {len(uids_sigilosos)} uid(s) sigilosos para processar')
-        for uid in uids_sigilosos:
-            elemento = _encontrar_elemento_por_uid(documentos_sequenciais, uid)
-            if not elemento:
-                if log:
-                    logger.info(f'[SIGILO_ARGOS] uid={uid} não localizado no DOM — pulando')
-                continue
-            if debug:
-                logger.info(f'[SIGILO_ARGOS][DEBUG] Processando uid={uid}')
-            if retirar_sigilo(elemento, driver, debug=debug):
-                if log:
-                    logger.info(f'[SIGILO_ARGOS] Sigilo removido uid={uid}')
-                resultado['total_processados'] += 1
-            else:
-                if log:
-                    logger.error(f'[SIGILO_ARGOS] Falha ao remover sigilo uid={uid}')
-                resultado['sucesso'] = False
-
-        if log:
-            logger.info(
-                f'[SIGILO_ARGOS] Concluído (via API): {resultado["total_processados"]} documento(s) processados'
-            )
-        return resultado
-
-    # =======================================================
-    # CAMINHO 2: Fallback — varredura de texto no DOM (legado)
-    # =======================================================
-    if log:
-        logger.info('[SIGILO_ARGOS] API indisponível — usando varredura de texto no DOM (fallback)')
-
-    # ETAPA 1: CERTIDÃO DE DEVOLUÇÃO
-    certidao_encontrada = None
-    for doc in reversed(documentos_sequenciais):
+    def _resumo(el: Any) -> str:
         try:
-            texto = doc.text.strip().lower()
-            if "certidão de devolução" in texto or "certidao de devolucao" in texto:
+            return ((getattr(el, 'text', '') or '').strip().splitlines() or [''])[0][:70]
+        except Exception:
+            return ''
+
+    certidao_encontrada = None
+    for doc in documentos_sequenciais:
+        try:
+            if 'certidao de devolucao' in _norm(getattr(doc, 'text', '') or ''):
                 certidao_encontrada = doc
                 break
         except Exception:
@@ -1114,87 +996,60 @@ def retirar_sigilo_fluxo_argos(driver: Any, documentos_sequenciais: List[Any], l
     if not certidao_encontrada:
         resultado['certidao_devolucao'] = {'status': 'nao_encontrada'}
     else:
-        links_doc = espera.elementos(certidao_encontrada, 'a.tl-documento', teto=0.5)
-        tem_sigilo = False
-        if links_doc:
-            link_correto = next(
-                (l for l in links_doc if (l.get_attribute('role') or '').lower() == 'button'
-                 or (l.get_attribute('target') or '').lower() != '_blank'),
-                links_doc[-1]
-            )
-            tem_sigilo = 'is-sigiloso' in (link_correto.get_attribute('class') or '')
-            if debug:
-                logger.info(f'[SIGILO_ARGOS][DEBUG] certidao classes={link_correto.get_attribute("class")} sigiloso={tem_sigilo}')
-
-        if not tem_sigilo:
+        if not _elemento_esta_sigiloso(certidao_encontrada, debug=debug):
             resultado['certidao_devolucao'] = {'status': 'ja_sem_sigilo'}
         elif retirar_sigilo(certidao_encontrada, driver, debug=debug):
             resultado['certidao_devolucao'] = {'status': 'removido'}
             resultado['total_processados'] += 1
+            logger.info('[SIGILO_ARGOS] Sigilo removido (certidao_devolucao): %s', _resumo(certidao_encontrada))
         else:
             resultado['certidao_devolucao'] = {'status': 'erro'}
             resultado['sucesso'] = False
+            logger.warning('[SIGILO_ARGOS] Falha ao remover sigilo (certidao_devolucao): %s', _resumo(certidao_encontrada))
 
-    # ETAPA 2: DEMAIS DOCUMENTOS (certidão expedição, intimação, decisão, planilha)
-    _tipos = {
-        'certidao_expedicao': (['certidão de expedição', 'certidao de expedicao'], 1),
-        'intimacao':          (['intimação(', 'intimacao(', 'intimação', 'intimacao'], 3),
-        'decisao':            (['decisão', 'decisao'], 1),
-        'planilha':           (['planilha de atualização', 'planilha de atualizacao'], 1),
-    }
-    encontrados: dict = {k: [] for k in _tipos}
+    visitados_ids = {id(certidao_encontrada)} if certidao_encontrada is not None else set()
+    demais_elementos: List[tuple[str, Any]] = []
+    for elem in documentos_sequenciais:
+        if id(elem) in visitados_ids:
+            continue
+        visitados_ids.add(id(elem))
+        tipo_nome = _classificar_doc_argos(getattr(elem, 'text', '') or '')
+        demais_elementos.append((tipo_nome, elem))
 
-    idx_decisao = None
-    for idx, elem in enumerate(documentos_sequenciais):
-        texto = elem.text.strip().lower()
-        if 'decisão(' in texto or 'decisao(' in texto:
-            idx_decisao = idx
-            break
+    for tipo_nome, elemento in demais_elementos:
+        if not _elemento_esta_sigiloso(elemento, debug=debug):
+            resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'ja_sem_sigilo'})
+        elif retirar_sigilo(elemento, driver, debug=debug):
+            resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'removido'})
+            resultado['total_processados'] += 1
+            logger.info('[SIGILO_ARGOS] Sigilo removido (%s): %s', tipo_nome, _resumo(elemento))
+        else:
+            resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'erro'})
+            resultado['sucesso'] = False
+            logger.warning('[SIGILO_ARGOS] Falha ao remover sigilo (%s): %s', tipo_nome, _resumo(elemento))
 
-    if idx_decisao is None:
-        if log:
-            logger.info('[SIGILO_ARGOS] Decisão não encontrada no DOM')
-        return resultado
+    todos_bloco: List[tuple[str, Any]] = []
+    if certidao_encontrada is not None:
+        todos_bloco.append(('certidao_devolucao', certidao_encontrada))
+    todos_bloco.extend(demais_elementos)
 
-    for idx in range(1, idx_decisao):
-        texto = documentos_sequenciais[idx].text.strip().lower()
-        for tipo_nome, (palavras, limite) in _tipos.items():
-            if len(encontrados[tipo_nome]) >= limite:
-                continue
-            for palavra in palavras:
-                if palavra in texto:
-                    encontrados[tipo_nome].append(documentos_sequenciais[idx])
-                    break
-
-    # Adicionar a decisão
-    encontrados['decisao'].append(documentos_sequenciais[idx_decisao])
-
-    for tipo_nome, elems in encontrados.items():
-        for elemento in elems:
-            links_doc = espera.elementos(elemento, 'a.tl-documento', teto=0.5)
-            tem_sigilo = False
-            if links_doc:
-                link_correto = next(
-                    (l for l in links_doc if (l.get_attribute('role') or '').lower() == 'button'
-                     or (l.get_attribute('target') or '').lower() != '_blank'),
-                    links_doc[-1]
-                )
-                tem_sigilo = 'is-sigiloso' in (link_correto.get_attribute('class') or '')
-                if debug:
-                    logger.info(f'[SIGILO_ARGOS][DEBUG] {tipo_nome} sigiloso={tem_sigilo}')
-
-            if not tem_sigilo:
-                resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'ja_sem_sigilo'})
-            elif retirar_sigilo(elemento, driver, debug=debug):
-                resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'removido'})
+    remanescentes = []
+    for tipo_nome, elemento in todos_bloco:
+        if _elemento_esta_sigiloso(elemento, debug=debug):
+            logger.warning('[SIGILO_ARGOS] Documento ainda sigiloso na verificação (%s) — retentando: %s', tipo_nome, _resumo(elemento))
+            if retirar_sigilo(elemento, driver, debug=debug):
                 resultado['total_processados'] += 1
+                logger.info('[SIGILO_ARGOS] Sigilo removido na verificação (%s): %s', tipo_nome, _resumo(elemento))
             else:
-                resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'erro'})
+                remanescentes.append((tipo_nome, _resumo(elemento)))
                 resultado['sucesso'] = False
 
-    if log:
+    if remanescentes:
+        logger.warning('[SIGILO_ARGOS] %d documento(s) permaneceram sigilosos após verificação: %s', len(remanescentes), remanescentes)
+    elif log:
         logger.info(
-            f'[SIGILO_ARGOS] Concluído (fallback DOM): {resultado["total_processados"]} documento(s) processados'
+            '[SIGILO_ARGOS] Concluído: %d documento(s) tiveram sigilo removido (%d verificados no bloco)',
+            resultado['total_processados'], len(todos_bloco),
         )
     return resultado
 
@@ -1213,13 +1068,7 @@ def retirar_sigilo_demais_documentos_especificos(driver, documentos_sequenciais,
 
 
 def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=True):
-    """
-     FUNÇÃO EFICIENTE - Remove sigilo APENAS dos documentos específicos fornecidos:
-    Os documentos_sequenciais já vêm filtrados da buscar_documentos_sequenciais()
-    MÁXIMO 5 documentos: 1 certidão devolução, 1 certidão expedição, 1 intimação, 1 decisão, 1 planilha
-
-    NADA MAIS que isso - SEM VARRER TIMELINE INTEIRA!
-    """
+    """FUNÇÃO EFICIENTE - Remove sigilo APENAS dos documentos específicos fornecidos:"""
     if not documentos_sequenciais:
         return []
 
@@ -1258,7 +1107,6 @@ def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=Tr
                 'erro': str(e)
             })
 
-    #  RELATÓRIO FINAL
     if log:
         for doc in documentos_processados:
             status_icon = "" if doc['status'] == 'sucesso' else "" if doc['status'] == 'erro' else ""
@@ -1266,20 +1114,11 @@ def retirar_sigilo_documentos_especificos(driver, documentos_sequenciais, log=Tr
     return documentos_processados
 
 
-# ════════════════════════════════════════
-# 4. processamento_outros.py — ramo Oficial de Justica / Outros
-# ════════════════════════════════════════
-
-# Controla se o fluxo de "outros" pode automaticamente invocar atos
-# Defina a variável de ambiente PJE_ALLOW_MANDADO_ATOS=0 para desabilitar
 def _allow_mandado_atos() -> bool:
     return os.environ.get('PJE_ALLOW_MANDADO_ATOS', '1').lower() in ('1', 'true', 'yes', 'y')
 
 ALLOW_MANDADO_ATOS = _allow_mandado_atos()
 
-# Motor de regras da certidão de Oficial de Justiça (fluxo Outros/não-Argos).
-# Texto de entrada já passa por remover_acentos() antes do match — por isso os
-# padrões abaixo são escritos sem acento (uma variante acentuada nunca bateria).
 PADRAO_CANCELAMENTO = (
     "ordem de cancelamento total",
 )
@@ -1311,13 +1150,6 @@ PADRAO_POSITIVO = (
     "intimacao positiva",
     "dei o destinatario por",
     "dei a destinaria por",
-    # Formas perifrásticas: muitos oficiais não escrevem "citei"/"intimei", e sim
-    # "realizei a citação" / "citando para comparecer". Sem estas entradas a
-    # certidão de citação efetivada caía em "nenhuma regra" e o processo era
-    # pulado sem GIGS e sem sair do escaninho (caso 1001406-77.2026).
-    # Restrito a construções inequívocas: "recebi email"/"acusando o
-    # recebimento" ficam de fora porque podem aparecer em certidão que relata
-    # recebimento sem citação efetivada.
     "realizei a citacao",
     "realizei a intimacao",
     "realizei a penhora",
@@ -1330,9 +1162,6 @@ PADRAO_POSITIVO = (
     "intimacao efetivada",
 )
 
-# Hipótese negativa de penhora: certidão relata ausência de bens penhoráveis.
-# Aciona ato_meios ANTES de o mandado ser apagado do escaninho (ver
-# _executar_acoes_padrao_negativo / arquivar_mandado_outros_reconhecido).
 PADRAO_HIPOTESE_NEGATIVA_PENHORA = (
     "deixei de proceder a penhora",
     "deixo de realizar a penhora",
@@ -1370,10 +1199,7 @@ PADRAO_NEGATIVO = (
 
 
 def _normalizar_certidao(texto: Optional[str]) -> str:
-    """Remove acentos, lowercase e colapsa espacos irregulares (quebras de
-    linha/nbsp de extracao via API ou PDF) em um unico espaco — evita que uma
-    frase-gatilho quebrada entre linhas deixe de casar (mesma classe de bug
-    corrigida em Fix/variaveis.py para o link de validacao de comunicacoes)."""
+    """Remove acentos, lowercase e colapsa espacos irregulares (quebras de"""
     if not texto:
         return ''
     try:
@@ -1384,12 +1210,8 @@ def _normalizar_certidao(texto: Optional[str]) -> str:
 
 
 def ultimo_mdd(driver: Any, log: bool = True) -> Tuple[Optional[str], Optional[Any]]:
-    """
-    Busca o último mandado na timeline (item com texto começando por 'Mandado' e ícone de gavel) e retorna (nome_autor, elemento_mandado).
-    Versão robusta com verificações de conectividade.
-    """
+    """Busca o último mandado na timeline (item com texto começando por 'Mandado' e ícone de gavel) e retorna (nom..."""
     try:
-        # Verificação inicial de conexão
         if not validar_conexao_driver(driver, contexto="MDD_INICIO"):
             if log:
                 logger.error('[MDD][ERRO_FATAL] Driver em estado inválido ao buscar mandado')
@@ -1404,14 +1226,12 @@ def ultimo_mdd(driver: Any, log: bool = True) -> Tuple[Optional[str], Optional[A
 
         for idx, item in enumerate(itens):
             try:
-                # Verificação periódica de conexão durante loop
-                if idx % 10 == 0 and idx > 0:  # Verificar a cada 10 itens para não impactar performance
+                if idx % 10 == 0 and idx > 0:
                     if not validar_conexao_driver(driver, contexto=f"MDD_LOOP_{idx}"):
                         if log:
                             logger.error(f'[MDD][ERRO_FATAL] Driver em estado inválido durante loop (item {idx})')
                         return None, None
 
-                # Usa wait com timeout curto para não prejudicar performance
                 link_el = espera.elemento(item, 'a.tl-documento:not([target="_blank"])', teto=0.5)
                 link = aguardar_e_clicar(driver, link_el, timeout=1) if link_el else None
                 if not link:
@@ -1419,13 +1239,10 @@ def ultimo_mdd(driver: Any, log: bool = True) -> Tuple[Optional[str], Optional[A
 
                 doc_text = link.text.strip().lower()
                 if doc_text.startswith('mandado'):
-                    # Procura ícone de gavel (fa-gavel)
                     icones = espera.elementos(item, 'i.fa-gavel', teto=0.5)
                     if not icones:
-                        continue  # Não é mandado assinado por oficial
-                    # Procura nome do autor próximo ao link ou assinatura
+                        continue
                     nome_autor = None
-                    # Tenta encontrar assinatura padrão
                     try:
                         assinatura = espera.elemento(item, '.assinatura, .autor, .assinante, .nome-assinatura', teto=0.5)
                         if assinatura:
@@ -1433,7 +1250,6 @@ def ultimo_mdd(driver: Any, log: bool = True) -> Tuple[Optional[str], Optional[A
                     except Exception:
                         pass
                     if not nome_autor:
-                        # Fallback: procura texto logo após o link
                         try:
                             spans = espera.elementos(item, 'span', teto=0.5)
                             for s in spans:
@@ -1449,7 +1265,6 @@ def ultimo_mdd(driver: Any, log: bool = True) -> Tuple[Optional[str], Optional[A
                     logger.error(f'[MDD][DEBUG] Erro ao processar item {idx}: {e}')
                 continue
 
-        # Verificação final de conexão
         if not validar_conexao_driver(driver, contexto="MDD_FIM"):
             if log:
                 logger.error('[MDD][ERRO_FATAL] Driver em estado inválido ao finalizar busca de mandado')
@@ -1463,25 +1278,7 @@ def ultimo_mdd(driver: Any, log: bool = True) -> Tuple[Optional[str], Optional[A
 
 
 def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = True) -> None:
-    """Ações adicionais quando a certidão reconhece o padrão NEGATIVO.
-
-    0. Hipótese negativa de penhora (ausência de bens/padrão de vida): chama
-       ato_meios ANTES do caller apagar o mandado do escaninho (a exclusão só
-       acontece depois que esta função retorna — ver fluxo_mandados_outros /
-       arquivar_mandado_outros_reconhecido).
-    1. Localiza e lê o mandado anterior via API (tipo/título já filtram por
-       categoria — dispensa DOM/ícone/autor): se o texto contiver 'penhora',
-       chama ato_meios.
-    2. Depois olha o texto da certidão atual: 'penhora de bens' / 'deixei de
-       penhorar' -> ato_meios; senão, se o texto do mandado anterior citar
-       'silas passos' -> ato_edital.
-
-    ato_meios só é efetivamente invocado uma vez por certidão mesmo que mais de
-    um gatilho bata (evita ato duplicado no processo); cada chamada fecha
-    qualquer aba extra que ato_meios tenha aberto antes de devolver o controle,
-    para que a troca de aba subsequente (apagar do escaninho) não opere na aba
-    errada.
-    """
+    """Ações adicionais quando a certidão reconhece o padrão NEGATIVO."""
     logger.info("Padrão de mandado NEGATIVO encontrado no texto.")
 
     ato_meios_executado = False
@@ -1510,8 +1307,6 @@ def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = T
             logger.error(f'[MANDADOS][OUTROS] erro em ato_meios() ({motivo}): {e}')
         finally:
             try:
-                # Fecha APENAS as novas abas abertas pelo ato_meios (ex: aba de minutas/tarefa)
-                # NUNCA fecha o escaninho_handle nem aba_atual
                 for h in list(getattr(driver, 'window_handles', [])):
                     if h not in handles_antes:
                         try:
@@ -1528,7 +1323,6 @@ def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = T
     if frase_hipotese_negativa:
         _chamar_ato_meios(f'hipótese negativa de penhora: "{frase_hipotese_negativa}"')
 
-    # Mandado contém penhora (ex.: certidão de mandado de penhora como no CP) + padrão negativo → ato_meios
     if 'penhora' in texto_lower:
         _chamar_ato_meios('certidão negativa de mandado de penhora')
 
@@ -1549,24 +1343,10 @@ def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = T
         _chamar_ato_meios('penhora de bens')
     elif "deixei de penhorar" in texto_lower:
         _chamar_ato_meios('deixei de penhorar')
-    # REGRA DESATIVADA TEMPORARIAMENTE:
-    # elif texto_mandado_ant and 'silas passos' in texto_mandado_ant.lower():
-    #     if not _allow_mandado_atos():
-    #         logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_edital()')
-    #     else:
-    #         logger.info('[MANDADOS][OUTROS] Invocando ato_edital()')
-    #         try:
-    #             ato_edital(driver)
-    #             logger.info('[MANDADOS][OUTROS] ato_edital() retornou')
-    #         except Exception as e:
-    #             logger.error(f'[MANDADOS][OUTROS] erro em ato_edital(): {e}')
 
 
 def _classificar_certidao_oficial(texto: str) -> Optional[str]:
-    """Classifica o texto da certidão de Oficial de Justiça.
-
-    Retorna 'cancelamento' | 'positivo' | 'negativo' | None (nenhum padrão reconhecido).
-    """
+    """Classifica o texto da certidão de Oficial de Justiça."""
     texto_lower = _normalizar_certidao(texto)
 
     if any(p in texto_lower for p in PADRAO_CANCELAMENTO):
@@ -1581,40 +1361,7 @@ def _classificar_certidao_oficial(texto: str) -> Optional[str]:
 def fluxo_mandados_outros(
     driver: Any, log: bool = True, com_texto: bool = False
 ) -> Optional[Any]:
-    """
-    Processa a certidão de Oficial de Justiça já aberta (fluxo Outros/não-Argos).
-
-    O chamador (BLOCO 2 / processar_mandado_detalhe) já garantiu, via classificação
-    da API + confirmação por _selecionar_doc_via_timeline, que o documento aberto é
-    uma certidão de oficial — não há necessidade de reler cabeçalho aqui.
-
-    1. Extrai o texto da certidão
-    2. Classifica em cancelamento/positivo/negativo (motor de regras declarativo)
-    3. Para negativo, executa ações adicionais (ato_meios/ato_edital conforme padrão)
-
-    IMPORTANTE — ordem de execução (corrigida em 29/10/2026):
-    O ato_meios deixou de ser executado AQUI. Ele depende de a tarefa do processo
-    abrir corretamente, e neste ponto o driver ainda pode estar na aba do
-    escaninho — o que fazia o clique em "Abrir tarefa do processo" cair em
-    /escaninho/documentos-internos e falhar (caso 1001474-61, 28/10: 4 tentativas
-    de ato_meios, todas abortadas com "Botão Conclusão ao magistrado não apareceu
-    em 15s ... a página da tarefa não carregou", e o fluxo caiu no fallback
-    'negativo' criando apenas a GIGS xs1).
-    O chamador deve executar, nesta ordem:
-        1. arquivar_mandado_outros_reconhecido(..., ao_meios_texto=texto_lower)
-           -> cria GIGS xs1 na aba /detalhe, executa ato_meios, e só então
-              troca para a aba do escaninho e apaga o item.
-    Por isso a assinatura devolve (regra, texto_lower) via tupla quando o
-    chamador pedir com `com_texto=True`; sem essa flag o retorno continua sendo
-    apenas o nome da regra (compatibilidade com os demais chamadores).
-
-    Returns:
-        Nome da regra reconhecida ('cancelamento'|'positivo'|'negativo') para o
-        chamador decidir o pós-processamento padrão (GIGS xs1 + apagar do
-        escaninho, via arquivar_mandado_outros_reconhecido), ou None se nenhuma
-        regra foi reconhecida / falha na extração.
-        Com `com_texto=True`, devolve a tupla (regra, texto_lower).
-    """
+    """Processa a certidão de Oficial de Justiça já aberta (fluxo Outros/não-Argos)."""
     texto = None
     try:
         texto = _extrair_texto_certidao_oficial_via_api(driver, log=log)
@@ -1651,9 +1398,6 @@ def fluxo_mandados_outros(
     logger.info(f'[MANDADOS][OUTROS] Regra reconhecida: {regra or "nenhuma"}')
 
     # O ato_meios NAO roda mais aqui (ver docstring): a ordem correta e'
-    # GIGS xs1 -> ato_meios -> limpeza do escaninho, executada por
-    # arquivar_mandado_outros_reconhecido. Devolvemos o texto normalizado para
-    # que aquele ponto decida se ha acao do ramo negativo a executar.
     texto_lower = _normalizar_certidao(texto) if regra == 'negativo' else ''
 
     return (regra, texto_lower) if com_texto else regra
@@ -1698,14 +1442,12 @@ def _apagar_mandado_do_escaninho(
     log: bool = True,
 ) -> bool:
     """Fecha a aba /detalhe e remove o mandado da lista do escaninho."""
-    # Fecha a aba de detalhe atual apenas se não for o próprio escaninho
     if getattr(driver, 'current_window_handle', None) != escaninho_handle:
         try:
             driver.close()
         except Exception:
             pass
 
-    # Garante troca para a aba do escaninho com fallback seguro
     handles_restantes = list(getattr(driver, 'window_handles', []))
     if escaninho_handle in handles_restantes:
         driver.switch_to.window(escaninho_handle)
@@ -1738,7 +1480,6 @@ def _apagar_mandado_do_escaninho(
                 pass
 
     try:
-        # Localiza linha do processo no escaninho e botão de exclusão
         lixeira_xpath = (
             f"//tr[contains(., '{numero_processo}')]"
             "//button[@aria-label='Remover documento marcados' or @mattooltip='Remover documento' "
@@ -1746,7 +1487,6 @@ def _apagar_mandado_do_escaninho(
         )
         lixeiras = espera.elementos(driver, lixeira_xpath, teto=3)
         if not lixeiras:
-            # Fallback sem restrição de tr
             lixeiras = espera.elementos(
                 driver,
                 f"//table//tr[contains(., '{numero_processo}')]//button[contains(@aria-label, 'Remover') or contains(@mattooltip, 'Remover')]",
@@ -1788,31 +1528,9 @@ def arquivar_mandado_outros_reconhecido(
     log: bool = True,
     ao_meios_texto: Optional[str] = None,
 ) -> bool:
-    """Ação padrão para QUALQUER regra reconhecida no fluxo Outros (cancelamento,
-    positivo ou negativo).
-
-    A aba 0 (escaninho de mandados devolvidos) é aberta uma única vez no início
-    da execução e NUNCA é fechada — por isso não há fallback de navegação aqui,
-    apenas o fluxo fixo:
-
-    a) cria GIGS sem prazo (xs1) na aba /detalhe ATUAL, logo após as ações da
-       regra (chamado antes de qualquer troca de aba, para não perder o contexto).
-       A criação ocorre UMA VEZ por processo; chamadas subsequentes para o mesmo
-       processo pulam a criação.
-    b) [NOVO 29/10/2026] se `ao_meios_texto` vier preenchido (ramo NEGATIVO),
-       executa as ações do padrão negativo — que incluem ato_meios/ato_edital —
-       AINDA NA ABA DO PROCESSO. Antes isso acontecia dentro de
-       fluxo_mandados_outros(), antes da GIGS, e o ato_meios falhava porque o
-       driver podia estar na aba do escaninho (caso 1001474-61: "Botão
-       Conclusão ao magistrado não apareceu em 15s -- a página da tarefa não
-       carregou"), fazendo o fluxo cair no fallback 'negativo' com GIGS xs1 só.
-    c) troca para a aba do escaninho (escaninho_handle) e remove o item da lista.
-
-    Ordem final: GIGS xs1 -> ato_meios -> limpeza do escaninho.
-    """
+    """Ação padrão para QUALQUER regra reconhecida no fluxo Outros (cancelamento,"""
     _criar_gigs_xs1_uma_vez(driver, numero_processo, log)
 
-    # (b) ações do ramo negativo (ato_meios/ato_edital) — antes de trocar de aba
     if ao_meios_texto:
         try:
             _executar_acoes_padrao_negativo(driver, ao_meios_texto, log=log)
@@ -1828,14 +1546,7 @@ def arquivar_mandado_positivo_reconhecido(
     escaninho_handle: str,
     log: bool = True,
 ) -> bool:
-    """Ação do fluxo POSITIVO (Outros): GIGS xs1 + GIGS sem prazo (dados do mandado) + apagar do escaninho.
-
-    Mantém a ordem pedida: cria a GIGS xs1 na aba /detalhe, extrai o destinatário da
-    própria certidão (padrão 'DESTINATÁRIO: NOME' / 'DESTINATÁRIO NOME'), registra os dados
-    do mandado positivo criando GIGS sem prazo:
-        criar_gigs(driver, "", "", f'Mandado positivo ({nome}) - já alterado endereço na autuação.')
-    e só então apaga o mandado do escaninho — tudo ainda na aba /detalhe até o passo final.
-    """
+    """Ação do fluxo POSITIVO (Outros): GIGS xs1 + GIGS sem prazo (dados do mandado) + apagar do escaninho."""
     _criar_gigs_xs1_uma_vez(driver, numero_processo, log)
 
     nome = None
@@ -1871,13 +1582,7 @@ def arquivar_mandado_positivo_reconhecido(
 
 
 def _extrair_nome_destinatario_certidao(texto: Optional[str]) -> Optional[str]:
-    """Extrai o nome do destinatário da certidão de Oficial de Justiça.
-
-    A certidão positiva usa o rótulo fixo 'DESTINATÁRIO' (com ou sem dois-pontos)
-    seguido do nome até o fim da linha. Exemplos:
-        DESTINATÁRIO: JOÃO DA SILVA
-        DESTINATÁRIO JOÃO DA SILVA
-    """
+    """Extrai o nome do destinatário da certidão de Oficial de Justiça."""
     if not texto:
         return None
     m = re.search(r'DESTINAT[ÁA]RIO\s*:?\s*([^\n]+)', texto, re.IGNORECASE)
@@ -1889,11 +1594,7 @@ def _extrair_nome_destinatario_certidao(texto: Optional[str]) -> Optional[str]:
 
 
 def _montar_conteudo_lembrete_mdd(existente: Optional[str], novo_nome: str) -> str:
-    """Monta o conteúdo do lembrete 'mdd positivo'.
-
-    Formato alvo: 'Mandado positivo (<destinatários separados por vírgula>) - já alterado endereço na autuação.'
-    Se já existir conteúdo, acrescenta o novo destinatário sem duplicar.
-    """
+    """Monta o conteúdo do lembrete 'mdd positivo'."""
     sufixo = ' - já alterado endereço na autuação.'
     nome = (novo_nome or '').strip()
     if not nome:
@@ -1926,10 +1627,7 @@ def _montar_conteudo_lembrete_mdd(existente: Optional[str], novo_nome: str) -> s
 
 
 def _localizar_lembrete_mdd(driver: Any, log: bool = True) -> Optional[Any]:
-    """Localiza o painel do lembrete 'mdd positivo' no pje-visualizador-post-its.
-
-    Retorna o mat-expansion-panel correspondente, ou None se não existir.
-    """
+    """Localiza o painel do lembrete 'mdd positivo' no pje-visualizador-post-its."""
     try:
         espera.ate_aparecer(driver, 'pje-visualizador-post-its .post-it-set', teto=3)
     except Exception:
@@ -1966,7 +1664,6 @@ def _editar_lembrete_conteudo(driver: Any, painel: Any, novo_conteudo: str, log:
         except Exception:
             pass
         if not btn_editar:
-            # painel recolhido: expandir o cabeçalho antes de achar o botão
             try:
                 cabecalho = espera.elemento(painel, 'mat-expansion-panel-header', teto=0.5)
                 if cabecalho:
@@ -2012,25 +1709,12 @@ def _editar_lembrete_conteudo(driver: Any, painel: Any, novo_conteudo: str, log:
     return True
 
 
-# ════════════════════════════════════════
-# 5. Fluxo CP (CartPrecCiv) — sub-fluxo Mandado/Outros
-# ════════════════════════════════════════
-
-# Saudacao formal que abre o corpo do mandado ('O(a) Exmo(a). Juiz(a) do
-# Trabalho...'). Aplicada sobre texto ja normalizado (remover_acentos +
-# lowercase + espacos colapsados, via _normalizar_certidao) — por isso sem
-# acentos e tolerante a variacoes de parenteses/genero.
 _CP_SAUDACAO_RE = re.compile(
     r'[oa]\s*\(?\s*a?\s*\)?\s*exm[oa]\s*\(?\s*a?\s*\)?\.?\s*juiz\s*\(?\s*a?\s*\)?\s*do\s*trabalho'
 )
 
 
 def _extrair_ementa_mandado(texto: str) -> str:
-    """Retorna a parte do texto do mandado ANTERIOR a saudacao formal
-    ('O(a) Exmo(a). Juiz(a) do Trabalho...') — normalmente o titulo/ementa do
-    mandado (ex.: 'MANDADO DE PENHORA, AVALIACAO...'). Se a saudacao nao for
-    encontrada, retorna o texto normalizado inteiro (fallback conservador —
-    mantem a checagem de 'penhora' funcionando)."""
     normalizado = _normalizar_certidao(texto)
     match = _CP_SAUDACAO_RE.search(normalizado)
     return normalizado[:match.start()] if match else normalizado
@@ -2042,34 +1726,8 @@ def fluxo_mandados_cp(
     escaninho_handle: str,
     log: bool = True,
 ) -> Optional[str]:
-    """Processa o Fluxo CP (processo com cabecalho 'CartPrecCiv') no ramo
-    Mandado/Outros — alternativa a fluxo_mandados_outros() quando o processo
-    e uma Carta Precatoria Civel (dispatch feito pelo caller via
-    _classificar_tipo_processo_cabecalho em Mandado/entrada_api.py).
-
-    0. Le o mandado mais recente da timeline via API (reaproveita
-       _localizar_texto_mandado_anterior_via_api).
-    1. Extrai a ementa (texto ANTES da saudacao formal) e verifica se contem
-       'penhora'.
-    2. Se contem 'penhora' mas o texto NAO bate no PADRAO_NEGATIVO (penhora
-       positiva): fluxo incompleto direto.
-    3. Caso contrario (penhora + PADRAO_NEGATIVO, OU sem 'penhora'): conta
-       mandados x certidoes de oficial na timeline — iguais => fluxo
-       completo (baixarCP + anex_devcp + mov_arquivar); diferentes => fluxo
-       incompleto (GIGS xs1 + apagar do escaninho via
-       arquivar_mandado_outros_reconhecido).
-
-    Returns:
-        'completo'   baixarCP + juntada devcp + mov_arquivar executados com
-                     sucesso (processo arquivado; aba do processo permanece
-                     aberta — caller deve fechar e retornar ao escaninho).
-        'incompleto' GIGS xs1 + remocao do item ja executados via
-                     arquivar_mandado_outros_reconhecido (aba ja fechada,
-                     driver ja no escaninho_handle).
-        None         falha em alguma etapa obrigatoria (extracao do mandado,
-                     contagem, baixarCP, juntada ou movimento).
-    """
-    from PEC.anexos.anexos_wrappers import anex_devcp
+    """Processa o Fluxo CP (processo com cabecalho 'CartPrecCiv') no ramo"""
+    from atos.anexos.anexos_wrappers import anex_devcp
 
     logger.info(f'[MANDADOS][CP] === INICIO Fluxo CP === processo=#{numero_processo}')
 

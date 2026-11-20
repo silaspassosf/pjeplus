@@ -42,10 +42,7 @@ def ativar_filtro_mandados_devolvidos(driver: Any) -> bool:
 
 
 def processar_mandados_escaninho_ui(driver: Any) -> bool:
-    """
-    Fluxo que itera pela interface do escaninho mantendo a aba aberta.
-    Prioriza processos com documento "Certidão de Oficial de Justiça".
-    """
+    """Fluxo que itera pela interface do escaninho mantendo a aba aberta."""
     logger.info('[MANDADOS_UI] Iniciando fluxo de UI no Escaninho...')
 
     url_escaninho = "https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos"
@@ -55,7 +52,6 @@ def processar_mandados_escaninho_ui(driver: Any) -> bool:
 
     ativar_filtro_mandados_devolvidos(driver)
 
-    # Aguarda a tabela renderizar
     if not espera.elemento(driver, "table[name='Tabela de Documentos'] tbody tr", teto=15, visivel=False):
         logger.warning('[MANDADOS_UI] Tabela de documentos não carregou ou está vazia.')
         return False
@@ -89,7 +85,6 @@ def processar_mandados_escaninho_ui(driver: Any) -> bool:
 
                         safe_click_no_scroll(driver, botao_kz)
 
-                        # Aguarda nova aba abrir
                         try:
                             novo_handle = aguardar_nova_aba(driver, escaninho_handle, timeout=10)
                         except Exception:
@@ -98,12 +93,10 @@ def processar_mandados_escaninho_ui(driver: Any) -> bool:
 
                         driver.switch_to.window(novo_handle)
 
-                        # Processamento na nova aba
                         try:
                             wait_for_page_load(driver, timeout=8)
                             aguardar_renderizacao_nativa(driver, "li.tl-item-container", timeout=5)
 
-                            # Clica no doc mais recente que seja certidao
                             from Mandado.entrada_api import _selecionar_doc_via_timeline
                             tipo_doc = _selecionar_doc_via_timeline(driver, log=True)
 

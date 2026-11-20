@@ -11,7 +11,8 @@ Atualizado: 2026-11-20 (campanha de limpeza e simplificação Playwright ativa)
 >   - [x] **Etapa 0 — Baseline verde:** zeradas as 3 regressões prévias do `tools/check_pw.py` (`atos/anexos_sigilo.py` -> 0, `SISB/processamento/minutas_campos.py` -> 0 [MIGRADO], `tests/test_atualizacao_rapida.py` -> 0, `SISB/core.py` -2). Ratchet: **906/909 (-3), APROVADO**.
 >   - [ ] **Etapa 1 — Poda de comentários/docstrings e simplificação inicial (em andamento):**
 >     - [x] Lote 1: `Fix/entrada_campos.py` (705L → 395L, -44%) e `pw.py` (150L → 129L)
->     - [ ] Próximos: `api/`, `x.py`, `Fix/variaveis.py`, `Fix/utils.py`, `Fix/extracao.py`, `Prazo/`, `Mandado/`, `bianca/`.
+>     - [x] Lote 2a: `x.py` (1273L → 944L, -26%) — loop no bloco completo, unificação de reset/wrappers, remoção de refs Selenium em logging
+>     - [ ] Próximos: `api/`, `Fix/`, `Prazo/`, `Mandado/`, `PEC/`, `Peticao/`, `bianca/`, `SISB/`, `atos/`, `Play/`.
 >   - [ ] **Etapa 2 — Simplificação de funções gigantes e Playwright nativo:** hotspots em `Fix/`, `SISB/`, `atos/`, `PEC/`, `bianca/`, `Mandado/`.
 >   - [ ] **Etapa 3 — Enxugamento do motor Playwright e auditoria de shims/código morto:** `Play/pjeplay/`, `x.py`, `tools/shim_audit.py`.
 >   - [ ] **Etapa 4 — Fechamento:** atualizar `tools/pw_baseline.json` e este `idx.md` com o saldo final.

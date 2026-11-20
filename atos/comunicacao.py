@@ -310,6 +310,11 @@ def make_comunicacao_wrapper(
 
             if remover_invalido:
                 remover_destinatarios_endereco_invalido(driver, log=log_fn, debug=debug)
+            else:
+                log_fn(
+                    f"[COMUNICACAO][ORQUESTRA] Exclusão de endereço inválido desativada para "
+                    f"{wrapper_name or nome_comunicacao} (remover_endereco_invalido=False)"
+                )
 
             if overrides.get('trocar_modelo', trocar_modelo):
                 _aplicar_troca_modelo(driver, overrides.get('modelo_troca_correios', modelo_troca_correios), debug, log_fn)

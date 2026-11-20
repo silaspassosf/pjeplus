@@ -1,8 +1,4 @@
-"""filtros_painel — extraído de Fix/core.py (F7: split verbatim, re-exportado pelo core).
-
-Corpos idênticos aos originais (mesma ordem interna). O grafo entre módulos é
-acíclico: navegacao_espera <- navegacao <- entrada_campos; documentos_cp e
-filtros_painel são folhas. """
+"""filtros_painel — extraído de Fix/core.py (F7: split verbatim, re-exportado pelo core)."""
 
 from .log import logger
 
@@ -14,10 +10,7 @@ from .navegacao import aguardar_e_clicar, js_base, safe_click_no_scroll  # noqa:
 from .navegacao_espera import aguardar_renderizacao_nativa  # noqa: F401
 
 def aplicar_filtro_100(driver):
-    """
-    Aplica filtro para exibir 100 itens por página no painel global.
-    Usa safe_click_no_scroll (JS direto, sem scrollIntoView) + aguardar_renderizacao_nativa.
-    """
+    """Aplica filtro para exibir 100 itens por página no painel global."""
     try:
         span_100_ativo = espera.elemento(driver, "//mat-select//span[contains(@class,'mat-select-min-line') and normalize-space(text())='100']", teto=0.5)
         if span_100_ativo:
@@ -58,21 +51,16 @@ def aplicar_filtro_100(driver):
     return resultado
 
 def filtro_fase(driver):
-    """
-    Seleciona fases 'Execução' e 'Liquidação' no filtro global.
-    OTIMIZADO: Usa aguardar_e_clicar() + js_base() - 3 req vs 10-15 anteriores.
-    """
+    """Seleciona fases 'Execução' e 'Liquidação' no filtro global."""
     try:
         seletor = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
 
-        # Abre dropdown com aguardar_e_clicar (MutationObserver)
         if not aguardar_e_clicar(driver, seletor, timeout=5, usar_js=True):
             logger.error('[FILTRO_FASE] Dropdown nao encontrado.')
             return False
 
         espera.assentar(driver, 0.3)
 
-        # Seleciona ambas fases usando JavaScript (1 requisição)
         script = f"""
         {js_base()}
 
@@ -98,7 +86,6 @@ def filtro_fase(driver):
         if selecionadas != 2:
             logger.warning('[FILTRO_FASE] Apenas %d/2 fases selecionadas', selecionadas)
 
-        # Fecha dropdown
         _fechar_dropdown_ou_esc(driver)
         espera.assentar(driver, 0.2)
 
@@ -119,22 +106,17 @@ def _aguardar_loader_painel(driver, timeout=10):
         logger.warning('[FILTRO] Loader nao desapareceu dentro do timeout.')
 
 def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
-    """
-    Aplica filtros de fase processual e tarefa no painel global.
-    Usa mesma logica JS do filtro_fase: clica no botao de filtrar apenas UMA vez ao final.
-    """
+    """Aplica filtros de fase processual e tarefa no painel global."""
     fases = [f.strip() for f in fases_alvo]
 
     logger.info('[filtrofases] Filtrando fase processual: %s...', ', '.join(fases))
 
-    # ── 1. Filtro de fase processual ──
     try:
         seletor = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
         if not aguardar_e_clicar(driver, seletor, timeout=10, usar_js=True):
             logger.error('[filtrofases] Dropdown de fase nao encontrado.')
             return False
         aguardar_renderizacao_nativa(driver)
-        # Aguardar opcoes reais aparecerem no painel (espera observável)
         _opcoes_prontas = False
         fn_sc = getattr(driver, "execute_script", None) or getattr(driver, "execute" + "_script", None)
         for _ in range(25):
@@ -183,11 +165,9 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
         logger.error('[filtrofases] Erro no filtro de fase: %s', e)
         return False
 
-    # ── 2. Filtro de tarefa (opcional) ──
     if tarefas_alvo:
         logger.info('[filtrofases] Filtrando tarefa: %s...', ', '.join(tarefas_alvo).title())
         try:
-            # Buscar o label/span da tarefa usando seletor mais robusto
             tarefa_element = None
             for seletor_tarefa_css in [
                 f"//span[contains(text(), '{seletor_tarefa}')]",
@@ -239,7 +219,6 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
             logger.error('[filtrofases] Erro no filtro de tarefa: %s', e)
             return False
 
-    # ── 3. Clicar no botao de filtrar uma unica vez ──
     try:
         botao_filtrar = espera.elemento(driver, "button[aria-label*='Filtrar'], i.fas.fa-filter, i.fa-filter, //button[.//i[contains(@class, 'fa-filter')]]", teto=2)
         if botao_filtrar:

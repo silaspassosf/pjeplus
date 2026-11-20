@@ -1,8 +1,4 @@
-"""Fix - Pacote modular para automação PJe.
-
-Uso recomendado:
-    from Fix import aguardar_e_clicar, criar_gigs, login_cpf, validar_conexao_driver
-"""
+"""Fix - Pacote modular para automação PJe."""
 
 from .facade_publica import *
 from .facade_publica import __all__ as _PUBLIC_ALL

@@ -1,28 +1,11 @@
-"""
-Fix/diagnostico_runtime.py - Diagnostico e instrumentacao do runtime PJe Plus.
+"""Fix/diagnostico_runtime.py - Diagnostico e instrumentacao do runtime PJe Plus."""
 
-Consolida os antigos:
-    - Fix/log.py                Logger estruturado unificado
-    - Fix/debug_interativo.py   Debug interativo com pausa para analise
-    - Fix/utils_observer.py     Re-export de aguardar_renderizacao_nativa (Fix.core)
-    - Fix/utils_tempo.py        Re-export de medir_tempo / TIME_ENABLED (Fix.core)
-
-Uso:
-    from Fix.diagnostico_runtime import logger, log_start, log_fim
-    from Fix.diagnostico_runtime import DebugInterativo, on_erro_critico
-    from Fix.diagnostico_runtime import aguardar_renderizacao_nativa, medir_tempo
-"""
-
-# =============================================================================
-# Parte 1 — Logger estruturado (original: Fix/log.py)
-# =============================================================================
 
 import os
 import logging
 import sys
 from typing import Optional, Dict, Any, List
 
-# ── mapeamento de string para nivel ──
 _LOG_LEVEL_MAP = {
     'DEBUG': logging.DEBUG,
     'INFO': logging.INFO,
@@ -38,7 +21,6 @@ def _resolver_nivel() -> int:
     if nivel_str in _LOG_LEVEL_MAP:
         return _LOG_LEVEL_MAP[nivel_str]
 
-    # Compatibilidade reversa com PJEPLUS_DEBUG
     debug_env = os.getenv('PJEPLUS_DEBUG', '0').lower()
     if debug_env in ('1', 'true', 'on'):
         return logging.DEBUG
@@ -51,7 +33,6 @@ class _NivelFormatter(logging.Formatter):
 
     def format(self, record):
         if record.levelno >= logging.ERROR:
-            # Separador visual + localização exata do erro
             linha = ('%(asctime)s [%(module)s] ERRO em %(funcName)s: %(message)s' %
                      {'asctime': self.formatTime(record, '%H:%M:%S'),
                       'module': record.module,
@@ -59,7 +40,6 @@ class _NivelFormatter(logging.Formatter):
                       'message': record.getMessage()})
             sep = '\n' + '=' * 60
             return '%s\n%s\n%s' % (sep, linha, '=' * 60)
-        # Formato compacto: HH:MM:SS [modulo] mensagem
         return ('%(asctime)s [%(module)s] %(message)s' %
                 {'asctime': self.formatTime(record, '%H:%M:%S'),
                  'module': record.module,
@@ -94,26 +74,14 @@ class PJELogger:
         self.logger.error(mensagem)
 
 
-# ── Instancia global ──
 _instancia = PJELogger('pjeplus')
 logger = _instancia.logger
 
 
 def handler_console_sem_pjeplus(handler) -> None:
-    """Politica de log unico no console (F8).
-
-    O logger 'pjeplus' tem handler proprio de console (PJELogger acima).
-    Handlers de console adicionados a raiz pelos orquestradores (x.py,
-    f.py, Peticao.suporte_pet) devem registrar este filtro para nao
-    reimprimir as mesmas linhas. File log e erro.md continuam recebendo
-    os registros da familia 'pjeplus' via propagate.
-    """
+    """Politica de log unico no console (F8)."""
     handler.addFilter(lambda r: not r.name.startswith('pjeplus'))
 
-
-# ══════════════════════════════════════════════════════
-# Funcoes padronizadas de evento
-# ══════════════════════════════════════════════════════
 
 def log_start(modulo: str) -> None:
     """Registra inicio de processamento em *modulo*."""
@@ -139,8 +107,6 @@ def log_fim(modulo: str, resumo) -> None:
     """Registra conclusao do processamento com *resumo* (dict ou str)."""
     logger.info('[%s] FIM %s', modulo, resumo)
 
-
-# ── Sanitização de dados sensíveis e erro estruturado ──
 
 import re as _re_log
 
@@ -196,8 +162,6 @@ def log_erro_estruturado(
     return msg
 
 
-# ── funcoes legadas ──
-
 def get_module_logger(module_name: str):
     """Compatibilidade para modulos que pedem logger nomeado por modulo."""
     return logging.getLogger(module_name)
@@ -223,22 +187,14 @@ def log_seletor_multiplo(prefixo: str, seletor: str, status: str, erro: str = No
     logger.info(f"{prefixo}[{status}] {seletor}")
 
 
-# =============================================================================
-# Parte 2 — Debug interativo (original: Fix/debug_interativo.py)
-# =============================================================================
-
 import time as _time_module
 from datetime import datetime as _datetime
 from typing import Optional, Dict, Any
 
 
 class DebugInterativo:
-    """
-    Sistema de debug que pausa execucao em erros criticos.
-    Permite analise e correcao interativa de problemas headless.
-    """
+    """Sistema de debug que pausa execucao em erros criticos."""
 
-    # Padroes de erro que devem pausar execucao
     ERROS_CRITICOS = [
         'click intercepted',
         'element click intercepted',
@@ -356,16 +312,7 @@ class DebugInterativo:
         return contexto
 
     def pausar_para_analise(self, driver: Any, erro_msg: str, contexto_extra: dict = None) -> str:
-        """
-        Pausa execucao em modo interativo para analise de erro.
-        Em modo auto, aplica fix automatico e continua.
-
-        Returns:
-            'c' = continuar
-            's' = skip (pular este item)
-            'a' = abortar execucao
-            'f' = fix (tentar correcao automatica)
-        """
+        """Pausa execucao em modo interativo para analise de erro."""
         if not self.enabled:
             return 'c'
 
@@ -541,7 +488,6 @@ class DebugInterativo:
         print("=" * 80)
 
 
-# Singleton global
 _debug = None
 
 
@@ -552,12 +498,7 @@ def get_debug_interativo() -> Optional[DebugInterativo]:
 
 def on_erro_critico(driver: Any, erro_msg: str,
                     contexto: Optional[Dict] = None) -> str:
-    """
-    Callback para ser chamado quando erro critico ocorre.
-
-    Returns:
-        'c' = continuar, 's' = skip, 'a' = abortar, 'f' = fix
-    """
+    """Callback para ser chamado quando erro critico ocorre."""
     debug = get_debug_interativo()
     if not debug or not debug.enabled:
         return 'c'
@@ -570,12 +511,7 @@ def on_erro_critico(driver: Any, erro_msg: str,
     return 'c'
 
 
-# =============================================================================
-# Parte 3 — Re-exports de Fix.core (original: Fix/utils_observer.py, Fix/utils_tempo.py)
-#
 # Usam __getattr__  + importlib p/ evitar circular import:
-#   Fix.core → Fix.log (shim) → Fix.diagnostico_runtime → ??? → Fix.core
-# =============================================================================
 
 def __getattr__(name):
     """Lazy re-exports from Fix.core to avoid circular imports."""
@@ -591,19 +527,12 @@ def __getattr__(name):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# =============================================================================
-# Public API (__all__)
-# =============================================================================
-
 __all__ = [
-    # Logger
     'logger', 'PJELogger',
     'log_start', 'log_item', 'log_sucesso', 'log_erro', 'log_fim',
     'get_module_logger', 'getmodulelogger',
     '_log_info', '_log_error',
     'log_seletor_multiplo',
-    # Debug interativo
     'DebugInterativo', 'get_debug_interativo', 'on_erro_critico',
-    # Re-exports de Fix.core
     'aguardar_renderizacao_nativa', 'medir_tempo', 'TIME_ENABLED',
 ]

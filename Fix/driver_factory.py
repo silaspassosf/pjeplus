@@ -14,7 +14,6 @@ from Play.pjeplay.launcher import (
     finalizar_driver,
 )
 
-# Constantes mantidas para compatibilidade com chamadores legados
 GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'geckodriver.exe')
 FIREFOX_BINARY_PADRAO = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
 FIREFOX_BINARY_PADRAO_ALT = r"C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe"

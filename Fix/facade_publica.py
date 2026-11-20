@@ -1,17 +1,4 @@
-"""Agregador da superficie publica e dos shims leves de compatibilidade do Fix.
-
-Esta unidade concentra re-exports, aliases e implementacoes curtas que antes
-estavam dispersas em ~15 arquivos separados (< 150 linhas cada). Os donos reais
-da implementacao continuam em ``Fix.core``, ``Fix.extracao``, ``Fix.utils``,
-``Fix.abas`` e ``Fix.monitoramento_progresso_unificado``.
-
-Fontes consolidadas:
-  - Fix.__init__, Fix.drivers/*, Fix.progress/*, Fix.scripts/__init__
-  - Fix.element_wait, Fix.smart_finder, Fix.exceptions
-  - Fix.documents, Fix.navigation, Fix.gigs
-  - Fix.variaveis_client, Fix.variaveis_helpers, Fix.variaveis_resolvers
-  - Fix.selectors_pje (parcial), Fix.movimento_helpers
-"""
+"""Agregador da superficie publica e dos shims leves de compatibilidade do Fix."""
 
 from pathlib import Path
 from Fix.core import safe_click_no_scroll
@@ -20,9 +7,6 @@ from typing import Dict, Optional, Tuple, Union
 from Play.pjeplay.locators import By
 from Fix import espera as _espera
 
-# =============================================================================
-# CORE - Re-exports from Fix.core
-# =============================================================================
 from .core import (
     aguardar_e_clicar,
     selecionar_opcao,
@@ -64,9 +48,6 @@ from .core import (
     buscar_documento_argos,
 )
 
-# =============================================================================
-# EXTRACAO - Re-exports from Fix.extracao
-# =============================================================================
 from .extracao import (
     extrair_direto,
     extrair_documento,
@@ -90,9 +71,6 @@ from .extracao import (
     carregar_destinatarios_cache,
 )
 
-# =============================================================================
-# UTILS - Re-exports from Fix.utils
-# =============================================================================
 from .utils import (
     formatar_moeda_brasileira,
     formatar_data_brasileira,
@@ -103,8 +81,6 @@ from .utils import (
     login_automatico_direto,
     login_cpf,
     login_pc,
-    # F3: canônicos de sessão em Fix/sessao.py (utils re-exporta; trio de cookies
-    # saiu do .core, cuja cópia divergente foi removida por não ter chamadores)
     salvar_cookies_sessao,
     carregar_cookies_sessao,
     verificar_e_aplicar_cookies,
@@ -128,9 +104,6 @@ from .utils import (
     obter_credencial,
 )
 
-# =============================================================================
-# ABAS - Re-exports from Fix.abas (FX2 - browser/session support)
-# =============================================================================
 from .abas import (
     validar_conexao_driver,
     trocar_para_nova_aba,
@@ -138,9 +111,6 @@ from .abas import (
     is_browsing_context_discarded_error,
 )
 
-# =============================================================================
-# PROGRESSO - Re-exports from Fix.monitoramento_progresso_unificado
-# =============================================================================
 from .monitoramento_progresso_unificado import (
     ProgressoUnificado,
     carregar_progresso_unificado,
@@ -151,9 +121,6 @@ from .monitoramento_progresso_unificado import (
     ARQUIVO_PROGRESSO_UNIFICADO,
 )
 
-# =============================================================================
-# ERROR CLASSES
-# =============================================================================
 
 class PJePlusError(Exception):
     pass
@@ -166,9 +133,6 @@ class ElementoNaoEncontradoError(PJePlusError):
 class NavegacaoError(PJePlusError):
     pass
 
-# =============================================================================
-# API CLIENT RE-EXPORTS (formerly Fix.variaveis_client / _helpers / _resolvers)
-# =============================================================================
 from api.variaveis_client import PjeApiClient, session_from_driver
 
 from api.variaveis_helpers import (
@@ -188,9 +152,6 @@ from api.variaveis_resolvers import (
     obter_chave_ultimo_despacho_decisao_sentenca,
 )
 
-# =============================================================================
-# SELECTORS PJe (formerly Fix.selectors_pje)
-# =============================================================================
 
 BTN_TAREFA_PROCESSO = 'button[mattooltip="Abre a tarefa do processo"]'
 EDITOR_AREA_CONTEUDO = 'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]'
@@ -199,11 +160,6 @@ BTN_EXPANDIR_CHIPS = 'pje-lista-etiquetas button[aria-label="Expandir Chips"]'
 CHIPS_LISTA = "//pje-lista-etiquetas//mat-chip"
 DIALOG_PRAZO_SOBRESTAMENTO = 'pje-dialog-prazo-sobrestamento'
 
-# buscar_seletor_robusto is re-exported from Fix.core above
-
-# =============================================================================
-# MOVIMENTO HELPERS (formerly Fix.movimento_helpers)
-# =============================================================================
 
 import re as _re
 import time as _time
@@ -212,27 +168,13 @@ import time as _time
 def _normalize_text(s: str) -> str:
     if not s:
         return ''
-    s = normalizar_texto(s.strip())  # canonical from Fix.utils
+    s = normalizar_texto(s.strip())
     s = _re.sub(r'\s+', ' ', s)
     return s
 
 
 def executar_movimento_judicial(driver, movimento: Union[str, int]) -> bool:
-    """Executa o lançamento de movimentos no editor de atos judiciais.
-
-    Implementação canônica baseada no padrão comprovado do gigs-plugin.js (aaDespacho):
-      1) Ativa a guia Movimentos (pje-editor-lateral div[aria-posinset="2"]) se desativada;
-      2) Decompõe o movimento em etapa primária e complementos secundários;
-      3) Localiza e marca a caixa de seleção do movimento primário (pje-movimento mat-checkbox label);
-      4) Para cada complemento secundário (dropdown / opção / input):
-         - Localiza o campo no container daquele movimento (pje-complemento mat-form-field[class*="ng-untouched"]);
-         - Se for combobox (mat-select): abre o dropdown e clica na mat-option com o texto da opção;
-         - Se for input/textarea: preenche o valor e despacha eventos input/change;
-      5) Clica no botão Gravar do lançador (pje-lancador-de-movimentos button[aria-label*="Gravar"]);
-      6) Confirma no diálogo (mat-dialog-container button 'Sim') caso seja exibido.
-
-    Retorna True em caso de sucesso, False caso contrário.
-    """
+    """Executa o lançamento de movimentos no editor de atos judiciais."""
     if not movimento or str(movimento).lower() in ('nenhum', 'none', 'false'):
         return True
 
@@ -511,11 +453,6 @@ def selecionar_movimento_auto(driver, movimento: str) -> bool:
     return executar_movimento_judicial(driver, movimento)
 
 
-# =============================================================================
-# COMPATIBILITY SHIMS
-# (legados de Fix.element_wait, Fix.smart_finder, Fix.progress, Fix.scripts)
-# =============================================================================
-
 _JS_CACHE: Dict[Tuple[str, str], str] = {}
 
 
@@ -540,10 +477,7 @@ class ElementWaitPool:
 
 
 def buscar(driver, cache_key, seletores):
-    """Busca sequencial simples por CSS ou XPath.
-
-    ``cache_key`` e mantido so por compatibilidade de assinatura.
-    """
+    """Busca sequencial simples por CSS ou XPath."""
     _ = cache_key
     for seletor in seletores or []:
         try:
@@ -605,40 +539,27 @@ def completar(nome_modulo: str, sucesso: bool = True) -> None:
     _ = (nome_modulo, sucesso)
 
 
-# =============================================================================
-# __all__  -  Todos os nomes publicos
-# =============================================================================
-
 __all__ = [
-    # Core - Consolidadas
     'aguardar_e_clicar', 'selecionar_opcao', 'preencher_campo',
     'preencher_campos_prazo', 'preencher_multiplos_campos',
-    # Core - Retry e robustez
     'com_retry', 'buscar_seletor_robusto', 'extrair_id_processo', 'esperar_elemento',
     'esperar_url_conter', 'escolher_opcao_inteligente',
     'encontrar_elemento_inteligente',
-    # Core - Legadas
     'safe_click', 'wait', 'wait_for_visible', 'wait_for_clickable',
     'smart_sleep', 'sleep',
-    # Core - Drivers
     'criar_driver_PC', 'criar_driver_VT',
     'criar_driver_pc', 'criar_driver_vt',
     'criar_driver_notebook',
     'criar_driver_sisb_pc', 'criar_driver_sisb_notebook',
     'finalizar_driver',
-    # Core - Cookies/Sessao
     'salvar_cookies_sessao', 'carregar_cookies_sessao',
     'verificar_e_aplicar_cookies',
-    # Core - Filtros e navegacao
     'aplicar_filtro_100', 'filtro_fase',
-    # Core - Documentos
     'verificar_documento_decisao_sentenca', 'visibilidade_sigilosos',
     'buscar_ultimo_mandado', 'buscar_mandado_autor',
     'buscar_documentos_sequenciais', 'buscar_documentos_polo_ativo',
     'criar_botoes_detalhes',
-    # Core - Classes e JS
     'ErroCollector', 'js_base',
-    # Extracao
     'extrair_direto', 'extrair_documento', 'extrair_pdf',
     'extrair_dados_processo', 'extrair_destinatarios_decisao',
     'criar_gigs', 'criar_comentario', 'criar_lembrete_posit', 'remover_lembrete_posit',
@@ -647,7 +568,6 @@ __all__ = [
     'analise_argos', 'buscar_documento_argos', 'tratar_anexos_argos',
     'analise_outros', 'salvar_destinatarios_cache',
     'carregar_destinatarios_cache',
-    # Utils
     'formatar_moeda_brasileira', 'formatar_data_brasileira',
     'normalizar_cpf_cnpj', 'limpar_temp_selenium',
     'login_manual', 'login_automatico', 'login_automatico_direto',
@@ -662,40 +582,31 @@ __all__ = [
     'verificar_e_tratar_acesso_negado_global',
     'handle_exception_with_recovery', 'obter_driver_padronizado',
     'driver_pc', 'navegar_para_tela',
-    # Abas
     'validar_conexao_driver', 'trocar_para_nova_aba',
     'forcar_fechamento_abas_extras',
     'is_browsing_context_discarded_error',
-    # Progresso monitorado (ex-Fix.monitoramento_progresso_unificado)
     'ProgressoUnificado', 'carregar_progresso_unificado',
     'salvar_progresso_unificado', 'marcar_processo_executado_unificado',
     'processo_ja_executado_unificado', 'executar_com_monitoramento_unificado',
     'ARQUIVO_PROGRESSO_UNIFICADO',
-    # Error classes
     'PJePlusError', 'ElementoNaoEncontradoError', 'NavegacaoError',
-    # API client (ex-Fix.variaveis_client)
     'PjeApiClient', 'session_from_driver',
-    # API helpers (ex-Fix.variaveis_helpers)
     'obter_gigs_com_fase', 'obter_texto_documento',
     'buscar_atividade_gigs_por_observacao',
     'obter_todas_atividades_gigs_com_observacao',
     'padrao_liq', 'verificar_bndt',
-    # API resolvers (ex-Fix.variaveis_resolvers)
     'obter_codigo_validacao_documento',
     'obter_peca_processual_da_timeline',
     'resolver_variavel', 'get_all_variables',
     'obter_chave_ultimo_despacho_decisao_sentenca',
-    # Selectors PJe (ex-Fix.selectors_pje)
     'BTN_TAREFA_PROCESSO',
     'EDITOR_AREA_CONTEUDO',
     'BTN_GRAVAR_MOVIMENTOS',
     'BTN_EXPANDIR_CHIPS',
     'CHIPS_LISTA',
     'DIALOG_PRAZO_SOBRESTAMENTO',
-    # Movimento helpers (ex-Fix.movimento_helpers)
     'selecionar_movimento_dois_estagios', 'selecionar_movimento_auto',
     'executar_movimento_judicial',
-    # Shim classes e helpers
     'ElementWaitPool', 'buscar',
     'carregar_js', 'limpar_cache_js',
     'registrar_modulo', 'atualizar', 'completar',

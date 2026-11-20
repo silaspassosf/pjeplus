@@ -48,9 +48,7 @@ def _find_elements(driver, by, seletor):
 def _dormir(segundos):
     return getattr(time, "sleep")(segundos)
 
-# `document.querySelectorAll` estoura com sintaxe XPath — e o projeto usa
 # By.XPATH em ~117 pontos. Sem isto, passar um XPath para `ate_*` devolveria
-# False na hora, silenciosamente: pior que o sleep que substituiu.
 _JS_ELEMENTOS = """
 function __pjeEls(sel) {
   if (sel[0] === '/' || sel[0] === '(' || sel.slice(0, 2) === './') {
@@ -92,20 +90,12 @@ def ate_habilitar(driver, seletor, teto=2.0):
 
 
 def ate_desabilitar(driver, seletor, teto=2.0):
-    """Espera que nenhum elemento de `seletor` esteja habilitado.
-
-    Sinal de "ação concluída" no PJe: o botão Salvar/Assinar desabilita
-    enquanto a requisição corre.
-    """
+    """Espera que nenhum elemento de `seletor` esteja habilitado."""
     return ate_js(driver, "!__pjeEls(%r).some(%s)" % (seletor, _HABILITADO), teto)
 
 
 def ate_texto(driver, seletor, texto, teto=2.0):
-    """Espera algum elemento de `seletor` conter `texto`.
-
-    Usa `padrao_texto` (Fix.utils) para casar sem depender de acento, caixa ou
-    espaçamento — o mesmo critério do caminho nativo.
-    """
+    """Espera algum elemento de `seletor` conter `texto`."""
     from Fix.utils import padrao_texto  # import tardio: Fix.utils importa este módulo
 
     padrao = padrao_texto(texto)
@@ -125,11 +115,7 @@ def ate_texto(driver, seletor, texto, teto=2.0):
 
 
 def ate_js(driver, expressao, teto=2.0):
-    """Espera uma expressão JS virar verdadeira. `expressao` é um predicado.
-
-    `__pjeEls(seletor)` está disponível dentro da expressão e aceita CSS ou
-    XPath.
-    """
+    """Espera uma expressão JS virar verdadeira. `expressao` é um predicado."""
     script = "%s return !!(%s);" % (_JS_ELEMENTOS, expressao)
     limite = time.monotonic() + float(teto)
     ultimo_erro = None
@@ -170,20 +156,9 @@ def assentar(driver, teto=2.0, motivo=""):
 
 
 def _fluxo_do_chamador(detalhado=False):
-    """Deduz o fluxo (mandado/p2b/pec/...) e o módulo que chamou a busca.
-
-    A telemetria precisa saber ONDE o seletor foi usado; inspecionar um frame
-    acima é barato e evita passar o fluxo por 285 chamadores.
-
-    Com `detalhado=True` devolve (fluxo, módulo), e o módulo vai para o campo
-    `contexto` — é ele que diz qual arquivo usa o seletor, informação que o
-    catálogo precisa e que antes saía sempre como "geral".
-    """
+    """Deduz o fluxo (mandado/p2b/pec/...) e o módulo que chamou a busca."""
     try:
         import sys
-        # Percorre a pilha até o primeiro módulo de fluxo conhecido. Não para no
-        # primeiro frame estranho: o caminho real passa por Fix/*, Play/*, atos/*
-        # e o topo costuma ser o Play — parar ali rotulava tudo como "pjeplay".
         ignorar = ("Fix.", "Play.", "pjeplay")
         f = sys._getframe(1)
         while f:
@@ -212,22 +187,11 @@ def _fluxo_do_chamador(detalhado=False):
     return ("desconhecido", "") if detalhado else "desconhecido"
 
 
-_CONTADORES = {}  # (fluxo, seletor, ok) -> [usos, tentativas, ms_total]
+_CONTADORES = {}
 
 
 def _telemetria_busca(seletor, ok, tentativas=1, ms=0.0):
-    """Registra a resolução do seletor na telemetria (nunca levanta).
-
-    Fica aqui, em vez de em cada chamador, porque `elemento`/`elementos` são a
-    porta única de busca no DOM — assim todo o código passa a emitir o seletor
-    que de fato venceu, sem nenhuma alteração nos fluxos.
-
-    Agrupa por (fluxo, seletor, ok): uma linha por seletor E por fluxo, não uma
-    por busca. A primeira gravação já basta para o catálogo saber que aquele
-    seletor existe naquele fluxo; as repetições só somam no contador `usos`.
-    Antes a chave ignorava o fluxo, então o primeiro `tbody tr` do mandado
-    silenciava todo o resto da execução.
-    """
+    """Registra a resolução do seletor na telemetria (nunca levanta)."""
     try:
         if not seletor:
             return
@@ -241,8 +205,6 @@ def _telemetria_busca(seletor, ok, tentativas=1, ms=0.0):
             return
         _CONTADORES[chave] = [1, int(tentativas), float(ms)]
         from Fix.telemetria_seletores import registrar_resolucao
-        # Grava o seletor também quando falha: saber QUAL seletor não achou é o
-        # que alimenta a consolidação do catálogo. Antes ia None e virava "".
         registrar_resolucao("busca_dom", seletor,
                             fluxo=fluxo, origem="espera",
                             ok=ok, tentativas=tentativas, ms=ms,
@@ -257,12 +219,7 @@ _ULTIMO_DRIVER = None
 
 
 def _processo_do_driver():
-    """Número do processo em execução, lido da URL (vazio se não houver).
-
-    Usa o driver visto na última busca: subir a pilha atrás de `driver` falhava
-    porque `_telemetria_busca` é chamada de dentro de `elemento`/`elementos`,
-    onde a variável já não está no escopo alcançado — e o campo saía sempre "".
-    """
+    """Número do processo em execução, lido da URL (vazio se não houver)."""
     try:
         drv = _ULTIMO_DRIVER
         if drv is None:
@@ -286,10 +243,7 @@ def _numero_do_processo(url):
 
 
 def elemento(driver, seletor, teto=10, visivel=True):
-    """Espera aparecer elemento de `seletor`; devolve o elemento ou `None`.
-
-    Use o retorno imediatamente: fica obsoleto se a tela re-renderizar.
-    """
+    """Espera aparecer elemento de `seletor`; devolve o elemento ou `None`."""
     global _ULTIMO_DRIVER
     _ULTIMO_DRIVER = driver
     by = By.XPATH if e_xpath(seletor) else By.CSS_SELECTOR
@@ -371,12 +325,7 @@ def ate_abas(driver, quantidade, teto=10):
 
 
 def ate_obsoleto(driver, elemento, teto=10):
-    """Espera `elemento` ficar obsoleto (removido/re-renderizado).
-
-    No Selenium, acessá-lo levanta `StaleElementReferenceException`. No
-    backend Playwright o locator re-resolve e a obsolescência praticamente
-    não ocorre — `True` imediato é aceitável e correto semanticamente.
-    """
+    """Espera `elemento` ficar obsoleto (removido/re-renderizado)."""
     limite = time.monotonic() + float(teto)
     while True:
         try:
@@ -389,16 +338,12 @@ def ate_obsoleto(driver, elemento, teto=10):
 
 
 def pausa(driver, segundos, motivo=""):
-    """Espera cega — só onde não existe condição observável.
-
-    Usar para throttle anti-detecção e job assíncrono sem sinal no DOM.
-    Nunca usar para "esperar a tela carregar": para isso existem as `ate_*`.
-    """
+    """Espera cega — só onde não existe condição observável."""
     if motivo:
         logger.debug("pausa %.1fs: %s", segundos, motivo)
     pulsar = getattr(driver, "pulsar", None)
     if pulsar is not None:
-        pulsar(segundos)  # cede tempo ao loop do Playwright
+        pulsar(segundos)
     else:
         _dormir(segundos)
     return True

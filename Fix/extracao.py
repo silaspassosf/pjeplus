@@ -1,8 +1,4 @@
-"""
-Fix.extracao - Módulo de extracao para PJe automação.
-
-Migrado automaticamente de Fix.py (PARTE 5 - Modularização).
-"""
+"""Fix.extracao - Módulo de extracao para PJe automação."""
 
 from typing import Optional, Any
 from Play.pjeplay.locators import By, Keys
@@ -10,7 +6,6 @@ from Play.pjeplay.errors import TimeoutException
 from Play.pjeplay.element import PWElement
 import re, time, datetime, json, pyperclip, unicodedata
 
-# Importar funções de verificação de carregamento
 try:
     from atos.core import (
         verificar_carregamento_detalhe,
@@ -41,25 +36,7 @@ def _pressionar_tecla(driver, tecla: str):
 
 
 def extrair_direto(driver, timeout=10, debug=False, formatar=True):
-    """
-    Extrai o conteúdo do documento PDF ativo na tela do processo PJe DIRETAMENTE.
-    SEM CLIQUES, SEM INTERAÇÃO, apenas leitura direta.
-    
-    Args:
-        driver: driver ativo
-        timeout: Timeout para operações
-        debug: Se True, exibe logs detalhados
-        formatar: Se True, aplica formatação organizacional ao texto
-    
-    Returns:
-        dict: {
-            'conteudo': str,           # Texto formatado (se formatar=True)
-            'conteudo_bruto': str,     # Texto original
-            'info': dict,              # Metadados do documento
-            'sucesso': bool,           # Se extração foi bem-sucedida
-            'metodo': str              # Método que funcionou
-        }
-    """
+    """Extrai o conteúdo do documento PDF ativo na tela do processo PJe DIRETAMENTE."""
 
     resultado = {
         'conteudo': None,
@@ -73,7 +50,6 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
                 logger.debug('[EXTRAIR_DIRETO] Elemento #documento nao encontrado')
             return resultado
 
-        # ── Tentar 3 estratégias de extração (Strategy Pattern) ──
         strategies = [
             lambda: _extrair_via_pdf_viewer(driver, timeout, debug),
             lambda: _extrair_via_iframe(driver, timeout, debug),
@@ -101,11 +77,6 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
         return resultado
 
 
-# =========================
-# SISTEMA GLOBAL DE RECUPERAÇÃO DE DRIVER (ACESSO NEGADO)
-# =========================
-
-# Variável global para armazenar referências de driver e funções de recuperação
 _driver_recovery_config = {
     'criar_driver': None,
     'login_func': None,
@@ -114,8 +85,6 @@ _driver_recovery_config = {
 
 
 def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
-    # Extrai texto do documento aberto, aplica regras se houver.
-    # Retorna texto_final (str) ou None em caso de erro.
     texto_completo = None
     texto_final = None
     try:
@@ -228,14 +197,9 @@ def extrair_pdf(driver, log=True):
         if log:
             logger.error("ERRO em extrair_pdf: %s: %s", type(e).__name__, e)
         return None
-## Função para extrair dados do processo
 
 def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False):
-    """
-    Extrai dados do processo via API do PJe (TRT2), seguindo a mesma lógica da extensão MaisPje.
-    Função completa auto-contida.
-    """
-    # Funções auxiliares internas
+    """Extrai dados do processo via API do PJe (TRT2), seguindo a mesma lógica da extensão MaisPje."""
     def get_cookies_dict(driver):
         try:
             cookies = driver.get_cookies()
@@ -247,12 +211,10 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
     def extrair_numero_processo_url(driver):
         """Extrai número do processo da URL ou do elemento clipboard"""
         url = driver.current_url
-        # Primeiro tenta extrair da URL
         m = re.search(r'processo/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', url)
         if m:
             return m.group(1)
-        
-        # Se não encontrar na URL, tenta extrair do elemento clipboard do PJE
+
         try:
             xpath_clipboard = "//pje-icone-clipboard//span[contains(@aria-label, 'Copia o número do processo')]"
             elemento_clipboard = espera.elemento(driver, xpath_clipboard)
@@ -263,7 +225,7 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
                     return match_clipboard.group(1)
         except:
             pass
-        
+
         return None
 
     def extrair_trt_host(driver):
@@ -296,20 +258,20 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
             if debug:
                 logger.debug('[extrair.py] Erro ao obter dados via API: %s', e)
         return None
-    
+
     cookies = get_cookies_dict(driver)
     numero_processo = extrair_numero_processo_url(driver)
     trt_host = extrair_trt_host(driver)
-    
+
     sess = requests.Session()
     for k, v in cookies.items():
         sess.cookies.set(k, v)
     sess.headers.update({
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
-        "X-Grau-Instancia": "1"  # Adiciona header usado pela extensão
+        "X-Grau-Instancia": "1"
     })
-    
+
     if not numero_processo:
         if debug:
             logger.debug('[extrair.py] Nao foi possivel extrair o numero do processo')
@@ -326,17 +288,17 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
         if debug:
             logger.debug('[extrair.py] Nao foi possivel obter dados do processo via API')
         return {}
-    
+
     processo_memoria = {
-        "numero": [dados_processo.get("numero", numero_processo)], 
-        "id": id_processo, 
-        "autor": [], 
-        "reu": [], 
+        "numero": [dados_processo.get("numero", numero_processo)],
+        "id": id_processo,
+        "autor": [],
+        "reu": [],
         "terceiro": [],
-        "divida": {}, 
-        "justicaGratuita": [], 
-        "transito": "", 
-        "custas": "", 
+        "divida": {},
+        "justicaGratuita": [],
+        "transito": "",
+        "custas": "",
         "dtAutuacao": "",
         "classeJudicial": dados_processo.get("classeJudicial", {}),
         "labelFaseProcessual": dados_processo.get("labelFaseProcessual", ""),
@@ -344,7 +306,6 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
         "dataUltimo": dados_processo.get("dataUltimo", "")
     }
 
-    # Extrai data de autuação dos dados principais
     dt = dados_processo.get("autuadoEm")
     if dt:
         from datetime import datetime
@@ -353,21 +314,18 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
             processo_memoria["dtAutuacao"] = dtobj.strftime('%d/%m/%Y')
         except:
             processo_memoria["dtAutuacao"] = dt
-    
-    # 2. Partes (formato limpo)
+
     def criar_pessoa_limpa(parte):
         nome = parte.get("nome", "").strip()
         doc_original = parte.get("documento", "")
-        
-        # Normaliza documento (remove pontuação)
+
         doc_normalizado = normalizar_cpf_cnpj(doc_original)
-        
+
         pessoa = {"nome": nome, "cpfcnpj": doc_normalizado}
-        
+
         reps = parte.get("representantes", [])
         if reps:
             adv = reps[0]
-            # Normaliza também o CPF do advogado
             cpf_advogado = normalizar_cpf_cnpj(adv.get("documento", ""))
             pessoa["advogado"] = {
                 "nome": adv.get("nome", "").strip(),
@@ -375,7 +333,6 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
                 "oab": adv.get("numeroOab", "")
             }
         return pessoa
-          # 2. Partes usando API separada (como na extensão)
     try:
         url_partes = f"https://{trt_host}/pje-comum-api/api/processos/id/{id_processo}/partes"
         resp = sess.get(url_partes, timeout=10)
@@ -408,19 +365,12 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
         if debug:
             logger.debug('[extrair.py] Erro ao buscar divida: %s', e)
 
-
-      # Salva JSON
     with open(caminho_json, 'w', encoding='utf-8') as f:
         json.dump(processo_memoria, f, ensure_ascii=False, indent=2)
     return processo_memoria
 
 
-# =========================
-# 4.1 FUNÇÕES PARA DESTINATÁRIOS EXTRAÍDOS DE DECISÕES
-# =========================
-
 DESTINATARIOS_CACHE_PATH = Path('destinatarios_argos.json')
-
 
 
 def extrair_destinatarios_decisao(texto_decisao, dados_processo=None, debug=False):
@@ -505,14 +455,10 @@ def extrair_destinatarios_decisao(texto_decisao, dados_processo=None, debug=Fals
     return resultados
 
 
-
 def salvar_destinatarios_cache(chave_simples, destinatarios, origem=''):  # noqa: D401
-    """
-     VERSÃO SIMPLIFICADA - Salva destinatários sem depender do número do processo
-    Sempre usa uma chave simples como "ATUAL" para facilitar o acesso
-    """
+    """VERSÃO SIMPLIFICADA - Salva destinatários sem depender do número do processo"""
     payload = {
-        'numero_processo': chave_simples,  # Mantém compatibilidade mas usa chave simples
+        'numero_processo': chave_simples,
         'destinatarios': destinatarios,
         'origem': origem,
         'timestamp': datetime.datetime.now().isoformat()
@@ -524,12 +470,8 @@ def salvar_destinatarios_cache(chave_simples, destinatarios, origem=''):  # noqa
         logger.warning('[DEST][WARN] Falha ao salvar cache de destinatarios: %s', exc)
 
 
-
 def carregar_destinatarios_cache():
-    """
-     VERSÃO SIMPLIFICADA - Carrega destinatários sem depender do número do processo
-    Retorna sempre o último cache salvo (chave única)
-    """
+    """VERSÃO SIMPLIFICADA - Carrega destinatários sem depender do número do processo"""
     try:
         if DESTINATARIOS_CACHE_PATH.exists():
             cache = json.loads(DESTINATARIOS_CACHE_PATH.read_text(encoding='utf-8'))
@@ -539,12 +481,6 @@ def carregar_destinatarios_cache():
         logger.warning('[DEST][WARN] Falha ao carregar cache de destinatarios: %s', exc)
     return {}
 
-# =========================
-# 5. FUNÇÕES DE MANIPULAÇÃO DE DOCUMENTOS
-# =========================
-
-# Seção: Manipulaçao de intimações
-# Função para preencher campos de prazo
 
 def _normalizar_texto_decisao(texto):
     if not texto:
@@ -552,133 +488,103 @@ def _normalizar_texto_decisao(texto):
     return ' '.join(texto.split())
 
 
-
 def _extrair_linha_tipo(linha: str) -> Optional[str]:
-    """
-    Detecta tipo de linha e aplica formatação apropriada.
-    
-    Args:
-        linha: String com texto da linha
-    
-    Returns:
-        Linha formatada ou None se vazia
-    """
+    """Detecta tipo de linha e aplica formatação apropriada."""
     linha_limpa = linha.strip()
     if not linha_limpa:
         return None
-    
-    # Detectar cabeçalhos/títulos
-    eh_titulo = (len(linha_limpa) < 100 and 
-                (linha_limpa.isupper() or 
+
+    eh_titulo = (len(linha_limpa) < 100 and
+                (linha_limpa.isupper() or
                  any(p in linha_limpa.upper() for p in ['DECISÃO', 'DESPACHO', 'SENTENÇA', 'CONCLUSÃO', 'VISTOS'])))
     if eh_titulo:
         return f"\n=== {linha_limpa} ===\n"
-    
-    # Detectar parágrafos numerados
+
     if re.match(r'^\d+[\.\)]\s*', linha_limpa):
         return f"\n{linha_limpa}"
-    
-    # Detectar introduções
+
     eh_introducao = linha_limpa.startswith(('Ante o', 'Diante', 'Considerando', 'Tendo em vista', 'Por conseguinte'))
     if eh_introducao:
         return f"\n{linha_limpa}"
-    
-    # Detectar decisões/determinações
+
     eh_decisao = linha_limpa.startswith(('DEFIRO', 'INDEFIRO', 'DETERMINO', 'HOMOLOGO'))
     if eh_decisao:
         return f"\n>>> {linha_limpa}"
-    
-    # Detectar assinaturas
+
     eh_assinatura = any(p in linha_limpa for p in ['Servidor Responsável', 'Juiz', 'Magistrado', 'Responsável'])
     if eh_assinatura:
         return f"\n--- {linha_limpa} ---"
-    
-    # Detectar datas
+
     tem_data = re.search(r'\d{1,2}/\d{1,2}/\d{4}', linha_limpa) and len(linha_limpa) < 50
     if tem_data:
         return f"\n[{linha_limpa}]"
-    
+
     return linha_limpa
 
 
-
 def _extrair_formatar_texto(texto_bruto: str, debug: bool = False) -> str:
-    """
-    Formata o texto extraído com estrutura organizacional.
-    
-    Args:
-        texto_bruto: Texto bruto extraído do documento
-        debug: Se True, exibe logs de debug (padrão False)
-    
-    Returns:
-        Texto formatado com estrutura ou texto bruto se falhar formatação
-    """
-    # Guard clause: texto vazio
+    """Formata o texto extraído com estrutura organizacional."""
     if not texto_bruto or not texto_bruto.strip():
         return ""
-    
+
     try:
-        # Limpeza
         texto = texto_bruto.strip()
         texto = re.sub(r'\r\n|\r', '\n', texto)
         texto = re.sub(r'[ \t]+', ' ', texto)
         texto = re.sub(r'\n\s*\n\s*\n+', '\n\n', texto)
-        
-        # Formatar linhas
+
         linhas = texto.split('\n')
         linhas_formatadas = [_extrair_linha_tipo(l) for l in linhas]
         linhas_formatadas = [l for l in linhas_formatadas if l is not None]
-        
+
         texto_formatado = '\n'.join(linhas_formatadas)
         texto_formatado = re.sub(r'\n{3,}', '\n\n', texto_formatado)
         return texto_formatado.strip()
-        
+
     except Exception as e:
         if debug:
             logger.debug('[EXTRAIR_DIRETO] Erro na formatacao: %s', e)
         return texto_bruto
 
 
-
 def _extrair_info_documento(driver, debug=False):
     """Extrai informações do cabeçalho do documento."""
     try:
         info = {}
-        
+
         try:
             titulo_el = espera.elemento(driver, 'mat-card-title')
             titulo = titulo_el.text.strip() if titulo_el else ''
             info['titulo'] = titulo
         except:
             info['titulo'] = ""
-        
+
         try:
             subtitulos = espera.elementos(driver, 'mat-card-subtitle')
             info['subtitulos'] = [sub.text.strip() for sub in subtitulos if sub.text.strip()]
         except:
             info['subtitulos'] = []
-        
+
         try:
             id_match = re.search(r'Id\s+(\w+)', info.get('titulo', ''))
             if id_match:
                 info['documento_id'] = id_match.group(1)
         except:
             info['documento_id'] = ""
-        
+
         return info
-        
+
     except Exception as e:
         if debug:
             logger.debug('[EXTRAIR_DIRETO] Erro ao extrair informacoes: %s', e)
         return {}
 
 
-
 def _extrair_via_pdf_viewer(driver, timeout, debug=False):
     """Strategy 1: Extrai texto do PDF viewer incorporado via JavaScript."""
     if debug:
         logger.debug('[EXTRAIR_DIRETO] Tentando extracao via PDF viewer...')
-    
+
     try:
         pdf_object = espera.elemento(driver, "object.conteudo-pdf", teto=timeout, visivel=False)
         if not pdf_object or not espera.ate_js(
@@ -700,7 +606,7 @@ def _extrair_via_pdf_viewer(driver, timeout, debug=False):
             return (text && text.trim().length > 100) ? text.trim() : null;
         } catch(e) { return null; }
         """
-        
+
         resultado_js = None
         if hasattr(driver, 'page') and driver.page:
             try:
@@ -710,8 +616,6 @@ def _extrair_via_pdf_viewer(driver, timeout, debug=False):
         if resultado_js and resultado_js.strip():
             return resultado_js.strip()
 
-        # Fallback para Playwright / Chromium onde contentDocument é inacessível via JS pai:
-        # Recupera URL do atributo data/src e extrai o texto do PDF diretamente via sessão
         try:
             pdf_url = None
             if hasattr(driver, 'page') and driver.page:
@@ -736,7 +640,7 @@ def _extrair_via_pdf_viewer(driver, timeout, debug=False):
         except Exception as e_url:
             if debug:
                 logger.debug('[EXTRAIR_DIRETO] Fallback via URL do PDF viewer: %s', e_url)
-    
+
     except Exception as e:
         if debug:
             logger.debug('[EXTRAIR_DIRETO] Erro na extracao via PDF viewer: %s', e)
@@ -744,12 +648,11 @@ def _extrair_via_pdf_viewer(driver, timeout, debug=False):
     return None
 
 
-
 def _extrair_via_iframe(driver, timeout, debug=False):
     """Strategy 2: Extrai texto de iframes alternativos."""
     if debug:
         logger.debug('[EXTRAIR_DIRETO] Tentando extracao via iframe...')
-    
+
     try:
         iframes = espera.elementos(driver, "iframe", teto=0.5)
         for iframe in iframes:
@@ -762,7 +665,7 @@ def _extrair_via_iframe(driver, timeout, debug=False):
                     return texto.strip()
             except:
                 driver.switch_to.default_content()
-    
+
     except Exception as e:
         if debug:
             logger.debug('[EXTRAIR_DIRETO] Erro na extracao via iframe: %s', e)
@@ -771,12 +674,11 @@ def _extrair_via_iframe(driver, timeout, debug=False):
     return None
 
 
-
 def _extrair_via_elemento_dom(driver, timeout, debug=False):
     """Strategy 3: Extrai texto de elemento DOM estruturado."""
     if debug:
         logger.debug('[EXTRAIR_DIRETO] Tentando extracao via elemento DOM...')
-    
+
     try:
         seletores = [
             "div.documento-conteudo",
@@ -785,9 +687,7 @@ def _extrair_via_elemento_dom(driver, timeout, debug=False):
             "main",
             "div[id*='documento']"
         ]
-        
-        # Se há um visualizador PDF na tela, o texto em article/main/div#documento
-        # é apenas o cabeçalho/metadados da página (~260 chars) e NÃO o documento real.
+
         tem_pdf = bool(espera.elementos(driver, "object.conteudo-pdf, object[type='application/pdf'], embed[type='application/pdf']", teto=0.2))
 
         for seletor in seletores:
@@ -799,7 +699,7 @@ def _extrair_via_elemento_dom(driver, timeout, debug=False):
                     return texto.strip()
             except:
                 pass
-    
+
     except Exception as e:
         if debug:
             logger.debug('[EXTRAIR_DIRETO] Erro na extracao via DOM: %s', e)
@@ -807,21 +707,11 @@ def _extrair_via_elemento_dom(driver, timeout, debug=False):
     return None
 
 
-
 def _gigs_responsavel_valido(responsavel: Optional[str]) -> bool:
-    """
-    Verifica se responsável é válido (não vazio, não '-').
-    
-    Args:
-        responsavel: String com nome do responsável ou None
-    
-    Returns:
-        True se responsável é válido, False caso contrário
-    """
+    """Verifica se responsável é válido (não vazio, não '-')."""
     return responsavel is not None and responsavel.strip() and responsavel.strip() != '-'
 
 
-# ===== LEMBRETE GENÉRICO (JUNTO COM GIGS - PARIDADE AAGIGS GIGS-PLUGIN) =====
 def _normalizar_texto(texto: Any) -> str:
     """Normaliza texto para comparações robustas (sem acentos, minúsculo, espaços colapsados)."""
     if not texto:
@@ -861,19 +751,7 @@ def _verificar_lembrete_presente(
     marcadores_titulo: Optional[list] = None,
     marcadores_conteudo: Optional[list] = None,
 ) -> bool:
-    """Confirma no painel de post-its do /detalhe que um lembrete equivalente já existe.
-
-    Espelha a lógica de aagigs (gigs-plugin.js: lancarLembrete): varre os cartões
-    mat-expansion-panel em pje-visualizador-post-its comparando título/conteúdo
-    normalizados. Além da comparação por substring completa (legado), aceita
-    `marcadores_titulo`/`marcadores_conteudo`: substrings estáveis que, presentes
-    no título/conteúdo do painel, contam como match — essencial quando o lembrete
-    existente usa título variável (ex.: "NOT. ID <hash>") e só uma frase do
-    conteúdo identifica o tipo (ex.: "renovei via correios").
-
-    Returns:
-        True se encontrar lembrete equivalente.
-    """
+    """Confirma no painel de post-its do /detalhe que um lembrete equivalente já existe."""
     alvo_tit = _normalizar_texto(titulo)
     alvo_cont = _normalizar_texto(conteudo) if conteudo else ''
     marcs_tit = _normalizar_marcadores(marcadores_titulo)
@@ -906,7 +784,6 @@ def _verificar_lembrete_presente(
                     el_tit = espera.elemento(painel, 'div[class="post-it-div-titulo"], .post-it-div-titulo, .post-it-titulo, mat-panel-title', teto=0.2)
                     txt_tit = _normalizar_texto(getattr(el_tit, 'text', '') or '') if el_tit else ''
 
-                    # Título bate por: substring completa (legado) OU marcador de título
                     bate_titulo = False
                     if alvo_tit and (alvo_tit in txt_tit or txt_tit in alvo_tit):
                         bate_titulo = True
@@ -920,14 +797,12 @@ def _verificar_lembrete_presente(
 
                     logger.info('[LEMBRETE][VERIFICAR] Titulo bate (%r vs alvo=%r)', txt_tit, alvo_tit)
 
-                    # Conteúdo
                     el_cont = espera.elemento(painel, 'div[aria-label="Conteúdo do Lembrete"], .post-it-conteudo, [aria-label*="Conteúdo" i]', teto=0.2)
                     txt_cont = _normalizar_texto(getattr(el_cont, 'text', '') or '') if el_cont else ''
 
                     tem_alvo_cont = bool(alvo_cont)
                     tem_marc_cont = bool(marcs_cont)
 
-                    # Caso 1: conteúdo alvo bate por substring completa OU marcador
                     if tem_alvo_cont or tem_marc_cont:
                         bate_cont = False
                         if txt_cont:
@@ -939,13 +814,10 @@ def _verificar_lembrete_presente(
                             logger.info('[LEMBRETE][VERIFICAR] Lembrete existente encontrado (titulo+conteudo) — pulando criacao')
                             return True
                         elif not txt_cont:
-                            # Conteúdo recolhido/invisível: o título já confere
                             logger.info('[LEMBRETE][VERIFICAR] Lembrete existente encontrado (titulo ok, conteudo recolhido) — pulando criacao')
                             return True
-                        # conteúdo presente mas não bate: segue para o próximo painel
                         continue
                     else:
-                        # Só título é o critério
                         logger.info('[LEMBRETE][VERIFICAR] Lembrete existente encontrado (so titulo) — pulando criacao')
                         return True
                 except Exception:
@@ -970,33 +842,10 @@ def criar_lembrete_posit(
     marcadores_titulo: Optional[list] = None,
     marcadores_conteudo: Optional[list] = None,
 ) -> bool:
-    """
-    Cria ou conclui lembrete/post-it genérico no PJe com título, visibilidade e conteúdo customizáveis.
-    Totalmente alinhado à lógica de aagigs (lancarLembrete em gigs-plugin.js).
-
-    Args:
-        driver: Sessão ativa do driver/navegador.
-        titulo: Texto do título (ex: "Bloqueio pendente", "mdd positivo").
-        conteudo: Texto do conteúdo/observação (ex: "processar após IDPJ", "clipboard").
-        debug: Log detalhado (default: False). Se for string, tratado como visibilidade retrocompatível.
-        visibilidade: 'LOCAL' (padrão), 'PRIVADO' ou 'GLOBAL' (conforme aagigs/PJe).
-        destinatario: Nome do destinatário (quando visibilidade for 'PRIVADO').
-        salvar: Se True (padrão), salva o formulário e confirma fechamento do modal.
-        verificar_existente: Se True, verifica idempotência antes de abrir o modal.
-        acao: 'criar' (padrão) ou 'concluir'/'remover' (remover lembrete existente).
-        marcadores_titulo: Substrings estáveis que, presentes no título de um
-            lembrete já existente, contam como match (ex.: ["not. id"]).
-        marcadores_conteudo: Substrings estáveis que, presentes no conteúdo de um
-            lembrete já existente, contam como match (ex.: ["renovei via correios"]).
-
-    Returns:
-        bool: True se o lembrete foi processado com sucesso.
-    """
-    # Suporte à ação [concluir] do aagigs
+    """Cria ou conclui lembrete/post-it genérico no PJe com título, visibilidade e conteúdo customizáveis."""
     if acao.lower() in ("concluir", "remover"):
         return remover_lembrete_posit(driver, titulo=titulo, conteudo=conteudo, debug=debug)
 
-    # Compatibilidade caso debug tenha sido passado como visibilidade string
     if isinstance(debug, str):
         visibilidade = debug
         debug = False
@@ -1012,7 +861,6 @@ def criar_lembrete_posit(
         except Exception:
             pass
 
-    # Validação rápida de integridade da sessão do driver
     conexao_status = validar_conexao_driver(driver, "LEMBRETE")
     if conexao_status == "FATAL" or not conexao_status:
         if debug:
@@ -1030,9 +878,6 @@ def criar_lembrete_posit(
             except Exception:
                 pass
 
-        # Idempotência rápida: se já estiver visível no painel, nada a criar.
-        # Guarda de página viva: acessar driver.page quando não há janela aberta
-        # dispara new_page() SEM timeout no Playwright e trava o fluxo por ~60s.
         if verificar_existente:
             try:
                 _ctx = getattr(driver, 'context', None)
@@ -1052,7 +897,6 @@ def criar_lembrete_posit(
             logger.info('[LEMBRETE][POSIT] Lembrete "%s" já presente no painel — nada a criar', titulo)
             return True
 
-        # 1. VERIFICAR SE O DIÁLOGO JÁ ESTÁ ABERTO OU SE PRECISA ACIONAR O MENU
         dialogo_aberto = (
             espera.elemento(driver, '#tituloPostit', teto=0.3)
             or espera.elemento(driver, 'pje-dialogo-post-it', teto=0.3)
@@ -1111,26 +955,22 @@ def criar_lembrete_posit(
                 return False
             espera.assentar(driver, 0.5)
 
-        # 3. CONFIRMAR ABERTURA DO DIÁLOGO (#tituloPostit)
         if not espera.ate_aparecer(driver, '#tituloPostit', teto=5):
             if not espera.ate_aparecer(driver, '.mat-dialog-content', teto=2):
                 logger.warning('[LEMBRETE][POSIT] Diálogo do lembrete não abriu (#tituloPostit ausente)')
                 return False
 
-        # 4. PREENCHER TÍTULO (input[id="tituloPostit"])
         titulo_limpo = (titulo or '').strip()
         conteudo_limpo = (conteudo or '').strip() if conteudo is not None else ""
 
         aguardar_e_clicar(driver, '#tituloPostit', timeout=3, log=False)
         preencher_campo(driver, '#tituloPostit', titulo_limpo, limpar=True, log=debug)
 
-        # 5. VISIBILIDADE (mat-select[id="visibilidadePostit"])
         try:
             visib_upper = (visibilidade or 'LOCAL').upper()
             sel_visib = 'mat-select[id="visibilidadePostit"], #visibilidadePostit'
             el_visib = espera.elemento(driver, sel_visib, teto=1)
             if el_visib:
-                # O PJe já abre com "LOCAL" selecionado por padrão.
                 # Só aciona o dropdown se o valor atual for diferente (evita abrir overlay backdrop desnecessário)
                 txt_atual = (getattr(el_visib, 'text', '') or '').strip().upper()
                 if visib_upper not in txt_atual:
@@ -1147,13 +987,11 @@ def criar_lembrete_posit(
             if debug:
                 logger.warning('[LEMBRETE][POSIT] Aviso ao definir visibilidade: %s', e_visib)
 
-        # 6. PREENCHER CONTEÚDO (textarea[id="conteudoPostit"] - max 200 caracteres no PJe)
         if conteudo is not None:
             aguardar_e_clicar(driver, '#conteudoPostit', timeout=3, log=False)
             preencher_campo(driver, '#conteudoPostit', conteudo_limpo, limpar=True, log=debug)
             espera.assentar(driver, 0.2)
 
-        # Sincronização adicional nativa Playwright quando presente
         try:
             page_obj = getattr(driver, 'page', None)
             if page_obj and type(page_obj).__name__ != 'MagicMock':
@@ -1196,9 +1034,6 @@ def criar_lembrete_posit(
             logger.info('[LEMBRETE][POSIT] salvar=False: diálogo mantido aberto')
             return True
 
-        # 7. SALVAR LEMBRETE
-        # O botao do PJe tem aria-label="Salvar" (confirmado por probe no processo 8885568).
-        # Seletores específicos da janela de post-it para não colidir com outros botões.
         seletores_salvar = (
             'button[aria-label="Salvar"]',
             '.criacao-alteracao-post-it button[aria-label="Salvar"]',
@@ -1210,7 +1045,6 @@ def criar_lembrete_posit(
         _diag_salvar = []
         _limite = time.time() + 8
         while time.time() < _limite and not clicou_salvar:
-            # 1. Tenta clique nativo via Playwright Page se disponível
             if page_obj:
                 try:
                     for seletor in seletores_salvar:
@@ -1223,7 +1057,6 @@ def criar_lembrete_posit(
                 except Exception as e_pw:
                     _diag_salvar.append(f'pw_err: {e_pw}')
 
-            # 2. Tenta aguardar_e_clicar padrão
             if not clicou_salvar:
                 for seletor in seletores_salvar:
                     try:
@@ -1234,7 +1067,6 @@ def criar_lembrete_posit(
                     except Exception as e_sel:
                         _diag_salvar.append('%s -> %s' % (seletor, e_sel))
 
-            # 3. Fallback com JS direto disparando click
             if not clicou_salvar:
                 try:
                     _JS_CLICK_SALVAR = """(() => {
@@ -1273,11 +1105,7 @@ def criar_lembrete_posit(
             _fechar_dialogo_residual()
             return False
 
-        # 8. CONFIRMACAO
-        # Snack-bar "com sucesso!" e' o sinal forte (equivale ao
         # esperarSalvamento do aagigs), mas NAO pode ser obrigatorio: se o
-        # texto mudar ou o aviso demorar, fechar o dialogo aqui descartaria o
-        # lembrete. O criterio final e' o dialogo ter fechado apos o clique.
         _JS_SNACK = """(() => {
             const bars = document.querySelectorAll(
                 'simple-snack-bar, .mat-snack-bar-container, snack-bar-container');
@@ -1319,7 +1147,6 @@ def criar_lembrete_posit(
                 'fechou apos o clique - assumindo gravado', sucesso,
             )
 
-        # Fechar o aviso, como o aagigs faz.
         try:
             espera.ate_js(
                 driver,
@@ -1333,7 +1160,6 @@ def criar_lembrete_posit(
         except Exception:
             pass
 
-        # 9. LIMPEZA PÓS-SALVAMENTO
         try:
             espera.ate_sumir(driver, '#tituloPostit', teto=3)
             espera.ate_sumir(driver, 'pje-dialogo-post-it', teto=3)
@@ -1352,19 +1178,7 @@ def criar_lembrete_posit(
         return False
 
 def remover_lembrete_posit(driver: Any, titulo: str, conteudo: Optional[str] = None, debug: bool = False) -> bool:
-    """
-    Remove/conclui lembrete(s) existente(s) no painel de post-its.
-    Espelha fielmente a ação [concluir] de aagigs (gigs-plugin.js: lancarLembrete).
-
-    Args:
-        driver: Sessão ativa do navegador.
-        titulo: Título do lembrete a remover.
-        conteudo: Conteúdo opcional para refinamento de busca.
-        debug: Se True, registra logs detalhados.
-
-    Returns:
-        bool: True se localizou e removeu ao menos um lembrete com sucesso.
-    """
+    """Remove/conclui lembrete(s) existente(s) no painel de post-its."""
     conexao_status = validar_conexao_driver(driver, "REMOVER_LEMBRETE")
     if conexao_status == "FATAL" or not conexao_status:
         return False
@@ -1400,7 +1214,6 @@ def remover_lembrete_posit(driver: Any, titulo: str, conteudo: Optional[str] = N
                     if txt_cont and not (alvo_cont in txt_cont or txt_cont in alvo_cont):
                         continue
 
-                # Localizou o lembrete alvo: acionar botão remover
                 btn_remover = espera.elemento(painel, 'button[aria-label*="Remover" i], button[title*="Remover" i]', teto=1)
                 if not btn_remover:
                     header = espera.elemento(painel, 'mat-expansion-panel-header', teto=0.5)
@@ -1445,21 +1258,11 @@ def remover_lembrete_posit(driver: Any, titulo: str, conteudo: Optional[str] = N
         return False
 
 
-
 def _parse_gigs_string(string):
-    """
-    Parseia string de teste GIGS automaticamente.
-    
-    Regras:
-    - sem / = OBSERVACAO
-    - uma / ou // juntas = prazo/observacao ou prazo//observacao (sem responsável)
-    - duas / entre parâmetros = prazo/responsável/observacao
-    """
+    """Parseia string de teste GIGS automaticamente."""
     if '/' not in string:
-        # Apenas observação
         return {'dias_uteis': None, 'responsavel': None, 'observacao': string.strip()}
-    
-    # Verificar se há duas barras consecutivas
+
     if '//' in string:
         partes = string.split('//', 1)
         if len(partes) == 2:
@@ -1469,11 +1272,9 @@ def _parse_gigs_string(string):
             except ValueError:
                 dias_uteis = None
             return {'dias_uteis': dias_uteis, 'responsavel': None, 'observacao': obs.strip()}
-    
-    # Split por /
+
     partes = string.split('/')
     if len(partes) == 2:
-        # prazo/observacao
         prazo_str, obs = partes
         try:
             dias_uteis = int(prazo_str.strip())
@@ -1481,54 +1282,34 @@ def _parse_gigs_string(string):
             dias_uteis = None
         return {'dias_uteis': dias_uteis, 'responsavel': None, 'observacao': obs.strip()}
     elif len(partes) == 3:
-        # prazo/responsavel/observacao
         prazo_str, resp, obs = partes
         try:
             dias_uteis = int(prazo_str.strip())
         except ValueError:
             dias_uteis = None
         return {'dias_uteis': dias_uteis, 'responsavel': resp.strip(), 'observacao': obs.strip()}
-    
-    # Fallback: apenas observação
+
     return {'dias_uteis': None, 'responsavel': None, 'observacao': string.strip()}
 
 
 def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeout=10, log=True):
-    """
-    Cria atividade GIGS na aba /detalhe - VERSÃO OTIMIZADA baseada em a.py
-    
-    Suporta múltiplas assinaturas:
-    - criar_gigs(driver, "observacao simples") -> apenas observação
-    - criar_gigs(driver, "7/xs carta") -> prazo/observacao
-    - criar_gigs(driver, "7/xs/carta urgente") -> prazo/responsavel/observacao
-    - criar_gigs(driver, 7, "xs", "carta") -> parâmetros separados
-    
-    Fluxo simplificado:
-    1. Clica "Nova Atividade"
-    2. Preenche campos (dias, responsável, observação)
-    3. Salva e confirma
-    """
-    # Parse string unificada se necessário
+    """Cria atividade GIGS na aba /detalhe - VERSÃO OTIMIZADA baseada em a.py"""
     if isinstance(dias_uteis, str) and responsavel is None and observacao is None:
         parsed = _parse_gigs_string(dias_uteis)
         dias_uteis = parsed['dias_uteis']
         responsavel = parsed['responsavel']
         observacao = parsed['observacao']
-    
-    # Compatibilidade: 2 params = dias_uteis + observacao
+
     if observacao is None and responsavel is not None:
         observacao = responsavel
         responsavel = None
-    
+
     try:
         if log:
             info = f"{dias_uteis or '-'}/{responsavel or '-'}/{observacao or '-'}"
             logger.debug("[GIGS] Criando: %s", info)
 
-        # Blindagem para chamadas consecutivas (ex.: criar_gigs[x] logo após
-        # criar_gigs[y] na mesma regra): antes de abrir o próximo formulário,
         # aguardar a destruição do anterior. Sem isso o textarea antigo segue no
-        # DOM, é reutilizado e o "Salvar" do novo GIGS não grava a atividade.
         espera.ate_sumir(driver, 'textarea[formcontrolname="observacao"]', teto=6)
         aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=6)
 
@@ -1546,8 +1327,6 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
 
         espera.ate_aparecer(driver, 'textarea[formcontrolname="observacao"]', teto=timeout)
 
-        # Paciência: exigir formulário NOVO (observação vazia). Se o valor já vier
-        # preenchido, é resquício do GIGS anterior — não gravar em cima dele.
         if not espera.ate_js(
             driver,
             """__pjeEls('textarea[formcontrolname="observacao"]').some("""
@@ -1561,12 +1340,21 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
 
         if dias_uteis:
             campo_dias = espera.elemento(driver, 'input[formcontrolname="dias"]')
-            if campo_dias:
+            if not campo_dias:
+                logger.warning('[GIGS] Campo de prazo (dias) nao apareceu — GIGS sera criada SEM prazo')
+            else:
                 from Fix.core import preencher_campo
                 preencher_campo(driver, 'input[formcontrolname="dias"]', str(dias_uteis), limpar=True)
-            espera.assentar(driver, 0.3)
-            if log:
-                logger.debug('[GIGS] Prazo: %s dias', dias_uteis)
+                espera.assentar(driver, 0.3)
+                if espera.ate_js(
+                    driver,
+                    """__pjeEls('input[formcontrolname="dias"]').some(el => String(el.value || '').trim() === '%s')""" % str(dias_uteis),
+                    teto=3,
+                ):
+                    if log:
+                        logger.info('[GIGS] Prazo confirmado no formulario: %s dias', dias_uteis)
+                else:
+                    logger.warning('[GIGS] Prazo %s nao confirmado no formulario — GIGS pode sair SEM prazo', dias_uteis)
 
         if responsavel:
             from Fix.core import preencher_campo
@@ -1577,8 +1365,7 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             _pressionar_tecla(driver, "Enter")
             if log:
                 logger.debug('[GIGS] Responsavel: %s', responsavel)
-        
-        # 5. Preencher observação
+
         if observacao:
             from Fix.core import preencher_campo
             preencher_campo(driver, 'textarea[formcontrolname="observacao"]', observacao, limpar=True)
@@ -1586,10 +1373,7 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             if log:
                 obs_preview = observacao[:50] + '...' if len(observacao) > 50 else observacao
                 logger.debug('[GIGS] Observacao: %s', obs_preview)
-        
-        # 6. Salvar
-        # Dispensar snackbar pendente (do GIGS anterior) ANTES de salvar, para a
-        # deteccao abaixo nao casar com um toast antigo e mascarar uma falha.
+
         try:
             btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
             if btn_x:
@@ -1604,8 +1388,6 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             raise TimeoutException("Botao 'Salvar' nao encontrado")
         btn_salvar.click()
 
-        # 7. Confirmacao real: o formulario so fecha apos a gravacao efetiva
-        # (previne StaleElement em chamadas seguidas).
         if espera.ate_aparecer(
             driver,
             "//snack-bar-container//span[contains(normalize-space(.), 'Atividade salva com sucesso')]",
@@ -1613,6 +1395,8 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
         ):
             if log:
                 logger.debug('[GIGS] Atividade criada com sucesso')
+        else:
+            logger.warning('[GIGS] Snackbar "Atividade salva com sucesso" nao apareceu — conferir o painel GIGS do processo')
 
         try:
             btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
@@ -1627,7 +1411,7 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             return False
 
         return True
-        
+
     except Exception as e:
         if log:
             logger.error("ERRO em criar_gigs: %s: %s", type(e).__name__, e)
@@ -1641,24 +1425,7 @@ def _clicar_salvar_com_confirmacao(
     teto: float = 10,
     log: bool = False,
 ) -> bool:
-    """Clica em "Salvar" e so retorna True se o clique teve efeito.
-
-    Equivalente ao `clicarBotao(seletor, texto, monitorar=true)` do aagigs
-    (gigs-plugin.js): instala um MutationObserver antes do clique e espera o
-    formulario sumir do DOM. Clicar num botao `disabled` nao dispara nada e o
-    chamador achava que tinha salvo — foi o que aconteceu com o comentario do
-    fluxo DOM em 30/10/2026 (retornou True em 0.49s, sem gravar).
-
-    Args:
-        xpath_botao: XPath do botao Salvar.
-        seletor_formulario: seletor de um campo que existe so enquanto o
-            formulario esta aberto (textarea, input...). Quando ele some do
-            DOM, o formulario foi submetido.
-
-    Returns:
-        True se o formulario fechou apos o clique; False caso contrario.
-    """
-    # 1. Esperar o botao existir E estar habilitado.
+    """Clica em "Salvar" e so retorna True se o clique teve efeito."""
     limite = time.time() + max(1.0, teto)
     btn = None
     while time.time() < limite:
@@ -1682,7 +1449,6 @@ def _clicar_salvar_com_confirmacao(
             logger.error('[SALVAR] botao nao encontrado: %s', xpath_botao)
         return False
 
-    # 2. Clique.
     try:
         btn.click()
     except Exception as e:
@@ -1690,8 +1456,6 @@ def _clicar_salvar_com_confirmacao(
             logger.error('[SALVAR] clique falhou: %s', e)
         return False
 
-    # 3. Confirmacao: o formulario precisa sumir (mesmo efeito do observer do
-    #    aagigs). Se ele continuar no DOM, o clique nao foi aceito.
     if espera.ate_sumir(driver, seletor_formulario, teto=5):
         return True
 
@@ -1701,29 +1465,7 @@ def _clicar_salvar_com_confirmacao(
 
 
 def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=True):
-    """
-    Cria comentário GIGS na aba /detalhe - baseado em lancarComentario do a.py
-    
-    Args:
-        driver: driver ativo
-        observacao: Texto do comentário
-        visibilidade: 'LOCAL' (padrão), 'RESTRITA' ou 'GLOBAL'
-        timeout: Timeout para operações (default 10s)
-        log: Habilitar logs (default True)
-    
-    Returns:
-        True se comentário criado com sucesso, False caso contrário
-    
-    Exemplos:
-        criar_comentario(driver, "Aguardando retorno da parte")
-        criar_comentario(driver, "Informação sigilosa", visibilidade='RESTRITA')
-        criar_comentario(driver, "Comentário geral", visibilidade='GLOBAL')
-    """
-    # Causa raiz do erro recorrente (91% dos casos): a funcao tentava a
-    # interacao inteira contra uma sessao Selenium ja morta (browser fechado/
-    # crashado), gerando InvalidSessionIdException em ponto aleatorio do fluxo
-    # a cada chamada. Falha rapido usando o mesmo guard ja usado em
-    # _indexar_processar_item/trocar_para_nova_aba neste arquivo.
+    """Cria comentário GIGS na aba /detalhe - baseado em lancarComentario do a.py"""
     conexao_status = validar_conexao_driver(driver, "COMENTARIO")
     if conexao_status == "FATAL":
         if log:
@@ -1739,7 +1481,6 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
             com_preview = observacao[:50] + '...' if len(observacao) > 50 else observacao
             logger.debug("[COMENTARIO] Criando: %s", com_preview)
 
-        # 1. Clicar "Novo Comentário"
         if log:
             logger.debug('[COMENTARIO] Clicando Novo Comentario...')
         btn_novo = espera.elemento(
@@ -1750,23 +1491,20 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
         btn_novo.click()
         espera.ate_aparecer(driver, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]', teto=1)
 
-        # 2. Aguardar formulário
         espera.ate_aparecer(driver, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]', teto=timeout)
         if log:
             logger.debug('[COMENTARIO] Formulario aberto')
-        
-        # 3. Preencher observação/descrição
+
         from Fix.core import preencher_campo
         preencher_campo(driver, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]', observacao, limpar=True)
         espera.assentar(driver, 0.3)
         if log:
             logger.debug('[COMENTARIO] Descricao preenchida')
-        
-        # 4. Selecionar visibilidade (radio buttons)
+
         visibilidade_upper = visibilidade.upper()
         if log:
             logger.debug('[COMENTARIO] Visibilidade: %s', visibilidade_upper)
-        
+
         try:
             radio_inputs = espera.elementos(driver, 'pje-gigs-comentarios-cadastro mat-radio-button input, mat-radio-button input')
             if len(radio_inputs) >= 3:
@@ -1774,8 +1512,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
                 idx = index_map.get(visibilidade_upper, 0)
                 safe_click_no_scroll(driver, radio_inputs[idx])
                 espera.assentar(driver, 0.3)
-                
-                # Se RESTRITA, pode ter campo adicional (usuários)
+
                 if visibilidade_upper == 'RESTRITA':
                     if log:
                         logger.debug('[COMENTARIO] Visibilidade RESTRITA - pode requerer selecao de usuarios')
@@ -1783,14 +1520,7 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
         except Exception as e:
             if log:
                 logger.warning('[COMENTARIO][AVISO] Nao foi possivel selecionar visibilidade: %s', e)
-        
-        # 5. Salvar
-        # O botao pode estar presente mas ainda desabilitado enquanto o
-        # formulario nao terminou de validar. Clicar num botao disabled nao
-        # faz nada e a funcao retornava True sem gravar (visto em 30/10/2026:
-        # criar_comentario levou 0.49s e nao salvou). Segue o aagigs
-        # (gigs-plugin.js, clicarBotao com monitorar=true): espera o clique
-        # ter efeito antes de considerar salvo.
+
         if log:
             logger.debug('[COMENTARIO] Salvando...')
         if not _clicar_salvar_com_confirmacao(
@@ -1804,7 +1534,6 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
                 logger.error('[COMENTARIO] Salvar nao teve efeito - comentario NAO gravado')
             return False
 
-        # 6. Comentário não dá confirmação explícita, apenas fecha.
         if not espera.ate_sumir(driver, 'mat-dialog-container', teto=3):
             modais = espera.elementos(driver, 'mat-dialog-container') or []
             if any(m.is_displayed() for m in modais):
@@ -1824,16 +1553,8 @@ def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=T
         return False
 
 
-
 def bndt(driver, inclusao=False, debug=False, **kwargs):
-    """
-    Executa rotinas BNDT no polo Passivo.
-    Orquestrador principal que coordena as etapas.
-
-    Nota: aceita `debug` e `**kwargs` para compatibilidade com chamadas
-    que possam passar parâmetros extras (ex: via executor genérico).
-    """
-    # Log explícito do valor recebido para diagnosticar chamadas incorretas
+    """Executa rotinas BNDT no polo Passivo."""
     try:
         logger.info(f'BNDT: parâmetro inclusao recebido: {inclusao!r} (tipo: {type(inclusao)})')
     except Exception:
@@ -1846,25 +1567,19 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
     erro_classe = False
 
     try:
-        # Etapa 1: Abrir nova aba BNDT diretamente via URL /pjekz/processo/{idProcesso}/bndt (padrão gigs-plugin.js)
-        # com fallback automático via menu
         main_window, nova_aba = _bndt_abrir_nova_aba(driver)
 
-        # PROCESSAR APENAS POLO PASSIVO
         polo = 'Passivo'
         logger.info(f'============ Processando Polo {polo} ============')
 
-        # Garantir foco na janela (equivalente ao window.focus() do maispje)
         if hasattr(driver, 'page') and driver.page:
             try:
                 driver.page.bring_to_front()
             except Exception:
                 pass
 
-        # 1. Clicar no botão do polo Passivo (único polo processado)
         logger.info(f'Procurando botão de polo {polo}...')
         try:
-            # Tentar via JS primeiro (como no maispje)
             clicado = False
             if hasattr(driver, 'page') and driver.page:
                 clicado = bool(driver.page.evaluate("""() => {
@@ -1902,13 +1617,11 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
             logger.error(f'Erro ao selecionar polo {polo}: {e}')
             raise
 
-        # 2. Selecionar operação (Inclusão ou Exclusão)
         if not _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
             driver.close()
             driver.switch_to.window(main_window)
             return False
 
-        # 3. Verificar se existe mensagem "Não existem partes a serem selecionadas"
         try:
             texto_no_reg = ""
             if hasattr(driver, 'page') and driver.page:
@@ -1928,7 +1641,6 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         except Exception:
             pass
 
-        # 4. Verificar se há mensagem de classe não permitida
         try:
             msg_classe = False
             if hasattr(driver, 'page') and driver.page:
@@ -1944,10 +1656,8 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         except Exception:
             pass
 
-        # 5. Processar seleções (marcar checkboxes)
         _bndt_processar_selecoes_polo(driver, polo, inclusao=inclusao)
 
-        # 6. Gravar e confirmar
         _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=inclusao)
 
         logger.info(f'============ Finalizando operação {operacao} ============')
@@ -1955,7 +1665,6 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         if erro_classe:
             logger.warning('ATENÇÃO: Classe do processo não suporta BNDT!')
 
-        # Fechar aba BNDT
         driver.close()
         driver.switch_to.window(main_window)
         logger.info(f'Operação {operacao} concluída no polo {polo}')
@@ -1963,7 +1672,6 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
     except Exception as e:
         logger.error(f'ERRO na operação {operacao}: {e}')
-        # Fechar apenas a aba BNDT (se aberta) para não encerrar o driver principal
         todas_abas = list(getattr(driver, 'window_handles', []))
         if nova_aba and nova_aba in todas_abas:
             try:
@@ -1972,7 +1680,6 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
             except Exception:
                 pass
 
-        # Garantir retorno para a aba principal original
         if main_window and main_window in todas_abas:
             try:
                 driver.switch_to.window(main_window)
@@ -1981,17 +1688,8 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         return False
 
 
-
 def _bndt_abrir_menu(driver: Any) -> bool:
-    """
-    Abre o menu hambúrguer com validação robusta.
-    
-    Args:
-        driver: driver ativo
-    
-    Returns:
-        True se menu aberto com sucesso, False caso contrário
-    """
+    """Abre o menu hambúrguer com validação robusta."""
     try:
         btn_menu = espera.elemento(driver, 'i.fa-bars.icone-botao-menu', teto=10)
         if not btn_menu:
@@ -2006,17 +1704,8 @@ def _bndt_abrir_menu(driver: Any) -> bool:
         return False
 
 
-
 def _bndt_clicar_icone(driver: Any) -> bool:
-    """
-    Clica no ícone BNDT com validação robusta.
-    
-    Args:
-        driver: driver ativo
-    
-    Returns:
-        True se ícone clicado com sucesso, False caso contrário
-    """
+    """Clica no ícone BNDT com validação robusta."""
     try:
         btn_bndt = espera.elemento(driver, 'i.fas.fa-money-check-alt.icone-padrao', teto=10)
         if not btn_bndt:
@@ -2031,17 +1720,14 @@ def _bndt_clicar_icone(driver: Any) -> bool:
         return False
 
 
-
 def _bndt_abrir_nova_aba(driver):
     """Abre nova aba BNDT e retorna seu handle."""
     main_window = driver.current_window_handle
 
-    # Extrair id_processo da URL atual (ex: /processo/5793261/detalhe -> 5793261)
     current_url = driver.current_url or ''
     match = re.search(r'/processo/(\d+)', current_url)
     id_processo = match.group(1) if match else None
 
-    # Tentar abrir diretamente a URL /pjekz/processo/{idProcesso}/bndt (padrão maisPJe / gigs-plugin.js)
     if id_processo:
         url_bndt = f"/pjekz/processo/{id_processo}/bndt"
         handles_antes = list(getattr(driver, 'window_handles', []))
@@ -2062,7 +1748,6 @@ def _bndt_abrir_nova_aba(driver):
         except Exception as e_direct:
             logger.warning(f'Falha ao abrir BNDT diretamente via URL ({e_direct}), tentando via menu...')
 
-    # Fallback: abrir via menu se a navegação direta falhar
     _bndt_abrir_menu(driver)
     _bndt_clicar_icone(driver)
 
@@ -2086,7 +1771,6 @@ def _bndt_abrir_nova_aba(driver):
     return main_window, nova_aba
 
 
-
 def _bndt_selecionar_operacao(driver, inclusao):
     """Seleciona Inclusão ou Exclusão."""
     operacao = "Inclusão" if inclusao else "Exclusão"
@@ -2094,15 +1778,8 @@ def _bndt_selecionar_operacao(driver, inclusao):
     if not espera.ate_js(driver, "document.readyState === 'complete'", teto=10):
         logger.warning('AVISO: Página pode não ter carregado a tempo')
 
-    # IMPORTANT: the BNDT page normally opens with 'Inclusão' already selected.
-    # When inclusao=True we should NOT attempt to switch radios — simply assume
-    # the default is correct (and return success). Only when inclusao=False
-    # (Exclusão) we search and click the Exclusão radio.
     if inclusao:
         try:
-            # Try to detect that Inclusão is selected to be explicit, but if
-            # detection fails, still assume the default selection is Inclusão
-            # and do nothing (avoid clicking 'Exclusão' accidentally).
             try:
                 inp = espera.elemento(driver, "//input[@name='mat-radio-group-1' and @value='INCLUSAO']")
                 checked = False
@@ -2114,7 +1791,6 @@ def _bndt_selecionar_operacao(driver, inclusao):
                     logger.info('BNDT: Inclusão já selecionada — sem ação necessária')
                     return True
                 else:
-                    # If found but not checked, attempt to click the inclusive radio safely
                     try:
                         parent = espera.elemento(driver, "//input[@name='mat-radio-group-1' and @value='INCLUSAO']/ancestor::mat-radio-button")
                         if parent:
@@ -2126,14 +1802,12 @@ def _bndt_selecionar_operacao(driver, inclusao):
                         logger.info('BNDT: Inclusão requisitada — assumindo opção padrão já selecionada')
                         return True
             except Exception:
-                # Could not find the input explicitly; assume default is Inclusão
                 logger.info('BNDT: Inclusão requisitada — assumindo opção padrão já selecionada')
                 return True
         except Exception as e:
             logger.warning(f'BNDT: Falha ao verificar radio Inclusão, mas prosseguindo sem clique: {e}')
             return True
 
-    # exclusão flow: find and click the exclusão radio
     selectors = [
         (By.XPATH, "//mat-radio-button[@id='mat-radio-7']"),
         (By.XPATH, "//mat-radio-button[contains(@id,'mat-radio-')][.//input[@value='EXCLUSAO'] ]"),
@@ -2155,8 +1829,6 @@ def _bndt_selecionar_operacao(driver, inclusao):
     logger.info(f'Radio {operacao} clicado')
     espera.assentar(driver, 0.5)
 
-    # Após selecionar o radio, verificar se existe a mensagem "Não existem partes a serem selecionadas"
-    # Se existir, significa que não há partes para selecionar, então a operação está cumprida
     try:
         mensagem_nao_existem_partes = espera.elementos(driver, "//div[contains(@class, 'mensagem') and contains(text(), 'Não existem partes a serem selecionadas')]")
         if mensagem_nao_existem_partes:
@@ -2164,7 +1836,6 @@ def _bndt_selecionar_operacao(driver, inclusao):
             return True
     except Exception as e:
         logger.warning(f'BNDT: Erro ao verificar mensagem de partes não existentes: {e}')
-        # Prosseguir normalmente se a verificação falhar
 
 
 def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
@@ -2174,14 +1845,12 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
 
     logger.info(f'Selecionando operação: {operacao} para polo {polo}')
 
-    # Garantir foco na janela (equivalente ao window.focus() do maispje)
     if hasattr(driver, 'page') and driver.page:
         try:
             driver.page.bring_to_front()
         except Exception:
             pass
 
-    # Tentar via JS primeiro (rápido e robusto como no maispje)
     try:
         clicado = False
         if hasattr(driver, 'page') and driver.page:
@@ -2220,7 +1889,6 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
 
     logger.warning(f'Erro ao selecionar operação {operacao} no polo {polo}: nenhum seletor funcionou')
     return False
-
 
 
 def _bndt_processar_selecoes(driver):
@@ -2300,7 +1968,7 @@ def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
         (By.CSS_SELECTOR, "button[mat-raised-button]:contains('Gravar')"),
         (By.XPATH, "//button[@type='submit'][contains(text(),'Gravar')]")
     ]
-    
+
     btn_gravar = None
     for by, selector in selectors_gravar:
         btn_gravar = espera.elemento(driver, selector, teto=5)
@@ -2315,14 +1983,12 @@ def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
     logger.info('Botão Gravar clicado')
     espera.assentar(driver, 1)
 
-    # Verificar confirmação final
     btn_sim = espera.elemento(driver, "//button[.//span[contains(text(),'Sim')]]", teto=3)
     if btn_sim:
         btn_sim.click()
         logger.info('Confirmação clicada')
         espera.assentar(driver, 1)
-    
-    # Fechar aba
+
     driver.close()
     driver.switch_to.window(main_window)
     logger.info('Aba BNDT fechada')
@@ -2336,7 +2002,7 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
             driver.page.bring_to_front()
         except Exception:
             pass
-        
+
     try:
         clicado_gravar = False
         if hasattr(driver, 'page') and driver.page:
@@ -2351,8 +2017,7 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
         if clicado_gravar:
             logger.info('Botão Gravar clicado via JS')
             espera.assentar(driver, 0.5)
-            
-            # Clicar SIM no modal
+
             for _ in range(5):
                 clicado_sim = False
                 if hasattr(driver, 'page') and driver.page:
@@ -2368,26 +2033,23 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
                     logger.info('Botão Sim clicado via JS')
                     break
                 espera.assentar(driver, 0.3)
-            
+
             espera.assentar(driver, 1.0)
         else:
             logger.warning('Botão Gravar não encontrado via JS')
     except Exception as e:
         logger.error(f'Erro ao clicar Gravar/Sim no polo {polo} via JS: {e}')
 
-    # Aguardar desaparecer loading
     espera.ate_sumir(driver, 'div[class*="container-loading"] mat-progress-spinner', teto=10)
 
-    # Verificar mensagem de sucesso ou erro
     try:
         aviso = espera.elemento(driver, 'simple-snack-bar', teto=3, visivel=False)
         if aviso:
             texto_aviso = aviso.text
             logger.info(f'Aviso: {texto_aviso}')
-            
+
             if 'Excluído registro de' in texto_aviso or 'Partes excluídas' in texto_aviso or 'Incluído registro de' in texto_aviso or 'Partes incluídas' in texto_aviso:
                 logger.info(f'Operação no polo {polo} concluída com sucesso')
-                # Fechar aviso
                 try:
                     btn_close = espera.elemento(driver, 'simple-snack-bar button')
                     if btn_close:
@@ -2404,23 +2066,20 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
         logger.warning('Nenhum aviso detectado')
 
 
-
 def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
     """Aplica filtros de fase e tarefa redirecionando para Fix.core.filtrofases."""
     from Fix.core import filtrofases as _filtrofases_core
     return _filtrofases_core(driver, fases_alvo=fases_alvo, tarefas_alvo=tarefas_alvo, seletor_tarefa=seletor_tarefa)
 
 def indexar_processos(driver):
-    """
-    Indexa processos de forma mais robusta, evitando problemas de stale elements
-    """
+    """Indexa processos de forma mais robusta, evitando problemas de stale elements"""
     padrao_proc = re.compile(r'\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}')
     processos = []
-    
+
     # Buscar elementos frescos a cada iteração para evitar stale elements
     def obter_linhas_frescas():
         return espera.elementos(driver, 'tr.cdk-drag', teto=0.5)
-    
+
     linhas = obter_linhas_frescas()
     logger.debug('[INDEXAR] Encontradas %s linhas para processar', len(linhas))
 
@@ -2460,35 +2119,26 @@ def indexar_processos(driver):
 
 
 def reindexar_linha(driver, proc_id):
-    """
-    Reindexar linha quando elemento fica stale.
-    Agora com verificação de acesso negado e melhor tratamento de erros.
-    NÃO navega automaticamente - respeita a página atual do módulo.
-    """
+    """Reindexar linha quando elemento fica stale."""
     try:
-        # Verificar se ainda estamos em uma página válida do PJE
         url_atual = driver.current_url
         if 'acesso-negado' in url_atual.lower() or 'access-denied' in url_atual.lower():
                 logger.error(f'ACESSO NEGADO detectado na URL: {url_atual}')
                 return None
-        
-        # Verificar se é uma URL válida do PJE
+
         if 'pje.trt2.jus.br' not in url_atual:
             logger.error(f'URL não é do PJE: {url_atual}')
             return None
-        
-        # REMOVIDO: Navegação automática para atividades
-        # Cada módulo deve gerenciar sua própria navegação
+
         logger.debug('[REINDEXAR] Tentando reindexar na pagina atual: %s', url_atual)
-        
-        # Buscar linhas na página atual (diferentes seletores dependendo do módulo)
+
         possible_selectors = [
-            'tr.cdk-drag',           # Atividades (PEC)
-            'tr',                    # Documentos internos (M1) 
-            'tbody tr',              # Outras tabelas
-            '.linha-processo',       # Seletor alternativo
+            'tr.cdk-drag',
+            'tr',
+            'tbody tr',
+            '.linha-processo',
         ]
-        
+
         linhas_atuais = []
         for selector in possible_selectors:
             try:
@@ -2499,20 +2149,18 @@ def reindexar_linha(driver, proc_id):
                     break
             except:
                 continue
-        
+
         if not linhas_atuais:
             logger.error(f'Nenhuma linha encontrada na página com os seletores testados')
             return None
-        
+
         logger.debug('[REINDEXAR] Buscando %s entre %s linhas...', proc_id, len(linhas_atuais))
-        
+
         for idx, linha_temp in enumerate(linhas_atuais):
             try:
-                # Verificar se a linha ainda é válida
                 if not linha_temp.is_displayed():
                     continue
-                    
-                # Buscar número do processo na linha (diferentes estratégias)
+
                 texto_linha = ""
                 if hasattr(linha_temp, '_handle') and linha_temp._handle:
                     links = [PWElement(h, getattr(linha_temp, '_page', None)) for h in linha_temp._handle.query_selector_all('a')]
@@ -2532,22 +2180,20 @@ def reindexar_linha(driver, proc_id):
                             texto_linha = (linha_temp.text or '').strip()
                 elif hasattr(linha_temp, 'text'):
                     texto_linha = (linha_temp.text or '').strip()
-                
+
                 if proc_id in texto_linha:
                     logger.info(f'Processo {proc_id} encontrado na linha {idx+1}')
                     return linha_temp
-                    
+
             except Exception as e:
-                # Não logar erros individuais para não poluir - linha pode estar stale mesmo
                 continue
-        
+
         logger.error(f'Processo {proc_id} não encontrado nas {len(linhas_atuais)} linhas da página atual')
         return None
-        
+
     except Exception as e:
         logger.error(f'Erro geral na reindexação: {e}')
         return None
-
 
 
 def abrir_detalhes_processo(driver, linha):
@@ -2567,10 +2213,7 @@ def abrir_detalhes_processo(driver, linha):
 
 
 def trocar_para_nova_aba(driver, aba_lista_original):
-    """
-    Troca para uma nova aba diferente da aba original da lista.
-    Delega para a implementação padronizada em Fix.browser_suporte.
-    """
+    """Troca para uma nova aba diferente da aba original da lista."""
     from Fix.browser_suporte import trocar_para_nova_aba as _tpna
     return _tpna(driver, aba_lista_original)
 
@@ -2578,7 +2221,7 @@ def trocar_para_nova_aba(driver, aba_lista_original):
 def _indexar_preparar_contexto(driver, max_processos=None):
     """Valida conexão e indexa processos, retornando (aba_original, lista_processos) ou (None, None)."""
     import time
-    
+
     conexao_inicial = validar_conexao_driver(driver, "FLUXO")
     if conexao_inicial == "FATAL":
         logger.error('ERRO em _indexar_preparar_contexto: Driver inutilizavel no inicio do processamento!')
@@ -2610,19 +2253,8 @@ def _indexar_preparar_contexto(driver, max_processos=None):
     return aba_lista_original, processos
 
 
-
 def _indexar_tentar_reindexar(driver: Any, proc_id: str, max_tentativas: int = 3) -> Optional[Any]:
-    """
-    Tenta reindexar linha com múltiplas tentativas.
-    
-    Args:
-        driver: driver ativo
-        proc_id: ID do processo a reindexar
-        max_tentativas: Número máximo de tentativas (padrão 3)
-    
-    Returns:
-        Linha reindexada ou None se falhar
-    """
+    """Tenta reindexar linha com múltiplas tentativas."""
     for tent in range(max_tentativas):
         try:
             linha = reindexar_linha(driver, proc_id)
@@ -2636,24 +2268,12 @@ def _indexar_tentar_reindexar(driver: Any, proc_id: str, max_tentativas: int = 3
     return None
 
 
-
 def _indexar_tentar_trocar_aba(driver: Any, aba_original: str, max_tentativas: int = 3) -> Optional[str]:
-    """
-    Tenta trocar para nova aba com múltiplas tentativas.
-    
-    Args:
-        driver: driver ativo
-        aba_original: Handle da aba original
-        max_tentativas: Número máximo de tentativas (padrão 3)
-    
-    Returns:
-        Handle da nova aba ou None se falhar
-    """
+    """Tenta trocar para nova aba com múltiplas tentativas."""
     for tent in range(max_tentativas):
         try:
             nova_aba = trocar_para_nova_aba(driver, aba_original)
             if nova_aba:
-                # Log melhorado - mostrar URL em vez de ID
                 try:
                     url_atual = driver.current_url
                     from urllib.parse import urlparse
@@ -2674,7 +2294,6 @@ def _indexar_tentar_trocar_aba(driver: Any, aba_original: str, max_tentativas: i
             logger.debug('[PROCESSAR] Falha ao trocar aba (tent %s): %s', tent+1, e)
             espera.assentar(driver, 1)
     return None
-
 
 
 def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback):
@@ -2763,12 +2382,8 @@ def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback
     return "SUCESSO"
 
 
-
 def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True):
-    """
-    Processa lista de processos com tratamento robusto de conexão e abas.
-    Estratégia: reindexa a lista completa antes de cada processamento para lidar com listas dinâmicas.
-    """
+    """Processa lista de processos com tratamento robusto de conexão e abas."""
     logger.info('[FLUXO] Iniciando indexacao da lista de processos...')
 
     aba_original, processos_iniciais = _indexar_preparar_contexto(driver, max_processos)
@@ -2813,7 +2428,6 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
 
 
 def analise_argos(driver):
-    # Fluxo robusto para análise de mandados do tipo Argos (Pesquisa Patrimonial).
     logger.info('[ARGOS] Iniciando analise Argos...')
     try:
         logger.info('[ARGOS] Analise Argos concluida')
@@ -2821,30 +2435,14 @@ def analise_argos(driver):
         logger.error("ERRO em analise_argos: %s: %s", type(e).__name__, e)
 
 
-# NOTE: `buscar_documento_argos` is implemented centrally in `Fix.core` to avoid
-# duplicate implementations across the package. The prior implementation in
-# this module was removed to keep a single authoritative version inside
-# `Fix/core.py` as requested.
-
-
 def tratar_anexos_argos(driver, log=True):
-    # Função placeholder, lógica removida conforme solicitado.
     if log:
         logger.debug('[ARGOS][ANEXOS] Tratando anexos...')
     if log:
         logger.debug('[ARGOS][ANEXOS] Anexos tratados com sucesso')
 
-# =========================
-# 8. FUNÇÕES DE UI E INTERFACE
-# =========================
-
-# Seção: Mandados Outros
-
 
 def analise_outros(driver):
-    # Fluxo robusto para análise de mandados do tipo Outros (Oficial de Justiça).
-    # - Extrai certidão do documento.
-    # - Cria GIGS sempre como tipo 'prazo', 0 dias, nome 'Pz mdd'.
     logger.info('[OUTROS] Iniciando analise Outros...')
     texto = extrair_documento(driver, regras_analise=lambda texto: criar_gigs(driver, 0, 'Pz mdd'))
     if not texto:

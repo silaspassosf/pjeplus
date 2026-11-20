@@ -1,8 +1,4 @@
-"""navegacao_espera — extraído de Fix/core.py (F7: split verbatim, re-exportado pelo core).
-
-Corpos idênticos aos originais (mesma ordem interna). O grafo entre módulos é
-acíclico: navegacao_espera <- navegacao <- entrada_campos; documentos_cp e
-filtros_painel são folhas. """
+"""navegacao_espera — extraído de Fix/core.py (F7: split verbatim, re-exportado pelo core)."""
 
 import re
 import time
@@ -15,7 +11,6 @@ from typing import Union
 
 from Fix import espera
 
-# Constantes de módulo que acompanham este grupo (usadas por suas funções).
 TIME_ENABLED = True
 
 def medir_tempo(label: str = None):
@@ -85,13 +80,7 @@ def garantir_carregamento_pagina(
     log: bool = True,
     url_alvo: Optional[str] = None,
 ) -> bool:
-    """Garante carregamento da página com barreira anti-travamento.
-
-    Se qualquer elemento válido de conteúdo for detectado dentro do timeout,
-    o refresh é cancelado/abortado na hora e a página segue.
-    Se passar do tempo sem qualquer elemento válido no DOM, tenta destravar
-    e aguarda recuperação pós-recuperação.
-    """
+    """Garante carregamento da página com barreira anti-travamento."""
     if hasattr(driver, 'garantir_carregamento'):
         try:
             return driver.garantir_carregamento(
@@ -110,7 +99,6 @@ def garantir_carregamento_pagina(
     if timeout_refresh is None:
         timeout_refresh = 10.0 if is_processo_ou_tarefa else 5.0
 
-    # Fallback genérico caso o driver não seja PWDriver direto
     js_verificar = """
     (args) => {
         const seletorExtra = args.seletorExtra;
@@ -249,12 +237,7 @@ def wait_for_page_load(driver, timeout=10, seletor=None):
         return False
 
 def extrair_id_processo(driver) -> Optional[str]:
-    """ID numérico do processo na URL atual do PJe (`/processo/{id}`).
-
-    Leitura direta da URL — sem tocar no DOM e sem dependência de motor. Ponto
-    único para quem precisa do id nas chamadas de API (`cliente_para` +
-    `partes`/`domicilio_eletronico`/`obter_texto_documento`).
-    """
+    """ID numérico do processo na URL atual do PJe (`/processo/{id}`)."""
     try:
         m = re.search(r'/processo/(\d+)', getattr(driver, 'current_url', '') or '')
         return m.group(1) if m else None
@@ -330,15 +313,7 @@ def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR
         return None
 
 def esperar_url_conter(driver, substring, timeout=10):
-    """
-    Espera até que a URL atual contenha a substring especificada.
-    Args:
-        driver: driver ativo
-        substring: String a ser encontrada na URL
-        timeout: Tempo máximo de espera em segundos
-    Returns:
-        bool: True se encontrou, False se timeout
-    """
+    """Espera até que a URL atual contenha a substring especificada."""
     if not driver:
         return False
     try:

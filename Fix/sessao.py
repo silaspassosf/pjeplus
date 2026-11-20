@@ -1,10 +1,4 @@
-"""Fix/sessao.py — cluster canônico de sessão/login/cookies (F3).
-
-Conteúdo MOVIDO verbatim de Fix/utils.py, que é a via executada pelos
-orquestradores (x.py, f.py, Triagem, Peticao, SISB, atos, tools). O cluster
-homônimo de Fix/core.py era divergente e sem nenhum chamador — removido.
-Fix/utils.py e Fix/facade_publica.py re-exportam estes nomes (compat).
-"""
+"""Fix/sessao.py — cluster canônico de sessão/login/cookies (F3)."""
 import glob
 import json
 import os
@@ -29,20 +23,11 @@ def obter_credencial(
     servicos: tuple = ('pjeplus', 'sisbajud', 'SISB'),
     aliases: tuple = ()
 ) -> Optional[str]:
-    """
-    Obtém credencial SOMENTE do Gerenciador de Credenciais do Windows (keyring):
-      - keyring.get_password(servico, nome) para cada servico ('pjeplus', 'sisbajud', 'SISB')
-      - keyring.get_password(nome, nome)
-      - keyring.get_password(nome, '')
-      - keyring.get_password(nome, os.environ.get('USERNAME', ''))
-    Variáveis de ambiente NÃO são mais usadas (evita dado errado vencer o keyring).
-    Retorna o valor como string ou None se não encontrado.
-    """
+    """Obtém credencial SOMENTE do Gerenciador de Credenciais do Windows (keyring):"""
     if not nome:
         return None
     nomes = (nome,) + tuple(aliases)
 
-    # Windows Credential Manager via keyring (única fonte)
     try:
         import keyring
         for s in servicos:
@@ -67,17 +52,12 @@ def obter_credencial(
     return None
 
 def login_manual(driver, aguardar_url_painel=True, usar_credenciais=True):
-    """Login manual: navega para login e aguarda usuário fazer login.
-
-    usar_credenciais=False (VT visível): nao le chaves do sistema (keyring) em
-    nenhuma hipotese — se os cookies nao servirem, abre a tela de login e
-    espera o usuario digitar.
-    """
+    """Login manual: navega para login e aguarda usuário fazer login."""
     if verificar_e_aplicar_cookies(driver, usar_credenciais=usar_credenciais):
         if SALVAR_COOKIES_AUTOMATICO:
             salvar_cookies_sessao(driver, info_extra='cookies_reutilizados')
         return True
-    
+
     url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
     logger.info('[LOGIN_MANUAL] Navegando para tela de login: %s', url_login)
     driver.get(url_login)
@@ -96,10 +76,9 @@ def login_manual(driver, aguardar_url_painel=True, usar_credenciais=True):
                         salvar_cookies_sessao(driver, info_extra='login_manual')
                     break
             except Exception as e:
-                # Se a janela foi fechada manualmente, driver.current_url levanta exceção
                 logger.error('[LOGIN_MANUAL] Erro ao verificar URL (janela fechada?): %s', e)
                 return False
-                
+
             try:
                 espera.assentar(driver, 1)
             except Exception as e:
@@ -113,7 +92,7 @@ def login_automatico(driver):
         if SALVAR_COOKIES_AUTOMATICO:
             salvar_cookies_sessao(driver, info_extra='cookies_reutilizados')
         return True
-    
+
     import subprocess
     login_url = "https://pje.trt2.jus.br/primeirograu/login.seam"
     driver.get(login_url)
@@ -157,7 +136,7 @@ def login_automatico(driver):
 def login_automatico_direto(driver):
     """Login automático DIRETO via AutoHotkey - OTIMIZADO: usa aguardar_e_clicar() e _obter_caminhos_ahk()"""
     import subprocess
-    
+
     logger.info('[LOGIN_AUTOMATICO_DIRETO] Iniciando login direto sem cookies')
     login_url = "https://pje.trt2.jus.br/primeirograu/login.seam"
     driver.get(login_url)
@@ -200,11 +179,7 @@ def login_automatico_direto(driver):
         return False
 
 def sessao_oauth_completa(driver) -> bool:
-    """Sessão REALMENTE completa = cookies OAuth do gateway presentes.
-
-    URL "autenticada" sem access_token = handshake OAuth pela metade
-    (KC_RESTART pendente) — o gateway pje-comum-api responde 403 ARQ-516.
-    """
+    """Sessão REALMENTE completa = cookies OAuth do gateway presentes."""
     try:
         nomes = {c.get('name') for c in driver.get_cookies()}
     except Exception:
@@ -223,17 +198,7 @@ def _is_driver_headless(driver) -> bool:
 
 
 def _aguardar_formulario_sso(driver, teto=6.0):
-    """Espera o formulario do Keycloak aparecer depois do clique no SSO.
-
-    O clique em #btnSsoPdpj dispara uma navegacao que so avanca quando o driver
-    cede tempo ao loop de eventos do Playwright. Antes daqui havia um
-    `espera.pausa(1.0)` — `time.sleep` puro, que NAO bombeia esse loop: o
-    #username ja estava na tela, mas o driver seguia com o DOM antigo e o
-    fluxo gastava os 10s do teto antes de cair no login manual.
-
-    `ate_aparecer` consulta o servidor a cada volta e por isso bombeia o loop.
-    Devolve True se achou #username ou #otp, ou False se nao apareceu.
-    """
+    """Espera o formulario do Keycloak aparecer depois do clique no SSO."""
     try:
         if espera.ate_aparecer(driver, '#username, #otp, input[name="otp"]', teto=teto):
             return True
@@ -243,22 +208,14 @@ def _aguardar_formulario_sso(driver, teto=6.0):
 
 
 def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True, forcar=False):
-    """Login automático por CPF/senha alimentado pelo Gerenciador de Credenciais do Windows.
-
-    Recupera credenciais do Windows (keyring - serviço 'pjeplus').
-    Preenche automaticamente no formulário Keycloak/PDPJ (conforme padrão LEGADO.md ~15323).
-    Se as credenciais estiverem ausentes ou em caso de MFA/captcha, faz fallback
-    transparente para login manual no browser.
-    """
+    """Login automático por CPF/senha alimentado pelo Gerenciador de Credenciais do Windows."""
     try:
-        # Apagar cookies se sessao morta ou forcar reautenticacao
         if forcar or not sessao_oauth_completa(driver):
             try:
                 driver.delete_all_cookies()
             except Exception:
                 pass
         else:
-            # Verificar se ja esta logado via cookies salvos
             if not forcar and verificar_e_aplicar_cookies(driver):
                 if SALVAR_COOKIES_AUTOMATICO:
                     try:
@@ -274,7 +231,6 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
         driver.get(url_login)
         espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
 
-        # Se ja estamos logados, retorna direto
         try:
             cur = (getattr(driver, 'current_url', '') or '').lower()
             if not any(k in cur for k in ['login', 'auth', 'realms']) and sessao_oauth_completa(driver):
@@ -283,7 +239,6 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
         except Exception:
             pass
 
-        # Obter credenciais do Gerenciador de Credenciais do Windows (keyring)
         if not cpf or not senha:
             if not cpf:
                 cpf = obter_credencial(
@@ -305,7 +260,6 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
             )
             return login_manual(driver, aguardar_url_painel=aguardar_url_final)
 
-        # Clicar no botao SSO PDPJ antes de preencher credenciais se presente (LEGADO.md ~15354)
         if espera.ate_aparecer(driver, '#btnSsoPdpj', teto=3):
             try:
                 if hasattr(driver, 'page') and driver.page:
@@ -317,9 +271,7 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                 logger.debug('[LOGIN_CPF] Aviso ao clicar no botao SSO PDPJ: %s', e)
 
             # O clique dispara a navegacao para o Keycloak. Esperar aqui com
-            # consulta ao servidor (e nao com sleep) e o que faz o driver
             # processar a troca de pagina: sem isso o #username ja estava na
-            # tela mas o fluxo gastava o teto e caia no login manual.
             try:
                 _aguardar_formulario_sso(driver)
             except Exception as e:
@@ -338,7 +290,6 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                     return False
                 return login_manual(driver, aguardar_url_painel=aguardar_url_final)
         else:
-            # Preencher CPF e senha
             try:
                 from Fix.core import preencher_campo
                 if hasattr(driver, 'page') and driver.page:
@@ -354,7 +305,6 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                     return False
                 return login_manual(driver, aguardar_url_painel=aguardar_url_final)
 
-            # Clicar no botao de login (#kc-login - LEGADO.md ~15390)
             try:
                 if hasattr(driver, 'page') and driver.page:
                     driver.page.click('#kc-login')
@@ -367,7 +317,6 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                     return False
                 return login_manual(driver, aguardar_url_painel=aguardar_url_final)
 
-        # Aguardar redirecionamento / conclusao do login / tela de OTP
         if aguardar_url_final:
             is_hl = _is_driver_headless(driver)
             timeout_login = 90 if is_hl else 240
@@ -393,7 +342,6 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                                 pass
                         return True
 
-                    # Verificar se apareceu tela de OTP / validação em 2 etapas
                     if not otp_processado:
                         tem_otp = False
                         if hasattr(driver, 'page') and driver.page:
@@ -470,7 +418,7 @@ def _obter_caminhos_ahk():
     except Exception:
         ahk_exe = globals().get('AHK_EXE_PC')
         ahk_script = globals().get('AHK_SCRIPT_PC')
-    
+
     return ahk_exe, ahk_script
 
 def login_pc(driver):
@@ -503,10 +451,7 @@ def login_pc(driver):
         return False
 
 def salvar_cookies_sessao(driver, caminho_arquivo=None, info_extra=None):
-    """
-    Salva todos os cookies da sessão Selenium em um arquivo JSON.
-    O nome do arquivo inclui data/hora e info_extra se fornecido.
-    """
+    """Salva todos os cookies da sessão Selenium em um arquivo JSON."""
     try:
         cookies = driver.get_cookies()
         if not cookies:
@@ -534,10 +479,7 @@ def salvar_cookies_sessao(driver, caminho_arquivo=None, info_extra=None):
         return False
 
 def carregar_cookies_sessao(driver, max_idade_horas=24):
-    """
-    Carrega cookies de sessão mais recentes e válidos automaticamente.
-    Retorna True se cookies foram carregados com sucesso, False caso contrário.
-    """
+    """Carrega cookies de sessão mais recentes e válidos automaticamente."""
     try:
         pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
         if not os.path.exists(pasta):
@@ -550,20 +492,17 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
             return False
 
         arquivo_mais_recente = max(arquivos_cookies, key=os.path.getmtime)
-        
+
         with open(arquivo_mais_recente, 'r', encoding='utf-8') as f:
             dados = json.load(f)
-        
-        # Verifica se é formato antigo ou novo
+
         if 'timestamp' in dados:
             timestamp_str = dados['timestamp']
             cookies = dados['cookies']
         else:
-            # Formato antigo - usa timestamp do arquivo
             timestamp_str = datetime.fromtimestamp(os.path.getmtime(arquivo_mais_recente)).isoformat()
             cookies = dados
 
-        # Verifica idade dos cookies
         timestamp_cookies = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00').replace('+00:00', ''))
         idade = datetime.now() - timestamp_cookies
 
@@ -616,14 +555,7 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
         return False
 
 def verificar_e_aplicar_cookies(driver, usar_credenciais=True):
-    """
-    Função integrada que verifica e aplica cookies automaticamente.
-    Retorna True se login via cookies foi bem-sucedido.
-
-    usar_credenciais=False: em caso de acesso-negado NAO tenta login forcado
-    com chaves do sistema (keyring) — devolve False e quem chamou cai no login
-    manual (usado no VT visivel).
-    """
+    """Função integrada que verifica e aplica cookies automaticamente."""
     if not USAR_COOKIES_AUTOMATICO:
         return False
 

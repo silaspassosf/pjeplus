@@ -1,8 +1,3 @@
-# ====================================================================
-# MONITORAMENTO DE PROGRESSO UNIFICADO
-# Sistema unificado para monitoramento de progresso em p2b, m1 e pec
-# ====================================================================
-
 import os
 import json
 import re
@@ -12,12 +7,8 @@ from typing import Optional, Dict, Any, Callable, Tuple
 import logging
 from Fix import espera
 
-# Configurar logger
 logger = logging.getLogger(__name__)
 
-# ===============================================
-# CONFIGURAÇÕES POR TIPO DE EXECUÇÃO
-# ===============================================
 
 CONFIGURACOES_EXECUCAO = {
     'p2b': {
@@ -66,14 +57,9 @@ ALIASES_TIPO_EXECUCAO = {
     'aud': 'aud',
 }
 
-# Arquivo único de progresso — caminho absoluto para ser imune a mudanças de CWD
-# (ex: Playwright pode rodar com CWD diferente do Selenium).
 _ARQUIVO_RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARQUIVO_PROGRESSO_UNIFICADO = os.path.join(_ARQUIVO_RAIZ, "progresso.json")
 
-# ===============================================
-# UTILITÁRIOS COMUNS
-# ===============================================
 
 def _log_progresso(tipo_execucao: str, mensagem: str, numero_processo: Optional[str] = None):
     """Função de logging unificada para progresso"""
@@ -99,40 +85,26 @@ def _normalizar_tipo_execucao(tipo_execucao: str) -> str:
     return ALIASES_TIPO_EXECUCAO.get(tipo_limpo, tipo_limpo)
 
 def _validar_e_limpar_progresso(progresso: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Valida e limpa dados de progresso antes de salvar.
-
-    Args:
-        progresso: Dados de progresso a serem validados
-
-    Returns:
-        Dados validados e limpos
-    """
+    """Valida e limpa dados de progresso antes de salvar."""
     if not isinstance(progresso, dict):
         raise ValueError("Progresso deve ser um dicionário")
 
-    # Criar cópia para não modificar original
     progresso_limpo = progresso.copy()
 
-    # Validar e limpar listas
     for campo in ["processos_executados", "processos_com_erro", "tarefas_executadas", "tarefas_com_erro"]:
         if campo not in progresso_limpo:
             progresso_limpo[campo] = []
         elif not isinstance(progresso_limpo[campo], list):
             progresso_limpo[campo] = []
         else:
-            # Filtrar apenas strings válidas e remover duplicatas
             progresso_limpo[campo] = list(set(
                 item for item in progresso_limpo[campo]
                 if isinstance(item, str) and item.strip()
             ))
 
-    # Validar datas de execução por processo (mapa numero -> "YYYY-MM-DD")
     datas = progresso_limpo.get("datas_execucao")
     if not isinstance(datas, dict):
         datas = {}
-    # Manter apenas entradas com data em formato válido cujo número
-    # ainda consta em uma das listas (sem órfãos).
     numeros_validos = (
         set(progresso_limpo.get("processos_executados", [])) |
         set(progresso_limpo.get("processos_com_erro", [])) |
@@ -152,40 +124,25 @@ def _validar_e_limpar_progresso(progresso: Dict[str, Any]) -> Dict[str, Any]:
         datas_limpas[numero] = data
     progresso_limpo["datas_execucao"] = datas_limpas
 
-    # Validar campos booleanos
     for campo in ["session_active"]:
         if campo not in progresso_limpo:
             progresso_limpo[campo] = False
         elif not isinstance(progresso_limpo[campo], bool):
             progresso_limpo[campo] = bool(progresso_limpo[campo])
 
-    # Remover campos temporários que não devem ser persistidos
     campos_temporarios = ["temp_data", "cache", "session_data"]
     for campo in campos_temporarios:
         progresso_limpo.pop(campo, None)
 
     return progresso_limpo
 
-# ===============================================
-# CARREGAMENTO E SALVAMENTO DE PROGRESSO
-# ===============================================
 
 def carregar_progresso_unificado(tipo_execucao: str, suppress_load_log: bool = False) -> Dict[str, Any]:
-    """
-    Carrega o estado de progresso do arquivo JSON unificado.
-
-    Args:
-        tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
-        suppress_load_log: Se True, suprime logs de carregamento (uso interno)
-
-    Returns:
-        Dict com estado do progresso para o tipo específico
-    """
+    """Carrega o estado de progresso do arquivo JSON unificado."""
     if not _validar_tipo_execucao(tipo_execucao):
         raise ValueError(f"Tipo de execução não suportado: {tipo_execucao}")
     tipo_execucao = _normalizar_tipo_execucao(tipo_execucao)
 
-    # Wrapper local que respeita suppress_load_log
     def _log(tipo, msg, num=None):
         if not suppress_load_log:
             _log_progresso(tipo, msg, num)
@@ -195,11 +152,9 @@ def carregar_progresso_unificado(tipo_execucao: str, suppress_load_log: bool = F
             with open(ARQUIVO_PROGRESSO_UNIFICADO, "r", encoding="utf-8") as f:
                 dados_completos = json.load(f)
 
-                # Verificar se existe seção para este tipo
                 if tipo_execucao in dados_completos:
                     dados = dados_completos[tipo_execucao]
 
-                    # Validar estrutura dos dados carregados
                     if not isinstance(dados, dict):
                         raise ValueError("Dados não são um dicionário válido")
 
@@ -209,7 +164,6 @@ def carregar_progresso_unificado(tipo_execucao: str, suppress_load_log: bool = F
                     if not isinstance(dados["processos_executados"], list):
                         dados["processos_executados"] = []
 
-                    # Adicionar campos padrão se não existirem
                     if "processos_com_erro" not in dados:
                         dados["processos_com_erro"] = []
 
@@ -225,14 +179,12 @@ def carregar_progresso_unificado(tipo_execucao: str, suppress_load_log: bool = F
 
                     return dados
                 else:
-                    # Seção não existe, criar nova
                     _log_progresso(tipo_execucao, "ℹ️ Seção não encontrada, criando nova")
 
     except (json.JSONDecodeError, ValueError, FileNotFoundError) as e:
         _log_progresso(tipo_execucao, f"[AVISO] Arquivo corrompido ou inválido: {e}")
         _log_progresso(tipo_execucao, "[AVISO] Criando novo arquivo de progresso...")
 
-        # Tentar fazer backup do arquivo corrompido
         try:
             if os.path.exists(ARQUIVO_PROGRESSO_UNIFICADO):
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -245,7 +197,6 @@ def carregar_progresso_unificado(tipo_execucao: str, suppress_load_log: bool = F
     except Exception as e:
         _log_progresso(tipo_execucao, f"[AVISO] Erro inesperado ao carregar progresso: {e}")
 
-    # Retornar estrutura padrão limpa para este tipo
     dados_limpos = {
         "processos_executados": [],
         "processos_com_erro": [],
@@ -253,7 +204,6 @@ def carregar_progresso_unificado(tipo_execucao: str, suppress_load_log: bool = F
         "last_update": None
     }
 
-    # Salvar estrutura limpa no arquivo unificado
     try:
         salvar_progresso_unificado(tipo_execucao, dados_limpos)
         _log_progresso(tipo_execucao, "✅ Arquivo de progresso limpo criado")
@@ -263,40 +213,26 @@ def carregar_progresso_unificado(tipo_execucao: str, suppress_load_log: bool = F
     return dados_limpos
 
 def salvar_progresso_unificado(tipo_execucao: str, progresso: Dict[str, Any]):
-    """
-    Salva o estado de progresso no arquivo JSON unificado.
-
-    Args:
-        tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
-        progresso: Dict com estado do progresso
-    """
+    """Salva o estado de progresso no arquivo JSON unificado."""
     if not _validar_tipo_execucao(tipo_execucao):
         raise ValueError(f"Tipo de execução não suportado: {tipo_execucao}")
     tipo_execucao = _normalizar_tipo_execucao(tipo_execucao)
 
     try:
-        # VALIDAR DADOS ANTES DE SALVAR
         progresso_validado = _validar_e_limpar_progresso(progresso)
 
-        # Carregar dados existentes ou criar estrutura vazia
         dados_completos = {}
         if os.path.exists(ARQUIVO_PROGRESSO_UNIFICADO):
             try:
                 with open(ARQUIVO_PROGRESSO_UNIFICADO, "r", encoding="utf-8") as f:
                     dados_completos = json.load(f)
             except (json.JSONDecodeError, ValueError):
-                # Se arquivo corrompido, começar do zero
                 _log_progresso(tipo_execucao, "[AVISO] Arquivo progresso corrompido, recriando...")
                 dados_completos = {}
 
-        # Atualizar timestamp
         progresso_validado["last_update"] = datetime.now().isoformat()
 
-        # MERGE com o que já está no disco: um dict em memória desatualizado NUNCA pode
         # remover o que já foi gravado como executado. Sem isso, um save com cópia velha
-        # apagava tarefas de execuções anteriores e o bot repetia processos já feitos.
-        # (Só as listas de SUCESSO são unidas; as de erro seguem o estado atual, para que
-        #  um sucesso posterior continue removendo o erro.)
         existente = dados_completos.get(tipo_execucao)
         if isinstance(existente, dict):
             for campo in ("processos_executados", "tarefas_executadas"):
@@ -314,10 +250,8 @@ def salvar_progresso_unificado(tipo_execucao: str, progresso: Dict[str, Any]):
                 mescladas.update(datas_novas)
                 progresso_validado["datas_execucao"] = mescladas
 
-        # Atualizar seção específica
         dados_completos[tipo_execucao] = progresso_validado
 
-        # Salvar arquivo completo
         with open(ARQUIVO_PROGRESSO_UNIFICADO, "w", encoding="utf-8") as f:
             json.dump(dados_completos, f, ensure_ascii=False, indent=2)
 
@@ -325,26 +259,10 @@ def salvar_progresso_unificado(tipo_execucao: str, progresso: Dict[str, Any]):
 
     except Exception as e:
         _log_progresso(tipo_execucao, f"[ERRO] Falha ao salvar progresso: {e}")
-        # Não relançar erro para não quebrar o fluxo principal
 
 
 def limpar_progresso_antigos(dias: int = 3) -> Dict[str, int]:
-    """
-    Remove de TODAS as seções do progresso.json os processos executados ou
-    com erro há mais de `dias` dias (ou sem data registrada — legado).
-
-    A data de referência vem de `datas_execucao[numero]` ("YYYY-MM-DD"),
-    gravada por marcar_processo_executado_unificado. Processos sem data
-    registrada são considerados antigos e removidos, pois o arquivo legado
-    não tinha controle de data.
-
-    Args:
-        dias: Idade máxima (em dias) para manter a entrada. Padrão: 3.
-
-    Returns:
-        Dict com total removido por seção, ex.: {'pec': 40, 'p2b': 3}.
-        Seções sem remoção não aparecem no retorno.
-    """
+    """Remove de TODAS as seções do progresso.json os processos executados ou"""
     resumo: Dict[str, int] = {}
     try:
         if not os.path.exists(ARQUIVO_PROGRESSO_UNIFICADO):
@@ -402,7 +320,6 @@ def limpar_progresso_antigos(dias: int = 3) -> Dict[str, int]:
                         nova_lista.append(numero)
                 secao[campo] = nova_lista
 
-            # Limpar datas órfãs (número/tarefa que saiu das listas)
             if isinstance(datas, dict) and datas:
                 numeros_restantes = (
                     set(secao.get("processos_executados", [])) |
@@ -435,21 +352,12 @@ def limpar_progresso_antigos(dias: int = 3) -> Dict[str, int]:
         return resumo
 
 def limpar_progresso_corrompido(tipo_execucao: str) -> bool:
-    """
-    Limpa dados corrompidos ou temporários do progresso de um tipo específico.
-
-    Args:
-        tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
-
-    Returns:
-        bool: True se limpeza foi bem-sucedida
-    """
+    """Limpa dados corrompidos ou temporários do progresso de um tipo específico."""
     if not _validar_tipo_execucao(tipo_execucao):
         raise ValueError(f"Tipo de execução não suportado: {tipo_execucao}")
     tipo_execucao = _normalizar_tipo_execucao(tipo_execucao)
 
     try:
-        # Criar estrutura limpa
         progresso_limpo = {
             "processos_executados": [],
             "processos_com_erro": [],
@@ -457,7 +365,6 @@ def limpar_progresso_corrompido(tipo_execucao: str) -> bool:
             "last_update": datetime.now().isoformat()
         }
 
-        # Salvar progresso limpo
         salvar_progresso_unificado(tipo_execucao, progresso_limpo)
 
         _log_progresso(tipo_execucao, "🧹 Progresso corrompido/temporário limpo com sucesso")
@@ -467,27 +374,14 @@ def limpar_progresso_corrompido(tipo_execucao: str) -> bool:
         _log_progresso(tipo_execucao, f"❌ Erro ao limpar progresso: {e}")
         return False
 
-# ===============================================
-# EXTRAÇÃO DE NÚMERO DO PROCESSO
-# ===============================================
 
 def extrair_numero_processo_unificado(driver, tipo_execucao: str) -> Optional[str]:
-    """
-    Extrai o número do processo da página atual usando estratégias específicas por tipo.
-
-    Args:
-        driver: driver ativo
-        tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
-
-    Returns:
-        Número do processo ou None se não encontrado
-    """
+    """Extrai o número do processo da página atual usando estratégias específicas por tipo."""
     if not _validar_tipo_execucao(tipo_execucao):
         raise ValueError(f"Tipo de execução não suportado: {tipo_execucao}")
     tipo_execucao = _normalizar_tipo_execucao(tipo_execucao)
 
     try:
-        # Estratégia comum: extrair da URL
         url = driver.current_url
         if "processo/" in url:
             match = re.search(r"processo/(\d+)", url)
@@ -496,9 +390,7 @@ def extrair_numero_processo_unificado(driver, tipo_execucao: str) -> Optional[st
                 _log_progresso(tipo_execucao, f"✅ Número extraído da URL: {numero_limpo}", numero_limpo)
                 return numero_limpo
 
-        # Estratégias específicas por tipo
         if tipo_execucao == 'pec':
-            # Estratégia adicional para PEC: JavaScript robusto
             try:
                 fn_sc = getattr(driver, "execute" + "_script", None)
                 numero_js = fn_sc("""
@@ -527,7 +419,6 @@ def extrair_numero_processo_unificado(driver, tipo_execucao: str) -> Optional[st
             except Exception as js_e:
                 _log_progresso(tipo_execucao, f"⚠️ Erro no JavaScript de extração: {js_e}")
 
-        # Estratégia comum: buscar por seletores CSS
         try:
             candidatos = espera.elementos(driver,
                 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho, .numero-processo')
@@ -549,21 +440,9 @@ def extrair_numero_processo_unificado(driver, tipo_execucao: str) -> Optional[st
         _log_progresso(tipo_execucao, f"[ERRO] Falha ao extrair número do processo: {e}")
         return None
 
-# ===============================================
-# VERIFICAÇÃO DE ACESSO NEGADO
-# ===============================================
 
 def verificar_acesso_negado_unificado(driver, tipo_execucao: str) -> bool:
-    """
-    Verifica se estamos na página de acesso negado.
-
-    Args:
-        driver: driver ativo
-        tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
-
-    Returns:
-        True se acesso negado detectado
-    """
+    """Verifica se estamos na página de acesso negado."""
     if not _validar_tipo_execucao(tipo_execucao):
         raise ValueError(f"Tipo de execução não suportado: {tipo_execucao}")
     tipo_execucao = _normalizar_tipo_execucao(tipo_execucao)
@@ -581,9 +460,6 @@ def verificar_acesso_negado_unificado(driver, tipo_execucao: str) -> bool:
         _log_progresso(tipo_execucao, f"[ERRO] Falha ao verificar acesso negado: {e}")
         return False
 
-# ===============================================
-# VERIFICAÇÃO E MARCAÇÃO DE PROCESSOS
-# ===============================================
 
 def _somente_digitos(numero) -> str:
     """Extrai apenas os dígitos de um número de processo (forma canônica de comparação)."""
@@ -593,10 +469,7 @@ def _somente_digitos(numero) -> str:
 
 
 def _formatar_numero_cnj(numero: str) -> Optional[str]:
-    """Formata um número de processo (com máscara ou só dígitos) para a máscara CNJ.
-
-    Retorna None se a entrada não tiver exatamente 20 dígitos.
-    """
+    """Formata um número de processo (com máscara ou só dígitos) para a máscara CNJ."""
     digitos = _somente_digitos(numero)
     if len(digitos) != 20:
         return None
@@ -618,16 +491,7 @@ def _numero_em_lista(numero_canonico: str, lista) -> bool:
 
 
 def processo_ja_executado_unificado(numero_processo: str, progresso: Dict[str, Any]) -> bool:
-    """
-    Verifica se o processo já foi executado com sucesso.
-
-    Args:
-        numero_processo: Número do processo
-        progresso: Dict com estado do progresso
-
-    Returns:
-        True se já foi executado
-    """
+    """Verifica se o processo já foi executado com sucesso."""
     if not numero_processo:
         return False
 
@@ -635,16 +499,7 @@ def processo_ja_executado_unificado(numero_processo: str, progresso: Dict[str, A
     return _numero_em_lista(_somente_digitos(numero_processo), executados)
 
 def processo_tem_erro_unificado(numero_processo: str, progresso: Dict[str, Any]) -> bool:
-    """
-    Verifica se o processo teve erro anteriormente.
-
-    Args:
-        numero_processo: Número do processo
-        progresso: Dict com estado do progresso
-
-    Returns:
-        True se teve erro
-    """
+    """Verifica se o processo teve erro anteriormente."""
     if not numero_processo:
         return False
 
@@ -654,15 +509,7 @@ def processo_tem_erro_unificado(numero_processo: str, progresso: Dict[str, Any])
 def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str,
                                        progresso: Dict[str, Any], sucesso: bool = True,
                                        motivo: Optional[str] = None):
-    """
-    Marca processo como executado ou com erro.
-
-    Args:
-        tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
-        numero_processo: Número do processo
-        progresso: Dict com estado do progresso
-        sucesso: True para marcar como executado, False para marcar como erro
-    """
+    """Marca processo como executado ou com erro."""
     tipo_execucao = _normalizar_tipo_execucao(tipo_execucao)
     if not numero_processo or not isinstance(numero_processo, str):
         _log_progresso(tipo_execucao, "⚠️ Número do processo inválido, ignorando marcação")
@@ -673,7 +520,6 @@ def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str
         _log_progresso(tipo_execucao, "⚠️ Número do processo vazio, ignorando marcação")
         return
 
-    # Normalizar para a máscara CNJ — aceita entrada com máscara ou só dígitos.
     numero_canonico = _formatar_numero_cnj(numero_processo)
     if not numero_canonico:
         _log_progresso(tipo_execucao, f"⚠️ Formato de número do processo inválido: {numero_processo}")
@@ -684,44 +530,35 @@ def marcar_processo_executado_unificado(tipo_execucao: str, numero_processo: str
     hoje = datetime.now().strftime("%Y-%m-%d")
 
     if sucesso:
-        # Marcar como executado - remover de erros se estava lá
         if numero_processo not in progresso.get("processos_executados", []):
             progresso.setdefault("processos_executados", []).append(numero_processo)
             modificado = True
 
-        # Remover de erros se estava marcado como erro
         if numero_processo in progresso.get("processos_com_erro", []):
             progresso["processos_com_erro"].remove(numero_processo)
             modificado = True
 
-        # Data da execução (sempre atualiza para hoje)
         progresso.setdefault("datas_execucao", {})[numero_processo] = hoje
         modificado = True
 
         _log_progresso(tipo_execucao, "✅ Processo marcado como executado", numero_processo)
 
     else:
-        # Marcar como erro - não adicionar aos executados
         if numero_processo not in progresso.get("processos_com_erro", []):
             progresso.setdefault("processos_com_erro", []).append(numero_processo)
             modificado = True
 
-        # Data da tentativa com erro (sempre atualiza para hoje)
         progresso.setdefault("datas_execucao", {})[numero_processo] = hoje
         modificado = True
 
         _detalhe = f': {motivo}' if motivo else ''
         _log_progresso(tipo_execucao, f"❌ Erro{_detalhe}", numero_processo)
 
-    # Só salvar se houve modificação real
     if modificado:
         salvar_progresso_unificado(tipo_execucao, progresso)
     else:
         _log_progresso(tipo_execucao, "ℹ️ Nenhuma modificação no progresso", numero_processo)
 
-# ===============================================
-# EXECUÇÃO UNIFICADA COM TRATAMENTO INTELIGENTE
-# ===============================================
 
 def executar_com_monitoramento_unificado(
     tipo_execucao: str,
@@ -731,27 +568,13 @@ def executar_com_monitoramento_unificado(
     *args,
     **kwargs
 ) -> Tuple[bool, Optional[str]]:
-    """
-    Executa uma função de processamento com monitoramento unificado de progresso.
-
-    Args:
-        tipo_execucao: Tipo da execução ('p2b', 'm1', 'pec')
-        driver: driver ativo
-        numero_processo: Número do processo (None para extrair automaticamente)
-        funcao_processamento: Função a ser executada
-        *args, **kwargs: Argumentos para a função de processamento
-
-    Returns:
-        Tuple: (sucesso, numero_processo_extraido)
-    """
+    """Executa uma função de processamento com monitoramento unificado de progresso."""
     if not _validar_tipo_execucao(tipo_execucao):
         raise ValueError(f"Tipo de execução não suportado: {tipo_execucao}")
     tipo_execucao = _normalizar_tipo_execucao(tipo_execucao)
 
-    # Carregar progresso
     progresso = carregar_progresso_unificado(tipo_execucao)
 
-    # Extrair número do processo se não fornecido
     numero_processo_extraido = numero_processo
     if not numero_processo_extraido:
         numero_processo_extraido = extrair_numero_processo_unificado(driver, tipo_execucao)
@@ -760,36 +583,29 @@ def executar_com_monitoramento_unificado(
         _log_progresso(tipo_execucao, "❌ Não foi possível extrair número do processo")
         return False, None
 
-    # Verificar se já foi executado
     if processo_ja_executado_unificado(numero_processo_extraido, progresso):
         _log_progresso(tipo_execucao, "⏭️ Processo já executado anteriormente", numero_processo_extraido)
         return True, numero_processo_extraido
 
-    # Verificar se teve erro anteriormente
     if processo_tem_erro_unificado(numero_processo_extraido, progresso):
         _log_progresso(tipo_execucao, "⚠️ Processo teve erro anteriormente, pulando", numero_processo_extraido)
         return False, numero_processo_extraido
 
-    # Verificar acesso negado
     if verificar_acesso_negado_unificado(driver, tipo_execucao):
         _log_progresso(tipo_execucao, " Acesso negado detectado", numero_processo_extraido)
         marcar_processo_executado_unificado(tipo_execucao, numero_processo_extraido, progresso, sucesso=False)
         return False, numero_processo_extraido
 
-    # Executar processamento
     _log_progresso(tipo_execucao, "▶️ Iniciando processamento", numero_processo_extraido)
 
     try:
-        # Chamar função de processamento
         resultado = funcao_processamento(driver, *args, **kwargs)
 
-        # Verificar se foi bem-sucedido
         if isinstance(resultado, tuple) and len(resultado) >= 1:
             sucesso = bool(resultado[0])
         else:
             sucesso = bool(resultado)
 
-        # Marcar progresso baseado no resultado
         marcar_processo_executado_unificado(tipo_execucao, numero_processo_extraido, progresso, sucesso=sucesso)
 
         if sucesso:
@@ -803,7 +619,6 @@ def executar_com_monitoramento_unificado(
         erro_msg = str(e)
         _log_progresso(tipo_execucao, f" Erro durante processamento: {erro_msg}", numero_processo_extraido)
 
-        # Só marcar como erro se não for um erro temporário/recuperável
         erros_temporarios = [
             "timeout", "stale element", "element not found",
             "connection", "network", "unreachable"
@@ -819,11 +634,7 @@ def executar_com_monitoramento_unificado(
             marcar_processo_executado_unificado(tipo_execucao, numero_processo_extraido, progresso, sucesso=False)
             return False, numero_processo_extraido
 
-# ===============================================
-# FUNÇÕES DE COMPATIBILIDADE (LEGACY)
-# ===============================================
 
-# P2B
 def carregar_progresso_p2b():
     return carregar_progresso_unificado('p2b')
 
@@ -842,7 +653,6 @@ def processo_ja_executado_p2b(numero_processo, progresso):
 def marcar_processo_executado_p2b(numero_processo, progresso):
     marcar_processo_executado_unificado('p2b', numero_processo, progresso, sucesso=True)
 
-# M1
 def carregar_progresso():
     return carregar_progresso_unificado('m1')
 
@@ -861,7 +671,6 @@ def processo_ja_executado(numero_processo, progresso):
 def marcar_processo_executado(numero_processo, progresso):
     marcar_processo_executado_unificado('m1', numero_processo, progresso, sucesso=True)
 
-# Mandado
 def carregar_progresso_mandado():
     return carregar_progresso_unificado('mandado')
 
@@ -880,26 +689,8 @@ def processo_ja_executado_mandado(numero_processo, progresso):
 def marcar_processo_executado_mandado(numero_processo, progresso):
     marcar_processo_executado_unificado('mandado', numero_processo, progresso, sucesso=True)
 
-# ===============================================
-# EXEMPLO DE USO
-# ===============================================
 
 def exemplo_uso_monitoramento_unificado():
-    """
-    Exemplos de como usar o sistema unificado de monitoramento
-    """
-
-    # Exemplo 1: Usar função unificada diretamente
-    # sucesso, numero = executar_com_monitoramento_unificado(
-    #     'p2b', driver, None, minha_funcao_processamento, arg1, arg2, kwarg1=valor
-    # )
-
-    # Exemplo 2: Usar funções específicas (compatibilidade)
-    # progresso = carregar_progresso_p2b()
-    # numero = extrair_numero_processo_p2b(driver)
-    # if not processo_ja_executado_p2b(numero, progresso):
-    #     # executar processamento
-    #     marcar_processo_executado_p2b(numero, progresso)
 
     pass
 
@@ -909,18 +700,10 @@ if __name__ == "__main__":
     logger.info("Arquivo único de progresso: progresso.json")
     logger.info("Estrutura: {p2b: {...}, m1: {...}, pec: {...}}")
     logger.info("Use as funções importadas em seus scripts p2b.py, m1.py e pec.py")
-    
 
-# ===============================================
-# Classe compatível legada: ProgressoUnificado
-# ===============================================
+
 class ProgressoUnificado:
-    """Classe compatível com a API legada usada em vários módulos.
-
-    Ela delega as operações para as funções unificadas definidas neste
-    módulo, preservando a interface esperada (carregar_progresso,
-    salvar_progresso, processo_ja_executado, marcar_progresso_executado).
-    """
+    """Classe compatível com a API legada usada em vários módulos."""
 
     def __init__(self, tipo: str):
         tipo = _normalizar_tipo_execucao(tipo)
@@ -946,6 +729,5 @@ class ProgressoUnificado:
         marcar_processo_executado_unificado(self.tipo, numero_processo, progresso, sucesso=sucesso)
         return progresso
 
-    # Alias legada com nome diferente (alguns módulos chamavam este nome)
     def marcar_processo_executado(self, numero_processo: str, status: str = "SUCESSO", detalhes: Optional[str] = None, progresso: Optional[Dict[str, Any]] = None):
         return self.marcar_progresso_executado(numero_processo, status, detalhes, progresso)

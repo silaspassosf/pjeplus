@@ -1,37 +1,4 @@
-"""Fix/telemetria_seletores.py — Registro empírico de seletores na execução real.
-
-Problema que resolve
---------------------
-O `CatalogoSeletores` já sabe qual seletor venceu, mas essa informação morria na
-memória do processo: nenhum log de execução (mandado, p2b, pec) registrava o
-vencedor. Sem esse dado, consolidar o catálogo vira adivinhação.
-
-O que faz
----------
-Grava, para cada resolução de seletor, uma linha JSON em
-`logs_execucao/seletores_AAAAMMDD_HHMMSS.jsonl`:
-
-    {"ts": "...", "fluxo": "mandado", "acao": "abrir_timeline",
-     "seletor": "pje-timeline", "origem": "catalogo", "ok": true,
-     "tentativas": 2, "ms": 43, "contexto": "mandado", "processo": "..."}
-
-`origem` distingue:
-    catalogo — veio do `executar_busca` do catálogo (seletor vencedor real)
-    candidatos — chamada ad-hoc (seletor cru no código), via `resolver`
-
-Uso
----
-    from Fix.telemetria_seletores import registrar_resolucao, resolver
-
-    # ad-hoc: testa candidatos em ordem e devolve o primeiro que existir
-    el = resolver(driver, "mandado", "abrir_timeline",
-                  ["pje-timeline", "//pje-timeline"], contexto="mandado")
-
-Desligar: PJEPLUS_TELEMETRIA_SELETORES=0 (ligada por padrão).
-
-Custo: uma escrita de linha por resolução, com buffer. Nunca levanta exceção —
-telemetria não pode derrubar fluxo.
-"""
+"""Fix/telemetria_seletores.py — Registro empírico de seletores na execução real."""
 
 from __future__ import annotations
 
@@ -85,8 +52,6 @@ def registrar_resolucao(
         "seletor": seletor or "",
         "origem": origem,
         "ok": bool(ok),
-        # nas buscas de DOM cada volta do polling conta; o que importa é se
-        # achou e quanto tempo levou, então a contagem fica limitada
         "tentativas": min(int(tentativas), 99),
         "ms": round(ms, 1),
         "contexto": contexto,
@@ -107,7 +72,7 @@ def registrar_resolucao(
             os.makedirs(_DIR, exist_ok=True)
             with open(_caminho(), "a", encoding="utf-8") as fp:
                 fp.write(json.dumps(registro, ensure_ascii=False) + "\n")
-        except Exception as e:  # telemetria nunca derruba o fluxo
+        except Exception as e:
             logger.debug("[telemetria] falha ao gravar: %s", e)
 
 
@@ -123,17 +88,7 @@ def resolver(
     teto_por_candidato: float = 2.0,
     testar: Optional[Callable[[str], Any]] = None,
 ) -> Optional[Any]:
-    """Resolve um elemento testando `candidatos` em ordem, registrando o vencedor.
-
-    É o substituto instrumentado do seletor cru: em vez de
-    `esperar_elemento(driver, 'pje-timeline')`, chame
-
-        resolver(driver, fluxo, 'abrir_timeline', ['pje-timeline', '//pje-timeline'])
-
-    e a telemetria passa a saber qual candidato de fato existe no DOM real.
-
-    `testar` permite injetar o teste (útil para fluxos com condição própria).
-    """
+    """Resolve um elemento testando `candidatos` em ordem, registrando o vencedor."""
     from Fix import espera
 
     def _padrao(sel: str) -> Any:
@@ -151,7 +106,6 @@ def resolver(
             try:
                 el = fn(sel)
             except TypeError as e_aridade:
-                # aceita testadores no formato (driver, seletor, ...)
                 if "positional argument" not in str(e_aridade):
                     raise
                 el = fn(driver, sel)
@@ -182,10 +136,7 @@ def estatisticas() -> Dict[str, int]:
 
 
 def resumo_vencedores() -> Dict[str, str]:
-    """Mapa acao -> seletor vencedor observado nesta execução.
-
-    Agrega o JSONL do processo; devolve {} se nada foi gravado.
-    """
+    """Mapa acao -> seletor vencedor observado nesta execução."""
     vencedores: Dict[str, str] = {}
     if not _ARQUIVO or not os.path.exists(_ARQUIVO):
         return vencedores

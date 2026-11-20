@@ -1,8 +1,4 @@
-"""navegacao — extraído de Fix/core.py (F7: split verbatim, re-exportado pelo core).
-
-Corpos idênticos aos originais (mesma ordem interna). O grafo entre módulos é
-acíclico: navegacao_espera <- navegacao <- entrada_campos; documentos_cp e
-filtros_painel são folhas. """
+"""navegacao — extraído de Fix/core.py (F7: split verbatim, re-exportado pelo core)."""
 
 import datetime
 
@@ -100,7 +96,6 @@ def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR
         Se retornar_elemento=True: Elemento encontrado ou None
         Se retornar_elemento=False: True se clicou com sucesso, False caso contrário
     """
-    # ✨ NOVO: Detectar headless e usar estratégia otimizada se disponível
     try:
         if by == By.CSS_SELECTOR and not retornar_elemento:
             from Fix.headless_helpers import click_headless_safe, is_headless_mode
@@ -109,24 +104,19 @@ def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR
                     logger.debug("aguardar_e_clicar: usando click_headless_safe para: %s", seletor)
                 return click_headless_safe(driver, seletor, timeout=timeout)
     except ImportError:
-        pass  # headless_helpers não disponível, continuar normal
-    
+        pass
+
     if retornar_elemento:
-        # Modo busca de elemento - usar esperar_elemento existente
         return esperar_elemento(driver, seletor, timeout=timeout, by=by, log=log)
-    
-    # Estratégia especial para botões PJe - tentar múltiplas variações
+
     if "movimentar processos" in seletor.lower():
         return _clicar_botao_movimentar(driver, timeout, log)
-    
-    # Estratégia especial para botão "Abrir tarefa do processo" - problema contextual no Mandado
+
     if seletor == 'button[mattooltip="Abre a tarefa do processo"]':
         return _clicar_botao_tarefa_processo(driver, timeout, log)
-    
-    # Modo click original
+
     if usar_js and by == By.CSS_SELECTOR:
         try:
-            # execute_async_script: callback automático via 'arguments[arguments.length - 1]'
             script = f"""
             {js_base()}
             const callback = arguments[arguments.length - 1];
@@ -151,10 +141,8 @@ def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR
         except Exception as e:
             if log:
                 logger.warning("aguardar_e_clicar JS falhou: %s", e)
-            # Fallback para Python
             usar_js = False
 
-    # Fallback Python (ou escolha explícita) - usar safe_click existente
     if not usar_js:
         elemento = esperar_elemento(driver, seletor, timeout=timeout, by=by, log=log)
         if elemento:
@@ -173,14 +161,9 @@ def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR
             return False
 
 def _clicar_botao_movimentar(driver, timeout=10, log=False):
-    """
-    Estratégia especializada para clicar no botão "Movimentar processos" do PJe
-    Usa apenas seletores XPath válidos que funcionam
-    """
+    """Estratégia especializada para clicar no botão "Movimentar processos" do PJe"""
     seletores_prioridade = [
-        # Prioridade máxima: seletor funcional validado
         "button.mat-raised-button",
-        # XPath de fallback
         "//button[.//span[contains(text(),'Movimentar processos')]]",
         "//button[contains(., 'Movimentar processos')]",
     ]
@@ -213,15 +196,10 @@ def _clicar_botao_movimentar(driver, timeout=10, log=False):
     return False
 
 def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
-    """
-    Estrategia especializada para clicar no botao Abrir tarefa do processo do PJe
-    Problema: Falha no contexto Mandado apos buscar_documento_argos, mas funciona no Prazo
-    Solucao: Verificar overlays, tentar multiplas abordagens de clique
-    """
+    """Estrategia especializada para clicar no botao Abrir tarefa do processo do PJe"""
     seletor = 'button[mattooltip="Abre a tarefa do processo"]'
-    
+
     try:
-        # Passo 1: Aguardar elemento aparecer
         elemento = esperar_elemento(driver, seletor, timeout=timeout, by=By.CSS_SELECTOR, log=log)
         if not elemento:
             if log:
@@ -231,13 +209,11 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
         if log:
             logger.debug("_clicar_botao_tarefa_processo: botao encontrado")
 
-        # Passo 2: Verificar se ha overlays que podem interceptar o clique
         try:
             overlays = espera.elementos(driver, '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel')
             if overlays:
                 if log:
                     logger.debug("_clicar_botao_tarefa_processo: %d overlay(s) detectado(s) - aguardando desaparecer...", len(overlays))
-                # Aguardar overlays desaparecerem
                 espera.ate_sumir(
                     driver,
                     '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel',
@@ -249,7 +225,6 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             if log:
                 logger.warning("_clicar_botao_tarefa_processo: erro ao verificar overlays: %s", e)
 
-        # Passo 3: Scroll para o elemento
         try:
             if hasattr(elemento, "scroll_into_view_if_needed"):
                 elemento.scroll_into_view_if_needed()
@@ -260,7 +235,6 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             if log:
                 logger.warning("_clicar_botao_tarefa_processo: erro no scroll: %s", e)
 
-        # Passo 4: Tentar clique direto primeiro
         try:
             elemento.click()
             if log:
@@ -274,7 +248,6 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             if log:
                 logger.warning("_clicar_botao_tarefa_processo: clique direto falhou: %s", e)
 
-        # Passo 5: Tentar JavaScript click
         try:
             safe_click_no_scroll(driver, elemento)
             if log:
@@ -285,7 +258,6 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             if log:
                 logger.warning("_clicar_botao_tarefa_processo: JS click falhou: %s", e)
 
-        # Passo 6: Tentar hover + click
         try:
             if hasattr(elemento, "hover"):
                 elemento.hover()
@@ -303,7 +275,6 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
             if log:
                 logger.warning("_clicar_botao_tarefa_processo: hover/click falhou: %s", e)
 
-        # Passo 7: Ultimo recurso - tentar parent element se existir
         try:
             parent = None
             if hasattr(elemento, "_handle") and elemento._handle:
@@ -333,10 +304,7 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
         return False
 
 class ErroCollector:
-    """
-    Coleta erros sem interromper execução
-    Permite processar tudo e gerar relatório completo no final
-    """
+    """Coleta erros sem interromper execução"""
 
     def __init__(self):
         self.erros = []
@@ -403,22 +371,7 @@ class ErroCollector:
         return (len(self.sucessos) / total * 100) if total > 0 else 0
 
 def js_base():
-    """
-    Funções JavaScript base usando MutationObserver (padrão gigs.py)
-    Substitui polling Python por espera passiva no browser
-
-    Funções disponíveis:
-    - esperarElemento(seletor, timeout): Aguarda elemento aparecer
-    - triggerEvent(elemento, tipo): Dispara evento (input, change, blur)
-    - esperarOpcoes(seletor, timeout): Aguarda opções de dropdown
-
-    Returns:
-        String com código JavaScript pronto para execute_script/execute_async_script
-
-    Exemplo:
-        script = f"{js_base()}; return await esperarElemento('#meuId', 5000);"
-        elemento = driver.execute_async_script(script)
-    """
+    """Funções JavaScript base usando MutationObserver (padrão gigs.py)"""
     try:
         from SISB.utils import criar_js_otimizado
         return criar_js_otimizado()

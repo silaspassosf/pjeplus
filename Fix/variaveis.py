@@ -1,77 +1,4 @@
-"""Fix.variaveis
-
-Módulo auxiliar para resolver, via API PJe, as mesmas variáveis que a
-extensão `gigs-plugin.js` expõe ao editor. O objetivo é permitir que
-os scripts Python do projeto importem chamadas prontas para obter
-valores (ex.: chave de validação de um documento, idUnicoDocumento,
-partes do processo, valores de execução etc.) sem depender da
-extensão no navegador.
-
-IMPORTANTE:
-- Estas chamadas assumem execução em ambiente já autenticado no PJe
-    (sessão real com cookies válidos). Use `session_from_driver(driver)`
-    ou construa um `requests.Session` com os cookies do navegador.
-
-Chamadas / funções principais disponíveis neste módulo:
-
-- `PjeApiClient(session, trt_host, grau=1)` : cliente leve para chamadas
-    PJe. Métodos úteis:
-    - `timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)`
-    - `documento_por_id(id_processo, id_documento, ...)`
-    - `processo_por_id(id_processo)`
-    - `partes(id_processo)`
-    - `calculos(id_processo)`
-    - `pericias(id_processo)`
-    - `execucao_gigs(id_processo)`
-    - `debitos_trabalhistas_bndt(id_processo)` : obtém partes no BNDT
-
-- `session_from_driver(driver, grau=1)` : helper que cria um
-    `requests.Session` copiando cookies de um Selenium `WebDriver` e
-    retornando também o `trt_host` (domínio PJe). Use quando estiver
-    executando automação Selenium já logada.
-
-- `obter_codigo_validacao_documento(client, id_processo, id_documento)` :
-    replica a construção do plugin para a "chave de validação" do
-    documento (mesmo algoritmo do `obterCodigoValidacaoDocumento` JS).
-
-- `obter_peca_processual_da_timeline(client, id_processo, tipo_label, modo)` :
-    busca na timeline do processo o documento do tipo (`tipo_label`, ex.:
-    'Sentença','Despacho') e retorna conforme `modo` ('chave'|'id'|'anexos'|'raw').
-
-- `resolver_variavel(client, id_processo, variavel)` : recebe tokens no
-    formato `"[maisPje:últimaSentença:chave]"` ou `'últimaSentença:chave'`
-    e resolve para o valor correspondente (facilita porting direto das
-    variáveis da extensão para chamadas Python).
-
-- `get_all_variables(client, id_processo)` : resolve em lote o conjunto
-    de variáveis mais comuns usadas pela extensão (ex.: exequente,
-    executado, valorDivida, últimas peças do timeline com `:id/:chave/:anexos`,
-    perito, telefone do exequente, etc.) e retorna um dicionário.
-
-- `verificar_bndt(client, id_processo)` : verifica se há partes cadastradas
-    no BNDT e retorna informações formatadas (baseado em verificarBNDT do a.py).
-
-Exemplo mínimo de uso (Selenium + ambiente autenticado):
-
-```py
-from Fix.variaveis import session_from_driver, PjeApiClient, resolver_variavel, verificar_bndt
-
-sess, trt = session_from_driver(driver)
-client = PjeApiClient(sess, trt)
-
-chave = resolver_variavel(client, id_processo='1234567-89.2024.5.01.0000', variavel='[maisPje:últimaSentença:chave]')
-
-# Verificar BNDT
-resultado_bndt = verificar_bndt(client, '1234567')
-if resultado_bndt['tem_partes']:
-    print(f"Encontradas {resultado_bndt['quantidade']} partes no BNDT")
-    for nome in resultado_bndt['partes']:
-        print(f"  - {nome}")
-```
-
-Integração: importe as funções que precisar em outros scripts do
-projeto (por exemplo `from Fix.variaveis import resolver_variavel, get_all_variables`).
-"""
+"""Fix.variaveis"""
 from typing import Optional, Any, Dict, List, Tuple
 import requests
 import re
@@ -81,20 +8,11 @@ from urllib.parse import unquote, urlparse
 from Fix.log import logger
 
 
-# ── URL base do PJe TRT2 ───────────────────────────────────────────────────
 PJE_BASE_URL = "https://pje.trt2.jus.br"
 
 
 def url_processo_detalhe(id_processo, rota: str = "detalhe") -> str:
-    """Constrói URL canônica de acesso a um processo no PJe.
-
-    Args:
-        id_processo: ID numérico do processo (int ou str)
-        rota: segmento de rota após o ID (default: 'detalhe')
-
-    Returns:
-        str: URL completa, ex: 'https://pje.trt2.jus.br/pjekz/processo/12345/detalhe'
-    """
+    """Constrói URL canônica de acesso a um processo no PJe."""
     return f"{PJE_BASE_URL}/pjekz/processo/{id_processo}/{rota}"
 
 
@@ -137,7 +55,6 @@ class PjeApiClient:
 
     def execucao_gigs(self, id_processo: str) -> Optional[Dict[str, Any]]:
         url = self._url(f"/pje-gigs-api/api/execucao/{id_processo}")
-        # fallback para endpoint usado na extensão
         alt = self._url(f"/pje-gigs-api/api/processo/{id_processo}")
         r = self.sess.get(alt, timeout=15)
         if not r.ok:
@@ -152,20 +69,7 @@ class PjeApiClient:
         return r.json()
 
     def audiencias_processo(self, id_processo: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Audiências (pauta) do processo.
-
-        Endpoint documentado em api/apis.md (item 26.1) e usado pelo maisPJE
-        (`obterAudienciaMarcada`), que pega a primeira da lista e le `dataInicio`:
-
-            GET /pje-comum-api/api/processos/id/{idProcesso}/audiencias
-
-        Args:
-            id_processo: ID interno do processo.
-            status: filtro opcional (ex.: 'M' para marcada).
-
-        Returns:
-            Lista de audiencias (vazia em caso de erro ou quando nao ha audiencia).
-        """
+        """Audiências (pauta) do processo."""
         if not id_processo:
             return []
         try:
@@ -181,7 +85,6 @@ class PjeApiClient:
             logger.warning('[API] audiencias_processo %s: %s', id_processo, e)
             return []
 
-        # A API pode devolver a lista direto ou embrulhada em 'content'/'resultado'.
         if isinstance(dados, list):
             return dados
         if isinstance(dados, dict):
@@ -192,10 +95,7 @@ class PjeApiClient:
         return []
 
     def data_proxima_audiencia(self, id_processo: str) -> Optional[str]:
-        """Data (ISO) da proxima audiencia do processo, pela API de audiencias.
-
-        Mesmo criterio do maisPJE: primeira audiencia da lista, campo `dataInicio`.
-        """
+        """Data (ISO) da proxima audiencia do processo, pela API de audiencias."""
         for audi in self.audiencias_processo(id_processo):
             if not isinstance(audi, dict):
                 continue
@@ -213,12 +113,7 @@ class PjeApiClient:
         return r.json()
 
     def id_processo_por_numero(self, numero_processo: str) -> Optional[str]:
-        """Resolve o ID interno do PJe a partir do número CNJ.
-        
-        Endpoint baseado na extensão (apis.idProcessoPorNumero):
-        GET /pje-comum-api/api/processos?numero={numero}
-        Retorna diretamente o ID (int) ou uma lista com objetos contendo 'id'.
-        """
+        """Resolve o ID interno do PJe a partir do número CNJ."""
         try:
             r = self.sess.get(
                 self._url("/pje-comum-api/api/processos"),
@@ -228,12 +123,10 @@ class PjeApiClient:
             if not r.ok:
                 return None
             dados = r.json()
-            
-            # Se é um inteiro direto, retorna como string
+
             if isinstance(dados, int):
                 return str(dados)
-            
-            # Se é uma lista com objetos
+
             if isinstance(dados, list) and dados:
                 primeiro = dados[0]
                 id_resolvido = (
@@ -242,11 +135,10 @@ class PjeApiClient:
                     or primeiro.get("identificador")
                 )
                 return str(id_resolvido) if id_resolvido else None
-            
+
             return None
         except Exception:
             return None
-
 
     def calculos(self, id_processo: str) -> Optional[Dict[str, Any]]:
         url = self._url(f"/pje-comum-api/api/calculos/processo")
@@ -265,14 +157,7 @@ class PjeApiClient:
         return r.json()
 
     def atividades_gigs(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
-        """Obtém atividades GIGS do processo via API.
-        
-        Retorna lista de atividades com campos:
-        - tipoAtividade: descrição do tipo
-        - dataPrazo: data do prazo (formato ISO ou DD/MM/YYYY)
-        - statusAtividade: status da atividade
-        - observacao: observações
-        """
+        """Obtém atividades GIGS do processo via API."""
         url = self._url(f"/pje-gigs-api/api/atividade/processo/{id_processo}")
         try:
             r = self.sess.get(url, timeout=15)
@@ -286,15 +171,7 @@ class PjeApiClient:
             return None
 
     def obrigacoes_pagar(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
-        """Obrigações de pagar registradas no processo (crédito exequente).
-
-        Endpoint documentado em `api/apis.md` §8.3:
-        GET /pje-comum-api/api/processos/id/{idProcesso}/obrigacoespagar
-
-        Lista vazia (`[]`) = liquidação homologada ainda SEM crédito registrado —
-        usado pelo P2B para decidir entre iniciar execução direto ou registrar o
-        crédito mock antes. `None` = falha de consulta (indecidível).
-        """
+        """Obrigações de pagar registradas no processo (crédito exequente)."""
         url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/obrigacoespagar")
         try:
             r = self.sess.get(url, timeout=15)
@@ -308,27 +185,7 @@ class PjeApiClient:
             return None
 
     def debitos_trabalhistas_bndt(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
-        """Obtém partes cadastradas no BNDT (Banco Nacional de Devedores Trabalhistas).
-        
-        Baseado na função JavaScript obterPartesNoBNDT() do a.py
-        Endpoint: GET /pje-comum-api/api/processos/id/{idProcesso}/debitostrabalhistas
-        
-        Args:
-            id_processo: ID do processo (numérico interno)
-        
-        Returns:
-            Lista de dicionários com dados das partes no BNDT ou None em caso de erro.
-            Cada item contém pelo menos: {'nomeParte': 'Nome da Parte', ...}
-            Lista vazia [] indica que não há partes cadastradas no BNDT.
-        
-        Exemplo:
-            >>> partes_bndt = client.debitos_trabalhistas_bndt('1234567')
-            >>> if partes_bndt:
-            >>>     for parte in partes_bndt:
-            >>>         print(f"Parte no BNDT: {parte.get('nomeParte')}")
-            >>> else:
-            >>>     print("Nenhuma parte no BNDT")
-        """
+        """Obtém partes cadastradas no BNDT (Banco Nacional de Devedores Trabalhistas)."""
         url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/debitostrabalhistas")
         try:
             r = self.sess.get(url, timeout=15)
@@ -342,15 +199,7 @@ class PjeApiClient:
             return None
 
     def gateway_get(self, path: str, params: Optional[Dict] = None, timeout: int = 20) -> Dict[str, Any]:
-        """GET generico com envelope {'ok', 'status', 'data', 'error'}.
-
-        Usado por _buscar_todas_paginas_gateway (Mandado/entrada_api.py) para
-        paginar endpoints do gateway PJe que nao possuem metodo dedicado.
-
-        Returns:
-            {'ok': True,  'status': <int>, 'data': <parsed json>, 'error': None}
-            {'ok': False, 'status': <int|None>, 'data': None, 'error': {'type': ..., 'message': ...}}
-        """
+        """GET generico com envelope {'ok', 'status', 'data', 'error'}."""
         try:
             r = self.sess.get(self._url(path), params=params, timeout=timeout)
             if r.ok:
@@ -381,11 +230,7 @@ class PjeApiClient:
     def request_gateway(self, method: str, path: str, *, params: Optional[Dict] = None,
                         json_data: Optional[Any] = None, headers: Optional[Dict[str, str]] = None,
                         timeout: int = 15) -> Dict[str, Any]:
-        """Request HTTP generico contra o gateway PJe, com XSRF quando disponivel.
-
-        Mesmo envelope de gateway_get:
-            {'ok': bool, 'status': Optional[int], 'data': Any, 'error': Optional[dict]}
-        """
+        """Request HTTP generico contra o gateway PJe, com XSRF quando disponivel."""
         request_headers: Dict[str, str] = {}
         if headers:
             request_headers.update(headers)
@@ -438,18 +283,11 @@ class PjeApiClient:
         return self.request_gateway('PATCH', path, params=params, json_data=json_data,
                                     headers=headers, timeout=timeout)
 
-    _DOM_CHIP_IDS = (274, 275, 302)  # Resposta Excedido, Ciencia Expirado, Ciencia Automatica
+    _DOM_CHIP_IDS = (274, 275, 302)
 
     def buscar_processos_conhecimento_dom(self, chip_ids: Optional[tuple] = None,
                                           tamanho_pagina: int = 100) -> List[Dict[str, Any]]:
-        """Processos da fase Conhecimento com chips de Domicilio Eletronico.
-
-        Estrategia confirmada pelo API Spy:
-          1. PATCH /pje-comum-api/api/agrupamentotarefas/processos/todos
-             body: {faseProcessualString:['Conhecimento'], subCaixa:null, ...}
-          2. POST /pje-etiquetas-api/api/etiquetas/etiquetasprocessos em lotes de 100
-          3. Filtro client-side: manter processos com etiqueta.id in chip_ids
-        """
+        """Processos da fase Conhecimento com chips de Domicilio Eletronico."""
         ids_alvo = set(chip_ids if chip_ids is not None else self._DOM_CHIP_IDS)
 
         todos: List[Dict[str, Any]] = []
@@ -528,24 +366,7 @@ class PjeApiClient:
         return todos
 
     def expediente_partes(self, id_processo: str, id_processo_expediente: Any) -> List[Dict[str, Any]]:
-        """Partes/destinatarios de um expediente.
-
-        ATENCAO ao ID: o path usa `idProcessoExpediente`, NAO `id`.
-        Confirmado por probe em 30/10/2026 no processo 9010617:
-
-            /expedientes/{idProcessoExpediente}/partes -> partes=N (traz o ID)
-            /expedientes/{id}/partes                   -> partes=0
-            /expedientes/{idDocumento}/partes          -> partes=0
-
-        Exemplo real:
-            exp id=101116266, idProcessoExpediente=85830981
-                -> idDestinatarioExpedienteDomicilioEletronico=2534639
-            exp id=101116267, idProcessoExpediente=85830982
-                -> idDestinatarioExpedienteDomicilioEletronico=2534640
-
-        Returns:
-            Lista de partes (dicts). Vazio em caso de erro ou expediente sem partes.
-        """
+        """Partes/destinatarios de um expediente."""
         if id_processo_expediente in (None, ''):
             return []
         try:
@@ -570,28 +391,7 @@ class PjeApiClient:
         return []
 
     def domicilio_eletronico(self, id_parte: str) -> Optional[bool]:
-        """Verifica se uma parte está habilitada no domicílio eletrônico.
-        
-        Baseado na função JavaScript obterDomicilioEletronico() do a.py (linha 24826).
-        Endpoint: GET /pje-comum-api/api/partes/{idParte}/domicilio
-        
-        Args:
-            id_parte: ID da parte no PJe
-        
-        Returns:
-            True se parte está habilitada no domicílio eletrônico
-            False se parte NÃO está habilitada
-            None em caso de erro na chamada
-        
-        Exemplo:
-            >>> habilitada = client.domicilio_eletronico('12345')
-            >>> if habilitada is True:
-            >>>     print("Parte habilitada no domicílio eletrônico")
-            >>> elif habilitada is False:
-            >>>     print("Parte NÃO habilitada")
-            >>> else:
-            >>>     print("Erro ao verificar domicílio")
-        """
+        """Verifica se uma parte está habilitada no domicílio eletrônico."""
         if not id_parte or str(id_parte).strip() in ('None', '0', ''):
             return None
         url = self._url(f"/pje-comum-api/api/pessoajuridicadomicilioeletronico/{id_parte}")
@@ -614,71 +414,38 @@ class PjeApiClient:
 
 
 def obter_gigs_com_fase(client: PjeApiClient, id_processo: str) -> Optional[Dict[str, Any]]:
-    """Obtém dados GIGS + FASE (Conhecimento/Liquidação/Execução) do processo em uma única chamada.
-    
-    Args:
-        client: PjeApiClient configurado
-        id_processo: ID do processo (pode ser CNJ ou ID interno - será resolvido automaticamente)
-        
-    Returns:
-        Dict com:
-        {
-            'id_processo': '1001706-10.2024.5.02.0703',  # CNJ
-            'id_interno': 6577647,  # ID interno
-            'fase': 'Conhecimento',  # ou 'Liquidação' ou 'Execução'
-            'atividades_gigs': [  # lista vazia se nenhuma
-                {
-                    'tipoAtividade': '...',
-                    'statusAtividade': '...',
-                    'dataPrazo': '...',
-                    'observacao': '...'
-                }
-            ]
-        }
-        Retorna None se falhar em obter dados do processo
-    """
+    """Obtém dados GIGS + FASE (Conhecimento/Liquidação/Execução) do processo em uma única chamada."""
     try:
-        # Resolver ID se necessário
         id_para_busca = id_processo
-        if '-' in str(id_processo):  # É CNJ, precisa resolver
+        if '-' in str(id_processo):
             id_resolvido = client.id_processo_por_numero(id_processo)
             if not id_resolvido:
                 return None
             id_para_busca = str(id_resolvido)
-        
-        # Obter dados do processo (inclui faseProcessual)
+
         dados_processo = client.processo_por_id(id_para_busca)
         if not dados_processo:
             return None
-        
-        # Obter GIGS
+
         atividades_gigs = client.atividades_gigs(id_para_busca)
         if not atividades_gigs:
             atividades_gigs = []
-        
-        # Montar resultado com faseProcessual (campo correto da API)
+
         resultado = {
             'id_processo': dados_processo.get('numero') or id_processo,
             'id_interno': id_para_busca,
-            'fase': dados_processo.get('faseProcessual') or 'Desconhecida',  # Campo correto
+            'fase': dados_processo.get('faseProcessual') or 'Desconhecida',
             'atividades_gigs': atividades_gigs
         }
-        
+
         return resultado
-        
+
     except Exception:
         return None
 
 
 def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
-    """Cria um `requests.Session` a partir de um driver ativo (Selenium ou PWDriver).
-
-    Retorna (session, trt_host).
-
-    F4: headers endurecidos absorvidos do cliente bianca — X-XSRF-TOKEN evita
-    403 CSRF em POST/PATCH e User-Agent real do driver evita bloqueio de WAF
-    (Cloudflare/F5) contra UA de biblioteca. Aditivo: nao altera o resto.
-    """
+    """Cria um `requests.Session` a partir de um driver ativo (Selenium ou PWDriver)."""
     sess = requests.Session()
     try:
         cookies = driver.get_cookies()
@@ -689,13 +456,10 @@ def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
                 xsrf_token = unquote(c['value'])
         parsed = urlparse(driver.current_url)
         trt_host = parsed.netloc or 'pje.trt2.jus.br'
-        # Se o browser estiver fora do PJe (tela de SSO/login em outro host),
-        # o netloc da URL nao serve de base para a API — volta ao padrao.
         if 'trt2.jus.br' not in trt_host:
             trt_host = 'pje.trt2.jus.br'
     except Exception:
         raise
-    # UA real do driver (sem padrao selenium; fallback defensivo)
     user_agent = None
     try:
         fn_js = getattr(driver, 'execute_' + 'script', None)
@@ -764,11 +528,7 @@ class _PlaywrightResponseAdapter:
 
 
 class _RequestContextComoSessao:
-    """Adapta o `APIRequestContext` do Playwright à fatia de `requests.Session`
-    que `PjeApiClient` usa (`.get(url, params=, timeout=, headers=)` -> objeto
-    com `.ok`/`.json()`). `APIResponse` é envolvido em `_PlaywrightResponseAdapter`
-    para expor também `.text`, `.content`, `.headers` e `.status_code`.
-    """
+    """Adapta o `APIRequestContext` do Playwright à fatia de `requests.Session`"""
 
     def __init__(self, contexto, grau: int = 1):
         self._ctx = contexto
@@ -789,25 +549,7 @@ class _RequestContextComoSessao:
 
 
 def cliente_para(driver, grau: int = 1) -> PjeApiClient:
-    """Devolve um `PjeApiClient` adequado ao motor corrente.
-
-    Playwright (`PWDriver`): a sessão vem do `APIRequestContext` do contexto do
-    browser (`pjeplay.api.requisicao`) — mesma sessão da aba, então um
-    re-login vale imediatamente e não há cookie copiado envelhecendo. A
-    superfície pública devolvida é a mesma `PjeApiClient` de sempre; só o
-    objeto "sessão" por trás muda (`_RequestContextComoSessao`).
-
-    Selenium (ou qualquer coisa que não pareça um `PWDriver`): caminho de
-    sempre, `session_from_driver` + `PjeApiClient`.
-
-    Nunca levanta: qualquer falha na detecção/uso do caminho Playwright cai
-    para o caminho `requests`.
-
-    Candidatos a `api.esperar_resposta` (fora de escopo aqui — pertencem aos
-    fluxos de E5-E8): os pontos em que um clique é seguido de uma chamada a
-    `PjeApiClient` que só faz sentido depois do XHR do próprio clique
-    terminar, hoje sincronizados por `espera.assentar`/DOM.
-    """
+    """Devolve um `PjeApiClient` adequado ao motor corrente."""
     if hasattr(driver, "page") and hasattr(driver, "context"):
         try:
             from pjeplay import api as _pjeplay_api
@@ -817,17 +559,14 @@ def cliente_para(driver, grau: int = 1) -> PjeApiClient:
             sessao_pw = _RequestContextComoSessao(contexto, grau=grau)
             return PjeApiClient(sessao_pw, trt_host, grau=grau)
         except Exception:
-            pass  # cai para o caminho requests abaixo
+            pass
 
     sess, trt_host = session_from_driver(driver, grau=grau)
     return PjeApiClient(sess, trt_host, grau=grau)
 
 
 def obter_codigo_validacao_documento(client: PjeApiClient, id_processo: str, id_documento: str) -> Optional[str]:
-    """Replica a construção de 'chave' feita na extensão.
-
-    Chave := parte numérica de dataInclusaoBin (posições 2..16) + idBin (pad 14)
-    """
+    """Replica a construção de 'chave' feita na extensão."""
     dados = client.documento_por_id(id_processo, id_documento, incluirAssinatura=False, incluirAnexos=False)
     if not dados:
         return None
@@ -842,17 +581,13 @@ def obter_codigo_validacao_documento(client: PjeApiClient, id_processo: str, id_
 
 
 def obter_peca_processual_da_timeline(client: PjeApiClient, id_processo: str, tipo_label: str, modo: str = 'chave', itens_timeline: Optional[List[Dict]] = None) -> Optional[str]:
-    """Resolve o equivalente a obterPecaProcessualDaTimeline do JS.
-
-    modo: 'chave'|'id'|'anexos'|'raw' ('raw' retorna id interno)
-    """
+    """Resolve o equivalente a obterPecaProcessualDaTimeline do JS."""
     dados = itens_timeline or client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
     if not dados:
         return None
 
     pesquisar_anexos = modo == 'anexos'
 
-    # flatten documentos + anexos (anexos mantêm idDocumentoPai)
     flat = []
     for d in dados:
         flat.append(d)
@@ -863,16 +598,12 @@ def obter_peca_processual_da_timeline(client: PjeApiClient, id_processo: str, ti
     for docto in flat:
         tipo = (docto.get('tipo') or '').strip()
         titulo = (docto.get('titulo') or '').strip()
-        # special cases similar ao JS
         is_chave_acesso = (tipo_label.lower() == 'chave de acesso' and (tipo.lower() == 'chave de acesso' or (tipo.lower() == 'certidão' and 'chave de acesso' in titulo.lower())))
         is_planilha = (tipo_label.lower() == 'planilha de cálculos' and tipo in ['Planilha de Cálculos', 'Planilha de Atualização de Cálculos'])
         if is_chave_acesso or is_planilha or tipo == tipo_label:
-            # encontrado
             if modo == 'chave':
-                # precisa do id do documento real
                 doc_id = docto.get('id') or docto.get('idDocumento') or docto.get('idDocumentoPai')
                 if not doc_id:
-                    # tentar idUnicoDocumento como fallback
                     doc_id = docto.get('idUnicoDocumento')
                 if not doc_id:
                     return None
@@ -880,7 +611,6 @@ def obter_peca_processual_da_timeline(client: PjeApiClient, id_processo: str, ti
             elif modo == 'id':
                 return docto.get('idUnicoDocumento') or docto.get('id')
             elif modo == 'anexos':
-                # compõe lista de anexos pertencentes ao documento pai
                 id_pai = docto.get('id')
                 anexos = [a for a in flat if a.get('idDocumentoPai') == id_pai]
                 lista = ', '.join([f"#id:{a.get('idUnicoDocumento')}" for a in anexos])
@@ -892,24 +622,16 @@ def obter_peca_processual_da_timeline(client: PjeApiClient, id_processo: str, ti
 
 
 def resolver_variavel(client: PjeApiClient, id_processo: str, variavel: str) -> Optional[str]:
-    """Recebe nomes como '[maisPje:últimaSentença:chave]' ou 'últimaSentença:chave' e retorna valor.
-
-    Implementa as variáveis de timeline mais comuns (sentença, despacho, decisão, etc.).
-    """
-    # normalizar
+    """Recebe nomes como '[maisPje:últimaSentença:chave]' ou 'últimaSentença:chave' e retorna valor."""
     v = variavel
     if v.startswith('[') and v.endswith(']'):
         v = v[1:-1]
-    # formatos: maisPje:últimaSentença:chave or últimaSentença:chave
     parts = v.split(':')
-    # se começar com 'maisPje' descarta
     if parts[0] == 'maisPje':
         parts = parts[1:]
-    # agora parts ex: ['últimaSentença', 'chave'] or ['último','chave']
     tipo_token = parts[0]
     modo = 'chave' if (len(parts) > 1 and parts[1] == 'chave') else ('id' if (len(parts) > 1 and parts[1] == 'id') else ('anexos' if (len(parts) > 1 and parts[1] == 'anexos') else 'chave'))
 
-    # mapear token para label do tipo do documento usado pela timeline
     mapa = {
         'últimaSentença': 'Sentença',
         'últimoDespacho': 'Despacho',
@@ -927,10 +649,8 @@ def resolver_variavel(client: PjeApiClient, id_processo: str, variavel: str) -> 
 
     tipo_label = mapa.get(tipo_token, None)
     if tipo_label is None:
-        # se não mapeado, tenta usar o token como label direta
         tipo_label = tipo_token
 
-    # modo '*' significa primeiro documento no timeline
     if tipo_label == '*':
         itens = client.timeline(id_processo)
         if not itens:
@@ -941,7 +661,6 @@ def resolver_variavel(client: PjeApiClient, id_processo: str, variavel: str) -> 
         elif modo == 'id':
             return primeiro.get('idUnicoDocumento') or primeiro.get('id')
         elif modo == 'anexos':
-            # montar lista de anexos do primeiro
             anexos = primeiro.get('anexos') or []
             return ', '.join([f"#id:{a.get('idUnicoDocumento')}" for a in anexos])
         else:
@@ -951,22 +670,15 @@ def resolver_variavel(client: PjeApiClient, id_processo: str, variavel: str) -> 
 
 
 def get_all_variables(client: PjeApiClient, id_processo: str) -> Dict[str, Optional[str]]:
-    """Resolve the common set of variables exposed by the extension and
-    returns a dict mapping tokens (without bracket) to values.
-
-    Example keys: 'últimaSentença:chave', 'exequente', 'valorDivida', 'audiencia:data'
-    """
+    """Resolve the common set of variables exposed by the extension and"""
     result: Dict[str, Optional[str]] = {}
 
-    # Basic process info
     proc = client.processo_por_id(id_processo)
     partes = client.partes(id_processo) or []
 
-    # partes: try to find autor/exequente and respondente/executado
     exequente = None
     executado = None
     if partes:
-        # extension picks primary polo; try buscar por tipoPolo
         for p in partes:
             polo = (p.get('tipoPolo') or '').lower()
             nome = p.get('nome') or p.get('parte') or p.get('nomeParte')
@@ -977,28 +689,22 @@ def get_all_variables(client: PjeApiClient, id_processo: str) -> Dict[str, Optio
             if 'reu' in polo or 'executado' in polo or 'demandado' in polo:
                 executado = executado or nome
 
-    # fallback to process main fields
     if not exequente:
         exequente = (proc.get('partes') and proc.get('partes')[0].get('nome')) if proc and proc.get('partes') else None
     if not executado:
-        # try second
         if proc and proc.get('partes') and len(proc.get('partes')) > 1:
             executado = proc.get('partes')[1].get('nome')
 
     result['exequente'] = exequente
     result['executado'] = executado
 
-    # dívida / cálculos
     calculos = client.calculos(id_processo)
     valor_divida = None
     if calculos:
-        # look for a 'valor' field or take first
         if isinstance(calculos, dict):
-            # diversos formatos possíveis
             if 'valor' in calculos:
                 valor_divida = calculos.get('valor')
             elif calculos.get('totalElements') and calculos.get('content'):
-                # try last content
                 content = calculos.get('content')
                 if content:
                     item = content[0]
@@ -1006,39 +712,31 @@ def get_all_variables(client: PjeApiClient, id_processo: str) -> Dict[str, Optio
 
     result['valorDivida'] = valor_divida
 
-    # justiça gratuita and date - try to obtain from processo data
     result['justicaGratuita'] = proc.get('justicaGratuita') if proc else None
     result['justicaGratuitaData'] = None
 
-    # trânsito em julgado - heurística: procurar campo dataTransito or dtTransito
     result['transitoJulgado'] = proc.get('dataTransito') or proc.get('transito') or proc.get('transitoEm') if proc else None
 
-    # custas arbitradas - try to infer from calculos/process data
     result['custasArbitradas'] = None
 
-    # audiência - try pericias or processo info
     pericias = client.pericias(id_processo)
     audiencia_data = None
     audiencia_hora = None
     if pericias and isinstance(pericias, dict):
-        # take first pericia with prazoEntrega or data
         if pericias.get('content'):
             p = pericias.get('content')[0]
             audiencia_data = p.get('dataPrazo') or p.get('data')
-    # fallback: look into proc
     if not audiencia_data and proc:
         audiencia_data = proc.get('audiencia') or proc.get('dataAudiencia')
 
     result['audiencia:data'] = audiencia_data
     result['audiencia:hora'] = audiencia_hora
 
-    # timeline-based tokens - use resolver_variavel
     timeline_tokens = [
         'petiçãoInicial', 'últimaContestação', 'últimaManifestação', 'últimaSentença',
         'últimoAcórdão', 'últimoDespacho', 'últimaDecisão', 'últimaAta', 'últimaCertidão', 'últimoCálculo', 'último'
     ]
     for tok in timeline_tokens:
-        # id
         key_id = f"{tok}:id"
         key_ch = f"{tok}:chave"
         key_an = f"{tok}:anexos"
@@ -1046,18 +744,15 @@ def get_all_variables(client: PjeApiClient, id_processo: str) -> Dict[str, Optio
         result[key_ch] = resolver_variavel(client, id_processo, tok + ':chave')
         result[key_an] = resolver_variavel(client, id_processo, tok + ':anexos')
 
-    # chave de acesso
     result['chaveDeAcesso:id'] = resolver_variavel(client, id_processo, 'chaveDeAcesso:id')
     result['chaveDeAcesso:chave'] = resolver_variavel(client, id_processo, 'chaveDeAcesso:chave')
 
-    # perito (first pericia)
     perito = None
     if pericias and isinstance(pericias, dict) and pericias.get('content'):
         p0 = pericias.get('content')[0]
         perito = p0.get('perito') or p0.get('peritoNome') or p0.get('responsavel')
     result['perito'] = perito
 
-    # exequente telefone - try partes
     tel = None
     if partes:
         for p in partes:
@@ -1071,12 +766,7 @@ def get_all_variables(client: PjeApiClient, id_processo: str) -> Dict[str, Optio
 
 
 def condensar_conteudo_documento(conteudo: str, tipo_documento: str, id_documento) -> str:
-    """Formata o texto de um documento no mesmo padrão do botão "Copiar" do
-    maispje (gigs-plugin.js::copiarDocumentoProcesso): colapsa espaços em
-    branco redundantes e envolve com o cabeçalho de transcrição, para ser
-    reconhecido por `Fix.utils.inserir_conteudo_formatado` (que busca no
-    clipboard interno pelo padrão "Transcrição do(a)").
-    """
+    """Formata o texto de um documento no mesmo padrão do botão "Copiar" do"""
     texto_condensado = re.sub(r'\s{2,}', ' ', conteudo or '')
     return f'Transcrição do(a) {tipo_documento} (ID {id_documento}): \n"{texto_condensado}"'
 
@@ -1102,31 +792,6 @@ PADRAO_CONCOMITANTE = 'de forma concomitante'
 
 
 def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_processo: str, tipos: Optional[List[str]] = None, itens_timeline: Optional[List[Dict]] = None, driver = None, incluir_conteudo_condensado: bool = False):
-    """Retorna a chave de validação do documento mais recente entre
-    Despacho, Decisão ou Sentença.
-
-    - Busca a timeline (ou usa `itens_timeline` se fornecido).
-    - Itera os elementos (documentos + anexos) na ordem retornada pela
-      API (a extensão assume que o primeiro item é o mais recente).
-    - FILTRA: Pula despachos que contenham "de forma concomitante" E
-      "comunique-se por edital" simultaneamente (usa proxima Sentenca/Decisao).
-
-    Se `incluir_conteudo_condensado=True`, retorna a tupla
-    `(link, conteudo_condensado)` — sempre uma tupla (`(None, None)` se
-    nada for encontrado) — em vez de apenas o link (comportamento padrão,
-    inalterado, usado pelos demais chamadores).
-    - Ao encontrar o primeiro documento válido cujo `tipo` esteja na lista de
-      `tipos` (padrão: ['Sentença','Decisão','Despacho']), retorna a chave
-      construída via `obter_codigo_validacao_documento`.
-
-    Retorna `None` se não houver documento correspondente ou em caso de erro.
-    
-    Args:
-        client: Cliente PJe API
-        id_processo: ID do processo
-        tipos: Lista de tipos de documentos a procurar (padrão: Sentença, Decisão, Despacho)
-        itens_timeline: Timeline já carregada (opcional)
-    """
     if tipos is None:
         tipos = ['Sentença', 'Decisão', 'Despacho']
 
@@ -1134,7 +799,6 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
     if not dados:
         return None
 
-    # flatten similar to obter_peca_processual_da_timeline
     flat = []
     for d in dados:
         flat.append(d)
@@ -1147,24 +811,16 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
         if not tipo:
             continue
         if tipo in tipos:
-            # obter id do documento na forma esperada pela API documento_por_id
             doc_id = docto.get('id') or docto.get('idDocumento') or docto.get('idUnicoDocumento')
             if not doc_id:
                 continue
-            
+
             try:
-                # Verificar conteudo via API (sem depender de driver/DOM), para
-                # qualquer tipo (Sentenca, Decisao ou Despacho) — pular para o
-                # proximo documento mais recente quando o conteudo indicar que
-                # este nao e o documento-alvo (edital ou concomitancia).
                 conteudo_original = ''
                 try:
                     conteudo_original = obter_texto_documento(client, id_processo, doc_id) or ''
                     conteudo_normalizado = _normalizar_texto_verificacao(conteudo_original)
                     if conteudo_normalizado:
-                        # Excecao apenas para Despacho: se contiver AMBOS os padroes
-                        # "de forma concomitante" E "comunique-se por edital", pular
-                        # para o proximo documento (Sentenca ou Decisao).
                         if tipo == 'Despacho':
                             tem_concomitante = PADRAO_CONCOMITANTE in conteudo_normalizado
                             tem_edital = any(p in conteudo_normalizado for p in PADROES_EXCECAO_LINK_VALIDACAO)
@@ -1176,11 +832,9 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
                 except Exception as e_check:
                     logger.warning('[VARIAVEIS][WARN] Erro ao verificar conteudo de %s: %s - prosseguindo', tipo, e_check)
 
-                # Documento válido: obter chave
                 chave = obter_codigo_validacao_documento(client, id_processo, doc_id)
                 if not chave:
                     continue
-                # build validation URL using the client's host and grau (instance)
                 base = client.trt_host
                 if not base.startswith('http'):
                     base = 'https://' + base
@@ -1191,32 +845,21 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
                     return link, conteudo_condensado
                 return link
             except Exception:
-                # falha ao obter, tentar próximo
                 continue
 
     return (None, None) if incluir_conteudo_condensado else None
 
 
 def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: str) -> Optional[str]:
-    """
-    Tenta obter o conteúdo textual/HTML de um documento via API, sem abrir a
-    interface do PJe. Esta função implementa a estratégia conservadora (caso A):
-    - chama `documento_por_id` e procura por campos que contenham HTML/texto;
-    - se não encontrar, tenta alguns endpoints comuns de "conteúdo" e verifica
-      se a resposta contém HTML/texto (descarta PDFs/binários neste fluxo).
-
-    Retorna o texto limpo (tags removidas, entidades unescaped) ou `None`.
-    """
+    """Tenta obter o conteúdo textual/HTML de um documento via API, sem abrir a"""
     try:
         dados = client.documento_por_id(id_processo, id_documento, incluirAssinatura=True, incluirAnexos=True)
         if dados:
-            # campos possíveis que podem conter o HTML/texto
             candidates = ['conteudo', 'conteudoHtml', 'conteudoTexto', 'texto', 'html', 'previewModeloDocumento']
             for k in candidates:
                 v = dados.get(k)
                 if v and isinstance(v, str) and v.strip():
                     text = v
-                    # se parecer HTML, remover tags
                     if text.lstrip().startswith('<') or '<p' in text[:200] or '<div' in text[:200]:
                         clean = re.sub(r'<[^>]+>', ' ', text)
                         clean = _html.unescape(clean)
@@ -1225,7 +868,6 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
                     else:
                         return re.sub(r"\s{2,}", ' ', text).strip()
 
-        # Tentar endpoints alternativos que costumam expor o conteúdo
         possible_paths = [
             f"/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_documento}/conteudo",
             f"/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_documento}/conteudoHtml",
@@ -1249,7 +891,6 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
                     from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
                     texto_pdf = _extrair_texto_pdf_bytes(raw_content, log=False)
                     if texto_pdf and len(texto_pdf.strip()) >= 10:
-                        # Se contem apenas carimbo de assinatura/validacao do PJe (sem texto real do documento), descartar
                         corpo = re.sub(
                             r'(?:^\s*(?:PJe\s+)?Documento assinado (?:eletronicamente|digitalmente) por[^\n]*\n?)'
                             r'|(?:^\s*https?://pje[^\n]*\n?)'
@@ -1273,7 +914,6 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
                     clean = _html.unescape(clean)
                     clean = re.sub(r"\s+", ' ', clean).strip()
                     return re.sub(r'\s+([,.;:!?])', r'\1', clean)
-                # json with nested content
                 if 'json' in ctype:
                     try:
                         j = r.json()
@@ -1295,90 +935,56 @@ def obter_texto_documento(client: PjeApiClient, id_processo: str, id_documento: 
 
 
 def buscar_atividade_gigs_por_observacao(client: PjeApiClient, id_processo: str, observacao_patterns: List[str], prazo_aberto: bool = True) -> Optional[Dict[str, Any]]:
-    """Busca uma atividade GIGS específica por observação.
-    
-    Args:
-        client: PjeApiClient configurado
-        id_processo: ID do processo
-        observacao_patterns: Lista de termos/patterns para buscar na observação
-                            (ex: ['AJ-JT'], busca por OR - qualquer um)
-        prazo_aberto: Se True, filtra apenas atividades com status de prazo aberto
-    
-    Returns:
-        Dict com a atividade encontrada ou None se não houver match
-        Campos retornados: tipoAtividade, dataPrazo, statusAtividade, observacao
-    
-    Exemplo:
-        resultado = buscar_atividade_gigs_por_observacao(
-            client, 
-            id_processo='1234567-89.2024.5.01.0000',
-            observacao_patterns=['AJ-JT'],
-            prazo_aberto=True
-        )
-    """
+    """Busca uma atividade GIGS específica por observação."""
     try:
-        # Resolver CNJ -> id interno se necessário
         id_para_busca = id_processo
         if '-' in id_processo:
             id_resolvido = client.id_processo_por_numero(id_processo)
             if id_resolvido:
                 id_para_busca = str(id_resolvido)
-        
+
         atividades = client.atividades_gigs(id_para_busca)
         if not atividades:
             return None
-        
-        # normalizar patterns para lowercase
+
         patterns_lower = [p.lower() for p in observacao_patterns]
-        
+
         for atividade in atividades:
             status = (atividade.get('statusAtividade') or '').upper()
             observacao = (atividade.get('observacao') or '').lower()
-            
-            # validar status de prazo aberto se solicitado
+
             if prazo_aberto:
                 if any(s in status for s in ['VENCID', 'CONCLU', 'CANCELA']):
                     continue
-            
-            # verificar se observação contém algum dos patterns
+
             if observacao and any(pattern in observacao for pattern in patterns_lower):
                 return atividade
-        
+
         return None
-        
+
     except Exception as e:
         return None
 
 
 def obter_todas_atividades_gigs_com_observacao(client: PjeApiClient, id_processo: str, observacao_patterns: List[str], prazo_aberto: bool = True) -> List[Dict[str, Any]]:
-    """Busca TODAS as atividades GIGS que correspondem aos critérios (versão plural).
-    
-    Args:
-        client: PjeApiClient configurado
-        id_processo: ID do processo
-        observacao_patterns: Lista de termos/patterns para buscar na observação
-        prazo_aberto: Se True, filtra apenas atividades com prazo aberto
-    
-    Returns:
-        Lista de dicts com atividades encontradas, ou lista vazia se nenhuma
-    """
+    """Busca TODAS as atividades GIGS que correspondem aos critérios (versão plural)."""
     atividades = client.atividades_gigs(id_processo)
     if not atividades:
         return []
-    
+
     patterns_lower = [p.lower() for p in observacao_patterns]
     resultado = []
-    
+
     for atividade in atividades:
         if prazo_aberto:
             status = (atividade.get('statusAtividade') or '').upper()
             if any(s in status for s in ['VENCID', 'CONCLU', 'CANCELA']):
                 continue
-        
+
         observacao = (atividade.get('observacao') or '').lower()
         if observacao and any(pattern in observacao for pattern in patterns_lower):
             resultado.append(atividade)
-    
+
     return resultado
 
 
@@ -1386,38 +992,14 @@ if __name__ == '__main__':
     logger.debug('Modulo Fix.variaveis: importe e utilize PjeApiClient + resolver_variavel')
 
 
-# ============================================================================
-# PADRÃO LIQUIDAÇÃO (padrao_liq) - Extração Simples via API
-# ============================================================================
-
 def padrao_liq(client: PjeApiClient, id_processo: str, nome_perito: str = 'ROGERIO') -> Dict[str, bool]:
-    """
-    Função simples para extrair dados de liquidação via API PJe.
-    
-    Retorna apenas 2 informações essenciais:
-    - apenas_uma_com_advogado: bool (True se APENAS UMA reclamada tem advogado)
-    - tem_perito: bool (True se existe perito com o nome procurado)
-    
-    Args:
-        client: PjeApiClient configurado
-        id_processo: ID do processo
-        nome_perito: Nome do perito a procurar (padrão: 'ROGERIO')
-    
-    Returns:
-        Dict com:
-        {
-            'apenas_uma_com_advogado': bool,
-            'tem_perito': bool,
-            'erro': str (opcional, se houver exceção)
-        }
-    """
+    """Função simples para extrair dados de liquidação via API PJe."""
     resultado = {
         'apenas_uma_com_advogado': False,
         'tem_perito': False
     }
-    
+
     try:
-        # ======= VERIFICAR PERITO =======
         pericias = client.pericias(id_processo)
         if pericias:
             pericias_list = []
@@ -1425,120 +1007,87 @@ def padrao_liq(client: PjeApiClient, id_processo: str, nome_perito: str = 'ROGER
                 pericias_list = pericias.get('content') or pericias.get('resultado') or pericias.get('pericias') or []
             elif isinstance(pericias, list):
                 pericias_list = pericias
-            
+
             for pericia in pericias_list:
                 nome_perito_api = (
-                    pericia.get('nomePerito') or 
-                    pericia.get('perito') or 
-                    pericia.get('responsavel') or 
+                    pericia.get('nomePerito') or
+                    pericia.get('perito') or
+                    pericia.get('responsavel') or
                     ''
                 )
-                
+
                 if nome_perito.upper() in nome_perito_api.upper():
                     resultado['tem_perito'] = True
                     break
-        
-        # ======= VERIFICAR APENAS UMA RECLAMADA COM ADVOGADO =======
+
         partes = client.partes(id_processo)
         if partes:
             reclamadas_com_advogado = 0
-            
+
             for parte in partes:
                 polo = (parte.get('tipoPolo') or '').upper()
-                
-                # Verificar se é reclamada (passivo/reclamado)
+
                 eh_reclamada = any(s in polo for s in ['RECLAMADO', 'PASSIVO', 'REU', 'EXECUTADO'])
-                
+
                 if eh_reclamada:
-                    # Verificar se tem advogado
                     tem_advogado = bool(
-                        parte.get('representante') or 
-                        parte.get('procuradores') or 
+                        parte.get('representante') or
+                        parte.get('procuradores') or
                         parte.get('advogado') or
                         parte.get('nomeAdvogado')
                     )
-                    
+
                     if tem_advogado:
                         reclamadas_com_advogado += 1
-            
-            # Resultado: True se EXATAMENTE UMA tem advogado
+
             resultado['apenas_uma_com_advogado'] = (reclamadas_com_advogado == 1)
-        
+
         return resultado
-        
+
     except Exception as e:
         resultado['erro'] = str(e)
         return resultado
 
 
 def verificar_bndt(client: PjeApiClient, id_processo: str) -> Dict[str, Any]:
-    """Verifica se há partes cadastradas no BNDT e retorna informações formatadas.
-    
-    Baseado na função JavaScript verificarBNDT() do a.py
-    
-    Args:
-        client: PjeApiClient configurado
-        id_processo: ID do processo (numérico interno)
-    
-    Returns:
-        Dict com:
-        {
-            'tem_partes': bool,  # True se há partes no BNDT
-            'quantidade': int,  # Número de partes encontradas
-            'partes': List[str],  # Lista com nomes das partes
-            'mensagem': str,  # Mensagem formatada para exibição
-            'erro': str (opcional)  # Mensagem de erro se houver
-        }
-    
-    Exemplo:
-        >>> resultado = verificar_bndt(client, '1234567')
-        >>> if resultado['tem_partes']:
-        >>>     print(resultado['mensagem'])
-        >>>     # Saída: "Partes cadastradas no BNDT:\n\nJOÃO DA SILVA\nMARIA SANTOS"
-        >>> else:
-        >>>     print("Sem partes cadastradas no BNDT")
-    """
+    """Verifica se há partes cadastradas no BNDT e retorna informações formatadas."""
     resultado = {
         'tem_partes': False,
         'quantidade': 0,
         'partes': [],
         'mensagem': ''
     }
-    
+
     try:
         partes_bndt = client.debitos_trabalhistas_bndt(id_processo)
-        
+
         if partes_bndt is None:
             resultado['erro'] = 'Erro ao consultar API BNDT'
             resultado['mensagem'] = 'Erro ao consultar BNDT'
             return resultado
-        
+
         if len(partes_bndt) > 0:
             resultado['tem_partes'] = True
             resultado['quantidade'] = len(partes_bndt)
             resultado['partes'] = [parte.get('nomeParte', 'N/A') for parte in partes_bndt]
-            
-            # Formatar mensagem
+
             mensagem = 'Partes cadastradas no BNDT:\n\n'
             for parte in partes_bndt:
                 nome = parte.get('nomeParte', 'N/A')
                 mensagem += f'{nome}\n'
-            
+
             resultado['mensagem'] = mensagem.strip()
         else:
             resultado['mensagem'] = 'Sem partes cadastradas no BNDT.'
-        
+
         return resultado
-        
+
     except Exception as e:
         resultado['erro'] = str(e)
         resultado['mensagem'] = f'Erro ao verificar BNDT: {e}'
         return resultado
 
 
-# ==========================================
-# EXEMPLO DE USO - CONSULTA BNDT
-# ==========================================
 """
 Exemplo de uso das funções BNDT:
 
@@ -1594,39 +1143,9 @@ def processar_com_verificacao_bndt(driver, id_processo):
 
 
 def obter_domicilio_eletronico_parte(client: PjeApiClient, id_parte: str, verbose: bool = False) -> Optional[bool]:
-    """Helper simplificado para verificar domicílio eletrônico de uma parte.
-    
-    Replicas a função JavaScript obterDomicilioEletronico() do a.py (linha 24826).
-    
-    Args:
-        client: PjeApiClient configurado com sessão autenticada
-        id_parte: ID da parte no PJe (numérico)
-        verbose: Se True, imprime resultado em modo legível
-    
-    Returns:
-        True: Parte habilitada no domicílio eletrônico
-        False: Parte NÃO habilitada
-        None: Erro na consulta
-    
-    Exemplo:
-        >>> from Fix.variaveis import session_from_driver, PjeApiClient, obter_domicilio_eletronico_parte
-        >>> sess, trt = session_from_driver(driver)
-        >>> client = PjeApiClient(sess, trt)
-        >>> 
-        >>> # Verificar uma parte
-        >>> habilitada = obter_domicilio_eletronico_parte(client, '12345')
-        >>> if habilitada is True:
-        >>>     print("✅ Parte habilitada no domicílio eletrônico")
-        >>> elif habilitada is False:
-        >>>     print("❌ Parte NÃO habilitada")
-        >>> else:
-        >>>     print("⚠️ Erro ao consultar")
-        >>> 
-        >>> # Modo verbose
-        >>> obter_domicilio_eletronico_parte(client, '12345', verbose=True)
-    """
+    """Helper simplificado para verificar domicílio eletrônico de uma parte."""
     resultado = client.domicilio_eletronico(id_parte)
-    
+
     if verbose:
         if resultado is True:
             logger.debug("[VARIAVEIS] Parte %s: Domicilio Eletronico SIM", id_parte)
@@ -1634,44 +1153,12 @@ def obter_domicilio_eletronico_parte(client: PjeApiClient, id_parte: str, verbos
             logger.debug("[VARIAVEIS] Parte %s: Domicilio Eletronico NAO", id_parte)
         else:
             logger.debug("[VARIAVEIS] Parte %s: Erro ao consultar domicilio", id_parte)
-    
+
     return resultado
 
 
 def verificar_domicilio_eletronico_partes(client: PjeApiClient, id_processo: str) -> Dict[str, Any]:
-    """Verifica domicílio eletrônico para todas as partes de um processo.
-    
-    Obtém a lista de partes do processo e verifica cada uma.
-    
-    Args:
-        client: PjeApiClient configurado
-        id_processo: ID do processo (numérico interno)
-    
-    Returns:
-        Dict com:
-        {
-            'total_partes': int,
-            'habilitadas': int,
-            'nao_habilitadas': int,
-            'erros': int,
-            'partes': [
-                {
-                    'id': '12345',
-                    'nome': 'João Silva',
-                    'domicilio': True,  # True, False ou None em caso de erro
-                    'status_texto': 'SIM'  # 'SIM', 'NÃO', 'ERRO'
-                },
-                ...
-            ]
-        }
-    
-    Exemplo:
-        >>> resultado = verificar_domicilio_eletronico_partes(client, '1234567')
-        >>> print(f"Total: {resultado['total_partes']}")
-        >>> print(f"Habilitadas: {resultado['habilitadas']}")
-        >>> for parte in resultado['partes']:
-        >>>     print(f"  {parte['nome']}: {parte['status_texto']}")
-    """
+    """Verifica domicílio eletrônico para todas as partes de um processo."""
     resultado = {
         'total_partes': 0,
         'habilitadas': 0,
@@ -1679,28 +1166,24 @@ def verificar_domicilio_eletronico_partes(client: PjeApiClient, id_processo: str
         'erros': 0,
         'partes': []
     }
-    
+
     try:
-        # Obter partes do processo
         partes = client.partes(id_processo)
         if not partes:
             resultado['mensagem'] = 'Erro ao obter partes do processo'
             return resultado
-        
+
         resultado['total_partes'] = len(partes)
-        
-        # Verificar cada parte
+
         for parte in partes:
             id_parte = parte.get('id') or parte.get('idParte')
             nome_parte = parte.get('nome') or parte.get('nomeParte') or 'N/A'
-            
+
             if not id_parte:
                 continue
-            
-            # Consultar domicílio
+
             domicilio = client.domicilio_eletronico(str(id_parte))
-            
-            # Mapear status
+
             if domicilio is True:
                 status_texto = 'SIM'
                 resultado['habilitadas'] += 1
@@ -1710,25 +1193,22 @@ def verificar_domicilio_eletronico_partes(client: PjeApiClient, id_processo: str
             else:
                 status_texto = 'ERRO'
                 resultado['erros'] += 1
-            
+
             resultado['partes'].append({
                 'id': str(id_parte),
                 'nome': nome_parte,
                 'domicilio': domicilio,
                 'status_texto': status_texto
             })
-        
+
         return resultado
-        
+
     except Exception as e:
         resultado['erro'] = str(e)
         resultado['mensagem'] = f'Erro ao verificar domicílios: {e}'
         return resultado
 
 
-# ==========================================
-# EXEMPLO DE USO - DOMICÍLIO ELETRÔNICO
-# ==========================================
 """
 Exemplo de uso das funções de domicílio eletrônico:
 

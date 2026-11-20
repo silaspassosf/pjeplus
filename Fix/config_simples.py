@@ -1,8 +1,4 @@
-"""config_simples — extraído de Fix/core.py (F7: split verbatim, re-exportado pelo core).
-
-Corpos idênticos aos originais (mesma ordem interna). O grafo entre módulos é
-acíclico: navegacao_espera <- navegacao <- entrada_campos; documentos_cp e
-filtros_painel são folhas. """
+"""config_simples — extraído de Fix/core.py (F7: split verbatim, re-exportado pelo core)."""
 
 class SimpleConfig:
     def __init__(self):
@@ -16,7 +12,7 @@ class SimpleConfig:
             'page_load': 2.0,
             'retry_base': 1.5,
         }
-    
+
     def get_delay(self, t='default'):
         base = self.delays.get(t, 0.6)
         if self.stats['rate_limit_detected']:

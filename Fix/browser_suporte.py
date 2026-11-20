@@ -1,10 +1,4 @@
-"""
-Fix/browser_suporte.py - Suporte consolidado de browser para automacao PJe.
-
-Consolidado de: Fix/abas.py, Fix/headless_helpers.py, Fix/otimizacao_wrapper.py.
-Fornece funcoes para gerenciamento de abas, validacao de driver,
-click headless e otimizacoes. FX2 (16-granular-fix.md).
-"""
+"""Fix/browser_suporte.py - Suporte consolidado de browser para automacao PJe."""
 
 import time
 import traceback
@@ -34,21 +28,8 @@ def _executar_script(driver: Any, script: str, *args: Any) -> Any:
     return None
 
 
-# ============================================================
-# Funcoes de abas (originalmente em Fix/abas.py)
-# ============================================================
-
-
 def is_browsing_context_discarded_error(error_message: str) -> bool:
-    """
-    Verifica se o erro e fatal (browsing context discarded, etc).
-
-    Args:
-        error_message: Mensagem de erro a verificar
-
-    Returns:
-        bool: True se e erro fatal, False caso contrario
-    """
+    """Verifica se o erro e fatal (browsing context discarded, etc)."""
     if not error_message:
         return False
     error_str = str(error_message).lower()
@@ -57,8 +38,6 @@ def is_browsing_context_discarded_error(error_message: str) -> bool:
             'nosuchwindowerror' in error_str or
             'session not created' in error_str or
             'invalid session id' in error_str or
-            # Assinaturas do shim Playwright (Play/pjeplay/driver.py:220 e
-            # errors.py:17): driver sem nenhuma page viva/trocada de janela.
             'nenhuma janela aberta' in error_str or
             'janela inexistente' in error_str or
             'janela atual nao registrada' in error_str or
@@ -67,23 +46,12 @@ def is_browsing_context_discarded_error(error_message: str) -> bool:
 
 
 def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[str] = None):
-    """
-    Valida se a conexao com o driver Selenium ainda esta ativa.
-
-    Args:
-        driver: driver ativo
-        contexto: Contexto da validacao para logs
-        proc_id: ID do processo (opcional)
-
-    Returns:
-        bool | str: True se conectado, False se erro recuperavel, "FATAL" se irrecuperavel
-    """
+    """Valida se a conexao com o driver Selenium ainda esta ativa."""
     try:
         if not hasattr(driver, 'session_id') or driver.session_id is None:
             logger.error("ERRO em validar_conexao_driver: Driver nao possui session_id valido")
             return False
         try:
-            # Teste 1: Verificar se podemos acessar current_url
             try:
                 current_url = driver.current_url
             except Exception as url_err:
@@ -103,7 +71,6 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
                 else:
                     logger.error("ERRO em validar_conexao_driver: Falha ao acessar URL atual: %s", url_err)
                     return False
-            # Teste 2: Verificar se podemos acessar window_handles
             try:
                 window_handles = _obter_window_handles(driver)
             except Exception as handles_err:
@@ -123,7 +90,6 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
                 else:
                     logger.error("ERRO em validar_conexao_driver: Falha ao acessar handles: %s", handles_err)
                     return False
-            # Se ambos os testes passaram, o driver esta OK
             if contexto and 'DEBUG' in contexto.upper():
                 logger.debug("Driver conectado - URL: %s... | Abas: %s", current_url[:50], len(window_handles))
             return True
@@ -164,24 +130,12 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
 
 
 def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
-    """
-    Troca para uma nova aba diferente da aba original da lista.
-    Inclui tratamento robusto de erros e verificacoes adicionais.
-
-    Args:
-        driver: O driver Selenium
-        aba_lista_original: O handle da aba original da lista
-
-    Returns:
-        str: O handle da nova aba se foi bem-sucedido, None caso contrario
-    """
+    """Troca para uma nova aba diferente da aba original da lista."""
     try:
-        # Verificar se o driver esta conectado
         if not validar_conexao_driver(driver, "ABAS"):
             logger.error("ERRO em trocar_para_nova_aba: Driver nao esta conectado ao tentar trocar de aba")
             return None
 
-        # Obter lista atual de abas
         try:
             abas = _obter_window_handles(driver)
             if not abas:
@@ -192,7 +146,6 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
                 logger.error("ERRO em trocar_para_nova_aba: Apenas a aba original esta disponivel, nenhuma nova aba foi aberta")
                 return None
 
-            # Mostrar informacao util das abas ao inves de IDs longos
             if len(abas) > 1:
                 try:
                     aba_atual = driver.current_window_handle
@@ -204,15 +157,12 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
             logger.error("ERRO em trocar_para_nova_aba: Falha ao obter lista de abas: %s", e)
             return None
 
-        # Tentar trocar para uma aba diferente da original
         for h in abas:
             if h != aba_lista_original:
                 try:
                     driver.switch_to.window(h)
-                    # Verificar se realmente trocamos de aba
                     atual_handle = driver.current_window_handle
                     if atual_handle == h:
-                        # Log simplificado com URL util
                         try:
                             url_atual = driver.current_url
                             from urllib.parse import urlparse
@@ -232,7 +182,6 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
                     logger.error("ERRO em trocar_para_nova_aba: Erro ao trocar para aba %s...: %s", h[:8], e)
                     continue
 
-        # Se chegou aqui, nao conseguiu trocar para nenhuma nova aba
         logger.error("ERRO em trocar_para_nova_aba: Nao foi possivel trocar para nenhuma nova aba")
         return None
     except Exception as e:
@@ -240,21 +189,29 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
         return None
 
 
-def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> str:
-    """Compatibilidade para aguardar o handle de uma nova aba.
+def aguardar_nova_aba(driver, aba_lista_original, timeout: float = 10) -> str:
+    """Compatibilidade para aguardar o handle de uma nova aba."""
+    eh_colecao = isinstance(aba_lista_original, (set, list, tuple, frozenset))
+    anteriores = set(aba_lista_original) if eh_colecao else None
 
-    No backend Playwright, usa driver.pulsar() para que o loop
-    de eventos do Playwright processe a abertura da aba.
-    """
     limite = time.time() + float(timeout)
     while time.time() < limite:
         try:
-            for handle in _obter_window_handles(driver):
-                if handle != aba_lista_original:
-                    return handle
+            handles = list(_obter_window_handles(driver))
+            if eh_colecao:
+                for handle in handles:
+                    if handle not in anteriores:
+                        return handle
+            elif aba_lista_original in handles:
+                idx_orig = handles.index(aba_lista_original)
+                if idx_orig + 1 < len(handles):
+                    return handles[-1]
+            else:
+                for handle in handles:
+                    if handle != aba_lista_original:
+                        return handle
         except Exception:
             break
-        # No Playwright, cede ao loop de eventos do Playwright.
         if hasattr(driver, 'pulsar'):
             driver.pulsar(0.05)
         else:
@@ -264,16 +221,7 @@ def aguardar_nova_aba(driver, aba_lista_original: str, timeout: float = 10) -> s
 
 
 def abrir_em_nova_aba(driver, acao, timeout: float = 15) -> Optional[str]:
-    """Executa `acao` e devolve o handle da aba que ela abriu.
-
-    Sem corrida: no backend Playwright a escuta e armada antes da acao
-    (`pje.abrir_em_nova_aba`, via `context.expect_page`), eliminando a janela
-    em que a aba abre e fecha entre duas leituras de `window_handles`. No
-    Selenium replica o mesmo padrao antes/depois, com `espera.ate_abas`
-    cobrindo a espera pela nova janela.
-
-    Devolve `None` se nenhuma aba nova for detectada dentro de `timeout`.
-    """
+    """Executa `acao` e devolve o handle da aba que ela abriu."""
     handles_antes = set(_obter_window_handles(driver))
 
     if hasattr(driver, "page") and hasattr(driver, "context"):
@@ -281,7 +229,7 @@ def abrir_em_nova_aba(driver, acao, timeout: float = 15) -> Optional[str]:
             from pjeplay import pje as _pjeplay_pje
             _pjeplay_pje.abrir_em_nova_aba(driver.page, acao, timeout=timeout)
         except Exception:
-            pass  # cai para a leitura de handles abaixo
+            pass
     else:
         acao()
         espera.ate_abas(driver, len(handles_antes) + 1, teto=timeout)
@@ -296,8 +244,6 @@ def abrir_url_nova_aba(driver, url: str, timeout: float = 15) -> Optional[str]:
     """Abre uma URL em nova aba e retorna o handle da nova aba (ja com foco)."""
     handles_antes = set(_obter_window_handles(driver))
 
-    # 1. Via Playwright nativo: window.open na pagina atual com expect_page no context.
-    # Garante que o navegador crie uma ABA na janela existente (em vez de nova janela SO).
     if hasattr(driver, "context") and hasattr(driver, "page"):
         try:
             with driver.context.expect_page(timeout=int(timeout * 1000)) as pinfo:
@@ -312,7 +258,6 @@ def abrir_url_nova_aba(driver, url: str, timeout: float = 15) -> Optional[str]:
         except Exception:
             pass
 
-    # 2. Via JS window.open padrao + espera por nova aba
     try:
         if hasattr(driver, "page"):
             driver.page.evaluate("url => window.open(url, '_blank')", url)
@@ -326,7 +271,6 @@ def abrir_url_nova_aba(driver, url: str, timeout: float = 15) -> Optional[str]:
     except Exception:
         pass
 
-    # 3. Fallback driver switch_to.new_window
     try:
         driver.switch_to.new_window('tab')
         driver.get(url)
@@ -359,23 +303,8 @@ def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
         pass
 
 
-# ============================================================
-# Funcoes headless (originalmente em Fix/headless_helpers.py)
-# ============================================================
-
-
 def limpar_overlays_headless(driver: Any) -> bool:
-    """
-    Remove modals, tooltips e overlays que bloqueiam cliques em modo headless.
-    Executado via JavaScript para maxima confiabilidade.
-
-    Compensacao especifica do caminho Selenium headless (geckodriver renderiza
-    por caminho diferente do headed). Sob o backend Playwright vira no-op
-    efetivo: `locator.click()` ja checa actionability igual em headless/headed.
-
-    Returns:
-        bool: True se limpeza foi executada com sucesso
-    """
+    """Remove modals, tooltips e overlays que bloqueiam cliques em modo headless."""
     script = """
         try {
             // Remover modals backdrop
@@ -408,7 +337,7 @@ def limpar_overlays_headless(driver: Any) -> bool:
     """
     try:
         _executar_script(driver, script)
-        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos remover overlays
+        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)
         return True
     except Exception as e:
         logger.warning(f"[HEADLESS] Aviso: Nao foi possivel limpar overlays: {e}")
@@ -416,67 +345,31 @@ def limpar_overlays_headless(driver: Any) -> bool:
 
 
 def scroll_to_element_safe(driver: Any, element: Any) -> bool:
-    """
-    Scroll seguro para elemento com multiplas estrategias.
-
-    Compensacao especifica do caminho Selenium headless. Sob o backend
-    Playwright vira no-op efetivo: `locator.scroll_into_view_if_needed()`
-    ja e usado pelo auto-scroll do `locator.click()`.
-
-    Args:
-        driver: driver ativo
-        element: Elemento para scrollar
-
-    Returns:
-        bool: True se scroll foi bem-sucedido
-    """
+    """Scroll seguro para elemento com multiplas estrategias."""
     try:
-        # Estrategia 1: scrollIntoView com comportamento suave
         _executar_script(
             driver,
             "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
             element
         )
-        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos scroll
+        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)
         return True
     except Exception:
         try:
-            # Estrategia 2: scroll manual baseado em posicao
             _executar_script(
                 driver,
                 "window.scrollTo(0, arguments[0].getBoundingClientRect().top + window.pageYOffset - 200);",
                 element
             )
-            espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos scroll
+            espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)
             return True
         except Exception:
             return False
 
 
 def click_headless_safe(driver: Any, selector: str, by: Any = By.CSS_SELECTOR, timeout: int = 10) -> bool:
-    """
-    Click ultra-seguro para modo headless com 3 estrategias progressivas.
+    """Click ultra-seguro para modo headless com 3 estrategias progressivas."""
 
-    Estrategia 1: Wait padrao + click normal
-    Estrategia 2: Limpar overlays + scroll + wait + click
-    Estrategia 3: JavaScript click direto (ultimo recurso)
-
-    Compensacao especifica do caminho Selenium headless (geckodriver renderiza
-    por caminho diferente do headed). Sob o backend Playwright vira no-op
-    efetivo: `locator.click()` faz a mesma checagem de actionability em
-    headless e headed — ja substituida por `pjeplay/nativo.py`.
-
-    Args:
-        driver: driver ativo
-        selector: Seletor CSS ou XPath
-        by: Tipo de seletor (padrao CSS_SELECTOR)
-        timeout: Timeout em segundos
-
-    Returns:
-        bool: True se click foi bem-sucedido
-    """
-
-    # Estrategia 1: Wait padrao element_to_be_clickable
     try:
         if not espera.ate_habilitar(driver, selector, teto=timeout):
             raise TimeoutException(f"element_to_be_clickable: {selector}")
@@ -488,14 +381,12 @@ def click_headless_safe(driver: Any, selector: str, by: Any = By.CSS_SELECTOR, t
     except (ElementClickInterceptedException, TimeoutException):
         pass
 
-    # Estrategia 2: Limpar overlays + scroll + wait + click
     try:
         limpar_overlays_headless(driver)
         element = espera.elemento(driver, selector, teto=timeout // 2, visivel=False)
         if element is None:
             raise TimeoutException(f"presence_of_element_located: {selector}")
         scroll_to_element_safe(driver, element)
-        # Aguarda elemento estar clicavel apos scroll (DOM-settle)
         if not espera.ate_habilitar(driver, selector, teto=timeout // 2):
             raise TimeoutException(f"element_to_be_clickable: {selector}")
         espera.elemento(driver, selector, teto=timeout // 2, visivel=False).click()
@@ -503,7 +394,6 @@ def click_headless_safe(driver: Any, selector: str, by: Any = By.CSS_SELECTOR, t
     except (ElementClickInterceptedException, StaleElementReferenceException):
         pass
 
-    # Estrategia 3: JavaScript click (fallback final)
     try:
         element = espera.elemento(driver, selector, teto=2, visivel=False)
         if element is None:
@@ -511,7 +401,7 @@ def click_headless_safe(driver: Any, selector: str, by: Any = By.CSS_SELECTOR, t
         _executar_script(driver, "arguments[0].scrollIntoView({block:'center', inline:'center'});", element)
         if not safe_click_no_scroll(driver, element):
             element.click()
-        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)  # DOM-settle apos click JS
+        espera.ate_js(driver, "document.readyState === 'complete' || document.readyState === 'interactive'", teto=2.0)
         return True
     except Exception as e:
         logger.error(f"[HEADLESS] Todas estrategias falharam para '{selector}': {e}")
@@ -519,39 +409,18 @@ def click_headless_safe(driver: Any, selector: str, by: Any = By.CSS_SELECTOR, t
 
 
 def is_headless_mode(driver: Any) -> bool:
-    """
-    Detecta se driver esta em modo headless.
-
-    Usa atributo `_headless` setado em `_configurar_driver_pos_criacao`
-    quando o driver foi criado com headless=True. Fallback para heuristica
-    de `outerWidth` para drivers legados sem o atributo.
-
-    Returns:
-        bool: True se headless
-    """
-    # Atributo deterministico setado na criacao do driver (Playwright ou Selenium).
+    """Detecta se driver esta em modo headless."""
     if getattr(driver, 'headless', False) or getattr(driver, '_headless', False):
         return True
     try:
-        # Heuristica: headless geralmente tem window.outerWidth == 0.
-        # NAO usar navigator.webdriver aqui - ele e True para qualquer driver
-        # controlado por Selenium (headless OU visivel), nao e sinal de headless.
         outer_width = _executar_script(driver, "return window.outerWidth;")
         return outer_width == 0
     except Exception:
         return False
 
 
-# ============================================================
-# Funcoes de otimizacao (originalmente em Fix/otimizacao_wrapper.py)
-# ============================================================
-
-
 def inicializar_otimizacoes():
-    """
-    Inicializa sistemas de otimizacao no inicio da execucao.
-    Chamar uma vez no inicio do script principal.
-    """
+    """Inicializa sistemas de otimizacao no inicio da execucao."""
     try:
         from selector_learning import get_learning_stats
         stats = get_learning_stats()
@@ -566,10 +435,7 @@ def inicializar_otimizacoes():
 
 
 def finalizar_otimizacoes():
-    """
-    Salva dados de aprendizado no final da execucao.
-    Chamar no finally do script principal.
-    """
+    """Salva dados de aprendizado no final da execucao."""
     try:
         from selector_learning import save_learning_db, get_learning_stats
         save_learning_db()
@@ -578,11 +444,6 @@ def finalizar_otimizacoes():
         return True
     except ImportError:
         return False
-
-
-# ============================================================
-# Funcoes de click (originalmente em Fix/selenium_base/click_operations.py)
-# ============================================================
 
 
 def safe_click_no_scroll(driver: Any, element: Any, log: bool = False) -> bool:
@@ -598,11 +459,7 @@ def safe_click_no_scroll(driver: Any, element: Any, log: bool = False) -> bool:
             return False
 
 def _sub_elemento(elemento: Any, seletor: str) -> Any:
-    """Busca sub-elemento de forma compatível sem invocar padrão regex.
-    
-    Suporta Playwright (query_selector) e Selenium (find_element).
-    Retorna None se o elemento pai é None ou se o sub-elemento não for encontrado.
-    """
+    """Busca sub-elemento de forma compatível sem invocar padrão regex."""
     if elemento is None:
         return None
     if hasattr(elemento, 'query_selector'):
@@ -613,27 +470,19 @@ def _sub_elemento(elemento: Any, seletor: str) -> Any:
     return None
 
 
-# ============================================================
-# Public API
-# ============================================================
-
 __all__ = [
-    # abas
     'validar_conexao_driver',
     'trocar_para_nova_aba',
     'forcar_fechamento_abas_extras',
     'is_browsing_context_discarded_error',
     'aguardar_nova_aba',
     'abrir_em_nova_aba',
-    # headless
     'limpar_overlays_headless',
     'scroll_to_element_safe',
     'click_headless_safe',
     'is_headless_mode',
-    # otimizacao
     'inicializar_otimizacoes',
     'finalizar_otimizacoes',
-    # click_operations
     'aguardar_e_clicar',
     'safe_click_no_scroll',
     '_sub_elemento',

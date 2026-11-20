@@ -151,7 +151,6 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
         if _selecionar_por_lista(driver, seletores, texto_opcao, timeout, exato, log):
             return True
 
-        # Fallback 1: painel explícito de destinos
         try:
             sel_dest = 'mat-select[formcontrolname="destinos"]'
             select = espera.elemento(driver, sel_dest) if espera.ate_habilitar(driver, sel_dest, teto=10) else None
@@ -172,7 +171,6 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
             if log:
                 logger.warning('[SELECIONAR_OPCAO] Estrategia 2 falhou: %s', e2)
 
-        # Fallback 2: clique via JS no primeiro mat-select encontrado
         try:
             sel_js = json.dumps(seletores[0] if seletores else 'mat-select')
             alvo_js = json.dumps(texto_opcao.lower())

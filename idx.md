@@ -2,23 +2,22 @@
 
 Atualizado: 2026-11-20 (campanha de limpeza e simplificação Playwright ativa)
 
-> **PROCESSO DE LIMPEZA CONCLUÍDO NA BRANCH `refactor/pw-limpeza` (pronto para revisão e merge em `main`):**
+> **PROCESSO DE LIMPEZA E CENTRALIZAÇÃO CONCLUÍDO NA BRANCH `refactor/pw-limpeza` (pronto para revisão e merge em `main`):**
 > - **Branch de trabalho desta campanha:** `refactor/pw-limpeza` (base `main` preservada intacta em `657cb84`).
 > - **Foco exclusivo:** grafo vivo de `pw.py` (`pw.py`, `x.py`, `Play/pjeplay/`, `Fix/`, `atos/`, `SISB/`, `bianca/`, `Mandado/`, `Prazo/`, `PEC/`, `Peticao/`, `api/`), 100% Playwright nativo (`Fix/espera.py`, `Play/pjeplay/nativo.py`, `Page`/`Locator`).
-> - **Resultado consolidado:** **77.436L → 64.858L (-12.578 linhas / -16,2%)** | comentários `#` **4.484 → 372 (-91,7%, preservando só workarounds/diretivas)** | **100% dos módulos de negócio com 0 padrões Selenium (`LIMPO`)** | ratchet atualizado para **114 arquivos migrados garantidos** (`909 → 661`, `-248` padrões).
-> - **Validação final executada:** `py_compile` 100% (235 arquivos OK) + `py tools/check_pw.py` (APROVADO) + `py tools/check_imports.py` (53/53 OK) + smoke real `"X" | py pw.py` (`EXIT=88` OK) + `py -m pytest tests -q` (zero regressões frente ao baseline).
-> - **Andamento das ondas:**
+> - **Resultado consolidado:** **77.436L → 62.857L (-14.579 linhas / -18,8%)** | comentários `#` **4.484 → 364 (-91,9%, preservando só workarounds/diretivas)** | **100% dos módulos de negócio com 0 padrões Selenium (`LIMPO`)** | ratchet atualizado para **114 arquivos migrados garantidos** (`909 → 661`, `-248` padrões).
+> - **Validação final executada:** `py_compile` 100% (237 arquivos OK, 0 SyntaxWarning) + `py tools/check_pw.py` (APROVADO) + `py tools/check_imports.py` (55/55 OK) + smoke real `"X" | py pw.py` (`EXIT=88` OK) + `py -m pytest tests -q` (zero regressões frente ao baseline, +5 testes do motor geral).
+> - **Andamento das ondas (Etapas 0–4 + Centralização Fases A–E):**
 >   - [x] **Etapa 0 — Baseline verde:** zeradas as 3 regressões prévias do `tools/check_pw.py` (`atos/anexos_sigilo.py`, `SISB/processamento/minutas_campos.py`, `tests/test_atualizacao_rapida.py`).
->   - [x] **Etapa 1 — Poda AST-verificada de comentários/docstrings e simplificação inicial (Lotes 1–10):**
->     - `Fix/entrada_campos.py` (705L → 395L), `pw.py` (150L → 129L), `x.py` (1273L → 944L), `api/` (-249L), `Fix/` (-2432L), `Prazo/` (-902L), `Mandado/` (-736L), `PEC/` + `Peticao/` (-859L), `bianca/` (-1639L), `SISB/` (-1316L), `atos/` (-1398L), `Play/pjeplay/` (-414L).
->   - [x] **Etapa 2 — Simplificação estrutural e migração Playwright nativa (Lotes 2.1–2.5):**
->     - `SISB/` 100% migrado (**239 → 0 padrões, 21 arquivos `[MIGRADO!]`**), com deduplicação de `SISB/batch.py` (-44%), `SISB/relatorios_integracao.py` (-163L) e `SISB/ordens_dados_navegacao.py` (-74%).
->     - `atos/comunicacao.py`: `make_comunicacao_wrapper` decomposto em 5 helpers coesos.
->   - [x] **Etapa 3 — Motor Playwright e auditoria de shims:**
->     - `Play/pjeplay/nativo.py` e `Play/pjeplay/api_resiliencia.py` migrados para **0 padrões (`[MIGRADO!]`)**.
->     - Conformidade P9 verificada (0 chamadores externos de `Fix.selenium_base`).
->     - Auditoria de shims `Fix/` preservando Seção 4: 12 shims com 0 chamadores no escopo `pw.py` (`element_wait`, `smart_finder`, `documents`, `navigation`, `gigs`, `variaveis_client`, `variaveis_helpers`, `variaveis_resolvers`, `exceptions`, `debug_interativo`, `drivers`, `progress`) mapeados para aposentadoria futura.
->   - [x] **Etapa 4 — Fechamento:** `tools/pw_baseline.json` atualizado (114 migrados / 26 restantes fora dos módulos de negócio), `idx.md` sincronizado e execução end-to-end de `pw.py` validada.
+>   - [x] **Etapa 1 — Poda AST-verificada de comentários/docstrings e simplificação inicial (Lotes 1–10):** `Fix/entrada_campos.py` (-44%), `pw.py`, `x.py` (-26%), `api/`, `Fix/`, `Prazo/`, `Mandado/`, `PEC/`, `Peticao/`, `bianca/`, `SISB/`, `atos/`, `Play/pjeplay/`.
+>   - [x] **Etapa 2 — Simplificação estrutural e migração Playwright nativa (Lotes 2.1–2.5):** `SISB/` 100% migrado (**239 → 0, 21 arquivos `[MIGRADO!]`**); `atos/comunicacao.py` decomposto em helpers coesos.
+>   - [x] **Etapa 3 — Motor Playwright e auditoria de shims:** `Play/pjeplay/nativo.py` e `Play/pjeplay/api_resiliencia.py` zerados; P9 confirmada (0 chamadores externos de `Fix.selenium_base`); 12 shims sem chamadores em `Fix/` mapeados.
+>   - [x] **Etapa 4 — Ratchet:** `tools/pw_baseline.json` atualizado para 114 arquivos migrados garantidos.
+>   - [x] **Fase A — Centralização API + Calendário:** criado `Fix/calendario.py` (usado por `PEC`, `SISB`, `x.py`); unificado `PjeApiClient` + `buscar_todas_paginas` + helpers/resolvers em `Fix/variaveis.py` (`api/variaveis_*.py` reduzidos a re-exports finos, -831L).
+>   - [x] **Fase B — Eliminação de espelhos duplicados em `SISB/`:** `SISB/relatorios_integracao.py`, `SISB/ordens_execucao.py`, `SISB/processamento_campos_reus.py` e `SISB/processamento_relatorios.py` delegando para `SISB/processamento/*` (-557L).
+>   - [x] **Fase C — Achados de `TRADUCAO_MONOLITO_GIGS.md`:** `SEL_EDITOR_CONTEUDO` (3 condições) e `SEL_SOBRESTAMENTO_PRAZO_BTN` (escopado em `pje-motivos-sobrestamento`) centralizados em `Fix/seletores_catalogo.py`; `data-label` prioritário + raw strings em `Prazo/loop_orquestrador.py`.
+>   - [x] **Fase D — Motor Geral Parametrizável (`Fix/motor_fluxo.py`):** criado `FluxoSpec` + `executar_fluxo_lote` + `abrir_detalhe_processo` (com 5 testes unitários em `tests/test_motor_fluxo.py`) e adotado em **P2B** (`Prazo/p2b_gateway.py`), **PEC** (`PEC/runtime_pec.py`) e **Mandado** (`Mandado/entrada_api.py`).
+>   - [x] **Fase E — Deduplicação `bianca/` → `Fix/`:** `bianca/selenium_utils.py` (733L → 52L, -674L) delegando para os helpers Playwright nativos canônicos de `Fix/`.
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 
@@ -688,7 +687,9 @@ Estes arquivos têm ≤30 linhas e apenas re-exportam de `facade_publica.py` ou 
 |---|---|---|
 | `bianca/` | CÓPIA ATIVA (pré-xcode mantida separada) | Usar `bianca/` para Triagem e DOM — é a versão chamada por `x.py` |
 | `Triagem/` | CÓPIA LEGADA | `bianca/triagem_engine.py` é o entry point real |
-| `api/` (raiz) | SPLIT do antigo `Fix/variaveis` — contém a camada gateway (`request_gateway`, `gateway_get/post/patch`, `buscar_todas_paginas`) que `Fix/variaveis.py` ainda NÃO tem | `Fix/variaveis.py` é o canônico dos helpers e de `cliente_para`; `api/variaveis_client.py` segue obrigatório para POST/PATCH e paginação |
+| `api/` (raiz) | RE-EXPORT FINO de `Fix/variaveis.py` (unificado na Fase A.2) | `Fix/variaveis.py` é a fonte única canônica (`PjeApiClient`, `request_gateway`, `gateway_get/post/patch`, `buscar_todas_paginas`, helpers e resolvers); `api/variaveis_*.py` re-exportam para compatibilidade |
+| Motor geral de fluxos em lote | `Fix/motor_fluxo.py` | `FluxoSpec`, `executar_fluxo_lote`, `abrir_detalhe_processo`, `eh_erro_critico_driver`, `extrair_id_numero` (usado por P2B, PEC e Mandado) |
+| Calendário de dias úteis TRT2 | `Fix/calendario.py` | `carregar_calendario_dias_uteis`, `eh_dia_util`, `proximo_dia_util`, `somar_dias_uteis`, `dia_util_anterior` (usado por PEC, SISB e `x.py`) |
 | `api/` (em `leg/api/`) | Snapshot legado | Referência apenas |
 
 ---

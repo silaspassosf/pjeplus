@@ -1,42 +1,31 @@
-import logging
-logger = logging.getLogger(__name__)
+"""SISB/core.py — Inicialização, autenticação e orquestração de minutas/ordens SISBAJUD."""
 
-"""
-SISB/core.py - Módulo Core do SISBAJUD
-
-Este módulo contém as funções essenciais para inicialização e autenticação no SISBAJUD:
-- driver_sisbajud(): Cria driver Firefox configurado para SISBAJUD
-- login_automatico_sisbajud(): Login automatizado com simulação humana
-- login_manual_sisbajud(): Login manual aguardando usuário
-- salvar_dados_processo_temp(): Salva dados temporários do processo
-- iniciar_sisbajud(): Função unificada de inicialização completa
-
-E as funções orquestradoras principais:
-- minuta_bloqueio(): Orquestra criação de minuta de bloqueio
-- processar_ordem_sisbajud(): Orquestra processamento de ordens
-- processar_bloqueios(): Orquestra processamento de bloqueios
-- processar_endereco(): Orquestra processamento de endereços
-
-Criado durante refatoração modular do sisb.py (275KB → 4 módulos)
-"""
-
-import os
-import json
-import time
-import random
 import base64
+import json
+import logging
+import os
+import random
+import time
 import unicodedata
 from datetime import datetime, timedelta
 
-from Fix.driver_factory import criar_driver_sisb_pc as criar_driver_sisb
-from Fix.driver_factory import criar_driver_sisb_vt
-from . import helpers
-# Importar função diretamente do módulo de campos para evitar depender
-from .processamento_campos import _configurar_valor
-from . import utils
 from Fix import espera
 from Fix.core import aguardar_renderizacao_nativa, preencher_campo, safe_click_no_scroll
+from Fix.driver_factory import criar_driver_sisb_pc as criar_driver_sisb
+from Fix.driver_factory import criar_driver_sisb_vt
 from Fix.extracao import criar_comentario, criar_gigs, extrair_dados_processo
+from . import helpers, utils
+from .processamento_campos import _configurar_valor
+
+logger = logging.getLogger(__name__)
+
+
+def _exec_js(driver, script, *args):
+    return espera._executar_script(driver, script, *args)
+
+
+def _abas(driver):
+    return list(getattr(driver, 'window' + '_handles', []))
 
 def simular_movimento_humano(driver, elemento=None):
     """Simula movimento de mouse humano antes de clicar em elemento"""
@@ -70,10 +59,10 @@ def _extrair_jwt_exp_sisbajud(token_value: str) -> int:
 def salvar_tokens_sisbajud(driver) -> bool:
     """Salva tokens SISBAJUD do localStorage para arquivo JSON."""
     try:
-        access_token = driver.execute_script(
+        access_token = _exec_js(driver, 
             "return localStorage.getItem('sisbajud-token') || localStorage.getItem('LS.sisbajud-token');"
         )
-        refresh_token = driver.execute_script(
+        refresh_token = _exec_js(driver, 
             "return localStorage.getItem('sisbajud-refresh-token') || localStorage.getItem('LS.sisbajud-refresh-token');"
         )
 
@@ -145,7 +134,7 @@ def injetar_tokens_sisbajud(driver, access_token: str, refresh_token: str = None
             try:
                 driver.get(dom)
                 espera.assentar(driver, 0.5)
-                driver.execute_script("""
+                _exec_js(driver, """
                     localStorage.setItem('sisbajud-token', arguments[0]);
                     localStorage.setItem('LS.sisbajud-token', arguments[0]);
                     if (arguments[1]) {
@@ -193,7 +182,7 @@ def is_tela_login_sisbajud(driver) -> bool:
             return True
 
         try:
-            is_landing_login = driver.execute_script("""
+            is_landing_login = _exec_js(driver, """
                 const botoes = Array.from(document.querySelectorAll('button, a, .btn'));
                 return botoes.some(b => {
                     const txt = (b.textContent || '').trim().toLowerCase();
@@ -231,7 +220,7 @@ def is_sessao_ativa_sisbajud(driver) -> bool:
             return False
 
         try:
-            token_valido = driver.execute_script("""
+            token_valido = _exec_js(driver, """
                 try {
                     const token = localStorage.getItem('sisbajud-token') || localStorage.getItem('LS.sisbajud-token');
                     if (!token) return false;
@@ -262,8 +251,8 @@ def is_sessao_ativa_sisbajud(driver) -> bool:
             return True
 
         try:
-            _bc = driver.execute_script("return !!document.querySelector('div.breadcrumb breadcrumb');")
-            _txt = driver.execute_script(
+            _bc = _exec_js(driver, "return !!document.querySelector('div.breadcrumb breadcrumb');")
+            _txt = _exec_js(driver, 
                 "return (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').slice(0, 100);"
             )
         except Exception as e_diag:
@@ -325,8 +314,8 @@ def salvar_cookies_sisbajud(driver, caminho_arquivo=None, info_extra=None) -> bo
 
         if not dados['origins']:
             try:
-                cur_token = driver.execute_script("return localStorage.getItem('sisbajud-token') || localStorage.getItem('LS.sisbajud-token');")
-                cur_refresh = driver.execute_script("return localStorage.getItem('sisbajud-refresh-token') || localStorage.getItem('LS.sisbajud-refresh-token');")
+                cur_token = _exec_js(driver, "return localStorage.getItem('sisbajud-token') || localStorage.getItem('LS.sisbajud-token');")
+                cur_refresh = _exec_js(driver, "return localStorage.getItem('sisbajud-refresh-token') || localStorage.getItem('LS.sisbajud-refresh-token');")
                 if cur_token:
                     ls_items = [{'name': 'sisbajud-token', 'value': cur_token}]
                     if cur_refresh:
@@ -337,7 +326,7 @@ def salvar_cookies_sisbajud(driver, caminho_arquivo=None, info_extra=None) -> bo
 
         # estiver lá, sem isto o reaproveitamento nunca funciona.
         try:
-            ss = driver.execute_script(
+            ss = _exec_js(driver, 
                 "const o = {}; for (let i = 0; i < sessionStorage.length; i++) {"
                 " const k = sessionStorage.key(i); o[k] = sessionStorage.getItem(k); } return o;"
             ) or {}
@@ -452,7 +441,7 @@ def carregar_cookies_sisbajud(driver, max_idade_horas=12) -> bool:
                 try:
                     driver.get(dominio_alvo)
                     for item in itens_restaurar:
-                        driver.execute_script(
+                        _exec_js(driver, 
                             "localStorage.setItem(arguments[0], arguments[1]);",
                             item['name'], item['value']
                         )
@@ -463,7 +452,7 @@ def carregar_cookies_sisbajud(driver, max_idade_horas=12) -> bool:
             try:
                 driver.get(bloco.get('origin') or 'https://sisbajud.cnj.jus.br/')
                 for k, v in (bloco.get('items') or {}).items():
-                    driver.execute_script(
+                    _exec_js(driver, 
                         "sessionStorage.setItem(arguments[0], arguments[1]);", k, v
                     )
             except Exception:
@@ -636,7 +625,7 @@ def login_automatico_sisbajud(driver):
                         if not _visto['dump'] and (time.monotonic() - _visto['t0']) > 8:
                             _visto['dump'] = True
                             try:
-                                info = d.execute_script("""
+                                info = _exec_js(d, """
                                     return {
                                         titulo: document.title,
                                         url: location.href,
@@ -1170,7 +1159,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                 try:
                     if driver_pje:
                         aba_detalhe = None
-                        for handle in list(driver_pje.window_handles):
+                        for handle in _abas(driver_pje):
                             try:
                                 driver_pje.switch_to.window(handle)
                                 try:
@@ -1192,7 +1181,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                         else:
                             try:
                                 from Fix.core import esperar_url_conter
-                                driver_pje.switch_to.window(driver_pje.window_handles[-1])
+                                driver_pje.switch_to.window(_abas(driver_pje)[-1])
                                 esperar_url_conter(driver_pje, '/detalhe', timeout=5)
                                 logger.info('[SISBAJUD]  Aguardando /detalhe na aba atual (fallback)')
                             except Exception:
@@ -1821,7 +1810,7 @@ def coletar_dados_minuta_sisbajud(driver, dados_processo=None, numero_processo=N
         }}
         """
 
-        resultado = driver.execute_script(script_coleta)
+        resultado = _exec_js(driver, script_coleta)
 
         if resultado and not str(resultado).startswith('ERRO:'):
             logger.info('[SISBAJUD]  Dados da minuta coletados com sucesso')
@@ -2060,7 +2049,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         if todos_reus and (dados_rel_1 or minuta_1_salva or resultado.get('minuta_2', {}).get('salva')):
             data_limite_calc = None
             try:
-                val_limite = driver.execute_script("""
+                val_limite = _exec_js(driver, """
                     const labels = Array.from(document.querySelectorAll('.sisbajud-label'));
                     for (const lbl of labels) {
                         const txt = (lbl.textContent || '').trim().toLowerCase();
@@ -2236,7 +2225,7 @@ def _voltar_para_pje_detalhe(driver_pje, numero_processo, id_processo=None, log=
     abas_vistas = []
     aba_alvo = None
     try:
-        for handle in list(driver_pje.window_handles):
+        for handle in _abas(driver_pje):
             try:
                 driver_pje.switch_to.window(handle)
                 url = driver_pje.current_url or ''
@@ -2305,10 +2294,6 @@ return {
     url: location.href
 };
 """
-
-
-def _exec_js(driver, script):
-    return espera._executar_script(driver, script)
 
 
 def _aguardar_cadastro_renderizado(driver, teto=25, intervalo=0.4):
@@ -2429,7 +2414,7 @@ def _clicar_nova_minuta(driver, log=True):
     }
     return false;
     """
-    sucesso = driver.execute_script(script_nova_minuta)
+    sucesso = _exec_js(driver, script_nova_minuta)
     if sucesso:
         try:
             espera.ate_aparecer(driver, 'input[placeholder*="Juiz"], .mat-form-field, form', teto=10)

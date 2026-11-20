@@ -1,10 +1,7 @@
-# Caminho para o geckodriver.exe (necessário para Fix/drivers/lifecycle.py)
 import os
 GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'geckodriver.exe')
 if not os.path.exists(GECKODRIVER_PATH):
-    # Fallback: tenta no diretório pai
     GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), '..', 'geckodriver.exe')
-# Re-exportações diretas — sem wrappers intermediários
 from api.variaveis_client import PjeApiClient, session_from_driver
 from api.variaveis_resolvers import (
     obter_codigo_validacao_documento,

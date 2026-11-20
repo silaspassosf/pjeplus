@@ -1,10 +1,3 @@
-"""Exemplo: api/examples/expedientes.py
-Uso:
-  from requests import Session
-  s = Session()
-  # carregar cookies/autenticação em s
-  expedientes = get_expedientes(s, 'https://seu-pje', 6108528)
-"""
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -35,12 +28,6 @@ def _compute_fim_prazo(item):
     return (base + timedelta(days=prazo_days)).isoformat()
 
 def get_expedientes(session, base_url: str, processo_id: int, tamanho_pagina: int = 50) -> List[dict]:
-    """Retorna lista normalizada de expedientes para uso programático.
-
-    session: requests.Session autenticada com cookies/headers.
-    base_url: url base do PJe (ex: 'https://pje.trt2.jus.br') sem barra final.
-    processo_id: id numérico do processo.
-    """
     pagina = 1
     resultados = []
     while True:

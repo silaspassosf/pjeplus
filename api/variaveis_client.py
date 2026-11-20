@@ -193,7 +193,6 @@ class PjeApiClient:
 
     def execucao_gigs(self, id_processo: str) -> Optional[Dict[str, Any]]:
         url = self._url(f"/pje-gigs-api/api/execucao/{id_processo}")
-        # fallback para endpoint usado na extensão
         alt = self._url(f"/pje-gigs-api/api/processo/{id_processo}")
         r = self.sess.get(alt, timeout=15)
         if not r.ok:
@@ -215,12 +214,7 @@ class PjeApiClient:
         return r.json()
 
     def id_processo_por_numero(self, numero_processo: str) -> Optional[str]:
-        """Resolve o ID interno do PJe a partir do número CNJ.
-        
-        Endpoint baseado na extensão (apis.idProcessoPorNumero):
-        GET /pje-comum-api/api/processos?numero={numero}
-        Retorna diretamente o ID (int) ou uma lista com objetos contendo 'id'.
-        """
+        """Resolve o ID interno do PJe a partir do número CNJ."""
         try:
             r = self.sess.get(
                 self._url("/pje-comum-api/api/processos"),
@@ -230,12 +224,10 @@ class PjeApiClient:
             if not r.ok:
                 return None
             dados = r.json()
-            
-            # Se é um inteiro direto, retorna como string
+
             if isinstance(dados, int):
                 return str(dados)
-            
-            # Se é uma lista com objetos
+
             if isinstance(dados, list) and dados:
                 primeiro = dados[0]
                 id_resolvido = (
@@ -244,7 +236,7 @@ class PjeApiClient:
                     or primeiro.get("identificador")
                 )
                 return str(id_resolvido) if id_resolvido else None
-            
+
             return None
         except Exception:
             return None
@@ -266,14 +258,7 @@ class PjeApiClient:
         return r.json()
 
     def atividades_gigs(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
-        """Obtém atividades GIGS do processo via API.
-        
-        Retorna lista de atividades com campos:
-        - tipoAtividade: descrição do tipo
-        - dataPrazo: data do prazo (formato ISO ou DD/MM/YYYY)
-        - statusAtividade: status da atividade
-        - observacao: observações
-        """
+        """Obtém atividades GIGS do processo via API."""
         url = self._url(f"/pje-gigs-api/api/atividade/processo/{id_processo}")
         try:
             r = self.sess.get(url, timeout=15)
@@ -287,27 +272,7 @@ class PjeApiClient:
             return None
 
     def debitos_trabalhistas_bndt(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
-        """Obtém partes cadastradas no BNDT (Banco Nacional de Devedores Trabalhistas).
-        
-        Baseado na função JavaScript obterPartesNoBNDT() do a.py
-        Endpoint: GET /pje-comum-api/api/processos/id/{idProcesso}/debitostrabalhistas
-        
-        Args:
-            id_processo: ID do processo (numérico interno)
-        
-        Returns:
-            Lista de dicionários com dados das partes no BNDT ou None em caso de erro.
-            Cada item contém pelo menos: {'nomeParte': 'Nome da Parte', ...}
-            Lista vazia [] indica que não há partes cadastradas no BNDT.
-        
-        Exemplo:
-            >>> partes_bndt = client.debitos_trabalhistas_bndt('1234567')
-            >>> if partes_bndt:
-            >>>     for parte in partes_bndt:
-            >>>         print(f"Parte no BNDT: {parte.get('nomeParte')}")
-            >>> else:
-            >>>     print("Nenhuma parte no BNDT")
-        """
+        """Obtém partes cadastradas no BNDT (Banco Nacional de Devedores Trabalhistas)."""
         url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/debitostrabalhistas")
         try:
             r = self.sess.get(url, timeout=15)
@@ -321,10 +286,7 @@ class PjeApiClient:
             return None
 
     def domicilio_eletronico(self, id_parte: str) -> Optional[bool]:
-        """Verifica domicílio eletrônico (apenas PJ).
-
-        Retorna True se habilitada, False se não, None em erro/404 (PF ou não encontrada).
-        """
+        """Verifica domicílio eletrônico (apenas PJ)."""
         if not id_parte or id_parte in ('None', '0', ''):
             return None
         url = self._url(f"/pje-comum-api/api/pessoajuridicadomicilioeletronico/{id_parte}")
@@ -338,14 +300,7 @@ class PjeApiClient:
 
 
 def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
-    """Cria um `requests.Session` a partir de um driver ativo (Selenium ou PWDriver).
-
-    Retorna (session, trt_host).
-
-    F4: headers endurecidos absorvidos do cliente bianca — X-XSRF-TOKEN evita
-    403 CSRF em POST/PATCH e User-Agent real do driver evita bloqueio de WAF
-    (Cloudflare/F5) contra UA de biblioteca. Aditivo: nao altera o resto.
-    """
+    """Cria um `requests.Session` a partir de um driver ativo (Selenium ou PWDriver)."""
     sess = requests.Session()
     try:
         cookies = driver.get_cookies()
@@ -356,13 +311,10 @@ def session_from_driver(driver, grau: int = 1) -> Tuple[requests.Session, str]:
                 xsrf_token = unquote(c['value'])
         parsed = urlparse(driver.current_url)
         trt_host = parsed.netloc or 'pje.trt2.jus.br'
-        # Se o browser estiver fora do PJe (tela de SSO/login em outro host),
-        # o netloc da URL nao serve de base para a API — volta ao padrao.
         if 'trt2.jus.br' not in trt_host:
             trt_host = 'pje.trt2.jus.br'
     except Exception:
         raise
-    # UA real do driver (sem padrao selenium; fallback defensivo)
     user_agent = None
     try:
         fn_js = getattr(driver, 'execute_' + 'script', None)

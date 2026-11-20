@@ -1,17 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/api.py -- Helpers de API para o modulo de triagem.
-
-Busca a lista de processos da fila "Triagem Inicial" via execute_async_script
-(fetch do proprio browser, respeitando cookies e XSRF-TOKEN).
-
-Funcoes:
-    buscar_lista_triagem(driver)   Busca itens da fila via async JS fetch.
-    enriquecer_processo(item)      Enriquece item bruto com metadados.
-    _is_triagem_inicial(item)      Filtro de tarefa "Triagem Inicial".
-    _is_carta_precatoria(item)     Filtro de Carta Precatória (bucket CP).
-    _numero_cnj(item)              Extrai numero CNJ do item.
-"""
+"""bianca/triagem/api.py -- Helpers de API para o modulo de triagem."""
 
 import logging
 from datetime import datetime
@@ -20,9 +8,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("bianca.triagem.api")
 
-# =============================================================================
-# JS para buscar triagem via fetch no browser
-# =============================================================================
 
 _JS_BUSCAR_TRIAGEM = """
 const tamPag   = arguments[0] || 100;
@@ -94,17 +79,8 @@ function normalizar(d) {
 """
 
 
-# =============================================================================
-# Funcoes de busca
-# =============================================================================
-
-
 def buscar_lista_triagem(driver: Any) -> List[Dict[str, Any]]:
-    """Busca todos os itens da fila via execute_async_script (fetch no browser).
-
-    O fetch corre dentro do contexto do browser: cookies de sessao e XSRF-TOKEN
-    sao tratados automaticamente -- sem depender de requests.Session.
-    """
+    """Busca todos os itens da fila via execute_async_script (fetch no browser)."""
     try:
         driver.set_script_timeout(120)
         res = driver.execute_async_script(_JS_BUSCAR_TRIAGEM, 100)
@@ -130,11 +106,6 @@ def buscar_lista_triagem(driver: Any) -> List[Dict[str, Any]]:
     return lista
 
 
-# =============================================================================
-# Enriquecimento de processos
-# =============================================================================
-
-
 def _is_triagem_inicial(item: Dict) -> bool:
     """Verifica se o item pertence a fila 'Triagem Inicial'."""
     tarefa = item.get('tarefa') or ''
@@ -144,11 +115,7 @@ def _is_triagem_inicial(item: Dict) -> bool:
 
 
 def _is_carta_precatoria(item: Dict) -> bool:
-    """Verifica se o processo e uma Carta Precatória.
-
-    Detecta pelos campos classeJudicial ou descricaoProcesso.
-    Ex: CartPrecCiv, Carta Precatória, etc.
-    """
+    """Verifica se o processo e uma Carta Precatória."""
     classe = str(item.get('classeJudicial') or '').upper()
     if 'CARTPREC' in classe or 'CART_PREC' in classe or 'CARTAPREC' in classe:
         return True
@@ -163,7 +130,6 @@ def _numero_cnj(item: Dict) -> str:
     return str(item.get('numeroProcesso') or item.get('numero') or item.get('id') or '')
 
 
-# Movimento que marca o processo como Juizo 100% Digital na timeline.
 MOV_100_DIGITAL_TITULO = 'incluidos os autos no juizo 100% digital'
 
 
@@ -205,21 +171,7 @@ def obter_movimentos_timeline(client: Any, id_processo: str) -> List[Dict]:
 def classificar_audiencia_movimentos(
     itens_movimentos: List[Dict],
 ) -> Tuple[str, Dict[str, Any]]:
-    """Classifica a situação de audiência do processo a partir dos movimentos da timeline.
-
-    3 casos:
-      (a) 'SEM_AUDIENCIA': não há movimento de audiência designada na timeline.
-          -> Fluxo de sempre (marca audiência + despacha).
-      (b) 'TEM_AUDIENCIA': há audiência designada com horário muito próximo (<= 180s)
-          ao da distribuição do processo (autuação automática).
-          -> Fluxo de sempre (Bucket B se 100% digital, Bucket C se presencial).
-      (c) 'AUDIENCIA_TARDIA': tem audiência, mas a marcação veio mais tarde que a
-          distribuição (> 180s ou data diferente).
-          -> Trata como SEM AUDIÊNCIA, mas pula a marcação de pauta.
-
-    Returns:
-        Tuple[str, Dict[str, Any]]: (status, detalhes)
-    """
+    """Classifica a situação de audiência do processo a partir dos movimentos da timeline."""
     from Fix.utils import normalizar_texto
 
     mov_distribuicao = None
@@ -240,13 +192,11 @@ def classificar_audiencia_movimentos(
         data_str = str(item.get('data') or item.get('dataHora') or item.get('atualizadoEm') or '')
         dt_item = parse_data_hora_movimento(data_str)
 
-        # 1. Identificar movimento de distribuição
         if not mov_distribuicao:
             if cod in (26, 27, 28, 29, 30) or 'distribui' in titulo:
                 mov_distribuicao = item
                 dt_dist = dt_item
 
-        # 2. Identificar movimento de audiência designada
         if not mov_audiencia:
             if ('audiencia' in titulo and 'designada' in titulo) or ('designad' in titulo and 'audienc' in titulo):
                 mov_audiencia = item
@@ -259,21 +209,16 @@ def classificar_audiencia_movimentos(
         'mov_aud': mov_audiencia,
     }
 
-    # Caso (a): Não tem audiência designada na timeline
     if not mov_audiencia:
         return 'SEM_AUDIENCIA', detalhes
 
-    # Se tem audiência e tem distribuição, compara os horários
     if dt_dist and dt_aud:
         delta = abs((dt_aud - dt_dist).total_seconds())
         detalhes['delta_segundos'] = delta
-        # Caso (b): Horário muito próximo (até 180s da autuação)
         if dt_dist.date() == dt_aud.date() and delta <= 180:
             return 'TEM_AUDIENCIA', detalhes
-        # Caso (c): Veio mais tarde que a distribuição
         return 'AUDIENCIA_TARDIA', detalhes
 
-    # Se tem movimento de audiência mas não foi possível extrair data da distribuição
     return 'AUDIENCIA_TARDIA', detalhes
 
 
@@ -294,17 +239,7 @@ def processo_e_100_digital(
 
 
 def enriquecer_processo(item: Dict, client: Any = None) -> Optional[Dict]:
-    """Enriquece um item bruto da lista com metadados processados.
-
-    Args:
-        item: item bruto da lista de triagem.
-        client: PjeApiClient autenticado. Quando informado, o 100% digital e
-            os 3 casos de audiência são confirmados pela timeline de movimentos.
-
-    Retorna dict com:
-        numero, id_processo, tipo, digital, tem_audiencia, status_audiencia,
-        pular_marcar_aud, bucket
-    """
+    """Enriquece um item bruto da lista com metadados processados."""
     id_proc = item.get('id') or item.get('idProcesso')
     numero = _numero_cnj(item)
     if not id_proc:
@@ -327,15 +262,12 @@ def enriquecer_processo(item: Dict, client: Any = None) -> Optional[Dict]:
             tem_aud = True
             pular_marcar_aud = False
         elif status_aud == 'AUDIENCIA_TARDIA':
-            # Caso (c): trata como SEM AUDIÊNCIA pra efeito de fluxo, pulando marcar audiência
             tem_aud = False
             pular_marcar_aud = True
         else:
-            # Caso (a): SEM AUDIÊNCIA, fluxo de sempre (marca audiência + despacha)
             tem_aud = False
             pular_marcar_aud = False
     else:
-        # Fallback sem API: usa o campo bruto da lista
         tem_aud = bool(item.get('dataProximaAudiencia'))
         pular_marcar_aud = False
         status_aud = 'TEM_AUDIENCIA' if tem_aud else 'SEM_AUDIENCIA'

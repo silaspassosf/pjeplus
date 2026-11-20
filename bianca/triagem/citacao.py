@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/citacao.py -- Analise de citacao (polo passivo e domicilio eletronico).
-
-Funcoes:
-    def_citacao(driver, processo_info)  Analisa polo passivo e define tipo de citacao.
-"""
+"""bianca/triagem/citacao.py -- Analise de citacao (polo passivo e domicilio eletronico)."""
 
 import re
 from datetime import date, datetime
@@ -33,14 +28,12 @@ def _parse_data(val: Any) -> Optional[date]:
     val = val.strip()
     if not val:
         return None
-    # 1. ISO (ex: 2026-11-03T...)
     m = re.search(r'(\d{4})-(\d{2})-(\d{2})', val)
     if m:
         try:
             return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
         except ValueError:
             pass
-    # 2. DD/MM/AAAA
     m = re.search(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', val)
     if m:
         try:
@@ -52,14 +45,12 @@ def _parse_data(val: Any) -> Optional[date]:
 
 def _dia_semana_audiencia(driver: Any = None, processo_info: Optional[Dict] = None) -> Optional[int]:
     """Retorna o dia da semana da audiencia (0=segunda ... 4=sexta), ou None."""
-    # 1. Checa processo_info
     if processo_info:
         for chave in ('data_audiencia', 'dataProximaAudiencia', 'data_proxima_audiencia'):
             d = _parse_data(processo_info.get(chave))
             if d:
                 return d.weekday()
 
-    # 2. Fallback: inspeciona dt#audiencias no DOM
     try:
         dt = espera.elemento(driver, "dt#audiencias", teto=1)
         if dt:
@@ -82,21 +73,7 @@ def _dia_semana_audiencia(driver: Any = None, processo_info: Optional[Dict] = No
 
 
 def def_citacao(driver: Any, processo_info: Dict) -> Dict:
-    """Analisa polo passivo e define tipo de citacao (ord/sum vs ordc/sumc).
-
-    Args:
-        driver: Driver na pagina do processo.
-        processo_info: Dict com metadados do processo ('tipo').
-
-    Returns:
-        Dict com:
-            gigs_obs (list[str])  -- observacoes GIGS de citacao.
-            pec_wrappers (list[str]) -- wrappers PEC para acao pos-triagem.
-            com_domicilio (int)   -- total de reclamados com dom. eletronico.
-            sem_domicilio (int)   -- total de reclamados sem dom. eletronico.
-            total (int)           -- total de reclamados.
-            sucesso (bool)        -- True se analise concluida.
-    """
+    """Analisa polo passivo e define tipo de citacao (ord/sum vs ordc/sumc)."""
     tipo = (processo_info.get('tipo') or '').upper().strip()
     base = 'sum' if tipo == 'ATSUM' else 'ord'
 
@@ -158,7 +135,6 @@ def def_citacao(driver: Any, processo_info: Dict) -> Dict:
             sem_dom += 1
 
     dia_sem = _dia_semana_audiencia(driver, processo_info)
-    # Grupo segunda (0), terca (1) e sexta (4): acrescenta 'v' nos GIGS
     is_seg_ter_sex = dia_sem in (0, 1, 4)
 
     if is_seg_ter_sex:

@@ -1,20 +1,10 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/driver.py - Driver e login do fluxo Bianca.
-
-O driver vem do mesmo criador usado por pw.py (Fix.driver_factory.criar_driver_PC)
-e o login usa a sessao canonica (Fix.sessao), com credenciais do Gerenciador de
-Credenciais do Windows. Nao ha caminho de login por input() no terminal.
-"""
+"""bianca/driver.py - Driver e login do fluxo Bianca."""
 
 from typing import Optional, Any
 
 from Fix.log import logger
 
-
-# =============================================================================
-# Driver
-# =============================================================================
 
 def criar_driver() -> Any:
     """Cria o driver Playwright (mesmo criador de pw.py/x.py)."""
@@ -22,24 +12,10 @@ def criar_driver() -> Any:
     return criar_driver_PC()
 
 
-# =============================================================================
-# Login
-# =============================================================================
-
 def fazer_login_manual(driver: Any) -> None:
-    """Autentica no PJe com a sessao canonica.
-
-    Mantem o nome historico (chamado por bianca/triagem/runner.py), mas delega
-    para Fix.sessao.login_cpf, que le as credenciais do Gerenciador de
-    Credenciais do Windows e trata SSO, OTP e o fallback manual no navegador.
-    """
+    """Autentica no PJe com a sessao canonica."""
     from Fix.sessao import login_cpf
     login_cpf(driver)
-
-
-# =============================================================================
-# Verificacao e recuperacao de sessao
-# =============================================================================
 
 
 def verificar_sessao(driver: Any) -> bool:
@@ -83,10 +59,6 @@ def resetar_driver(driver: Any) -> bool:
         logger.error("Erro ao resetar driver: %s", e)
         return False
 
-
-# =============================================================================
-# Combinado
-# =============================================================================
 
 def criar_driver_e_fazer_login() -> Optional[Any]:
     """Cria o driver e autentica. Retorna o driver ou None se falhar."""

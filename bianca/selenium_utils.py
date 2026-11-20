@@ -1,17 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/selenium_utils.py - Utilitarios de automacao do navegador para o modulo Bianca.
-
-Fornece primitivas de interacao delegando ao nucleo Playwright-native (Fix.core,
-Fix.browser_suporte, Fix.espera) mantendo total retrocompatibilidade com a API legada.
-
-Funcoes exportadas:
-  esperar_elemento, safe_click, preencher_campo, selecionar_opcao,
-  com_retry, buscar_seletor_robusto, aguardar_renderizacao_nativa,
-  aplicar_filtro_100, filtrofases, resetar_driver,
-  aguardar_e_clicar, safe_click_no_scroll, fechar_abas_extras,
-  trocar_para_nova_aba, limpar_overlays_headless, js_base
-"""
+"""bianca/selenium_utils.py - Utilitarios de automacao do navegador para o modulo Bianca."""
 
 import re
 import time
@@ -84,10 +72,6 @@ def _pressionar_tecla(driver: Any, el: Any, tecla_nome: str, tecla_code: str):
     _executar_js(driver, f"window.dispatchEvent(new KeyboardEvent('keydown', {{key: '{tecla_nome}', bubbles: true}}));")
 
 
-# =============================================================================
-# JavaScript base helpers (MutationObserver pattern)
-# =============================================================================
-
 def js_base() -> str:
     """JavaScript utility functions using MutationObserver."""
     return (
@@ -152,10 +136,6 @@ def js_base() -> str:
     )
 
 
-# =============================================================================
-# Delegated Core Primitives (Fix.core)
-# =============================================================================
-
 def safe_click_no_scroll(driver: Any, element: Any) -> bool:
     """Dispara click sem scroll previo."""
     return bool(_fix_safe_click_no_scroll(driver, element))
@@ -173,12 +153,7 @@ def aguardar_renderizacao_nativa(
     tempo_limite: Optional[float] = None,
     timeout: Optional[float] = None,
 ) -> bool:
-    """Aguarda renderizacao Angular nativa.
-
-    API legada mantida: ``acao`` equivale a ``modo`` no nucleo
-    ('aparecer' | 'sumir' | 'habilitado') e ``tempo_limite`` equivale a
-    ``timeout``. Aceita ambas as grafias; ``timeout`` tem precedencia.
-    """
+    """Aguarda renderizacao Angular nativa."""
     limite = timeout if timeout is not None else (
         tempo_limite if tempo_limite is not None else 10
     )
@@ -199,22 +174,12 @@ def esperar_elemento(
     log: bool = False,
     texto: Optional[str] = None,
 ) -> Optional[Any]:
-    """Aguarda presenca ou visibilidade de elemento no DOM.
-
-    Args:
-        visivel: True (padrao) exige que o elemento esteja visivel; False
-            retorna assim que aparecer no DOM.
-
-    Note:
-        ``Fix.navegacao_espera.esperar_elemento`` nao possui o parametro
-        ``visivel``; a distincao e aplicada aqui apos a espera.
-    """
+    """Aguarda presenca ou visibilidade de elemento no DOM."""
     try:
         elemento = _fix_esperar_elemento(
             driver, seletor, texto=texto, timeout=timeout, by=by, log=log
         )
     except TypeError:
-        # Fallback para assinaturas antigas sem o parametro ``texto``.
         elemento = _fix_esperar_elemento(driver, seletor, timeout=timeout, by=by, log=log)
 
     if elemento is None or not visivel:
@@ -223,7 +188,6 @@ def esperar_elemento(
     try:
         return elemento if elemento.is_displayed() else None
     except Exception:
-        # Elemento stale/invalido: devolve mesmo assim para o chamador decidir.
         return elemento
 
 
@@ -245,17 +209,12 @@ def safe_click(
     delay_depois: float = 0,
     log: bool = False,
 ) -> bool:
-    """Clica em elemento com retries e verificacoes.
-
-    ``delay_depois`` e aplicado aqui: ``Fix.core.safe_click`` nao o aceita.
-    """
+    """Clica em elemento com retries e verificacoes."""
     clique_ok = bool(_fix_safe_click(driver, elemento_ou_seletor, timeout=timeout, log=log))
     if clique_ok and delay_depois:
         try:
             espera.assentar(driver, delay_depois)
         except Exception:
-            # Fallback: pulsar cede tempo ao loop do driver sem sleep puro
-            # (mesmo motivo pelo qual Fix/espera.assentar nao usa time.sleep).
             pulsar = getattr(driver, "pulsar", None)
             if callable(pulsar):
                 pulsar(delay_depois)
@@ -270,11 +229,7 @@ def preencher_campo(
     limpar_antes: bool = True,
     log: bool = False,
 ) -> bool:
-    """Preenche campo de formulario Angular.
-
-    ``timeout``/``limpar_antes`` sao traduzidos para a API de
-    ``Fix.core.preencher_campo`` (que usa ``limpar`` e nao recebe timeout).
-    """
+    """Preenche campo de formulario Angular."""
     if timeout:
         try:
             esperar_elemento(driver, seletor, timeout=timeout)
@@ -308,10 +263,6 @@ def fechar_abas_extras(driver: Any, handle_principal: Optional[str] = None) -> b
     return True
 
 
-# =============================================================================
-# Retry Helper
-# =============================================================================
-
 def com_retry(
     func: Callable,
     max_tentativas: int = 3,
@@ -342,10 +293,6 @@ def com_retry(
                 return None
     return None
 
-
-# =============================================================================
-# Painel Loader & Buttons
-# =============================================================================
 
 def _aguardar_loader_painel(driver: Any, timeout: int = 10) -> None:
     """Aguarda sumir o loader do painel."""
@@ -404,7 +351,6 @@ def _clicar_botao_tarefa_processo(
                 logger.error("Botao 'Abre a tarefa do processo' nao encontrado")
             return False
 
-        # Scroll para o elemento
         _executar_js(
             driver,
             "arguments[0].scrollIntoView({block: 'center'});",
@@ -427,10 +373,6 @@ def _clicar_botao_tarefa_processo(
             logger.error("Erro em _clicar_botao_tarefa_processo: %s", e)
         return False
 
-
-# =============================================================================
-# selecionar_opcao
-# =============================================================================
 
 def _abrir_e_selecionar_opcao(
     driver: Any,
@@ -596,10 +538,6 @@ def selecionar_opcao(
     )
 
 
-# =============================================================================
-# PJe-specific filters
-# =============================================================================
-
 def aplicar_filtro_100(driver: Any) -> bool:
     """Aplica filtro para exibir 100 itens por pagina no painel global."""
     def _selecionar() -> bool:
@@ -610,7 +548,6 @@ def aplicar_filtro_100(driver: Any) -> bool:
                 teto=3,
             )
             if not span_20:
-                # Pode ja estar em 100
                 return True
             mat_select = _sub_el(span_20, "xpath=ancestor::mat-select[@role='combobox']") or espera.elemento(driver, "mat-select[role='combobox']", teto=2)
             if mat_select:
@@ -658,7 +595,6 @@ def filtrofases(
 
     logger.info("Filtrando fase processual: %s...", ", ".join(fases))
 
-    # 1. Filtro de fase processual
     try:
         seletor_fase = (
             'mat-select[formcontrolname="fpglobal_faseProcessual"], '
@@ -703,7 +639,6 @@ def filtrofases(
         logger.error("Erro no filtro de fase: %s", e)
         return False
 
-    # 2. Filtro de tarefa (opcional)
     if tarefas_alvo:
         logger.info("Filtrando tarefa: %s...", ", ".join(tarefas_alvo))
         try:
@@ -768,7 +703,6 @@ def filtrofases(
             logger.error("Erro no filtro de tarefa: %s", e)
             return False
 
-    # 3. Clicar no botao de filtrar
     try:
         botao = espera.elemento(driver, "i.fas.fa-filter", teto=3)
         if botao:
@@ -781,10 +715,6 @@ def filtrofases(
     logger.info("Filtros aplicados com sucesso.")
     return True
 
-
-# =============================================================================
-# Driver Reset
-# =============================================================================
 
 def resetar_driver(driver: Any) -> bool:
     """Reseta estado do driver para pagina inicial do PJe."""

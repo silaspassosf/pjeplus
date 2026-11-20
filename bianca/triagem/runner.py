@@ -1,22 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/runner.py -- Executor autonomo do fluxo de Triagem Inicial.
-
-Melhorias em relacao a triagem_engine.py original:
-  1. Progress tracking (evita reprocessamento)
-  2. should_skip usa ``processo_ja_executado_unificado()``
-  3. persist_result salva progresso via ``marcar_processo_executado_unificado()``
-  4. Limpeza de abas extras apos cada processo
-  5. Logging estruturado com numero do processo e indice
-
-Uso:
-    from bianca.triagem.runner import run_triagem
-    resultado = run_triagem(driver)
-"""
+"""bianca/triagem/runner.py -- Executor autonomo do fluxo de Triagem Inicial."""
 
 import traceback
 from typing import Any, Dict, Optional
-
 
 
 from bianca.config import URL_LISTA_TRIAGEM, URL_PJE_BASE
@@ -38,10 +24,7 @@ from utilitarios_processamento import resultado_falha, resultado_ok, run_batch
 
 
 def _fechar_tabs_acesso_negado(drv, handle_principal: str, numero: str = "?") -> int:
-    """Fecha todas as abas com URL acesso-negado, exceto a principal.
-
-    Retorna o numero de abas fechadas.
-    """
+    """Fecha todas as abas com URL acesso-negado, exceto a principal."""
     fechadas = 0
     for h in list(getattr(drv, 'window_handles', [])):
         if h == handle_principal:
@@ -54,40 +37,17 @@ def _fechar_tabs_acesso_negado(drv, handle_principal: str, numero: str = "?") ->
                 fechadas += 1
         except Exception:
             pass
-    # Garantir foco no handle principal
     try:
         drv.switch_to.window(handle_principal)
     except Exception:
         pass
     return fechadas
 
-# Tipo do progresso no monitoramento unificado (mesma fonte do p2b/mandado/pec).
 _TIPO_EXECUCAO = 'triagem'
 
 
 def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
-    """Fluxo principal de triagem inicial.
-
-    Etapas:
-      1. Navega para URL_LISTA_TRIAGEM
-      2. Busca lista de processos via API
-      3. Filtra apenas itens da fila "Triagem Inicial"
-      4. Enriquece cada item com metadados (bucket, tipo, etc.)
-      5. Carrega progresso e filtra ja executados
-      6. Para cada processo pendente: analisa peticao, cria comentario,
-         executa acao pos-triagem e salva progresso
-
-    Args:
-        driver: Driver opcional. Se None, cria um novo.
-
-    Returns:
-        Dict com {
-            'sucesso': bool,
-            'processados': int,
-            'sucesso_count': int,
-            'total': int,
-        } ou None em caso de erro fatal.
-    """
+    """Fluxo principal de triagem inicial."""
     print("[TRIAGEM] Iniciando run_triagem...")
 
     if driver:
@@ -105,20 +65,16 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
         drv.get(URL_LISTA_TRIAGEM)
         esperar_elemento(drv, 'tr.cdk-drag,.cdk-virtual-scroll-viewport', timeout=15)
 
-        # Buscar lista
         itens_brutos = buscar_lista_triagem(drv)
         if not itens_brutos:
             print("[TRIAGEM] API nao retornou itens")
             return {"sucesso": False, "erro": "Lista vazia"}
 
-        # Filtrar apenas Triagem Inicial
         triagem_itens = [i for i in itens_brutos if _is_triagem_inicial(i)]
         if not triagem_itens:
             print("[TRIAGEM] Campo tarefa nao identificou Triagem Inicial -- usando todos")
             triagem_itens = itens_brutos
 
-        # Enriquecer. O 100% digital e confirmado pela timeline de movimentos
-        # (API), com o campo juizoDigital da lista como atalho.
         try:
             from Fix.variaveis import PjeApiClient, session_from_driver
             sess, host = session_from_driver(drv)
@@ -134,7 +90,6 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
 
         print("[TRIAGEM] %s processos de Triagem Inicial (de %s brutos)" % (len(lista), len(itens_brutos)))
 
-        # --- Progress tracking ---
         progresso = carregar_progresso_unificado(_TIPO_EXECUCAO)
         pendentes = len(lista)
         if progresso:
@@ -149,7 +104,6 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
             print("[TRIAGEM] Todos os processos ja foram executados")
             return {"sucesso": True, "processados": 0, "total": len(lista)}
 
-        # --- Pipeline batch ---
         def should_skip(proc):
             numero = proc.get("numero", "")
             if not numero:
@@ -162,7 +116,6 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
             if not id_processo:
                 return resultado_falha("Sem id_processo")
             try:
-                # Limpeza de abas extras
                 for h in list(getattr(drv, 'window_handles', [])):
                     if h != handle_principal:
                         try:
@@ -185,7 +138,6 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
             try:
                 print("[TRIAGEM][%s] Processando..." % numero)
 
-                # --- Carta Precatória: fluxo mínimo, apenas comentário ---
                 if proc.get("bucket") == "CP":
                     print("[TRIAGEM][%s] Carta Precatória — apenas comentário" % numero)
                     try:
@@ -203,10 +155,8 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
                     print("[TRIAGEM][%s] ERRO 401 -- sessao rejeitada" % numero)
                     return resultado_falha("ERRO_CRITICO_401", critical=True)
 
-                # Comentario com resultado da triagem (antes da decisao de acao)
                 if triagem_txt:
                     try:
-                        # Determinar estado de fluxo (nao e pos-acao)
                         from bianca.triagem.acoes import _determinar_acao_pos_triagem, _RE_BUCKET_B2, _RE_BUCKET_C, _RE_BUCKET_D
                         bucket, _ = _determinar_acao_pos_triagem(triagem_txt)
                         if bucket == 'pre_bucket':
@@ -214,17 +164,17 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
                             elif _RE_BUCKET_C.search(triagem_txt): bucket = 'c_pedidos'
                             elif _RE_BUCKET_D.search(triagem_txt): bucket = 'd_docs'
                             else: bucket = 'b1_normal'
-                        
+
                         status_str = ""
                         if bucket == 'b2_incompetencia': status_str = "Incompetencia territorial"
                         elif bucket == 'c_pedidos': status_str = "Pedidos nao liquidados"
                         elif bucket == 'd_docs': status_str = "Falta de documentos"
                         else:
                             from bianca.triagem.acoes import _tem_audiencia_marcada, _usa_padrao_novo
-                            
+
                             tem_aud = _tem_audiencia_marcada(drv, proc)
                             tem_100 = bool(proc.get('digital', proc.get('tem_100', False)))
-                            
+
                             if tem_aud:
                                 proc["bucket"] = "B" if tem_100 else "C"
                                 if tem_100:
@@ -234,7 +184,7 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
                                 else:
                                     status_str = "Direto - aud marcada / citado?"
                             else:
-                                proc["bucket"] = "A"  # acao_bucket_a lida com o 100% digital internamente
+                                proc["bucket"] = "A"
                                 if proc.get('pular_marcar_aud'):
                                     status_str = "100% digital - sem aud (pula marcacao)?" if tem_100 else "Sem aud (pula marcacao)?"
                                 else:
@@ -253,18 +203,14 @@ def run_triagem(driver: Optional[Any] = None) -> Optional[Dict[str, Any]]:
                     except Exception as e:
                         print(f"[TRIAGEM][{numero}] Falha ao registrar comentario: {e}")
 
-                # Barreira: aguardar tabela GIGS pronta (sem buscar botao especifico pois a lista pode estar vazia)
                 aguardar_renderizacao_nativa(
                     drv, 'pje-gigs-lista-atividades', 'aparecer', 8)
 
-                # Acao pos-triagem
                 ok, status_line = _aplicar_acao_pos_triagem(drv, numero, proc, triagem_txt)
                 print("[TRIAGEM][%s] Resultado acao_pos_triagem: ok=%s status=%r" % (numero, ok, status_line))
 
-                # Detectar acesso-negado em qualquer aba aberta pela acao
                 _fechar_tabs_acesso_negado(drv, handle_principal, numero)
 
-                # Verificar se o handle principal acabou em acesso-negado
                 try:
                     drv.switch_to.window(handle_principal)
                     if "acesso-negado" in (drv.current_url or "").lower():

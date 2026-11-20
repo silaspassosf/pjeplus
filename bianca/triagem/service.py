@@ -1,14 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/service.py -- Servico de analise de triagem.
-
-Contem:
-  - Helpers de formatacao de saida (_rotulo_saida, _conteudo_saida_item,
-    _formatar_competencia_saida, _formatar_saida_item)
-  - Funcao principal ``triagem_peticao(driver)`` que orquestra a analise
-    executando as regras de negocio B1-B14 (importadas de ``regras.py``)
-  - Montagem da saida estruturada ([COMPETENCIA], [Alertas], [ITENS OK])
-"""
+"""bianca/triagem/service.py -- Servico de analise de triagem."""
 
 import logging
 import re
@@ -34,11 +25,6 @@ from bianca.triagem.regras import (
 )
 
 logger = logging.getLogger("bianca.triagem.service")
-
-
-# =============================================================================
-# Formatacao de saida da analise
-# =============================================================================
 
 
 def _rotulo_saida(prefixo: str) -> str:
@@ -164,23 +150,8 @@ def _formatar_saida_item(item: str) -> str:
     return '%s: %s' % (rotulo, corpo)
 
 
-# =============================================================================
-# triagem_peticao -- analise completa da peticao inicial
-# =============================================================================
-
-
 def triagem_peticao(driver) -> str:
-    """Analisa a peticao inicial do processo atualmente aberto.
-
-    Executa todas as checagens de regras de negocios e produz
-    um texto de analise estruturado.
-
-    Args:
-        driver: Driver na pagina de detalhe do processo.
-
-    Returns:
-        str: Texto da analise formatada, ou 'ERRO: ...' em caso de falha.
-    """
+    """Analisa a peticao inicial do processo atualmente aberto."""
     logger.info('Iniciando triagem_peticao...')
     coleta = _coletar_textos_processo(driver)
     if coleta.get('erro'):
@@ -189,7 +160,7 @@ def triagem_peticao(driver) -> str:
 
     texto = coleta['texto_inicial']
     if not texto or len(texto) < 100:
-        logger.error('DIAGNÓSTICO: texto_inicial vazio ou muito curto. Tamanho: %s chars. Coleta completa: %s', 
+        logger.error('DIAGNÓSTICO: texto_inicial vazio ou muito curto. Tamanho: %s chars. Coleta completa: %s',
                      len(texto) if texto else 0, coleta)
         return 'ERRO: texto da peticao inicial extraido vazio ou muito curto'
 

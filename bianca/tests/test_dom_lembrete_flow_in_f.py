@@ -1,21 +1,4 @@
-"""
-Teste "dom" para validar fluxo completo de dom_engine (audit + lembrete + criacao + execucao PEC)
-sem rodar o x.py/menu H e sem Selenium real.
-
-Principio:
-- Importa funções reais de bianca.dom_engine e dependências reais.
-- Substitui (monkeypatch) comportamentos de Selenium/DOM e de ações externas (PEC/chips).
-- Verifica chamadas/ramificações:
-  1) Se lembrete existente e contem "via correio/correio enviado":
-     - Nao deve executar PEC
-     - Deve executar remoção de chips (def_chip) e comentario
-  2) Se lembrete existente e NAO contem "via/correio":
-     - Deve executar PEC (criar lembrete/comentario conforme engine)
-  3) Se lembrete nao existe:
-     - Deve criar lembrete + comentario + remover chips + executar PEC
-
-Obs: este arquivo existe para manter o f.py "limpo" (apenas import/call).
-"""
+"""Teste "dom" para validar fluxo completo de dom_engine (audit + lembrete + criacao + execucao PEC)"""
 
 from __future__ import annotations
 
@@ -50,7 +33,6 @@ class FakeElement:
         return (self.attributes or {}).get(name)
 
     def find_element(self, by: str, selector: str) -> "FakeElement":
-        # para compatibilidade caso algo tente buscar dentro do elemento
         raise NotImplementedError("FakeElement nao suporta find_element aninhado no teste.")
 
 
@@ -68,11 +50,7 @@ class FakePanel:
 
 
 class FakeDriver:
-    """
-    Driver fake apenas para as leituras que o dom_engine faz em:
-    - has_dom_eletronico_reminder(): find_elements(By.CSS_SELECTOR, "mat-panel-title.post-it-titulo")
-    - _extrair_conteudo_lembrete_dom(): find_elements(By.CSS_SELECTOR, "mat-expansion-panel")
-    """
+    """Driver fake apenas para as leituras que o dom_engine faz em:"""
 
     def __init__(self, panels: List[FakePanel]):
         self._panels = panels
@@ -80,7 +58,6 @@ class FakeDriver:
 
     def find_elements(self, by: str, selector: str) -> List[Any]:
         if by == By.CSS_SELECTOR and selector == "mat-panel-title.post-it-titulo":
-            # has_dom_eletronico_reminder devolve um painel por title
             return [FakeElement(p.title_text) for p in self._panels]
         if by == By.CSS_SELECTOR and selector == "mat-expansion-panel":
             return list(self._panels)
@@ -97,13 +74,8 @@ class FakeWait:
 
 
 def run_dom_lembrete_flow_scenarios() -> None:
-    """
-    Executa cenários usando engine real + monkeypatch, e valida as ramificações.
-    """
+    """Executa cenários usando engine real + monkeypatch, e valida as ramificações."""
 
-    # ----------------------------
-    # Captura de chamadas
-    # ----------------------------
     calls: Dict[str, int] = {
         "criar_lembrete": 0,
         "criar_comentario": 0,
@@ -113,9 +85,6 @@ def run_dom_lembrete_flow_scenarios() -> None:
         "has_dom_eletronico_reminder": 0,
     }
 
-    # ----------------------------
-    # Monkeypatch utilidades
-    # ----------------------------
     def _fake_def_chip(*args, **kwargs):
         calls["def_chip"] += 1
         return True
@@ -148,15 +117,9 @@ def run_dom_lembrete_flow_scenarios() -> None:
     def _fake_aplicar_filtro_100(*args, **kwargs):
         return True
 
-    # ----------------------------
-    # Cenário 1: lembrete existe e contem "via correio/correio enviado"
-    # Esperado: NÃO executa PEC; deve remover chips; deve criar comentario
-    # ----------------------------
-    # Configura panel-list para has_dom_eletronico_reminder e extração
     panels_via = [FakePanel(title_text="Dom Eletronico", description_text="Ciencia negativa Domicilio: via Correio enviado")]
     driver_via = FakeDriver(panels=panels_via)
 
-    # Monkeypatch globais das funções chamadas por callback_bucket2
     orig_def_chip = dom_engine.def_chip
     orig_criar_comentario = dom_engine.criar_comentario
     orig_criar_lembrete_posit = dom_engine.criar_lembrete_posit
@@ -180,18 +143,14 @@ def run_dom_lembrete_flow_scenarios() -> None:
         dom_engine.safe_click = _fake_safe_click
         dom_engine.aplicar_filtro_100 = _fake_aplicar_filtro_100
 
-        # Falso para wait dentro do engine, se for usado
         setattr(dom_engine, 'Web' + 'DriverWait', FakeWait)
 
-        # Validate que o match do texto realmente seria "via/correio enviado"
         conteudo = dom_engine._extrair_conteudo_lembrete_dom(driver_via)
         assert _conta_via_correio(conteudo) is True
 
-        # Reset contadores
         for k in calls:
             calls[k] = 0
 
-        # Chamar callback_bucket2 (função real do engine)
         ok = dom_engine.callback_bucket2(driver_via, tipo_processo="ATORD")
         assert ok is True, "callback_bucket2 deveria retornar ok=True no cenário esperado"
 
@@ -211,15 +170,9 @@ def run_dom_lembrete_flow_scenarios() -> None:
         dom_engine.safe_click = orig_safe_click
         dom_engine.aplicar_filtro_100 = orig_aplicar_filtro_100
 
-    # ----------------------------
-    # Cenário 2: lembrete existe mas NÃO contem "via/correio enviado"
-    # Esperado: pode executar PEC (conforme engine), criar lembrete/comentario dependendo da implementação.
-    # Aqui validamos no mínimo que PEC foi chamado ao menos uma vez.
-    # ----------------------------
     panels_sem_via = [FakePanel(title_text="Dom Eletronico", description_text="Ciencia negativa Domicilio: algo diferente")]
     driver_sem_via = FakeDriver(panels=panels_sem_via)
 
-    # Monkeypatch novamente
     orig_def_chip = dom_engine.def_chip
     orig_criar_comentario = dom_engine.criar_comentario
     orig_criar_lembrete_posit = dom_engine.criar_lembrete_posit
@@ -240,11 +193,8 @@ def run_dom_lembrete_flow_scenarios() -> None:
         ok = dom_engine.callback_bucket2(driver_sem_via, tipo_processo="ATORD")
         assert ok is True
 
-        # Pelo comportamento observado no log do engine:
-        # - lembrete existe mas NÃO indica correio enviado => pular (sem PEC e sem ações)
         assert (calls["pec_arord"] + calls["pec_arsum"]) == 0, "Nao deve executar PEC quando lembrete existir mas nao indicar correio enviado"
         assert calls["criar_comentario"] == 0, "Nao deve criar comentario nesse caso"
-        # def_chip pode ser acionado por etapas comuns do callback (limpeza prévia).
         # O que importa para o bug é: não executar PEC quando lembrete existe sem correio/enviado.
 
     finally:
@@ -254,14 +204,9 @@ def run_dom_lembrete_flow_scenarios() -> None:
         dom_engine.pec_arord = orig_pec_arord
         dom_engine.pec_arsum = orig_pec_arsum
 
-    # ----------------------------
-    # Cenário 3: lembrete nao existe
-    # Esperado: criar lembrete + comentario + remover chips + executar PEC
-    # ----------------------------
     panels_none = [FakePanel(title_text="Outro Painel", description_text="")]
     driver_none = FakeDriver(panels=panels_none)
 
-    # Monkeypatch novamente
     orig_def_chip = dom_engine.def_chip
     orig_criar_comentario = dom_engine.criar_comentario
     orig_criar_lembrete_posit = dom_engine.criar_lembrete_posit

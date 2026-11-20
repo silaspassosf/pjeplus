@@ -1,21 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/atos_utils.py - Chip removal and PEC creation wrappers.
-
-Funcoes exportadas:
-  - def_chip                   (remocao de chips)
-  - make_comunicacao_wrapper    (factory de atos/comunicacao.py)
-    - pec_ord, pec_sum          (notificacao inicial — modelos zordd/zsumd)
-    - pec_ordc, pec_sumc        (notificacao inicial — modelos zordc/zsumc)
-    - pec_arord, pec_arsum      (notificacao inicial AR — modelos AR-Or/AR-Su)
-  - make_ato_wrapper            (factory de atos/judicial_fluxo.py)
-    - ato_100                   (ato 100% digital, modelo aud100)
-    - ato_unap                  (ato sem audiencia, modelo aud una presenc)
-  - mov_aud                     (movimentar para Aguardando audiencia)
-
-Dependencias externas limitadas a factories de atos/ (comunicacao, judicial_fluxo,
-movimentos_fluxo). Nao importa wrappers prontos de atos/wrappers_*.py.
-"""
+"""bianca/atos_utils.py - Chip removal and PEC creation wrappers."""
 
 import unicodedata
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -200,27 +184,12 @@ def _localizar_botao_acao(
     return None
 
 
-# =============================================================================
-# Retificar Autuacao — helpers para insercao de partes
-# Fonte: maispje/PJe-Atual/gigs-plugin.js (acao9, acao7, acao1)
-# =============================================================================
-
-
 def _abrir_pagina_retificar(
     driver: Any,
     id_processo: str,
     timeout: int = 15,
 ) -> Optional[str]:
-    """Abre a pagina /retificar em nova aba e aguarda carregamento.
-
-    Args:
-        driver: Instancia do navegador.
-        id_processo: ID do processo (numero).
-        timeout: Timeout em segundos.
-
-    Returns:
-        Handle da nova aba se sucesso, None caso contrario.
-    """
+    """Abre a pagina /retificar em nova aba e aguarda carregamento."""
     try:
         aba_origem = getattr(driver, "current_window_handle", None)
         url = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/retificar"
@@ -230,7 +199,6 @@ def _abrir_pagina_retificar(
         if not nova_aba:
             return None
 
-        # Aguardar step-headers carregarem
         esperar_elemento(
             driver,
             "mat-step-header[aria-posinset='1']",
@@ -247,22 +215,7 @@ def retificar_autuacao_inserir_custos_legis_mpt(
     debug: bool = False,
     timeout: int = 10,
 ) -> bool:
-    """Insere MPT como CUSTOS LEGIS na autuacao do processo.
-
-    Equivalente JS: acao9() em gigs-plugin.js linha 14816.
-    Fluxo: step Partes -> grid Outros participantes -> Adicionar parte ->
-           selecionar CUSTOS LEGIS -> aba Ministerio publico do trabalho ->
-           Selecionar -> Inserir.
-
-    Args:
-        driver: Instancia do navegador.
-        id_processo: ID do processo.
-        debug: Se True, exibe logs detalhados.
-        timeout: Timeout base em segundos.
-
-    Returns:
-        True se inserido com sucesso, False caso contrario.
-    """
+    """Insere MPT como CUSTOS LEGIS na autuacao do processo."""
     def log_msg(msg: str) -> None:
         if debug:
             try:
@@ -271,13 +224,11 @@ def retificar_autuacao_inserir_custos_legis_mpt(
                 pass
 
     try:
-        # 1. Abrir pagina de retificacao
         aba_retificar = _abrir_pagina_retificar(driver, id_processo, timeout=timeout)
         if not aba_retificar:
             log_msg("Falha ao abrir pagina /retificar")
             return False
 
-        # 2. Clicar step "Partes" (posinset="3" = terceiro step)
         step_partes = esperar_elemento(
             driver,
             'mat-step-header[aria-posinset="3"]',
@@ -290,7 +241,6 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         safe_click_no_scroll(driver, step_partes)
         log_msg("Step 'Partes' clicado")
 
-        # 3. Localizar grid "Outros participantes"
         grid = esperar_elemento(
             driver,
             'pje-autuacao-grid-partes[titulogrid="Outros participantes"]',
@@ -300,7 +250,6 @@ def retificar_autuacao_inserir_custos_legis_mpt(
             log_msg("Grid 'Outros participantes' nao encontrado")
             return False
 
-        # 4. Clicar "Adicionar parte ao processo"
         btn_adicionar = _sub_el(
             grid,
             'button[aria-label="Adicionar parte ao processo"]',
@@ -311,7 +260,6 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         _executar_js(driver, "arguments[0].click();", btn_adicionar)
         log_msg("Botao 'Adicionar parte' clicado")
 
-        # 5. Selecionar "CUSTOS LEGIS" no tipo de participacao
         if not _escolher_opcao_select_js(
             driver,
             'mat-select[aria-label="Tipo de participação"]',
@@ -322,7 +270,6 @@ def retificar_autuacao_inserir_custos_legis_mpt(
             return False
         log_msg("'CUSTOS LEGIS' selecionado")
 
-        # 6. Clicar aba "Ministério público do trabalho"
         abas_tab = espera.elementos(driver, 'div[role="tab"]', teto=5)
         aba_mpt = None
         for tab in abas_tab:
@@ -341,7 +288,6 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         espera.assentar(driver, 0.5)
         log_msg("Aba MPT clicada")
 
-        # 7. Clicar "Selecionar"
         btn_selecionar = esperar_elemento(
             driver,
             'button[aria-label="Selecionar"]',
@@ -353,7 +299,6 @@ def retificar_autuacao_inserir_custos_legis_mpt(
         _executar_js(driver, "arguments[0].click();", btn_selecionar)
         log_msg("'Selecionar' clicado")
 
-        # 8. Clicar "Inserir"
         btn_inserir = None
         for botao in espera.elementos(driver, "button", teto=3):
             try:
@@ -384,20 +329,7 @@ def retificar_autuacao_inserir_terceiro(
     debug: bool = False,
     timeout: int = 10,
 ) -> bool:
-    """Insere parte como TERCEIRO INTERESSADO generico.
-
-    Equivalente JS: acao7('terceiro', cpf_cnpj) em gigs-plugin.js code 10.
-
-    Args:
-        driver: Instancia do navegador.
-        id_processo: ID do processo.
-        cpf_cnpj: CPF ou CNPJ da parte a inserir.
-        debug: Se True, exibe logs detalhados.
-        timeout: Timeout base em segundos.
-
-    Returns:
-        True se inserido com sucesso, False caso contrario.
-    """
+    """Insere parte como TERCEIRO INTERESSADO generico."""
     def log_msg(msg: str) -> None:
         if debug:
             try:
@@ -410,14 +342,12 @@ def retificar_autuacao_inserir_terceiro(
         if not aba_retificar:
             return False
 
-        # Step Partes
         step_partes = esperar_elemento(driver, 'mat-step-header[aria-posinset="3"]', timeout=5)
         if not step_partes:
             return False
         _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", step_partes)
         safe_click_no_scroll(driver, step_partes)
 
-        # Grid Outros participantes
         grid = esperar_elemento(
             driver,
             'pje-autuacao-grid-partes[titulogrid="Outros participantes"]',
@@ -426,12 +356,10 @@ def retificar_autuacao_inserir_terceiro(
         if not grid:
             return False
 
-        # Adicionar parte
         btn_adicionar = _sub_el(grid, 'button[aria-label="Adicionar parte ao processo"]') or espera.elemento(driver, 'button[aria-label="Adicionar parte ao processo"]', teto=3)
         if btn_adicionar:
             _executar_js(driver, "arguments[0].click();", btn_adicionar)
 
-        # Selecionar TERCEIRO INTERESSADO
         if not _escolher_opcao_select_js(
             driver,
             'mat-select[aria-label="Tipo de participação"]',
@@ -440,13 +368,11 @@ def retificar_autuacao_inserir_terceiro(
         ):
             return False
 
-        # Preencher CPF/CNPJ
         input_doc = esperar_elemento(driver, 'input[formcontrolname="cpfCnpj"]', timeout=5)
         if not input_doc:
             return False
         _preencher_input_js(driver, 'input[formcontrolname="cpfCnpj"]', cpf_cnpj, debug=debug)
 
-        # Clicar Inserir
         for botao in espera.elementos(driver, "button", teto=3):
             if (getattr(botao, "text", "") or "").strip().lower() == "inserir":
                 _executar_js(driver, "arguments[0].click();", botao)
@@ -465,19 +391,7 @@ def retificar_autuacao_inserir_uniao(
     debug: bool = False,
     timeout: int = 10,
 ) -> bool:
-    """Insere UNIAO como terceiro interessado (CUSTOS LEGIS).
-
-    Equivalente JS: acao1() em gigs-plugin.js code 0.
-
-    Args:
-        driver: Instancia do navegador.
-        id_processo: ID do processo.
-        debug: Se True, exibe logs detalhados.
-        timeout: Timeout base em segundos.
-
-    Returns:
-        True se inserido com sucesso, False caso contrario.
-    """
+    """Insere UNIAO como terceiro interessado (CUSTOS LEGIS)."""
     def log_msg(msg: str) -> None:
         if debug:
             try:
@@ -516,7 +430,6 @@ def retificar_autuacao_inserir_uniao(
         ):
             return False
 
-        # Aba Uniao
         abas_tab = espera.elementos(driver, 'div[role="tab"]', teto=5)
         aba_uniao = None
         for tab in abas_tab:
@@ -548,13 +461,6 @@ def retificar_autuacao_inserir_uniao(
         return False
 
 
-# =============================================================================
-# Wrappers canonicos de atos/ (sem re-declaracao local)
-# =============================================================================
-# Os wrappers de ato/PEC vem de atos/, que e a fonte unica usada tambem por
-# Mandado, PEC e Prazo. atos/__init__.py resolve ato_100/ato_unap a partir de
-# wrappers_ato (modelos aud100 / aud una presenc), que e o que a triagem usa.
-
 from atos import ato_100, ato_unap, pec_ord, pec_sum
 from atos.wrappers_pec import (
     pec_arord,
@@ -568,9 +474,5 @@ from atos.movimentos_fluxo import movimentar_inteligente
 
 
 def mov_aud(driver: Any, debug: bool = False) -> bool:
-    """Movimenta o processo para 'Aguardando audiencia'.
-
-    Encapsula ``movimentar_inteligente`` com destino fixo.
-    Usada apos execucao de pec_ord/pec_sum no fluxo de triagem (bucket C).
-    """
+    """Movimenta o processo para 'Aguardando audiencia'."""
     return bool(movimentar_inteligente(driver, 'Aguardando audiência', timeout=8))

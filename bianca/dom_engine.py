@@ -1,17 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/dom_engine.py - DOM Eletronico engine.
-
-Adapted from Triagem/dom.py for the bianca standalone project.
-Processes processes with electronic domicile (DOM Electronico).
-
-Fluxo:
-  1. Navega para URL_LISTA_DOM
-  2. Aplica filtro de fase (conhecimento)
-  3. Navega para painel de atividades e aplica filtro dom.e
-  4. Indexa processos e processa cada um com callback do bucket 2
-     (remocao de chips, criacao de lembrete, criacao de PEC)
-"""
+"""bianca/dom_engine.py - DOM Eletronico engine."""
 
 import json
 import os
@@ -54,9 +42,6 @@ from bianca.selenium_utils import (
 )
 from Fix.log import logger
 from Fix.core import _executar_js
-# =============================================================================
-# Constantes
-# =============================================================================
 
 LIST_URL = "https://pje.trt2.jus.br/pjekz/painel/global/todos/lista-processos"
 URL_ATIVIDADES = "https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades"
@@ -127,34 +112,8 @@ def _obter_abas(driver: Any) -> List[str]:
     return list(getattr(driver, "window_" + "handles", []))
 
 
-# =============================================================================
-# Helpers internos
-# =============================================================================
-
-
 def _determinar_bucket(tem_audiencia: bool, tem_ata: bool) -> str:
-    """Determina se o processo vai para bucket1 (sem audiencia) ou bucket2 (com audiencia).
-
-    Regra de negocio:
-    - Sem audiencia marcada -> bucket1
-    - Audiencia marcada COM ata juntada -> bucket1 (audiencia ja realizada)
-    - Audiencia marcada SEM ata juntada -> bucket2 (audiencia futura)
-
-    Args:
-        tem_audiencia: bool indicando presenca de audiencia marcada.
-        tem_ata: bool indicando presenca de ata de audiencia nos autos.
-
-    Returns:
-        'bucket1' ou 'bucket2'.
-
-    Examples:
-        >>> _determinar_bucket(False, False)
-        'bucket1'
-        >>> _determinar_bucket(True, True)
-        'bucket1'
-        >>> _determinar_bucket(True, False)
-        'bucket2'
-    """
+    """Determina se o processo vai para bucket1 (sem audiencia) ou bucket2 (com audiencia)."""
     if not tem_audiencia or tem_ata:
         return "bucket1"
     else:
@@ -162,15 +121,7 @@ def _determinar_bucket(tem_audiencia: bool, tem_ata: bool) -> str:
 
 
 def _verificar_acesso_negado(driver: Any, contexto: str) -> None:
-    """Verifica se a URL atual indica acesso negado e lanca excecao em caso positivo.
-
-    Args:
-        driver: Instancia do navegador.
-        contexto: String de contexto para identificacao no log.
-
-    Raises:
-        Exception: Com prefixo RESTART_DRIVER se acesso negado detectado.
-    """
+    """Verifica se a URL atual indica acesso negado e lanca excecao em caso positivo."""
     try:
         url_atual = getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")
         if "acesso-negado" in url_atual.lower() or "login.jsp" in url_atual.lower():
@@ -184,19 +135,7 @@ def _verificar_acesso_negado(driver: Any, contexto: str) -> None:
 
 
 def has_dom_eletronico_reminder(driver: Any) -> bool:
-    """Verifica se ja existe lembrete Dom Eletronico no processo.
-
-    A detecao aceita DUAS assinaturas (texto normalizado, sem acento/caixa):
-      - Titulo:    "domelet" (lembrete criado pelo fluxo) OU "not. id"
-                   (lembrete padrao do PJe, ex.: "NOT. ID 64e9905")
-      - Conteudo:  "renovei via correios" (frase estavel do lembrete padrao)
-
-    Args:
-        driver: Instancia do navegador.
-
-    Returns:
-        True se um lembrete DOM eletronico ja existe.
-    """
+    """Verifica se ja existe lembrete Dom Eletronico no processo."""
     from Fix.utils import normalizar_texto
 
     _MARC_TITULO = ("domelet", "not. id", "dom elet", "domiceletr", "dom eletronico")
@@ -209,7 +148,6 @@ def has_dom_eletronico_reminder(driver: Any) -> bool:
             teto=2,
         )
         if not paineis:
-            # Fallback: tentar por titulo apenas (mat-panel-title.post-it-titulo)
             paineis = espera.elementos(driver, "mat-panel-title.post-it-titulo", teto=2)
 
         for painel in paineis:
@@ -249,19 +187,7 @@ def has_dom_eletronico_reminder(driver: Any) -> bool:
 
 
 def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
-    """Extrai o conteudo do lembrete Dom Eletronico se existir.
-
-    Reconhece o titulo por "domelet" (lembrete criado pelo fluxo) ou "not. id"
-    (lembrete padrao do PJe, ex.: "NOT. ID 64e9905") e le o conteudo em
-    div[aria-label="Conteudo do Lembrete"]/.post-it-conteudo — com fallback
-    para mat-panel-description.
-
-    Args:
-        driver: Instancia do navegador.
-
-    Returns:
-        String com conteúdo do lembrete, ou None se não encontrado.
-    """
+    """Extrai o conteudo do lembrete Dom Eletronico se existir."""
     _MARC_TITULO = ("domelet", "not. id", "dom elet", "domiceletr", "dom eletronico")
 
     try:
@@ -285,8 +211,6 @@ def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
 
                 norm = normalizar_texto(title_text)
                 if any(k in norm for k in _MARC_TITULO):
-                    # Encontrou o painel, agora extrair o conteudo — o texto real
-                    # fica em div[aria-label="Conteúdo do Lembrete"]/.post-it-conteudo.
                     conteudo = ""
                     for sel in (
                         'div[aria-label="Conteúdo do Lembrete"]',
@@ -305,7 +229,6 @@ def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
                     )
                     return conteudo if conteudo else None
             except Exception:
-                # painel sem title/estrutura esperada
                 continue
 
         logger.info(
@@ -322,13 +245,7 @@ def _extrair_conteudo_lembrete_dom(driver: Any) -> Optional[str]:
 
 
 class ListaDestinatariosDOM(list):
-    """Lista de destinatarios DOM que carrega as PJDP detectadas.
-
-    Subclasse de list para nao quebrar quem ja consome o retorno como lista
-    (len(), iteracao, `if not destinatarios`). `pjdp_detectado` e' o canal
-    para quem precisa marcar o comentario como "DOM com PJDP detectado"
-    sem chamar a API de novo.
-    """
+    """Lista de destinatarios DOM que carrega as PJDP detectadas."""
 
     pjdp_detectado: List[str]
     alvos_com_advogado: List[str]
@@ -340,29 +257,7 @@ class ListaDestinatariosDOM(list):
 
 
 def _pjdp_do_passivo_api(id_processo: str, driver: Any, client: Any = None) -> set:
-    """Nomes das partes do PASSIVO que sao PJDP, segundo a API de partes.
-
-    PJDP = parte com `procuradoria` preenchida em /partes (PASSIVO).
-    E' o mesmo ente que a UI marca com <i class="fa fa-university"> no card
-    de polo passivo, e o mesmo conceito do seletor
-    'i.procuradoria-direito-publico' usado em atos/comunicacao_destinatarios.py.
-
-    Confirmado por probe em 30/10/2026 (EMPRESA BRASILEIRA DE CORREIOS):
-        tipoPessoa  = "J"        -> so diz PJ; empresa privada tambem e' "J"
-        autoridade  = False      -> FALSO NEGATIVO num PJDP, nao serve
-        idTipoParte = 66         -> codigo de "Reclamado", nao de ente publico
-        procuradoria= {...}      -> UNICO campo que marca o ente publico
-
-    PJDP nunca e' alvo do wrapper de domicilio eletronico, independente do
-    resultado da notificacao original, entao essas partes saem do filtro.
-
-    Args:
-        client: PjeApiClient ja construido (evita abrir sessao de novo).
-
-    Returns:
-        Set com os nomes (exatamente como vem em `nome`) das partes PJDP.
-        Set vazio em caso de erro ou quando nao ha PJDP.
-    """
+    """Nomes das partes do PASSIVO que sao PJDP, segundo a API de partes."""
     try:
         if client is None:
             from Fix.variaveis import PjeApiClient, session_from_driver as _sfp
@@ -387,25 +282,7 @@ def _pjdp_do_passivo_api(id_processo: str, driver: Any, client: Any = None) -> s
 
 
 def _partes_com_advogado_api(id_processo: str, driver: Any, client: Any = None) -> set:
-    """Nomes das partes do PASSIVO que TEM advogado/representante, segundo /partes.
-
-    Mesmo criterio da formacao do prep.js (Script/calc/BASE/hcalc-prep.js,
-    `_shapePartes` + `_buildAdvogadoPartesMap`): uma parte "tem advogado" quando
-    `representantes` vem preenchido. O x.py usa exatamente o mesmo teste
-    (`bool(pt.get("representantes"))`).
-
-    Parte COM advogado ja e' intimada pelo advogado no PJe; nao precisa de
-    nova PEC por correio nem de novo lembrete. So a parte SEM advogado e'
-    alvo do fluxo DOM.
-
-    Args:
-        client: PjeApiClient ja construido (reaproveita a sessao quando o
-            chamador ja tem um — evita abrir sessao duas vezes).
-
-    Returns:
-        Set com os nomes (exatamente como vem em `nome`) das partes COM
-        advogado. Set vazio em caso de erro ou quando ninguem tem advogado.
-    """
+    """Nomes das partes do PASSIVO que TEM advogado/representante, segundo /partes."""
     try:
         if client is None:
             from Fix.variaveis import PjeApiClient, session_from_driver as _sfp
@@ -440,47 +317,12 @@ def _partes_com_advogado_api(id_processo: str, driver: Any, client: Any = None) 
 
 
 def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, Any]]:
-    """Busca as empresas com expedientes DOM abertos via API, com o id da notificacao.
-
-    Substitui checar_empresas(driver) para evitar abertura de modal.
-
-    O filtro e' o mesmo que a versao anterior aplicava, com um acrescimo:
-        meioExpedienteEnum == DOMICILIO_ELETRONICO
-        E (cienciaViaSistema OU dataCiencia is None)
-        E a parte NAO esta entre as PJDP do polo passivo
-
-    PJDP = parte do PASSIVO com `procuradoria` preenchida em /partes
-    (ver _pjdp_do_passivo_api). Nunca e' alvo do wrapper de domicilio
-    eletronico, independente do resultado da notificacao original.
-
-    A unica diferenca e' a chamada extra para obter o id da notificacao:
-        GET /processos/id/{id}/documentos/id/{idDocumento}
-        -> idUnicoDocumento  (ex.: "c3a4c57", o mesmo de #doc_c3a4c57)
-
-    O id NAO vem em /expedientes (confirmado por probe em 30/10/2026), por isso
-    a segunda chamada. Neste fluxo ha no maximo uma notificacao em domicilio por
-    parte, entao o par expediente->documento e' 1:1.
-
-    Returns:
-        Lista de dicts {empresa, id_unico_documento, id_documento, ...},
-        um por expediente aprovado pelo filtro. Vazia se nao houver nenhum.
-
-        A lista carrega em `.pjdp_detectado` os nomes das PJDP que foram
-        descartadas do fluxo (lista vazia quando nao ha PJDP). Quem precisa
-        marcar o comentario como "DOM com PJDP detectado" le por ali, sem
-        precisar chamar _pjdp_do_passivo_api de novo.
-
-        Carrega tambem em `.alvos_com_advogado` os nomes dos alvos REMOVIDOS
-        por ja terem advogado/representante. Quem executa a PEC resolve a
-        selecao de destinatarios a partir da API e reaplicaria o mesmo filtro;
-        esse campo permite que a PEC receba os alvos ja filtrados.
-    """
+    """Busca as empresas com expedientes DOM abertos via API, com o id da notificacao."""
     saida: ListaDestinatariosDOM = ListaDestinatariosDOM()
     from Fix.variaveis import PjeApiClient, session_from_driver as _sfp
     _sess, _base = _sfp(driver)
     _client = PjeApiClient(_sess, _base)
 
-    # PJDP detectadas ficam registradas na propria lista de saida.
     def _marcar_pjdp(nomes: Any) -> None:
         saida.pjdp_detectado = list(nomes or [])  # type: ignore[attr-defined]
 
@@ -490,7 +332,6 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
     if not expedientes:
         return saida
 
-    # PJDP do polo passivo (parte com `procuradoria` na API). Uma chamada so.
     pjdp = _pjdp_do_passivo_api(id_processo, driver, client=_client)
     _marcar_pjdp(pjdp)
     if pjdp:
@@ -499,8 +340,6 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
             ', '.join(sorted(pjdp)),
         )
 
-    # Partes COM advogado (mesmo criterio do prep.js: `representantes` cheio).
-    # Parte com advogado ja e' intimada pelo advogado — nao entra no fluxo.
     com_advogado = _partes_com_advogado_api(id_processo, driver, client=_client)
 
     import unicodedata
@@ -525,23 +364,15 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
 
     expedientes_candidatos: Dict[str, List[Dict[str, Any]]] = {}
     for exp in expedientes:
-        # só processa Domicílio Eletrônico
         if (exp.get('meioExpedienteEnum') or '').upper() != 'DOMICILIO_ELETRONICO':
             continue
         nome = (exp.get('nomePessoaParte') or '').strip()
         if not nome:
             continue
-        # incluir se: ciência automática (sistema) OU sem dataCiencia (prazo expirado)
         ciencia_sistema = exp.get('cienciaViaSistema', False)
         data_ciencia = exp.get('dataCiencia')
         if not (ciencia_sistema or data_ciencia is None):
             continue
-        # PJDP nunca e' alvo do lembrete + PEC, independente do resultado da
-        # notificacao original. Ela SEMPRE e' notificada via domicilio
-        # eletronico no PJe (nao existe outro meio para PJDP), mas nao pode
-        # disparar o fluxo por si so: se nenhuma outra parte filtrada sobrar,
-        # o fluxo nao ocorre. Se sobrar, ele roda normalmente para as outras —
-        # e o comentario aponta a PJDP detectada.
         nome_norm = _normalizar(nome)
         if nome in pjdp or nome_norm in pjdp_norm:
             logger.info(
@@ -549,10 +380,6 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
                 nome,
             )
             continue
-        # Parte COM advogado nao precisa de nova notificacao por correio nem de
-        # novo lembrete: ja e' intimada pelo proprio advogado no PJe. Ela sai do
-        # filtro (e, por consequencia, do lembrete e dos destinatarios da PEC).
-        # O fluxo so segue se sobrar ao menos um alvo SEM advogado.
         if nome in com_advogado or nome_norm in com_adv_norm:
             logger.info(
                 '[DOMICILIO_ELETRONICO] parte "%s" TEM advogado - fora do alvo do wrapper, ignorando',
@@ -577,14 +404,12 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
         tit_norm = _normalizar(doc.get('titulo') or '')
         tipo_exp_norm = _normalizar(exp_item.get('tipoExpediente') or '')
 
-        # Prioridade máxima para Notificação (específica da citação inicial)
         # Evita registrar o ID genérico de Intimação/Despacho compartilhado
         if 'notific' in tit_norm or 'notific' in tipo_exp_norm:
             score_tipo = 300
         elif 'citac' in tit_norm or 'citac' in tipo_exp_norm:
             score_tipo = 200
         elif 'intimac' in tit_norm or 'intimac' in tipo_exp_norm:
-            # Intimação genérica compartilhada tem prioridade baixa
             score_tipo = 50
         else:
             score_tipo = 100
@@ -599,9 +424,6 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
 
         return (score_tipo, score_uid, id_exp_num)
 
-    # Registra os alvos que seriam candidatos DOM mas foram removidos por terem
-    # advogado (o loop acima ja' aplicou o filtro). Serve para o chamador logar
-    # e, se precisar, montar a lista de destinatarios da PEC.
     saida.alvos_com_advogado = sorted(com_advogado)
     logger.info(
         '[DOMICILIO_ELETRONICO] alvos com advogado (fora do fluxo): %s',
@@ -642,15 +464,7 @@ def _checar_empresas_e_ids_api(id_processo: str, driver: Any) -> List[Dict[str, 
 
 
 def _montar_conteudo_lembrete_dom(destinatarios: Any) -> str:
-    """Monta o conteudo do lembrete DomElet (uma linha, max 200 chars no PJe).
-
-    Exemplo:
-        Citação - renovei via correios: SP MARKET - 8201597, BANCO CSF - 030869f
-
-    A frase estável "renovei via correios" é a assinatura usada na detecção de
-    idempotência (_verificar_lembrete_presente): bate contra o lembrete padrão
-    do PJe (título variável "NOT. ID <hash>", conteúdo "... Renovei via Correios.").
-    """
+    """Monta o conteudo do lembrete DomElet (uma linha, max 200 chars no PJe)."""
     cabecalho = "Citação - renovei via correios: "
     partes: List[str] = []
 
@@ -680,36 +494,12 @@ def _montar_conteudo_lembrete_dom(destinatarios: Any) -> str:
 
 
 def _montar_conteudo_gigs_dom(destinatarios: Any) -> str:
-    """Monta o texto da GIGS sem prazo do domicilio eletronico.
-
-    Substitui o par lembrete DomicEletr + comentario que era criado antes da
-    PEC. Uma unica GIGS sem prazo registra que a citacao sera renovada por
-    correio, listando empresa e o id da notificacao em cada linha.
-
-    Formato (pedido em 30/10/2026):
-        Domicilio eletronico - citacao renovada por correio para:
-        - Empresa 1 (id c3a4c57)
-        - Empresa 2 (id 14f9166)
-
-    O id e' o `idUnicoDocumento` do documento do expediente — o mesmo que a
-    timeline usa no seletor `#doc_<id>`. Nao confundir com:
-        idDocumento            -> id numerico do documento (495200526)
-        idDestinatario...Dom   -> id do destinatario (2534639)
-
-    Args:
-        destinatarios: lista de dicts de `_checar_empresas_e_ids_api`, ou
-            uma string com nomes separados por virgula. Aceita os dois.
-
-    Returns:
-        Texto pronto para criar_gigs(driver, "", "", conteudo).
-    """
+    """Monta o texto da GIGS sem prazo do domicilio eletronico."""
     cabecalho = "Domicilio eletronico - citacao renovada por correio para:"
 
-    # Normaliza a entrada para uma lista de pares (empresa, id_notificacao).
     pares: List[tuple] = []
 
     if isinstance(destinatarios, str):
-        # formato antigo: "EMPRESA A, EMPRESA B" — sem id
         for bruto in (destinatarios or "").split(","):
             nome = bruto.strip()
             if nome:
@@ -725,11 +515,8 @@ def _montar_conteudo_gigs_dom(destinatarios: Any) -> str:
             pares.append((nome, id_notif))
 
     if not pares:
-        # Sem destinatario identificado: registra mesmo assim, sem lista vazia.
         return f"{cabecalho} (destinatario nao identificado via API)"
 
-    # Deduplica por (empresa, id). Um mesmo destinatario pode aparecer em mais
-    # de uma parte do mesmo expediente; o par repetido e' o que importa.
     vistos = set()
     linhas = [cabecalho]
     for nome, id_notif in pares:
@@ -740,22 +527,13 @@ def _montar_conteudo_gigs_dom(destinatarios: Any) -> str:
         if id_notif:
             linhas.append(f"- {nome} (id {id_notif})")
         else:
-            # sem id: registra sem inventar, para nao mascarar falha de API
             linhas.append(f"- {nome} (id nao identificado)")
 
     return "\n".join(linhas)
 
 
 def _tem_ata_audiencia(id_processo: str, driver: Any) -> bool:
-    """Verifica se ha Ata de Audiencia na timeline do processo via API.
-
-    Args:
-        id_processo: ID interno do processo (string numerica).
-        driver: Instancia para extrair sessao.
-
-    Returns:
-        True se encontrou item de ata de audiencia na timeline.
-    """
+    """Verifica se ha Ata de Audiencia na timeline do processo via API."""
     import unicodedata
 
     def _norm(s: str) -> str:
@@ -780,23 +558,7 @@ def _tem_ata_audiencia(id_processo: str, driver: Any) -> bool:
 
 
 def _data_audiencia_api(id_processo: str, driver: Any) -> Optional[str]:
-    """Data (ISO) da proxima audiencia do processo, pela API do PJe.
-
-    A API e a fonte decisiva: o `processo_info` do fluxo DOM carrega apenas
-    id/numeroProcesso, e o cabecalho da tela pode nao estar renderizado no
-    momento da leitura.
-
-    Endpoint (api/apis.md 26.1, o mesmo do maisPJE `obterAudienciaMarcada`):
-        GET /pje-comum-api/api/processos/id/{idProcesso}/audiencias
-    Primeira audiencia da lista, campo `dataInicio`.
-
-    Args:
-        id_processo: ID interno do processo (string numerica).
-        driver: Instancia para extrair sessao.
-
-    Returns:
-        String ISO (ex.: '2026-11-03T09:00:00') ou None sem audiencia.
-    """
+    """Data (ISO) da proxima audiencia do processo, pela API do PJe."""
     if not id_processo:
         return None
     try:
@@ -812,31 +574,11 @@ def _data_audiencia_api(id_processo: str, driver: Any) -> Optional[str]:
 
 
 def _resolver_dia_audiencia(driver: Any, processo_info: Optional[Dict] = None) -> Optional[int]:
-    """Dia da semana da audiencia (0=segunda ... 6=domingo), ou None.
-
-    O fluxo DOM decide o modelo do PEC pelo dia da audiencia — mesma regra da
-    triagem (seg/ter/sex -> AR-Ordv/AR-Sumv; qua/qui -> AR-Or/AR-Su):
-
-      1. `processo_info`: a lista inicial do DOM
-         (`buscar_processos_conhecimento_dom`) ja traz `dataProximaAudiencia`,
-         entao este caminho cobre o caso normal sem chamada extra.
-      2. `<dd>`/`dt#audiencias` da pagina (via _dia_semana_audiencia).
-      3. API de audiencias (`dataProximaAudiencia` do processo) — decisiva,
-         usada quando a lista veio do cache do dia ou sem a data.
-
-    Args:
-        driver: Instancia na aba de detalhes do processo.
-        processo_info: Dict do processo.
-
-    Returns:
-        Inteiro 0..6 ou None quando a data nao pode ser determinada.
-    """
-    # 1 + 2: processo_info (lista inicial) e depois o DOM da pagina
+    """Dia da semana da audiencia (0=segunda ... 6=domingo), ou None."""
     dia = _dia_semana_audiencia(driver, processo_info)
     if dia is not None:
         return dia
 
-    # 3: API de audiencias
     id_processo = str((processo_info or {}).get('id') or '')
     if not id_processo:
         try:
@@ -862,16 +604,8 @@ def _resolver_dia_audiencia(driver: Any, processo_info: Optional[Dict] = None) -
     return None
 
 
-
 def is_processo_100_digital(driver: Any) -> bool:
-    """Verifica se o processo e 100% digital baseado na presenca da logo no cabecalho.
-
-    Args:
-        driver: Instancia do navegador.
-
-    Returns:
-        True se o processo possui a logo do juizo 100% digital.
-    """
+    """Verifica se o processo e 100% digital baseado na presenca da logo no cabecalho."""
     try:
         logo_juizo = espera.elementos(
             driver, 'img.logo_juizo[alt="Juizo 100% Digital"]', teto=1
@@ -881,21 +615,8 @@ def is_processo_100_digital(driver: Any) -> bool:
         return False
 
 
-# =============================================================================
-# Callbacks
-# =============================================================================
-
-
 def callback_bucket1(driver: Any, tipo: str = "desconhecido") -> bool:
-    """Callback para bucket 1 (sem audiencia): remove chips domicilio eletronico.
-
-    Args:
-        driver: Instancia na aba de detalhes do processo.
-        tipo: Tipo do processo (para log).
-
-    Returns:
-        True se a operacao foi bem-sucedida.
-    """
+    """Callback para bucket 1 (sem audiencia): remove chips domicilio eletronico."""
     numero = getattr(driver, "_numero_processo_lista", "desconhecido")
     logger.info("[DOMICILIO_ELETRONICO][B1][CALLBACK] Executando acoes para %s", numero)
 
@@ -921,28 +642,13 @@ def callback_bucket2(
     tipo_processo: str = "desconhecido",
     processo_info: Optional[Dict] = None,
 ) -> bool:
-    """Callback para bucket 2 (com audiencia): acoes completas DOM.
-
-    Fluxo:
-      1. Remove chips de ciencia expirado e resposta excedido
-      2. Verifica lembrete Dom Eletronico
-         - Se nao existe: checa empresas/notificações via API, cria comentário Bianca e lembrete DomElet, apaga chips
-      3. Executa PEC conforme tipo e dia da audiência
-
-    Args:
-        driver: Instancia na aba de detalhes do processo.
-        tipo_processo: String com tipo do processo (ATOrd, ATSum, ACum).
-
-    Returns:
-        True se o PEC foi criado com sucesso.
-    """
+    """Callback para bucket 2 (com audiencia): acoes completas DOM."""
     numero = getattr(driver, "_numero_processo_lista", "desconhecido")
 
     logger.info(
         "[DOMICILIO_ELETRONICO][B2][CALLBACK] Executando acoes para %s (%s)", numero, tipo_processo
     )
 
-    # Extrair ID do processo da URL (necessario para _checar_empresas_e_ids_api)
     id_processo = None
     try:
         url_atual = getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")
@@ -957,7 +663,6 @@ def callback_bucket2(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Nao foi possivel extrair id_processo da URL para %s", numero
         )
 
-    # 1. Checar empresas com expedientes pendentes de domicilio eletronico
     destinatarios_dom = _checar_empresas_e_ids_api(id_processo, driver) if id_processo else []
     pjdp = list(getattr(destinatarios_dom, 'pjdp_detectado', []) or [])
     com_advogado = list(getattr(destinatarios_dom, 'alvos_com_advogado', []) or [])
@@ -971,8 +676,6 @@ def callback_bucket2(
         ) or "-",
     )
 
-    # Se a única reclamada com domicílio é PJDP (ou nenhuma empresa sobrou no filtro):
-    # PJDP não é alvo do wrapper (AR/correio); se ela é a única, pula o processo (não faz nada).
     if not destinatarios_dom:
         motivo = "pulando processo (nenhuma acao / nao executa wrapper)"
         if com_advogado and not pjdp:
@@ -1001,10 +704,6 @@ def callback_bucket2(
             )
         return True
 
-    # 2. APAGAR CHIPS DE DOMICILIO — PRIMEIRO, antes de comentario/lembrete/PEC.
-    #    O def_chip e a acao mais sensivel a tela limpa (os chips ficam no
-    #    cabecalho e podem ser atropelados por modais de comentario/post-it).
-    #    Feito uma unica vez aqui, nao se repete nos ramos abaixo.
     chips_ciencia_resposta = [
         "Domicilio Eletronico - Ciencia Automatica",
         "Domicilio Eletronico - Prazo de Ciencia Expirado",
@@ -1021,7 +720,6 @@ def callback_bucket2(
     )
     logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] def_chip result: %s", result_def_chip)
 
-    # Verificar acesso negado apos def_chip
     try:
         _verificar_acesso_negado(driver, f"DOM_{numero}_def_chip")
     except Exception as e:
@@ -1038,11 +736,7 @@ def callback_bucket2(
                 e,
             )
 
-    # 3. Comentario Bianca — marca "DOM" ou "DOM com PJDP detectado".
     #    A deteccao do lembrete so roda DEPOIS que o comentario termina (ordem
-    #    chips -> comentario -> deteccao -> cria lembrete -> PEC). Roda-la antes
-    #    fazia a leitura do painel de post-its acontecer junto com o proprio
-    #    comentario e a deteccao nao enxergava o lembrete existente.
     observacao_dom = 'DOM com PJDP detectado' if pjdp else 'DOM'
     logger.info(
         "[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando comentario: %r",
@@ -1059,12 +753,11 @@ def callback_bucket2(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Erro ao criar comentario: %s", e
         )
 
-    # 4. Deteccao do lembrete Dom Eletronico — depois do comentario
     logger.info(
         "[DOMICILIO_ELETRONICO][B2][CALLBACK] Verificando lembrete Dom Eletronico (apos comentario)..."
     )
     lembrete_existe = has_dom_eletronico_reminder(driver)
-    executar_pec = False  # Flag para determinar se PEC deve ser executada
+    executar_pec = False
 
     logger.info(
         "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete_existe=%s",
@@ -1072,10 +765,8 @@ def callback_bucket2(
     )
 
     if lembrete_existe:
-        # Lembrete existe - extrair conteúdo
         conteudo = _extrair_conteudo_lembrete_dom(driver)
 
-        # Log adicional para debug: listar títulos encontrados (quando existir)
         try:
             titles = espera.elementos(driver, "mat-panel-title.post-it-titulo", teto=2)
             titulos_texto = [(getattr(t, "text", "") or "").strip() for t in titles if (getattr(t, "text", "") or "").strip()]
@@ -1091,7 +782,6 @@ def callback_bucket2(
             conteudo,
         )
 
-        # Normalização para aceitar variações
         def _norm_text(s: str) -> str:
             try:
                 import unicodedata
@@ -1107,15 +797,12 @@ def callback_bucket2(
         contem_via_correio = ("via" in conteudo_norm and contem_correio) or ("correio enviado" in conteudo_norm)
 
         if conteudo and (contem_via_correio or (contem_correio and contem_enviado)):
-            # Sub-case 2a: Via correio já registrado — NAO cria lembrete, NAO executa PEC
-            # (chips ja foram apagados no passo 2)
             logger.info(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] Conteudo indica correio (norm=%r) - SEM lembrete novo, SEM PEC",
                 conteudo_norm,
             )
             executar_pec = False
         else:
-            # Sub-case: Lembrete existe mas não indica correio/enviado
             logger.warning(
                 "[DOMICILIO_ELETRONICO][B2][CALLBACK] Lembrete existe mas NAO indica correio enviado. contem_correio=%s contem_enviado=%s via_correio=%s. Pule (sem PEC). conteudo_norm=%r",
                 contem_correio,
@@ -1125,14 +812,11 @@ def callback_bucket2(
             )
             executar_pec = False
     else:
-        # Sub-case 2b: Sem lembrete - cria lembrete e executa PEC
-        # (chips ja foram apagados no passo 2)
         logger.info(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Sem lembrete Dom Eletronico"
             " - criando lembrete + PEC"
         )
 
-        # Lembrete Post-it (DomElet) com formato: Citação - renovei via correios: (Empresa - idNotificacao)
         titulo_dom = "DomElet"
         conteudo_dom = _montar_conteudo_lembrete_dom(destinatarios_dom)
         logger.info(
@@ -1156,10 +840,8 @@ def callback_bucket2(
                 e,
             )
 
-        # Executar PEC
         executar_pec = True
-        
-        # Verificar acesso negado apos criacao do lembrete
+
         try:
             _verificar_acesso_negado(driver, f"DOM_{numero}_lembrete")
         except Exception as e:
@@ -1176,7 +858,6 @@ def callback_bucket2(
                     e,
                 )
 
-    # 5. Executar PEC AR (apenas se flag executar_pec = True)
     if not executar_pec:
         logger.info(
             "[DOMICILIO_ELETRONICO][B2][CALLBACK] Pulando PEC (lembrete com via correio ou nenhuma acao necessaria)"
@@ -1211,14 +892,12 @@ def callback_bucket2(
             logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Criando PEC AR Ordinaria padrao (pec_arord -> AR-Or) [dia=%s]", dia_desc)
             pec_wrapper = pec_arord
 
-    # Verificar abas antes da PEC
     abas_antes = len(_obter_abas(driver))
     logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Abas antes da PEC: %s", abas_antes)
 
     result_pec = pec_wrapper(driver, debug=True)
     logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] PEC result: %s", result_pec)
 
-    # Verificar acesso negado apos execucao da PEC
     try:
         _verificar_acesso_negado(driver, f"DOM_{numero}_pec")
     except Exception as e:
@@ -1235,7 +914,6 @@ def callback_bucket2(
                 e,
             )
 
-    # Verificar abas depois da PEC
     abas_depois = len(_obter_abas(driver))
     logger.info("[DOMICILIO_ELETRONICO][B2][CALLBACK] Abas depois da PEC: %s", abas_depois)
 
@@ -1248,23 +926,10 @@ def callback_bucket2(
     return result_pec
 
 
-# =============================================================================
-# Filtro de chips DOM (helper)
-# =============================================================================
-
-
 def _filtro_chips_dom(
     driver: Any, chips_alvo: List[str]
 ) -> bool:
-    """Aplica filtro de chips para domicilio eletronico no painel global.
-
-    Args:
-        driver: Instancia do navegador.
-        chips_alvo: Lista de strings para filtrar (ex: 'domicilio eletronico expirado').
-
-    Returns:
-        True se ao menos um chip foi selecionado com sucesso.
-    """
+    """Aplica filtro de chips para domicilio eletronico no painel global."""
     logger.info("[DOMICILIO_ELETRONICO] Aplicando filtro de chips: %s", chips_alvo)
 
     chips_mapeamento = {
@@ -1283,7 +948,6 @@ def _filtro_chips_dom(
         chips_mapeamento.get(chip, chip) for chip in chips_alvo
     ]
 
-    # Encontrar seletor de chips
     chips_element = espera.elemento(driver, "//span[contains(text(), 'Chips')]", teto=2)
     if not chips_element:
         chips_element = espera.elemento(driver, "span.ng-tns-c82-22.ng-star-inserted", teto=2)
@@ -1292,11 +956,9 @@ def _filtro_chips_dom(
         logger.error("[DOMICILIO_ELETRONICO] Elemento chips nao encontrado")
         return False
 
-    # Clicar para abrir dropdown
     _executar_js(driver, "arguments[0].click();", chips_element)
     espera.assentar(driver, 1)
 
-    # Aguardar painel
     painel_selector = (
         ".mat-select-panel-wrap.ng-trigger-transformPanelWrap"
     )
@@ -1322,7 +984,6 @@ def _filtro_chips_dom(
             except Exception:
                 continue
 
-    # Aplicar filtro
     botao_filtrar = espera.elemento(
         driver, 'button[aria-label="Filtrar"]', teto=5
     )
@@ -1334,28 +995,9 @@ def _filtro_chips_dom(
     return len(chips_selecionados) > 0
 
 
-# =============================================================================
-# Navegacao e filtros no painel de atividades
-# =============================================================================
-
-
 def navigate_to_activities_and_filter(driver: Any) -> bool:
-    """Navega para o painel de atividades e aplica filtro dom.e.
-
-    Fluxo:
-      1. Navega para URL_ATIVIDADES
-      2. Remove chip "Vencidas" se existir
-      3. Clica icone fa-pen e preenche descricao com "dom.e"
-      4. Aplica filtro 100 itens por pagina
-
-    Args:
-        driver: Instancia do navegador.
-
-    Returns:
-        True se a navegacao e filtros foram bem-sucedidos.
-    """
+    """Navega para o painel de atividades e aplica filtro dom.e."""
     try:
-        # 1. Navegar para painel de atividades
         if hasattr(driver, "get"):
             driver.get(URL_ATIVIDADES)
         elif hasattr(driver, "page") and hasattr(driver.page, "goto"):
@@ -1363,7 +1005,6 @@ def navigate_to_activities_and_filter(driver: Any) -> bool:
         espera.ate_url(driver, "atividades", teto=10)
         logger.info("[DOMICILIO_ELETRONICO] Navegado para painel de atividades")
 
-        # 2. Remover chip "Vencidas" se existir
         try:
             chips = espera.elementos(driver, "mat-chip", teto=3)
             removido = False
@@ -1398,7 +1039,6 @@ def navigate_to_activities_and_filter(driver: Any) -> bool:
                 "[DOMICILIO_ELETRONICO] Erro ao verificar/remover chip Vencidas: %s", e
             )
 
-        # 3. Aplicar filtro dom.e
         btn_fa_pen = esperar_elemento(driver, "i.fa-pen", timeout=10)
         if btn_fa_pen:
             safe_click(driver, btn_fa_pen)
@@ -1418,7 +1058,6 @@ def navigate_to_activities_and_filter(driver: Any) -> bool:
                 driver, "tr.cdk-drag", teto=10
             )
 
-        # 4. Aplicar filtro 100
         aplicar_filtro_100(driver)
         logger.info("[DOMICILIO_ELETRONICO] Filtro 100 aplicado")
         espera.ate_aparecer(
@@ -1434,35 +1073,16 @@ def navigate_to_activities_and_filter(driver: Any) -> bool:
     return True
 
 
-# =============================================================================
-# Processamento de processo individual
-# =============================================================================
-
-
 def processar_processo_dom(
     driver: Any,
     proc_id: str,
     linha: Any,
     aba_lista_original: str,
 ) -> bool:
-    """Processa um unico processo DOM com recuperacao de acesso negado.
-
-    Args:
-        driver: Instancia do navegador.
-        proc_id: ID do processo.
-        linha: Elemento da linha na tabela.
-        aba_lista_original: Handle da aba da lista.
-
-    Returns:
-        True se processado com sucesso.
-
-    Raises:
-        Exception: Com prefixo RESTART_DRIVER se o driver precisa ser reiniciado.
-    """
+    """Processa um unico processo DOM com recuperacao de acesso negado."""
     try:
         logger.info("[DOMICILIO_ELETRONICO] Processando processo: %s", proc_id)
 
-        # Reindexar linha se necessario (cuidar de erros de conexao)
         try:
             is_vis = getattr(linha, "is_displayed", None)
             if is_vis is not None and not is_vis():
@@ -1491,7 +1111,6 @@ def processar_processo_dom(
                 )
                 return False
 
-        # Abrir detalhes do processo
         try:
             if not abrir_detalhes_processo(driver, linha_atual):
                 logger.error(
@@ -1513,7 +1132,6 @@ def processar_processo_dom(
                 )
             return False
 
-        # Aguardar nova aba e trocar para ela
         try:
             nova_aba = trocar_para_nova_aba(driver, aba_lista_original)
         except Exception as e_tab:
@@ -1539,7 +1157,6 @@ def processar_processo_dom(
             )
             return False
 
-        # 0. Remover chips DOM Eletronico antes de qualquer verificacao
         _chips_dom_pre = [
             "Domicilio Eletronico - Ciencia Automatica",
             "Domicilio Eletronico - Prazo de Ciencia Expirado",
@@ -1557,7 +1174,6 @@ def processar_processo_dom(
         except Exception as _e_chip_pre:
             logger.warning("[DOMICILIO_ELETRONICO] Erro ao remover chips pre-fluxo: %s", _e_chip_pre)
 
-        # Verificar ata de audiencia na timeline antes de processar
         url_det = getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")
         _m_pid = re.search(r'/processo/(\d+)/', url_det)
         if _m_pid and _tem_ata_audiencia(_m_pid.group(1), driver):
@@ -1567,8 +1183,7 @@ def processar_processo_dom(
             )
             return True
 
-        # Extrair tipo do processo da aba de detalhes (mais confiavel)
-        tipo_processo = "ATOrd"  # padrao
+        tipo_processo = "ATOrd"
         try:
             espera.ate_aparecer(
                 driver, "pje-cabecalho-processo", teto=10
@@ -1618,7 +1233,6 @@ def processar_processo_dom(
             )
             tipo_processo = "ATOrd"
 
-        # Executar callback do bucket 2
         try:
             driver._numero_processo_lista = proc_id
             result = callback_bucket2(
@@ -1633,7 +1247,6 @@ def processar_processo_dom(
                 )
                 return False
         except Exception as e:
-            # Se e RESTART_DRIVER, propagar para recuperacao
             if "RESTART_DRIVER" in str(e):
                 logger.warning(
                     "[DOMICILIO_ELETRONICO] Acesso negado detectado no callback"
@@ -1641,7 +1254,6 @@ def processar_processo_dom(
                     proc_id,
                 )
                 raise
-            # Outras excecoes sao erros do callback
             logger.error(
                 "[DOMICILIO_ELETRONICO] Erro no callback para %s: %s", proc_id, e
             )
@@ -1663,26 +1275,14 @@ def processar_processo_dom(
             raise Exception(f"RESTART_DRIVER: {msg}")
         return False
     finally:
-        # Gerenciar abas apos processamento
         _gerenciar_abas_apos_processo_dom(driver, aba_lista_original)
 
 
 def _gerenciar_abas_apos_processo_dom(
     driver: Any, aba_lista_original: str
 ) -> None:
-    """Gerencia abas apos processamento de um processo no DOM.
-
-    Fecha todas as abas exceto a da lista original.
-
-    Args:
-        driver: Instancia do navegador.
-        aba_lista_original: Handle da aba da lista.
-
-    Raises:
-        Exception: Com prefixo RESTART_DRIVER se o driver estiver desconectado.
-    """
+    """Gerencia abas apos processamento de um processo no DOM."""
     try:
-        # Verificar handles validos
         try:
             handles = _obter_abas(driver)
         except Exception as e:
@@ -1720,7 +1320,6 @@ def _gerenciar_abas_apos_processo_dom(
                     raise Exception(f"RESTART_DRIVER: {msg}")
                 continue
 
-        # Retornar a aba da lista e aguardar estabilizacao do DOM
         try:
             if hasattr(driver, "switch_to"):
                 driver.switch_to.window(aba_lista_original)
@@ -1745,29 +1344,9 @@ def _gerenciar_abas_apos_processo_dom(
         raise
 
 
-# =============================================================================
-# Execucao da lista com callback do bucket 2
-# =============================================================================
-
-
 def execute_list_with_bucket2_callback(driver: Any) -> bool:
-    """Indexa processos e executa callback do bucket 2 em cada um.
-
-    Fluxo:
-      1. Verifica se esta no painel de atividades; se nao, navega
-      2. Indexa todos os processos da lista
-      3. Para cada processo: abre detalhes, executa callback bucket 2,
-         fecha abas extras
-      4. Aplica delay anti-rate entre itens
-
-    Args:
-        driver: Instancia do navegador.
-
-    Returns:
-        True se todos os processos foram processados sem erros.
-    """
+    """Indexa processos e executa callback do bucket 2 em cada um."""
     try:
-        # Verificar se estamos no painel de atividades
         try:
             cur = (getattr(driver, "current_url", "") or getattr(getattr(driver, "page", None), "url", "")).lower()
             if "atividades" in cur:
@@ -1798,7 +1377,6 @@ def execute_list_with_bucket2_callback(driver: Any) -> bool:
                 "[DOMICILIO_ELETRONICO] Erro no pre-check de pagina: %s", e
             )
 
-        # 1. Indexar processos
         processos = indexar_processos(driver)
         if not processos:
             logger.warning(
@@ -1811,7 +1389,6 @@ def execute_list_with_bucket2_callback(driver: Any) -> bool:
             len(processos),
         )
 
-        # 2. Processar cada processo individualmente
         aba_lista_original = getattr(driver, "current_window_handle", None)
         erros = 0
         total = len(processos)
@@ -1843,7 +1420,6 @@ def execute_list_with_bucket2_callback(driver: Any) -> bool:
                     "[DOMICILIO_ELETRONICO] Erro processando %s: %s", proc_id, e
                 )
 
-            # Delay anti-rate entre itens
             espera.assentar(driver, 1.25)
 
         sucesso = total - erros
@@ -1863,10 +1439,6 @@ def execute_list_with_bucket2_callback(driver: Any) -> bool:
         return False
 
 
-# =============================================================================
-# Entrypoint principal
-# =============================================================================
-
 _PROGRESSO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "progresso.json")
 
 
@@ -1879,13 +1451,7 @@ def _carregar_progresso() -> Dict[str, Any]:
 
 
 def _salvar_progresso(dados: Dict[str, Any]) -> None:
-    """Grava o progresso.
-
-    O arquivo e compartilhado com o monitoramento unificado (pec/mandado/p2b/
-    triagem), que faz leitura-modificacao-escrita do JSON inteiro. Como o DOM
-    grava sob a chave 'dom', reler o arquivo imediatamente antes de escrever
-    evita apagar o que outro fluxo tiver gravado no intervalo.
-    """
+    """Grava o progresso."""
     try:
         atual = _carregar_progresso()
         if isinstance(atual, dict):
@@ -1909,8 +1475,6 @@ def _cache_dom_salvar_lista(processos: List[Dict[str, Any]]) -> None:
             {
                 "id": str(p.get("id", "")),
                 "numero": p.get("numeroProcesso") or p.get("numero") or "",
-                # Necessario para escolher o PEC pelo dia da audiencia ao
-                # retomar a partir do cache
                 "dataProximaAudiencia": p.get("dataProximaAudiencia"),
             }
             for p in processos
@@ -1961,29 +1525,10 @@ def _cache_dom_marcar(numero: str, sucesso: bool) -> None:
 
 
 def run_dom(driver: Any) -> Dict[str, Any]:
-    """Entrypoint principal para processamento do fluxo Dom Eletronico.
-
-    Fluxo completo:
-      1. Navega para URL_LISTA_DOM
-      2. Aplica filtro de fase processual (conhecimento)
-      3. Navega para painel de atividades e aplica filtro dom.e
-      4. Indexa processos e processa cada um com callback do bucket 2
-
-    Args:
-        driver: Instancia do navegador (ja autenticado no PJe).
-
-    Returns:
-        Dict com chave ``"sucesso"`` (bool) e opcionalmente ``"erro"`` (str).
-
-    Example:
-        >>> resultado = run_dom(driver)
-        >>> resultado["sucesso"]
-        True
-    """
+    """Entrypoint principal para processamento do fluxo Dom Eletronico."""
     logger.info("[DOMICILIO_ELETRONICO] === INICIANDO DOM ENGINE ===")
 
     try:
-        # 1. Navegar para lista de processos DOM
         logger.info("[DOMICILIO_ELETRONICO] Navegando para lista de processos...")
         if hasattr(driver, "get"):
             driver.get(LIST_URL)
@@ -1994,7 +1539,6 @@ def run_dom(driver: Any) -> Dict[str, Any]:
         )
         logger.info("[DOMICILIO_ELETRONICO] Navegacao concluida")
 
-        # 2. Aplicar filtro de fase: conhecimento
         logger.info("[DOMICILIO_ELETRONICO] Aplicando filtro de fase: conhecimento")
         try:
             filtrofases(driver, fases_alvo=["conhecimento"])
@@ -2008,7 +1552,6 @@ def run_dom(driver: Any) -> Dict[str, Any]:
             driver, "tbody tr.tr-class", teto=10
         )
 
-        # 3. Navegar para painel de atividades e aplicar filtro dom.e
         logger.info(
             "[DOMICILIO_ELETRONICO] Navegando para painel de atividades"
             " e aplicando filtro dom.e..."
@@ -2022,7 +1565,6 @@ def run_dom(driver: Any) -> Dict[str, Any]:
                 "erro": "Falha ao navegar para painel de atividades",
             }
 
-        # 4. Executar lista com callback do bucket 2
         logger.info("[DOMICILIO_ELETRONICO] Executando lista com callback bucket 2...")
         sucesso = execute_list_with_bucket2_callback(driver)
 
@@ -2045,22 +1587,7 @@ def run_dom(driver: Any) -> Dict[str, Any]:
 
 
 def run_dom_api(driver: Any) -> Dict[str, Any]:
-    """Entrypoint DOM via API — usa buscar_processos_conhecimento_dom() como filtro.
-
-    Vantagem sobre run_dom: nao depende de scroll/DOM para indexar processos.
-    A lista ja chega filtrada por chips 274/275/302 + audiencia.
-
-    Fluxo:
-      1. Extrai sessao do driver para PjeApiClient
-      2. buscar_processos_conhecimento_dom() -> lista com id + numeroProcesso
-      3. Para cada processo: navega /processo/{id}/detalhe, extrai tipo, callback_bucket2
-
-    Args:
-        driver: Instancia do navegador (ja autenticado no PJe).
-
-    Returns:
-        Dict com sucesso, processados, total.
-    """
+    """Entrypoint DOM via API — usa buscar_processos_conhecimento_dom() como filtro."""
     from Fix.variaveis import PjeApiClient, session_from_driver
     from bianca.config import URL_PJE_BASE
 
@@ -2081,7 +1608,6 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
             {
                 "id": p["id"],
                 "numeroProcesso": p["numero"],
-                # Preserva a data para decidir o PEC pelo dia da audiencia
                 "dataProximaAudiencia": p.get("dataProximaAudiencia"),
             }
             for p in pendentes
@@ -2098,14 +1624,13 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
         logger.info("[DOMICILIO_ELETRONICO][API] Nenhum processo encontrado pela API")
         return {"sucesso": True, "processados": 0, "total": 0}
 
-    # Filtrar processos com ata de audiencia na timeline (nao entram na lista)
     logger.info("[DOMICILIO_ELETRONICO][API] Filtrando processos com ata de audiencia...")
     sem_ata = []
     for _p in processos:
         _pid = str(_p.get("id", ""))
         _num = _p.get("numeroProcesso") or _p.get("numero") or _pid
         tem_ata = _pid and _tem_ata_audiencia(_pid, driver)
-        _p["temAta"] = tem_ata  # Guardar para uso posterior
+        _p["temAta"] = tem_ata
         if tem_ata:
             logger.info("[DOMICILIO_ELETRONICO][API] Excluido da lista (ata de audiencia): %s", _num)
         else:
@@ -2116,12 +1641,10 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
     )
     processos = sem_ata
 
-    # Enriquecer cada processo com campo temAudiencia (necessário para determinar bucket)
     for proc in processos:
         proc_id = str(proc.get("id", ""))
-        proc["temAudiencia"] = True  # Por padrão True (API retorna processos com chips 274/275/302)
+        proc["temAudiencia"] = True
 
-    # Separar processos por bucket e exibir pré-execução
     bucket1_procs = []
     bucket2_procs = []
     for proc in processos:
@@ -2151,8 +1674,7 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
     handle_principal = getattr(driver, "current_window_handle", None)
     erros = 0
     total = len(processos)
-    
-    # Contadores por bucket
+
     bucket1_processados = 0
     bucket2_processados = 0
     bucket1_erros = 0
@@ -2170,7 +1692,6 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
         logger.info("[DOMICILIO_ELETRONICO][API] %d/%d: %s (id=%s)", idx, total, numero, proc_id)
 
         try:
-            # Fechar abas extras
             for h in _obter_abas(driver):
                 if handle_principal and h != handle_principal:
                     try:
@@ -2183,7 +1704,6 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
             if handle_principal and hasattr(driver, "switch_to"):
                 driver.switch_to.window(handle_principal)
 
-            # Navegar direto para detalhe via id interno
             url = f"{URL_PJE_BASE}/processo/{proc_id}/detalhe"
             if hasattr(driver, "get"):
                 driver.get(url)
@@ -2195,7 +1715,6 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
 
             _verificar_acesso_negado(driver, f"dom_api_{numero}")
 
-            # Extrair tipo do processo a partir do cabecalho renderizado
             tipo_processo = "ATOrd"
             try:
                 tipo_js = _executar_js(
@@ -2228,12 +1747,11 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
                     numero, e_tipo,
                 )
 
-            # Executar callback apropriado baseado em bucket
             tem_audiencia = proc.get("temAudiencia", True)
             tem_ata = proc.get("temAta", False)
             bucket = _determinar_bucket(tem_audiencia, tem_ata)
             driver._numero_processo_lista = numero
-            
+
             if bucket == "bucket1":
                 logger.info("[DOMICILIO_ELETRONICO][API] Roteando para bucket1: %s", numero)
                 ok = callback_bucket1(driver, tipo_processo)
@@ -2269,14 +1787,13 @@ def run_dom_api(driver: Any) -> Dict[str, Any]:
         "[DOMICILIO_ELETRONICO][API] Concluido: %d OK, %d erros (total %d)",
         total - erros, erros, total,
     )
-    
-    # Logging detalhado por bucket
+
     logger.info("[DOMICILIO_ELETRONICO] === RESUMO POR BUCKET ===")
     logger.info("[DOMICILIO_ELETRONICO] Bucket1: %d processados, %d erros", bucket1_processados, bucket1_erros)
     logger.info("[DOMICILIO_ELETRONICO] Bucket2: %d processados, %d erros", bucket2_processados, bucket2_erros)
-    logger.info("[DOMICILIO_ELETRONICO] TOTAL: %d processados, %d erros (total %d)", 
+    logger.info("[DOMICILIO_ELETRONICO] TOTAL: %d processados, %d erros (total %d)",
                 total - erros, erros, total)
-    
+
     return {
         "sucesso": erros == 0,
         "processados": total - erros,

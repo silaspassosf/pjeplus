@@ -1,17 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/preprocess.py -- Pre-processamento de textos extraidos.
-
-Remove artefatos gerados pelo PJe (assinaturas digitais, rodapes de OCR,
-URLs, etc.) e tenta identificar/remover cabecalhos de escritorios
-de advocacia repetidos pagina a pagina.
-
-Funcoes:
-    _remover_artefatos_pje(texto)
-    _aprender_cabecalho(texto_sem_artefatos)
-    _remover_cabecalho_por_pagina(texto, fingerprint)
-    _strip_cabecalho_rodape(texto)
-"""
+"""bianca/triagem/preprocess.py -- Pre-processamento de textos extraidos."""
 
 import logging
 import re

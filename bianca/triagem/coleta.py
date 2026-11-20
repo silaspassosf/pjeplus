@@ -1,17 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/coleta.py -- Coleta de textos do processo via API PJe.
-
-Extrai da peticao inicial, certidao de distribuicao e anexos
-(procuracao, documentos de identidade) usando a API REST do PJe.
-
-Funcoes:
-    _coletar_textos_processo(driver)  Funcao principal de coleta.
-    _extrair_texto_pdf_api(...)       Extrai texto de PDF via API.
-    _parsear_capa(texto)              Extrai campos da certidao de distribuicao.
-    _ocr_via_pymupdf(...)             OCR fallback (lazy import).
-    _garantir_tessdata_por()          Baixa por.traineddata se necessario.
-"""
+"""bianca/triagem/coleta.py -- Coleta de textos do processo via API PJe."""
 
 import io
 import logging
@@ -26,11 +14,6 @@ from Fix.variaveis import obter_texto_documento
 logger = logging.getLogger("bianca.triagem.coleta")
 
 
-# =============================================================================
-# Helpers de URL
-# =============================================================================
-
-
 def _extrair_id_processo_da_url(url: str) -> Optional[str]:
     """Extrai o id numerico do processo da URL atual do PJe."""
     if not url:
@@ -39,20 +22,11 @@ def _extrair_id_processo_da_url(url: str) -> Optional[str]:
     return match.group(1) if match else None
 
 
-# =============================================================================
-# Excecoes customizadas
-# =============================================================================
-
-
 class _ErroAutenticacao401(Exception):
     """401 Unauthorized na API PJe -- sessao expirada, necessario re-auth."""
 
 
-# =============================================================================
-# OCR fallback
-# =============================================================================
-
-_TESSDATA_LOCAL = None  # resolvido em tempo de execucao pelo path do modulo
+_TESSDATA_LOCAL = None
 
 
 def _garantir_tessdata_por():
@@ -84,11 +58,7 @@ def _garantir_tessdata_por():
 def _ocr_via_pymupdf(
     pdf_bytes: bytes, id_doc: str, fallback: str, fracao: float = 0.5
 ) -> str:
-    """Renderiza a fracao superior de cada pagina com PyMuPDF e extrai texto via tesseract.
-
-    Dependencias pesadas (pytesseract, fitz, PIL) importadas lazy dentro da funcao.
-    Tenta aumentar fração se primeira tentativa retornar vazio.
-    """
+    """Renderiza a fracao superior de cada pagina com PyMuPDF e extrai texto via tesseract."""
     try:
         import pathlib as _pl
         import os as _os
@@ -124,11 +94,10 @@ def _ocr_via_pymupdf(
             )
             lang = "osd"
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        
-        # Tentar com fração inicial, depois aumentar se vazio
+
         fracoes_tentativa = [fracao, 1.0] if fracao < 1.0 else [fracao]
         resultado = None
-        
+
         for frac_attempt in fracoes_tentativa:
             textos_ocr = []
             for page in doc:
@@ -154,7 +123,7 @@ def _ocr_via_pymupdf(
                 break
             elif frac_attempt == fracoes_tentativa[0]:
                 logger.debug("OCR com fracao=%s retornou vazio, tentando fracao=1.0", frac_attempt)
-        
+
         return resultado if resultado else fallback
     except ImportError as e:
         logger.error("ERRO em _ocr_via_pymupdf: %s: %s", type(e).__name__, e)
@@ -162,11 +131,6 @@ def _ocr_via_pymupdf(
     except Exception as e:
         logger.error("ERRO em _ocr_via_pymupdf: %s: %s", type(e).__name__, e)
         return fallback
-
-
-# =============================================================================
-# Helpers de coleta de documentos
-# =============================================================================
 
 
 def _eh_certidao_distribuicao_doc(documento: dict) -> bool:
@@ -190,11 +154,6 @@ def _listar_documentos_timeline(timeline: list) -> list:
             if isinstance(anexo, dict):
                 docs.append(anexo)
     return docs
-
-
-# =============================================================================
-# Parse de capa (certidao de distribuicao)
-# =============================================================================
 
 
 def _parsear_capa(texto: str) -> dict:
@@ -246,18 +205,10 @@ def _parsear_capa(texto: str) -> dict:
     return dados
 
 
-# =============================================================================
-# Extracao de texto de PDF via API
-# =============================================================================
-
-
 def _extrair_texto_pdf_api(
     client: "PjeApiClient", id_processo: str, id_doc: str, fracao: float = 0.5
 ) -> str:
-    """Extrai texto de PDF via API, com fallback para OCR se texto nativo insuficiente.
-
-    Dependencia pesada (pdfplumber) importada lazy dentro da funcao.
-    """
+    """Extrai texto de PDF via API, com fallback para OCR se texto nativo insuficiente."""
     LIMIAR = 200
     import time as _t
 
@@ -277,8 +228,6 @@ def _extrair_texto_pdf_api(
             raise _ErroAutenticacao401(f"401 Unauthorized -- doc {id_doc}")
         resp.raise_for_status()
         ctype = resp.headers.get("Content-Type", "").lower()
-        # Aceita PDF tanto por Content-Type quanto por magic bytes (%PDF-)
-        # A API pode retornar application/octet-stream em vez de application/pdf
         is_pdf_by_type  = "pdf" in ctype
         is_pdf_by_magic = resp.content[:5] == b"%PDF-"
         if not is_pdf_by_type and not is_pdf_by_magic:
@@ -327,27 +276,8 @@ def _extrair_texto_pdf_api(
         return ""
 
 
-# =============================================================================
-# Coleta principal
-# =============================================================================
-
-
 def _coletar_textos_processo(driver) -> Dict[str, Any]:
-    """Coleta textos do processo via API PJe para analise de triagem.
-
-    Extrai da peticao inicial, certidao de distribuicao e anexos
-    (procuracao, documentos de identidade) usando a API REST do PJe.
-
-    Returns:
-        Dict com:
-            texto_inicial (str)         -- texto da peticao inicial.
-            texto_capa (str)            -- texto da certidao de distribuicao.
-            capa_dados (dict)           -- dados parseados da capa + partes.
-            anexos (list[dict])         -- anexos relevantes.
-            id_processo (str|None)      -- id do processo.
-            associados_sistema (list)   -- processos associados.
-            erro (str|None)             -- mensagem de erro se houver.
-    """
+    """Coleta textos do processo via API PJe para analise de triagem."""
     logger.debug('_coletar_textos_processo: inicializando...')
     resultado: Dict[str, Any] = {
         'texto_inicial': '',
@@ -373,14 +303,12 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
 
     resultado['id_processo'] = id_processo
 
-    # Buscar partes via API para enriquecer capa_dados
     try:
         partes_raw = client.partes(id_processo) or {}
     except Exception as e:
         logger.warning("partes_api falhou: %s", e)
         partes_raw = {}
 
-    # Buscar timeline
     try:
         timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
     except Exception as e:
@@ -391,7 +319,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         resultado['erro'] = 'timeline vazia ou indisponivel'
         return resultado
 
-    # Localizar peticao inicial
     peticao = None
     for doc in timeline:
         if not isinstance(doc, dict):
@@ -406,14 +333,12 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         resultado['erro'] = 'peticao inicial nao localizada na timeline'
         return resultado
 
-    # Extrair texto da peticao inicial
     id_inicial = str(peticao.get('id') or peticao.get('idUnicoDocumento') or '')
     if not id_inicial:
         resultado['erro'] = 'id do documento da peticao inicial nao disponivel'
         return resultado
 
     try:
-        # Usar funcao robusta que tenta multiplos campos e endpoints
         texto_inicial = obter_texto_documento(client, id_processo, id_inicial) or ''
         if texto_inicial:
             logger.debug('texto_inicial extraido: %s chars via obter_texto_documento', len(texto_inicial))
@@ -423,7 +348,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         logger.warning("obter_texto_documento falhou: %s. Tentando OCR...", e)
         texto_inicial = ''
 
-    # fallback OCR -- se API retornou texto vazio ou apenas carimbos PJe
     texto_util_ini = _remover_artefatos_pje(texto_inicial).strip() if texto_inicial else ''
     if not texto_util_ini and id_inicial:
         logger.info('FALLBACK: Tentando OCR para peticao inicial %s (chars uteis=%d)...', id_inicial, len(texto_util_ini))
@@ -436,7 +360,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         except Exception as e:
             logger.warning('OCR fallback falhou: %s', e)
 
-    # Stripar cabecalho/rodape
     if texto_inicial:
         texto_antes = len(texto_inicial)
         texto_inicial = _strip_cabecalho_rodape(texto_inicial)
@@ -446,7 +369,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             logger.warning('ALERTA: _strip_cabecalho_rodape removeu TODO o conteúdo (tinha %s chars)', texto_antes)
     resultado['texto_inicial'] = texto_inicial
 
-    # Coletar anexos (procuracao, documento identidade)
     documentos_timeline = _listar_documentos_timeline(timeline)
     anexos_raw = peticao.get('anexos') or []
     if not anexos_raw:
@@ -466,14 +388,12 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             texto_anx = ''
             if id_anx:
                 try:
-                    # Usar funcao robusta que tenta multiplos campos e endpoints
                     texto_anx = obter_texto_documento(client, id_processo, id_anx) or ''
                     if texto_anx:
                         logger.debug('anexo %s extraido: %s chars', id_anx, len(texto_anx))
                 except Exception as e:
                     logger.debug('obter_texto_documento para anexo %s falhou: %s', id_anx, e)
-                    
-                # Fallback: PDF + OCR (para procuracao, se texto vazio ou apenas carimbo PJe sem substancia)
+
                 texto_util = _remover_artefatos_pje(texto_anx).strip() if texto_anx else ''
                 if is_proc and (not texto_anx or len(texto_util) < 80):
                     try:
@@ -489,12 +409,11 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                         return resultado
                     except Exception as e:
                         logger.warning('OCR fallback para procuracao falhou: %s', e)
-                
-                # Log final: procuracao com texto vazio
+
                 if is_proc and not texto_anx:
-                    logger.warning('ALERTA_B1: procuracao detectada mas SEM texto extraido (titulo=%s)', 
+                    logger.warning('ALERTA_B1: procuracao detectada mas SEM texto extraido (titulo=%s)',
                                    anx.get('titulo') or anx.get('tipo') or '(sem titulo)')
-            
+
             anexos_extraidos.append({
                 'titulo': anx.get('titulo') or anx.get('tipo') or '',
                 'tipo': anx.get('tipo') or '',
@@ -502,7 +421,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             })
     resultado['anexos'] = anexos_extraidos
 
-    # Certidao de distribuicao
     _data_pi = (peticao.get('data') or '')[:10]
     candidatas_cert = [d for d in documentos_timeline if _eh_certidao_distribuicao_doc(d)]
     certidao = None
@@ -515,11 +433,9 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         id_cert = str(certidao.get('id') or certidao.get('idUnicoDocumento') or '')
         if id_cert:
             try:
-                # Tentar via API primeiro (pode ser HTML/texto)
                 texto_capa = obter_texto_documento(client, id_processo, id_cert) or ''
                 texto_util_capa = _remover_artefatos_pje(texto_capa).strip() if texto_capa else ''
                 if not texto_util_capa:
-                    # Fallback para PDF via OCR
                     logger.debug('certidao: sem texto util, tentando PDF/OCR')
                     texto_capa = _extrair_texto_pdf_api(client, id_processo, id_cert) or ''
                 if texto_capa:
@@ -529,7 +445,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                 return resultado
     resultado['texto_capa'] = texto_capa
 
-    # Processos associados (prevencao)
     try:
         url_assoc = client._url(
             f'/pje-comum-api/api/processos/id/{id_processo}/processosAssociados')
@@ -544,7 +459,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         logger.debug('associados_sistema: falha (%s) - continuando', _e_assoc)
         resultado['associados_sistema'] = []
 
-    # Partes com endereco para enriquecimento
     _partes_endereco: dict = {}
     try:
         url_end = client._url(
@@ -555,7 +469,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
     except Exception as _e_end:
         logger.debug('partes_endereco: falha (%s)', _e_end)
 
-    # Enriquecer capa_dados com certidao + partes
     cd: Dict[str, Any] = _parsear_capa(texto_capa) if texto_capa else {}
     if partes_raw:
         ativos = partes_raw.get('ATIVO') or []
@@ -565,7 +478,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             cd['reclamante_nome'] = ativos[0].get('nome', '').strip()
             if len(doc_ativo) == 11:
                 cd['reclamante_cpf'] = doc_ativo
-            # Municipio/UF do reclamante via partes+endereco
             _ativos_end = (_partes_endereco.get('ATIVO') or [])
             if _ativos_end:
                 _end_obj = _ativos_end[0].get('endereco') or {}
@@ -585,17 +497,9 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             for p in passivos:
                 doc_p = re.sub(r'\D', '', p.get('documento') or '')
                 rec_item = {'nome': p.get('nome', '').strip(), 'cpfcnpj': doc_p}
-                # PJDP = parte do PASSIVO com `procuradoria` preenchida. E' o
-                # mesmo ente que a UI marca com <i class="fa fa-university"> no
-                # card de polo passivo (seletor 'i.procuradoria-direito-publico'
-                # em atos/comunicacao_destinatarios.py).
-                # Confirmado por probe em 30/10/2026 (EMPRESA BRASILEIRA DE
-                # CORREIOS): tipoPessoa="J" tambem vale para PJ privada e
-                # autoridade veio False num PJDP — so `procuradoria` distingue.
                 rec_item['pjdp'] = bool(p.get('procuradoria'))
                 reclamados_lista.append(rec_item)
 
-            # Enriquecer reclamados com CEP/endereco + detectar sem_endereco e dom_elet
             reclamadas_sem_endereco = []
             reclamadas_com_dom_elet = 0
             for _parte in (_partes_endereco.get('PASSIVO') or []):
@@ -640,7 +544,6 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                 elif len(prim['cpfcnpj']) == 11:
                     cd['reclamado_cpf'] = prim['cpfcnpj']
 
-    # juizo_digital e valor_causa via processo_por_id
     try:
         proc_dados = client.processo_por_id(id_processo) or {}
         juizo_digital = proc_dados.get('juizoDigital')

@@ -1,28 +1,17 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/config.py - Constantes e configuracoes do projeto bianca.
-"""
+"""bianca/config.py - Constantes e configuracoes do projeto bianca."""
 
 from pathlib import Path
 
-# =============================================================================
-# Caminhos
-# =============================================================================
 
 GECKODRIVER_PATH = Path(__file__).parent / "drivers" / "geckodriver.exe"
 FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
 
-# =============================================================================
-# Valores financeiros (2026)
-# =============================================================================
 
-SALARIO_MINIMO = 1622.00                         # Salario minimo 2026
-ALCADA = SALARIO_MINIMO * 2                      # R$ 3.244,00
-RITO_SUMARISSIMO_MAX = SALARIO_MINIMO * 40       # R$ 64.880,00
+SALARIO_MINIMO = 1622.00
+ALCADA = SALARIO_MINIMO * 2
+RITO_SUMARISSIMO_MAX = SALARIO_MINIMO * 40
 
-# =============================================================================
-# Intervalos de CEP por zona / foro
-# =============================================================================
 
 ZONA_SUL_CEPS = [
     (4307000, 4314999), (4316000, 4477999), (4603000, 4620999),
@@ -40,7 +29,6 @@ ZONA_LESTE_CEPS = [
 ]
 
 RUI_BARBOSA_CEPS = [
-    # Centro Expandido
     (1001000, 1553999),
     (3001000, 3124999),
     (3149000, 3149999),
@@ -65,13 +53,11 @@ RUI_BARBOSA_CEPS = [
     (5301000, 5338999),
     (5343000, 5348999),
     (5401000, 5477999),
-    # Zona Norte
     (2001000, 2998999),
     (5101000, 5101999),
     (5110000, 5110999),
     (5112000, 5113999),
     (5119000, 5289999),
-    # Zona Oeste
     (5339000, 5340999),
     (5350000, 5399999),
     (5501000, 5639999),
@@ -80,9 +66,6 @@ RUI_BARBOSA_CEPS = [
     (5693000, 5693999),
 ]
 
-# =============================================================================
-# URLs PJe
-# =============================================================================
 
 URL_PJE_BASE = "https://pje.trt2.jus.br/pjekz"
 URL_LISTA_TRIAGEM = f"{URL_PJE_BASE}/painel/global/10/lista-processos"

@@ -1,15 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/acoes.py -- Acoes pos-triagem.
-
-Contem:
-  - Constantes de regex para deteccao de buckets
-  - Funcoes de deteccao de alertas (estilo LEG -- mais robusto)
-  - Funcoes de acao pos-triagem por bucket (A/B/C/D)
-  - Helpers de navegacao (_abrir_nova_aba, _marcar_aud)
-
-Extraido de triagem_engine.py (linhas 1884-2179).
-"""
+"""bianca/triagem/acoes.py -- Acoes pos-triagem."""
 
 import os
 import re
@@ -40,10 +30,6 @@ def _print_saida_funcao(rotulo: str, valor: Any) -> None:
     print(f"[TRIAGEM/TRACE] {rotulo} => {texto}")
 
 
-# =============================================================================
-# Padroes para determinar bucket a partir do texto da triagem
-# =============================================================================
-
 _RE_BUCKET_PRE = re.compile(
     r'domicilio do reclamante como referencia subsidiaria', re.IGNORECASE)
 _RE_BUCKET_B2 = re.compile(
@@ -53,21 +39,8 @@ _RE_BUCKET_C = re.compile(r'B8_PEDIDOS:\s*ALERTA', re.IGNORECASE)
 _RE_BUCKET_D = re.compile(r'B1_DOCS:\s*ALERTA', re.IGNORECASE)
 
 
-# =============================================================================
-# Deteccao de alertas (estilo LEG)
-# =============================================================================
-
-
 def _tem_alerta_incompetencia(triagem_txt: str) -> bool:
-    """Incompetencia aparece na secao [COMPETENCIA] como 'Zona Sul nao detectado'
-    seguida de foro (RUI BARBOSA ou ZONA LESTE).
-
-    Args:
-        triagem_txt: Texto completo da analise de triagem.
-
-    Returns:
-        True se alerta de incompetencia for detectado.
-    """
+    """Incompetencia aparece na secao [COMPETENCIA] como 'Zona Sul nao detectado'"""
     if not isinstance(triagem_txt, str):
         return False
     t = triagem_txt.lower()
@@ -79,14 +52,7 @@ def _tem_alerta_incompetencia(triagem_txt: str) -> bool:
 
 
 def _tem_alerta_pedidos_nao_liquidados(triagem_txt: str) -> bool:
-    """Verifica alerta de pedidos nao liquidados na secao [Alertas].
-
-    Args:
-        triagem_txt: Texto completo da analise de triagem.
-
-    Returns:
-        True se alerta de pedidos nao liquidados for detectado.
-    """
+    """Verifica alerta de pedidos nao liquidados na secao [Alertas]."""
     if not isinstance(triagem_txt, str):
         return False
     in_alertas = False
@@ -103,14 +69,7 @@ def _tem_alerta_pedidos_nao_liquidados(triagem_txt: str) -> bool:
 
 
 def _tem_alerta_docs_pessoais(triagem_txt: str) -> bool:
-    """Verifica alerta de documentos essenciais faltando na secao [Alertas].
-
-    Args:
-        triagem_txt: Texto completo da analise de triagem.
-
-    Returns:
-        True se alerta de documentos essenciais for detectado.
-    """
+    """Verifica alerta de documentos essenciais faltando na secao [Alertas]."""
     if not isinstance(triagem_txt, str):
         return False
     in_alertas = False
@@ -127,14 +86,7 @@ def _tem_alerta_docs_pessoais(triagem_txt: str) -> bool:
 
 
 def _tem_alerta_menor_idade(triagem_txt: str) -> bool:
-    """Verifica alerta de reclamante menor de idade na secao [Alertas].
-
-    Args:
-        triagem_txt: Texto completo da analise de triagem.
-
-    Returns:
-        True se alerta de menor de idade for detectado.
-    """
+    """Verifica alerta de reclamante menor de idade na secao [Alertas]."""
     if not isinstance(triagem_txt, str):
         return False
     in_alertas = False
@@ -151,36 +103,14 @@ def _tem_alerta_menor_idade(triagem_txt: str) -> bool:
 
 
 def _tem_alerta_domicilio_autor(triagem_txt: str) -> bool:
-    """Verifica se competencia foi definida pelo domicilio do reclamante.
-
-    Args:
-        triagem_txt: Texto completo da analise de triagem.
-
-    Returns:
-        True se domicilio do autor for a referencia.
-    """
+    """Verifica se competencia foi definida pelo domicilio do reclamante."""
     if not isinstance(triagem_txt, str):
         return False
     return 'domicilio do reclamante como referencia subsidiaria' in triagem_txt.lower()
 
 
-# =============================================================================
-# Determinacao de acao pos-triagem
-# =============================================================================
-
-
 def _determinar_acao_pos_triagem(triagem_txt: str) -> Tuple[str, None]:
-    """Determina o bucket e acao a partir do texto da triagem.
-
-    Implementacao inline dos patterns do alerta_registry.
-    Prioridade: pre_bucket > b2_incompetencia > c_pedidos > d_docs > b1_normal.
-
-    Args:
-        triagem_txt: Texto completo da analise de triagem.
-
-    Returns:
-        Tuple (bucket_str, None).
-    """
+    """Determina o bucket e acao a partir do texto da triagem."""
     if not triagem_txt:
         return 'b1_normal', None
     if _RE_BUCKET_PRE.search(triagem_txt):
@@ -202,29 +132,14 @@ def _aplicar_acao_pos_triagem(
     processo_info: Dict,
     triagem_txt: str,
 ) -> Tuple[bool, Optional[str]]:
-    """Decide e executa a acao pos-triagem com base nos alertas identificados.
-
-    Usa _determinar_acao_pos_triagem() para identificar o bucket e
-    despacha para a funcao de acao correspondente.
-
-    Args:
-        driver: Driver do processo.
-        numero: Numero CNJ do processo.
-        processo_info: Dict com metadados do processo.
-        triagem_txt: Texto da analise de triagem.
-
-    Returns:
-        Tuple[bool, Optional[str]]: (sucesso, status_line).
-    """
+    """Decide e executa a acao pos-triagem com base nos alertas identificados."""
     if not triagem_txt or (isinstance(triagem_txt, str) and triagem_txt.startswith("ERRO")):
         print(f"[TRIAGEM/ACOES][{numero}] triagem com erro -- sem acao")
         return False, None
 
     bucket, _ = _determinar_acao_pos_triagem(triagem_txt)
 
-    # Pre-bucket: competencia por domicilio do autor → GIGS observacao
     if bucket == 'pre_bucket':
-        # Reavaliar sem pre_bucket para obter bucket real
         if _RE_BUCKET_B2.search(triagem_txt):
             bucket = 'b2_incompetencia'
         elif _RE_BUCKET_C.search(triagem_txt):
@@ -247,7 +162,6 @@ def _aplicar_acao_pos_triagem(
         print(f"[TRIAGEM/ACOES][{numero}] d -- falta de documentos pessoais -> placeholder apresentar doc")
         return True, None
 
-    # b1: sem alertas criticos -> execucao normal de buckets
     bucket_proc = processo_info.get("bucket", "C")
     print(f"[TRIAGEM/ACOES][{numero}] b1 -- sem alertas -> bucket {bucket_proc} (execucao normal)")
     if bucket_proc == "A":
@@ -270,11 +184,6 @@ def _aplicar_acao_pos_triagem(
     return False, None
 
 
-# =============================================================================
-# Helpers de navegacao
-# =============================================================================
-
-
 def _abrir_nova_aba(
     driver: Any,
     url: str,
@@ -282,18 +191,7 @@ def _abrir_nova_aba(
     url_fragmento: Optional[str] = None,
     timeout: int = 10,
 ) -> Optional[str]:
-    """Abre nova aba e aguarda carregamento.
-
-    Args:
-        driver: Driver do navegador.
-        url: URL a abrir.
-        aba_origem: Handle da aba de origem.
-        url_fragmento: Fragmento opcional para confirmar carregamento.
-        timeout: Timeout em segundos.
-
-    Returns:
-        Handle da nova aba, ou None em caso de falha.
-    """
+    """Abre nova aba e aguarda carregamento."""
     try:
         nova = abrir_url_nova_aba(driver, url, timeout=timeout)
         if nova:
@@ -306,12 +204,6 @@ def _abrir_nova_aba(
         return None
 
 
-# ── Juízo 100% digital: helpers compartilhados ────────────────────────────────
-# Baseados em Script/modules/Aud/marcar.js (desmarcar100 / remarcar100), que é a
-# implementação validada em campo. As duas ações acontecem em MOMENTOS diferentes
-# do fluxo (desmarcar antes de marcar a audiência; remarcar depois), mas usam a
-# mesma mecânica: toggle[formcontrolname='juizoDigital'] + confirmação.
-
 _SEL_TOGGLE_100 = "mat-slide-toggle[formcontrolname='juizoDigital']"
 
 _JS_TOGGLE_100 = """(function(sel){
@@ -320,7 +212,6 @@ _JS_TOGGLE_100 = """(function(sel){
     return t.classList.contains('mat-checked') ? 'marcado' : 'desmarcado';
 })"""
 
-# Estado do toggle: 'marcado' | 'desmarcado' | 'ausente'
 def _estado_toggle_100(driver: Any) -> str:
     try:
         res = _executar_js(driver, _JS_TOGGLE_100, _SEL_TOGGLE_100)
@@ -351,12 +242,7 @@ def _gatilho_toggle_100(driver: Any) -> bool:
 
 def _clicar_botao_em_painel(driver: Any, titulo_painel: str, texto_botao: str,
                             timeout: float = 10.0) -> bool:
-    """Acha o mat-expansion-panel cujo título contém `titulo_painel` e clica no
-    botão cujo texto começa com `texto_botao`.
-
-    A confirmação do Juízo 100% digital aparece como expansion-panel (o probe
-    registra `mat-expansion-panel-header` e botões "Sim"/"Não"), não como dialog.
-    """
+    """Acha o mat-expansion-panel cujo título contém `titulo_painel` e clica no"""
     js = """(function(titulo, alvo){
         var xp = "//mat-expansion-panel//mat-panel-title[contains(normalize-space(.),'" + titulo + "')]";
         var res = document.evaluate(xp, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
@@ -388,12 +274,7 @@ def _clicar_botao_em_painel(driver: Any, titulo_painel: str, texto_botao: str,
 
 
 def _clicar_sim_confirmacao(driver: Any, timeout: float = 10.0) -> bool:
-    """Clica "Sim" na confirmação do toggle, procurando nos containers usuais.
-
-    Cobre mat-expansion-panel (estrutura do probe), mat-dialog-container e
-    pje-modal-juizo-digital (estruturas alternativas do PJe). Retorna False se
-    nada aparecer — o chamador decide se isso é erro.
-    """
+    """Clica "Sim" na confirmação do toggle, procurando nos containers usuais."""
     js = """(function(){
         var containers = Array.prototype.slice.call(document.querySelectorAll(
             'pje-modal-juizo-digital, mat-dialog-container, mat-expansion-panel, .cdk-overlay-pane'));
@@ -427,11 +308,7 @@ def _clicar_sim_confirmacao(driver: Any, timeout: float = 10.0) -> bool:
 
 
 def _ir_para_step_caracteristicas(driver: Any, timeout: float = 15.0) -> bool:
-    """Garante que a aba Características (step 4) está aberta.
-
-    Se o toggle já está no DOM, não faz nada — evita re-clicar o step e
-    re-renderizar a aba à toa.
-    """
+    """Garante que a aba Características (step 4) está aberta."""
     if _estado_toggle_100(driver) != 'ausente':
         return True
     js = """(function(){
@@ -455,19 +332,7 @@ def _ir_para_step_caracteristicas(driver: Any, timeout: float = 15.0) -> bool:
 
 
 def desmarcar_100(driver: Any, id_processo: str) -> Optional[str]:
-    """Desmarca o Juízo 100% digital na aba /retificar.
-
-    Espelha Script/modules/Aud/marcar.js::desmarcar100, que é a versão validada:
-      1. Abre /retificar e garante o step "Características".
-      2. Se o toggle JÁ está desmarcado, retorna (nada a fazer).
-      3. Clica o label do toggle.
-      4. Painel "Tem certeza de que deseja retirar" -> "Sim".
-      5. Painel "Confirma a inclusão do movimento" -> "Não".
-      6. Confirma que o toggle perdeu .mat-checked.
-
-    Returns:
-        O handle da nova aba (para o chamador fechar depois) ou None.
-    """
+    """Desmarca o Juízo 100% digital na aba /retificar."""
     aba_detalhe = driver.current_window_handle
     url_retificar = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/retificar"
 
@@ -475,7 +340,6 @@ def desmarcar_100(driver: Any, id_processo: str) -> Optional[str]:
     if not nova_aba:
         return None
 
-    # Checar acesso-negado antes de prosseguir
     try:
         url_atual = driver.current_url or ""
         if "acesso-negado" in url_atual.lower():
@@ -502,14 +366,12 @@ def desmarcar_100(driver: Any, id_processo: str) -> Optional[str]:
 
         espera.assentar(driver, 0.6)
 
-        # Painel 1 — "Tem certeza de que deseja retirar" -> Sim
         if not _clicar_botao_em_painel(
             driver, 'Tem certeza de que deseja retirar', 'Sim', timeout=10.0
         ):
             raise Exception("Primeiro painel ou botao 'Sim' nao encontrado")
         espera.assentar(driver, 0.6)
 
-        # Painel 2 — "Confirma a inclusão do movimento" -> Não
         if not _clicar_botao_em_painel(
             driver, 'Confirma a inclusão do movimento', 'Não', timeout=10.0
         ):
@@ -534,18 +396,7 @@ def desmarcar_100(driver: Any, id_processo: str) -> Optional[str]:
 
 
 def remarcar_100_pos_aud(driver: Any) -> bool:
-    """Remarca o Juízo 100% digital depois de marcar a audiência.
-
-    Espelha Script/modules/Aud/marcar.js::remarcar100:
-      1. Garante o toggle (step "Características").
-      2. Se já está .mat-checked, retorna True.
-      3. Clica o label do toggle.
-      4. Clica "Sim" na confirmação.
-      5. Confirma que o toggle ganhou .mat-checked.
-
-    Returns:
-        True somente se o toggle terminou marcado.
-    """
+    """Remarca o Juízo 100% digital depois de marcar a audiência."""
     print("[TRIAGEM/ACOES] Executando remarcar_100_pos_aud...")
     try:
         if not _ir_para_step_caracteristicas(driver):
@@ -567,8 +418,6 @@ def remarcar_100_pos_aud(driver: Any) -> bool:
         espera.assentar(driver, 0.6)
 
         if not _clicar_sim_confirmacao(driver, timeout=10.0):
-            # Sem confirmação o toggle normalmente não grava. Não retornamos
-            # False ainda: alguns casos marcam direto, então confirmamos abaixo.
             print("[TRIAGEM/ACOES] ⚠️ Nenhuma confirmacao com 'Sim' apareceu em 10s")
 
         espera.assentar(driver, 0.6)
@@ -597,12 +446,7 @@ _MESES_PT = [
 
 
 def _extrair_data_hora_pauta(linha) -> tuple:
-    """Extrai data e horário da linha da Tabela de Horários Vagos.
-
-    Usa seletores específicos baseados na estrutura real:
-      - Data: 2ª coluna (td.centralizado:nth-child(2) span)
-      - Horário: 3ª coluna (td.centralizado:nth-child(3) span)
-    """
+    """Extrai data e horário da linha da Tabela de Horários Vagos."""
     try:
         data_span = _sub_elemento(
             linha,
@@ -622,32 +466,27 @@ def _extrair_data_hora_pauta(linha) -> tuple:
 
 
 def _navegar_calendario_para_data(driver: Any, data_str: str) -> None:
-    """Navega o calendario mensal ate a data alvo e clica no dia.
-
-    Args:
-        driver: Driver do navegador.
-        data_str: Data no formato "DD/MM/YYYY".
-    """
+    """Navega o calendario mensal ate a data alvo e clica no dia."""
     alvo = _dt.strptime(data_str, "%d/%m/%Y")
-    
+
     heading_el = esperar_elemento(driver, "div.filtros h2, h2[role='status'], .cal-header h2", by=By.CSS_SELECTOR, timeout=10)
     if not heading_el:
         raise Exception("Nao foi possivel ler o heading inicial do calendario.")
     current_heading = heading_el.text.strip()
-    
+
     import re
     match = re.search(r'([a-zA-ZçÇ]+)[^\d]+(\d{4})', current_heading)
     if not match:
         raise Exception(f"Formato de heading desconhecido: {current_heading}")
-    
+
     mes_str = match.group(1).capitalize()
     ano_atual = int(match.group(2))
-    
+
     try:
         mes_atual = _MESES_PT.index(mes_str) + 1
     except ValueError:
         raise Exception(f"Mes desconhecido no heading: {mes_str}")
-        
+
     delta = (alvo.year - ano_atual) * 12 + (alvo.month - mes_atual)
     print(f"[CALENDARIO] Navegando para {data_str}. Calendario exibe: {mes_str}/{ano_atual}. Delta meses: {delta}")
 
@@ -662,12 +501,11 @@ def _navegar_calendario_para_data(driver: Any, data_str: str) -> None:
         for i in range(abs(delta)):
             btn = esperar_elemento(driver, btn_selector, timeout=10)
             if not btn:
-                # fallback para xpath se os seletores css falharem
                 if delta > 0:
                     btn = espera.elemento(driver, "//button[.//i[contains(@class, 'fa-arrow-right')]]", teto=2)
                 else:
                     btn = espera.elemento(driver, "//button[.//i[contains(@class, 'fa-arrow-left')]]", teto=2)
-                
+
                 if not btn:
                     raise Exception(f"Botao mudanca de mes nao encontrado")
             safe_click(driver, btn)
@@ -687,7 +525,6 @@ def _navegar_calendario_para_data(driver: Any, data_str: str) -> None:
     print(f"[CALENDARIO] Heading confirmado: {heading.text}")
 
     dia_str = str(alvo.day)
-    # Usar XPath mais específico: célula que contém o número do dia exato e não está em heading
     dia_cell_xpath = (
         f"//mwl-calendar-month-cell[contains(@class, 'cal-in-month')]//"
         f"span[contains(@class,'cal-day-cell') and "
@@ -697,20 +534,16 @@ def _navegar_calendario_para_data(driver: Any, data_str: str) -> None:
     if not dia_cell:
         raise Exception(f"Celula do dia {dia_str} nao encontrada")
 
-    # Log para ver qual dia está sendo clicado
     print(f"[CALENDARIO] Clicando no dia {dia_str}. Atributos: class={dia_cell.get_attribute('class')}")
     _executar_js(driver, "arguments[0].scrollIntoView({block:'center'});", dia_cell)
     safe_click(driver, dia_cell)
     espera.assentar(driver, 0.8)
 
-    # Verificar confirmação – usar formato DD/MM/YYYY
     dia_fmt = alvo.strftime("%d/%m/%Y")
     confirm_xpath = f"//h2[contains(normalize-space(.), '{dia_fmt}')]"
     confirm = esperar_elemento(driver, confirm_xpath, timeout=10)
     if not confirm:
-        # fallback: pode estar em outro elemento
         print("[CALENDARIO] Confirmação não encontrada pelo h2, verificando tabela...")
-        # Verificar se a tabela agora mostra apenas linhas com essa data
         linhas_data = espera.elementos(
             driver,
             f"//tr[.//td[@class='centralizado td-class'][2]//span[normalize-space(.)='{dia_fmt}']]",
@@ -724,39 +557,19 @@ def _navegar_calendario_para_data(driver: Any, data_str: str) -> None:
 
 
 def _encontrar_slot_dia(driver: Any, hora_str: str) -> None:
-    """Clica no botao Designar Audiencia na linha com o horario especificado.
-
-    O horario ja foi extraido da linha correta (rito filtrado na tabela inicial),
-    portanto e unico na pauta diaria -- sem necessidade de filtrar por tipo.
-
-    Args:
-        driver: Driver do navegador.
-        hora_str: Horario no formato "HH:MM".
-    """
+    """Clica no botao Designar Audiencia na linha com o horario especificado."""
     print(f"[SLOT] Procurando slot com horário '{hora_str}'")
-    # Primeiro, registrar todas as linhas visíveis para diagnóstico
     try:
         todas_linhas = espera.elementos(driver, "//tr[.//span[contains(@class,'ng-star-inserted')]]", teto=2)
-        # for idx, tr in enumerate(todas_linhas):
-        #     texto = tr.text[:120]
-        #     print(f"Linha {idx}: {texto}")
     except:
         pass
 
-    # Para garantir que pegamos a linha da pauta DIÁRIA (e não a tabela inicial que pode ainda estar no DOM),
-    # verificamos se o horário está na primeira ou segunda coluna (na tabela inicial o horário fica na 3ª coluna).
     linha_xpath = f"//tr[td[position()<=2]//span[normalize-space(.)='{hora_str}']]"
     linha = esperar_elemento(driver, linha_xpath, timeout=15)
     if not linha:
         raise Exception(f"Linha com horario '{hora_str}' nao encontrada na pauta diaria")
 
-    # Log detalhado da linha selecionada
     print(f"[SLOT] Linha encontrada: {linha.text[:200]}")
-    # Clica no botao "Designar Audiencia" da linha.
-    # Mesmo padrao de Script/modules/Aud/marcar.js:cliciarSlotHora:
-    #   botao por aria-label CSS; senao o <i class="fa-plus-circle"> e seu <button> pai.
-    # NAO passar XPath com "contains(@...)" ao _sub_elemento: ele usa
-    # query_selector (CSS) e estoura "Unsupported token".
     btn_plus = _sub_elemento(linha, 'button[aria-label*="Designar"]')
     if not btn_plus:
         icone = _sub_elemento(linha, 'i.fa-plus-circle')
@@ -769,23 +582,11 @@ def _encontrar_slot_dia(driver: Any, hora_str: str) -> None:
     print(f"[SLOT] Clicando no botão designar")
     if not safe_click(driver, btn_plus):
         raise Exception("Clique em 'Designar Audiencia' falhou")
-    # marcar.js:500ms apos o clique no slot antes de seguir para o modal.
     espera.assentar(driver, 0.5)
 
 
 def _tem_audiencia_marcada(driver: Any, processo_info: Optional[Dict] = None) -> bool:
-    """Verifica se o processo tem audiência marcada com base na timeline de movimentos.
-
-    Regra de negócio dos 3 casos:
-      (a) Distribuição e NÃO tem audiência:
-          -> Retorna False, pular_marcar_aud=False (SEM AUDIÊNCIA, fluxo de sempre).
-      (b) Distribuição + audiência em horário muito próximo (<= 180s):
-          -> Retorna True, pular_marcar_aud=False (TEM AUDIÊNCIA, fluxo de sempre).
-      (c) Tem audiência, mas marcação veio mais tarde que a distribuição:
-          -> Retorna False, pular_marcar_aud=True (trata como SEM AUDIÊNCIA, mas pula a marcação).
-
-    Fallback: Inspeciona `dt#audiencias` no DOM se a API não estiver disponível.
-    """
+    """Verifica se o processo tem audiência marcada com base na timeline de movimentos."""
     id_processo = None
     if processo_info:
         id_processo = processo_info.get('id_processo')
@@ -795,7 +596,6 @@ def _tem_audiencia_marcada(driver: Any, processo_info: Optional[Dict] = None) ->
         if m:
             id_processo = m.group(1)
 
-    # 1. Tentativa via API de movimentos (fonte de verdade para verificar horário vs distribuição)
     if driver and id_processo:
         try:
             from Fix.variaveis import PjeApiClient, session_from_driver
@@ -832,7 +632,6 @@ def _tem_audiencia_marcada(driver: Any, processo_info: Optional[Dict] = None) ->
         except Exception as e:
             print(f"[TRIAGEM] _tem_audiencia_marcada: falha ao consultar API de movimentos ({e}) -- usando fallback DOM")
 
-    # 2. Fallback via DOM (caso a API não responda)
     try:
         dt = espera.elemento(driver, "dt#audiencias", teto=2)
         if dt:
@@ -867,14 +666,8 @@ def _tem_audiencia_marcada(driver: Any, processo_info: Optional[Dict] = None) ->
 
 
 def _closest_button(driver: Any, elemento: Any) -> Any:
-    """Retorna o <button> ancestral de `elemento` (equivalente a closest('button')).
-
-    Tenta a API nativa do elemento antes do JS, pois `_executar_js` delega a
-    `page.evaluate` no Playwright, que nao aceita argumentos posicionais.
-    """
     if elemento is None:
         return None
-    # 1) API do elemento (Playwright: ElementHandle.closest).
     closest = getattr(elemento, "closest", None)
     if callable(closest):
         try:
@@ -883,7 +676,6 @@ def _closest_button(driver: Any, elemento: Any) -> Any:
                 return pai
         except Exception:
             pass
-    # 2) XPath a partir do proprio elemento (Selenium e PWDriver).
     for metodo in ("find_element", "query_selector"):
         fn = getattr(elemento, metodo, None)
         if not callable(fn):
@@ -898,16 +690,12 @@ def _closest_button(driver: Any, elemento: Any) -> Any:
                 return pai
         except Exception:
             pass
-    # 3) JS com argumento (execute_script do Selenium).
     try:
         return _executar_js(driver, "return arguments[0].closest('button');", elemento)
     except Exception:
         return None
 
 
-# Hook de diagnostico: None em producao (zero custo). O harness de teste
-# (f.py aud) atribui uma funcao aqui para capturar estado do modal/TOAST antes
-# de _marcar_aud fechar os paineis.
 _HOOK_DIAG = None
 
 
@@ -918,29 +706,8 @@ _JS_VALOR_PROCESSO = """
 })()
 """
 
-# Preenchimento do numero do processo no modal de audiencia.
-#
-# ESTRATEGIA VALIDADA no PJe real, pelo probe do console (10 hipoteses
-# testadas em sequencia -- a vencedora foi a #4):
-#
-#     setter nativo do HTMLInputElement + InputEvent(inputType='insertFromPaste')
-#
-# Descricao do que funciona:
-#   1. escreve o numero JA FORMATADO (1002085-77.2026.5.02.0703) via setter;
-#   2. dispara InputEvent('input') com inputType 'insertFromPaste' e data;
-#   3. dispara change.
-#
 # Por que 'insertFromPaste' e nao 'insertText': e o tipo de evento que o
-# navegador gera num Ctrl+V. Voce confirmou no navegador que COLAR o numero
 # formatado faz o dialog aceitar -- e o Angular do PJe trata esse inputType
-# como colagem, resolvendo o processo. Com 'insertText' (digitacao tecla a
-# tecla) o campo recebia o texto, mas o FormControl nao era atualizado e o
-# PJe respondia com a snackbar "Consulte o processo para designar audiencia".
-#
-# IMPORTANTE sobre o Confirmar: ele NAO fica desabilitado. Esta sempre
-# clicavel; o que diferencia e a reacao do backend:
-#   - erro   -> snackbar "Consulte o processo para designar audiencia."
-#   - sucesso-> a dialog "Novo Horario" e substituida pela de confirmacao.
 _JS_COLAR_PROCESSO = """
   var el = document.querySelector('mat-dialog-container input#inputNumeroProcesso');
   if (!el) return {ok:false, erro:'campo inputNumeroProcesso nao encontrado'};
@@ -1025,7 +792,6 @@ _JS_COLAR_PROCESSO = """
 
 def _tirar_foco_body_dialog(driver: Any) -> None:
     """Tira o foco do campo do processo clicando no body/content da dialog (mat-dialog-container)."""
-    # 1. Blur ativo no elemento e clique no container/content da dialog via JS
     try:
         _executar_js(driver, """
             if (document.activeElement && document.activeElement.blur) {
@@ -1043,7 +809,6 @@ def _tirar_foco_body_dialog(driver: Any) -> None:
     except Exception:
         pass
 
-    # 2. Se estiver em Playwright com page, faz clique físico no container fora de inputs
     page = getattr(driver, "page", None)
     if page is not None:
         try:
@@ -1129,18 +894,7 @@ def _botao_confirmar_modal(driver: Any) -> Any:
 
 
 def _audiencia_designada(driver: Any) -> Tuple[bool, str]:
-    """Diz se a designacao foi ACEITA, pela reacao do PJe ao clicar Confirmar.
-
-    O Confirmar NAO fica desabilitado -- esta sempre clicavel. Quem decide e a
-    reacao do backend, conforme observado no navegador:
-
-      - ERRO   -> snackbar vermelha
-                  "Consulte o processo para designar audiencia."
-      - SUCESSO-> a dialog "Novo Horario" e SUBSTITUIDA pela confirmacao da
-                  marcacao (conteudo com "designacao confirmada" / processo).
-
-    Retorna (sucesso, detalhe).
-    """
+    """Diz se a designacao foi ACEITA, pela reacao do PJe ao clicar Confirmar."""
     js = """
     (function(){
       function txt(e){ return e ? (e.textContent||'').replace(/\\s+/g,' ').trim() : ''; }
@@ -1191,11 +945,7 @@ def _audiencia_designada(driver: Any) -> Tuple[bool, str]:
 
 
 def _tipo_audiencia_atual(driver: Any) -> str:
-    """Texto do tipo de audiencia selecionado no modal ('' se indisponivel).
-
-    Observacao do fluxo real: aberta a dialog a partir da pauta correta, o
-    tipo JA vem preenchido -- aqui apenas conferimos.
-    """
+    """Texto do tipo de audiencia selecionado no modal ('' se indisponivel)."""
     js = """
     (function(){
       var s = document.querySelector('mat-dialog-container mat-select');
@@ -1238,17 +988,7 @@ def _limpar_campo_processo(driver: Any) -> None:
 
 
 def _colar_numero_processo(driver: Any, valor: str) -> str:
-    """Cola o numero do processo no campo de uma vez (estrategia validada).
-
-    Aplica exatamente o que o probe do console provou funcionar no PJe real
-    (estrategia #4 de 10): setter nativo + InputEvent('input') com
-    inputType 'insertFromPaste' + change.
-
-    E o equivalente a um Ctrl+V do numero ja formatado -- voce confirmou no
-    navegador que assim o dialog aceita a designacao.
-
-    Retorna o valor final lido do campo.
-    """
+    """Cola o numero do processo no campo de uma vez (estrategia validada)."""
     texto = str(valor or "").strip()
     if not texto:
         return ""
@@ -1260,12 +1000,7 @@ def _colar_numero_processo(driver: Any, valor: str) -> str:
 
 
 def _tipo_ok(atual: Optional[str], desejado: str) -> bool:
-    """True se o tipo atual e exatamente o desejado.
-
-    Compara por igualdade (nao substring): 'Una' esta contido em
-    'Una (rito sumaríssimo)', e as variantes 'por videoconferência' precisam
-    ser sempre recusadas.
-    """
+    """True se o tipo atual e exatamente o desejado."""
     a = " ".join(str(atual or "").split()).casefold()
     d = " ".join(str(desejado or "").split()).casefold()
     if not a:
@@ -1276,11 +1011,7 @@ def _tipo_ok(atual: Optional[str], desejado: str) -> bool:
 
 
 def _valor_processo_no_modal(driver: Any) -> Optional[str]:
-    """Valor atual do campo de numero no modal (None se o campo nao existe).
-
-    Usa JS puro para evitar dependencia do wrapper de evaluate: o valor lido
-    pelo Angular e a fonte da verdade (atributo value nao acompanha o Model).
-    """
+    """Valor atual do campo de numero no modal (None se o campo nao existe)."""
     page = getattr(driver, "page", None)
     try:
         if page is not None:
@@ -1299,7 +1030,6 @@ def _somente_digitos(texto: Optional[str]) -> str:
     return "".join(c for c in str(texto or "") if c.isdigit())
 
 
-# Opcoes do autocomplete do campo "Numero do Processo" (pje-processo-suggest).
 # O painel e renderizado no overlay do CDK, fora do mat-dialog-container.
 _SEL_OPCAO_PROCESSO = ".mat-autocomplete-panel mat-option"
 
@@ -1315,8 +1045,6 @@ _JS_INDICE_OPCAO_PROCESSO = """
 })
 """
 
-# Minimo de digitos antes de a API de busca (agrupamentotarefas/processos?numero=)
-# devolver uma lista curta o bastante para conter o processo.
 _MIN_DIGITOS_BUSCA_PROCESSO = 10
 
 
@@ -1332,18 +1060,7 @@ def _indice_opcao_processo(driver: Any, alvo: str) -> int:
 
 
 def _selecionar_processo_por_autocomplete(driver: Any, alvo: str) -> bool:
-    """Digita o numero tecla a tecla e escolhe a opcao no autocomplete do PJe.
-
-    Validado pelo probe da pauta: o campo so aceita a designacao quando o
-    FormControl recebe o OBJETO da opcao (mat-option do autocomplete, que o
-    probe registrou como `mat-option[name="[object Object]"]`). Colar o texto
-    nao basta -- o PJe responde 'Consulte o processo para designar audiencia'
-    e o Confirmar fica com a classe `disabled`.
-
-    A API de busca e chamada a cada digito (`numero=100210`...); por isso se
-    digita o comeco do numero e, assim que a opcao exata aparece, ela e clicada.
-    So digitos sao digitados: a mascara (pjeMascaraNumeroProcesso) formata.
-    """
+    """Digita o numero tecla a tecla e escolhe a opcao no autocomplete do PJe."""
     page = getattr(driver, "page", None)
     if page is None or not alvo:
         return False
@@ -1376,7 +1093,6 @@ def _selecionar_processo_por_autocomplete(driver: Any, alvo: str) -> bool:
             return False
         if pos < _MIN_DIGITOS_BUSCA_PROCESSO:
             continue
-        # Espera a busca do PJe responder a este prefixo.
         if espera.ate_js(driver, expr_opcao, teto=2.5 if pos == _MIN_DIGITOS_BUSCA_PROCESSO else 1.2):
             indice = _indice_opcao_processo(driver, alvo)
             if indice >= 0:
@@ -1396,7 +1112,6 @@ def _selecionar_processo_por_autocomplete(driver: Any, alvo: str) -> bool:
         _hook_diag("autocomplete_clique_falhou", erro=str(e))
         return False
 
-    # A selecao escreve o numero formatado no input e habilita o Confirmar.
     expr_valor = (
         "(function(){var i=document.querySelector('mat-dialog-container input#inputNumeroProcesso');"
         "return !!i && (i.value||'').replace(/\\D/g,'')===%r;})()" % alvo
@@ -1413,12 +1128,7 @@ def _selecionar_processo_por_autocomplete(driver: Any, alvo: str) -> bool:
 
 
 def _preencher_numero_por_colagem(driver: Any, texto: str, page: Any) -> None:
-    """Fallback: cola o número no campo (clipboard + setter nativo + eventos do gigs-plugin).
-
-    Não seleciona opção do autocomplete na prática -- por isso o caminho
-    principal é `_selecionar_processo_por_autocomplete`.
-    """
-    # 1) Se Playwright page estiver ativa, grava no clipboard e cola via Ctrl+V
+    """Fallback: cola o número no campo (clipboard + setter nativo + eventos do gigs-plugin)."""
     if page:
         try:
             page.evaluate("async (t) => { try { await navigator.clipboard.writeText(t); } catch(e){} }", texto)
@@ -1431,7 +1141,6 @@ def _preencher_numero_por_colagem(driver: Any, texto: str, page: Any) -> None:
         except Exception as e:
             print(f"[MARCAR_AUD] Clipboard paste Playwright: {e}")
 
-    # 2) Aplica setter nativo do protótipo + evento paste + triggerEvent(input insertFromPaste, change, dateChange, keyup) + Enter + blur
     _colar_numero_processo(driver, texto)
 
     if page:
@@ -1440,10 +1149,8 @@ def _preencher_numero_por_colagem(driver: Any, texto: str, page: Any) -> None:
         except Exception:
             pass
 
-    # Aguarda reação de pesquisa e eventual autocomplete
     espera.assentar(driver, 1.0)
 
-    # Se abriu autocomplete, clica na opção
     if page:
         try:
             opt = page.locator("mat-autocomplete mat-option, div.mat-autocomplete-panel mat-option").first
@@ -1473,7 +1180,6 @@ def _garantir_numero_processo(
 
     page = getattr(driver, "page", None)
 
-    # 1. Verifica se o campo já veio pré-preenchido pelo PJe
     val_atual = _valor_processo_no_modal(driver) or ""
     if not (alvo in _somente_digitos(val_atual)):
         espera.assentar(driver, 0.8)
@@ -1485,12 +1191,9 @@ def _garantir_numero_processo(
     else:
         print(f"[MARCAR_AUD] Preenchendo numero do processo no padrão +pje/gigs-plugin: {texto}")
 
-    # Caminho principal: digita o começo do número e SELECIONA a opção do
-    # autocomplete (é a seleção que alimenta o FormControl do PJe).
     selecionado = bool(page) and _selecionar_processo_por_autocomplete(driver, alvo)
 
     if selecionado:
-        # Confirmar só habilita (classe `disabled` some) depois da seleção.
         if not espera.ate_js(
             driver,
             "__pjeEls('mat-dialog-container button').some(b => "
@@ -1503,12 +1206,9 @@ def _garantir_numero_processo(
         print("[MARCAR_AUD] ⚠️ Seleção por autocomplete falhou -- tentando colagem (fallback)")
         _preencher_numero_por_colagem(driver, texto, page)
 
-        # Requisito do fallback: clique no body da dialog para tirar foco do campo
         print("[MARCAR_AUD] Clicando no body da dialog para retirar foco do campo...")
         _tirar_foco_body_dialog(driver)
 
-    # Espera correta para clicar em Confirmar:
-    # a) Aguarda desaparecimento de barra de progresso / loading do PJe
     try:
         espera.ate_sumir(
             driver,
@@ -1521,7 +1221,6 @@ def _garantir_numero_processo(
     # b) Assentamento para não clicar rápido demais (evita erro 'Consulte o processo')
     espera.assentar(driver, 0.6 if selecionado else 2.5)
 
-    # c) Confere se o valor continua presente no modal
     val_final = _valor_processo_no_modal(driver) or ""
     print(f"[MARCAR_AUD] Valor no modal antes de Confirmar: {val_final!r}")
 
@@ -1552,7 +1251,6 @@ def _garantir_numero_processo(
             ultimo = detalhe
             print(f"[MARCAR_AUD]   aguardando reacao... {detalhe[:120]!r}")
 
-            # Se acusou 'Consulte o processo', tenta re-desfocar no body da dialog, aguardar e tentar Confirmar mais uma vez
             if "consulte o processo" in detalhe.casefold():
                 print("[MARCAR_AUD] ⚠️ PJe indicou 'Consulte o processo' -- aplicando retry com clique no body e espera extra...")
                 _tirar_foco_body_dialog(driver)
@@ -1578,15 +1276,7 @@ def _garantir_numero_processo(
 
 
 def _selecionar_tipo_audiencia(driver: Any, rito: str) -> bool:
-    """Seleciona o Tipo da audiencia: 'Una' ou 'Una (rito sumaríssimo)'.
-
-    Regra de negocio: SOMENTE essas duas opcoes -- nunca as variantes
-    "por videoconferencia". O valor exato depende do rito: ATSUM ->
-    'Una (rito sumaríssimo)'; qualquer outro -> 'Una'.
-
-    O painel real e `div.mat-select-panel` com `mat-option` cujo texto fica em
-    `span.mat-option-text` e cujo nome tambem aparece no atributo `name`.
-    """
+    """Seleciona o Tipo da audiencia: 'Una' ou 'Una (rito sumaríssimo)'."""
     desejado = (
         "Una (rito sumaríssimo)" if str(rito).upper() == "ATSUM" else "Una"
     )
@@ -1610,7 +1300,6 @@ def _selecionar_tipo_audiencia(driver: Any, rito: str) -> bool:
                 print("[MARCAR_AUD] Painel de opcoes nao abriu")
                 continue
 
-            # Preferencia: casar pelo span.mat-option-text / name exatos
             seletor_alvo = (
                 f"//div[@class and contains(@class,'mat-select-panel')]"
                 f"//mat-option[@name={_xp_lit(desejado)}"
@@ -1620,7 +1309,6 @@ def _selecionar_tipo_audiencia(driver: Any, rito: str) -> bool:
             opcao = esperar_elemento(driver, seletor_alvo, by=By.XPATH, timeout=4)
 
             if not opcao:
-                # Diagnostico: listar o que existe, excluindo videoconferencia
                 try:
                     todas = espera.elementos(
                         driver, "div.mat-select-panel mat-option", teto=2) or []
@@ -1697,18 +1385,13 @@ def _hook_diag(etapa: str, **info: Any) -> None:
 
 
 def _texto_modal_audiencia(driver: Any) -> str:
-    """Texto (minusculo) do conteudo atual do modal de audiencia.
-
-    Le o mat-dialog-container inteiro: serve tanto para o formulario quanto
-    para o painel de confirmacao, sem depender de qual div esta ativa.
-    """
+    """Texto (minusculo) do conteudo atual do modal de audiencia."""
     script = (
         "(function(){var d=document.querySelector('mat-dialog-container');"
         "return d ? (d.textContent || '') : '';})()"
     )
     try:
         bruto = _executar_js(driver, script) or ""
-        # Normaliza do lado Python: independe de o driver/devtools aplicar regex.
         return " ".join(str(bruto).split()).lower()
     except Exception as e:
         print(f"[MARCAR_AUD] Falha ao ler texto do modal: {e}")
@@ -1761,7 +1444,6 @@ def _fechar_dialog_confirmacao(driver: Any) -> bool:
             pass
 
     if not espera.ate_sumir(driver, "mat-dialog-container", teto=1):
-        # Fallback JS executado especificamente no mat-dialog-container
         try:
             _executar_js(driver, """
                 var dlg = document.querySelector('mat-dialog-container');
@@ -1821,16 +1503,13 @@ def _marcar_aud(
         print("[MARCAR_AUD] 3/7 Tabela de pauta carregada")
         _hook_diag("tabela_carregada")
 
-        # Determina o nome do rito para buscar na primeira coluna
         rito_texto = "Una (rito sumaríssimo)" if rito.upper() == 'ATSUM' else "Una"
 
-        # XPath que encontra a linha onde a primeira coluna contém exatamente o texto do rito
         linha_xpath = (
             f"//tr[.//td[1]//span[normalize-space(.)='{rito_texto}']]"
         )
         linha = esperar_elemento(driver, linha_xpath, by=By.XPATH, timeout=10)
         if not linha:
-            # fallback: tenta apenas o início do texto (ex: "Una" sem parênteses)
             fallback_texto = "Una"
             linha_xpath = f"//tr[.//td[1]//span[starts-with(normalize-space(.), '{fallback_texto}')]]"
             linha = esperar_elemento(driver, linha_xpath, by=By.XPATH, timeout=5)
@@ -1851,9 +1530,6 @@ def _marcar_aud(
             raise Exception("Modal de audiencia nao encontrado")
         print("[MARCAR_AUD]     Modal aberto")
 
-        # --- Numero do processo: preenchimento sempre, no padrao validado no
-        # navegador real. O pre-preenchimento automatico vista em alguns testes
-        # vem de uma extensao de navegador, nao do PJe -- nunca confiamos nele.
         modal_ok = esperar_elemento(
             driver, "mat-dialog-container input#inputNumeroProcesso", timeout=10
         )
@@ -1869,9 +1545,6 @@ def _marcar_aud(
             )
         print("[MARCAR_AUD] 7/7 Numero do processo OK e designacao CONFIRMADA")
 
-        # --- Tipo da audiencia: conferido DEPOIS de a designacao ser aceita.
-        # Aberta a dialog pela pauta correta, o PJe ja preenche o tipo; so
-        # intervimos se vier errado (nunca videoconferencia).
         tipo_atual = _tipo_audiencia_atual(driver)
         desejado = "Una (rito sumaríssimo)" if str(rito).upper() == "ATSUM" else "Una"
         print(f"[MARCAR_AUD] Tipo usado: {tipo_atual or '(vazio)'} | esperado: {desejado}")
@@ -1884,9 +1557,6 @@ def _marcar_aud(
                 "a designacao ja foi aceita pelo PJe"
             )
 
-        # A designacao ja foi confirmada em _garantir_numero_processo, que
-        # colou o numero e clicou em Confirmar lendo a reacao do backend.
-        # Aqui fechamos o painel de confirmacao ("Designacao Confirmada").
         _fechar_dialog_confirmacao(driver)
         sucesso = True
         data_designada = _extrair_data_audiencia(data_str)
@@ -1894,8 +1564,6 @@ def _marcar_aud(
             print(f"[MARCAR_AUD] Data da audiencia confirmada: {data_designada.strftime('%d/%m/%Y')}")
     except Exception as e:
         print(f"[TRIAGEM/ACOES] ❌ _marcar_aud: {type(e).__name__}: {e}")
-        # Em caso de falha a dialog fica ABERTA de proposito: e ali que esta o
-        # motivo do erro (toast, campos, botao). Nada e clicado nem fechado.
         try:
             if espera.ate_aparecer(driver, "mat-dialog-container", teto=1):
                 estado = _aud_estado_resumido(driver)
@@ -1919,10 +1587,6 @@ def _marcar_aud(
                 print(f"[MARCAR_AUD] ⚠ Erro ao retornar para aba_retorno/remarcar: {e}")
     return (sucesso, data_designada if sucesso else None)
 
-
-# =============================================================================
-# Funcoes de Data e Regra de Despacho (seg/ter/sex -> ato_v100 / ato_vpp)
-# =============================================================================
 
 def _extrair_data_audiencia(texto: str):
     """Extrai a data (dd/mm/aaaa ou aaaa-mm-dd) de um texto da pauta/modal."""
@@ -1978,37 +1642,15 @@ def _usa_padrao_novo(processo_info: Dict, numero_processo: str) -> bool:
     return novo
 
 
-# =============================================================================
-# Acoes por bucket
-# =============================================================================
-
-
 def acao_bucket_a(
     driver: Any,
     numero_processo: str,
     processo_info: Dict,
 ) -> Tuple[bool, Optional[str]]:
-    """Bucket A: processo sem audiencia marcada e sem 100% digital.
-
-    Acoes:
-      1. Analisa citacao (polo passivo + domicilio eletronico)
-      2. Cria GIGS com observacoes de citacao
-      3. Cria GIGS de marcacao de audiencia
-      4. Registra comentario sobre a acao executada
-
-    Args:
-        driver: Driver do processo.
-        numero_processo: Numero CNJ do processo.
-        processo_info: Dict com metadados do processo.
-
-    Returns:
-        True se todas as acoes foram executadas com sucesso.
-    """
-    # --- VERIFICAÇÃO EM TEMPO REAL ---
+    """Bucket A: processo sem audiencia marcada e sem 100% digital."""
     if _tem_audiencia_marcada(driver, processo_info):
         print(f"[TRIAGEM/A] Processo {numero_processo} já possui audiência marcada. Pulando marcação.")
         return True, "Já possui audiência"
-    # --- FIM VERIFICAÇÃO ---
 
     try:
         tipo = (processo_info.get('tipo') or '').upper().strip()
@@ -2019,11 +1661,6 @@ def acao_bucket_a(
             print(f"[TRIAGEM/A] ❌ Falha ao extrair numero/ID do processo {numero_processo}")
             return False, None
 
-        # O PJe so reconhece ATSUM (sumarissimo) e ATVARI (rito variavel) no
-        # parametro `rito` de pauta-audiencias. "ATOrd" -- valor usado antes
-        # aqui e herdado de Triagem/analise_execucao.py -- nao existe na API:
-        # a pagina abre, o slot aceita o clique, mas o modal recusa no
-        # Confirmar com "Consulte o processo para designar audiencia".
         rito = 'ATSUM' if tipo == 'ATSUM' else 'ATVARI'
         print(f"[TRIAGEM/A] rito do processo={tipo!r} -> rito de pauta={rito}")
 
@@ -2196,26 +1833,10 @@ def acao_bucket_b(
     numero_processo: str,
     processo_info: Dict,
 ) -> Tuple[bool, Optional[str]]:
-    """Bucket B: processo com audiencia e 100% digital.
-
-    Acoes:
-      1. Analisa citacao (polo passivo + domicilio eletronico)
-      2. Cria GIGS com observacoes de citacao
-      3. Registra comentario sobre a acao executada
-
-    Args:
-        driver: Driver do processo.
-        numero_processo: Numero CNJ do processo.
-        processo_info: Dict com metadados do processo.
-
-    Returns:
-        True se todas as acoes foram executadas com sucesso.
-    """
-    # --- VERIFICAÇÃO EM TEMPO REAL (B) ---
+    """Bucket B: processo com audiencia e 100% digital."""
     if not _tem_audiencia_marcada(driver, processo_info):
         print(f"[TRIAGEM/B] Processo {numero_processo} não possui audiência (embora esperado). Forçando bucket A.")
         return acao_bucket_a(driver, numero_processo, processo_info)
-    # --- FIM VERIFICAÇÃO ---
 
     try:
         citacao_b = def_citacao(driver, processo_info)
@@ -2230,7 +1851,6 @@ def acao_bucket_b(
             except Exception as e:
                 print(f"[TRIAGEM/B] ❌ Erro ao criar GIGS ({obs}): {e}")
 
-        # ato_100 ou ato_v100 dependendo do dia da semana
         if _usa_padrao_novo(processo_info, numero_processo):
             try:
                 from atos.wrappers_ato import ato_v100
@@ -2260,32 +1880,10 @@ def acao_bucket_c(
     numero_processo: str,
     processo_info: Dict,
 ) -> Tuple[bool, Optional[str]]:
-    """Bucket C: processo com audiencia, sem 100% digital.
-
-    Acoes:
-      1. Se audiencia em segunda, terca ou sexta (padrao novo):
-         - Executa def_citacao (analisa polo passivo e gera gigs_obs)
-         - Cria GIGS de citacao (xs ordv / xs sumv / xs ordcv / xs sumcv)
-         - Executa ato_vpp (despacho presencial)
-         - NUNCA faz PEC direto nem mov_aud
-      2. Se audiencia em outros dias (quarta ou quinta):
-         - Analisa citacao
-         - Executa PEC wrappers (pec_ord, pec_sum, pec_ordc, pec_sumc)
-         - Se PEC ok, executa mov_aud
-
-    Args:
-        driver: Driver do processo.
-        numero_processo: Numero CNJ do processo.
-        processo_info: Dict com metadados do processo.
-
-    Returns:
-        True se todas as acoes foram executadas com sucesso.
-    """
-    # --- VERIFICACAO EM TEMPO REAL (C) ---
+    """Bucket C: processo com audiencia, sem 100% digital."""
     if not _tem_audiencia_marcada(driver, processo_info):
         print(f"[TRIAGEM/C] Processo {numero_processo} nao possui audiencia (classificado como C por engano). Forcando bucket A.")
         return acao_bucket_a(driver, numero_processo, processo_info)
-    # --- FIM VERIFICACAO ---
 
     try:
         citacao_c = def_citacao(driver, processo_info)
@@ -2294,7 +1892,6 @@ def acao_bucket_c(
             print(f"[TRIAGEM/C] Polo passivo vazio -- abortando acao para {numero_processo}")
             return False, None
 
-        # Audiencia segunda, terca ou sexta: NUNCA faz PEC direto!
         # Fluxo obrigatorio: despacho (ato_vpp) + funcao citacao (GIGS).
         if _usa_padrao_novo(processo_info, numero_processo):
             for obs in citacao_c.get('gigs_obs') or []:
@@ -2313,7 +1910,6 @@ def acao_bucket_c(
                 print(f"[TRIAGEM/C] ⚠ Erro ao executar ato_vpp: {e}")
                 return False, None
 
-        # Audiencia quarta ou quinta: PEC direto + mov_aud
         from atos.wrappers_pec import pec_ord, pec_sum, pec_ordc, pec_sumc
         from atos.wrappers_mov import mov_aud
         _PEC_MAP = {'pec_ord': pec_ord, 'pec_sum': pec_sum,
@@ -2351,20 +1947,7 @@ def acao_bucket_d(
     numero_processo: str,
     processo_info: Dict,
 ) -> Tuple[bool, Optional[str]]:
-    """Bucket D: processo HTE (habilitacao de credor).
-
-    Acoes:
-      1. Cria GIGS informativa sobre habilitacao
-      2. Registra comentario
-
-    Args:
-        driver: Driver do processo.
-        numero_processo: Numero CNJ do processo.
-        processo_info: Dict com metadados do processo.
-
-    Returns:
-        True se todas as acoes foram executadas com sucesso.
-    """
+    """Bucket D: processo HTE (habilitacao de credor)."""
     try:
         return True, None
     except Exception as e:

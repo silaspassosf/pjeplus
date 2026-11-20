@@ -1,26 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/regras.py -- Regras de negocio B1 a B14 (apenas regras puras).
-
-Contem as funcoes de checagem de negocio:
-  B1  - Procuracao e identidade
-  B2  - CEP / Competencia territorial
-  B3  - Partes / PJDP
-  B4  - Segredo de justica
-  B5  - Reclamadas
-  B6  - Tutela provisoria
-  B7  - Juizo 100% digital
-  B8  - Pedidos liquidados
-  B9  - Pessoa fisica no polo passivo
-  B10 - Litispendencia / prevencao
-  B11 - Responsabilidade subsidiaria / solidaria
-  B12 - Endereco do reclamante / Audiencia virtual
-  B13 - Rito processual
-  B14 - Art. 611-B CLT
-
-Os helpers de formatacao e a funcao ``triagem_peticao`` foram movidos
-para ``service.py``.
-"""
+"""bianca/triagem/regras.py -- Regras de negocio B1 a B14 (apenas regras puras)."""
 
 import difflib
 import logging
@@ -39,10 +18,6 @@ from bianca.triagem.utils import _norm
 logger = logging.getLogger("bianca.triagem.regras")
 
 
-# =============================================================================
-# Business rules -- checagens de triagem
-# =============================================================================
-
 _UF_BRASIL = {
     'ac', 'al', 'ap', 'am', 'ba', 'ce', 'df', 'es', 'go', 'ma', 'mt', 'ms',
     'mg', 'pa', 'pb', 'pr', 'pe', 'pi', 'rj', 'rn', 'rs', 'ro', 'rr', 'sc',
@@ -50,13 +25,8 @@ _UF_BRASIL = {
 }
 
 
-# ---------------------------------------------------------------------------
-# B1 - Procuracao e identidade
-# ---------------------------------------------------------------------------
-
-
 def _checar_procuracao_e_identidade(
-    anexos: List[Dict[str, Any]], 
+    anexos: List[Dict[str, Any]],
     nome_reclamante: str = '',
     cpf_reclamante: str = '',
 ) -> str:
@@ -99,13 +69,11 @@ def _checar_procuracao_e_identidade(
             tbody = _norm(anx.get('texto') or '')
             if (any(t in tref for t in termos_proc_tit)
                     or (tbody and any(t in tbody for t in termos_proc_body))):
-                # Verificar se o texto foi extraido (OCR falho = texto vazio)
                 if not tbody or len(tbody) < 100:
                     extra_proc = ' [ATENCAO: texto procuracao nao extraido ou OCR vazio]'
                 else:
                     nome_encontrado = False
 
-                    # 1. Checagem por CPF (se disponivel)
                     if cpf_reclamante:
                         digits = re.sub(r'\D', '', cpf_reclamante)
                         if len(digits) == 11:
@@ -114,18 +82,15 @@ def _checar_procuracao_e_identidade(
                             if fmt in tbody or digits in tbody_digits or f'{digits[:3]}.{digits[3:6]}.{digits[6:9]}' in tbody:
                                 nome_encontrado = True
 
-                    # 2. Checagem por nome
                     if not nome_encontrado and nome_norm:
                         partes_nome = [p for p in nome_norm.split() if len(p) > 2 and p not in ('de', 'da', 'do', 'dos', 'das', 'e')]
                         if partes_nome:
-                            # Nome completo exato
                             if ' '.join(partes_nome) in tbody:
                                 nome_encontrado = True
                             else:
                                 tokens_corpo = [re.sub(r'[^a-z0-9]', '', w) for w in tbody.split()]
                                 tokens_corpo = [w for w in tokens_corpo if len(w) >= 3]
 
-                                # Helper: substitui I<->Y para variacoes ortograficas
                                 def _expandir_variacao_i_y(nome: str) -> list:
                                     if not nome or len(nome) <= 1:
                                         return [nome]
@@ -136,7 +101,6 @@ def _checar_procuracao_e_identidade(
                                         variacoes.append(nome.replace('y', 'i'))
                                     return variacoes
 
-                                # Verifica presenca de qualquer parte significativa (>=4 caracteres)
                                 for p in partes_nome:
                                     if len(p) >= 4:
                                         p_vars = _expandir_variacao_i_y(p)
@@ -144,7 +108,6 @@ def _checar_procuracao_e_identidade(
                                             nome_encontrado = True
                                             break
 
-                                # Se ainda nao encontrou, tenta fuzzy matching para tolerar erros pontuais de OCR
                                 if not nome_encontrado:
                                     for p in partes_nome:
                                         if len(p) >= 5:
@@ -176,11 +139,6 @@ def _checar_procuracao_e_identidade(
         proc_via, extra_proc)
 
 
-# ---------------------------------------------------------------------------
-# Helper de contexto (pagina)
-# ---------------------------------------------------------------------------
-
-
 def _pag_contexto(texto: str, posicao: int, janela: int = 400) -> str:
     pag = 1
     for mp in re.finditer(r'Pagina\s+(\d+)', texto[:posicao], re.IGNORECASE):
@@ -190,10 +148,6 @@ def _pag_contexto(texto: str, posicao: int, janela: int = 400) -> str:
     trecho = texto[inicio:fim].replace('\n', ' ').strip()
     return '[pag.%d] ...%s...' % (pag, trecho)
 
-
-# ---------------------------------------------------------------------------
-# B2 - CEP / Competencia territorial
-# ---------------------------------------------------------------------------
 
 _CEP_TERMOS_TERRITORIAL = [
     'competencia territorial', 'competencia funcional', 'foro competente',
@@ -280,8 +234,6 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
             tag, 0 if explicit else 1, 0 if endereco_context else 1,
             2 if telefone_proximo else 0, ordem, num, fmt))
 
-    # Preserve TERRITORIAL/PRESTACAO tags regardless of telefone_proximo
-    # (footer phone lines must not disqualify high-priority contextual CEPs)
     candidatos = [c for c in candidatos if c[3] == 0 or c[1] == 0 or c[0] <= _CEP_TAG_PRESTACAO]
     if not candidatos:
         norm_texto = _norm(texto)
@@ -334,9 +286,6 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                         if tag == _CEP_TAG_RECLAMANTE]
     cands_ctx_fora_zona_sul = []
 
-    # Primeira passada: apenas TERRITORIAL + PRESTACAO (tags primarias).
-    # RECLAMADA e GENERICO sao referencias subsidiarias -- so devem ser
-    # usadas quando NAO HA CEP de prestacao/territorial no texto.
     tem_primario = False
     for cand in candidatos:
         best_tag, _, _, _, _, cep_num, cep_fmt = cand
@@ -351,16 +300,13 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
         _foro = _foro_competente(cep_num)
         cands_ctx_fora_zona_sul.append('%s (%s)' % (cep_fmt, _foro))
 
-    # Segunda passada: subsidiarias (RECLAMADA + GENERICO), so se nao
-    # havia primario. Se havia primario fora da Zona Sul, e incompetencia
-    # e nao se deve confirmar com CEP subsidiario.
     if not tem_primario:
         for cand in candidatos:
             best_tag, _, _, _, _, cep_num, cep_fmt = cand
             if best_tag == _CEP_TAG_RECLAMANTE:
                 continue
             if best_tag <= _CEP_TAG_PRESTACAO:
-                continue  # ja processados na primeira passada
+                continue
             label = tag_label[best_tag]
             matched = next(((lo, hi) for lo, hi in ZONA_SUL_CEPS if lo <= cep_num <= hi), None)
             if matched:
@@ -374,7 +320,7 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
         norm_texto = _norm(texto)
         termos_estritos = _CEP_TERMOS_TERRITORIAL + _CEP_TERMOS_PRESTACAO
         alegou_competencia = any(t in norm_texto for t in termos_estritos)
-        
+
         _label_sub = 'competencia territorial alegada - validado via CEP da reclamada' if alegou_competencia else 'sede da reclamada'
         api_fora_zona_sul = []
         for cep_raw in ceps_api:
@@ -414,10 +360,6 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
     return "B2_CEP: ALERTA - nenhum CEP de SP (Zona Sul/Leste/Rui Barbosa) identificado no processo"
 
 
-# ---------------------------------------------------------------------------
-# B3 - Partes / PJDP
-# ---------------------------------------------------------------------------
-
 _PJDP_NOME_KEYWORDS = [
     'municipio', 'prefeitura', 'estado de', 'estado do', 'governo do estado',
     'governo do municipio', 'uniao federal', 'ministerio', 'autarquia',
@@ -427,34 +369,15 @@ _PJDP_NOME_KEYWORDS = [
 
 
 def _detectar_pjdp_api(capa_dados: Dict[str, Any]) -> Tuple[bool, str]:
-    """Detecta PJDP no polo passivo via dados da API.
-
-    Criterio PRINCIPAL: campo `procuradoria` da parte em /partes (PASSIVO).
-    E' o que o PJe usa para marcar o ente publico na UI — o card do polo
-    passivo exibe <i class="fa fa-university">, e o seletor correspondente e'
-    'i.procuradoria-direito-publico' (atos/comunicacao_destinatarios.py).
-
-    Confirmado por probe em 30/10/2026 (EMPRESA BRASILEIRA DE CORREIOS):
-        tipoPessoa  = "J"        -> so diz PJ; empresa privada tambem e' "J"
-        autoridade  = False      -> FALSO NEGATIVO num PJDP, nao serve
-        idTipoParte = 66         -> codigo de "Reclamado", nao de ente publico
-        procuradoria= {...}      -> unico campo que distingue
-
-    Fallback: _PJDP_NOME_KEYWORDS, para quando `reclamados` vier de fonte sem
-    o campo `procuradoria` (capa do PDF, dados antigos).
-    """
+    """Detecta PJDP no polo passivo via dados da API."""
     reclamados = capa_dados.get('reclamados') or []
 
-    # 1o: marcador da API (procuradoria). Se QUALQUER reclamado trouxe o campo
-    # `pjdp` (mesmo False), a API e' a fonte de verdade e o fallback por nome
-    # NAO deve rodar — senao uma PJ privada com "municipio" no nome viraria PJDP.
     if any('pjdp' in r for r in reclamados):
         for r in reclamados:
             if r.get('pjdp'):
                 return True, r.get('nome', '')
         return False, ''
 
-    # 2o (fallback): keyword no nome, para fonte sem o campo (capa do PDF)
     for r in reclamados:
         nome_norm = _norm(r.get('nome', ''))
         for kw in _PJDP_NOME_KEYWORDS:
@@ -463,20 +386,43 @@ def _detectar_pjdp_api(capa_dados: Dict[str, Any]) -> Tuple[bool, str]:
     return False, ''
 
 
-def _detectar_menor_idade(contexto_partes: str, capa_dados: Dict[str, Any]) -> str:
-    """Detecta reclamante menor de 18 anos.
+_PJDP_NOME_SUSPEITO_RE = re.compile(
+    r'\b(?:'
+    r'municipio\s+d[eo]s?\b'
+    r'|prefeitura\b'
+    r'|estado\s+d[eo]s?\b'
+    r'|governo\s+d[eo]\s+estado\b'
+    r'|fundacao\b'
+    r'|secretaria\s+(?:municipal|estadual|de|do|da|d[eo]s)\b'
+    r'|procuradoria\b'
+    r'|autarquia\b'
+    r'|fazenda\s+publica\b'
+    r'|uniao\s+federal\b'
+    r')'
+)
 
-    Fonte primaria: campo reclamante_data_nascimento da API.
-    Sem API: busca contextual na secao de qualificacao da peticao.
-    Retorna string de alerta B3_PARTES ou '' se nao detectado.
-    """
+
+def _detectar_pjdp_cadastro_incorreto(capa_dados: Dict[str, Any]) -> List[str]:
+    """Acha partes do polo passivo que PARECEM PJDP mas vieram sem o marcador."""
+    suspeitos: List[str] = []
+    for r in (capa_dados.get('reclamados') or []):
+        if r.get('pjdp'):
+            continue
+        nome = (r.get('nome') or '').strip()
+        if not nome:
+            continue
+        if _PJDP_NOME_SUSPEITO_RE.search(_norm(nome)):
+            suspeitos.append(nome)
+    return suspeitos
+
+
+def _detectar_menor_idade(contexto_partes: str, capa_dados: Dict[str, Any]) -> str:
+    """Detecta reclamante menor de 18 anos."""
 
     def _parse_data(s):
-        # DD/MM/AAAA ou DD-MM-AAAA ou DD.MM.AAAA
         m = re.search(r'(\d{1,2})[/\-\.](\d{1,2})[/\-\.](\d{4})', s)
         if m:
             return int(m.group(1)), int(m.group(2)), int(m.group(3))
-        # ISO: AAAA-MM-DD
         m = re.search(r'(\d{4})[/\-](\d{2})[/\-](\d{2})', s)
         if m:
             return int(m.group(3)), int(m.group(2)), int(m.group(1))
@@ -497,7 +443,6 @@ def _detectar_menor_idade(contexto_partes: str, capa_dados: Dict[str, Any]) -> s
 
     data_dist = capa_dados.get('distribuido_em') or ''
 
-    # 1. Fonte primaria: campo da API (sem fallback para texto se disponivel)
     dn_api = capa_dados.get('reclamante_data_nascimento') or ''
     if dn_api:
         parsed = _parse_data(dn_api)
@@ -510,17 +455,14 @@ def _detectar_menor_idade(contexto_partes: str, capa_dados: Dict[str, Any]) -> s
                 )
         return ''
 
-    # 2. Busca contextual: primeiros ~1500 chars da qualificacao
     area = contexto_partes[:1500]
 
-    # 2a. Mencao literal na secao do reclamante
     if re.search(r'\bmenor\s+de\s+idade\b', area):
         return (
             'B3_PARTES: ALERTA - reclamante menor de idade '
             '(mencao no texto) - intimar MPT custos legis'
         )
 
-    # 2b. Data em contexto de nascimento
     _re_nasc = re.compile(
         r'(?:nascid[ao]|data\s+de\s+nascimento|nascimento|dt\.?\s*nasc\.?)'
         r'[:\s,]+(\d{1,2})[/\-\.](\d{1,2})[/\-\.](\d{4})',
@@ -597,14 +539,14 @@ def _checar_partes(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
                 "B3_PARTES: INFO - PJDP no polo passivo - rito ORDINARIO compativel; "
                 "detectado via nome: %s" % pjdp_nome)
 
+    for nome_suspeito in _detectar_pjdp_cadastro_incorreto(capa_dados):
+        linhas.append(
+            "B3_PARTES: ALERTA - Possivel PJDP (procuradoria) com cadastro "
+            "incorreto - %s" % nome_suspeito)
+
     if not any('ALERTA' in l for l in linhas):
         linhas.append("B3_PARTES: OK%s" % rec_info)
     return linhas
-
-
-# ---------------------------------------------------------------------------
-# B4 - Segredo de justica
-# ---------------------------------------------------------------------------
 
 
 def _checar_segredo(texto: str, capa_dados: Dict[str, Any]) -> str:
@@ -619,11 +561,6 @@ def _checar_segredo(texto: str, capa_dados: Dict[str, Any]) -> str:
         suf = 'com art. 189 CPC' if fund else 'sem fundamentacao (art. 189 CPC ausente)'
         return "B4_SEGREDO: ALERTA - pedido de segredo de justica %s" % suf
     return "B4_SEGREDO: OK"
-
-
-# ---------------------------------------------------------------------------
-# B5 - Reclamadas
-# ---------------------------------------------------------------------------
 
 
 def _checar_reclamadas(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
@@ -658,11 +595,6 @@ def _checar_reclamadas(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
     return linhas
 
 
-# ---------------------------------------------------------------------------
-# B6 - Tutela provisoria
-# ---------------------------------------------------------------------------
-
-
 def _checar_tutela(texto: str, capa_dados: Dict[str, Any]) -> str:
     norm = _norm(texto)
     idx = max(norm.rfind('pedidos'), norm.rfind('dos pedidos'),
@@ -681,9 +613,6 @@ def _checar_tutela(texto: str, capa_dados: Dict[str, Any]) -> str:
             ctx = _pag_contexto(texto, max(0, idx) + pos, janela=300)
             return ("B6_TUTELA: ALERTA - pedido tutela provisoria (%s) "
                     "- encaminhar para despacho\n  %s") % (t, ctx)
-    # Busca adicional no cabecalho/titulo (primeiros 3000 chars):
-    # titulos como "PEDIDO LIMINAR TUTELA URGENCIA" indicam pedido mesmo sem
-    # os termos aparecerem na secao de pedidos.
     cabecalho = norm[:3000]
     for t in termos:
         pos = cabecalho.find(t)
@@ -696,16 +625,9 @@ def _checar_tutela(texto: str, capa_dados: Dict[str, Any]) -> str:
     return "B6_TUTELA: OK"
 
 
-# ---------------------------------------------------------------------------
-# B7 - Juizo 100% digital
-# ---------------------------------------------------------------------------
-
-
 def _checar_digital(texto: str, capa_dados: Dict[str, Any]) -> str:
     norm = _norm(texto)
 
-    # Detecta discordância/rejeição expressa ao Juízo 100% Digital.
-    # Nesse caso a parte NÃO quer o juízo digital → nenhum alerta necessário.
     discordancia_digital = bool(re.search(
         r'(discordan[cç][ai]|discorda|n[aã]o\s+concorda|n[aã]o\s+adere|'
         r'se\s+op[oõ]e|oposi[cç][aã]o|manifest[ao]\s+.*discordan[cç][ai]|'
@@ -734,11 +656,6 @@ def _checar_digital(texto: str, capa_dados: Dict[str, Any]) -> str:
                 "identificado, mas processo nao marcado na API")
     return ("B7_DIGITAL: OK - pedido expresso de Juizo 100% Digital "
             "identificado, mas marcacao nao confirmada na API")
-
-
-# ---------------------------------------------------------------------------
-# B8 - Pedidos liquidados
-# ---------------------------------------------------------------------------
 
 
 def _checar_pedidos_liquidados(texto: str) -> str:
@@ -797,11 +714,6 @@ def _checar_pedidos_liquidados(texto: str) -> str:
     return '\n'.join(out)
 
 
-# ---------------------------------------------------------------------------
-# B9 - Pessoa fisica no polo passivo
-# ---------------------------------------------------------------------------
-
-
 def _checar_pessoa_fisica(texto: str, capa_dados: Dict[str, Any] = None) -> str:
     reclamados_api = (capa_dados or {}).get('reclamados') or []
     if not reclamados_api:
@@ -817,11 +729,6 @@ def _checar_pessoa_fisica(texto: str, capa_dados: Dict[str, Any] = None) -> str:
     if any(t in _norm(texto) for t in fund_termos):
         return "B9_PESSOA_FIS: OK - pessoa fisica com fundamentacao juridica (%s)" % nomes
     return "B9_PESSOA_FIS: ALERTA - pessoa fisica no polo passivo sem fundamentacao clara (%s)" % nomes
-
-
-# ---------------------------------------------------------------------------
-# B10 - Litispendencia
-# ---------------------------------------------------------------------------
 
 
 def _checar_litispendencia(texto: str, associados_sistema: List[Dict[str, Any]] = None) -> str:
@@ -879,10 +786,6 @@ def _checar_litispendencia(texto: str, associados_sistema: List[Dict[str, Any]] 
         return "B10_LITISPEND: ALERTA - %s" % '\n'.join(partes_alerta)
     return "B10_LITISPEND: OK"
 
-
-# ---------------------------------------------------------------------------
-# B11 - Responsabilidade subsidiaria / solidaria
-# ---------------------------------------------------------------------------
 
 _RE_RECLAMADA_HEADER = re.compile(
     r'(?:\d+[o]\.?\s*|primeira\s+|segunda\s+|terceira\s+|quarta\s+)RECLAMAD[AO]\b'
@@ -958,11 +861,6 @@ def _checar_responsabilidade(texto: str, capa_dados: Dict[str, Any] = None) -> L
             tipo_resp, n_rec)]
     return ["B11_RESPONSAB: OK - %s reclamadas com pedido de responsabilidade %s e causa de pedir" % (
         n_rec, tipo_resp)]
-
-
-# ---------------------------------------------------------------------------
-# B12 - Endereco do reclamante / Audiencia virtual
-# ---------------------------------------------------------------------------
 
 
 def _checar_endereco_reclamante(texto: str, capa_dados: Dict[str, Any] = None) -> List[str]:
@@ -1046,7 +944,6 @@ def _checar_endereco_reclamante(texto: str, capa_dados: Dict[str, Any] = None) -
         linhas.append("B12_ENDERECO: INFO - endereco do reclamante nao identificado%s" % fonte_info)
         endereco_api_ok = False
 
-    # Regra: se o endereco da API e OK, NAO se gera alerta de endereco do reclamante
     if not endereco_api_ok:
         _PAISES_ESTRANGEIROS = [
             'argentina', 'paraguai', 'paraguay', 'uruguai', 'uruguay',
@@ -1138,11 +1035,6 @@ def _checar_endereco_reclamante(texto: str, capa_dados: Dict[str, Any] = None) -
     return linhas
 
 
-# ---------------------------------------------------------------------------
-# B13 - Rito processual
-# ---------------------------------------------------------------------------
-
-
 def _checar_rito(texto: str, capa_dados: Dict[str, Any], pjdp_detectado: bool = False) -> str:
     rito_dec = capa_dados.get('rito_declarado')
     if not rito_dec:
@@ -1183,11 +1075,6 @@ def _checar_rito(texto: str, capa_dados: Dict[str, Any], pjdp_detectado: bool = 
         return "B13_RITO: OK - %s compativel (%s)" % (rito_dec, motivo)
     return "B13_RITO: ALERTA - rito declarado %s incompativel; correto: %s (%s)" % (
         rito_dec, rito_correto, motivo)
-
-
-# ---------------------------------------------------------------------------
-# B14 - Art. 611-B CLT
-# ---------------------------------------------------------------------------
 
 
 def _checar_art611b(texto: str) -> str:

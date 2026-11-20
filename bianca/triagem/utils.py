@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-bianca/triagem/utils.py -- Utilitarios gerais para o modulo de triagem.
-
-Funcoes:
-    _norm(s)                       Normalizacao NFD + lower + remove acentos.
-    _formatar_endereco_parte(endereco)  Formata endereco dict como string.
-    _normalizar_continuacao(texto)      Substitui \\n por \\n\\ \\ (recuo).
-"""
+"""bianca/triagem/utils.py -- Utilitarios gerais para o modulo de triagem."""
 
 import logging
 import unicodedata

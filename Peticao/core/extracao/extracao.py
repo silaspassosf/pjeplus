@@ -1,7 +1,4 @@
-"""
-Peticao.extracao - Extração direta de documentos PJe.
-Suporta HTML e PDF via object.conteudo-pdf — sem scroll, headless-safe.
-"""
+"""Peticao.extracao - Extração direta de documentos PJe."""
 
 import re
 import logging
@@ -22,7 +19,6 @@ else:
     import logging
     logger = logging.getLogger(__name__)
 
-# JavaScript que detecta se o object.conteudo-pdf contém viewer PDF.js ou HTML
 _JS_EXTRAIR_OBJECT = r"""
 var callback = arguments[arguments.length - 1];
 try {
@@ -94,7 +90,6 @@ def _extrair_objeto_pje(driver: Any, timeout: int = 8, debug: bool = False) -> D
         return {'sucesso': False, 'status': 'FALHA', 'detalhes': {'tipo': None, 'texto': None}}
 
     try:
-        # execute_async_script espera que o JS invoque o callback
         resultado = driver.execute_async_script(_JS_EXTRAIR_OBJECT)
         if not resultado:
             return {'sucesso': False, 'status': 'FALHA', 'detalhes': {'tipo': None, 'texto': None}}
@@ -150,7 +145,6 @@ def _formatar_pdf(texto: str) -> str:
                 continue
             else:
                 if in_table and table_block:
-                    # flush table
                     max_cols = max(len(r) for r in table_block)
                     widths = [0]*max_cols
                     for r in table_block:
@@ -162,7 +156,6 @@ def _formatar_pdf(texto: str) -> str:
                         out_lines.append(row)
                     table_block = []
                     in_table = False
-                # detect totals
                 if re.search(r'\b(Total|Subtotal|Líquido|Bruto)\b', l, flags=re.IGNORECASE):
                     out_lines.append(f"** {l} **")
                 else:
@@ -251,9 +244,7 @@ def extrair_direto(driver: Any, timeout: int = 10, debug: bool = False, formatar
         return resultado
 
 def extrair_documento(driver: Any, regras_analise=None, timeout: int = 15, log: bool = False) -> Optional[str]:
-    """Compat shim: manter assinatura antiga `extrair_documento`.
-    Retorna o texto formatado (str) ou None se falhar.
-    """
+    """Compat shim: manter assinatura antiga `extrair_documento`."""
     res = extrair_direto(driver, timeout=timeout, debug=log, formatar=True)
     if not res or not res.get('sucesso'):
         return None
@@ -272,7 +263,6 @@ def _extrair_formatar_texto(texto_bruto: str, debug: bool = False) -> str:
 def extrair_pdf(driver: Any, timeout: int = 15, debug: bool = False, log: bool = False) -> Optional[str]:
     """Compat shim: extrai especificamente PDF (retorna texto formatado).
     Aceita o parâmetro legado `log` para compatibilidade (mapeado para `debug`)."""
-    # aceitar ambos: `debug` ou legado `log` (priorizar `debug` se True)
     debug = debug or log
     res = extrair_direto(driver, timeout=timeout, debug=debug, formatar=True)
     if not res or not res.get('sucesso'):
@@ -282,37 +272,26 @@ def extrair_pdf(driver: Any, timeout: int = 15, debug: bool = False, log: bool =
     return res.get('conteudo')
 
 def normalizar_cpf_cnpj(documento: Union[str, int, None]) -> str:
-    """
-    Remove pontuação de CPF/CNPJ, mantendo apenas números
-    """
+    """Remove pontuação de CPF/CNPJ, mantendo apenas números"""
     if not documento:
         return ""
 
-    # Remove todos os caracteres não numéricos
     import re
     documento_limpo = re.sub(r'\D', '', str(documento))
     return documento_limpo
 
 def formatar_moeda_brasileira(valor: Union[float, int, str]) -> str:
-    """
-    Formata valor numérico para moeda brasileira (R$ xxxxx,yy)
-    """
+    """Formata valor numérico para moeda brasileira (R$ xxxxx,yy)"""
     try:
         if isinstance(valor, str):
-            # Remove caracteres não numéricos, exceto vírgulas e pontos
             valor_limpo = re.sub(r'[^\d,.]', '', valor)
 
-            # Converte para float
             if ',' in valor_limpo and '.' in valor_limpo:
-                # Formato 1.234.567,89 ou 1,234,567.89
                 if valor_limpo.rfind(',') > valor_limpo.rfind('.'):
-                    # Último separador é vírgula (formato brasileiro)
                     valor_limpo = valor_limpo.replace('.', '').replace(',', '.')
                 else:
-                    # Último separador é ponto (formato internacional)
                     valor_limpo = valor_limpo.replace(',', '')
             elif ',' in valor_limpo:
-                # Apenas vírgula como separador decimal
                 valor_limpo = valor_limpo.replace(',', '.')
 
             valor = float(valor_limpo)
@@ -320,10 +299,8 @@ def formatar_moeda_brasileira(valor: Union[float, int, str]) -> str:
         if valor == 0:
             return "R$ 0,00"
 
-        # Formata com separador de milhares e duas casas decimais
         valor_formatado = f"{valor:,.2f}"
 
-        # Substitui separadores para formato brasileiro
         valor_formatado = valor_formatado.replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
 
         return f"R$ {valor_formatado}"
@@ -332,21 +309,16 @@ def formatar_moeda_brasileira(valor: Union[float, int, str]) -> str:
         return "R$ 0,00"
 
 def formatar_data_brasileira(data_str: Optional[str]) -> str:
-    """
-    Formata data para padrão brasileiro (dd/mm/yyyy)
-    """
+    """Formata data para padrão brasileiro (dd/mm/yyyy)"""
     try:
         if not data_str:
             return ""
 
-        # Se já está no formato brasileiro, retorna como está
         if re.match(r'\d{2}/\d{2}/\d{4}', data_str):
             return data_str
 
-        # Remove horário se presente
         data_limpa = data_str.split('T')[0].split(' ')[0]
 
-        # Tenta diferentes formatos de entrada
         formatos = [
             '%Y-%m-%d',
             '%d-%m-%Y',
@@ -364,7 +336,6 @@ def formatar_data_brasileira(data_str: Optional[str]) -> str:
             except ValueError:
                 continue
 
-        # Se não conseguiu formatar, retorna string original
         return data_str
 
     except Exception:

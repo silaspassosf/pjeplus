@@ -29,13 +29,12 @@ def navegar_para_atividades(driver):
 def aplicar_filtro_xs(driver):
     """Aplica filtro 'xs' no campo Descrição da Atividade do GIGS."""
     try:
-        # Buscar campo de descrição usando aria-label ou data-placeholder
         seletores = [
             'input[aria-label="Descrição da Atividade"]',
             'input[data-placeholder="Descrição da Atividade"]',
-            'input#mat-input-3'  # ID específico caso os outros falhem
+            'input#mat-input-3'
         ]
-        
+
         campo_descricao = None
         seletor_usado = None
         for seletor in seletores:
@@ -44,15 +43,13 @@ def aplicar_filtro_xs(driver):
                 seletor_usado = seletor
                 logger.info(f"[FILTRO_XS]  Campo encontrado com seletor: {seletor}")
                 break
-        
+
         if not campo_descricao or not seletor_usado:
             logger.error("[FILTRO_XS]  Campo de descrição não encontrado")
             return False
 
-        # Preencher 'xs' no campo
         preencher_campo(driver, seletor_usado, 'xs')
-        
-        # Pressionar Enter para aplicar filtro
+
         try:
             page = getattr(driver, 'page', None)
             if page is not None:
@@ -60,14 +57,13 @@ def aplicar_filtro_xs(driver):
             else:
                 fn = getattr(campo_descricao, 'send_keys', None)
                 if fn:
-                    fn('\ue007')  # Keys.ENTER
+                    fn('\ue007')
         except Exception:
             pass
         logger.info("[FILTRO_XS]  Filtro 'xs' aplicado, aguardando recarga...")
-        
-        # Aguardar recarga da tabela
+
         espera.ate_aparecer(driver, 'tr.cdk-drag, table tbody tr, .ag-root', teto=10)
-        
+
         return True
 
     except Exception as e:
@@ -76,10 +72,7 @@ def aplicar_filtro_xs(driver):
 
 
 def indexar_processo_atual_gigs(driver):
-    """
-    Extrai número do processo e observação da página atual de atividades GIGS.
-    Assume que já está na página de detalhes do processo.
-    """
+    """Extrai número do processo e observação da página atual de atividades GIGS."""
     try:
         url_atual = driver.current_url
         numero_processo = None

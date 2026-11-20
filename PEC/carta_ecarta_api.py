@@ -1,16 +1,4 @@
-"""
-PEC - carta_ecarta_api.py
-Substitui a extração DOM (Selenium) de coletar_tabela_ecarta por chamadas HTTP.
-
-Fluxo:
-    1. Login único (extrai JSESSIONID do driver Selenium — cache por sessão)
-    2. GET consultarProcesso.xhtml?codigo=<processo> → parse HTML → filtra por idPje/data
-    3. Para cada linha com rastreio: GET consultarObjeto → POST JSF → extrai eventos
-    4. Detecta falsos positivos e corrige STATUS
-    5. Retorna mesma estrutura de table_data que o legado espera
-
-Uso: substituir coletar_tabela_ecarta() por coletar_tabela_ecarta_api() em carta_execucao.py
-"""
+"""PEC - carta_ecarta_api.py"""
 
 from __future__ import annotations
 
@@ -31,11 +19,9 @@ logger = logging.getLogger(__name__)
 
 BASE = "https://aplicacoes1.trt2.jus.br/eCarta-web/"
 
-# ─── Cache de sessão HTTP (login único por execução) ───
 _ecarta_session: Optional[requests.Session] = None
 _ecarta_logged_in: bool = False
 
-# ─── Padrões de falso positivo ───
 RE_DEVOLUCAO = re.compile(
     r'objeto\s+(ser[áa]\s+devolvido|saiu\s+para\s+entrega\s+ao\s+remetente|entregue\s+ao\s+remetente)'
     r'|devolvido\s+ao\s+remetente',
@@ -53,12 +39,7 @@ _MESES_PT = {
 
 
 def _parse_data(texto: str) -> Optional[_date]:
-    """
-    Parseia data em formato brasileiro (DD/MM/YYYY[ HH:MM[:SS]]), ISO
-    (YYYY-MM-DD[THH:MM:SS]) ou por extenso em portugues (ex: "07 de julho de
-    2026", como aparece no rodape padrao dos documentos do PJe). Retorna None
-    se nao conseguir reconhecer.
-    """
+    """Parseia data em formato brasileiro (DD/MM/YYYY[ HH:MM[:SS]]), ISO"""
     if not texto:
         return None
     texto = texto.strip()
@@ -98,17 +79,8 @@ def _parse_data(texto: str) -> Optional[_date]:
     return None
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Login único
-# ═══════════════════════════════════════════════════════════════════
-
 def _obter_credenciais_ecarta() -> tuple[str, str]:
-    """Recupera credenciais do eCarta via keyring do Windows (Credential Manager).
-
-    F0/limpeza: o fallback hardcoded foi removido — a credencial DEVE estar no
-    Gerenciador de Credenciais (entradas genericas 'username@pjeplus_ecarta' e
-    'password@pjeplus_ecarta'). Sem ela, erro claro (o segredo nao vive no codigo).
-    """
+    """Recupera credenciais do eCarta via keyring do Windows (Credential Manager)."""
     import keyring
     user = keyring.get_password("pjeplus_ecarta", "username")
     pwd = keyring.get_password("pjeplus_ecarta", "password")
@@ -122,12 +94,7 @@ def _obter_credenciais_ecarta() -> tuple[str, str]:
 
 
 def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.Session]:
-    """
-    Garante sessão HTTP autenticada no eCarta.
-    - Se já temos sessão ativa, retorna ela.
-    - Senão, tenta extrair JSESSIONID do driver (se já logado).
-    - Se não tiver cookie, faz login via browser uma única vez em nova aba.
-    """
+    """Garante sessão HTTP autenticada no eCarta."""
     global _ecarta_session, _ecarta_logged_in
 
     if _ecarta_session is not None:
@@ -135,7 +102,6 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
 
     s = requests.Session()
 
-    # Tenta extrair cookies da sessão atual do driver
     try:
         selenium_cookies = driver.get_cookies() if hasattr(driver, "get_cookies") else []
         for c in selenium_cookies:
@@ -150,7 +116,6 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
         if log:
             logger.warning('[CARTA-API] falha ao ler cookies pré-login: %s', e)
 
-    # Testa se a sessão já está autenticada
     try:
         resp = s.get(BASE + 'consultarProcesso.xhtml', timeout=10, allow_redirects=True)
         if 'input_user' not in resp.text and 'login-box' not in resp.text.lower():
@@ -162,7 +127,6 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
     except Exception:
         pass
 
-    # ── Login via browser (uma única vez em nova aba) ──
     if log:
         logger.info('[CARTA-API] Abrindo eCarta para login único...')
 
@@ -201,7 +165,6 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
             espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
             espera.assentar(driver, 1)
 
-            # Re-navegar para URL da consulta para confirmar sessão ativa (padrão LEGADO.md)
             try:
                 driver.get(f"{BASE}consultarProcesso.xhtml")
                 espera.ate_js(driver, "document.readyState === 'complete'", teto=5)
@@ -217,7 +180,6 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
         if log:
             logger.warning(f'[CARTA-API] Erro durante login eCarta: {e}')
 
-    # Extrai cookies pós-login
     try:
         selenium_cookies = driver.get_cookies() if hasattr(driver, "get_cookies") else []
         for c in selenium_cookies:
@@ -231,7 +193,6 @@ def _ecarta_ensure_session(driver: Any, log: bool = True) -> Optional[requests.S
         if log:
             logger.warning('[CARTA-API] falha ao ler/transferir cookies pós-login: %s', e)
 
-    # Fecha a aba de login e retorna o foco para a janela original
     try:
         driver.close()
         handles = getattr(driver, 'window_handles', [])
@@ -257,10 +218,6 @@ def _ecarta_reset_session():
     _ecarta_logged_in = False
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Parsers HTML (sem Selenium)
-# ═══════════════════════════════════════════════════════════════════
-
 def _parse_tabela_processo(html: str) -> list[dict]:
     """Extrai linhas da tabela eCarta do HTML bruto."""
     from bs4 import BeautifulSoup
@@ -282,7 +239,6 @@ def _parse_tabela_processo(html: str) -> list[dict]:
 
         get_text = lambda i: tds[i].get_text(strip=True) if i < len(tds) else ''
 
-        # Extrai código de rastreamento
         objetoTd = tds[4] if len(tds) > 4 else None
         rastreio = ''
         rastreio_link = ''
@@ -334,12 +290,80 @@ def _extrair_viewstate(html: str) -> str:
     return m.group(1) if m else ''
 
 
+def _parse_rows_fragment(fragmento: str) -> list[dict]:
+    """Parseia `<tr>` soltos devolvidos pelo AJAX de paginação do PrimeFaces."""
+    if not fragmento:
+        return []
+    return _parse_tabela_processo(
+        f'<table><tbody id="main:tabDoc_data">{fragmento}</tbody></table>'
+    )
+
+
+def _assinatura_rows(rows: list[dict]) -> tuple:
+    """Identidade estável da página, para detectar página repetida (fim da lista)."""
+    return tuple(
+        (r.get('idPje') or '') + '|' + (r.get('dataEnvio') or '') + '|' + (r.get('objeto') or '')
+        for r in rows
+    )
+
+
+def _paginar_tabela(session, url: str, viewstate: str, todas_rows: list[dict], log: bool = True,
+                    max_paginas: int = 30) -> list[dict]:
+    """Percorre TODAS as páginas da tabela eCarta via AJAX do PrimeFaces."""
+    tid = 'main:tabDoc'
+    assinatura = _assinatura_rows(todas_rows)
+    first = len(todas_rows) or 20
+
+    for pagina in range(2, max_paginas + 1):
+        dados = {
+            'javax.faces.partial.ajax': 'true',
+            'javax.faces.source': tid,
+            'javax.faces.partial.execute': tid,
+            'javax.faces.partial.render': tid,
+            tid: tid,
+            'javax.faces.ViewState': viewstate,
+            f'{tid}_pagination': 'true',
+            f'{tid}_first': str(first),
+            f'{tid}_rows': '20',
+            f'{tid}_skipChildren': 'true',
+            f'{tid}_encodeFeature': 'true',
+        }
+        try:
+            resp = session.post(
+                url, data=dados,
+                headers={'Faces-Request': 'partial/ajax', 'X-Requested-With': 'XMLHttpRequest'},
+                timeout=30,
+            )
+            resp.raise_for_status()
+        except Exception as e:
+            if log:
+                logger.warning('[CARTA-API] Paginação parou na página %s: %s', pagina, e)
+            break
+
+        cdata = ''.join(re.findall(r'<!\[CDATA\[(.*?)\]\]>', resp.text, re.S))
+        rows = _parse_rows_fragment(cdata)
+        if not rows:
+            break
+
+        nova = _assinatura_rows(rows)
+        if nova == assinatura:
+            break
+
+        assinatura = nova
+        todas_rows.extend(rows)
+        first += len(rows)
+
+        m = re.search(r'id="javax\.faces\.ViewState"><!\[CDATA\[(.*?)\]\]>', resp.text, re.S)
+        if m:
+            viewstate = m.group(1)
+
+    if log and len(todas_rows):
+        logger.info('[CARTA-API] Paginação concluída: %s linha(s) no total', len(todas_rows))
+    return todas_rows
+
+
 def _fetch_detalhes_rastreio(session: requests.Session, target: str) -> tuple[list[dict], list[str]]:
-    """
-    GET consultarObjeto → POST JSF → parse eventos.
-    target pode ser URL completa ou código de rastreamento (ex: 'JH123456789BR').
-    Retorna (todos_eventos, evidencias_devolucao).
-    """
+    """GET consultarObjeto → POST JSF → parse eventos."""
     target = (target or '').strip()
     if not target:
         return [], []
@@ -364,7 +388,6 @@ def _fetch_detalhes_rastreio(session: requests.Session, target: str) -> tuple[li
     if not indices:
         return [], []
 
-    # Etapa 2: POST JSF para cada índice
     todos_eventos = []
     evidencias_devolucao = []
 
@@ -420,7 +443,6 @@ def _parse_partial_response(xml_text: str) -> tuple[list[dict], list[str]]:
         pass
 
     if not updates_html:
-        # Fallback regex para capturar CDATA da tag update
         m = re.findall(
             r'<update[^>]*id="detalhesObjeto"[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</update>',
             xml_text,
@@ -485,26 +507,17 @@ def _parse_partial_response(xml_text: str) -> tuple[list[dict], list[str]]:
     return eventos, evidencias
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Classificação de falso positivo
-# ═══════════════════════════════════════════════════════════════════
-
 def _classificar_status(
     status_original: str,
     eventos: list[dict],
     evidencias: list[str],
 ) -> tuple[str, Optional[str], bool]:
-    """Determina o status real considerando o histórico de eventos e evidências de devolução.
-    
-    Returns:
-        (status_real, evidencia, falso_positivo)
-    """
+    """Determina o status real considerando o histórico de eventos e evidências de devolução."""
     status_orig = status_original or ''
     eh_devolvido_orig = bool(RE_STATUS_DEVOLVIDO.search(status_orig))
 
     if evidencias:
         evidencia = evidencias[0]
-        # É falso positivo se a tabela original não dizia devolução
         falso_positivo = not eh_devolvido_orig
         return 'DEVOLVIDO', evidencia, falso_positivo
 
@@ -517,10 +530,6 @@ def _classificar_status(
     return status_orig or 'INDETERMINADO', None, False
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Substituição direta de coletar_tabela_ecarta
-# ═══════════════════════════════════════════════════════════════════
-
 def coletar_tabela_ecarta_api(
     driver: Any,
     process_number: str,
@@ -528,34 +537,10 @@ def coletar_tabela_ecarta_api(
     log: bool = True,
     data_referencia: Optional[str] = None,
 ) -> list[dict]:
-    """
-    Substitui coletar_tabela_ecarta() — mesma entrada, mesma saída,
-    mas usa HTTP (requests) em vez de Selenium para extrair a tabela.
-
-    Adiciona auditoria de rastreamentos e correção de falsos positivos.
-
-    Args:
-        data_referencia: data da intimação detectada no PJe (qualquer formato
-            aceito por _parse_data). Quando presente, é o critério PRIMÁRIO de
-            seleção: pega todas as linhas do eCarta com dataEnvio >= essa data
-            (não só ==, pra cobrir o eCarta processar o envio com 1-2 dias de
-            atraso em relação ao registro da intimação no PJe). Isso existe
-            porque uma intimação especifica pode nao ter side no eCarta (ex:
-            destinatario sem endereco -> "Expediente enviado por outro meio" —
-            eCarta nunca gera carta pra ela), mas as OUTRAS cartas do mesmo
-            lote/dia continuam validas e nao podem se perder por causa disso.
-            Se data_referencia não for parseável ou não for passada, cai no
-            comportamento legado (correlação por substring de idPje).
-
-    Returns:
-        list[dict] com:
-            ID_PJE, RASTREAMENTO, DESTINATARIO, DATA_ENVIO, DATA_ENTREGA, STATUS
-        O campo STATUS já vem corrigido (falsos positivos detectados).
-    """
+    """Substitui coletar_tabela_ecarta() — mesma entrada, mesma saída,"""
     if not intimation_ids:
         return []
 
-    # Re-obter número do processo (comportamento legado)
     try:
         from PEC.carta_utils import _obter_numero_processo as _obter_numero_processo
         numero_atual = _obter_numero_processo(driver, log)
@@ -578,14 +563,12 @@ def coletar_tabela_ecarta_api(
             f'intimation_ids={intimation_ids}'
         )
 
-    # ── Garante sessão HTTP ──
     session = _ecarta_ensure_session(driver, log=log)
     if not session:
         if log:
             logger.error('[CARTA-API] Falha ao obter sessão HTTP')
         return []
 
-    # ── Etapa 1: GET tabela do processo ──
     url = f'{BASE}consultarProcesso.xhtml?codigo={process_number}'
     if log:
         logger.info(f'[CARTA-API] GET {url}')
@@ -609,21 +592,22 @@ def coletar_tabela_ecarta_api(
         _ecarta_reset_session()
         return []
 
-    # ── Etapa 2: Parse da tabela ──
     todas_rows = _parse_tabela_processo(html)
     if log:
         logger.info(
-            f'[CARTA-API] {len(todas_rows)} linhas extraídas '
+            f'[CARTA-API] {len(todas_rows)} linhas extraídas na página 1 '
             f'(GET: {dur_get:.1f}s)'
         )
 
     if not todas_rows:
         return []
 
-    # ── Etapa 3: Selecionar linhas-alvo ──
-    # Preferencia: data de referencia detectada no PJe (>= essa data, cobre
-    # atraso de processamento do eCarta e sobrevive a intimacoes individuais
-    # sem correspondente no eCarta). Fallback: correlacao legada por idPje.
+    viewstate = _extrair_viewstate(html)
+    if viewstate:
+        todas_rows = _paginar_tabela(session, url, viewstate, todas_rows, log=log)
+    elif log:
+        logger.warning('[CARTA-API] ViewState ausente — paginando apenas a primeira página')
+
     data_ref_parsed = _parse_data(data_referencia) if data_referencia else None
 
     if data_ref_parsed:
@@ -640,9 +624,26 @@ def coletar_tabela_ecarta_api(
             )
 
         if not linhas_para_auditar:
-            if log:
-                logger.info('[CARTA-API] Nenhuma linha nesta data ou mais recente')
-            return []
+            candidatos = []
+            for row in todas_rows:
+                d = _parse_data(row.get('dataEnvio', ''))
+                if d is not None:
+                    candidatos.append((d, row))
+            if candidatos:
+                mais_recente = max(d for d, _ in candidatos)
+                linhas_para_auditar = [r for d, r in candidatos if d == mais_recente][:5]
+                if log:
+                    logger.info(
+                        '[CARTA-API] Nenhuma linha >= %s — fallback para a data mais '
+                        'recente da tabela (%s): %s linha(s)',
+                        data_referencia,
+                        linhas_para_auditar[0].get('dataEnvio', '') if linhas_para_auditar else '?',
+                        len(linhas_para_auditar),
+                    )
+            if not linhas_para_auditar:
+                if log:
+                    logger.info('[CARTA-API] Nenhuma linha nesta data ou mais recente')
+                return []
     else:
         if log:
             logger.info('[CARTA-API] Sem data_referencia utilizavel — usando correlacao legada por idPje')
@@ -679,7 +680,6 @@ def coletar_tabela_ecarta_api(
             if row.get('dataEnvio', '') in datas_correlacionadas
         ]
 
-    # ── Etapa 4: Auditar rastreamentos das linhas selecionadas ──
     table_data = []
 
     if log:
@@ -731,14 +731,12 @@ def coletar_tabela_ecarta_api(
             elif status_real == 'DEVOLVIDO':
                 status_final = status_original if RE_STATUS_DEVOLVIDO.search(status_original) else 'DEVOLVIDO'
 
-        # Determinar se a intimação é devolvida (original ou falso positivo corrigido)
         is_devolvido = bool(
             falso_positivo
             or RE_STATUS_DEVOLVIDO.search(status_final)
             or RE_STATUS_DEVOLVIDO.search(status_original)
         )
 
-        # Regra: no caso de notificação devolvida, nunca constar data de entrega!
         data_entrega = '' if is_devolvido else row.get('dataEntrega', '')
 
         rastreamento_final = link or rastreio

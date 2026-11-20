@@ -1,16 +1,8 @@
-"""
-Peticao/runtime_pet.py — Runtime consolidado do fluxo G (Peticao)
-
-Consolida: pet.py, orquestrador.py, api_client.py, progresso.py,
-           core/utils/utils.py, core/utils/observer.py
-"""
+"""Peticao/runtime_pet.py — Runtime consolidado do fluxo G (Peticao)"""
 
 from Fix.log import getmodulelogger
 logger = getmodulelogger(__name__)
 
-# ============================================================================
-# Dependencias — stdlib
-# ============================================================================
 
 import io
 import re
@@ -29,15 +21,9 @@ from Fix.monitoramento_progresso_unificado import (
 )
 from Fix.abas import fechar_abas_extras as _fechar_abas_extras
 
-# ============================================================================
-# Dependencias — Peticao
-# ============================================================================
 
 # Nota: core/extracao e regras sao importados abaixo via lazy para evitar
 # circular import com core/utils/utils.py e core/utils/observer.py via
-# helpers -> extracao -> observer (mantidos in-situ).
-# As funcoes de core/utils/ sao importadas diretamente de seus modulos
-# originais para o mesmo fim.
 
 from Peticao.core.extracao import criar_gigs, extrair_direto, extrair_documento
 from Peticao.core.utils.observer import aguardar_renderizacao_nativa
@@ -52,24 +38,13 @@ from Peticao.regras_execucao import (
     resolver_acao,
 )
 
-# ============================================================================
-# Dependencias — projeto raiz
-# ============================================================================
 
 from utilitarios_processamento import resultado_falha, resultado_ok
 
 
-# ============================================================================
-# CONFIGURACOES
-# ============================================================================
-
 ESCANINHO_URL = "https://pje.trt2.jus.br/pjekz/escaninho/peticoes-juntadas"
 BUCKETS_ORDEM = ['diretos', 'pericias', 'recurso', 'analise']
 
-
-# ============================================================================
-# ENTRADA — run_pet e helpers
-# ============================================================================
 
 def _run_pet_ok():
     """Resultado de sucesso padronizado + compatibilidade com _executar_fluxo de x.py."""
@@ -119,10 +94,7 @@ def _abrir_documento_peticao(driver: Any, peticao) -> Optional[object]:
 
 
 def _extrair_texto_doc_pet(driver: Any, link) -> Optional[str]:
-    """
-    Clica no link, aguarda renderizacao e extrai texto via extrair_direto / extrair_documento.
-    Mesmo padrao de p2b_fluxo_documentos._extrair_texto_documento.
-    """
+    """Clica no link, aguarda renderizacao e extrai texto via extrair_direto / extrair_documento."""
     link.click()
     try:
         aguardar_renderizacao_nativa(driver, '.timeline, .document-viewer, div.tl-item-container', timeout=2)
@@ -152,11 +124,7 @@ def _extrair_texto_doc_pet(driver: Any, link) -> Optional[str]:
 
 
 def extrair_texto_peticao_via_api(driver: Any, peticao) -> Optional[str]:
-    """
-    Extrai o texto da peticao via API PJe, sem interacao com a timeline.
-    Usa session_from_driver para reutilizar cookies da sessao ativa.
-    Retorna texto normalizado em lowercase ou None se falhar.
-    """
+    """Extrai o texto da peticao via API PJe, sem interacao com a timeline."""
     id_doc = getattr(peticao, 'id_item', '') or ''
     id_proc = getattr(peticao, 'id_processo', '') or ''
     if not id_doc or not id_proc:
@@ -208,12 +176,7 @@ def extrair_texto_peticao_via_api(driver: Any, peticao) -> Optional[str]:
 
 
 def analise_pet(driver: Any, peticao) -> bool:
-    """
-    Analise de peticao:
-    1. Extrai texto via API PJe (sem abrir documento no browser)
-    2. Fallback: abre documento na timeline via Selenium
-    3. Aplica regras; fallback final: criar_gigs
-    """
+    """Analise de peticao:"""
     logger.info('[PET_ANALISE] Iniciando analise_pet — %s', peticao.numero_processo)
 
     try:
@@ -299,10 +262,6 @@ def run_pet(driver=None):
         return _run_pet_falha(str(e))
 
 
-# ============================================================================
-# ORQUESTRACAO
-# ============================================================================
-
 def _classificar(itens: List) -> Dict[str, list]:
     buckets: Dict[str, list] = {nome: [] for nome in BUCKETS_ORDEM}
     for item in itens:
@@ -311,20 +270,11 @@ def _classificar(itens: List) -> Dict[str, list]:
     return buckets
 
 
-# ============================================================================
-# DRY RUN — le o escaninho e indica as regras SEM abrir processo
-# ============================================================================
-
-# Buckets cujo processamento abre o processo no PJe (apagar incluso: agora
-# abre o processo e cria a GIGS "pet - apagar").
 _BUCKETS_QUE_ABREM = {'apagar', 'diretos', 'pericias', 'recurso', 'analise'}
 
 
 def montar_relatorio_dry_run(itens: List, gravar_arquivo: bool = True) -> Dict[str, Any]:
-    """Classifica os itens e devolve o relatorio das regras aplicaveis.
-
-    Nao navega para nenhum processo, nao executa atos e nao grava delete.js.
-    """
+    """Classifica os itens e devolve o relatorio das regras aplicaveis."""
     linhas = []
     for item in itens:
         exp = explicar(item)
@@ -482,8 +432,6 @@ def _executar_bucket_normal(driver: Any, nome: str, itens: list,
         finally:
             _fechar_abas_extras(driver)
 
-        # delete.js desativado: nao ha o que consolidar apos quesitos.
-
     return stats
 
 
@@ -544,8 +492,6 @@ class PETOrquestrador:
         if dry_run:
             return montar_relatorio_dry_run(itens)
 
-        # Apagar: agora abre o processo e cria a GIGS "pet - apagar"
-        # (o delete.js foi desativado; nao se grava mais nada em arquivo).
         if buckets.get('apagar'):
             logger.info('[PET_ORQ] Apagar: %d itens -> abrir processo + GIGS '
                         '"pet - apagar"', len(buckets['apagar']))
@@ -573,8 +519,6 @@ class PETOrquestrador:
                     raise
                 stats['erro'] += 1
 
-        # delete.js desativado: nada a consolidar ao final do lote.
-
         logger.info('=' * 60)
         logger.info(f"[PET_ORQ] Concluido: {stats['sucesso']}/{stats['total']} sucesso, {stats['erro']} erros")
         logger.info('=' * 60)
@@ -593,10 +537,6 @@ def executar_fluxo_pet(driver: Any) -> bool:
         logger.error(f'[PET_FLUXO] Erro fatal: {e}')
         return False
 
-
-# ============================================================================
-# API CLIENT — PeticaoAPIClient, PeticaoItem
-# ============================================================================
 
 @dataclass
 class PeticaoItem:
@@ -719,10 +659,6 @@ def _normalizar(raw: dict) -> PeticaoItem:
     )
 
 
-# ============================================================================
-# PROGRESSO — tracking de progresso para PET
-# ============================================================================
-
 def carregar_progresso_pet() -> dict:
     """Carrega progresso salvo do PET."""
     try:
@@ -754,10 +690,6 @@ def processo_ja_executado_pet(processo_id: str, progresso: dict) -> bool:
     except Exception:
         return False
 
-
-# ============================================================================
-# MAIN GUARD
-# ============================================================================
 
 if __name__ == '__main__':
     import sys as _sys

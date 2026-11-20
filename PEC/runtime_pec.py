@@ -1,8 +1,4 @@
-"""PEC - Runtime Consolidado
-
-Consolidado de: api_client, helpers, core_progresso, carta_utils,
-                carta_formatacao, orquestrador.
-"""
+"""PEC - Runtime Consolidado"""
 
 import json
 import logging
@@ -36,10 +32,6 @@ from Fix.abas import fechar_abas_extras as _fechar_abas_extras
 from Fix.browser_suporte import is_browsing_context_discarded_error
 
 
-# ═══════════════════════════════════════════════════
-# API CLIENT
-# ═══════════════════════════════════════════════════
-
 class AtividadePEC:
     def __init__(self, numero_processo, observacao, status, data_prazo, tipo_gigs, id_processo=None, id_atividade=None):
         self.numero_processo = numero_processo
@@ -53,9 +45,6 @@ class AtividadePEC:
 
 class PECAPIClient:
     def fetch_atividades_vencidas(self, driver: Any, tamanho_pagina: int = 100) -> Optional[List[AtividadePEC]]:
-        """Retorna a lista de atividades; None quando a API falha (403/401/
-        sessao morta) — para que o orquestrador reporte FALHA e o main()
-        acione o retry com novo login (mesmo contrato de mandado/p2b)."""
         logger.info("[PECAPIClient] Iniciando fetch_atividades_vencidas (API Gateway)...")
         try:
             sess, trt_host = session_from_driver(driver)
@@ -68,8 +57,6 @@ class PECAPIClient:
             client,
             "/pje-gigs-api/api/relatorioatividades/",
             params_base={
-                # 'true' = só atividades VENCIDAS (data_prazo < hoje). O recorte D-1 é
-                # feito no orquestrador — hoje (D0) fica de fora por definição.
                 'filtrarVencidas': 'true',
                 'ordenacaoCrescente': 'true',
                 'filtrarPorDestinatario': 'false',
@@ -111,12 +98,6 @@ class PECAPIClient:
         return atividades
 
 
-# ═══════════════════════════════════════════════════
-# HELPERS
-# ═══════════════════════════════════════════════════
-
-
-
 def gerar_regex_geral(termo: str) -> re.Pattern:
     """Gera regex flexivel para um termo, permitindo pontuacao entre palavras."""
     termo_norm: str = normalizar_texto(termo)
@@ -137,13 +118,6 @@ def _montar_url_processo(numero_cnj: str, base_url: str = "https://pje.trt2.jus.
     identificador = numero_limpo if len(numero_limpo) == 20 else numero_texto
     return f"{base_url}/pjekz/processo/{identificador}/detalhe"
 
-
-
-
-
-# ═══════════════════════════════════════════════════
-# PROGRESSO
-# ═══════════════════════════════════════════════════
 
 def carregar_progresso_pec() -> Dict[str, Any]:
     """Carrega o estado de progresso usando sistema unificado."""
@@ -227,11 +201,7 @@ def verificar_acesso_negado_pec(driver: Any) -> bool:
 
 
 def obter_chave_tarefa_pec(atv: Any, observacao: Optional[str] = None) -> str:
-    """Gera chave identificadora única para a tarefa no fluxo PEC.
-
-    Combina o número do processo (formatado CNJ) e a observação da atividade no GIGS.
-    Exemplo: '1000886-64.2019.5.02.0703::xs pec exequente pessoal'
-    """
+    """Gera chave identificadora única para a tarefa no fluxo PEC."""
     if hasattr(atv, 'numero_processo'):
         numero = atv.numero_processo or ""
         obs = normalizar_texto(getattr(atv, 'observacao', '') or '')
@@ -255,30 +225,18 @@ def obter_chave_tarefa_pec(atv: Any, observacao: Optional[str] = None) -> str:
 
 
 def tarefa_ja_executada_pec(atv: Any, progresso: Optional[Dict[str, Any]] = None) -> bool:
-    """Verifica se uma tarefa específica do PEC já foi executada.
-    
-    A checagem é por tarefa (processo + observação/atividade), permitindo que um
-    mesmo processo execute múltiplas tarefas distintas no GIGS sem pular.
-    """
+    """Verifica se uma tarefa específica do PEC já foi executada."""
     if not atv:
         return False
     if progresso is None:
         progresso = carregar_progresso_pec()
 
     def _canonica(k: str) -> str:
-        """Chave sem o segmento `id:<x>`.
-
-        O id da atividade no GIGS muda entre execuções (a tarefa é recriada), e a chave
-        antiga `NUM::id:123::xs sum` não casava com a nova `NUM::xs sum` — a mesma tarefa
-        era reexecutada. Comparar a forma canônica resolve nas duas direções.
-        """
+        """Chave sem o segmento `id:<x>`."""
         return "::".join(p for p in str(k).split("::") if not p.startswith("id:"))
 
     chave = obter_chave_tarefa_pec(atv)
     tarefas_executadas = progresso.get("tarefas_executadas", [])
-    # NÃO atalhar por chave exata aqui: o laço canônico abaixo já cobre esse caso e é o
-    # único que aplica o guard de data. Um `if chave in tarefas_executadas: return True`
-    # pulava a tarefa mesmo executada ONTEM (mesmo id_atividade, mesma observação).
 
     chave_canon = _canonica(chave)
     hoje = datetime.now().strftime('%Y-%m-%d')
@@ -286,15 +244,12 @@ def tarefa_ja_executada_pec(atv: Any, progresso: Optional[Dict[str, Any]] = None
     for salva in tarefas_executadas:
         if not isinstance(salva, str) or _canonica(salva) != chave_canon:
             continue
-        # Só considera concluída se foi executada HOJE (ou sem data, legado): assim uma
-        # tarefa nova do dia seguinte, com a mesma observação, não é pulada por engano.
         data_ref = datas.get(salva)
         if data_ref is None and '::' in salva:
             data_ref = datas.get(salva.split('::', 1)[0].strip())
         if data_ref in (None, hoje):
             return True
 
-    # Fallback caso a chave tenha sido gravada sem id_atividade (ou com variação de id)
     if hasattr(atv, 'numero_processo') and getattr(atv, 'observacao', None):
         num_norm = formatar_numero_cnj(atv.numero_processo) or atv.numero_processo.strip()
         chave_simples = f"{num_norm}::{normalizar_texto(atv.observacao)}"
@@ -337,7 +292,6 @@ def marcar_tarefa_executada_pec(
         datas[chave] = hoje
         logger.info(f"[PROGRESSO_PEC] ❌ Tarefa marcada com erro: {chave}")
 
-    # Para rastreabilidade global, também marca processo em processos_executados
     num = getattr(atv, 'numero_processo', str(atv) if not isinstance(atv, dict) else atv.get('numero_processo', ''))
     if num:
         marcar_processo_executado_unificado('pec', num, progresso, sucesso=sucesso, motivo=detalhes)
@@ -369,9 +323,7 @@ def marcar_processo_executado_pec(
     if progresso is None:
         progresso = carregar_progresso_pec()
     sucesso = True if (status or "").upper() == "SUCESSO" else False
-    # Sucesso vence erro: processo já executado com sucesso nunca é re-marcado
     # como erro — evita duplicação de estado (processo em executados E em erros)
-    # que causava re-execução indevida. O skip se apoia só em processos_executados.
     if not sucesso and processo_ja_executado_pec(str(numero_processo), progresso):
         logger.info(f'[PROGRESSO_PEC] Já executado com sucesso — ignorando erro: {numero_processo}')
         return progresso
@@ -379,13 +331,17 @@ def marcar_processo_executado_pec(
     return progresso
 
 
-# ═══════════════════════════════════════════════════
-# CARTA UTILS
-# ═══════════════════════════════════════════════════
-
 CALENDARIO_DIAS_UTEIS_PATH = Path('dias-uteis-trt2-2025.json')
 _CALENDARIO_DIAS_UTEIS = None
 _CALENDARIO_INTERVALO = None
+
+
+def _arquivos_calendario():
+    """Todos os arquivos de calendário do projeto (um por ano)."""
+    achados = sorted(Path('.').glob('dias-uteis-trt2-*.json'))
+    if achados:
+        return achados
+    return [CALENDARIO_DIAS_UTEIS_PATH] if CALENDARIO_DIAS_UTEIS_PATH.exists() else []
 
 
 def _carregar_calendario_dias_uteis():
@@ -394,9 +350,13 @@ def _carregar_calendario_dias_uteis():
         return _CALENDARIO_DIAS_UTEIS, _CALENDARIO_INTERVALO
     dias_calendario = set()
     intervalo = None
-    if CALENDARIO_DIAS_UTEIS_PATH.exists():
+    anos = set()
+    for arquivo_calendario in _arquivos_calendario():
+        m_ano = re.search(r'(\d{4})', arquivo_calendario.name)
+        if m_ano:
+            anos.add(int(m_ano.group(1)))
         try:
-            with open(CALENDARIO_DIAS_UTEIS_PATH, 'r', encoding='utf-8') as arquivo:
+            with open(arquivo_calendario, 'r', encoding='utf-8') as arquivo:
                 conteudo = json.load(arquivo)
             for entrada in conteudo.get('dias_uteis', []):
                 try:
@@ -404,11 +364,10 @@ def _carregar_calendario_dias_uteis():
                     dias_calendario.add(data_convertida)
                 except ValueError:
                     continue
-            if dias_calendario:
-                intervalo = (min(dias_calendario), max(dias_calendario))
         except Exception:
-            dias_calendario = set()
-            intervalo = None
+            continue
+    if anos:
+        intervalo = (datetime(min(anos), 1, 1).date(), datetime(max(anos), 12, 31).date())
     _CALENDARIO_DIAS_UTEIS = dias_calendario
     _CALENDARIO_INTERVALO = intervalo
     return _CALENDARIO_DIAS_UTEIS, _CALENDARIO_INTERVALO
@@ -446,10 +405,10 @@ def _dia_util_anterior(data_ref):
             if data in dias_calendario:
                 return data
         else:
-            if data.weekday() < 5:  # seg=0 ... sex=4
+            if data.weekday() < 5:
                 return data
         data -= timedelta(days=1)
-    return data_ref - timedelta(days=1)  # fallback seguro
+    return data_ref - timedelta(days=1)
 
 
 def _parse_data_ecarta(valor):
@@ -491,10 +450,6 @@ def _obter_numero_processo(driver, log):
             logger.error(f"[CARTA][DADOSATUAIS] Erro ao ler dadosatuais.json: {e}")
     return process_number
 
-
-# ═══════════════════════════════════════════════════
-# CARTA FORMATACAO
-# ═══════════════════════════════════════════════════
 
 def gerar_html_carta_para_juntada(dados):
     blocos_html = []
@@ -635,8 +590,7 @@ def formatar_dados_ecarta(dados_mais_recentes, intimacoes_info, log=True):
         bloco.append(f"    Status: {status_mostrar}")
         if item.get('EVIDENCIA'):
             bloco.append(f"    └ Evidência: {item.get('EVIDENCIA')}")
-        
-        # Calcular prazos individuais para entregas confirmadas
+
         if not is_devolvido:
             data_entrega = _parse_data_ecarta(item.get('DATA_ENTREGA', ''))
             if data_entrega:
@@ -655,20 +609,12 @@ def formatar_dados_ecarta(dados_mais_recentes, intimacoes_info, log=True):
     return conteudo_final, html_para_juntada, prazo_texto
 
 
-# ═══════════════════════════════════════════════════
-# GIGS DE PRAZO A PARTIR DA CERTIDAO (complemento do fluxo carta)
-# ═══════════════════════════════════════════════════
-
 _RE_PRAZO_15 = re.compile(r'15\s*(?:dias?\s*)?\((\d{2}/\d{2}/\d{4})\)', re.IGNORECASE)
 _RE_PRAZO_8 = re.compile(r'0?8\s*(?:dias?\s*)?\((\d{2}/\d{2}/\d{4})\)', re.IGNORECASE)
 
 
 def _contar_dias_uteis_ate(data_base, data_alvo):
-    """Dias uteis (mesmo calendario de _somar_dias_uteis) de data_base ate data_alvo.
-
-    Garante a propriedade _somar_dias_uteis(data_base, retorno) == data_alvo.
-    Retorna None se data_alvo <= data_base ou se o alvo nao e alcancavel.
-    """
+    """Dias uteis (mesmo calendario de _somar_dias_uteis) de data_base ate data_alvo."""
     if not data_base or not data_alvo or data_alvo <= data_base:
         return None
     dias_calendario, intervalo = _carregar_calendario_dias_uteis()
@@ -691,22 +637,7 @@ def _contar_dias_uteis_ate(data_base, data_alvo):
 
 
 def criar_gigs_prazo_certidao(driver, prazo_texto, obs_15='xs pzi', obs_8=None, log=True):
-    """Complemento do fluxo carta: cria GIGS de prazo alinhado a data certificada.
-
-    A certidao juntada pelo fluxo carta traz o prazo contado (15 ou 8 dias uteis
-    a partir da entrega da carta) com a data exata, ex.:
-      - "Prazo: 15 dias (13/11/2026)"   (caso desconsideracao)
-      - "Prazo: 8 dias (05/11/2026)"
-      - "Prazos: 15 (13/11/2026) - 08 (05/11/2026)"
-
-    O GIGS do PJe vence em HOJE + N dias uteis. Esta funcao recalcula N com o
-    mesmo calendario do projeto ate que hoje + N dias uteis == a data certificada,
-    e chama criar_gigs com esse N e a observacao correspondente:
-      - prazo de 15 dias -> obs_15 (padrao 'xs pzi')
-      - prazo de 8 dias  -> obs_8 (padrao None: nao cria)
-
-    Nao levanta excecao; falhas sao logadas. Retorna True se criou ao menos um GIGS.
-    """
+    """Complemento do fluxo carta: cria GIGS de prazo alinhado a data certificada."""
     if not prazo_texto:
         if log:
             logger.info('[CARTA][GIGS] Sem prazo na certidao — nenhum GIGS de prazo.')
@@ -765,19 +696,8 @@ def criar_gigs_prazo_certidao(driver, prazo_texto, obs_15='xs pzi', obs_8=None, 
     return criados > 0
 
 
-# ═══════════════════════════════════════════════════
-# EDITAL IDPJ POR RESULTADO NEGATIVO (complemento do fluxo carta)
-# ═══════════════════════════════════════════════════
-
-
 def _tem_resultado_negativo_por_destinatario(dados_mais_recentes):
-    """True se pelo menos um destinatario tem APENAS resultados devolvidos.
-
-    Agrupamento por DESTINATARIO: se o mesmo destinatario tem 2 cartas e uma
-    delas foi entregue (positiva), ele NAO conta como negativo. So vale o
-    destinatario cujo conjunto inteiro de resultados e de devolucoes
-    (status devolvido ou falso positivo corrigido).
-    """
+    """True se pelo menos um destinatario tem APENAS resultados devolvidos."""
     if not dados_mais_recentes:
         return False
     grupos = {}
@@ -794,21 +714,7 @@ def _tem_resultado_negativo_por_destinatario(dados_mais_recentes):
 
 
 def executar_edital_idpj_negativo(driver, dados_mais_recentes, intimacoes_info, log=True):
-    """Complemento do fluxo carta: intimação de desconsideração (IDPJ, prazo de
-    15 dias) com resultado NEGATIVO dos Correios -> intimação por edital.
-
-    Detecção (mesma lógica do prazo de 15 dias):
-      - intimacoes_info com tem_desconsideracao (texto da intimação menciona
-        "desconsideração" — carta_execucao._ler_intimacao_correio);
-      - resultado negativo: existe pelo menos um destinatario cujas cartas no
-        lote foram TODAS devolvidas (status 'devolvido' ou falso positivo).
-        Destinatario com entrega positiva entre as cartas nao conta.
-
-    Ação: criar_gigs(driver, 1, '', 'xs pec idpj') e depois o ato de edital
-    do IDPJ (atos.ato_edidpj — Despacho, modelo 'xseditid', prazo 1).
-
-    Nao levanta excecao; falhas sao logadas. Retorna True se o edital executou.
-    """
+    """Complemento do fluxo carta: intimação de desconsideração (IDPJ, prazo de"""
     tem_desconsideracao = any(
         info.get('tem_desconsideracao') for info in (intimacoes_info or [])
     )
@@ -858,10 +764,6 @@ def executar_edital_idpj_negativo(driver, dados_mais_recentes, intimacoes_info, 
         return False
 
 
-# ═══════════════════════════════════════════════════
-# ORQUESTRADOR
-# ═══════════════════════════════════════════════════
-
 def _aguardar_carregamento(driver) -> None:
     try:
         from Fix.core import aguardar_renderizacao_nativa
@@ -879,8 +781,6 @@ class PECOrquestrador:
                  data_minima: Optional[str] = None) -> Dict[str, int]:
         atividades = self.api.fetch_atividades_vencidas(self.driver)
         if atividades is None:
-            # API falhou (ex: 403 ARQ-516, sessao morta). Nao e "zero
-            # atividades" — sinaliza falha para o retry com novo login.
             logger.error('[PEC] Falha ao buscar atividades (API) — reportando falha para retry.')
             return {'total': 0, 'sucesso': 0, 'erro': 1}
 
@@ -891,7 +791,6 @@ class PECOrquestrador:
         elif filtro_d1:
             data_d1 = _dia_util_anterior(date.today()).isoformat()
             antes = len(atividades)
-            # Só D-1 (dia útil anterior). Hoje (D0) fica de fora.
             atividades = [a for a in atividades if (a.data_prazo or '')[:10] >= data_d1]
             logger.info(f'[PEC] D-1 ({data_d1}): {antes} -> {len(atividades)}')
         else:
@@ -911,7 +810,6 @@ class PECOrquestrador:
 
         # Ordem DENTRO de cada bucket: observações iguais em SEQUÊNCIA (agrupadas),
         # com "exequente pessoal" (pec_exeq) na frente e o resto na ordem original da
-        # API (prazo ascendente). `xs_sigilo` e `xs_sob` já são buckets próprios e vêm
         # antes pela BUCKET_ORDEM. sort é estável: empate preserva a ordem de chegada.
         for itens_bucket in buckets.values():
             itens_bucket.sort(key=lambda it: (
@@ -952,7 +850,6 @@ class PECOrquestrador:
 
         def should_skip(item):
             atv, _ = item
-            # Controle por tarefa: um mesmo processo com múltiplas tarefas executa todas
             ja_executado = tarefa_ja_executada_pec(atv, progresso)
             if ja_executado:
                 logger.info(f'[PEC] Skip já executado: {atv.numero_processo} ({atv.observacao})')
@@ -1016,8 +913,6 @@ class PECOrquestrador:
             dados = result.get('dados') or {}
             if dados.get('critical') and _critical_exc is None:
                 causa = dados.get('_exception') or RuntimeError(result.get('erro', ''))
-                # 'RESTART_PEC' é o contrato de reinício do launcher: sem ele a
-                # exceção é engolida em executar_fluxo_novo_simplificado.
                 _critical_exc = RuntimeError(f'RESTART_PEC: {causa}')
             status = 'SUCESSO' if result.get('ok') else 'ERRO'
             marcar_tarefa_executada_pec(atv, progresso, status=status, detalhes=result.get('erro'))
@@ -1031,10 +926,6 @@ class PECOrquestrador:
             stop_on_critical=True,
         )
 
-        # try:
-        #     from .regras_execucao import fechar_driver_sisbajud_compartilhado
-        #     fechar_driver_sisbajud_compartilhado()
-        # except Exception as e:
         #     logger.error(f"[PEC] Erro ao fechar driver SISBAJUD compartilhado: {e}")
 
         if _critical_exc:
@@ -1060,8 +951,11 @@ class PECOrquestrador:
                 logger.info(f"    {i:>2}. {atv.numero_processo}: {atv.observacao[:50]} -> {acao_nome}")
 
 
-def executar_fluxo_novo_simplificado(driver, filtro_d1: bool = True,
-                                     data_minima: Optional[str] = None) -> dict:
+def executar_fluxo_novo_simplificado(
+    driver,
+    filtro_d1: bool = False,
+    data_minima: Optional[str] = '2026-11-15',
+) -> dict:
     try:
         orq = PECOrquestrador(driver)
         stats = orq.executar(dry_run=False, filtro_d1=filtro_d1, data_minima=data_minima)

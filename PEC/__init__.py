@@ -13,7 +13,6 @@ Shims de compatibilidade (thin shims que reexportam dos consolidados):
   carta_formatacao.py, orquestrador.py, regras_pec.py, sobrestamento.py
 """
 
-# Re-exports dos modulos consolidados
 from .runtime_pec import (
     AtividadePEC,
     PECAPIClient,
@@ -33,7 +32,6 @@ from .regras_execucao import (
     def_sob,
 )
 
-# Modulos congelados / existentes
 from .core_navegacao import (
     navegar_para_atividades,
     aplicar_filtro_xs,
@@ -56,7 +54,6 @@ __all__ = [
     'determinar_regra',
     'def_sob',
     'determinar_acoes_por_observacao',
-    # Compatibility exports for legacy/ref modules
     'carregar_progresso_pec',
     'salvar_progresso_pec',
     'extrair_numero_processo_pec',

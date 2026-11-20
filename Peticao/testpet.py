@@ -1,16 +1,5 @@
 #!/usr/bin/env python
-"""testpet.py - Executor de teste para Peticao
-
-Uso:
-    py testpet.py
-    py testpet.py --processo 0000000-00.0000.0.00.0000
-
-Relatório final: Markdown com número do processo, bucket e ação prevista.
-
-Notas:
-- Não executa nenhuma ação real (dry run puro).
-- Bucket 'analise': lê o PDF da petição via API e detecta a ação que seria tomada.
-"""
+"""testpet.py - Executor de teste para Peticao"""
 
 from __future__ import annotations
 
@@ -33,21 +22,8 @@ from Peticao.runtime_pet import classificar, resolver_acao
 BUCKETS_ORDEM = ['apagar', 'diretos', 'pericias', 'recurso', 'analise']
 
 
-# ---------------------------------------------------------------------------
-# Resolução de nomes a partir de closures (elimina "<lambda>" no relatório)
-# ---------------------------------------------------------------------------
-
 def _resolve_callable_name(func) -> str:
-    """
-    Extrai nome real de qualquer callable, incluindo lambdas.
-    Estratégia:
-      1. inspect.getsource → extrai nome da função chamada no corpo do lambda
-         (funciona mesmo quando a variável capturada é None por import failure)
-      2. Closure inspection → suporte para:
-         - _gigs: extrai valor de obs dos args capturados
-         - _w(fn): quando fonte mostra 'fn(driver)', closure dá o __name__ real
-         - fallback geral quando fonte não disponível
-    """
+    """Extrai nome real de qualquer callable, incluindo lambdas."""
     if func is None:
         return 'None'
 
@@ -55,7 +31,6 @@ def _resolve_callable_name(func) -> str:
     if name and name != '<lambda>':
         return name
 
-    # --- Pré-carrega closure (usada em múltiplos pontos abaixo) ---
     closure = getattr(func, '__closure__', None) or []
     closure_callables: list[str] = []
     closure_strings: list[str] = []
@@ -71,23 +46,19 @@ def _resolve_callable_name(func) -> str:
         except ValueError:
             pass
 
-    # --- Inspeção de fonte (primária) ---
     src_name: str | None = None
-    src_is_indirect = False   # True quando corpo é 'fn(...)' — padrão _w
-    src_cond_alt: str | None = None  # função no else de lambdas condicionais
+    src_is_indirect = False
+    src_cond_alt: str | None = None
 
     try:
         raw = inspect.getsource(func).strip()
-        # Isola o corpo do lambda (tudo depois do primeiro ':')
         m = re.search(r'lambda\s+[^:]+:\s*(.+)', raw)
         if m:
             body = m.group(1).strip().rstrip(',)').strip()
             fn_m = re.match(r'(\w+)\s*\(', body)
             if fn_m:
                 src_name = fn_m.group(1)
-                # Padrão _w: lambda driver, _: fn(driver)
                 src_is_indirect = (src_name == 'fn')
-                # Padrão condicional: func1(...) if COND else func2(...)
                 if ' if ' in body and ' else ' in body:
                     alt = re.search(r'\belse\b\s+(\w+)\s*\(', body)
                     if alt:
@@ -95,15 +66,11 @@ def _resolve_callable_name(func) -> str:
     except (OSError, TypeError, IndentationError):
         pass
 
-    # --- Decisão ---
-
-    # _w(fn): fonte diz 'fn(...)' → nome real vem da closure
     if src_is_indirect:
         if closure_callables:
             return closure_callables[0]
         return 'ato_wrapper'
 
-    # _gigs: fonte ou closure aponta 'criar_gigs' → completa com obs
     if src_name == 'criar_gigs' or (not src_name and closure_callables and closure_callables[0] == 'criar_gigs'):
         obs = next(
             (s for s in closure_strings if s.strip() and not s.lstrip('-').isdigit()),
@@ -111,13 +78,11 @@ def _resolve_callable_name(func) -> str:
         )
         return f'criar_gigs("{obs}")' if obs else 'criar_gigs'
 
-    # Lambda direto: fonte encontrou um nome de função
     if src_name:
         if src_cond_alt:
             return f'{src_name} | {src_cond_alt}'
         return src_name
 
-    # Fallback via closure
     if closure_callables:
         if len(closure_callables) > 1:
             return ' | '.join(closure_callables)
@@ -134,10 +99,6 @@ def _format_acao(action) -> str:
         return ' + '.join(_resolve_callable_name(f) for f in action)
     return _resolve_callable_name(action)
 
-
-# ---------------------------------------------------------------------------
-# Motivo do apagar (replica as condições de _regras sem chamar pet.py)
-# ---------------------------------------------------------------------------
 
 def _descrever_apagar(item: PeticaoItem) -> str:
     """Determina qual condição de apagar se aplicou ao item."""
@@ -170,15 +131,8 @@ def _descrever_apagar(item: PeticaoItem) -> str:
     return 'cond_nao_identificada'
 
 
-# ---------------------------------------------------------------------------
-# Resolução do bucket 'analise' via leitura real da petição (sem executar nada)
-# ---------------------------------------------------------------------------
-
 def _acao_analise_seca(driver, item: PeticaoItem) -> str:
-    """
-    Lê a petição via API e determina a ação que seria tomada (dry run).
-    Se a API não retornar texto, reporta ato_gen como fallback.
-    """
+    """Lê a petição via API e determina a ação que seria tomada (dry run)."""
     from Peticao.runtime_pet import extrair_texto_peticao_via_api, _detectar_acao_analise, _Dados
 
     texto = extrair_texto_peticao_via_api(driver, item)
@@ -196,10 +150,6 @@ def _acao_analise_seca(driver, item: PeticaoItem) -> str:
     return f'{_format_acao(acao)} [via analise]'
 
 
-# ---------------------------------------------------------------------------
-# Ação prevista por bucket
-# ---------------------------------------------------------------------------
-
 def _acao_prevista(driver, item: PeticaoItem, bucket: str) -> str:
     if bucket == 'analise':
         return _acao_analise_seca(driver, item)
@@ -213,10 +163,6 @@ def _acao_prevista(driver, item: PeticaoItem, bucket: str) -> str:
 
     return _format_acao(action)
 
-
-# ---------------------------------------------------------------------------
-# Utilitários
-# ---------------------------------------------------------------------------
 
 def _selecionar_por_processo(itens: List[PeticaoItem], processo_id: str) -> List[PeticaoItem]:
     filtro = processo_id.strip()
@@ -242,10 +188,6 @@ def _gerar_relatorio_markdown(rows: List[tuple[str, str, str]]) -> str:
     return '\n'.join(lines)
 
 
-# ---------------------------------------------------------------------------
-# Orquestrador do teste
-# ---------------------------------------------------------------------------
-
 def executar_teste(driver, processo_id: Optional[str] = None) -> str:
     itens = _fetch_peticoes(driver)
     if processo_id:
@@ -266,10 +208,6 @@ def executar_teste(driver, processo_id: Optional[str] = None) -> str:
 
     return _gerar_relatorio_markdown(rows)
 
-
-# ---------------------------------------------------------------------------
-# Entrypoint
-# ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Teste rápido de bucket e ação de Peticao')

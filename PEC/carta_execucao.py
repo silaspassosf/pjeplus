@@ -1,14 +1,5 @@
-"""PEC - Carta Execucao (Fluxo de Carta)
+"""PEC - Carta Execucao (Fluxo de Carta)"""
 
-Consolidado de:
-    carta.py — coleta e dispatch de carta
-    carta_ecarta.py — e-carta, juntada, navegacao
-
-Entrypoint publico: carta()
-Dependencia congelada: PEC.anexos.core
-"""
-
-# ── Imports ──────────────────────────────────────────────────────────────────────
 
 import logging
 import re
@@ -32,34 +23,27 @@ from Fix import espera
 from Fix.browser_suporte import abrir_url_nova_aba
 from Fix.extracao import extrair_direto, extrair_pdf
 from Fix.core import safe_click_no_scroll
-from PEC.anexos.core import anex_carta, salvar_conteudo_clipboard
+from atos.anexos.core import anex_carta, salvar_conteudo_clipboard
 from PEC.carta_formatacao import formatar_dados_ecarta
 from PEC.carta_utils import _obter_numero_processo
-from PEC.carta_ecarta_api import coletar_tabela_ecarta_api  # API-based (substitui DOM)
+from PEC.carta_ecarta_api import coletar_tabela_ecarta_api
 from Fix.core import _executar_js
 logger = logging.getLogger(__name__)
-
-# ════════════════════════════════════════
-# 1. carta_ecarta.py — e-carta, juntada, navegacao
-# ════════════════════════════════════════
 
 
 def _texto_e_correio(texto):
     if not texto:
         return False
     upper = texto.upper()
-    # Indicadores primários de eCarta/Correio
     if 'VIA ECARTA REG' in upper or 'VIA ECARTA AR' in upper or 'VIA ECARTA' in upper or 'E-CARTA' in upper or 'ECARTA' in upper:
         return True
 
-    # Indicador alternativo: padrão de código de rastreamento dos Correios (ex: XX999999999BR)
     try:
         if re.search(r"[A-Z]{2}\d{9}BR", texto, re.IGNORECASE):
             return True
     except Exception:
         pass
 
-    # Se a frase de instrução rígida estiver presente junto com qualquer menção a eCarta, considerar correio
     if 'NAO APAGAR NENHUM CARACTERE' in upper and ('ECARTA' in upper or 'E-CARTA' in upper or 'VIA ECARTA' in upper):
         return True
 
@@ -91,12 +75,7 @@ def _extrair_texto_completo(driver, log):
 
 
 def _extrair_texto_via_api(driver, item, log) -> Optional[str]:
-    """Leitura DIRETA do documento pela API — sem abrir o viewer e sem o
-    export "Texto Extraído" (OCR).
-
-    Usa `Fix.variaveis.obter_texto_documento` (LEGADO.md ~17883), que sempre
-    existiu e lê o conteúdo textual/HTML do documento sem tocar na interface.
-    """
+    """Leitura DIRETA do documento pela API — sem abrir o viewer e sem o"""
     try:
         item_id = ''
         if hasattr(item, 'get_attribute'):
@@ -151,7 +130,6 @@ def _obter_fase_processo(driver, log: bool = True) -> str:
         if log:
             logger.warning(f"[CARTA][API] Falha ao obter fase processual via API: {e}")
 
-    # Fallback se a API falhar mas dadosatuais.json existir
     try:
         from pathlib import Path
         import json as _json
@@ -198,13 +176,11 @@ def _processar_item(driver, item, contexto, log, buscar_notificacao: bool = Fals
             return None
         link_text = ((getattr(link, 'text_content', None) and link.text_content()) or getattr(link, 'text', '') or '').strip()
 
-        # Filtrar apenas documentos alvo (Intimação e, se fase de conhecimento, Notificação)
         if not _eh_documento_alvo(link_text, buscar_notificacao=buscar_notificacao):
             return None
 
         aria = getattr(link, 'get_attribute', lambda a: '')('aria-label') or ''
 
-        # log link info before opening
         try:
             if log:
                 item_id = getattr(item, 'get_attribute', lambda a: '')('id') if hasattr(item, 'get_attribute') else ''
@@ -212,12 +188,10 @@ def _processar_item(driver, item, contexto, log, buscar_notificacao: bool = Fals
         except Exception:
             pass
 
-        # Leitura DIRETA pela API (obter_texto_documento — LEGADO.md ~17883):
         # evita abrir o documento e evita o export "Texto Extraído" (OCR).
         texto_completo = _extrair_texto_via_api(driver, item, log)
 
         if not texto_completo:
-            # Fallback UI (extrair_direto / extrair_pdf) só se a leitura direta via API não obtiver o texto
             safe_click_no_scroll(driver, link)
             espera.assentar(driver, 2.0, 'carregamento documento intimacao')
             texto_completo = _extrair_texto_completo(driver, log)
@@ -225,19 +199,10 @@ def _processar_item(driver, item, contexto, log, buscar_notificacao: bool = Fals
         if not texto_completo or len(texto_completo.strip()) < 10:
             return None
 
-        # small excerpt for debug (safe length)
         if log:
             excerpt = (texto_completo[:200] + '...') if len(texto_completo) > 200 else texto_completo
             logger.info(f"[CARTA][DEBUG] documento extraído (excerpt): {excerpt[:400]}")
 
-        # Data da intimação: mesma fonte de texto que alimenta _texto_e_correio()
-        # (nao um seletor DOM separado) -- extrai do rodape padrao do documento,
-        # ex: "Sao Paulo/SP, 07 de julho de 2026." Usada como referencia pra
-        # correlacao no eCarta em vez do ID do documento: um documento especifico
-        # pode nao ter side no eCarta (ex: destinatario sem endereco -> "Expediente
-        # enviado por outro meio", eCarta nunca gera carta pra ele), mas a DATA do
-        # lote de intimacoes continua valida pra achar as OUTRAS cartas do mesmo
-        # dia que foram enviadas normalmente.
         data_intimacao = ''
         try:
             m_data = re.search(
@@ -268,13 +233,13 @@ def _processar_item(driver, item, contexto, log, buscar_notificacao: bool = Fals
                     f"[CARTA][DEBUG] correio_detectado=False | len_texto={len(texto_completo)} | "
                     f"contem_ecarta={tem_ecarta} | contem_via_ecarta={tem_via} | tem_rastreio={tem_rastreio}"
                 )
-                # Amostra do meio do texto (onde costuma estar o conteudo postal)
-                meio = len(texto_completo) // 2
-                amostra = texto_completo[max(0, meio - 100):meio + 100]
-                logger.info(f"[CARTA][DEBUG] amostra_meio_texto: {amostra[:300]}")
-            return None
+            if not data_intimacao:
+                return None
+            if log:
+                logger.info(
+                    f"[CARTA][DEBUG] sem correio, mas com data '{data_intimacao}' — seguindo por data"
+                )
 
-        # Extract ID using legacy order: link_text -> aria -> item attribute
         link_text = link.text.strip()
         id_curto = None
         id_source = None
@@ -310,14 +275,11 @@ def _processar_item(driver, item, contexto, log, buscar_notificacao: bool = Fals
 
 
 def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
-    # Legacy behaviour: garantir que dadosatuais.json está atualizado para o processo atual
     try:
-        # Chamar explicitamente a implementação atual em Fix.extracao (comportamento legado)
         from Fix.extracao import extrair_dados_processo
         res = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
         if log:
             logger.info('[CARTA] extrair_dados_processo (Fix.extracao) executado; retorno_type=%s', type(res))
-        # Verificar que dadosatuais.json foi atualizado e logar o número extraído
         try:
             from pathlib import Path
             import json as _json
@@ -332,10 +294,8 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
     except Exception as e:
         if log:
             logger.error(f'[CARTA] Fix.extracao não disponível ou falhou: {e}')
-        # continuar sem bloquear o fluxo
         pass
 
-    # Regra: se fase = conhecimento (via chamada simples de API), buscar também tipo Notificação
     buscar_notificacao = _eh_fase_conhecimento(driver, log=log)
     if log:
         alvo_str = "Intimação e Notificação" if buscar_notificacao else "Intimação"
@@ -345,7 +305,7 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
     intimacoes_info = []
     data_referencia = ''
     limite = limite_intimacoes if limite_intimacoes is not None else float('inf')
-    max_busca = 3  # limita a busca por correio a 3 documentos de intimação/notificação
+    max_busca = 5
     count_intimacoes = 0
     tentativas_busca = 0
     primeiro_ja_processado = False
@@ -390,7 +350,6 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
                 break
             if idx == 0 and primeiro_ja_processado:
                 continue
-            # Só conta como tentativa um documento do tipo alvo (Intimação ou Notificação)
             link_item = _sub_elemento(item, 'a.tl-documento:not([target="_blank"])')
             if not link_item:
                 continue
@@ -418,11 +377,9 @@ def coletar_intimacoes(driver, limite_intimacoes=None, log=True):
 
 
 def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
-    # Se não houver intimações, nada a fazer
     if not intimation_ids:
         return []
 
-    # Garantir que usamos o jNúmero (número do processo) atual do PJe — obter antes de abrir o eCarta
     try:
         from PEC.carta_utils import _obter_numero_processo as _obter_numero_processo
         numero_atual = _obter_numero_processo(driver, log)
@@ -432,7 +389,6 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                     logger.info(f"[CARTA] process_number sobrescrito: {process_number} -> {numero_atual}")
             process_number = numero_atual
     except Exception:
-        # falha ao re-obter não é fatal aqui — usaremos o valor recebido se existir
         pass
 
     if not process_number:
@@ -446,7 +402,6 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
 
     original_window = getattr(driver, 'current_window_handle', None)
 
-    # Legacy behaviour: always use the `process_number` (CNJ) obtained from dadosatuais.json
     ecarta_url = f"https://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo={process_number}"
     abrir_url_nova_aba(driver, ecarta_url)
 
@@ -643,7 +598,6 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                     sample_ids = [it.get('idPje','') for it in (ecarta_data[:12] if isinstance(ecarta_data, list) else [])]
                     logger.info(f"[CARTA] Dados extraídos: {len(ecarta_data)} registros na página {pagina_atual} (page_time={page_dur:.2f}s) | ids_sample={sample_ids}")
 
-                # Verificar correlação com IDs da intimação (legacy strict matching)
                 datas_correlacionadas = []
                 for item in ecarta_data:
                     id_pje = item.get('idPje', '')
@@ -690,12 +644,7 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                     break
 
             if not correlacao_encontrada:
-                # Tentar navegar entre páginas de forma mais robusta (comportamento legado):
-                # - Preferir 'last' se estiver habilitado
-                # - Caso contrário, avançar via 'prev' repetidamente
-                # - Fallback: clicar no último link de página visível
                 try:
-                    # tentativa 1: clicar 'last' (comportamento do legado)
                     try:
                         last_page_btn = espera.elemento(driver, 'a.ui-paginator-last.ui-state-default.ui-corner-all', teto=2)
                         if last_page_btn:
@@ -706,12 +655,10 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                     except Exception:
                         pass
 
-                    # tentativa 2: clicar 'prev' (comportamento do legado: navegamos do último para páginas anteriores)
                     prev_btn = espera.elemento(driver, 'a.ui-paginator-prev', teto=2)
                     if prev_btn:
                         prev_cls = (getattr(prev_btn, 'get_attribute', lambda a: '')('class') or '')
                         if 'ui-state-disabled' in prev_cls:
-                            # não há mais páginas disponíveis para retroceder
                             if log:
                                 logger.info('[CARTA] Paginator: botão "prev" está desabilitado — fim das páginas')
                             break
@@ -726,7 +673,6 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                             if log:
                                 logger.error(f"[CARTA] Falha ao clicar 'prev' no paginator: {e_prev}")
 
-                    # tentativa 3: fallback para clicar no último link de página disponível (legacy tenta navegar por páginas também)
                     page_links = espera.elementos(driver, 'a.ui-paginator-page', teto=2)
                     if page_links:
                         last_page_link = page_links[-1]
@@ -742,7 +688,6 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                                 if log:
                                     logger.error(f"[CARTA] Falha ao clicar link de página (fallback): {e_link}")
 
-                    # Se todas as tentativas falharem, registrar e abortar paginação
                     if log:
                         logger.error('[CARTA]  Não foi possível navegar entre páginas do eCarta (paginator bloqueado ou sobreposto)')
                     break
@@ -788,11 +733,6 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
             logger.error(f"[CARTA] Erro ao fechar aba eCarta: {e}")
 
     return table_data
-
-
-# ════════════════════════════════════════
-# 2. carta.py — coleta e dispatch
-# ════════════════════════════════════════
 
 
 def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None) -> Any:
@@ -881,8 +821,6 @@ def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None
             logger.error(f"[CARTA] Erro na juntada automatica: {e}")
         return False
 
-    # GIGS de prazo alinhado a data certificada na certidao ('xs pzi' quando o
-    # prazo contado e de 15 dias uteis). Falha aqui nao derruba o resultado da carta.
     if _prazo_texto:
         try:
             from PEC.runtime_pec import criar_gigs_prazo_certidao
@@ -891,8 +829,6 @@ def carta(driver: Any, log: bool = True, limite_intimacoes: Optional[int] = None
             if log:
                 logger.error(f"[CARTA] Falha ao criar GIGS de prazo da certidao: {e}")
 
-    # Intimação de desconsideração (IDPJ/15 dias) com resultado negativo dos
-    # Correios -> GIGS 'xs pec idpj' + ato_edidpj (edital do IDPJ).
     try:
         from PEC.runtime_pec import executar_edital_idpj_negativo
         executar_edital_idpj_negativo(driver, table_data, intimacoes_info, log=log)

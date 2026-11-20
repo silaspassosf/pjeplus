@@ -9,10 +9,7 @@ from Fix.extracao import criar_gigs, extrair_documento
 
 
 def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=False):
-    """
-    Analisa documentos após execução de carta para observação "xs pz carta".
-    Busca até 4 documentos (sentença, decisão ou despacho) e aplica regras específicas.
-    """
+    """Analisa documentos após execução de carta para observação "xs pz carta"."""
 
     def log_msg(msg):
         if debug:

@@ -1,7 +1,4 @@
-"""
-Thin shim — consolidado em Peticao/regras_execucao.py
-Mantido para compatibilidade retroativa.
-"""
+"""Thin shim — consolidado em Peticao/regras_execucao.py"""
 from .regras_execucao import (
     classificar,
     resolver_acao,

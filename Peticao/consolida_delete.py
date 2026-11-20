@@ -1,7 +1,4 @@
-"""
-Thin shim — consolidado em Peticao/suporte_pet.py
-Mantido para compatibilidade retroativa.
-"""
+"""Thin shim — consolidado em Peticao/suporte_pet.py"""
 from .suporte_pet import (
     extrair_processos_delete,
     gerar_bookmarklet_apagar,

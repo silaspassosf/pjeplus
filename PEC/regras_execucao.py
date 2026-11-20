@@ -1,7 +1,4 @@
-"""PEC - Regras de Execucao
-
-Consolidado de: regras_pec, sobrestamento.
-"""
+"""PEC - Regras de Execucao"""
 
 import logging
 import math
@@ -37,8 +34,6 @@ logger = logging.getLogger(__name__)
 BUCKET_ORDEM = ['xs_sigilo', 'xs_sob', 'carta', 'comunicacoes', 'outros', 'sobrestamento', 'sisbajud_teimosinha', 'sisbajud_resultado']
 
 
-# ─── helpers: acoes com logica interna ou assinatura especial ────────────────
-
 def _normalizar_resultado_acao(resultado: Any) -> Any:
     """Converte sucesso implicito em retorno explicito sem esconder False."""
     if resultado is None:
@@ -58,9 +53,7 @@ def _executar_passos(*passos) -> Any:
     return ultimo_resultado
 
 def _xs_ord(driver, atv=None):
-    """xs ord: notificação inicial (modelo zordd). O wrapper indicado é sempre usado;
-    a troca do modelo para ar-ord (linhas de Correios) acontece NA ELABORAÇÃO do ato
-    (trocar_modelo / modelo_troca_correios), nunca antes."""
+    """xs ord: notificação inicial (modelo zordd). O wrapper indicado é sempre usado;"""
     from atos.wrappers_pec import pec_ord
     from atos.wrappers_mov import mov_aud
     from atos.comunicacao_destinatarios import detectar_pjdp_processo
@@ -74,9 +67,7 @@ def _xs_ord(driver, atv=None):
 
 
 def _xs_sum(driver, atv=None):
-    """xs sum: notificação inicial (modelo zsumd). O wrapper indicado é sempre usado;
-    a troca do modelo para ar-sum (linhas de Correios) acontece NA ELABORAÇÃO do ato
-    (trocar_modelo / modelo_troca_correios), nunca antes."""
+    """xs sum: notificação inicial (modelo zsumd). O wrapper indicado é sempre usado;"""
     from atos.wrappers_pec import pec_sum
     from atos.wrappers_mov import mov_aud
     from atos.comunicacao_destinatarios import detectar_pjdp_processo
@@ -120,7 +111,7 @@ def _pz_idpj(driver, atv):
     def _run_idpj():
         r = ato_idpj(driver)
         return r[0] if isinstance(r, tuple) else r
-        
+
     return _executar_passos(
         lambda: criar_gigs(driver, "1", "", "xs pec id"),
         _run_idpj
@@ -128,21 +119,12 @@ def _pz_idpj(driver, atv):
 
 
 def _mddid(driver, atv):
-    """mdd id: pec_mddsent + pec_editalsent.
-
-    Execução explícita (em vez de _executar_passos) para poder interpor
-    a barreira aguardar_renderizacao_nativa entre os dois wrappers.
-    Quando chamados isoladamente o PJe já está estável no início do
-    próximo processo; aqui replicamos essa condição antes do 2º ato.
-    """
+    """mdd id: pec_mddsent + pec_editalsent."""
     from atos.wrappers_pec import pec_mddsent, pec_editalsent
     ok = _normalizar_resultado_acao(pec_mddsent(driver))
     if ok is False:
         return False
-    # Barreira: aguarda readyState completo na aba de detalhe após
     # fechar a aba de minutas do mandado — sem ela o Angular ainda
-    # está processando o ato agrupado quando a aba do edital abre,
-    # causando o spinner "Aguardando" por trás do modal de modelo.
     aguardar_renderizacao_nativa(driver, timeout=10)
     return _normalizar_resultado_acao(pec_editalsent(driver))
 
@@ -209,8 +191,6 @@ _shared_driver_sisb = None
 def _executar_sisbajud(driver, atv, fn_sisb):
     """Executa o fluxo completo PJE -> SISBAJUD para acoes SISBAJUD usando driver compartilhado."""
     global _shared_driver_sisb
-    # Import local de proposito: a limpeza consolidou os imports de Fix.extracao
-    # no topo e deixou este nome de fora, quebrando minuta bloqueio/teimosinha
     # (NameError: extrair_dados_processo). O import aqui evita depender do topo.
     from Fix.extracao import extrair_dados_processo
     from SISB.core import iniciar_sisbajud
@@ -220,13 +200,11 @@ def _executar_sisbajud(driver, atv, fn_sisb):
         logger.error('[SISBAJUD] Falha ao extrair dados do processo')
         raise RuntimeError('Falha ao extrair dados do processo para SISBAJUD')
 
-    # Garantir que o driver compartilhado exista e esteja ativo
     if _shared_driver_sisb is None:
         logger.info('[SISBAJUD] Inicializando novo driver compartilhado')
         _shared_driver_sisb = iniciar_sisbajud(driver_pje=driver, extrair_dados=False)
     else:
         try:
-            # Teste rápido para ver se a janela não foi fechada pelo usuário ou quebrou
             _ = getattr(_shared_driver_sisb, 'window_handles', None)
         except Exception:
             logger.info('[SISBAJUD] Driver compartilhado morto. Reinicializando...')
@@ -235,7 +213,6 @@ def _executar_sisbajud(driver, atv, fn_sisb):
     if not _shared_driver_sisb:
         raise RuntimeError('Falha ao iniciar o driver SISBAJUD')
 
-    # Executar a função (com fechar_driver=False para reaproveitar na próxima)
     try:
         resultado = fn_sisb(
             _shared_driver_sisb,
@@ -247,6 +224,13 @@ def _executar_sisbajud(driver, atv, fn_sisb):
     except Exception as e:
         logger.error(f'[SISBAJUD] Exceção durante a execução de {fn_sisb.__name__}: {e}')
         raise
+
+    # LACO PJe -> SISB -> PJe: o callback roda no driver SISBAJUD, mas a juntada e
+    try:
+        logger.info('[SISBAJUD][LACO] fim do item %s — PJe em: %s',
+                    getattr(atv, 'numero_processo', '?'), getattr(driver, 'current_url', ''))
+    except Exception:
+        pass
 
     if isinstance(resultado, dict) and resultado.get('status') == 'erro':
         raise RuntimeError(f'SISBAJUD falhou: {resultado.get("erros")}')
@@ -269,21 +253,17 @@ def fechar_driver_sisbajud_compartilhado():
 
 def _sisbajud_minuta(driver, atv):
     from SISB.core import minuta_bloqueio_amanha
-    # Usa a nova funcionalidade de 2 minutas independentes (com prazo padrão 30)
-    return _executar_sisbajud(driver, atv, lambda d, dados_processo, driver_pje, log, fechar_driver: 
+    return _executar_sisbajud(driver, atv, lambda d, dados_processo, driver_pje, log, fechar_driver:
                               minuta_bloqueio_amanha(d, dados_processo, driver_pje, log, fechar_driver, prazo_dias=30))
 
 
 def _sisbajud_minuta_60(driver, atv):
     from SISB.core import minuta_bloqueio_amanha
-    # Usa a nova funcionalidade de 2 minutas independentes (com prazo padrão 60)
-    return _executar_sisbajud(driver, atv, lambda d, dados_processo, driver_pje, log, fechar_driver: 
+    return _executar_sisbajud(driver, atv, lambda d, dados_processo, driver_pje, log, fechar_driver:
                               minuta_bloqueio_amanha(d, dados_processo, driver_pje, log, fechar_driver, prazo_dias=60))
 
 
 def _sisbajud_processar_ordem(driver, atv):
-    # Ponto de entrada do fluxo `xs resultado`: a API decide o fluxo sem navegar
-    # e só chama processar_ordem_sisbajud (DOM) quando há ordens a processar.
     from SISB.api_series import processar_ordem_via_api
     return _executar_sisbajud(driver, atv, processar_ordem_via_api)
 
@@ -333,9 +313,6 @@ def _xs_pesq(driver, atv):
     return inicar_exec(driver)
 
 
-
-# ─── Lazy imports ────────────────────────────────────────────────────────────
-
 try:
     from atos import wrappers_pec as w
 except ImportError:
@@ -362,24 +339,18 @@ def _a(mod, name):
     return getattr(mod, name, None) if mod else None
 
 
-# ─── registry ─────────────────────────────────────────────────────────────────
-
 registry = RuleRegistry("pec", BUCKET_ORDEM)
 
 # ── SISBAJUD ──────────────────────────────────────────────────────────────────
 registry.register(r'(?:teimosinha|t2)[\s\-_/:(]*60|(?:teimosinha|t2)[\s\-_/:(]*sessenta|\b60\s*d\b|60\s+dias|sessenta\s+dias?',    'sisbajud_teimosinha', _sisbajud_minuta_60)
 registry.register(r'\bteimosinha\b|\bt2\b',                             'sisbajud_teimosinha', _sisbajud_minuta)
 registry.register(r'\b(?:xs\s+)?resultado\b|\bsisbajud\s+resultado\b|\bresultado\s+teimosinha\b', 'sisbajud_resultado', _sisbajud_processar_ordem)
-# ── CARTA ─────────────────────────────────────────────────────────────────────
 registry.register(r'\bxs\s+carta\b',                                    'carta',    _carta_exec)
-# ── SOB ───────────────────────────────────────────────────────────────────────
 registry.register(r'\bsob\s+chip\b',                                    'xs_sob',   _w(def_chip))
 registry.register(r'\bsobrestamento\s+vencido\b',                       'sobrestamento', _def_sob)
 registry.register(r'\b(?:xs\s+)?sob\s+\d+|\bxs\s+\d+$',                  'xs_sob',   _sob_n)
-# ── COMUNICACOES ──────────────────────────────────────────────────────────────
 registry.register(r'exclu[ei]r?.*(?:convenios?|serasa|cnib)|(?:convenios?|serasa|cnib).*exclu[ei]r?|mandado\s+de\s+exclus|\b(?:xs\s+|pec\s+)?excluiargos\b',
                   'comunicacoes', _w(_a(w, 'pec_excluiargos')))
-# ── NOTIFICAÇÕES (BLOCO NOTIFICAÇÃO) ──────────────────────────────────────────
 registry.register(r'\b(?:xs\s+ordva|xs\s+ordv\s+a)\b',                          'comunicacoes', _w(_a(w, 'pec_arordv')))
 registry.register(r'\b(?:xs\s+sumva|xs\s+sumv\s+a)\b',                          'comunicacoes', _w(_a(w, 'pec_arsumv')))
 registry.register(r'\bxs\s+ordv\b',                                               'comunicacoes', _xs_ordv)
@@ -402,7 +373,6 @@ registry.register(r'\bpec\s+idpj\b|\bxs\s+pec\s+idpj\b',               'comunica
 registry.register(r'\bxs\s+bloq\b|\bpec\s+bloq\b',                     'comunicacoes', _w(_a(w, 'pec_bloqueio')))
 registry.register(r'\bxs\s+sigilo\b',                                   'xs_sigilo', _xs_sigilo)
 registry.register(r'\bexequente\s+pessoal\b|\bpessoal\s+exequente\b',    'comunicacoes', _w(_a(w, 'pec_exeq')))
-# ── OUTROS ────────────────────────────────────────────────────────────────────
 registry.register(r'\bxs\s+audx\b|\baudx\b|\baud\s+x\b',               'outros',   _audx_mov_int)
 registry.register(r'\bxs\s+parcial\b',                                  'outros',   _xs_parcial)
 registry.register(r'\bmeios\b',                                         'outros',   _xs_meios)
@@ -416,14 +386,7 @@ registry.register(r'\b(?:xs\s+)?p(?:ag|g)to\s+desp(?:acho)?\b|\b(?:xs\s+)?desp(?
 REGRAS = registry.all_rules()
 
 
-# ── Determinacao de Regra ──
 def determinar_regra(observacao: str):
-    """Retorna (pattern, bucket, acao) para a observacao, ou None se sem match.
-
-    Uses registry.match() internally for bucket-order-respecting search.
-    Maintains backward-compatible 3-tuple return by looking up the pattern
-    from the full rules list.
-    """
     # Lazy import to break circular dependency with runtime_pec
     from .runtime_pec import normalizar_texto
 
@@ -436,16 +399,6 @@ def determinar_regra(observacao: str):
     return pattern, bucket, action
 
 
-# ═══════════════════════════════════════════════════════════════
-# SOBRESTAMENTO
-# ═══════════════════════════════════════════════════════════════
-
-# ───────────────────────────────────────────────────────
-# DEF_SOB — SOBRESTAMENTO (Refatorado com padrão P2B)
-# ───────────────────────────────────────────────────────
-
-# Padrões regex para regras de sobrestamento (padrão P2B).
-# Testados sobre `texto_norm` (normalizar_texto = sem acentos e minúsculo).
 DEF_SOB_PATTERNS = {
     'retorno_feito_principal': re.compile(r'retorno do feito principal|retorno\s+do\s+feito|volta dos autos', re.IGNORECASE),
     'penhora_rosto': re.compile(r'penhora no rosto|penhora\s+no\s+rosto|sobre\s+os\s+bens', re.IGNORECASE),
@@ -455,8 +408,6 @@ DEF_SOB_PATTERNS = {
     'autos_principais': re.compile(r'autos principais|processo principal|retorno\s+ao\s+processo', re.IGNORECASE),
 }
 
-# Termos do legado (LEGADO.md 31440-31447): casados com gerar_regex_geral, que
-# tolera pontuação/espaços extras entre as palavras do termo.
 DEF_SOB_TERMOS = {
     'retorno_feito_principal': ['retorno do feito principal'],
     'penhora_rosto': ['penhora no rosto'],
@@ -504,13 +455,7 @@ def _data_decisao_do_item(item) -> Optional[str]:
 
 
 def _selecionar_decisao_timeline(driver):
-    """Seleciona a decisão relevante da timeline e devolve (link, data_decisao_str).
-
-    Critério do legado (LEGADO.md 30748-30805):
-    1) documento relevante (despacho/decisão/sentença/conclusão) assinado por
-       magistrado (div.tl-icon[aria-label*='Magistrado']);
-    2) primeiro documento relevante, se nenhum tiver o ícone.
-    """
+    """Seleciona a decisão relevante da timeline e devolve (link, data_decisao_str)."""
     try:
         itens = espera.elementos(driver, 'li.tl-item-container', teto=2)
     except Exception:
@@ -575,26 +520,19 @@ def _match_def_sob(texto_norm: str, chave: str) -> bool:
 
 
 def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Optional[str]:
-    """
-    Extrai conteúdo da decisão de sobrestamento via API REST + pdfplumber.
-    ANTES de clicar no documento (enquanto URL ainda é /processo).
-    
-    Reusa lógica de Prazo/p2b_gateway.py que funciona de verdade.
-    """
+    """Extrai conteúdo da decisão de sobrestamento via API REST + pdfplumber."""
     try:
         from Fix.variaveis import session_from_driver
-        
-        # 1) Obter id_processo da URL
+
         m = re.search(r'/processo/(\d+)', driver.current_url)
         if not m:
             logger.warning('[DEF_SOB_API] id_processo não detectado na URL')
             return None
         id_processo = m.group(1)
-        
+
         sess, host = session_from_driver(driver)
         base = f'https://{host}'
-        
-        # 2) Timeline via API
+
         url_timeline = (
             f'{base}/pje-comum-api/api/processos/id/{id_processo}/timeline'
             '?buscarDocumentos=true&buscarMovimentos=false'
@@ -609,8 +547,7 @@ def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Option
         except Exception as e:
             logger.warning(f'[DEF_SOB_API] timeline HTTP error: {e}')
             return None
-        
-        # 3) Buscar decisão de sobrestamento
+
         doc = None
         for item in timeline:
             tipo = (item.get('tipo') or '').lower().strip()
@@ -618,8 +555,7 @@ def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Option
                 doc = item
                 logger.debug(f'[DEF_SOB_API] Encontrado: {item.get("titulo", "?")}')
                 break
-        
-        # Fallback: qualquer decisão
+
         if not doc:
             for item in timeline:
                 tipo = (item.get('tipo') or '').lower().strip()
@@ -627,14 +563,13 @@ def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Option
                     doc = item
                     logger.debug(f'[DEF_SOB_API] Fallback decisão: {item.get("titulo", "?")}')
                     break
-        
+
         if not doc:
             logger.warning('[DEF_SOB_API] Nenhuma decisão encontrada na timeline')
             return None
-        
+
         id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
-        
-        # 4) Baixar PDF
+
         url_conteudo = f'{base}/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_doc}/conteudo'
         try:
             r = sess.get(url_conteudo, timeout=timeout, stream=True)
@@ -643,18 +578,17 @@ def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Option
         except Exception as e:
             logger.warning(f'[DEF_SOB_API] /conteudo download error: {e}')
             return None
-        
+
         if not pdf_bytes or not pdf_bytes.startswith(b'%PDF'):
             logger.warning(f'[DEF_SOB_API] Não é PDF válido')
             return None
-        
-        # 5) Extrair texto do PDF (cascata: pdfplumber → pymupdf → pypdfium2)
+
         from Mandado.apoio_fluxos import _extrair_texto_pdf_bytes
         texto = _extrair_texto_pdf_bytes(pdf_bytes, log=True)
         if texto:
             logger.debug(f'[DEF_SOB_API] Texto extraído: {len(texto)} chars')
             return texto
-        
+
         return None
     except Exception as e:
         logger.error(f'[DEF_SOB_API] Erro geral: {e}')
@@ -662,17 +596,7 @@ def _extrair_decisao_sobrestamento_api(driver: Any, timeout: int = 10) -> Option
 
 
 def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = False, timeout: int = 10) -> bool:
-    """
-    Analisa a decisão de sobrestamento e executa a ação da regra casada.
-
-    Fluxo (LEGADO.md 30692-31476):
-    1. Seleciona a última decisão relevante da timeline (despacho/decisão/
-       sentença/conclusão), preferindo a assinada por magistrado, e captura a
-       data dessa decisão (title do .tl-item-hora) — insumo das regras.
-    2. Extrai o texto: API/PDF antes do clique (padrão P2B) e, se falhar, via
-       DOM (clicando na decisão selecionada).
-    3. Testa os padrões na ordem do legado e executa a ação correspondente.
-    """
+    """Analisa a decisão de sobrestamento e executa a ação da regra casada."""
     logger.debug(f"[DEF_SOB] Iniciando para {numero_processo}")
     if not driver or not numero_processo:
         logger.error("[DEF_SOB] Driver ou numero_processo inválidos")
@@ -684,12 +608,10 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
         logger.error("[DEF_SOB] timeout deve ser positivo")
         return False
 
-    # ── Step 1: seleção da decisão + data (antes de clicar) ──
     doc_link, data_decisao_str = _selecionar_decisao_timeline(driver)
     if data_decisao_str:
         logger.debug(f'[DEF_SOB] Data da decisão: {data_decisao_str}')
 
-    # ── Step 2: extração via API/PDF (ANTES de clicar) ──
     texto = None
     try:
         texto = _extrair_decisao_sobrestamento_api(driver, timeout=timeout)
@@ -698,7 +620,6 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
     except Exception as e:
         logger.warning(f'[DEF_SOB] Extração via API falhou: {e}')
 
-    # ── Fallback DOM: clica na decisão selecionada e extrai o conteúdo ──
     if not texto or len((texto or '').strip()) < 50:
         if doc_link is None:
             logger.error('[DEF_SOB] Nenhum documento relevante encontrado na timeline')
@@ -720,11 +641,9 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
         logger.warning(f"[DEF_SOB] Texto muito curto (len={len(texto) if texto else 0})")
         return False
 
-    # ── Step 3: normalizar e testar padrões ──
     texto_norm = normalizar_texto(texto)
     logger.debug(f"[DEF_SOB] Texto normalizado (200): {texto_norm[:200]}")
 
-    # Ações associadas
     def _remover_chips():
         """def_chip é não-crítico: falha não deve abortar a regra."""
         try:
@@ -742,11 +661,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             return False
 
     def executar_penhora_rosto():
-        """def_chip + GIGS '-1/xs rosto' + mov_sob 1 (LEGADO.md 31370-31427).
-
-        A GIGS é best-effort: se mov_sob falhar mas a GIGS saiu, a regra é
-        considerada cumprida (mesmo retorno do legado).
-        """
+        """def_chip + GIGS '-1/xs rosto' + mov_sob 1 (LEGADO.md 31370-31427)."""
         _remover_chips()
         ok_gigs = False
         try:
@@ -762,12 +677,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
         return ok_gigs
 
     def executar_precatorio():
-        """Precatório/RPV/pequeno valor (LEGADO.md 30938-31013).
-
-        Meses necessários para o sobrestamento vencer em JULHO/2026, contados da
-        data da decisão. Em JULHO/2026, cria a GIGS '-1/silas/precatorio' em vez
-        de mover o sobrestamento.
-        """
+        """Precatório/RPV/pequeno valor (LEGADO.md 30938-31013)."""
         _remover_chips()
         hoje = datetime.now()
         if hoje.year == 2026 and hoje.month == 7:
@@ -796,14 +706,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             return False
 
     def executar_juizo_universal():
-        """Juízo universal (LEGADO.md 31015-31265).
-
-        Abre a tarefa do processo, lê o prazo atual do sobrestamento e:
-        - menos de 8 meses desde a decisão → ajusta o sobrestamento para
-          completar 9 meses (mov_sob com os meses faltantes);
-        - 8+ meses (ou prazo não lido) → encerra o sobrestamento
-          (mov_fimsob + ato_fal).
-        """
+        """Juízo universal (LEGADO.md 31015-31265)."""
         if not data_decisao_str:
             logger.error('[DEF_SOB][JUIZO] Data da decisão indisponível — abortando regra')
             return False
@@ -813,7 +716,6 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             logger.error(f'[DEF_SOB][JUIZO] Data da decisão inválida ({data_decisao_str}): {e}')
             return False
 
-        # 1) Abrir a tarefa do processo (Fix.core + Fix.abas — não reinventar abas)
         btn_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=15)
         if not btn_tarefa:
             logger.error('[DEF_SOB][JUIZO] Botão "Abrir tarefa do processo" não encontrado')
@@ -828,7 +730,6 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             logger.warning('[DEF_SOB][JUIZO] Nenhuma nova aba detectada — seguindo na aba atual')
         aguardar_renderizacao_nativa(driver)
 
-        # 2) Prazo decorrido desde a decisão e data atual do sobrestamento
         meses_decorridos = (datetime.now() - data_decisao_dt).days / 30.44
         data_sobrestamento = _data_sobrestamento_na_tarefa(driver)
         logger.info(
@@ -846,7 +747,6 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             except Exception as e:
                 logger.warning(f'[DEF_SOB][JUIZO] Erro no ajuste ({e}) — executando fluxo completo')
 
-        # 3) Fluxo completo: encerrar sobrestamento + ato_fal
         if not mov_fimsob(driver, debug=debug):
             logger.error('[DEF_SOB][JUIZO] mov_fimsob falhou')
             return False
@@ -910,10 +810,3 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
     logger.warning("[DEF_SOB] Nenhum padrão correspondeu ao texto")
     return False
 
-
-# ───────────────────────────────────────────────────────
-# SEÇÃO ANTIGA (REMOVIDA) - deixa aqui para referência
-# ───────────────────────────────────────────────────────
-# Antes: tinha fallback em extrair_documento + extrair_pdf
-# Antes: tinha lógica complexa com regras_def_sob list
-# Refatorado: padrão P2B simples (regex pattern → action)

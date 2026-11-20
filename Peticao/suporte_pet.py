@@ -1,17 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Peticao/suporte_pet.py — Suporte consolidado do modulo Peticao.
-
-Consolida: core/log.py (logging centralizado, multi-seletor) +
-           consolida_delete.py (extracao de processos e geracao de bookmarklet).
-
-Uso:
-  from Peticao.suporte_pet import get_module_logger, consolidar_delete_com_bookmarklet
-  logger = get_module_logger(__name__)
-  consolidar_delete_com_bookmarklet()
-"""
+"""Peticao/suporte_pet.py — Suporte consolidado do modulo Peticao."""
 
 import logging
 import logging.handlers
@@ -23,10 +13,6 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List, Callable, Tuple
 from enum import Enum
 
-
-# ============================================================================
-# LOGGING
-# ============================================================================
 
 class LogLevel(Enum):
     """Niveis de log customizados para Peticao."""
@@ -162,8 +148,6 @@ class PJePlusLogger:
             validate_emoji=self.validate_emoji
         )
         console_handler.setFormatter(formatter)
-        # F8: nao reimprimir linhas da familia 'pjeplus' (handler proprio no Fix.diagnostico_runtime);
-        # import local para o motor Peticao continuar importavel sem Fix no topo do modulo.
         from Fix.diagnostico_runtime import handler_console_sem_pjeplus
         handler_console_sem_pjeplus(console_handler)
         root_logger.addHandler(console_handler)
@@ -195,7 +179,6 @@ class PJePlusLogger:
             logger.setLevel(level.value)
 
 
-# Singleton global
 _logger_instance: Optional[PJePlusLogger] = None
 
 
@@ -220,10 +203,6 @@ def get_module_logger(module_name: str) -> logging.Logger:
         module_name = module_name[8:]
     return _logger_instance.get_logger(module_name)
 
-
-# ============================================================================
-# Utilitarios para multiplos seletores
-# ============================================================================
 
 def log_seletor_multiplo(prefixo: str, seletor: str, status: str, erro: Optional[str] = None) -> None:
     logger = get_module_logger('Peticao.suporte_pet')
@@ -275,13 +254,8 @@ def tentar_seletores_com_registro(driver: Any, seletores: List[str], funcao_test
     return seletor_funcionou, resultado
 
 
-# Alias sem underscore para adocao consistente nos modulos
 getmodulelogger = get_module_logger
 
-
-# ============================================================================
-# CONSOLIDA DELETE — extracao de processos e geracao de bookmarklet
-# ============================================================================
 
 def extrair_processos_delete():
     """Extrai processos de delete.js"""

@@ -1,13 +1,4 @@
-"""
-Peticao/regras_execucao.py — Registry de regras + wrappers de atos (consolidado).
-
-Consolida: regras.py (classificacao, resolucao) + atos/wrappers.py (wrappers diretos).
-
-Uso:
-  from Peticao.regras_execucao import classificar, resolver_acao
-  bucket = classificar(peticao)
-  acao   = resolver_acao(peticao, driver)
-"""
+"""Peticao/regras_execucao.py — Registry de regras + wrappers de atos (consolidado)."""
 
 import re
 import json
@@ -18,26 +9,17 @@ from core.rule_registry import RuleRegistry
 from Prazo.p2b_core import normalizar_texto
 from Peticao.core.extracao import criar_gigs
 
-# ============================================================================
-# Logger
-# ============================================================================
 
 from Peticao.suporte_pet import get_module_logger
 
 logger = get_module_logger(__name__)
 
-# ============================================================================
-# Helpers (podem falhar em ambiente sem dependencias)
-# ============================================================================
 
 try:
     from Peticao.helpers import checar_habilitacao, agravo_peticao, def_quesitos, contesta_calc
 except ImportError:
     checar_habilitacao = agravo_peticao = def_quesitos = contesta_calc = None
 
-# ============================================================================
-# Wrapper factory — make_ato_wrapper
-# ============================================================================
 
 try:
     from atos.judicial_fluxo import make_ato_wrapper
@@ -48,9 +30,6 @@ except ImportError:
             return False
         return wrapper
 
-# ============================================================================
-# ATOS — wrappers diretos
-# ============================================================================
 
 ato_instc = make_ato_wrapper(
     conclusao_tipo='Admissibilidade',
@@ -350,9 +329,6 @@ ato_conv = make_ato_wrapper(
     descricao='despacho'
 )
 
-# ============================================================================
-# Adaptadores de assinatura de acao
-# ============================================================================
 
 def _w(fn):
     """Adapta ato (driver) -> (driver, item) esperado pelo orquestrador."""
@@ -362,11 +338,7 @@ def _w(fn):
 
 
 def _gigs(dias, resp, obs):
-    """Factory: callable (driver, item) que chama criar_gigs(driver, dias, resp, obs).
-
-    Guarda os parametros em `._gigs_args` para o dry run relatar o que o codigo
-    real faria.
-    """
+    """Factory: callable (driver, item) que chama criar_gigs(driver, dias, resp, obs)."""
     def _acao(driver, _):
         return criar_gigs(driver, dias, resp, obs)
 
@@ -375,16 +347,8 @@ def _gigs(dias, resp, obs):
     return _acao
 
 
-# ============================================================================
-# Acesso a dados do processo (dadosatuais.json)
-# ============================================================================
-
 class _Dados:
-    """
-    Wrapper sobre dadosatuais.json (gravado por extrair_dados_processo antes de cada acao).
-    Expoe condicoes nomeadas reutilizaveis nas regras de classificacao.
-    Sem chamada de rede — usa apenas o JSON ja presente em disco.
-    """
+    """Wrapper sobre dadosatuais.json (gravado por extrair_dados_processo antes de cada acao)."""
     def __init__(self):
         self._d: dict = {}
         try:
@@ -436,10 +400,6 @@ def _dados() -> _Dados:
     return _Dados()
 
 
-# ============================================================================
-# Condicoes complexas
-# ============================================================================
-
 def _cond_impugnacao_liq(item) -> bool:
     tipo = normalizar_texto(item.tipo_peticao or '')
     if 'impugnacao' not in tipo or 'liquidacao' not in _nfase(item):
@@ -447,10 +407,6 @@ def _cond_impugnacao_liq(item) -> bool:
     d = _dados()
     return d.um_reu_com_advogado() and d.sem_perito_terceiro() and d.sem_perito_rogerio()
 
-
-# ============================================================================
-# Executor de acao
-# ============================================================================
 
 def _executar_acao(driver, item, acao) -> bool:
     if isinstance(acao, tuple):
@@ -462,10 +418,6 @@ def _executar_acao(driver, item, acao) -> bool:
         return True
     return acao(driver, item) if callable(acao) else False
 
-
-# ============================================================================
-# Deteccao textual para bucket 'analise'
-# ============================================================================
 
 def _detectar_acao_analise(texto: str, dados: _Dados):
     if not texto:
@@ -490,62 +442,39 @@ def _detectar_acao_analise(texto: str, dados: _Dados):
     return None
 
 
-# ============================================================================
-# Utilitario de normalizacao de fase
-# ============================================================================
-
 def _nfase(item) -> str:
     return normalizar_texto(item.fase or '')
 
 
-# ============================================================================
-# TABELA DE REGRAS
-# ============================================================================
-
 def _regras(item, driver=None):
-    """Tabela unica: (bucket, condicao, acoes).
-    Ordem = prioridade. Primeiro match define bucket E acao.
-    acoes=None -> apagar (sem abrir processo) ou analise (orquestrador trata).
-    checar_habilitacao so avaliado quando driver disponivel.
-    """
+    """Tabela unica: (bucket, condicao, acoes)."""
     tipo   = normalizar_texto(item.tipo_peticao or '')
     desc   = normalizar_texto(item.descricao or '')
     tarefa = normalizar_texto(item.tarefa or '')
     f      = _nfase(item)
     perito = getattr(item, 'eh_perito', False)
 
-    # Bloco "apagar": NAO apaga mais nada. Abre o processo e cria a GIGS
-    # "pet - apagar" (delete.js foi desativado).
     pet_apagar = _gigs(-1, "", "pet - apagar")
 
     return [
-        # -- APAGAR (abre processo + GIGS "pet - apagar") --------------------
         ('apagar',   'parecer do assistente' in desc,                                                      (pet_apagar,)),
         ('apagar',   'razoes finais' in tipo or 'carta convite' in tipo,                                    (pet_apagar,)),
         ('apagar',   'conhecimento' in f and 'manifestacao' in tipo and any(x in desc for x in ['replica', 'razoes finais', 'preposicao', 'substabelecimento']), (pet_apagar,)),
         ('apagar',   'replica' in tipo and 'conhecimento' in f,                                             (pet_apagar,)),
         ('apagar',   'aguardando cumprimento de acordo' in tarefa,                                          (pet_apagar,)),
         ('apagar',   'manifestacao' in tipo and any(x in desc for x in ['carta de preposicao', 'substabelecimento']), (pet_apagar,)),
-        # O PJe cria tipo proprio "Apresentacao de Substabelecimento com
-        # Reserva de Poderes" e a descricao vem vazia -- por isso a regra acima
-        # nunca casava. So "com reserva" vai para apagar; "sem reserva" ou sem
-        # indicacao caem em analise (nao casam aqui).
         ('apagar',   'substabelecimento com reserva' in tipo,                                               (pet_apagar,)),
         ('apagar',   'triagem inicial' in f,                                                                (pet_apagar,)),
         ('apagar',   'contestacao' in tipo and 'conhecimento' in f,                                        (pet_apagar,)),
-        # variante real: tipo_peticao costuma ser "Peticao" e a palavra vem na descricao
         ('apagar',   'contestacao' in desc and 'conhecimento' in f,                                        (pet_apagar,)),
-        # -- PERICIAS --------------------------------------------------------
         ('pericias', perito and 'esclarecimentos' in tipo and 'liquidacao' in f and ato_escliq,  (_w(ato_escliq),)),
         ('pericias', perito and 'esclarecimentos' in tipo and ato_esc,                         (_w(ato_esc),)),
         ('pericias', perito and 'apresentacao de laudo pericial' in tipo and ato_laudo,          (_w(ato_laudo),)),
         ('pericias', perito and 'indicacao de data' in tipo and ato_datalocal,                  (_gigs("-1", "", "xs aud"), _w(ato_datalocal))),
         ('pericias', perito and ato_laudo,                                                        (_w(ato_laudo),)),
-        # -- RECURSO ---------------------------------------------------------
         ('recurso',  'agravo de instrumento' in tipo and ('liquidacao' in f or 'execucao' in f) and ato_inste, (_w(ato_inste),)),
         ('recurso',  'agravo de instrumento' in tipo and ato_instc,                                             (_w(ato_instc),)),
         ('recurso',  'agravo de peticao' in tipo and agravo_peticao,                         (lambda driver, item: checar_habilitacao(item, driver) if 'habilitacao' in tipo and callable(checar_habilitacao) else agravo_peticao(item, driver),)),
-        # -- DIRETOS ---------------------------------------------------------
         ('diretos',  'habilitacao' in tipo and callable(checar_habilitacao),        (lambda driver, item: checar_habilitacao(item, driver),)),
         ('diretos',  ('ratificacao do acordo' in desc or 'ratificacao do acordo' in desc) and ato_homacordo, (_w(ato_homacordo),)),
         ('diretos',  'conhecimento' in f and ('quesitos' in tipo or 'quesitos' in desc) and callable(def_quesitos), (lambda driver, item: def_quesitos(item, driver),)),
@@ -559,14 +488,9 @@ def _regras(item, driver=None):
         ('diretos',  'caged' in desc,                                              (_gigs("-1", "", "xs pec"), _w(ato_prevjud)) if ato_prevjud else (_gigs("-1", "", "xs pec"),)),
         ('diretos',  'concordancia' in desc and 'liquidacao' in f,               (_gigs("1", "Silas", "Homologacao"),)),
         ('diretos',  bool(re.search(r'comprovante|deposito|pagamento|guia', desc)), (_gigs("-1", "", "Bruna Liberacao"),)),
-        # -- ANALISE (fallback) ----------------------------------------------
         ('analise',  True,                                                        None),
     ]
 
-
-# ============================================================================
-# REGISTRY DE REGRAS
-# ============================================================================
 
 peticao_registry = RuleRegistry(
     "peticao",
@@ -594,10 +518,6 @@ peticao_registry.register(r'caged', 'diretos', None)
 peticao_registry.register(r'concordancia', 'diretos', None)
 peticao_registry.register(r'comprovante|deposito|pagamento|guia', 'diretos', None)
 
-
-# ============================================================================
-# API PUBLICA
-# ============================================================================
 
 def classificar(item) -> str:
     """Bucket pelo primeiro match em _regras (sem driver — pura API)."""
@@ -641,11 +561,7 @@ def _nome_acao(acao) -> str:
 
 
 def explicar(item, driver=None) -> dict:
-    """Explica a decisao das regras para um item, SEM executar nada.
-
-    Mesma tabela e mesma ordem de `classificar`/`resolver_acao`, mas devolve
-    tambem qual regra casou -- usado pelo dry run.
-    """
+    """Explica a decisao das regras para um item, SEM executar nada."""
     regras = _regras(item, driver)
     for i, (bucket, cond, acao) in enumerate(regras, 1):
         if cond:

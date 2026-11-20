@@ -1,22 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Ponto de entrada do PJePlus sobre Playwright nativo com medição.
-
-    py pw.py                     # Playwright nativo
-    py pw.py --seletores         # + monitor de assertividade de seletores e fallbacks
-    py pw.py --trace             # + trace.zip navegavel do Playwright
-    py pw.py --comparar a.json b.json
-
-Cada execucao grava um relatorio em play/medicoes/.
-"""
+"""Ponto de entrada do PJePlus sobre Playwright nativo com medição."""
 import os
 import sys
 from datetime import datetime
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-RAIZ = AQUI  # pw.py esta na raiz do projeto
-PLAY = os.path.join(AQUI, "play")  # motor pjeplay/ vive dentro de Play/
+RAIZ = AQUI
+PLAY = os.path.join(AQUI, "play")
 MEDICOES = os.path.join(PLAY, "medicoes")
-CODIGO_SAIR = 88  # pw.bat encerra o laco automatico quando pw.py sai com este codigo
+CODIGO_SAIR = 88  # pw.bat encerra o laço automático quando pw.py sai com este código
 for caminho in (AQUI, PLAY):
     if caminho not in sys.path:
         sys.path.insert(0, caminho)
@@ -24,8 +16,32 @@ for caminho in (AQUI, PLAY):
 
 def _comparar(a, b):
     from pjeplay import medicao
-
     medicao.comparar(a, b)
+    return 0
+
+
+def _arg_valor(flag):
+    argv = sys.argv
+    if flag in argv:
+        j = argv.index(flag)
+        if j + 1 < len(argv):
+            return argv[j + 1]
+    return None
+
+
+def _atalho_atualizacao_rapida():
+    """Configura env vars para `--atualizacao-rapida <CNJ> [--calculo N] [--data dd/mm/aaaa]`."""
+    cnj = _arg_valor("--atualizacao-rapida")
+    if not cnj or cnj.startswith("--"):
+        print("uso: py pw.py --atualizacao-rapida <CNJ> [--calculo N] [--data dd/mm/aaaa]")
+        return 2
+    os.environ["PJEPLUS_AR_PROCESSO"] = cnj
+    for flag, env in (("--calculo", "PJEPLUS_AR_CALCULO"), ("--data", "PJEPLUS_AR_DATA")):
+        val = _arg_valor(flag)
+        if val:
+            os.environ[env] = val
+    os.environ["PJEPLUS_FLUXO"] = "K"
+    os.environ.setdefault("PJEPLUS_DRIVER", "PC_HEADLESS")
     return 0
 
 
@@ -34,34 +50,34 @@ def main():
         i = sys.argv.index("--comparar")
         return _comparar(sys.argv[i + 1], sys.argv[i + 2])
 
+    if "--atualizacao-rapida" in sys.argv:
+        codigo = _atalho_atualizacao_rapida()
+        if codigo:
+            return codigo
+
     trace = "--trace" in sys.argv
     backend = "playwright"
 
     import pjeplay
     pjeplay.iniciar(raiz_projeto=RAIZ, nativo=True)
 
-    # Purga de progresso: remove de todos os fluxos os processos executados
-    # ou com erro ha mais de 3 dias (ou sem data registrada). Nao bloqueia.
-    # APOS pjeplay.iniciar(): nenhum import de Fix/* pode preceder o shim.
+    # Purga após pjeplay.iniciar(): nenhum import de Fix/* pode preceder o bootstrap Playwright.
     try:
         from Fix.monitoramento_progresso_unificado import limpar_progresso_antigos
         resumo = limpar_progresso_antigos(dias=3)
         if resumo:
-            total = sum(resumo.values())
-            print(f"[progresso] purga: {total} entrada(s) antigas(s) removida(s) "
-                  f"({', '.join(f'{k}={v}' for k, v in sorted(resumo.items()))})")
+            det = ", ".join(f"{k}={v}" for k, v in sorted(resumo.items()))
+            print(f"[progresso] purga: {sum(resumo.values())} entrada(s) removida(s) ({det})")
     except Exception as e:
         print(f"[progresso] aviso: purga falhou ({e})")
 
-    os.chdir(RAIZ)  # x.py resolve caminhos relativos a raiz
+    os.chdir(RAIZ)
 
     from pjeplay import medicao
-
     import x
 
     os.makedirs(MEDICOES, exist_ok=True)
-    marca = datetime.now().strftime("%Y%m%d-%H%M%S")
-    rotulo = f"{backend}-{marca}"
+    rotulo = f"{backend}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
     driver_visto = []
     if trace:
@@ -77,9 +93,8 @@ def main():
 
         factory.criar_driver_PC = criar_com_trace
 
-    seletores = "--seletores" in sys.argv or "--monitor" in sys.argv
     monitor_sel = None
-    if seletores:
+    if "--seletores" in sys.argv or "--monitor" in sys.argv:
         from pjeplay.monitor_seletores import MonitorSeletores
         monitor_sel = MonitorSeletores(raiz_projeto=RAIZ, verbose=True)
         monitor_sel.ativar()
@@ -97,8 +112,7 @@ def main():
             monitor_sel.desativar()
 
     if trace and driver_visto:
-        medicao.finalizar_trace(
-            driver_visto[0], os.path.join(MEDICOES, f"{rotulo}.zip"))
+        medicao.finalizar_trace(driver_visto[0], os.path.join(MEDICOES, f"{rotulo}.zip"))
 
     m.imprimir()
     destino = m.salvar(os.path.join(MEDICOES, f"{rotulo}.json"))

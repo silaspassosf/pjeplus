@@ -1,6 +1,20 @@
 # PJePlus — Índice de Navegação Precisa (IDX)
 
-Atualizado: 2026-10-01 (regras de referência histórica e branch de trabalho)
+Atualizado: 2026-11-20 (campanha de limpeza e simplificação Playwright ativa)
+
+> **PROCESSO DE LIMPEZA ATIVO (`refactor/pw-limpeza`):**
+> - **Branch de trabalho desta campanha:** `refactor/pw-limpeza` (base `main` preservada intacta até validação final).
+> - **Foco exclusivo:** grafo vivo de `pw.py` (`pw.py`, `x.py`, `Play/`, `Fix/`, `atos/`, `SISB/`, `bianca/`, `Mandado/`, `Prazo/`, `PEC/`, `Peticao/`, `api/`), 100% Playwright nativo (`Fix/espera.py`, `Play/pjeplay/nativo.py`, `Page`/`Locator`).
+> - **Objetivo:** remover comentários/docstrings verbosos e simplificar funções longas/duplicadas para reduzir linhas **sem perder nenhuma funcionalidade ou assinatura pública**.
+> - **Validação obrigatória a cada etapa:** `py -m py_compile` + `py tools/check_pw.py` + `py tools/check_imports.py` + `py -m pytest tests -q`.
+> - **Andamento das ondas:**
+>   - [x] **Etapa 0 — Baseline verde:** zeradas as 3 regressões prévias do `tools/check_pw.py` (`atos/anexos_sigilo.py` -> 0, `SISB/processamento/minutas_campos.py` -> 0 [MIGRADO], `tests/test_atualizacao_rapida.py` -> 0, `SISB/core.py` -2). Ratchet: **906/909 (-3), APROVADO**.
+>   - [ ] **Etapa 1 — Poda de comentários/docstrings e simplificação inicial (em andamento):**
+>     - [x] Lote 1: `Fix/entrada_campos.py` (705L → 395L, -44%) e `pw.py` (150L → 129L)
+>     - [ ] Próximos: `api/`, `x.py`, `Fix/variaveis.py`, `Fix/utils.py`, `Fix/extracao.py`, `Prazo/`, `Mandado/`, `bianca/`.
+>   - [ ] **Etapa 2 — Simplificação de funções gigantes e Playwright nativo:** hotspots em `Fix/`, `SISB/`, `atos/`, `PEC/`, `bianca/`, `Mandado/`.
+>   - [ ] **Etapa 3 — Enxugamento do motor Playwright e auditoria de shims/código morto:** `Play/pjeplay/`, `x.py`, `tools/shim_audit.py`.
+>   - [ ] **Etapa 4 — Fechamento:** atualizar `tools/pw_baseline.json` e este `idx.md` com o saldo final.
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 
@@ -116,6 +130,13 @@ Atualizado: 2026-10-01 (regras de referência histórica e branch de trabalho)
 | Petição | `Peticao/runtime_pet.py` | `run_pet` |
 | SISBAJUD | `SISB/core.py` | `iniciar_sisbajud` |
 | DOM (Domicílio Eletrônico) | `bianca/dom_engine.py` | `run_dom_api` ← entry point real (não `run_dom`) |
+| Atualização Rápida (PJe-Calc) | `Fix/atualizacao_rapida.py` | `executar_atualizacao_rapida` (motor JS: `Fix/atualizacao_rapida.js`; fluxo K em `x.py`; `somente_busca=True` só abre e confere o CNJ) |
+| Teste isolado da Atualização Rápida | `f.py` | `teste_ar_atualizacao` — `py f.py ar` (só busca); `--executar` atualiza de verdade |
+| Gap cálculo antigo (>3 meses) teimosinha | `SISB/core.py` | `_atualizar_calculo_antigo` — roda a Atualização Rápida e repuxa o valor via API no ponto `calculo_antigo` das duas minutas |
+| Abrir cadastro de minuta (sem reload da SPA) | `SISB/core.py` | `_abrir_cadastro_minuta` — reaproveita página já pronta; renavegar destruía o contexto |
+| Porta de prontidão do cadastro (OIDC/"Carregando") | `SISB/core.py` | `_aguardar_cadastro_renderizado` — exige sair de "Carregando", campo utilizável e URL estável (evita "falhar primeiro e dar certo no retry") |
+| Juntada: limpeza de abas e editor vazio | `atos/anexos/anexos_juntador_base.py` + `anexos_juntador_helpers.py` | `wrapper_juntada_com_navegacao` passa `fechar_aba_apos=False` ao wrapper interno (não fechar o `/detalhe`); `substituir_marcador_por_conteudo` espera o CKEditor ficar utilizável e retenta 1x |
+| Preencher campos da minuta (retry de contexto) | `SISB/processamento/minutas_campos.py` | `_executar_campos_resiliente` — retenta 1x em "Execution context was destroyed"; `_snapshot_cadastro` + `window.__pjeplusCamposLog` dizem o passo exato da falha |
 
 ### Atos Judiciais & Comunicação
 
@@ -242,6 +263,7 @@ pw.py
 | `py pw.py --trace` | Gera `play/medicoes/<rotulo>.zip` com trace navegável |
 | `py pw.py --sem-nativo` | Playwright sem helpers nativos |
 | `py pw.py --comparar a.json b.json` | Compara dois relatórios de medição |
+| `py pw.py --atualizacao-rapida <CNJ> [--calculo N] [--data dd/mm/aaaa]` | Atualização Rápida do PJe-Calc (fluxo K): data atual automática, sem confirmação; `--calculo` escolhe entre vários cálculos |
 
 **Regra P9 (crítica para PW):** imports de funções de interação DEVEM vir de `Fix.core`, nunca de `Fix.selenium_base` — `pjeplay.nativo.aplicar()` substitui as funções em `Fix.core` via `setattr`; a cópia em `Fix.selenium_base` permanece congelada.
 
@@ -294,13 +316,14 @@ x.py: main()
 | F | `executar_triagem` | `bianca/triagem_engine.py::run_triagem` |
 | G | `executar_pet` | `Peticao/runtime_pet.py::run_pet` |
 | H | `executar_domicilio_eletronico` | `bianca/dom_engine.py::run_dom_api` |
+| K | `executar_atualizacao_rapida_fluxo` | `Fix/atualizacao_rapida.py::executar_atualizacao_rapida` (data atual automática; `PJEPLUS_AR_PROCESSO`/`_CALCULO`/`_DATA`) |
 
 **Modo não-interativo (CI/headless automático):**
 ```
 PJEPLUS_DRIVER=PC_HEADLESS PJEPLUS_FLUXO=A py pw.py
 ```
 Valores válidos para `PJEPLUS_DRIVER`: `PC_VISIBLE`, `PC_HEADLESS`, `VT_VISIBLE`, `VT_HEADLESS`
-Valores válidos para `PJEPLUS_FLUXO`: `A` a `H` (ver tabela acima)
+Valores válidos para `PJEPLUS_FLUXO`: `A` a `H`, `I`, `J`, `K` (ver tabela acima)
 
 **Backend Playwright (`play/pjeplay/`):**
 
@@ -501,6 +524,11 @@ Busque pela palavra-chave que descreve sua tarefa:
 | `run_dom_api` | `bianca/dom_engine.py` — entry point real de DOM (não `run_dom`) |
 | `pjeplay.iniciar`, `pjeplay.nativo.aplicar` | `play/pjeplay/__init__.py` L53, `play/pjeplay/nativo.py` |
 | `quadro-avisos/visualizar`, `meu-painel` | `Fix/utils.py::login_manual` — URLs válidas de pós-login |
+| `atualizacao_rapida`, `atualização rápida`, `PJe-Calc`, `liquidar atualização`, `botao_atualizacaoRapida` | `Fix/atualizacao_rapida.py` (`executar_atualizacao_rapida`) + `Fix/atualizacao_rapida.js` (motor DOM); fluxo K em `x.py`; atalho `py pw.py --atualizacao-rapida <CNJ>`; teste isolado `py f.py ar` (só busca) / `--executar`; doc `docs/atualizacao_rapida.md` |
+| `calculo_antigo`, `cálculo antigo`, `atualizar_calculo_se_antigo`, `teimosinha cálculo atualizado` | `SISB/core.py::_atualizar_calculo_antigo` (chamado no ponto de detecção >90 dias das minutas) → `Fix/atualizacao_rapida.py::atualizar_calculo_se_antigo` (atualiza, repuxa `divida` via API e muta `dados_processo` p/ `_configurar_valor`) |
+| `Execution context was destroyed`, `contexto destruído`, `campos iniciais`, `minuta/cadastrar` | `SISB/core.py::_abrir_cadastro_minuta` + `_aguardar_cadastro_renderizado` (não renavega se já pronto; só libera com a tela renderizada) e `SISB/processamento/minutas_campos.py::_executar_campos_resiliente` (retry 1x) |
+| `Nenhum método funcionou`, `SUBST_MARCADOR`, `xteim` | `atos/anexos/anexos_juntador_helpers.py::substituir_marcador_por_conteudo` (espera o editor utilizável + 1 retentativa) |
+| `espelho de fase`, `retomada`, `assentar aba`, `somente_busca` | `Fix/atualizacao_rapida.py::_assentar_aba`/`_espelho_fase` + `Fix/atualizacao_rapida.js` (`marcar` em `sessionStorage`) — sobrevivência à navegação do PJe-Calc |
 
 ---
 

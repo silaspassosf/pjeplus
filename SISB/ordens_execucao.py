@@ -3,11 +3,7 @@
 import logging
 import time as time_module
 
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-
+from Fix import espera
 from Fix.core import safe_click, safe_click_no_scroll
 from Fix.log import logger
 
@@ -78,102 +74,57 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
             logger.warning("[SISBAJUD] [ORDEM] ALERTA: Pagina incorreta detectada! Tentando navegar para lista de ordens da serie...")
             return False
 
-        # Em vez de iterar todas as linhas, usar XPath direto para a ordem
         sequencial = ordem['sequencial']
-
         xpath_linha = f"//tr[.//td[contains(@class,'cdk-column-index') and normalize-space(text())='{sequencial}']]"
 
-        try:
-            linha_el = WebDriverWait(driver, 3).until(
-                EC.presence_of_element_located((By.XPATH, xpath_linha))
-            )
-            logger.debug("[SISBAJUD] [ORDEM] Linha localizada via XPath direto +%.1fs", time_module.time()-_start_geral)
-        except Exception:
+        linha_el = espera.elemento(driver, xpath_linha, teto=3)
+        if not linha_el:
             logger.debug("[SISBAJUD] [ORDEM] Fallback: buscando linha por CSS selector...")
-            try:
-                tabela = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "table.mat-table tbody tr.mat-row"))
-                )
-                time_module.sleep(0.5)  # estabilização Angular pós-render
-
-                tbody = driver.find_element(By.CSS_SELECTOR, "table.mat-table tbody")
-                linhas = tbody.find_elements(By.CSS_SELECTOR, "tr.mat-row")
-                linha_el = None
-
-                logger.debug("[SISBAJUD] [ORDEM] Buscando ordem %s entre %s linhas...", sequencial, len(linhas))
-
-                for linha in linhas:
-                    try:
-                        cel_seq = linha.find_element(By.CSS_SELECTOR, "td.mat-cell.cdk-column-index")
-                        seq_text = cel_seq.text.strip()
-                        if seq_text == str(sequencial):
-                            linha_el = linha
-                            logger.debug("[SISBAJUD] [ORDEM] Linha encontrada: ordem %s", sequencial)
-                            break
-                    except Exception:
-                        continue
-
-                if not linha_el:
-                    logger.error("ERRO em _processar_ordem: Linha nao encontrada para ordem %s", sequencial)
-                    return False
-            except Exception as e_fallback:
-                logger.error("ERRO em _processar_ordem: Erro no fallback: %s", e_fallback)
+            if not espera.ate_aparecer(driver, "table.mat-table tbody tr.mat-row", teto=10):
+                logger.error("ERRO em _processar_ordem: Tabela nao apareceu para ordem %s", sequencial)
+                return False
+            espera.assentar(driver, 0.5)
+            tbody = espera.elemento(driver, "table.mat-table tbody", teto=2)
+            linhas = espera.elementos(tbody, "tr.mat-row", teto=1) if tbody else []
+            for linha in linhas:
+                try:
+                    cel_seq = espera.elemento(linha, "td.mat-cell.cdk-column-index", teto=0.2)
+                    if cel_seq and cel_seq.text.strip() == str(sequencial):
+                        linha_el = linha
+                        break
+                except Exception:
+                    continue
+            if not linha_el:
+                logger.error("ERRO em _processar_ordem: Linha nao encontrada para ordem %s", sequencial)
                 return False
 
-        # ===== ABRIR ORDEM =====
         # mat-icon.icone-ativo tem aria-hidden=true — não tem binding Angular.
         abriu = False
-        try:
-            btn_menu = linha_el.find_element(By.CSS_SELECTOR, "button.mat-menu-trigger")
-            safe_click_no_scroll(driver, btn_menu)
-            time_module.sleep(0.6)
-
-            itens = WebDriverWait(driver, 3).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "button[role='menuitem']"))
-            )
-            for item in itens:
-                txt = item.text.strip().lower()
-                if any(k in txt for k in ['detalh', 'desdobr', 'abrir']):
-                    safe_click_no_scroll(driver, item)
-                    abriu = True
-                    logger.debug("[SISBAJUD] [ORDEM] Menu → '%s' clicado +%.1fs", item.text.strip(), time_module.time()-_start_geral)
-                    break
-
-            if not abriu:
-                logger.debug("[SISBAJUD] [ORDEM] Itens do menu: %s", [i.text.strip() for i in itens])
-        except Exception as e_menu:
-            logger.error("ERRO em _processar_ordem: Menu ellipsis falhou: %s", e_menu)
-
-        if not abriu:
-            logger.debug("[SISBAJUD] [ORDEM] Ultimo fallback: menu ellipsis...")
+        for estrategia_click in (safe_click_no_scroll, lambda d, el: safe_click(d, el, 'click')):
             try:
-                btn_menu = linha_el.find_element(By.CSS_SELECTOR, "button.mat-menu-trigger")
-                safe_click(driver, btn_menu, 'click')
-                time_module.sleep(0.5)
-                opcoes_menu = WebDriverWait(driver, 3).until(
-                    EC.presence_of_all_elements_located((By.XPATH, "//button[@role='menuitem']"))
-                )
-                for opcao in opcoes_menu:
-                    if "detalh" in opcao.text.lower() or "desdobr" in opcao.text.lower():
-                        safe_click(driver, opcao, 'click')
+                btn_menu = espera.elemento(linha_el, "button.mat-menu-trigger", teto=1)
+                if not btn_menu:
+                    continue
+                estrategia_click(driver, btn_menu)
+                espera.assentar(driver, 0.5)
+                itens = espera.elementos(driver, "button[role='menuitem']", teto=3)
+                for item in itens:
+                    txt = (item.text or '').strip().lower()
+                    if any(k in txt for k in ('detalh', 'desdobr', 'abrir')):
+                        estrategia_click(driver, item)
                         abriu = True
-                        logger.debug("[SISBAJUD] [ORDEM] 'Detalhar' via menu +%.1fs", time_module.time()-_start_geral)
                         break
-            except Exception as e3:
-                logger.error("ERRO em _processar_ordem: Menu ellipsis falhou: %s", e3)
+                if abriu:
+                    break
+            except Exception as e_menu:
+                logger.error("ERRO em _processar_ordem: Menu ellipsis falhou: %s", e_menu)
 
         if not abriu:
             logger.error("ERRO em _processar_ordem: Impossivel abrir ordem %s — todos os seletores falharam", sequencial)
             return False
 
-        for tentativa in range(20):
-            if "/desdobrar" in driver.current_url:
-                logger.debug("[SISBAJUD] [ORDEM] Pagina /desdobrar carregada +%.1fs", time_module.time()-_start_geral)
-                break
-            time_module.sleep(0.5)
-        else:
-            url_atual_debug = driver.current_url
-            logger.error("ERRO em _processar_ordem: Pagina /desdobrar nao carregou apos 10s (URL: %s)", url_atual_debug)
+        if not espera.ate_url(driver, "/desdobrar", teto=10):
+            logger.error("ERRO em _processar_ordem: Pagina /desdobrar nao carregou apos 10s (URL: %s)", driver.current_url)
             return False
 
         if apenas_extrair:

@@ -753,9 +753,9 @@ def testar_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> List[dict]:
 
 def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processos: int = 0,
                                  atividades: Optional[List[dict]] = None):
-    """Executa o fluxo P2B usando API GIGS sem prazo + 'XS' e engine run_batch."""
-    from utilitarios_processamento import run_batch, resultado_ok, resultado_falha
-    from Fix.core import wait_for_page_load
+    """Executa o fluxo P2B usando API GIGS sem prazo ('XS1') sobre Fix/motor_fluxo."""
+    from Fix.motor_fluxo import FluxoSpec, executar_fluxo_lote, extrair_id_numero
+    from utilitarios_processamento import resultado_falha, resultado_ok
 
     progresso = carregar_progresso_p2b()
     if atividades is None:
@@ -765,114 +765,58 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
         logger.info('[PRAZO_API] Nenhuma atividade XS1 encontrada')
         return {'sucesso': True, 'total': 0, 'processados': 0}
 
-    logger.info(f'[PRAZO_API] GIGS XS1 encontrados: {total_encontrado}')
-
+    logger.info('[PRAZO_API] GIGS XS1 encontrados: %d', total_encontrado)
     itens = []
     for idx, item in enumerate(atividades, start=1):
         if max_processos and idx > max_processos:
             break
-
-        processo_obj = item.get('processo') or {}
-        id_processo = (processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id'))
-        numero = (processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero'))
-
+        id_processo, numero = extrair_id_numero(item)
         if not id_processo:
-            logger.warning(f'[PRAZO_API] Item {idx} sem id_processo, pulando (numero_recuperado={numero})')
+            logger.warning('[PRAZO_API] Item %d sem id_processo, pulando (numero=%s)', idx, numero)
             continue
+        itens.append({'id': id_processo, 'numero': numero, 'chave': numero or str(id_processo)})
 
-        chave_progresso = numero or str(id_processo)
-        itens.append({'id': id_processo, 'numero': numero, 'chave': chave_progresso})
+    logger.info('[PRAZO_API] Processos a serem executados: %s', [p.get('numero') for p in itens])
 
-    logger.info(f'[PRAZO_API] Processos a serem executados: {[p.get("numero") for p in itens]}')
-
-    def should_skip(item):
-        chave = item.get('chave') or item.get('numero') or str(item.get('id', ''))
-        if chave and processo_ja_executado_p2b(chave, progresso):
-            logger.info(f'[PRAZO_API] Processo {chave} ja executado, pulando')
-            return True
-        return False
-
-    recriacoes_aba = 0
-
-    def open_item(item):
-        """Navega para o detalhe do processo na mesma aba, fechando abas extras."""
-        from Fix.abas import validar_conexao_driver, fechar_abas_extras
-        if not validar_conexao_driver(driver):
-            return resultado_falha('browser_fechado_manualmente', critical=True)
+    def _executar(drv, item):
         try:
-            fechar_abas_extras(driver)
-        except Exception as e:
-            logger.warning(f'[PRAZO_API] Falha ao gerenciar abas residuais: {e}')
-            if not validar_conexao_driver(driver):
-                return resultado_falha('browser_fechado_manualmente', critical=True)
-
-        id_processo = item['id']
-        detalhe_url = url_processo_detalhe(id_processo)
-        logger.info(f'[PRAZO_API] Abrindo processo id={id_processo} numero={item.get("numero")}')
-        driver.get(detalhe_url)
-        from Fix.core import garantir_carregamento_pagina
-        ok_carregou = garantir_carregamento_pagina(
-            driver,
-            seletor_esperado='pje-cabecalho-processo,pje-timeline',
-            timeout_refresh=5.0,
-            url_alvo=detalhe_url,
-        )
-        if ok_carregou:
-            espera.ate_aparecer(driver, '#botao-menu, i.fa-bars', teto=5)
-            return resultado_ok()
-
-        logger.error(f'[PRAZO_API] /detalhe não renderizou elemento válido após refresh ({item.get("numero")}) — item NÃO executado (será retentado)')
-        return resultado_falha('detalhe_nao_carregou')
-
-    def execute_item(item):
-        """Executa fluxo_pz no processo aberto."""
-        try:
-            ok = fluxo_pz(driver)
-            if ok:
-                return resultado_ok()
-            else:
-                return resultado_falha("fluxo_pz_nao_executou")
+            return resultado_ok() if fluxo_pz(drv) else resultado_falha('fluxo_pz_nao_executou')
         except SessaoExpiradaError as e:
-            logger.warning(f'[PRAZO_API] Sessao expirada (401) no processo {item.get("numero")}: {e}')
-            return resultado_falha("sessao_expirada_401", critical=True)
-        except Exception as e:
-            msg = str(e)
-            if 'has been closed' in msg:
-                logger.warning(f'[PRAZO_API] Browser fechado durante execucao do processo {item.get("numero")} — interrompendo batch: {msg}')
-                return resultado_falha('browser_fechado_manualmente', critical=True)
-            logger.error(f'[PRAZO_API] Erro ao executar fluxo_pz para processo {item.get("numero")}: {e}')
-            return resultado_falha(str(e))
+            logger.warning('[PRAZO_API] Sessao expirada (401) em %s: %s', item.get('numero'), e)
+            return resultado_falha('sessao_expirada_401', critical=True)
 
-    def persist_result(item, result):
+    def _persistir(item, result):
         chave = item.get('chave') or item.get('numero') or str(item.get('id', ''))
         if result.get('ok'):
             if chave:
                 marcar_processo_executado_p2b(chave, progresso)
-                logger.info(f'[PRAZO_API] Processo {item.get("numero")} processado com sucesso (fluxo_pz)')
+                logger.info('[PRAZO_API] Processo %s processado com sucesso (fluxo_pz)', item.get('numero'))
         else:
             logger.warning(
-                f'[PRAZO_API] Processo {item.get("numero")} NAO concluido '
-                f'({result.get("erro") or "motivo desconhecido"}) — nao marcado; '
-                f'sera retentado na proxima execucao')
+                '[PRAZO_API] Processo %s NAO concluido (%s) — sera retentado na proxima execucao',
+                item.get('numero'), result.get('erro') or 'motivo desconhecido',
+            )
 
-    stats = run_batch(
-        items=itens,
-        should_skip=should_skip,
-        open_item=open_item,
-        execute_item=execute_item,
-        persist_result=persist_result,
-        stop_on_critical=True,
+    spec = FluxoSpec(
+        nome='p2b',
+        tag_log='[PRAZO_API]',
+        executar=_executar,
+        should_skip=lambda it: bool(it.get('chave')) and processo_ja_executado_p2b(it['chave'], progresso),
+        persist_result=_persistir,
+        seletor_pronto='pje-cabecalho-processo,pje-timeline',
+        seletor_pos_load='#botao-menu, i.fa-bars',
+        usar_garantir_carregamento=True,
+        fechar_abas_ao_final=False,
+        on_critical_exception=lambda exc: isinstance(exc, SessaoExpiradaError),
     )
-
-    falhas = [{'numero': r['item'].get('numero'), 'erro': r['erro']} for r in stats['itens'] if r['status'] == 'falha']
-
+    res = executar_fluxo_lote(driver, itens, spec)
     return {
-        'sucesso': stats['falha'] == 0,
+        'sucesso': res['sucesso'],
         'total': total_encontrado,
-        'processados': stats['sucesso'],
-        'falhas': falhas,
-        'critical_stop': stats.get('critical_stop', False),
-        'critical_reason': stats.get('critical_reason'),
+        'processados': res['processados'],
+        'falhas': res['falhas'],
+        'critical_stop': res['critical_stop'],
+        'critical_reason': res['critical_reason'],
     }
 
 

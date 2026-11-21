@@ -353,7 +353,7 @@ def executar_mandado(driver) -> Dict[str, Any]:
 
 
 def executar_prazo(driver) -> Dict[str, Any]:
-    """Prazo isolado (ciclos 1+2+3) seguido de P2B (mesmo se loop falhar)."""
+    """Prazo (7 etapas: Vencidos + Cumprimento -> xs1) seguido de P2B (mesmo se loop falhar)."""
     def _rodar_sub(nome_log, fn, d):
         try:
             res = normalizar_resultado(fn(d))

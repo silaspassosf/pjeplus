@@ -1,135 +1,54 @@
-"""Prazo - Loop Orquestrador"""
+"""Prazo - Orquestrador sequencial de 7 etapas com barreiras Playwright.
+
+Sequência antes do P2B:
+1. Navega para Prazos vencidos (painel/global/14)
+2. Filtra fases Liquidação + Execução
+3. Filtra lista para 100 registros
+4. Seleciona livres + cria atividade xs1 (-1//xs1) página a página
+5. Navega para Cumprimento de providências (painel/global/6)
+6. Filtra lista para 100 registros
+7. Seleciona livres + cria atividade xs1 (-1//xs1) página a página
+"""
 import logging
 import math
 import re
-import time
-from contextlib import contextmanager
-from typing import Dict, Any, List, Optional, Tuple, Union
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
+from typing import Optional, Sequence
 
 from Fix import espera
 from Fix.core import (
-    aguardar_renderizacao_nativa,
+    _executar_js,
     aplicar_filtro_100,
-    com_retry,
+    filtrofases,
+    preencher_campo,
+    safe_click,
     safe_click_no_scroll,
 )
-from Fix.variaveis import PjeApiClient, obter_gigs_com_fase, session_from_driver
-
+from Fix.facade_publica import buscar
 from core.resultado_execucao import ResultadoExecucao
-from Fix.core import _executar_js
+
 logger = logging.getLogger(__name__)
 
+URL_PAINEL_PRAZOS_VENCIDOS = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
+URL_PAINEL_CUMPRIMENTO = "https://pje.trt2.jus.br/pjekz/painel/global/6/lista-processos"
+FASES_PRAZOS_VENCIDOS = ("liquidação", "execução")
 
-GIGS_API_MAX_WORKERS = 20
+_SEL_SPINNERS = "div.carregando, mat-progress-spinner, mat-spinner"
+_SEL_BACKDROP = ".cdk-overlay-backdrop.cdk-overlay-backdrop-showing"
+_XPATH_LISTA_VAZIA = "//span[contains(text(), 'Não há processos neste tema')]"
+_XPATH_FILTRO_100_ATIVO = "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='100']"
 
-DEBUG_PAUSAS_LOOP = False
-_PAUSA_ACUMULADA_S = 0.0
-
-
-def pausar_confirmacao(acao: str, detalhe: str = '') -> bool:
-    """Pausa interativa para confirmação manual de cada ação do loop."""
-    global _PAUSA_ACUMULADA_S
-    if not DEBUG_PAUSAS_LOOP:
-        return True
-
-    msg = f"[PAUSA][{acao}] {detalhe}".strip()
-    logger.info(msg)
-    inicio_pausa = time.perf_counter()
-    try:
-        resposta = input(f"{msg} -> Executar? [ENTER=sim / n=abortar]: ").strip().lower()
-        duracao_pausa = time.perf_counter() - inicio_pausa
-        _PAUSA_ACUMULADA_S += duracao_pausa
-        logger.info(f"[PAUSA][TEMPO] {acao}: {duracao_pausa:.3f}s")
-        if resposta in ('n', 'nao', 'não', 'no'):
-            logger.info(f"[PAUSA][{acao}] Abortado pelo usuário")
-            return False
-        return True
-    except Exception:
-        duracao_pausa = time.perf_counter() - inicio_pausa
-        _PAUSA_ACUMULADA_S += duracao_pausa
-        logger.info(f"[PAUSA][TEMPO] {acao}: {duracao_pausa:.3f}s")
-        logger.info(f"[PAUSA][{acao}] Sem entrada interativa - continuando")
-        return True
-
-
-def log_seletor_vencedor(acao: str, by: Any, seletor: str) -> None:
-    """Registra qual seletor funcionou em ações com múltiplas tentativas."""
-    logger.info(f"[SELETOR][{acao}] Vencedor: by={by} seletor={seletor}")
-
-
-@contextmanager
-def medir_latencia(etapa: str):
-    """Mede latência de uma etapa e registra início/fim no log."""
-    inicio = time.perf_counter()
-    pausa_inicio = _PAUSA_ACUMULADA_S
-    logger.info(f"[LATENCIA][INICIO] {etapa}")
-    try:
-        yield
-    finally:
-        duracao_bruta = time.perf_counter() - inicio
-        pausa_dentro = _PAUSA_ACUMULADA_S - pausa_inicio
-        duracao_liquida = max(0.0, duracao_bruta - pausa_dentro)
-        logger.info(f"[LATENCIA][FIM] {etapa}: liquida={duracao_liquida:.3f}s (bruta={duracao_bruta:.3f}s, pausa={pausa_dentro:.3f}s)")
-
-
-SCRIPT_SELECAO_GIGS_AJ_JT = r'''
-function selecionarProcessosPorGIGS(processosComGIGS) {
-    console.log("🔍 Iniciando seleção de GIGS. Processos a selecionar:", processosComGIGS);
-
-    let linhas = document.querySelectorAll('tr.cdk-drag');
-    console.log("📊 Total de linhas encontradas:", linhas.length);
-
-    let selecionados = 0;
-    let padrao = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/;
-
-    linhas.forEach(function(linha, idx) {
-        // Estratégia 1: Procurar em links <a>
-        let numeroProcesso = null;
-        let links = linha.querySelectorAll('a');
-        for (let link of links) {
-            let match = link.textContent.match(padrao);
-            if (match) {
-                numeroProcesso = match[1];
-                break;
-            }
-        }
-
-        // Estratégia 2: Procurar em toda a linha (fallback)
-        if (!numeroProcesso) {
-            let match = linha.textContent.match(padrao);
-            if (match) {
-                numeroProcesso = match[1];
-            }
-        }
-
-        // Se encontrou processo, log e verifica se está na lista
-        if (numeroProcesso) {
-            console.log(`  [${idx}] Encontrado: ${numeroProcesso}, está na lista: ${processosComGIGS.includes(numeroProcesso)}`);
-
-            // Se está na lista de GIGS, selecionar
-            if (processosComGIGS.includes(numeroProcesso)) {
-                let checkbox = linha.querySelector('mat-checkbox input[type="checkbox"]');
-                console.log(`    ✓ Checkbox encontrado: ${checkbox !== null}, checked: ${checkbox ? checkbox.checked : 'N/A'}`);
-
-                if (checkbox && !checkbox.checked) {
-                    checkbox.click();
-                    linha.style.backgroundColor = "#cce5ff";
-                    selecionados++;
-                    console.log(`    ✅ CLICOU no checkbox`);
-                } else {
-                    console.log(`    ⚠️ Checkbox não clicado (já estava checked ou não encontrado)`);
-                }
-            }
-        }
-    });
-
-    console.log("✅ Seleção concluída. Total selecionados:", selecionados);
-    return selecionados;
-}
-return selecionarProcessosPorGIGS(arguments[0]);
-'''
+_SEL_PRAZO_XS = (
+    'input[formcontrolname="dias"]',
+    'input[formcontrolname="prazo"]',
+    'input[aria-label="Prazo em dias úteis"]',
+    'mat-form-field input[type="number"]',
+    'input[type="number"]',
+)
+_SEL_OBS_XS = (
+    "textarea[formcontrolname='observacao']",
+    "textarea[aria-label*='Observa']",
+    "textarea",
+)
 
 SCRIPT_SELECAO_LIVRES = r'''
 try {
@@ -155,477 +74,393 @@ try {
 } catch(e) { return -1; }
 '''
 
-SCRIPT_SELECAO_LIVRES_API = r'''
-try {
-    let processosComGigsApi = arguments[0] || [];
-    let linhas = document.querySelectorAll('tr.cdk-drag');
-    let selecionados = 0;
-    let padrao = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/;
-    linhas.forEach(function(linha){
-        let prazo = linha.querySelector('td[data-label*="prazo" i] time, td:nth-child(9) time');
-        let prazoVazio = !prazo || !prazo.textContent.trim();
-        let hasComment = linha.querySelector('i.fa-comment') !== null;
-        let inputField = linha.querySelector('input[matinput]');
-        let campoPreenchido = inputField && inputField.value.trim();
-        let temLupa = linha.querySelector('td[data-label*="processo" i] i.fa-search, td:nth-child(3) i.fa-search') !== null;
-        let numeroProcesso = null;
-        let links = linha.querySelectorAll('a');
-        for (let link of links) {
-            let match = link.textContent.match(padrao);
-            if (match) { numeroProcesso = match[1]; break; }
-        }
-        if (!numeroProcesso) {
-            let match = linha.textContent.match(padrao);
-            if (match) numeroProcesso = match[1];
-        }
-        let temGigsApi = numeroProcesso && processosComGigsApi.includes(numeroProcesso);
-        if (prazoVazio && !hasComment && !campoPreenchido && !temLupa && !temGigsApi) {
-            let checkbox = linha.querySelector('mat-checkbox input[type="checkbox"]');
-            if (checkbox && !checkbox.checked) {
-                checkbox.click();
-                linha.style.backgroundColor = "#ffccd2";
-                selecionados++;
-            }
-        }
-    });
-    return selecionados;
-} catch(e) { return -1; }
-'''
 
-SCRIPT_SELECAO_NAO_LIVRES = '''
-function selecionarProcessos(maxProcessos) {
-    const linhas = document.querySelectorAll('tr.cdk-drag');
-    let selecionados = 0;
-    let totalNaoLivres = 0;
-
-    // Primeiro conta total de não livres
-    linhas.forEach(linha => {
-        const prazo = linha.querySelector('td:nth-child(9) time');
-        const prazoPreenchido = prazo && prazo.textContent.trim();
-        const hasComment = linha.querySelector('i.fa-comment') !== null;
-        const inputField = linha.querySelector('input[matinput]');
-        const campoPreenchido = inputField && inputField.value.trim();
-
-        if (prazoPreenchido || hasComment || campoPreenchido) {
-            totalNaoLivres++;
-        }
-    });
-
-    // Depois seleciona até maxProcessos
-    for (const linha of linhas) {
-        if (selecionados >= maxProcessos) break;
-
-        const prazo = linha.querySelector('td:nth-child(9) time');
-        const prazoPreenchido = prazo && prazo.textContent.trim();
-        const hasComment = linha.querySelector('i.fa-comment') !== null;
-        const inputField = linha.querySelector('input[matinput]');
-        const campoPreenchido = inputField && inputField.value.trim();
-
-        if (prazoPreenchido || hasComment || campoPreenchido) {
-            const checkbox = linha.querySelector('mat-checkbox input[type="checkbox"]');
-            if (checkbox && !checkbox.checked) {
-                checkbox.click();
-                linha.style.backgroundColor = "#d2ffcc";
-                selecionados++;
-            }
-        }
-    }
-    return {selecionados, totalNaoLivres};
-}
-return selecionarProcessos(arguments[0]);
-'''
+def _aguardar_tela_livre(driver, teto: float = 15.0) -> bool:
+    """Barreira: aguarda spinners e backdrops modais desaparecerem."""
+    ok_spin = espera.ate_sumir(driver, _SEL_SPINNERS, teto=teto)
+    ok_drop = espera.ate_sumir(driver, _SEL_BACKDROP, teto=min(teto, 8.0))
+    return bool(ok_spin and ok_drop)
 
 
-def _extrair_numero_processo_da_linha(linha_elemento: Any) -> Optional[str]:
-    """Extrai número de processo de um elemento <tr> da tabela de atividades."""
-    try:
-        padrao_processo = re.compile(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})')
-
-        try:
-            links = espera.elementos(linha_elemento, 'a', teto=0.1)
-            for link in links:
-                texto = getattr(link, 'text', '').strip()
-                match = padrao_processo.search(texto)
-                if match:
-                    return match.group(1)
-        except Exception:
-            pass
-
-        try:
-            texto_linha = linha_elemento.text.strip()
-            match = padrao_processo.search(texto_linha)
-            if match:
-                return match.group(1)
-        except Exception:
-            pass
-
-        return None
-    except Exception as e:
-        logger.error(f'[LOOP_PRAZO][DEBUG] Erro ao extrair número do processo: {e}')
-        return None
+def _ler_texto_paginacao(driver, teto: float = 0.0) -> str:
+    """Lê o texto atual do contador de registros (ex.: '1 - 100 de 140')."""
+    el = espera.elemento(driver, "span.total-registros", teto=teto)
+    if not el:
+        return ""
+    return (getattr(el, "text", "") or "").strip()
 
 
-def selecionar_processos_nao_livres(driver: Any, max_processos: int = 20) -> Tuple[int, bool]:
-    """Seleciona processos não livres (com prazo preenchido, comentário ou campo preenchido)."""
-    try:
-        resultado = _executar_js(driver, SCRIPT_SELECAO_NAO_LIVRES, max_processos)
-
-        if resultado == -1:
-            logger.error('[LOOP_PRAZO][ERRO] Falha no script de selecao de nao livres')
-            return 0, False
-
-        selecionados = resultado['selecionados']
-        total_nao_livres = resultado['totalNaoLivres']
-
-        ha_mais = total_nao_livres > max_processos
-
-        logger.info('[LOOP_PRAZO][NAO_LIVRES] Selecionados %s processos nao livres (total: %s)', selecionados, total_nao_livres)
-
-        if ha_mais:
-            logger.info('[LOOP_PRAZO][NAO_LIVRES] Ha mais processos nao livres alem do limite (%s)', max_processos)
-
-        return selecionados, ha_mais
-
-    except Exception as e:
-        logger.error('[LOOP_PRAZO][ERRO] Erro em selecionar_processos_nao_livres: %s: %s', type(e).__name__, e)
-        return 0, False
-
-
-def _selecionar_processos_por_gigs_aj_jt(driver: Any, client: 'PjeApiClient') -> int:
-    """Seleciona processos com atividade GIGS AJ-JT apenas em fase LIQUIDAÇÃO."""
-    try:
-        if not pausar_confirmacao('CICLO2/GIGS_AJ_JT', 'Iniciar varredura e seleção de processos com AJ-JT'):
-            return 0
-        linhas = espera.elementos(driver, 'tr.cdk-drag', teto=1)
-        processos_com_gigs = []
-
-        for linha in linhas:
-            try:
-                numero_processo = _extrair_numero_processo_da_linha(linha)
-                if not numero_processo:
-                    continue
-
-                dados_gigs_fase = obter_gigs_com_fase(client, numero_processo)
-                if not dados_gigs_fase:
-                    continue
-
-                if dados_gigs_fase.get('fase') != 'Liquidação':
-                    continue
-
-                atividades_gigs = dados_gigs_fase.get('atividades_gigs', [])
-                for atividade in atividades_gigs:
-                    if 'AJ-JT' in atividade.get('observacao', ''):
-                        processos_com_gigs.append(numero_processo)
-                        break
-
-            except Exception:
-                continue
-
-        if processos_com_gigs:
-            if not pausar_confirmacao('CICLO2/GIGS_AJ_JT_SCRIPT', f'Selecionar {len(processos_com_gigs)} processo(s) via script JS'):
-                return 0
-            selecionados = _executar_js(
-                driver,
-                SCRIPT_SELECAO_GIGS_AJ_JT,
-                processos_com_gigs
-            )
-            logger.info(f'[CICLO2][GIGS-AJ-JT] {selecionados} processo(s) com AJ-JT selecionado(s)')
-            try:
-                aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.5)
-            except Exception:
-                espera.ate_js(driver, "document.readyState === 'complete'", teto=1.5)
-            return selecionados
-
-        logger.info('[CICLO2][GIGS-AJ-JT] Nenhum processo com atividade AJ-JT encontrado')
+def _ler_total_registros(driver) -> int:
+    """Extrai o total numérico de registros; retorna 0 se vazio ou -1 se indisponível."""
+    texto = _ler_texto_paginacao(driver)
+    if not texto:
+        return -1
+    if "0 de 0" in texto:
         return 0
-
-    except Exception as e:
-        logger.error('[LOOP_PRAZO][ERRO] Erro em _selecionar_processos_por_gigs_aj_jt: %s: %s', type(e).__name__, e)
-        return 0
+    match = re.search(r"de\s+(\d+)", texto)
+    return int(match.group(1)) if match else -1
 
 
-def _verificar_processo_tem_xs(client: 'PjeApiClient', numero_processo: str) -> bool:
-    """Verifica se o processo já tem atividade GIGS xs (sem prazo)."""
-    try:
-        atividades = client.atividades_gigs(numero_processo)
-
-        if not atividades:
-            return False
-
-        for atividade in atividades:
-            data_prazo = atividade.get('dataPrazo')
-            if not data_prazo or (isinstance(data_prazo, str) and not data_prazo.strip()):
-                logger.debug('[LOOP_PRAZO][XS] Processo %s ja tem atividade xs no GIGS', numero_processo)
-                return True
-
-        return False
-    except Exception as e:
-        logger.error('[LOOP_PRAZO][ERRO] Erro ao verificar xs para %s: %s: %s', numero_processo, type(e).__name__, e)
-        return False
-
-
-def _obter_processos_com_gigs_api(client: 'PjeApiClient', numeros_processos: List[str], max_workers: int = 20) -> List[str]:
-    """Retorna lista de números de processos que têm QUALQUER atividade GIGS (com ou sem prazo)."""
-    com_gigs: List[str] = []
-
-    def verificar_um(numero: str) -> Tuple[str, bool]:
-        try:
-            atividades = client.atividades_gigs(numero)
-            return (numero, bool(atividades))
-        except Exception:
-            return (numero, False)
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(verificar_um, num): num for num in numeros_processos}
-        for future in as_completed(futures):
-            try:
-                numero, tem = future.result()
-                if tem:
-                    com_gigs.append(numero)
-            except Exception:
-                pass
-
-    logger.info(f'[LOOP_PRAZO][GIGS_API] {len(com_gigs)}/{len(numeros_processos)} processos com gigs (API)')
-    return com_gigs
-
-
-def ciclo0(driver: Any) -> bool:
-    """Ciclo 0: Painel Global 14 (Análise)"""
-    from .loop_lote import _ciclo1_aplicar_filtro_fases
-    from .loop_execucao_final import _ciclo2_criar_atividade_xs
-
-    url_painel14 = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
-    if not pausar_confirmacao('CICLO0/NAVEGAR_PAINEL14', f'Navegar para {url_painel14}'):
-        return False
-    logger.info(f'[CICLO0] Navegando para Painel Global 14: {url_painel14}')
-    driver.get(url_painel14)
-
-    if not espera.ate_url(driver, "painel/global/14", teto=10):
-        logger.warning(f'[CICLO0] URL ainda não contém painel/global/14. URL atual: {getattr(driver, "current_url", "")}. Forçando navegação direta...')
-        driver.get(url_painel14)
-        espera.ate_url(driver, "painel/global/14", teto=10)
-
-    logger.info(f'[CICLO0] URL confirmada: {getattr(driver, "current_url", "")}')
-
-    try:
-        if espera.elemento(driver, 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]', teto=12) is None:
-            raise TimeoutError()
-        logger.info('[CICLO0] Dropdown "Fase processual" presente - prosseguindo')
-    except Exception:
-        logger.warning('[CICLO0] Timeout aguardando dropdown "Fase processual" - prosseguindo mesmo assim')
-
-    try:
-        mensagem_vazia = espera.elementos(driver, "//span[contains(text(), 'Não há processos neste tema')]", teto=0.5)
-        if mensagem_vazia and any(getattr(el, 'is_displayed', lambda: True)() for el in mensagem_vazia):
-            logger.info('[CICLO0] Lista já vazia antes do filtro - nada a processar')
-            return True
-    except Exception:
-        pass
-
-    with medir_latencia('CICLO0_APLICAR_FILTRO_FASES'):
-        filtro_result = _ciclo1_aplicar_filtro_fases(driver)
-    if filtro_result == "no_more_processes":
-        logger.info('[CICLO0] Nenhum processo em liquidação/execução.')
+def _lista_esta_vazia(driver) -> bool:
+    """True se o painel exibe estado vazio ou 0 registros."""
+    if espera.elemento(driver, _XPATH_LISTA_VAZIA, teto=0.0):
         return True
-    if not filtro_result:
-        logger.error('[CICLO0] Falha ao aplicar filtro de fases.')
+    return _ler_total_registros(driver) == 0
+
+
+def _clicar_seguro(driver, elemento) -> bool:
+    """Clica sem scroll com fallback para safe_click."""
+    if safe_click_no_scroll(driver, elemento):
+        return True
+    return bool(safe_click(driver, elemento))
+
+
+def _aguardar_estado_lista(driver, teto: float = 15.0) -> str:
+    """Barreira: aguarda a tabela renderizar linhas ou estado vazio sem spinners."""
+    def _pronto(drv):
+        if _lista_esta_vazia(drv):
+            return "vazio"
+        if espera.elemento(drv, "tr.cdk-drag", teto=0.0):
+            return "ok"
         return False
 
-    with medir_latencia('CICLO0_FILTRO_100'):
-        logger.info('[CICLO0] Aplicando filtro 100...')
-        try:
-            ja_100 = espera.elemento(driver, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='100']", teto=0.5)
-            if ja_100:
-                logger.info('[CICLO0] Lista já configurada com 100 itens')
-            else:
-                aplicar_filtro_100(driver)
-                logger.info('[CICLO0] Filtro 100 aplicado')
-        except Exception as e:
-            logger.warning(f'[CICLO0] Aviso ao aplicar filtro 100: {e}')
+    estado = espera.ate(driver, _pronto, teto=teto)
+    _aguardar_tela_livre(driver, teto=min(teto, 10.0))
+    if not estado:
+        return "vazio" if _lista_esta_vazia(driver) else "erro"
+    if _lista_esta_vazia(driver):
+        return "vazio"
+    return str(estado)
 
-        try:
-            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=3)
-        except Exception:
-            espera.ate_js(driver, "document.readyState === 'complete'", teto=3)
 
-    with medir_latencia('CICLO0_SELECAO_LIVRES_E_XS1'):
-        logger.info('[CICLO0] Selecionando processos livres...')
+def _aguardar_recarregamento(driver, texto_antes: str = "", teto: float = 20.0) -> str:
+    """Barreira pós-ação: captura eventual spinner/mudança e espera lista estabilizar."""
+    espera.ate_sumir(driver, _SEL_BACKDROP, teto=5.0)
 
-        try:
-            total_elem = espera.elemento(driver, 'span.total-registros', teto=2)
-            total_text = getattr(total_elem, 'text', '') if total_elem else ''
-            m = re.search(r'de\s+(\d+)', total_text)
-            total = int(m.group(1)) if m else -1
-        except Exception:
-            total = -1
+    def _iniciou_ou_mudou(drv):
+        if espera.elemento(drv, _SEL_SPINNERS, teto=0.0):
+            return True
+        if texto_antes:
+            atual = _ler_texto_paginacao(drv)
+            if atual and atual != texto_antes:
+                return True
+        if _lista_esta_vazia(drv):
+            return True
+        return False
 
-        paginas = math.ceil(total / 100) if total > 0 else 1
-        total_selecionados = 0
+    espera.ate(driver, _iniciou_ou_mudou, teto=0.8)
+    _aguardar_tela_livre(driver, teto=teto)
+    return _aguardar_estado_lista(driver, teto=min(teto, 15.0))
 
-        for pagina in range(paginas):
-            try:
-                selecionados = _executar_js(driver, SCRIPT_SELECAO_LIVRES)
-                if selecionados == -1:
-                    logger.error(f"[CICLO0] ERRO no script de seleção de livres na página {pagina+1}")
-                    return False
-                elif isinstance(selecionados, int) and selecionados > 0:
-                    total_selecionados += selecionados
-                    logger.info(f"[CICLO0] Página {pagina+1}: {selecionados} livres selecionados")
-                    logger.info(f"[CICLO0] Aplicando atividade XS (xs1) para os processos livres selecionados...")
-                    if not _ciclo2_criar_atividade_xs(driver):
-                        logger.error(f"[CICLO0] Falha ao aplicar XS na página {pagina+1}")
-                        return False
-                    logger.info(f"[CICLO0] Atividade XS aplicada na página {pagina+1}")
-                else:
-                    logger.info(f"[CICLO0] Página {pagina+1}: 0 livres selecionados")
-            except Exception as e:
-                logger.error(f"[CICLO0] Erro ao selecionar livres na página {pagina+1}: {e}")
 
-            if pagina < paginas - 1:
-                try:
-                    btn_next = espera.elemento(driver, 'mat-paginator button[aria-label="Próxima página"]', teto=2)
-                    if btn_next:
-                        safe_click_no_scroll(driver, btn_next)
-                    try:
-                        aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
-                    except Exception:
-                        espera.ate_js(driver, "document.readyState === 'complete'", teto=1)
-                except Exception:
-                    logger.info("[CICLO0] Não foi possível navegar para próxima página (ou última página atingida)")
+def _navegar_para_painel(driver, url: str, url_token: str, tag: str) -> str:
+    """Navega para o painel alvo e aguarda URL + lista/vazio estabilizarem."""
+    logger.info("%s Navegando para %s", tag, url)
+    url_ok = False
+    for tentativa in range(2):
+        driver.get(url)
+        if espera.ate_url(driver, url_token, teto=12.0):
+            url_ok = True
+            break
+        logger.warning("%s URL ainda não contém '%s' (tentativa %d/2)", tag, url_token, tentativa + 1)
 
-        logger.info(f"[CICLO0] Total de processos livres selecionados: {total_selecionados}")
+    if not url_ok:
+        logger.error("%s Falha ao navegar para %s (atual: %s)", tag, url, getattr(driver, "current_url", ""))
+        return "erro"
 
-        if total_selecionados == 0:
-            logger.info("[CICLO0] Nenhum processo livre encontrado")
+    _aguardar_tela_livre(driver, teto=15.0)
+    estado = _aguardar_estado_lista(driver, teto=15.0)
+    logger.info("%s Painel carregado: estado=%s", tag, estado)
+    return estado
 
-    logger.info("[CICLO0] Ciclo 0 concluído com sucesso")
+
+def _aplicar_filtro_fases_com_barreira(
+    driver,
+    fases_alvo: Sequence[str] = FASES_PRAZOS_VENCIDOS,
+    tag: str = "[PRAZO]",
+) -> str:
+    """Aplica filtro de fases e aguarda recarregamento completo da lista."""
+    logger.info("%s Aplicando filtro de fases: %s", tag, list(fases_alvo))
+    _aguardar_tela_livre(driver, teto=10.0)
+    combo = buscar(driver, "ciclo1_mat_select_combobox", ["mat-select[role='combobox']", "//mat-select"])
+    if not combo:
+        logger.error("%s Dropdown de fases não encontrado", tag)
+        return "erro"
+
+    texto_antes = _ler_texto_paginacao(driver)
+    if not filtrofases(driver, fases_alvo=list(fases_alvo)):
+        logger.error("%s Falha ao aplicar filtrofases(%s)", tag, list(fases_alvo))
+        return "erro"
+
+    estado = _aguardar_recarregamento(driver, texto_antes=texto_antes, teto=20.0)
+    logger.info("%s Após filtro de fases: estado=%s (%s)", tag, estado, _ler_texto_paginacao(driver) or "sem contador")
+    return estado
+
+
+def _aplicar_filtro_100_com_barreira(driver, tag: str = "[PRAZO]") -> bool:
+    """Aplica exibição de 100 registros por página e aguarda lista estabilizar."""
+    _aguardar_tela_livre(driver, teto=10.0)
+    if espera.elemento(driver, _XPATH_FILTRO_100_ATIVO, teto=0.2):
+        logger.info("%s Filtro lista 100 já ativo", tag)
+        return _aguardar_estado_lista(driver, teto=10.0) != "erro"
+
+    texto_antes = _ler_texto_paginacao(driver)
+    total_antes = _ler_total_registros(driver)
+    logger.info("%s Aplicando filtro lista 100 (atual: %s)", tag, texto_antes or "n/d")
+    if not aplicar_filtro_100(driver):
+        logger.error("%s Falha ao aplicar filtro lista 100", tag)
+        return False
+
+    espera.ate_sumir(driver, _SEL_BACKDROP, teto=5.0)
+    espera.ate_aparecer(driver, _XPATH_FILTRO_100_ATIVO, teto=6.0)
+    estado = _aguardar_recarregamento(
+        driver,
+        texto_antes=texto_antes if total_antes > 20 else "",
+        teto=15.0,
+    )
+    if estado == "erro":
+        logger.error("%s Lista não estabilizou após filtro 100", tag)
+        return False
+    logger.info("%s Filtro 100 concluído (%s)", tag, _ler_texto_paginacao(driver) or estado)
     return True
 
 
-def ciclo1(driver: Any, opcao_destino: str = 'Análise') -> Union[bool, str]:
-    """Orquestra ciclo 1: filtro, marcação, suitcase, movimentação para painel 14."""
-    # lazy import to avoid circular dependency with loop_lote
-    from .loop_lote import (
-        _ciclo1_aplicar_filtro_fases,
-        _ciclo1_marcar_todas,
-        _ciclo1_abrir_suitcase,
-        _ciclo1_aguardar_movimentacao_lote,
-        _ciclo1_movimentar_destino,
-        _ciclo1_retornar_lista,
+def _clicar_item_atividade(driver, tag: str) -> bool:
+    """Localiza e clica na opção 'Atividade' do menu de etiqueta verde."""
+    espera.ate_aparecer(driver, "button.mat-menu-item", teto=6.0)
+    itens = espera.elementos(driver, "button.mat-menu-item", teto=3.0)
+    btn_atividade = next((el for el in itens if "Atividade" in (getattr(el, "text", "") or "")), None)
+    if not btn_atividade:
+        btn_atividade = buscar(
+            driver,
+            "ciclo2_btn_atividade",
+            [
+                "//button[contains(@class, 'mat-menu-item') and contains(., 'Atividade')]",
+                "//button[@role='menuitem' and contains(., 'Atividade')]",
+            ],
+        )
+    if not btn_atividade:
+        logger.error("%s Item 'Atividade' não encontrado no menu", tag)
+        return False
+    return _clicar_seguro(driver, btn_atividade)
+
+
+def _encontrar_botao_salvar(driver):
+    """Localiza o botão Salvar dentro do modal de atividade."""
+    spans = espera.elementos(driver, "mat-dialog-container button.mat-raised-button span", teto=2.0)
+    if not spans:
+        spans = espera.elementos(driver, "button.mat-raised-button span", teto=2.0)
+    alvo = next((s for s in spans if "Salvar" in (getattr(s, "text", "") or "")), None)
+    if not alvo:
+        alvo = espera.elemento(driver, "button[aria-label*='Salvar'] span", teto=1.0)
+    if alvo:
+        return espera.elemento(alvo, "..", teto=0.5) or alvo
+    return espera.elemento(driver, "button[aria-label*='Salvar']", teto=1.0)
+
+
+def _criar_atividade_xs1_com_barreira(
+    driver,
+    tag: str = "[PRAZO]",
+    prazo: str = "-1",
+    observacao: str = "xs1",
+) -> bool:
+    """Cria atividade em lote (-1//xs1) e aguarda fechamento do modal e spinners."""
+    tag_verde = espera.elemento(driver, "i.fa.fa-tag.icone.texto-verde", teto=10.0)
+    if not tag_verde or not _clicar_seguro(driver, tag_verde):
+        logger.error("%s Etiqueta verde não encontrada/clicável", tag)
+        return False
+
+    if not _clicar_item_atividade(driver, tag):
+        return False
+
+    if not espera.ate_aparecer(driver, "mat-dialog-container", teto=10.0):
+        logger.error("%s Modal de atividade não abriu", tag)
+        return False
+    espera.ate_aparecer(driver, "textarea[formcontrolname='observacao']", teto=6.0)
+
+    if prazo:
+        for seletor in _SEL_PRAZO_XS:
+            if preencher_campo(driver, seletor, prazo):
+                break
+
+    obs_ok = any(preencher_campo(driver, seletor, observacao) for seletor in _SEL_OBS_XS)
+    if not obs_ok:
+        logger.error("%s Campo de observação não preenchido", tag)
+        return False
+
+    btn_salvar = _encontrar_botao_salvar(driver)
+    if not btn_salvar or not _clicar_seguro(driver, btn_salvar):
+        logger.error("%s Botão Salvar não encontrado/clicável", tag)
+        return False
+
+    if not espera.ate_sumir(driver, "mat-dialog-container", teto=20.0):
+        logger.error("%s Modal de atividade permaneceu aberto após Salvar", tag)
+        return False
+
+    espera.ate(driver, lambda d: espera.elemento(d, _SEL_SPINNERS, teto=0.0), teto=0.5)
+    _aguardar_tela_livre(driver, teto=20.0)
+    logger.info("%s Atividade '%s//%s' criada e tela liberada", tag, prazo, observacao)
+    return True
+
+
+def _avancar_pagina_com_barreira(driver, texto_antes: str, tag: str) -> bool:
+    """Avança para a próxima página e aguarda o texto da paginação mudar + tabela estabilizar."""
+    btn_next = espera.elemento(driver, 'mat-paginator button[aria-label="Próxima página"]', teto=5.0)
+    if not btn_next:
+        logger.info("%s Botão próxima página ausente", tag)
+        return False
+
+    desabilitado = (
+        btn_next.get_attribute("disabled") is not None
+        or btn_next.get_attribute("aria-disabled") == "true"
     )
-
-    try:
-        mensagem_vazia = espera.elementos(driver, "//span[contains(text(), 'Não há processos neste tema')]", teto=0.5)
-        if mensagem_vazia and any(getattr(el, 'is_displayed', lambda: True)() for el in mensagem_vazia):
-            logger.info('[CICLO1] Lista já vazia antes do filtro - nada a processar')
-            return "no_more_processes"
-    except Exception:
-        pass
-
-    with medir_latencia('CICLO1_APLICAR_FILTRO_FASES'):
-        filtro_result = _ciclo1_aplicar_filtro_fases(driver)
-    if filtro_result == "no_more_processes":
-        logger.info('[CICLO1] Nenhum processo em liquidação/execução.')
-        return "no_more_processes"
-    if not filtro_result:
+    if desabilitado:
+        logger.info("%s Última página atingida (botão desabilitado)", tag)
         return False
 
-    qtd_processos = 0
-    try:
-        try:
-            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
-        except Exception:
-            espera.ate_js(driver, "document.readyState === 'complete'", teto=1)
-        processos = espera.elementos(driver, 'tbody tr.tr-class', teto=1)
-        qtd_processos = len(processos)
-        logger.info(f'[CICLO1] Detectados {qtd_processos} processo(s) na lista')
-
-        if qtd_processos == 1:
-            logger.info('[CICLO1] Apenas 1 processo detectado - PJE não disponibiliza batch (suitcase)')
-            logger.info('[CICLO1] Prosseguindo para processamento individual (Fase 2)')
-            return "single_process"
-        elif qtd_processos == 0:
-            logger.info('[CICLO1] Nenhum processo encontrado após filtro.')
-            return "no_more_processes"
-
-        if qtd_processos < 20:
-            logger.info(f'[CICLO1] Lote único detectado ({qtd_processos} < 20) - não repetir após conclusão')
-    except Exception as e:
-        logger.info(f'[CICLO1] Erro ao contar processos: {e}')
-        logger.info('[CICLO1] Continuando com o fluxo normal...')
-
-    with medir_latencia('CICLO1_MARCAR_TODAS'):
-        marcar_result = _ciclo1_marcar_todas(driver)
-    if marcar_result == "marcar_todas_not_found_but_continue":
-        logger.info('[CICLO1] Marcar-todas indisponível; prosseguindo para Fase 2.')
-        return "marcar_todas_not_found_but_continue"
-    elif marcar_result == "error":
-        logger.info(f'[CICLO1] Falha em marcar-todas: {marcar_result}')
-        return False
-    elif marcar_result != "success":
-        logger.info(f'[CICLO1] Retorno inesperado em marcar-todas: {marcar_result}')
+    if not _clicar_seguro(driver, btn_next):
+        logger.warning("%s Falha ao clicar em Próxima página", tag)
         return False
 
-    try:
-        logger.info('[CICLO1] Pausa breve (2s) para verificação visual da seleção antes do lote')
-        aguardar_renderizacao_nativa(driver, timeout=2)
-        pausar_confirmacao('CICLO1/VERIFICAR_SELECAO', 'Verificar seleção antes de abrir suitcase')
-    except Exception:
-        pass
+    if texto_antes:
+        mudou = espera.ate(
+            driver,
+            lambda d: (_ler_texto_paginacao(d) not in ("", texto_antes)),
+            teto=15.0,
+        )
+        if not mudou:
+            logger.warning("%s Paginação não mudou após clique (mantido: '%s')", tag, texto_antes)
+            return False
 
-    with medir_latencia('CICLO1_ABRIR_SUITCASE'):
-        abriu_suitcase = _ciclo1_abrir_suitcase(driver)
-    if not abriu_suitcase:
-        logger.info('[CICLO1] Suitcase indisponível no ciclo1; redirecionando para ciclo2.')
-        return "go_to_ciclo2"
+    _aguardar_tela_livre(driver, teto=15.0)
+    return _aguardar_estado_lista(driver, teto=10.0) == "ok"
 
-    with medir_latencia('CICLO1_AGUARDAR_MOVIMENTACAO_LOTE'):
-        aguardou_mov_lote = _ciclo1_aguardar_movimentacao_lote(driver)
-    if not aguardou_mov_lote:
-        logger.info('[CICLO1] Erro ao aguardar movimentação em lote.')
+
+def _executar_painel_livres_xs1(
+    driver,
+    *,
+    tag: str,
+    url: str,
+    url_token: str,
+    fases_alvo: Optional[Sequence[str]] = None,
+) -> bool:
+    """Executa um painel completo: navegar -> [filtrar fases] -> filtro 100 -> livres + xs1."""
+    estado = _navegar_para_painel(driver, url, url_token, tag)
+    if estado == "vazio":
+        logger.info("%s Painel sem processos — etapa concluída", tag)
+        return True
+    if estado != "ok":
         return False
 
-    with medir_latencia(f'CICLO1_MOVIMENTAR_DESTINO_{opcao_destino}'):
-        moveu_destino = _ciclo1_movimentar_destino(driver, opcao_destino)
-    if not moveu_destino:
-        logger.info('[CICLO1] Erro ao movimentar destino.')
+    if fases_alvo:
+        estado = _aplicar_filtro_fases_com_barreira(driver, fases_alvo=fases_alvo, tag=tag)
+        if estado == "vazio":
+            logger.info("%s Sem processos após filtro de fases — etapa concluída", tag)
+            return True
+        if estado != "ok":
+            return False
+
+    if not _aplicar_filtro_100_com_barreira(driver, tag=tag):
         return False
 
-    with medir_latencia('CICLO1_RETORNAR_LISTA'):
-        _ciclo1_retornar_lista(driver)
-
-    if qtd_processos < 20:
-        logger.info(f'[CICLO1] Ciclo 1 concluído - lote único ({qtd_processos} processos), não repetir')
-        return "complete_single_batch"
-    else:
-        logger.info('[CICLO1] Ciclo 1 concluído - pode haver mais processos, verificar novamente')
+    if _lista_esta_vazia(driver):
+        logger.info("%s Lista vazia após filtro 100 — etapa concluída", tag)
         return True
 
+    total = _ler_total_registros(driver)
+    paginas = math.ceil(total / 100) if total > 0 else 1
+    logger.info("%s Iniciando seleção de livres: total=%d paginas=%d", tag, total, paginas)
 
-def loop_prazo(driver: Any) -> Dict[str, Any]:
-    """Função wrapper que executa o fluxo de prazo (Ciclo 0 + Cumprimento de Providências)"""
+    for pagina in range(paginas):
+        _aguardar_tela_livre(driver, teto=15.0)
+        if not espera.ate_aparecer(driver, "tr.cdk-drag", teto=10.0):
+            logger.warning("%s Sem linhas visíveis na página %d/%d", tag, pagina + 1, paginas)
+            break
+
+        texto_pagina = _ler_texto_paginacao(driver)
+        selecionados = _executar_js(driver, SCRIPT_SELECAO_LIVRES)
+        if selecionados is None or selecionados < 0:
+            logger.error("%s Erro JS ao selecionar livres na página %d/%d", tag, pagina + 1, paginas)
+            return False
+
+        logger.info("%s Página %d/%d: %d livre(s) selecionado(s)", tag, pagina + 1, paginas, selecionados)
+        if selecionados > 0:
+            espera.ate_js(
+                driver,
+                "document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').length > 0",
+                teto=5.0,
+            )
+            if not _criar_atividade_xs1_com_barreira(driver, tag=tag):
+                return False
+
+        if pagina < paginas - 1:
+            if not _avancar_pagina_com_barreira(driver, texto_pagina, tag):
+                break
+
+    _aguardar_tela_livre(driver, teto=10.0)
+    logger.info("%s Painel concluído com sucesso", tag)
+    return True
+
+
+def ciclo0(driver) -> bool:
+    """Etapas 1-4: Prazos vencidos -> fases Liquidação+Execução -> lista 100 -> livres + xs1."""
+    return _executar_painel_livres_xs1(
+        driver,
+        tag="[PRAZO][VENCIDOS]",
+        url=URL_PAINEL_PRAZOS_VENCIDOS,
+        url_token="painel/global/14",
+        fases_alvo=FASES_PRAZOS_VENCIDOS,
+    )
+
+
+def ciclo3(driver) -> bool:
+    """Etapas 5-7: Cumprimento de providências -> lista 100 -> livres + xs1."""
+    return _executar_painel_livres_xs1(
+        driver,
+        tag="[PRAZO][CUMPRIMENTO]",
+        url=URL_PAINEL_CUMPRIMENTO,
+        url_token="painel/global/6",
+        fases_alvo=None,
+    )
+
+
+def loop_prazo(driver) -> ResultadoExecucao:
+    """Executa o fluxo Prazo completo (etapas 1-7) antes do P2B."""
+    logger.info("[PRAZO] Iniciando fluxo sequencial de 7 etapas (Vencidos -> Cumprimento)")
     try:
-        # lazy import to avoid circular dependency with loop_execucao_final
-        from .loop_execucao_final import ciclo3
+        ok_vencidos = ciclo0(driver)
+        if not ok_vencidos:
+            return ResultadoExecucao(
+                sucesso=False,
+                status="FALHA",
+                erro="Falha no painel Prazos vencidos (etapas 1-4)",
+                detalhes={
+                    "prazos_vencidos": False,
+                    "cumprimento_providencias": False,
+                    "ciclo0": False,
+                    "ciclo3": False,
+                },
+            )
 
-        logger.info("[LOOP_PRAZO] Loop 0: Executando ciclo 0 no painel 14")
-        resultado_ciclo0 = ciclo0(driver)
-        if not resultado_ciclo0:
-            logger.error("[LOOP_PRAZO] Erro crítico no ciclo 0.")
-            return ResultadoExecucao(sucesso=False, status='FALHA', erro="Falha em ciclo 0")
-
-        logger.info("[LOOP_PRAZO] Fase Cumprimento de Providências: Executando ciclo 3 (painel 6)")
-        resultado_ciclo3 = ciclo3(driver)
-
-        sucesso_geral = resultado_ciclo0 is True and resultado_ciclo3 is True
+        _aguardar_tela_livre(driver, teto=15.0)
+        ok_cumprimento = ciclo3(driver)
+        _aguardar_tela_livre(driver, teto=10.0)
         return ResultadoExecucao(
-            sucesso=sucesso_geral,
-            status='OK' if sucesso_geral else 'FALHA',
+            sucesso=ok_cumprimento,
+            status="OK" if ok_cumprimento else "FALHA",
+            erro=None if ok_cumprimento else "Falha no painel Cumprimento de providências (etapas 5-7)",
             detalhes={
-                "ciclo0": resultado_ciclo0,
-                "ciclo3": resultado_ciclo3,
-            }
+                "prazos_vencidos": True,
+                "cumprimento_providencias": ok_cumprimento,
+                "ciclo0": True,
+                "ciclo3": ok_cumprimento,
+            },
         )
-    except Exception as e:
-        logger.error(f'[LOOP_PRAZO] Erro no wrapper: {e}')
-        return ResultadoExecucao(sucesso=False, status='FALHA', erro=str(e))
+    except Exception as exc:
+        logger.error("[PRAZO] Erro crítico no fluxo Prazo: %s", exc)
+        return ResultadoExecucao(
+            sucesso=False,
+            status="ERRO",
+            erro=str(exc),
+            detalhes={"erro": str(exc)},
+        )

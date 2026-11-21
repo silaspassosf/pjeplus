@@ -5,9 +5,9 @@ Atualizado: 2026-11-20 (campanha de limpeza e simplificação Playwright ativa)
 > **PROCESSO DE LIMPEZA E CENTRALIZAÇÃO CONCLUÍDO NA BRANCH `refactor/pw-limpeza` (pronto para revisão e merge em `main`):**
 > - **Branch de trabalho desta campanha:** `refactor/pw-limpeza` (base `main` preservada intacta em `657cb84`).
 > - **Foco exclusivo:** grafo vivo de `pw.py` (`pw.py`, `x.py`, `Play/pjeplay/`, `Fix/`, `atos/`, `SISB/`, `bianca/`, `Mandado/`, `Prazo/`, `PEC/`, `Peticao/`, `api/`), 100% Playwright nativo (`Fix/espera.py`, `Play/pjeplay/nativo.py`, `Page`/`Locator`).
-> - **Resultado consolidado:** **77.436L → 62.857L (-14.579 linhas / -18,8%)** | comentários `#` **4.484 → 364 (-91,9%, preservando só workarounds/diretivas)** | **100% dos módulos de negócio com 0 padrões Selenium (`LIMPO`)** | ratchet atualizado para **114 arquivos migrados garantidos** (`909 → 661`, `-248` padrões).
-> - **Validação final executada:** `py_compile` 100% (237 arquivos OK, 0 SyntaxWarning) + `py tools/check_pw.py` (APROVADO) + `py tools/check_imports.py` (55/55 OK) + smoke real `"X" | py pw.py` (`EXIT=88` OK) + `py -m pytest tests -q` (zero regressões frente ao baseline, +5 testes do motor geral).
-> - **Andamento das ondas (Etapas 0–4 + Centralização Fases A–E):**
+> - **Resultado consolidado:** **77.436L → 61.658L (-15.778 linhas / -20,4%)** | comentários `#` **4.484 → <360 (-92%, preservando só workarounds/diretivas)** | **100% dos módulos de negócio com 0 padrões Selenium (`LIMPO`)** | ratchet atualizado para **114 arquivos migrados garantidos** (`909 → 661`, `-248` padrões).
+> - **Validação final executada:** `py_compile` 100% (0 SyntaxWarning) + `py tools/check_pw.py` (APROVADO) + `py tools/check_imports.py` (55/55 OK) + smoke real `"X" | py pw.py` (`EXIT=88` OK) + `py -m pytest tests -q` (zero regressões frente ao baseline, +10 testes novos: motor geral + fluxo Prazo 7 etapas).
+> - **Andamento das ondas (Etapas 0–4 + Centralização Fases A–F):**
 >   - [x] **Etapa 0 — Baseline verde:** zeradas as 3 regressões prévias do `tools/check_pw.py` (`atos/anexos_sigilo.py`, `SISB/processamento/minutas_campos.py`, `tests/test_atualizacao_rapida.py`).
 >   - [x] **Etapa 1 — Poda AST-verificada de comentários/docstrings e simplificação inicial (Lotes 1–10):** `Fix/entrada_campos.py` (-44%), `pw.py`, `x.py` (-26%), `api/`, `Fix/`, `Prazo/`, `Mandado/`, `PEC/`, `Peticao/`, `bianca/`, `SISB/`, `atos/`, `Play/pjeplay/`.
 >   - [x] **Etapa 2 — Simplificação estrutural e migração Playwright nativa (Lotes 2.1–2.5):** `SISB/` 100% migrado (**239 → 0, 21 arquivos `[MIGRADO!]`**); `atos/comunicacao.py` decomposto em helpers coesos.
@@ -18,6 +18,7 @@ Atualizado: 2026-11-20 (campanha de limpeza e simplificação Playwright ativa)
 >   - [x] **Fase C — Achados de `TRADUCAO_MONOLITO_GIGS.md`:** `SEL_EDITOR_CONTEUDO` (3 condições) e `SEL_SOBRESTAMENTO_PRAZO_BTN` (escopado em `pje-motivos-sobrestamento`) centralizados em `Fix/seletores_catalogo.py`; `data-label` prioritário + raw strings em `Prazo/loop_orquestrador.py`.
 >   - [x] **Fase D — Motor Geral Parametrizável (`Fix/motor_fluxo.py`):** criado `FluxoSpec` + `executar_fluxo_lote` + `abrir_detalhe_processo` (com 5 testes unitários em `tests/test_motor_fluxo.py`) e adotado em **P2B** (`Prazo/p2b_gateway.py`), **PEC** (`PEC/runtime_pec.py`) e **Mandado** (`Mandado/entrada_api.py`).
 >   - [x] **Fase E — Deduplicação `bianca/` → `Fix/`:** `bianca/selenium_utils.py` (733L → 52L, -674L) delegando para os helpers Playwright nativos canônicos de `Fix/`.
+>   - [x] **Fase F — Simplificação do fluxo `Prazo` pré-P2B (7 etapas com barreiras Playwright):** `Prazo/loop_orquestrador.py` unifica Prazos vencidos (`painel/global/14` → fases Liquidação+Execução → lista 100 → livres + `xs1`) e Cumprimento de providências (`painel/global/6` → lista 100 → livres + `xs1`) em `_executar_painel_livres_xs1()` com barreiras explícitas (`URL`, spinners, backdrop, paginação e modal); `Prazo/loop_lote.py` e `Prazo/loop_execucao_final.py` reduzidos a re-exports finos (**-1.199L** líquidos, +5 testes em `tests/test_prazo_fluxo.py`).
 
 > **LEITURA OBRIGATÓRIA PARA IA:** Este arquivo é o filtro de escopo primário e inegociável. Antes de qualquer Grep, Glob ou Agent de exploração, consulte este índice. Se o índice não cobrir o termo buscado, a busca é permitida — mas o índice deve ser atualizado ao final. Buscas genéricas sem consulta prévia a este índice são proibidas.
 
@@ -556,17 +557,20 @@ x.py: executar_mandado()
             → ato_judicial, ato_meios, ato_pesquisas, etc. [atos/wrappers_ato.py]
 ```
 
-### Fluxo C/D — Prazo + P2B
+### Fluxo C/D — Prazo (7 etapas) + P2B
 ```
 x.py: executar_prazo()
   ├─ Prazo/loop_orquestrador.py: loop_prazo(driver)
-  │   ├─ Painel 14 (Análise): ciclo1()
-  │   │   └─ Prazo/loop_lote.py: _ciclo1_aplicar_filtro_fases(), _ciclo1_marcar_todas(),
-  │   │      _ciclo1_abrir_suitcase(), _ciclo1_movimentar_destino()
-  │   ├─ Painel 8 (Cumprimento): ciclo2() [Prazo/loop_execucao_final.py]
-  │   │   └─ Prazo/loop_lote.py: _ciclo2_aplicar_filtros(), _ciclo2_processar_livres(),
-  │   │      _ciclo2_selecionar_nao_livres()
-  │   └─ ciclo3() [Prazo/loop_execucao_final.py]
+  │   ├─ ciclo0(driver) → _executar_painel_livres_xs1() [Painel 14 — Prazos vencidos]
+  │   │   ├─ 1. _navegar_para_painel(painel/global/14) [barreira URL + spinner + linhas/vazio]
+  │   │   ├─ 2. _aplicar_filtro_fases_com_barreira(['liquidação', 'execução']) [barreira reload]
+  │   │   ├─ 3. _aplicar_filtro_100_com_barreira() [barreira dropdown 100 + reload]
+  │   │   └─ 4. SCRIPT_SELECAO_LIVRES + _criar_atividade_xs1_com_barreira('-1', 'xs1') página a página
+  │   └─ ciclo3(driver) → _executar_painel_livres_xs1() [Painel 6 — Cumprimento de providências]
+  │       ├─ 5. _navegar_para_painel(painel/global/6) [barreira URL + spinner + linhas/vazio]
+  │       ├─ 6. _aplicar_filtro_100_com_barreira() [barreira dropdown 100 + reload]
+  │       └─ 7. SCRIPT_SELECAO_LIVRES + _criar_atividade_xs1_com_barreira('-1', 'xs1') página a página
+  │   (Prazo/loop_lote.py e Prazo/loop_execucao_final.py são re-exports finos de compatibilidade)
   └─ x.py: executar_p2b()
       └─ Prazo/p2b_gateway.py: processar_gigs_sem_prazo_p2b(driver)
           ├─ testar_gigs_sem_prazo() [API: GIGS API]

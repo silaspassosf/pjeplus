@@ -234,12 +234,19 @@ async (cfg) => {
                     clicar(prox.parentElement);
                     await aguardar(() => null, 900);
                 }
-                const numeros = Array.from(vistos.keys());
+                const numeros = [];
+                vistos.forEach((_, k) => { numeros.push(String(k)); });
                 if (!numeros.length) return falhar('Nenhum número de cálculo legível na listagem.');
                 const numerico = numeros.every((n) => /^\d+$/.test(n));
-                const escolhido = numerico
-                    ? numeros.reduce((a, b) => (BigInt(a) >= BigInt(b) ? a : b))
-                    : numeros.sort()[numeros.length - 1];
+                let escolhido = numeros[0];
+                if (numerico) {
+                    for (let i = 1; i < numeros.length; i++) {
+                        if (BigInt(numeros[i]) > BigInt(escolhido)) escolhido = numeros[i];
+                    }
+                } else {
+                    numeros.sort();
+                    escolhido = numeros[numeros.length - 1];
+                }
                 const inputNum = await aguardar(() => document.querySelector('input[id*="numeroCalculoBusca"]'));
                 if (!inputNum) return falhar('Campo de número do cálculo não encontrado.');
                 preencher(inputNum, escolhido);

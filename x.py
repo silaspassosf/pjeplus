@@ -185,6 +185,15 @@ def normalizar_resultado(resultado: Any) -> ResultadoFluxo:
     """Normaliza retorno de fluxo para dict padrão."""
     if isinstance(resultado, dict):
         return resultado
+    if hasattr(resultado, "to_dict") and callable(resultado.to_dict):
+        return resultado.to_dict()
+    if hasattr(resultado, "sucesso"):
+        return {
+            "sucesso": bool(getattr(resultado, "sucesso", False)),
+            "status": getattr(resultado, "status", "OK" if getattr(resultado, "sucesso", False) else "ERRO"),
+            "erro": getattr(resultado, "erro", None),
+            "detalhes": getattr(resultado, "detalhes", None),
+        }
     if isinstance(resultado, bool):
         return {"sucesso": resultado, "status": "OK" if resultado else "ERRO"}
     if resultado is None:
@@ -630,8 +639,30 @@ def executar_p2b(driver, motor_api: bool = False) -> Dict[str, Any]:
                 "[P2B] %d processo(s) NAO concluido(s): %s",
                 len(falhas), [(f.get("numero"), f.get("erro")) for f in falhas],
             )
-        sucesso = resultado.get("sucesso", False)
-        return {"sucesso": sucesso, "status": "SUCESSO" if sucesso else "FALHA", "detalhes": resultado}
+
+        resultado_cp = None
+        if not resultado.get("critical_stop"):
+            from Prazo.p2b_cpcumprir import executar_cpcumprir
+            logger.info("[P2B] Iniciando etapa pos-xs1: CPcumprir (tarefa 'Iniciar Execução')")
+            resultado_cp = executar_cpcumprir(d, tamanho_pagina=100, max_processos=0)
+            if resultado_cp.get("critical_stop"):
+                logger.warning("[P2B][CPCUMPRIR] Sessao expirada (401) — resetando driver e retentando")
+                resetar_driver(d)
+                resultado_cp = executar_cpcumprir(d, tamanho_pagina=100, max_processos=0)
+            falhas_cp = resultado_cp.get("falhas") or []
+            if falhas_cp:
+                logger.warning(
+                    "[P2B][CPCUMPRIR] %d processo(s) NAO concluido(s): %s",
+                    len(falhas_cp), [(f.get("numero"), f.get("erro")) for f in falhas_cp],
+                )
+
+        sucesso = bool(resultado.get("sucesso", False)) and (
+            True if resultado_cp is None else bool(resultado_cp.get("sucesso", False))
+        )
+        detalhes = dict(resultado) if isinstance(resultado, dict) else {"xs1": resultado}
+        if resultado_cp is not None:
+            detalhes["cpcumprir"] = resultado_cp
+        return {"sucesso": sucesso, "status": "SUCESSO" if sucesso else "FALHA", "detalhes": detalhes}
 
     return _executar_fluxo("P2B", _fluxo, driver)
 

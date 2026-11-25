@@ -73,13 +73,13 @@ def _patch_ambiente(monkeypatch, estado_por_painel, *, selecoes_por_chamada=None
             return _FakeElement("Não há processos neste tema") if estado["vazio"] else None
         if seletor == "span.total-registros":
             return _FakeElement(estado["paginacao"]) if estado["paginacao"] else None
-        if seletor == "tr.cdk-drag":
+        if seletor in ("tr.cdk-drag", "tbody tr.tr-class"):
             return None if estado["vazio"] else _FakeElement("row")
         if seletor == lo._SEL_SPINNERS:
             return None
         if seletor == lo._XPATH_FILTRO_100_ATIVO:
             return _FakeElement("100") if estado["filtro_100"] else None
-        if seletor == 'mat-paginator button[aria-label="Próxima página"]':
+        if seletor in ('button[aria-label="Próximo"]', 'mat-paginator button[aria-label="Próxima página"]'):
             cfg = estado_por_painel[estado["painel"]]
             prox = cfg.get("proximas_paginas", [])
             if prox:
@@ -87,14 +87,12 @@ def _patch_ambiente(monkeypatch, estado_por_painel, *, selecoes_por_chamada=None
             return _FakeElement("next", attrs={"disabled": "true"})
         if seletor == "i.fa.fa-tag.icone.texto-verde":
             return _FakeElement("tag")
-        if seletor == "..":
-            return _FakeElement("btn_salvar_pai")
         return _FakeElement(seletor)
 
     def _elementos(drv, seletor, teto=10):
         if seletor == "button.mat-menu-item":
             return [_FakeElement("Outra"), _FakeElement("Atividade")]
-        if "mat-raised-button span" in seletor:
+        if "mat-raised-button" in seletor:
             return [_FakeElement("Cancelar"), _FakeElement("Salvar")]
         return []
 
@@ -120,6 +118,8 @@ def _patch_ambiente(monkeypatch, estado_por_painel, *, selecoes_por_chamada=None
         return cfg.get("filtro100_ok", True)
 
     def _executar_js(drv, script, *args):
+        if "querySelectorAll('tr.cdk-drag').length" in script:
+            return max(1, lo._ler_esperado_na_pagina(drv))
         qtd = estado["selecoes"].pop(0) if estado["selecoes"] else 0
         estado["eventos"].append(("selecionar_livres", estado["painel"], estado["paginacao"], qtd))
         return qtd
@@ -136,7 +136,7 @@ def _patch_ambiente(monkeypatch, estado_por_painel, *, selecoes_por_chamada=None
                 nova = prox.pop(0)
                 estado["paginacao"] = nova
                 estado["eventos"].append(("proxima_pagina", estado["painel"], nova))
-        elif getattr(el, "text", "") == "btn_salvar_pai":
+        elif getattr(el, "text", "") in ("Salvar", "btn_salvar_pai"):
             estado["eventos"].append(("salvar_xs1", estado["painel"], estado["paginacao"]))
             return xs_ok
         return True
@@ -146,6 +146,8 @@ def _patch_ambiente(monkeypatch, estado_por_painel, *, selecoes_por_chamada=None
     monkeypatch.setattr(lo.espera, "ate_sumir", _ate_sumir)
     monkeypatch.setattr(lo.espera, "ate_aparecer", _ate_aparecer)
     monkeypatch.setattr(lo.espera, "ate_js", _ate_js)
+    monkeypatch.setattr(lo.espera, "assentar", lambda drv, teto=1.0, motivo="": True)
+    monkeypatch.setattr(lo.espera, "pausa", lambda drv, seg=0.1, motivo="": True)
     monkeypatch.setattr(lo.espera, "elemento", _elemento)
     monkeypatch.setattr(lo.espera, "elementos", _elementos)
     monkeypatch.setattr(lo, "buscar", _buscar)
@@ -289,3 +291,162 @@ def test_falha_em_prazos_vencidos_aborta_antes_de_cumprimento(monkeypatch):
     assert res.detalhes["cumprimento_providencias"] is False
     urls = [ev[1] for ev in estado["eventos"] if ev[0] == "get"]
     assert urls == [lo.URL_PAINEL_PRAZOS_VENCIDOS]
+
+
+def test_espera_elemento_nao_herda_implicito_de_pwdriver():
+    """Regressão: espera.elemento(..., teto=0.0) deve desativar implicito_em_find_elements."""
+    from Fix import espera
+
+    estados_observados = []
+
+    class _DriverComImplicito:
+        def __init__(self):
+            self.implicito_em_find_elements = True
+
+        def find_elements(self, by, seletor):
+            estados_observados.append(self.implicito_em_find_elements)
+            return []
+
+    drv = _DriverComImplicito()
+    achado = espera.elemento(drv, "//span[contains(text(), 'Não há processos neste tema')]", teto=0.0)
+
+    assert achado is None
+    assert estados_observados == [False]
+    assert drv.implicito_em_find_elements is True
+
+
+def test_filtrofases_usa_seletores_validos_e_clica_filtrar(monkeypatch):
+    """Regressão: filtrofases deve usar aria-label de fase e CSS puro para Filtrar."""
+    import Fix.filtros_painel as fp
+
+    seletores_espera = []
+    cliques = []
+
+    class _FakeBtn:
+        def __init__(self, nome):
+            self.nome = nome
+
+    class _DriverFiltro:
+        def execute_script(self, script, *args):
+            if ".filter(function(t)" in script or "mat-option" in script and not args:
+                return ["conhecimento", "liquidação", "execução"]
+            return len(args[0]) if args else 2
+
+    monkeypatch.setattr(
+        fp,
+        "aguardar_e_clicar",
+        lambda d, sel, timeout=10, usar_js=True: (seletores_espera.append(sel), True)[1],
+    )
+    monkeypatch.setattr(fp, "aguardar_renderizacao_nativa", lambda d, *a, **kw: True)
+    monkeypatch.setattr(fp, "_fechar_dropdown_ou_esc", lambda d: True)
+    monkeypatch.setattr(fp, "_aguardar_loader_painel", lambda d, timeout=10: True)
+
+    def _elemento(d, sel, teto=2, visivel=True):
+        seletores_espera.append(sel)
+        assert not (", //" in sel), f"Seletor mistura CSS e XPath: {sel}"
+        if "button[aria-label='Filtrar']" in sel:
+            return _FakeBtn("filtrar")
+        return None
+
+    monkeypatch.setattr(fp.espera, "elemento", _elemento)
+    monkeypatch.setattr(fp, "safe_click_no_scroll", lambda d, el: (cliques.append(el.nome), True)[1])
+
+    assert fp.filtrofases(_DriverFiltro(), fases_alvo=["liquidação", "execução"]) is True
+    assert any('mat-select[aria-label*="Fase processual"]' in s for s in seletores_espera)
+    assert cliques == ["filtrar"]
+
+
+def test_login_cpf_reutiliza_cookies_salvos_em_driver_novo(monkeypatch):
+    """Regressão: driver recém-criado (sem cookies em memória) deve tentar verificar_e_aplicar_cookies."""
+    import Fix.sessao as sessao
+
+    chamadas = []
+
+    class _DriverNovo:
+        def get_cookies(self):
+            return []
+
+        def delete_all_cookies(self):
+            chamadas.append("delete_all_cookies")
+
+    monkeypatch.setattr(sessao, "verificar_e_aplicar_cookies", lambda d: (chamadas.append("verificar_cookies"), True)[1])
+    monkeypatch.setattr(sessao, "salvar_cookies_sessao", lambda d, **kw: chamadas.append("salvar_cookies"))
+
+    assert sessao.login_cpf(_DriverNovo()) is True
+    assert chamadas == ["verificar_cookies", "salvar_cookies"]
+
+
+def test_inicar_exec_fallback_para_ato_pesqliq_quando_iniciar_execucao_indisponivel(monkeypatch):
+    """Regressão: se credito_mock falha e botão 'Iniciar execução' não existe (fase em Liquidação), usa ato_pesqliq."""
+    import Prazo.p2b_gateway as gw
+    import Fix.core as core
+
+    atos_chamados = []
+
+    monkeypatch.setattr(
+        gw,
+        "_lazy_import",
+        lambda: {
+            "criar_gigs": lambda *a, **kw: True,
+            "ato_pesquisas": lambda *a, **kw: (atos_chamados.append("ato_pesquisas"), (True, True))[1],
+            "ato_pesqliq": lambda *a, **kw: (atos_chamados.append("ato_pesqliq"), (True, True))[1],
+        },
+    )
+    monkeypatch.setattr(gw.espera, "ate_sumir", lambda *a, **kw: True)
+    monkeypatch.setattr(core, "extrair_id_processo", lambda d: "7329484")
+    monkeypatch.setattr(gw, "cliente_para", lambda d: object())
+    monkeypatch.setattr(gw, "decidir_rota_iniciar_exec", lambda c, pid: "mock_pesquisas")
+    monkeypatch.setattr(gw, "registrar_credito_mock_0_01", lambda d, pid: False)
+    monkeypatch.setattr(gw, "_abrir_tarefa_e_tentar_iniciar_execucao", lambda d, timeout=10: False)
+    monkeypatch.setattr(gw, "_abrir_tarefa", lambda d, timeout=10: True)
+
+    res = gw.inicar_exec(_FakeDriver())
+    assert res == (True, True)
+    assert atos_chamados == ["ato_pesqliq"]
+
+
+def test_inicar_exec_cria_gigs_pjdp_quando_passivo_tem_procuradoria_ou_nome_ente_publico(monkeypatch):
+    """Se polo passivo tem PJDP (procuradoria ou cadastro incorreto), cria GIGS apenas com observacao."""
+    import Prazo.p2b_gateway as gw
+    import Fix.core as core
+
+    casos = [
+        ([{"nome": "MUNICIPIO DE SAO PAULO", "procuradoria": True}], True),
+        ([{"nome": "ESTADO DE SAO PAULO", "procuradoria": False}], True),
+        ([{"nome": "EMPRESA PRIVADA LTDA", "procuradoria": False}], False),
+    ]
+
+    for passivo, espera_gigs_pjdp in casos:
+        gigs_chamadas = []
+
+        class _ClientFake:
+            def partes(self, pid):
+                return {"ATIVO": [{"nome": "AUTOR"}], "PASSIVO": passivo}
+
+        monkeypatch.setattr(
+            gw,
+            "_lazy_import",
+            lambda: {
+                "criar_gigs": lambda *a, **kw: (gigs_chamadas.append((a[1:], kw)), True)[1],
+                "ato_pesquisas": lambda *a, **kw: (True, True),
+                "ato_pesqliq": lambda *a, **kw: (True, True),
+            },
+        )
+        monkeypatch.setattr(gw.espera, "ate_sumir", lambda *a, **kw: True)
+        monkeypatch.setattr(core, "extrair_id_processo", lambda d: "7329484")
+        monkeypatch.setattr(gw, "cliente_para", lambda d: _ClientFake())
+        monkeypatch.setattr(gw, "decidir_rota_iniciar_exec", lambda c, pid: "pesquisas")
+        monkeypatch.setattr(gw, "_abrir_tarefa", lambda d, timeout=10: True)
+
+        res = gw.inicar_exec(_FakeDriver())
+        assert res == (True, True)
+
+        chamadas_pjdp = [
+            (args, kw)
+            for args, kw in gigs_chamadas
+            if kw.get("observacao") == "PJDP no polo passivo, verificar"
+        ]
+        if espera_gigs_pjdp:
+            assert chamadas_pjdp == [((), {"observacao": "PJDP no polo passivo, verificar"})]
+        else:
+            assert chamadas_pjdp == []

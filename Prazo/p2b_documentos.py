@@ -457,10 +457,10 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         ([
             'inoportuna petição', 'determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição',
             'art. 112 do CPC', 'comunique-se por Edital', 'comunique-se de forma concomitante',
-            'Aguarde-se', 'Aguarde-se o prazo', 'Aguarde-se resposta',
+            'Aguarde-se', 'Aguarde-se o prazo', 'Aguarde-se resposta', 'Aguarde-se resposta ao ofício',
             'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão',
             'sob pena de preclusão', 'embargos de declaração', 'Registre-se o movimento processual adequado',
-            'decisão com força de alvará',
+            'decisão com força de alvará', 'deve se atentar para o cumprimento das determinações',
         ], (checar_prox,)),
 
         ([

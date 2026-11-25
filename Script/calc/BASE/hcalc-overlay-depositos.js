@@ -4,12 +4,67 @@
     function createController(deps) {
         const { $, queueOverlayDraftSave, aplicarMascaraValor } = deps;
 
-        function preencherDepositosAutomaticos() {
-            const prep = window.hcalcLastPrepResult;
-            if (!prep || !prep.depositos || prep.depositos.length === 0) {
-                console.log('[AUTO-DEPOSITOS] Sem dados de prep', { prepPresent: !!prep, depositosLength: prep?.depositos?.length });
-                return;
+        function _normNome(str) {
+            return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        }
+
+        function escolherAnexoDeposito(deposito) {
+            const anexosValidos = (deposito?.anexos || []).filter(ax =>
+                ax.tipo === 'Depósito' || ax.tipo === 'Garantia'
+            );
+            if (anexosValidos.length === 0) return null;
+
+            const depositoPreferencial = anexosValidos.find(ax =>
+                ax.tipo === 'Depósito' &&
+                /(guia de dep[oó]sito recursal|guia de dep[oó]sito judicial)/i.test(ax.texto || '')
+            );
+            const qualquerDeposito = anexosValidos.find(ax => ax.tipo === 'Depósito');
+            const garantia = anexosValidos.find(ax => ax.tipo === 'Garantia');
+            return depositoPreferencial || qualquerDeposito || garantia;
+        }
+
+        function selecionarDepositanteNoSelect(selectEl, depositante) {
+            if (!selectEl || !depositante) return;
+            const bruto = String(depositante).trim();
+            if (!bruto) return;
+
+            selectEl.value = bruto;
+            if (selectEl.value === bruto) return;
+
+            const candidatos = [bruto];
+            if (bruto.indexOf(' + ') !== -1) {
+                candidatos.push(bruto.split(' + ')[0].trim());
             }
+
+            const options = Array.from(selectEl.options || []);
+            for (const cand of candidatos) {
+                const candNorm = _normNome(cand);
+                if (!candNorm) continue;
+                const match = options.find(opt => {
+                    const optNorm = _normNome(opt.value);
+                    return optNorm && (optNorm === candNorm || optNorm.includes(candNorm) || candNorm.includes(optNorm));
+                });
+                if (match) {
+                    selectEl.value = match.value;
+                    return;
+                }
+            }
+
+            // Se veio do processo principal e não existe nas opções atuais, adiciona para não perder o nome
+            const opt = document.createElement('option');
+            opt.value = bruto;
+            opt.textContent = bruto;
+            selectEl.appendChild(opt);
+            selectEl.value = bruto;
+        }
+
+        function preencherDepositosAutomaticos(opts = {}) {
+            const prep = opts && opts.prep ? opts.prep : (
+                window.hcalcState?.cumprimentoSentenca && window.hcalcState?.prepRelacionado
+                    ? window.hcalcState.prepRelacionado
+                    : window.hcalcLastPrepResult
+            );
+            const force = !!(opts && opts.force);
 
             const container = $('depositos-container');
             if (!container) {
@@ -18,8 +73,18 @@
             }
 
             const jaTemCampos = container.children.length > 0;
-            if (jaTemCampos) {
+            if (jaTemCampos && !force) {
                 console.log('[AUTO-DEPOSITOS] Container já possui campos, pulando');
+                return;
+            }
+
+            if (!prep || !prep.depositos || prep.depositos.length === 0) {
+                if (force) {
+                    container.innerHTML = '';
+                    window.hcalcState.nextDepositoIdx = 0;
+                    window.hcalcState.depositosRecursais = [];
+                }
+                console.log('[AUTO-DEPOSITOS] Sem dados de prep', { prepPresent: !!prep, depositosLength: prep?.depositos?.length });
                 return;
             }
 
@@ -31,30 +96,7 @@
 
             for (const deposito of prep.depositos) {
                 console.log('[AUTO-DEPOSITOS] processamento de recurso encontrado:', deposito);
-                
-                // 1. Filtra os anexos: aceita apenas Depósito ou Garantia (NUNCA Custas)
-                const anexosValidos = (deposito.anexos || []).filter(ax => 
-                    ax.tipo === 'Depósito' || ax.tipo === 'Garantia'
-                );
-
-                let anexoEscolhido = null;
-
-                if (anexosValidos.length > 0) {
-                    // 2. Regras de Preferência (Tie-breaker)
-                    // Preferência 1: Depósito com nome específico da guia
-                    const depositoPreferencial = anexosValidos.find(ax => 
-                        ax.tipo === 'Depósito' && 
-                        /(guia de dep[oó]sito recursal|guia de dep[oó]sito judicial)/i.test(ax.texto || '')
-                    );
-                    
-                    // Preferência 2: Qualquer outro Depósito
-                    const qualquerDeposito = anexosValidos.find(ax => ax.tipo === 'Depósito');
-                    
-                    // Preferência 3: Seguro Garantia
-                    const garantia = anexosValidos.find(ax => ax.tipo === 'Garantia');
-
-                    anexoEscolhido = depositoPreferencial || qualquerDeposito || garantia;
-                }
+                const anexoEscolhido = escolherAnexoDeposito(deposito);
 
                 // 3. Cria EXATAMENTE UMA linha para este recurso
                 adicionarDepositoRecursal();
@@ -62,14 +104,7 @@
 
                 // Preenche o nome da reclamada (sempre preenche, mesmo se não achar anexo válido)
                 const depositanteSelect = $(`dep-depositante-${idx}`);
-                if (depositanteSelect) {
-                    depositanteSelect.value = deposito.depositante || '';
-                    // Fallback para petições conjuntas: se o valor cheio não bateu no select, tenta o primeiro nome
-                    if (!depositanteSelect.value && deposito.depositante && deposito.depositante.indexOf(' + ') !== -1) {
-                        const primeiro = deposito.depositante.split(' + ')[0].trim();
-                        depositanteSelect.value = primeiro;
-                    }
-                }
+                selecionarDepositanteNoSelect(depositanteSelect, deposito.depositante);
 
                 // 4. Se encontrou um anexo campeão, preenche os dados dele
                 if (anexoEscolhido) {
@@ -300,6 +335,8 @@
 
         return {
             preencherDepositosAutomaticos,
+            escolherAnexoDeposito,
+            selecionarDepositanteNoSelect,
             adicionarDepositoRecursal,
             atualizarVisibilidadeDepositoPrincipal,
             adicionarPagamentoAntecipado

@@ -28,7 +28,7 @@ def ate(driver, condicao, teto=10, intervalo=_INTERVALO_POLL):
             pass
         if time.monotonic() >= limite:
             return False
-        _dormir(intervalo)
+        pausa(driver, intervalo)
 
 
 def _executar_script(driver, script, *args):
@@ -40,9 +40,19 @@ def _executar_script(driver, script, *args):
 
 def _find_elements(driver, by, seletor):
     fn = getattr(driver, "find" + "_elements", None)
-    if fn:
+    if not fn:
+        return []
+    # espera.elemento/elementos ja controlam o proprio teto; evitar que o
+    # implicit wait (10s no PWDriver) bloqueie cada iteracao de polling.
+    tem_flag = hasattr(driver, "implicito_em_find_elements")
+    anterior = getattr(driver, "implicito_em_find_elements", None) if tem_flag else None
+    if tem_flag and anterior:
+        driver.implicito_em_find_elements = False
+    try:
         return fn(by, seletor)
-    return []
+    finally:
+        if tem_flag and anterior:
+            driver.implicito_em_find_elements = anterior
 
 
 def _dormir(segundos):

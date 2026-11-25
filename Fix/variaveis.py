@@ -360,6 +360,139 @@ class PjeApiClient:
                     len(filtrados), len(todos), sorted(ids_alvo))
         return filtrados
 
+    def buscar_processos_por_tarefa(
+        self,
+        nome_tarefa: str,
+        tamanho_pagina: int = 100,
+        fase_processual: Optional[List[str]] = None,
+        agrupamento_id: Optional[Any] = 10,
+        max_paginas: int = 50,
+        timeout: Any = (10, 20),
+        retornar_diagnostico: bool = False,
+    ) -> Any:
+        """Processos cuja tarefa atual corresponde a `nome_tarefa` via agrupamentotarefas API.
+
+        Por padrão consulta `/pje-comum-api/api/agrupamentotarefas/10/processos`
+        (mesmo endpoint/payload de `bianca/triagem/api.py`, fila Novos Processos — rápido).
+        Passe `agrupamento_id='todos'` para `/agrupamentotarefas/processos/todos`.
+        """
+        import time
+        from collections import Counter
+
+        def _norm(txt: Any) -> str:
+            s = unicodedata.normalize('NFKD', str(txt or ''))
+            s = ''.join(c for c in s if not unicodedata.combining(c))
+            return ' '.join(s.lower().split())
+
+        alvo_norm = _norm(nome_tarefa)
+        if not alvo_norm:
+            return ([], {'ok': True, 'total_varrido': 0, 'tarefas': {}}) if retornar_diagnostico else []
+
+        if agrupamento_id in (None, 'todos'):
+            path = '/pje-comum-api/api/agrupamentotarefas/processos/todos'
+        else:
+            path = f'/pje-comum-api/api/agrupamentotarefas/{agrupamento_id}/processos'
+
+        filtrados: List[Dict[str, Any]] = []
+        tarefas_vistas: Counter = Counter()
+        total_varrido = 0
+        diag: Dict[str, Any] = {
+            'ok': True,
+            'path': path,
+            'status': None,
+            'erro': None,
+            'paginas': 0,
+            'total_varrido': 0,
+            'tarefas': {},
+        }
+
+        for pagina in range(1, max_paginas + 1):
+            body = {
+                'pagina': pagina,
+                'tamanhoPagina': tamanho_pagina,
+                'subCaixa': None,
+                'tipoAtividade': None,
+                'processos': None,
+                'nomeConclusoMagistrado': None,
+                'usuarioResponsavel': None,
+                'faseProcessualString': fase_processual,
+                'numeroProcesso': None,
+                'juizoDigital': None,
+            }
+            t0 = time.monotonic()
+            res = self.gateway_patch(path, json_data=body, timeout=timeout)
+            dt = time.monotonic() - t0
+            diag['status'] = res.get('status')
+
+            if not res.get('ok'):
+                status = res.get('status')
+                if status == 401:
+                    raise PermissionError('sessao_expirada_401')
+                diag['ok'] = False
+                diag['erro'] = res.get('error')
+                logger.error(
+                    '[API][TAREFA] PATCH %s p%d falhou (HTTP=%s em %.2fs): %s',
+                    path, pagina, status, dt, res.get('error'),
+                )
+                break
+
+            data = res.get('data') or {}
+            if isinstance(data, dict):
+                lista = (
+                    data.get('resultado')
+                    or data.get('content')
+                    or data.get('dados')
+                    or data.get('processos')
+                    or []
+                )
+                qtd_paginas = data.get('qtdPaginas') or data.get('totalPaginas')
+                total_reg = data.get('totalRegistros')
+            elif isinstance(data, list):
+                lista = data
+                qtd_paginas = None
+                total_reg = len(lista)
+            else:
+                lista = []
+                qtd_paginas = None
+                total_reg = 0
+
+            diag['paginas'] = pagina
+            total_varrido += len(lista)
+            for item in lista:
+                if not isinstance(item, dict):
+                    continue
+                val = item.get('nomeTarefa') or item.get('descricaoTarefa') or item.get('tarefa')
+                if isinstance(val, dict):
+                    val = val.get('nome') or val.get('descricao') or val.get('nomeTarefa') or ''
+                nome_bruto = str(val or '').strip()
+                if nome_bruto:
+                    tarefas_vistas[nome_bruto] += 1
+                if _norm(nome_bruto) == alvo_norm:
+                    filtrados.append(item)
+
+            logger.info(
+                '[API][TAREFA] PATCH %s p%d/%s HTTP=%s em %.2fs | recebidos=%d totalReg=%s match=%d',
+                path, pagina, qtd_paginas or '?', res.get('status'), dt,
+                len(lista), total_reg, len(filtrados),
+            )
+
+            if not lista:
+                break
+            if isinstance(qtd_paginas, int) and pagina >= qtd_paginas:
+                break
+            if len(lista) < tamanho_pagina:
+                break
+
+        diag['total_varrido'] = total_varrido
+        diag['tarefas'] = dict(tarefas_vistas.most_common(15))
+        logger.info(
+            '[API][TAREFA] "%s" em %s: %d/%d processos | tarefas=%s',
+            nome_tarefa, path, len(filtrados), total_varrido, diag['tarefas'],
+        )
+        if retornar_diagnostico:
+            return filtrados, diag
+        return filtrados
+
     def expedientes_processo(self, id_processo: str,
                              tamanho_pagina: int = 100) -> List[Dict[str, Any]]:
         """Todos os expedientes de um processo, paginando ate esgotar."""

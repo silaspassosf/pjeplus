@@ -262,50 +262,43 @@ def buscar_documentos_sequenciais(driver, log=True):
                 logger.error('[DOCUMENTOS_SEQUENCIAIS] Timeline vazia')
             return []
 
-        # anteriores e pulava a retirada de sigilo dos documentos atuais.
+        # A timeline é decrescente (mais recente primeiro). Ancorar na certidão
+        # de devolução mais recente e encerrar o bloco no ato (Decisão OU Despacho)
+        # imediatamente anterior a ela (menor índice > idx_ancora), sem invadir
+        # blocos históricos quando o ato atual for Despacho e existir Decisão antiga.
         idxs_devolucao = []
+        idxs_ato = []
         for idx, elem in enumerate(elementos):
-            texto = _norm(elem.text.strip())
-            if 'certidao de devolucao' in texto:
+            t_dom = _norm(elem.text.strip())
+            if 'certidao de devolucao' in t_dom:
                 idxs_devolucao.append(idx)
-                if log:
-                    logger.debug('[DOCUMENTOS_SEQUENCIAIS] Certidao de devolucao idx=%d: %s...', idx, texto[:50])
+            elif 'decisao(' in t_dom or 'despacho(' in t_dom:
+                idxs_ato.append(idx)
 
         if not idxs_devolucao:
             if log:
                 logger.error('[DOCUMENTOS_SEQUENCIAIS] Certidao de devolucao nao encontrada')
             return []
 
-        if len(idxs_devolucao) > 1 and log:
-            logger.info(
-                '[DOCUMENTOS_SEQUENCIAIS] %d certidões de devolução na timeline — usando a mais recente (idx=%d) como âncora',
-                len(idxs_devolucao), idxs_devolucao[0],
-            )
-
-        idx_ancora = idxs_devolucao[0]
-
+        idx_ancora = None
         idx_decisao = None
-        for idx in range(idx_ancora + 1, len(elementos)):
-            texto = _norm(elementos[idx].text.strip())
-            if 'decisao(' in texto:
-                idx_decisao = idx
-                if log:
-                    logger.debug('[DOCUMENTOS_SEQUENCIAIS] Encontrado: Decisao - %s...', texto[:50])
+        for cand_cert in idxs_devolucao:
+            ato_prox = next((idx for idx in idxs_ato if idx > cand_cert), None)
+            if ato_prox is not None:
+                idx_ancora = cand_cert
+                idx_decisao = ato_prox
                 break
 
-        if idx_decisao is None:
-            for idx in range(idx_ancora + 1, len(elementos)):
-                texto = _norm(elementos[idx].text.strip())
-                if 'despacho(' in texto:
-                    idx_decisao = idx
-                    if log:
-                        logger.debug('[DOCUMENTOS_SEQUENCIAIS] Fallback Despacho como fim do bloco idx=%d', idx)
-                    break
-
-        if idx_decisao is None:
+        if idx_ancora is None or idx_decisao is None:
             if log:
-                logger.error('[DOCUMENTOS_SEQUENCIAIS] Decisao/Despacho nao encontrada apos certidao')
+                logger.error('[DOCUMENTOS_SEQUENCIAIS] Decisao/Despacho anterior à certidao nao encontrada')
             return []
+
+        if log:
+            logger.info(
+                '[DOCUMENTOS_SEQUENCIAIS] Bloco ancorado: certidao idx=%d (%d total) -> ato idx=%d',
+                idx_ancora, len(idxs_devolucao), idx_decisao,
+            )
 
         resultados = [elementos[idx_ancora]]
 

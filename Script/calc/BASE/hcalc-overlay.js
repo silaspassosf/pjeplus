@@ -581,6 +581,17 @@
                         <label><input type="checkbox" id="chk-cumprimento"> Cumprimento de sentença?</label>
                     </div>
                 </div>
+                <div id="card-processo-principal" class="hidden" style="margin-bottom: 8px; padding: 8px; border: 1px solid #f59e0b; border-left: 4px solid #d97706; border-radius: 5px; background: #fffbeb;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <strong style="font-size: 12px; color: #92400e;">🔗 Processo Principal (Relacionado)</strong>
+                        <button type="button" id="btn-recarregar-principal" style="padding: 2px 8px; font-size: 10px; border: 1px solid #d97706; background: #fff; color: #92400e; border-radius: 3px; cursor: pointer;">🔄 Recarregar</button>
+                    </div>
+                    <div id="principal-seletor-wrap" class="hidden" style="margin-bottom: 6px;">
+                        <select id="principal-processo-select" style="width: 100%; font-size: 11px; padding: 4px;"></select>
+                    </div>
+                    <div id="card-processo-principal-status" style="font-size: 11px; color: #78350f;"></div>
+                    <div id="card-processo-principal-body" style="margin-top: 6px;"></div>
+                </div>
                 <div class="row">
                     <div class="col">
                         <label>Origem do Cálculo</label>
@@ -1391,84 +1402,10 @@
 
                         // RECURSOS COM ANEXOS (integrado de rec.js v1.0)
                         if (prep.depositos.length > 0) {
-                            const recDiv = document.createElement('div');
-                            recDiv.style.cssText = 'margin-top:8px; padding:6px; background:#fffde7; border:1px solid #fbbf24; border-radius:4px;';
-                            recDiv.innerHTML = `<strong style="font-size:11px;color:#92400e">📎 Recursos das Reclamadas (${prep.depositos.length})</strong>`;
-
-                            prep.depositos.forEach((dep, depIdx) => {
-                                const card = document.createElement('div');
-                                card.className = 'rec-recurso-card';
-                                card.dataset.href = dep.href || '';
-
-                                const corBadge = { 'Depósito': '#10b981', 'Garantia': '#f59e0b', 'Custas': '#ef4444', 'Anexo': '#6b7280' };
-
-                                let anexosHtml = '';
-                                if (dep.anexos && dep.anexos.length > 0) {
-                                    anexosHtml = `<div class="rec-anexos-lista">` +
-                                        dep.anexos.map((ax, axIdx) =>
-                                            `<div class="rec-anexo-item" data-dep-idx="${depIdx}" data-ax-idx="${axIdx}">
-                                            <span class="rec-anexo-badge" style="background:${corBadge[ax.tipo] || '#6b7280'}">${ax.tipo}</span>
-                                            <code class="rec-anexo-id">${ax.id || 'sem id'}</code>
-                                            <span style="font-size:10px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="${ax.texto}">${ax.texto.substring(0, 40)}</span>
-                                        </div>`
-                                        ).join('') +
-                                        `</div>`;
-                                }
-
-                                card.innerHTML = `
-                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-                                    <span class="rec-tipo-badge">${dep.tipo || 'RO'}</span>
-                                    <span style="font-size:11px;color:#92400e;font-weight:600;flex:1">${dep.depositante || 'Parte não identificada'}</span>
-                                    ${dep.polo ? `<span style="font-size:9px;background:${dep.polo === 'PASSIVO' ? '#dc2626' : '#2563eb'};color:#fff;padding:1px 4px;border-radius:3px;margin-left:4px;font-weight:600">${dep.polo}</span>` : ''}
-                                    <span style="font-size:10px;color:#6b7280">${dep.data || 'sem data'}</span>
-                                    ${dep.anexos && dep.anexos.length > 0 ? `<span class="rec-seta-toggle">▶ ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}</span>` : ''}
-                                </div>
-                                ${anexosHtml}`;
-
-                                card.addEventListener('click', e => {
-                                    const axItem = e.target.closest('.rec-anexo-item');
-                                    if (axItem) {
-                                        e.stopPropagation();
-                                        const axIdx = parseInt(axItem.dataset.axIdx, 10);
-                                        const ax = dep.anexos[axIdx];
-                                        if (!ax) return;
-
-                                        // 1. Destacar o recurso na timeline
-                                        if (dep.href) try { destacarElementoNaTimeline(dep.href); } catch (e2) { console.error('[hcalc]', e2); }
-
-                                        // 2. Re-encontrar e clicar no anexo (evita referência stale do Angular)
-                                        setTimeout(async () => {
-                                            try {
-                                                const item = encontrarItemTimeline(dep.href);
-                                                if (item) {
-                                                    await expandirAnexos(item);
-                                                    const links = item.querySelectorAll('a.tl-documento[id^="anexo_"]');
-                                                    let alvo = null;
-                                                    if (ax.id) {
-                                                        alvo = Array.from(links).find(l => l.textContent.includes(ax.id));
-                                                    }
-                                                    alvo = alvo || links[axIdx] || links[0];
-                                                    if (alvo) safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
-                                                } else if (ax.elemento && ax.elemento.isConnected) {
-                                                    safeDispatch(ax.elemento, 'click', { bubbles: true, cancelable: true });
-                                                }
-                                            } catch (e3) { console.error('[hcalc] Erro ao clicar no anexo:', e3); }
-                                        }, 600);
-                                        return;
-                                    }
-
-                                    card.classList.toggle('expandido');
-                                    const seta = card.querySelector('.rec-seta-toggle');
-                                    if (seta) seta.textContent = card.classList.contains('expandido')
-                                        ? `\u25bc ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}`
-                                        : `\u25b6 ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}`;
-                                    if (dep.href) try { destacarElementoNaTimeline(dep.href); } catch (e2) { console.error('[hcalc]', e2); }
-                                });
-
-                                recDiv.appendChild(card);
+                            renderizarCardsRecursos(linkSentencaAcordaoContainer, prep.depositos, {
+                                externo: false,
+                                titulo: `Recursos das Reclamadas (${prep.depositos.length})`
                             });
-
-                            linkSentencaAcordaoContainer.appendChild(recDiv);
                         }
                     } else {
                         // Aviso quando não há acórdão
@@ -1507,73 +1444,14 @@
                     }
                 } catch (e) { console.warn('[hcalc] falha ao preencher conferenciaAcordao:', e); }
 
-                // Preencher custas automaticamente (planilha vs sentença)
-                if (window.hcalcState.planilhaExtracaoData?.custas && $('val-custas')) {
-                    const custasPlanilha = window.hcalcState.planilhaExtracaoData.custas;
-                    const custasSentenca = prep.sentenca?.custas || '';
-                    $('val-custas').value = custasPlanilha;
+                // Preencher custas e acórdãos (função compartilhada com processo relacionado)
+                aplicarCustasDoPrep(prep, { isCumprimento: !!window.hcalcState.cumprimentoSentenca });
 
-                    const valorPlanilha = parseMoney(custasPlanilha || '0');
-                    const valorSentenca = parseMoney(custasSentenca || '0');
-                    const temCustasSentenca = !!custasSentenca;
-                    const custasDiferentes = temCustasSentenca && Math.abs(valorPlanilha - valorSentenca) > 0.0001;
-                    const origemPlanilha = !temCustasSentenca || custasDiferentes;
-
-                    if ($('custas-origem')) {
-                        $('custas-origem').value = origemPlanilha ? 'planilha' : 'sentenca';
-                        $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-
-                    // Regra: diferentes da sentença => data da planilha; iguais => data da sentença
-                    if (origemPlanilha) {
-                        if (window.hcalcState.planilhaExtracaoData.dataAtualizacao && $('custas-data-origem')) {
-                            $('custas-data-origem').value = window.hcalcState.planilhaExtracaoData.dataAtualizacao;
-                        }
-                    } else if (prep.sentenca.data && $('custas-data-origem')) {
-                        $('custas-data-origem').value = prep.sentenca.data;
-                    }
-                } else if (prep.sentenca.custas && $('val-custas')) {
-                    $('val-custas').value = prep.sentenca.custas;
-                    if ($('custas-origem')) {
-                        $('custas-origem').value = 'sentenca';
-                        $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                    // Data das custas = data da sentença (apenas se não há planilha)
-                    if (prep.sentenca.data && $('custas-data-origem')) {
-                        $('custas-data-origem').value = prep.sentenca.data;
-                    }
-                }
-
-                // Se tem recurso da reclamada ou depósitos detectados → custas já pagas
-                if ((prep.recursosPassivo && prep.recursosPassivo.length > 0) || (prep.depositos && prep.depositos.length > 0)) {
-                    const custasStatusEl = $('custas-status');
-                    if (custasStatusEl) {
-                        custasStatusEl.value = 'pagas';
-                        console.log('[hcalc] Recurso/depósito detectado! Custas marcadas como pagas.');
-                    }
-                }
-
-                // Depósito recursal: visível se tem acórdãos OU se encontrou depósitos válidos
-                const fieldsetDeposito = $('fieldset-deposito');
-                if (prep.acordaos.length === 0 && prep.depositos.length === 0) {
-                    if (fieldsetDeposito) fieldsetDeposito.classList.add('hidden');
-                } else {
-                    if (fieldsetDeposito) fieldsetDeposito.classList.remove('hidden');
-                }
-
-                // Povoar select de acórdãos se existirem
-                const custasAcordaoSelect = $('custas-acordao-select');
-                if (custasAcordaoSelect && prep.acordaos.length > 0) {
-                    custasAcordaoSelect.innerHTML = '<option value="">Selecione o acórdão</option>';
-                    prep.acordaos.forEach((acordao, i) => {
-                        const opt = document.createElement('option');
-                        opt.value = i;
-                        opt.textContent = `Acórdão ${i + 1}${acordao.data ? ' - ' + acordao.data : ''}`;
-                        opt.dataset.data = acordao.data || '';
-                        opt.dataset.id = acordao.id || '';
-                        custasAcordaoSelect.appendChild(opt);
-                    });
-                }
+                // Depósitos recursais (função compartilhada com processo relacionado)
+                aplicarDepositosDoPrep(prep, {
+                    isCumprimento: !!window.hcalcState.cumprimentoSentenca,
+                    force: false
+                });
 
                 // Editais — exibir como texto informativo (sem links clicáveis)
                 const editaisContainer = $('links-editais-container');
@@ -1595,21 +1473,6 @@
                 // ==========================================
                 // REGRAS AUTO-PREENCHIMENTO (prep sobrepõe defaults)
                 // ==========================================
-
-                // REGRA 1: Depósito recursal — disparar evento onChange para unificar fluxo
-                // CORREÇÃO 2: Usar dispatchEvent em vez de manipulação direta do DOM
-                if (prep.depositos.length > 0) {
-                    console.log('[INICIALIZAÇÃO] Detectados', prep.depositos.length, 'recursos com depósito/garantia');
-
-                    const chkDep = $('chk-deposito');
-                    if (chkDep) {
-                        chkDep.checked = true;
-                        // Disparar onChange sintético — aciona visibilidade E preencherDepositosAutomaticos
-                        // de forma unificada, eliminando dessincronização
-                        chkDep.dispatchEvent(new Event('change', { bubbles: true }));
-                        console.log('[INICIALIZAÇÃO] Evento change disparado');
-                    }
-                }
 
                 // REGRA 2: Perito conhecimento + TRT / AJ-JT match
                 const peritoTipoEl = $('perito-tipo-pag');
@@ -1682,35 +1545,7 @@
                 }
                 aplicarResponsabilidadeAutomatica(prep);
 
-                // REGRA 5: Custas
-                // Sempre padrão = sentença (usuário pode mudar para acórdão se necessário)
-                const custasStatusEl = $('custas-status');
-                const custasOrigemEl = $('custas-origem');
-                if (prep.sentenca.custas) {
-                    // ATENÇÃO: Não sobrepõe se planilha já preencheu custas
-                    if ($('val-custas') && !window.hcalcState.planilhaExtracaoData?.custas) {
-                        $('val-custas').value = prep.sentenca.custas;
-                    }
-                    // Sempre usa sentença como padrão, salvo se houver recurso da reclamada
-                        if (custasStatusEl) {
-                            const temCustasPlanilha = !!window.hcalcState.planilhaExtracaoData?.custas;
-                            const temRecurso = (prep.recursosPassivo && prep.recursosPassivo.length > 0) || (prep.depositos && prep.depositos.length > 0);
-                            if (window.hcalcState.cumprimentoSentenca && temCustasPlanilha) {
-                                custasStatusEl.value = 'devidas';
-                            } else if (window.hcalcState.cumprimentoSentenca && temRecurso) {
-                                custasStatusEl.value = 'recurso';
-                            } else if (temRecurso) {
-                                custasStatusEl.value = 'pagas';
-                            } else {
-                                custasStatusEl.value = 'devidas';
-                            }
-                        }
-                    if (custasOrigemEl) custasOrigemEl.value = 'sentenca';
-                    // ATENÇÃO: Não sobrepõe data se planilha já preencheu
-                    if ($('custas-data-origem') && prep.sentenca.data && !window.hcalcState.planilhaExtracaoData?.custas) {
-                        $('custas-data-origem').value = prep.sentenca.data;
-                    }
-                }
+                // REGRA 5: Custas — já aplicadas por aplicarCustasDoPrep acima
 
                 // REGRA 6: hsusp → Honorários Adv. Réu com condição suspensiva
                 const chkHonReu = $('chk-hon-reu');
@@ -1768,29 +1603,9 @@
                         $('ignorar-inss').dispatchEvent(new Event('change', { bubbles: true }));
                     }
 
-                    // Custas: comparar planilha x sentença para definir origem/data
-                    if (dados.custas && $('val-custas')) {
-                        $('val-custas').value = dados.custas;
-                        const custasSentenca = window.hcalcPrepResult?.sentenca?.custas || '';
-                        const dataSentenca = window.hcalcPrepResult?.sentenca?.data || '';
-                        const valorPlanilha = parseMoney(dados.custas || '0');
-                        const valorSentenca = parseMoney(custasSentenca || '0');
-                        const temCustasSentenca = !!custasSentenca;
-                        const custasDiferentes = temCustasSentenca && Math.abs(valorPlanilha - valorSentenca) > 0.0001;
-                        const origemPlanilha = !temCustasSentenca || custasDiferentes;
-
-                        if ($('custas-origem')) {
-                            $('custas-origem').value = origemPlanilha ? 'planilha' : 'sentenca';
-                            $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-
-                        if (origemPlanilha) {
-                            if (dados.dataAtualizacao && $('custas-data-origem')) {
-                                $('custas-data-origem').value = dados.dataAtualizacao;
-                            }
-                        } else if (dataSentenca && $('custas-data-origem')) {
-                            $('custas-data-origem').value = dataSentenca;
-                        }
+                    // Custas: usa a mesma função compartilhada (planilha vs sentença da fonte atual)
+                    if (dados.custas) {
+                        aplicarCustasDoPrep(prep, { isCumprimento: !!window.hcalcState.cumprimentoSentenca });
                     }
 
                     if (dados.dataAtualizacao && $('val-data')) $('val-data').value = dados.dataAtualizacao;
@@ -1859,6 +1674,12 @@
                 }
 
                 restoreOverlayDraft();
+
+                // Se cumprimento de sentença já veio marcado do rascunho, carrega o card do processo principal
+                if ($('chk-cumprimento')?.checked) {
+                    window.hcalcState.cumprimentoSentenca = true;
+                    carregarDadosProcessoRelacionado({ forceReload: false, preservarManuais: true });
+                }
 
                 // Garante que calc-pjc reflita a detecção da API caso não esteja bloqueado pelo perito Rogério
                 const pjcElFinal = $('calc-pjc');
@@ -2073,6 +1894,420 @@
             }
         };
 
+        // ==========================================
+        // FUNÇÕES COMPARTILHADAS: CARD DE RECURSOS, CUSTAS, DEPÓSITOS E PROCESSO PRINCIPAL
+        // ==========================================
+
+        function renderizarCardsRecursos(containerEl, depositos, opts = {}) {
+            if (!containerEl || !Array.isArray(depositos) || depositos.length === 0) return;
+            const externo = !!opts.externo;
+            const titulo = opts.titulo || `Recursos das Reclamadas (${depositos.length})`;
+            const recDiv = document.createElement('div');
+            recDiv.style.cssText = 'margin-top:8px; padding:6px; background:#fffde7; border:1px solid #fbbf24; border-radius:4px;';
+            recDiv.innerHTML = `<strong style="font-size:11px;color:#92400e">📎 ${titulo}</strong>`;
+
+            const corBadge = { 'Depósito': '#10b981', 'Garantia': '#f59e0b', 'Custas': '#ef4444', 'Anexo': '#6b7280' };
+
+            depositos.forEach((dep, depIdx) => {
+                const card = document.createElement('div');
+                card.className = 'rec-recurso-card';
+                card.dataset.href = dep.href || '';
+
+                let anexosHtml = '';
+                if (dep.anexos && dep.anexos.length > 0) {
+                    anexosHtml = `<div class="rec-anexos-lista">` +
+                        dep.anexos.map((ax, axIdx) =>
+                            `<div class="rec-anexo-item" data-dep-idx="${depIdx}" data-ax-idx="${axIdx}">
+                            <span class="rec-anexo-badge" style="background:${corBadge[ax.tipo] || '#6b7280'}">${ax.tipo}</span>
+                            <code class="rec-anexo-id">${ax.id || 'sem id'}</code>
+                            <span style="font-size:10px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="${ax.texto}">${(ax.texto || '').substring(0, 40)}</span>
+                        </div>`
+                        ).join('') +
+                        `</div>`;
+                }
+
+                card.innerHTML = `
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                    <span class="rec-tipo-badge">${dep.tipo || 'RO'}</span>
+                    <span style="font-size:11px;color:#92400e;font-weight:600;flex:1">${dep.depositante || 'Parte não identificada'}</span>
+                    ${dep.polo ? `<span style="font-size:9px;background:${dep.polo === 'PASSIVO' ? '#dc2626' : '#2563eb'};color:#fff;padding:1px 4px;border-radius:3px;margin-left:4px;font-weight:600">${dep.polo}</span>` : ''}
+                    <span style="font-size:10px;color:#6b7280">${dep.data || 'sem data'}</span>
+                    ${dep.anexos && dep.anexos.length > 0 ? `<span class="rec-seta-toggle">▶ ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}</span>` : ''}
+                </div>
+                ${anexosHtml}`;
+
+                card.addEventListener('click', e => {
+                    const axItem = e.target.closest('.rec-anexo-item');
+                    if (axItem) {
+                        e.stopPropagation();
+                        const axIdx = parseInt(axItem.dataset.axIdx, 10);
+                        const ax = dep.anexos[axIdx];
+                        if (!ax) return;
+
+                        if (externo) {
+                            const urlAnexo = (dep.idProcesso && ax.id)
+                                ? `${location.origin}/pjekz/processo/${dep.idProcesso}/detalhe?documentoId=${ax.id}`
+                                : dep.href;
+                            if (urlAnexo) window.open(urlAnexo, '_blank', 'noopener');
+                            return;
+                        }
+
+                        if (dep.href) try { destacarElementoNaTimeline(dep.href); } catch (e2) { console.error('[hcalc]', e2); }
+                        setTimeout(async () => {
+                            try {
+                                const item = encontrarItemTimeline(dep.href);
+                                if (item) {
+                                    await expandirAnexos(item);
+                                    const links = item.querySelectorAll('a.tl-documento[id^="anexo_"]');
+                                    let alvo = null;
+                                    if (ax.id) {
+                                        alvo = Array.from(links).find(l => l.textContent.includes(ax.id));
+                                    }
+                                    alvo = alvo || links[axIdx] || links[0];
+                                    if (alvo) safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
+                                } else if (ax.elemento && ax.elemento.isConnected) {
+                                    safeDispatch(ax.elemento, 'click', { bubbles: true, cancelable: true });
+                                }
+                            } catch (e3) { console.error('[hcalc] Erro ao clicar no anexo:', e3); }
+                        }, 600);
+                        return;
+                    }
+
+                    card.classList.toggle('expandido');
+                    const seta = card.querySelector('.rec-seta-toggle');
+                    if (seta) seta.textContent = card.classList.contains('expandido')
+                        ? `\u25bc ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}`
+                        : `\u25b6 ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}`;
+                    if (!externo && dep.href) {
+                        try { destacarElementoNaTimeline(dep.href); } catch (e2) { console.error('[hcalc]', e2); }
+                    }
+                });
+
+                recDiv.appendChild(card);
+            });
+
+            containerEl.appendChild(recDiv);
+        }
+
+        function aplicarCustasDoPrep(prepFonte, opts = {}) {
+            const prep = prepFonte || { sentenca: {}, acordaos: [], depositos: [], recursosPassivo: [] };
+            const isCumprimento = !!opts.isCumprimento;
+            const preservarManuais = !!opts.preservarManuais;
+            const limparSeVazio = !!opts.limparSeVazio;
+
+            // Povoar select de acórdãos da fonte (processo ativo ou processo principal relacionado)
+            const custasAcordaoSelect = $('custas-acordao-select');
+            if (custasAcordaoSelect) {
+                const valorAnterior = custasAcordaoSelect.value;
+                custasAcordaoSelect.innerHTML = '<option value="">Selecione o acórdão</option>';
+                (prep.acordaos || []).forEach((acordao, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = `Acórdão ${i + 1}${acordao.data ? ' - ' + acordao.data : ''}`;
+                    opt.dataset.data = acordao.data || '';
+                    opt.dataset.id = acordao.id || '';
+                    custasAcordaoSelect.appendChild(opt);
+                });
+                if (preservarManuais && valorAnterior) {
+                    custasAcordaoSelect.value = valorAnterior;
+                }
+            }
+
+            if (preservarManuais) return;
+
+            const custasPlanilha = window.hcalcState.planilhaExtracaoData?.custas || '';
+            const custasSentenca = prep.sentenca?.custas || '';
+            const dataSentenca = prep.sentenca?.data || '';
+            const temCustasPlanilha = !!custasPlanilha;
+            const temRecurso = (prep.recursosPassivo && prep.recursosPassivo.length > 0) || (prep.depositos && prep.depositos.length > 0);
+
+            if (temCustasPlanilha && $('val-custas')) {
+                $('val-custas').value = custasPlanilha;
+                const valorPlanilha = parseMoney(custasPlanilha || '0');
+                const valorSentenca = parseMoney(custasSentenca || '0');
+                const temCustasSentenca = !!custasSentenca;
+                const custasDiferentes = temCustasSentenca && Math.abs(valorPlanilha - valorSentenca) > 0.0001;
+                const origemPlanilha = !temCustasSentenca || custasDiferentes;
+
+                if ($('custas-origem')) {
+                    $('custas-origem').value = origemPlanilha ? 'planilha' : 'sentenca';
+                    $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                if (origemPlanilha) {
+                    if (window.hcalcState.planilhaExtracaoData?.dataAtualizacao && $('custas-data-origem')) {
+                        $('custas-data-origem').value = window.hcalcState.planilhaExtracaoData.dataAtualizacao;
+                    }
+                } else if (dataSentenca && $('custas-data-origem')) {
+                    $('custas-data-origem').value = dataSentenca;
+                }
+            } else if (custasSentenca && $('val-custas')) {
+                $('val-custas').value = custasSentenca;
+                if ($('custas-origem')) {
+                    $('custas-origem').value = 'sentenca';
+                    $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                if (dataSentenca && $('custas-data-origem')) {
+                    $('custas-data-origem').value = dataSentenca;
+                }
+            } else if (limparSeVazio) {
+                if ($('val-custas')) $('val-custas').value = '';
+                if ($('custas-data-origem')) $('custas-data-origem').value = '';
+                if ($('custas-origem')) {
+                    $('custas-origem').value = 'sentenca';
+                    $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            const custasStatusEl = $('custas-status');
+            if (custasStatusEl) {
+                if (isCumprimento) {
+                    if (temCustasPlanilha) {
+                        custasStatusEl.value = 'devidas';
+                    } else if (temRecurso) {
+                        custasStatusEl.value = 'recurso';
+                    } else {
+                        custasStatusEl.value = 'devidas';
+                    }
+                } else {
+                    custasStatusEl.value = temRecurso ? 'pagas' : 'devidas';
+                }
+            }
+        }
+
+        function preencherDepositosCumprimentoDoPrep(prepFonte) {
+            const container = $('cumprimento-depositos-container');
+            if (!container) return;
+            const depositos = Array.isArray(prepFonte?.depositos) ? prepFonte.depositos : [];
+            container.innerHTML = '';
+            if (depositos.length === 0) {
+                if ($('chk-cumprimento-depositos')?.checked) {
+                    adicionarDepositoCumprimento();
+                }
+                return;
+            }
+            depositos.forEach((deposito) => {
+                const idx = adicionarDepositoCumprimento();
+                if (idx === undefined) return;
+                const anexoEscolhido = depositosController.escolherAnexoDeposito(deposito);
+                const tipoEl = $(`cumprimento-deposito-tipo-${idx}`);
+                const parteEl = $(`cumprimento-deposito-parte-${idx}`);
+                if (tipoEl && anexoEscolhido) {
+                    tipoEl.value = anexoEscolhido.tipo === 'Depósito' ? 'bb' : 'garantia';
+                }
+                if (parteEl && deposito.depositante) {
+                    depositosController.selecionarDepositanteNoSelect(parteEl, deposito.depositante);
+                }
+            });
+        }
+
+        function aplicarDepositosDoPrep(prepFonte, opts = {}) {
+            const prep = prepFonte || { acordaos: [], depositos: [] };
+            const isCumprimento = !!opts.isCumprimento;
+            const force = !!opts.force;
+            const preservarManuais = !!opts.preservarManuais;
+
+            const acordaosLen = Array.isArray(prep.acordaos) ? prep.acordaos.length : 0;
+            const depositosLen = Array.isArray(prep.depositos) ? prep.depositos.length : 0;
+
+            const labelDeposito = $('label-chk-deposito');
+            if (labelDeposito) {
+                labelDeposito.style.textDecoration = (acordaosLen === 0 && depositosLen === 0) ? 'line-through' : 'none';
+            }
+
+            const fieldsetDep = $('fieldset-deposito');
+            if (fieldsetDep) {
+                if (isCumprimento || acordaosLen > 0 || depositosLen > 0) {
+                    fieldsetDep.classList.remove('hidden');
+                } else {
+                    fieldsetDep.classList.add('hidden');
+                }
+            }
+
+            if (preservarManuais) return;
+
+            const chkDep = $('chk-deposito');
+            if (depositosLen > 0) {
+                preencherDepositosAutomaticos({ prep, force: force || isCumprimento });
+                if (chkDep) {
+                    chkDep.checked = true;
+                    $('deposito-campos')?.classList.remove('hidden');
+                }
+            } else if (force) {
+                preencherDepositosAutomaticos({ prep, force: true });
+                if (chkDep) {
+                    chkDep.checked = false;
+                    $('deposito-campos')?.classList.add('hidden');
+                }
+            }
+
+            if (isCumprimento && $('chk-cumprimento-depositos')?.checked) {
+                preencherDepositosCumprimentoDoPrep(prep);
+            }
+        }
+
+        function renderizarCardProcessoPrincipal(rel, prepRel, listaRelacionados) {
+            const card = $('card-processo-principal');
+            const seletorWrap = $('principal-seletor-wrap');
+            const seletor = $('principal-processo-select');
+            const statusEl = $('card-processo-principal-status');
+            const bodyEl = $('card-processo-principal-body');
+            if (!card || !statusEl || !bodyEl) return;
+
+            card.classList.remove('hidden');
+            bodyEl.innerHTML = '';
+
+            if (seletorWrap && seletor) {
+                if (Array.isArray(listaRelacionados) && listaRelacionados.length > 1) {
+                    seletorWrap.classList.remove('hidden');
+                    seletor.innerHTML = '';
+                    listaRelacionados.forEach((item) => {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = `${item.numero || ('ID ' + item.id)}${item.faseProcessual ? ' — ' + item.faseProcessual : ''}${item.autuadoEm ? ' (' + item.autuadoEm + ')' : ''}`;
+                        if (rel && String(item.id) === String(rel.id)) opt.selected = true;
+                        seletor.appendChild(opt);
+                    });
+                } else {
+                    seletorWrap.classList.add('hidden');
+                }
+            }
+
+            if (!rel) {
+                statusEl.innerHTML = '<span style="color:#b91c1c;">⚠ Nenhum processo relacionado encontrado via API para este feito.</span>';
+                return;
+            }
+
+            const urlPrincipal = `${location.origin}/pjekz/processo/${rel.id}/detalhe`;
+            const metaParts = [rel.faseProcessual, rel.descricaoOrgaoJulgador, rel.autuadoEm ? `Autuado em ${rel.autuadoEm}` : '']
+                .filter(Boolean)
+                .join(' · ');
+            statusEl.innerHTML = `
+                <div>
+                    <a href="${urlPrincipal}" target="_blank" rel="noopener" style="font-weight:700; color:#00509e; text-decoration:underline;">
+                        ${rel.numero || ('Processo #' + rel.id)}
+                    </a>
+                    <span style="margin-left:6px; font-size:10px; background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:3px; border:1px solid #f59e0b;">Custas &amp; Depósitos daqui</span>
+                </div>
+                ${metaParts ? `<div style="font-size:10px; color:#78350f; margin-top:2px;">${metaParts}</div>` : ''}
+                ${rel.descricaoAssunto ? `<div style="font-size:10px; color:#6b7280; margin-top:1px;">${rel.descricaoAssunto}</div>` : ''}
+            `;
+
+            if (!prepRel) return;
+
+            // Resumo de Sentença e Acórdãos do Processo Principal
+            const resumoLinhas = [];
+            if (prepRel.sentenca?.data || prepRel.sentenca?.custas) {
+                const linkSent = prepRel.sentenca.href
+                    ? `<a href="${prepRel.sentenca.href}" target="_blank" rel="noopener" style="color:#15803d; font-weight:600;">Sentença${prepRel.sentenca.data ? ' - ' + prepRel.sentenca.data : ''}</a>`
+                    : `<strong style="color:#15803d;">Sentença${prepRel.sentenca.data ? ' - ' + prepRel.sentenca.data : ''}</strong>`;
+                const custasTxt = prepRel.sentenca.custas ? ` | Custas: <strong>R$ ${prepRel.sentenca.custas}</strong>` : ' | Custas não detectadas';
+                resumoLinhas.push(`<div style="font-size:11px; margin-bottom:3px;">${linkSent}${custasTxt}</div>`);
+            } else {
+                resumoLinhas.push(`<div style="font-size:11px; color:#9ca3af; margin-bottom:3px;">Sentença não encontrada no processo principal.</div>`);
+            }
+
+            if (Array.isArray(prepRel.acordaos) && prepRel.acordaos.length > 0) {
+                const linksAc = prepRel.acordaos.map((ac, i) => {
+                    const lbl = prepRel.acordaos.length > 1 ? `Acórdão ${i + 1}` : 'Acórdão';
+                    const txt = `${lbl}${ac.data ? ' - ' + ac.data : ''}`;
+                    return ac.href
+                        ? `<a href="${ac.href}" target="_blank" rel="noopener" style="color:#00509e; margin-right:8px;">${txt}</a>`
+                        : `<span style="margin-right:8px;">${txt}</span>`;
+                }).join('');
+                resumoLinhas.push(`<div style="font-size:11px; margin-bottom:3px;">${linksAc}</div>`);
+            }
+
+            const resumoDiv = document.createElement('div');
+            resumoDiv.innerHTML = resumoLinhas.join('');
+            bodyEl.appendChild(resumoDiv);
+
+            if (Array.isArray(prepRel.depositos) && prepRel.depositos.length > 0) {
+                renderizarCardsRecursos(bodyEl, prepRel.depositos, {
+                    externo: true,
+                    titulo: `Recursos das Reclamadas no Principal (${prepRel.depositos.length})`
+                });
+            } else {
+                const semDep = document.createElement('div');
+                semDep.style.cssText = 'font-size:11px; color:#6b7280; font-style:italic; margin-top:4px;';
+                semDep.textContent = 'Nenhum recurso com depósito/garantia encontrado no processo principal.';
+                bodyEl.appendChild(semDep);
+            }
+        }
+
+        let cumprimentoLoadSeq = 0;
+        async function carregarDadosProcessoRelacionado(opts = {}) {
+            const seq = ++cumprimentoLoadSeq;
+            const forceReload = !!opts.forceReload;
+            const preservarManuais = !!opts.preservarManuais;
+            const idSelecionado = opts.idProcessoSelecionado ? String(opts.idProcessoSelecionado) : null;
+
+            const card = $('card-processo-principal');
+            const statusEl = $('card-processo-principal-status');
+            const bodyEl = $('card-processo-principal-body');
+            if (card) card.classList.remove('hidden');
+            if (statusEl) statusEl.textContent = '⏳ Buscando processo principal relacionado via API...';
+            if (bodyEl) bodyEl.innerHTML = '';
+
+            try {
+                if (typeof window.hcalcBuscarProcessosRelacionados !== 'function' ||
+                    typeof window.hcalcExecutarPrepRelacionado !== 'function') {
+                    throw new Error('Funções de processo relacionado não disponíveis em hcalc-prep.js');
+                }
+
+                let lista = Array.isArray(window.hcalcState.processosRelacionados) && window.hcalcState.processosRelacionados.length > 0 && !forceReload
+                    ? window.hcalcState.processosRelacionados
+                    : null;
+
+                if (!lista) {
+                    const busca = await window.hcalcBuscarProcessosRelacionados();
+                    if (seq !== cumprimentoLoadSeq || !$('chk-cumprimento')?.checked) return;
+                    lista = busca.relacionados || [];
+                    window.hcalcState.processosRelacionados = lista;
+                }
+
+                if (!lista || lista.length === 0) {
+                    window.hcalcState.processoPrincipal = null;
+                    window.hcalcState.prepRelacionado = null;
+                    renderizarCardProcessoPrincipal(null, null, []);
+                    aplicarCustasDoPrep(null, { isCumprimento: true, preservarManuais, limparSeVazio: !preservarManuais });
+                    aplicarDepositosDoPrep(null, { isCumprimento: true, force: !preservarManuais, preservarManuais });
+                    return;
+                }
+
+                const alvo = (idSelecionado && lista.find(r => String(r.id) === idSelecionado))
+                    || (window.hcalcState.processoPrincipal && !idSelecionado && lista.find(r => String(r.id) === String(window.hcalcState.processoPrincipal.id)))
+                    || lista[0];
+
+                window.hcalcState.processoPrincipal = alvo;
+                if (statusEl) {
+                    statusEl.textContent = `⏳ Lendo sentença, custas e depósitos do principal ${alvo.numero || alvo.id}...`;
+                }
+
+                if (!window.hcalcState.prepRelacionadoPorId) window.hcalcState.prepRelacionadoPorId = {};
+                let prepRel = (!forceReload && window.hcalcState.prepRelacionadoPorId[alvo.id])
+                    ? window.hcalcState.prepRelacionadoPorId[alvo.id]
+                    : null;
+
+                if (!prepRel) {
+                    prepRel = await window.hcalcExecutarPrepRelacionado(alvo.id, window.hcalcPartesData);
+                    if (seq !== cumprimentoLoadSeq || !$('chk-cumprimento')?.checked) return;
+                    window.hcalcState.prepRelacionadoPorId[alvo.id] = prepRel;
+                }
+
+                window.hcalcState.prepRelacionado = prepRel;
+                renderizarCardProcessoPrincipal(alvo, prepRel, lista);
+                aplicarCustasDoPrep(prepRel, { isCumprimento: true, preservarManuais, limparSeVazio: !preservarManuais });
+                aplicarDepositosDoPrep(prepRel, { isCumprimento: true, force: !preservarManuais, preservarManuais });
+                queueOverlayDraftSave();
+            } catch (e) {
+                if (seq !== cumprimentoLoadSeq) return;
+                err('[hcalc] Falha ao carregar processo principal relacionado:', e);
+                if (statusEl) {
+                    statusEl.innerHTML = `<span style="color:#b91c1c;">⚠ Erro ao consultar processo relacionado: ${e.message || e}</span>`;
+                }
+            }
+        }
+
         // Cumprimento de sentença: processo principal + depósitos simplificados (só Tipo e Partes)
         let proximoDepositoCumprimento = 0;
         function adicionarDepositoCumprimento() {
@@ -2118,8 +2353,24 @@
                 deposito.querySelector(`#cumprimento-transferidos-campos-${idx}`).classList.toggle('hidden', !event.target.checked);
             };
             deposito.querySelector('.btn-remover-cumprimento').onclick = () => deposito.remove();
+            return idx;
         }
         $('btn-add-deposito-cumprimento').onclick = adicionarDepositoCumprimento;
+        const btnRecarregarPrincipal = $('btn-recarregar-principal');
+        if (btnRecarregarPrincipal) {
+            btnRecarregarPrincipal.addEventListener('click', () => {
+                const idSel = $('principal-processo-select')?.value || window.hcalcState.processoPrincipal?.id;
+                carregarDadosProcessoRelacionado({ forceReload: true, idProcessoSelecionado: idSel, preservarManuais: false });
+            });
+        }
+        const principalSelectEl = $('principal-processo-select');
+        if (principalSelectEl) {
+            principalSelectEl.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    carregarDadosProcessoRelacionado({ forceReload: false, idProcessoSelecionado: e.target.value, preservarManuais: false });
+                }
+            });
+        }
         const chkCumprimento = $('chk-cumprimento');
         const fieldsetDeposito = $('fieldset-deposito');
         const camposCumprimento = $('cumprimento-campos');
@@ -2127,28 +2378,47 @@
         const containerCumprimentoDepositos = $('cumprimento-depositos-container');
         const atualizarCumprimento = (event) => {
             const marcado = event.currentTarget.checked;
+            const restaurando = !!(overlayDraftApi && typeof overlayDraftApi.isRestoring === 'function' && overlayDraftApi.isRestoring());
             window.hcalcState.cumprimentoSentenca = marcado;
             if (marcado) fieldsetDeposito.classList.remove('hidden');
             camposCumprimento.classList.toggle('hidden', !marcado);
+            const cardPrincipal = $('card-processo-principal');
+            if (cardPrincipal) cardPrincipal.classList.toggle('hidden', !marcado);
+
             const recursoOption = $('custas-status').querySelector('option[value="recurso"]');
             recursoOption.classList.toggle('hidden', !marcado);
-            if (marcado) {
-                const temCustasPlanilha = !!window.hcalcState.planilhaExtracaoData?.custas;
-                $('custas-status').value = temCustasPlanilha ? 'devidas' : 'recurso';
-                if (temCustasPlanilha) $('custas-origem').value = 'planilha';
-            } else if ($('custas-status').value === 'recurso') {
-                $('custas-status').value = 'devidas';
+            dbg('[hcalc] Cumprimento de sentença alterado:', marcado, 'restaurando=', restaurando);
+
+            if (restaurando) {
+                if (marcado && chkCumprimentoDepositos.checked && containerCumprimentoDepositos.children.length === 0) {
+                    adicionarDepositoCumprimento();
+                }
+                return;
             }
-            dbg('[hcalc] Cumprimento de sentença alterado:', marcado);
-            if (marcado && chkCumprimentoDepositos.checked && containerCumprimentoDepositos.children.length === 0) {
-                adicionarDepositoCumprimento();
+
+            if (marcado) {
+                // Busca o processo relacionado via API e preenche card, custas e depósitos com as mesmas funções
+                carregarDadosProcessoRelacionado({ forceReload: false, preservarManuais: false });
+            } else {
+                cumprimentoLoadSeq++;
+                // Ao desmarcar cumprimento, volta custas e depósitos para o processo ativo
+                const prepAtivo = window.hcalcLastPrepResult || null;
+                if (prepAtivo) {
+                    aplicarCustasDoPrep(prepAtivo, { isCumprimento: false, limparSeVazio: true });
+                    aplicarDepositosDoPrep(prepAtivo, { isCumprimento: false, force: true });
+                } else if ($('custas-status').value === 'recurso') {
+                    $('custas-status').value = 'devidas';
+                }
             }
         };
         chkCumprimento.addEventListener('change', atualizarCumprimento);
-        chkCumprimento.addEventListener('click', atualizarCumprimento);
         chkCumprimentoDepositos.onchange = (e) => {
             if (e.target.checked && containerCumprimentoDepositos.children.length === 0) {
-                adicionarDepositoCumprimento();
+                if (window.hcalcState.cumprimentoSentenca && window.hcalcState.prepRelacionado) {
+                    preencherDepositosCumprimentoDoPrep(window.hcalcState.prepRelacionado);
+                } else {
+                    adicionarDepositoCumprimento();
+                }
             }
         };
 
@@ -2177,8 +2447,8 @@
         // FUNÇÕES DE GERENCIAMENTO DE MÚLTIPLOS DEPÓSITOS
         // ==========================================
 
-        function preencherDepositosAutomaticos() {
-            return depositosController.preencherDepositosAutomaticos();
+        function preencherDepositosAutomaticos(opts) {
+            return depositosController.preencherDepositosAutomaticos(opts);
         }
 
         function adicionarDepositoRecursal() {

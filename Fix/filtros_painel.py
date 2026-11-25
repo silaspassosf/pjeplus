@@ -21,16 +21,22 @@ def aplicar_filtro_100(driver):
 
     def _selecionar():
         try:
-            span_pag = espera.elemento(driver, "//mat-select//span[contains(@class,'mat-select-min-line') and (normalize-space(text())='20' or normalize-space(text())='50')]")
-            mat_select = espera.elemento(driver, "//mat-select[.//span[contains(@class,'mat-select-min-line') and (normalize-space(text())='20' or normalize-space(text())='50')]]") or span_pag
+            mat_select = espera.elemento(driver, 'mat-select[aria-label="Linhas por página"]', teto=2)
             if not mat_select:
-                mat_select = espera.elemento(driver, "mat-paginator mat-select")
+                span_pag = espera.elemento(driver, "//mat-select//span[contains(@class,'mat-select-min-line') and (normalize-space(text())='20' or normalize-space(text())='50')]", teto=1)
+                mat_select = espera.elemento(driver, "//mat-select[.//span[contains(@class,'mat-select-min-line') and (normalize-space(text())='20' or normalize-space(text())='50')]]", teto=1) or span_pag
+            if not mat_select:
+                mat_select = espera.elemento(driver, "mat-paginator mat-select", teto=2)
             if not mat_select:
                 return False
             safe_click_no_scroll(driver, mat_select)
             aguardar_renderizacao_nativa(driver)
             espera.ate_aparecer(driver, ".cdk-overlay-pane", teto=5)
-            opcao_100 = espera.elemento(driver, "//mat-option[.//span[normalize-space(text())='100']]") or espera.elemento(driver, ".cdk-overlay-pane mat-option")
+            opcao_100 = (
+                espera.elemento(driver, "//mat-option[.//span[normalize-space(text())='100']]", teto=2)
+                or espera.elemento(driver, "//mat-option[normalize-space(.)='100']", teto=1)
+                or espera.elemento(driver, ".cdk-overlay-pane mat-option", teto=1)
+            )
             if not opcao_100:
                 return False
             safe_click_no_scroll(driver, opcao_100)
@@ -53,7 +59,11 @@ def aplicar_filtro_100(driver):
 def filtro_fase(driver):
     """Seleciona fases 'Execução' e 'Liquidação' no filtro global."""
     try:
-        seletor = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
+        seletor = (
+            'mat-select[aria-label*="Fase processual"], '
+            'mat-select[formcontrolname="fpglobal_faseProcessual"], '
+            'mat-select[placeholder*="Fase processual"]'
+        )
 
         if not aguardar_e_clicar(driver, seletor, timeout=5, usar_js=True):
             logger.error('[FILTRO_FASE] Dropdown nao encontrado.')
@@ -112,25 +122,32 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
     logger.info('[filtrofases] Filtrando fase processual: %s...', ', '.join(fases))
 
     try:
-        seletor = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
+        seletor = (
+            'mat-select[aria-label*="Fase processual"], '
+            'mat-select[formcontrolname="fpglobal_faseProcessual"], '
+            'mat-select[placeholder*="Fase processual"]'
+        )
         if not aguardar_e_clicar(driver, seletor, timeout=10, usar_js=True):
             logger.error('[filtrofases] Dropdown de fase nao encontrado.')
             return False
         aguardar_renderizacao_nativa(driver)
-        _opcoes_prontas = False
         fn_sc = getattr(driver, "execute_script", None) or getattr(driver, "execute" + "_script", None)
-        for _ in range(25):
-            _textos = fn_sc(
-                "return Array.from(document.querySelectorAll('mat-option span.mat-option-text')"
-                ").map(function(e){return e.textContent.trim().toLowerCase();})"
-            ) if fn_sc else []
-            if _textos and not any(t in ('carregando itens...', 'nenhuma opção', '') for t in _textos):
-                _opcoes_prontas = True
-                break
-            espera.assentar(driver, 0.3)
-        if not _opcoes_prontas:
+
+        def _painel_populou(_drv):
+            if not fn_sc:
+                return False
+            textos = fn_sc(
+                "return Array.from(document.querySelectorAll('.mat-select-panel mat-option, mat-option[role=\"option\"], mat-option'))"
+                ".map(function(e){return ((e.getAttribute('name') || e.textContent || '')).trim().toLowerCase();})"
+                ".filter(function(t){return t.length > 0;});"
+            ) or []
+            validos = [t for t in textos if t not in ('carregando itens...', 'nenhuma opção', 'nenhuma opcao')]
+            return bool(validos)
+
+        if not espera.ate(driver, _painel_populou, teto=8.0):
             logger.error('[filtrofases] Painel de opcoes nao populou apos espera.')
             return False
+
         script_fases = """
         var fases = arguments[0];
         var sucesso = 0;
@@ -138,11 +155,12 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
             return (s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();
         }
         var fasesNorm = fases.map(norm);
-        var opcoes = Array.from(document.querySelectorAll('mat-option'));
+        var opcoes = Array.from(document.querySelectorAll('.mat-select-panel mat-option, mat-option[role="option"], mat-option'));
         for (var i = 0; i < fasesNorm.length; i++) {
             for (var j = 0; j < opcoes.length; j++) {
+                var nomeAttr = norm(opcoes[j].getAttribute('name'));
                 var txt = norm(opcoes[j].textContent);
-                if (txt.includes(fasesNorm[i])) {
+                if (nomeAttr === fasesNorm[i] || txt.includes(fasesNorm[i])) {
                     var isSelected = opcoes[j].getAttribute('aria-selected') === 'true' || opcoes[j].classList.contains('mat-selected');
                     if (!isSelected) {
                         opcoes[j].click();
@@ -159,7 +177,20 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
             logger.error('[filtrofases] Nao encontrou opcoes %s no painel.', fases_alvo)
             return False
         logger.debug('[filtrofases] %d/%d fases selecionadas.', selecionadas, len(fases))
-        _fechar_dropdown_ou_esc(driver)
+
+        clicou_filtrar_no_painel = False
+        if not tarefas_alvo:
+            btn_painel = espera.elemento(
+                driver,
+                ".mat-select-panel button.botao-filtrar, .mat-select-panel button[aria-label='Filtrar'], button.botao-filtrar, button[aria-label='Filtrar']",
+                teto=1.5,
+            )
+            if btn_painel and safe_click_no_scroll(driver, btn_painel):
+                clicou_filtrar_no_painel = True
+                logger.debug('[filtrofases] Botao Filtrar clicado dentro do mat-select-panel.')
+
+        if not clicou_filtrar_no_painel or espera.elemento(driver, ".mat-select-panel", teto=0.3):
+            _fechar_dropdown_ou_esc(driver)
         aguardar_renderizacao_nativa(driver)
     except Exception as e:
         logger.error('[filtrofases] Erro no filtro de fase: %s', e)
@@ -220,10 +251,16 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
             return False
 
     try:
-        botao_filtrar = espera.elemento(driver, "button[aria-label*='Filtrar'], i.fas.fa-filter, i.fa-filter, //button[.//i[contains(@class, 'fa-filter')]]", teto=2)
-        if botao_filtrar:
-            safe_click_no_scroll(driver, botao_filtrar)
-            logger.debug('[filtrofases] Filtros aplicados.')
+        if not clicou_filtrar_no_painel:
+            botao_filtrar = (
+                espera.elemento(driver, "button.botao-filtrar, button[aria-label='Filtrar'], button[aria-label*='Filtrar'], i.fas.fa-filter, i.fa-filter", teto=2)
+                or espera.elemento(driver, "//button[.//i[contains(@class, 'fa-filter')]]", teto=1)
+            )
+            if botao_filtrar:
+                safe_click_no_scroll(driver, botao_filtrar)
+                logger.debug('[filtrofases] Filtros aplicados.')
+                _aguardar_loader_painel(driver)
+        else:
             _aguardar_loader_painel(driver)
     except Exception as e:
         logger.warning('[filtrofases] Nao conseguiu clicar no botao de filtrar: %s', e)

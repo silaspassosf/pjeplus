@@ -32,6 +32,10 @@
             // Resultados do prep
             prepResult: null,
             timelineData: null,
+            processosRelacionados: [],
+            processoPrincipal: null,
+            prepRelacionado: null,
+            prepRelacionadoPorId: {},
 
             // Dados detectados
             peritosConhecimento: [],
@@ -68,6 +72,10 @@
                 this.prepRunning = false;
                 this.prepResult = null;
                 this.timelineData = null;
+                this.processosRelacionados = [];
+                this.processoPrincipal = null;
+                this.prepRelacionado = null;
+                this.prepRelacionadoPorId = {};
                 this.peritosConhecimento = [];
                 this.partesData = null;
                 this.planilhaExtracaoData = null;
@@ -94,6 +102,10 @@
 
                 this.prepResult = null;
                 this.timelineData = null;
+                this.processosRelacionados = [];
+                this.processoPrincipal = null;
+                this.prepRelacionado = null;
+                this.prepRelacionadoPorId = {};
                 this.prepRunning = false;
                 this.planilhaExtracaoData = null;
                 this.planilhaCarregada = false;

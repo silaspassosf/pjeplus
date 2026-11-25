@@ -60,6 +60,14 @@ def _carregar_isolado():
     pacote_atos = types.ModuleType('atos')
     pacote_atos.__path__ = [os.path.join(_RAIZ, 'atos')]
 
+    # Snapshot: os mocks ficam em sys.modules só durante o exec_module. Sem restaurar,
+    # o processo inteiro fica com 'Fix'/'atos' falsos e todo módulo de teste importado
+    # depois quebra ("'Fix' is not a package", "unknown location") -- foi o que
+    # transformava `unittest discover` em 79 erros em cascata.
+    _chaves = ('Fix', 'Fix.espera', 'Fix.core', 'atos',
+               'atos.judicial_navegacao', 'atos.judicial_modelos')
+    _antes = {k: sys.modules.get(k) for k in _chaves}
+
     sys.modules.update({
         'Fix': fix, 'Fix.espera': espera, 'Fix.core': fix_core,
         'atos': pacote_atos, 'atos.judicial_navegacao': navegacao,

@@ -510,6 +510,77 @@ ESTRATEGIAS_ARGOS_DESPACHO = [
 ]
 
 
+_PALAVRAS_IDPJ_ARGOS = (
+    'defiro a instauração',
+    'defiro a instauracao',
+    'deferir a instauração',
+    'deferir a instauracao',
+    'determino que seja incluído',
+    'determino que seja incluida',
+    'incidente de desconsideração',
+    'incidente de desconsideracao',
+    'desconsideração da personalidade jurídica',
+    'desconsideracao da personalidade juridica',
+    'desconsideração inversa',
+    'desconsideracao inversa',
+    '855-a',
+    'idpj',
+    'inclua-se no polo passivo',
+    'sócio retirante',
+    'socio retirante',
+)
+
+_REGRAS_INFOJUD_ARGOS = (
+    'realize-se a pesquisa infojud',
+    'realize se a pesquisa infojud',
+    'realize-se a pesquisa do infojud',
+    'realize se a pesquisa do infojud',
+    'realização de pesquisa infojud',
+    'realizacao de pesquisa infojud',
+    'pesquisa infojud',
+    'decred, dimob e e-financeira',
+    'através do sistema argos',
+    'atraves do sistema argos',
+)
+
+_TRECHOS_MANIFESTAR_ARGOS = (
+    'devendo se manifestar',
+    'nada a deferir',
+    'comunique-se por edital',
+    'mantenho o despacho',
+)
+
+
+def casa_regra_argos(tipo_documento: str, texto_documento: str) -> Optional[str]:
+    """Verifica sem efeitos colaterais se a Decisão/Despacho bate com alguma regra Argos.
+
+    Retorna o nome da regra casada ou None.
+    """
+    if not texto_documento:
+        return None
+    tipo_norm = normalizar_texto(str(tipo_documento or ''))
+    txt_lower = texto_documento.lower()
+    txt_norm = normalizar_texto(texto_documento)
+
+    if 'decisao' in tipo_norm:
+        if 'tendo em vista que' in txt_lower or 'tendo em vista que' in txt_norm:
+            return 'decisao+tendo_em_vista'
+        if any(p in txt_lower or p in txt_norm for p in _PALAVRAS_IDPJ_ARGOS):
+            return 'idpj'
+        if any(t in txt_lower or t in txt_norm for t in _TRECHOS_MANIFESTAR_ARGOS):
+            return 'decisao+manifestar'
+        return None
+
+    if 'despacho' in tipo_norm:
+        if 'argos' in txt_lower or 'argos' in txt_norm:
+            return 'despacho+argos'
+        if any(r in txt_lower or r in txt_norm for r in _REGRAS_INFOJUD_ARGOS):
+            return 'despacho+infojud'
+        return None
+
+    return None
+
+
 def aplicar_regras_argos(
     driver: Any,
     resultado_sisbajud: Dict[str, str],

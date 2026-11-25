@@ -75,15 +75,17 @@ try {
 '''
 
 
-def _aguardar_tela_livre(driver, teto: float = 15.0) -> bool:
-    """Barreira: aguarda spinners e backdrops modais desaparecerem."""
-    ok_spin = espera.ate_sumir(driver, _SEL_SPINNERS, teto=teto)
-    ok_drop = espera.ate_sumir(driver, _SEL_BACKDROP, teto=min(teto, 8.0))
+def _aguardar_tela_livre(driver, teto: float = 5.0) -> bool:
+    """Barreira leve: aguarda apenas backdrop modal sumir; se paginação já carregou, não trava em spinner."""
+    ok_drop = espera.ate_sumir(driver, _SEL_BACKDROP, teto=min(teto, 3.0))
+    if _ler_texto_paginacao(driver) or espera.elemento(driver, _XPATH_LISTA_VAZIA, teto=0.0):
+        return bool(ok_drop)
+    ok_spin = espera.ate_sumir(driver, _SEL_SPINNERS, teto=min(teto, 3.0))
     return bool(ok_spin and ok_drop)
 
 
 def _ler_texto_paginacao(driver, teto: float = 0.0) -> str:
-    """Lê o texto atual do contador de registros (ex.: '1 - 100 de 140')."""
+    """Lê o texto atual do contador de registros (ex.: '1 - 60 de 60')."""
     el = espera.elemento(driver, "span.total-registros", teto=teto)
     if not el:
         return ""
@@ -101,11 +103,62 @@ def _ler_total_registros(driver) -> int:
     return int(match.group(1)) if match else -1
 
 
+def _ler_esperado_na_pagina(driver) -> int:
+    """Extrai quantas linhas devem estar na página atual a partir de 'A - B de C'."""
+    texto = _ler_texto_paginacao(driver)
+    if not texto or "0 de 0" in texto:
+        return 0
+    match = re.search(r"(\d+)\s*-\s*(\d+)\s+de\s+(\d+)", texto)
+    if match:
+        inicio, fim = int(match.group(1)), int(match.group(2))
+        if fim >= inicio > 0:
+            return fim - inicio + 1
+    total = _ler_total_registros(driver)
+    return min(total, 100) if total > 0 else -1
+
+
+def _contar_linhas_tabela(driver) -> int:
+    """Conta quantas linhas tr.cdk-drag estão efetivamente renderizadas no DOM."""
+    try:
+        qtd = _executar_js(driver, "return document.querySelectorAll('tr.cdk-drag').length;")
+        if isinstance(qtd, int) and qtd >= 0:
+            return qtd
+    except Exception:
+        pass
+    els = espera.elementos(driver, "tr.cdk-drag", teto=0.0)
+    return len(els) if els else 0
+
+
+def _aguardar_estabilizacao_tabela(driver, minimo_linhas: int = 1, teto: float = 15.0) -> bool:
+    """Aguarda a tabela renderizar todas as linhas esperadas da página e assentar dados GIGS."""
+    def _linhas_prontas(drv):
+        if _lista_esta_vazia(drv):
+            return True
+        esperado = _ler_esperado_na_pagina(drv)
+        alvo = max(minimo_linhas, esperado if esperado > 0 else minimo_linhas)
+        qtd = _contar_linhas_tabela(drv)
+        if qtd >= alvo:
+            return True
+        if alvo > 1 and espera.elemento(drv, "tr.cdk-drag", teto=0.0) and esperado <= 0:
+            return True
+        return False
+
+    ok = bool(espera.ate(driver, _linhas_prontas, teto=teto))
+    espera.ate_sumir(driver, _SEL_BACKDROP, teto=2.0)
+    # Aguarda a 2ª onda assíncrona do painel (poridsprocessos / etiquetasprocessos) popular as linhas
+    espera.assentar(driver, 0.8, motivo="estabilizacao_pos_tabela")
+    espera.pausa(driver, 0.5, motivo="hidratacao_gigs_linhas")
+    return ok
+
+
 def _lista_esta_vazia(driver) -> bool:
-    """True se o painel exibe estado vazio ou 0 registros."""
-    if espera.elemento(driver, _XPATH_LISTA_VAZIA, teto=0.0):
+    """True se o painel exibe estado vazio ou 0 registros na paginação."""
+    total = _ler_total_registros(driver)
+    if total > 0:
+        return False
+    if total == 0:
         return True
-    return _ler_total_registros(driver) == 0
+    return bool(espera.elemento(driver, _XPATH_LISTA_VAZIA, teto=0.0))
 
 
 def _clicar_seguro(driver, elemento) -> bool:
@@ -116,45 +169,43 @@ def _clicar_seguro(driver, elemento) -> bool:
 
 
 def _aguardar_estado_lista(driver, teto: float = 15.0) -> str:
-    """Barreira: aguarda a tabela renderizar linhas ou estado vazio sem spinners."""
+    """Confirmador direto pelo setor de paginação (span.total-registros) ou mensagem vazia."""
     def _pronto(drv):
-        if _lista_esta_vazia(drv):
+        total = _ler_total_registros(drv)
+        if total > 0:
+            return "ok"
+        if total == 0 or espera.elemento(drv, _XPATH_LISTA_VAZIA, teto=0.0):
             return "vazio"
         if espera.elemento(drv, "tr.cdk-drag", teto=0.0):
             return "ok"
         return False
 
     estado = espera.ate(driver, _pronto, teto=teto)
-    _aguardar_tela_livre(driver, teto=min(teto, 10.0))
     if not estado:
         return "vazio" if _lista_esta_vazia(driver) else "erro"
-    if _lista_esta_vazia(driver):
-        return "vazio"
     return str(estado)
 
 
-def _aguardar_recarregamento(driver, texto_antes: str = "", teto: float = 20.0) -> str:
-    """Barreira pós-ação: captura eventual spinner/mudança e espera lista estabilizar."""
-    espera.ate_sumir(driver, _SEL_BACKDROP, teto=5.0)
+def _aguardar_recarregamento(driver, texto_antes: str = "", teto: float = 15.0) -> str:
+    """Aguarda a paginação atualizar após filtro/ação e confirma estado via span.total-registros."""
+    espera.ate_sumir(driver, _SEL_BACKDROP, teto=3.0)
 
-    def _iniciou_ou_mudou(drv):
-        if espera.elemento(drv, _SEL_SPINNERS, teto=0.0):
-            return True
-        if texto_antes:
+    if texto_antes:
+        def _mudou_ou_vazio(drv):
             atual = _ler_texto_paginacao(drv)
             if atual and atual != texto_antes:
                 return True
-        if _lista_esta_vazia(drv):
-            return True
-        return False
+            if espera.elemento(drv, _XPATH_LISTA_VAZIA, teto=0.0):
+                return True
+            return False
 
-    espera.ate(driver, _iniciou_ou_mudou, teto=0.8)
-    _aguardar_tela_livre(driver, teto=teto)
-    return _aguardar_estado_lista(driver, teto=min(teto, 15.0))
+        espera.ate(driver, _mudou_ou_vazio, teto=min(teto, 4.0))
+
+    return _aguardar_estado_lista(driver, teto=teto)
 
 
 def _navegar_para_painel(driver, url: str, url_token: str, tag: str) -> str:
-    """Navega para o painel alvo e aguarda URL + lista/vazio estabilizarem."""
+    """Navega para o painel alvo e confirma carregamento pelo setor de paginação."""
     logger.info("%s Navegando para %s", tag, url)
     url_ok = False
     for tentativa in range(2):
@@ -168,9 +219,8 @@ def _navegar_para_painel(driver, url: str, url_token: str, tag: str) -> str:
         logger.error("%s Falha ao navegar para %s (atual: %s)", tag, url, getattr(driver, "current_url", ""))
         return "erro"
 
-    _aguardar_tela_livre(driver, teto=15.0)
     estado = _aguardar_estado_lista(driver, teto=15.0)
-    logger.info("%s Painel carregado: estado=%s", tag, estado)
+    logger.info("%s Painel carregado: estado=%s (%s)", tag, estado, _ler_texto_paginacao(driver) or "sem contador")
     return estado
 
 
@@ -182,7 +232,17 @@ def _aplicar_filtro_fases_com_barreira(
     """Aplica filtro de fases e aguarda recarregamento completo da lista."""
     logger.info("%s Aplicando filtro de fases: %s", tag, list(fases_alvo))
     _aguardar_tela_livre(driver, teto=10.0)
-    combo = buscar(driver, "ciclo1_mat_select_combobox", ["mat-select[role='combobox']", "//mat-select"])
+    combo = buscar(
+        driver,
+        "ciclo1_mat_select_combobox",
+        [
+            'mat-select[aria-label*="Fase processual"]',
+            'mat-select[formcontrolname="fpglobal_faseProcessual"]',
+            'mat-select[placeholder*="Fase processual"]',
+            "mat-select[role='combobox']",
+            "//mat-select",
+        ],
+    )
     if not combo:
         logger.error("%s Dropdown de fases não encontrado", tag)
         return "erro"
@@ -193,16 +253,21 @@ def _aplicar_filtro_fases_com_barreira(
         return "erro"
 
     estado = _aguardar_recarregamento(driver, texto_antes=texto_antes, teto=20.0)
+    if estado == "ok":
+        _aguardar_estabilizacao_tabela(driver, minimo_linhas=1, teto=10.0)
     logger.info("%s Após filtro de fases: estado=%s (%s)", tag, estado, _ler_texto_paginacao(driver) or "sem contador")
     return estado
 
 
 def _aplicar_filtro_100_com_barreira(driver, tag: str = "[PRAZO]") -> bool:
-    """Aplica exibição de 100 registros por página e aguarda lista estabilizar."""
-    _aguardar_tela_livre(driver, teto=10.0)
+    """Aplica exibição de 100 registros por página e aguarda lista estabilizar por completo."""
+    _aguardar_tela_livre(driver, teto=5.0)
     if espera.elemento(driver, _XPATH_FILTRO_100_ATIVO, teto=0.2):
         logger.info("%s Filtro lista 100 já ativo", tag)
-        return _aguardar_estado_lista(driver, teto=10.0) != "erro"
+        if _aguardar_estado_lista(driver, teto=10.0) == "erro":
+            return False
+        _aguardar_estabilizacao_tabela(driver, minimo_linhas=1, teto=10.0)
+        return True
 
     texto_antes = _ler_texto_paginacao(driver)
     total_antes = _ler_total_registros(driver)
@@ -221,7 +286,9 @@ def _aplicar_filtro_100_com_barreira(driver, tag: str = "[PRAZO]") -> bool:
     if estado == "erro":
         logger.error("%s Lista não estabilizou após filtro 100", tag)
         return False
-    logger.info("%s Filtro 100 concluído (%s)", tag, _ler_texto_paginacao(driver) or estado)
+    minimo_esperado = min(total_antes, 100) if total_antes > 20 else max(1, total_antes)
+    _aguardar_estabilizacao_tabela(driver, minimo_linhas=minimo_esperado, teto=15.0)
+    logger.info("%s Filtro 100 concluído e tabela estabilizada (%s)", tag, _ler_texto_paginacao(driver) or estado)
     return True
 
 
@@ -247,14 +314,18 @@ def _clicar_item_atividade(driver, tag: str) -> bool:
 
 def _encontrar_botao_salvar(driver):
     """Localiza o botão Salvar dentro do modal de atividade."""
-    spans = espera.elementos(driver, "mat-dialog-container button.mat-raised-button span", teto=2.0)
-    if not spans:
-        spans = espera.elementos(driver, "button.mat-raised-button span", teto=2.0)
-    alvo = next((s for s in spans if "Salvar" in (getattr(s, "text", "") or "")), None)
-    if not alvo:
-        alvo = espera.elemento(driver, "button[aria-label*='Salvar'] span", teto=1.0)
+    botoes = espera.elementos(driver, "mat-dialog-container button.mat-raised-button", teto=2.0)
+    if not botoes:
+        botoes = espera.elementos(driver, "button.mat-raised-button", teto=2.0)
+    alvo = next((b for b in botoes if "Salvar" in (getattr(b, "text", "") or "")), None)
     if alvo:
-        return espera.elemento(alvo, "..", teto=0.5) or alvo
+        return alvo
+    spans = espera.elementos(driver, "mat-dialog-container button.mat-raised-button span", teto=1.0)
+    if not spans:
+        spans = espera.elementos(driver, "button.mat-raised-button span", teto=1.0)
+    span_alvo = next((s for s in spans if "Salvar" in (getattr(s, "text", "") or "")), None)
+    if span_alvo:
+        return span_alvo
     return espera.elemento(driver, "button[aria-label*='Salvar']", teto=1.0)
 
 
@@ -305,7 +376,10 @@ def _criar_atividade_xs1_com_barreira(
 
 def _avancar_pagina_com_barreira(driver, texto_antes: str, tag: str) -> bool:
     """Avança para a próxima página e aguarda o texto da paginação mudar + tabela estabilizar."""
-    btn_next = espera.elemento(driver, 'mat-paginator button[aria-label="Próxima página"]', teto=5.0)
+    btn_next = (
+        espera.elemento(driver, 'button[aria-label="Próximo"]', teto=2.0)
+        or espera.elemento(driver, 'mat-paginator button[aria-label="Próxima página"]', teto=2.0)
+    )
     if not btn_next:
         logger.info("%s Botão próxima página ausente", tag)
         return False

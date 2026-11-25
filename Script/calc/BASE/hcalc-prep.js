@@ -44,8 +44,8 @@
         return m ? m[1] : null;
     }
 
-    function _base() {
-        return location.origin + '/pje-comum-api/api/processos/id/' + _idProcesso();
+    function _base(idProc) {
+        return location.origin + '/pje-comum-api/api/processos/id/' + (idProc || _idProcesso());
     }
 
     // ISO "2024-11-17T..." -> "17/11/2024" (4 digitos de ano - obrigatorio para overlay)
@@ -56,10 +56,10 @@
     }
 
     // Monta href sintetico usado pelo overlay para localizar itens na timeline
-    function _montarHref(uid) {
+    function _montarHref(uid, idProc) {
         if (!uid) return null;
         try {
-            return `${location.origin}/pjekz/processo/${_idProcesso() || ''}/detalhe?documentoId=${uid}`;
+            return `${location.origin}/pjekz/processo/${idProc || _idProcesso() || ''}/detalhe?documentoId=${uid}`;
         } catch (e) { return null; }
     }
 
@@ -171,8 +171,8 @@
         };
     }
 
-    async function _fetchPartes() {
-        const raw = await _get(_base() + '/partes');
+    async function _fetchPartes(idProc) {
+        const raw = await _get(_base(idProc) + '/partes');
         return _shapePartes(raw);
     }
 
@@ -258,10 +258,10 @@
         return melhor;
     }
 
-    async function _resolverPartePorConteudoRecurso(rec, passivo) {
+    async function _resolverPartePorConteudoRecurso(rec, passivo, idProc) {
         if (!rec || !rec.idDoc || !passivo || passivo.length === 0) return null;
         try {
-            const r = await _fetchDocPrimeiraPagina(rec.idDoc);
+            const r = await _fetchDocPrimeiraPagina(rec.idDoc, idProc);
             const resolucao = _encontrarParteNoTexto(r.texto, passivo);
             if (resolucao) {
                 dbg('[prep] Parte do recurso localizada na primeira página:', rec.idDoc, resolucao);
@@ -279,16 +279,16 @@
     // E2 - TIMELINE
     // ==========================================
 
-    function _TIMELINE_URL() {
-        return _base() + '/timeline?' + new URLSearchParams({
+    function _TIMELINE_URL(idProc) {
+        return _base(idProc) + '/timeline?' + new URLSearchParams({
             buscarMovimentos: 'false',
             buscarDocumentos: 'true',
             somenteDocumentosAssinados: 'false',
         });
     }
 
-    async function _fetchTimeline() {
-        return _get(_TIMELINE_URL());
+    async function _fetchTimeline(idProc) {
+        return _get(_TIMELINE_URL(idProc));
     }
 
     // Classifica item da timeline sem tocar no DOM.
@@ -335,14 +335,15 @@
     // E3-E5 - CONTEUDO DE DOCUMENTO
     // ==========================================
 
-    async function _fetchDocMeta(idDoc) {
-        return _get(_base() + '/documentos/id/' + idDoc);
+    async function _fetchDocMeta(idDoc, idProc) {
+        return _get(_base(idProc) + '/documentos/id/' + idDoc);
     }
 
-    async function _fetchDocConteudo(idDoc) {
+    async function _fetchDocConteudo(idDoc, idProc) {
+        const base = _base(idProc);
         const endpoints = [
-            _base() + '/documentos/id/' + idDoc + '/conteudo',
-            _base() + '/documentos/id/' + idDoc + '/html',
+            base + '/documentos/id/' + idDoc + '/conteudo',
+            base + '/documentos/id/' + idDoc + '/html',
         ];
         let lastErr = null;
         for (const url of endpoints) {
@@ -412,8 +413,8 @@
         return pages.join('\n\n--- PAGINA ---\n\n').trim();
     }
 
-    async function _fetchDocHtml(idDoc) {
-        const r = await _fetchDocConteudo(idDoc);
+    async function _fetchDocHtml(idDoc, idProc) {
+        const r = await _fetchDocConteudo(idDoc, idProc);
         if (r.tipo === 'pdf' && r.buffer) {
             const texto = await _pdfToText(r.buffer);
             return { tipo: 'pdf-extraido', texto, chars: texto.length, idDoc };
@@ -421,8 +422,8 @@
         return r;
     }
 
-    async function _fetchDocPrimeiraPagina(idDoc) {
-        const r = await _fetchDocConteudo(idDoc);
+    async function _fetchDocPrimeiraPagina(idDoc, idProc) {
+        const r = await _fetchDocConteudo(idDoc, idProc);
         if (r.tipo === 'pdf' && r.buffer) {
             const texto = await _pdfToText(r.buffer, true);
             return { tipo: 'pdf-extraido-primeira-pagina', texto, chars: texto.length, idDoc };
@@ -1085,6 +1086,254 @@
     }
 
     // ==========================================
+    // PROCESSOS RELACIONADOS & EXTRAÇÃO COMPARTILHADA
+    // ==========================================
+
+    const _CNJ_REGEX = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
+
+    function _extrairNumeroProcessoDoDom() {
+        try {
+            const fontes = [
+                document.querySelector('pje-cabecalho')?.textContent,
+                document.querySelector('h1, .numero-processo, [class*="numero-processo"]')?.textContent,
+                document.title,
+            ];
+            for (const txt of fontes) {
+                const m = String(txt || '').match(_CNJ_REGEX);
+                if (m) return m[0];
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    async function _obterNumeroProcesso(idProc) {
+        const id = idProc || _idProcesso();
+        if (id) {
+            try {
+                const res = await _get(_base(id));
+                const candidatos = [
+                    res && res.numero,
+                    res && res.numeroProcesso,
+                    res && res.numeroFormatado,
+                    res && res.dadosBasicos && res.dadosBasicos.numero,
+                ];
+                for (const c of candidatos) {
+                    const m = String(c || '').match(_CNJ_REGEX);
+                    if (m) return m[0];
+                    if (c && String(c).trim().length >= 20) return String(c).trim();
+                }
+            } catch (e) {
+                warn('[prep] Falha ao obter numero do processo via API:', e.message);
+            }
+        }
+        return _extrairNumeroProcessoDoDom();
+    }
+
+    async function _buscarProcessosRelacionados(idProc) {
+        const idAtivo = String(idProc || _idProcesso() || '');
+        const numeroAtivo = await _obterNumeroProcesso(idAtivo);
+        if (!numeroAtivo) {
+            throw new Error('Número do processo ativo não encontrado para buscar relacionados');
+        }
+        const url = `${location.origin}/pje-comum-api/api/processos/numero/${encodeURIComponent(numeroAtivo)}/relacionados?` +
+            new URLSearchParams({ pagina: '1', tamanhoPagina: '10' });
+        const res = await _get(url);
+        const listaRaw = Array.isArray(res)
+            ? res
+            : (Array.isArray(res && res.resultado)
+                ? res.resultado
+                : (Array.isArray(res && res.itens) ? res.itens : []));
+
+        const relacionados = listaRaw
+            .map(function(item) {
+                return {
+                    id: item && item.id != null ? String(item.id) : null,
+                    numero: (item && (item.numero || item.numeroProcesso)) || '',
+                    descricaoAssunto: (item && item.descricaoAssunto) || '',
+                    autuadoEm: _normData((item && item.autuadoEm) || ''),
+                    faseProcessual: (item && item.faseProcessual) || '',
+                    idOrgaoJulgador: (item && item.idOrgaoJulgador) || null,
+                    descricaoOrgaoJulgador: (item && item.descricaoOrgaoJulgador) || '',
+                    partesPoloAtivo: (item && item.partesPoloAtivo) || [],
+                    partesPoloPassivo: (item && item.partesPoloPassivo) || [],
+                    _raw: item,
+                };
+            })
+            .filter(function(item) {
+                return item.id && item.id !== idAtivo;
+            });
+
+        return {
+            idAtivo,
+            numeroAtivo,
+            relacionados,
+        };
+    }
+
+    async function _extrairSentencaDaTimeline(items, passivo, idProc) {
+        const sentencas = (items || []).filter(function(i) { return i.categoria === 'sentenca'; });
+        const sentencaAlvo = sentencas.length > 0 ? sentencas[sentencas.length - 1] : null;
+        let sentencaDados = {
+            custas: null,
+            hsusp: false,
+            trteng: false,
+            trtmed: false,
+            responsabilidade: null,
+            honorariosPericiais: [],
+            responsabilidadeDetalhe: {
+                tipoGlobal: null,
+                principal: passivo[0] ? passivo[0].nome : '',
+                extrasSubsidiarias: [],
+                extrasSolidarias: [],
+                mencionadas: [],
+                trechoFonte: '',
+                escopoFonte: null,
+                estrategias: [],
+                dispositivoEncontrado: false,
+                primeiroParagrafoPreview: '',
+            },
+        };
+        if (sentencaAlvo && sentencaAlvo.idDoc) {
+            try {
+                let texto = null;
+                const procIdEfetivo = idProc || _idProcesso();
+                if (typeof window.pjeExtrairApi === 'function' && sentencaAlvo.uid) {
+                    try {
+                        const ext = await window.pjeExtrairApi(sentencaAlvo.uid, { idProcesso: procIdEfetivo });
+                        if (ext && ext.sucesso) texto = ext.conteudo_bruto || ext.conteudo || null;
+                    } catch (e) { /* fallback */ }
+                }
+                if (!texto) {
+                    const r = await _fetchDocHtml(sentencaAlvo.idDoc, procIdEfetivo);
+                    texto = r.texto || null;
+                }
+                if (texto) sentencaDados = _extrairDadosSentenca(texto, passivo);
+                dbg('[prep] Sentenca extraida (idProc=' + procIdEfetivo + '):', sentencaDados);
+            } catch (e) { warn('[prep] Falha ao ler sentenca:', e.message); }
+        }
+        return { sentencaAlvo, sentencaDados };
+    }
+
+    async function _extrairDepositosDaTimeline(items, passivo, idProc) {
+        const procIdEfetivo = idProc || _idProcesso();
+        const todosRecursos = (items || []).filter(function(i) {
+            return i.categoria === 'RO' || i.categoria === 'RR' || i.categoria === 'RA';
+        });
+        const acordaoItemIndices = (items || [])
+            .map(function(it, idx) { return it.categoria === 'acordao' ? idx : -1; })
+            .filter(function(i) { return i >= 0; });
+        const oldestAcordaoItemIdx = acordaoItemIndices.length > 0 ? Math.max.apply(null, acordaoItemIndices) : -1;
+
+        const depositos = [];
+        const recursosPassivo = [];
+        for (const rec of todosRecursos) {
+            const recItemIdx = items.indexOf(rec);
+            const ocorreuDepoisDoAcordao = oldestAcordaoItemIdx !== -1 && recItemIdx < oldestAcordaoItemIdx;
+
+            const resolucaoConteudo = await _resolverPartePorConteudoRecurso(rec, passivo, procIdEfetivo);
+            const nomesPartes = resolucaoConteudo
+                ? resolucaoConteudo.partes.map(function(p) { return p.nomeParte; }).join(' + ')
+                : '';
+            const polo = resolucaoConteudo
+                ? 'PASSIVO'
+                : _detectarPoloPassivo(rec._raw, passivo);
+
+            dbg('[prep] Recurso', rec.categoria, '(idProc=' + procIdEfetivo + ') → parte:', nomesPartes, '(' + polo + ') via', resolucaoConteudo ? resolucaoConteudo.metodo : 'não localizada no conteúdo');
+
+            if (polo === 'PASSIVO') {
+                recursosPassivo.push({
+                    tipo: rec.categoria,
+                    texto: rec.titulo,
+                    href: _montarHref(rec.uid, procIdEfetivo),
+                    data: rec.data,
+                    depositante: nomesPartes,
+                });
+            }
+
+            if (!ocorreuDepoisDoAcordao && polo !== 'PASSIVO') continue;
+            if (rec.anexos.length === 0) continue;
+
+            depositos.push({
+                tipo: rec.categoria,
+                texto: rec.titulo,
+                href: _montarHref(rec.uid, procIdEfetivo),
+                idProcesso: procIdEfetivo,
+                data: rec.data,
+                depositante: nomesPartes,
+                polo: polo,
+                anexos: rec.anexos.filter(function(a, idx, self) {
+                    return self.findIndex(function(t) {
+                        return (t.uid && t.uid === a.uid) || (t.idDoc && t.idDoc === a.idDoc);
+                    }) === idx;
+                }).map(function(a) {
+                    const cls = classificarAnexo(a.titulo);
+                    return {
+                        texto: a.titulo,
+                        id: a.uid || (a.idDoc ? String(a.idDoc) : null),
+                        tipo: cls.tipo,
+                        ordem: cls.ordem,
+                    };
+                }).sort(function(a, b) { return a.ordem - b.ordem; }),
+            });
+        }
+
+        depositos.sort(function(a, b) {
+            const ts = function(s) {
+                if (!s) return 0;
+                const p = s.split('/');
+                if (p.length < 3) return 0;
+                return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])).getTime();
+            };
+            return ts(a.data) - ts(b.data);
+        });
+
+        return { depositos, recursosPassivo };
+    }
+
+    async function executarPrepProcessoRelacionado(idProcessoRelacionado, partesDataFallback) {
+        const idRel = String(idProcessoRelacionado || '');
+        if (!idRel) throw new Error('ID do processo relacionado não informado');
+
+        console.log('[prep.js] Iniciando extração de custas e depósitos do processo relacionado id=' + idRel);
+        let partesRel = { ativo: [], passivo: [], outros: [] };
+        try {
+            partesRel = await _fetchPartes(idRel);
+        } catch (e) {
+            warn('[prep] Falha ao buscar partes do relacionado id=' + idRel + ':', e.message);
+        }
+        const passivoRel = (partesRel.passivo && partesRel.passivo.length > 0)
+            ? partesRel.passivo
+            : ((partesDataFallback && Array.isArray(partesDataFallback.passivo)) ? partesDataFallback.passivo : []);
+
+        const rawItems = await _fetchTimeline(idRel);
+        const items = rawItems.map(_classifyItem);
+        const acordaos = items.filter(function(i) { return i.categoria === 'acordao'; });
+
+        const { sentencaAlvo, sentencaDados } = await _extrairSentencaDaTimeline(items, passivoRel, idRel);
+        const { depositos, recursosPassivo } = await _extrairDepositosDaTimeline(items, passivoRel, idRel);
+
+        return {
+            origem: 'relacionado',
+            idProcesso: idRel,
+            partes: partesRel,
+            sentenca: {
+                data: sentencaAlvo ? sentencaAlvo.data : null,
+                href: sentencaAlvo ? _montarHref(sentencaAlvo.uid, idRel) : null,
+                custas: sentencaDados.custas,
+                hsusp: sentencaDados.hsusp,
+                responsabilidade: sentencaDados.responsabilidade,
+                responsabilidadeDetalhe: sentencaDados.responsabilidadeDetalhe,
+                honorariosPericiais: sentencaDados.honorariosPericiais,
+            },
+            acordaos: acordaos.map(function(a) {
+                return { data: a.data, href: _montarHref(a.uid, idRel), id: a.uid || String(a.idDoc || '') };
+            }),
+            depositos,
+            recursosPassivo,
+        };
+    }
+
+    // ==========================================
     // ORQUESTRADOR PRINCIPAL - API puro
     // ==========================================
 
@@ -1121,51 +1370,12 @@
             });
 
             // 3. Classificar por categoria
-            const sentencas = items.filter(function(i) { return i.categoria === 'sentenca'; });
             const acordaos = items.filter(function(i) { return i.categoria === 'acordao'; });
             const editais = items.filter(function(i) { return i.categoria === 'edital'; });
             const honAjJt = items.filter(function(i) { return i.categoria === 'hon_ajjt'; });
-            const todosRecursos = items.filter(function(i) { return i.categoria === 'RO' || i.categoria === 'RR' || i.categoria === 'RA'; });
 
             // 4. Sentenca - mais antiga = ultimo no array (timeline DESC)
-            const sentencaAlvo = sentencas.length > 0 ? sentencas[sentencas.length - 1] : null;
-            let sentencaDados = {
-                custas: null,
-                hsusp: false,
-                trteng: false,
-                trtmed: false,
-                responsabilidade: null,
-                honorariosPericiais: [],
-                responsabilidadeDetalhe: {
-                    tipoGlobal: null,
-                    principal: passivo[0] ? passivo[0].nome : '',
-                    extrasSubsidiarias: [],
-                    extrasSolidarias: [],
-                    mencionadas: [],
-                    trechoFonte: '',
-                    escopoFonte: null,
-                    estrategias: [],
-                    dispositivoEncontrado: false,
-                    primeiroParagrafoPreview: '',
-                },
-            };
-            if (sentencaAlvo && sentencaAlvo.idDoc) {
-                try {
-                    let texto = null;
-                    if (typeof window.pjeExtrairApi === 'function' && sentencaAlvo.uid) {
-                        try {
-                            const ext = await window.pjeExtrairApi(sentencaAlvo.uid, { idProcesso: _idProcesso() });
-                            if (ext && ext.sucesso) texto = ext.conteudo_bruto || ext.conteudo || null;
-                        } catch (e) { /* fallback */ }
-                    }
-                    if (!texto) {
-                        const r = await _fetchDocHtml(sentencaAlvo.idDoc);
-                        texto = r.texto || null;
-                    }
-                    if (texto) sentencaDados = _extrairDadosSentenca(texto, passivo);
-                    dbg('[prep] Sentenca extraida:', sentencaDados);
-                } catch (e) { warn('[prep] Falha ao ler sentenca:', e.message); }
-            }
+            const { sentencaAlvo, sentencaDados } = await _extrairSentencaDaTimeline(items, passivo);
 
             // 5. Peritos AJ-JT
             let peritosComAjJt = [];
@@ -1207,67 +1417,8 @@
                 warn('[prep] Falha na detecção de perito contábil por planilha:', e.message);
             }
 
-            // 6. Depositos - resolver parte via pipeline advogado, filtrar polo passivo com anexos
-            const acordaoItemIndices = items
-                .map(function(it, idx) { return it.categoria === 'acordao' ? idx : -1; })
-                .filter(function(i) { return i >= 0; });
-            const oldestAcordaoItemIdx = acordaoItemIndices.length > 0 ? Math.max.apply(null, acordaoItemIndices) : -1;
-
-            const depositos = [];
-            for (const rec of todosRecursos) {
-                const recItemIdx = items.indexOf(rec);
-                const ocorreuDepoisDoAcordao = oldestAcordaoItemIdx !== -1 && recItemIdx < oldestAcordaoItemIdx;
-
-                // A parte do recurso deve ser identificada no conteúdo da primeira página.
-                // Se não for localizada entre as partes do prep, não preencher o depositante.
-                const resolucaoConteudo = await _resolverPartePorConteudoRecurso(rec, passivo);
-                const nomesPartes = resolucaoConteudo
-                    ? resolucaoConteudo.partes.map(function(p) { return p.nomeParte; }).join(' + ')
-                    : '';
-                const polo = resolucaoConteudo
-                    ? 'PASSIVO'
-                    : _detectarPoloPassivo(rec._raw, passivo);
-
-                dbg('[prep] Recurso', rec.categoria, '→ parte:', nomesPartes, '(' + polo + ') via', resolucaoConteudo ? resolucaoConteudo.metodo : 'não localizada no conteúdo');
-
-                // Filtro: apenas polo passivo (ou pós-acórdão) COM anexos
-                if (!ocorreuDepoisDoAcordao && polo !== 'PASSIVO') continue;
-                if (rec.anexos.length === 0) continue;
-
-                depositos.push({
-                    tipo: rec.categoria,
-                    texto: rec.titulo,
-                    href: _montarHref(rec.uid),
-                    data: rec.data,
-                    depositante: nomesPartes,
-                    polo: polo,
-                    anexos: rec.anexos.filter(function(a, idx, self) {
-                        // Deduplicar por UID ou idDoc
-                        return self.findIndex(function(t) {
-                            return (t.uid && t.uid === a.uid) || (t.idDoc && t.idDoc === a.idDoc);
-                        }) === idx;
-                    }).map(function(a) {
-                        const cls = classificarAnexo(a.titulo);
-                        return {
-                            texto: a.titulo,
-                            id: a.uid || (a.idDoc ? String(a.idDoc) : null),
-                            tipo: cls.tipo,
-                            ordem: cls.ordem,
-                        };
-                    }).sort(function(a, b) { return a.ordem - b.ordem; }),
-                });
-            }
-
-            // Ordenar depositos por data (mais antigos primeiro)
-            depositos.sort(function(a, b) {
-                const ts = function(s) {
-                    if (!s) return 0;
-                    const p = s.split('/');
-                    if (p.length < 3) return 0;
-                    return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])).getTime();
-                };
-                return ts(a.data) - ts(b.data);
-            });
+            // 6. Depositos - mesma funcao compartilhada com processo relacionado
+            const { depositos, recursosPassivo } = await _extrairDepositosDaTimeline(items, passivo);
 
             // 7. Editais - partes intimadas
             let partesIntimadasEdital = [];
@@ -1314,6 +1465,7 @@
                     return { data: a.data, href: _montarHref(a.uid), id: a.uid || String(a.idDoc || '') };
                 }),
                 depositos,
+                recursosPassivo,
                 editais: editais.map(function(e) { return { data: e.data, href: _montarHref(e.uid) }; }),
                 partesIntimadasEdital,
                 conferenciaAcordao,
@@ -1341,6 +1493,8 @@
     // EXPORTS
     // ==========================================
     window.executarPrep = executarPrep;
+    window.hcalcBuscarProcessosRelacionados = _buscarProcessosRelacionados;
+    window.hcalcExecutarPrepRelacionado = executarPrepProcessoRelacionado;
     window.destacarElementoNaTimeline = destacarElementoNaTimeline;
     window.encontrarItemTimeline = encontrarItemTimeline;
     window.expandirAnexos = expandirAnexos;

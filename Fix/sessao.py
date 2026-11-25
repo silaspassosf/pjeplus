@@ -210,19 +210,22 @@ def _aguardar_formulario_sso(driver, teto=6.0):
 def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True, forcar=False):
     """Login automático por CPF/senha alimentado pelo Gerenciador de Credenciais do Windows."""
     try:
-        if forcar or not sessao_oauth_completa(driver):
-            try:
-                driver.delete_all_cookies()
-            except Exception:
-                pass
-        else:
-            if not forcar and verificar_e_aplicar_cookies(driver):
+        if not forcar:
+            if sessao_oauth_completa(driver):
+                logger.info('[LOGIN_CPF] Sessao OAuth ja ativa no navegador — reutilizando.')
+                return True
+            if verificar_e_aplicar_cookies(driver):
                 if SALVAR_COOKIES_AUTOMATICO:
                     try:
                         salvar_cookies_sessao(driver, info_extra='cookies_reutilizados_login_cpf')
                     except Exception:
                         pass
                 return True
+
+        try:
+            driver.delete_all_cookies()
+        except Exception:
+            pass
 
         if not url_login:
             url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
@@ -510,12 +513,22 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
             logger.debug('[COOKIES] Cookies muito antigos (%.1fh). Pulando.', idade.total_seconds()/3600)
             return False
 
-        driver.get('https://pje.trt2.jus.br/primeirograu/')
+        if any(not c.get('domain') for c in cookies):
+            driver.get('https://pje.trt2.jus.br/primeirograu/')
 
+        agora_ts = time.time()
         cookies_carregados = 0
         for cookie in cookies:
             try:
-                cookie_limpo = {k: v for k, v in cookie.items() if k not in ['expiry', 'httpOnly', 'secure', 'sameSite']}
+                cookie_limpo = {
+                    k: v for k, v in cookie.items()
+                    if k in ('name', 'value', 'domain', 'path', 'secure', 'httpOnly', 'sameSite', 'expiry')
+                    and v is not None
+                }
+                if 'expiry' in cookie_limpo and float(cookie_limpo['expiry']) <= agora_ts:
+                    continue
+                if cookie_limpo.get('sameSite') == 'None' and not cookie_limpo.get('secure'):
+                    cookie_limpo.pop('sameSite', None)
                 driver.add_cookie(cookie_limpo)
                 cookies_carregados += 1
             except Exception as e:

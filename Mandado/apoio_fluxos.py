@@ -773,9 +773,49 @@ def _encontrar_elemento_por_uid(
     return None
 
 
+def _baixar_texto_doc_api(client: Any, id_processo: str, doc: dict, log: bool = False) -> Optional[str]:
+    """Baixa o PDF de um documento da timeline via API e extrai seu texto."""
+    id_doc = str(doc.get('id') or doc.get('idDocumento') or '')
+    if not id_doc or not hasattr(client, 'sess') or not hasattr(client, '_url'):
+        return None
+    try:
+        url_conteudo = client._url(
+            f'/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_doc}/conteudo'
+        )
+        resp = client.sess.get(url_conteudo, timeout=30)
+        if resp.status_code != 200:
+            return None
+        pdf_bytes = resp.content
+        if not pdf_bytes or not pdf_bytes.startswith(b'%PDF'):
+            return None
+        return _extrair_texto_pdf_bytes(pdf_bytes, log=log) or None
+    except Exception:
+        return None
+
+
+def _elemento_contem_uid(elem: Any, uid: str) -> bool:
+    """Verifica se o item da timeline no DOM corresponde ao `idUnicoDocumento` informado."""
+    uid_norm = (uid or '').strip().lower()
+    if not uid_norm:
+        return False
+    try:
+        if uid_norm in (getattr(elem, 'text', '') or '').lower():
+            return True
+    except Exception:
+        pass
+    try:
+        links = espera.elementos(elem, 'a[href]', teto=0.2)
+        for link in links or []:
+            if uid_norm in (link.get_attribute('href') or '').lower():
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tuple:
     """Identifica documentos do bloco ARGOS via API + DOM e retorna (elementos, uids_sigilosos)."""
-    import unicodedata
+    from .regras import casa_regra_argos
 
     id_processo = _extrair_id_processo_da_url(driver)
     if not id_processo:
@@ -800,55 +840,78 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
         if not docs:
             return [], []
 
-        # antigas de meses/anos anteriores e deixava os documentos atuais com sigilo.
-        idxs_cert = []
+        def _eh_ato_api(doc: dict) -> bool:
+            tipo_n = _norm(doc.get('tipo', ''))
+            if tipo_n:
+                return ('decis' in tipo_n or 'despach' in tipo_n) and 'certid' not in tipo_n and 'intimac' not in tipo_n
+            titulo_n = _norm(doc.get('titulo', ''))
+            return ('decis' in titulo_n or 'despach' in titulo_n) and 'certid' not in titulo_n and 'intimac' not in titulo_n
+
+        # A timeline do PJe vem da mais recente para a mais antiga (idx=0 mais recente).
+        # Ancorar na certidão de devolução mais recente e localizar a primeira
+        # Decisão/Despacho anterior a ela cujo conteúdo bate com as regras Argos.
+        idxs_cert_todos = []
+        idxs_ato_todos = []
         for i, doc in enumerate(docs):
             t = _norm(doc.get('tipo', '')) + ' ' + _norm(doc.get('titulo', ''))
             if 'certid' in t and 'devolu' in t:
-                idxs_cert.append(i)
-                if log:
-                    logger.debug('[SEQUENCIAIS_API] certidao_devolucao idx=%d uid=%s', i, doc['idUnicoDocumento'])
+                idxs_cert_todos.append(i)
+            elif _eh_ato_api(doc):
+                idxs_ato_todos.append(i)
 
-        if not idxs_cert:
+        if not idxs_cert_todos:
             if log:
                 logger.info('[SEQUENCIAIS_API] Certidao de devolucao nao encontrada na API')
             return [], []
 
-        if len(idxs_cert) > 1 and log:
-            logger.info(
-                '[SEQUENCIAIS_API] %d certidões de devolução na timeline — usando a mais recente (idx=%d) como âncora',
-                len(idxs_cert), idxs_cert[0],
-            )
+        idx_cert = None
+        atos_apos_cert: List[int] = []
+        for cand_cert in idxs_cert_todos:
+            atos = [i for i in idxs_ato_todos if i > cand_cert]
+            if atos:
+                idx_cert = cand_cert
+                atos_apos_cert = atos
+                break
 
-        idx_cert = idxs_cert[0]
+        if idx_cert is None or not atos_apos_cert:
+            if log:
+                logger.info('[SEQUENCIAIS_API] Decisao/Despacho anterior à certidao nao encontrada na API')
+            return [], []
 
+        # Localiza a primeira Decisão/Despacho anterior à certidão que bate com
+        # as regras Argos — ela é a âncora real do bloco (atravessa atos intermediários).
         idx_decisao = None
-        for i in range(idx_cert + 1, len(docs)):
-            t = _norm(docs[i].get('tipo', '')) + ' ' + _norm(docs[i].get('titulo', ''))
-            if 'decis' in t and 'certid' not in t:
-                idx_decisao = i
-                if log:
-                    logger.debug('[SEQUENCIAIS_API] decisao idx=%d uid=%s', i, docs[i]['idUnicoDocumento'])
+        pos_ato_ancora = 0
+        regra_ancora = None
+        for pos, cand_ato in enumerate(atos_apos_cert[:5]):
+            doc_ato = docs[cand_ato]
+            texto_ato = _baixar_texto_doc_api(client, id_processo, doc_ato, log=False)
+            if not texto_ato:
+                continue
+            regra = casa_regra_argos(doc_ato.get('tipo', ''), texto_ato)
+            if regra:
+                idx_decisao = cand_ato
+                pos_ato_ancora = pos
+                regra_ancora = regra
                 break
 
         if idx_decisao is None:
-            for i in range(idx_cert + 1, len(docs)):
-                t = _norm(docs[i].get('tipo', '')) + ' ' + _norm(docs[i].get('titulo', ''))
-                if 'despach' in t and 'certid' not in t:
-                    idx_decisao = i
-                    if log:
-                        logger.debug('[SEQUENCIAIS_API] fallback despacho idx=%d uid=%s', i, docs[i]['idUnicoDocumento'])
-                    break
+            idx_decisao = atos_apos_cert[0]
+            pos_ato_ancora = 0
 
-        if idx_decisao is None:
-            if log:
-                logger.info('[SEQUENCIAIS_API] Decisao/Despacho nao encontrada apos certidao na API')
-            return [], []
+        uid_ancora = str(docs[idx_decisao].get('idUnicoDocumento') or '')
 
         def _tem_sigilo_api(doc: dict) -> bool:
             return bool(
                 doc.get('sigiloso') or doc.get('sigilo')
                 or doc.get('isSigiloso') or doc.get('isSignificant')
+            )
+
+        if log:
+            logger.info(
+                '[SEQUENCIAIS_API] Bloco ancorado: certidao idx=%d (%d total) -> ato idx=%d (%s, uid=%s, regra=%s)',
+                idx_cert, len(idxs_cert_todos), idx_decisao,
+                docs[idx_decisao].get('tipo', '?'), uid_ancora, regra_ancora or 'fallback_primeiro_ato',
             )
 
         bloco_idx = [idx_cert] + list(range(idx_cert + 1, idx_decisao)) + [idx_decisao]
@@ -866,51 +929,52 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
         if not elementos:
             return [], []
 
+        textos_dom = [_norm(elem.text.strip()) for elem in elementos]
         idxs_cert_dom = []
-        for idx, elem in enumerate(elementos):
-            texto = _norm(elem.text.strip())
-            if 'certidao de devolucao' in texto:
+        idxs_ato_dom = []
+        for idx, t_dom in enumerate(textos_dom):
+            if 'certidao de devolucao' in t_dom:
                 idxs_cert_dom.append(idx)
-                if log:
-                    logger.debug('[SEQUENCIAIS_API] DOM: certidao_devolucao idx=%d', idx)
+            elif 'decisao(' in t_dom or 'despacho(' in t_dom:
+                idxs_ato_dom.append(idx)
 
         if not idxs_cert_dom:
             if log:
-                logger.info('[SEQUENCIAIS_API] Certidao de devolucao nao localizada no DOM')
+                logger.info('[SEQUENCIAIS_API] DOM: Certidao de devolucao nao localizada')
             return [], []
 
-        if len(idxs_cert_dom) > 1 and log:
-            logger.info(
-                '[SEQUENCIAIS_API] DOM: %d certidões de devolução — usando a mais recente (idx=%d) como âncora',
-                len(idxs_cert_dom), idxs_cert_dom[0],
-            )
-
-        idx_cert_dom = idxs_cert_dom[0]
-
-        idx_decisao_dom = None
-        for idx in range(idx_cert_dom + 1, len(elementos)):
-            texto = _norm(elementos[idx].text.strip())
-            if 'decisao(' in texto:
-                idx_decisao_dom = idx
-                if log:
-                    logger.debug('[SEQUENCIAIS_API] DOM: decisao idx=%d', idx)
+        idx_cert_dom = None
+        atos_dom_apos: List[int] = []
+        for cand_cert in idxs_cert_dom:
+            atos = [idx for idx in idxs_ato_dom if idx > cand_cert]
+            if atos:
+                idx_cert_dom = cand_cert
+                atos_dom_apos = atos
                 break
 
-        if idx_decisao_dom is None:
-            for idx in range(idx_cert_dom + 1, len(elementos)):
-                texto = _norm(elementos[idx].text.strip())
-                if 'despacho(' in texto:
-                    idx_decisao_dom = idx
-                    if log:
-                        logger.debug('[SEQUENCIAIS_API] DOM: fallback despacho idx=%d', idx)
-                    break
-
-        if idx_decisao_dom is None:
+        if idx_cert_dom is None or not atos_dom_apos:
             if log:
-                logger.info('[SEQUENCIAIS_API] Decisao/Despacho nao localizada no DOM')
+                logger.info('[SEQUENCIAIS_API] DOM: Decisao/Despacho anterior à certidao nao localizada')
             return [], []
 
-        resultado: List[Any] = [elementos[idx_cert_dom]]
+        # Mapeia a âncora real no DOM: 1) match direto por uid_ancora; 2) posição
+        # ordinal equivalente; 3) fallback para o primeiro ato anterior à certidão.
+        idx_decisao_dom = next(
+            (idx for idx in atos_dom_apos if _elemento_contem_uid(elementos[idx], uid_ancora)),
+            None,
+        )
+        if idx_decisao_dom is None:
+            idx_decisao_dom = (
+                atos_dom_apos[pos_ato_ancora]
+                if pos_ato_ancora < len(atos_dom_apos)
+                else atos_dom_apos[0]
+            )
+
+        if log:
+            logger.info(
+                '[SEQUENCIAIS_API] DOM: bloco ancorado certidao idx=%d (%d total) -> ato idx=%d (uid=%s)',
+                idx_cert_dom, len(idxs_cert_dom), idx_decisao_dom, uid_ancora,
+            )
 
         _TERMOS_MEIO_DOM = {
             'certidao_devolucao': ['certidao de devolucao'],
@@ -920,14 +984,23 @@ def buscar_documentos_sequenciais_via_api(driver: Any, log: bool = True) -> tupl
             'ordem_pesquisa':     ['ordem de pesquisa'],
             'intimacao':          ['intimacao('],
         }
+
+        resultado: List[Any] = [elementos[idx_cert_dom]]
+
         for idx in range(idx_cert_dom + 1, idx_decisao_dom):
-            texto = _norm(elementos[idx].text.strip())
+            texto = textos_dom[idx]
+            matched = False
             for nome, palavras in _TERMOS_MEIO_DOM.items():
                 if any(palavra in texto for palavra in palavras):
                     resultado.append(elementos[idx])
+                    matched = True
                     if log:
                         logger.debug('[SEQUENCIAIS_API] DOM: %s idx=%d', nome, idx)
                     break
+            if matched:
+                continue
+            if ('decisao(' in texto or 'despacho(' in texto) and _elemento_esta_sigiloso(elementos[idx]):
+                resultado.append(elementos[idx])
 
         resultado.append(elementos[idx_decisao_dom])
 

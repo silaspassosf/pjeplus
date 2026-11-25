@@ -211,6 +211,17 @@ ato_pagto = make_ato_wrapper(
     marcar_primeiro_destinatario=False,
     Assinar=True
 )
+ato_cp1 = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='. deprec',
+    descricao='cumprir cp',
+    intimar=False,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    Assinar=False
+)
 
 ato_edital = make_ato_wrapper(
     conclusao_tipo='Despacho',

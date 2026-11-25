@@ -37,7 +37,8 @@ def _ctx(driver):
 
 
 def _ms(timeout):
-    return int(float(timeout) * 1000)
+    ms = int(float(timeout) * 1000)
+    return ms if ms > 0 else 1
 
 
 def _delegar(nome, *args, **kwargs):
@@ -324,6 +325,12 @@ def elemento(driver, seletor, teto=10, visivel=True):
     if ctx is None:
         return _delegar("elemento", driver, seletor, teto, visivel)
     try:
+        if float(teto) <= 0:
+            for handle in ctx.query_selector_all(seletor):
+                el = PWElement(handle, driver.page)
+                if not visivel or el.is_displayed():
+                    return el
+            return None
         handle = ctx.wait_for_selector(
             seletor, state="visible" if visivel else "attached", timeout=_ms(teto)
         )
@@ -336,10 +343,11 @@ def elementos(driver, seletor, teto=10):
     ctx = _ctx(driver)
     if ctx is None:
         return _delegar("elementos", driver, seletor, teto)
-    try:
-        ctx.wait_for_selector(seletor, state="attached", timeout=_ms(teto))
-    except Exception:
-        return []
+    if float(teto) > 0:
+        try:
+            ctx.wait_for_selector(seletor, state="attached", timeout=_ms(teto))
+        except Exception:
+            return []
     try:
         handles = ctx.query_selector_all(seletor)
         return [PWElement(h, driver.page) for h in handles]
@@ -392,6 +400,19 @@ _ALVOS = {
         "wait_for_visible", "wait_for_clickable", "esperar_url_conter",
         "aguardar_e_clicar", "safe_click", "safe_click_no_scroll",
         "preencher_campo", "preencher_multiplos_campos", "selecionar_opcao",
+    ],
+    "Fix.navegacao_espera": [
+        "aguardar_renderizacao_nativa", "wait_for_page_load", "esperar_elemento",
+        "wait_for_visible", "wait_for_clickable", "esperar_url_conter",
+    ],
+    "Fix.navegacao": [
+        "aguardar_e_clicar", "safe_click", "safe_click_no_scroll",
+    ],
+    "Fix.entrada_campos": [
+        "preencher_campo", "preencher_multiplos_campos", "selecionar_opcao",
+    ],
+    "Fix.filtros_painel": [
+        "aguardar_renderizacao_nativa", "aguardar_e_clicar", "safe_click_no_scroll",
     ],
     "Fix.browser_suporte": [
         "click_headless_safe", "safe_click_no_scroll", "scroll_to_element_safe",

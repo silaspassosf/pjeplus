@@ -175,7 +175,7 @@ class TestCaracterizacaoPEC(unittest.TestCase):
         self.assertEqual(prazo_5.weekday(), 2)  # Quarta-feira seguinte (pula fds)
 
     def test_selecionar_modelo_gigs_imports(self):
-        import PEC.anexos.anexos_juntador_metodos as metodos
+        import atos.anexos.anexos_juntador_metodos as metodos
         self.assertTrue(hasattr(metodos, 'time'))
         self.assertIsNotNone(metodos.time)
 
@@ -460,7 +460,9 @@ class TestCaracterizacaoP2B(unittest.TestCase):
                 break
 
         self.assertIsNotNone(regra_casada)
-        self.assertEqual(regra_casada, ("criar_gigs[1//xs saldo]",))
+        # A regra cria o xs saldo e, em seguida, apaga o xs1 do processo.
+        self.assertEqual(regra_casada[0], "criar_gigs[1//xs saldo]")
+        self.assertEqual(getattr(regra_casada[1], '__name__', str(regra_casada[1])), '_remover_gigs_xs1')
 
     def test_p2b_regra_arquivar_devendo_diligenciar_cartorio(self):
         """Valida que 'devendo diligenciar junto ao cartório' aciona a ação de arquivamento guardada."""
@@ -587,6 +589,34 @@ class TestCaracterizacaoP2B(unittest.TestCase):
                    return_value=(None, None)):
             info = eng.classificar_processo(object(), '125')
         self.assertIsNone(info['acionavel'])   # abre como fallback
+
+    def test_p2b_xs_saldo_apaga_xs1(self):
+        """Regra de xs saldo apaga o xs1 (qualquer estado de prazo) e não aborta em falha."""
+        from unittest.mock import patch, MagicMock
+        import Prazo.p2b_documentos as doc
+
+        # 1) regra declara a remoção depois de criar o xs saldo
+        regras = doc._definir_regras_processamento()
+        acoes_saldo = [a for trechos, a in regras if any('saldo devedor' in str(t) for t in trechos)][0]
+        nomes = [getattr(x, '__name__', str(x)) for x in acoes_saldo]
+        self.assertIn('_remover_gigs_xs1', nomes)
+        self.assertTrue(any('xs saldo' in str(x) for x in acoes_saldo))
+
+        # 2) localiza -> confirma -> não acha mais: removeu 1
+        seq = iter([True, True, False])
+        with patch('Fix.navegacao._executar_js', side_effect=lambda *a, **k: next(seq)), \
+             patch.object(doc.espera, 'assentar', return_value=None):
+            self.assertTrue(doc._remover_gigs_xs1(MagicMock()))
+
+        # 3) sem xs1: não quebra
+        with patch('Fix.navegacao._executar_js', return_value=False), \
+             patch.object(doc.espera, 'assentar', return_value=None):
+            self.assertTrue(doc._remover_gigs_xs1(MagicMock()))
+
+        # 4) xs1 existe mas o "Sim" não aparece: não aborta o fluxo (condução tranquila)
+        with patch('Fix.navegacao._executar_js', side_effect=[True, False]), \
+             patch.object(doc.espera, 'assentar', return_value=None):
+            self.assertTrue(doc._remover_gigs_xs1(MagicMock()))
 
     def test_p2b_regra_iniciar_exec_comprovar_recolhimento_sob_pena_execucao(self):
         """Valida que intimação com comprovação de recolhimento sob pena de execução dispara _inicar_exec."""

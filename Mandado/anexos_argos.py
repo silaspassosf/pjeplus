@@ -212,13 +212,24 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
         except Exception:
             continue
 
-    if btn_anexos_encontrado:
+    anexos_ja_abertos = espera.elementos(doc, _SELETORES_ANEXOS['anexos'], teto=0.2) if escopo_doc else []
+    if anexos_ja_abertos:
+        anexos = anexos_ja_abertos
+        if log:
+            logger.info('[ARGOS][ANEXOS] Anexos já expandidos no documento (%d)', len(anexos))
+    elif btn_anexos_encontrado:
         try:
             # JavaScript direto conforme legado (evita abertura de aba e ignora overlays)
             safe_click_no_scroll(driver, btn_anexos_encontrado)
             if log:
                 logger.info('[ARGOS][ANEXOS]  Anexos abertos (via clique no botão de anexos)')
-            aguardar_renderizacao_nativa(driver, _SELETORES_ANEXOS['anexos'], modo='aparecer', timeout=5)
+            if escopo_doc:
+                # Aguarda os anexos renderizarem dentro do próprio documento, pois documentos
+                # anteriores podem já estar com `.tl-item-anexo` expandido no DOM global.
+                anexos = espera.elementos(doc, _SELETORES_ANEXOS['anexos'], teto=5)
+            else:
+                aguardar_renderizacao_nativa(driver, _SELETORES_ANEXOS['anexos'], modo='aparecer', timeout=5)
+                anexos = espera.elementos(driver, _SELETORES_ANEXOS['anexos'], teto=2)
         except Exception as e:
             if log:
                 logger.info(f'[ARGOS][ANEXOS][ERRO] Falha ao abrir anexos: {e}')
@@ -228,7 +239,6 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
             logger.info('[ARGOS][ANEXOS]  Botão de anexos não encontrado com nenhum seletor testado')
         return None
 
-    anexos = espera.elementos(doc if escopo_doc else driver, _SELETORES_ANEXOS['anexos'], teto=2)
     tem_anexos = len(anexos) > 0
 
     if not anexos:
@@ -243,14 +253,45 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
     executados = []
     resultado_sisbajud = None
 
+    # Identifica previamente se há algum anexo especial neste documento — evita ativar
+    # e desativar múltipla seleção à toa em certidões sem anexos INFOJUD/IRPF/etc.
+    anexos_especiais = []
+    for anexo in anexos:
+        try:
+            texto_anexo = anexo.text.strip()
+        except Exception:
+            texto_anexo = ''
+        tipo = _identificar_tipo_anexo(texto_anexo)
+        if tipo:
+            anexos_especiais.append((anexo, tipo))
+
+    if not anexos_especiais:
+        if log:
+            logger.info('[ARGOS][ANEXOS] Nenhum anexo especial encontrado.')
+        return ResultadoExecucao(
+            sucesso=True,
+            status='OK',
+            detalhes={
+                'found_sigilo': found_sigilo,
+                'sigilo_anexos': sigilo_anexos,
+                'sigiloso': False,
+                'tem_anexos': tem_anexos
+            }
+        )
+
     if log:
         logger.info('[ARGOS][ANEXOS] Ativando múltipla seleção...')
     try:
+        sel_ocultar = 'button[aria-label="Ocultar múltipla seleção."]'
         seletor_multi = 'button[aria-label="Exibir múltipla seleção."]'
-        if espera.ate_habilitar(driver, seletor_multi, teto=10):
+        if espera.elemento(driver, sel_ocultar, teto=0.3):
+            if log:
+                logger.info('[ARGOS][ANEXOS]  [OK] Múltipla seleção já ativa')
+        elif espera.ate_habilitar(driver, seletor_multi, teto=10):
             btn_multi = espera.elemento(driver, seletor_multi, teto=1)
             if btn_multi:
                 safe_click_no_scroll(driver, btn_multi)
+                espera.elemento(anexos_especiais[0][0], 'mat-checkbox', teto=2)
                 if log:
                     logger.info('[ARGOS][ANEXOS]  [OK] Múltipla seleção ativada')
         elif log:
@@ -278,12 +319,7 @@ def tratar_anexos_argos(driver: Any, documentos_sequenciais: List[Any], log: boo
 
     # 1. Inserir sigilo individualmente em cada anexo especial
     try:
-        for anexo in anexos:
-            texto_anexo = anexo.text.strip()
-            tipo = _identificar_tipo_anexo(texto_anexo)
-            if not tipo:
-                continue
-
+        for anexo, tipo in anexos_especiais:
             if tipo not in found_sigilo:
                 found_sigilo[tipo] = False
             if tipo not in sigilo_anexos:

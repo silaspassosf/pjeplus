@@ -26,7 +26,7 @@ ATIVA = {'existe': True, 'ativa': True, 'painel': True, 'ativa_texto': 'intimaç
 
 
 def _buscar(mapa):
-    def _fn(_driver, seletor, timeout=0):
+    def _fn(_driver, seletor, timeout=0, **kwargs):
         return mapa.get(seletor)
     return _fn
 
@@ -174,7 +174,7 @@ class TestCliqueAbaIntimacoes(unittest.TestCase):
 
     def test_primeiro_candidato_e_o_provado_por_posicao(self):
         self.assertEqual(S1, 'pje-editor-lateral div[role="tab"][aria-posinset="1"]')
-        self.assertEqual(len(jf.SELETORES_ABA_INTIMACOES), 5)
+        self.assertEqual(len(jf.SELETORES_ABA_INTIMACOES), 6)
 
     def test_retry_reclica_quando_painel_nao_monta(self):
         """Painel demora a montar: o retry precisa clicar de novo, não desistir."""

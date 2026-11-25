@@ -182,29 +182,35 @@ const sels = [
 ];
 const vistos = new Set();
 const candidatos = [];
+const pecDialogoAberto = !!document.querySelector('pje-pec-dialogo-ato');
 for (const sel of sels) {
     for (const el of document.querySelectorAll(sel)) {
         if (vistos.has(el)) continue;
         vistos.add(el);
-        if (el.closest('pje-dialogo-visualizar-modelo, mat-dialog-container, .mat-dialog-container')) continue;
+        if (el.closest('pje-dialogo-visualizar-modelo')) continue;
+        const emPecDialogo = !!el.closest('pje-pec-dialogo-ato');
+        if (el.closest('mat-dialog-container, .mat-dialog-container') && !emPecDialogo) continue;
         const lbl = norm(el.getAttribute('aria-label') || '');
         const ehPrincipal = lbl.includes('conteudo principal') || lbl.includes('dispositivo') || lbl.includes('fundamentacao');
         const ehAuxiliar = lbl.includes('cabecalho') || lbl.includes('rodape') || lbl.includes('ementa');
         const txt = textoLimpo(el);
-        candidatos.push({ el, ehPrincipal, ehAuxiliar, temMarcador: !!(marcador && txt.includes(marcador)), len: txt.length });
+        candidatos.push({ el, emPecDialogo, ehPrincipal, ehAuxiliar, temMarcador: !!(marcador && txt.includes(marcador)), len: txt.length });
     }
 }
 if (!candidatos.length) return null;
+const pool = (pecDialogoAberto && candidatos.some(c => c.emPecDialogo))
+    ? candidatos.filter(c => c.emPecDialogo)
+    : candidatos;
 if (marcador) {
-    const comMarcadorPrincipal = candidatos.find(c => c.temMarcador && c.ehPrincipal);
+    const comMarcadorPrincipal = pool.find(c => c.temMarcador && c.ehPrincipal);
     if (comMarcadorPrincipal) return comMarcadorPrincipal.el;
-    const comMarcador = candidatos.find(c => c.temMarcador && !c.ehAuxiliar);
+    const comMarcador = pool.find(c => c.temMarcador && !c.ehAuxiliar);
     if (comMarcador) return comMarcador.el;
 }
-const principal = candidatos.find(c => c.ehPrincipal);
+const principal = pool.find(c => c.ehPrincipal);
 if (principal) return principal.el;
-const naoAux = candidatos.find(c => !c.ehAuxiliar);
-return (naoAux || candidatos[0]).el;
+const naoAux = pool.find(c => !c.ehAuxiliar);
+return (naoAux || pool[0]).el;
 """
 
 

@@ -53,9 +53,14 @@ class TestNavegarParaConclusaoDireto(unittest.TestCase):
         rotear.assert_not_called()
 
     def test_roteia_quando_botao_nao_esta_na_tela(self):
-        """Sem o botão direto, o roteamento por Análise continua acontecendo."""
+        """Sem o botão direto, o roteamento por Análise continua acontecendo.
+
+        Usa uma tarefa do ramo genérico (não 'Aguardando prazo' nem 'Cumprimento de
+        Providências', que têm rota própria): é o único caminho que ainda sonda o
+        botão antes de rotear.
+        """
         d = _driver()
-        d.pje_tarefa_atual = 'Cumprimento de Providencias'
+        d.pje_tarefa_atual = 'Prazos Vencidos'
 
         with patch.object(nav, 'navegar_para_tarefa', return_value=True) as rotear, \
              patch.object(nav, 'aguardar_renderizacao_nativa', return_value=True), \
@@ -73,6 +78,34 @@ class TestNavegarParaConclusaoDireto(unittest.TestCase):
         # roteamento o container acha o botão.
         self.assertEqual(por_texto.call_count, 3)
         rotear.assert_called_once()
+
+    def test_cumprimento_providencias_nao_sonda_botao_antes(self):
+        """'Cumprimento de Providências' vai direto para Análise, sem gastar o teto de 6s.
+
+        O PJe não oferece 'Conclusão ao magistrado' direto nessa tarefa: sondar o
+        botão antes só custava 6s por processo para depois fazer a mesma rota.
+        """
+        d = _driver()
+        d.pje_tarefa_atual = 'Cumprimento de Providencias'
+        botao = MagicMock()
+        tetos = []
+
+        def elemento(_driver, _sel, teto=2):
+            tetos.append(teto)
+            return botao
+
+        with patch.object(nav, 'navegar_para_tarefa', return_value=True) as rotear, \
+             patch.object(nav, 'aguardar_renderizacao_nativa', return_value=True), \
+             patch.object(nav.espera, 'elemento', side_effect=elemento), \
+             patch.object(nav.espera, 'elementos', return_value=[]), \
+             patch.object(nav, 'limpar_overlays'), \
+             patch.object(nav, 'safe_click_no_scroll', return_value=True), \
+             patch.object(nav.espera, 'ate_aparecer', return_value=True):
+            ok = nav.navegar_para_conclusao(d)
+
+        self.assertTrue(ok)
+        rotear.assert_called_once()
+        self.assertNotIn(6, tetos, 'não deve sondar o botão com teto=6 antes de rotear')
 
     def test_nao_limpa_overlays_depois_do_clique(self):
         """O Escape pós-clique (que causava o 'refresh') não deve mais ocorrer."""

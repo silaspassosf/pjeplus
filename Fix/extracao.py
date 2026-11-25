@@ -1580,21 +1580,20 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
         logger.info(f'Procurando botão de polo {polo}...')
         try:
-            clicado = False
-            if hasattr(driver, 'page') and driver.page:
-                clicado = bool(driver.page.evaluate("""() => {
-                    var radio = document.querySelector('#selecao-polo input[value="Passivo"]');
-                    if (radio) {
-                        var matRadio = radio.closest('mat-radio-button') || radio;
-                        matRadio.click();
-                        return true;
-                    }
-                    return false;
-                }"""))
+            clicado = _bndt_clicar_radio_js(
+                driver,
+                seletores_input=[
+                    f'#selecao-polo input[type="radio"][value="{polo}"]',
+                    f'#selecao-polo input[type="radio"][value="{polo.upper()}"]',
+                    f'input[type="radio"][value="{polo}"]',
+                    f'input[type="radio"][value="{polo.upper()}"]',
+                ],
+                texto_label=polo,
+            )
             if not clicado:
                 seletor_polo = [
-                    (By.CSS_SELECTOR, '#selecao-polo input[value="Passivo"]'),
-                    (By.XPATH, "//input[@value='Passivo']/ancestor::mat-radio-button | //mat-radio-button[@value='Passivo']"),
+                    (By.CSS_SELECTOR, f'#selecao-polo input[value="{polo}"]'),
+                    (By.XPATH, f"//input[@value='{polo}']/ancestor::mat-radio-button//label | //mat-radio-button[@value='{polo}']//label"),
                 ]
 
                 btn_polo = None
@@ -1604,7 +1603,7 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
                         break
 
                 if not btn_polo:
-                    raise Exception('Botao de polo Passivo nao encontrado')
+                    raise Exception(f'Botao de polo {polo} nao encontrado')
 
                 try:
                     safe_click_no_scroll(driver, btn_polo)
@@ -1612,7 +1611,6 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
                     btn_polo.click()
 
             logger.info(f'Polo {polo} selecionado')
-            espera.assentar(driver, 0.5)
         except Exception as e:
             logger.error(f'Erro ao selecionar polo {polo}: {e}')
             raise
@@ -1622,14 +1620,17 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
             driver.switch_to.window(main_window)
             return False
 
+        estado_lista = _bndt_aguardar_carregamento_operacao(driver, inclusao=inclusao, teto=10)
+        logger.info(f'[BNDT] Estado após selecionar {operacao} ({polo}): {estado_lista}')
+
         try:
             texto_no_reg = ""
             if hasattr(driver, 'page') and driver.page:
                 texto_no_reg = driver.page.evaluate("""() => {
-                    var els = document.querySelectorAll('#tabela-registros-bndt div[class*="mensagem"], pje-bndt-partes-sem-registro .mensagem, mat-card .mensagem, div.mensagem.ng-star-inserted');
+                    var els = document.querySelectorAll('#tabela-registros-bndt div[class*="mensagem"], pje-bndt-partes-sem-registro .mensagem, pje-bndt-exclusao .mensagem, mat-card .mensagem, div.mensagem.ng-star-inserted, div.mensagem');
                     for (var i = 0; i < els.length; i++) {
                         var txt = (els[i].textContent || '').trim().toLowerCase();
-                        if (txt.includes('não há registros') || txt.includes('não existem partes')) return txt;
+                        if (txt.includes('não há registros') || txt.includes('não existem partes') || txt.includes('nenhum registro')) return txt;
                     }
                     return '';
                 }""") or ""
@@ -1656,9 +1657,14 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         except Exception:
             pass
 
-        _bndt_processar_selecoes_polo(driver, polo, inclusao=inclusao)
+        marcou = _bndt_processar_selecoes_polo(driver, polo, inclusao=inclusao)
+        if not marcou:
+            logger.warning(f'[BNDT] Nenhuma parte/registro marcado para {operacao} no polo {polo} — abortando gravação')
+            driver.close()
+            driver.switch_to.window(main_window)
+            return False
 
-        _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=inclusao)
+        gravou = _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=inclusao)
 
         logger.info(f'============ Finalizando operação {operacao} ============')
 
@@ -1667,8 +1673,11 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
 
         driver.close()
         driver.switch_to.window(main_window)
-        logger.info(f'Operação {operacao} concluída no polo {polo}')
-        return True
+        if gravou:
+            logger.info(f'Operação {operacao} concluída no polo {polo}')
+        else:
+            logger.warning(f'Operação {operacao} falhou ao gravar no polo {polo}')
+        return bool(gravou)
 
     except Exception as e:
         logger.error(f'ERRO na operação {operacao}: {e}')
@@ -1838,6 +1847,96 @@ def _bndt_selecionar_operacao(driver, inclusao):
         logger.warning(f'BNDT: Erro ao verificar mensagem de partes não existentes: {e}')
 
 
+def _bndt_clicar_radio_js(driver, seletores_input, texto_label: str = '') -> bool:
+    """Seleciona um mat-radio-button clicando no label/círculo/input real (Angular Material ignora click no host)."""
+    if not (hasattr(driver, 'page') and driver.page):
+        return False
+    try:
+        return bool(driver.page.evaluate("""({ seletores, textoLabel }) => {
+            function clicarRadio(radio) {
+                if (!radio) return false;
+                var matRadio = radio.closest('mat-radio-button');
+                var jaMarcado = !!(radio.checked || (matRadio && matRadio.classList.contains('mat-radio-checked')));
+                if (jaMarcado) return true;
+                var alvo = (matRadio && (
+                    matRadio.querySelector('label.mat-radio-label')
+                    || matRadio.querySelector('span.mat-radio-outer-circle')
+                    || matRadio.querySelector('span.mat-radio-inner-circle')
+                )) || radio;
+                alvo.click();
+                if (!radio.checked && (!matRadio || !matRadio.classList.contains('mat-radio-checked'))) {
+                    radio.click();
+                }
+                return !!(radio.checked || (matRadio && matRadio.classList.contains('mat-radio-checked')));
+            }
+
+            for (var i = 0; i < seletores.length; i++) {
+                var r = document.querySelector(seletores[i]);
+                if (r) return clicarRadio(r);
+            }
+
+            if (textoLabel) {
+                var alvoNorm = textoLabel.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                var radios = document.querySelectorAll('mat-radio-button');
+                for (var j = 0; j < radios.length; j++) {
+                    var txt = (radios[j].textContent || '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                    if (txt.includes(alvoNorm)) {
+                        var inp = radios[j].querySelector('input[type="radio"]');
+                        return clicarRadio(inp || radios[j]);
+                    }
+                }
+            }
+            return false;
+        }""", {'seletores': list(seletores_input), 'textoLabel': texto_label}))
+    except Exception:
+        return False
+
+
+def _bndt_aguardar_carregamento_operacao(driver, inclusao: bool = False, teto: float = 10.0) -> str:
+    """Aguarda a resposta assíncrona do BNDT renderizar checkboxes ou mensagem de vazio/erro."""
+    js_estado = """() => {
+        var spinners = document.querySelectorAll('div[class*="container-loading"] mat-progress-spinner, mat-progress-spinner');
+        for (var s = 0; s < spinners.length; s++) {
+            var st = window.getComputedStyle(spinners[s]);
+            if (st && st.display !== 'none' && st.visibility !== 'hidden' && spinners[s].offsetParent !== null) {
+                return '';
+            }
+        }
+        var checks = document.querySelectorAll(
+            'input[id^="parte"][id$="-input"], mat-checkbox[id^="parte"], '
+            + 'label[for*="debito"][for*="-input"], input[id*="debito"][id$="-input"], '
+            + 'pje-bndt-partes-sem-registro mat-checkbox, pje-bndt-exclusao mat-checkbox'
+        );
+        if (checks.length > 0) return 'checkboxes';
+
+        var msgs = document.querySelectorAll(
+            '#tabela-registros-bndt div[class*="mensagem"], pje-bndt-partes-sem-registro .mensagem, '
+            + 'pje-bndt-exclusao .mensagem, mat-card .mensagem, div.mensagem.ng-star-inserted, div.mensagem'
+        );
+        for (var i = 0; i < msgs.length; i++) {
+            var txt = (msgs[i].textContent || '').trim().toLowerCase();
+            if (txt.includes('não há registros') || txt.includes('não existem partes') || txt.includes('nenhum registro')) {
+                return 'vazio';
+            }
+            if (txt.includes('a classe judicial do processo não pode acessar')) {
+                return 'classe_invalida';
+            }
+        }
+        var bodyTxt = (document.body && document.body.textContent || '').toLowerCase();
+        if (bodyTxt.includes('a classe judicial do processo não pode acessar')) return 'classe_invalida';
+        return '';
+    }"""
+    if hasattr(driver, 'page') and driver.page:
+        ok = espera.ate_js(driver, f"Boolean(({js_estado})())", teto=teto)
+        if ok:
+            try:
+                return driver.page.evaluate(js_estado) or 'desconhecido'
+            except Exception:
+                return 'desconhecido'
+        return 'timeout'
+    return 'sem_page'
+
+
 def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
     """Seleciona Inclusão ou Exclusão para um polo específico."""
     operacao = "Inclusão" if inclusao else "Exclusão"
@@ -1851,28 +1950,20 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
         except Exception:
             pass
 
-    try:
-        clicado = False
-        if hasattr(driver, 'page') and driver.page:
-            clicado = bool(driver.page.evaluate("""tipo => {
-                var radio = document.querySelector('#selecao-tipo-determinacao input[value="' + tipo + '"]');
-                if (radio) {
-                    var matRadio = radio.closest('mat-radio-button') || radio;
-                    matRadio.click();
-                    return true;
-                }
-                return false;
-            }""", tipo_operacao))
-        if clicado:
-            logger.info(f'Operação {operacao} selecionada para polo {polo} via JS')
-            espera.assentar(driver, 0.5)
-            return True
-    except Exception:
-        pass
+    seletores_input = [
+        f'#selecao-tipo-determinacao input[type="radio"][value="{tipo_operacao}"]',
+        f'input[name="mat-radio-group-1"][type="radio"][value="{tipo_operacao}"]',
+        f'input[type="radio"][value="{tipo_operacao}"]',
+    ]
+
+    if _bndt_clicar_radio_js(driver, seletores_input=seletores_input, texto_label=operacao):
+        logger.info(f'Operação {operacao} selecionada e confirmada para polo {polo} via JS')
+        return True
 
     seletores_operacao = [
+        (By.XPATH, f"//input[@type='radio' and @value='{tipo_operacao}']/ancestor::mat-radio-button//label"),
+        (By.XPATH, f"//mat-radio-button[.//span[contains(normalize-space(.),'{operacao}')]]//label"),
         (By.CSS_SELECTOR, f'#selecao-tipo-determinacao input[value="{tipo_operacao}"]'),
-        (By.XPATH, f"//input[@value='{tipo_operacao}']/ancestor::mat-radio-button | //mat-radio-button[@value='{tipo_operacao}']"),
     ]
 
     for by, selector in seletores_operacao:
@@ -1884,7 +1975,6 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
         except Exception:
             btn_operacao.click()
         logger.info(f'Operação {operacao} selecionada para polo {polo} via seletor: {selector}')
-        espera.assentar(driver, 0.5)
         return True
 
     logger.warning(f'Erro ao selecionar operação {operacao} no polo {polo}: nenhum seletor funcionou')
@@ -1914,50 +2004,91 @@ def _bndt_processar_selecoes(driver):
     logger.warning('Checkbox "Selecionar todos" não encontrado — ação concluída sem seleção adicional')
 
 
-def _bndt_processar_selecoes_polo(driver, polo, inclusao=False):
-    """Seleciona checkboxes de partes no BNDT via JS rápido (estilo gigs-plugin)."""
-    logger.info(f'Processando seleções para polo {polo} via JS...')
+def _bndt_processar_selecoes_polo(driver, polo, inclusao=False) -> bool:
+    """Seleciona checkboxes de partes/débitos no BNDT via JS com confirmação de estado checked."""
+    logger.info(f'Processando seleções para polo {polo} via JS (inclusao={inclusao})...')
     try:
-        resultado = False
+        marcados = 0
         if hasattr(driver, 'page') and driver.page:
-            resultado = driver.page.evaluate("""inclusao => {
-                if (inclusao) {
-                    var checks = document.querySelectorAll('pje-bndt-partes-sem-registro mat-checkbox[id^="parte"]');
-                    if (checks.length > 0) {
-                        var lbl = checks[0].querySelector('label');
-                        if (lbl) { lbl.click(); return true; }
+            marcados = int(driver.page.evaluate("""inclusao => {
+                function marcarCheckbox(container) {
+                    if (!container) return false;
+                    var matChk = container.matches && container.matches('mat-checkbox')
+                        ? container
+                        : (container.closest ? container.closest('mat-checkbox') : null);
+                    var inp = (container.tagName === 'INPUT')
+                        ? container
+                        : (matChk ? matChk.querySelector('input[type="checkbox"]') : null);
+                    if (inp && inp.disabled) return false;
+                    if (inp && inp.checked) return true;
+                    if (matChk && matChk.classList.contains('mat-checkbox-checked')) return true;
+
+                    var lbl = (matChk && matChk.querySelector('label.mat-checkbox-layout'))
+                        || (matChk && matChk.querySelector('label'))
+                        || (container.tagName === 'LABEL' ? container : null);
+                    if (lbl) lbl.click();
+                    if (inp && !inp.checked && (!matChk || !matChk.classList.contains('mat-checkbox-checked'))) {
+                        inp.click();
                     }
-                    var fallback = document.querySelectorAll('pje-bndt-partes-sem-registro mat-checkbox');
-                    for (var i=0; i<fallback.length; i++) {
-                        if ((fallback[i].textContent||'').toLowerCase().indexOf('selecionar todos') === -1) {
-                            var l = fallback[i].querySelector('label');
-                            if (l) { l.click(); return true; }
-                        }
-                    }
-                    return false;
-                } else {
-                    var labels = document.querySelectorAll('pje-bndt-exclusao label[for*="debito"][for*="-input"]');
-                    var cont = 0;
-                    for (var i=0; i<labels.length; i++) {
-                        labels[i].click();
-                        cont++;
-                    }
-                    if (cont > 0) return true;
-                    var fallEx = document.querySelectorAll('pje-bndt-exclusao mat-checkbox[id^="parte"] label');
-                    for (var j=0; j<fallEx.length; j++) {
-                        fallEx[j].click();
-                        cont++;
-                    }
-                    return cont > 0;
+                    return !!((inp && inp.checked) || (matChk && matChk.classList.contains('mat-checkbox-checked')));
                 }
-            }""", inclusao)
-        if resultado:
-            logger.info(f'[BNDT] Seleções feitas com sucesso via JS (inclusao={inclusao})')
-            espera.assentar(driver, 0.5)
-        else:
-            logger.warning(f'[BNDT] Nenhum checkbox encontrado para marcar no polo {polo}')
+
+                if (inclusao) {
+                    var candidatos = Array.from(document.querySelectorAll(
+                        'pje-bndt-partes-sem-registro mat-checkbox[id^="parte"], mat-checkbox[id^="parte"], input[id^="parte"][id$="-input"]'
+                    ));
+                    for (var i = 0; i < candidatos.length; i++) {
+                        if (marcarCheckbox(candidatos[i])) return 1;
+                    }
+                    var fallback = Array.from(document.querySelectorAll('pje-bndt-partes-sem-registro mat-checkbox, mat-checkbox'));
+                    for (var j = 0; j < fallback.length; j++) {
+                        var txt = (fallback[j].textContent || '').toLowerCase();
+                        if (txt.indexOf('selecionar todos') !== -1) continue;
+                        if (marcarCheckbox(fallback[j])) return 1;
+                    }
+                    return 0;
+                } else {
+                    var cont = 0;
+                    var debitos = Array.from(document.querySelectorAll(
+                        'pje-bndt-exclusao label[for*="debito"][for*="-input"], label[for*="debito"][for*="-input"], input[id*="debito"][id$="-input"]'
+                    ));
+                    var vistos = new Set();
+                    for (var k = 0; k < debitos.length; k++) {
+                        var mat = debitos[k].closest ? (debitos[k].closest('mat-checkbox') || debitos[k]) : debitos[k];
+                        if (vistos.has(mat)) continue;
+                        vistos.add(mat);
+                        if (marcarCheckbox(mat)) cont++;
+                    }
+                    if (cont > 0) return cont;
+                    var fallEx = Array.from(document.querySelectorAll(
+                        'pje-bndt-exclusao mat-checkbox[id^="parte"], mat-checkbox[id^="parte"], input[id^="parte"][id$="-input"]'
+                    ));
+                    for (var m = 0; m < fallEx.length; m++) {
+                        var mat2 = fallEx[m].closest ? (fallEx[m].closest('mat-checkbox') || fallEx[m]) : fallEx[m];
+                        if (vistos.has(mat2)) continue;
+                        vistos.add(mat2);
+                        if (marcarCheckbox(mat2)) cont++;
+                    }
+                    if (cont > 0) return cont;
+                    var fallTabela = Array.from(document.querySelectorAll('pje-bndt-exclusao mat-checkbox, mat-table mat-checkbox, table mat-checkbox'));
+                    for (var n = 0; n < fallTabela.length; n++) {
+                        var txtEx = (fallTabela[n].textContent || '').toLowerCase();
+                        if (txtEx.indexOf('selecionar todos') !== -1) continue;
+                        if (vistos.has(fallTabela[n])) continue;
+                        vistos.add(fallTabela[n]);
+                        if (marcarCheckbox(fallTabela[n])) cont++;
+                    }
+                    return cont;
+                }
+            }""", bool(inclusao)) or 0)
+        if marcados > 0:
+            logger.info(f'[BNDT] {marcados} checkbox(es) marcado(s) com sucesso via JS (inclusao={inclusao})')
+            return True
+        logger.warning(f'[BNDT] Nenhum checkbox encontrado para marcar no polo {polo}')
+        return False
     except Exception as e:
         logger.warning(f'Erro ao marcar checkboxes via JS no polo {polo}: {e}')
+        return False
 
 
 def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
@@ -1994,8 +2125,8 @@ def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
     logger.info('Aba BNDT fechada')
 
 
-def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
-    """Clica Gravar e confirma para um polo específico via JS (estilo gigs-plugin)."""
+def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False) -> bool:
+    """Clica Gravar, confirma dialog ('Decisão não encontrada' -> Sim), aguarda conclusão e fecha snackbar."""
     logger.info(f'Gravando e confirmando BNDT para polo {polo} via JS...')
     if hasattr(driver, 'page') and driver.page:
         try:
@@ -2003,67 +2134,103 @@ def _bndt_gravar_e_confirmar_polo(driver, polo, inclusao=False):
         except Exception:
             pass
 
+    clicado_gravar = False
     try:
-        clicado_gravar = False
         if hasattr(driver, 'page') and driver.page:
+            espera.ate_js(driver, """(() => {
+                var btns = Array.from(document.querySelectorAll('button.mat-raised-button.mat-primary, button'));
+                return btns.some(b =>
+                    (b.textContent || '').trim().includes('Gravar')
+                    && !b.disabled
+                    && !b.classList.contains('mat-button-disabled')
+                );
+            })()""", teto=5)
             clicado_gravar = bool(driver.page.evaluate("""() => {
-                var btnGravar = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Gravar'));
+                var btns = Array.from(document.querySelectorAll('button.mat-raised-button.mat-primary, button'));
+                var btnGravar = btns.find(b =>
+                    (b.textContent || '').trim().includes('Gravar')
+                    && !b.disabled
+                    && !b.classList.contains('mat-button-disabled')
+                );
                 if (btnGravar) {
                     btnGravar.click();
                     return true;
                 }
                 return false;
             }"""))
-        if clicado_gravar:
-            logger.info('Botão Gravar clicado via JS')
-            espera.assentar(driver, 0.5)
+        if not clicado_gravar:
+            logger.warning('Botão Gravar não encontrado ou desabilitado via JS')
+            return False
 
-            for _ in range(5):
-                clicado_sim = False
-                if hasattr(driver, 'page') and driver.page:
-                    clicado_sim = bool(driver.page.evaluate("""() => {
-                        var btnSim = Array.from(document.querySelectorAll('.cdk-overlay-pane button')).find(b => b.textContent.includes('Sim'));
-                        if (btnSim) {
-                            btnSim.click();
-                            return true;
-                        }
-                        return false;
-                    }"""))
-                if clicado_sim:
-                    logger.info('Botão Sim clicado via JS')
-                    break
-                espera.assentar(driver, 0.3)
+        logger.info('Botão Gravar clicado via JS')
 
-            espera.assentar(driver, 1.0)
-        else:
-            logger.warning('Botão Gravar não encontrado via JS')
+        # Aguarda modal de confirmação (ex.: "Decisão não encontrada" -> Sim), progresso ou snackbar
+        espera.ate_js(driver, """(() => {
+            var btnsOverlay = Array.from(document.querySelectorAll('mat-dialog-container button, .cdk-overlay-pane button'));
+            if (btnsOverlay.some(b => (b.textContent || '').trim() === 'Sim')) return true;
+            if (document.querySelector('simple-snack-bar')) return true;
+            var dlgs = Array.from(document.querySelectorAll('mat-dialog-container'));
+            if (dlgs.some(d => /incluindo|excluindo/i.test(d.textContent || ''))) return true;
+            return false;
+        })()""", teto=5)
+
+        clicado_sim = False
+        if hasattr(driver, 'page') and driver.page:
+            clicado_sim = bool(driver.page.evaluate("""() => {
+                var btns = Array.from(document.querySelectorAll('mat-dialog-container button.mat-primary, mat-dialog-container button, .cdk-overlay-pane button'));
+                var btnSim = btns.find(b => (b.textContent || '').trim() === 'Sim')
+                    || btns.find(b => (b.textContent || '').includes('Sim'));
+                if (btnSim && !btnSim.disabled) {
+                    btnSim.click();
+                    return true;
+                }
+                return false;
+            }"""))
+        if clicado_sim:
+            logger.info('Botão Sim clicado via JS')
     except Exception as e:
         logger.error(f'Erro ao clicar Gravar/Sim no polo {polo} via JS: {e}')
+        return False
 
+    # Aguarda spinner e dialog de progresso ("Incluindo/Excluindo registro(s) no BNDT...") fecharem
     espera.ate_sumir(driver, 'div[class*="container-loading"] mat-progress-spinner', teto=10)
+    if hasattr(driver, 'page') and driver.page:
+        espera.ate_js(driver, """(() => {
+            var dlgs = Array.from(document.querySelectorAll('mat-dialog-container[role="dialog"], mat-dialog-container'));
+            return !dlgs.some(d => /incluindo|excluindo|aguarde/i.test(d.textContent || ''));
+        })()""", teto=15)
 
     try:
-        aviso = espera.elemento(driver, 'simple-snack-bar', teto=3, visivel=False)
+        aviso = espera.elemento(driver, 'simple-snack-bar', teto=5, visivel=False)
         if aviso:
             texto_aviso = aviso.text
             logger.info(f'Aviso: {texto_aviso}')
 
-            if 'Excluído registro de' in texto_aviso or 'Partes excluídas' in texto_aviso or 'Incluído registro de' in texto_aviso or 'Partes incluídas' in texto_aviso:
+            if (
+                'Excluído registro de' in texto_aviso
+                or 'Partes excluídas' in texto_aviso
+                or 'Incluído registro de' in texto_aviso
+                or 'Partes incluídas' in texto_aviso
+                or 'sucesso' in texto_aviso.lower()
+            ):
                 logger.info(f'Operação no polo {polo} concluída com sucesso')
                 try:
-                    btn_close = espera.elemento(driver, 'simple-snack-bar button')
+                    btn_close = espera.elemento(driver, 'simple-snack-bar button', teto=2, visivel=False)
                     if btn_close:
                         safe_click_no_scroll(driver, btn_close)
                 except Exception:
                     pass
-            elif 'A classe judicial do processo não pode acessar' in texto_aviso:
+                return True
+            if 'A classe judicial do processo não pode acessar' in texto_aviso:
                 logger.warning('Classe judicial não permite BNDT')
-            else:
-                logger.warning(f'Mensagem inesperada: {texto_aviso}')
-        else:
-            logger.warning('Nenhum aviso detectado')
+                return False
+            logger.warning(f'Mensagem inesperada: {texto_aviso}')
+            return True
+        logger.warning('Nenhum aviso detectado após Gravar/Sim')
+        return True
     except Exception:
-        logger.warning('Nenhum aviso detectado')
+        logger.warning('Nenhum aviso detectado após Gravar/Sim')
+        return True
 
 
 def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):

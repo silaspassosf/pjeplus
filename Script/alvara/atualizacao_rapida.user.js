@@ -21,6 +21,74 @@
     const PROCESS_NUMBER_RE = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
     const isCalcPage = location.pathname.startsWith('/pjecalc/');
 
+    // Storage compatível com a extensão +pje (browser.storage.local).
+    // GM_* é storage separado do Tampermonkey — não compartilha com a extensão.
+    const storage = (typeof browser !== 'undefined' && browser.storage && browser.storage.local)
+        ? browser.storage.local
+        : (typeof GM_setValue !== 'undefined' ? { async: true } : null);
+
+    async function storageSet(key, value) {
+        if (!storage) throw new Error('Storage indisponível.');
+        if (storage.set && typeof storage.set === 'function' && !storage.async) {
+            return new Promise((resolve, reject) => {
+                storage.set({ [key]: value }, () => {
+                    if (browser.runtime && browser.runtime.lastError) reject(browser.runtime.lastError);
+                    else resolve();
+                });
+            });
+        }
+        return new Promise((resolve, reject) => {
+            GM_setValue(key, value, () => {
+                if (GM_install?.lastError) reject(GM_install.lastError);
+                else resolve();
+            });
+        });
+    }
+
+    async function storageGet(key, defaultValue = null) {
+        if (!storage) return defaultValue;
+        if (storage.get && typeof storage.get === 'function' && !storage.async) {
+            return new Promise((resolve) => {
+                storage.get(key, (result) => {
+                    resolve(result?.[key] ?? defaultValue);
+                });
+            });
+        }
+        return new Promise((resolve) => {
+            GM_getValue(key, defaultValue, (value) => resolve(value));
+        });
+    }
+
+    async function storageDelete(key) {
+        if (!storage) return;
+        if (storage.remove && typeof storage.remove === 'function' && !storage.async) {
+            return new Promise((resolve) => {
+                storage.remove(key, () => resolve());
+            });
+        }
+        return new Promise((resolve) => {
+            GM_deleteValue(key, () => resolve());
+        });
+    }
+
+    function storageAddListener(callback) {
+        if (storage?.onChanged && typeof storage.onChanged.addListener === 'function') {
+            return storage.onChanged.addListener((changes, area) => {
+                if (area !== 'local') return;
+                if (changes[STATE_KEY]) callback(changes[STATE_KEY].newValue);
+            });
+        }
+        return GM_addValueChangeListener(STATE_KEY, (_key, _oldValue, newValue) => callback(newValue));
+    }
+
+    function storageRemoveListener(listenerId) {
+        if (storage?.onChanged && typeof storage.onChanged.removeListener === 'function') {
+            storage.onChanged.removeListener(listenerId);
+        } else if (typeof GM_removeValueChangeListener === 'function') {
+            GM_removeValueChangeListener(listenerId);
+        }
+    }
+
     function notify(message, color = '#b3261e') {
         document.getElementById('pjeplus-atualizacao-rapida-toast')?.remove();
         const toast = document.createElement('div');
@@ -67,53 +135,101 @@
         element.click();
     }
 
-    function captureActivation() {
-        document.addEventListener('click', event => {
-            const button = event.target instanceof Element
-                ? event.target.closest('#botao-do-processo-pjeCalc')
-                : null;
-            if (!button) return;
+    function injectButton() {
+        if (document.getElementById('botao-atualizacao-rapida')) return;
+        const btn = document.createElement('button');
+        btn.id = 'botao-atualizacao-rapida';
+        btn.textContent = '⚡ Atualização Rápida';
+        btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:999999;'
+            + 'padding:10px 18px;background:#b3261e;color:#fff;border:none;'
+            + 'border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;'
+            + 'box-shadow:0 2px 8px #0006;transition:background .2s;';
+        btn.addEventListener('mouseenter', () => btn.style.background = '#d4351f');
+        btn.addEventListener('mouseleave', () => btn.style.background = '#b3261e');
+        document.body.appendChild(btn);
+    }
 
-            const number = document.querySelector('pje-cabecalho-processo')?.textContent?.match(PROCESS_NUMBER_RE)?.[0]
+    async function iniciarAtualizacaoRapida() {
+        console.log('[Atualização Rápida] Iniciando...');
+        injectButton();
+
+        // Pega o ID do processo da URL
+        const matchId = location.pathname.match(/\/processo\/(\d+)\/detalhe/);
+        if (!matchId) {
+            notify('Não foi possível identificar o processo na URL.');
+            return;
+        }
+        const processId = matchId[1];
+
+        // Puxa o número CNJ via API
+        let processNumber = null;
+        try {
+            const resp = await fetch(location.origin + `/pje-comum-api/api/processos/id/${processId}`, {
+                credentials: 'include',
+                headers: { Accept: 'application/json' }
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                processNumber = data.numeroProcesso || data.processo?.numeroProcesso;
+            }
+        } catch (e) {
+            console.warn('[Atualização Rápida] Falha ao buscar número via API, tentando DOM:', e);
+        }
+
+        // Fallback: tenta ler do cabeçalho ou título
+        if (!processNumber) {
+            processNumber = document.querySelector('pje-cabecalho-processo')?.textContent?.match(PROCESS_NUMBER_RE)?.[0]
                 || document.title.match(PROCESS_NUMBER_RE)?.[0];
-            const processId = location.pathname.match(/\/processo\/(\d+)\/detalhe/)?.[1];
-            if (!number || !processId) {
-                notify('Atualização rápida: não foi possível identificar o processo nesta tela.');
-                return;
-            }
+        }
 
-            const date = new Intl.DateTimeFormat('pt-BR').format(new Date());
-            const state = {
-                processId,
-                processNumber: number,
-                liquidationDate: date,
-                phase: 'search-process',
-                createdAt: Date.now()
-            };
-            try {
-                Promise.resolve(GM_setValue(STATE_KEY, state)).catch(error => {
-                    console.error('[Atualização Rápida] Falha ao salvar o processo:', error);
-                });
-            } catch (error) {
-                console.error('[Atualização Rápida] Falha ao salvar o processo:', error);
-            }
+        if (!processNumber) {
+            notify('Não foi possível identificar o número do processo.');
+            return;
+        }
+
+        console.log('[Atualização Rápida] Processo:', processNumber, '(id:', processId + ')');
+
+        const date = new Intl.DateTimeFormat('pt-BR').format(new Date());
+        const state = {
+            processId,
+            processNumber,
+            liquidationDate: date,
+            phase: 'search-process',
+            createdAt: Date.now()
+        };
+
+        try {
+            await storageSet(STATE_KEY, state);
+            console.log('[Atualização Rápida] Estado salvo, abrindo PJeCalc...');
+            await abrirAba(location.origin + '/pjecalc/pages/principal.jsf');
+            notify('Abrindo PJeCalc para atualização de ' + processNumber + '...');
+        } catch (error) {
+            console.error('[Atualização Rápida] Erro ao iniciar:', error);
+            notify('Falha ao iniciar atualização: ' + error.message);
+        }
+    }
+
+    function captureActivation() {
+        injectButton();
+        document.getElementById('botao-atualizacao-rapida').addEventListener('click', () => {
+            iniciarAtualizacaoRapida();
         }, true);
     }
 
     async function readState() {
-        const current = await GM_getValue(STATE_KEY, null);
+        const current = await storageGet(STATE_KEY, null);
         if (current?.processId && Date.now() - current.createdAt < 10 * 60 * 1000) return current;
 
         return new Promise(resolve => {
             let listenerId;
             const timer = window.setTimeout(() => {
-                if (listenerId !== undefined) GM_removeValueChangeListener(listenerId);
+                if (listenerId !== undefined) storageRemoveListener(listenerId);
                 resolve(null);
             }, 12000);
-            listenerId = GM_addValueChangeListener(STATE_KEY, (_key, _oldValue, newValue) => {
+            listenerId = storageAddListener((newValue) => {
                 if (!newValue?.processId || Date.now() - newValue.createdAt >= 10 * 60 * 1000) return;
                 window.clearTimeout(timer);
-                GM_removeValueChangeListener(listenerId);
+                storageRemoveListener(listenerId);
                 resolve(newValue);
             });
         });
@@ -121,7 +237,7 @@
 
     async function saveState(state, phase) {
         state.phase = phase;
-        await GM_setValue(STATE_KEY, state);
+        await storageSet(STATE_KEY, state);
     }
 
     function splitProcessNumber(number) {
@@ -327,16 +443,24 @@
         const success = await waitFor(() => [...document.querySelectorAll('h2')]
             .find(element => element.textContent.includes('Sucesso!')), 30000);
         if (!success) throw new Error('O envio ao PJe não confirmou sucesso.');
-        await GM_deleteValue(STATE_KEY);
+        await storageDelete(STATE_KEY);
         notify('Atualização rápida concluída para ' + state.processNumber + '.', '#137333');
         window.close();
     }
 
     async function run() {
+        console.log('[Atualização Rápida] Iniciando run()...');
+        console.log('[Atualização Rápida] location:', location.href);
+        console.log('[Atualização Rápida] readyState:', document.readyState);
         let state = await readState();
-        if (!state) return;
+        if (!state) {
+            console.log('[Atualização Rápida] Nenhum estado encontrado — nada a fazer.');
+            return;
+        }
+        console.log('[Atualização Rápida] Estado lido:', JSON.stringify(state));
         if (Date.now() - state.createdAt >= 10 * 60 * 1000) {
-            await GM_deleteValue(STATE_KEY);
+            console.log('[Atualização Rápida] Estado expirado (>10 min) — limpando.');
+            await storageDelete(STATE_KEY);
             return;
         }
 
@@ -344,8 +468,12 @@
             const title = await waitFor(() => pageTitle()
                 || ((state.phase === 'sending' || state.phase === 'finish')
                     && (document.querySelector('input[id="popup_ok"]') || document.querySelector('h2'))
-                    ? 'postback' : null), 30000);
+                    ? 'postback' : null)
+                || (document.querySelector('input[id*="numeroProcessoBusca"]')
+                    && document.querySelector('input[id*="formulario:buscar"]')
+                    ? 'principal' : null), 30000);
             if (!title) throw new Error('A tela do PJeCalc não carregou.');
+            console.log('[Atualização Rápida] Tela detectada:', title);
 
             if (state.phase === 'liquidating') {
                 const message = await waitFor(() => {
@@ -356,7 +484,7 @@
                     throw new Error('O PJeCalc não confirmou sucesso após a retomada da liquidação.');
                 }
                 await saveState(state, 'liquidated');
-                state = await GM_getValue(STATE_KEY, state);
+                state = await storageGet(STATE_KEY, state);
             }
 
             if (state.phase === 'sending') {
@@ -366,7 +494,7 @@
                 if (!outcome) throw new Error('O PJe não confirmou o envio após a retomada.');
                 if (outcome.matches('input[id="popup_ok"]')) click(outcome);
                 await saveState(state, 'finish');
-                state = await GM_getValue(STATE_KEY, state);
+                state = await storageGet(STATE_KEY, state);
             }
 
             if (state.phase === 'finish') {
@@ -374,11 +502,11 @@
                 return;
             }
 
-            if (title.includes('Cálculo > Buscar')) {
+            if (title.includes('Cálculo > Buscar') || title === 'principal') {
                 if (state.phase === 'search-process') await searchProcess(state);
-                state = await GM_getValue(STATE_KEY, state);
+                state = await storageGet(STATE_KEY, state);
                 if (state.phase === 'find-calculation') await searchLatestCalculation(state);
-                state = await GM_getValue(STATE_KEY, state);
+                state = await storageGet(STATE_KEY, state);
                 if (state.phase === 'open-calculation') {
                     await openLatestCalculation(state);
                     return run();
@@ -393,7 +521,7 @@
 
             if (title.includes('Atualização > Liquidar Atualização')) {
                 if (state.phase === 'update-form') await liquidate(state);
-                state = await GM_getValue(STATE_KEY, state);
+                state = await storageGet(STATE_KEY, state);
                 if (state.phase === 'liquidated') {
                     await sendToPje(state);
                     return run();
@@ -404,14 +532,14 @@
             if (title.includes('Enviar para o PJe')) {
                 if (state.phase === 'consolidate' || state.phase === 'consolidating' || state.phase === 'send') {
                     await consolidateAndSend(state);
-                    state = await GM_getValue(STATE_KEY, state);
+                    state = await storageGet(STATE_KEY, state);
                     if (state.phase === 'finish') await complete(state);
                     return;
                 }
             }
         } catch (error) {
             console.error('[Atualização Rápida]', error);
-            await GM_deleteValue(STATE_KEY);
+            await storageDelete(STATE_KEY);
             notify('Atualização rápida interrompida: ' + error.message);
         }
     }

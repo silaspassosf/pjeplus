@@ -2,7 +2,8 @@
 # Uso: py f.py [teste] [id_processo]
 #   testes disponiveis:
 #     argos, sisb, sisb_conf, pec, pesquisa, ordem, pecord, pecidpj, mddid, anex, triagem,
-#     probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, carta_completa, aud, todos
+#     probe, tdbg, dom, bndt, p2b, excluiargos, sisbdir, carta_completa, aud, todos,
+#     ar (atualizacao rapida: so busca; use --executar p/ atualizar de verdade)
 #   Exemplos:
 #     py f.py argos            → teste Argos no processo padrão (7508281)
 #     py f.py argos 7449746    → teste Argos no processo 7449746
@@ -71,6 +72,7 @@ PROCESS_ID_SISB     = '4863758'
 PROCESS_ID_PEC      = '6095583'
 PROCESS_ID_PEC_ORD  = '5455795'
 PROCESS_ID_ANEX_CARTA = '7258019'
+PROCESS_ID_AR          = '6334837'   # caso 1001190-87.2024.5.02.0703 (teimosinha)
 PROCESS_ID_TRIAGEM  = '8685584'
 PROCESS_ID_BNDT     = '8685584'
 PROBE_ID_PROCESSO   = '8685584'
@@ -1017,7 +1019,7 @@ def teste_anex_carta(id_processo=None):
         - Usa conteudo do clipboard.txt para substituicao no editor
         - Modelo: xs carta | Tipo: Certidao | Desc: Rastreamentos e-Carta
     """
-    from PEC.anexos.anexos_wrappers import anex_carta
+    from atos.anexos.anexos_wrappers import anex_carta
     configurar_logging_debug()
     url, pid = _resolver(PROCESS_ID_ANEX_CARTA, id_processo)
 
@@ -1059,6 +1061,92 @@ def teste_anex_carta(id_processo=None):
                 finalizar_driver(driver)
             except Exception:
                 pass
+
+
+def teste_ar_atualizacao(id_processo=None):
+    """Atualizacao Rapida isolada (motor do fluxo K) para inspecao passo a passo.
+
+    Padrao: SOMENTE BUSCA — abre o PJe-Calc, localiza o calculo, confere o CNJ no
+    painel de dados e PARA: nada e liquidado nem enviado. Serve para ver a
+    navegacao e a selecao funcionando sem risco.
+
+    Com --executar roda a atualizacao completa (liquida na DATA ATUAL, sem
+    confirmacao, consolida e envia ao PJe) e depois repuxa a divida pela API,
+    igual ao fluxo real da teimosinha.
+
+    Uso:
+        py f.py ar                       # processo do caso, somente busca
+        py f.py ar 6334837 --executar    # atualizacao real nesse processo
+        py f.py ar 6334837 --manter      # nao fecha o driver no fim
+    """
+    from Fix import atualizacao_rapida as ar
+
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_AR, id_processo)
+    executar = '--executar' in sys.argv
+    manter = '--manter' in sys.argv
+
+    LOGGER.info('=' * 70)
+    LOGGER.info('[AR_TEST] Atualizacao Rapida isolada — modo: %s',
+                'EXECUTAR (liquida e envia)' if executar else 'SOMENTE BUSCA (nao altera)')
+    LOGGER.info('[AR_TEST] Processo: %s', url)
+    LOGGER.info('=' * 70)
+
+    driver = None
+    try:
+        with etapa('criar_driver'):
+            driver = criar_driver_pc(headless=False)
+        if not driver:
+            LOGGER.error('[AR_TEST] Falha ao criar driver')
+            return
+
+        with etapa('login'):
+            if not _logar_como_pw_visivel(driver):
+                LOGGER.error('[AR_TEST] Falha no login')
+                return
+
+        with etapa('abrir_processo'):
+            _navegar(driver, url)
+            espera.ate_aparecer(driver, 'pje-cabecalho-processo', teto=20)
+            LOGGER.info('[AR_TEST] Processo aberto: %s', getattr(driver, 'current_url', ''))
+
+        with etapa('atualizacao_rapida'):
+            if not executar:
+                LOGGER.info('[AR_TEST] Modo somente busca — nada sera liquidado/enviado')
+            res = ar.executar_atualizacao_rapida_detalhada(
+                driver, None,
+                somente_busca=not executar,
+                selecionar_mais_recente=True,
+            )
+            LOGGER.info('[AR_TEST] fase=%s sucesso=%s calculo=%s processo=%s data=%s',
+                        res.fase, res.sucesso, res.numero_calculo,
+                        res.numero_processo, res.data)
+
+            if executar and res.sucesso:
+                with etapa('repuxar_valor_api'):
+                    divida = ar._divida_mais_recente_api(driver, pid)
+                    LOGGER.info('[AR_TEST] divida pela API: %s', divida)
+
+        with etapa('verificar_url'):
+            LOGGER.info('[AR_TEST] PJe em: %s', getattr(driver, 'current_url', ''))
+        LOGGER.info('[AR_TEST] concluido (fase final: %s)', res.fase)
+
+    except ar.AtualizacaoRapidaErro as e:
+        LOGGER.error('[AR_TEST] AtualizacaoRapidaErro fase=%s pos_envio=%s: %s',
+                     e.fase, e.pos_envio, e)
+        if e.pos_envio:
+            LOGGER.error('[AR_TEST] pos_envio=True — NAO reenviar; conferir no PJeCalc')
+    except Exception:
+        LOGGER.exception('[AR_TEST] Erro nao tratado')
+    finally:
+        if driver is not None and not manter:
+            LOGGER.info('[AR_TEST] encerrando driver')
+            try:
+                finalizar_driver(driver)
+            except Exception:
+                pass
+        elif manter:
+            LOGGER.info('[AR_TEST] driver mantido aberto (--manter)')
 
 
 # ============================================================
@@ -3065,6 +3153,110 @@ def teste_advogados_oab(id_processo=None):
                 finalizar_driver(driver)
             except Exception:
                 pass
+# TESTE 2c: SISBAJUD — LACO COMPLETO (PJe -> SISB -> PJe -> juntada)
+# ============================================================
+
+def teste_sisbajud_laco_minuta(id_processo=None):
+    """Fluxo COMPLETO do laco PJe -> SISBAJUD -> PJe usando a funcao MINUTA.
+
+    Diferente de sisb_probe (que roda a minuta SEM driver PJe, so para mapear
+    rede), aqui o processo e aberto de verdade no PJe e o laco e fechado:
+
+      1. PJe: login + /detalhe do processo + extrair_dados_processo
+      2. SISBAJUD: driver compartilhado + login (iniciar_sisbajud)
+      3. minuta_bloqueio_amanha(driver_sisb, dados, driver_pje=driver)
+         -> 1a e 2a minutas + relatorio no clipboard
+         -> _voltar_para_pje_detalhe (fecha o laco)
+         -> juntada (modelo xteim) + visibilidade + GIGS + comentario
+      4. Loga a URL final do PJe (prova de que voltou ao /detalhe)
+
+    Uso:
+        py f.py sisb_laco                    # processo padrao (PROCESS_ID_SISB)
+        py f.py sisb_laco 5234567            # processo especifico
+        py f.py sisb_laco 5234567 --manter   # nao fecha os drivers no fim
+    """
+    configurar_logging_debug()
+    url, pid = _resolver(PROCESS_ID_SISB, id_processo)
+    manter = '--manter' in sys.argv
+
+    LOGGER.info('=' * 80)
+    LOGGER.info('[LACO_TEST] Fluxo completo PJe -> SISBAJUD -> PJe (minuta)')
+    LOGGER.info('[LACO_TEST] Processo: %s', url)
+    LOGGER.info('=' * 80)
+
+    driver = None
+    driver_sisb = None
+    resultado = None
+    try:
+        with etapa('criar_driver_pje'):
+            driver = criar_driver_vt(headless=False)
+            if not driver:
+                LOGGER.error('[LACO_TEST] Falha ao criar driver PJE')
+                return
+
+        with etapa('login_pje'):
+            if not _logar_como_pw_visivel(driver):
+                LOGGER.error('[LACO_TEST] Falha no login PJE')
+                return
+
+        with etapa('abrir_processo'):
+            _navegar(driver, url)
+            LOGGER.info('[LACO_TEST] PJe em: %s', getattr(driver, 'current_url', ''))
+
+        with etapa('extrair_dados'):
+            from Fix.extracao import extrair_dados_processo
+            dados_processo = extrair_dados_processo(driver)
+            if not dados_processo:
+                LOGGER.error('[LACO_TEST] Falha ao extrair dados do processo')
+                return
+            LOGGER.info('[LACO_TEST] Dados OK (numero=%s id=%s)',
+                        dados_processo.get('numero') or dados_processo.get('numero_processo'),
+                        dados_processo.get('id_processo'))
+
+        with etapa('iniciar_sisbajud'):
+            from SISB.core import iniciar_sisbajud
+            driver_sisb = iniciar_sisbajud(driver_pje=driver, extrair_dados=False)
+            if not driver_sisb:
+                LOGGER.error('[LACO_TEST] Falha ao iniciar driver SISBAJUD')
+                return
+            LOGGER.info('[LACO_TEST] SISBAJUD pronto: %s',
+                        getattr(driver_sisb, 'current_url', ''))
+
+        with etapa('minuta_e_laco'):
+            from SISB.core import minuta_bloqueio_amanha
+            LOGGER.info('[LACO_TEST] minuta_bloqueio_amanha(...) com driver_pje — laco completo')
+            resultado = minuta_bloqueio_amanha(
+                driver_sisb,
+                dados_processo=dados_processo,
+                driver_pje=driver,
+                log=True,
+                fechar_driver=False,
+            )
+            LOGGER.info('[LACO_TEST] Resultado: %s', resultado)
+
+        with etapa('verificar_laco'):
+            url_pje = getattr(driver, 'current_url', '')
+            LOGGER.info('[LACO_TEST] PJe final: %s', url_pje)
+            LOGGER.info('[LACO_TEST] juntada_executada=%s',
+                        (resultado or {}).get('juntada_executada'))
+            if '/detalhe' in (url_pje or ''):
+                LOGGER.info('[LACO_TEST] LACO FECHADO em /detalhe')
+            else:
+                LOGGER.error('[LACO_TEST] LACO ABERTO: o PJe nao terminou em /detalhe')
+
+    except Exception:
+        LOGGER.exception('[LACO_TEST] Erro nao tratado')
+    finally:
+        if manter:
+            LOGGER.warning('[LACO_TEST] --manter: drivers deixados abertos para inspecao')
+        else:
+            LOGGER.info('[LACO_TEST] Encerrando drivers')
+            for d in (driver_sisb, driver):
+                if d is not None:
+                    try:
+                        finalizar_driver(d)
+                    except Exception:
+                        pass
 
 
 # ============================================================
@@ -3125,6 +3317,8 @@ if __name__ == '__main__':
         _teste_dom_api_comentario_lembrete(id_p)
     elif teste in ('adv', 'oab', 'advogados', '18'):
         teste_advogados_oab(id_p)
+    elif teste in ('ar', 'atualizacao_rapida', 'atrapida', '19'):
+        teste_ar_atualizacao(id_p)
     elif teste in ('todos', 'all'):
         print('=== Executando todos os testes ===')
         print('\n--- TESTE 1: ARGOS ---')
@@ -3155,9 +3349,13 @@ if __name__ == '__main__':
         teste_pec_excluiargos(id_p)
     elif teste in ('sisb_probe', 'sisb_network', 'probe_minuta', '2p'):
         teste_sisbajud_minuta_com_probe(id_p)
+    elif teste in ('sisb_laco', 'laco', '2l'):
+        teste_sisbajud_laco_minuta(id_p)
     else:
         print(f'Teste desconhecido: {teste}')
         print('Disponiveis: argos, sisb, pec, pesquisa, ordem, pecord, pecidpj, mddid,')
         print('             anex, triagem, probe, tdbg, dom, bndt, p2b, excluiargos,')
-        print('             sisbdir, carta, sisb_probe, todos')
+        print('             sisbdir, carta, sisb_probe, sisb_laco, ar, todos')
+        print('  sisb_laco  = fluxo completo PJe->SISB->PJe (minuta + juntada); aceita --manter')
+        print('  ar         = atualizacao rapida isolada (so busca); --executar p/ atualizar')
         print('Uso: py f.py <teste> [id_processo]')

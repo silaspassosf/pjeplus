@@ -308,8 +308,47 @@ def obter_fase_processual(driver, caminho_json: str = 'dadosatuais.json', debug:
 MOV_HOMOLOGADA_LIQUIDACAO = 50047
 
 GIGS_OBS_REGISTRAR_OBRIGACAO = 'registrar obrigação'
+GIGS_OBS_PJDP_PASSIVO = 'PJDP no polo passivo, verificar'
 CREDITO_MOCK = '0,01'
 SCRIPTS_DIR = Path(__file__).parent / 'scripts'
+
+
+def _polo_passivo_tem_pjdp(client, id_processo: str) -> Tuple[bool, str]:
+    """Detecta PJDP no polo passivo via API /partes usando o filtro de bianca/triagem."""
+    if not client or not id_processo or not hasattr(client, 'partes'):
+        return False, ''
+    try:
+        from bianca.triagem.regras import (
+            _detectar_pjdp_api,
+            _detectar_pjdp_cadastro_incorreto,
+        )
+
+        partes = client.partes(id_processo) or {}
+        if not isinstance(partes, dict):
+            return False, ''
+        passivos = [p for p in (partes.get('PASSIVO') or []) if isinstance(p, dict)]
+        if not passivos:
+            return False, ''
+
+        capa_dados = {
+            'reclamados': [
+                {
+                    'nome': (p.get('nome') or p.get('nomeParte') or '').strip(),
+                    'pjdp': bool(p.get('procuradoria')),
+                }
+                for p in passivos
+            ]
+        }
+        tem_pjdp, nome = _detectar_pjdp_api(capa_dados)
+        if tem_pjdp:
+            return True, nome
+        suspeitos = _detectar_pjdp_cadastro_incorreto(capa_dados)
+        if suspeitos:
+            return True, suspeitos[0]
+        return False, ''
+    except Exception as e:
+        logger.warning('[FLUXO_PZ] inicar_exec: checagem PJDP no polo passivo falhou: %s', e)
+        return False, ''
 
 
 def _tem_homologacao_liquidacao(client, id_processo: str) -> bool:
@@ -508,16 +547,40 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
             _fechar_formulario_gigs('erro em GIGS xs sigilo')
 
     id_processo = None
+    client = None
     rota = None
     try:
         from Fix.core import extrair_id_processo
 
         id_processo = extrair_id_processo(driver)
         if id_processo:
-            rota = decidir_rota_iniciar_exec(cliente_para(driver), id_processo)
+            client = cliente_para(driver)
+            rota = decidir_rota_iniciar_exec(client, id_processo)
             logger.info('[FLUXO_PZ] inicar_exec: rota por API=%s (id_processo=%s)', rota, id_processo)
     except Exception as e:
         logger.warning('[FLUXO_PZ] inicar_exec: roteamento por API indisponivel (%s)', e)
+
+    if criar_gigs and id_processo and client is not None:
+        tem_pjdp, nome_pjdp = _polo_passivo_tem_pjdp(client, id_processo)
+        if tem_pjdp:
+            try:
+                ok_pjdp = criar_gigs(driver, observacao=GIGS_OBS_PJDP_PASSIVO)
+                if ok_pjdp:
+                    logger.info(
+                        '[FLUXO_PZ] inicar_exec: GIGS PJDP criada (%s | parte=%s)',
+                        GIGS_OBS_PJDP_PASSIVO,
+                        nome_pjdp,
+                    )
+                else:
+                    logger.error(
+                        '[FLUXO_PZ] inicar_exec: criar_gigs PJDP retornou False (%s | parte=%s)',
+                        GIGS_OBS_PJDP_PASSIVO,
+                        nome_pjdp,
+                    )
+                _fechar_formulario_gigs('GIGS PJDP')
+            except Exception as e:
+                logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS PJDP: %s', e)
+                _fechar_formulario_gigs('erro em GIGS PJDP')
 
     if rota is None:
         mov_ok = False
@@ -568,16 +631,29 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
             except Exception as e:
                 logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS "%s": %s',
                              GIGS_OBS_REGISTRAR_OBRIGACAO, e)
-        registrar_credito_mock_0_01(driver, id_processo)
+        mock_ok = registrar_credito_mock_0_01(driver, id_processo)
+        if not mock_ok:
+            logger.warning('[FLUXO_PZ] inicar_exec: registro de obrigacao (credito_mock) falhou (processo %s)', id_processo)
 
+    iniciou_exec = False
     try:
         if rota in ('executar_pesquisas', 'mock_pesquisas'):
-            if not _abrir_tarefa_e_tentar_iniciar_execucao(driver, timeout=10):
-                logger.info('[FLUXO_PZ] inicar_exec: botão "Iniciar execução" indisponível — seguindo para o ato')
+            iniciou_exec = bool(_abrir_tarefa_e_tentar_iniciar_execucao(driver, timeout=10))
+            if not iniciou_exec:
+                logger.info('[FLUXO_PZ] inicar_exec: botão "Iniciar execução" indisponível (fase permaneceu em Liquidação) — desviando para ato_pesqliq')
         else:
             _abrir_tarefa(driver)
     except Exception as e:
         logger.info('[FLUXO_PZ] inicar_exec: abertura de tarefa falhou (%s) — seguindo para o ato', e)
+
+    if rota in ('executar_pesquisas', 'mock_pesquisas') and not iniciou_exec:
+        _abrir_tarefa(driver)
+        try:
+            if ato_pesqliq:
+                resultado = ato_pesqliq(driver, sigilo=True, atribuir_visibilidade_autor=True)
+        except Exception as e:
+            logger.error('[FLUXO_PZ] inicar_exec: erro ao executar ato_pesqliq (fallback liquidacao): %s', e)
+        return resultado
 
     try:
         if ato_pesquisas:

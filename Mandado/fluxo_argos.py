@@ -113,40 +113,54 @@ def processar_argos(driver: Any, log: bool = False) -> bool:
             else:
                 logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
 
+            if hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
+                sigilo_anexos = dict(anexos_info.detalhes.get('sigilo_anexos', {}))
+                tem_anexos = bool(anexos_info.detalhes.get('tem_anexos', False))
+            else:
+                sigilo_anexos = dict(anexos_info.get('sigilo_anexos', {}))
+                tem_anexos = bool(anexos_info.get('tem_anexos', False))
+
         from atos.anexos_sigilo import aguardar_visibilidade_concluida
         if not aguardar_visibilidade_concluida(driver, timeout=30.0, estabilidade=0.5, log=True):
             logger.warning('[ARGOS][ETAPA 2] Dialog/overlay de visibilidade ainda aberto após 30s antes da ETAPA 2.1')
 
-        # === ETAPA 2.1: CERTIDÃO DE PESQUISA PATRIMONIAL (ANEXOS SIGILO + VISIBILIDADE) ===
-        # Fica antes da certidão de expedição (normalmente no mesmo dia). Sigilo dela
+        # === ETAPA 2.1: CERTIDÕES DE PESQUISA PATRIMONIAL (ANEXOS SIGILO + VISIBILIDADE) ===
+        # Trata TODAS as certidões de pesquisa patrimonial do bloco ancorado (entre a
+        # certidão de devolução e o despacho/decisão que chamou a regra).
         if not modo_degradado_dom:
-            cert_pesquisa = None
+            certs_pesquisa = []
             for d in documentos_sequenciais[1:]:
                 try:
                     if 'certidao de pesquisa patrimonial' in _norm(d.text):
-                        cert_pesquisa = d
-                        break
+                        certs_pesquisa.append(d)
                 except Exception:
                     continue
-            if cert_pesquisa is None:
+            if not certs_pesquisa:
                 logger.info('[ARGOS][ETAPA 2.1] Sem certidão de pesquisa patrimonial no bloco')
             else:
-                logger.info('[ARGOS][ETAPA 2.1] Tratando anexos da certidão de pesquisa patrimonial (sigilo + visibilidade)...')
-                try:
-                    tratar_anexos_argos(driver, [cert_pesquisa], log=log, escopo_doc=True)
-                except Exception as e:
-                    logger.warning('[ARGOS][ETAPA 2.1] Falha não crítica: %s', e)
-                if not aguardar_visibilidade_concluida(driver, timeout=30.0, estabilidade=0.5, log=True):
-                    logger.warning('[ARGOS][ETAPA 2.1] Dialog/overlay de visibilidade ainda aberto após 30s antes das ações seguintes')
-
-        if modo_degradado_dom:
-            pass
-        elif hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
-            sigilo_anexos = anexos_info.detalhes.get('sigilo_anexos', {})
-            tem_anexos = anexos_info.detalhes.get('tem_anexos', False)
-        else:
-            sigilo_anexos = anexos_info.get('sigilo_anexos', {})
-            tem_anexos = anexos_info.get('tem_anexos', False)
+                total_certs = len(certs_pesquisa)
+                logger.info('[ARGOS][ETAPA 2.1] %d certidão(ões) de pesquisa patrimonial no bloco — tratando anexos de todas...', total_certs)
+                for idx_cert, cert_pesquisa in enumerate(certs_pesquisa, start=1):
+                    try:
+                        resumo_cert = ((getattr(cert_pesquisa, 'text', '') or '').strip().splitlines() or [''])[0][:90]
+                    except Exception:
+                        resumo_cert = f'#{idx_cert}'
+                    logger.info('[ARGOS][ETAPA 2.1] (%d/%d) Tratando anexos da certidão de pesquisa patrimonial: %s', idx_cert, total_certs, resumo_cert)
+                    try:
+                        info_pesq = tratar_anexos_argos(driver, [cert_pesquisa], log=log, escopo_doc=True)
+                        if info_pesq:
+                            det_pesq = info_pesq.detalhes if (hasattr(info_pesq, 'detalhes') and isinstance(info_pesq.detalhes, dict)) else (info_pesq if isinstance(info_pesq, dict) else {})
+                            if det_pesq.get('tem_anexos'):
+                                tem_anexos = True
+                            for k_sig, v_sig in (det_pesq.get('sigilo_anexos') or {}).items():
+                                if v_sig == 'sim':
+                                    sigilo_anexos[k_sig] = 'sim'
+                                elif k_sig not in sigilo_anexos:
+                                    sigilo_anexos[k_sig] = v_sig
+                    except Exception as e:
+                        logger.warning('[ARGOS][ETAPA 2.1] (%d/%d) Falha não crítica (%s): %s', idx_cert, total_certs, resumo_cert, e)
+                    if not aguardar_visibilidade_concluida(driver, timeout=30.0, estabilidade=0.5, log=True):
+                        logger.warning('[ARGOS][ETAPA 2.1] (%d/%d) Dialog/overlay de visibilidade ainda aberto após 30s', idx_cert, total_certs)
 
         # Sem anexos = sem SISBAJUD = certidão negativa → ato_meios direto
         if not tem_anexos:

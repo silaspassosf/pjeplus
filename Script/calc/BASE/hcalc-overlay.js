@@ -593,36 +593,38 @@
                     <div id="card-processo-principal-status" style="font-size: 11px; color: #78350f;"></div>
                     <div id="card-processo-principal-body" style="margin-top: 6px;"></div>
                 </div>
-                <div class="row">
-                    <div class="col">
+                <div class="row" style="align-items: flex-start; gap: 12px;">
+                    <div class="col" style="flex: 0 0 115px; max-width: 115px;">
                         <label>Origem do Cálculo</label>
-                        <select id="calc-origem">
+                        <select id="calc-origem" style="width: 100%;">
                             <option value="pjecalc" selected>PJeCalc</option>
                             <option value="outros">Outros</option>
                         </select>
                     </div>
-                    <div class="col" id="col-pjc">
-                        <label><input type="checkbox" id="calc-pjc"> Acompanha arquivo .PJC?</label>
-                    </div>
-                    <div class="col">
-                        <label>Autor do Cálculo</label>
-                        <select id="calc-autor">
-                            <option value="autor" selected>Reclamante (Autor)</option>
-                            <option value="reclamada">Reclamada</option>
-                            <option value="perito">Perito</option>
-                        </select>
-                    </div>
-                    <div class="col hidden" id="col-esclarecimentos">
-                        <label><input type="checkbox" id="calc-esclarecimentos" checked> Esclarecimentos do Perito?</label>
-                        <input type="text" id="calc-peca-perito" placeholder="Id da Peça">
-                    </div>
-                </div>
-                <div class="row" id="row-concordancia" style="margin-top: 8px; align-items: center;">
-                    <div class="col" style="display:flex; flex-wrap:wrap; align-items:center; gap:12px;">
-                        <label style="margin:0; font-weight:600;">Concordância:</label>
-                        <label style="margin:0; font-weight:normal; cursor:pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-expressa" value="expressa"> Expressa</label>
-                        <label style="margin:0; font-weight:normal; cursor:pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-tacita" value="tacita" checked> Tácita</label>
-                        <label id="lbl-concordancia-ambas" style="margin:0; font-weight:normal; cursor:pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-ambas" value="ambas"> Ambas</label>
+                    <div class="col" style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 12px;">
+                            <div style="flex: 0 0 190px; max-width: 190px;">
+                                <label style="display: block;">Autor do Cálculo</label>
+                                <select id="calc-autor" style="width: 100%;">
+                                    <option value="autor" selected>Reclamante (Autor)</option>
+                                    <option value="reclamada">Reclamada</option>
+                                    <option value="perito">Perito</option>
+                                </select>
+                            </div>
+                            <div id="col-pjc" style="display: flex; align-items: center; padding-bottom: 5px;">
+                                <label style="margin: 0; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; cursor: pointer;"><input type="checkbox" id="calc-pjc" style="margin: 0;"> Arquivo PJC</label>
+                            </div>
+                            <div class="hidden" id="col-esclarecimentos" style="flex: 1 1 160px;">
+                                <label><input type="checkbox" id="calc-esclarecimentos" checked> Esclarecimentos do Perito?</label>
+                                <input type="text" id="calc-peca-perito" placeholder="Id da Peça">
+                            </div>
+                        </div>
+                        <div id="row-concordancia" style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 12px; margin-top: 2px;">
+                            <span style="font-size: 12px; font-weight: 600; white-space: nowrap;">Concordância:</span>
+                            <label style="margin: 0; display: inline-flex; align-items: center; gap: 4px; font-weight: normal; white-space: nowrap; cursor: pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-expressa" value="expressa" style="margin: 0;"> Expressa</label>
+                            <label style="margin: 0; display: inline-flex; align-items: center; gap: 4px; font-weight: normal; white-space: nowrap; cursor: pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-tacita" value="tacita" checked style="margin: 0;"> Tácita</label>
+                            <label id="lbl-concordancia-ambas" style="margin: 0; display: inline-flex; align-items: center; gap: 4px; font-weight: normal; white-space: nowrap; cursor: pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-ambas" value="ambas" style="margin: 0;"> Ambas</label>
+                        </div>
                     </div>
                 </div>
             </fieldset>

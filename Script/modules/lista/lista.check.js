@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.3.12
+// lista.check.js v0.3.13
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -125,9 +125,10 @@ async function expandirAnexos(container) {
         if (!container) return false;
         const _temAnexos = () => container.querySelector('.tl-item-anexo, a.tl-documento[id^="anexo_"]');
         if (_temAnexos()) return true;
-        const toggle = container.querySelector(
-            'button.botao-anexos, pje-timeline-anexos div[name="mostrarOuOcultarAnexos"], pje-timeline-anexos > div > div'
-        );
+        const toggle =
+            container.querySelector('button.botao-anexos') ||
+            container.querySelector('button[name="mostrarOuOcultarAnexos"]') ||
+            container.querySelector('pje-timeline-anexos div[name="mostrarOuOcultarAnexos"]');
         if (!toggle) return false;
         try { toggle.click(); } catch (e) { safeDispatch(toggle, 'click', { bubbles: true, cancelable: true }); }
         return Boolean(await _aguardarCondicao(_temAnexos, 2000, 100));

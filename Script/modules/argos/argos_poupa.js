@@ -821,16 +821,109 @@
             }
         }
 
-        onStatus('Salvando PDF (' + totalPaginas + ' páginas)...');
-        const pdfBytes = await pdfFinal.save();
-        const nomeSaida = opts.nomeArquivo || ('Poupa Convenios - ' + num + '.pdf');
+        const MAX_PDF_BYTES = Math.floor(9.5 * 1024 * 1024); // margem segura < 10 MB
+        const SAVE_OPTS_COMPRIMIDO = { useObjectStreams: true, addDefaultPage: false };
 
-        if (baixarArquivo) _dispararDownloadBlob(pdfBytes, nomeSaida);
+        function _nomePartePdf(nomeBase, parteIdx, totalPartes) {
+            if (totalPartes <= 1) return nomeBase;
+            const semExt = String(nomeBase || 'documento.pdf').replace(/\.pdf$/i, '');
+            return _sanitizarNomeArquivo(semExt + ' - Parte ' + parteIdx + ' de ' + totalPartes) + '.pdf';
+        }
+
+        async function _salvarFatia(pdfOrigem, inicio, fim) {
+            const sub = await PDFDocument.create();
+            const indices = [];
+            for (let p = inicio; p < fim; p++) indices.push(p);
+            const copiadas = await sub.copyPages(pdfOrigem, indices);
+            for (const pg of copiadas) sub.addPage(pg);
+            return await sub.save(SAVE_OPTS_COMPRIMIDO);
+        }
+
+        async function _dividirPdfAteLimite(pdfOrigem, bytesIniciais, maxBytes) {
+            const totalPgs = pdfOrigem.getPageCount();
+            if (bytesIniciais.byteLength <= maxBytes || totalPgs <= 1) {
+                return [{ bytes: bytesIniciais, paginas: totalPgs }];
+            }
+
+            const partes = [];
+            const mediaPorPag = Math.max(1, bytesIniciais.byteLength / totalPgs);
+            let cursor = 0;
+
+            while (cursor < totalPgs) {
+                const restantes = totalPgs - cursor;
+                let qtd = Math.max(1, Math.min(restantes, Math.floor((maxBytes * 0.92) / mediaPorPag)));
+                onStatus('Compactando e dividindo parte ' + (partes.length + 1) + ' (págs ' + (cursor + 1) + '-' + (cursor + qtd) + '/' + totalPgs + ')...');
+                let sliceBytes = await _salvarFatia(pdfOrigem, cursor, cursor + qtd);
+
+                // Se estourou o limite, reduz com busca binária rápida
+                if (sliceBytes.byteLength > maxBytes && qtd > 1) {
+                    let lo = 1;
+                    let hi = qtd - 1;
+                    let melhorQtd = 1;
+                    let melhorBytes = null;
+                    while (lo <= hi) {
+                        const mid = Math.floor((lo + hi) / 2);
+                        const cand = await _salvarFatia(pdfOrigem, cursor, cursor + mid);
+                        if (cand.byteLength <= maxBytes) {
+                            melhorQtd = mid;
+                            melhorBytes = cand;
+                            lo = mid + 1;
+                        } else {
+                            hi = mid - 1;
+                        }
+                    }
+                    qtd = melhorQtd;
+                    sliceBytes = melhorBytes || await _salvarFatia(pdfOrigem, cursor, cursor + 1);
+                } else if (sliceBytes.byteLength < maxBytes * 0.72 && cursor + qtd < totalPgs) {
+                    // Aproveita folga sem excesso de tentativas (no máx. 2 passos de expansão)
+                    for (let step = 0; step < 2 && cursor + qtd < totalPgs; step++) {
+                        const fator = Math.min(1.6, (maxBytes * 0.92) / Math.max(1, sliceBytes.byteLength));
+                        const novaQtd = Math.min(totalPgs - cursor, Math.max(qtd + 1, Math.floor(qtd * fator)));
+                        if (novaQtd <= qtd) break;
+                        const cand = await _salvarFatia(pdfOrigem, cursor, cursor + novaQtd);
+                        if (cand.byteLength <= maxBytes) {
+                            qtd = novaQtd;
+                            sliceBytes = cand;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                partes.push({ bytes: sliceBytes, paginas: qtd });
+                cursor += qtd;
+            }
+            return partes;
+        }
+
+        onStatus('Comprimindo e salvando PDF (' + totalPaginas + ' páginas)...');
+        const pdfBytes = await pdfFinal.save(SAVE_OPTS_COMPRIMIDO);
+        const nomeSaida = opts.nomeArquivo || ('Poupa Convenios - ' + num + '.pdf');
+        const limiteBytes = opts.maxBytes || MAX_PDF_BYTES;
+        const partes = await _dividirPdfAteLimite(pdfFinal, pdfBytes, limiteBytes);
+
+        const arquivosGerados = [];
+        for (let i = 0; i < partes.length; i++) {
+            const p = partes[i];
+            const nomeParte = _nomePartePdf(nomeSaida, i + 1, partes.length);
+            if (baixarArquivo) {
+                _dispararDownloadBlob(p.bytes, nomeParte);
+                if (i < partes.length - 1) await new Promise(r => setTimeout(r, 400));
+            }
+            arquivosGerados.push({
+                nomeArquivo: nomeParte,
+                totalPaginas: p.paginas,
+                bytesFinal: p.bytes.byteLength,
+                parte: i + 1,
+                totalPartes: partes.length,
+            });
+        }
 
         return {
-            nomeArquivo: nomeSaida,
+            nomeArquivo: arquivosGerados[0] ? arquivosGerados[0].nomeArquivo : nomeSaida,
             totalPaginas,
-            bytesFinal: pdfBytes.byteLength,
+            bytesFinal: arquivosGerados.reduce((acc, a) => acc + a.bytesFinal, 0),
+            partes: arquivosGerados,
             tarefasProcessadas: tarefasOrdenadas.length,
             anexosMesclados: resumoArquivos.filter(x => x.origem === 'anexo').length,
             resumoArquivos,
@@ -897,9 +990,29 @@
                 nomeArquivo: lote.nomeArquivo,
                 incluirCertidao: opts.incluirCertidao,
                 download: opts.download,
+                maxBytes: opts.maxBytes,
                 onStatus: msg => onStatus(prefixo + msg),
             });
-            gerados.push(Object.assign({ documento: lote.documento, nomeEmpresa: lote.nomeEmpresa, tipoLote: lote.tipoLote }, res));
+            const partesLote = (res.partes && res.partes.length) ? res.partes : [{
+                nomeArquivo: res.nomeArquivo,
+                totalPaginas: res.totalPaginas,
+                bytesFinal: res.bytesFinal,
+                parte: 1,
+                totalPartes: 1,
+            }];
+            for (const pt of partesLote) {
+                gerados.push({
+                    documento: lote.documento,
+                    nomeEmpresa: lote.nomeEmpresa,
+                    tipoLote: lote.tipoLote,
+                    nomeArquivo: pt.nomeArquivo,
+                    totalPaginas: pt.totalPaginas,
+                    bytesFinal: pt.bytesFinal,
+                    parte: pt.parte,
+                    totalPartes: pt.totalPartes,
+                    avisos: res.avisos,
+                });
+            }
             if (opts.download !== false && i < lotes.length - 1) {
                 await new Promise(r => setTimeout(r, 400));
             }
@@ -1253,7 +1366,10 @@
                 onStatus: (msg) => prog.atualizar('⏳ ' + msg, elegiveis.length + ' elegível(is) Art. 131 CNC'),
             });
 
-            const nomes = (res.arquivos || []).map(a => a.nomeArquivo + ' (' + a.totalPaginas + ' pág.)');
+            const nomes = (res.arquivos || []).map(a => {
+                const mb = a.bytesFinal ? (' • ' + (a.bytesFinal / (1024 * 1024)).toFixed(2) + ' MB') : '';
+                return a.nomeArquivo + ' (' + a.totalPaginas + ' pág.' + mb + ')';
+            });
             prog.concluir(
                 '✅ ' + res.totalArquivos + ' PDF(s) baixado(s) (Positivo/Negativo por parte)',
                 '#10b981',

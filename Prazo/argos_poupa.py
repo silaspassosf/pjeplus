@@ -516,12 +516,111 @@ def _baixar_arquivo_anexo(client: Any, id_tarefa: Any, id_resultado: Any, id_arq
     return r.content, (r.headers.get("content-type") or "").lower()
 
 
+MAX_PDF_BYTES = int(9.5 * 1024 * 1024)  # margem segura abaixo de 10 MB
+_FITZ_SAVE_KW = dict(garbage=4, deflate=True, deflate_images=True, deflate_fonts=True)
+
+
+def _caminho_parte_pdf(caminho_base: Path, parte: int, total_partes: int) -> Path:
+    if total_partes <= 1:
+        return caminho_base
+    return caminho_base.with_name(f"{caminho_base.stem} - Parte {parte} de {total_partes}.pdf")
+
+
+def _fatia_pdf_bytes(doc_origem: Any, inicio: int, fim: int) -> bytes:
+    import fitz
+
+    sub = fitz.open()
+    try:
+        sub.insert_pdf(doc_origem, from_page=inicio, to_page=fim - 1)
+        return sub.tobytes(**_FITZ_SAVE_KW)
+    finally:
+        sub.close()
+
+
+def _dividir_e_salvar_pdf(
+    pdf_final: Any,
+    caminho_saida: Path,
+    *,
+    max_bytes: int = MAX_PDF_BYTES,
+) -> List[Dict[str, Any]]:
+    """Comprime (deflate/garbage=4) e divide em partes <= max_bytes (<10 MB)."""
+    caminho_saida.parent.mkdir(parents=True, exist_ok=True)
+    total_pgs = pdf_final.page_count
+    raw_unico = pdf_final.tobytes(**_FITZ_SAVE_KW)
+
+    if len(raw_unico) <= max_bytes or total_pgs <= 1:
+        caminho_saida.write_bytes(raw_unico)
+        return [{
+            "caminho": str(caminho_saida),
+            "nomeArquivo": caminho_saida.name,
+            "totalPaginas": total_pgs,
+            "bytesFinal": len(raw_unico),
+            "parte": 1,
+            "totalPartes": 1,
+        }]
+
+    partes_raw: List[Tuple[bytes, int]] = []
+    media_pag = max(1.0, len(raw_unico) / total_pgs)
+    cursor = 0
+    while cursor < total_pgs:
+        restantes = total_pgs - cursor
+        qtd = max(1, min(restantes, int((max_bytes * 0.92) / media_pag)))
+        blob = _fatia_pdf_bytes(pdf_final, cursor, cursor + qtd)
+
+        if len(blob) > max_bytes and qtd > 1:
+            lo, hi = 1, qtd - 1
+            melhor_qtd, melhor_blob = 1, None
+            while lo <= hi:
+                mid = (lo + hi) // 2
+                cand = _fatia_pdf_bytes(pdf_final, cursor, cursor + mid)
+                if len(cand) <= max_bytes:
+                    melhor_qtd, melhor_blob = mid, cand
+                    lo = mid + 1
+                else:
+                    hi = mid - 1
+            qtd = melhor_qtd
+            blob = melhor_blob if melhor_blob is not None else _fatia_pdf_bytes(pdf_final, cursor, cursor + 1)
+        elif len(blob) < max_bytes * 0.72 and cursor + qtd < total_pgs:
+            for _ in range(2):
+                if cursor + qtd >= total_pgs:
+                    break
+                fator = min(1.6, (max_bytes * 0.92) / max(1, len(blob)))
+                nova_qtd = min(total_pgs - cursor, max(qtd + 1, int(qtd * fator)))
+                if nova_qtd <= qtd:
+                    break
+                cand = _fatia_pdf_bytes(pdf_final, cursor, cursor + nova_qtd)
+                if len(cand) <= max_bytes:
+                    qtd, blob = nova_qtd, cand
+                else:
+                    break
+
+        partes_raw.append((blob, qtd))
+        cursor += qtd
+
+    total_partes = len(partes_raw)
+    saida: List[Dict[str, Any]] = []
+    for idx, (blob, pags) in enumerate(partes_raw, start=1):
+        destino = _caminho_parte_pdf(caminho_saida, idx, total_partes)
+        destino.write_bytes(blob)
+        saida.append({
+            "caminho": str(destino),
+            "nomeArquivo": destino.name,
+            "totalPaginas": pags,
+            "bytesFinal": len(blob),
+            "parte": idx,
+            "totalPartes": total_partes,
+        })
+    return saida
+
+
 def _mesclar_lote_em_pdf(
     client: Any,
     numero_processo: str,
     tarefas_lote: Sequence[Dict[str, Any]],
     caminho_saida: Path,
-) -> Dict[str, Any]:
+    *,
+    max_bytes: int = MAX_PDF_BYTES,
+) -> List[Dict[str, Any]]:
     import fitz  # PyMuPDF
 
     tarefas_ord = _ordenar_positivas_depois_negativas(tarefas_lote)
@@ -564,19 +663,14 @@ def _mesclar_lote_em_pdf(
                 except Exception as e:
                     avisos.append(f"Falha ao mesclar {nome_arq}: {e}")
 
-        caminho_saida.parent.mkdir(parents=True, exist_ok=True)
-        pdf_final.save(str(caminho_saida))
-        total_paginas = pdf_final.page_count
+        partes = _dividir_e_salvar_pdf(pdf_final, caminho_saida, max_bytes=max_bytes)
     finally:
         pdf_final.close()
 
-    return {
-        "caminho": str(caminho_saida),
-        "nomeArquivo": caminho_saida.name,
-        "totalPaginas": total_paginas,
-        "anexosMesclados": anexos_mesclados,
-        "avisos": avisos,
-    }
+    for p in partes:
+        p["anexosMesclados"] = anexos_mesclados
+        p["avisos"] = avisos
+    return partes
 
 
 def gerar_pdfs_por_empresa(
@@ -617,10 +711,11 @@ def gerar_pdfs_por_empresa(
 
     gerados: List[Dict[str, Any]] = []
     for doc, tipo_lote, nome_arq, tarefas_lote in lotes:
-        res = _mesclar_lote_em_pdf(client, numero_processo, tarefas_lote, base_dir / nome_arq)
-        res["documento"] = doc
-        res["tipoLote"] = tipo_lote
-        gerados.append(res)
+        partes = _mesclar_lote_em_pdf(client, numero_processo, tarefas_lote, base_dir / nome_arq)
+        for res in partes:
+            res["documento"] = doc
+            res["tipoLote"] = tipo_lote
+            gerados.append(res)
     return gerados
 
 

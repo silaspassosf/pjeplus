@@ -15,11 +15,7 @@ def _lazy_import():
         from atos.wrappers_mov import mov_arquivar
         from atos.wrappers_ato import ato_sobrestamento, ato_pesqliq, ato_180, ato_calc2, ato_prev, ato_meios, ato_idpj, ato_reitmeios, ato_reit1, ato_HCL
         from atos import pec_excluiargos
-        try:
-            from atos.anexos.anexos_wrappers import anex_retifidpj, poupa
-        except Exception:
-            anex_retifidpj = None
-            poupa = None
+        from atos.wrappers_anex import anex_retifidpj, anex_poupa, poupa
 
         _modules_cache.update({
             'aguardar_e_clicar': aguardar_e_clicar,
@@ -41,6 +37,7 @@ def _lazy_import():
             'ato_HCL': ato_HCL,
             'pec_excluiargos': pec_excluiargos,
             'anex_retifidpj': anex_retifidpj,
+            'anex_poupa': anex_poupa,
             'poupa': poupa,
         })
 

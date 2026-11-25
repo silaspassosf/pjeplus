@@ -24,7 +24,7 @@ Uso:
 import re
 from core.rule_registry import RuleRegistry
 
-BUCKET_ORDEM = ['ato_judicial', 'comunicacao_judicial', 'movimentos']
+BUCKET_ORDEM = ['ato_judicial', 'comunicacao_judicial', 'movimentos', 'juntada']
 
 registry = RuleRegistry("atos", BUCKET_ORDEM)
 
@@ -226,9 +226,39 @@ for _name, _fn in _MOVIMENTOS_WRAPPERS.items():
     registry.register(re.escape(_name), 'movimentos', _fn)
 
 # ────────────────────────────────────────────────────────────────
+# juntada: wrappers de juntada/anexos (wrappers_anex.py)
+# ────────────────────────────────────────────────────────────────
+
+from .wrappers_anex import (
+    anex_carta,
+    anex_sisbconsulta,
+    anex_bloqneg,
+    anex_parcial,
+    anex_retifidpj,
+    anex_devcp,
+    anex_poupa,
+    poupa,
+)
+
+_JUNTADA_WRAPPERS = {
+    'anex_carta': anex_carta,
+    'anex_sisbconsulta': anex_sisbconsulta,
+    'anex_bloqneg': anex_bloqneg,
+    'anex_parcial': anex_parcial,
+    'anex_retifidpj': anex_retifidpj,
+    'anex_devcp': anex_devcp,
+    'anex_poupa': anex_poupa,
+    'poupa': poupa,
+}
+
+for _name, _fn in _JUNTADA_WRAPPERS.items():
+    registry.register(re.escape(_name), 'juntada', _fn)
+
+# ────────────────────────────────────────────────────────────────
 # Conveniencia: dicionarios nomeados de wrappers por bucket
 # ────────────────────────────────────────────────────────────────
 
 ATOS_JUDICIAIS = dict(_ATO_JUDICIAL_WRAPPERS)
 COMUNICACOES = dict(_COMUNICACAO_WRAPPERS)
 MOVIMENTOS = dict(_MOVIMENTOS_WRAPPERS)
+JUNTADAS = dict(_JUNTADA_WRAPPERS)

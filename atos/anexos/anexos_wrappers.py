@@ -1,160 +1,28 @@
-"""atos.anexos.wrappers - Módulo de wrappers específicos PEC/anexos."""
+"""atos.anexos.anexos_wrappers — Shim retrocompatível para atos.wrappers_anex.
 
-import logging
-logger = logging.getLogger(__name__)
+As definições canônicas dos wrappers de juntada agora vivem em ``atos/wrappers_anex.py``
+usando a factory ``make_juntada_wrapper`` (mesmo padrão de ``wrappers_ato.py`` e ``wrappers_pec.py``).
+"""
+from ..wrappers_anex import (
+    make_juntada_wrapper,
+    anex_carta,
+    anex_sisbconsulta,
+    anex_bloqneg,
+    anex_parcial,
+    anex_retifidpj,
+    anex_devcp,
+    anex_poupa,
+    poupa,
+)
 
-from typing import Optional, Callable, Any
-from .anexos_sisbajud import _wrapper_sisbajud_generico, _obter_conteudo_relatorio_sisbajud
-from .anexos_juntador_base import wrapper_juntada_geral
-
-
-def anex_carta(
-    driver: Any,
-    numero_processo: Optional[str] = None,
-    debug: bool = True,
-    ecarta_html: Optional[str] = None
-) -> bool:
-    """Wrapper específico para juntada de e-carta."""
-    from Fix.utils import obter_ultimo_conteudo_clipboard
-
-    conteudo = obter_ultimo_conteudo_clipboard(numero_processo, debug=debug)
-
-    if ecarta_html is not None:
-        conteudo = ecarta_html
-
-    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
-        # Usar substituir_marcador_por_conteudo que é mais robusto para CKEditor
-        from Fix.utils import substituir_marcador_por_conteudo
-        return substituir_marcador_por_conteudo(
-            driver=driver,
-            conteudo_customizado=conteudo or '',
-            debug=True,
-            marcador='--'
-        )
-
-    return wrapper_juntada_geral(
-        driver=driver,
-        tipo='Certidão',
-        descricao='Rastreamentos e-Carta',
-        modelo='xs carta',
-        assinar='nao',
-        sigilo='nao',
-        inserir_conteudo=inserir_fn,
-        coleta_conteudo=None,
-        substituir_link=False,
-        debug=debug
-    )
-
-
-def anex_sisbconsulta(
-    driver: Any,
-    numero_processo: Optional[str] = None,
-    debug: bool = True,
-    tipo: str = 'Certidão',
-    descricao: str = 'Consulta SISBAJUD',
-    modelo: str = 'xteim',
-    assinar: str = 'nao',
-    sigilo: str = 'sim'
-) -> bool:
-    """Wrapper SISBAJUD positivo (renomeado para consulta)."""
-    return _wrapper_sisbajud_generico(driver, tipo, descricao, modelo,
-                                    assinar, sigilo, 'SISB', numero_processo, debug)
-
-
-def anex_bloqneg(
-    driver: Any,
-    numero_processo: Optional[str] = None,
-    debug: bool = True,
-    tipo: str = 'Certidão',
-    descricao: str = 'Consulta sisbajud NEGATIVA',
-    modelo: str = 'xjsisbneg',
-    assinar: str = 'nao',
-    sigilo: str = 'nao'
-) -> bool:
-    """Wrapper SISBAJUD negativo."""
-    return _wrapper_sisbajud_generico(driver, tipo, descricao, modelo,
-                                    assinar, sigilo, 'BLOQNEG', numero_processo, debug)
-
-
-def anex_parcial(
-    driver: Any,
-    numero_processo: Optional[str] = None,
-    debug: bool = True,
-    tipo: str = 'Certidão',
-    descricao: str = 'Consulta sisbajud POSITIVA',
-    modelo: str = 'XSISBPARCIAL',
-    assinar: str = 'nao',
-    sigilo: str = 'nao'
-) -> bool:
-    """Wrapper SISBAJUD parcial."""
-    return _wrapper_sisbajud_generico(driver, tipo, descricao, modelo,
-                                    assinar, sigilo, 'PARCIAL', numero_processo, debug)
-
-
-def anex_retifidpj(
-    driver: Any,
-    numero_processo: Optional[str] = None,
-    debug: bool = True,
-) -> bool:
-    """Wrapper para juntada de retificação quando IDPJ foi indeferido."""
-    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
-        return True
-
-    return wrapper_juntada_geral(
-        driver=driver,
-        tipo='Certidão',
-        descricao='Retificação - IDPJ indeferido',
-        modelo='retifidpj',
-        assinar='nao',
-        sigilo='nao',
-        inserir_conteudo=inserir_fn,
-        coleta_conteudo=None,
-        substituir_link=False,
-        debug=debug
-    )
-
-
-def anex_devcp(
-    driver: Any,
-    numero_processo: Optional[str] = None,
-    debug: bool = True,
-) -> bool:
-    """Wrapper para juntada de devolução de Carta Precatória (Fluxo CP)."""
-    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
-        return True
-
-    return wrapper_juntada_geral(
-        driver=driver,
-        tipo='Certidão',
-        descricao='Devolução CP',
-        modelo='xj2 d',
-        assinar='nao',
-        sigilo='nao',
-        inserir_conteudo=inserir_fn,
-        coleta_conteudo=None,
-        substituir_link=False,
-        debug=debug
-    )
-
-
-def poupa(
-    driver: Any,
-    numero_processo: Optional[str] = None,
-    debug: bool = True,
-) -> bool:
-    """Wrapper para juntada de Certidão de Pesquisas - Poupa Convênios."""
-    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
-        return True
-
-    return wrapper_juntada_geral(
-        driver=driver,
-        tipo='Certidão',
-        descricao='Certidão de Pesquisas - Poupa Convênios',
-        modelo='poupaconv',
-        assinar='nao',
-        sigilo='nao',
-        inserir_conteudo=inserir_fn,
-        coleta_conteudo=None,
-        substituir_link=False,
-        debug=debug
-    )
+__all__ = [
+    'make_juntada_wrapper',
+    'anex_carta',
+    'anex_sisbconsulta',
+    'anex_bloqneg',
+    'anex_parcial',
+    'anex_retifidpj',
+    'anex_devcp',
+    'anex_poupa',
+    'poupa',
+]

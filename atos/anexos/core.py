@@ -8,12 +8,14 @@ from .anexos_extracao import (
 )
 
 from .anexos_wrappers import (
+    make_juntada_wrapper,
     anex_carta,
     anex_sisbconsulta,
     anex_bloqneg,
     anex_parcial,
     anex_retifidpj,
     anex_devcp,
+    anex_poupa,
     poupa,
 )
 
@@ -51,12 +53,14 @@ __all__ = [
     "anex_parcial",
     "anex_retifidpj",
     "anex_devcp",
+    "anex_poupa",
     "poupa",
     "formatar_conteudo_ecarta",
     "_obter_conteudo_relatorio_sisbajud",
     "_wrapper_sisbajud_generico",
     "wrapper_juntada_geral",
     "wrapper_juntada_com_navegacao",
+    "make_juntada_wrapper",
     "create_juntador",
     "executar_juntada_ate_editor",
     "executar_juntada",

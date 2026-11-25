@@ -12,6 +12,9 @@ from .comunicacao import (
     comunicacao_judicial,
     make_comunicacao_wrapper,
 )
+from .anexos.anexos_juntador_base import (
+    wrapper_juntada_geral,
+)
 from .movimentos import mov
 from .wrappers_ato import (
     ato_meios,
@@ -63,6 +66,17 @@ from .wrappers_pec import (
     pec_ord,
     pec_sum,
 )
+from .wrappers_anex import (
+    make_juntada_wrapper,
+    anex_carta,
+    anex_sisbconsulta,
+    anex_bloqneg,
+    anex_parcial,
+    anex_retifidpj,
+    anex_devcp,
+    anex_poupa,
+    poupa,
+)
 from .movimentos import (
     mov_sob,
     mov_fimsob,
@@ -82,6 +96,8 @@ __all__ = [
     'idpj',
     'comunicacao_judicial',
     'make_comunicacao_wrapper',
+    'wrapper_juntada_geral',
+    'make_juntada_wrapper',
     'mov',
     'ato_meios',
     'ato_reitmeios',
@@ -122,6 +138,14 @@ __all__ = [
     'pec_sigilo',
     'pec_ord',
     'pec_sum',
+    'anex_carta',
+    'anex_sisbconsulta',
+    'anex_bloqneg',
+    'anex_parcial',
+    'anex_retifidpj',
+    'anex_devcp',
+    'anex_poupa',
+    'poupa',
     'mov_arquivar',
     'mov_exec',
     'mov_aud',

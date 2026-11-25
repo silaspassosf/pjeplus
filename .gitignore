@@ -102,6 +102,7 @@ context_dump.md
 setup_credenciais.py
 
 # Arquivos com credenciais locais
+*.enc
 00modelos.ps1
 .claude/Modelos.ps1
 cache/assinatura_cookies.json

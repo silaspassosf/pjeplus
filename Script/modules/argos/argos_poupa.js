@@ -605,22 +605,141 @@
         return u8 && u8.length >= 5 && u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46 && u8[4] === 0x2D;
     }
 
+    const IMG_MIN_BYTES_OTIMIZAR = 50 * 1024;
+    const PDF_MIN_BYTES_OTIMIZAR = 300 * 1024;
+    const IMG_MAX_LADO_PX = 1240; // ~120-150 DPI em A4
+    const IMG_JPEG_QUALIDADE = 0.58;
+
+    async function _otimizarImagemBytesGrayscale(bytes, mime, maxLado, qualidade) {
+        maxLado = maxLado || IMG_MAX_LADO_PX;
+        qualidade = qualidade || IMG_JPEG_QUALIDADE;
+        if (!bytes || bytes.byteLength < IMG_MIN_BYTES_OTIMIZAR) return null;
+        if (typeof createImageBitmap !== 'function') return null;
+        try {
+            const blobIn = new Blob([bytes], { type: mime || 'image/jpeg' });
+            const bmp = await createImageBitmap(blobIn);
+            try {
+                const origW = bmp.width;
+                const origH = bmp.height;
+                if (!origW || !origH) return null;
+                const escala = Math.min(1, maxLado / Math.max(origW, origH));
+                const w = Math.max(1, Math.round(origW * escala));
+                const h = Math.max(1, Math.round(origH * escala));
+
+                let canvas;
+                let ctx;
+                if (typeof OffscreenCanvas !== 'undefined') {
+                    canvas = new OffscreenCanvas(w, h);
+                    ctx = canvas.getContext('2d');
+                } else {
+                    canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    ctx = canvas.getContext('2d');
+                }
+                if (!ctx) return null;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, w, h);
+                if ('filter' in ctx) {
+                    ctx.filter = 'grayscale(100%)';
+                    ctx.drawImage(bmp, 0, 0, w, h);
+                } else {
+                    ctx.drawImage(bmp, 0, 0, w, h);
+                    const imgData = ctx.getImageData(0, 0, w, h);
+                    const d = imgData.data;
+                    for (let i = 0; i < d.length; i += 4) {
+                        const g = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+                        d[i] = d[i + 1] = d[i + 2] = g;
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                }
+
+                let blobOut;
+                if (typeof canvas.convertToBlob === 'function') {
+                    blobOut = await canvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
+                } else {
+                    blobOut = await new Promise((res, rej) =>
+                        canvas.toBlob(b => (b ? res(b) : rej(new Error('toBlob null'))), 'image/jpeg', qualidade)
+                    );
+                }
+                const outBytes = new Uint8Array(await blobOut.arrayBuffer());
+                if (outBytes.byteLength >= bytes.byteLength) return null;
+                return { bytes: outBytes, width: w, height: h };
+            } finally {
+                if (typeof bmp.close === 'function') bmp.close();
+            }
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function _otimizarPdfAnexoAntesDeMesclar(srcDoc, rawLen) {
+        if (!rawLen || rawLen < PDF_MIN_BYTES_OTIMIZAR) return 0;
+        const lib = _getPdfLib();
+        const PDFName = lib.PDFName;
+        const PDFNumber = lib.PDFNumber;
+        const PDFRawStream = lib.PDFRawStream;
+        if (!PDFName || !PDFNumber || !PDFRawStream || !srcDoc.context) return 0;
+
+        let otimizadas = 0;
+        const kSubtype = PDFName.of('Subtype');
+        const kImage = PDFName.of('Image');
+        const kFilter = PDFName.of('Filter');
+        const kDct = PDFName.of('DCTDecode');
+        const kWidth = PDFName.of('Width');
+        const kHeight = PDFName.of('Height');
+        const kColorSpace = PDFName.of('ColorSpace');
+        const kDeviceRGB = PDFName.of('DeviceRGB');
+        const kBpc = PDFName.of('BitsPerComponent');
+        const kLength = PDFName.of('Length');
+        const kDecodeParms = PDFName.of('DecodeParms');
+        const kSmask = PDFName.of('SMask');
+
+        for (const [, obj] of srcDoc.context.enumerateIndirectObjects()) {
+            if (!(obj instanceof PDFRawStream)) continue;
+            const dict = obj.dict;
+            if (!dict || dict.get(kSubtype) !== kImage) continue;
+            if (dict.get(kSmask)) continue; // preserva máscaras alfa intactas
+            const flt = dict.get(kFilter);
+            if (flt !== kDct) continue;
+            const contents = obj.contents;
+            if (!contents || contents.byteLength < IMG_MIN_BYTES_OTIMIZAR) continue;
+
+            const ot = await _otimizarImagemBytesGrayscale(contents, 'image/jpeg');
+            if (!ot) continue;
+
+            obj.contents = ot.bytes;
+            dict.set(kWidth, PDFNumber.of(ot.width));
+            dict.set(kHeight, PDFNumber.of(ot.height));
+            dict.set(kColorSpace, kDeviceRGB);
+            dict.set(kBpc, PDFNumber.of(8));
+            dict.set(kLength, PDFNumber.of(ot.bytes.byteLength));
+            dict.delete(kDecodeParms);
+            otimizadas += 1;
+        }
+        return otimizadas;
+    }
+
     async function _anexarBytesAoPdf(pdfDestino, bytes, contentType, nomeArquivo, avisos) {
         const { PDFDocument } = _getPdfLib();
         if (_isPdfBytes(bytes) || contentType.includes('pdf')) {
             const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+            await _otimizarPdfAnexoAntesDeMesclar(src, bytes.byteLength);
             const paginas = await pdfDestino.copyPages(src, src.getPageIndices());
             for (const p of paginas) pdfDestino.addPage(p);
             return paginas.length;
         }
         if (contentType.includes('png') || /\.png$/i.test(nomeArquivo || '')) {
-            const img = await pdfDestino.embedPng(bytes);
+            const ot = await _otimizarImagemBytesGrayscale(bytes, 'image/png');
+            const img = ot ? await pdfDestino.embedJpg(ot.bytes) : await pdfDestino.embedPng(bytes);
             const page = pdfDestino.addPage([img.width, img.height]);
             page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
             return 1;
         }
         if (contentType.includes('jpeg') || contentType.includes('jpg') || /\.jpe?g$/i.test(nomeArquivo || '')) {
-            const img = await pdfDestino.embedJpg(bytes);
+            const ot = await _otimizarImagemBytesGrayscale(bytes, 'image/jpeg');
+            const img = await pdfDestino.embedJpg(ot ? ot.bytes : bytes);
             const page = pdfDestino.addPage([img.width, img.height]);
             page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
             return 1;
@@ -953,21 +1072,58 @@
         const grupos = Array.from(gruposMap.values());
         const nomesCurtos = _abreviarNomesEmpresas(grupos);
 
-        // Sempre 2 PDFs por parte executada: um de POSITIVAS e outro de NEGATIVAS (Art. 131 CNC)
+        function _ehArisp(t) {
+            return String(t.tipoTarefa || t.nomeTarefa || '').toUpperCase().includes('ARISP');
+        }
+        function _ehRenajud(t) {
+            return String(t.tipoTarefa || t.nomeTarefa || '').toUpperCase().includes('RENAJUD');
+        }
+
+        // Regra por parte executada (Art. 131 CNC):
+        // Positivas divididas em: (a) ARISP 1 por 1, (b) Renajud agrupado, (c) Demais agrupado.
+        // Negativas: 1 PDF agrupado por parte executada.
         const lotes = [];
         for (const g of grupos) {
             const nomeCurto = nomesCurtos.get(g.documento) || g.nomeEmpresa;
             const ordenadas = _ordenarPositivasDepoisNegativas(g.tarefas);
             const pos = ordenadas.filter(t => t.resultadoPositivo);
             const neg = ordenadas.filter(t => !t.resultadoPositivo);
-            if (pos.length) {
+
+            const posArisp = pos.filter(_ehArisp);
+            const posRenajud = pos.filter(t => !_ehArisp(t) && _ehRenajud(t));
+            const posDemais = pos.filter(t => !_ehArisp(t) && !_ehRenajud(t));
+
+            for (let idx = 0; idx < posArisp.length; idx++) {
+                const tArisp = posArisp[idx];
+                const sufixo = posArisp.length > 1 ? (' ' + (idx + 1)) : '';
+                const nomeArisp = _sanitizarNomeArquivo(nomeCurto + ' (ARISP OK' + sufixo + ')') + '.pdf';
                 lotes.push({
                     documento: g.documento,
                     nomeEmpresa: g.nomeEmpresa,
                     nomeCurto,
-                    tipoLote: 'POSITIVAS',
-                    tarefas: pos,
-                    nomeArquivo: _montarNomeArquivoEmpresa(nomeCurto, pos),
+                    tipoLote: 'ARISP_OK',
+                    tarefas: [tArisp],
+                    nomeArquivo: nomeArisp,
+                });
+            }
+            if (posRenajud.length) {
+                lotes.push({
+                    documento: g.documento,
+                    nomeEmpresa: g.nomeEmpresa,
+                    nomeCurto,
+                    tipoLote: 'RENAJUD_OK',
+                    tarefas: posRenajud,
+                    nomeArquivo: _montarNomeArquivoEmpresa(nomeCurto, posRenajud),
+                });
+            }
+            if (posDemais.length) {
+                lotes.push({
+                    documento: g.documento,
+                    nomeEmpresa: g.nomeEmpresa,
+                    nomeCurto,
+                    tipoLote: 'DEMAIS_OK',
+                    tarefas: posDemais,
+                    nomeArquivo: _montarNomeArquivoEmpresa(nomeCurto, posDemais),
                 });
             }
             if (neg.length) {

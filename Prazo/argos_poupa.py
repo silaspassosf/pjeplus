@@ -518,6 +518,60 @@ def _baixar_arquivo_anexo(client: Any, id_tarefa: Any, id_resultado: Any, id_arq
 
 MAX_PDF_BYTES = int(9.5 * 1024 * 1024)  # margem segura abaixo de 10 MB
 _FITZ_SAVE_KW = dict(garbage=4, deflate=True, deflate_images=True, deflate_fonts=True)
+_IMG_MIN_BYTES_OTIMIZAR = 50 * 1024
+_IMG_MAX_LADO_PX = 1240  # ~120-150 DPI em A4
+_IMG_JPEG_QUALIDADE = 58
+
+
+def _otimizar_imagem_grayscale_bytes(
+    raw: bytes,
+    *,
+    max_lado: int = _IMG_MAX_LADO_PX,
+    qualidade: int = _IMG_JPEG_QUALIDADE,
+) -> Optional[bytes]:
+    """Converte imagem grande para grayscale + DPI comprimido (JPEG) se reduzir tamanho."""
+    if not raw or len(raw) < _IMG_MIN_BYTES_OTIMIZAR:
+        return None
+    try:
+        import io
+        from PIL import Image
+
+        im = Image.open(io.BytesIO(raw)).convert("L")
+        im.thumbnail((max_lado, int(max_lado * 1.42)), Image.Resampling.LANCZOS)
+        out = io.BytesIO()
+        im.save(out, format="JPEG", quality=qualidade, optimize=True)
+        novo = out.getvalue()
+        return novo if len(novo) < len(raw) else None
+    except Exception:
+        return None
+
+
+def _otimizar_imagens_pdf_rapido(doc: Any) -> int:
+    """Re-comprime in-place imagens grandes (>=50KB) do PDF para grayscale + DPI comprimido sem rasterizar texto."""
+    otimizadas = 0
+    vistos: set = set()
+    for pg in doc:
+        try:
+            imgs = pg.get_images(full=True)
+        except Exception:
+            continue
+        for info in imgs:
+            xref = info[0]
+            if xref in vistos:
+                continue
+            vistos.add(xref)
+            try:
+                base = doc.extract_image(xref)
+                raw = base.get("image") if base else None
+                if not raw or len(raw) < _IMG_MIN_BYTES_OTIMIZAR:
+                    continue
+                novo = _otimizar_imagem_grayscale_bytes(raw)
+                if novo:
+                    pg.replace_image(xref, stream=novo)
+                    otimizadas += 1
+            except Exception:
+                continue
+    return otimizadas
 
 
 def _caminho_parte_pdf(caminho_base: Path, parte: int, total_partes: int) -> Path:
@@ -652,7 +706,11 @@ def _mesclar_lote_em_pdf(
                             pdf_final.insert_pdf(doc_anx)
                         anexos_mesclados += 1
                     elif any(ext in ctype or nome_arq.lower().endswith(ext) for ext in ("png", "jpg", "jpeg")):
-                        ext = "png" if ("png" in ctype or nome_arq.lower().endswith(".png")) else "jpeg"
+                        ot_img = _otimizar_imagem_grayscale_bytes(raw)
+                        if ot_img:
+                            raw, ext = ot_img, "jpeg"
+                        else:
+                            ext = "png" if ("png" in ctype or nome_arq.lower().endswith(".png")) else "jpeg"
                         with fitz.open(stream=raw, filetype=ext) as img_doc:
                             pdf_bytes = img_doc.convert_to_pdf()
                         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc_img_pdf:
@@ -663,6 +721,7 @@ def _mesclar_lote_em_pdf(
                 except Exception as e:
                     avisos.append(f"Falha ao mesclar {nome_arq}: {e}")
 
+        _otimizar_imagens_pdf_rapido(pdf_final)
         partes = _dividir_e_salvar_pdf(pdf_final, caminho_saida, max_bytes=max_bytes)
     finally:
         pdf_final.close()
@@ -696,16 +755,35 @@ def gerar_pdfs_por_empresa(
     grupos = list(grupos_map.values())
     nomes_curtos = _abreviar_nomes_empresas(grupos)
 
+    def _eh_arisp(t: Dict[str, Any]) -> bool:
+        return "ARISP" in str(t.get("tipoTarefa") or t.get("nomeTarefa") or "").upper()
+
+    def _eh_renajud(t: Dict[str, Any]) -> bool:
+        return "RENAJUD" in str(t.get("tipoTarefa") or t.get("nomeTarefa") or "").upper()
+
     lotes: List[Tuple[str, str, str, List[Dict[str, Any]]]] = []
-    # Regra fixa (Art. 131 CNC): sempre 2 PDFs por parte executada (POSITIVAS e NEGATIVAS)
+    # Regra por parte executada (Art. 131 CNC):
+    # Positivas: (a) ARISP 1 por 1, (b) Renajud agrupado, (c) Demais agrupado.
+    # Negativas: 1 PDF agrupado por parte executada.
     _ = separar_positivas_negativas
     for g in grupos:
         nome_curto = nomes_curtos.get(g["documento"], g["nomeEmpresa"])
         ordenadas = _ordenar_positivas_depois_negativas(g["tarefas"])
         pos = [t for t in ordenadas if t.get("resultadoPositivo")]
         neg = [t for t in ordenadas if not t.get("resultadoPositivo")]
-        if pos:
-            lotes.append((g["documento"], "POSITIVAS", _montar_nome_arquivo_empresa(nome_curto, pos), pos))
+
+        pos_arisp = [t for t in pos if _eh_arisp(t)]
+        pos_renajud = [t for t in pos if not _eh_arisp(t) and _eh_renajud(t)]
+        pos_demais = [t for t in pos if not _eh_arisp(t) and not _eh_renajud(t)]
+
+        for idx, t_arisp in enumerate(pos_arisp, start=1):
+            sufixo = f" {idx}" if len(pos_arisp) > 1 else ""
+            nome_arisp = _sanitizar_nome_arquivo(f"{nome_curto} (ARISP OK{sufixo})") + ".pdf"
+            lotes.append((g["documento"], "ARISP_OK", nome_arisp, [t_arisp]))
+        if pos_renajud:
+            lotes.append((g["documento"], "RENAJUD_OK", _montar_nome_arquivo_empresa(nome_curto, pos_renajud), pos_renajud))
+        if pos_demais:
+            lotes.append((g["documento"], "DEMAIS_OK", _montar_nome_arquivo_empresa(nome_curto, pos_demais), pos_demais))
         if neg:
             lotes.append((g["documento"], "NEGATIVAS", _montar_nome_arquivo_empresa(nome_curto, neg), neg))
 

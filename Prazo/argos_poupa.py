@@ -603,18 +603,17 @@ def gerar_pdfs_por_empresa(
     nomes_curtos = _abreviar_nomes_empresas(grupos)
 
     lotes: List[Tuple[str, str, str, List[Dict[str, Any]]]] = []
+    # Regra fixa (Art. 131 CNC): sempre 2 PDFs por parte executada (POSITIVAS e NEGATIVAS)
+    _ = separar_positivas_negativas
     for g in grupos:
         nome_curto = nomes_curtos.get(g["documento"], g["nomeEmpresa"])
         ordenadas = _ordenar_positivas_depois_negativas(g["tarefas"])
-        if separar_positivas_negativas:
-            pos = [t for t in ordenadas if t.get("resultadoPositivo")]
-            neg = [t for t in ordenadas if not t.get("resultadoPositivo")]
-            if pos:
-                lotes.append((g["documento"], "POSITIVAS", _montar_nome_arquivo_empresa(nome_curto, pos), pos))
-            if neg:
-                lotes.append((g["documento"], "NEGATIVAS", _montar_nome_arquivo_empresa(nome_curto, neg), neg))
-        else:
-            lotes.append((g["documento"], "UNIFICADO", _montar_nome_arquivo_empresa(nome_curto, ordenadas), ordenadas))
+        pos = [t for t in ordenadas if t.get("resultadoPositivo")]
+        neg = [t for t in ordenadas if not t.get("resultadoPositivo")]
+        if pos:
+            lotes.append((g["documento"], "POSITIVAS", _montar_nome_arquivo_empresa(nome_curto, pos), pos))
+        if neg:
+            lotes.append((g["documento"], "NEGATIVAS", _montar_nome_arquivo_empresa(nome_curto, neg), neg))
 
     gerados: List[Dict[str, Any]] = []
     for doc, tipo_lote, nome_arq, tarefas_lote in lotes:

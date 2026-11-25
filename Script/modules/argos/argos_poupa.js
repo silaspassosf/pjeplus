@@ -846,7 +846,6 @@
             throw new Error('Selecione ao menos uma pesquisa.');
         }
 
-        const separar = opts.separarPositivasNegativas !== false;
         const onStatus = typeof opts.onStatus === 'function' ? opts.onStatus : function () {};
 
         const gruposMap = new Map();
@@ -861,41 +860,31 @@
         const grupos = Array.from(gruposMap.values());
         const nomesCurtos = _abreviarNomesEmpresas(grupos);
 
+        // Sempre 2 PDFs por parte executada: um de POSITIVAS e outro de NEGATIVAS (Art. 131 CNC)
         const lotes = [];
         for (const g of grupos) {
             const nomeCurto = nomesCurtos.get(g.documento) || g.nomeEmpresa;
             const ordenadas = _ordenarPositivasDepoisNegativas(g.tarefas);
-            if (separar) {
-                const pos = ordenadas.filter(t => t.resultadoPositivo);
-                const neg = ordenadas.filter(t => !t.resultadoPositivo);
-                if (pos.length) {
-                    lotes.push({
-                        documento: g.documento,
-                        nomeEmpresa: g.nomeEmpresa,
-                        nomeCurto,
-                        tipoLote: 'POSITIVAS',
-                        tarefas: pos,
-                        nomeArquivo: _montarNomeArquivoEmpresa(nomeCurto, pos),
-                    });
-                }
-                if (neg.length) {
-                    lotes.push({
-                        documento: g.documento,
-                        nomeEmpresa: g.nomeEmpresa,
-                        nomeCurto,
-                        tipoLote: 'NEGATIVAS',
-                        tarefas: neg,
-                        nomeArquivo: _montarNomeArquivoEmpresa(nomeCurto, neg),
-                    });
-                }
-            } else {
+            const pos = ordenadas.filter(t => t.resultadoPositivo);
+            const neg = ordenadas.filter(t => !t.resultadoPositivo);
+            if (pos.length) {
                 lotes.push({
                     documento: g.documento,
                     nomeEmpresa: g.nomeEmpresa,
                     nomeCurto,
-                    tipoLote: 'UNIFICADO',
-                    tarefas: ordenadas,
-                    nomeArquivo: _montarNomeArquivoEmpresa(nomeCurto, ordenadas),
+                    tipoLote: 'POSITIVAS',
+                    tarefas: pos,
+                    nomeArquivo: _montarNomeArquivoEmpresa(nomeCurto, pos),
+                });
+            }
+            if (neg.length) {
+                lotes.push({
+                    documento: g.documento,
+                    nomeEmpresa: g.nomeEmpresa,
+                    nomeCurto,
+                    tipoLote: 'NEGATIVAS',
+                    tarefas: neg,
+                    nomeArquivo: _montarNomeArquivoEmpresa(nomeCurto, neg),
                 });
             }
         }
@@ -918,7 +907,7 @@
 
         return {
             numeroProcesso: num,
-            modo: separar ? '2_por_empresa_pos_neg' : '1_por_empresa_unificado',
+            modo: '2_por_empresa_pos_neg',
             totalArquivos: gerados.length,
             arquivos: gerados,
         };
@@ -1165,8 +1154,61 @@
         atualizarTabela();
     }
 
+    // ── Pequeno overlay de progresso (sem dialog de seleção de pesquisas) ─
+    function _criarOverlayProgressoPoupa(titulo) {
+        const prev = document.getElementById('pjetools-argos-poupa-status');
+        if (prev) prev.remove();
+
+        const box = document.createElement('div');
+        box.id = 'pjetools-argos-poupa-status';
+        box.style.cssText = [
+            'position:fixed', 'bottom:24px', 'right:24px', 'z-index:2147483647',
+            'width:360px', 'max-width:92vw', 'background:#0f172a', 'color:#e2e8f0',
+            'border:1px solid #334155', 'border-left:4px solid #7c3aed',
+            'border-radius:10px', 'box-shadow:0 12px 32px rgba(0,0,0,.45)',
+            'padding:12px 14px', 'font-family:system-ui,-apple-system,sans-serif',
+            'font-size:12px', 'line-height:1.4',
+        ].join(';');
+
+        box.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+                <strong style="color:#c4b5fd;font-size:13px;">⚖️ ${_escapeHtml(titulo || 'Argos Poupa (Art. 131 CNC)')}</strong>
+                <button id="ap-prog-close" type="button" style="display:none;padding:2px 8px;background:#334155;color:#e2e8f0;border:none;border-radius:4px;cursor:pointer;font-size:11px;">Fechar</button>
+            </div>
+            <div id="ap-prog-msg" style="color:#f8fafc;">⏳ Iniciando buscas...</div>
+            <div id="ap-prog-detalhe" style="margin-top:6px;color:#94a3b8;font-size:11px;"></div>
+        `;
+        document.body.appendChild(box);
+
+        const msgEl = box.querySelector('#ap-prog-msg');
+        const detEl = box.querySelector('#ap-prog-detalhe');
+        const closeBtn = box.querySelector('#ap-prog-close');
+        closeBtn.addEventListener('click', () => box.remove());
+
+        return {
+            atualizar(texto, detalhe) {
+                if (msgEl) msgEl.textContent = texto;
+                if (detEl && detalhe !== undefined) detEl.textContent = detalhe;
+            },
+            concluir(texto, corBorda, linhasDetalhe) {
+                box.style.borderLeftColor = corBorda || '#10b981';
+                if (msgEl) msgEl.textContent = texto;
+                if (detEl) {
+                    if (Array.isArray(linhasDetalhe) && linhasDetalhe.length) {
+                        detEl.innerHTML = linhasDetalhe.map(l => '<div>• ' + _escapeHtml(l) + '</div>').join('');
+                    } else if (typeof linhasDetalhe === 'string') {
+                        detEl.textContent = linhasDetalhe;
+                    }
+                }
+                if (closeBtn) closeBtn.style.display = 'inline-block';
+            },
+            fechar() { box.remove(); },
+        };
+    }
+
     // ── Entrypoint do botão "Poupa" no painel ────────────────────────────
     async function executarPoupa() {
+        let prog = null;
         try {
             const numero = extrairNumeroProcesso();
             if (!numero) {
@@ -1183,16 +1225,48 @@
                 return;
             }
 
-            showToast('Poupa: consultando pesquisas reaproveitáveis na API Argos...', '#6f42c1', 8000);
+            prog = _criarOverlayProgressoPoupa('Argos Poupa (Art. 131 CNC)');
+            prog.atualizar(
+                '⏳ Buscando pesquisas reaproveitáveis na API Argos...',
+                docs.length + ' parte(s) executada(s) selecionada(s)'
+            );
+
             const relatorio = await consultarPorDocumentos(numero, docs);
-            if (!relatorio.reaproveitaveis.carregados) {
-                showToast('Poupa: nenhuma pesquisa reaproveitável encontrada para as partes selecionadas', '#ff9800', 5000);
+            const totalApi = relatorio.reaproveitaveis.carregados || 0;
+            const elegiveis = relatorio.reaproveitaveis.elegiveisArt131 || [];
+
+            if (!elegiveis.length) {
+                const detalhe = totalApi
+                    ? (totalApi + ' pesquisa(s) localizada(s), mas nenhuma dentro dos prazos do Art. 131 CNC.')
+                    : 'Nenhuma pesquisa reaproveitável encontrada para as partes selecionadas.';
+                prog.concluir('ℹ️ Nenhuma pesquisa elegível (Art. 131 CNC).', '#f59e0b', detalhe);
+                showToast('Poupa: nenhuma pesquisa elegível (Art. 131 CNC)', '#ff9800', 5000);
                 return;
             }
-            renderizarModalPoupa(relatorio);
+
+            prog.atualizar(
+                '⏳ ' + elegiveis.length + ' pesquisa(s) elegível(is) — gerando PDFs (Pos/Neg por parte)...',
+                'Aguarde: baixando certidões e anexos...'
+            );
+
+            const res = await gerarPdfsPorEmpresa(numero, elegiveis, {
+                onStatus: (msg) => prog.atualizar('⏳ ' + msg, elegiveis.length + ' elegível(is) Art. 131 CNC'),
+            });
+
+            const nomes = (res.arquivos || []).map(a => a.nomeArquivo + ' (' + a.totalPaginas + ' pág.)');
+            prog.concluir(
+                '✅ ' + res.totalArquivos + ' PDF(s) baixado(s) (Positivo/Negativo por parte)',
+                '#10b981',
+                nomes
+            );
+            showToast('Poupa: ' + res.totalArquivos + ' PDF(s) gerado(s) com sucesso', '#28a745', 5000);
         } catch (err) {
             console.error('[ArgosPoupa] erro:', err);
-            showToast('Poupa: erro — ' + (err && err.message ? err.message : err), '#dc3545', 5000);
+            const msg = err && err.message ? err.message : String(err);
+            if (prog) {
+                prog.concluir('❌ Erro no Argos Poupa', '#ef4444', msg);
+            }
+            showToast('Poupa: erro — ' + msg, '#dc3545', 5000);
         }
     }
 
@@ -1206,6 +1280,5 @@
         calcularConveniosExcluidos,
         gerarPdfUnico,
         gerarPdfsPorEmpresa,
-        renderizarModalPoupa,
     };
 })();

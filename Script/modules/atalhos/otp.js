@@ -11,9 +11,40 @@
         pje: 'pjeplus_totp_secret_pje',
         sisb: 'pjeplus_totp_secret_sisb',
     };
+    const BRIDGE_BASE_URL = 'http://127.0.0.1:8765';
     const SESSION_CTX_KEY = 'pjeplus_sso_ctx';
     const CONTAINER_ID = 'pjeplus-otp-bar';
     const OTP_SELECTOR = '#otp, input[name="otp"]';
+
+    // ── Bridge local (Windows Credential Manager via tools/otp_bridge.py) ────
+    function obterTotpViaKeyring(tipo) {
+        const url = `${BRIDGE_BASE_URL}/otp/${tipo === 'sisb' ? 'sisb' : 'pje'}`;
+        return new Promise((resolve) => {
+            if (typeof GM_xmlhttpRequest === 'function') {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url,
+                    timeout: 1800,
+                    onload: (resp) => {
+                        try {
+                            const data = JSON.parse(resp.responseText || '{}');
+                            if (resp.status === 200 && data && data.ok && data.codigo) {
+                                resolve({ ok: true, codigo: String(data.codigo), restante: Number(data.restante || 0) });
+                                return;
+                            }
+                            resolve({ ok: false, motivo: data?.erro || `HTTP ${resp.status}` });
+                        } catch (e) {
+                            resolve({ ok: false, motivo: 'Resposta inválida do bridge' });
+                        }
+                    },
+                    onerror: () => resolve({ ok: false, offline: true }),
+                    ontimeout: () => resolve({ ok: false, offline: true }),
+                });
+                return;
+            }
+            resolve({ ok: false, offline: true });
+        });
+    }
 
     // ── Storage seguro (GM_* com fallback localStorage) ──────────────────────
     function lerValor(chave) {
@@ -184,10 +215,33 @@
             return;
         }
 
-        let secret = lerValor(STORAGE_KEYS[tipo]);
+        const rotulo = tipo === 'sisb' ? 'SISB' : 'PJe';
+        if (statusEl) {
+            statusEl.textContent = `Buscando ${rotulo} no keyring...`;
+            statusEl.style.color = '#495057';
+        }
+
+        // 1) Prioridade: Windows Credential Manager (keyring) via bridge local
+        const viaBridge = await obterTotpViaKeyring(tipo);
+        if (viaBridge && viaBridge.ok) {
+            preencherInput(input, viaBridge.codigo);
+            if (statusEl) {
+                statusEl.textContent = `${rotulo}: ${viaBridge.codigo} (${viaBridge.restante}s • keyring)`;
+                statusEl.style.color = '#1b5e20';
+            }
+            return;
+        }
+
+        // 2) Fallback: segredo salvo no storage local do Tampermonkey (se já configurado)
+        const secret = lerValor(STORAGE_KEYS[tipo]);
         if (!secret) {
-            secret = pedirEGravarSeed(tipo);
-            if (!secret) return;
+            if (statusEl) {
+                statusEl.textContent = viaBridge?.offline
+                    ? 'Bridge keyring offline (inicie tools/otp_bridge.py) ou configure em ⚙'
+                    : (viaBridge?.motivo || `Chave ${rotulo} não encontrada no keyring`);
+                statusEl.style.color = '#b71c1c';
+            }
+            return;
         }
 
         try {
@@ -197,7 +251,6 @@
                 return;
             }
             preencherInput(input, res.codigo);
-            const rotulo = tipo === 'sisb' ? 'SISB' : 'PJe';
             if (statusEl) {
                 statusEl.textContent = `${rotulo}: ${res.codigo} (${res.restante}s)`;
                 statusEl.style.color = '#1b5e20';

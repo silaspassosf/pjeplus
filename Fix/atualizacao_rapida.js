@@ -40,7 +40,11 @@ async (cfg) => {
     // fase provar que nada foi liquidado/enviado ainda. sessionStorage sobrevive
     // à navegação da mesma aba (e é limpo quando a aba fecha).
     const CHAVE_MIR = '__pjeplusAR';
+    const CHAVE_LIMPO = '__pjeplusAR_limpo';
+    const CHAVE_CALC = '__pjeplusAR_calc';
     const marcar = (fase) => { try { sessionStorage.setItem(CHAVE_MIR, fase); } catch (e) {} };
+    const lerMem = (k) => { try { return sessionStorage.getItem(k) || ''; } catch (e) { return ''; } };
+    const gravarMem = (k, v) => { try { sessionStorage.setItem(k, String(v || '')); } catch (e) {} };
     marcar('inicio');
 
     // Espera observável (MutationObserver + polling curto), nunca pausa cega.
@@ -98,6 +102,31 @@ async (cfg) => {
         } catch (e) { return ''; }
     }
 
+    // Lê o CNJ da tela atual: tenta panelDadosCalculo (presente em Liquidar Atualização
+    // e cálculos internos) e, em cálculo externo (calculo-externo.jsf), monta dos inputs.
+    function lerCnjDaTela() {
+        const painel = document.querySelector('span[id="formulario:panelDadosCalculo"]');
+        const mPainel = ((painel?.textContent || '').match(CNJ_RE) || [])[0];
+        if (mPainel) return mPainel;
+
+        const g = (sufixo) => {
+            const el = document.querySelector('input[id="formulario:' + sufixo + '"]')
+                || document.querySelector('input[id$=":' + sufixo + '"]');
+            return (el && el.value ? el.value : '').trim();
+        };
+        const num = g('numero');
+        const dig = g('digito');
+        const ano = g('ano');
+        const just = g('justica') || '5';
+        const reg = g('regiao');
+        const vara = g('vara');
+        if (num && dig && ano && reg && vara) {
+            const montado = `${num.padStart(7, '0')}-${dig.padStart(2, '0')}.${ano}.${just}.${reg.padStart(2, '0')}.${vara.padStart(4, '0')}`;
+            if (CNJ_RE.test(montado)) return montado;
+        }
+        return null;
+    }
+
     try {
         const numeroProcesso = String(cfg.numeroProcesso || '').trim();
         const data = String(cfg.data || '').trim();
@@ -107,199 +136,220 @@ async (cfg) => {
         const partes = numeroProcesso.match(/^(\d{7})-(\d{2})\.(\d{4})\.(\d)\.(\d{2})\.(\d{4})$/);
         if (!partes) return falhar('Número CNJ fora do padrão: ' + numeroProcesso);
 
-        // ── 1. Buscar processo no PJeCalc ───────────────────────────────────
-        estado.fase = 'busca-processo'; marcar('busca-processo');
-        const campoBuscarCalc = await aguardar(() => document.querySelector('[title="Buscar Cálculo"]'));
-        if (campoBuscarCalc) clicar(campoBuscarCalc);
-        const campos = [
-            ['numeroProcessoBusca', partes[1]],
-            ['digitoProcessoBusca', partes[2]],
-            ['anoProcessoBusca', partes[3]],
-            ['justicaBusca', partes[4]],
-            ['regiaoBusca', partes[5]],
-            ['varaProcessoBusca', partes[6]],
-        ];
-        for (const [nome, valor] of campos) {
-            const input = await aguardar(() => document.querySelector('input[id*="' + nome + '"]'));
-            if (!input) return falhar('Campo de busca não carregou: ' + nome);
-            preencher(input, valor);
+        // ── 0. Limpar memória do PJe-Calc (equivalente ao avjt-limpar-memoria) ─
+        // Se havia um cálculo aberto de execução anterior na sessão JSF, clica
+        // `.menuImageClose` antes de buscar o novo processo para evitar o bug
+        // de exibir o último cálculo aberto.
+        if (lerMem(CHAVE_LIMPO) !== numeroProcesso) {
+            gravarMem(CHAVE_LIMPO, numeroProcesso);
+            gravarMem(CHAVE_CALC, '');
+            const btnFecharAnterior = document.querySelector('li#li_operacoes_fechar a')
+                || document.querySelector('a.menuImageClose')
+                || document.querySelector('.menuImageClose');
+            if (btnFecharAnterior) {
+                estado.fase = 'limpar-memoria'; marcar('limpar-memoria');
+                clicar(btnFecharAnterior);
+                await aguardar(() => !document.querySelector('.menuImageClose') && document.querySelector('[title="Buscar Cálculo"]'), 12000);
+            }
         }
-        const setor = document.querySelector('input[id*="formulario:setor"]');
-        if (setor && (setor.checked || setor.hasAttribute('checked'))) clicar(setor);
-        const btBuscar = await aguardar(() => document.querySelector('input[id*="formulario:buscar"]'));
-        if (!btBuscar) return falhar('Botão de busca do processo não encontrado.');
-        clicar(btBuscar);
 
-        // ── 2. Resultado da busca: sem cálculo / lista ──────────────────────
-        estado.fase = 'lista-calculos'; marcar('lista-calculos');
-        const resultado = await aguardar(() => {
-            const livre = document.querySelector('span.box-msg-livre');
-            if (livre && /Não existem resultados/i.test(livre.textContent || '')) return { semCalculo: true };
-            const links = linkAbrir();
-            if (links.length) return { links };
-            return null;
-        });
-        if (!resultado) return falhar('A busca do PJeCalc não retornou resultados.');
-        if (resultado.semCalculo) return falhar('Processo sem cálculo registrado no PJeCalc.');
+        let numeroCalculo = lerMem(CHAVE_CALC);
+        const titInicial = titulo();
+        const jaEmEnviar = titInicial.includes('Enviar para o PJe') && !!numeroCalculo;
+        const jaEmLiquidar = titInicial.includes('Liquidar Atualização') && !!numeroCalculo;
+        const jaEmDados = titInicial.includes('Dados do Cálculo') && !!numeroCalculo;
 
-        // ── 3. Selecionar o cálculo (único, por número, mais recente, ou ambiguidade) ─
-        estado.fase = 'selecao-calculo'; marcar('selecao-calculo');
-        let alvo = null;
-        let numeroCalculo = '';
-        const links = resultado.links;
-        const maisRecente = !!cfg.selecionarMaisRecente;
-        if (idCalculo != null && idCalculo !== '') {
-            // Filtra pelo número exato da listagem (como o +PJe: numeroCalculoBusca).
-            const inputNum = await aguardar(() => document.querySelector('input[id*="numeroCalculoBusca"]'));
-            if (!inputNum) return falhar('Campo de número do cálculo não encontrado.');
-            preencher(inputNum, idCalculo);
-            const btBuscar2 = await aguardar(() => document.querySelector('input[id*="formulario:buscar"]'));
-            if (btBuscar2) clicar(btBuscar2);
-            const filtrado = await aguardar(() => {
-                const ls = linkAbrir().filter((l) => numeroDaLinha(l) === idCalculo);
-                if (ls.length === 1) return ls[0];
+        if (!jaEmEnviar && !jaEmLiquidar && !jaEmDados) {
+            // ── 1. Buscar processo no PJeCalc ───────────────────────────────
+            estado.fase = 'busca-processo'; marcar('busca-processo');
+            if (!document.querySelector('input[id*="numeroProcessoBusca"]')) {
+                const campoBuscarCalc = await aguardar(() => document.querySelector('[title="Buscar Cálculo"]'));
+                if (campoBuscarCalc) clicar(campoBuscarCalc);
+            }
+            const campos = [
+                ['numeroProcessoBusca', partes[1]],
+                ['digitoProcessoBusca', partes[2]],
+                ['anoProcessoBusca', partes[3]],
+                ['justicaBusca', partes[4]],
+                ['regiaoBusca', partes[5]],
+                ['varaProcessoBusca', partes[6]],
+            ];
+            for (const [nome, valor] of campos) {
+                const input = await aguardar(() => document.querySelector('input[id*="' + nome + '"]'));
+                if (!input) return falhar('Campo de busca não carregou: ' + nome);
+                preencher(input, valor);
+            }
+            const setor = document.querySelector('input[id*="formulario:setor"]');
+            if (setor && (setor.checked || setor.hasAttribute('checked'))) clicar(setor);
+            const btBuscar = await aguardar(() => document.querySelector('input[id*="formulario:buscar"]'));
+            if (!btBuscar) return falhar('Botão de busca do processo não encontrado.');
+            clicar(btBuscar);
+
+            // ── 2. Resultado da busca: sem cálculo / lista ──────────────────
+            estado.fase = 'lista-calculos'; marcar('lista-calculos');
+            const resultado = await aguardar(() => {
                 const livre = document.querySelector('span.box-msg-livre');
-                if (livre && /Não existem resultados/i.test(livre.textContent || '')) return { vazio: true };
+                if (livre && /Não existem resultados/i.test(livre.textContent || '')) return { semCalculo: true };
+                const links = linkAbrir();
+                if (links.length) return { links };
                 return null;
             });
-            if (!filtrado || filtrado.vazio) return falhar('Cálculo ' + idCalculo + ' não localizado na listagem.');
-            alvo = filtrado;
-            numeroCalculo = idCalculo;
-        } else if (links.length === 1) {
-            alvo = links[0];
-            numeroCalculo = numeroDaLinha(alvo);
-        } else if (maisRecente) {
-            // Modo automático (fluxo teimosinha): atualiza o cálculo MAIS RECENTE
-            // — o mesmo que a API /calculos/processo usa como dívida corrente
-            // (ordenacaoCrescente=false, resultado[0]). Varre todas as páginas,
-            // escolhe o de maior número (sequencial do PJeCalc) e rebusca pelo
-            // número exato, como o +PJe faz na seleção manual.
-            const vistos = new Map(); // numero -> linha
-            let guarda = 0;
-            while (guarda++ < 50) {
-                for (const l of linkAbrir()) {
-                    const n = numeroDaLinha(l);
-                    if (n && !vistos.has(n)) vistos.set(n, l);
+            if (!resultado) return falhar('A busca do PJeCalc não retornou resultados.');
+            if (resultado.semCalculo) return falhar('Processo sem cálculo registrado no PJeCalc.');
+
+            // ── 3. Selecionar o cálculo (único, por número, mais recente, ou ambiguidade) ─
+            estado.fase = 'selecao-calculo'; marcar('selecao-calculo');
+            let alvo = null;
+            const links = resultado.links;
+            const maisRecente = !!cfg.selecionarMaisRecente;
+            if (idCalculo != null && idCalculo !== '') {
+                const inputNum = await aguardar(() => document.querySelector('input[id*="numeroCalculoBusca"]'));
+                if (!inputNum) return falhar('Campo de número do cálculo não encontrado.');
+                preencher(inputNum, idCalculo);
+                const btBuscar2 = await aguardar(() => document.querySelector('input[id*="formulario:buscar"]'));
+                if (btBuscar2) clicar(btBuscar2);
+                const filtrado = await aguardar(() => {
+                    const ls = linkAbrir().filter((l) => numeroDaLinha(l) === idCalculo);
+                    if (ls.length === 1) return ls[0];
+                    const livre = document.querySelector('span.box-msg-livre');
+                    if (livre && /Não existem resultados/i.test(livre.textContent || '')) return { vazio: true };
+                    return null;
+                });
+                if (!filtrado || filtrado.vazio) return falhar('Cálculo ' + idCalculo + ' não localizado na listagem.');
+                alvo = filtrado;
+                numeroCalculo = idCalculo;
+            } else if (links.length === 1) {
+                alvo = links[0];
+                numeroCalculo = numeroDaLinha(alvo);
+            } else if (maisRecente) {
+                const vistos = new Map();
+                let guarda = 0;
+                while (guarda++ < 50) {
+                    for (const l of linkAbrir()) {
+                        const n = numeroDaLinha(l);
+                        if (n && !vistos.has(n)) vistos.set(n, l);
+                    }
+                    const prox = document.querySelector('img[title="Próximo"]');
+                    if (!prox || /desabilitado/i.test(prox.alt || '')) break;
+                    clicar(prox.parentElement);
+                    await aguardar(() => null, 900);
                 }
-                const prox = document.querySelector('img[title="Próximo"]');
-                if (!prox || /desabilitado/i.test(prox.alt || '')) break;
-                clicar(prox.parentElement);
-                await aguardar(() => null, 900); // assentamento da paginação
+                const numeros = Array.from(vistos.keys());
+                if (!numeros.length) return falhar('Nenhum número de cálculo legível na listagem.');
+                const numerico = numeros.every((n) => /^\d+$/.test(n));
+                const escolhido = numerico
+                    ? numeros.reduce((a, b) => (BigInt(a) >= BigInt(b) ? a : b))
+                    : numeros.sort()[numeros.length - 1];
+                const inputNum = await aguardar(() => document.querySelector('input[id*="numeroCalculoBusca"]'));
+                if (!inputNum) return falhar('Campo de número do cálculo não encontrado.');
+                preencher(inputNum, escolhido);
+                const btBuscar3 = await aguardar(() => document.querySelector('input[id*="formulario:buscar"]'));
+                if (btBuscar3) clicar(btBuscar3);
+                const filtrado2 = await aguardar(() => {
+                    const ls = linkAbrir().filter((l) => numeroDaLinha(l) === escolhido);
+                    if (ls.length === 1) return ls[0];
+                    return null;
+                });
+                if (!filtrado2) return falhar('Cálculo mais recente (' + escolhido + ') não relocalizado na listagem.');
+                alvo = filtrado2;
+                numeroCalculo = escolhido;
+            } else {
+                const vistos = new Set();
+                const candidatos = [];
+                let guarda = 0;
+                while (guarda++ < 50) {
+                    for (const l of linkAbrir()) {
+                        const n = numeroDaLinha(l);
+                        if (n && !vistos.has(n)) { vistos.add(n); candidatos.push(n); }
+                    }
+                    const prox = document.querySelector('img[title="Próximo"]');
+                    if (!prox || /desabilitado/i.test(prox.alt || '')) break;
+                    clicar(prox.parentElement);
+                    await aguardar(() => null, 900);
+                }
+                return falhar('Múltiplos cálculos (' + candidatos.join(', ') +
+                    '); informe id_calculo para escolher. Nenhuma atualização foi enviada.');
             }
-            const numeros = Array.from(vistos.keys());
-            if (!numeros.length) return falhar('Nenhum número de cálculo legível na listagem.');
-            const numerico = numeros.every((n) => /^\d+$/.test(n));
-            const escolhido = numerico
-                ? numeros.reduce((a, b) => (BigInt(a) >= BigInt(b) ? a : b))
-                : numeros.sort()[numeros.length - 1];
-            const inputNum = await aguardar(() => document.querySelector('input[id*="numeroCalculoBusca"]'));
-            if (!inputNum) return falhar('Campo de número do cálculo não encontrado.');
-            preencher(inputNum, escolhido);
-            const btBuscar3 = await aguardar(() => document.querySelector('input[id*="formulario:buscar"]'));
-            if (btBuscar3) clicar(btBuscar3);
-            const filtrado2 = await aguardar(() => {
-                const ls = linkAbrir().filter((l) => numeroDaLinha(l) === escolhido);
-                if (ls.length === 1) return ls[0];
-                return null;
+
+            // ── 4. Abrir o cálculo ──────────────────────────────────────────
+            gravarMem(CHAVE_CALC, numeroCalculo);
+            estado.fase = 'abrir-calculo'; marcar('abrir-calculo');
+            clicar(alvo);
+            const dadosCalc = await aguardar(() => titulo().includes('Cálculo > Dados do Cálculo') ? true : null);
+            if (!dadosCalc) return falhar('A tela de dados do cálculo não abriu.');
+        }
+
+        if (!jaEmEnviar && !jaEmLiquidar) {
+            // Modo somente_busca (teste f.ar): confirma o processo e PARA — nada é liquidado nem enviado.
+            if (cfg.somenteBusca) {
+                const cnjCalc = lerCnjDaTela();
+                if (cnjCalc !== numeroProcesso) {
+                    return falhar('O cálculo aberto pertence a outro processo (' +
+                        (cnjCalc || '?') + '); busca cancelada.');
+                }
+                try { document.querySelector('li#li_operacoes_fechar a, a.menuImageClose, .menuImageClose')?.click(); } catch (e) {}
+                return { ok: true, somenteBusca: true, numeroProcesso, numeroCalculo, data: '' };
+            }
+
+            // ── 5. Menu "Liquidar Atualização" ──────────────────────────────
+            estado.fase = 'menu-liquidar'; marcar('menu-liquidar');
+            const menuLiquidar = await aguardar(() =>
+                document.querySelector('li#li_operacoes_liquidar_pagamento a')
+                || Array.from(document.querySelectorAll('li a'))
+                    .find((a) => (a.textContent || '').includes('Liquidar Atualização'))
+                || null);
+            if (!menuLiquidar) return falhar('Opção "Liquidar Atualização" não apareceu.');
+            clicar(menuLiquidar);
+            const telaLiquidar = await aguardar(() => titulo().includes('Atualização > Liquidar Atualização') ? true : null);
+            if (!telaLiquidar) return falhar('A tela de liquidação da atualização não abriu.');
+        }
+
+        if (!jaEmEnviar) {
+            // ── 6. Conferir processo, observação, data e liquidar ───────────
+            estado.fase = 'liquidar'; marcar('liquidar');
+            const cnjAberto = lerCnjDaTela();
+            if (cnjAberto !== numeroProcesso) {
+                return falhar('O cálculo aberto pertence a outro processo (' + (cnjAberto || '?') +
+                    '); liquidação cancelada.');
+            }
+            const obs = await aguardar(() => document.querySelector('textarea[id="formulario:comentarios"]'));
+            if (obs && !(obs.value || '').includes(MARCADOR)) {
+                preencher(obs, (obs.value || '') + '\n' + MARCADOR);
+            }
+            const barraTituloEl = document.querySelector('div[id="barraTitulo"]');
+            const frameAtualizacao = (barraTituloEl && barraTituloEl.parentElement &&
+                barraTituloEl.parentElement.parentElement) || null;
+            const noFrame = (sel) => frameAtualizacao
+                ? frameAtualizacao.querySelector(sel)
+                : document.querySelector(sel);
+            const inputData = await aguardar(() => noFrame('input[id="formulario:dataDeLiquidacaoInputDate"]'));
+            if (!inputData) return falhar('Campo de data de liquidação não carregou.');
+            preencher(inputData, data);
+            const btLiquidar = await aguardar(() => noFrame('input[id="formulario:liquidar"]'));
+            if (!btLiquidar) return falhar('Botão liquidar não encontrado.');
+            clicar(btLiquidar);
+            const aviso = await aguardar(() => {
+                const el = document.querySelector('div[id="divMensagem"]');
+                return (el && (el.textContent || '').trim()) ? el : null;
             });
-            if (!filtrado2) return falhar('Cálculo mais recente (' + escolhido + ') não relocalizado na listagem.');
-            alvo = filtrado2;
-            numeroCalculo = escolhido;
-        } else {
-            // Múltiplos cálculos sem idCalculo: coleta TODAS as páginas para
-            // diagnosticar, mas NÃO escolhe arbitrariamente (segurança).
-            const vistos = new Set();
-            const candidatos = [];
-            let guarda = 0;
-            while (guarda++ < 50) {
-                for (const l of linkAbrir()) {
-                    const n = numeroDaLinha(l);
-                    if (n && !vistos.has(n)) { vistos.add(n); candidatos.push(n); }
-                }
-                const prox = document.querySelector('img[title="Próximo"]');
-                if (!prox || /desabilitado/i.test(prox.alt || '')) break;
-                clicar(prox.parentElement);
-                await aguardar(() => null, 900); // assentamento da paginação
+            if (!aviso) return falhar('O PJeCalc não confirmou o resultado da liquidação.');
+            if (!(aviso.textContent || '').includes('Operação realizada com sucesso.')) {
+                return falhar('Liquidação não confirmada: ' + (aviso.textContent || '').trim());
             }
-            return falhar('Múltiplos cálculos (' + candidatos.join(', ') +
-                '); informe id_calculo para escolher. Nenhuma atualização foi enviada.');
-        }
 
-        // ── 4. Abrir o cálculo ──────────────────────────────────────────────
-        estado.fase = 'abrir-calculo'; marcar('abrir-calculo');
-        clicar(alvo);
-        const dadosCalc = await aguardar(() => titulo().includes('Cálculo > Dados do Cálculo') ? true : null);
-        if (!dadosCalc) return falhar('A tela de dados do cálculo não abriu.');
-
-        // Modo somente_busca (teste f.ar): confirma o processo no painel de
-        // dados e PARA — nada é liquidado nem enviado.
-        if (cfg.somenteBusca) {
-            const painelCalc = document.querySelector('span[id="formulario:panelDadosCalculo"]');
-            const cnjCalc = ((painelCalc?.textContent || '').match(CNJ_RE) || [])[0];
-            if (cnjCalc !== numeroProcesso) {
-                return falhar('O cálculo aberto pertence a outro processo (' +
-                    (cnjCalc || '?') + '); busca cancelada.');
-            }
-            return { ok: true, somenteBusca: true, numeroProcesso, numeroCalculo, data: '' };
+            // ── 7. Ir para "Enviar para o PJe" ──────────────────────────────
+            estado.fase = 'enviar-tela'; marcar('enviar-tela');
+            const menuEnviar = await aguardar(() => document.querySelector('li[id="li_operacoes_validar_atualizacao"] a'));
+            if (!menuEnviar) return falhar('Opção "Enviar para o PJe" não apareceu após liquidar.');
+            clicar(menuEnviar);
+            const telaEnviar = await aguardar(() => titulo().includes('Enviar para o PJe') ? true : null);
+            if (!telaEnviar) return falhar('A tela "Enviar para o PJe" não abriu.');
         }
-
-        // ── 5. Menu "Liquidar Atualização" ──────────────────────────────────
-        estado.fase = 'menu-liquidar'; marcar('menu-liquidar');
-        const menuLiquidar = await aguardar(() =>
-            Array.from(document.querySelectorAll('li a'))
-                .find((a) => (a.textContent || '').includes('Liquidar Atualização')) || null);
-        if (!menuLiquidar) return falhar('Opção "Liquidar Atualização" não apareceu.');
-        clicar(menuLiquidar);
-        const telaLiquidar = await aguardar(() => titulo().includes('Atualização > Liquidar Atualização') ? true : null);
-        if (!telaLiquidar) return falhar('A tela de liquidação da atualização não abriu.');
-
-        // ── 6. Conferir processo, observação, data e liquidar ───────────────
-        estado.fase = 'liquidar'; marcar('liquidar');
-        const painel = document.querySelector('span[id="formulario:panelDadosCalculo"]');
-        const cnjAberto = ((painel?.textContent || '').match(CNJ_RE) || [])[0];
-        if (cnjAberto !== numeroProcesso) {
-            return falhar('O cálculo aberto pertence a outro processo (' + (cnjAberto || '?') +
-                '); liquidação cancelada.');
-        }
-        const obs = await aguardar(() => document.querySelector('textarea[id="formulario:comentarios"]'));
-        if (obs && !(obs.value || '').includes(MARCADOR)) {
-            preencher(obs, (obs.value || '') + '\n' + MARCADOR);
-        }
-        // +PJe (L24312-24323): data e botão liquidar são lidos DENTRO do frame da
-        // tela (barraTitulo.parentElement.parentElement). Em document inteiro o
-        // seletor pega o botão liquidar do menu Operações — bug anotado no fonte:
-        // "** tem que ser assim, senão ele pega o botão liquidar do menu operações".
-        const barraTituloEl = document.querySelector('div[id="barraTitulo"]');
-        const frameAtualizacao = (barraTituloEl && barraTituloEl.parentElement &&
-            barraTituloEl.parentElement.parentElement) || null;
-        const noFrame = (sel) => frameAtualizacao
-            ? frameAtualizacao.querySelector(sel)
-            : document.querySelector(sel);
-        const inputData = await aguardar(() => noFrame('input[id="formulario:dataDeLiquidacaoInputDate"]'));
-        if (!inputData) return falhar('Campo de data de liquidação não carregou.');
-        preencher(inputData, data);   // data atual injetada — SEM confirmação do usuário
-        const btLiquidar = await aguardar(() => noFrame('input[id="formulario:liquidar"]'));
-        if (!btLiquidar) return falhar('Botão liquidar não encontrado.');
-        clicar(btLiquidar);
-        const aviso = await aguardar(() => {
-            const el = document.querySelector('div[id="divMensagem"]');
-            return (el && (el.textContent || '').trim()) ? el : null;
-        });
-        if (!aviso) return falhar('O PJeCalc não confirmou o resultado da liquidação.');
-        if (!(aviso.textContent || '').includes('Operação realizada com sucesso.')) {
-            return falhar('Liquidação não confirmada: ' + (aviso.textContent || '').trim());
-        }
-
-        // ── 7. Enviar para o PJe (consolidar + enviar) ──────────────────────
-        estado.fase = 'enviar-tela'; marcar('enviar-tela');
-        const menuEnviar = await aguardar(() => document.querySelector('li[id="li_operacoes_validar_atualizacao"] a'));
-        if (!menuEnviar) return falhar('Opção "Enviar para o PJe" não apareceu após liquidar.');
-        clicar(menuEnviar);
-        const telaEnviar = await aguardar(() => titulo().includes('Enviar para o PJe') ? true : null);
-        if (!telaEnviar) return falhar('A tela "Enviar para o PJe" não abriu.');
 
         estado.fase = 'consolidar'; marcar('consolidar');
-        const consolidar = await aguardar(() => document.querySelector('input[value="Consolidar Dados"]'), 8000);
+        const consolidar = await aguardar(() =>
+            document.querySelector('input[value="Consolidar Dados"]')
+            || document.querySelector('input[id="formulario:validar"]'), 8000);
         if (consolidar) clicar(consolidar);
         const pronto = await aguardar(() =>
             Array.from(document.querySelectorAll('span.rich-messages-label'))
@@ -324,6 +374,7 @@ async (cfg) => {
             Array.from(document.querySelectorAll('h2')).find((h) => (h.textContent || '').includes('Sucesso!')) || null);
         if (!sucesso) return falhar('O envio ao PJe não confirmou sucesso (não reenviar).');
 
+        try { document.querySelector('li#li_operacoes_fechar a, a.menuImageClose, .menuImageClose')?.click(); } catch (e) {}
         try { window.close(); } catch (e) {}
         return { ok: true, numeroProcesso, numeroCalculo, data };
     } catch (e) {

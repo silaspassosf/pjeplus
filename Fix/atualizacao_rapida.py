@@ -106,11 +106,13 @@ def executar_atualizacao_rapida_detalhada(
                      somente_busca=somente_busca)
 
 
-_FASES_PRE_EFEITO = ("", "inicio", "busca-processo", "lista-calculos",
-                     "selecao-calculo", "abrir-calculo", "menu-liquidar")
+_FASES_PRE_EFEITO = ("", "inicio", "limpar-memoria", "busca-processo", "lista-calculos",
+                     "selecao-calculo", "abrir-calculo", "menu-liquidar", "enviar-tela")
+_MAX_RETOMADAS_JSF = 10
 
 _PROBE_PRONTO = """() => (document.readyState === 'complete') && !!(
     document.querySelector('div[id="barraTitulo"]') ||
+    document.querySelector('[title="Buscar Cálculo"]') ||
     document.querySelector('input[id*="formulario"]') ||
     document.querySelector('form'))"""
 
@@ -188,7 +190,7 @@ def _executar(driver, numero_processo, *, data, id_calculo,
                 f"PJeCalc não abriu: {type(e).__name__}: {e}",
                 fase="abrir-pjecalc", pos_envio=False) from e
         _assentar_aba(aba)
-        for tentativa in range(1, 4):
+        for tentativa in range(1, _MAX_RETOMADAS_JSF + 1):
             try:
                 bruto = aba.evaluate(js, cfg)
                 break
@@ -198,14 +200,14 @@ def _executar(driver, numero_processo, *, data, id_calculo,
                              or "navigation" in msg.lower())
                 fase_espelho = _espelho_fase(aba)
                 pre_efeito = fase_espelho in _FASES_PRE_EFEITO
-                if not (destruido and pre_efeito and tentativa < 3):
+                if not (destruido and pre_efeito and tentativa < _MAX_RETOMADAS_JSF):
                     raise AtualizacaoRapidaErro(
                         f"Execução no PJeCalc interrompida: {msg}",
                         fase="transporte", pos_envio=True) from e
-                logger.warning("[ATUALIZACAO_RAPIDA] contexto destruído na fase '%s' "
-                               "(navegação do JSF) — assentando e reexecutando "
-                               "(tentativa %d/3)", fase_espelho or "(sem marca)",
-                               tentativa + 1)
+                logger.warning("[ATUALIZACAO_RAPIDA] navegação JSF na fase '%s' "
+                               "— assentando e retomando (etapa %d/%d)",
+                               fase_espelho or "(sem marca)",
+                               tentativa + 1, _MAX_RETOMADAS_JSF)
                 _assentar_aba(aba)
         if bruto is None:
             raise AtualizacaoRapidaErro(

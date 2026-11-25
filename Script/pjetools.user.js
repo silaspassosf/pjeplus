@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.6.64
+// @version      2.6.65
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/pjetools.user.js
@@ -39,6 +39,8 @@
 // ── Sisbajud
 // @match        https://sisbajud.cnj.jus.br/*
 // @match        https://sisbajud.pdpj.jus.br/*
+// ── SSO PJe / SISBAJUD (módulo otp.js)
+// @match        https://sso.cloud.pje.jus.br/auth/*
 // ── Único require: o loader (bumpar só ele ao adicionar módulos)
 // (loader injetado inline — remove dependência externa)
 // @grant        GM_setValue
@@ -79,6 +81,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=2.3.3
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=2.1.70
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/trt.js?v=1.0.0
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/otp.js?v=1.0.0
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=2.3.100
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=2.1.85
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=2.6.2
@@ -109,9 +112,17 @@
 // ==/UserScript==
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.6.64 loaded');
+    console.log('[Loader] PJe Tools Pro v2.6.65 loaded');
 
     const url = window.location.href;
+
+    // ── SSO PJe / SISBAJUD (botões manuais de OTP) ──
+    if (url.includes('sso.cloud.pje.jus.br/auth')) {
+        if (window.PjeOtp && typeof window.PjeOtp.init === 'function') {
+            window.PjeOtp.init();
+        }
+        return;
+    }
     const isAud = url.includes('/aud') || (function () { try { return window.top && window.top.location.href.includes('/aud'); } catch (e) { return false; } })();
 
     // Módulos SISB carregados via @require (git), como os demais módulos.

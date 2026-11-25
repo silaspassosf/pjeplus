@@ -420,7 +420,22 @@ class PWDriver:
         if log:
             logger.info(f"[CARREGAMENTO] ⏳ Monitorando carregamento inicial (barreira de {timeout_refresh:.1f}s){alvo_str}...")
 
+        def _em_sessao_invalida():
+            if is_login:
+                return False
+            try:
+                curr_now = (self.current_url or '').lower()
+            except Exception:
+                return False
+            return ('acesso-negado' in curr_now) or any(k in curr_now for k in self._ROTAS_LOGIN)
+
         while time.time() - t_inicio < timeout_refresh:
+            if _em_sessao_invalida():
+                if log:
+                    logger.warning(
+                        f"[CARREGAMENTO] ⚠️ Sessão inválida/acesso negado ({self.current_url}) — abortando carregamento para recuperação de login."
+                    )
+                return False
             try:
                 res = self.page.evaluate(js_verificar, payload)
                 if res and res.get('ok'):
@@ -473,6 +488,12 @@ class PWDriver:
 
         t_pos = time.time()
         while time.time() - t_pos < timeout_pos_refresh:
+            if _em_sessao_invalida():
+                if log:
+                    logger.warning(
+                        f"[CARREGAMENTO] ⚠️ Sessão inválida/acesso negado pós-recuperação ({self.current_url}) — abortando."
+                    )
+                return False
             try:
                 if self._pagina_desviada(target_url):
                     self.page.wait_for_timeout(200)

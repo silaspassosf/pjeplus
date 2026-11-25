@@ -486,10 +486,48 @@ def _localizar_botao_destino_movimento(driver: Any, destino: str, timeout: int =
     return None
 
 
+def _consultar_tarefa_recente_api(driver: Any, id_processo: str) -> Optional[tuple]:
+    """Consulta (id_tarefa, nome_tarefa) via API com cache curto (5s) para evitar GET duplicado."""
+    import time as _time
+    from Fix.variaveis import session_from_driver
+
+    cache = getattr(driver, '_pje_cache_tarefa_api', None)
+    if (
+        isinstance(cache, tuple)
+        and len(cache) == 4
+        and cache[0] == id_processo
+        and (_time.monotonic() - cache[3]) < 5.0
+    ):
+        return cache[1], cache[2]
+
+    sess, host = session_from_driver(driver)
+    endpoint = f"https://{host}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
+    r = sess.get(endpoint, timeout=10)
+    r.raise_for_status()
+    dados = r.json()
+
+    registro = dados[0] if (isinstance(dados, list) and dados) else (dados if isinstance(dados, dict) else None)
+    if not isinstance(registro, dict):
+        return None
+
+    id_tarefa = registro.get('idTarefa') or registro.get('id')
+    nome_tarefa = ''
+    for campo in ('nomeTarefa', 'nome', 'tarefa', 'descricao', 'titulo'):
+        val = registro.get(campo)
+        if isinstance(val, str) and val.strip():
+            nome_tarefa = val.strip()
+            break
+
+    try:
+        driver._pje_cache_tarefa_api = (id_processo, id_tarefa, nome_tarefa, _time.monotonic())
+    except Exception:
+        pass
+    return id_tarefa, nome_tarefa
+
+
 def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
     """Abre a tarefa mais recente do processo via API REST (padrão gigs-plugin)."""
     import re as _re
-    from Fix.variaveis import session_from_driver
 
     try:
         url_atual = driver.current_url or ''
@@ -505,34 +543,16 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
         base = url_atual.split('/pjekz/')[0]
 
         try:
-            sess, host = session_from_driver(driver)
+            res_api = _consultar_tarefa_recente_api(driver, id_processo)
         except Exception as e:
-            logger.warning(f'[API_TAREFA] session_from_driver falhou: {e}')
+            logger.warning(f'[API_TAREFA] Consulta API falhou para processo {id_processo}: {e}')
             return False
 
-        endpoint = f"https://{host}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
-        try:
-            r = sess.get(endpoint, timeout=10)
-            r.raise_for_status()
-            dados = r.json()
-        except Exception as e:
-            logger.warning(f'[API_TAREFA] GET {endpoint} falhou: {e}')
+        if not res_api or not res_api[0]:
+            logger.warning(f'[API_TAREFA] idTarefa não encontrado na resposta para processo {id_processo}')
             return False
 
-        id_tarefa = None
-        registro = dados[0] if (isinstance(dados, list) and dados) else (dados if isinstance(dados, dict) else None)
-        nome_tarefa_api = ''
-        if isinstance(registro, dict):
-            id_tarefa = registro.get('idTarefa') or registro.get('id')
-            for campo in ('nomeTarefa', 'nome', 'tarefa', 'descricao', 'titulo'):
-                val = registro.get(campo)
-                if isinstance(val, str) and val.strip():
-                    nome_tarefa_api = val.strip()
-                    break
-
-        if not id_tarefa:
-            logger.warning(f'[API_TAREFA] idTarefa não encontrado na resposta: {dados}')
-            return False
+        id_tarefa, nome_tarefa_api = res_api
 
         url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
         try:
@@ -568,7 +588,6 @@ def abrir_tarefa_por_api(driver: Any, timeout: int = 10) -> bool:
 def _tarefa_atual_via_api(driver: Any) -> Optional[str]:
     """Nome da tarefa mais recente do processo via API, SEM navegar o browser."""
     import re as _re
-    from Fix.variaveis import session_from_driver
 
     try:
         url_atual = driver.current_url or ''
@@ -577,26 +596,9 @@ def _tarefa_atual_via_api(driver: Any) -> Optional[str]:
         m = _re.search(r'/processo/(\d+)', url_atual)
         if not m:
             return None
-        id_processo = m.group(1)
-
-        sess, host = session_from_driver(driver)
-        endpoint = f"https://{host}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
-        r = sess.get(endpoint, timeout=10)
-        r.raise_for_status()
-        dados = r.json()
-
-        registro = None
-        if isinstance(dados, list) and dados:
-            registro = dados[0]
-        elif isinstance(dados, dict):
-            registro = dados
-        if not isinstance(registro, dict):
-            return None
-
-        for campo in ('nomeTarefa', 'nome', 'tarefa', 'descricao', 'titulo'):
-            valor = registro.get(campo)
-            if isinstance(valor, str) and valor.strip():
-                return valor.strip()
+        res_api = _consultar_tarefa_recente_api(driver, m.group(1))
+        if res_api and res_api[1]:
+            return res_api[1]
         return None
     except Exception:
         return None
@@ -689,9 +691,18 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
             logger.warning(f'[MOV_INT] Botão destino "{destino}" não encontrado na tarefa Análise')
             return False
 
-        # 'Cumprimento de Providências' exige Análise antes (evita espera inútil).
-        exige_analise = 'cumprimento de providencias' in tarefa_norm
-        if not exige_analise and clicar_botao_por_texto(driver, destino, timeout=2, debug=True):
+        # 'Cumprimento de Providências' e 'Prazos Vencidos' (quando destino não é Conclusão/Análise)
+        # exigem passar por Análise antes — evita polling inútil procurando destino direto.
+        exige_analise = (
+            'cumprimento de providencias' in tarefa_norm
+            or (
+                'prazos vencidos' in tarefa_norm
+                and 'conclusao' not in destino_norm
+                and 'analise' not in destino_norm
+            )
+        )
+        # Os botões de transição já foram renderizados acima; checagem direta rápida (0.3s).
+        if not exige_analise and clicar_botao_por_texto(driver, destino, timeout=0.3, debug=True):
             logger.info(f'[MOV_INT] Botão destino "{destino}" clicado diretamente na tarefa atual!')
             if ultimo_lance:
                 try:
@@ -705,40 +716,69 @@ def movimentar_inteligente(driver: Any, destino: str, ultimo_lance: str = '', ch
                     pass
             return True
 
-        logger.info(f'[MOV_INT] Destino direto indisponível na tarefa "{tarefa_text}" — transicionando para Análise (gigs-plugin)...')
+        logger.info(f'[MOV_INT] Transicionando de "{tarefa_text}" para Análise...')
         if movimentar_analise(driver, tarefa_text, debug=True):
             try:
                 driver.pje_tarefa_atual = ''
             except Exception:
                 pass
-            espera.assentar(driver, 0.5)
-            return movimentar_inteligente(
-                driver,
-                destino,
-                ultimo_lance=ultimo_lance,
-                chip=chip,
-                responsavel=responsavel,
-                timeout=timeout,
-                profundidade=profundidade + 1,
-                pular_abertura_api=True
-            )
+            if 'analise' in destino_norm:
+                if ultimo_lance:
+                    try:
+                        clicar_ultimo_lance(driver, ultimo_lance)
+                    except Exception:
+                        pass
+                if chip or responsavel:
+                    try:
+                        chip_responsavel(driver, chip=chip, responsavel=responsavel)
+                    except Exception:
+                        pass
+                return True
+
+            # Alinhado a navegar_para_tarefa (fluxo_cls): após clicar em Análise,
+            # aguarda diretamente o botão de destino aparecer (sem sleep fixo nem reler h1 antigo).
+            if clicar_botao_por_texto(driver, destino, timeout=max(5, timeout), debug=True):
+                logger.info(f'[MOV_INT] Botão destino "{destino}" clicado após Análise!')
+                if ultimo_lance:
+                    try:
+                        clicar_ultimo_lance(driver, ultimo_lance)
+                    except Exception:
+                        pass
+                if chip or responsavel:
+                    try:
+                        chip_responsavel(driver, chip=chip, responsavel=responsavel)
+                    except Exception:
+                        pass
+                return True
+
+            if 'aguardando prazo' in destino_norm or 'prazo' in destino_norm:
+                logger.info("[MOV_INT] Transicionou para Análise e botão 'Aguardando prazo' não disponível — conforme LEGADO L4869, está correto.")
+                return True
+
+            logger.warning(f'[MOV_INT] Botão destino "{destino}" não encontrado após transição para Análise')
+            return False
 
         if navegar_para_tarefa(driver, 'análise', debug=True, timeout=timeout, tarefa_atual_conhecida=tarefa_text):
             try:
                 driver.pje_tarefa_atual = ''
             except Exception:
                 pass
-            espera.assentar(driver, 0.5)
-            return movimentar_inteligente(
-                driver,
-                destino,
-                ultimo_lance=ultimo_lance,
-                chip=chip,
-                responsavel=responsavel,
-                timeout=timeout,
-                profundidade=profundidade + 1,
-                pular_abertura_api=True
-            )
+            if clicar_botao_por_texto(driver, destino, timeout=max(5, timeout), debug=True):
+                logger.info(f'[MOV_INT] Botão destino "{destino}" clicado após navegar_para_tarefa!')
+                if ultimo_lance:
+                    try:
+                        clicar_ultimo_lance(driver, ultimo_lance)
+                    except Exception:
+                        pass
+                if chip or responsavel:
+                    try:
+                        chip_responsavel(driver, chip=chip, responsavel=responsavel)
+                    except Exception:
+                        pass
+                return True
+            if 'aguardando prazo' in destino_norm or 'prazo' in destino_norm:
+                return True
+            return False
 
         logger.warning(f'[MOV_INT] Não foi possível transicionar para Análise a partir de "{tarefa_text}"')
         return False

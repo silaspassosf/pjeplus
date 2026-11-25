@@ -808,6 +808,10 @@ class PECOrquestrador:
             if dados.get('critical') and critical_exc[0] is None:
                 causa = dados.get('_exception') or RuntimeError(result.get('erro', ''))
                 critical_exc[0] = RuntimeError(f'RESTART_PEC: {causa}')
+            # Em queda crítica de sessão/driver (acesso-negado / browser fechado), não marcar
+            # a tarefa como erro definitivo para permitir retomada imediata a partir dela.
+            if dados.get('critical'):
+                return
             status = 'SUCESSO' if result.get('ok') else 'ERRO'
             marcar_tarefa_executada_pec(atv, progresso, status=status, detalhes=result.get('erro'))
 
@@ -832,9 +836,10 @@ class PECOrquestrador:
             persist_result=_persistir_pec,
             seletor_pronto=None,
             usar_garantir_carregamento=False,
-            validar_conexao=False,
+            validar_conexao=True,
+            validar_url_invalida=verificar_acesso_negado_pec,
             fechar_abas_ao_final=True,
-            erros_criticos_extras=('RESTART_PEC', 'acesso negado'),
+            erros_criticos_extras=('RESTART_PEC', 'acesso negado', 'acesso-negado', 'acesso_negado_sessao'),
         )
         res = executar_fluxo_lote(self.driver, items, spec)
         if critical_exc[0]:

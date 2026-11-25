@@ -100,7 +100,7 @@ def _aguardar_sessao_ativa(driver, timeout: int = 60) -> bool:
     return False
 
 
-def _criar_driver_headless(driver_type: DriverType, vt_mode: bool) -> Optional[Any]:
+def _criar_driver_headless(driver_type: DriverType, vt_mode: bool, forcar_login: bool = False) -> Optional[Any]:
     """Cria driver headless e autentica via cookies ou login_cpf (OTP no terminal)."""
     from Fix.utils import salvar_cookies_sessao, verificar_e_aplicar_cookies
 
@@ -111,13 +111,13 @@ def _criar_driver_headless(driver_type: DriverType, vt_mode: bool) -> Optional[A
             logger.error("[HEADLESS] Falha ao criar driver headless.")
             return None
 
-        if verificar_e_aplicar_cookies(driver_hl):
+        if not forcar_login and verificar_e_aplicar_cookies(driver_hl):
             if _aguardar_sessao_ativa(driver_hl, timeout=10):
                 logger.info("[HEADLESS] Sessao restaurada via cookies — sem login manual necessario.")
                 return driver_hl
             logger.info("[HEADLESS] Cookies expirados. Prosseguindo com login automatico headless...")
 
-        if not login_cpf(driver_hl):
+        if not login_cpf(driver_hl, forcar=forcar_login):
             logger.error("[HEADLESS] Falha no login_cpf.")
             finalizar_driver_fix(driver_hl)
             return None
@@ -140,14 +140,14 @@ def _criar_driver_headless(driver_type: DriverType, vt_mode: bool) -> Optional[A
         return None
 
 
-def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
+def criar_e_logar_driver(driver_type: DriverType, forcar_login: bool = False) -> Optional[Any]:
     """Cria o driver Playwright (visível ou headless) e conclui a autenticação."""
     headless = driver_type in (DriverType.PC_HEADLESS, DriverType.VT_HEADLESS)
     vt_mode = driver_type in (DriverType.VT_VISIBLE, DriverType.VT_HEADLESS)
-    logger.debug("criando driver: %s", driver_type.value)
+    logger.debug("criando driver: %s (forcar_login=%s)", driver_type.value, forcar_login)
 
     if headless:
-        return _criar_driver_headless(driver_type, vt_mode)
+        return _criar_driver_headless(driver_type, vt_mode, forcar_login=forcar_login)
 
     try:
         driver = criar_driver_vt(headless=False) if vt_mode else criar_driver_pc(headless=False)
@@ -162,7 +162,7 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
                 logger.error("ERRO em criar_e_logar_driver: login manual nao concluido")
                 finalizar_driver_fix(driver)
                 return None
-        elif not login_cpf(driver):
+        elif not login_cpf(driver, forcar=forcar_login):
             logger.error("ERRO em criar_e_logar_driver: login nao concluido")
             if not _aguardar_login_manual(driver):
                 finalizar_driver_fix(driver)
@@ -300,6 +300,59 @@ def _resetar_para_painel(driver) -> bool:
         return False
 
 
+_TOKENS_RECUPERACAO_SESSAO = (
+    "restart_pec",
+    "acesso negado",
+    "acesso-negado",
+    "acesso_negado_sessao",
+    "target closed",
+    "has been closed",
+    "browser_fechado_manualmente",
+    "nenhuma janela aberta",
+    "browsing context",
+    "session deleted",
+)
+
+
+def _precisa_recuperacao_sessao(driver, resultado: Any) -> bool:
+    """True se houve queda de driver ou desvio para acesso-negado/sessão inválida."""
+    if not _driver_vivo(driver):
+        return True
+    try:
+        curr = (getattr(driver, "current_url", "") or "").lower()
+        if "acesso-negado" in curr or "login.jsp" in curr:
+            return True
+    except Exception:
+        return True
+    if not isinstance(resultado, dict):
+        return False
+    if resultado.get("reset_driver") or resultado.get("critical_stop"):
+        return True
+    erro_low = str(resultado.get("erro") or "").lower()
+    if any(tok in erro_low for tok in _TOKENS_RECUPERACAO_SESSAO):
+        return True
+    return False
+
+
+def _recriar_driver_com_login(driver, driver_type: Optional[DriverType], motivo: str):
+    """Encerra o driver atual e abre uma nova sessão autenticada (forçando login limpo)."""
+    logger.warning("[RECUPERACAO] %s — recriando driver com novo login...", motivo)
+    if driver_type is None:
+        logger.error("[RECUPERACAO] driver_type nao informado — impossivel recriar")
+        return None
+    if driver is not None:
+        try:
+            finalizar_driver_fix(driver)
+        except Exception:
+            pass
+    novo = criar_e_logar_driver(driver_type, forcar_login=True)
+    if novo:
+        logger.info("[RECUPERACAO] Novo driver autenticado com sucesso.")
+    else:
+        logger.error("[RECUPERACAO] Falha ao recriar driver com novo login.")
+    return novo
+
+
 def executar_bloco_completo(driver, driver_type=None) -> Dict[str, Any]:
     """Executa aquecimento PEC (1 pec_sigilo/pec_exeq) -> Mandado -> Prazo -> P2B -> PEC."""
     resultados: Dict[str, Any] = {
@@ -311,31 +364,16 @@ def executar_bloco_completo(driver, driver_type=None) -> Dict[str, Any]:
         "sucesso_geral": False,
     }
 
-    def _recriar(nome_modulo: str):
-        logger.warning("[BLOCO] driver perdido apos %s — recriando...", nome_modulo)
-        if driver_type is None:
-            logger.error("[BLOCO] driver_type nao informado — impossivel recriar")
-            return None
-        try:
-            finalizar_driver_fix(driver)
-        except Exception:
-            pass
-        novo = criar_e_logar_driver(driver_type)
-        logger.info("[BLOCO] driver recriado com sucesso") if novo else logger.error(
-            "[BLOCO] falha ao recriar driver — modulos restantes serao pulados"
-        )
-        return novo
-
     try:
         res_assinatura = executar_pec_aquecimento_assinatura(driver)
         resultados["pec_assinatura"] = res_assinatura
-        if not res_assinatura.get("pulado"):
+        if not res_assinatura.get("pulado") and _driver_vivo(driver):
             resetar_driver(driver)
     except Exception as e:
         resultados["pec_assinatura"] = {"sucesso": False, "status": "ERRO_DRIVER", "erro": str(e)}
         logger.error("[BLOCO] pec_assinatura: excecao nao capturada: %s", e)
-    if not _driver_vivo(driver):
-        driver = _recriar("pec_assinatura")
+    if _precisa_recuperacao_sessao(driver, resultados["pec_assinatura"]):
+        driver = _recriar_driver_com_login(driver, driver_type, "queda apos pec_assinatura")
         if not driver:
             return resultados
 
@@ -346,15 +384,34 @@ def executar_bloco_completo(driver, driver_type=None) -> Dict[str, Any]:
         ("pec", executar_pec, False),
     ]
     for nome, fn, com_reset in etapas:
-        try:
-            resultados[nome] = _executar_com_reset(driver, fn) if com_reset else fn(driver)
-        except Exception as e:
-            resultados[nome] = {"sucesso": False, "status": "ERRO_DRIVER", "erro": str(e)}
-            logger.error("[BLOCO] %s: excecao nao capturada: %s", nome, e)
-        if com_reset and not _driver_vivo(driver):
-            driver = _recriar(nome)
-            if not driver:
-                return resultados
+        for tentativa in (1, 2):
+            try:
+                resultados[nome] = _executar_com_reset(driver, fn) if com_reset else fn(driver)
+            except Exception as e:
+                resultados[nome] = {"sucesso": False, "status": "ERRO_DRIVER", "erro": str(e)}
+                logger.error("[BLOCO] %s: excecao nao capturada: %s", nome, e)
+
+            precisa_rec = _precisa_recuperacao_sessao(driver, resultados[nome])
+            if not precisa_rec:
+                break
+
+            if tentativa == 1 and driver_type is not None:
+                logger.warning(
+                    "[BLOCO] %s interrompido por sessao/acesso-negado/driver (%s) — "
+                    "novo login e retomada de onde parou...",
+                    nome,
+                    str((resultados[nome] or {}).get("erro") or "driver indisponivel")[:140],
+                )
+                driver = _recriar_driver_com_login(driver, driver_type, f"retomada de {nome}")
+                if not driver:
+                    return resultados
+                continue
+
+            if com_reset and not _driver_vivo(driver):
+                driver = _recriar_driver_com_login(driver, driver_type, f"driver perdido apos {nome}")
+                if not driver:
+                    return resultados
+            break
 
     nomes = ("mandado", "prazo", "p2b", "pec")
     todos_sucesso = all((resultados[k] or {}).get("sucesso", False) for k in nomes)
@@ -442,10 +499,12 @@ def executar_pec(driver, filtro_d1: bool = True, data_minima: Optional[str] = No
 
     resultado = _executar_fluxo("PEC", _fluxo, driver)
     erro_txt = str(resultado.get("erro") or "")
-    if not resultado.get("sucesso") and ("RESTART_PEC" in erro_txt or "Nenhuma janela aberta" in erro_txt):
-        logger.warning("[PEC] Driver morto durante o batch (%s) — resetando driver...", erro_txt[:120])
-        _limpar_acesso_negado(driver)
-        resetar_driver(driver)
+    erro_low = erro_txt.lower()
+    if not resultado.get("sucesso") and any(tok in erro_low for tok in _TOKENS_RECUPERACAO_SESSAO):
+        logger.warning("[PEC] Queda de sessao/driver durante o batch (%s) — sinalizando recuperacao...", erro_txt[:140])
+        if _driver_vivo(driver):
+            _limpar_acesso_negado(driver)
+            resetar_driver(driver)
         return {"sucesso": False, "status": "PARCIAL", "erro": erro_txt, "reset_driver": True}
     return resultado
 
@@ -900,25 +959,36 @@ def _executar_um_fluxo(driver, fluxo: str, driver_type) -> dict:
         raise ValueError(f"Fluxo invalido: {fluxo}")
 
     if fluxo == "A":
-        resultado = executar_bloco_completo(driver, driver_type=driver_type)
-        driver_final = resultado.pop("_driver", None)
-        if driver_final is not None and driver_final is not driver:
-            try:
-                finalizar_driver_fix(driver_final)
-            except Exception:
-                pass
-        return resultado
+        return executar_bloco_completo(driver, driver_type=driver_type)
 
     resultado = handler(driver)
-    # Falha imediata (<2s) indica sessão morta; nunca reexecuta atualização rápida pós-envio.
-    if (
+    # Recupera sessão/driver (acesso-negado, RESTART_PEC, crash ou falha imediata <2s);
+    # nunca reexecuta atualização rápida pós-envio.
+    pos_envio = isinstance(resultado, dict) and bool(resultado.get("pos_envio", False))
+    falha_imediata = (
         isinstance(resultado, dict)
         and not resultado.get("sucesso", False)
-        and not resultado.get("pos_envio", False)
         and float(resultado.get("tempo", 99)) < 2
-    ):
-        logger.warning("[LOGIN] Fluxo falhou em %.2fs — novo login e reexecucao.", float(resultado.get("tempo", 0)))
+    )
+    precisa_rec = _precisa_recuperacao_sessao(driver, resultado)
+
+    if not pos_envio and (precisa_rec or falha_imediata):
+        if precisa_rec and not _driver_vivo(driver):
+            novo = _recriar_driver_com_login(driver, driver_type, f"queda durante fluxo {fluxo}")
+            if novo:
+                driver = novo
+                resultado = handler(driver)
+                if isinstance(resultado, dict):
+                    resultado["_driver"] = driver
+            return resultado
+
+        motivo = "acesso-negado/sessao" if precisa_rec else f"falha em {float(resultado.get('tempo', 0)):.2f}s"
+        logger.warning("[LOGIN] Fluxo %s interrompido (%s) — novo login e retomada de onde parou.", fluxo, motivo)
         try:
+            try:
+                _limpar_acesso_negado(driver)
+            except Exception:
+                pass
             try:
                 driver.delete_all_cookies()
             except Exception:
@@ -934,7 +1004,13 @@ def _executar_um_fluxo(driver, fluxo: str, driver_type) -> dict:
             else:
                 logger.error("[LOGIN] Login nao concluido — mantendo o primeiro resultado.")
         except Exception as e:
-            logger.error("[LOGIN] Erro no novo login: %s: %s", type(e).__name__, e)
+            logger.error("[LOGIN] Erro no novo login (%s: %s) — tentando recriar driver...", type(e).__name__, e)
+            novo = _recriar_driver_com_login(driver, driver_type, f"fallback login fluxo {fluxo}")
+            if novo:
+                driver = novo
+                resultado = handler(driver)
+                if isinstance(resultado, dict):
+                    resultado["_driver"] = driver
     return resultado
 
 
@@ -967,6 +1043,10 @@ def main():
             inicio = datetime.now()
             logger.info("── fluxo: %s ──", fluxo)
             resultado = _executar_um_fluxo(driver, fluxo, driver_type)
+            if isinstance(resultado, dict):
+                driver_novo = resultado.pop("_driver", None)
+                if driver_novo is not None:
+                    driver = driver_novo
             tempo_total = (datetime.now() - inicio).total_seconds()
             if resultado:
                 chave = "sucesso_geral" if "sucesso_geral" in resultado else ("sucesso" if "sucesso" in resultado else None)

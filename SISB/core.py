@@ -213,52 +213,70 @@ def is_sessao_ativa_sisbajud(driver) -> bool:
         cur_path = cur_url.split('?')[0]
         if any(k in cur_path for k in ('sso.cloud', '/realms/', 'openid-connect', 'login-actions')):
             return False
-        if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=0.2):
-            return False
 
         if not any(h in cur_url for h in ['sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br']):
             return False
 
         try:
-            token_valido = _exec_js(driver, """
+            estado_dom = _exec_js(driver, """
                 try {
+                    const vis = el => !!el && el.getClientRects && el.getClientRects().length > 0;
+                    const otpEl = document.querySelector('#otp, input[name="otp"]');
+                    if (vis(otpEl)) return { ok: false, motivo: 'otp_visivel' };
+
                     const token = localStorage.getItem('sisbajud-token') || localStorage.getItem('LS.sisbajud-token');
-                    if (!token) return false;
-                    const partes = token.split('.');
-                    if (partes.length < 2) return false;
-                    const payload = JSON.parse(atob(partes[1].replace(/-/g, '+').replace(/_/g, '/')));
-                    const exp = payload.exp || 0;
-                    return exp > ((Date.now() / 1000) + 15);
+                    if (token) {
+                        const partes = token.split('.');
+                        if (partes.length >= 2) {
+                            const payload = JSON.parse(atob(partes[1].replace(/-/g, '+').replace(/_/g, '/')));
+                            if ((payload.exp || 0) > ((Date.now() / 1000) + 15)) {
+                                return { ok: true, motivo: 'jwt' };
+                            }
+                        }
+                    }
+
+                    const seletores = [
+                        'uikit-breadcrumb',
+                        'uikit-userinfo',
+                        'uikit-layout',
+                        'mat-toolbar',
+                        'div.breadcrumb breadcrumb',
+                        'sisbajud-dialog-aviso-ordem-pendente',
+                        'sisbajud-cadastro-minuta',
+                        'sisbajud-detalhes-teimosinha',
+                        'a[href*="/minuta"]',
+                        'a[routerlink*="/minuta"]',
+                        'a[href*="/teimosinha"]',
+                        'a[routerlink*="/teimosinha"]',
+                        'button[mat-menu-item]'
+                    ].join(', ');
+                    const encontrados = Array.from(document.querySelectorAll(seletores));
+                    if (encontrados.some(vis)) {
+                        return { ok: true, motivo: 'dom' };
+                    }
+
+                    return {
+                        ok: false,
+                        motivo: 'sem_prova',
+                        bc: !!document.querySelector('uikit-breadcrumb, div.breadcrumb breadcrumb'),
+                        texto: (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').slice(0, 100)
+                    };
                 } catch(e) {
-                    return false;
+                    return { ok: false, motivo: 'erro_js:' + String(e) };
                 }
             """)
-            if token_valido:
-                return True
-        except Exception:
-            pass
-
-        seletores_autenticado = (
-            'div.breadcrumb breadcrumb, '
-            'sisbajud-dialog-aviso-ordem-pendente, '
-            'sisbajud-cadastro-minuta, '
-            'sisbajud-detalhes-teimosinha, '
-            'a[href*="/minuta"], a[routerlink*="/minuta"], '
-            'a[href*="/teimosinha"], a[routerlink*="/teimosinha"], '
-            'button[mat-menu-item]'
-        )
-        if espera.ate_aparecer(driver, seletores_autenticado, teto=0.5):
-            return True
-
-        try:
-            _bc = _exec_js(driver, "return !!document.querySelector('div.breadcrumb breadcrumb');")
-            _txt = _exec_js(driver, 
-                "return (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').slice(0, 100);"
-            )
+            if isinstance(estado_dom, dict):
+                if estado_dom.get('ok'):
+                    return True
+                if estado_dom.get('motivo') == 'otp_visivel':
+                    return False
+                logger.info('[SISBAJUD][SESSION_CHECK] sem prova positiva — url=%s | motivo=%s | breadcrumb=%s | texto=%r',
+                            cur_url, estado_dom.get('motivo'), estado_dom.get('bc'), estado_dom.get('texto', ''))
+                return False
         except Exception as e_diag:
-            _bc, _txt = f'erro: {e_diag}', ''
-        logger.info('[SISBAJUD][SESSION_CHECK] sem prova positiva — url=%s | breadcrumb=%s | texto=%r',
-                    cur_url, _bc, _txt)
+            logger.info('[SISBAJUD][SESSION_CHECK] erro JS — url=%s | erro=%s', cur_url, e_diag)
+            return False
+
         return False
     except Exception as e:
         logger.debug(f'[SISBAJUD][SESSION_CHECK] Erro ao checar sessão ativa: {e}')
@@ -537,7 +555,7 @@ def login_automatico_sisbajud(driver):
 
         URL_MINUTA = 'https://sisbajud.cnj.jus.br/minuta'
         # sisbajud.pdpj.jus.br/ e o fluxo vai direto para /minuta — por isso o tratamento
-        SEL_MINUTAS = 'div.breadcrumb breadcrumb a.mat-button, div.breadcrumb breadcrumb'
+        SEL_MINUTAS = 'uikit-breadcrumb, uikit-userinfo, div.breadcrumb breadcrumb a.mat-button, div.breadcrumb breadcrumb'
         logger.info('[SISBAJUD][LOGIN] Navegando para URL certa: %s', URL_MINUTA)
         driver.get(URL_MINUTA)
 
@@ -617,18 +635,20 @@ def login_automatico_sisbajud(driver):
                     submetido = False
                     if p:
                         try:
-                            btn_sub = p.locator('#kc-login, input[type="submit"], button[type="submit"]')
+                            btn_sub = p.locator('#kc-login, input[name="login"], input[type="submit"], button[type="submit"]')
                             if btn_sub.count() > 0 and btn_sub.first.is_visible():
-                                btn_sub.first.click()
+                                btn_sub.first.click(timeout=5000)
                                 submetido = True
-                        except Exception:
-                            pass
+                        except Exception as e_btn:
+                            logger.debug('[SISBAJUD][LOGIN] Clique no submit OTP falhou/expirou: %s', e_btn)
                         if not submetido:
                             try:
-                                p.locator('#otp, input[name="otp"]').first.press('Enter')
-                                submetido = True
-                            except Exception:
-                                pass
+                                otp_loc = p.locator('#otp, input[name="otp"]').first
+                                if otp_loc.is_visible():
+                                    otp_loc.press('Enter', timeout=3000)
+                                    submetido = True
+                            except Exception as e_ent:
+                                logger.debug('[SISBAJUD][LOGIN] Enter no campo OTP falhou: %s', e_ent)
                     if not submetido:
                         try:
                             safe_click_no_scroll(driver, 'input[type="submit"], button[type="submit"], #kc-login')
@@ -639,19 +659,27 @@ def login_automatico_sisbajud(driver):
 
             logger.info('[SISBAJUD][LOGIN] Aguardando confirmação do login...')
 
-            _visto = {'t0': time.monotonic(), 'dump': False}
+            _visto = {'t0': time.monotonic(), 'dump': False, 'ultimo_erro': 0.0}
 
             def _login_confirmado(d):
                 handles = list(getattr(d, 'window_handles', []))
+                atual = None
+                if len(handles) > 1:
+                    try:
+                        atual = d.current_window_handle
+                    except Exception:
+                        atual = None
                 for h in reversed(handles):
                     try:
-                        d.switch_to.window(h)
-                        u_path = (getattr(d, 'current_url', '') or '').lower().split('?')[0]
+                        if len(handles) > 1 and h != atual:
+                            d.switch_to.window(h)
+                            atual = h
+                        u_path = (getattr(d, 'current_url', '') or '').lower().split('?')[0].split('#')[0]
                         em_sso = any(k in u_path for k in ('sso.cloud', '/realms/', 'openid-connect', 'login-actions'))
                         if u_path != _visto.get('url'):
                             _visto['url'] = u_path
                             logger.info('[SISBAJUD][LOGIN] estado: url=%s | sso=%s', u_path, em_sso)
-                        if em_sso or espera.ate_aparecer(d, '#otp, input[name="otp"]', teto=0.2):
+                        if em_sso:
                             continue
                         # Só rota /minuta do SISBAJUD (a URL do SSO traz /minuta apenas na query)
                         if not any(k in u_path for k in ('sisbajud.cnj.jus.br', 'sisbajud.pdpj.jus.br')):
@@ -669,7 +697,7 @@ def login_automatico_sisbajud(driver):
                                         custom: Array.from(new Set(Array.from(document.querySelectorAll('*'))
                                             .map(e => e.tagName.toLowerCase())
                                             .filter(t => t.includes('-')))).slice(0, 30),
-                                        breadcrumb: !!document.querySelector('div.breadcrumb breadcrumb'),
+                                        breadcrumb: !!document.querySelector('uikit-breadcrumb, div.breadcrumb breadcrumb'),
                                         storage: Object.keys(localStorage).slice(0, 15)
                                     };
                                 """)
@@ -679,10 +707,14 @@ def login_automatico_sisbajud(driver):
                         if is_sessao_ativa_sisbajud(d):
                             logger.info('[SISBAJUD][LOGIN] prova: sessão ativa (JWT/DOM autenticado)')
                             return True
-                        if espera.ate_aparecer(d, SEL_MINUTAS, teto=0.5):
-                            logger.info('[SISBAJUD][LOGIN] prova: breadcrumb "Minutas Pendentes" (listagem pronta)')
+                        if espera.ate_aparecer(d, SEL_MINUTAS, teto=0.3):
+                            logger.info('[SISBAJUD][LOGIN] prova: breadcrumb/header (listagem pronta)')
                             return True
-                    except Exception:
+                    except Exception as e_loop:
+                        agora = time.monotonic()
+                        if agora - _visto['ultimo_erro'] > 10:
+                            _visto['ultimo_erro'] = agora
+                            logger.warning('[SISBAJUD][LOGIN] erro no poll de confirmação: %s', e_loop)
                         continue
                 return False
 
@@ -856,7 +888,7 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
                     pass
                 if SALVAR_COOKIES_AUTOMATICO:
                     try:
-                        espera.ate_aparecer(driver, 'div.breadcrumb breadcrumb', teto=5)
+                        espera.ate_aparecer(driver, 'uikit-breadcrumb, uikit-userinfo, div.breadcrumb breadcrumb, mat-toolbar', teto=5)
                         espera.assentar(driver, 1.0)
                         salvar_cookies_sisbajud(driver, info_extra='login_automatico_sisbajud')
                     except Exception as e:

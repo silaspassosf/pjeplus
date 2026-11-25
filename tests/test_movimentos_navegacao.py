@@ -102,5 +102,36 @@ class TestMovimentosNavegacao(unittest.TestCase):
             self.assertTrue(ok)
 
 
+    def test_movimentar_analise_prazos_vencidos_vai_direto_em_analise(self):
+        driver = MagicMock()
+        mock_exec = MagicMock(return_value=True)
+        setattr(driver, 'execute_script', mock_exec)
+
+        sucesso = movimentar_analise(driver, "Prazos Vencidos")
+        self.assertTrue(sucesso)
+        mock_exec.assert_called_once()
+        call_args = mock_exec.call_args[0]
+        self.assertEqual(call_args[1]['texto'], 'analise')
+
+    def test_movimentar_inteligente_prazos_vencidos_para_arquivar_sem_espera_direta(self):
+        driver = MagicMock()
+        cliques = []
+
+        def fake_clicar(_drv, texto, **_kw):
+            cliques.append(texto)
+            return True
+
+        with patch('atos.movimentos_fluxo.abrir_tarefa_por_api', return_value=True), \
+             patch('atos.movimentos_fluxo._tarefa_atual_via_api', return_value=None), \
+             patch('atos.movimentos_fluxo._obter_tarefa_atual_robusta', return_value="Tarefa:\nPrazos Vencidos"), \
+             patch('atos.movimentos_fluxo.aguardar_renderizacao_nativa', return_value=True), \
+             patch('atos.movimentos_navegacao.clicar_botao_por_texto', side_effect=fake_clicar):
+
+            ok = movimentar_inteligente(driver, "Arquivar o processo")
+            self.assertTrue(ok)
+            # Não deve tentar clicar 'Arquivar o processo' antes de 'analise'
+            self.assertEqual(cliques, ['analise', 'Arquivar o processo'])
+
+
 if __name__ == '__main__':
     unittest.main()

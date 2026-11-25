@@ -108,3 +108,24 @@ def test_executar_fluxo_lote_usa_abrir_detalhe_padrao():
     assert out["sucesso"] is True
     assert out["processados"] == 1
     assert abertos == ["https://pje.trt2.jus.br/pjekz/processo/999/detalhe"]
+
+
+def test_abrir_detalhe_acesso_negado_retorna_critical():
+    from Fix.motor_fluxo import abrir_detalhe_processo
+
+    driver = MagicMock()
+    driver.current_url = "https://pje.trt2.jus.br/pjekz/acesso-negado"
+
+    with patch("Fix.abas.validar_conexao_driver", return_value=True), \
+         patch("Fix.core.aguardar_renderizacao_nativa", return_value=False), \
+         patch("Fix.motor_fluxo._fechar_abas_seguro"):
+        res = abrir_detalhe_processo(
+            driver,
+            "https://pje.trt2.jus.br/pjekz/processo/123/detalhe",
+            usar_garantir_carregamento=False,
+            validar_url_invalida=lambda d: "acesso-negado" in (d.current_url or ""),
+        )
+
+    assert res["ok"] is False
+    assert res["erro"] == "acesso_negado_sessao"
+    assert (res.get("dados") or {}).get("critical") is True

@@ -143,21 +143,11 @@ def movimentar_analise(driver: Any, tarefa: str, debug: bool = False) -> bool:
     if 'remeter' in tarefa_norm or 'remessa' in tarefa_norm:
         return clicar_botao_por_texto(driver, 'Cancelar Remessa', debug=debug) or clicar_botao_por_texto(driver, 'cancelar', debug=debug)
 
-    if 'prazos vencidos - secretaria' in tarefa_norm:
-        candidatos = ('analise de secretaria', 'analise')
-    elif 'prazos vencidos - gabinete' in tarefa_norm or 'analise de recurso interno' in tarefa_norm:
-        candidatos = ('analise de gabinete', 'analise')
-    elif 'prazos vencidos' in tarefa_norm:
-        candidatos = ('analise de secretaria', 'analise de gabinete', 'analise')
-    else:
-        candidatos = ('analise', 'analise de secretaria', 'analise de gabinete')
+    if clicar_botao_por_texto(driver, 'analise', timeout=4, debug=debug):
+        logger.info('[MOV_ANALISE] Botão de análise "analise" clicado')
+        return True
 
-    for i, botao_alvo in enumerate(candidatos):
-        if clicar_botao_por_texto(driver, botao_alvo, timeout=4 if i == 0 else 1, debug=debug):
-            logger.info('[MOV_ANALISE] Botão de análise "%s" clicado', botao_alvo)
-            return True
-
-    logger.warning(f'[MOV_ANALISE] Nenhum botão de análise encontrado na tarefa "{tarefa}"')
+    logger.warning(f'[MOV_ANALISE] Botão "Análise" não encontrado na tarefa "{tarefa}"')
     return False
 
 

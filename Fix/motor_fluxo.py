@@ -112,7 +112,14 @@ def abrir_detalhe_processo(
                     url_alvo=url,
                 )
                 if not ok_load:
-                    return resultado_falha("detalhe_nao_carregou")
+                    if validar_url_invalida and validar_url_invalida(driver):
+                        if recuperar_sessao and recuperar_sessao(driver):
+                            driver.get(url)
+                            wait_for_page_load(driver, timeout=max(10.0, timeout_load))
+                        if validar_url_invalida(driver):
+                            return resultado_falha("acesso_negado_sessao", critical=True)
+                    else:
+                        return resultado_falha("detalhe_nao_carregou")
             else:
                 try:
                     aguardar_renderizacao_nativa(driver, seletor=seletor_pronto, timeout=timeout_load)
@@ -124,7 +131,7 @@ def abrir_detalhe_processo(
                 driver.get(url)
                 wait_for_page_load(driver, timeout=max(10.0, timeout_load))
             if validar_url_invalida(driver):
-                return resultado_falha("sessao_ou_url_invalida")
+                return resultado_falha("acesso_negado_sessao", critical=True)
 
         if modo_aba == "nova_aba" and seletor_pronto:
             aguardar_renderizacao_nativa(driver, seletor_pronto, timeout=min(5.0, timeout_load))

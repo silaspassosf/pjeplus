@@ -412,22 +412,36 @@ def selecionar_elegiveis_art131(
         if not atual or str(it.get("dataFinalizacao") or "") > str(atual.get("dataFinalizacao") or ""):
             dedup_map[chave] = it
 
-    # Limita INFOJUD anual aos N anos disponíveis mais recentes por (empresa, tipoTarefa)
-    grupos_infojud: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
-    nao_infojud_anual: List[Dict[str, Any]] = []
+    # Regra estrita: nunca pegar mais de uma data de pesquisa para o mesmo (documentoExecutado, tipoTarefa)
+    data_mais_recente: Dict[Tuple[str, str], str] = {}
     for it in dedup_map.values():
+        k = (str(it.get("documentoExecutado") or ""), str(it.get("tipoTarefa") or ""))
+        dia = str(it.get("dataFinalizacao") or "")[:10]
+        if dia > data_mais_recente.get(k, ""):
+            data_mais_recente[k] = dia
+
+    descartadas_anos: List[Dict[str, Any]] = []
+    grupos_infojud: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    nao_infojud_por_tipo: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for it in dedup_map.values():
+        k = (str(it.get("documentoExecutado") or ""), str(it.get("tipoTarefa") or ""))
+        dia = str(it.get("dataFinalizacao") or "")[:10]
+        max_dia = data_mais_recente.get(k, "")
+        if max_dia and dia != max_dia:
+            descartadas_anos.append(it)
+            continue
         is_infojud_anual = (
             (str(it.get("tipoTarefa") or "").upper().startswith("INFOJUD_") or it.get("idConvenio") == 3)
             and bool(it.get("anoDocumentoInfojud"))
             and not bool(it.get("ocultaAnoNaExibicao"))
         )
         if not is_infojud_anual:
-            nao_infojud_anual.append(it)
+            prev = nao_infojud_por_tipo.get(k)
+            if not prev or str(it.get("dataFinalizacao") or "") > str(prev.get("dataFinalizacao") or ""):
+                nao_infojud_por_tipo[k] = it
             continue
-        k = (str(it.get("documentoExecutado") or ""), str(it.get("tipoTarefa") or ""))
         grupos_infojud.setdefault(k, []).append(it)
 
-    descartadas_anos: List[Dict[str, Any]] = []
     infojud_mantidas: List[Dict[str, Any]] = []
     for lista in grupos_infojud.values():
         lista.sort(
@@ -444,7 +458,7 @@ def selecionar_elegiveis_art131(
                 descartadas_anos.append(it)
 
     elegiveis = sorted(
-        nao_infojud_anual + infojud_mantidas,
+        list(nao_infojud_por_tipo.values()) + infojud_mantidas,
         key=lambda x: (
             str(x.get("documentoExecutado") or ""),
             0 if x.get("resultadoPositivo") else 1,
@@ -667,16 +681,18 @@ def _dividir_e_salvar_pdf(
     return saida
 
 
-def _extrair_matricula_e_cartorio_texto(texto: str) -> Tuple[str, str]:
-    s = re.sub(r"[_]+", " ", str(texto or ""))
+def _extrair_matricula_e_cartorio_texto(texto: str) -> Tuple[List[str], str]:
+    s = re.sub(r"\.pdf$", "", str(texto or ""), flags=re.I)
+    s = re.sub(r"[_]+", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     if not s:
-        return "", ""
+        return [], ""
 
-    matricula = ""
-    m_mat = re.search(r"(?:matr[ií]cula|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d[\d\.\-]{1,12})", s, re.I)
-    if m_mat:
-        matricula = m_mat.group(1).replace(".", "").rstrip("-")
+    matriculas: List[str] = []
+    for m_mat in re.finditer(r"(?:matr[ií]cula|matr\.?|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d{1,3}(?:\.\s*\d{3})+|\d{2,10})", s, re.I):
+        limpa = re.sub(r"[\.\s]+", "", m_mat.group(1))
+        if 2 <= len(limpa) <= 10 and limpa not in matriculas:
+            matriculas.append(limpa)
 
     cartorio = ""
     m_cri = re.search(
@@ -692,26 +708,37 @@ def _extrair_matricula_e_cartorio_texto(texto: str) -> Tuple[str, str]:
         c = re.sub(r"c\.?\s*r\.?\s*i\.?", "CRI", c, flags=re.I)
         cartorio = re.sub(r"\s+", " ", c).strip()
     else:
-        m_cart = re.search(r"(cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª\-]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª\-]+){0,3})", s, re.I)
+        m_cart = re.search(r"((?:\d+\s*[º°oª]?\s*)?cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª]+){0,3})", s, re.I)
         if m_cart:
             cartorio = re.sub(r"\s+", " ", m_cart.group(1)).strip()
+        else:
+            m_seg = re.search(
+                r"(?:matr[ií]cula|matr\.?|mat\.?)\s*[\d\.\s]+\s*[-–]\s*([A-Za-zÀ-ÿ0-9º°ª\s]{2,24}?)(?:\s*[-–]\s*(?:proc|peeq|otim|$)|$)",
+                s,
+                re.I,
+            )
+            if m_seg:
+                cartorio = re.sub(r"\s+", " ", m_seg.group(1)).strip()
 
-    return matricula, cartorio
+    return matriculas, cartorio
 
 
 def _extrair_info_arisp_de_fontes(fontes: Sequence[str]) -> str:
-    matricula, cartorio = "", ""
+    mats: List[str] = []
+    cartorio = ""
     for f in fontes:
-        m, c = _extrair_matricula_e_cartorio_texto(f)
-        if not matricula and m:
-            matricula = m
+        ms, c = _extrair_matricula_e_cartorio_texto(f)
+        for m in ms:
+            if m not in mats:
+                mats.append(m)
         if not cartorio and c:
             cartorio = c
-        if matricula and cartorio:
-            break
+    # Se o mesmo arquivo contém múltiplas matrículas agrupadas, não nomear com a primeira
+    if len(mats) > 1:
+        return ""
     partes = []
-    if matricula:
-        partes.append(f"Mat {matricula}")
+    if len(mats) == 1:
+        partes.append(f"Mat {mats[0]}")
     if cartorio:
         partes.append(cartorio)
     return " - ".join(partes)
@@ -726,6 +753,7 @@ def _mesclar_lote_em_pdf(
     max_bytes: int = MAX_PDF_BYTES,
     enriquecer_nome_arisp: bool = False,
     nome_curto_empresa: str = "",
+    arquivos_pre_filtrados: Optional[Sequence[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
 ) -> List[Dict[str, Any]]:
     import fitz  # PyMuPDF
 
@@ -751,42 +779,48 @@ def _mesclar_lote_em_pdf(
                     fontes_arisp.append(doc_cert[pi].get_text("text") or "")
             pdf_final.insert_pdf(doc_cert)
 
-        # 2. Anexos de cada tarefa com possuiAnexo
-        for t in tarefas_ord:
-            if not (t.get("possuiAnexo") and t.get("idTarefa") and t.get("idResultado")):
-                continue
-            arqs = _listar_arquivos_tarefa(client, t["idTarefa"], t["idResultado"])
-            for arq in arqs:
-                id_arq = arq.get("id")
-                nome_arq = str(arq.get("nomeArquivo") or f"anexo_{id_arq}.pdf")
-                if enriquecer_nome_arisp and nome_arq:
-                    fontes_arisp.append(nome_arq)
-                if not id_arq:
+        # 2. Anexos de cada tarefa (ou lista pré-filtrada para ARISP 1 arquivo por PDF)
+        fila_anexos: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+        if arquivos_pre_filtrados is not None:
+            fila_anexos = list(arquivos_pre_filtrados)
+        else:
+            for t in tarefas_ord:
+                if not (t.get("possuiAnexo") and t.get("idTarefa") and t.get("idResultado")):
                     continue
-                try:
-                    raw, ctype = _baixar_arquivo_anexo(client, t["idTarefa"], t["idResultado"], id_arq)
-                    if raw[:5] == b"%PDF-" or "pdf" in ctype:
-                        with fitz.open(stream=raw, filetype="pdf") as doc_anx:
-                            if enriquecer_nome_arisp:
-                                for pi in range(min(2, doc_anx.page_count)):
-                                    fontes_arisp.append(doc_anx[pi].get_text("text") or "")
-                            pdf_final.insert_pdf(doc_anx)
-                        anexos_mesclados += 1
-                    elif any(ext in ctype or nome_arq.lower().endswith(ext) for ext in ("png", "jpg", "jpeg")):
-                        ot_img = _otimizar_imagem_grayscale_bytes(raw)
-                        if ot_img:
-                            raw, ext = ot_img, "jpeg"
-                        else:
-                            ext = "png" if ("png" in ctype or nome_arq.lower().endswith(".png")) else "jpeg"
-                        with fitz.open(stream=raw, filetype=ext) as img_doc:
-                            pdf_bytes = img_doc.convert_to_pdf()
-                        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc_img_pdf:
-                            pdf_final.insert_pdf(doc_img_pdf)
-                        anexos_mesclados += 1
+                for arq in _listar_arquivos_tarefa(client, t["idTarefa"], t["idResultado"]):
+                    fila_anexos.append((t, arq))
+
+        for t, arq in fila_anexos:
+            id_arq = arq.get("id")
+            nome_arq = str(arq.get("nomeArquivo") or f"anexo_{id_arq}.pdf")
+            if enriquecer_nome_arisp and nome_arq:
+                fontes_arisp.append(nome_arq)
+            if not id_arq:
+                continue
+            try:
+                raw, ctype = _baixar_arquivo_anexo(client, t["idTarefa"], t["idResultado"], id_arq)
+                if raw[:5] == b"%PDF-" or "pdf" in ctype:
+                    with fitz.open(stream=raw, filetype="pdf") as doc_anx:
+                        if enriquecer_nome_arisp:
+                            for pi in range(min(2, doc_anx.page_count)):
+                                fontes_arisp.append(doc_anx[pi].get_text("text") or "")
+                        pdf_final.insert_pdf(doc_anx)
+                    anexos_mesclados += 1
+                elif any(ext in ctype or nome_arq.lower().endswith(ext) for ext in ("png", "jpg", "jpeg")):
+                    ot_img = _otimizar_imagem_grayscale_bytes(raw)
+                    if ot_img:
+                        raw, ext = ot_img, "jpeg"
                     else:
-                        avisos.append(f"Ignorado não-PDF: {nome_arq} ({ctype})")
-                except Exception as e:
-                    avisos.append(f"Falha ao mesclar {nome_arq}: {e}")
+                        ext = "png" if ("png" in ctype or nome_arq.lower().endswith(".png")) else "jpeg"
+                    with fitz.open(stream=raw, filetype=ext) as img_doc:
+                        pdf_bytes = img_doc.convert_to_pdf()
+                    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc_img_pdf:
+                        pdf_final.insert_pdf(doc_img_pdf)
+                    anexos_mesclados += 1
+                else:
+                    avisos.append(f"Ignorado não-PDF: {nome_arq} ({ctype})")
+            except Exception as e:
+                avisos.append(f"Falha ao mesclar {nome_arq}: {e}")
 
         if enriquecer_nome_arisp:
             detalhe_arisp = _extrair_info_arisp_de_fontes(fontes_arisp)
@@ -835,9 +869,9 @@ def gerar_pdfs_por_empresa(
     def _eh_renajud(t: Dict[str, Any]) -> bool:
         return "RENAJUD" in str(t.get("tipoTarefa") or t.get("nomeTarefa") or "").upper()
 
-    lotes: List[Tuple[str, str, str, List[Dict[str, Any]]]] = []
+    lotes: List[Dict[str, Any]] = []
     # Regra por parte executada (Art. 131 CNC):
-    # Positivas: (a) ARISP 1 por 1, (b) Renajud agrupado, (c) Demais agrupado.
+    # Positivas: (a) ARISP 1 arquivo por PDF, (b) Renajud agrupado, (c) Demais agrupado.
     # Negativas: 1 PDF agrupado por parte executada.
     _ = separar_positivas_negativas
     for g in grupos:
@@ -851,29 +885,63 @@ def gerar_pdfs_por_empresa(
         pos_demais = [t for t in pos if not _eh_arisp(t) and not _eh_renajud(t)]
 
         for idx, t_arisp in enumerate(pos_arisp, start=1):
-            sufixo = f" {idx}" if len(pos_arisp) > 1 else ""
-            nome_arisp = _sanitizar_nome_arquivo(f"{nome_curto} (ARISP OK{sufixo})") + ".pdf"
-            lotes.append((g["documento"], "ARISP_OK", nome_arisp, [t_arisp]))
+            arqs_arisp = (
+                _listar_arquivos_tarefa(client, t_arisp["idTarefa"], t_arisp["idResultado"])
+                if (t_arisp.get("possuiAnexo") and t_arisp.get("idTarefa") and t_arisp.get("idResultado"))
+                else []
+            )
+            if not arqs_arisp:
+                sufixo = f" {idx}" if len(pos_arisp) > 1 else ""
+                lotes.append({
+                    "doc": g["documento"],
+                    "tipo": "ARISP_OK",
+                    "nome": _sanitizar_nome_arquivo(f"{nome_curto} (ARISP OK{sufixo})") + ".pdf",
+                    "tarefas": [t_arisp],
+                    "arquivos_pre": [],
+                    "enriquecer": True,
+                })
+            else:
+                contagem_nomes: Dict[str, int] = {}
+                for ai, arq in enumerate(arqs_arisp, start=1):
+                    detalhe = _extrair_info_arisp_de_fontes([str(arq.get("nomeArquivo") or "")])
+                    base_nome = (
+                        f"{nome_curto} (ARISP OK - {detalhe})"
+                        if detalhe
+                        else f"{nome_curto} (ARISP OK {ai})"
+                    )
+                    k_norm = _norm_cmp(base_nome)
+                    contagem_nomes[k_norm] = contagem_nomes.get(k_norm, 0) + 1
+                    if contagem_nomes[k_norm] > 1:
+                        base_nome = re.sub(r"\)$", f" {contagem_nomes[k_norm]})", base_nome)
+                    lotes.append({
+                        "doc": g["documento"],
+                        "tipo": "ARISP_OK",
+                        "nome": _sanitizar_nome_arquivo(base_nome) + ".pdf",
+                        "tarefas": [t_arisp],
+                        "arquivos_pre": [(t_arisp, arq)],
+                        "enriquecer": not bool(detalhe),
+                    })
         if pos_renajud:
-            lotes.append((g["documento"], "RENAJUD_OK", _montar_nome_arquivo_empresa(nome_curto, pos_renajud), pos_renajud))
+            lotes.append({"doc": g["documento"], "tipo": "RENAJUD_OK", "nome": _montar_nome_arquivo_empresa(nome_curto, pos_renajud), "tarefas": pos_renajud, "arquivos_pre": None, "enriquecer": False})
         if pos_demais:
-            lotes.append((g["documento"], "DEMAIS_OK", _montar_nome_arquivo_empresa(nome_curto, pos_demais), pos_demais))
+            lotes.append({"doc": g["documento"], "tipo": "DEMAIS_OK", "nome": _montar_nome_arquivo_empresa(nome_curto, pos_demais), "tarefas": pos_demais, "arquivos_pre": None, "enriquecer": False})
         if neg:
-            lotes.append((g["documento"], "NEGATIVAS", _montar_nome_arquivo_empresa(nome_curto, neg), neg))
+            lotes.append({"doc": g["documento"], "tipo": "NEGATIVAS", "nome": _montar_nome_arquivo_empresa(nome_curto, neg), "tarefas": neg, "arquivos_pre": None, "enriquecer": False})
 
     gerados: List[Dict[str, Any]] = []
-    for doc, tipo_lote, nome_arq, tarefas_lote in lotes:
+    for lote in lotes:
         partes = _mesclar_lote_em_pdf(
             client,
             numero_processo,
-            tarefas_lote,
-            base_dir / nome_arq,
-            enriquecer_nome_arisp=(tipo_lote == "ARISP_OK"),
-            nome_curto_empresa=nomes_curtos.get(doc, ""),
+            lote["tarefas"],
+            base_dir / lote["nome"],
+            enriquecer_nome_arisp=lote["enriquecer"],
+            nome_curto_empresa=nomes_curtos.get(lote["doc"], ""),
+            arquivos_pre_filtrados=lote["arquivos_pre"],
         )
         for res in partes:
-            res["documento"] = doc
-            res["tipoLote"] = tipo_lote
+            res["documento"] = lote["doc"]
+            res["tipoLote"] = lote["tipo"]
             gerados.append(res)
     return gerados
 

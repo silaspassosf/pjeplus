@@ -481,22 +481,52 @@
         const validas = avaliadas.filter(it => it.art131.elegivel);
         const dedup = resumirPorExecutadoETipo(validas);
 
-        const gruposInfojud = new Map();
-        const naoInfojudAnual = [];
+        // Regra estrita: nunca pegar mais de uma data de pesquisa para o mesmo (executado, tipoTarefa).
+        // Mantém somente a data (YYYY-MM-DD) mais recente de cada (documentoExecutado, tipoTarefa).
+        const dataMaisRecentePorTipo = new Map();
         for (const it of dedup) {
+            const k = (it.documentoExecutado || '') + '|' + (it.tipoTarefa || '');
+            const dia = String(it.dataFinalizacao || '').slice(0, 10);
+            const atual = dataMaisRecentePorTipo.get(k) || '';
+            if (dia > atual) dataMaisRecentePorTipo.set(k, dia);
+        }
+
+        const descartadasPorDataOuAnos = [];
+        const mesmaData = [];
+        for (const it of dedup) {
+            const k = (it.documentoExecutado || '') + '|' + (it.tipoTarefa || '');
+            const dia = String(it.dataFinalizacao || '').slice(0, 10);
+            const maxDia = dataMaisRecentePorTipo.get(k) || '';
+            if (maxDia && dia !== maxDia) {
+                descartadasPorDataOuAnos.push(Object.assign({}, it, {
+                    art131: Object.assign({}, it.art131, {
+                        elegivel: false,
+                        motivo: 'Substituída por pesquisa mais recente (' + maxDia + ')',
+                    }),
+                }));
+                continue;
+            }
+            mesmaData.push(it);
+        }
+
+        const gruposInfojud = new Map();
+        const naoInfojudPorTipo = new Map();
+        for (const it of mesmaData) {
             const isInfojudAnual = (String(it.tipoTarefa || '').toUpperCase().startsWith('INFOJUD_') || it.idConvenio === 3)
                 && it.anoDocumentoInfojud
                 && !it.ocultaAnoNaExibicao;
+            const chave = (it.documentoExecutado || '') + '|' + (it.tipoTarefa || '');
             if (!isInfojudAnual) {
-                naoInfojudAnual.push(it);
+                const prev = naoInfojudPorTipo.get(chave);
+                if (!prev || String(it.dataFinalizacao) > String(prev.dataFinalizacao)) {
+                    naoInfojudPorTipo.set(chave, it);
+                }
                 continue;
             }
-            const chave = it.documentoExecutado + '|' + it.tipoTarefa;
             if (!gruposInfojud.has(chave)) gruposInfojud.set(chave, []);
             gruposInfojud.get(chave).push(it);
         }
 
-        const descartadasPorLimiteAnos = [];
         const infojudMantidas = [];
         for (const lista of gruposInfojud.values()) {
             lista.sort((a, b) =>
@@ -507,7 +537,7 @@
                 if (idx < maxAnosInfojud) {
                     infojudMantidas.push(it);
                 } else {
-                    descartadasPorLimiteAnos.push(Object.assign({}, it, {
+                    descartadasPorDataOuAnos.push(Object.assign({}, it, {
                         art131: Object.assign({}, it.art131, {
                             elegivel: false,
                             motivo: 'Fora dos ' + maxAnosInfojud + ' anos mais recentes disponíveis de ' + it.nomeTarefa,
@@ -517,7 +547,7 @@
             });
         }
 
-        const elegiveis = naoInfojudAnual.concat(infojudMantidas).sort((a, b) =>
+        const elegiveis = Array.from(naoInfojudPorTipo.values()).concat(infojudMantidas).sort((a, b) =>
             a.documentoExecutado.localeCompare(b.documentoExecutado) ||
             (a.resultadoPositivo === b.resultadoPositivo ? 0 : (a.resultadoPositivo ? -1 : 1)) ||
             a.rotuloTarefa.localeCompare(b.rotuloTarefa)
@@ -540,7 +570,7 @@
         return {
             todasAvaliadas: avaliadas,
             elegiveis,
-            expiradasOuExcluidas: avaliadas.filter(it => !it.art131.elegivel).concat(descartadasPorLimiteAnos),
+            expiradasOuExcluidas: avaliadas.filter(it => !it.art131.elegivel).concat(descartadasPorDataOuAnos),
             porEmpresa,
         };
     }
@@ -674,6 +704,79 @@
         }
     }
 
+    async function _descomprimirZlib(u8) {
+        if (typeof DecompressionStream !== 'function') return null;
+        try {
+            const ds = new DecompressionStream('deflate');
+            const w = ds.writable.getWriter();
+            w.write(u8);
+            w.close();
+            const resp = new Response(ds.readable);
+            return new Uint8Array(await resp.arrayBuffer());
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function _otimizarFlateImageGrayscale(rawDeflate, origW, origH, canais, maxLado, qualidade) {
+        maxLado = maxLado || IMG_MAX_LADO_PX;
+        qualidade = qualidade || IMG_JPEG_QUALIDADE;
+        if (!origW || !origH || (canais !== 1 && canais !== 3)) return null;
+        if (origW * origH > 16000000) return null; // protege contra imagens gigantes na memória
+        const pixels = await _descomprimirZlib(rawDeflate);
+        const esperado = origW * origH * canais;
+        if (!pixels || pixels.byteLength < esperado) return null;
+
+        try {
+            const rgba = new Uint8ClampedArray(origW * origH * 4);
+            if (canais === 1) {
+                for (let i = 0, j = 0; i < origW * origH; i++, j += 4) {
+                    const g = pixels[i];
+                    rgba[j] = g; rgba[j + 1] = g; rgba[j + 2] = g; rgba[j + 3] = 255;
+                }
+            } else {
+                for (let i = 0, j = 0; i < esperado; i += 3, j += 4) {
+                    const g = (pixels[i] * 77 + pixels[i + 1] * 150 + pixels[i + 2] * 29) >> 8;
+                    rgba[j] = g; rgba[j + 1] = g; rgba[j + 2] = g; rgba[j + 3] = 255;
+                }
+            }
+
+            const escala = Math.min(1, maxLado / Math.max(origW, origH));
+            const w = Math.max(1, Math.round(origW * escala));
+            const h = Math.max(1, Math.round(origH * escala));
+
+            const srcCanvas = typeof OffscreenCanvas !== 'undefined'
+                ? new OffscreenCanvas(origW, origH)
+                : Object.assign(document.createElement('canvas'), { width: origW, height: origH });
+            const srcCtx = srcCanvas.getContext('2d');
+            if (!srcCtx) return null;
+            srcCtx.putImageData(new ImageData(rgba, origW, origH), 0, 0);
+
+            const dstCanvas = typeof OffscreenCanvas !== 'undefined'
+                ? new OffscreenCanvas(w, h)
+                : Object.assign(document.createElement('canvas'), { width: w, height: h });
+            const dstCtx = dstCanvas.getContext('2d');
+            if (!dstCtx) return null;
+            dstCtx.fillStyle = '#ffffff';
+            dstCtx.fillRect(0, 0, w, h);
+            dstCtx.drawImage(srcCanvas, 0, 0, w, h);
+
+            let blobOut;
+            if (typeof dstCanvas.convertToBlob === 'function') {
+                blobOut = await dstCanvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
+            } else {
+                blobOut = await new Promise((res, rej) =>
+                    dstCanvas.toBlob(b => (b ? res(b) : rej(new Error('toBlob null'))), 'image/jpeg', qualidade)
+                );
+            }
+            const outBytes = new Uint8Array(await blobOut.arrayBuffer());
+            if (outBytes.byteLength >= rawDeflate.byteLength) return null;
+            return { bytes: outBytes, width: w, height: h };
+        } catch (e) {
+            return null;
+        }
+    }
+
     async function _otimizarPdfAnexoAntesDeMesclar(srcDoc, rawLen) {
         if (!rawLen || rawLen < PDF_MIN_BYTES_OTIMIZAR) return 0;
         const lib = _getPdfLib();
@@ -687,10 +790,12 @@
         const kImage = PDFName.of('Image');
         const kFilter = PDFName.of('Filter');
         const kDct = PDFName.of('DCTDecode');
+        const kFlate = PDFName.of('FlateDecode');
         const kWidth = PDFName.of('Width');
         const kHeight = PDFName.of('Height');
         const kColorSpace = PDFName.of('ColorSpace');
         const kDeviceRGB = PDFName.of('DeviceRGB');
+        const kDeviceGray = PDFName.of('DeviceGray');
         const kBpc = PDFName.of('BitsPerComponent');
         const kLength = PDFName.of('Length');
         const kDecodeParms = PDFName.of('DecodeParms');
@@ -702,14 +807,29 @@
             if (!dict || dict.get(kSubtype) !== kImage) continue;
             if (dict.get(kSmask)) continue; // preserva máscaras alfa intactas
             const flt = dict.get(kFilter);
-            if (flt !== kDct) continue;
             const contents = obj.contents;
             if (!contents || contents.byteLength < IMG_MIN_BYTES_OTIMIZAR) continue;
 
-            const ot = await _otimizarImagemBytesGrayscale(contents, 'image/jpeg');
+            let ot = null;
+            if (flt === kDct) {
+                ot = await _otimizarImagemBytesGrayscale(contents, 'image/jpeg');
+            } else if (flt === kFlate && !dict.get(kDecodeParms)) {
+                const bpcObj = dict.get(kBpc);
+                const wObj = dict.get(kWidth);
+                const hObj = dict.get(kHeight);
+                const csObj = dict.get(kColorSpace);
+                const bpc = bpcObj && typeof bpcObj.asNumber === 'function' ? bpcObj.asNumber() : 8;
+                const ow = wObj && typeof wObj.asNumber === 'function' ? wObj.asNumber() : 0;
+                const oh = hObj && typeof hObj.asNumber === 'function' ? hObj.asNumber() : 0;
+                const canais = csObj === kDeviceGray ? 1 : (csObj === kDeviceRGB ? 3 : 0);
+                if (bpc === 8 && canais && ow && oh) {
+                    ot = await _otimizarFlateImageGrayscale(contents, ow, oh, canais);
+                }
+            }
             if (!ot) continue;
 
             obj.contents = ot.bytes;
+            dict.set(kFilter, kDct);
             dict.set(kWidth, PDFNumber.of(ot.width));
             dict.set(kHeight, PDFNumber.of(ot.height));
             dict.set(kColorSpace, kDeviceRGB);
@@ -856,13 +976,15 @@
     }
 
     function _extrairMatriculaECartorioTexto(texto) {
-        const s = String(texto || '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
-        if (!s) return { matricula: '', cartorio: '' };
+        const s = String(texto || '').replace(/\.pdf$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!s) return { matriculas: [], cartorio: '' };
 
-        let matricula = '';
-        const mMat = s.match(/(?:matr[ií]cula|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d[\d\.\-]{1,12})/i);
-        if (mMat) {
-            matricula = mMat[1].replace(/\./g, '').replace(/-$/, '');
+        const reMat = /(?:matr[ií]cula|matr\.?|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d{1,3}(?:\.\s*\d{3})+|\d{2,10})/gi;
+        const matSet = new Set();
+        let m;
+        while ((m = reMat.exec(s)) !== null) {
+            const limpa = m[1].replace(/[\.\s]+/g, '');
+            if (limpa.length >= 2 && limpa.length <= 10) matSet.add(limpa);
         }
 
         let cartorio = '';
@@ -875,23 +997,30 @@
                 .replace(/\s+/g, ' ')
                 .trim();
         } else {
-            const mCart = s.match(/(cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª\-]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª\-]+){0,3})/i);
-            if (mCart) cartorio = mCart[1].replace(/\s+/g, ' ').trim();
+            const mCart = s.match(/((?:\d+\s*[º°oª]?\s*)?cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª]+){0,3})/i);
+            if (mCart) {
+                cartorio = mCart[1].replace(/\s+/g, ' ').trim();
+            } else {
+                // Padrão comum de nome de arquivo ARISP: "matr 8.198 - Guarujá - proc ..." ou "matr 431.074 - 11SP - ..."
+                const mSeg = s.match(/(?:matr[ií]cula|matr\.?|mat\.?)\s*[\d\.\s]+\s*[-–]\s*([A-Za-zÀ-ÿ0-9º°ª\s]{2,24}?)(?:\s*[-–]\s*(?:proc|peeq|otim|$)|$)/i);
+                if (mSeg) cartorio = mSeg[1].replace(/\s+/g, ' ').trim();
+            }
         }
-        return { matricula, cartorio };
+        return { matriculas: Array.from(matSet), cartorio };
     }
 
     function _extrairInfoArispDeFontes(fontesTexto) {
-        let matricula = '';
+        const matSet = new Set();
         let cartorio = '';
         for (const f of (fontesTexto || [])) {
             const info = _extrairMatriculaECartorioTexto(f);
-            if (!matricula && info.matricula) matricula = info.matricula;
+            for (const mat of info.matriculas) matSet.add(mat);
             if (!cartorio && info.cartorio) cartorio = info.cartorio;
-            if (matricula && cartorio) break;
         }
+        // Se o mesmo arquivo contém múltiplas matrículas agrupadas, não nomear com a primeira
+        if (matSet.size > 1) return '';
         const partes = [];
-        if (matricula) partes.push('Mat ' + matricula);
+        if (matSet.size === 1) partes.push('Mat ' + Array.from(matSet)[0]);
         if (cartorio) partes.push(cartorio);
         return partes.join(' - ');
     }
@@ -964,19 +1093,28 @@
             resumoArquivos.push({ origem: 'certidao', nome: 'Certidão de Reaproveitamento', paginas: pagsCert, bytes: certBytes.byteLength });
         }
 
-        const tarefasComAnexo = tarefasOrdenadas.filter(t => t.possuiAnexo && t.idTarefa && t.idResultado);
         const filaDownloads = [];
-        for (let i = 0; i < tarefasComAnexo.length; i++) {
-            const t = tarefasComAnexo[i];
-            onStatus('Listando anexos (' + (i + 1) + '/' + tarefasComAnexo.length + ') — ' + t.rotuloTarefa + '...');
-            try {
-                const arqs = await listarArquivosTarefa(t.idTarefa, t.idResultado);
-                for (const arq of arqs) {
-                    if (opts.enriquecerNomeArisp && arq && arq.nomeArquivo) fontesArisp.push(arq.nomeArquivo);
-                    filaDownloads.push({ tarefa: t, arquivo: arq });
+        if (Array.isArray(opts.arquivosPreFiltrados)) {
+            for (const item of opts.arquivosPreFiltrados) {
+                if (opts.enriquecerNomeArisp && item.arquivo && item.arquivo.nomeArquivo) {
+                    fontesArisp.push(item.arquivo.nomeArquivo);
                 }
-            } catch (err) {
-                avisos.push('Falha ao listar anexos tarefa ' + t.idTarefa + ': ' + (err.message || err));
+                filaDownloads.push(item);
+            }
+        } else {
+            const tarefasComAnexo = tarefasOrdenadas.filter(t => t.possuiAnexo && t.idTarefa && t.idResultado);
+            for (let i = 0; i < tarefasComAnexo.length; i++) {
+                const t = tarefasComAnexo[i];
+                onStatus('Listando anexos (' + (i + 1) + '/' + tarefasComAnexo.length + ') — ' + t.rotuloTarefa + '...');
+                try {
+                    const arqs = await listarArquivosTarefa(t.idTarefa, t.idResultado);
+                    for (const arq of arqs) {
+                        if (opts.enriquecerNomeArisp && arq && arq.nomeArquivo) fontesArisp.push(arq.nomeArquivo);
+                        filaDownloads.push({ tarefa: t, arquivo: arq });
+                    }
+                } catch (err) {
+                    avisos.push('Falha ao listar anexos tarefa ' + t.idTarefa + ': ' + (err.message || err));
+                }
             }
         }
 
@@ -1166,18 +1304,55 @@
             const posRenajud = pos.filter(t => !_ehArisp(t) && _ehRenajud(t));
             const posDemais = pos.filter(t => !_ehArisp(t) && !_ehRenajud(t));
 
+            // ARISP positivo: sempre 1 PDF por arquivo anexo (nunca agrupa matrículas diferentes)
             for (let idx = 0; idx < posArisp.length; idx++) {
                 const tArisp = posArisp[idx];
-                const sufixo = posArisp.length > 1 ? (' ' + (idx + 1)) : '';
-                const nomeArisp = _sanitizarNomeArquivo(nomeCurto + ' (ARISP OK' + sufixo + ')') + '.pdf';
-                lotes.push({
-                    documento: g.documento,
-                    nomeEmpresa: g.nomeEmpresa,
-                    nomeCurto,
-                    tipoLote: 'ARISP_OK',
-                    tarefas: [tArisp],
-                    nomeArquivo: nomeArisp,
-                });
+                let arqsArisp = [];
+                if (tArisp.possuiAnexo && tArisp.idTarefa && tArisp.idResultado) {
+                    onStatus('Listando anexos ARISP de ' + nomeCurto + '...');
+                    try {
+                        arqsArisp = await listarArquivosTarefa(tArisp.idTarefa, tArisp.idResultado);
+                    } catch (e) {
+                        arqsArisp = [];
+                    }
+                }
+                if (!arqsArisp.length) {
+                    const sufixo = posArisp.length > 1 ? (' ' + (idx + 1)) : '';
+                    lotes.push({
+                        documento: g.documento,
+                        nomeEmpresa: g.nomeEmpresa,
+                        nomeCurto,
+                        tipoLote: 'ARISP_OK',
+                        tarefas: [tArisp],
+                        arquivosPreFiltrados: [],
+                        nomeArquivo: _sanitizarNomeArquivo(nomeCurto + ' (ARISP OK' + sufixo + ')') + '.pdf',
+                    });
+                } else {
+                    const contagemNomes = new Map();
+                    for (let ai = 0; ai < arqsArisp.length; ai++) {
+                        const arq = arqsArisp[ai];
+                        const detalhe = _extrairInfoArispDeFontes([arq && arq.nomeArquivo ? arq.nomeArquivo : '']);
+                        let baseNome = detalhe
+                            ? (nomeCurto + ' (ARISP OK - ' + detalhe + ')')
+                            : (nomeCurto + ' (ARISP OK ' + (ai + 1) + ')');
+                        const kNorm = _normCmp(baseNome);
+                        const nUso = (contagemNomes.get(kNorm) || 0) + 1;
+                        contagemNomes.set(kNorm, nUso);
+                        if (nUso > 1) {
+                            baseNome = baseNome.replace(/\)$/, ' ' + nUso + ')');
+                        }
+                        lotes.push({
+                            documento: g.documento,
+                            nomeEmpresa: g.nomeEmpresa,
+                            nomeCurto,
+                            tipoLote: 'ARISP_OK',
+                            tarefas: [tArisp],
+                            arquivosPreFiltrados: [{ tarefa: tArisp, arquivo: arq }],
+                            enriquecerNoMerge: !detalhe,
+                            nomeArquivo: _sanitizarNomeArquivo(baseNome) + '.pdf',
+                        });
+                    }
+                }
             }
             if (posRenajud.length) {
                 lotes.push({
@@ -1218,7 +1393,8 @@
             const res = await gerarPdfUnico(num, lote.tarefas, {
                 nomeArquivo: lote.nomeArquivo,
                 nomeCurtoEmpresa: lote.nomeCurto,
-                enriquecerNomeArisp: lote.tipoLote === 'ARISP_OK',
+                enriquecerNomeArisp: lote.tipoLote === 'ARISP_OK' && lote.enriquecerNoMerge !== false,
+                arquivosPreFiltrados: lote.arquivosPreFiltrados,
                 incluirCertidao: opts.incluirCertidao,
                 download: opts.download,
                 maxBytes: opts.maxBytes,

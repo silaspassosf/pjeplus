@@ -327,13 +327,44 @@
                             }, 2500);
                         });
                 }, titulo: 'Consultar saldo da conta judicial no Alvará e copiar o resumo' },
-            { id: 'btnArgos', texto: '⚖️ Argos', bg: '#6f42c1', fn: function () {
-                    if (typeof window.executarArgos === 'function') {
-                        window.executarArgos();
-                    } else {
-                        showToast('Módulo Argos não carregado', '#dc3545', 3000);
-                    }
-                }, titulo: 'Abrir Nova Pesquisa no ARGOS' },
+            { id: 'btnArgos', texto: '⚖️ Argos', bg: '#6f42c1', fn: function (e) {
+                    const btn = e.target.closest('button');
+                    if (btn.dataset.expanded === "true") return;
+                    btn.dataset.expanded = "true";
+                    btn.innerHTML = '';
+                    btn.style.display = 'flex';
+                    btn.style.gap = '4px';
+                    btn.style.padding = '4px';
+
+                    const b1 = document.createElement('button');
+                    b1.textContent = 'Nova';
+                    b1.title = 'Nova ordem de pesquisa no ARGOS (verifica Poupa antes)';
+                    b1.style.cssText = 'flex:1;background:#fff;color:#6f42c1;border:none;border-radius:2px;font-size:10px;font-weight:bold;cursor:pointer;';
+                    b1.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (typeof window.executarArgos === 'function') {
+                            window.executarArgos();
+                        } else {
+                            showToast('Módulo Argos não carregado', '#dc3545', 3000);
+                        }
+                    };
+
+                    const b2 = document.createElement('button');
+                    b2.textContent = 'Poupa';
+                    b2.title = 'Consultar pesquisas reaproveitáveis (Art. 131 CNC) e gerar PDFs';
+                    b2.style.cssText = 'flex:1;background:#fff;color:#6f42c1;border:none;border-radius:2px;font-size:10px;font-weight:bold;cursor:pointer;';
+                    b2.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (typeof window.executarArgosPoupa === 'function') {
+                            window.executarArgosPoupa();
+                        } else {
+                            showToast('Módulo Argos Poupa não carregado', '#dc3545', 3000);
+                        }
+                    };
+
+                    btn.appendChild(b1);
+                    btn.appendChild(b2);
+                }, titulo: 'Argos: Nova Pesquisa ou Poupa Convênios' },
             { id: 'btnAjustarPDF', texto: '📎 PDF', bg: '#e67e22', fn: function () {
                     if (typeof window.executarAjustarPDF === 'function') {
                         window.executarAjustarPDF();

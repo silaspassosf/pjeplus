@@ -1066,8 +1066,10 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         log(f'[COMUNICACAO] Snackbar pós-salvamento detectada: "{texto_snack}"')
         texto_snack_lower = texto_snack.lower()
         termos_erro = [
-            'campos n', 'campos obrigat', 'não preenchid', 'nao preenchid',
-            'selecione o endere', 'erro ao salvar', 'falha ao salvar', 'inválid'
+            'campos n', 'campos obrigat', 'obrigat', 'não preenchid', 'nao preenchid',
+            'selecione o endere', 'erro ao salvar', 'falha ao salvar', 'inválid', 'invalid',
+            'informe o conte', 'conteúdo do documento', 'conteudo do documento',
+            'não foi poss', 'nao foi poss', 'selecione pelo menos',
         ]
         if any(t in texto_snack_lower for t in termos_erro):
             log(f'[COMUNICACAO][ERRO] Salvamento rejeitado pelo PJe: "{texto_snack}" — abortando.')
@@ -1086,10 +1088,10 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         'pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]'
     )
     btn_finalizar = None
-    if aguardar_renderizacao_nativa(driver, _SEL_ASSINAR, modo='habilitado', timeout=12):
+    if aguardar_renderizacao_nativa(driver, _SEL_ASSINAR, modo='habilitado', timeout=15):
         btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=5)
-    if not btn_finalizar:
-        btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=15)
+    elif aguardar_renderizacao_nativa(driver, _SEL_ASSINAR, modo='habilitado', timeout=12):
+        btn_finalizar = esperar_elemento(driver, _SEL_ASSINAR, timeout=5)
 
     if not btn_finalizar:
         log('[COMUNICACAO][ERRO] Botão Assinar não habilitou em 27s.')

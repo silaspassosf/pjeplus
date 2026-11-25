@@ -14,6 +14,7 @@ from .anexos_wrappers import (
     anex_parcial,
     anex_retifidpj,
     anex_devcp,
+    poupa,
 )
 
 from .anexos_formatacao import (
@@ -50,6 +51,7 @@ __all__ = [
     "anex_parcial",
     "anex_retifidpj",
     "anex_devcp",
+    "poupa",
     "formatar_conteudo_ecarta",
     "_obter_conteudo_relatorio_sisbajud",
     "_wrapper_sisbajud_generico",

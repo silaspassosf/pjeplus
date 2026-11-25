@@ -243,6 +243,26 @@ ato_edidpj = make_ato_wrapper(
     marcar_primeiro_destinatario=True
 )
 
+ato_reit1 = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='reit1',
+    prazo=1,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True
+)
+
+ato_reitmd = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='ofposdom',
+    prazo=1,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True
+)
+
 
 ato_sobrestamento = make_ato_wrapper(
     conclusao_tipo='Suspensão',

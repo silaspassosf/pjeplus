@@ -177,8 +177,9 @@ def inserir_modelo_comunicacao(driver: Any, modelo_nome: str, log=None) -> bool:
             'div[contenteditable="true"]'
         ];
         for (var s of sels) {
-            var el = document.querySelector(s);
-            if (el) {
+            var els = Array.from(document.querySelectorAll(s));
+            for (var el of els) {
+                if (el.closest('pje-dialogo-visualizar-modelo')) continue;
                 var clone = el.cloneNode(true);
                 clone.querySelectorAll('.placeholder-conteudo, .ck-placeholder, [data-placeholder]').forEach(p => p.remove());
                 var txt = (clone.innerText || clone.textContent || '').trim();
@@ -208,7 +209,35 @@ def inserir_modelo_comunicacao(driver: Any, modelo_nome: str, log=None) -> bool:
 
     aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='sumir', timeout=10)
     espera.ate_js(driver, "document.querySelector('pje-dialogo-visualizar-modelo') === null", teto=5)
+
+    # Sincroniza CKEditor -> Angular FormControl dentro de pje-pec-dialogo-ato
+    try:
+        _executar_js(driver, """
+            var sels = [
+                'pje-pec-dialogo-ato div[class*="area-conteudo"][contenteditable="true"][role="textbox"]',
+                'pje-pec-dialogo-ato div[contenteditable="true"]',
+                'div[class*="area-conteudo"][contenteditable="true"][role="textbox"]',
+                '.ck-editor__editable[contenteditable="true"]'
+            ];
+            for (var s of sels) {
+                var el = document.querySelector(s);
+                if (el && !el.closest('pje-dialogo-visualizar-modelo')) {
+                    try { el.focus(); } catch (e) {}
+                    ['input', 'change', 'keyup'].forEach(function(ev) {
+                        try { el.dispatchEvent(new Event(ev, {bubbles: true})); } catch (e) {}
+                    });
+                    try { el.dispatchEvent(new FocusEvent('blur', {bubbles: true})); } catch (e) {}
+                    break;
+                }
+            }
+        """)
+    except Exception:
+        pass
+
     espera.pausa(driver, 1.0, motivo='estabilizacao apos inserir modelo (fechar modal)')
+    if not espera.ate_js(driver, f"({_JS_TEXTO_EDITOR})()", teto=3):
+        log(f'[MODELO_PEC][ERRO] Editor da minuta ficou vazio após fechar modal do modelo "{modelo_nome}"')
+        return False
     return True
 
 

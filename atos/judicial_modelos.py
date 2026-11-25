@@ -46,7 +46,12 @@ _JS_EDITOR_ALVO = """() => {
         'div.ck-content[contenteditable="true"]',
         '.ck-editor__editable[contenteditable="true"]'
     ];
-    for (var s of sels) { if (document.querySelector(s)) return s; }
+    for (var s of sels) {
+        var els = Array.from(document.querySelectorAll(s)).filter(function(el) {
+            return !el.closest('pje-dialogo-visualizar-modelo');
+        });
+        if (els.length) return s;
+    }
     return null;
 }"""
 
@@ -62,7 +67,10 @@ _JS_TEOR_CARREGADO = """() => {
 }"""
 
 _JS_EDITOR_COM_CONTEUDO = """(sel) => {
-    var area = document.querySelector(sel);
+    var areas = Array.from(document.querySelectorAll(sel)).filter(function(el) {
+        return !el.closest('pje-dialogo-visualizar-modelo');
+    });
+    var area = areas[0];
     if (!area) return false;
     // Placeholder ("Dispositivo", "Digite aqui...") tambem e innerText > 1 char e
     // fazia a confirmacao passar com o editor VAZIO — remover antes de medir.
@@ -146,6 +154,52 @@ def _focar_editor_alvo(driver: Any) -> bool:
     except Exception:
         pass
     return False
+
+
+def _sincronizar_editor_alvo(driver: Any, seletor: str) -> bool:
+    """Dispara eventos de sincronização CKEditor -> Angular no editor-alvo."""
+    js_sync = """(sel) => {
+        var areas = Array.from(document.querySelectorAll(sel)).filter(function(el) {
+            return !el.closest('pje-dialogo-visualizar-modelo');
+        });
+        var area = areas[0];
+        if (!area) return false;
+        try { area.focus(); } catch (e) {}
+        try {
+            var ck = area.ckeditorInstance;
+            if (ck) {
+                if (typeof ck.updateSourceElement === 'function') ck.updateSourceElement();
+                if (ck.model && ck.model.document && typeof ck.model.document.fire === 'function') {
+                    ck.model.document.fire('change:data');
+                }
+            }
+        } catch (e) {}
+        ['input', 'change', 'keyup'].forEach(function(ev) {
+            try { area.dispatchEvent(new Event(ev, {bubbles: true})); } catch (e) {}
+        });
+        try { area.dispatchEvent(new FocusEvent('blur', {bubbles: true})); } catch (e) {}
+        return true;
+    }"""
+    try:
+        if hasattr(driver, 'page'):
+            return bool(driver.page.evaluate(js_sync, seletor))
+        elif hasattr(driver, '_js'):
+            return bool(driver._js(f"({js_sync})({json.dumps(seletor)})"))
+    except Exception:
+        pass
+    return False
+
+
+def editor_tem_conteudo(driver: Any, seletor: Optional[str] = None) -> bool:
+    """Verifica se o editor-alvo contém texto real (sem placeholders) ou figura."""
+    sel = seletor or _resolver_editor_alvo(driver)
+    expr = "(%s)(%s)" % (_JS_EDITOR_COM_CONTEUDO, json.dumps(sel))
+    try:
+        if hasattr(driver, 'page'):
+            return bool(driver.page.evaluate(expr))
+        return bool(espera.ate_js(driver, expr, teto=0.5))
+    except Exception:
+        return False
 
 
 def _medir_conteudo_editor(driver: Any, seletor: str) -> int:
@@ -352,9 +406,17 @@ def inserir_modelo_no_editor(
 
         #    para forçar sync dos eventos do CKEditor com o modelo de formulário do Angular)
         _focar_editor_alvo(driver)
+        _sincronizar_editor_alvo(driver, seletor_editor_alvo)
         espera.assentar(driver, 0.8, motivo='estabilização pós-inserção do modelo')
 
-        log(f'[MODELO] Modelo "{modelo_nome}" inserido e confirmado no editor-alvo')
+        if not editor_tem_conteudo(driver, seletor_editor_alvo):
+            log(f'[MODELO] Editor-alvo ({seletor_editor_alvo}) esvaziou após sincronização para "{modelo_nome}"')
+            return False
+
+        log(
+            f'[MODELO] Modelo "{modelo_nome}" inserido e confirmado no editor-alvo '
+            f'(trecho_verificado={bool(trecho_modelo)})'
+        )
         return True
     except Exception as e:
         log(f'[MODELO] Erro ao inserir modelo "{modelo_nome}": {e}')

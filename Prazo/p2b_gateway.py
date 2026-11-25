@@ -502,17 +502,18 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
     _SEL_TEXTAREA_GIGS = 'textarea[formcontrolname="observacao"]'
 
     def _fechar_formulario_gigs(rotulo: str) -> bool:
-        """Garante que o formulario de atividade fechou antes da proxima GIGS."""
+        """Garante que o formulario de atividade e snackbar fecharam antes da proxima GIGS."""
         fechou = False
         try:
+            try:
+                btn_x = espera.elemento(driver, 'simple-snack-bar button, snack-bar-container button', teto=0.5)
+                if btn_x:
+                    btn_x.click()
+                espera.ate_sumir(driver, 'simple-snack-bar, snack-bar-container', teto=2)
+            except Exception:
+                pass
             fechou = bool(espera.ate_sumir(driver, _SEL_TEXTAREA_GIGS, teto=6))
             if not fechou:
-                try:
-                    btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
-                    if btn_x:
-                        btn_x.click()
-                except Exception:
-                    pass
                 fechou = bool(espera.ate_sumir(driver, _SEL_TEXTAREA_GIGS, teto=3))
         except Exception as e:
             logger.warning('[FLUXO_PZ] inicar_exec: erro ao aguardar fechamento do formulario (%s): %s', rotulo, e)
@@ -533,14 +534,18 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS Argos: %s', e)
             _fechar_formulario_gigs('erro em GIGS Argos')
 
-        # 2) GIGS xs sigilo — try isolado (não depende do anterior)
+        # 2) GIGS xs sigilo — try isolado com 1 retry se falhar
         try:
             d2, r2, o2 = parse_gigs_param('1//xs sigilo')
             ok_sigilo = criar_gigs(driver, d2, r2, o2)
+            if not ok_sigilo:
+                logger.warning('[FLUXO_PZ] inicar_exec: 1ª tentativa GIGS xs sigilo retornou False — limpando e retentando')
+                _fechar_formulario_gigs('retry GIGS xs sigilo')
+                ok_sigilo = criar_gigs(driver, d2, r2, o2)
             if ok_sigilo:
                 logger.info('[FLUXO_PZ] inicar_exec: GIGS xs sigilo criada (%s/%s/%s)', d2, r2, o2)
             else:
-                logger.error('[FLUXO_PZ] inicar_exec: criar_gigs xs sigilo retornou False (%s/%s/%s) — GIGS com prazo pode ter saido sem prazo', d2, r2, o2)
+                logger.error('[FLUXO_PZ] inicar_exec: criar_gigs xs sigilo retornou False apos retry (%s/%s/%s)', d2, r2, o2)
             _fechar_formulario_gigs('GIGS xs sigilo')
         except Exception as e:
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs sigilo: %s', e)
@@ -581,6 +586,35 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
             except Exception as e:
                 logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS PJDP: %s', e)
                 _fechar_formulario_gigs('erro em GIGS PJDP')
+
+    # 3) Argos Poupa Convênios (Art. 131 CNC) + juntada poupa — após GIGS, antes do ato_*
+    if id_processo and client is not None:
+        try:
+            from Prazo.argos_poupa import executar_argos_poupa_p2b
+
+            res_poupa = executar_argos_poupa_p2b(
+                driver,
+                client=client,
+                id_processo=str(id_processo),
+                texto_normalizado=texto_normalizado,
+            )
+            logger.info(
+                '[FLUXO_PZ] inicar_exec: argos_poupa concluido (ok=%s | elegiveis=%d | pdfs=%d | excluidos=%s)',
+                res_poupa.get('ok'),
+                len(res_poupa.get('elegiveis') or []),
+                len(res_poupa.get('arquivos_gerados') or []),
+                ','.join(res_poupa.get('convenios_excluidos') or []) or 'nenhum',
+            )
+        except Exception as e:
+            logger.error('[FLUXO_PZ] inicar_exec: falha em argos_poupa (seguindo para juntada/ato_*): %s', e)
+
+    poupa_wrapper = m.get('poupa')
+    if poupa_wrapper:
+        try:
+            ok_poupa = poupa_wrapper(driver)
+            logger.info('[FLUXO_PZ] inicar_exec: juntada poupa concluida (ok=%s)', ok_poupa)
+        except Exception as e:
+            logger.error('[FLUXO_PZ] inicar_exec: falha na juntada poupa (seguindo para ato_*): %s', e)
 
     if rota is None:
         mov_ok = False

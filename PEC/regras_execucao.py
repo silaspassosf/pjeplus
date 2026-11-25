@@ -129,12 +129,73 @@ def _mddid(driver, atv):
     return _normalizar_resultado_acao(pec_editalsent(driver))
 
 
+def _mdd_pgto(driver, atv=None):
+    """mandado pgto / mdd pgto: pec_mddpg + GIGS (1, '', 'xs edital pgto') + ato_antes."""
+    from atos.wrappers_pec import pec_mddpg
+    from atos.wrappers_ato import ato_antes
+
+    def _run_pec():
+        ok = _normalizar_resultado_acao(pec_mddpg(driver))
+        if ok is False:
+            return False
+        aguardar_renderizacao_nativa(driver, timeout=10)
+        return ok
+
+    def _run_ato_antes():
+        r = ato_antes(driver)
+        return r[0] if isinstance(r, tuple) else r
+
+    return _executar_passos(
+        _run_pec,
+        lambda: criar_gigs(driver, "1", "", "xs edital pgto"),
+        _run_ato_antes,
+    )
+
+
 def _xs_meios(driver, atv):
     """xs meios: ato meios + inclusao BNDT."""
     from atos.judicial import ato_meios
     return _executar_passos(
         lambda: ato_meios(driver),
         lambda: bndt(driver, inclusao=True),
+    )
+
+
+def _xs_dev_cp(driver, atv=None):
+    """xs dev cp: baixarCP (criar PDF) + anex_devcp (anexar devolução de carta precatória)."""
+    from Fix.core import baixarCP
+    from Fix.browser_suporte import forcar_fechamento_abas_extras
+    from atos.anexos.anexos_wrappers import anex_devcp
+
+    numero_processo = getattr(atv, 'numero_processo', None) if atv is not None else None
+
+    if not baixarCP(driver, log=True, numero_processo=numero_processo):
+        logger.error('[PEC][XS_DEV_CP] baixarCP() retornou False para %s — abortando', numero_processo)
+        return False
+
+    aba_processo = driver.current_window_handle
+    try:
+        sucesso_juntada = anex_devcp(driver, numero_processo=numero_processo, debug=True)
+    finally:
+        try:
+            forcar_fechamento_abas_extras(driver, aba_processo)
+        except Exception as e_aba:
+            logger.error('[PEC][XS_DEV_CP] Falha ao normalizar abas após anex_devcp(): %s', e_aba)
+
+    return _normalizar_resultado_acao(sucesso_juntada)
+
+
+def _reitmdd(driver, atv=None):
+    """reitmdd / xs reitmdd: cria GIGS (1, '', 'xs mdd pos dom') + ato_reitmd."""
+    from atos.wrappers_ato import ato_reitmd
+
+    def _run_ato():
+        r = ato_reitmd(driver)
+        return r[0] if isinstance(r, tuple) else r
+
+    return _executar_passos(
+        lambda: criar_gigs(driver, "1", "", "xs mdd pos dom"),
+        _run_ato,
     )
 
 
@@ -362,7 +423,8 @@ registry.register(r'\b(?:xs\s+sum|c\.sum)\b',                                   
 registry.register(r'\bedital\s+aud\b|\bpec\s+aud\b',                    'comunicacoes', _w(_a(w, 'pec_editalaud')))
 registry.register(r'\bpz\s+idpj\b|\bidpjd\b|\bpzi\b',                 'comunicacoes', _pz_idpj)
 registry.register(r'\bpec\s+cp\b|\bxs\s+pec\s+cp\b|\bmdd\s+cp\b|\bcp\s+geral\b',                   'comunicacoes', _w(_a(w, 'pec_cpgeral')))
-registry.register(r'\bmdd\s+pgto\b',                                  'comunicacoes', _w(_a(w, 'pec_mddpg')))
+registry.register(r'\b(?:mandado|mdd)\s+(?:de\s+)?pgto\b',              'comunicacoes', _mdd_pgto)
+registry.register(r'\b(?:xs\s+)?(?:mandado|mdd)\s+pos\s+dom\b',          'comunicacoes', _w(_a(w, 'pec_mddreit')))
 registry.register(r'\bmdd\s*2\b',                                    'comunicacoes', _w(_a(w, 'pec_mddgeral')))
 registry.register(r'\b(?:xs\s+)?pec\s+id\b|\b(?:xs\s+)?pecid\b',          'comunicacoes', _w(_a(w, 'pec_sid')))
 registry.register(r'\bedital\s+(?:de\s+)?pgto\b|\bpec\s+edital\s+(?:de\s+)?pgto\b', 'comunicacoes', _w(_a(w, 'pec_editalpg')))
@@ -382,6 +444,8 @@ registry.register(r'\bempresa\s*termo\b|\btermoempresa\b',              'outros'
 registry.register(r'\bmov\s+exec\b',                                    'outros',   _mov_exec)
 registry.register(r'\bxs\s+(?:pesq|pesquisa)\b',                        'outros',   _xs_pesq)
 registry.register(r'\b(?:xs\s+)?p(?:ag|g)to\s+desp(?:acho)?\b|\b(?:xs\s+)?desp(?:acho)?\s+p(?:ag|g)to\b', 'outros', _ato_pagto)
+registry.register(r'\b(?:xs\s+)?dev\s+cp\b',                               'outros', _xs_dev_cp)
+registry.register(r'\b(?:xs\s+)?reitmdd\b',                                'outros', _reitmdd)
 
 REGRAS = registry.all_rules()
 

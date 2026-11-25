@@ -350,8 +350,9 @@
         return selecionados;
     }
 
-    // Seleção de executados: aplica _decidirSelecaoExecutados e marca os checkboxes
-    async function _selecionarExecutados(timeout) {
+    // Seleção de executados: se o usuário escolheu partes específicas no diálogo
+    // (dados.docsAlvo), marca exatamente essas linhas; senão usa _decidirSelecaoExecutados.
+    async function _selecionarExecutados(timeout, dados) {
         timeout = timeout || 12000;
         const tab = await waitElementVisible(
             '.executados app-tabela-executados table, mat-dialog-container table',
@@ -381,7 +382,14 @@
         });
         console.log('[Argos] linhas de executados lidas:', linhas.length);
 
-        const selecionados = _decidirSelecaoExecutados(linhas);
+        let selecionados;
+        if (dados && Array.isArray(dados.docsAlvo) && dados.docsAlvo.length > 0) {
+            const alvoSet = new Set(dados.docsAlvo.map(d => String(d || '').replace(/\D/g, '')).filter(Boolean));
+            selecionados = linhas.filter(l => alvoSet.has(String(l.doc || '').replace(/\D/g, '')));
+            console.log('[Argos] seleção guiada pelo diálogo de partes:', selecionados.length, 'de', alvoSet.size);
+        } else {
+            selecionados = _decidirSelecaoExecutados(linhas);
+        }
         if (!selecionados.length) {
             showToast('Argos: nenhum executado com CPF/CNPJ na tabela', '#dc3545', 5000);
             return;
@@ -548,7 +556,7 @@
         // 6. Selecionar executados — só após confirmar o polo ativo preenchido
         if (poloAtivoOk) {
             console.log('[Argos] iniciando seleção de executados');
-            await _selecionarExecutados(12000);
+            await _selecionarExecutados(12000, dados);
         } else {
             console.warn('[Argos] executados NÃO selecionados (polo ativo não confirmado)');
         }
@@ -566,15 +574,21 @@
         console.log('[Argos] dialog de convênios carregada');
         await sleep(500);
 
-        // 8. Marcar convênios conforme a regra (flag cpf):
-        //    cpf=true  -> SISBAJUD, RENAJUD, CNIB, SERASAJUD, ARISP, INFOJUD, DIRPF, DECRED, DOI, DIMOB
-        //    cpf=false -> igual, MENOS o DIRPF
+        // 8. Marcar convênios conforme a regra (flag cpf), excluindo os que já
+        //    possuem pesquisa reaproveitável válida (Art. 131 CNC) pelo Poupa:
         const temCpf = window.PjeArgos && window.PjeArgos.temCpfSelecionado
             ? window.PjeArgos.temCpfSelecionado()
             : false;
-        const ordem = temCpf
+        const ordemBase = temCpf
             ? ['SISBAJUD', 'RENAJUD', 'CNIB', 'SERASAJUD', 'ARISP', 'INFOJUD', 'DIRPF', 'DECRED', 'DOI', 'DIMOB']
             : ['SISBAJUD', 'RENAJUD', 'CNIB', 'SERASAJUD', 'ARISP', 'INFOJUD', 'DECRED', 'DOI', 'DIMOB'];
+        const excluidosSet = new Set((dados && Array.isArray(dados.conveniosExcluidos) ? dados.conveniosExcluidos : [])
+            .map(n => normalize(n)));
+        const ordem = ordemBase.filter(nome => !excluidosSet.has(normalize(nome)));
+        if (excluidosSet.size) {
+            console.log('[Argos] convênios EXCLUÍDOS por já existirem no Poupa (Art. 131):', Array.from(excluidosSet).join(', '));
+            showToast('Poupa: excluindo já válidas — ' + Array.from(excluidosSet).join(', '), '#0d9488', 5000);
+        }
         console.log('[Argos] marcando convênios (flag cpf=' + temCpf + '):', ordem.join(', '));
         let marcados = 0;
         for (const nome of ordem) {
@@ -881,6 +895,40 @@
             console.log('[Argos] processo:', numero);
             const partes = await _fetchPartes();
             console.log('[Argos] partes via API:', JSON.stringify(partes));
+
+            // Diálogo de seleção de partes (compartilhado com Poupa; exclusão mútua entre polos)
+            let docsAlvo = null;
+            let poloAlvo = 'PASSIVO';
+            let conveniosExcluidos = [];
+            if (window.PjeArgosPoupa && typeof window.PjeArgosPoupa.abrirDialogoPartes === 'function') {
+                const escolha = await window.PjeArgosPoupa.abrirDialogoPartes(partes, 'Argos Nova — Selecionar Partes');
+                if (!escolha) {
+                    console.log('[Argos] fluxo Nova cancelado no diálogo de partes');
+                    return;
+                }
+                poloAlvo = escolha.poloSelecionado;
+                docsAlvo = escolha.selecionadas.map(p => String(p.documento || '').replace(/\D/g, '')).filter(Boolean);
+                const temCpfAlvo = docsAlvo.some(d => d.length === 11);
+
+                // Consulta automática do Poupa antes de abrir a Nova ordem para excluir pesquisas já válidas
+                if (docsAlvo.length && typeof window.PjeArgosPoupa.consultarPorDocumentos === 'function') {
+                    showToast('Argos Nova: verificando pesquisas reaproveitáveis no Poupa...', '#6f42c1', 8000);
+                    try {
+                        const relPoupa = await window.PjeArgosPoupa.consultarPorDocumentos(numero, docsAlvo);
+                        const elegiveis = (relPoupa && relPoupa.reaproveitaveis && relPoupa.reaproveitaveis.elegiveisArt131) || [];
+                        conveniosExcluidos = window.PjeArgosPoupa.calcularConveniosExcluidos(docsAlvo, elegiveis, temCpfAlvo);
+                        console.log('[Argos] Poupa pré-checagem — elegíveis:', elegiveis.length, '| excluídos da Nova:', conveniosExcluidos);
+                        if (conveniosExcluidos.length) {
+                            showToast('Poupa: ' + elegiveis.length + ' válida(s) — excluindo ' + conveniosExcluidos.join(', '), '#0d9488', 5000);
+                        } else if (elegiveis.length) {
+                            showToast('Poupa: ' + elegiveis.length + ' pesquisa(s) válida(s) parcial(is) encontrada(s)', '#0d9488', 4000);
+                        }
+                    } catch (errPoupa) {
+                        console.warn('[Argos] pré-checagem Poupa falhou (seguindo sem exclusões):', errPoupa);
+                    }
+                }
+            }
+
             const valor = await _obterValorExecucao();
             console.log('[Argos] valor da execução final:', valor);
             // Se o valor não foi detectado, pede para o usuário informar antes de abrir o ARGOS
@@ -895,7 +943,15 @@
                     console.warn('[Argos] valor não informado manualmente — segue sem valor');
                 }
             }
-            const dados = { numero, valor: valorFinal, ativo: partes.ativo, passivo: partes.passivo };
+            const dados = {
+                numero,
+                valor: valorFinal,
+                ativo: partes.ativo,
+                passivo: partes.passivo,
+                docsAlvo,
+                poloAlvo,
+                conveniosExcluidos,
+            };
             try { sessionStorage.setItem(KEY, JSON.stringify(dados)); } catch (e) { console.warn('[Argos] sessionStorage indisponível:', e); }
             const url = window.location.origin + '/argos/home-servidor/processos/' + numero;
             console.log('[Argos] abrindo:', url);

@@ -548,7 +548,6 @@ def _mandado_contem_penhora(doc_mandado: Dict[str, Any]) -> bool:
     """Verifica se tipo, título, descrição ou nome do mandado anterior contém 'penhora'."""
     if not isinstance(doc_mandado, dict):
         return False
-    import unicodedata
 
     texto_combinado = " ".join([
         str(doc_mandado.get('tipo') or ''),
@@ -559,6 +558,41 @@ def _mandado_contem_penhora(doc_mandado: Dict[str, Any]) -> bool:
         str(doc_mandado.get('complemento') or ''),
     ])
     return 'penhor' in _norm(texto_combinado)
+
+
+def _mandado_eh_pagamento(doc_mandado: Dict[str, Any]) -> bool:
+    """Verifica se o mandado anterior é Mandado de Pagamento (falso positivo para 'penhora')."""
+    if not isinstance(doc_mandado, dict):
+        return False
+
+    texto_combinado = " ".join([
+        str(doc_mandado.get('tipo') or ''),
+        str(doc_mandado.get('titulo') or ''),
+        str(doc_mandado.get('descricao') or ''),
+        str(doc_mandado.get('nome') or ''),
+        str(doc_mandado.get('descricaoComplementar') or ''),
+        str(doc_mandado.get('complemento') or ''),
+    ])
+    return 'pagamento' in _norm(texto_combinado)
+
+
+def _verificar_mandado_anterior_pagamento_dom(driver: Any) -> bool:
+    """Fallback no DOM: verifica se o mandado anterior na timeline é de pagamento."""
+    try:
+        if hasattr(driver, 'page') and driver.page:
+            return bool(driver.page.evaluate("""() => {
+                const links = document.querySelectorAll('a.tl-documento');
+                for (let i = 0; i < links.length; i++) {
+                    const txt = (links[i].innerText || '').toLowerCase();
+                    if (txt.includes('mandado') && !txt.includes('certid')) {
+                        return txt.includes('pagamento');
+                    }
+                }
+                return false;
+            }"""))
+    except Exception:
+        pass
+    return False
 
 
 def _verificar_mandado_anterior_penhora_dom(driver: Any) -> bool:
@@ -1392,6 +1426,20 @@ def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = T
             except Exception as e_aba:
                 logger.error(f'[MANDADOS][OUTROS] Falha ao normalizar abas após ato_meios ({motivo}): {e_aba}')
 
+    logger.info('[MANDADOS][OUTROS] padrao_negativo detectado — localizando mandado anterior via API timeline')
+    doc_mandado_ant = _localizar_mandado_anterior_timeline_api(driver, log=log)
+
+    if doc_mandado_ant and _mandado_eh_pagamento(doc_mandado_ant):
+        desc_pag = doc_mandado_ant.get('titulo') or doc_mandado_ant.get('descricao') or doc_mandado_ant.get('tipo') or ''
+        logger.info(
+            '[MANDADOS][OUTROS] Mandado anterior é de PAGAMENTO (%s) — negativo sem ato_meios (apenas GIGS xs1)',
+            desc_pag,
+        )
+        return
+    if not doc_mandado_ant and _verificar_mandado_anterior_pagamento_dom(driver):
+        logger.info('[MANDADOS][OUTROS] Mandado anterior é de PAGAMENTO (DOM) — negativo sem ato_meios (apenas GIGS xs1)')
+        return
+
     frase_hipotese_negativa = next((p for p in PADRAO_HIPOTESE_NEGATIVA_PENHORA if p in texto_lower), None)
     if frase_hipotese_negativa:
         _chamar_ato_meios(f'hipótese negativa de penhora: "{frase_hipotese_negativa}"')
@@ -1399,8 +1447,6 @@ def _executar_acoes_padrao_negativo(driver: Any, texto_lower: str, log: bool = T
     if 'penhora' in texto_lower:
         _chamar_ato_meios('certidão negativa de mandado de penhora')
 
-    logger.info('[MANDADOS][OUTROS] padrao_negativo detectado — localizando mandado anterior via API timeline')
-    doc_mandado_ant = _localizar_mandado_anterior_timeline_api(driver, log=log)
     if doc_mandado_ant and _mandado_contem_penhora(doc_mandado_ant):
         desc_info = doc_mandado_ant.get('descricao') or doc_mandado_ant.get('titulo') or doc_mandado_ant.get('tipo') or ''
         _chamar_ato_meios(f'descrição do mandado anterior contém penhora: "{desc_info}"')

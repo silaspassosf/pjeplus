@@ -13,12 +13,13 @@ def _lazy_import():
         from atos.judicial import ato_pesquisas, idpj
         from atos.movimentos import mov
         from atos.wrappers_mov import mov_arquivar
-        from atos.wrappers_ato import ato_sobrestamento, ato_pesqliq, ato_180, ato_calc2, ato_prev, ato_meios, ato_idpj, ato_reitmeios, ato_HCL
+        from atos.wrappers_ato import ato_sobrestamento, ato_pesqliq, ato_180, ato_calc2, ato_prev, ato_meios, ato_idpj, ato_reitmeios, ato_reit1, ato_HCL
         from atos import pec_excluiargos
         try:
-            from atos.anexos.anexos_wrappers import anex_retifidpj
+            from atos.anexos.anexos_wrappers import anex_retifidpj, poupa
         except Exception:
             anex_retifidpj = None
+            poupa = None
 
         _modules_cache.update({
             'aguardar_e_clicar': aguardar_e_clicar,
@@ -36,9 +37,11 @@ def _lazy_import():
             'ato_meios': ato_meios,
             'ato_idpj': ato_idpj,
             'ato_reitmeios': ato_reitmeios,
+            'ato_reit1': ato_reit1,
             'ato_HCL': ato_HCL,
             'pec_excluiargos': pec_excluiargos,
             'anex_retifidpj': anex_retifidpj,
+            'poupa': poupa,
         })
 
     return _modules_cache

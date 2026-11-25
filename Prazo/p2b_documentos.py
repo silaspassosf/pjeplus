@@ -331,6 +331,7 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
     ato_sobrestamento = m['ato_sobrestamento']
     ato_pesqliq = m.get('ato_pesqliq')
     ato_reitmeios = m.get('ato_reitmeios')
+    ato_reit1 = m.get('ato_reit1')
     ato_idpj = m.get('ato_idpj')
     ato_HCL = m.get('ato_HCL')
     idpj = m.get('idpj')
@@ -353,6 +354,14 @@ def _definir_regras_processamento() -> List[Tuple[list, tuple]]:
         (['Ante a notícia de descumprimento'], ("criar_gigs[1/Ana Lucia/Argos]", "criar_gigs[1//xs sigilo]", ato_pesqliq)),
 
         (['Libere-se o depósito recursal'], ("criar_gigs[-1/Ana Lucia/Alvará recursal]",)),
+
+        ([
+            re.compile(
+                r'(?=[\s\S]*foi\s+inclu[ií]d[ao]\s+[\s\S]+?\s+na\s+autua[cç][aã]o\s+como\s+terceir[ao]\s+interessad[ao])'
+                r'(?=[\s\S]*via\s+domic[ií]lio\s+judicial\s+eletr[oô]nico)',
+                re.IGNORECASE,
+            )
+        ], ("criar_gigs[6//xs reitmdd]", ato_reit1)),
 
         ([
             'saldo devedor',

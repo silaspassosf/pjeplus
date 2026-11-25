@@ -135,3 +135,26 @@ def anex_devcp(
         substituir_link=False,
         debug=debug
     )
+
+
+def poupa(
+    driver: Any,
+    numero_processo: Optional[str] = None,
+    debug: bool = True,
+) -> bool:
+    """Wrapper para juntada de Certidão de Pesquisas - Poupa Convênios."""
+    def inserir_fn(driver: Any, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
+        return True
+
+    return wrapper_juntada_geral(
+        driver=driver,
+        tipo='Certidão',
+        descricao='Certidão de Pesquisas - Poupa Convênios',
+        modelo='poupaconv',
+        assinar='nao',
+        sigilo='nao',
+        inserir_conteudo=inserir_fn,
+        coleta_conteudo=None,
+        substituir_link=False,
+        debug=debug
+    )

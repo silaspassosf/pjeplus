@@ -1309,10 +1309,18 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             info = f"{dias_uteis or '-'}/{responsavel or '-'}/{observacao or '-'}"
             logger.debug("[GIGS] Criando: %s", info)
 
-        # aguardar a destruição do anterior. Sem isso o textarea antigo segue no
+        # Etapa 0: isolamento pré-abertura (formulário, overlay e snackbar anteriores)
         espera.ate_sumir(driver, 'textarea[formcontrolname="observacao"]', teto=6)
         aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop-showing', modo='sumir', timeout=6)
+        try:
+            btn_x_prev = espera.elemento(driver, 'simple-snack-bar button, snack-bar-container button', teto=0.4)
+            if btn_x_prev:
+                btn_x_prev.click()
+            espera.ate_sumir(driver, 'simple-snack-bar, snack-bar-container', teto=2)
+        except Exception:
+            pass
 
+        # Etapa 1: abrir formulário limpo
         if log:
             logger.debug('[GIGS] Clicando Nova Atividade...')
         btn_nova = espera.elemento(
@@ -1338,46 +1346,121 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
         if log:
             logger.debug('[GIGS] Formulario aberto')
 
-        if dias_uteis:
-            campo_dias = espera.elemento(driver, 'input[formcontrolname="dias"]')
-            if not campo_dias:
-                logger.warning('[GIGS] Campo de prazo (dias) nao apareceu — GIGS sera criada SEM prazo')
-            else:
-                from Fix.core import preencher_campo
-                preencher_campo(driver, 'input[formcontrolname="dias"]', str(dias_uteis), limpar=True)
-                espera.assentar(driver, 0.3)
-                if espera.ate_js(
-                    driver,
-                    """__pjeEls('input[formcontrolname="dias"]').some(el => String(el.value || '').trim() === '%s')""" % str(dias_uteis),
-                    teto=3,
-                ):
-                    if log:
-                        logger.info('[GIGS] Prazo confirmado no formulario: %s dias', dias_uteis)
-                else:
-                    logger.warning('[GIGS] Prazo %s nao confirmado no formulario — GIGS pode sair SEM prazo', dias_uteis)
+        from Fix.core import preencher_campo
 
+        dias_str = str(dias_uteis).strip() if dias_uteis is not None and str(dias_uteis).strip() != '' else ''
+
+        _JS_CONFIRMAR_PRAZO = """(esperado) => {
+            var inpDias = document.querySelector('input[formcontrolname="dias"]');
+            if (!inpDias) return false;
+            if (String(inpDias.value || '').trim() !== String(esperado)) return false;
+            var form = inpDias.closest('form') || inpDias.closest('mat-dialog-container') || document;
+            var inpData = form.querySelector(
+                'input[formcontrolname="dataPrazo"], input[formcontrolname="prazo"], ' +
+                'input[formcontrolname*="dataPrazo" i], input[formcontrolname*="dataLimite" i]'
+            );
+            if (inpData && inpData.offsetParent !== null) {
+                return String(inpData.value || '').trim().length > 0;
+            }
+            return true;
+        }"""
+
+        def _preencher_e_confirmar_prazo() -> bool:
+            campo_dias = espera.elemento(driver, 'input[formcontrolname="dias"]', teto=timeout)
+            if not campo_dias:
+                logger.error('[GIGS] Campo de prazo (dias) nao apareceu — abortando para nao criar GIGS sem prazo')
+                return False
+
+            expr_ok = f"({_JS_CONFIRMAR_PRAZO})({json.dumps(dias_str)})"
+            for tentativa_prazo in (1, 2):
+                preenchido_nativo = False
+                try:
+                    if hasattr(driver, 'page') and driver.page:
+                        loc = driver.page.locator('input[formcontrolname="dias"]').first
+                        loc.click(timeout=2000)
+                        loc.fill('', timeout=2000)
+                        loc.fill(dias_str, timeout=2000)
+                        loc.press('Tab', timeout=2000)
+                        preenchido_nativo = True
+                except Exception:
+                    preenchido_nativo = False
+
+                if not preenchido_nativo:
+                    preencher_campo(driver, 'input[formcontrolname="dias"]', dias_str, limpar=True)
+                    try:
+                        espera._executar_script(driver, """
+                            var el = document.querySelector('input[formcontrolname="dias"]');
+                            if (el) {
+                                el.dispatchEvent(new KeyboardEvent('keyup', {bubbles: true}));
+                                el.dispatchEvent(new Event('change', {bubbles: true}));
+                                el.dispatchEvent(new FocusEvent('blur', {bubbles: true}));
+                                try { el.blur(); } catch (e) {}
+                            }
+                        """)
+                    except Exception:
+                        pass
+
+                espera.assentar(driver, 0.4, motivo='calculo do prazo no formulario GIGS')
+                if espera.ate_js(driver, expr_ok, teto=4):
+                    if log:
+                        logger.info('[GIGS] Prazo confirmado no formulario: %s dias (tentativa %d)', dias_str, tentativa_prazo)
+                    return True
+                logger.warning('[GIGS] Prazo %s nao confirmado na tentativa %d/2 — retentando', dias_str, tentativa_prazo)
+
+            logger.error('[GIGS] Prazo %s nao confirmado no formulario apos 2 tentativas — abortando sem salvar', dias_str)
+            return False
+
+        # Etapa 2: prazo (isolado e obrigatório quando solicitado)
+        if dias_str:
+            if not _preencher_e_confirmar_prazo():
+                return False
+
+        # Etapa 3: responsável (isolado)
         if responsavel:
-            from Fix.core import preencher_campo
             preencher_campo(driver, 'input[formcontrolname="responsavel"]', responsavel, limpar=True)
             espera.assentar(driver, 0.5)
             _pressionar_tecla(driver, "ArrowDown")
             espera.assentar(driver, 0.2)
             _pressionar_tecla(driver, "Enter")
+            espera.assentar(driver, 0.2)
             if log:
                 logger.debug('[GIGS] Responsavel: %s', responsavel)
 
+        # Etapa 4: observação (isolada com confirmação)
         if observacao:
-            from Fix.core import preencher_campo
             preencher_campo(driver, 'textarea[formcontrolname="observacao"]', observacao, limpar=True)
             espera.assentar(driver, 0.3)
             if log:
                 obs_preview = observacao[:50] + '...' if len(observacao) > 50 else observacao
                 logger.debug('[GIGS] Observacao: %s', obs_preview)
 
+        # Etapa 5: barreira final de integridade dos parâmetros antes do Salvar
+        if dias_str:
+            expr_ok = f"({_JS_CONFIRMAR_PRAZO})({json.dumps(dias_str)})"
+            if not espera.ate_js(driver, expr_ok, teto=2):
+                logger.warning('[GIGS] Prazo %s perdeu-se antes de Salvar — reaplicando', dias_str)
+                if not _preencher_e_confirmar_prazo():
+                    return False
+
+        if observacao:
+            obs_esperada = str(observacao).strip()
+            expr_obs = (
+                "__pjeEls('textarea[formcontrolname=\"observacao\"]').some("
+                f"el => String(el.value || '').trim() === {json.dumps(obs_esperada)})"
+            )
+            if not espera.ate_js(driver, expr_obs, teto=2):
+                preencher_campo(driver, 'textarea[formcontrolname="observacao"]', observacao, limpar=True)
+                espera.assentar(driver, 0.3)
+                if not espera.ate_js(driver, expr_obs, teto=2):
+                    logger.error('[GIGS] Observacao nao confirmada no formulario antes de Salvar — abortando')
+                    return False
+
+        # Etapa 6: fechar snackbar residual, salvar e confirmar persistência + fechamento
         try:
-            btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
+            btn_x = espera.elemento(driver, 'simple-snack-bar button, snack-bar-container button', teto=0.5)
             if btn_x:
                 btn_x.click()
+            espera.ate_sumir(driver, 'simple-snack-bar, snack-bar-container', teto=2)
         except Exception:
             pass
 
@@ -1399,9 +1482,10 @@ def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeo
             logger.warning('[GIGS] Snackbar "Atividade salva com sucesso" nao apareceu — conferir o painel GIGS do processo')
 
         try:
-            btn_x = espera.elemento(driver, 'simple-snack-bar button', teto=1)
+            btn_x = espera.elemento(driver, 'simple-snack-bar button, snack-bar-container button', teto=1)
             if btn_x:
                 btn_x.click()
+            espera.ate_sumir(driver, 'simple-snack-bar, snack-bar-container', teto=2)
         except Exception:
             pass
 

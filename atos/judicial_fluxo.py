@@ -39,7 +39,7 @@ from .judicial_navegacao import (
     verificar_estado_atual,
     focar_campo_minutar_se_necessario,
 )
-from .judicial_modelos import inserir_modelo_no_editor
+from .judicial_modelos import inserir_modelo_no_editor, editor_tem_conteudo
 from .judicial_utils import (
     preencher_prazos_destinatarios,
     verificar_bloqueio_recente
@@ -623,6 +623,10 @@ def ato_judicial(
                 logger.error(f'[ATO][INSERIR]  Erro ao inserir conteúdo: {e}')
                 return False, False
 
+        if modelo_nome and not editor_tem_conteudo(driver):
+            logger.error('[ATO][SALVAR] Editor-alvo vazio antes de salvar modelo "%s" — abortando para não salvar minuta em branco', modelo_nome)
+            return False, False
+
         logger.info('[ATO][SALVAR] Salvando minuta após inserção...')
         try:
             seletor_btn_salvar = 'button[aria-label="Salvar"]'
@@ -654,7 +658,31 @@ def ato_judicial(
                 }
                 return false;
             }"""
-            salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})()", teto=4))
+            js_salvar_desabilitado = """() => {
+                var btns = Array.from(document.querySelectorAll('button[aria-label="Salvar"]'));
+                if (!btns.length) return true;
+                return btns.every(function(b) {
+                    return !!b.disabled || b.hasAttribute('disabled') || b.getAttribute('aria-disabled') === 'true'
+                        || b.offsetWidth === 0 || b.offsetHeight === 0;
+                });
+            }"""
+            salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})() || ({js_salvar_desabilitado})()", teto=6))
+
+            if not salvou:
+                logger.warning('[ATO][SALVAR] 1º clique em Salvar sem confirmação de persistência — retentando Salvar')
+                btn_salvar_retry = wait_for_clickable(driver, seletor_btn_salvar, timeout=3)
+                if btn_salvar_retry:
+                    safe_click(driver, btn_salvar_retry)
+                    espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=15)
+                    salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})() || ({js_salvar_desabilitado})()", teto=6))
+
+            if not salvou:
+                logger.error('[ATO][SALVAR] Persistência da minuta não confirmada (nem snackbar nem botão Salvar desabilitado) — abortando')
+                return False, False
+
+            if modelo_nome and not editor_tem_conteudo(driver):
+                logger.error('[ATO][SALVAR] Editor-alvo ficou vazio após salvar modelo "%s" — abortando', modelo_nome)
+                return False, False
 
             # Salvar; sem isso o painel de destinatários/prazo não renderiza e
             aba_ok = _ativar_aba_intimacoes(driver)
@@ -662,23 +690,6 @@ def ato_judicial(
             if not aba_ok:
                 logger.warning('[ATO][ABA] Painel de intimações NÃO confirmado pelo clique — '
                                'verificando controles de destinatários')
-
-            if not salvou:
-                salvou = bool(espera.ate_js(driver, f"({js_snack_salvo})()", teto=2))
-            if not salvou:
-                salvou = bool(aguardar_renderizacao_nativa(
-                    driver,
-                    'pje-intimacao-automatica label.mat-slide-toggle-label, '
-                    'button[aria-label="Gravar a intimação/notificação"], '
-                    'mat-checkbox[aria-label="Enviar para PEC"], '
-                    'button#selecionar-polo-ativo',
-                    modo='aparecer',
-                    timeout=15,
-                ))
-
-            if not salvou and not aba_ok:
-                logger.error('[ATO][SALVAR] Sem confirmação positiva de salvamento (nem snackbar nem aba de destinatários) — abortando')
-                return False, False
 
             aguardar_renderizacao_nativa(
                 driver,
@@ -985,8 +996,14 @@ def ato_judicial(
                 }"""
                 salvou_final = bool(driver.page.evaluate(js_salvar_se_ativo))
             if salvou_final:
-                logger.info('[ATO][SALVAR_FINAL] Ato salvo')
-                espera.assentar(driver, 1.5)
+                espera.ate_sumir(driver, 'mat-progress-bar, mat-progress-spinner, .mat-progress-spinner, .mat-progress-bar', teto=10)
+                espera.ate_js(
+                    driver,
+                    f"({js_snack_salvo})() || ({js_salvar_desabilitado})()",
+                    teto=5,
+                )
+                logger.info('[ATO][SALVAR_FINAL] Ato salvo e confirmado')
+                espera.assentar(driver, 1.0)
             elif movimento:
                 logger.debug('[ATO][SALVAR_FINAL] Nenhum botão Salvar ativo (movimento já gravou)')
             else:

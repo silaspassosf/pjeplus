@@ -374,6 +374,17 @@ pec_exeq = make_comunicacao_wrapper(
     remover_endereco_invalido=False
 )
 
+pec_mddreit = make_comunicacao_wrapper(
+    tipo_expediente='Mandado',
+    prazo=5,
+    nome_comunicacao='Mandado Reit',
+    sigilo=False,
+    modelo_nome='mddreit',
+    subtipo="Mandado",
+    gigs_extra=None,
+    destinatarios='terceiro',
+    cliques_polo_passivo=1
+)
 
 def wrapper_pec_ord_com_domicilio(driver, debug=False, **kwargs):
     """Wrapper para xs ord com decisão por domicílio eletrônico."""

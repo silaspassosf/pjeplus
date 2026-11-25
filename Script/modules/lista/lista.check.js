@@ -1,5 +1,5 @@
 'use strict';
-// lista.check.js v0.3.10
+// lista.check.js v0.3.12
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────
 const CACHE_TTL = 5 * 60 * 1000;
@@ -68,21 +68,30 @@ function _pjeTlClassApi(item) {
     return null;
 }
 
-window.encontrarElementoPorUid = function (uid) {
-    if (!uid) return null;
+window.encontrarElementoPorUid = function (uid, idDoc) {
+    if (!uid && !idDoc) return null;
     const itens = document.querySelectorAll('li.tl-item-container');
+    const uidLower = uid ? String(uid).toLowerCase() : '';
+    const idDocStr = idDoc ? String(idDoc) : '';
     for (const item of itens) {
-        // Busca no link de texto (documento principal): "Nome - UID"
+        // Busca no link de texto (documento principal): "Nome - UID" ou id="doc_<idDoc>"
         const textLink = item.querySelector('a.tl-documento:not([target="_blank"])');
         if (textLink) {
-            const m = textLink.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
-            if (m && m[1] === uid) return item;
+            if (uid) {
+                const m = textLink.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
+                if (m && m[1].toLowerCase() === uidLower) return item;
+            }
+            if (idDocStr && (textLink.id === `doc_${idDocStr}` || (textLink.id || '').endsWith(`_${idDocStr}`))) {
+                return item;
+            }
         }
         // Busca no link de ícone (target="_blank"): href contém uid
-        const iconLink = item.querySelector('a.tl-documento[target="_blank"]');
-        if (iconLink) {
-            const href = (iconLink.getAttribute('href') || '').toLowerCase();
-            if (href.includes(uid.toLowerCase())) return item;
+        if (uidLower) {
+            const iconLink = item.querySelector('a.tl-documento[target="_blank"]');
+            if (iconLink) {
+                const href = (iconLink.getAttribute('href') || '').toLowerCase();
+                if (href.includes(uidLower)) return item;
+            }
         }
     }
     return null;
@@ -98,15 +107,30 @@ function safeDispatch(el, type, opts) {
     return false;
 }
 
+async function _aguardarCondicao(fn, timeoutMs = 2000, intervaloMs = 100) {
+    const limite = Date.now() + timeoutMs;
+    while (Date.now() < limite) {
+        try {
+            const res = fn();
+            if (res) return res;
+        } catch (e) {}
+        await sleep(intervaloMs);
+    }
+    try { return fn(); } catch (e) { return null; }
+}
+
 // Expande a seção de anexos de um container da timeline
 async function expandirAnexos(container) {
     try {
-        if (container.querySelector('.tl-item-anexo')) return true;
-        const toggle = container.querySelector('button.botao-anexos');
+        if (!container) return false;
+        const _temAnexos = () => container.querySelector('.tl-item-anexo, a.tl-documento[id^="anexo_"]');
+        if (_temAnexos()) return true;
+        const toggle = container.querySelector(
+            'button.botao-anexos, pje-timeline-anexos div[name="mostrarOuOcultarAnexos"], pje-timeline-anexos > div > div'
+        );
         if (!toggle) return false;
-        toggle.click();
-        await sleep(400);
-        return true;
+        try { toggle.click(); } catch (e) { safeDispatch(toggle, 'click', { bubbles: true, cancelable: true }); }
+        return Boolean(await _aguardarCondicao(_temAnexos, 2000, 100));
     } catch (e) {
         return false;
     }
@@ -115,10 +139,11 @@ async function expandirAnexos(container) {
 window.lerTimelineCompleta = async function () {
     const state = PJeState.lista;
     const agora = Date.now();
-    if (state.docs && state.docs.length > 0 && (agora - state.readAt) < CACHE_TTL) return state.docs;
-
     const idProcesso = _pjeTlIdProcesso();
     if (!idProcesso) return [];
+    if (state.docs && state.docs.length > 0 && state.idProcesso === idProcesso && (agora - state.readAt) < CACHE_TTL) {
+        return state.docs;
+    }
 
     let itensApi = [];
     try {
@@ -203,12 +228,14 @@ window.lerTimelineCompleta = async function () {
     }
 
     state.docs = documentos;
+    state.idProcesso = idProcesso;
     state.readAt = agora;
     return documentos;
 }
 
 window.invalidarCacheTimeline = function () {
     PJeState.lista.docs = null;
+    PJeState.lista.idProcesso = null;
     PJeState.lista.readAt = 0;
 }
 
@@ -750,14 +777,46 @@ window.mostrarResumoAlvaras = function (grupos) {
     document.body.appendChild(c);
 };
 
+function _encontrarContainerScrollTimeline(elem) {
+    let cur = elem && elem.parentElement;
+    while (cur && cur !== document.body && cur !== document.documentElement) {
+        const style = window.getComputedStyle(cur);
+        const oy = style.overflowY;
+        const rolavel = (oy === 'auto' || oy === 'scroll' || oy === 'overlay') && cur.scrollHeight > cur.clientHeight + 2;
+        if (rolavel) return cur;
+        cur = cur.parentElement;
+    }
+    return null;
+}
+
+// Rola APENAS o container interno da timeline — evita scrollIntoView() que desloca
+// containers externos (overflow:hidden / body) e faz o cabeçalho do PJe sumir.
+function _scrollElementoNaTimeline(elem, smooth = true) {
+    if (!elem) return false;
+    const container = _encontrarContainerScrollTimeline(elem);
+    if (!container) return false;
+    const cRect = container.getBoundingClientRect();
+    const eRect = elem.getBoundingClientRect();
+    const targetTop = Math.max(
+        0,
+        container.scrollTop + (eRect.top - cRect.top) - (container.clientHeight / 2) + (eRect.height / 2)
+    );
+    if (typeof container.scrollTo === 'function') {
+        container.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'auto' });
+    } else {
+        container.scrollTop = targetTop;
+    }
+    return true;
+}
+
 async function onCheckRowClick(doc) {
-    // ── CAMINHO 1: Documento principal — scroll + highlight persistente ──
+    // ── CAMINHO 1: Documento principal — scroll isolado na timeline + highlight persistente ──
     if (!doc.isAnexo) {
-        const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
+        const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id, doc.idDoc);
         if (elem) {
             // NUNCA clicar no textLink (dispara navegação Angular → remove painel)
-            // Apenas scroll suave + highlight persistente
-            elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // NUNCA usar scrollIntoView (quebra cabeçalho do PJe rolando wrappers externos)
+            _scrollElementoNaTimeline(elem, true);
 
             // Destacar persistentemente (não some após timeout)
             elem.style.transition = 'all 0.3s ease';
@@ -792,7 +851,7 @@ async function onCheckRowClick(doc) {
         await sleep(500);
 
         // Localizar o link do anexo e capturar href direto
-        const anexoLinks = parentItem.querySelectorAll('a.tl-documento[id^="anexo_"]');
+        const anexoLinks = parentItem.querySelectorAll('.tl-item-anexo a.tl-documento, a.tl-documento[id^="anexo_"]');
         let alvo = null;
         if (doc.id) {
             const uidLower = doc.id.toLowerCase();
@@ -807,8 +866,8 @@ async function onCheckRowClick(doc) {
             return;
         }
 
-        // Scroll até o anexo + highlight persistente
-        alvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Scroll isolado na timeline até o anexo + highlight persistente
+        _scrollElementoNaTimeline(alvo, true);
         parentItem.style.transition = 'all 0.3s ease';
         parentItem.style.boxShadow = '0 0 0 3px #fbbf24';
         parentItem.dataset.pjeChecked = 'true';
@@ -829,13 +888,13 @@ async function onCheckRowClick(doc) {
     }
 
     // ── CAMINHO 3: Documento sem iconHref (fallback DOM) ──────────
-    const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
+    const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id, doc.idDoc);
     if (!elem) {
         console.warn('[CHECK] Elemento nao encontrado para doc:', doc.id);
         return;
     }
 
-    elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    _scrollElementoNaTimeline(elem, true);
     elem.classList.add('pjetools-destaque');
     elem.dataset.pjeChecked = 'true';
     window._checkVisited.add(doc.id);
@@ -843,75 +902,285 @@ async function onCheckRowClick(doc) {
     setTimeout(() => expandirAnexos(elem), 800);
 }
 
-// Abre o painel nativo de seleção de documentos e marca CNIB + Serasa de pesquisas
-window.autoSelecionarPesquisaCheck = async function () {
-    // 1) Clicar no ícone de check-square nativo do PJe
-    const icone = document.querySelector('i.icone-sozinho.fa-check-square, i.far.fa-check-square, .fa-check-square');
-    if (!icone) {
-        showToast('Ícone de check-square não encontrado', '#dc3545', 3000);
-        return;
+// ── Destaque colorido de certidões de pesquisa na timeline ──────
+function _injetarEstiloPesquisaTimeline() {
+    if (document.getElementById('pjetools-pesquisa-timeline-style')) return;
+    const style = document.createElement('style');
+    style.id = 'pjetools-pesquisa-timeline-style';
+    style.textContent = `
+        li.tl-item-container.pjetools-certidao-pesquisa,
+        li.tl-item-container.pjetools-certidao-pesquisa mat-card {
+            background: linear-gradient(90deg, #f3e8ff 0%, #ede9fe 100%) !important;
+            border-left: 5px solid #7c3aed !important;
+            box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.28) !important;
+            border-radius: 4px !important;
+        }
+        li.tl-item-container.pjetools-certidao-pesquisa a.tl-documento:not([target="_blank"]) {
+            color: #5b21b6 !important;
+            font-weight: 700 !important;
+        }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+}
+
+function _textoEhCertidaoPesquisa(texto) {
+    const low = _norm(texto || '');
+    if (!low) return false;
+    if (/(expedicao|expedido)/.test(low)) return false;
+    return (
+        low.includes('devolucao de ordem') ||
+        low.includes('devolucao de pesquisa') ||
+        low.includes('ordem de pesquisa') ||
+        low.includes('pesquisa patrimonial') ||
+        low.includes('certidao de devolucao') ||
+        low.includes('argos') ||
+        (low.includes('pesquisa') && (low.includes('certidao') || low.includes('devolucao')))
+    );
+}
+
+window.destacarCertidoesPesquisaTimeline = function (docs) {
+    _injetarEstiloPesquisaTimeline();
+    let destacados = 0;
+    const marcados = new Set();
+
+    const aplicar = (el) => {
+        if (!el || marcados.has(el)) return;
+        marcados.add(el);
+        el.classList.add('pjetools-certidao-pesquisa');
+        el.dataset.pjePesquisaHighlight = 'true';
+        destacados++;
+    };
+
+    if (Array.isArray(docs) && docs.length) {
+        const paisComCnibSerasa = new Set(
+            docs
+                .filter(d => d.isAnexo && (d.tipo === 'CNIB' || d.tipo === 'Serasa') && d.parentId)
+                .map(d => d.parentId)
+        );
+        for (const d of docs) {
+            if (d.isAnexo) continue;
+            if (isCertDevolucao(d) || (isCertOficial(d) && paisComCnibSerasa.has(d.id))) {
+                const el = resolverElemento(d) || encontrarElementoPorUid(d.id, d.idDoc);
+                aplicar(el);
+            }
+        }
     }
-    (icone.closest('button') || icone).click();
-    await sleep(600);
+
+    // Varredura complementar no DOM (cobre renderizações parciais ou uso antes do Check)
+    document.querySelectorAll('li.tl-item-container').forEach(item => {
+        if (marcados.has(item)) return;
+        const link = item.querySelector('a.tl-documento:not([target="_blank"])');
+        if (link && _textoEhCertidaoPesquisa(link.textContent)) {
+            aplicar(item);
+        }
+    });
+
+    return destacados;
+};
+
+function _iniciarObserverDestaquePesquisa() {
+    if (window._pjetoolsPesquisaObsAtivo) return;
+    window._pjetoolsPesquisaObsAtivo = true;
+    let timer = null;
+    const agendar = () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+            timer = null;
+            if (document.querySelector('li.tl-item-container')) {
+                window.destacarCertidoesPesquisaTimeline();
+            }
+        }, 350);
+    };
+    const root = document.body || document.documentElement;
+    if (root) {
+        const obs = new MutationObserver(agendar);
+        obs.observe(root, { childList: true, subtree: true });
+    }
+    agendar();
+}
+
+function _encontrarRowAnexoComCheckbox(link, paiEl) {
+    if (!link) return null;
+    const itemAnexo = link.closest('.tl-item-anexo');
+    if (itemAnexo && itemAnexo.querySelector('mat-checkbox, input[type="checkbox"]')) {
+        return itemAnexo;
+    }
+    let cur = link.parentElement;
+    while (cur && cur !== paiEl && cur !== document.body) {
+        if (cur.querySelector('mat-checkbox, input[type="checkbox"]')) {
+            return cur;
+        }
+        cur = cur.parentElement;
+    }
+    return itemAnexo || link.closest('li') || link.parentElement;
+}
+
+function _marcarCheckboxAnexo(row) {
+    if (!row) return { encontrado: false, marcadoAgora: false };
+    const matCb = row.querySelector('mat-checkbox');
+    const cb = row.querySelector('mat-checkbox input[type="checkbox"], input[type="checkbox"]');
+    if (!cb && !matCb) return { encontrado: false, marcadoAgora: false };
+
+    const estaMarcado = () => Boolean(
+        (cb && cb.checked) ||
+        (matCb && matCb.classList.contains('mat-checkbox-checked'))
+    );
+    if (estaMarcado()) return { encontrado: true, marcadoAgora: false, jaMarcado: true };
+
+    // Não usar scrollIntoView aqui: pode deslocar o cabeçalho do PJe
+    const clickAlvo = row.querySelector('mat-checkbox label, span.mat-checkbox-inner-container') || matCb || cb;
+    clickAlvo.click();
+    if (!estaMarcado() && cb && clickAlvo !== cb) {
+        cb.click();
+    }
+    return { encontrado: true, marcadoAgora: estaMarcado() };
+}
+
+async function _ativarMultiplaSelecaoTimeline() {
+    const _estaAtiva = () => Boolean(
+        document.querySelector('button[aria-label="Ocultar múltipla seleção."]') ||
+        document.querySelector('li.tl-item-container mat-checkbox, li.tl-item-container input[type="checkbox"]')
+    );
+    if (_estaAtiva()) return true;
+
+    const btnExibir = document.querySelector('button[aria-label="Exibir múltipla seleção."]');
+    const icone = !btnExibir && document.querySelector(
+        'i.icone-sozinho.fa-check-square, i.far.fa-check-square, i.fa-check-square, .fa-check-square'
+    );
+    const alvo = btnExibir || (icone && (icone.closest('button') || icone));
+    if (!alvo) return false;
+
+    alvo.click();
+    return Boolean(await _aguardarCondicao(_estaAtiva, 2500, 100));
+}
+
+// Abre o painel nativo de seleção de documentos e marca CNIB + Serasa de pesquisas
+window.autoSelecionarPesquisaCheck = async function (docsPreCarregados) {
+    // 1) Garantir múltipla seleção ativa (sem desativar caso já esteja aberta)
+    const multiOk = await _ativarMultiplaSelecaoTimeline();
+    if (!multiOk) {
+        showToast('Ícone de múltipla seleção (check-square) não encontrado', '#dc3545', 3000);
+        return 0;
+    }
 
     // 2) Usar a timeline já lida para saber exatamente quais pesquisas têm CNIB/Serasa
-    const docs = await lerTimelineCompleta();
+    const docs = Array.isArray(docsPreCarregados) && docsPreCarregados.length
+        ? docsPreCarregados
+        : await lerTimelineCompleta();
+
+    window.destacarCertidoesPesquisaTimeline(docs);
+
     const pares = [];
     const pais = docs.filter(d => !d.isAnexo && (/pesquisa/i.test(d.tipo || d.texto || '') || isCertDevolucao(d) || isCertOficial(d)));
     for (const pai of pais) {
-        const anexos = docs.filter(d => d.isAnexo && d.parentId === pai.id);
-        const temCnib = anexos.some(a => a.tipo === 'CNIB');
-        const temSerasa = anexos.some(a => a.tipo === 'Serasa');
-        if (temCnib || temSerasa) {
-            pares.push({ pai, anexos: anexos.filter(a => a.tipo === 'CNIB' || a.tipo === 'Serasa') });
+        const anexos = docs.filter(d => d.isAnexo && d.parentId === pai.id && (d.tipo === 'CNIB' || d.tipo === 'Serasa'));
+        if (anexos.length) {
+            pares.push({ pai, anexos });
         }
     }
     if (!pares.length) {
         showToast('Nenhuma pesquisa com anexo CNIB ou Serasa encontrada', '#6c757d', 3000);
-        return;
+        return 0;
     }
 
     let marcados = 0;
+    let jaMarcados = 0;
+    const rowsProcessadas = new Set();
+
     for (const { pai, anexos } of pares) {
-        const paiEl = encontrarElementoPorUid(pai.id);
+        const paiEl = resolverElemento(pai) || encontrarElementoPorUid(pai.id, pai.idDoc);
         if (!paiEl) {
             console.warn('[autoSelecionarPesquisaCheck] Pai não encontrado no DOM:', pai.id);
             continue;
         }
         await expandirAnexos(paiEl);
-        await sleep(400);
+        await _aguardarCondicao(
+            () => paiEl.querySelector('.tl-item-anexo mat-checkbox, .tl-item-anexo input[type="checkbox"], a.tl-documento[id^="anexo_"]'),
+            1200,
+            100
+        );
 
-        const anexoLinks = Array.from(paiEl.querySelectorAll('a.tl-documento[id^="anexo_"]'));
+        const rowsAnexo = Array.from(paiEl.querySelectorAll('.tl-item-anexo'));
+        const anexoLinks = rowsAnexo.length
+            ? []
+            : Array.from(new Set(paiEl.querySelectorAll('a.tl-documento[id^="anexo_"]')));
+
         for (const anexo of anexos) {
             const uidLower = String(anexo.id || '').toLowerCase();
-            const link = anexoLinks.find(l =>
-                (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
-                (l.textContent || '').toLowerCase().includes(uidLower)
-            ) || anexoLinks.find(l => {
-                const t = (l.textContent || '').toLowerCase();
-                return anexo.tipo === 'CNIB' ? /cnib|indisp/.test(t) : /serasa/.test(t);
-            });
-            if (!link) {
-                console.warn('[autoSelecionarPesquisaCheck] Link do anexo não encontrado:', anexo.id);
+            const isUidSintetico = uidLower.startsWith('anexo_');
+            const tipoEhCnib = anexo.tipo === 'CNIB';
+            const matchTipoTexto = (txt) => tipoEhCnib ? /cnib|indisp/.test(txt) : /serasa|serasajud/.test(txt);
+
+            let row = null;
+            if (rowsAnexo.length) {
+                const livres = rowsAnexo.filter(r => !rowsProcessadas.has(r));
+                if (uidLower && !isUidSintetico) {
+                    row = livres.find(r => {
+                        const hrefs = Array.from(r.querySelectorAll('a')).map(a => (a.getAttribute('href') || '').toLowerCase()).join(' ');
+                        return hrefs.includes(uidLower) || (r.textContent || '').toLowerCase().includes(uidLower);
+                    });
+                }
+                if (!row) {
+                    row = livres.find(r => matchTipoTexto(_norm(r.textContent || '')));
+                }
+            } else {
+                const candidatosNaoUsados = anexoLinks.filter(l => {
+                    const r = _encontrarRowAnexoComCheckbox(l, paiEl);
+                    return !r || !rowsProcessadas.has(r);
+                });
+                let link = null;
+                if (uidLower && !isUidSintetico) {
+                    link = candidatosNaoUsados.find(l =>
+                        (l.getAttribute('href') || '').toLowerCase().includes(uidLower) ||
+                        (l.textContent || '').toLowerCase().includes(uidLower)
+                    );
+                }
+                if (!link) {
+                    link = candidatosNaoUsados.find(l => {
+                        const r = _encontrarRowAnexoComCheckbox(l, paiEl);
+                        return matchTipoTexto(_norm((l.textContent || '') + ' ' + (r ? r.textContent : '')));
+                    });
+                }
+                if (link) row = _encontrarRowAnexoComCheckbox(link, paiEl);
+            }
+
+            if (!row || rowsProcessadas.has(row)) {
+                console.warn('[autoSelecionarPesquisaCheck] Linha do anexo não encontrada:', anexo.id);
                 continue;
             }
-            const row = link.closest('li, tr, div, .tl-item-anexo') || link.parentElement;
-            const cb = row.querySelector('input[type="checkbox"]');
-            if (cb && !cb.checked) {
-                cb.scrollIntoView({ block: 'nearest' });
-                cb.click();
+            rowsProcessadas.add(row);
+
+            const resCb = _marcarCheckboxAnexo(row);
+            if (resCb.marcadoAgora) {
                 marcados++;
-            } else if (!cb) {
+            } else if (resCb.jaMarcado) {
+                jaMarcados++;
+            } else if (!resCb.encontrado) {
                 console.warn('[autoSelecionarPesquisaCheck] Checkbox não encontrado para:', anexo.id);
             }
         }
     }
 
-    showToast(`AutoCheck: ${marcados} documento(s) marcado(s)`, marcados ? '#28a745' : '#dc3545', 3000);
+    const totalSel = marcados + jaMarcados;
+    showToast(
+        marcados
+            ? `AutoCheck: ${marcados} anexo(s) CNIB/Serasa marcado(s)`
+            : jaMarcados
+                ? `AutoCheck: ${jaMarcados} anexo(s) CNIB/Serasa já selecionado(s)`
+                : 'AutoCheck: nenhum anexo CNIB/Serasa marcado',
+        totalSel ? '#28a745' : '#dc3545',
+        3000
+    );
+    return marcados;
 };
+
+if (typeof document !== 'undefined') {
+    _iniciarObserverDestaquePesquisa();
+}
 
 window.executarCheck = async function () {
     const docs = await lerTimelineCompleta();
+    window.destacarCertidoesPesquisaTimeline(docs);
     const filtrados = filtrarDocs(docs);
     const saida = construirOrdem(filtrados);
     renderTabela('listaDocsExecucaoSimples', '📋 Relatório de Medidas', '#007bff',
@@ -919,8 +1188,8 @@ window.executarCheck = async function () {
 
     // Execução automática após gerar a tabela
     setTimeout(() => {
-        window.autoSelecionarPesquisaCheck().catch(e => console.error('[CHECK] Erro autocheck', e));
-    }, 500);
+        window.autoSelecionarPesquisaCheck(docs).catch(e => console.error('[CHECK] Erro autocheck', e));
+    }, 300);
 
     // Adicionar botões no topo (header) da lista gerada pelo check
     const panel = document.getElementById('listaDocsExecucaoSimples');

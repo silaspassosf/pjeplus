@@ -16,7 +16,12 @@ Objetivo: entregar edições reais rápido, sem loop de exploração.
 - Se a mesma leitura se repetir, pare e edite com o que tem.
 
 ## Verificação
-- Depois de editar: rode o teste/checagem relevante e mostre a saída.
+- **Não criar arquivo `tests/test_*.py` novo** por alteração (só quando o usuário pedir explicitamente).
+- **Checagem mínima por tipo de arquivo:**
+  - Python: `py -m py_compile <arquivo>` + `py tools/check_pw.py` (quando mexer em automação) + rodar apenas teste já existente do mesmo módulo, se houver.
+  - JavaScript (`Script/`): apenas `node --check <arquivo>`.
+- Para validar DOM/comportamento real no PJe sob demanda, usar o utilitário CDP (`py tools/cdp_lab.py`) conectado ao Chrome já logado em vez de escrever mocks extensos.
+- **Checagem inicial do ambiente CDP:** ao iniciar trabalho que envolva DOM, seletores, UI do PJe ou `Script/`, rodar `py tools/cdp_lab.py status`; se o CDP estiver inativo na porta 9222, pedir ao usuário para executar `PJePlus_CDP_Lab.bat` no Desktop (ou `py tools/cdp_lab.py abrir`) e informar o OTP antes de tentar validar no PJe real.
 - Só considere concluído quando o efeito estiver comprovado na saída do comando.
 
 ## Estilo

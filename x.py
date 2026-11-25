@@ -19,6 +19,7 @@ from Fix.tipos import ResultadoFluxo
 from Fix.utils import login_cpf, login_manual
 from Mandado.entrada_api import processar_mandados_devolvidos_api
 from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api
+from PEC.runtime_pec import executar_aquecimento_assinatura_pec as pec_aquecimento_assinatura_api
 from Peticao.runtime_pet import run_pet
 from Prazo import loop_prazo
 from Prazo.p2b_gateway import processar_gigs_sem_prazo_p2b, testar_gigs_sem_prazo
@@ -300,8 +301,9 @@ def _resetar_para_painel(driver) -> bool:
 
 
 def executar_bloco_completo(driver, driver_type=None) -> Dict[str, Any]:
-    """Executa Mandado -> Prazo -> P2B -> PEC em sequência, recriando driver se morrer."""
+    """Executa aquecimento PEC (1 pec_sigilo/pec_exeq) -> Mandado -> Prazo -> P2B -> PEC."""
     resultados: Dict[str, Any] = {
+        "pec_assinatura": None,
         "mandado": None,
         "prazo": None,
         "p2b": None,
@@ -323,6 +325,19 @@ def executar_bloco_completo(driver, driver_type=None) -> Dict[str, Any]:
             "[BLOCO] falha ao recriar driver — modulos restantes serao pulados"
         )
         return novo
+
+    try:
+        res_assinatura = executar_pec_aquecimento_assinatura(driver)
+        resultados["pec_assinatura"] = res_assinatura
+        if not res_assinatura.get("pulado"):
+            resetar_driver(driver)
+    except Exception as e:
+        resultados["pec_assinatura"] = {"sucesso": False, "status": "ERRO_DRIVER", "erro": str(e)}
+        logger.error("[BLOCO] pec_assinatura: excecao nao capturada: %s", e)
+    if not _driver_vivo(driver):
+        driver = _recriar("pec_assinatura")
+        if not driver:
+            return resultados
 
     etapas = [
         ("mandado", executar_mandado, True),
@@ -385,6 +400,35 @@ def executar_prazo(driver) -> Dict[str, Any]:
         }
 
     return _executar_fluxo("Prazo", _fluxo, driver, normalizar=False)
+
+
+def executar_pec_aquecimento_assinatura(
+    driver,
+    filtro_d1: bool = True,
+    data_minima: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Executa 1 processo PEC (pec_sigilo ou pec_exeq) para aquecer assinatura antes do bloco."""
+    def _fluxo(d):
+        resultado = pec_aquecimento_assinatura_api(d, filtro_d1=filtro_d1, data_minima=data_minima)
+        if resultado.get("pulado"):
+            logger.info("[PEC][ASSINATURA] Pulado — nenhum processo pec_sigilo/pec_exeq pendente")
+        else:
+            logger.info(
+                "[PEC][ASSINATURA] processo=%s sucesso=%s erro=%s",
+                resultado.get("processo"),
+                resultado.get("sucesso"),
+                resultado.get("erro", 0),
+            )
+        return resultado
+
+    resultado = _executar_fluxo("PEC_Assinatura", _fluxo, driver)
+    erro_txt = str(resultado.get("erro") or "")
+    if not resultado.get("sucesso") and ("RESTART_PEC" in erro_txt or "Nenhuma janela aberta" in erro_txt):
+        logger.warning("[PEC][ASSINATURA] Driver morto durante aquecimento (%s) — resetando driver...", erro_txt[:120])
+        _limpar_acesso_negado(driver)
+        resetar_driver(driver)
+        return {"sucesso": False, "status": "PARCIAL", "erro": erro_txt, "reset_driver": True, "pulado": False}
+    return resultado
 
 
 def executar_pec(driver, filtro_d1: bool = True, data_minima: Optional[str] = None) -> Dict[str, Any]:

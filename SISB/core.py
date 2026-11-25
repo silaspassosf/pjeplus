@@ -561,7 +561,7 @@ def login_automatico_sisbajud(driver):
             logger.info('[SISBAJUD][LOGIN] Sessão já ativa na URL /minuta!')
         else:
             logger.info('[SISBAJUD][LOGIN] Aguardando tela de autenticação SSO...')
-            tem_form = espera.ate_aparecer(driver, '#username, input[name="username"], #kc-login', teto=8)
+            tem_form = espera.ate_aparecer(driver, '#username, input[name="username"]', teto=8)
             if tem_form:
                 if not cpf or not senha:
                     logger.warning('[SISBAJUD][LOGIN] Credenciais não encontradas no Windows Credential Manager')
@@ -598,7 +598,43 @@ def login_automatico_sisbajud(driver):
                     except Exception:
                         pass
 
-                if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=4):
+            if espera.ate_aparecer(driver, '#otp, input[name="otp"]', teto=4):
+                from Fix.sessao import obter_totp_sisbajud
+
+                codigo_otp = obter_totp_sisbajud()
+                if codigo_otp:
+                    logger.info('[SISBAJUD][LOGIN] OTP gerado automaticamente via TOTP (Windows Credential Manager).')
+                    p = getattr(driver, 'page', None)
+                    preenchido_otp = False
+                    if p:
+                        try:
+                            p.fill('#otp, input[name="otp"]', codigo_otp, timeout=3000)
+                            preenchido_otp = True
+                        except Exception:
+                            pass
+                    if not preenchido_otp:
+                        preencher_campo(driver, '#otp, input[name="otp"]', codigo_otp)
+                    submetido = False
+                    if p:
+                        try:
+                            btn_sub = p.locator('#kc-login, input[type="submit"], button[type="submit"]')
+                            if btn_sub.count() > 0 and btn_sub.first.is_visible():
+                                btn_sub.first.click()
+                                submetido = True
+                        except Exception:
+                            pass
+                        if not submetido:
+                            try:
+                                p.locator('#otp, input[name="otp"]').first.press('Enter')
+                                submetido = True
+                            except Exception:
+                                pass
+                    if not submetido:
+                        try:
+                            safe_click_no_scroll(driver, 'input[type="submit"], button[type="submit"], #kc-login')
+                        except Exception:
+                            pass
+                else:
                     logger.info('[SISBAJUD][LOGIN] OTP / 2FA detectado — por favor, insira o código no navegador...')
 
             logger.info('[SISBAJUD][LOGIN] Aguardando confirmação do login...')

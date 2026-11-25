@@ -1,11 +1,17 @@
 """Fix/sessao.py — cluster canônico de sessão/login/cookies (F3)."""
+import base64
 import glob
+import hashlib
+import hmac
 import json
 import os
+import re
+import struct
 import subprocess
 import time
 from datetime import datetime, timedelta
 from typing import Optional
+from urllib.parse import parse_qs, urlparse
 
 import keyring
 
@@ -50,6 +56,54 @@ def obter_credencial(
         pass
 
     return None
+
+
+def gerar_totp(secret: str, intervalo: int = 30, digitos: int = 6, timestamp: Optional[float] = None) -> Optional[str]:
+    """Gera codigo TOTP (RFC 6238 / HMAC-SHA1) a partir de seed Base32 ou URI otpauth://."""
+    if not secret:
+        return None
+    raw = str(secret).strip()
+    if raw.lower().startswith('otpauth://'):
+        qs = parse_qs(urlparse(raw).query)
+        raw = (qs.get('secret') or [''])[0].strip()
+    limpo = re.sub(r'[^A-Z2-7]', '', raw.upper())
+    if not limpo:
+        return None
+    pad = '=' * ((8 - len(limpo) % 8) % 8)
+    try:
+        chave = base64.b32decode(limpo + pad, casefold=True)
+    except Exception:
+        return None
+    contador = int((time.time() if timestamp is None else timestamp) // intervalo)
+    msg = struct.pack('>Q', contador)
+    digest = hmac.new(chave, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    codigo = (struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7FFFFFFF) % (10 ** digitos)
+    return str(codigo).zfill(digitos)
+
+
+def obter_totp_pje() -> Optional[str]:
+    """Obtem PJE_TOTP_SECRET do Gerenciador de Credenciais do Windows e calcula o codigo de 6 digitos."""
+    secret = obter_credencial(
+        'PJE_TOTP_SECRET',
+        servicos=('pjeplus', 'pje', 'sisbajud', 'SISB'),
+        aliases=('TOTP_SECRET', 'PJE_OTP_SECRET', 'OTP_SECRET'),
+    )
+    if not secret:
+        return None
+    return gerar_totp(secret)
+
+
+def obter_totp_sisbajud() -> Optional[str]:
+    """Obtem SISB_TOTP_SECRET do Gerenciador de Credenciais do Windows e calcula o codigo de 6 digitos."""
+    secret = obter_credencial(
+        'SISB_TOTP_SECRET',
+        servicos=('sisbajud', 'pjeplus', 'SISB'),
+        aliases=('SISB_OTP_SECRET', 'BP_TOTP'),
+    )
+    if not secret:
+        return None
+    return gerar_totp(secret)
 
 def login_manual(driver, aguardar_url_painel=True, usar_credenciais=True):
     """Login manual: navega para login e aguarda usuário fazer login."""
@@ -359,9 +413,21 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
 
                         if tem_otp:
                             otp_processado = True
-                            if is_hl:
+                            codigo_auto = obter_totp_pje()
+                            if codigo_auto:
+                                logger.info('[LOGIN_CPF] OTP gerado automaticamente via TOTP (Windows Credential Manager).')
+                                codigo = codigo_auto
+                            elif is_hl:
                                 logger.info('[LOGIN_CPF] Tela de validação em duas etapas (OTP) detectada (modo headless).')
                                 codigo = input("\n[LOGIN] Digite o código de validação (OTP): ").strip()
+                            else:
+                                codigo = None
+                                logger.info(
+                                    '[LOGIN_CPF] Tela de validação em duas etapas (OTP) detectada no navegador. '
+                                    'Aguardando conclusão do login e carregamento de meu painel...'
+                                )
+
+                            if codigo:
                                 if hasattr(driver, 'page') and driver.page:
                                     driver.page.fill('#otp, input[name="otp"]', codigo)
                                     submetido = False
@@ -383,11 +449,6 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                                     safe_click_no_scroll(driver, 'input[type="submit"], button[type="submit"], #kc-login')
                                 logger.info('[LOGIN_CPF] Código OTP enviado. Aguardando conclusão do login...')
                                 inicio = time.time()
-                            else:
-                                logger.info(
-                                    '[LOGIN_CPF] Tela de validação em duas etapas (OTP) detectada no navegador. '
-                                    'Aguardando conclusão do login e carregamento de meu painel...'
-                                )
                 except Exception:
                     pass
                 espera.pausa(driver, 0.5)

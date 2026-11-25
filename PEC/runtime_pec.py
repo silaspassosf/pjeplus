@@ -701,16 +701,26 @@ def _aguardar_carregamento(driver) -> None:
         espera.ate_js(driver, "document.readyState === 'complete'", teto=10)
 
 
+def _eh_regra_aquecimento_assinatura(padrao: Any, bucket: str) -> bool:
+    """True se a regra for pec_sigilo (xs_sigilo) ou pec_exeq (exequente pessoal)."""
+    if bucket == 'xs_sigilo':
+        return True
+    return 'exequente' in getattr(padrao, 'pattern', '')
+
+
 class PECOrquestrador:
     def __init__(self, driver):
         self.driver = driver
         self.api = PECAPIClient()
 
     def executar(self, dry_run: bool = False, filtro_d1: bool = True,
-                 data_minima: Optional[str] = None) -> Dict[str, int]:
+                 data_minima: Optional[str] = None,
+                 apenas_aquecimento_assinatura: bool = False) -> Dict[str, Any]:
         atividades = self.api.fetch_atividades_vencidas(self.driver)
         if atividades is None:
             logger.error('[PEC] Falha ao buscar atividades (API) — reportando falha para retry.')
+            if apenas_aquecimento_assinatura:
+                return {'total': 0, 'sucesso': 0, 'erro': 1, 'pulado': True}
             return {'total': 0, 'sucesso': 0, 'erro': 1}
 
         if data_minima:
@@ -726,10 +736,13 @@ class PECOrquestrador:
             logger.info(f'[PEC] Filtro D-1 OFF — processando todas: {len(atividades)}')
 
         if not atividades:
+            if apenas_aquecimento_assinatura:
+                logger.info('[PEC][ASSINATURA] Nenhuma atividade PEC na fila — pulando aquecimento')
+                return {'total': 0, 'sucesso': 0, 'erro': 0, 'pulado': True}
             return {'total': 0, 'sucesso': 0, 'erro': 0}
 
         buckets: Dict[str, list] = {b: [] for b in BUCKET_ORDEM}
-        padrao_de: Dict[object, str] = {}
+        padrao_de: Dict[object, Any] = {}
         for atv in atividades:
             match = determinar_regra(atv.observacao or '')
             if match:
@@ -750,8 +763,26 @@ class PECOrquestrador:
             self._log_dry_run(buckets)
             return {'total': len(atividades), 'sucesso': 0, 'erro': 0}
 
-        items = [(atv, acao) for bucket in BUCKET_ORDEM for atv, acao in buckets[bucket]]
         progresso = carregar_progresso_pec()
+        if apenas_aquecimento_assinatura:
+            candidatos = [
+                (atv, acao)
+                for bucket in BUCKET_ORDEM
+                for atv, acao in buckets[bucket]
+                if _eh_regra_aquecimento_assinatura(padrao_de.get(atv), bucket)
+                and not tarefa_ja_executada_pec(atv, progresso)
+            ]
+            if not candidatos:
+                logger.info('[PEC][ASSINATURA] Nenhum processo pec_sigilo/pec_exeq pendente — pulando aquecimento')
+                return {'total': 0, 'sucesso': 0, 'erro': 0, 'pulado': True}
+            items = candidatos[:1]
+            logger.info(
+                '[PEC][ASSINATURA] Executando 1 processo para confirmação de assinatura: %s (%s)',
+                items[0][0].numero_processo,
+                items[0][0].observacao,
+            )
+        else:
+            items = [(atv, acao) for bucket in BUCKET_ORDEM for atv, acao in buckets[bucket]]
         critical_exc = [None]
 
         from Fix.motor_fluxo import FluxoSpec, executar_fluxo_lote
@@ -809,11 +840,14 @@ class PECOrquestrador:
         if critical_exc[0]:
             raise critical_exc[0]
 
-        stats = {
-            'total': len(atividades),
+        stats: Dict[str, Any] = {
+            'total': len(items) if apenas_aquecimento_assinatura else len(atividades),
             'sucesso': res['processados'],
             'erro': res['erro'],
         }
+        if apenas_aquecimento_assinatura:
+            stats['pulado'] = False
+            stats['processo'] = items[0][0].numero_processo
         logger.info('[RESUMO] Total: %d | Sucesso: %d | Erro: %d', stats['total'], stats['sucesso'], stats['erro'])
         return stats
 
@@ -844,3 +878,27 @@ def executar_fluxo_novo_simplificado(
             raise
         logger.error(f'[FLUXO] Erro fatal: {e}')
         return {'total': 0, 'sucesso': False, 'erro': 1}
+
+
+def executar_aquecimento_assinatura_pec(
+    driver,
+    filtro_d1: bool = True,
+    data_minima: Optional[str] = None,
+) -> dict:
+    """Executa 1 processo PEC (pec_sigilo ou pec_exeq) para confirmar assinatura na sessão."""
+    try:
+        orq = PECOrquestrador(driver)
+        stats = orq.executar(
+            dry_run=False,
+            filtro_d1=filtro_d1,
+            data_minima=data_minima,
+            apenas_aquecimento_assinatura=True,
+        )
+        stats['sucesso_count'] = stats.get('sucesso', 0)
+        stats['sucesso'] = stats.get('erro', 0) == 0
+        return stats
+    except Exception as e:
+        if 'RESTART_PEC' in str(e):
+            raise
+        logger.error('[PEC][ASSINATURA] Erro fatal: %s', e)
+        return {'total': 0, 'sucesso': False, 'erro': 1, 'pulado': False}

@@ -145,6 +145,31 @@ def _espelho_fase(aba) -> str:
         return ""
 
 
+def _confirmar_sucesso_pos_navegacao(aba) -> tuple[bool, str]:
+    """Após navegação JSF em 'enviar'/'sucesso', apenas lê a página de confirmação (sem reenviar)."""
+    _assentar_aba(aba)
+    try:
+        aba.wait_for_function(
+            "() => Array.from(document.querySelectorAll('h2'))"
+            ".some(h => (h.textContent || '').includes('Sucesso!'))",
+            timeout=20_000,
+        )
+    except Exception:
+        return False, ""
+    calc_mem = ""
+    try:
+        calc_mem = str(aba.evaluate(
+            "() => { try { return sessionStorage.getItem('__pjeplusAR_calc') || ''; } catch (e) { return ''; } }"
+        ) or "")
+    except Exception:
+        pass
+    try:
+        aba.evaluate("() => { document.querySelector('li#li_operacoes_fechar a, a.menuImageClose, .menuImageClose')?.click(); }")
+    except Exception:
+        pass
+    return True, calc_mem
+
+
 def _executar(driver, numero_processo, *, data, id_calculo,
               selecionar_mais_recente=False, somente_busca=False) -> ResultadoAtualizacao:
     page = getattr(driver, "page", None)
@@ -199,6 +224,19 @@ def _executar(driver, numero_processo, *, data, id_calculo,
                 destruido = ("context was destroyed" in msg
                              or "navigation" in msg.lower())
                 fase_espelho = _espelho_fase(aba)
+                if destruido and fase_espelho in ("enviar", "sucesso"):
+                    ok_pos, calc_pos = _confirmar_sucesso_pos_navegacao(aba)
+                    if ok_pos:
+                        bruto = {
+                            "ok": True,
+                            "numeroProcesso": numero,
+                            "numeroCalculo": calc_pos or (id_calc or ""),
+                            "data": data_liq,
+                        }
+                        break
+                    raise AtualizacaoRapidaErro(
+                        f"Envio interrompido por navegação sem confirmação 'Sucesso!' (não reenviar): {msg}",
+                        fase="sucesso", pos_envio=True) from e
                 pre_efeito = fase_espelho in _FASES_PRE_EFEITO
                 if not (destruido and pre_efeito and tentativa < _MAX_RETOMADAS_JSF):
                     raise AtualizacaoRapidaErro(

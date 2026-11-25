@@ -289,7 +289,7 @@ def _executar(driver, numero_processo, *, data, id_calculo,
     raise AtualizacaoRapidaErro(erro, fase=fase, pos_envio=pos_envio)
 
 
-_GAP_DIAS_CALCULO = 90
+_GAP_DIAS_CALCULO = 45
 
 
 def calculo_antigo(data_divida: str, *, dias: int = _GAP_DIAS_CALCULO) -> bool:
@@ -325,7 +325,7 @@ def _divida_mais_recente_api(driver, id_processo) -> Optional[dict]:
 
 
 def atualizar_calculo_se_antigo(driver_pje, dados_processo, *, log: bool = True) -> Optional[str]:
-    """Se o cálculo da dívida tem >90 dias, atualiza e repuxa o valor via API."""
+    """Se o cálculo da dívida tem >45 dias, atualiza e repuxa o valor via API."""
     divida = dados_processo.get("divida") if isinstance(dados_processo, dict) else None
     data_divida = (divida or {}).get("data", "") if isinstance(divida, dict) else ""
     if not calculo_antigo(data_divida):
@@ -336,7 +336,8 @@ def atualizar_calculo_se_antigo(driver_pje, dados_processo, *, log: bool = True)
     id_processo = (dados_processo or {}).get("id") or (dados_processo or {}).get("id_processo")
 
     if log:
-        logger.info("[SISBAJUD][CALC] cálculo de %s (>3 meses) — executando atualização rápida", data_divida)
+        logger.info("[SISBAJUD][CALC] cálculo de %s (>%d dias) — executando atualização rápida",
+                    data_divida, _GAP_DIAS_CALCULO)
 
     res = executar_atualizacao_rapida_detalhada(
         driver_pje, numero or None, selecionar_mais_recente=True)

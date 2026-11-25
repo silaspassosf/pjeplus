@@ -951,8 +951,9 @@ def _atualizar_calculo_antigo(driver_pje, dados_processo, valor, log=True):
     valor_novo = divida.get('valor') or valor
     data_nova = divida.get('data', '')
     try:
+        from Fix.atualizacao_rapida import _GAP_DIAS_CALCULO
         _dt_nova = datetime.strptime(data_nova, '%d/%m/%Y')
-        if (datetime.now() - _dt_nova).days <= 90:
+        if (datetime.now() - _dt_nova).days <= _GAP_DIAS_CALCULO:
             if log:
                 logger.info(f'[SISBAJUD]  Cálculo atualizado — minuta usará {valor_novo} (liquidado em {data_nova})')
             return None, valor_novo
@@ -1025,11 +1026,12 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         elif _data_divida:
             try:
                 from datetime import datetime as _dt
+                from Fix.atualizacao_rapida import _GAP_DIAS_CALCULO
                 _dt_divida = _dt.strptime(_data_divida, '%d/%m/%Y')
-                if (_dt.now() - _dt_divida).days > 90:
+                if (_dt.now() - _dt_divida).days > _GAP_DIAS_CALCULO:
                     pendencia = 'calculo_antigo'
                     if log:
-                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>3 meses)')
+                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>{_GAP_DIAS_CALCULO} dias)')
                     pendencia, valor = _atualizar_calculo_antigo(driver_pje, dados_processo, valor, log=log)
             except Exception:
                 pass
@@ -1934,11 +1936,12 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
         elif _data_divida:
             try:
                 from datetime import datetime as _dt
+                from Fix.atualizacao_rapida import _GAP_DIAS_CALCULO
                 _dt_divida = _dt.strptime(_data_divida, '%d/%m/%Y')
-                if (_dt.now() - _dt_divida).days > 90:
+                if (_dt.now() - _dt_divida).days > _GAP_DIAS_CALCULO:
                     pendencia = 'calculo_antigo'
                     if log:
-                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>3 meses)')
+                        logger.info(f'[SISBAJUD]  Pendência: cálculo de {_data_divida} (>{_GAP_DIAS_CALCULO} dias)')
                     pendencia, valor = _atualizar_calculo_antigo(driver_pje, dados_processo, valor, log=log)
             except Exception:
                 pass

@@ -4,13 +4,13 @@ r"""Pre-atualizador de calculos para atividades PEC vencidas do bucket 'sisbajud
 1) Lista atividades vencidas do PEC via API e filtra pelo bucket 'sisbajud_teimosinha'
    (mesma regra de PEC/regras_execucao.py).
 2) Consulta a divida mais recente de cada processo via API (/calculos/processo) e aplica
-   a mesma regra de SISB/core.py (calculo_antigo: data de liquidacao > 90 dias).
+   a mesma regra de SISB/core.py (calculo_antigo: data de liquidacao > 45 dias).
 3) Executa a atualizacao rapida no PJe-Calc (selecionar_mais_recente=True) para cada
    processo desatualizado e confirma o novo valor na API.
 
 Uso:
-  py tools/atualizar_teimosinha.py --dry-run      # somente lista todas as vencidas e mostra >90d
-  py tools/atualizar_teimosinha.py                # atualiza todas as >90d sem limite de data (headless)
+  py tools/atualizar_teimosinha.py --dry-run      # somente lista todas as vencidas e mostra >45d
+  py tools/atualizar_teimosinha.py                # atualiza todas as >45d sem limite de data (headless)
   py tools/atualizar_teimosinha.py --d1           # aplica filtro D-1 do PEC
   py tools/atualizar_teimosinha.py --limite 5     # limita quantidade de atualizacoes
   py tools/atualizar_teimosinha.py --visivel      # roda com janela visivel
@@ -80,7 +80,7 @@ def atualizar_teimosinhas_vencidas(
     data_minima: Optional[str] = None,
     limite: int = 0,
 ) -> dict[str, Any]:
-    """Avalia cada TEIMOSINHA vencida e executa atualizacao rapida nos calculos > 90 dias."""
+    """Avalia cada TEIMOSINHA vencida e executa atualizacao rapida nos calculos > 45 dias."""
     from Fix import espera
     from Fix.atualizacao_rapida import (
         AtualizacaoRapidaErro,
@@ -130,7 +130,7 @@ def atualizar_teimosinhas_vencidas(
 
         resumo["pendentes_atualizacao"] += 1
         if dry_run:
-            print(f"  [{idx}/{len(teimosinhas)}] {cnj} (id={pid}) | ATUALIZAR (>90d: {valor_div} em {data_div}) | obs={obs!r}")
+            print(f"  [{idx}/{len(teimosinhas)}] {cnj} (id={pid}) | ATUALIZAR (>45d: {valor_div} em {data_div}) | obs={obs!r}")
             resumo["itens"].append({**proc, "status": "PRECISA_ATUALIZAR", "antes": divida})
             continue
 
@@ -140,7 +140,7 @@ def atualizar_teimosinhas_vencidas(
             continue
 
         executados += 1
-        print(f"  [{idx}/{len(teimosinhas)}] {cnj} (id={pid}) | ATUALIZANDO (>90d: {valor_div} em {data_div})...")
+        print(f"  [{idx}/{len(teimosinhas)}] {cnj} (id={pid}) | ATUALIZANDO (>45d: {valor_div} em {data_div})...")
         try:
             res_ar = executar_atualizacao_rapida_detalhada(
                 driver, cnj, selecionar_mais_recente=True
@@ -183,7 +183,7 @@ def atualizar_teimosinhas_vencidas(
 
     print(
         f"[RESUMO] total={resumo['total_teimosinha']} | em_dia={resumo['em_dia']} | "
-        f"sem_calculo={resumo['sem_calculo']} | >90d={resumo['pendentes_atualizacao']} | "
+        f"sem_calculo={resumo['sem_calculo']} | >45d={resumo['pendentes_atualizacao']} | "
         f"atualizados={resumo['atualizados']} | erros={resumo['erros']}"
     )
     return resumo
@@ -191,9 +191,9 @@ def atualizar_teimosinhas_vencidas(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Pre-atualiza calculos (>90 dias) de atividades PEC vencidas do tipo TEIMOSINHA."
+        description="Pre-atualiza calculos (>45 dias) de atividades PEC vencidas do tipo TEIMOSINHA."
     )
-    parser.add_argument("--dry-run", action="store_true", help="Apenas lista e verifica >90 dias sem atualizar")
+    parser.add_argument("--dry-run", action="store_true", help="Apenas lista e verifica >45 dias sem atualizar")
     parser.add_argument("--d1", action="store_true", help="Restringe ao filtro D-1 do PEC (padrao: sem limite de data)")
     parser.add_argument("--data-minima", default=None, help="Data minima YYYY-MM-DD para prazo da atividade")
     parser.add_argument("--limite", type=int, default=0, help="Maximo de processos a atualizar (0 = todos)")

@@ -282,9 +282,11 @@ class TestIntegracaoTeimosinha(unittest.TestCase):
 
     def test_calculo_antigo_limiar(self):
         from datetime import timedelta
-        antigo = (datetime.now() - timedelta(days=100)).strftime("%d/%m/%Y")
+        antigo = (datetime.now() - timedelta(days=46)).strftime("%d/%m/%Y")
+        no_limite = (datetime.now() - timedelta(days=45)).strftime("%d/%m/%Y")
         hoje = datetime.now().strftime("%d/%m/%Y")
         self.assertTrue(ar.calculo_antigo(antigo))
+        self.assertFalse(ar.calculo_antigo(no_limite))
         self.assertFalse(ar.calculo_antigo(hoje))
         self.assertFalse(ar.calculo_antigo(""))           # ausência = ramo sem_calculo
         self.assertFalse(ar.calculo_antigo("xorriso"))    # ilegível = False, não crash

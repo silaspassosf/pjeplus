@@ -566,8 +566,9 @@
         <div id="homologacao-modal">
             <div class="modal-header">
                 <h2>Assistente de Homologação</h2>
-                <div>
-                    <button class="btn-close" id="btn-fechar">X Fechar</button>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <button class="btn-close" id="btn-minimizar" type="button" style="background:#475569;" title="Minimizar para recuperar depois">— Minimizar</button>
+                    <button class="btn-close" id="btn-fechar" type="button">X Fechar</button>
                 </div>
             </div>
 
@@ -614,6 +615,14 @@
                     <div class="col hidden" id="col-esclarecimentos">
                         <label><input type="checkbox" id="calc-esclarecimentos" checked> Esclarecimentos do Perito?</label>
                         <input type="text" id="calc-peca-perito" placeholder="Id da Peça">
+                    </div>
+                </div>
+                <div class="row" id="row-concordancia" style="margin-top: 8px; align-items: center;">
+                    <div class="col" style="display:flex; flex-wrap:wrap; align-items:center; gap:12px;">
+                        <label style="margin:0; font-weight:600;">Concordância:</label>
+                        <label style="margin:0; font-weight:normal; cursor:pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-expressa" value="expressa"> Expressa</label>
+                        <label style="margin:0; font-weight:normal; cursor:pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-tacita" value="tacita" checked> Tácita</label>
+                        <label id="lbl-concordancia-ambas" style="margin:0; font-weight:normal; cursor:pointer;"><input type="radio" name="calc-concordancia" id="calc-conc-ambas" value="ambas"> Ambas</label>
                     </div>
                 </div>
             </fieldset>
@@ -1310,6 +1319,20 @@
         // ==========================================
         $('btn-abrir-homologacao').onclick = async () => {
             const btn = $('btn-abrir-homologacao');
+            const overlayExistente = $('homologacao-overlay');
+            if (overlayExistente && overlayExistente.dataset.minimizado === 'true') {
+                overlayExistente.dataset.minimizado = 'false';
+                overlayExistente.style.display = 'flex';
+                overlayExistente.style.pointerEvents = 'all';
+                const modal = $('homologacao-modal');
+                if (modal) {
+                    modal.style.opacity = '1';
+                    modal.style.pointerEvents = 'all';
+                    modal.dataset.ghost = 'false';
+                }
+                dbg('Overlay restaurado a partir do estado minimizado.');
+                return;
+            }
 
             dbg('btn-abrir-homologacao clicked - intent: restaurar rascunho (sem abrir seletor)');
 
@@ -1771,6 +1794,18 @@
             inputFile.click();
         };
 
+        $('btn-minimizar').onclick = (e) => {
+            e.preventDefault();
+            const overlay = $('homologacao-overlay');
+            if (overlayDraftApi && typeof overlayDraftApi.save === 'function') {
+                try { overlayDraftApi.save(); } catch (errSave) { /* noop */ }
+            }
+            overlay.dataset.minimizado = 'true';
+            overlay.style.display = 'none';
+            overlay.style.pointerEvents = 'none';
+            dbg('Overlay minimizado pelo usuário (estado preservado para recuperação).');
+        };
+
         $('btn-fechar').onclick = (e) => {
             e.preventDefault();  // Previne scroll indesejado
             const modal = $('homologacao-modal');
@@ -1778,38 +1813,33 @@
             modal.style.opacity = '1';
             modal.style.pointerEvents = 'all';
             modal.dataset.ghost = 'false';
+            overlay.dataset.minimizado = 'false';
             overlay.style.display = 'none';
             overlay.style.pointerEvents = 'none';
             // LIMPAR REFERÊNCIAS DOM: v1.8 usa método centralizado
             window.hcalcState.resetPrep();
             console.log('[hcalc] Estado resetado via hcalcState.resetPrep()');
         };
-        $('homologacao-overlay').onclick = (e) => {
-            if (e.target.id === 'homologacao-overlay') {
-                // Não fecha — torna transparente e "fantasma"
-                const modal = $('homologacao-modal');
-                const overlay = $('homologacao-overlay');
-                const isGhost = modal.dataset.ghost === 'true';
-                if (isGhost) {
-                    // Segundo clique fora: volta ao normal
-                    modal.style.opacity = '1';
-                    modal.style.pointerEvents = 'all';
-                    overlay.style.pointerEvents = 'none';
-                    modal.dataset.ghost = 'false';
-                } else {
-                    // Primeiro clique fora: vira fantasma
-                    modal.style.opacity = '0.25';
-                    modal.style.transition = 'opacity 0.3s';
-                    modal.style.pointerEvents = 'none';
-                    // Mantém overlay transparente para detectar clique de retorno
-                    overlay.style.pointerEvents = 'all';
-                    modal.dataset.ghost = 'true';
-                }
+        $('homologacao-overlay').onclick = null;
+
+        function atualizarVisibilidadeConcordancia() {
+            const autorVal = $('calc-autor') ? $('calc-autor').value : 'autor';
+            const lblAmbas = $('lbl-concordancia-ambas');
+            const radAmbas = $('calc-conc-ambas');
+            const radTacita = $('calc-conc-tacita');
+            const esconderAmbas = autorVal === 'reclamada';
+            if (lblAmbas) lblAmbas.classList.toggle('hidden', esconderAmbas);
+            if (esconderAmbas && radAmbas && radAmbas.checked && radTacita) {
+                radTacita.checked = true;
             }
-        };
+        }
 
         $('calc-origem').onchange = (e) => { $('col-pjc').classList.toggle('hidden', e.target.value !== 'pjecalc'); };
-        $('calc-autor').onchange = (e) => { $('col-esclarecimentos').classList.toggle('hidden', e.target.value !== 'perito'); };
+        $('calc-autor').onchange = (e) => {
+            $('col-esclarecimentos').classList.toggle('hidden', e.target.value !== 'perito');
+            atualizarVisibilidadeConcordancia();
+        };
+        atualizarVisibilidadeConcordancia();
         $('calc-esclarecimentos').onchange = (e) => { $('calc-peca-perito').classList.toggle('hidden', !e.target.checked); };
 
         $('calc-fgts').onchange = (e) => {

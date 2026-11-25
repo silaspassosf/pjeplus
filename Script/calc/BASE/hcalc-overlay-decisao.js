@@ -67,17 +67,37 @@
             const passivoTotal = (window.hcalcPartesData?.passivo || []).length;
 
             const autoria = $('calc-autor').options[$('calc-autor').selectedIndex].text;
+            const calcAutorVal = $('calc-autor').value || 'autor';
+            const concordanciaVal = document.querySelector('input[name="calc-concordancia"]:checked')?.value || 'tacita';
             const idPlanilha = $('val-id').value || '[ID DA PLANILHA]';
             const valData = $('val-data').value || '[DATA]';
             const valCredito = $('val-credito').value || '[VALOR]';
             const valFgts = $('val-fgts').value || '[VALOR FGTS]';
-            const isPerito = $('calc-autor').value === 'perito';
+            const isPerito = calcAutorVal === 'perito';
             const peritoEsclareceu = $('calc-esclarecimentos').checked;
             const pecaPerito = $('calc-peca-perito').value || '[ID PEÇA]';
             const indice = $('calc-indice').value;
             const isFgtsSep = $('calc-fgts').checked;
             const fgtsTipo = document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido';
             const ignorarInss = $('ignorar-inss').checked;
+
+            const montarIntroConcordancia = (idRef) => {
+                if (isPerito && peritoEsclareceu) {
+                    return `As impugnações apresentadas já foram objeto de esclarecimentos pelo Sr. Perito sob o #${bold(pecaPerito)}, nada havendo a ser reparado no laudo. Portanto, HOMOLOGO os cálculos do expert (#${bold(idRef)}), `;
+                }
+                const tipoTxt = concordanciaVal === 'expressa' ? 'expressa' : 'tácita';
+                if (calcAutorVal === 'reclamada') {
+                    return `Tendo em vista a concordância ${tipoTxt} do(a) Reclamante, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idRef)}), `;
+                }
+                if (concordanciaVal === 'ambas') {
+                    return `Tendo em vista a concordância expressa da __ reclamada(s) e tácita da __ reclamada(s), HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idRef)}), `;
+                }
+                if (calcAutorVal === 'perito') {
+                    return `Tendo em vista a concordância ${tipoTxt} das partes, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idRef)}), `;
+                }
+                const parteRec = passivoTotal > 1 ? 'das reclamadas' : (passivoTotal === 1 ? 'da reclamada' : 'da(s) reclamada(s)');
+                return `Tendo em vista a concordância ${tipoTxt} ${parteRec}, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idRef)}), `;
+            };
 
             const xxx = () => u(bold('XXX'));
 
@@ -100,11 +120,7 @@
                     : isFgtsSep;
                 const fgtsDepositadoFlag = false; // Depositado não será mais usado
 
-                if (isPerito && peritoEsclareceu) {
-                    introTxt += `As impugnações apresentadas já foram objeto de esclarecimentos pelo Sr. Perito sob o #${bold(pecaPerito)}, nada havendo a ser reparado no laudo. Portanto, HOMOLOGO os cálculos do expert (#${bold(idCalculo)}), `;
-                } else {
-                    introTxt += `Tendo em vista a concordância das partes, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idCalculo)}), `;
-                }
+                introTxt += montarIntroConcordancia(idCalculo);
 
                 if (fgtsSeparado) {
                     introTxt += `fixando o crédito do autor em ${bold(vCredito)} relativo ao principal, e ${bold(vFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, para ${bold(vData)}. `;
@@ -834,12 +850,7 @@
 
                 appendDisposicoesFinais();
             } else {
-                let introTxt = '';
-                if (isPerito && peritoEsclareceu) {
-                    introTxt += `As impugnações apresentadas já foram objeto de esclarecimentos pelo Sr. Perito sob o #${bold(pecaPerito)}, nada havendo a ser reparado no laudo. Portanto, HOMOLOGO os cálculos do expert (#${bold(idPlanilha)}), `;
-                } else {
-                    introTxt += `Tendo em vista a concordância das partes, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idPlanilha)}), `;
-                }
+                let introTxt = montarIntroConcordancia(idPlanilha);
 
                 if (isFgtsSep) {
                     introTxt += `fixando o crédito do autor em ${bold('R$' + valCredito)} relativo ao principal, e ${bold('R$' + valFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, atualizados para ${bold(valData)}. `;
@@ -970,8 +981,7 @@
             const clipboardItem = new window.ClipboardItem({ 'text/html': blob });
             navigator.clipboard.write([clipboardItem]).then(() => {
                 alert('Decisão copiada com sucesso! Vá ao editor do PJe e cole (Ctrl+V).');
-                $('homologacao-overlay').style.display = 'none';
-                dbg('Decisao copiada para area de transferencia com sucesso.');
+                dbg('Decisao copiada para area de transferencia com sucesso (overlay mantido aberto).');
             }).catch((copyError) => {
                 alert('Erro ao copiar. O navegador pode ter bloqueado.');
                 console.error(copyError);

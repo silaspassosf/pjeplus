@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Homologação de Cálculos
 // @namespace    http://tampermonkey.net/
-// @version      3.1.87
+// @version      3.1.88
 // @description  Assistente de homologação PJe-Calc
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
@@ -19,8 +19,8 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-depositos.js?v=3187&t=202611231715
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-responsabilidades.js?v=3179&t=202608290040
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-partes.js?v=3186&t=202610221600
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-decisao.js?v=3185&t=202610221545
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=3187&t=202611231715
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-decisao.js?v=3188&t=202611251650
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=3188&t=202611251650
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com
 // @connect      unpkg.com
@@ -40,7 +40,7 @@
     if (document.documentElement.getAttribute('data-hcalc-boot')) return;
     document.documentElement.setAttribute('data-hcalc-boot', '1');
 
-    console.log('[hcalc] bootloader iniciado v3.1.81');
+    console.log('[hcalc] bootloader iniciado v3.1.88');
 
     // Aguarda Angular/DOM do PJe estabilizar
     function aguardarPJe(cb, tentativas) {

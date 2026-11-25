@@ -1245,7 +1245,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                         logger.info('[SISBAJUD]  Falha ao aplicar visibilidade para certidão sigilosa')
 
                     gigs_prazo = '41' if prazo_dias == 60 else '22'
-                    if pendencia == 'calculo_antigo':
+                    if pendencia in ('calculo_antigo', 'sem_calculo'):
                         gigs_str = f'{gigs_prazo}/xs resultado CALC'
                     else:
                         gigs_str = f'{gigs_prazo}/xs resultado'
@@ -2198,7 +2198,7 @@ def minuta_bloqueio_amanha(driver, dados_processo=None, driver_pje=None, log=Tru
                     resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
 
                     gigs_prazo = '41' if prazo_dias == 60 else '22'
-                    if pendencia == 'calculo_antigo':
+                    if pendencia in ('calculo_antigo', 'sem_calculo'):
                         gigs_str = f'{gigs_prazo}/xs resultado CALC'
                     else:
                         gigs_str = f'{gigs_prazo}/xs resultado'

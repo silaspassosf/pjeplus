@@ -9,9 +9,9 @@ r"""Pre-atualizador de calculos para atividades PEC vencidas do bucket 'sisbajud
    processo desatualizado e confirma o novo valor na API.
 
 Uso:
-  py tools/atualizar_teimosinha.py --dry-run      # somente lista e mostra quem precisa atualizar
-  py tools/atualizar_teimosinha.py                # atualiza os > 90 dias (headless)
-  py tools/atualizar_teimosinha.py --todas        # desliga filtro D-1 do PEC
+  py tools/atualizar_teimosinha.py --dry-run      # somente lista todas as vencidas e mostra >90d
+  py tools/atualizar_teimosinha.py                # atualiza todas as >90d sem limite de data (headless)
+  py tools/atualizar_teimosinha.py --d1           # aplica filtro D-1 do PEC
   py tools/atualizar_teimosinha.py --limite 5     # limita quantidade de atualizacoes
   py tools/atualizar_teimosinha.py --visivel      # roda com janela visivel
 """
@@ -38,7 +38,7 @@ logger = logging.getLogger("atualizar_teimosinha")
 def listar_teimosinhas_vencidas(
     driver: Any,
     *,
-    filtro_d1: bool = True,
+    filtro_d1: bool = False,
     data_minima: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """Retorna processos unicos do bucket 'sisbajud_teimosinha' na fila vencida do PEC."""
@@ -76,7 +76,7 @@ def atualizar_teimosinhas_vencidas(
     driver: Any,
     *,
     dry_run: bool = False,
-    filtro_d1: bool = True,
+    filtro_d1: bool = False,
     data_minima: Optional[str] = None,
     limite: int = 0,
 ) -> dict[str, Any]:
@@ -115,7 +115,7 @@ def atualizar_teimosinhas_vencidas(
         divida = _divida_mais_recente_api(driver, pid) if pid else None
         if not divida or not divida.get("data"):
             resumo["sem_calculo"] += 1
-            print(f"  [{idx}/{len(teimosinhas)}] {cnj} (id={pid}) | SEM_CALCULO na API | obs={obs!r}")
+            print(f"  [{idx}/{len(teimosinhas)}] {cnj} (id={pid}) | SEM_CALCULO (SISB usara R$ 33,33 + GIGS CALC) | obs={obs!r}")
             resumo["itens"].append({**proc, "status": "SEM_CALCULO"})
             continue
 
@@ -194,7 +194,7 @@ def main() -> int:
         description="Pre-atualiza calculos (>90 dias) de atividades PEC vencidas do tipo TEIMOSINHA."
     )
     parser.add_argument("--dry-run", action="store_true", help="Apenas lista e verifica >90 dias sem atualizar")
-    parser.add_argument("--todas", action="store_true", help="Desliga filtro D-1 do PEC (inclui vencidas mais antigas)")
+    parser.add_argument("--d1", action="store_true", help="Restringe ao filtro D-1 do PEC (padrao: sem limite de data)")
     parser.add_argument("--data-minima", default=None, help="Data minima YYYY-MM-DD para prazo da atividade")
     parser.add_argument("--limite", type=int, default=0, help="Maximo de processos a atualizar (0 = todos)")
     parser.add_argument("--visivel", action="store_true", help="Abre Firefox visivel em vez de headless")
@@ -223,7 +223,7 @@ def main() -> int:
         res = atualizar_teimosinhas_vencidas(
             driver,
             dry_run=args.dry_run,
-            filtro_d1=not args.todas,
+            filtro_d1=args.d1,
             data_minima=args.data_minima,
             limite=args.limite,
         )

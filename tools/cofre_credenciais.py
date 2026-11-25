@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Exporta e importa credenciais do PJePlus (Windows Credential Manager) em cofre AES-256-GCM.
+r"""Exporta e importa credenciais do PJePlus (Windows Credential Manager) em cofre AES-256-GCM.
 
 Uso:
   py tools/cofre_credenciais.py exportar <caminho\cofre_pjeplus.enc>

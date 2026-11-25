@@ -33,7 +33,7 @@
             `gap:8px;padding-bottom:0;`;
 
         const textoTitulo = document.createElement('span');
-        textoTitulo.textContent = '🛠️ PJeTools v2.6.71';
+        textoTitulo.textContent = '🛠️ PJeTools v2.6.72';
 
         const setaToggle = document.createElement('span');
         setaToggle.id = 'pjetools-painel-seta';

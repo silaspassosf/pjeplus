@@ -667,6 +667,56 @@ def _dividir_e_salvar_pdf(
     return saida
 
 
+def _extrair_matricula_e_cartorio_texto(texto: str) -> Tuple[str, str]:
+    s = re.sub(r"[_]+", " ", str(texto or ""))
+    s = re.sub(r"\s+", " ", s).strip()
+    if not s:
+        return "", ""
+
+    matricula = ""
+    m_mat = re.search(r"(?:matr[ií]cula|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d[\d\.\-]{1,12})", s, re.I)
+    if m_mat:
+        matricula = m_mat.group(1).replace(".", "").rstrip("-")
+
+    cartorio = ""
+    m_cri = re.search(
+        r"(\d+\s*[º°oª]?\s*(?:oficial\s+de\s+)?(?:registro\s+de\s+im[oó]veis|c\.?\s*r\.?\s*i\.?|r\.?\s*i\.?)"
+        r"(?:\s+(?:de|da|do)\s+[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+){0,2})?)",
+        s,
+        re.I,
+    )
+    if m_cri:
+        c = m_cri.group(1)
+        c = re.sub(r"oficial\s+de\s+registro\s+de\s+im[oó]veis", "CRI", c, flags=re.I)
+        c = re.sub(r"registro\s+de\s+im[oó]veis", "CRI", c, flags=re.I)
+        c = re.sub(r"c\.?\s*r\.?\s*i\.?", "CRI", c, flags=re.I)
+        cartorio = re.sub(r"\s+", " ", c).strip()
+    else:
+        m_cart = re.search(r"(cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª\-]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª\-]+){0,3})", s, re.I)
+        if m_cart:
+            cartorio = re.sub(r"\s+", " ", m_cart.group(1)).strip()
+
+    return matricula, cartorio
+
+
+def _extrair_info_arisp_de_fontes(fontes: Sequence[str]) -> str:
+    matricula, cartorio = "", ""
+    for f in fontes:
+        m, c = _extrair_matricula_e_cartorio_texto(f)
+        if not matricula and m:
+            matricula = m
+        if not cartorio and c:
+            cartorio = c
+        if matricula and cartorio:
+            break
+    partes = []
+    if matricula:
+        partes.append(f"Mat {matricula}")
+    if cartorio:
+        partes.append(cartorio)
+    return " - ".join(partes)
+
+
 def _mesclar_lote_em_pdf(
     client: Any,
     numero_processo: str,
@@ -674,6 +724,8 @@ def _mesclar_lote_em_pdf(
     caminho_saida: Path,
     *,
     max_bytes: int = MAX_PDF_BYTES,
+    enriquecer_nome_arisp: bool = False,
+    nome_curto_empresa: str = "",
 ) -> List[Dict[str, Any]]:
     import fitz  # PyMuPDF
 
@@ -681,12 +733,22 @@ def _mesclar_lote_em_pdf(
     ids = list(dict.fromkeys(int(t["idTarefa"]) for t in tarefas_ord if t.get("idTarefa") is not None))
     avisos: List[str] = []
     anexos_mesclados = 0
+    fontes_arisp: List[str] = []
+    if enriquecer_nome_arisp:
+        for t in tarefas_ord:
+            for campo in ("rotuloTarefa", "nomeTarefa", "descricaoResultado", "observacao"):
+                val = t.get(campo)
+                if val:
+                    fontes_arisp.append(str(val))
 
     pdf_final = fitz.open()
     try:
         # 1. Certidão / Sumário consolidado do Argos
         cert_bytes = _baixar_certidao_reaproveitamento(client, numero_processo, ids)
         with fitz.open(stream=cert_bytes, filetype="pdf") as doc_cert:
+            if enriquecer_nome_arisp:
+                for pi in range(min(2, doc_cert.page_count)):
+                    fontes_arisp.append(doc_cert[pi].get_text("text") or "")
             pdf_final.insert_pdf(doc_cert)
 
         # 2. Anexos de cada tarefa com possuiAnexo
@@ -697,12 +759,17 @@ def _mesclar_lote_em_pdf(
             for arq in arqs:
                 id_arq = arq.get("id")
                 nome_arq = str(arq.get("nomeArquivo") or f"anexo_{id_arq}.pdf")
+                if enriquecer_nome_arisp and nome_arq:
+                    fontes_arisp.append(nome_arq)
                 if not id_arq:
                     continue
                 try:
                     raw, ctype = _baixar_arquivo_anexo(client, t["idTarefa"], t["idResultado"], id_arq)
                     if raw[:5] == b"%PDF-" or "pdf" in ctype:
                         with fitz.open(stream=raw, filetype="pdf") as doc_anx:
+                            if enriquecer_nome_arisp:
+                                for pi in range(min(2, doc_anx.page_count)):
+                                    fontes_arisp.append(doc_anx[pi].get_text("text") or "")
                             pdf_final.insert_pdf(doc_anx)
                         anexos_mesclados += 1
                     elif any(ext in ctype or nome_arq.lower().endswith(ext) for ext in ("png", "jpg", "jpeg")):
@@ -720,6 +787,13 @@ def _mesclar_lote_em_pdf(
                         avisos.append(f"Ignorado não-PDF: {nome_arq} ({ctype})")
                 except Exception as e:
                     avisos.append(f"Falha ao mesclar {nome_arq}: {e}")
+
+        if enriquecer_nome_arisp:
+            detalhe_arisp = _extrair_info_arisp_de_fontes(fontes_arisp)
+            if detalhe_arisp:
+                base_emp = nome_curto_empresa or "Executado"
+                novo_nome = _sanitizar_nome_arquivo(f"{base_emp} (ARISP OK - {detalhe_arisp})") + ".pdf"
+                caminho_saida = caminho_saida.with_name(novo_nome)
 
         _otimizar_imagens_pdf_rapido(pdf_final)
         partes = _dividir_e_salvar_pdf(pdf_final, caminho_saida, max_bytes=max_bytes)
@@ -789,7 +863,14 @@ def gerar_pdfs_por_empresa(
 
     gerados: List[Dict[str, Any]] = []
     for doc, tipo_lote, nome_arq, tarefas_lote in lotes:
-        partes = _mesclar_lote_em_pdf(client, numero_processo, tarefas_lote, base_dir / nome_arq)
+        partes = _mesclar_lote_em_pdf(
+            client,
+            numero_processo,
+            tarefas_lote,
+            base_dir / nome_arq,
+            enriquecer_nome_arisp=(tipo_lote == "ARISP_OK"),
+            nome_curto_empresa=nomes_curtos.get(doc, ""),
+        )
         for res in partes:
             res["documento"] = doc
             res["tipoLote"] = tipo_lote

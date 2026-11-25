@@ -855,6 +855,58 @@
         return mapa;
     }
 
+    function _extrairMatriculaECartorioTexto(texto) {
+        const s = String(texto || '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!s) return { matricula: '', cartorio: '' };
+
+        let matricula = '';
+        const mMat = s.match(/(?:matr[ií]cula|mat\.?)\s*(?:n[º°o\.]*)?\s*[:\-]?\s*(\d[\d\.\-]{1,12})/i);
+        if (mMat) {
+            matricula = mMat[1].replace(/\./g, '').replace(/-$/, '');
+        }
+
+        let cartorio = '';
+        const mCri = s.match(/(\d+\s*[º°oª]?\s*(?:oficial\s+de\s+)?(?:registro\s+de\s+im[oó]veis|c\.?\s*r\.?\s*i\.?|r\.?\s*i\.?)(?:\s+(?:de|da|do)\s+[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+){0,2})?)/i);
+        if (mCri) {
+            cartorio = mCri[1]
+                .replace(/oficial\s+de\s+registro\s+de\s+im[oó]veis/i, 'CRI')
+                .replace(/registro\s+de\s+im[oó]veis/i, 'CRI')
+                .replace(/c\.?\s*r\.?\s*i\.?/i, 'CRI')
+                .replace(/\s+/g, ' ')
+                .trim();
+        } else {
+            const mCart = s.match(/(cart[oó]rio\s+[A-Za-zÀ-ÿ0-9º°ª\-]+(?:\s+[A-Za-zÀ-ÿ0-9º°ª\-]+){0,3})/i);
+            if (mCart) cartorio = mCart[1].replace(/\s+/g, ' ').trim();
+        }
+        return { matricula, cartorio };
+    }
+
+    function _extrairInfoArispDeFontes(fontesTexto) {
+        let matricula = '';
+        let cartorio = '';
+        for (const f of (fontesTexto || [])) {
+            const info = _extrairMatriculaECartorioTexto(f);
+            if (!matricula && info.matricula) matricula = info.matricula;
+            if (!cartorio && info.cartorio) cartorio = info.cartorio;
+            if (matricula && cartorio) break;
+        }
+        const partes = [];
+        if (matricula) partes.push('Mat ' + matricula);
+        if (cartorio) partes.push(cartorio);
+        return partes.join(' - ');
+    }
+
+    function _extrairTextoRapidoPdfBytes(u8) {
+        if (!u8 || !u8.length) return '';
+        try {
+            const fatia = u8.subarray(0, Math.min(u8.length, 65536));
+            const dec = new TextDecoder('latin1').decode(fatia);
+            return dec.replace(/[^\x20-\x7E\xC0-\xFF]/g, ' ').replace(/\s+/g, ' ');
+        } catch (e) {
+            return '';
+        }
+    }
+
     function _montarNomeArquivoEmpresa(nomeEmpresa, tarefasOrdenadas) {
         const contagemTipo = {};
         for (const t of tarefasOrdenadas) {
@@ -895,10 +947,18 @@
         const resumoArquivos = [];
         let totalPaginas = 0;
 
+        const fontesArisp = [];
+        if (opts.enriquecerNomeArisp) {
+            for (const t of tarefasOrdenadas) {
+                fontesArisp.push(t.rotuloTarefa || '', t.nomeTarefa || '', t.descricaoResultado || '', t.observacao || '');
+            }
+        }
+
         if (incluirCertidao) {
             onStatus('Gerando certidão/sumário no Argos...');
             const ids = Array.from(new Set(tarefasOrdenadas.map(t => t.idTarefa).filter(Boolean)));
             const certBytes = await obterCertidaoReaproveitamentoPdf(num, ids);
+            if (opts.enriquecerNomeArisp) fontesArisp.push(_extrairTextoRapidoPdfBytes(certBytes));
             const pagsCert = await _anexarBytesAoPdf(pdfFinal, certBytes, 'application/pdf', 'Certidao_Reaproveitamento.pdf', avisos);
             totalPaginas += pagsCert;
             resumoArquivos.push({ origem: 'certidao', nome: 'Certidão de Reaproveitamento', paginas: pagsCert, bytes: certBytes.byteLength });
@@ -911,7 +971,10 @@
             onStatus('Listando anexos (' + (i + 1) + '/' + tarefasComAnexo.length + ') — ' + t.rotuloTarefa + '...');
             try {
                 const arqs = await listarArquivosTarefa(t.idTarefa, t.idResultado);
-                for (const arq of arqs) filaDownloads.push({ tarefa: t, arquivo: arq });
+                for (const arq of arqs) {
+                    if (opts.enriquecerNomeArisp && arq && arq.nomeArquivo) fontesArisp.push(arq.nomeArquivo);
+                    filaDownloads.push({ tarefa: t, arquivo: arq });
+                }
             } catch (err) {
                 avisos.push('Falha ao listar anexos tarefa ' + t.idTarefa + ': ' + (err.message || err));
             }
@@ -923,6 +986,9 @@
             onStatus('Baixando e mesclando anexo ' + (i + 1) + '/' + filaDownloads.length + ': ' + nomeArq);
             try {
                 const { bytes, contentType } = await baixarArquivoAnexo(tarefa.idTarefa, tarefa.idResultado, arquivo.id);
+                if (opts.enriquecerNomeArisp && (_isPdfBytes(bytes) || contentType.includes('pdf'))) {
+                    fontesArisp.push(_extrairTextoRapidoPdfBytes(bytes));
+                }
                 const pags = await _anexarBytesAoPdf(pdfFinal, bytes, contentType, nomeArq, avisos);
                 totalPaginas += pags;
                 resumoArquivos.push({
@@ -1017,7 +1083,14 @@
 
         onStatus('Comprimindo e salvando PDF (' + totalPaginas + ' páginas)...');
         const pdfBytes = await pdfFinal.save(SAVE_OPTS_COMPRIMIDO);
-        const nomeSaida = opts.nomeArquivo || ('Poupa Convenios - ' + num + '.pdf');
+        let nomeSaida = opts.nomeArquivo || ('Poupa Convenios - ' + num + '.pdf');
+        if (opts.enriquecerNomeArisp) {
+            const detalheArisp = _extrairInfoArispDeFontes(fontesArisp);
+            if (detalheArisp) {
+                const baseEmp = opts.nomeCurtoEmpresa || 'Executado';
+                nomeSaida = _sanitizarNomeArquivo(baseEmp + ' (ARISP OK - ' + detalheArisp + ')') + '.pdf';
+            }
+        }
         const limiteBytes = opts.maxBytes || MAX_PDF_BYTES;
         const partes = await _dividirPdfAteLimite(pdfFinal, pdfBytes, limiteBytes);
 
@@ -1144,6 +1217,8 @@
             const prefixo = '[' + (i + 1) + '/' + lotes.length + ' ' + lote.tipoLote + '] ';
             const res = await gerarPdfUnico(num, lote.tarefas, {
                 nomeArquivo: lote.nomeArquivo,
+                nomeCurtoEmpresa: lote.nomeCurto,
+                enriquecerNomeArisp: lote.tipoLote === 'ARISP_OK',
                 incluirCertidao: opts.incluirCertidao,
                 download: opts.download,
                 maxBytes: opts.maxBytes,

@@ -142,16 +142,20 @@
         const protocolo = protocolos.join(', ');
         for (const p of protocolos) window._sisbajudState.protocolos.add(p);
         console.log('[extrairResumoSisbajud] Ordens encontradas:', protocolos.length, protocolos);
-        // Regex do standalone, preservada
-        const blockRegex = /(?:\d{11}|\d{14}):\s*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;
+        // Tolera espaços ou pontuação inseridos pelo OCR/pdf.js no meio do CPF/CNPJ (ex: "39097 135800:")
+        const blockRegex = /(\d[\d\s\.\-\/]{9,20}\d)\s*:\s*(.{3,100}?)\s*\|?\s*R\$\s*([\d\.,]+)/gmi;
         let match;
         let encontrouBloco = false;
         while ((match = blockRegex.exec(textoFlat)) !== null) {
+            const docDigitos = match[1].replace(/\D/g, '');
+            if (docDigitos.length !== 11 && docDigitos.length !== 14) {
+                continue;
+            }
             encontrouBloco = true;
-            const nome = match[1]
+            const nome = match[2]
                 .trim()
                 .replace(/\s+/g, ' ');
-            const valorStr = match[2].trim();
+            const valorStr = match[3].trim();
             if (valorStr === '0' || valorStr === '0,00' || valorStr === '0.00') {
                 continue;
             }

@@ -635,12 +635,96 @@
         return u8 && u8.length >= 5 && u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46 && u8[4] === 0x2D;
     }
 
-    const IMG_MIN_BYTES_OTIMIZAR = 50 * 1024;
-    const PDF_MIN_BYTES_OTIMIZAR = 300 * 1024;
-    const IMG_MAX_LADO_PX = 1240; // ~120-150 DPI em A4
-    const IMG_JPEG_QUALIDADE = 0.58;
+    const IMG_MIN_BYTES_OTIMIZAR = 18 * 1024;
+    const PDF_MIN_BYTES_OTIMIZAR = 120 * 1024;
+    const IMG_MAX_LADO_PX = 1350; // ~160 DPI em A4 (ou 1100 em matrículas gigantes)
+    const IMG_JPEG_QUALIDADE = 0.52;
 
-    async function _otimizarImagemBytesGrayscale(bytes, mime, maxLado, qualidade) {
+    function _hashBytesRapido(u8) {
+        if (!u8 || !u8.byteLength) return '0:0';
+        let h = 0x811c9dc5;
+        const step = Math.max(1, Math.floor(u8.byteLength / 4096));
+        for (let i = 0; i < u8.byteLength; i += step) {
+            h ^= u8[i];
+            h = Math.imul(h, 0x01000193) >>> 0;
+        }
+        return u8.byteLength + ':' + h.toString(16);
+    }
+
+    async function _comprimirZlib(u8) {
+        if (typeof CompressionStream !== 'function') return null;
+        try {
+            const cs = new CompressionStream('deflate');
+            const w = cs.writable.getWriter();
+            w.write(u8);
+            w.close();
+            const resp = new Response(cs.readable);
+            return new Uint8Array(await resp.arrayBuffer());
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function _desfazerPngPredictor(raw, columns, colors, bpc) {
+        const bpp = Math.max(1, Math.ceil((colors * bpc) / 8));
+        const rowBytes = Math.ceil((columns * colors * bpc) / 8);
+        const stride = rowBytes + 1;
+        const rows = Math.floor(raw.byteLength / stride);
+        if (rows <= 0) return null;
+        const out = new Uint8Array(rows * rowBytes);
+        for (let r = 0; r < rows; r++) {
+            const srcOff = r * stride;
+            const dstOff = r * rowBytes;
+            const prevOff = (r - 1) * rowBytes;
+            const tipo = raw[srcOff];
+            for (let i = 0; i < rowBytes; i++) {
+                const x = raw[srcOff + 1 + i];
+                const left = i >= bpp ? out[dstOff + i - bpp] : 0;
+                const up = r > 0 ? out[prevOff + i] : 0;
+                const upLeft = (r > 0 && i >= bpp) ? out[prevOff + i - bpp] : 0;
+                let val = x;
+                if (tipo === 1) val = (x + left) & 0xff;
+                else if (tipo === 2) val = (x + up) & 0xff;
+                else if (tipo === 3) val = (x + ((left + up) >> 1)) & 0xff;
+                else if (tipo === 4) {
+                    const p = left + up - upLeft;
+                    const pa = Math.abs(p - left);
+                    const pb = Math.abs(p - up);
+                    const pc = Math.abs(p - upLeft);
+                    const pr = (pa <= pb && pa <= pc) ? left : (pb <= pc ? up : upLeft);
+                    val = (x + pr) & 0xff;
+                }
+                out[dstOff + i] = val;
+            }
+        }
+        return out;
+    }
+
+    async function _canvasPara1BitFlate(canvas, w, h, limiar) {
+        limiar = limiar || 185;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const d = imgData.data;
+        const rowBytes = (w + 7) >> 3;
+        const packed = new Uint8Array(rowBytes * h);
+        for (let y = 0; y < h; y++) {
+            const rowOff = y * rowBytes;
+            const pixRow = y * w * 4;
+            for (let x = 0; x < w; x++) {
+                const p = pixRow + (x << 2);
+                const lum = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8;
+                if (lum > limiar) {
+                    packed[rowOff + (x >> 3)] |= (0x80 >> (x & 7));
+                }
+            }
+        }
+        const comp = await _comprimirZlib(packed);
+        if (!comp) return null;
+        return { bytes: comp, width: w, height: h, bpc: 1, flate1Bit: true };
+    }
+
+    async function _otimizarImagemBytesGrayscale(bytes, mime, maxLado, qualidade, modo1Bit) {
         maxLado = maxLado || IMG_MAX_LADO_PX;
         qualidade = qualidade || IMG_JPEG_QUALIDADE;
         if (!bytes || bytes.byteLength < IMG_MIN_BYTES_OTIMIZAR) return null;
@@ -656,33 +740,20 @@
                 const w = Math.max(1, Math.round(origW * escala));
                 const h = Math.max(1, Math.round(origH * escala));
 
-                let canvas;
-                let ctx;
-                if (typeof OffscreenCanvas !== 'undefined') {
-                    canvas = new OffscreenCanvas(w, h);
-                    ctx = canvas.getContext('2d');
-                } else {
-                    canvas = document.createElement('canvas');
-                    canvas.width = w;
-                    canvas.height = h;
-                    ctx = canvas.getContext('2d');
-                }
+                const canvas = typeof OffscreenCanvas !== 'undefined'
+                    ? new OffscreenCanvas(w, h)
+                    : Object.assign(document.createElement('canvas'), { width: w, height: h });
+                const ctx = canvas.getContext('2d');
                 if (!ctx) return null;
 
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, w, h);
-                if ('filter' in ctx) {
-                    ctx.filter = 'grayscale(100%)';
-                    ctx.drawImage(bmp, 0, 0, w, h);
-                } else {
-                    ctx.drawImage(bmp, 0, 0, w, h);
-                    const imgData = ctx.getImageData(0, 0, w, h);
-                    const d = imgData.data;
-                    for (let i = 0; i < d.length; i += 4) {
-                        const g = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
-                        d[i] = d[i + 1] = d[i + 2] = g;
-                    }
-                    ctx.putImageData(imgData, 0, 0);
+                if ('filter' in ctx) ctx.filter = 'grayscale(100%)';
+                ctx.drawImage(bmp, 0, 0, w, h);
+
+                if (modo1Bit) {
+                    const r1 = await _canvasPara1BitFlate(canvas, w, h, 185);
+                    if (r1 && r1.bytes.byteLength < bytes.byteLength) return r1;
                 }
 
                 let blobOut;
@@ -695,7 +766,7 @@
                 }
                 const outBytes = new Uint8Array(await blobOut.arrayBuffer());
                 if (outBytes.byteLength >= bytes.byteLength) return null;
-                return { bytes: outBytes, width: w, height: h };
+                return { bytes: outBytes, width: w, height: h, bpc: 8, flate1Bit: false };
             } finally {
                 if (typeof bmp.close === 'function') bmp.close();
             }
@@ -718,14 +789,18 @@
         }
     }
 
-    async function _otimizarFlateImageGrayscale(rawDeflate, origW, origH, canais, maxLado, qualidade) {
+    async function _otimizarFlateImage1Bit(rawDeflate, origW, origH, canais, predictor, maxLado) {
         maxLado = maxLado || IMG_MAX_LADO_PX;
-        qualidade = qualidade || IMG_JPEG_QUALIDADE;
         if (!origW || !origH || (canais !== 1 && canais !== 3)) return null;
-        if (origW * origH > 16000000) return null; // protege contra imagens gigantes na memória
-        const pixels = await _descomprimirZlib(rawDeflate);
+        if (origW * origH > 16000000) return null;
+        let pixels = await _descomprimirZlib(rawDeflate);
+        if (!pixels) return null;
+        if (predictor >= 10) {
+            pixels = _desfazerPngPredictor(pixels, origW, canais, 8);
+            if (!pixels) return null;
+        }
         const esperado = origW * origH * canais;
-        if (!pixels || pixels.byteLength < esperado) return null;
+        if (pixels.byteLength < esperado) return null;
 
         try {
             const rgba = new Uint8ClampedArray(origW * origH * 4);
@@ -761,31 +836,25 @@
             dstCtx.fillRect(0, 0, w, h);
             dstCtx.drawImage(srcCanvas, 0, 0, w, h);
 
-            let blobOut;
-            if (typeof dstCanvas.convertToBlob === 'function') {
-                blobOut = await dstCanvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
-            } else {
-                blobOut = await new Promise((res, rej) =>
-                    dstCanvas.toBlob(b => (b ? res(b) : rej(new Error('toBlob null'))), 'image/jpeg', qualidade)
-                );
-            }
-            const outBytes = new Uint8Array(await blobOut.arrayBuffer());
-            if (outBytes.byteLength >= rawDeflate.byteLength) return null;
-            return { bytes: outBytes, width: w, height: h };
+            const r1 = await _canvasPara1BitFlate(dstCanvas, w, h, 185);
+            if (r1 && r1.bytes.byteLength < rawDeflate.byteLength) return r1;
+            return null;
         } catch (e) {
             return null;
         }
     }
 
-    async function _otimizarPdfAnexoAntesDeMesclar(srcDoc, rawLen) {
+    async function _otimizarPdfAnexoAntesDeMesclar(srcDoc, rawLen, maxLadoPagina) {
         if (!rawLen || rawLen < PDF_MIN_BYTES_OTIMIZAR) return 0;
         const lib = _getPdfLib();
         const PDFName = lib.PDFName;
         const PDFNumber = lib.PDFNumber;
+        const PDFArray = lib.PDFArray;
         const PDFRawStream = lib.PDFRawStream;
         if (!PDFName || !PDFNumber || !PDFRawStream || !srcDoc.context) return 0;
 
         let otimizadas = 0;
+        const ctxLookup = obj => (obj ? srcDoc.context.lookup(obj) : undefined);
         const kSubtype = PDFName.of('Subtype');
         const kImage = PDFName.of('Image');
         const kFilter = PDFName.of('Filter');
@@ -799,41 +868,59 @@
         const kBpc = PDFName.of('BitsPerComponent');
         const kLength = PDFName.of('Length');
         const kDecodeParms = PDFName.of('DecodeParms');
+        const kPredictor = PDFName.of('Predictor');
         const kSmask = PDFName.of('SMask');
 
         for (const [, obj] of srcDoc.context.enumerateIndirectObjects()) {
             if (!(obj instanceof PDFRawStream)) continue;
             const dict = obj.dict;
-            if (!dict || dict.get(kSubtype) !== kImage) continue;
-            if (dict.get(kSmask)) continue; // preserva máscaras alfa intactas
-            const flt = dict.get(kFilter);
+            if (!dict || ctxLookup(dict.get(kSubtype)) !== kImage) continue;
             const contents = obj.contents;
             if (!contents || contents.byteLength < IMG_MIN_BYTES_OTIMIZAR) continue;
 
+            let flt = ctxLookup(dict.get(kFilter));
+            if (PDFArray && flt instanceof PDFArray && flt.size() === 1) {
+                flt = ctxLookup(flt.get(0));
+            }
+            const temSmask = Boolean(dict.get(kSmask));
             let ot = null;
+
             if (flt === kDct) {
-                ot = await _otimizarImagemBytesGrayscale(contents, 'image/jpeg');
-            } else if (flt === kFlate && !dict.get(kDecodeParms)) {
-                const bpcObj = dict.get(kBpc);
-                const wObj = dict.get(kWidth);
-                const hObj = dict.get(kHeight);
-                const csObj = dict.get(kColorSpace);
-                const bpc = bpcObj && typeof bpcObj.asNumber === 'function' ? bpcObj.asNumber() : 8;
-                const ow = wObj && typeof wObj.asNumber === 'function' ? wObj.asNumber() : 0;
-                const oh = hObj && typeof hObj.asNumber === 'function' ? hObj.asNumber() : 0;
-                const canais = csObj === kDeviceGray ? 1 : (csObj === kDeviceRGB ? 3 : 0);
-                if (bpc === 8 && canais && ow && oh) {
-                    ot = await _otimizarFlateImageGrayscale(contents, ow, oh, canais);
+                if (temSmask) {
+                    // Tarjas laterais com SMask (~36KB/pág): reduz JPEG mantendo o SMask
+                    ot = await _otimizarImagemBytesGrayscale(contents, 'image/jpeg', 450, 0.35, false);
+                } else {
+                    ot = await _otimizarImagemBytesGrayscale(contents, 'image/jpeg', maxLadoPagina || IMG_MAX_LADO_PX, 0.50, true);
+                }
+            } else if (flt === kFlate && !temSmask) {
+                const parms = ctxLookup(dict.get(kDecodeParms));
+                let predictor = 1;
+                if (parms && typeof parms.get === 'function') {
+                    const pObj = ctxLookup(parms.get(kPredictor));
+                    if (pObj && typeof pObj.asNumber === 'function') predictor = pObj.asNumber();
+                }
+                if (predictor === 1 || (predictor >= 10 && predictor <= 15)) {
+                    const bpcObj = ctxLookup(dict.get(kBpc));
+                    const wObj = ctxLookup(dict.get(kWidth));
+                    const hObj = ctxLookup(dict.get(kHeight));
+                    const csObj = ctxLookup(dict.get(kColorSpace));
+                    const bpc = bpcObj && typeof bpcObj.asNumber === 'function' ? bpcObj.asNumber() : 8;
+                    const ow = wObj && typeof wObj.asNumber === 'function' ? wObj.asNumber() : 0;
+                    const oh = hObj && typeof hObj.asNumber === 'function' ? hObj.asNumber() : 0;
+                    const canais = csObj === kDeviceGray ? 1 : (csObj === kDeviceRGB ? 3 : 0);
+                    if (bpc === 8 && canais && ow && oh) {
+                        ot = await _otimizarFlateImage1Bit(contents, ow, oh, canais, predictor, maxLadoPagina || IMG_MAX_LADO_PX);
+                    }
                 }
             }
             if (!ot) continue;
 
             obj.contents = ot.bytes;
-            dict.set(kFilter, kDct);
+            dict.set(kFilter, ot.flate1Bit ? kFlate : kDct);
             dict.set(kWidth, PDFNumber.of(ot.width));
             dict.set(kHeight, PDFNumber.of(ot.height));
-            dict.set(kColorSpace, kDeviceRGB);
-            dict.set(kBpc, PDFNumber.of(8));
+            dict.set(kColorSpace, ot.flate1Bit ? kDeviceGray : kDeviceRGB);
+            dict.set(kBpc, PDFNumber.of(ot.bpc || 8));
             dict.set(kLength, PDFNumber.of(ot.bytes.byteLength));
             dict.delete(kDecodeParms);
             otimizadas += 1;
@@ -841,24 +928,112 @@
         return otimizadas;
     }
 
-    async function _anexarBytesAoPdf(pdfDestino, bytes, contentType, nomeArquivo, avisos) {
+    function _bytesIguais(a, b) {
+        if (a === b) return true;
+        if (!a || !b || a.byteLength !== b.byteLength) return false;
+        for (let i = 0; i < a.byteLength; i++) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    }
+
+    function _deduplicarStreamsIdenticosPdfLib(pdfDoc) {
+        const lib = _getPdfLib();
+        const PDFRawStream = lib.PDFRawStream;
+        const PDFDict = lib.PDFDict;
+        const PDFArray = lib.PDFArray;
+        const PDFRef = lib.PDFRef;
+        if (!PDFRawStream || !PDFDict || !PDFArray || !PDFRef || !pdfDoc || !pdfDoc.context) return 0;
+
+        // Passa 2 rodadas para deduplicar primeiro SMasks/folhas e depois imagens que apontam para eles
+        let totalRemovidos = 0;
+        for (let rodada = 0; rodada < 2; rodada++) {
+            const buckets = new Map();
+            const remap = new Map();
+
+            for (const [ref, obj] of pdfDoc.context.enumerateIndirectObjects()) {
+                if (!(obj instanceof PDFRawStream)) continue;
+                const c = obj.contents;
+                if (!c || c.byteLength < 1024) continue;
+                const sig = _hashBytesRapido(c) + '|' + obj.dict.toString();
+                let lista = buckets.get(sig);
+                if (!lista) {
+                    lista = [];
+                    buckets.set(sig, lista);
+                }
+                let canonRef = null;
+                for (const cand of lista) {
+                    if (_bytesIguais(cand.bytes, c)) {
+                        canonRef = cand.ref;
+                        break;
+                    }
+                }
+                if (canonRef) {
+                    remap.set(ref.toString(), { oldRef: ref, newRef: canonRef });
+                } else {
+                    lista.push({ ref, bytes: c });
+                }
+            }
+
+            if (!remap.size) break;
+
+            function _substituirEmEstrutura(node) {
+                if (!node) return;
+                if (node instanceof PDFDict) {
+                    for (const [k, v] of node.entries()) {
+                        if (v instanceof PDFRef) {
+                            const m = remap.get(v.toString());
+                            if (m) node.set(k, m.newRef);
+                        } else if (v instanceof PDFDict || v instanceof PDFArray) {
+                            _substituirEmEstrutura(v);
+                        }
+                    }
+                } else if (node instanceof PDFArray) {
+                    const sz = node.size();
+                    for (let i = 0; i < sz; i++) {
+                        const v = node.get(i);
+                        if (v instanceof PDFRef) {
+                            const m = remap.get(v.toString());
+                            if (m) node.set(i, m.newRef);
+                        } else if (v instanceof PDFDict || v instanceof PDFArray) {
+                            _substituirEmEstrutura(v);
+                        }
+                    }
+                }
+            }
+
+            for (const [ref, obj] of pdfDoc.context.enumerateIndirectObjects()) {
+                if (remap.has(ref.toString())) continue;
+                if (obj instanceof PDFRawStream) _substituirEmEstrutura(obj.dict);
+                else if (obj instanceof PDFDict || obj instanceof PDFArray) _substituirEmEstrutura(obj);
+            }
+
+            for (const { oldRef } of remap.values()) {
+                pdfDoc.context.delete(oldRef);
+                totalRemovidos += 1;
+            }
+        }
+        return totalRemovidos;
+    }
+
+    async function _anexarBytesAoPdf(pdfDestino, bytes, contentType, nomeArquivo, avisos, maxLadoPagina) {
         const { PDFDocument } = _getPdfLib();
         if (_isPdfBytes(bytes) || contentType.includes('pdf')) {
             const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
-            await _otimizarPdfAnexoAntesDeMesclar(src, bytes.byteLength);
+            await _otimizarPdfAnexoAntesDeMesclar(src, bytes.byteLength, maxLadoPagina);
             const paginas = await pdfDestino.copyPages(src, src.getPageIndices());
             for (const p of paginas) pdfDestino.addPage(p);
             return paginas.length;
         }
         if (contentType.includes('png') || /\.png$/i.test(nomeArquivo || '')) {
-            const ot = await _otimizarImagemBytesGrayscale(bytes, 'image/png');
+            const ot = await _otimizarImagemBytesGrayscale(bytes, 'image/png', maxLadoPagina || IMG_MAX_LADO_PX, 0.50, false);
             const img = ot ? await pdfDestino.embedJpg(ot.bytes) : await pdfDestino.embedPng(bytes);
             const page = pdfDestino.addPage([img.width, img.height]);
             page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
             return 1;
         }
         if (contentType.includes('jpeg') || contentType.includes('jpg') || /\.jpe?g$/i.test(nomeArquivo || '')) {
-            const ot = await _otimizarImagemBytesGrayscale(bytes, 'image/jpeg');
+            const ot = await _otimizarImagemBytesGrayscale(bytes, 'image/jpeg', maxLadoPagina || IMG_MAX_LADO_PX, 0.50, false);
             const img = await pdfDestino.embedJpg(ot ? ot.bytes : bytes);
             const page = pdfDestino.addPage([img.width, img.height]);
             page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
@@ -1118,16 +1293,25 @@
             }
         }
 
+        const maxLadoLote = filaDownloads.length >= 10 ? 1020 : IMG_MAX_LADO_PX;
+        const hashesInseridos = new Set();
+
         for (let i = 0; i < filaDownloads.length; i++) {
             const { tarefa, arquivo } = filaDownloads[i];
             const nomeArq = arquivo.nomeArquivo || ('anexo_' + arquivo.id + '.pdf');
-            onStatus('Baixando e mesclando anexo ' + (i + 1) + '/' + filaDownloads.length + ': ' + nomeArq);
+            onStatus('Baixando e comprimindo anexo ' + (i + 1) + '/' + filaDownloads.length + ': ' + nomeArq);
             try {
                 const { bytes, contentType } = await baixarArquivoAnexo(tarefa.idTarefa, tarefa.idResultado, arquivo.id);
+                const sigHash = _hashBytesRapido(bytes);
+                if (hashesInseridos.has(sigHash)) {
+                    avisos.push('Anexo duplicado ignorado: ' + nomeArq);
+                    continue;
+                }
+                hashesInseridos.add(sigHash);
                 if (opts.enriquecerNomeArisp && (_isPdfBytes(bytes) || contentType.includes('pdf'))) {
                     fontesArisp.push(_extrairTextoRapidoPdfBytes(bytes));
                 }
-                const pags = await _anexarBytesAoPdf(pdfFinal, bytes, contentType, nomeArq, avisos);
+                const pags = await _anexarBytesAoPdf(pdfFinal, bytes, contentType, nomeArq, avisos, maxLadoLote);
                 totalPaginas += pags;
                 resumoArquivos.push({
                     origem: 'anexo',
@@ -1219,7 +1403,8 @@
             return partes;
         }
 
-        onStatus('Comprimindo e salvando PDF (' + totalPaginas + ' páginas)...');
+        onStatus('Otimizando e salvando PDF (' + totalPaginas + ' páginas)...');
+        _deduplicarStreamsIdenticosPdfLib(pdfFinal);
         const pdfBytes = await pdfFinal.save(SAVE_OPTS_COMPRIMIDO);
         let nomeSaida = opts.nomeArquivo || ('Poupa Convenios - ' + num + '.pdf');
         if (opts.enriquecerNomeArisp) {
@@ -1290,10 +1475,27 @@
             return String(t.tipoTarefa || t.nomeTarefa || '').toUpperCase().includes('RENAJUD');
         }
 
+        function _extrairIndiceParteArisp(nomeArq) {
+            const s = String(nomeArq || '').replace(/\.pdf$/i, '').trim();
+            const m = s.match(/(?:[-_\s](?:otimizado|parte|pt|pag)[-_.\s]*|_)(\d{1,3})$/i);
+            return m ? parseInt(m[1], 10) : 0;
+        }
+
+        function _chaveImovelCanonica(matricula, cartorio) {
+            if (!matricula) return '';
+            const cNorm = _normCmp(cartorio || '');
+            const mOficio = cNorm.match(/\b(\d{1,2})\s*(?:O|º|°)?\s*(?:CRI|CARTORIO|SP|OFICIO|RI)\b/) || cNorm.match(/^(\d{1,2})SP$/);
+            const sufixo = mOficio ? ('CRI' + mOficio[1]) : cNorm.replace(/[^A-Z0-9]/g, '').slice(0, 12);
+            return matricula + '|' + sufixo;
+        }
+
         // Regra por parte executada (Art. 131 CNC):
-        // Positivas divididas em: (a) ARISP 1 por 1, (b) Renajud agrupado, (c) Demais agrupado.
+        // Positivas divididas em: (a) ARISP 1 PDF por matrícula (reunindo partes _1.._N na ordem e sem repetir matrícula já gerada),
+        // (b) Renajud agrupado, (c) Demais agrupado.
         // Negativas: 1 PDF agrupado por parte executada.
         const lotes = [];
+        const matriculasEmitidasGlobal = new Set();
+
         for (const g of grupos) {
             const nomeCurto = nomesCurtos.get(g.documento) || g.nomeEmpresa;
             const ordenadas = _ordenarPositivasDepoisNegativas(g.tarefas);
@@ -1304,7 +1506,6 @@
             const posRenajud = pos.filter(t => !_ehArisp(t) && _ehRenajud(t));
             const posDemais = pos.filter(t => !_ehArisp(t) && !_ehRenajud(t));
 
-            // ARISP positivo: sempre 1 PDF por arquivo anexo (nunca agrupa matrículas diferentes)
             for (let idx = 0; idx < posArisp.length; idx++) {
                 const tArisp = posArisp[idx];
                 let arqsArisp = [];
@@ -1328,27 +1529,70 @@
                         nomeArquivo: _sanitizarNomeArquivo(nomeCurto + ' (ARISP OK' + sufixo + ')') + '.pdf',
                     });
                 } else {
-                    const contagemNomes = new Map();
-                    for (let ai = 0; ai < arqsArisp.length; ai++) {
-                        const arq = arqsArisp[ai];
-                        const detalhe = _extrairInfoArispDeFontes([arq && arq.nomeArquivo ? arq.nomeArquivo : '']);
-                        let baseNome = detalhe
-                            ? (nomeCurto + ' (ARISP OK - ' + detalhe + ')')
-                            : (nomeCurto + ' (ARISP OK ' + (ai + 1) + ')');
-                        const kNorm = _normCmp(baseNome);
-                        const nUso = (contagemNomes.get(kNorm) || 0) + 1;
-                        contagemNomes.set(kNorm, nUso);
-                        if (nUso > 1) {
-                            baseNome = baseNome.replace(/\)$/, ' ' + nUso + ')');
+                    // 1) Deduplica uploads idênticos (mesmo nome normalizado na mesma tarefa, ex: Mat 52093 subida 2x)
+                    const nomesVistosTarefa = new Set();
+                    const gruposMat = new Map();
+                    const avulsos = [];
+
+                    for (const arq of arqsArisp) {
+                        const nomeRaw = String((arq && arq.nomeArquivo) || '');
+                        const chaveNome = _normCmp(nomeRaw);
+                        if (chaveNome && nomesVistosTarefa.has(chaveNome)) continue;
+                        if (chaveNome) nomesVistosTarefa.add(chaveNome);
+
+                        const info = _extrairMatriculaECartorioTexto(nomeRaw);
+                        const detalhe = _extrairInfoArispDeFontes([nomeRaw]);
+                        const parteNum = _extrairIndiceParteArisp(nomeRaw);
+
+                        if (info.matriculas.length === 1) {
+                            const mat = info.matriculas[0];
+                            const kImovel = _chaveImovelCanonica(mat, info.cartorio);
+                            if (!gruposMat.has(kImovel)) {
+                                gruposMat.set(kImovel, {
+                                    kImovel,
+                                    detalhe: detalhe || ('Mat ' + mat),
+                                    itens: [],
+                                });
+                            }
+                            gruposMat.get(kImovel).itens.push({ arq, parteNum });
+                        } else {
+                            avulsos.push({ arq, detalhe });
                         }
+                    }
+
+                    // 2) Gera 1 único lote por matrícula (com partes _1.._N ordenadas!), pulando imóvel já emitido no processo
+                    for (const grp of gruposMat.values()) {
+                        if (grp.kImovel && matriculasEmitidasGlobal.has(grp.kImovel)) continue;
+                        if (grp.kImovel) matriculasEmitidasGlobal.add(grp.kImovel);
+
+                        grp.itens.sort((a, b) => (a.parteNum - b.parteNum));
+                        const baseNome = nomeCurto + ' (ARISP OK - ' + grp.detalhe + ')';
                         lotes.push({
                             documento: g.documento,
                             nomeEmpresa: g.nomeEmpresa,
                             nomeCurto,
                             tipoLote: 'ARISP_OK',
                             tarefas: [tArisp],
-                            arquivosPreFiltrados: [{ tarefa: tArisp, arquivo: arq }],
-                            enriquecerNoMerge: !detalhe,
+                            arquivosPreFiltrados: grp.itens.map(x => ({ tarefa: tArisp, arquivo: x.arq })),
+                            enriquecerNoMerge: false,
+                            nomeArquivo: _sanitizarNomeArquivo(baseNome) + '.pdf',
+                        });
+                    }
+
+                    // 3) Anexos sem matrícula no nome ficam individuais numerados
+                    for (let ai = 0; ai < avulsos.length; ai++) {
+                        const av = avulsos[ai];
+                        const baseNome = av.detalhe
+                            ? (nomeCurto + ' (ARISP OK - ' + av.detalhe + ')')
+                            : (nomeCurto + ' (ARISP OK ' + (ai + 1) + ')');
+                        lotes.push({
+                            documento: g.documento,
+                            nomeEmpresa: g.nomeEmpresa,
+                            nomeCurto,
+                            tipoLote: 'ARISP_OK',
+                            tarefas: [tArisp],
+                            arquivosPreFiltrados: [{ tarefa: tArisp, arquivo: av.arq }],
+                            enriquecerNoMerge: !av.detalhe,
                             nomeArquivo: _sanitizarNomeArquivo(baseNome) + '.pdf',
                         });
                     }

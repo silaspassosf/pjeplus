@@ -531,10 +531,11 @@ def _baixar_arquivo_anexo(client: Any, id_tarefa: Any, id_resultado: Any, id_arq
 
 
 MAX_PDF_BYTES = int(9.5 * 1024 * 1024)  # margem segura abaixo de 10 MB
-_FITZ_SAVE_KW = dict(garbage=4, deflate=True, deflate_images=True, deflate_fonts=True)
-_IMG_MIN_BYTES_OTIMIZAR = 50 * 1024
-_IMG_MAX_LADO_PX = 1240  # ~120-150 DPI em A4
-_IMG_JPEG_QUALIDADE = 58
+# Sem deflate_images=True para não descomprimir/desfazer streams JPEG/1-bit otimizados
+_FITZ_SAVE_KW = dict(garbage=4, deflate=True, deflate_fonts=True)
+_IMG_MIN_BYTES_OTIMIZAR = 18 * 1024
+_IMG_MAX_LADO_PX = 1350  # ~160 DPI em A4 (1100 quando lote >= 80 págs)
+_IMG_JPEG_QUALIDADE = 50
 
 
 def _otimizar_imagem_grayscale_bytes(
@@ -551,7 +552,7 @@ def _otimizar_imagem_grayscale_bytes(
         from PIL import Image
 
         im = Image.open(io.BytesIO(raw)).convert("L")
-        im.thumbnail((max_lado, int(max_lado * 1.42)), Image.Resampling.LANCZOS)
+        im.thumbnail((max_lado, int(max_lado * 1.45)), Image.Resampling.LANCZOS)
         out = io.BytesIO()
         im.save(out, format="JPEG", quality=qualidade, optimize=True)
         novo = out.getvalue()
@@ -561,9 +562,15 @@ def _otimizar_imagem_grayscale_bytes(
 
 
 def _otimizar_imagens_pdf_rapido(doc: Any) -> int:
-    """Re-comprime in-place imagens grandes (>=50KB) do PDF para grayscale + DPI comprimido sem rasterizar texto."""
+    """Converte páginas escaneadas para 1-bit P&B (/FlateDecode) e reduz tarjas /SMask sem rasterizar texto."""
+    import io
+    import zlib
+    from PIL import Image
+
     otimizadas = 0
     vistos: set = set()
+    max_lado_pag = 1100 if doc.page_count >= 80 else _IMG_MAX_LADO_PX
+
     for pg in doc:
         try:
             imgs = pg.get_images(full=True)
@@ -575,14 +582,45 @@ def _otimizar_imagens_pdf_rapido(doc: Any) -> int:
                 continue
             vistos.add(xref)
             try:
+                st_orig = doc.xref_stream_raw(xref)
+                if not st_orig or len(st_orig) < _IMG_MIN_BYTES_OTIMIZAR:
+                    continue
+                obj_str = doc.xref_object(xref)
                 base = doc.extract_image(xref)
                 raw = base.get("image") if base else None
-                if not raw or len(raw) < _IMG_MIN_BYTES_OTIMIZAR:
+                if not raw:
                     continue
-                novo = _otimizar_imagem_grayscale_bytes(raw)
-                if novo:
-                    pg.replace_image(xref, stream=novo)
-                    otimizadas += 1
+                im = Image.open(io.BytesIO(raw)).convert("L")
+
+                if "/SMask" in obj_str:
+                    # Tarja lateral repetida (~36KB/pág): reduz JPEG mantendo SMask
+                    im.thumbnail((450, 1200), Image.Resampling.LANCZOS)
+                    out = io.BytesIO()
+                    im.save(out, format="JPEG", quality=35, optimize=True)
+                    nv = out.getvalue()
+                    if len(nv) < len(st_orig):
+                        doc.xref_set_key(xref, "Width", str(im.width))
+                        doc.xref_set_key(xref, "Height", str(im.height))
+                        doc.xref_set_key(xref, "ColorSpace", "/DeviceGray")
+                        doc.xref_set_key(xref, "BitsPerComponent", "8")
+                        doc.xref_set_key(xref, "Filter", "/DCTDecode")
+                        doc.xref_set_key(xref, "DecodeParms", "null")
+                        doc.update_stream(xref, nv, compress=False)
+                        otimizadas += 1
+                else:
+                    if max(im.size) > max_lado_pag:
+                        im.thumbnail((max_lado_pag, int(max_lado_pag * 1.45)), Image.Resampling.LANCZOS)
+                    im1 = im.point(lambda p: 255 if p > 185 else 0, mode="1")
+                    comp = zlib.compress(im1.tobytes(), level=6)
+                    if len(comp) < len(st_orig):
+                        doc.xref_set_key(xref, "Width", str(im1.width))
+                        doc.xref_set_key(xref, "Height", str(im1.height))
+                        doc.xref_set_key(xref, "ColorSpace", "/DeviceGray")
+                        doc.xref_set_key(xref, "BitsPerComponent", "1")
+                        doc.xref_set_key(xref, "Filter", "/FlateDecode")
+                        doc.xref_set_key(xref, "DecodeParms", "null")
+                        doc.update_stream(xref, comp, compress=False)
+                        otimizadas += 1
             except Exception:
                 continue
     return otimizadas
@@ -790,6 +828,7 @@ def _mesclar_lote_em_pdf(
                 for arq in _listar_arquivos_tarefa(client, t["idTarefa"], t["idResultado"]):
                     fila_anexos.append((t, arq))
 
+        hashes_inseridos: set = set()
         for t, arq in fila_anexos:
             id_arq = arq.get("id")
             nome_arq = str(arq.get("nomeArquivo") or f"anexo_{id_arq}.pdf")
@@ -798,7 +837,13 @@ def _mesclar_lote_em_pdf(
             if not id_arq:
                 continue
             try:
+                import hashlib
                 raw, ctype = _baixar_arquivo_anexo(client, t["idTarefa"], t["idResultado"], id_arq)
+                sig_md5 = hashlib.md5(raw).hexdigest()
+                if sig_md5 in hashes_inseridos:
+                    avisos.append(f"Anexo duplicado ignorado: {nome_arq}")
+                    continue
+                hashes_inseridos.add(sig_md5)
                 if raw[:5] == b"%PDF-" or "pdf" in ctype:
                     with fitz.open(stream=raw, filetype="pdf") as doc_anx:
                         if enriquecer_nome_arisp:
@@ -869,9 +914,24 @@ def gerar_pdfs_por_empresa(
     def _eh_renajud(t: Dict[str, Any]) -> bool:
         return "RENAJUD" in str(t.get("tipoTarefa") or t.get("nomeTarefa") or "").upper()
 
+    def _extrair_indice_parte_arisp(nome_arq: str) -> int:
+        s = re.sub(r"\.pdf$", "", str(nome_arq or ""), flags=re.I).strip()
+        m = re.search(r"(?:[-_\s](?:otimizado|parte|pt|pag)[-_.\s]*|_)(\d{1,3})$", s, re.I)
+        return int(m.group(1)) if m else 0
+
+    def _chave_imovel_canonica(matricula: str, cartorio: str) -> str:
+        if not matricula:
+            return ""
+        c_norm = _norm_cmp(cartorio or "")
+        m_of = re.search(r"\b(\d{1,2})\s*(?:O|º|°)?\s*(?:CRI|CARTORIO|SP|OFICIO|RI)\b", c_norm) or re.match(r"^(\d{1,2})SP$", c_norm)
+        sufixo = f"CRI{m_of.group(1)}" if m_of else re.sub(r"[^A-Z0-9]", "", c_norm)[:12]
+        return f"{matricula}|{sufixo}"
+
     lotes: List[Dict[str, Any]] = []
+    matriculas_emitidas_global: set = set()
     # Regra por parte executada (Art. 131 CNC):
-    # Positivas: (a) ARISP 1 arquivo por PDF, (b) Renajud agrupado, (c) Demais agrupado.
+    # Positivas: (a) ARISP 1 PDF por matrícula (reunindo partes _1.._N na ordem e sem repetir matrícula já gerada),
+    # (b) Renajud agrupado, (c) Demais agrupado.
     # Negativas: 1 PDF agrupado por parte executada.
     _ = separar_positivas_negativas
     for g in grupos:
@@ -901,18 +961,58 @@ def gerar_pdfs_por_empresa(
                     "enriquecer": True,
                 })
             else:
-                contagem_nomes: Dict[str, int] = {}
-                for ai, arq in enumerate(arqs_arisp, start=1):
-                    detalhe = _extrair_info_arisp_de_fontes([str(arq.get("nomeArquivo") or "")])
+                nomes_vistos_tarefa: set = set()
+                grupos_mat: Dict[str, Dict[str, Any]] = {}
+                avulsos: List[Tuple[Dict[str, Any], str]] = []
+
+                for arq in arqs_arisp:
+                    nome_raw = str(arq.get("nomeArquivo") or "")
+                    chave_nome = _norm_cmp(nome_raw)
+                    if chave_nome and chave_nome in nomes_vistos_tarefa:
+                        continue
+                    if chave_nome:
+                        nomes_vistos_tarefa.add(chave_nome)
+
+                    mats, cart = _extrair_matricula_e_cartorio_texto(nome_raw)
+                    detalhe = _extrair_info_arisp_de_fontes([nome_raw])
+                    parte_num = _extrair_indice_parte_arisp(nome_raw)
+
+                    if len(mats) == 1:
+                        mat = mats[0]
+                        k_imovel = _chave_imovel_canonica(mat, cart)
+                        if k_imovel not in grupos_mat:
+                            grupos_mat[k_imovel] = {
+                                "k_imovel": k_imovel,
+                                "detalhe": detalhe or f"Mat {mat}",
+                                "itens": [],
+                            }
+                        grupos_mat[k_imovel]["itens"].append((parte_num, arq))
+                    else:
+                        avulsos.append((arq, detalhe))
+
+                for grp in grupos_mat.values():
+                    k_im = grp["k_imovel"]
+                    if k_im and k_im in matriculas_emitidas_global:
+                        continue
+                    if k_im:
+                        matriculas_emitidas_global.add(k_im)
+                    grp["itens"].sort(key=lambda x: x[0])
+                    base_nome = f"{nome_curto} (ARISP OK - {grp['detalhe']})"
+                    lotes.append({
+                        "doc": g["documento"],
+                        "tipo": "ARISP_OK",
+                        "nome": _sanitizar_nome_arquivo(base_nome) + ".pdf",
+                        "tarefas": [t_arisp],
+                        "arquivos_pre": [(t_arisp, a) for _, a in grp["itens"]],
+                        "enriquecer": False,
+                    })
+
+                for ai, (arq, detalhe) in enumerate(avulsos, start=1):
                     base_nome = (
                         f"{nome_curto} (ARISP OK - {detalhe})"
                         if detalhe
                         else f"{nome_curto} (ARISP OK {ai})"
                     )
-                    k_norm = _norm_cmp(base_nome)
-                    contagem_nomes[k_norm] = contagem_nomes.get(k_norm, 0) + 1
-                    if contagem_nomes[k_norm] > 1:
-                        base_nome = re.sub(r"\)$", f" {contagem_nomes[k_norm]})", base_nome)
                     lotes.append({
                         "doc": g["documento"],
                         "tipo": "ARISP_OK",

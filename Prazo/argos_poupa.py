@@ -531,8 +531,8 @@ def _baixar_arquivo_anexo(client: Any, id_tarefa: Any, id_resultado: Any, id_arq
 
 
 MAX_PDF_BYTES = int(9.5 * 1024 * 1024)  # margem segura abaixo de 10 MB
-# Sem deflate_images=True para não descomprimir/desfazer streams JPEG/1-bit otimizados
-_FITZ_SAVE_KW = dict(garbage=4, deflate=True, deflate_fonts=True)
+# Sem deflate_images=True para não descomprimir/desfazer streams JPEG/1-bit otimizados; use_objstms=1 igual ao pdf-lib
+_FITZ_SAVE_KW = dict(garbage=4, deflate=True, deflate_fonts=True, clean=True, use_objstms=1)
 _IMG_MIN_BYTES_OTIMIZAR = 18 * 1024
 _IMG_MAX_LADO_PX = 1350  # ~160 DPI em A4 (1100 quando lote >= 80 págs)
 _IMG_JPEG_QUALIDADE = 50
@@ -569,15 +569,20 @@ def _otimizar_imagens_pdf_rapido(doc: Any) -> int:
 
     otimizadas = 0
     vistos: set = set()
-    max_lado_pag = 1100 if doc.page_count >= 80 else _IMG_MAX_LADO_PX
+    max_lado_pag = 1020 if doc.page_count >= 80 else _IMG_MAX_LADO_PX
 
     for pg in doc:
         try:
             imgs = pg.get_images(full=True)
         except Exception:
             continue
+        candidatos: List[int] = []
         for info in imgs:
-            xref = info[0]
+            if info[0]:
+                candidatos.append(info[0])
+            if len(info) > 1 and info[1]:
+                candidatos.append(info[1])  # inclui também o stream SMask (igual ao JS)
+        for xref in candidatos:
             if xref in vistos:
                 continue
             vistos.add(xref)
@@ -593,8 +598,8 @@ def _otimizar_imagens_pdf_rapido(doc: Any) -> int:
                 im = Image.open(io.BytesIO(raw)).convert("L")
 
                 if "/SMask" in obj_str:
-                    # Tarja lateral repetida (~36KB/pág): reduz JPEG mantendo SMask
-                    im.thumbnail((450, 1200), Image.Resampling.LANCZOS)
+                    # Mesma regra do JS (maxLado=450 no maior lado -> 66x450 na tarja 492x3046)
+                    im.thumbnail((450, 450), Image.Resampling.LANCZOS)
                     out = io.BytesIO()
                     im.save(out, format="JPEG", quality=35, optimize=True)
                     nv = out.getvalue()
@@ -609,7 +614,7 @@ def _otimizar_imagens_pdf_rapido(doc: Any) -> int:
                         otimizadas += 1
                 else:
                     if max(im.size) > max_lado_pag:
-                        im.thumbnail((max_lado_pag, int(max_lado_pag * 1.45)), Image.Resampling.LANCZOS)
+                        im.thumbnail((max_lado_pag, max_lado_pag), Image.Resampling.LANCZOS)
                     im1 = im.point(lambda p: 255 if p > 185 else 0, mode="1")
                     comp = zlib.compress(im1.tobytes(), level=6)
                     if len(comp) < len(st_orig):

@@ -552,7 +552,7 @@ def _otimizar_imagem_grayscale_bytes(
         from PIL import Image
 
         im = Image.open(io.BytesIO(raw)).convert("L")
-        im.thumbnail((max_lado, int(max_lado * 1.45)), Image.Resampling.LANCZOS)
+        im.thumbnail((max_lado, max_lado), Image.Resampling.BILINEAR)
         out = io.BytesIO()
         im.save(out, format="JPEG", quality=qualidade, optimize=True)
         novo = out.getvalue()
@@ -599,7 +599,7 @@ def _otimizar_imagens_pdf_rapido(doc: Any) -> int:
 
                 if "/SMask" in obj_str:
                     # Mesma regra do JS (maxLado=450 no maior lado -> 66x450 na tarja 492x3046)
-                    im.thumbnail((450, 450), Image.Resampling.LANCZOS)
+                    im.thumbnail((450, 450), Image.Resampling.BILINEAR)
                     out = io.BytesIO()
                     im.save(out, format="JPEG", quality=35, optimize=True)
                     nv = out.getvalue()
@@ -614,9 +614,9 @@ def _otimizar_imagens_pdf_rapido(doc: Any) -> int:
                         otimizadas += 1
                 else:
                     if max(im.size) > max_lado_pag:
-                        im.thumbnail((max_lado_pag, max_lado_pag), Image.Resampling.LANCZOS)
+                        im.thumbnail((max_lado_pag, max_lado_pag), Image.Resampling.BILINEAR)
                     im1 = im.point(lambda p: 255 if p > 185 else 0, mode="1")
-                    comp = zlib.compress(im1.tobytes(), level=6)
+                    comp = zlib.compress(im1.tobytes(), level=9)
                     if len(comp) < len(st_orig):
                         doc.xref_set_key(xref, "Width", str(im1.width))
                         doc.xref_set_key(xref, "Height", str(im1.height))

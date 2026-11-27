@@ -88,7 +88,6 @@
                 resolve('');
                 return;
             }
-            var anterior = lerToken();
             var resolvido = false;
             var listenerId = null;
             var timer = null;
@@ -107,12 +106,14 @@
 
             listenerId = GM_addValueChangeListener(CHAVE_TOKEN, function (_name, _oldVal, newVal) {
                 var limpo = limparToken(newVal);
-                if (limpo && limpo !== anterior) finalizar(limpo);
+                // Aceita o token vigente mesmo quando é igual ao anterior: o retry
+                // precisa do token atual da aba, não de uma mudança de valor.
+                if (limpo) finalizar(limpo);
             });
 
             timer = setTimeout(function () {
                 var atual = lerToken();
-                finalizar(atual && atual !== anterior ? atual : '');
+                finalizar(atual || '');
             }, timeoutMs || 1500);
 
             GM_setValue(CHAVE_TOKEN_REQ, Date.now());
@@ -169,19 +170,43 @@
         var resp = token ? await requisitar(url, token) : await requisitar(url, '');
         log('HTTP', resp.status, 'v1/serie', token ? '(bearer)' : '(sessao)');
 
-        if (resp.status === 401 || resp.status === 403) {
+        function recusado(r) { return r.status === 401 || r.status === 403; }
+
+        // Token "ativo" (JWT não vencido) pode ser recusado quando a sessão/escopo
+        // dele não corresponde ao processo consultado. A API também autoriza pelo
+        // cookie da aba logada do SISBAJUD: tentar sem Bearer evita o 403 antes de
+        // exigir F5 do usuário.
+        if (recusado(resp) && token) {
+            var porSessao = await requisitar(url, '');
+            log('HTTP (sem bearer)', porSessao.status, 'v1/serie (sessao)');
+            if (porSessao.status === 200) resp = porSessao;
+        }
+
+        if (recusado(resp)) {
+            var tokenAntigo = token;
             var recoletado = await pedirTokenParaAbaSisbajud(1500);
-            if (recoletado && recoletado !== token) {
+            if (recoletado) {
                 token = recoletado;
-                resp = await requisitar(url, token);
-                log('HTTP (retry)', resp.status, 'v1/serie (bearer)');
+                // Mesmo token = mesma recusa. Não repete o Bearer; vai direto à sessão.
+                if (recoletado !== tokenAntigo) {
+                    resp = await requisitar(url, token);
+                    log('HTTP (retry)', resp.status, 'v1/serie (bearer)');
+                } else {
+                    log('token recoletado é o mesmo — tentando apenas por sessão');
+                }
+                if (recusado(resp)) {
+                    var porSessao2 = await requisitar(url, '');
+                    log('HTTP (retry sem bearer)', porSessao2.status, 'v1/serie (sessao)');
+                    if (porSessao2.status === 200) resp = porSessao2;
+                }
             }
         }
 
-        if (resp.status === 401 || resp.status === 403) {
+        if (recusado(resp)) {
             return {
                 erro: 'API SISBAJUD recusou (HTTP ' + resp.status + '). '
-                    + 'Recarregue (F5) a aba do SISBAJUD logada para o PJeTools coletar o token e tente novamente.',
+                    + 'Abra este processo na aba do SISBAJUD logada e tente de novo; '
+                    + 'se persistir, faça logout/login nessa aba para renovar a sessão.',
             };
         }
         if (resp.status !== 200) {
